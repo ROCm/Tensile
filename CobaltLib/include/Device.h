@@ -7,11 +7,11 @@
 
 namespace Cobalt {
 /*******************************************************************************
- * Device
+ * DeviceDescriptor
  * - same proviles can use same compiled kernel(s) and solution
  * - describe device(s) to xml log so similar devices can use same profile
  ******************************************************************************/
-class Device {
+class DeviceDescriptor {
 public:
   
   std::string deviceName;
@@ -23,12 +23,12 @@ public:
  * - initializes members to zero/null
  * - user must manually override as much as it can
  ******************************************************************************/
-  Device();
+  DeviceDescriptor();
 
  /*******************************************************************************
  * comparison operator for STL
  ******************************************************************************/
-  bool operator< ( const Device & other ) const;
+  bool operator< ( const DeviceDescriptor & other ) const;
   
  /*******************************************************************************
  * toString for writing xml
@@ -46,7 +46,7 @@ public:
 class DeviceProfile {
 public:
   
-  std::vector<Device> devices;
+  std::vector<DeviceDescriptor> devices;
   
  /*******************************************************************************
  * constructor

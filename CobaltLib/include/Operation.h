@@ -36,10 +36,10 @@ enum OperationType {
 };
 
 /*******************************************************************************
- * Operation
+ * OperationDescriptor
  * - exact operation used in C = A op B
  ******************************************************************************/
-class Operation {
+class OperationDescriptor {
 public:
   
 /*******************************************************************************
@@ -54,12 +54,12 @@ public:
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-  Operation( OperationType inputOperationType, size_t inputNumDims );
+  OperationDescriptor( OperationType inputOperationType, size_t inputNumDims );
   
 /*******************************************************************************
  * comparison operator for STL
  ******************************************************************************/
-  bool operator< ( const Operation & other ) const;
+  bool operator< ( const OperationDescriptor & other ) const;
 
 /*******************************************************************************
  * toString

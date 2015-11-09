@@ -82,7 +82,7 @@ void gemm(
   Cobalt::TensorDescriptor mdC = createDescriptorForMatrix(colMajor,  false, numRowsC, numColsC);
 
   // gemm operation descriptor
-  Cobalt::Operation operation(Cobalt::OperationType::TensorContraction, 1);
+  Cobalt::OperationDescriptor operation(Cobalt::OperationType::TensorContraction, 1);
   operation.dimensions[0].a = 1;
   operation.dimensions[0].b = 0;
 
@@ -94,7 +94,7 @@ void gemm(
 
 
   // construct problem
-  Cobalt::Problem problem(mdA, mdB, mdC, operation, deviceProfile);
+  Cobalt::ProblemDescriptor problem(mdA, mdB, mdC, operation, deviceProfile);
 
   // assign solution
   problem.assignSolution();

@@ -1,6 +1,5 @@
 # Cobalt
 
-## Description
 A core math library back end to domain-specific libraries for multi-dimensional convolutions, tensor contractions, matrix-matrix multiplication, higher-order inner-products and anything else that multiplies two objects together on a gpu using any desired language (OpenCL, HSA, C++ lambda functions).
 
 ## Motivation:

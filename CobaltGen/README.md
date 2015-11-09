@@ -2,23 +2,92 @@
 
 CobaltGen is a suite of Python scripts which automates benchmarking and library source generation.
 
-## Automated benchmarking:
-CobaltGen's benchmark-writer tool:
+## (1) GenBenchmark.py: app\_log.xml -> Benchmark.cpp
 
-1. Parses out the Problems in a problems.xml generated from using CobaltLib with log mode turned on.
-2. Enumerates all possible Solutions to each Problem.
-3. Writes a benchmarking application which:
-  1. Executes all Solutions.
-  2. Chooses the fastest Solution for each Problem.
-  3. Creates a mapping Problem->Solution.
-  4. Writes the mapping to a ProblemSolutionMap.xml file.
+1. Parse Problems from AssignSolution section log.xml and create ProblemList.
+2. For each Problem in ProblemList
+  1. SolutionPerformanceParameters[] = GetSolutionsSet(problem)
+  2. SolutionSet = SolutionCorrectnessParameters
+      + SolutionPerformanceParameters[]
+  3. Problem\_SolutionSet\_List.append(Problem,SolutionSet)
+3. For each {Problem, SolutionSet} in Problem\_SolutionSet\_List
+  1. For each {Problem, Solution} pair
+    1. append Solution to MegaSolutionSet
+    2. write Problem,Solution pair to ToBeBenchmarked list std::queue
+      - queue.append(Problem,Solution); will call solution->enqueue(problem,ctrl)
+4. For each Solution in MegaSolutionSet
+    1. append kernels of Solution to KernelSet
+    2. write Solution.cpp class
+5. For each kernel of KernelSet
+  - write kernel to file
 
-## Automated library source generation:
-CobaltGen's source-writer tool:
+## (2) Benchmark.exe -> FastestSolutionForProblem.xml
+1. Options:
+  1. writes compiled kernels to file
+  2. do validation (will address all problem/solutions pairs; thorough)
+2. Preface
+  1. Allocate largest matrices
+  2. Create control obj
+3. For each SolutionSet (contains Problem)
+  1. For each Solution in SolutionSet
+    1. Solution->enqueue(Problem)
+    2. benchmark performance
+    3. validate
+  2. choose fastest Solution for Problem
+  3. write
+    1. raw .csv of Problem, Solution, performance, validated
+    2. Solution.xml of {Problem, Fastest Solution} Pairs
 
-1. Parses a ProblemSolutionMap.xml file.
-2. Writes the required GPU kernels.
-3. Writes the required host code for enqueueing the kernels.
-4. Writes the "GetSolution" method which maps Problem->Solution.
+## (3) GenLibrary.py - FastestSolutionForProblem.xml's -> CobaltLib.cpp
+1. For all Solution.xml files
+  1. For all Problem->Solution pairs
+    1. append Problem->Solution pair to SolutionMap
+      - SolutionMap[Solution].append(Problem)
+      -SolutionMap
+        - list of Problems(-Dev)
+          - list of SolutionPerformanceParameters
+2. For each SolutionCorrectnessParameters in Map
+  1. For each SolutionPerformanceParameters
+    1. condense list of Problems into list of ProblemRanges
+  2. For each ProblemRange
+    1. Write SolutionMap.cpp if Problem in ProblemRange return Solution(Correctness,Performance)
+3. Write Solution.cpp classes
+4. Write Kernels
+5. Write pre-compile app
 
-## Automated validation?
+
+
+
+
+ProblemRange
+  match dim0? min, max, mod
+  match dim1? min, max, mod
+  match write-size? min, max, mod
+  match product-size? min, max, mod
+  product-reuse range? - square, skinny, vector (dimSize=1)
+
+Problem
+  tensorA
+    precision
+    dimensions[i].size .stride
+  tensorB
+  tensorC
+  operation
+  device
+
+SolutionCorrectness
+  tensorA
+    precision
+    numDims
+    order least to greatest stride
+  tensorB
+  tensorC
+  operation
+  NOT device - don't need to know device to write kernel or enqueue
+
+
+SolutionPerformance
+  tile size
+  branches
+  alpha beta identity
+  order of dimensions

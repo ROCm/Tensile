@@ -9,11 +9,11 @@ namespace Cobalt {
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-Problem::Problem(
+ProblemDescriptor::ProblemDescriptor(
     const TensorDescriptor & inputTensorDescA,
     const TensorDescriptor & inputTensorDescB,
     const TensorDescriptor & inputTensorDescC,
-    const Operation & inputOperation,
+    const OperationDescriptor & inputOperation,
     const DeviceProfile & inputDeviceProfile )
     : tensorDescA(inputTensorDescA),
     tensorDescB(inputTensorDescB),
@@ -27,7 +27,7 @@ Problem::Problem(
 /*******************************************************************************
  * assignsolution
  ******************************************************************************/
-const Status Problem::assignSolution() {
+const Status ProblemDescriptor::assignSolution() {
   Status status;
 
   // request solution
@@ -56,7 +56,7 @@ const Status Problem::assignSolution() {
 /*******************************************************************************
  * enqueue solution
  ******************************************************************************/
-const Status Problem::enqueueSolution(
+const Status ProblemDescriptor::enqueueSolution(
     const TensorData & tensorDataA,
     const TensorData & tensorDataB,
     const TensorData & tensorDataC,
@@ -84,7 +84,7 @@ const Status Problem::enqueueSolution(
 /*******************************************************************************
  * comparison operator for stl
  ******************************************************************************/
-bool Problem::operator< (const Problem & other ) const {
+bool ProblemDescriptor::operator< (const ProblemDescriptor & other ) const {
 
   // tensor A
   if( tensorDescA < other.tensorDescA) {
@@ -129,7 +129,7 @@ bool Problem::operator< (const Problem & other ) const {
 /*******************************************************************************
  * toString
  ******************************************************************************/
-std::string Problem::toString( size_t indentLevel ) const {
+std::string ProblemDescriptor::toString( size_t indentLevel ) const {
   std::string state = Logger::indent(indentLevel);
   state += "<" + Logger::problemTag + ">\n";
   state += tensorDescA.toString( indentLevel+1);

@@ -4,6 +4,18 @@
 
 namespace Cobalt {
   
+  
+std::string precisionToString( Precision precision) {
+#define PRECISION_TO_STRING_HANDLE_CASE(X) case X: return #X;
+  std::string state;
+  switch(precision) {
+    PRECISION_TO_STRING_HANDLE_CASE(Precision::S);
+    PRECISION_TO_STRING_HANDLE_CASE(Precision::D);
+    PRECISION_TO_STRING_HANDLE_CASE(Precision::C);
+    PRECISION_TO_STRING_HANDLE_CASE(Precision::Z);
+  }
+}
+
 /*******************************************************************************
  * constructor - numDims
  ******************************************************************************/

@@ -5,10 +5,11 @@ namespace Cobalt {
 /*******************************************************************************
  * Assign Solution to Problem
  ******************************************************************************/
-Status assignSolution( Problem *problem, Solution *solution) {
+Status assignSolution( ProblemDescriptor *problem, Solution *solution) {
 
 // written by CobaltGen
-#include "AssignSolution.inl"
+//#include "AssignSolution.inl"
+  return Status();
 
 } // assignSolution
 

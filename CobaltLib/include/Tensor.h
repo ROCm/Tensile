@@ -7,9 +7,15 @@ namespace Cobalt {
   
   
 /*******************************************************************************
+ * Precision
+ ******************************************************************************/
+typedef enum Precision { S, D, C, Z } Precision;
+std::string precisionToString( Precision precision);
+  
+/*******************************************************************************
  * Tensor Data - OpenCL 1.2
  ******************************************************************************/
-#if COBALT_BACKEND_OPENCL12
+#if Cobalt_BACKEND_OPENCL12
 
 typedef struct TensorData {
   cl_mem clMem;
@@ -19,7 +25,7 @@ typedef struct TensorData {
 /*******************************************************************************
  * Tensor Data - OpenCL 2.0
  ******************************************************************************/
-#elif COBALT_BACKEND_OPENCL20
+#elif Cobalt_BACKEND_OPENCL20
 typedef enum {
   openCLBufferType_clMem,
   openClBufferType_SVM
@@ -34,13 +40,13 @@ typedef struct TensorData {
 /*******************************************************************************
  * Tensor Data - HCC
  ******************************************************************************/
-#elif COBALT_BACKEND_HCC
+#elif Cobalt_BACKEND_HCC
 typedef void* TensorData;
 
 /*******************************************************************************
  * Tensor Data - HSA
  ******************************************************************************/
-#elif COBALT_BACKEND_HSA  
+#elif Cobalt_BACKEND_HSA  
 typedef void* TensorData;
 
 #endif
@@ -73,7 +79,12 @@ class TensorDescriptor {
 public:
   
 /*******************************************************************************
- * a tensor is described by a list of dimension
+ * precision
+ ******************************************************************************/
+  Precision precision;
+
+/*******************************************************************************
+ * list of dimensions
  ******************************************************************************/
   std::vector<DimensionDescriptor> dimensions;
   

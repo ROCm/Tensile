@@ -12,13 +12,13 @@ namespace Cobalt {
 class Solution;
   
 /*******************************************************************************
- * Problem
+ * ProblemDescriptor
  * - comprised of 3 tensor descriptors, operation and DeviceProfile
  * - these values cannot change once the "problem" has been build
  * - at the end of its constructor, the problem looks up its own solution
  * - user can enqueue the solution over and over using different 
  ******************************************************************************/
-class Problem {
+class ProblemDescriptor {
 public:
 
 /*******************************************************************************
@@ -28,11 +28,11 @@ public:
  * - at the end of its constructor, the problem looks up its own solution
  * - user can enqueue the solution over and over using different 
  ******************************************************************************/
-  Problem(
+  ProblemDescriptor(
       const TensorDescriptor & inputTensorDescA,
       const TensorDescriptor & inputTensorDescB,
       const TensorDescriptor & inputTensorDescC,
-      const Operation & inputOperation,
+      const OperationDescriptor & inputOperation,
       const DeviceProfile & inputDeviceProfile );
 
   /*******************************************************************************
@@ -55,7 +55,7 @@ public:
 /*******************************************************************************
  * comparison operator for STL
  ******************************************************************************/
-  bool operator< ( const Problem & other ) const;
+  bool operator< ( const ProblemDescriptor & other ) const;
   
 /*******************************************************************************
  * toString for writing xml
@@ -64,12 +64,12 @@ public:
 
 private:
 /*******************************************************************************
- * Problem state
+ * ProblemDescriptor state
  ******************************************************************************/
   const TensorDescriptor tensorDescA;
   const TensorDescriptor tensorDescB;
   const TensorDescriptor tensorDescC;
-  const Operation operation;
+  const OperationDescriptor operation;
   const DeviceProfile deviceProfile;
 
   

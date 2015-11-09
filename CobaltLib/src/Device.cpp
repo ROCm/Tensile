@@ -8,7 +8,7 @@ namespace Cobalt {
 /*******************************************************************************
  * constructor - default
  ******************************************************************************/
-Device::Device()
+DeviceDescriptor::DeviceDescriptor()
     : deviceName("unknown"),
     numComputeUnits(0),
     clockFrequency(0) {
@@ -20,12 +20,12 @@ Device::Device()
  * comparison operator for stl
  * - TODO
  ******************************************************************************/
-bool Device::operator< ( const Device & other ) const {
+bool DeviceDescriptor::operator< ( const DeviceDescriptor & other ) const {
   return deviceName < other.deviceName;
 }
 
 
-std::string Device::toString( size_t indentLevel ) const {
+std::string DeviceDescriptor::toString( size_t indentLevel ) const {
   std::string state = Logger::indent(indentLevel);
   state += "<" + Logger::deviceTag;
   state += " " + Logger::nameAttr + "=\"" + deviceName + "\"";

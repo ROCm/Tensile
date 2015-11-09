@@ -31,7 +31,7 @@ public:
 protected:
 
 private:
-  Problem * problem; // problem used to get this solution
+  ProblemDescriptor * problem; // problem used to get this solution
 
 }; // class Solution
 

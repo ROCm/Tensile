@@ -29,7 +29,7 @@ const std::string Logger::typeStringAttr = "typeString";
 
 Logger::TraceEntry::TraceEntry(
     TraceEntryType inputType,
-    const Problem & inputProblem,
+    const ProblemDescriptor & inputProblem,
     Status inputStatus
     )
     : type(inputType),
@@ -90,7 +90,7 @@ Logger::~Logger() {
  * log assign solution
  ******************************************************************************/
 void Logger::logAssignSolution(
-    const Problem *problem,
+    const ProblemDescriptor *problem,
     const Status & status ) {
   // create entry
   TraceEntry entry(assignSolution, *problem, status);
@@ -103,7 +103,7 @@ void Logger::logAssignSolution(
  * log enqueue solution
  ******************************************************************************/
 void Logger::logEnqueueSolution(
-    const Problem *problem,
+    const ProblemDescriptor *problem,
     const Status & status,
     const Control & ctrl ) {
   // create entry
@@ -144,7 +144,7 @@ void Logger::flush() {
   }
 }
 
-std::string summaryEntryToString( std::string tag, Problem & problem, size_t count, size_t indentLevel ) {
+std::string summaryEntryToString( std::string tag, ProblemDescriptor & problem, size_t count, size_t indentLevel ) {
   std::string state = Logger::indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
   state += problem.toString(indentLevel+1);
@@ -159,9 +159,9 @@ void Logger::writeSummary() {
   // assign summary
   file << comment("Summary of Problem::assignSolution()");
   file << "<" + assignSummaryTag + " numEntries=\"" + std::to_string(assignSummary.size()) + "\" >\n";
-  std::map<Problem, unsigned long long>::iterator i;
+  std::map<ProblemDescriptor, unsigned long long>::iterator i;
   for ( i = assignSummary.begin(); i != assignSummary.end(); i++) {
-    Problem problem = i->first;
+    ProblemDescriptor problem = i->first;
     size_t count = i->second;
 
     // write state of entry
@@ -174,7 +174,7 @@ void Logger::writeSummary() {
   file << comment("Summary of Problem::enqueueSolution()");
   file << "<" + enqueueSummaryTag + " numEntries=\"" + std::to_string(enqueueSummary.size()) + "\" >\n";
   for ( i = enqueueSummary.begin(); i != enqueueSummary.end(); i++) {
-    Problem problem = i->first;
+    ProblemDescriptor problem = i->first;
     size_t count = i->second;
 
     // write state of entry

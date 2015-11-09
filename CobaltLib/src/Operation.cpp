@@ -8,7 +8,9 @@ namespace Cobalt {
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-Operation::Operation( OperationType inputOperationType, size_t inputNumDims )
+OperationDescriptor::OperationDescriptor(
+    OperationType inputOperationType,
+    size_t inputNumDims )
     : type(inputOperationType),
     dimensions(inputNumDims) {
 }
@@ -17,7 +19,7 @@ Operation::Operation( OperationType inputOperationType, size_t inputNumDims )
 /*******************************************************************************
  * comparison operator for stl
  ******************************************************************************/
-bool Operation::operator< ( const Operation & other ) const {
+bool OperationDescriptor::operator< ( const OperationDescriptor & other ) const {
   if (dimensions < other.dimensions) {
     return true;
   } else if (dimensions > other.dimensions) {
@@ -55,7 +57,7 @@ bool DimensionPair::operator< ( const DimensionPair & other ) const {
 /*******************************************************************************
  * toString
  ******************************************************************************/
-std::string Operation::toString( size_t indentLevel ) const {
+std::string OperationDescriptor::toString( size_t indentLevel ) const {
   std::string state = Logger::indent(indentLevel);
   state += "<" + Logger::operationTag;
   state += " " + Logger::numDimAttr + "=\"" + std::to_string(dimensions.size()) + "\"";

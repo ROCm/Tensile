@@ -32,15 +32,15 @@ class Logger {
   
 /*******************************************************************************
  * trace entry
- * - contains a Problem and an entry type
+ * - contains a ProblemDescriptor and an entry type
  ******************************************************************************/
   typedef struct TraceEntry {
     TraceEntryType type;
-    Problem problem;
+    ProblemDescriptor problem;
     Status status;
     TraceEntry(
         TraceEntryType inputType,
-        const Problem & inputProblem,
+        const ProblemDescriptor & inputProblem,
         Status inputStatus);
     std::string toString( size_t indentLevel );
   } TraceEntry;
@@ -68,7 +68,7 @@ public:
  * - record a Problem.assignSolution() call
  ******************************************************************************/
   void logAssignSolution(
-      const Problem *problem,
+      const ProblemDescriptor *problem,
       const Status & status );
 
 /*******************************************************************************
@@ -76,7 +76,7 @@ public:
  * - record a Problem.enqueueSolution() call
  ******************************************************************************/
   void logEnqueueSolution(
-      const Problem *problem,
+      const ProblemDescriptor *problem,
       const Status & status,
       const Control & ctrl );
 
@@ -118,8 +118,8 @@ private:
  * log state
  ******************************************************************************/
   std::queue<TraceEntry> trace;
-  std::map<Problem, unsigned long long> assignSummary;
-  std::map<Problem, unsigned long long> enqueueSummary;
+  std::map<ProblemDescriptor, unsigned long long> assignSummary;
+  std::map<ProblemDescriptor, unsigned long long> enqueueSummary;
 
 /*******************************************************************************
  * xml file
