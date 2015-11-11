@@ -1,38 +1,42 @@
 
-#pragma once
+#ifndef SOLUTION_H
+#define SOLUTION_H
 
-#include "Dependency.h"
-#include "Problem.h"
-#include "Control.h"
-#include "Status.h"
-#include "Tensor.h"
+#include "Cobalt.h"
 
 #include <string>
 
-namespace Cobalt {
 
-typedef struct SolutionDescriptor {
-
-} SolutionDescriptor;
-
-class Solution {
+struct CobaltSolution {
 public:
 
-  SolutionDescriptor getDescriptor();
+  CobaltSolution( CobaltProblem inputProblem );
 
-  virtual Status enqueue(
-      TensorData tensorDataA,
-      TensorData tensorDataB,
-      TensorData tensorDataC,
-      Control & ctrl ) = 0;
+  virtual CobaltStatus enqueue(
+      CobaltTensorData tensorDataA,
+      CobaltTensorData tensorDataB,
+      CobaltTensorData tensorDataC,
+      CobaltControl & ctrl ) = 0;
 
-  virtual std::string toString( size_t indentLevel ) = 0;
+  virtual std::string toString( size_t indentLevel ) const = 0;
 
-protected:
-
-private:
-  ProblemDescriptor * problem; // problem used to get this solution
+  CobaltProblem problem; // problem used to get this solution
 
 }; // class Solution
 
-} // namespace Cobalt
+class LogSolution : public CobaltSolution {
+public:
+  LogSolution( CobaltProblem inputProblem );
+
+  virtual CobaltStatus enqueue(
+      CobaltTensorData tensorDataA,
+      CobaltTensorData tensorDataB,
+      CobaltTensorData tensorDataC,
+      CobaltControl & ctrl );
+
+  virtual std::string toString( size_t indentLevel ) const;
+
+};
+
+
+#endif

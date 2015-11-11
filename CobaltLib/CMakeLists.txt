@@ -4,21 +4,14 @@ source_group(public_headers  FILES ${CobaltLib_PUBLIC_HEADERS} )
 
 # CobaltLib source files
 set( CobaltLib_SRC
-  src/AssignSolution.h
-  src/Logger.h
-  src/Solution.h
-
-  src/Control.cpp
-  src/Dependency.cpp
-  src/Device.cpp
-  src/Operation.cpp
-  src/Problem.cpp
-  src/Status.cpp
-  src/Tensor.cpp
-
-  src/AssignSolution.cpp
+  src/Cobalt.cpp
   src/Logger.cpp
+  src/Logger.h
+  src/ReferenceTensorContraction.cpp
   src/Solution.cpp
+  src/Solution.h
+  src/StructOperations.cpp
+  src/StructOperations.h
   )
 source_group(source FILES ${CobaltLib_SRC} )
 

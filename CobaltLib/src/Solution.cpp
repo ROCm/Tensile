@@ -1,12 +1,30 @@
 
 #include "Solution.h"
+#include "Logger.h"
 
-namespace Cobalt {
 
-/* Dependency Solution::enqueue(
-    TensorData tensorDataA,
-    TensorData tensorDataB,
-    TensorData tensorDataC,
-    Control ctrl ) = 0; */
+CobaltSolution::CobaltSolution( CobaltProblem inputProblem)
+  : problem(inputProblem) {
+}
 
-} // namespace Cobalt
+
+LogSolution::LogSolution( CobaltProblem inputProblem)
+  : CobaltSolution(inputProblem) {
+}
+
+CobaltStatus LogSolution::enqueue(
+    CobaltTensorData tensorDataA,
+    CobaltTensorData tensorDataB,
+    CobaltTensorData tensorDataC,
+    CobaltControl & ctrl ) {
+  CobaltStatus status;
+  status.numCodes = 0;
+  printf("CobaltSolution::enqueue() virtual function not overrided\n");
+  return status;
+}
+
+  std::string LogSolution::toString( size_t indentLevel ) const {
+    //std::string state = Logger::indent(indentLevel);
+    return "<LogSolution type=\"virtual\" />\n";
+  }
+

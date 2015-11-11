@@ -6,7 +6,7 @@ cmake_minimum_required(VERSION 2.8)
 
 ########################################
 # Cobalt project name
-project( Cobalt CXX )
+project( Cobalt C CXX )
 
 ########################################
 # Cobalt Version
@@ -79,16 +79,7 @@ endif()
 ############################################################
 # Cobalt Headers needed for all subprojects
 set( CobaltLib_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/CobaltLib/include )
-set( CobaltLib_PUBLIC_HEADERS
-  ${CobaltLib_INCLUDE_DIR}/Cobalt.h
-  ${CobaltLib_INCLUDE_DIR}/Control.h
-  ${CobaltLib_INCLUDE_DIR}/Dependency.h
-  ${CobaltLib_INCLUDE_DIR}/Device.h
-  ${CobaltLib_INCLUDE_DIR}/Operation.h
-  ${CobaltLib_INCLUDE_DIR}/Problem.h
-  ${CobaltLib_INCLUDE_DIR}/Status.h
-  ${CobaltLib_INCLUDE_DIR}/Tensor.h
-  )
+set( CobaltLib_PUBLIC_HEADERS ${CobaltLib_INCLUDE_DIR}/Cobalt.h )
 set( CobaltLib_NAME CobaltLib )
 
 ################################################################################

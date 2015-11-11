@@ -1,11 +1,11 @@
 
-#pragma once
-#include "Tensor.h"
-#include "Operation.h"
-#include "Device.h"
-#include "Problem.h"
+#ifndef LOGGER_H
+#define LOGGER_H
+
+#include "Cobalt.h"
 #include "Solution.h"
-#include "Status.h"
+#include "StructOperations.h"
+
 #include <string>
 #include <queue>
 #include <map>
@@ -14,38 +14,42 @@
 
 namespace Cobalt {
   
+
 /*******************************************************************************
  * Logger
- * - keeps a trace and a summary of assignSolutions and enqueueSolutions
+ * - keeps a trace and a summary of getSolutions and enqueueSolutions
  * - writes trace and summary to a log file in xml format
  ******************************************************************************/
 class Logger {
+  
+public:
 
 /*******************************************************************************
  * trace entry type
- * - assign or enqueue solution
+ * - get or enqueue solution
  ******************************************************************************/
-  enum TraceEntryType {
-    assignSolution,
+  typedef enum TraceEntryType_ {
+    getSolution,
     enqueueSolution
-  };
+  } TraceEntryType;
+  static std::string toString( TraceEntryType type );
   
 /*******************************************************************************
  * trace entry
- * - contains a ProblemDescriptor and an entry type
+ * - contains a Problem and an entry type
  ******************************************************************************/
-  typedef struct TraceEntry {
+  class TraceEntry {
+  public:
     TraceEntryType type;
-    ProblemDescriptor problem;
-    Status status;
+    const CobaltSolution *solution;
+    CobaltStatus status;
     TraceEntry(
         TraceEntryType inputType,
-        const ProblemDescriptor & inputProblem,
-        Status inputStatus);
+        const CobaltSolution *inputSolution,
+        CobaltStatus inputStatus);
     std::string toString( size_t indentLevel );
-  } TraceEntry;
+  };
 
-public:
   
 /*******************************************************************************
  * constructor - default is fine
@@ -64,53 +68,27 @@ public:
   ~Logger();
   
 /*******************************************************************************
- * logAssignSolution
- * - record a Problem.assignSolution() call
+ * logGetSolution
+ * - record a cobaltGetSolution() call
  ******************************************************************************/
-  void logAssignSolution(
-      const ProblemDescriptor *problem,
-      const Status & status );
+  void logGetSolution(
+      const CobaltSolution *solution,
+      CobaltStatus status );
 
 /*******************************************************************************
  * logEnqueueSolution
  * - record a Problem.enqueueSolution() call
  ******************************************************************************/
   void logEnqueueSolution(
-      const ProblemDescriptor *problem,
-      const Status & status,
-      const Control & ctrl );
+      const CobaltSolution *solution,
+      CobaltStatus status,
+      const CobaltControl *ctrl );
 
 /*******************************************************************************
- * indent
+ * toString xml
  * - returns string of spaces to indent objects' toString for pretty xml
  ******************************************************************************/
-  static std::string indent(size_t level);
   static std::string comment(std::string comment);
-  
-/*******************************************************************************
- * xml tags for objects, store in central location here
- ******************************************************************************/
-  static const std::string tensorTag;
-  static const std::string dimensionTag;
-  static const std::string dimPairTag;
-  static const std::string operationTag;
-  static const std::string deviceTag;
-  static const std::string deviceProfileTag;
-  static const std::string problemTag;
-  static const std::string solutionTag;
-  static const std::string statusTag;
-  static const std::string traceEntryTag;
-  static const std::string traceTag;
-  static const std::string assignSummaryTag;
-  static const std::string enqueueSummaryTag;
-  static const std::string documentTag;
-  static const std::string numDimAttr;
-  static const std::string operationAttr;
-  static const std::string dimNumberAttr;
-  static const std::string dimStrideAttr;
-  static const std::string nameAttr;
-  static const std::string typeEnumAttr;
-  static const std::string typeStringAttr;
 
 private:
   
@@ -118,8 +96,8 @@ private:
  * log state
  ******************************************************************************/
   std::queue<TraceEntry> trace;
-  std::map<ProblemDescriptor, unsigned long long> assignSummary;
-  std::map<ProblemDescriptor, unsigned long long> enqueueSummary;
+  std::map<const CobaltSolution*, unsigned long long, CobaltSolutionPtrComparator> getSummary;
+  std::map<const CobaltSolution*, unsigned long long, CobaltSolutionPtrComparator> enqueueSummary;
 
 /*******************************************************************************
  * xml file
@@ -139,11 +117,6 @@ private:
   void writeSummary();
 
   
-/*******************************************************************************
- * getStringFor
- ******************************************************************************/
-  static std::string getStringFor( TraceEntryType type );
-
 }; // class Logger
 
 
@@ -153,3 +126,6 @@ private:
 extern Logger logger;
 
 } // namespace Cobalt
+
+
+#endif

@@ -3,61 +3,37 @@
 
 namespace Cobalt {
 
-  
-const std::string Logger::tensorTag = "Tensor";
-const std::string Logger::dimensionTag = "Dim";
-const std::string Logger::dimPairTag = "DimPair";
-const std::string Logger::operationTag = "Operation";
-const std::string Logger::deviceTag = "Device";
-const std::string Logger::deviceProfileTag = "DeviceProfile";
-const std::string Logger::problemTag = "Problem";
-const std::string Logger::solutionTag = "Solution";
-const std::string Logger::statusTag = "Status";
-const std::string Logger::traceEntryTag = "Entry";
-const std::string Logger::traceTag = "Trace";
-const std::string Logger::assignSummaryTag = "SummaryOfAssign";
-const std::string Logger::enqueueSummaryTag = "SummaryOfEnqueue";
-const std::string Logger::documentTag = "ApplicationProblemProfile";
-const std::string Logger::numDimAttr = "numDim";
-const std::string Logger::operationAttr = "operation";
-const std::string Logger::dimNumberAttr = "number";
-const std::string Logger::dimStrideAttr = "stride";
-const std::string Logger::nameAttr = "name";
-const std::string Logger::typeEnumAttr = "typeEnum";
-const std::string Logger::typeStringAttr = "typeString";
-
-
 Logger::TraceEntry::TraceEntry(
     TraceEntryType inputType,
-    const ProblemDescriptor & inputProblem,
-    Status inputStatus
+    const CobaltSolution *inputSolution,
+    CobaltStatus inputStatus
     )
     : type(inputType),
-    problem(inputProblem),
+    solution(inputSolution),
     status(inputStatus) {
-  //
 }
 
-std::string Logger::getStringFor( Logger::TraceEntryType type ) {
+std::string Logger::toString( Logger::TraceEntryType type ) {
 
-#define TYPE_TO_STRING_HANDLE_CASE(X) case X: return #X;
+#define TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(X) case X: return #X;
   switch( type ) {
-    TYPE_TO_STRING_HANDLE_CASE(TraceEntryType::assignSolution);
-    TYPE_TO_STRING_HANDLE_CASE(TraceEntryType::enqueueSolution);
+    TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(TraceEntryType::getSolution);
+    TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(TraceEntryType::enqueueSolution);
   default:
-    return "Error in getStringFor(TraceEntryType): no switch case for: " + std::to_string(type);
+    return "Error in toString(TraceEntryType): no switch case for: " + std::to_string(type);
   };
-
 }
 
 std::string Logger::TraceEntry::toString( size_t indentLevel ) {
   std::string state = indent(indentLevel);
-  state += "<" + Logger::traceEntryTag;
-  state += " " + Logger::typeEnumAttr + "=\"" + std::to_string(type) + "\"";
-  state += " " + Logger::typeStringAttr + "=\"" + Logger::getStringFor(type) + "\" >\n";
-  state += problem.toString(indentLevel+1);
-  state += status.toString(indentLevel+1);
-  state += indent(indentLevel) + "</" + Logger::traceEntryTag + ">\n";
+  state += "<" + traceEntryTag;
+  state += " " + typeEnumAttr + "=\"" + std::to_string(type) + "\"";
+  state += " " + typeStringAttr + "=\"" + Logger::toString(type) + "\" >\n";
+  if (solution) {
+    state += solution->toString(indentLevel+1);
+  }
+  state += ::toString(status, indentLevel+1);
+  state += indent(indentLevel) + "</" + traceEntryTag + ">\n";
   return state;
 }
 
@@ -87,43 +63,39 @@ Logger::~Logger() {
 }
 
 /*******************************************************************************
- * log assign solution
+ * log get solution
  ******************************************************************************/
-void Logger::logAssignSolution(
-    const ProblemDescriptor *problem,
-    const Status & status ) {
+void Logger::logGetSolution(
+    const CobaltSolution *solution,
+    CobaltStatus status ) {
   // create entry
-  TraceEntry entry(assignSolution, *problem, status);
+  TraceEntry entry(getSolution, solution, status);
   // add to trace
   trace.push(entry); // append to end of list
-  assignSummary[*problem]++;
+  if (solution) {
+    getSummary[solution]++;
+  }
 }
 
 /*******************************************************************************
  * log enqueue solution
  ******************************************************************************/
 void Logger::logEnqueueSolution(
-    const ProblemDescriptor *problem,
-    const Status & status,
-    const Control & ctrl ) {
+    const CobaltSolution *solution,
+    CobaltStatus status,
+    const CobaltControl *ctrl ) {
   // create entry
-  TraceEntry entry(enqueueSolution, *problem, status);
+  CobaltProblem *problem = nullptr;
+  TraceEntry entry(TraceEntryType::enqueueSolution, solution, status);
   // add to trace
   trace.push(entry); // append to end of list
-  enqueueSummary[*problem]++;
-}
-
-
-/*******************************************************************************
- * indent - for spacing of xml output
- ******************************************************************************/
-std::string Logger::indent(size_t level) {
-  std::string indentStr = "";
-  for (size_t i = 0; i < level; i++) {
-    indentStr += "  ";
+  if (solution) {
+    enqueueSummary[solution]++;
   }
-  return indentStr;
 }
+
+
+
 
 std::string Logger::comment(std::string comment) {
   std::string xmlComment;
@@ -144,11 +116,11 @@ void Logger::flush() {
   }
 }
 
-std::string summaryEntryToString( std::string tag, ProblemDescriptor & problem, size_t count, size_t indentLevel ) {
-  std::string state = Logger::indent(indentLevel);
+std::string summaryEntryToString( std::string tag, const CobaltSolution *summary, size_t count, size_t indentLevel ) {
+  std::string state = indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
-  state += problem.toString(indentLevel+1);
-  state += Logger::indent(indentLevel) + "</" + tag + ">\n";
+  state += ::toString(summary->problem, indentLevel+1);
+  state += indent(indentLevel) + "</" + tag + ">\n";
   return state;
 }
 
@@ -156,29 +128,29 @@ void Logger::writeSummary() {
   // close trace
   file << "</" + traceTag + ">\n\n";
 
-  // assign summary
-  file << comment("Summary of Problem::assignSolution()");
-  file << "<" + assignSummaryTag + " numEntries=\"" + std::to_string(assignSummary.size()) + "\" >\n";
-  std::map<ProblemDescriptor, unsigned long long>::iterator i;
-  for ( i = assignSummary.begin(); i != assignSummary.end(); i++) {
-    ProblemDescriptor problem = i->first;
+  // get summary
+  file << comment("Summary of Problem::getSolution()");
+  file << "<" + getSummaryTag + " numEntries=\"" + std::to_string(getSummary.size()) + "\" >\n";
+  std::map<const CobaltSolution*, unsigned long long>::iterator i;
+  for ( i = getSummary.begin(); i != getSummary.end(); i++) {
+    const CobaltSolution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
-    std::string state = summaryEntryToString("AssignProblem", problem, count, 1);
+    std::string state = summaryEntryToString("GetProblem", solution, count, 1);
     file << state;
   }
-  file << "</" + assignSummaryTag + ">\n\n";
+  file << "</" + getSummaryTag + ">\n\n";
 
   // enqueue summary
   file << comment("Summary of Problem::enqueueSolution()");
   file << "<" + enqueueSummaryTag + " numEntries=\"" + std::to_string(enqueueSummary.size()) + "\" >\n";
   for ( i = enqueueSummary.begin(); i != enqueueSummary.end(); i++) {
-    ProblemDescriptor problem = i->first;
+    const CobaltSolution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
-    std::string state = summaryEntryToString("EnqueueProblem", problem, count, 1);
+    std::string state = summaryEntryToString("EnqueueProblem", solution, count, 1);
     file << state;
   }
   file << "</" + enqueueSummaryTag + ">\n\n";
@@ -187,6 +159,8 @@ void Logger::writeSummary() {
   file << "</" + documentTag + ">\n";
 
 }
+
+
 
 
 

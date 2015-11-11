@@ -91,3 +91,20 @@ SolutionPerformance
   branches
   alpha beta identity
   order of dimensions
+
+# Example Contraction
+
+for (i = 0; i < iMax; i++) {
+  for (j = 0; j < jMax; j++) {
+    for (k = 0; k < kMax; k++) {
+      Cijk = 0;
+      for (a = 0; a < aMax; a++) {
+        for (b = 0; b < bMax; b++) {
+          for (c = 0; c < cMax; c++) {
+            Cijk += A[i,k,j,a,b,c] * B[i,j,k,a,b,c];
+          }
+        } // b
+      } // a
+    } // k
+  } // j
+} // i
