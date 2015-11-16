@@ -116,25 +116,25 @@ std::string toString( const CobaltOperation operation, size_t indentLevel ) {
   state += "<OperationType enum=\"" + std::to_string(operation.type) + "\"";
   state += " string=\"" + toString(operation.type) + "\" />\n";
   // operationIndexAssignmentsA
-  state += indent(indentLevel+1) + "<OperationIndexAssignments tensor=\"A\" num=\"" + std::to_string( operation.numOperationIndexAssignmentsA) + "\">\n";
+  state += indent(indentLevel+1) + "<OperationIndexAssignments num=\"" + std::to_string( operation.numOperationIndexAssignmentsA) + "\">\n";
   for (size_t i = 0; i < operation.numOperationIndexAssignmentsA; i++) {
     state += indent(indentLevel+2);
     state += "<OperationIndexAssignment";
     state += " type=\"" + toString(operation.operationIndexAssignmentsA[i].type) + "\"";
     state += " index=\"" + std::to_string(operation.operationIndexAssignmentsA[i].index) + "\"";
-    state += "\" />\n";
+    state += " />\n";
   }
-  state += indent(indentLevel+1) + "</OperationIndexAssignment>\n";
+  state += indent(indentLevel+1) + "</OperationIndexAssignments>\n";
   // operationIndexAssignmentsB
-  state += indent(indentLevel+1) + "<OperationIndexAssignments tensor=\"B\" num=\"" + std::to_string( operation.numOperationIndexAssignmentsA) + "\">\n";
+  state += indent(indentLevel+1) + "<OperationIndexAssignments num=\"" + std::to_string( operation.numOperationIndexAssignmentsA) + "\">\n";
   for (size_t i = 0; i < operation.numOperationIndexAssignmentsB; i++) {
     state += indent(indentLevel+2);
     state += "<OperationIndexAssignment";
     state += " type=\"" + toString(operation.operationIndexAssignmentsB[i].type) + "\"";
     state += " index=\"" + std::to_string(operation.operationIndexAssignmentsB[i].index) + "\"";
-    state += "\" />\n";
+    state += " />\n";
   }
-  state += indent(indentLevel+1) + "</OperationIndexAssignment>\n";
+  state += indent(indentLevel+1) + "</OperationIndexAssignments>\n";
   state += indent(indentLevel) + "</Operation>\n";
   return state;
 }

@@ -155,7 +155,7 @@ void Logger::writeSummary() {
     std::string state = summaryEntryToString("GetSolution", solution, count, 1);
     file << state;
   }
-  file << "</SumaryGetSolution>\n\n";
+  file << "</SummaryGetSolution>\n\n";
 
   // enqueue summary
   file << comment("Summary of Problem::enqueueSolution()");
