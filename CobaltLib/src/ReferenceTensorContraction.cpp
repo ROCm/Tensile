@@ -7,7 +7,8 @@
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-ReferenceTensorContraction::ReferenceTensorContraction( CobaltProblem inputProblem )
+ReferenceTensorContraction::ReferenceTensorContraction(
+    CobaltProblem inputProblem )
   : CobaltSolution(inputProblem) {
 }
 

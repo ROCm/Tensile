@@ -36,7 +36,9 @@ CobaltStatus LogSolution::enqueue(
  * LogSolution:: toString - TODO
  ******************************************************************************/
 std::string LogSolution::toString( size_t indentLevel ) const {
-  //std::string state = Logger::indent(indentLevel);
-  return "<LogSolution type=\"virtual\" />\n";
+  std::string state = indent(indentLevel) + "<Solution>\n";
+  state += ::toStringXML(problem, indentLevel+1);
+  state += indent(indentLevel) + "</Solution>";
+  return state;
 }
 

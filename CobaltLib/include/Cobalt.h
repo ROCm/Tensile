@@ -21,40 +21,53 @@ typedef enum CobaltCode_ {
 
   // success
   cobaltCodeSuccess = 0,
-
-  // problem
-  cobaltCodeInvalidProblem,
+  
+  /* cobaltValidateProblem() */
 
   // tensor errors
-  cobaltCodeInvalidTensorDataA,
-  cobaltCodeInvalidTensorDataB,
-  cobaltCodeInvalidTensorDataC,
-  cobaltCodeInvalidTensorDescriptorA,
-  cobaltCodeInvalidTensorDescriptorB,
-  cobaltCodeInvalidTensorDescriptorC,
-
-  // device errors
-  cobaltCodeInvalidDeviceProfile,
-  cobaltCodeInvalidDevice,
+  cobaltCodeTensorNumDimensionsInvalidA,
+  cobaltCodeTensorNumDimensionsInvalidB,
+  cobaltCodeTensorNumDimensionsInvalidC,
+  cobaltCodeTensorDimensionSizeInvalidA,
+  cobaltCodeTensorDimensionSizeInvalidB,
+  cobaltCodeTensorDimensionSizeInvalidC,
+  cobaltCodeTensorDimensionStrideInvalidA,
+  cobaltCodeTensorDimensionStrideInvalidB,
+  cobaltCodeTensorDimensionStrideInvalidC,
   
   // operation errors
-  cobaltCodeInvalidOperation,
-  cobaltCodeInvalidIndexOperationsA,
-  cobaltCodeInvalidIndexOperationsB,
+  cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsA,
+  cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsB,
+  cobaltCodeOperationNumFreeIndicesMismatch,
+  cobaltCodeOperationFreeIndexDuplicateA,
+  cobaltCodeOperationFreeIndexDuplicateB,
+  cobaltCodeOperationFreeIndexUnassigned,
+  cobaltCodeOperationBoundIndexInvalidA,
+  cobaltCodeOperationBoundIndexInvalidB,
+  cobaltCodeOperationBoundIndexNotBoundTypeA,
+  cobaltCodeOperationBoundIndexNotBoundTypeB,
+  cobaltCodeOperationBoundIndexMismatchA,
+  cobaltCodeOperationBoundIndexMismatchB,
+  cobaltCodeOperationBoundIndexNumDimensionsMismatch,
 
-  // solution errors
-  cobaltCodeSolutionsDisabled,
-  cobaltCodeInvalidSolution,
+  // device profile errors
+  cobaltCodeDeviceProfileNumDevicesInvalid,
+  cobaltCodeDeviceProfileDeviceNameInvalid,
 
-  // control errors
-  cobaltCodeInvalidControl,
-  cobaltCodeInvalidDependency,
+  /* cobaltGetSolution() */
+  cobaltCodeProblemNotSupported, // purposefully not supported
+  cobaltCodeProblemNotFound, // should be supported but wasn't found
 
-  // performance warnings
-  cobaltCodeGetSolutionAlreadyRequested,
-  cobaltCodeProblemSizeTooSmall
+  /* cobaltEnqueueSolution() */
+  cobaltCodePerformanceWarningProblemSizeTooSmall,
 
-  // TODO operation doesn't match tensorA,B,C
+  /* control errors */
+  cobaltCodeControlInvalid,
+  cobaltCodeDependencyInvalid,
+
+  /* misc */
+  cobaltCodeParametersInvalid,
+
 
 } CobaltCode;
 
@@ -166,9 +179,11 @@ typedef struct CobaltOperationIndexAssignment_ {
 typedef struct CobaltOperation_ {
   CobaltOperationType type;
   size_t numOperationIndexAssignmentsA;
-  CobaltOperationIndexAssignment operationIndexAssignmentsA[CobaltTensor::maxDimensions];
+  CobaltOperationIndexAssignment
+      operationIndexAssignmentsA[CobaltTensor::maxDimensions];
   size_t numOperationIndexAssignmentsB;
-  CobaltOperationIndexAssignment operationIndexAssignmentsB[CobaltTensor::maxDimensions];
+  CobaltOperationIndexAssignment
+      operationIndexAssignmentsB[CobaltTensor::maxDimensions];
 } CobaltOperation;
 
 
@@ -194,8 +209,10 @@ typedef struct CobaltControl_ {
   size_t maxQueues = 16;
   size_t numQueues;
   cl_command_queue queues[maxQueues];
-  size_t numEvents;
-  cl_event *events;
+  size_t numInputEvents; // superfluous for AMD
+  cl_event *inputEvents; // superfluous for AMD
+  size_t numOutputEvents; // superfluous for AMD
+  cl_event *outputEvents; // superfluous for AMD
 #endif
 } CobaltControl;
 
@@ -222,6 +239,24 @@ CobaltStatus cobaltEnqueueSolution(
  ******************************************************************************/
 CobaltStatus cobaltSetup();
 CobaltStatus cobaltTeardown();
+
+
+/*******************************************************************************
+ * toStrings
+ ******************************************************************************/
+CobaltStatus cobaltCodeToString(
+    CobaltCode code, char *cstr, size_t *size );
+CobaltStatus cobaltStatusToString(
+    CobaltStatus status, char *cstr, size_t *size );
+CobaltStatus cobaltPrecisionToString(
+    CobaltPrecision precision, char *cstr, size_t *size );
+CobaltStatus cobaltOperationToString(
+    CobaltOperationType type, char *cstr, size_t *size );
+CobaltStatus cobaltOperationIndexAssignmentTypeToString(
+    CobaltOperationIndexAssignmentType type, char *cstr, size_t *size );
+CobaltStatus cobaltProblemToString(
+    CobaltProblem problem, char *cstr, size_t *size );
+
 
 #ifdef __cplusplus
 } // extern "C"

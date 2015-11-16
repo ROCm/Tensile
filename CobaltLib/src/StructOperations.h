@@ -14,18 +14,19 @@ std::string toString( CobaltCode code );
 std::string toString( CobaltPrecision precision );
 std::string toString( CobaltOperationType type );
 std::string toString( CobaltOperationIndexAssignmentType type );
-  
+std::string toString( CobaltProblem problem );
 
 /*******************************************************************************
  * struct toString
  ******************************************************************************/
-std::string toString( const CobaltProblem problem, size_t indentLevel );
-std::string toString( const CobaltSolution *solution, size_t indentLevel );
-std::string toString( const CobaltOperation operation, size_t indentLevel );
-std::string toString( const CobaltDeviceProfile deviceProfile, size_t indentLevel );
-std::string toString( const CobaltDevice device, size_t indentLevel );
-std::string toString( const CobaltTensor tensor, size_t indentLevel );
-std::string toString( const CobaltStatus status, size_t indentLevel );
+std::string toStringXML( const CobaltProblem problem, size_t indentLevel );
+std::string toStringXML( const CobaltSolution *solution, size_t indentLevel );
+std::string toStringXML( const CobaltOperation operation, size_t indentLevel );
+std::string toStringXML( const CobaltDeviceProfile deviceProfile,
+    size_t indentLevel );
+std::string toStringXML( const CobaltDevice device, size_t indentLevel );
+std::string toStringXML( const CobaltTensor tensor, size_t indentLevel );
+std::string toStringXML( const CobaltStatus status, size_t indentLevel );
   
 /*******************************************************************************
  * xml tags for toString
@@ -40,12 +41,15 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r);
 bool operator<(const CobaltTensor & l, const CobaltTensor & r);
 bool operator<(const CobaltDevice & l, const CobaltDevice & r);
 bool operator<(const CobaltDeviceProfile & l, const CobaltDeviceProfile & r);
-bool operator<(const CobaltOperationIndexAssignment & l, const CobaltOperationIndexAssignment & r);
+bool operator<(const CobaltOperationIndexAssignment & l,
+    const CobaltOperationIndexAssignment & r);
 bool operator<(const CobaltOperation & l, const CobaltOperation & r);
 bool operator<(const CobaltProblem & l, const CobaltProblem & r);
 bool operator<(const CobaltControl & l, const CobaltControl & r);
 bool operator<(const CobaltSolution & l, const CobaltSolution & r);
-struct CobaltSolutionPtrComparator : std::binary_function<const CobaltSolution *, const CobaltSolution *, bool> {
+struct CobaltSolutionPtrComparator
+    : std::binary_function<const CobaltSolution *,
+    const CobaltSolution *, bool> {
   bool  operator() (const CobaltSolution *l, const CobaltSolution *r) const {
     return *l < *r;
   }

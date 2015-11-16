@@ -27,7 +27,7 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) {
   if (solution) {
     state += solution->toString(indentLevel+1);
   }
-  state += ::toString(status, indentLevel+1);
+  state += ::toStringXML(status, indentLevel+1);
   state += indent(indentLevel) + "</TraceEntry>\n";
   return state;
 }
@@ -42,7 +42,8 @@ std::string Logger::toString( Logger::TraceEntryType type ) {
     TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(TraceEntryType::getSolution);
     TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(TraceEntryType::enqueueSolution);
   default:
-    return "Error in toString(TraceEntryType): no switch case for: " + std::to_string(type);
+    return "Error in toString(TraceEntryType): no switch case for: "
+        + std::to_string(type);
   };
 }
 
@@ -93,6 +94,7 @@ void Logger::logEnqueueSolution(
     const CobaltSolution *solution,
     CobaltStatus status,
     const CobaltControl *ctrl ) {
+  printf("Logger::logEnqueueSolution(%p)\n", solution );
   // create entry
   CobaltProblem *problem = nullptr;
   TraceEntry entry(TraceEntryType::enqueueSolution, solution, status);
@@ -128,10 +130,12 @@ void Logger::flush() {
 /*******************************************************************************
  * summaryEntryToString
  ******************************************************************************/
-std::string summaryEntryToString( std::string tag, const CobaltSolution *summary, size_t count, size_t indentLevel ) {
+std::string summaryEntryToString(
+    std::string tag,const CobaltSolution *solution,
+    size_t count, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
-  state += ::toString(summary->problem, indentLevel+1);
+  state += solution->toString(indentLevel+1);
   state += indent(indentLevel) + "</" + tag + ">\n";
   return state;
 }
@@ -145,7 +149,8 @@ void Logger::writeSummary() {
 
   // get summary
   file << comment("Summary of Problem::getSolution()");
-  file << "<SummaryGetSolution numEntries=\"" + std::to_string(getSummary.size()) + "\" >\n";
+  file << "<SummaryGetSolution numEntries=\""
+      + std::to_string(getSummary.size()) + "\" >\n";
   std::map<const CobaltSolution*, unsigned long long>::iterator i;
   for ( i = getSummary.begin(); i != getSummary.end(); i++) {
     const CobaltSolution *solution = i->first;
@@ -159,13 +164,15 @@ void Logger::writeSummary() {
 
   // enqueue summary
   file << comment("Summary of Problem::enqueueSolution()");
-  file << "<SummaryEnqueueSolution numEntries=\"" + std::to_string(enqueueSummary.size()) + "\" >\n";
+  file << "<SummaryEnqueueSolution numEntries=\""
+      + std::to_string(enqueueSummary.size()) + "\" >\n";
   for ( i = enqueueSummary.begin(); i != enqueueSummary.end(); i++) {
     const CobaltSolution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
-    std::string state = summaryEntryToString("EnqueueSolution", solution, count, 1);
+    std::string state = summaryEntryToString("EnqueueSolution",
+        solution, count, 1);
     file << state;
   }
   file << "</SummaryEnqueueSolution>\n\n";

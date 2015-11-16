@@ -1,9 +1,11 @@
 #include "Cobalt.h"
 #include <stdio.h>
 
-CobaltTensor createTensorForMatrix( bool colMajor, bool trans, size_t numRows, size_t numCols );
+CobaltTensor createTensorForMatrix(
+    bool colMajor, bool trans, size_t numRows, size_t numCols );
 CobaltOperation createOperationForGEMM();
-void gemm( bool colMajor, bool transA, bool transB, size_t M, size_t N, size_t K );
+void gemm( bool colMajor, bool transA, bool transB,
+    size_t M, size_t N, size_t K );
 
 
 /*******************************************************************************
@@ -93,6 +95,13 @@ void gemm(
 
   // problem - validate
   CobaltStatus validationStatus = cobaltValidateProblem( problem );
+  size_t strLength;
+  cobaltStatusToString(validationStatus, nullptr, &strLength);
+  char *statusStr = new char[strLength];
+  cobaltStatusToString(validationStatus, statusStr, &strLength);
+  printf("%s\n", statusStr );
+  delete[] statusStr;
+
   // get solution
   CobaltSolution *solution = nullptr;
   CobaltStatus getSolutionStatus = cobaltGetSolution( problem, solution );
@@ -146,14 +155,18 @@ CobaltOperation createOperationForGEMM() {
   CobaltOperation operation;
   operation.type = cobaltOperationTypeTensorContraction;
   operation.numOperationIndexAssignmentsA = 2;
-  operation.operationIndexAssignmentsA[0].type = cobaltOperationIndexAssignmentTypeFree;
+  operation.operationIndexAssignmentsA[0].type
+      = cobaltOperationIndexAssignmentTypeFree;
   operation.operationIndexAssignmentsA[0].index = 0;
-  operation.operationIndexAssignmentsA[1].type = cobaltOperationIndexAssignmentTypeBound;
+  operation.operationIndexAssignmentsA[1].type
+      = cobaltOperationIndexAssignmentTypeBound;
   operation.operationIndexAssignmentsA[1].index = 0;
   operation.numOperationIndexAssignmentsB = 2;
-  operation.operationIndexAssignmentsB[0].type = cobaltOperationIndexAssignmentTypeBound;
+  operation.operationIndexAssignmentsB[0].type
+      = cobaltOperationIndexAssignmentTypeBound;
   operation.operationIndexAssignmentsB[0].index = 1;
-  operation.operationIndexAssignmentsB[1].type = cobaltOperationIndexAssignmentTypeFree;
+  operation.operationIndexAssignmentsB[1].type
+      = cobaltOperationIndexAssignmentTypeFree;
   operation.operationIndexAssignmentsB[1].index = 1;
   return operation;
 }

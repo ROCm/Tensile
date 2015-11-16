@@ -96,8 +96,10 @@ private:
  * log state
  ******************************************************************************/
   std::queue<TraceEntry> trace;
-  std::map<const CobaltSolution*, unsigned long long, CobaltSolutionPtrComparator> getSummary;
-  std::map<const CobaltSolution*, unsigned long long, CobaltSolutionPtrComparator> enqueueSummary;
+  std::map<const CobaltSolution*, unsigned long long,
+      CobaltSolutionPtrComparator> getSummary;
+  std::map<const CobaltSolution*, unsigned long long,
+      CobaltSolutionPtrComparator> enqueueSummary;
 
 /*******************************************************************************
  * xml file
