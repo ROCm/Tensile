@@ -1,15 +1,24 @@
 
-//#include "Status.h"
-//#include "Problem.h"
-#include "Cobalt.h"
+#include "ReferenceTensorContraction.h"
 #include <assert.h>
 
 
-CobaltStatus referenceTensorContraction(
-  CobaltProblem problem,
+
+/*******************************************************************************
+ * constructor
+ ******************************************************************************/
+ReferenceTensorContraction::ReferenceTensorContraction( CobaltProblem inputProblem )
+  : CobaltSolution(inputProblem) {
+}
+
+/*******************************************************************************
+ * enqueue
+ ******************************************************************************/
+CobaltStatus ReferenceTensorContraction::enqueue(
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
-    CobaltTensorData tensorDataC ) {
+    CobaltTensorData tensorDataC,
+    CobaltControl & ctrl ) {
   CobaltStatus status;
   status.numCodes = 0;
   // verify that C has the right number of dimensions,
@@ -42,3 +51,11 @@ CobaltStatus referenceTensorContraction(
   //for ( size_t i = 0; i < 
   return status;
 } // referenceTensorContraction
+
+
+/*******************************************************************************
+ * toString
+ ******************************************************************************/
+std::string ReferenceTensorContraction::toString( size_t indentLevel ) const {
+  return "TODO";
+}

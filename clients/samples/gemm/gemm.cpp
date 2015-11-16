@@ -91,9 +91,11 @@ void gemm(
   problem.deviceProfile.devices[0].numComputeUnits = 44;
   problem.deviceProfile.devices[0].clockFrequency = 900; // MHz
 
+  // problem - validate
+  CobaltStatus validationStatus = cobaltValidateProblem( problem );
   // get solution
   CobaltSolution *solution = nullptr;
-  CobaltStatus status = cobaltGetSolution( problem, solution );
+  CobaltStatus getSolutionStatus = cobaltGetSolution( problem, solution );
 
   // control
   CobaltControl ctrl;
@@ -108,7 +110,8 @@ void gemm(
   dataC.data = nullptr;
 
   // enqueue solution
-  cobaltEnqueueSolution(solution, dataA, dataB, dataC, &ctrl);
+  CobaltStatus enqueueSolutionStatus = cobaltEnqueueSolution(
+      solution, dataA, dataB, dataC, &ctrl);
 }
 
 // TODO - debug this
@@ -142,10 +145,12 @@ CobaltTensor createTensorForMatrix(
 CobaltOperation createOperationForGEMM() {
   CobaltOperation operation;
   operation.type = cobaltOperationTypeTensorContraction;
+  operation.numOperationIndexAssignmentsA = 2;
   operation.operationIndexAssignmentsA[0].type = cobaltOperationIndexAssignmentTypeFree;
   operation.operationIndexAssignmentsA[0].index = 0;
   operation.operationIndexAssignmentsA[1].type = cobaltOperationIndexAssignmentTypeBound;
   operation.operationIndexAssignmentsA[1].index = 0;
+  operation.numOperationIndexAssignmentsB = 2;
   operation.operationIndexAssignmentsB[0].type = cobaltOperationIndexAssignmentTypeBound;
   operation.operationIndexAssignmentsB[0].index = 1;
   operation.operationIndexAssignmentsB[1].type = cobaltOperationIndexAssignmentTypeFree;

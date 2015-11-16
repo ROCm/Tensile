@@ -8,6 +8,7 @@ set( CobaltLib_SRC
   src/Logger.cpp
   src/Logger.h
   src/ReferenceTensorContraction.cpp
+  src/ReferenceTensorContraction.h
   src/Solution.cpp
   src/Solution.h
   src/StructOperations.cpp

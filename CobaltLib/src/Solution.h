@@ -7,8 +7,10 @@
 #include <string>
 
 
+/*******************************************************************************
+ * CobaltSolution (abstract)
+ ******************************************************************************/
 struct CobaltSolution {
-public:
 
   CobaltSolution( CobaltProblem inputProblem );
 
@@ -24,6 +26,10 @@ public:
 
 }; // class Solution
 
+
+/*******************************************************************************
+ * LogSolution - used in LOG_ONLY mode
+ ******************************************************************************/
 class LogSolution : public CobaltSolution {
 public:
   LogSolution( CobaltProblem inputProblem );

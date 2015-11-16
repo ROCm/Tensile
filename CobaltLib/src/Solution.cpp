@@ -3,15 +3,24 @@
 #include "Logger.h"
 
 
+/*******************************************************************************
+ * CobaltSolution:: constructor
+ ******************************************************************************/
 CobaltSolution::CobaltSolution( CobaltProblem inputProblem)
   : problem(inputProblem) {
 }
 
 
+/*******************************************************************************
+ * LogSolution:: constructor
+ ******************************************************************************/
 LogSolution::LogSolution( CobaltProblem inputProblem)
   : CobaltSolution(inputProblem) {
 }
 
+/*******************************************************************************
+ * LogSolution:: enqueue
+ ******************************************************************************/
 CobaltStatus LogSolution::enqueue(
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
@@ -23,8 +32,11 @@ CobaltStatus LogSolution::enqueue(
   return status;
 }
 
-  std::string LogSolution::toString( size_t indentLevel ) const {
-    //std::string state = Logger::indent(indentLevel);
-    return "<LogSolution type=\"virtual\" />\n";
-  }
+/*******************************************************************************
+ * LogSolution:: toString - TODO
+ ******************************************************************************/
+std::string LogSolution::toString( size_t indentLevel ) const {
+  //std::string state = Logger::indent(indentLevel);
+  return "<LogSolution type=\"virtual\" />\n";
+}
 

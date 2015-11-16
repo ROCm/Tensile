@@ -54,6 +54,8 @@ typedef enum CobaltCode_ {
   cobaltCodeGetSolutionAlreadyRequested,
   cobaltCodeProblemSizeTooSmall
 
+  // TODO operation doesn't match tensorA,B,C
+
 } CobaltCode;
 
 
@@ -181,6 +183,7 @@ typedef struct CobaltProblem_ {
   CobaltOperation operation;
 } CobaltProblem;
 
+CobaltStatus cobaltValidateProblem( CobaltProblem problem );
 
 /*******************************************************************************
  * Control

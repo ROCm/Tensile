@@ -2,7 +2,10 @@
 #include "Logger.h"
 
 namespace Cobalt {
-
+  
+/*******************************************************************************
+ * TraceEntry:: constructor
+ ******************************************************************************/
 Logger::TraceEntry::TraceEntry(
     TraceEntryType inputType,
     const CobaltSolution *inputSolution,
@@ -13,6 +16,25 @@ Logger::TraceEntry::TraceEntry(
     status(inputStatus) {
 }
 
+/*******************************************************************************
+ * TraceEntry:: toString
+ ******************************************************************************/
+std::string Logger::TraceEntry::toString( size_t indentLevel ) {
+  std::string state = indent(indentLevel);
+  state += "<TraceEntry";
+  state += " enum=\"" + std::to_string(type) + "\"";
+  state += " string=\"" + Logger::toString(type) + "\" >\n";
+  if (solution) {
+    state += solution->toString(indentLevel+1);
+  }
+  state += ::toString(status, indentLevel+1);
+  state += indent(indentLevel) + "</TraceEntry>\n";
+  return state;
+}
+
+/*******************************************************************************
+ * TraceEntryType:: toString
+ ******************************************************************************/
 std::string Logger::toString( Logger::TraceEntryType type ) {
 
 #define TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(X) case X: return #X;
@@ -24,20 +46,6 @@ std::string Logger::toString( Logger::TraceEntryType type ) {
   };
 }
 
-std::string Logger::TraceEntry::toString( size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<" + traceEntryTag;
-  state += " " + typeEnumAttr + "=\"" + std::to_string(type) + "\"";
-  state += " " + typeStringAttr + "=\"" + Logger::toString(type) + "\" >\n";
-  if (solution) {
-    state += solution->toString(indentLevel+1);
-  }
-  state += ::toString(status, indentLevel+1);
-  state += indent(indentLevel) + "</" + traceEntryTag + ">\n";
-  return state;
-}
-
-
 /*******************************************************************************
  * constructor
  ******************************************************************************/
@@ -46,9 +54,9 @@ Logger::Logger( std::string logFilePrefix) {
   std::string logFileName = logFilePrefix;
   file.open( logFileName, std::fstream::out );
   file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n";
-  file << "<" + documentTag + ">\n\n";
+  file << "<CobaltLog>\n\n";
   file << Logger::comment("Trace");
-  file << "<" + traceTag + ">\n";
+  file << "<Trace>\n";
 }
 
 
@@ -68,6 +76,7 @@ Logger::~Logger() {
 void Logger::logGetSolution(
     const CobaltSolution *solution,
     CobaltStatus status ) {
+  printf("Logger::logGetSolution(%p)\n", solution );
   // create entry
   TraceEntry entry(getSolution, solution, status);
   // add to trace
@@ -94,9 +103,9 @@ void Logger::logEnqueueSolution(
   }
 }
 
-
-
-
+/*******************************************************************************
+ * comment
+ ******************************************************************************/
 std::string Logger::comment(std::string comment) {
   std::string xmlComment;
   xmlComment += "<!-- ~~~~~~~~~~~~~~~~ ";
@@ -116,6 +125,9 @@ void Logger::flush() {
   }
 }
 
+/*******************************************************************************
+ * summaryEntryToString
+ ******************************************************************************/
 std::string summaryEntryToString( std::string tag, const CobaltSolution *summary, size_t count, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
@@ -124,47 +136,44 @@ std::string summaryEntryToString( std::string tag, const CobaltSolution *summary
   return state;
 }
 
+/*******************************************************************************
+ * writeSummary
+ ******************************************************************************/
 void Logger::writeSummary() {
   // close trace
-  file << "</" + traceTag + ">\n\n";
+  file << "</Trace>\n\n";
 
   // get summary
   file << comment("Summary of Problem::getSolution()");
-  file << "<" + getSummaryTag + " numEntries=\"" + std::to_string(getSummary.size()) + "\" >\n";
+  file << "<SummaryGetSolution numEntries=\"" + std::to_string(getSummary.size()) + "\" >\n";
   std::map<const CobaltSolution*, unsigned long long>::iterator i;
   for ( i = getSummary.begin(); i != getSummary.end(); i++) {
     const CobaltSolution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
-    std::string state = summaryEntryToString("GetProblem", solution, count, 1);
+    std::string state = summaryEntryToString("GetSolution", solution, count, 1);
     file << state;
   }
-  file << "</" + getSummaryTag + ">\n\n";
+  file << "</SumaryGetSolution>\n\n";
 
   // enqueue summary
   file << comment("Summary of Problem::enqueueSolution()");
-  file << "<" + enqueueSummaryTag + " numEntries=\"" + std::to_string(enqueueSummary.size()) + "\" >\n";
+  file << "<SummaryEnqueueSolution numEntries=\"" + std::to_string(enqueueSummary.size()) + "\" >\n";
   for ( i = enqueueSummary.begin(); i != enqueueSummary.end(); i++) {
     const CobaltSolution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
-    std::string state = summaryEntryToString("EnqueueProblem", solution, count, 1);
+    std::string state = summaryEntryToString("EnqueueSolution", solution, count, 1);
     file << state;
   }
-  file << "</" + enqueueSummaryTag + ">\n\n";
+  file << "</SummaryEnqueueSolution>\n\n";
 
   // end document
-  file << "</" + documentTag + ">\n";
+  file << "</CobaltLog>\n";
 
 }
-
-
-
-
-
-
 
 
 // global logger object

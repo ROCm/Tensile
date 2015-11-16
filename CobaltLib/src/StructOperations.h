@@ -6,7 +6,6 @@
 #include "Solution.h"
 #include <string>
 
- std::string indent(size_t level);
 
 /*******************************************************************************
  * enum toString
@@ -31,29 +30,11 @@ std::string toString( const CobaltStatus status, size_t indentLevel );
 /*******************************************************************************
  * xml tags for toString
  ******************************************************************************/
-extern const std::string tensorTag;
-extern const std::string dimensionTag;
-extern const std::string dimPairTag;
-extern const std::string operationTag;
-extern const std::string deviceTag;
-extern const std::string deviceProfileTag;
-extern const std::string problemTag;
-extern const std::string solutionTag;
-extern const std::string statusTag;
-extern const std::string traceEntryTag;
-extern const std::string traceTag;
-extern const std::string getSummaryTag;
-extern const std::string enqueueSummaryTag;
-extern const std::string documentTag;
-extern const std::string numDimAttr;
-extern const std::string operationAttr;
-extern const std::string dimNumberAttr;
-extern const std::string dimStrideAttr;
-extern const std::string nameAttr;
-extern const std::string typeEnumAttr;
-extern const std::string typeStringAttr;
+std::string indent(size_t level);
 
-
+/*******************************************************************************
+ * comparators for STL
+ ******************************************************************************/
 bool operator<(const CobaltStatus & a, const CobaltStatus & b );
 bool operator<(const CobaltDimension & l, const CobaltDimension & r);
 bool operator<(const CobaltTensor & l, const CobaltTensor & r);
