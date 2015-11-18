@@ -178,12 +178,22 @@ typedef struct CobaltOperationIndexAssignment_ {
 
 typedef struct CobaltOperation_ {
   CobaltOperationType type;
-  size_t numOperationIndexAssignmentsA;
-  CobaltOperationIndexAssignment
-      operationIndexAssignmentsA[CobaltTensor::maxDimensions];
-  size_t numOperationIndexAssignmentsB;
-  CobaltOperationIndexAssignment
-      operationIndexAssignmentsB[CobaltTensor::maxDimensions];
+
+  size_t numBoundIndices;
+  size_t boundIndicesA[CobaltTensor::maxDimensions]; // boundIndicesA[0] = 1
+  size_t boundIndicesB[CobaltTensor::maxDimensions]; // boundIndicesA[2] = 1 A0 and B2 bound
+  size_t numFreeIndicesOperand;
+  size_t freeIndicesA[CobaltTensor::maxDimensions]; // freeIndicesA[0] = 3 means 3rd dimension of A corresponds to 0th dimension of C
+  size_t freeIndicesB[CobaltTensor::maxDimensions];
+
+
+  //size_t numOperationIndexAssignmentsA;
+  //CobaltOperationIndexAssignment
+  //    operationIndexAssignmentsA[CobaltTensor::maxDimensions];
+  //size_t numOperationIndexAssignmentsB;
+  //CobaltOperationIndexAssignment
+  //    operationIndexAssignmentsB[CobaltTensor::maxDimensions];
+
 } CobaltOperation;
 
 
@@ -223,7 +233,7 @@ typedef struct CobaltControl_ {
 struct CobaltSolution; // forward declaration
 
 CobaltStatus cobaltGetSolution(
-    const CobaltProblem & problem,
+    const CobaltProblem problem,
     struct CobaltSolution *solution );
 
 CobaltStatus cobaltEnqueueSolution(
@@ -236,7 +246,7 @@ CobaltStatus cobaltEnqueueSolution(
 
 /*******************************************************************************
  * Setup & Teardown
- ******************************************************************************/
+ **********************************8********************************************/
 CobaltStatus cobaltSetup();
 CobaltStatus cobaltTeardown();
 

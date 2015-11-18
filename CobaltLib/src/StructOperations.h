@@ -6,6 +6,13 @@
 #include "Solution.h"
 #include <string>
 
+#define INIT_STATUS CobaltStatus status; status.numCodes = 0;
+#define ADD_CODE_TO_STATUS(CODE) status.codes[status.numCodes++] = CODE;
+#define RETURN_STATUS \
+  if (status.numCodes == 0) { \
+    ADD_CODE_TO_STATUS(cobaltCodeSuccess) \
+  } \
+  return status;
 
 /*******************************************************************************
  * enum toString

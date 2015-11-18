@@ -3,13 +3,6 @@
 #include <assert.h>
 #include <stdio.h>
 
-#define INIT_STATUS CobaltStatus status; status.numCodes = 0;
-#define ADD_CODE_TO_STATUS(CODE) status.codes[status.numCodes++] = CODE;
-#define RETURN_STATUS \
-  if (status.numCodes == 0) { \
-    ADD_CODE_TO_STATUS(cobaltCodeSuccess) \
-  } \
-  return status;
 
 /*******************************************************************************
  * cobaltSetup()
@@ -281,7 +274,6 @@ CobaltStatus cobaltCodeToString( CobaltCode code, char *cstr, size_t *size ) {
   cppStringToCString( state, cstr, size, status );
   RETURN_STATUS
 }
-
 
 CobaltStatus cobaltStatusToString(
     CobaltStatus inputStatus, char *cstr, size_t *size ) {
