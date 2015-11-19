@@ -96,6 +96,11 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
       ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionStrideInvalidB )
     }
   }
+
+  /* tensorA,B */
+  if (problem.tensorA.numDimensions != problem.tensorB.numDimensions) {
+    ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionMismatch )
+  }
   
   /* tensorC */
   if (problem.tensorC.numDimensions < 1
@@ -112,112 +117,49 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   }
 
   /* operation */
-
-  // operation num indices match tensor num indices
-  if ( problem.operation.numOperationIndexAssignmentsA
-      != problem.tensorA.numDimensions ) {
-    ADD_CODE_TO_STATUS(
-        cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsA );
-  }
-  if ( problem.operation.numOperationIndexAssignmentsB
-      != problem.tensorB.numDimensions ) {
-    ADD_CODE_TO_STATUS(
-        cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsB );
+  
+  // free + bound indices = total indices
+  if (problem.operation.numFreeIndicesAB + problem.operation.numBoundIndices
+      != problem.tensorA.numDimensions) {
+    ADD_CODE_TO_STATUS( cobaltCodeOperationNumIndicesMismatch ) // TODO better name?
   }
 
-  // tensorA,B have same num free indices
-  size_t numFreeIndicesA = 0;
-  for( size_t i = 0; i < problem.operation.numOperationIndexAssignmentsA; i++) {
-    if (problem.operation.operationIndexAssignmentsA[i].type
-      == cobaltOperationIndexAssignmentTypeFree ) {
-        numFreeIndicesA++;
-    }
-  }
-  size_t numFreeIndicesB = 0;
-  for( size_t i = 0; i < problem.operation.numOperationIndexAssignmentsB; i++) {
-    if (problem.operation.operationIndexAssignmentsB[i].type
-      == cobaltOperationIndexAssignmentTypeFree ) {
-        numFreeIndicesB++;
-    }
-  }
-  if ( numFreeIndicesA != numFreeIndicesB ) {
-    ADD_CODE_TO_STATUS( cobaltCodeOperationNumFreeIndicesMismatch )
+  bool *assignedIndicesA = new bool[problem.tensorA.numDimensions];
+  bool *assignedIndicesB = new bool[problem.tensorB.numDimensions];
+  for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
+    assignedIndicesA[i] = false;
+    assignedIndicesB[i] = false;
   }
 
-  // for each tensorC index; tensorA or B has it as a free assinment
-  for (size_t i = 0; i < problem.tensorC.numDimensions; i++) {
-    bool freeIndexOfA = false;
-    for (size_t j = 0; j < problem.tensorA.numDimensions; j++) {
-      if (problem.operation.operationIndexAssignmentsA[i].type
-          ==cobaltOperationIndexAssignmentTypeFree
-          && problem.operation.operationIndexAssignmentsA[i].index == j) {
-        if (freeIndexOfA) {
-          ADD_CODE_TO_STATUS( cobaltCodeOperationFreeIndexDuplicateA )
-        }
-        freeIndexOfA = true;
-      }
+  // free/bound index in range
+  // no index duplicates (each index assigned exactly once
+  for (size_t f = 0; f < problem.operation.numFreeIndicesAB; f++) {
+    if (problem.operation.freeIndicesA[f] >= problem.tensorA.numDimensions) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationFreeIndexInvalidA )
+    } else if (assignedIndicesA[problem.operation.freeIndicesA[f]]) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationIndexDuplicateA )
     }
-    bool freeIndexOfB = false;
-    for (size_t j = 0; j < problem.tensorB.numDimensions; j++) {
-      if (problem.operation.operationIndexAssignmentsB[i].type
-          ==cobaltOperationIndexAssignmentTypeFree
-          && problem.operation.operationIndexAssignmentsB[i].index == j) {
-        if (freeIndexOfB) {
-          ADD_CODE_TO_STATUS( cobaltCodeOperationFreeIndexDuplicateB )
-        }
-        freeIndexOfB = true;
-      }
+    assignedIndicesA[problem.operation.freeIndicesA[f]] = true;
+    if (problem.operation.freeIndicesB[f] >= problem.tensorB.numDimensions) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationFreeIndexInvalidB )
+    } else if (assignedIndicesB[problem.operation.freeIndicesB[f]]) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationIndexDuplicateB )
     }
-    if ( !freeIndexOfA && !freeIndexOfB ) {
-      ADD_CODE_TO_STATUS( cobaltCodeOperationFreeIndexUnassigned )
-    }
+    assignedIndicesB[problem.operation.freeIndicesB[f]] = true;
   }
-
-  // for each A index bound to B, B is bound back
-  size_t numBoundIndices = 0;
-  for( size_t i = 0; i < problem.operation.numOperationIndexAssignmentsA; i++) {
-    if (problem.operation.operationIndexAssignmentsA[i].type
-        == cobaltOperationIndexAssignmentTypeBound ) {
-      size_t boundIndex = problem.operation.operationIndexAssignmentsA[i].index;
-      if ( boundIndex >= problem.tensorB.numDimensions ) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexInvalidA )
-      }
-      if ( problem.operation.operationIndexAssignmentsB[boundIndex].type
-          != cobaltOperationIndexAssignmentTypeBound) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexNotBoundTypeB )
-      }
-      if ( problem.operation.operationIndexAssignmentsB[boundIndex].index
-          != i) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexMismatchB )
-      }
-      if ( problem.tensorA.dimensions[i].size
-          != problem.tensorB.dimensions[boundIndex].size) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexNumDimensionsMismatch )
-      }
-      numBoundIndices++;
+  for (size_t b = 0; b < problem.operation.numBoundIndices; b++) {
+    if (problem.operation.boundIndicesA[b] >= problem.tensorA.numDimensions) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexInvalidA )
+    } else if (assignedIndicesA[problem.operation.boundIndicesA[b]]) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationIndexDuplicateA )
     }
-  }
-  // for each B index bound to A, A is bound back
-  for( size_t i = 0; i < problem.operation.numOperationIndexAssignmentsB; i++) {
-    if (problem.operation.operationIndexAssignmentsB[i].type
-        == cobaltOperationIndexAssignmentTypeBound ) {
-      size_t boundIndex = problem.operation.operationIndexAssignmentsB[i].index;
-      if ( boundIndex >= problem.tensorA.numDimensions ) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexInvalidB )
-      }
-      if ( problem.operation.operationIndexAssignmentsA[boundIndex].type
-          != cobaltOperationIndexAssignmentTypeBound) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexNotBoundTypeA )
-      }
-      if ( problem.operation.operationIndexAssignmentsA[boundIndex].index
-          != i) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexMismatchA )
-      }
-      if ( problem.tensorB.dimensions[i].size
-          != problem.tensorA.dimensions[boundIndex].size) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexNumDimensionsMismatch )
-      }
+    assignedIndicesA[problem.operation.boundIndicesA[b]] = true;
+    if (problem.operation.boundIndicesB[b] >= problem.tensorB.numDimensions) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationBoundIndexInvalidB )
+    } else if (assignedIndicesB[problem.operation.boundIndicesB[b]]) {
+      ADD_CODE_TO_STATUS( cobaltCodeOperationIndexDuplicateB )
     }
+    assignedIndicesB[problem.operation.boundIndicesB[b]] = true;
   }
 
   /* device profile */

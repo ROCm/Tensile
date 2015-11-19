@@ -36,19 +36,13 @@ typedef enum CobaltCode_ {
   cobaltCodeTensorDimensionStrideInvalidC,
   
   // operation errors
-  cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsA,
-  cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsB,
-  cobaltCodeOperationNumFreeIndicesMismatch,
-  cobaltCodeOperationFreeIndexDuplicateA,
-  cobaltCodeOperationFreeIndexDuplicateB,
-  cobaltCodeOperationFreeIndexUnassigned,
+  cobaltCodeOperationNumIndicesMismatch,
   cobaltCodeOperationBoundIndexInvalidA,
   cobaltCodeOperationBoundIndexInvalidB,
-  cobaltCodeOperationBoundIndexNotBoundTypeA,
-  cobaltCodeOperationBoundIndexNotBoundTypeB,
-  cobaltCodeOperationBoundIndexMismatchA,
-  cobaltCodeOperationBoundIndexMismatchB,
-  cobaltCodeOperationBoundIndexNumDimensionsMismatch,
+  cobaltCodeOperationFreeIndexInvalidA,
+  cobaltCodeOperationFreeIndexInvalidB,
+  cobaltCodeOperationIndexDuplicateA,
+  cobaltCodeOperationIndexDuplicateB,
 
   // device profile errors
   cobaltCodeDeviceProfileNumDevicesInvalid,
@@ -178,13 +172,14 @@ typedef struct CobaltOperationIndexAssignment_ {
 
 typedef struct CobaltOperation_ {
   CobaltOperationType type;
-
+  
+  // don't sort(v0.1); user can easily redo that
+  size_t numFreeIndicesAB; // of A, B (C can have more)
+  size_t freeIndicesA[CobaltTensor::maxDimensions]; // {0,1} freeIndicesA[0] = 3 means 3rd dimension of A corresponds to 0th dimension of C
+  size_t freeIndicesB[CobaltTensor::maxDimensions]; // {0,2}
   size_t numBoundIndices;
   size_t boundIndicesA[CobaltTensor::maxDimensions]; // boundIndicesA[0] = 1
   size_t boundIndicesB[CobaltTensor::maxDimensions]; // boundIndicesA[2] = 1 A0 and B2 bound
-  size_t numFreeIndicesOperand;
-  size_t freeIndicesA[CobaltTensor::maxDimensions]; // freeIndicesA[0] = 3 means 3rd dimension of A corresponds to 0th dimension of C
-  size_t freeIndicesB[CobaltTensor::maxDimensions];
 
 
   //size_t numOperationIndexAssignmentsA;

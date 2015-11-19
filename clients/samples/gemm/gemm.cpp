@@ -154,6 +154,22 @@ CobaltTensor createTensorForMatrix(
 CobaltOperation createOperationForGEMM() {
   CobaltOperation operation;
   operation.type = cobaltOperationTypeTensorContraction;
+  // C[i,j] = Sum_k A[i,k] * B[k,j]
+  //   0,u freeA
+  //   u,1 freeB
+  //       boundA 1
+  //       boundB 0
+  operation.numFreeIndicesAB = 1;
+  operation.freeIndicesA[0] = 0; // i
+  operation.freeIndicesA[1] = CobaltOperation::cobaltOperationFreeIndexUnassigned; // j
+  operation.freeIndicesB[0] = CobaltOperation::cobaltOperationFreeIndexUnassigned; // i
+  operation.freeIndicesB[1] = 0; // j
+  operation.numBoundIndices = 1;
+  operation.boundIndicesA[0] = 0; // k
+  operation.boundIndicesB[0] = 1; // k
+
+  // C[i,j] = Sum_k A[i,k] * B[k,j]
+
   operation.numOperationIndexAssignmentsA = 2;
   operation.operationIndexAssignmentsA[0].type
       = cobaltOperationIndexAssignmentTypeFree;

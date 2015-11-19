@@ -39,12 +39,20 @@ CobaltStatus ReferenceTensorContraction::enqueue(
   float *dataC = (float *)tensorDataC.data;
   dataC += tensorDataC.offset;
 
+#if 0
   // indices
   size_t numFreeIndices = problem.tensorC.numDimensions;
+  size_t numFreeIndicesA = 0;
+  for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
+    if (problem.operation.operationIndexAssignmentsA[i].type == cobaltOperationIndexAssignmentTypeFree) {
+      numFreeIndicesA++;
+    }
+  }
+  size_t numFreeIndicesB = numFreeIndicesA;
   size_t numBoundIndices = problem.tensorA.numDimensions - numFreeIndices;
   size_t *freeIndicesC = new size_t[numFreeIndices];
-  size_t *freeIndicesA = new size_t[numFreeIndices];
-  size_t *freeIndicesB = new size_t[numFreeIndices];
+  size_t *freeIndicesA = new size_t[numFreeIndices]; // TODO A doesn't have all free indices
+  size_t *freeIndicesB = new size_t[numFreeIndices]; // TODO B doesn't have all free indices
   size_t *boundIndicesA = new size_t[numBoundIndices];
   size_t *boundIndicesB = new size_t[numBoundIndices];
   bool *boundIndexAssigned = new bool[problem.tensorA.numDimensions];
@@ -106,14 +114,15 @@ CobaltStatus ReferenceTensorContraction::enqueue(
       }
     }
   }
+#endif
 
-  size_t *freeCoord = new size_t[numFreeIndices];
-  size_t *freeIndexSizes = new size_t[numFreeIndices];
-  for (size_t i = 0; i < numFreeIndices; i++) {
+  size_t *freeCoord = new size_t[problem.operation.numFreeIndices];
+  //size_t *freeIndexSizes = new size_t[problem.operation.numFreeIndices];
+  for (size_t i = 0; i < problem.operation.numFreeIndices; i++) {
     freeCoord[i] = 0;
-    freeIndexSizes[i] = problem.tensorC.dimensions[freeIndicesC[i]].size;
+  //  freeIndexSizes[i] = problem.tensorC.dimensions[freeIndicesC[i]].size;
   }
-  size_t *boundCoord = new size_t[numBoundIndices];
+  size_t *boundCoord = new size_t[problem.operation.numBoundIndices];
   size_t *boundIndexSizes = new size_t[numBoundIndices];
   for (size_t i = 0; i < numBoundIndices; i++) {
     boundCoord[i] = 0;
@@ -127,22 +136,22 @@ CobaltStatus ReferenceTensorContraction::enqueue(
   while (true) {
 
     // next free element is along last free dimension
-    freeCoord[numFreeIndices-1]++;
-    for (size_t f = numFreeIndices-1; f > 0; f--) {
-      if (freeCoord[f] >= freeIndexSizes[f]) {
+    freeCoord[problem.tensorC.numDimensions-1]++;
+    for (size_t f = problem.tensorC.numDimensions-1; f > 0; f--) {
+      if (freeCoord[f] >= problem.tensorC.dimensions[f].size) {
         freeCoord[f] = 0;
         freeCoord[f-1]++;
       }
     }
-    if (freeCoord[0] >= freeIndexSizes[0]) {
+    if (freeCoord[0] >= problem.tensorC.dimensions[0].size) {
       break; // done with last free element of C
     }
 
     // iterate over entire bound index 
     float sumC = 0.f;
     while (true) {
-      boundCoord[numBoundIndices-1]++;
-      for ( size_t b = numBoundIndices-1; b > 0; b--) {
+      boundCoord[problem.operation.numBoundIndices-1]++;
+      for ( size_t b = problem.operation.numBoundIndices-1; b > 0; b--) {
         if ( boundCoord[b] >= boundIndexSizes[b]) {
           boundCoord[b] = 0;
           boundCoord[b-1]++;
@@ -151,61 +160,29 @@ CobaltStatus ReferenceTensorContraction::enqueue(
       if (boundCoord[0] >= boundIndexSizes[0]) {
         break; // done with last element
       }
+      for (size_t f = 0; f < problem.operation.numFreeIndices; f++) {
+        coordsA[problem.operation.freeIndicesA[f]] = freeCoord[f];
+        coordsB[problem.operation.freeIndicesB[f]] = freeCoord[f];
+      }
+      for (size_t b = 0; b < problem.operation.numBoundIndices; b++) {
+        coordsA[problem.operation.boundIndicesA[b]] = boundCoord[b];
+        coordsB[problem.operation.boundIndicesB[b]] = boundCoord[b];
+      }
       
-      size_t coordsA[] = {i, y, k, x, z, j}; // TODO - lookup order
       size_t serialIdxA = coordsToSerial( problem.tensorA, coordsA);
       float valueA = dataA[serialIdxA];
 
-      size_t coordsB[] = {y, i, j, x, k, z}; // TODO - lookup order
       size_t serialIdxB = coordsToSerial( problem.tensorB, coordsB);
       float valueB = dataB[serialIdxB];
 
       sumC += valueA * valueB;
 
     } // bound range
+    size_t serialIdxC = coordsToSerial(problem.tensorC, freeCoord);
+    dataC[serialIdxC] = sumC; // TODO - or += allow split among k
 
   } // free range
 
-
-
-  // for free indices
-  for (size_t i = 0; i < problem.tensorC.dimensions[0].size; i++) {
-    for (size_t j = 0; j < problem.tensorC.dimensions[1].size; j++) {
-      for (size_t k = 0; k < problem.tensorC.dimensions[2].size; k++) {
-        size_t coordsC[] = {i, j, k}; // TODO - lookup order
-        float sumC = 0;
-
-        // for bound indices
-        for (size_t z = 0; z < boundIndexSizes[0]; z++) {
-          for (size_t y = 0; y < boundIndexSizes[1]; y++) {
-            for (size_t x = 0; x < boundIndexSizes[2]; x++) {
-              size_t coordsA[] = {i, y, k, x, z, j}; // TODO - lookup order
-              size_t serialIdxA = coordsToSerial( problem.tensorA, coordsA);
-              float valueA = dataA[serialIdxA];
-
-              size_t coordsB[] = {y, i, j, x, k, z}; // TODO - lookup order
-              size_t serialIdxB = coordsToSerial( problem.tensorB, coordsB);
-              float valueB = dataB[serialIdxB];
-
-              sumC += valueA * valueB;
-            }
-          }
-        }
-        size_t serialIdxC = coordsToSerial(problem.tensorC, coordsC);
-        dataC[serialIdxC] = sumC; // TODO - or += allow split among k
-      }
-    }
-  }
-
-
-  //A[0,1,2];
-  //B[0,1,2];
-  //C[0,1];
-  //operation.contractedIndices(1,0);
-  //operation.cIndices[0](A,0);
-  //operation.cIndices[1](B,1);
-
-  //for ( size_t i = 0; i < 
   RETURN_STATUS
 } // referenceTensorContraction
 
