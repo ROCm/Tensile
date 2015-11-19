@@ -33,7 +33,7 @@ CobaltStatus LogSolution::enqueue(
 }
 
 /*******************************************************************************
- * LogSolution:: toString - TODO
+ * LogSolution:: toString
  ******************************************************************************/
 std::string LogSolution::toString( size_t indentLevel ) const {
   std::string state = indent(indentLevel) + "<Solution>\n";

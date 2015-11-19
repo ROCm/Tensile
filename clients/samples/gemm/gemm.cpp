@@ -159,30 +159,32 @@ CobaltOperation createOperationForGEMM() {
   //   u,1 freeB
   //       boundA 1
   //       boundB 0
+  // numFreeIndices = 2 b/c tensorC rank 2
   operation.numFreeIndicesAB = 1;
-  operation.freeIndicesA[0] = 0; // i
-  operation.freeIndicesA[1] = CobaltOperation::cobaltOperationFreeIndexUnassigned; // j
-  operation.freeIndicesB[0] = CobaltOperation::cobaltOperationFreeIndexUnassigned; // i
-  operation.freeIndicesB[1] = 0; // j
-  operation.numBoundIndices = 1;
-  operation.boundIndicesA[0] = 0; // k
-  operation.boundIndicesB[0] = 1; // k
+  operation.numSummationIndices = 1;
+  operation.indexAssignmentsA[0] = 0; // i
+  operation.indexAssignmentsA[1] = 2; // j
+  operation.indexAssignmentsB[0] = 2; // i
+  operation.indexAssignmentsB[1] = 1; // j
+  //operation.numSummationIndices = 1;
+  //operation.boundIndicesA[0] = 0; // k
+  //operation.boundIndicesB[0] = 1; // k
 
   // C[i,j] = Sum_k A[i,k] * B[k,j]
 
-  operation.numOperationIndexAssignmentsA = 2;
-  operation.operationIndexAssignmentsA[0].type
-      = cobaltOperationIndexAssignmentTypeFree;
-  operation.operationIndexAssignmentsA[0].index = 0;
-  operation.operationIndexAssignmentsA[1].type
-      = cobaltOperationIndexAssignmentTypeBound;
-  operation.operationIndexAssignmentsA[1].index = 0;
-  operation.numOperationIndexAssignmentsB = 2;
-  operation.operationIndexAssignmentsB[0].type
-      = cobaltOperationIndexAssignmentTypeBound;
-  operation.operationIndexAssignmentsB[0].index = 1;
-  operation.operationIndexAssignmentsB[1].type
-      = cobaltOperationIndexAssignmentTypeFree;
-  operation.operationIndexAssignmentsB[1].index = 1;
+  //operation.numOperationIndexAssignmentsA = 2;
+  //operation.operationIndexAssignmentsA[0].type
+  //    = cobaltOperationIndexAssignmentTypeFree;
+  //operation.operationIndexAssignmentsA[0].index = 0;
+  //operation.operationIndexAssignmentsA[1].type
+  //    = cobaltOperationIndexAssignmentTypeBound;
+  //operation.operationIndexAssignmentsA[1].index = 0;
+  //operation.numOperationIndexAssignmentsB = 2;
+  //operation.operationIndexAssignmentsB[0].type
+  //    = cobaltOperationIndexAssignmentTypeBound;
+  //operation.operationIndexAssignmentsB[0].index = 1;
+  //operation.operationIndexAssignmentsB[1].type
+  //    = cobaltOperationIndexAssignmentTypeFree;
+  //operation.operationIndexAssignmentsB[1].index = 1;
   return operation;
 }

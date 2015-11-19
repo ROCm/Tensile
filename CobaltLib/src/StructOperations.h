@@ -20,7 +20,6 @@
 std::string toString( CobaltCode code );
 std::string toString( CobaltPrecision precision );
 std::string toString( CobaltOperationType type );
-std::string toString( CobaltOperationIndexAssignmentType type );
 std::string toString( CobaltProblem problem );
 
 /*******************************************************************************
@@ -48,8 +47,6 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r);
 bool operator<(const CobaltTensor & l, const CobaltTensor & r);
 bool operator<(const CobaltDevice & l, const CobaltDevice & r);
 bool operator<(const CobaltDeviceProfile & l, const CobaltDeviceProfile & r);
-bool operator<(const CobaltOperationIndexAssignment & l,
-    const CobaltOperationIndexAssignment & r);
 bool operator<(const CobaltOperation & l, const CobaltOperation & r);
 bool operator<(const CobaltProblem & l, const CobaltProblem & r);
 bool operator<(const CobaltControl & l, const CobaltControl & r);

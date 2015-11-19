@@ -38,19 +38,14 @@ std::string toString( CobaltCode code ) {
   COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionStrideInvalidC )
   
   // operation errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumIndexAssignmentsMismatchNumDimensionsB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumFreeIndicesMismatch )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationFreeIndexDuplicateA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationFreeIndexDuplicateB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationFreeIndexUnassigned )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexNotBoundTypeA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexNotBoundTypeB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexMismatchA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexMismatchB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationBoundIndexNumDimensionsMismatch )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumIndicesMismatch )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentInvalidA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentInvalidB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentDuplicateA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentDuplicateB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumIndicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumFreeIndicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumSummationIndicesInvalid )
 
   // device profile errors
   COBALT_ENUM_TO_STRING_CASE( cobaltCodeDeviceProfileNumDevicesInvalid )
@@ -99,79 +94,46 @@ std::string toString( CobaltOperationType type ) {
   };
 }
 
-std::string toString( CobaltOperationIndexAssignmentType type ) {
-  switch( type ) {
-    COBALT_ENUM_TO_STRING_CASE( cobaltOperationIndexAssignmentTypeBound )
-    COBALT_ENUM_TO_STRING_CASE( cobaltOperationIndexAssignmentTypeFree )
-  default:
-    return "Error in toString(CobaltPrecision): no switch case for: "
-        + std::to_string(type);
-  };
-}
-
 // pretty print
  std::string toString( CobaltProblem problem ) {
    // assumes problem has already been validated
   std::string state = "";
-  static const char *freeIndexChars = "ijklmnopqrstuvwxyz";
-  static const char *boundIndexChars = "zyxwvutsrqponmlkjihgfedcba";
-
-  size_t numBoundIndices = 0;
-  size_t boundIndexSizes[CobaltTensor::maxDimensions];
-  for( size_t i = 0; i < problem.operation.numOperationIndexAssignmentsA; i++) {
-    if (problem.operation.operationIndexAssignmentsA[i].type
-        == cobaltOperationIndexAssignmentTypeBound ) {
-      boundIndexSizes[numBoundIndices] = problem.tensorA.dimensions[i].size;
-      numBoundIndices++;
-    }
-  }
+  static const char *indexChars = "ijklmnopqrstuvwxyz";
 
   state += "C[";
-  state += freeIndexChars[0];
+  state += indexChars[0];
   state += ":";
   state += std::to_string(problem.tensorC.dimensions[0].size);
   for (size_t i = 1; i < problem.tensorC.numDimensions; i++) {
     state += ",";
-    state += freeIndexChars[i];
+    state += indexChars[i];
     state += ":";
     state += std::to_string(problem.tensorC.dimensions[i].size);
   }
   state += "] = Sum(";
-  state += boundIndexChars[0];
+  state += indexChars[problem.tensorC.numDimensions];
   state += ":";
-  state += std::to_string(boundIndexSizes[0]);
-  for (size_t i = 1; i < numBoundIndices; i++) {
+  //state += std::to_string(boundIndexSizes[0]);
+  for (size_t i = 1; i < problem.operation.numSummationIndices; i++) {
     state += ",";
-    state += boundIndexChars[i];
+    state += indexChars[problem.tensorA.numDimensions+i];
     state += ":";
-    state += std::to_string(boundIndexSizes[i]);
+    for (size_t j = 0; j < problem.tensorA.numDimensions; j++) {
+      if (problem.operation.indexAssignmentsA[j] == i) {
+        state += std::to_string(problem.tensorA.dimensions[j].size);
+      }
+    }
   }
   state += ") A[";
-  size_t currentBoundIndex = 0;
-  size_t aIndexToBoundIndex[CobaltTensor::maxDimensions];
   for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
-    if (problem.operation.operationIndexAssignmentsA[i].type
-        == cobaltOperationIndexAssignmentTypeBound) {
-      aIndexToBoundIndex[i] = currentBoundIndex;
-      currentBoundIndex++;
-      state += boundIndexChars[aIndexToBoundIndex[i]];
-    } else {
-      // free index, which one?
-      state += freeIndexChars[problem.operation.operationIndexAssignmentsA[i].index];
-    }
+    state += indexChars[problem.operation.indexAssignmentsA[i]];
     if (i < problem.tensorA.numDimensions-1) {
       state += ",";
     }
   }
   state += "] * B[";
   for (size_t i = 0; i < problem.tensorB.numDimensions; i++) {
-    if (problem.operation.operationIndexAssignmentsB[i].type
-        == cobaltOperationIndexAssignmentTypeBound) {
-      state += boundIndexChars[aIndexToBoundIndex[problem.operation.operationIndexAssignmentsB[i].index]];
-    } else {
-      // free index, which one?
-      state += freeIndexChars[problem.operation.operationIndexAssignmentsB[i].index];
-    }
+    state += indexChars[problem.operation.indexAssignmentsB[i]];
     if (i < problem.tensorB.numDimensions-1) {
       state += ",";
     }
@@ -205,34 +167,30 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   state += "<Operation>\n";
   state += indent(indentLevel+1);
   // type
-  state += "<OperationType enum=\"" + std::to_string(operation.type) + "\"";
+  state += "<Type enum=\"" + std::to_string(operation.type) + "\"";
   state += " string=\"" + toString(operation.type) + "\" />\n";
   // operationIndexAssignmentsA
-  state += indent(indentLevel+1) + "<OperationIndexAssignments num=\""
-      + std::to_string( operation.numOperationIndexAssignmentsA) + "\">\n";
-  for (size_t i = 0; i < operation.numOperationIndexAssignmentsA; i++) {
+  state += indent(indentLevel+1) + "<IndexAssignments tensor=\"A\" >\n";
+  for (size_t i = 0; i < operation.numFreeIndicesAB + operation.numSummationIndices; i++) {
     state += indent(indentLevel+2);
-    state += "<OperationIndexAssignment";
-    state += " type=\"" + toString(operation.operationIndexAssignmentsA[i].type)
-        + "\"";
-    state += " index=\""
-        + std::to_string(operation.operationIndexAssignmentsA[i].index) + "\"";
+    state += "<IndexAssignment";
+    state += " index=\"" + std::to_string(i) + "\"";
+    state += " indexAssignment=\""
+        + std::to_string(operation.indexAssignmentsA[i]) + "\"";
     state += " />\n";
   }
-  state += indent(indentLevel+1) + "</OperationIndexAssignments>\n";
+  state += indent(indentLevel+1) + "</IndexAssignments>\n";
   // operationIndexAssignmentsB
-  state += indent(indentLevel+1) + "<OperationIndexAssignments num=\""
-      + std::to_string( operation.numOperationIndexAssignmentsA) + "\">\n";
-  for (size_t i = 0; i < operation.numOperationIndexAssignmentsB; i++) {
+  state += indent(indentLevel+1) + "<IndexAssignments tensor=\"B\" >\n";
+  for (size_t i = 0; i < operation.numFreeIndicesAB + operation.numSummationIndices; i++) {
     state += indent(indentLevel+2);
-    state += "<OperationIndexAssignment";
-    state += " type=\"" + toString(operation.operationIndexAssignmentsB[i].type)
-        + "\"";
-    state += " index=\""
-        + std::to_string(operation.operationIndexAssignmentsB[i].index) + "\"";
+    state += "<IndexAssignment";
+    state += " index=\"" + std::to_string(i) + "\"";
+    state += " indexAssignment=\""
+      + std::to_string(operation.indexAssignmentsB[i]) + "\"";
     state += " />\n";
   }
-  state += indent(indentLevel+1) + "</OperationIndexAssignments>\n";
+  state += indent(indentLevel+1) + "</IndexAssignments>\n";
   state += indent(indentLevel) + "</Operation>\n";
   return state;
 }
@@ -377,25 +335,6 @@ bool operator< (
   return false;
 }
 
-// CobaltOperationIndexAssignment
-bool operator<(const CobaltOperationIndexAssignment & l,
-    const CobaltOperationIndexAssignment & r) {
-  // type
-  if (l.type < r.type) {
-    return true;
-  } else if (r.type < l.type) {
-    return false;
-  }
-  // index
-  if (l.index < r.index) {
-    return true;
-  } else if (r.index < l.index) {
-    return false;
-  }
-  // identical
-  return false;
-}
-
 // CobaltOperation
 bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
   // type
@@ -404,36 +343,34 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
   } else if (r.type < l.type) {
     return false;
   }
-  // operationIndexAssignmentsA
-  if (l.numOperationIndexAssignmentsA < r.numOperationIndexAssignmentsA) {
+  // numFree,SummationIndices
+  if (l.numFreeIndicesAB < r.numFreeIndicesAB) {
     return true;
-  } else if (r.numOperationIndexAssignmentsA
-      < l.numOperationIndexAssignmentsA) {
+  } else if (r.numFreeIndicesAB < l.numFreeIndicesAB) {
     return false;
   }
-  for (size_t i = 0; i < l.numOperationIndexAssignmentsA; i++) {
-    if (l.operationIndexAssignmentsA[i] < r.operationIndexAssignmentsA[i]) {
+  if (l.numSummationIndices < r.numSummationIndices) {
+    return true;
+  } else if (r.numSummationIndices < l.numSummationIndices) {
+    return false;
+  }
+  // indexAssignmentsA
+  for (size_t i = 0; i < l.numFreeIndicesAB+l.numSummationIndices; i++) {
+    if (l.indexAssignmentsA[i] < r.indexAssignmentsA[i]) {
       return true;
-    } else if (r.operationIndexAssignmentsA[i]
-      < l.operationIndexAssignmentsA[i]) {
+    } else if (r.indexAssignmentsA[i] < l.indexAssignmentsA[i]) {
       return false;
     }
   }
-  // operationIndexAssignmentsB
-  if (l.numOperationIndexAssignmentsB < r.numOperationIndexAssignmentsB) {
-    return true;
-  } else if (r.numOperationIndexAssignmentsB
-      < l.numOperationIndexAssignmentsB) {
-    return false;
-  }
-  for (size_t i = 0; i < l.numOperationIndexAssignmentsB; i++) {
-    if (l.operationIndexAssignmentsB[i] < r.operationIndexAssignmentsB[i]) {
+  // indexAssignmentsB
+  for (size_t i = 0; i < l.numFreeIndicesAB+l.numSummationIndices; i++) {
+    if (l.indexAssignmentsB[i] < r.indexAssignmentsB[i]) {
       return true;
-    } else if (r.operationIndexAssignmentsB[i]
-      < l.operationIndexAssignmentsB[i]) {
+    } else if (r.indexAssignmentsB[i] < l.indexAssignmentsB[i]) {
       return false;
     }
   }
+
   // identical
   return false;
 }
