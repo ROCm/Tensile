@@ -22,6 +22,24 @@ CobaltStatus cobaltTeardown() {
   return cobaltStatusSuccess;
 }
 
+
+/*******************************************************************************
+ * cobaltStatusIsValidationError
+ ******************************************************************************/
+bool cobaltStatusIsValidationError( CobaltStatus status ) {
+  return status < cobaltStatusValidationErrorMax
+      && status > cobaltStatusValidationErrorMin;
+}
+
+
+/*******************************************************************************
+ * cobaltStatusIsPerformanceWarning
+ ******************************************************************************/
+bool cobaltStatusIsPerformanceWarning( CobaltStatus status ) {
+  return status < cobaltStatusPerformanceWarningMax
+      && status > cobaltStatusPerformanceWarningMin;
+}
+
 /*******************************************************************************
  * cobaltGetSolution
  ******************************************************************************/
@@ -68,6 +86,15 @@ CobaltStatus cobaltEnqueueSolution(
 /*******************************************************************************
  * cobaltValidateProblem
  ******************************************************************************/
+bool arrayContains( size_t *array, size_t arraySize, size_t value) {
+  for (size_t i = 0; i < arraySize; i++) {
+    if (array[i] == value) {
+      return true;
+    }
+  }
+  return false;
+}
+
 CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
 
   /* tensorA */
@@ -160,6 +187,50 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   // TODO - verify that all free indices show up as free
   // TODO - verify that all batch indices show up as batch
 
+  size_t freeIndexCount = 0;
+  size_t batchIndexCount = 0;
+  size_t summationIndexCount = 0;
+  // verify free & batch indices
+  for (size_t i = 0; i < problem.operation.numFreeIndices
+      + problem.operation.numBatchIndices; i++ ) {
+    // if A&&B has this index, incr batch
+    bool aHas = arrayContains( problem.operation.indexAssignmentsA,
+        problem.tensorA.numDimensions, i );
+    bool bHas = arrayContains( problem.operation.indexAssignmentsB,
+        problem.tensorB.numDimensions, i );
+    if (aHas && bHas) {
+      batchIndexCount++;
+    } else if (aHas || bHas) {
+      freeIndexCount++;
+    } else {
+      return cobaltStatusOperationIndexUnassigned;
+    }
+  }
+  // verify summation indices
+  for (size_t i = problem.operation.numFreeIndices
+      + problem.operation.numBatchIndices;
+      i < problem.operation.numFreeIndices + problem.operation.numBatchIndices
+      + problem.operation.numSummationIndices; i++ ) {
+    bool aHas = arrayContains( problem.operation.indexAssignmentsA,
+        problem.tensorA.numDimensions, i );
+    bool bHas = arrayContains( problem.operation.indexAssignmentsB,
+        problem.tensorB.numDimensions, i );
+    if (aHas && bHas) {
+      summationIndexCount++;
+    } else {
+      return cobaltStatusOperationIndexUnassigned;
+    }
+  }
+  if (problem.operation.numFreeIndices != freeIndexCount) {
+    return cobaltStatusOperationFreeIndexAssignmentsInvalid;
+  }
+  if (problem.operation.numBatchIndices != batchIndexCount) {
+    return cobaltStatusOperationBatchIndexAssignmentsInvalid;
+  }
+  if (problem.operation.numSummationIndices != summationIndexCount) {
+    return cobaltStatusOperationSummationIndexAssignmentsInvalid;
+  }
+
 
   /* device profile */
   if ( problem.deviceProfile.numDevices < 1
@@ -215,9 +286,9 @@ CobaltStatus cobaltStatusToString( CobaltStatus code, char *cstr, size_t *size )
   return cppStringToCString( state, cstr, size);
 }
 
-CobaltStatus cobaltPrecisionToString(
-    CobaltPrecision precision, char *cstr, size_t *size ) {
-  std::string state = toString(precision);
+CobaltStatus cobaltDataTypeToString(
+    CobaltDataType dataType, char *cstr, size_t *size ) {
+  std::string state = toString(dataType);
   return cppStringToCString( state, cstr, size );
 }
 

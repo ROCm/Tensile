@@ -105,6 +105,9 @@ void gemm(
   // get solution
   CobaltSolution *solution = nullptr;
   CobaltStatus getSolutionStatus = cobaltGetSolution( problem, &solution );
+  if (cobaltStatusIsPerformanceWarning(getSolutionStatus)) {
+    printf("Warning: problem results in slow solution\n");
+  }
 
   // control
   CobaltControl ctrl;
@@ -133,7 +136,7 @@ CobaltTensor createTensorForMatrix(
     size_t numCols
     ) {
   CobaltTensor tensor;
-  tensor.precision = cobaltPrecisionSingle;
+  tensor.dataType = cobaltDataTypeSingle;
   tensor.numDimensions = 2;
   if (colMajor != trans) {
     // 0th dimension is col

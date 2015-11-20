@@ -18,7 +18,7 @@
  * enum toString
  ******************************************************************************/
 std::string toString( CobaltStatus code );
-std::string toString( CobaltPrecision precision );
+std::string toString( CobaltDataType dataType );
 std::string toString( CobaltOperationType type );
 std::string toString( CobaltProblem problem );
 

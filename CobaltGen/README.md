@@ -39,21 +39,32 @@ CobaltGen is a suite of Python scripts which automates benchmarking and library 
     2. Solution.xml of {Problem, Fastest Solution} Pairs
 
 ## (3) GenLibrary.py - FastestSolutionForProblem.xml's -> CobaltLib.cpp
-1. For all Solution.xml files
+1. For all Solution.xml files (in priority order)
   1. For all Problem->Solution pairs
     1. append Problem->Solution pair to SolutionMap
       - SolutionMap[Solution].append(Problem)
-      -SolutionMap
-        - list of Problems(-Dev)
-          - list of SolutionPerformanceParameters
-2. For each SolutionCorrectnessParameters in Map
-  1. For each SolutionPerformanceParameters
-    1. condense list of Problems into list of ProblemRanges
+      - SolutionMap Data Structure
+        - list of devices
+          - list of Problems(-Dev)
+            - list of SolutionPerformanceParameters
+              - leaf of tree has list of problems to which solution applies
+2. For each device
+  1. For each SolutionCorrectnessParameters(numdim,precision) in Map
+    1. For each SolutionPerformanceParameters(dimensions sizes)
+      1. condense list of Problems into list of ProblemRanges
+        - outer range (num work items)
+        - sum range (sum per write)
+        - num dimensions
+        - range[dim0] min
+        - range[dim0] max
+        - range[dim0] mod
   2. For each ProblemRange
     1. Write SolutionMap.cpp if Problem in ProblemRange return Solution(Correctness,Performance)
 3. Write Solution.cpp classes
 4. Write Kernels
 5. Write pre-compile app
+
+if (dim
 
 
 

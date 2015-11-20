@@ -48,13 +48,17 @@ std::string toString( CobaltStatus status ) {
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumFreeIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumSummationIndicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexUnassigned )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationFreeIndexAssignmentsInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationBatchIndexAssignmentsInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationSummationIndexAssignmentsInvalid )
 
   // device profile errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileDeviceNameInvalid )
 
   /* cobaltGetSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported ) // purposefully not supported (real/complex mixed precision)
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported ) // purposefully not supported (real/complex mixed data types)
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotFound ) // should be supported but wasn't found
 
   /* cobaltEnqueueSolution() */
@@ -74,15 +78,15 @@ std::string toString( CobaltStatus status ) {
   };
 }
 
-std::string toString( CobaltPrecision precision ) {
-  switch( precision ) {
-    COBALT_ENUM_TO_STRING_CASE( cobaltPrecisionSingle )
-    COBALT_ENUM_TO_STRING_CASE( cobaltPrecisionDouble )
-    COBALT_ENUM_TO_STRING_CASE( cobaltPrecisionSingleComplex )
-    COBALT_ENUM_TO_STRING_CASE( cobaltPrecisionDoubleComplex )
+std::string toString( CobaltDataType dataType ) {
+  switch( dataType ) {
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingle )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDouble )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingleComplex )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDoubleComplex )
   default:
-    return "Error in toString(CobaltPrecision): no switch case for: "
-        + std::to_string(precision);
+    return "Error in toString(CobaltDataType): no switch case for: "
+        + std::to_string(dataType);
   };
 }
 
@@ -91,7 +95,7 @@ std::string toString( CobaltOperationType type ) {
     COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeTensorContraction )
     COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeConvolution )
   default:
-    return "Error in toString(CobaltPrecision): no switch case for: "
+    return "Error in toString(CobaltDataType): no switch case for: "
         + std::to_string(type);
   };
 }
@@ -259,10 +263,10 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
 
 // CobaltTensor
 bool operator<(const CobaltTensor & l, const CobaltTensor & r) {
-  // precision
-  if (l.precision < r.precision) {
+  // dataType
+  if (l.dataType < r.dataType) {
     return true;
-  } else if (r.precision < l.precision) {
+  } else if (r.dataType < l.dataType) {
     return false;
   }
   // dimensions
@@ -427,4 +431,12 @@ std::vector<DimensionDescriptor> TensorDescriptor::compactSizesToDimensions( std
   dimensions[compactSizes.size()-1].size = compactSizes[compactSizes.size()-1];
   return dimensions;
 }
+numElements = 1000*100*10 = 1,000,000
+idx0 x100000
+idx1 x1000
+idx2 x10
+
+idx0 = (serial / 10 / 1000) % 100000
+idx1 = (serial / 10) % 1000
+idx2 = serial % 10
 #endif

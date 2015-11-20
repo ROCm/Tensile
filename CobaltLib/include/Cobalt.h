@@ -22,6 +22,9 @@ typedef enum CobaltStatus_ {
 
   // success
   cobaltStatusSuccess = 0,
+
+  /* VALIDATION ERRORS */
+  cobaltStatusValidationErrorMin,
   
   /* cobaltValidateProblem() */
 
@@ -47,6 +50,10 @@ typedef enum CobaltStatus_ {
   cobaltStatusOperationNumIndicesInvalid,
   cobaltStatusOperationNumFreeIndicesInvalid,
   cobaltStatusOperationNumSummationIndicesInvalid,
+  cobaltStatusOperationIndexUnassigned,
+  cobaltStatusOperationFreeIndexAssignmentsInvalid,
+  cobaltStatusOperationBatchIndexAssignmentsInvalid,
+  cobaltStatusOperationSummationIndexAssignmentsInvalid,
 
   // device profile errors
   cobaltStatusDeviceProfileDeviceNameInvalid,
@@ -68,27 +75,40 @@ typedef enum CobaltStatus_ {
   /* misc */
   cobaltStatusParametersInvalid,
 
+  cobaltStatusValidationErrorMax,
+  cobaltStatusPerformanceWarningMin,
+
+  /* Performance Warnings */
+
+  cobaltStatusPerformanceWarningMax,
+
 
 } CobaltStatus;
+
+/*******************************************************************************
+ * Status is Error (incorrect) vs Warning (correct but slow)
+ ******************************************************************************/
+bool cobaltStatusIsValidationError( CobaltStatus status );
+bool cobaltStatusIsPerformanceWarning( CobaltStatus status );
 
 
 /*******************************************************************************
  * Tensor
  ******************************************************************************/
+typedef enum CobaltDataType_ {
+  cobaltDataTypeSingle,
+  cobaltDataTypeDouble,
+  cobaltDataTypeSingleComplex,
+  cobaltDataTypeDoubleComplex
+} CobaltDataType;
+
 typedef struct CobaltDimension_ {
   size_t stride;
   size_t size;
 } CobaltDimension;
 
-typedef enum CobaltPrecision_ {
-  cobaltPrecisionSingle,
-  cobaltPrecisionDouble,
-  cobaltPrecisionSingleComplex,
-  cobaltPrecisionDoubleComplex
-} CobaltPrecision;
-
 typedef struct CobaltTensor_ {
-  CobaltPrecision precision;
+  CobaltDataType dataType;
   enum { maxDimensions = 16 } maxDimensions_;
   size_t numDimensions;
   CobaltDimension dimensions[maxDimensions];
@@ -157,6 +177,7 @@ typedef struct CobaltDeviceProfile_ {
 typedef enum CobaltOperationType_ {
   cobaltOperationTypeTensorContraction,
   cobaltOperationTypeConvolution
+  //cobaltOperationTypeCorrelation
 } CobaltOperationType;
 
 
@@ -168,15 +189,19 @@ typedef struct CobaltOperation_ {
   // summation indices: l m n
   // indexAssignmentsA: {5, 3, 0, 4, 1}
   // indexAssignmentsB: {1, 3, 4, 2, 5}
-  // tensorA.numDim: numFreeIndices/2 + numBatchIndices + numSummationIndices
-  // tensorB.numDim: numFreeIndices/2 + numBatchIndices + numSummationIndices
-  // tensorC.numDim: numFreeIndices+numBatchIndices
+
   CobaltOperationType type;
   size_t numFreeIndices;
   size_t numBatchIndices;
   size_t numSummationIndices;
   size_t indexAssignmentsA[CobaltTensor::maxDimensions];
   size_t indexAssignmentsB[CobaltTensor::maxDimensions];
+
+  // used for convolutions/correlations only
+  size_t pad[CobaltTensor::maxDimensions];
+  size_t stride[CobaltTensor::maxDimensions];
+  // size_t upscale[CobaltOperation::maxSummationIndices]; // cuDNN requires 1
+
 } CobaltOperation;
 
 
@@ -229,7 +254,7 @@ CobaltStatus cobaltEnqueueSolution(
 
 /*******************************************************************************
  * Setup & Teardown
- **********************************8********************************************/
+ ******************************************************************************/
 CobaltStatus cobaltSetup();
 CobaltStatus cobaltTeardown();
 
@@ -241,8 +266,8 @@ CobaltStatus cobaltStatusToString(
     CobaltStatus code, char *cstr, size_t *size );
 CobaltStatus cobaltStatusToString(
     CobaltStatus status, char *cstr, size_t *size );
-CobaltStatus cobaltPrecisionToString(
-    CobaltPrecision precision, char *cstr, size_t *size );
+CobaltStatus cobaltDataTypeToString(
+    CobaltDataType dataType, char *cstr, size_t *size );
 CobaltStatus cobaltOperationToString(
     CobaltOperationType type, char *cstr, size_t *size );
 CobaltStatus cobaltProblemToString(
