@@ -18,57 +18,59 @@ std::string indent(size_t level) {
 }
 
 #define COBALT_ENUM_TO_STRING_CASE(X) case X: return #X;
-std::string toString( CobaltCode code ) {
-  switch( code ) {
+std::string toString( CobaltStatus status ) {
+  switch( status ) {
 
     // success
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeSuccess )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusSuccess )
   
   /* cobaltValidateProblem() */
 
   // tensor errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorNumDimensionsInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorNumDimensionsInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorNumDimensionsInvalidC )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionSizeInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionSizeInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionSizeInvalidC )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionStrideInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionStrideInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeTensorDimensionStrideInvalidC )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidC )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalidA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalidB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalidC )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalidA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalidB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalidC )
   
   // operation errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumIndicesMismatch )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentDuplicateA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationIndexAssignmentDuplicateB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumIndicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumFreeIndicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeOperationNumSummationIndicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperandNumDimensionsMismatch )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationOperandNumIndicesMismatch )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesMismatch )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateA )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateB )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumFreeIndicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumSummationIndicesInvalid )
 
   // device profile errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeDeviceProfileNumDevicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeDeviceProfileDeviceNameInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileDeviceNameInvalid )
 
   /* cobaltGetSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeProblemNotSupported ) // purposefully not supported (real/complex mixed precision)
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeProblemNotFound ) // should be supported but wasn't found
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported ) // purposefully not supported (real/complex mixed precision)
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotFound ) // should be supported but wasn't found
 
   /* cobaltEnqueueSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodePerformanceWarningProblemSizeTooSmall )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusPerformanceWarningProblemSizeTooSmall )
 
   /* control errors */
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeControlInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeDependencyInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusControlInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDependencyInvalid )
 
   /* misc */
-  COBALT_ENUM_TO_STRING_CASE( cobaltCodeParametersInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusParametersInvalid )
 
 
   default:
-    return "Error in toString(CobaltCode): no switch case for: "
-        + std::to_string(code);
+    return "Error in toString(CobaltStatus): no switch case for: "
+        + std::to_string(status);
   };
 }
 
@@ -171,7 +173,7 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   state += " string=\"" + toString(operation.type) + "\" />\n";
   // operationIndexAssignmentsA
   state += indent(indentLevel+1) + "<IndexAssignments tensor=\"A\" >\n";
-  for (size_t i = 0; i < operation.numFreeIndicesAB + operation.numSummationIndices; i++) {
+  for (size_t i = 0; i < operation.numFreeIndices/2 + operation.numBatchIndices + operation.numSummationIndices; i++) {
     state += indent(indentLevel+2);
     state += "<IndexAssignment";
     state += " index=\"" + std::to_string(i) + "\"";
@@ -182,7 +184,7 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   state += indent(indentLevel+1) + "</IndexAssignments>\n";
   // operationIndexAssignmentsB
   state += indent(indentLevel+1) + "<IndexAssignments tensor=\"B\" >\n";
-  for (size_t i = 0; i < operation.numFreeIndicesAB + operation.numSummationIndices; i++) {
+  for (size_t i = 0; i < operation.numFreeIndices/2 + operation.numBatchIndices + operation.numSummationIndices; i++) {
     state += indent(indentLevel+2);
     state += "<IndexAssignment";
     state += " index=\"" + std::to_string(i) + "\"";
@@ -234,41 +236,10 @@ std::string toStringXML( const CobaltTensor tensor, size_t indentLevel ) {
   return state;
 }
 
-std::string toStringXML( const CobaltStatus status, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<Status numCodes=\"" + std::to_string(status.numCodes) + "\">\n";
-  for (size_t i = 0; i < status.numCodes; i++) {
-    state += indent(indentLevel+1) + "<Code enum=\""
-        + std::to_string(status.codes[i]) + "\"";
-    state += " string=\"" + toString(status.codes[i]) + "\" />\n";
-  }
-  state += indent(indentLevel) + "</Status>\n";
-  return state;
-}
-
 
 /*******************************************************************************
  * comparators
  ******************************************************************************/
-
-// CobaltStatus
-bool operator< ( const CobaltStatus & l, const CobaltStatus & r ) {
-  // status codes
-  if (l.numCodes < r.numCodes) {
-    return true;
-  } else if (r.numCodes < l.numCodes) {
-    return false;
-  }
-  for (size_t i = 0; i < l.numCodes; i++) {
-    if (l.codes[i] < r.codes[i]) {
-      return true;
-    } else if (r.codes[i] < l.codes[i]) {
-      return false;
-    }
-  }
-  // identical
-  return false;
-}
 
 // CobaltDimension
 bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
@@ -343,10 +314,15 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
   } else if (r.type < l.type) {
     return false;
   }
-  // numFree,SummationIndices
-  if (l.numFreeIndicesAB < r.numFreeIndicesAB) {
+  // numFree,Batch,SummationIndices
+  if (l.numFreeIndices < r.numFreeIndices) {
     return true;
-  } else if (r.numFreeIndicesAB < l.numFreeIndicesAB) {
+  } else if (r.numFreeIndices < l.numFreeIndices) {
+    return false;
+  }
+  if (l.numBatchIndices < r.numBatchIndices) {
+    return true;
+  } else if (r.numBatchIndices < l.numBatchIndices) {
     return false;
   }
   if (l.numSummationIndices < r.numSummationIndices) {
@@ -355,7 +331,7 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
     return false;
   }
   // indexAssignmentsA
-  for (size_t i = 0; i < l.numFreeIndicesAB+l.numSummationIndices; i++) {
+  for (size_t i = 0; i < l.numFreeIndices/2+l.numBatchIndices+l.numSummationIndices; i++) {
     if (l.indexAssignmentsA[i] < r.indexAssignmentsA[i]) {
       return true;
     } else if (r.indexAssignmentsA[i] < l.indexAssignmentsA[i]) {
@@ -363,7 +339,7 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
     }
   }
   // indexAssignmentsB
-  for (size_t i = 0; i < l.numFreeIndicesAB+l.numSummationIndices; i++) {
+  for (size_t i = 0; i < l.numFreeIndices/2+l.numBatchIndices+l.numSummationIndices; i++) {
     if (l.indexAssignmentsB[i] < r.indexAssignmentsB[i]) {
       return true;
     } else if (r.indexAssignmentsB[i] < l.indexAssignmentsB[i]) {

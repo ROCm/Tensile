@@ -3,23 +3,23 @@
 #include <assert.h>
 #include <stdio.h>
 
+#if Cobalt_SOLVER_ENABLED
+#include "CobaltGetSolution.h"
+#endif
+
 
 /*******************************************************************************
  * cobaltSetup()
  ******************************************************************************/
 CobaltStatus cobaltSetup() {
-  CobaltStatus status;
-  status.numCodes = 0;
-  return status;
+  return cobaltStatusSuccess;
 }
 
 /*******************************************************************************
  * cobaltTeardown
  ******************************************************************************/
 CobaltStatus cobaltTeardown() {
-  CobaltStatus status;
-  status.numCodes = 0;
-  return status;
+  return cobaltStatusSuccess;
 }
 
 /*******************************************************************************
@@ -27,21 +27,22 @@ CobaltStatus cobaltTeardown() {
  ******************************************************************************/
 CobaltStatus cobaltGetSolution(
     CobaltProblem problem,
-    CobaltSolution *solution ) {
-  INIT_STATUS
+    CobaltSolution **solution ) {
 
   // request solution
-#if Cobalt_SOLUTIONS_ENABLED
-  functionStatus = cobaltGetSolution(this, solution);
+  CobaltStatus status;
+#if Cobalt_SOLVER_ENABLED
+  status = cobaltGetSolutionTop( problem, solution );
 #else
   solution = new LogSolution(problem);
+  status = cobaltStatusSuccess;
 #endif
 
 #if Cobalt_LOGGER_ENABLED
-  Cobalt::logger.logGetSolution(solution, status);
+  Cobalt::logger.logGetSolution(*solution, status);
 #endif
 
-  RETURN_STATUS
+  return status;
 }
 
 /*******************************************************************************
@@ -53,13 +54,14 @@ CobaltStatus cobaltEnqueueSolution(
     CobaltTensorData b,
     CobaltTensorData c,
     CobaltControl *ctrl ) {
-  INIT_STATUS
-
+  CobaltStatus status = cobaltStatusSuccess;
+#if Cobalt_SOLVER_ENABLED
+  status = solution->enqueue( a, b, c, *ctrl );
+#endif
 #if Cobalt_LOGGER_ENABLED
   Cobalt::logger.logEnqueueSolution(solution, status, ctrl);
 #endif
-
-  RETURN_STATUS
+  return status;
 }
 
 
@@ -67,103 +69,112 @@ CobaltStatus cobaltEnqueueSolution(
  * cobaltValidateProblem
  ******************************************************************************/
 CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
-  INIT_STATUS
 
   /* tensorA */
   if (problem.tensorA.numDimensions < 1
     || problem.tensorA.numDimensions > problem.tensorA.maxDimensions ) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorNumDimensionsInvalidA )
+      return cobaltStatusTensorNumDimensionsInvalidA;
   }
   for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
     if (problem.tensorA.dimensions[i].size < 1) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionSizeInvalidA )
+      return cobaltStatusTensorDimensionSizeInvalidA;
     }
     if (problem.tensorA.dimensions[i].stride < 1) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionStrideInvalidA )
+      return cobaltStatusTensorDimensionStrideInvalidA;
     }
   }
 
   /* tensorB */
   if (problem.tensorB.numDimensions < 1
     || problem.tensorB.numDimensions > problem.tensorB.maxDimensions ) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorNumDimensionsInvalidB )
+      return cobaltStatusTensorNumDimensionsInvalidB;
   }
   for (size_t i = 0; i < problem.tensorB.numDimensions; i++) {
     if (problem.tensorB.dimensions[i].size < 1) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionSizeInvalidB )
+      return cobaltStatusTensorDimensionSizeInvalidB;
     }
     if (problem.tensorB.dimensions[i].stride < 1) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionStrideInvalidB )
+      return cobaltStatusTensorDimensionStrideInvalidB;
     }
   }
 
   /* tensorA,B */
   if (problem.tensorA.numDimensions != problem.tensorB.numDimensions) {
-    ADD_CODE_TO_STATUS( cobaltCodeTensorNumDimensionsMismatchAB )
+    return cobaltStatusOperandNumDimensionsMismatch;
   }
   
   /* tensorC */
   if (problem.tensorC.numDimensions < 1
     || problem.tensorC.numDimensions > problem.tensorC.maxDimensions ) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorNumDimensionsInvalidC )
+      return cobaltStatusTensorNumDimensionsInvalidC;
   }
   for (size_t i = 0; i < problem.tensorC.numDimensions; i++) {
     if (problem.tensorC.dimensions[i].size < 1) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionSizeInvalidC )
+      return cobaltStatusTensorDimensionSizeInvalidC;
     }
     if (problem.tensorC.dimensions[i].stride < 1) {
-      ADD_CODE_TO_STATUS( cobaltCodeTensorDimensionStrideInvalidC )
+      return cobaltStatusTensorDimensionStrideInvalidC;
     }
   }
 
   /* operation */
   // every element must correspond to a valid free idx or valid sum idx
   // no duplicates
-  if (problem.operation.numFreeIndicesAB + problem.operation.numSummationIndices
-      >= problem.tensorA.numDimensions ) {
-    ADD_CODE_TO_STATUS( cobaltCodeOperationNumIndicesInvalid )
+  if (problem.operation.numFreeIndices%2 != 0
+      || problem.operation.numFreeIndices < 2) {
+    return cobaltStatusOperationNumFreeIndicesInvalid;
   }
-  if (problem.operation.numFreeIndicesAB > problem.tensorC.numDimensions ) {
-    ADD_CODE_TO_STATUS( cobaltCodeOperationNumFreeIndicesInvalid )
+  if (problem.operation.numFreeIndices/2
+      + problem.operation.numBatchIndices
+      + problem.operation.numSummationIndices
+      != problem.tensorA.numDimensions ) {
+    return cobaltStatusOperationOperandNumIndicesMismatch;
+  }
+  if (problem.operation.numFreeIndices + problem.operation.numBatchIndices
+      != problem.tensorC.numDimensions ) {
+    return cobaltStatusOperationNumFreeIndicesInvalid;
   }
   if (problem.operation.numSummationIndices < 1 ) {
-    ADD_CODE_TO_STATUS( cobaltCodeOperationNumSummationIndicesInvalid )
+    return cobaltStatusOperationNumSummationIndicesInvalid;
   }
-  size_t maxAssignmentIndex = problem.operation.numSummationIndices + problem.tensorC.numDimensions-1;
+  size_t maxAssignmentIndex = problem.operation.numFreeIndices + problem.operation.numBatchIndices + problem.operation.numSummationIndices - 1;
   for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
     if (problem.operation.indexAssignmentsA[i] > maxAssignmentIndex) {
-      ADD_CODE_TO_STATUS( cobaltCodeOperationIndexAssignmentInvalidA )
+      return cobaltStatusOperationIndexAssignmentInvalidA;
     }
     if (problem.operation.indexAssignmentsB[i] > maxAssignmentIndex) {
-      ADD_CODE_TO_STATUS( cobaltCodeOperationIndexAssignmentInvalidB )
+      return cobaltStatusOperationIndexAssignmentInvalidB;
     }
     for (size_t j = i+1; j < problem.tensorA.numDimensions; j++) {
       if ( problem.operation.indexAssignmentsA[i]
           == problem.operation.indexAssignmentsA[j] ) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationIndexAssignmentDuplicateA )
+        return cobaltStatusOperationIndexAssignmentDuplicateA;
       }
           if ( problem.operation.indexAssignmentsB[i]
           == problem.operation.indexAssignmentsB[j] ) {
-        ADD_CODE_TO_STATUS( cobaltCodeOperationIndexAssignmentDuplicateB )
+        return cobaltStatusOperationIndexAssignmentDuplicateB;
       }
     }
   }
+  // TODO - verify that all summation indices show up as sums
+  // TODO - verify that all free indices show up as free
+  // TODO - verify that all batch indices show up as batch
 
 
   /* device profile */
   if ( problem.deviceProfile.numDevices < 1
       || problem.deviceProfile.numDevices > problem.deviceProfile.maxDevices ) {
-    ADD_CODE_TO_STATUS( cobaltCodeDeviceProfileNumDevicesInvalid )
+    return cobaltStatusDeviceProfileNumDevicesInvalid;
   }
   for (size_t i = 0; i < problem.deviceProfile.numDevices; i++) {
     size_t nameLength = strlen(problem.deviceProfile.devices[i].name);
     if (nameLength < 1 || nameLength
         >= problem.deviceProfile.devices[0].maxNameLength) {
-      ADD_CODE_TO_STATUS( cobaltCodeDeviceProfileDeviceNameInvalid )
+      return cobaltStatusDeviceProfileDeviceNameInvalid;
     }
   }
 
-  RETURN_STATUS
+  return cobaltStatusSuccess;
 }
 
 
@@ -171,8 +182,8 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
  * toStrings
  ******************************************************************************/
 
-void cppStringToCString(
-  std::string state, char *cstr, size_t *size, CobaltStatus & status ) {
+CobaltStatus cppStringToCString(
+  std::string state, char *cstr, size_t *size ) {
   if (cstr) {
     // do copy
     if (size) {
@@ -193,55 +204,31 @@ void cppStringToCString(
       *size = state.size()+1; // include space for null char
     } else {
       // can't do anything
-      ADD_CODE_TO_STATUS( cobaltCodeParametersInvalid )
+      return cobaltStatusParametersInvalid;
     }
   }
+  return cobaltStatusSuccess;
 }
 
-CobaltStatus cobaltCodeToString( CobaltCode code, char *cstr, size_t *size ) {
-  INIT_STATUS
+CobaltStatus cobaltStatusToString( CobaltStatus code, char *cstr, size_t *size ) {
   std::string state = toString(code);
-  cppStringToCString( state, cstr, size, status );
-  RETURN_STATUS
-}
-
-CobaltStatus cobaltStatusToString(
-    CobaltStatus inputStatus, char *cstr, size_t *size ) {
-  INIT_STATUS
-  char *div = ",\n  ";
-  std::string state = "status(";
-  state += std::to_string(inputStatus.numCodes);
-  state += "){";
-  state += " " + toString(inputStatus.codes[0]);
-  for (size_t i = 1; i < inputStatus.numCodes; i++) {
-    state += div;
-    state += toString(inputStatus.codes[i]);
-  }
-  state += " }";
-  cppStringToCString( state, cstr, size, inputStatus );
-  RETURN_STATUS
+  return cppStringToCString( state, cstr, size);
 }
 
 CobaltStatus cobaltPrecisionToString(
     CobaltPrecision precision, char *cstr, size_t *size ) {
-  INIT_STATUS
   std::string state = toString(precision);
-  cppStringToCString( state, cstr, size, status );
-  RETURN_STATUS
+  return cppStringToCString( state, cstr, size );
 }
 
 CobaltStatus cobaltOperationToString(
     CobaltOperationType type, char *cstr, size_t *size ) {
-  INIT_STATUS
   std::string state = toString(type);
-  cppStringToCString( state, cstr, size, status );
-  RETURN_STATUS
+  return cppStringToCString( state, cstr, size );
 }
 
 CobaltStatus cobaltProblemToString(
     CobaltProblem problem, char *cstr, size_t *size ) {
-  INIT_STATUS
   std::string state = toString(problem);
-  cppStringToCString( state, cstr, size, status );
-  RETURN_STATUS
+  return cppStringToCString( state, cstr, size );
 }

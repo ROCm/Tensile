@@ -26,10 +26,8 @@ CobaltStatus LogSolution::enqueue(
     CobaltTensorData tensorDataB,
     CobaltTensorData tensorDataC,
     CobaltControl & ctrl ) {
-  CobaltStatus status;
-  status.numCodes = 0;
   printf("CobaltSolution::enqueue() virtual function not overrided\n");
-  return status;
+  return cobaltStatusSuccess;
 }
 
 /*******************************************************************************

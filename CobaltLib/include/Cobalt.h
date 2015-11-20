@@ -14,64 +14,61 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 /*******************************************************************************
  * Status
  ******************************************************************************/
-typedef enum CobaltCode_ {
+typedef enum CobaltStatus_ {
 
   // success
-  cobaltCodeSuccess = 0,
+  cobaltStatusSuccess = 0,
   
   /* cobaltValidateProblem() */
 
   // tensor errors
-  cobaltCodeTensorNumDimensionsInvalidA,
-  cobaltCodeTensorNumDimensionsInvalidB,
-  cobaltCodeTensorNumDimensionsInvalidC,
-  cobaltCodeTensorNumDimensionsMismatchAB,
-  cobaltCodeTensorDimensionSizeInvalidA,
-  cobaltCodeTensorDimensionSizeInvalidB,
-  cobaltCodeTensorDimensionSizeInvalidC,
-  cobaltCodeTensorDimensionStrideInvalidA,
-  cobaltCodeTensorDimensionStrideInvalidB,
-  cobaltCodeTensorDimensionStrideInvalidC,
+  cobaltStatusTensorNumDimensionsInvalidA,
+  cobaltStatusTensorNumDimensionsInvalidB,
+  cobaltStatusTensorNumDimensionsInvalidC,
+  cobaltStatusTensorDimensionSizeInvalidA,
+  cobaltStatusTensorDimensionSizeInvalidB,
+  cobaltStatusTensorDimensionSizeInvalidC,
+  cobaltStatusTensorDimensionStrideInvalidA,
+  cobaltStatusTensorDimensionStrideInvalidB,
+  cobaltStatusTensorDimensionStrideInvalidC,
   
   // operation errors
-  cobaltCodeOperationNumIndicesMismatch,
-  cobaltCodeOperationIndexAssignmentInvalidA,
-  cobaltCodeOperationIndexAssignmentInvalidB,
-  cobaltCodeOperationIndexAssignmentDuplicateA,
-  cobaltCodeOperationIndexAssignmentDuplicateB,
-  cobaltCodeOperationNumIndicesInvalid,
-  cobaltCodeOperationNumFreeIndicesInvalid,
-  cobaltCodeOperationNumSummationIndicesInvalid,
+  cobaltStatusOperandNumDimensionsMismatch,
+  cobaltStatusOperationOperandNumIndicesMismatch,
+  cobaltStatusOperationNumIndicesMismatch,
+  cobaltStatusOperationIndexAssignmentInvalidA,
+  cobaltStatusOperationIndexAssignmentInvalidB,
+  cobaltStatusOperationIndexAssignmentDuplicateA,
+  cobaltStatusOperationIndexAssignmentDuplicateB,
+  cobaltStatusOperationNumIndicesInvalid,
+  cobaltStatusOperationNumFreeIndicesInvalid,
+  cobaltStatusOperationNumSummationIndicesInvalid,
 
   // device profile errors
-  cobaltCodeDeviceProfileNumDevicesInvalid,
-  cobaltCodeDeviceProfileDeviceNameInvalid,
+  cobaltStatusDeviceProfileDeviceNameInvalid,
 
   /* cobaltGetSolution() */
-  cobaltCodeProblemNotSupported, // purposefully not supported
-  cobaltCodeProblemNotFound, // should be supported but wasn't found
+  cobaltStatusOperationTypeNotFound,
+  cobaltStatusDeviceProfileNumDevicesInvalid,
+  cobaltStatusDeviceProfileNotFound,
+  cobaltStatusProblemNotSupported, // purposefully not supported
+  cobaltStatusProblemNotFound, // should be supported but wasn't found
 
   /* cobaltEnqueueSolution() */
-  cobaltCodePerformanceWarningProblemSizeTooSmall,
+  cobaltStatusPerformanceWarningProblemSizeTooSmall,
 
   /* control errors */
-  cobaltCodeControlInvalid,
-  cobaltCodeDependencyInvalid,
+  cobaltStatusControlInvalid,
+  cobaltStatusDependencyInvalid,
 
   /* misc */
-  cobaltCodeParametersInvalid,
+  cobaltStatusParametersInvalid,
 
 
-} CobaltCode;
-
-
-typedef struct CobaltStatus_ {
-  enum { maxCodes = 16 } maxCodes_;
-  size_t numCodes;
-  CobaltCode codes[maxCodes];
 } CobaltStatus;
 
 
@@ -164,8 +161,19 @@ typedef enum CobaltOperationType_ {
 
 
 typedef struct CobaltOperation_ {
+  // C[i,j,k] = Sum_l Sum_m Sum_n A[n,l,i,m,j] B[j,l,m,k,n]
+  //   0,1,2        3     4     5   5 3 0 4 1    1 3 4 2 5
+  // free indices: i, k
+  // batch indices: j
+  // summation indices: l m n
+  // indexAssignmentsA: {5, 3, 0, 4, 1}
+  // indexAssignmentsB: {1, 3, 4, 2, 5}
+  // tensorA.numDim: numFreeIndices/2 + numBatchIndices + numSummationIndices
+  // tensorB.numDim: numFreeIndices/2 + numBatchIndices + numSummationIndices
+  // tensorC.numDim: numFreeIndices+numBatchIndices
   CobaltOperationType type;
-  size_t numFreeIndicesAB; // of C
+  size_t numFreeIndices;
+  size_t numBatchIndices;
   size_t numSummationIndices;
   size_t indexAssignmentsA[CobaltTensor::maxDimensions];
   size_t indexAssignmentsB[CobaltTensor::maxDimensions];
@@ -209,7 +217,7 @@ struct CobaltSolution; // forward declaration
 
 CobaltStatus cobaltGetSolution(
     const CobaltProblem problem,
-    struct CobaltSolution *solution );
+    struct CobaltSolution **solution );
 
 CobaltStatus cobaltEnqueueSolution(
     struct CobaltSolution *solution,
@@ -229,8 +237,8 @@ CobaltStatus cobaltTeardown();
 /*******************************************************************************
  * toStrings
  ******************************************************************************/
-CobaltStatus cobaltCodeToString(
-    CobaltCode code, char *cstr, size_t *size );
+CobaltStatus cobaltStatusToString(
+    CobaltStatus code, char *cstr, size_t *size );
 CobaltStatus cobaltStatusToString(
     CobaltStatus status, char *cstr, size_t *size );
 CobaltStatus cobaltPrecisionToString(

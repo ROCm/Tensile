@@ -104,7 +104,7 @@ void gemm(
 
   // get solution
   CobaltSolution *solution = nullptr;
-  CobaltStatus getSolutionStatus = cobaltGetSolution( problem, solution );
+  CobaltStatus getSolutionStatus = cobaltGetSolution( problem, &solution );
 
   // control
   CobaltControl ctrl;
@@ -119,8 +119,10 @@ void gemm(
   dataC.data = nullptr;
 
   // enqueue solution
-  CobaltStatus enqueueSolutionStatus = cobaltEnqueueSolution(
-      solution, dataA, dataB, dataC, &ctrl);
+  if (solution != nullptr) {
+    CobaltStatus enqueueSolutionStatus = cobaltEnqueueSolution(
+        solution, dataA, dataB, dataC, &ctrl);
+  }
 }
 
 // TODO - debug this
@@ -160,7 +162,8 @@ CobaltOperation createOperationForGEMM() {
   //       boundA 1
   //       boundB 0
   // numFreeIndices = 2 b/c tensorC rank 2
-  operation.numFreeIndicesAB = 1;
+  operation.numFreeIndices = 2;
+  operation.numBatchIndices = 0;
   operation.numSummationIndices = 1;
   operation.indexAssignmentsA[0] = 0; // i
   operation.indexAssignmentsA[1] = 2; // j

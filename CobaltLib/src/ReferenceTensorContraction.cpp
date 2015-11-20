@@ -29,7 +29,6 @@ CobaltStatus ReferenceTensorContraction::enqueue(
     CobaltTensorData tensorDataB,
     CobaltTensorData tensorDataC,
     CobaltControl & ctrl ) {
-  INIT_STATUS
 
   // pointers to data
   float *dataA = (float *)tensorDataA.data;
@@ -120,7 +119,7 @@ CobaltStatus ReferenceTensorContraction::enqueue(
 
   } // free range
 
-  RETURN_STATUS
+  return cobaltStatusSuccess;
 } // referenceTensorContraction
 
 

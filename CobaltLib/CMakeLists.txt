@@ -13,6 +13,8 @@ set( CobaltLib_SRC
   src/Solution.h
   src/StructOperations.cpp
   src/StructOperations.h
+  generated/CobaltGetSolution.cpp
+  generated/CobaltGetSolution.h
   )
 source_group(source FILES ${CobaltLib_SRC} )
 
@@ -20,6 +22,7 @@ source_group(source FILES ${CobaltLib_SRC} )
 include_directories(
   include
   src
+  generated
   )
 
 # build library

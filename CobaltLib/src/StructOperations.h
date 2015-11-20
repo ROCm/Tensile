@@ -10,14 +10,14 @@
 #define ADD_CODE_TO_STATUS(CODE) status.codes[status.numCodes++] = CODE;
 #define RETURN_STATUS \
   if (status.numCodes == 0) { \
-    ADD_CODE_TO_STATUS(cobaltCodeSuccess) \
+    ADD_CODE_TO_STATUS(cobaltStatusSuccess) \
   } \
   return status;
 
 /*******************************************************************************
  * enum toString
  ******************************************************************************/
-std::string toString( CobaltCode code );
+std::string toString( CobaltStatus code );
 std::string toString( CobaltPrecision precision );
 std::string toString( CobaltOperationType type );
 std::string toString( CobaltProblem problem );
@@ -32,7 +32,6 @@ std::string toStringXML( const CobaltDeviceProfile deviceProfile,
     size_t indentLevel );
 std::string toStringXML( const CobaltDevice device, size_t indentLevel );
 std::string toStringXML( const CobaltTensor tensor, size_t indentLevel );
-std::string toStringXML( const CobaltStatus status, size_t indentLevel );
   
 /*******************************************************************************
  * xml tags for toString
@@ -42,7 +41,6 @@ std::string indent(size_t level);
 /*******************************************************************************
  * comparators for STL
  ******************************************************************************/
-bool operator<(const CobaltStatus & a, const CobaltStatus & b );
 bool operator<(const CobaltDimension & l, const CobaltDimension & r);
 bool operator<(const CobaltTensor & l, const CobaltTensor & r);
 bool operator<(const CobaltDevice & l, const CobaltDevice & r);

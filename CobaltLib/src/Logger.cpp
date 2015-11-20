@@ -23,11 +23,11 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<TraceEntry";
   state += " enum=\"" + std::to_string(type) + "\"";
-  state += " string=\"" + Logger::toString(type) + "\" >\n";
+  state += " string=\"" + Logger::toString(type) + "\"";
+  state += " status=\"" + ::toString(status) + " >\n";
   if (solution) {
     state += solution->toString(indentLevel+1);
   }
-  state += ::toStringXML(status, indentLevel+1);
   state += indent(indentLevel) + "</TraceEntry>\n";
   return state;
 }
