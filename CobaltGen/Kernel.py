@@ -20,28 +20,31 @@ class Kernel:
   ##############################################################################
   def __init__(self, \
       operation, \
-      dataTypeA, \
-      dataTypeB, \
-      dataTypeC, \
+      tensorA, \
+      tensorB, \
+      tensorC, \
       alpha, \
       beta, \
       ):
 
     # operation
     self.operation = operation
-    self.freeIndexAssignments = []
-    self.summationIndexAssignments = []
-    self.tileIndexAssignment0 = -1
-    self.tileIndexAssignment1 = -1
     # self.unrollIndexAssignment = -1 always last
     self.indexAssignmentsMade = False
 
     # non-tile
-    self.dataTypeA = dataTypeA
-    self.dataTypeB = dataTypeB
-    self.dataTypeC = dataTypeC
+    self.dataTypeA = tensorA.dataType
+    self.dataTypeB = tensorB.dataType
+    self.dataTypeC = tensorC.dataType
     self.alpha = alpha
     self.beta = beta
+
+    # index assignments
+    self.tileIndexAssignment0 = -1
+    self.tileIndexAssignment1 = -1
+    self.freeIndexAssignments = []
+    self.summationIndexAssignments = []
+    self.makeIndexAssignments( tensorA, tensorB, tensorC )
 
     # tile
     self.workGroupDim0 = -1
@@ -84,23 +87,42 @@ class Kernel:
   ##############################################################################
   # Make Index Assignments - TODO
   ##############################################################################
-  def makeIndexAssignments(self):
-    self.freeIndexAssignments = []
-    for i in range(0,self.operation.numFreeIndices):
-      self.freeIndexAssignments.append( i )
-    self.summationIndexAssignments = []
-    for i in range(0,self.operation.numSummationIndices):
-      self.summationIndexAssignments.append( i )
+  def makeIndexAssignments(self, tensorA, tensorB, tensorC ):
 
-    self.indexAssignmentsMade = True
+    # free indices in order of descending stride
+    freeIndicesUnsorted = []
+    for i in range(0,len(tensorA.dimensions)):
+      freeIndices.append( [tensorA.dimensions[i].stride, i] )
+    freeIndicesSorted = sorted( freeIndicesUnsorted, \
+        key = lambda x: int(x[0]), reverse=True )
+    self.freeIndexAssignments = []
+    for i in range(0,len(freeIndicesSorted)):
+      self.freeIndexAssignments.append( freeIndicesSorted[i][1] )
+
+    # summation indices in order of descending stride
+    summationIndicesUnsorted = []
+    for i in range(0,self.operation.numSummationIndices):
+      sumIndex = i + self.operation.numFreeIndices
+      assignment = -1
+      for j in range(0,len(tensorA.dimensions)):
+        if self.operation.indexAssignmentsA[j] == sumIndex:
+          assignment = j
+      summationIndices.append( [tensorA.dimensions[assignment].stride, i] )
+    summationIndicesSorted = sorted( summationIndicesUnsorted, \
+        key = lambda x: int(x[0]), reverse=True )
+    self.summationIndexAssignments = []
+    for i in range(0,len(summationIndicesSorted)):
+      self.summationIndexAssignments.append( summationIndicesSorted[i][1] )
+
+    # tile assignment - last two free indices?
+    self.tileIndexAssignment0 = 0
+    self.tileIndexAssignment1 = 1
+
 
   ##############################################################################
   # get kernel name - DONE
   ##############################################################################
   def getName( self ):
-    if not self.indexAssignmentsMade:
-      self.makeIndexAssignments()
-
     kernelName = ""
 
     # operation type
@@ -115,17 +137,20 @@ class Kernel:
 
     # C dimensions
     kernelName += "C"
-    kernelName += str(self.operation.numFreeIndices)
+    for i in range(0, self.operation.numFreeIndices):
+      kernelName += self.indexChars[i].lower()
     kernelName += "_"
 
     # A dimensions
+    kernelName += "A"
     for i in range(0, len(self.operation.indexAssignmentsA)):
-      kernelName += str(self.operation.indexAssignmentsA[i])
+      kernelName += self.indexChars[self.operation.indexAssignmentsA[i]].lower()
     kernelName += "_"
 
     # B dimensions
+    kernelName += "B"
     for i in range(0,len(self.operation.indexAssignmentsB)):
-      kernelName += str(self.operation.indexAssignmentsB[i])
+      kernelName += self.indexChars[self.operation.indexAssignmentsB[i]].lower()
     kernelName += "_"
 
     # alpha
@@ -147,14 +172,14 @@ class Kernel:
     # free indices
     for i in range(0,len(self.freeIndexAssignments)):
       index = self.freeIndexAssignments[i]
-      multipleStr = "X1"
+      multipleStr = ":1"
       if index == self.tileIndexAssignment0:
-        multipleStr = "X" + str(self.workGroupDim0) \
+        multipleStr = ":T0X" + str(self.workGroupDim0) \
             + "x" + str(self.microTileDim0)
       if index == self.tileIndexAssignment1:
-        multipleStr = "X" + str(self.workGroupDim1) \
+        multipleStr = ":T1X" + str(self.workGroupDim1) \
             + "x" + str(self.microTileDim1)
-      kernelName += str(index) + multipleStr
+      kernelName += self.indexChars[index].lower() + multipleStr
       kernelName += "_"
 
     # summation indices
@@ -163,8 +188,11 @@ class Kernel:
       multiple = 1
       if index == len(self.summationIndexAssignments)-1:
         multiple = self.unroll
-      kernelName += str(index) + ":" + str(multiple)
-      kernelName += "_"
+      kernelName += self.indexChars[self.operation.numFreeIndices \
+          + index].lower() + "X" + str(multiple)
+      if index != len(self.summationIndexAssignments)-1:
+        kernelName += "_"
+
     return kernelName
 
 
@@ -216,9 +244,6 @@ class Kernel:
   # make kernel body
   ##############################################################################
   def getBody( self, backend):
-
-    if not self.indexAssignmentsMade:
-      self.makeIndexAssignments()
 
     numDimensionsA = len(self.operation.indexAssignmentsA)
     numDimensionsB = len(self.operation.indexAssignmentsB)
@@ -754,8 +779,30 @@ def getHeaderFileString( kernel, backend):
 # Test GEMM
 ################################################################################
 def testGEMM():
-  print("Test GEMM")
+  print("Test GEMM Fast")
+
   # kernel parameters
+  dimensionsC = []
+  dimensionsC.append( Structs.Dimension(    1, 1024 ) )
+  dimensionsC.append( Structs.Dimension( 1024,  512 ) )
+  tensorC = Structs.Tensor( \
+      Structs.DataType.single,
+      dimensionsC )
+
+  dimensionsA = []
+  dimensionsA.append( Structs.Dimension(   1,  256 ) )
+  dimensionsA.append( Structs.Dimension( 256, 1024 ) )
+  tensorA = Structs.Tensor( \
+      Structs.DataType.single,
+      dimensionsA )
+
+  dimensionsB = []
+  dimensionsB.append( Structs.Dimension(   1, 256 ) )
+  dimensionsB.append( Structs.Dimension( 256, 512 ) )
+  tensorA = Structs.Tensor( \
+      Structs.DataType.single,
+      dimensionsA )
+
   operationType = Structs.OperationType(Structs.OperationType.contraction)
   numFreeIndices = 2
   numBatchIndices = 0
@@ -769,27 +816,18 @@ def testGEMM():
       numSummationIndices, \
       indexAssignmentsA, \
       indexAssignmentsB )
-  dataTypeA = Structs.DataType(Structs.DataType.single)
-  dataTypeB = Structs.DataType(Structs.DataType.single)
-  dataTypeC = Structs.DataType(Structs.DataType.single)
   alpha = False
   beta = False
 
   kernel = Kernel(\
       operation, \
-      dataTypeA, \
-      dataTypeB, \
-      dataTypeC, \
+      tensorA, \
+      tensorB, \
+      tensorC, \
       alpha, \
       beta )
 
-  kernel.workGroupDim0 = 16
-  kernel.workGroupDim1 = 16
-  kernel.microTileDim0 = 6
-  kernel.microTileDim1 = 6
-  kernel.macroTileDim0 = 96
-  kernel.macroTileDim1 = 96
-  kernel.unroll        = 16
+  kernel.assignTile( 16, 16, 6, 6, 96, 96, 16 )
 
   print("Kernel Name: %s") % kernel.getName()
   backend = Structs.Backend(Structs.Backend.opencl)

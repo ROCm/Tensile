@@ -71,10 +71,8 @@ class Tensor:
   def __init__(
       self, \
       dataType, \
-      numDimensions, \
       dimensions ):
     self.dataType = dataType
-    self.numDimensions = numDimensions
     self.dimensions = dimensions
 
 ################################################################################
