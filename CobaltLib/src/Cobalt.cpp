@@ -147,24 +147,24 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   /* operation */
   // every element must correspond to a valid free idx or valid sum idx
   // no duplicates
-  if (problem.operation.numFreeIndices%2 != 0
-      || problem.operation.numFreeIndices < 2) {
+  if (problem.operation.numIndicesFree%2 != 0
+      || problem.operation.numIndicesFree < 2) {
     return cobaltStatusOperationNumFreeIndicesInvalid;
   }
-  if (problem.operation.numFreeIndices/2
-      + problem.operation.numBatchIndices
-      + problem.operation.numSummationIndices
+  if (problem.operation.numIndicesFree/2
+      + problem.operation.numIndicesBatch
+      + problem.operation.numIndicesSummation
       != problem.tensorA.numDimensions ) {
     return cobaltStatusOperationOperandNumIndicesMismatch;
   }
-  if (problem.operation.numFreeIndices + problem.operation.numBatchIndices
+  if (problem.operation.numIndicesFree + problem.operation.numIndicesBatch
       != problem.tensorC.numDimensions ) {
     return cobaltStatusOperationNumFreeIndicesInvalid;
   }
-  if (problem.operation.numSummationIndices < 1 ) {
+  if (problem.operation.numIndicesSummation < 1 ) {
     return cobaltStatusOperationNumSummationIndicesInvalid;
   }
-  size_t maxAssignmentIndex = problem.operation.numFreeIndices + problem.operation.numBatchIndices + problem.operation.numSummationIndices - 1;
+  size_t maxAssignmentIndex = problem.operation.numIndicesFree + problem.operation.numIndicesBatch + problem.operation.numIndicesSummation - 1;
   for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
     if (problem.operation.indexAssignmentsA[i] > maxAssignmentIndex) {
       return cobaltStatusOperationIndexAssignmentInvalidA;
@@ -191,8 +191,8 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   size_t batchIndexCount = 0;
   size_t summationIndexCount = 0;
   // verify free & batch indices
-  for (size_t i = 0; i < problem.operation.numFreeIndices
-      + problem.operation.numBatchIndices; i++ ) {
+  for (size_t i = 0; i < problem.operation.numIndicesFree
+      + problem.operation.numIndicesBatch; i++ ) {
     // if A&&B has this index, incr batch
     bool aHas = arrayContains( problem.operation.indexAssignmentsA,
         problem.tensorA.numDimensions, i );
@@ -207,10 +207,10 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
     }
   }
   // verify summation indices
-  for (size_t i = problem.operation.numFreeIndices
-      + problem.operation.numBatchIndices;
-      i < problem.operation.numFreeIndices + problem.operation.numBatchIndices
-      + problem.operation.numSummationIndices; i++ ) {
+  for (size_t i = problem.operation.numIndicesFree
+      + problem.operation.numIndicesBatch;
+      i < problem.operation.numIndicesFree + problem.operation.numIndicesBatch
+      + problem.operation.numIndicesSummation; i++ ) {
     bool aHas = arrayContains( problem.operation.indexAssignmentsA,
         problem.tensorA.numDimensions, i );
     bool bHas = arrayContains( problem.operation.indexAssignmentsB,
@@ -221,13 +221,13 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
       return cobaltStatusOperationIndexUnassigned;
     }
   }
-  if (problem.operation.numFreeIndices != freeIndexCount) {
+  if (problem.operation.numIndicesFree != freeIndexCount) {
     return cobaltStatusOperationFreeIndexAssignmentsInvalid;
   }
-  if (problem.operation.numBatchIndices != batchIndexCount) {
+  if (problem.operation.numIndicesBatch != batchIndexCount) {
     return cobaltStatusOperationBatchIndexAssignmentsInvalid;
   }
-  if (problem.operation.numSummationIndices != summationIndexCount) {
+  if (problem.operation.numIndicesSummation != summationIndexCount) {
     return cobaltStatusOperationSummationIndexAssignmentsInvalid;
   }
 

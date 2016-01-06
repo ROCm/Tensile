@@ -149,15 +149,15 @@ class Operation:
   def __init__(
       self, \
       type, \
-      numFreeIndices, \
-      numBatchIndices, \
-      numSummationIndices, \
+      numIndicesFree, \
+      numIndicesBatch, \
+      numIndicesSummation, \
       indexAssignmentsA, \
       indexAssignmentsB ):
     self.type = type
-    self.numFreeIndices = numFreeIndices
-    self.numBatchIndices = numBatchIndices
-    self.numSummationIndices = numSummationIndices
+    self.numIndicesFree = numIndicesFree
+    self.numIndicesBatch = numIndicesBatch
+    self.numIndicesSummation = numIndicesSummation
     self.indexAssignmentsA = indexAssignmentsA
     self.indexAssignmentsB = indexAssignmentsB
     self.pad = []

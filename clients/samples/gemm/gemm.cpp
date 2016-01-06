@@ -164,15 +164,15 @@ CobaltOperation createOperationForGEMM() {
   //   u,1 freeB
   //       boundA 1
   //       boundB 0
-  // numFreeIndices = 2 b/c tensorC rank 2
-  operation.numFreeIndices = 2;
-  operation.numBatchIndices = 0;
-  operation.numSummationIndices = 1;
+  // numIndicesFree = 2 b/c tensorC rank 2
+  operation.numIndicesFree = 2;
+  operation.numIndicesBatch = 0;
+  operation.numIndicesSummation = 1;
   operation.indexAssignmentsA[0] = 0; // i
   operation.indexAssignmentsA[1] = 2; // j
   operation.indexAssignmentsB[0] = 2; // i
   operation.indexAssignmentsB[1] = 1; // j
-  //operation.numSummationIndices = 1;
+  //operation.numIndicesSummation = 1;
   //operation.boundIndicesA[0] = 0; // k
   //operation.boundIndicesB[0] = 1; // k
 

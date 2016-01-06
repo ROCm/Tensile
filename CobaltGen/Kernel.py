@@ -29,22 +29,11 @@ class Kernel:
 
     # operation
     self.operation = operation
-    # self.unrollIndexAssignment = -1 always last
-    self.indexAssignmentsMade = False
 
-    # non-tile
-    self.dataTypeA = tensorA.dataType
-    self.dataTypeB = tensorB.dataType
-    self.dataTypeC = tensorC.dataType
-    self.alpha = alpha
-    self.beta = beta
-
-    # index assignments
-    self.tileIndexAssignment0 = -1
-    self.tileIndexAssignment1 = -1
-    self.freeIndexAssignments = []
-    self.summationIndexAssignments = []
-    self.makeIndexAssignments( tensorA, tensorB, tensorC )
+    # tensors
+    self.tensorA = tensorA
+    self.tensorB = tensorB
+    self.tensorC = tensorC
 
     # tile
     self.workGroupDim0 = -1
@@ -55,13 +44,30 @@ class Kernel:
     self.macroTileDim1 = -1
     self.unroll        = -1
 
+    # non-tile
+    self.alpha = alpha
+    self.beta = beta
+
+    # quick access
+    self.numIndicesA = len(self.tensorA.dimensions)
+    self.numIndicesB = len(self.tensorB.dimensions)
+    self.numIndicesC = len(self.tensorC.dimensions)
+
+    # index assignments
+    self.indexAssignmentsC = []
+    self.indexAssignmentsSummation = []
+    self.indexAssignmentTileDim0 = -1
+    self.indexAssignmentTileDim1 = -1
+    self.makeIndexAssignments( )
+
+
   ##############################################################################
   # Row Kernel
   # - macroTileDim0 == 1
   # - guards around gA -> lA
   # - guards around gC[gRow,:] = rC[row,:]
   ##############################################################################
-  def isRow(self):
+  def isEdge0(self):
     return self.workGroupDim0 * self.microTileDim0 \
         != self.macroTileDim0
 
@@ -71,7 +77,7 @@ class Kernel:
   # - guards around gB -> lB
   # - guards around gC[:,gCol] = rC[:,col]
   ##############################################################################
-  def isCol(self):
+  def isEdge1(self):
     return self.workGroupDim1 * self.microTileDim1 \
         != self.macroTileDim1
 
@@ -82,41 +88,68 @@ class Kernel:
   # - guards around gC[gRow,:] = rC[row,:], gC[:,gCol] = rC[:,col]
   ##############################################################################
   def isCor(self):
-    return self.isRow() and self.isCol()
+    return self.isEdge0() and self.isEdge1()
 
   ##############################################################################
-  # Make Index Assignments - TODO
+  # Make Index Assignments - DONE
   ##############################################################################
-  def makeIndexAssignments(self, tensorA, tensorB, tensorC ):
+  def makeIndexAssignments(self):
 
-    # free indices in order of descending stride
-    freeIndicesUnsorted = []
-    for i in range(0,len(tensorA.dimensions)):
-      freeIndices.append( [tensorA.dimensions[i].stride, i] )
-    freeIndicesSorted = sorted( freeIndicesUnsorted, \
+    # C indices in order of descending stride
+    indicesUnsortedC = []
+    for i in range(0,self.numIndicesC):
+      indicesUnsortedC.append( [self.tensorC.dimensions[i].stride, i] )
+    indicesSortedC = sorted( indicesUnsortedC, \
         key = lambda x: int(x[0]), reverse=True )
-    self.freeIndexAssignments = []
-    for i in range(0,len(freeIndicesSorted)):
-      self.freeIndexAssignments.append( freeIndicesSorted[i][1] )
+    for i in range(0,self.numIndicesC):
+      self.indexAssignmentsC.append( indicesSortedC[i][1] )
 
-    # summation indices in order of descending stride
-    summationIndicesUnsorted = []
-    for i in range(0,self.operation.numSummationIndices):
-      sumIndex = i + self.operation.numFreeIndices
-      assignment = -1
-      for j in range(0,len(tensorA.dimensions)):
+    # summation indices in order of descending A-stride + B-stride
+    indicesSummationUnsorted = []
+    for i in range(0,self.operation.numIndicesSummation):
+      sumIndex = i + self.numIndicesC
+      assignmentA = -1
+      for j in range(0,len(self.tensorA.dimensions)):
         if self.operation.indexAssignmentsA[j] == sumIndex:
-          assignment = j
-      summationIndices.append( [tensorA.dimensions[assignment].stride, i] )
-    summationIndicesSorted = sorted( summationIndicesUnsorted, \
+          assignmentA = j
+      assignmentB = -1
+      for j in range(0,len(self.tensorB.dimensions)):
+        if self.operation.indexAssignmentsB[j] == sumIndex:
+          assignmentB = j
+      indicesSummationUnsorted.append( \
+          [self.tensorA.dimensions[assignmentA].stride \
+          + self.tensorB.dimensions[assignmentB].stride, i] )
+    indicesSummationSorted = sorted( indicesSummationUnsorted, \
         key = lambda x: int(x[0]), reverse=True )
-    self.summationIndexAssignments = []
-    for i in range(0,len(summationIndicesSorted)):
-      self.summationIndexAssignments.append( summationIndicesSorted[i][1] )
+    for i in range(0,len(indicesSummationSorted)):
+      self.indexAssignmentsSummation.append( indicesSummationSorted[i][1] )
 
     # tile assignment - last two free indices?
-    self.tileIndexAssignment0 = 0
-    self.tileIndexAssignment1 = 1
+    self.indexAssignmentTileDim0 = self.indexAssignmentsC[ \
+        self.numIndicesC - 2 ]
+    self.indexAssignmentTileDim1 = self.indexAssignmentsC[ \
+        self.numIndicesC - 1 ]
+
+  ##############################################################################
+  # Assign Tile
+  ##############################################################################
+  def assignTile(self, \
+      workGroupDim0, \
+      workGroupDim1, \
+      microTileDim0, \
+      microTileDim1, \
+      macroTileDim0, \
+      macroTileDim1, \
+      unroll ):
+
+    self.workGroupDim0 = workGroupDim0
+    self.workGroupDim1 = workGroupDim1
+    self.microTileDim0 = microTileDim0
+    self.microTileDim1 = microTileDim1
+    self.macroTileDim0 = macroTileDim0
+    self.macroTileDim1 = macroTileDim1
+    self.unroll        = unroll
+
 
 
   ##############################################################################
@@ -130,26 +163,26 @@ class Kernel:
     kernelName += "_"
 
     # data dataTypes
-    kernelName += self.dataTypeA.toChar().upper()
-    kernelName += self.dataTypeB.toChar().upper()
-    kernelName += self.dataTypeC.toChar().upper()
+    kernelName += self.tensorA.dataType.toChar().upper()
+    kernelName += self.tensorB.dataType.toChar().upper()
+    kernelName += self.tensorC.dataType.toChar().upper()
     kernelName += "_"
 
     # C dimensions
     kernelName += "C"
-    for i in range(0, self.operation.numFreeIndices):
+    for i in range(0, self.numIndicesC):
       kernelName += self.indexChars[i].lower()
     kernelName += "_"
 
     # A dimensions
     kernelName += "A"
-    for i in range(0, len(self.operation.indexAssignmentsA)):
+    for i in range(0, self.numIndicesA):
       kernelName += self.indexChars[self.operation.indexAssignmentsA[i]].lower()
     kernelName += "_"
 
     # B dimensions
     kernelName += "B"
-    for i in range(0,len(self.operation.indexAssignmentsB)):
+    for i in range(0,self.numIndicesB):
       kernelName += self.indexChars[self.operation.indexAssignmentsB[i]].lower()
     kernelName += "_"
 
@@ -169,28 +202,28 @@ class Kernel:
       kernelName += "0"
     kernelName += "_"
 
-    # free indices
-    for i in range(0,len(self.freeIndexAssignments)):
-      index = self.freeIndexAssignments[i]
+    # c indices
+    for i in range(0,len(self.indexAssignmentsC)):
+      index = self.indexAssignmentsC[i]
       multipleStr = ":1"
-      if index == self.tileIndexAssignment0:
+      if index == self.indexAssignmentTileDim0:
         multipleStr = ":T0X" + str(self.workGroupDim0) \
             + "x" + str(self.microTileDim0)
-      if index == self.tileIndexAssignment1:
+      if index == self.indexAssignmentTileDim1:
         multipleStr = ":T1X" + str(self.workGroupDim1) \
             + "x" + str(self.microTileDim1)
       kernelName += self.indexChars[index].lower() + multipleStr
       kernelName += "_"
 
     # summation indices
-    for i in range(0,len(self.summationIndexAssignments)):
-      index = self.summationIndexAssignments[i]
+    for i in range(0,len(self.indexAssignmentsSummation)):
+      index = self.indexAssignmentsSummation[i]
       multiple = 1
-      if index == len(self.summationIndexAssignments)-1:
+      if index == len(self.indexAssignmentsSummation)-1:
         multiple = self.unroll
-      kernelName += self.indexChars[self.operation.numFreeIndices \
+      kernelName += self.indexChars[self.numIndicesC \
           + index].lower() + "X" + str(multiple)
-      if index != len(self.summationIndexAssignments)-1:
+      if i != len(self.indexAssignmentsSummation)-1:
         kernelName += "_"
 
     return kernelName
@@ -220,18 +253,18 @@ class Kernel:
     if self.beta:
       s += "  DATA_TYPE_STR_C const beta," + self.endLine
     # tensor C dimensions
-    for i in range(0, self.operation.numFreeIndices):
+    for i in range(0, self.numIndicesC):
       s += "  size_t const strideC" + str(i) + "," + self.endLine
-    for i in range(0, self.operation.numFreeIndices):
+    for i in range(0, self.numIndicesC):
       s += "  size_t const sizeC" + str(i) + "," + self.endLine
     # tensor A dimensions
-    for i in range(0, len(self.operation.indexAssignmentsA)):
+    for i in range(0, self.numIndicesA):
       s += "  size_t const strideA" + str(i) + "," + self.endLine
     # tensor B dimensions
-    for i in range(0, len(self.operation.indexAssignmentsB)):
+    for i in range(0, self.numIndicesB):
       s += "  size_t const strideB" + str(i) + "," + self.endLine
     # summation dimensions
-    for i in range(0, len(self.operation.indexAssignmentsA)):
+    for i in range(0, self.numIndicesA):
       s += "  size_t const sumSize" + str(i)
       if i < len(self.operation.indexAssignmentsA):
         s += "," + self.endLine
@@ -244,10 +277,6 @@ class Kernel:
   # make kernel body
   ##############################################################################
   def getBody( self, backend):
-
-    numDimensionsA = len(self.operation.indexAssignmentsA)
-    numDimensionsB = len(self.operation.indexAssignmentsB)
-    numDimensionsC = self.operation.numFreeIndices
 
     ####################################
     # initializations - DONE
@@ -282,31 +311,31 @@ class Kernel:
     kStr += "/* global memory indices */" + self.endLine
     kStr += "#define GET_GLOBAL_INDEX_A(IDX_" \
         + self.indexChars[self.operation.indexAssignmentsA[0]]
-    for i in range(1, numDimensionsA):
+    for i in range(1, self.numIndicesA):
       kStr += ", IDX_" + self.indexChars[self.operation.indexAssignmentsA[i]]
     kStr += ") ( IDX_" + self.indexChars[self.operation.indexAssignmentsA[0]] \
         + "*strideA0"
-    for i in range(1, numDimensionsA):
+    for i in range(1, self.numIndicesA):
       kStr += " + IDX_" + self.indexChars[self.operation.indexAssignmentsA[i]] \
           + "*strideA" + str(i)
     kStr += " )" + self.endLine
     kStr += "#define GET_GLOBAL_INDEX_B(IDX_" \
         + self.indexChars[self.operation.indexAssignmentsB[0]]
-    for i in range(1, numDimensionsB):
+    for i in range(1, self.numIndicesB):
       kStr += ", IDX_" + self.indexChars[self.operation.indexAssignmentsB[i]]
     kStr += ") ( IDX_" + self.indexChars[self.operation.indexAssignmentsB[0]] \
         + "*strideB0"
-    for i in range(1, numDimensionsB):
+    for i in range(1, self.numIndicesB):
       kStr += " + IDX_" + self.indexChars[self.operation.indexAssignmentsB[i]] \
           + "*strideB" + str(i)
     kStr += " )" + self.endLine
     kStr += "#define GET_GLOBAL_INDEX_C(IDX_" \
         + self.indexChars[0]
-    for i in range(1, numDimensionsC):
+    for i in range(1, self.numIndicesC):
       kStr += ", IDX_" + self.indexChars[i]
     kStr += ") ( IDX_" + self.indexChars[0] \
         + "*strideC0"
-    for i in range(1, numDimensionsC):
+    for i in range(1, self.numIndicesC):
       kStr += " + IDX_" + self.indexChars[i] \
           + "*strideC" + str(i)
     kStr += " )" + self.endLine
@@ -324,16 +353,16 @@ class Kernel:
     kStr += self.endLine
     kStr += "/* data types */" + self.endLine
     kStr += "#define DATA_TYPE_STR_A %s%s" \
-        % (self.dataTypeA.toOpenCL(), self.endLine)
+        % (self.tensorA.dataType.toOpenCL(), self.endLine)
     kStr += "#define DATA_TYPE_STR_B %s%s" \
-        % (self.dataTypeB.toOpenCL(), self.endLine)
+        % (self.tensorB.dataType.toOpenCL(), self.endLine)
     kStr += "#define DATA_TYPE_STR_C %s%s" \
-        % (self.dataTypeC.toOpenCL(), self.endLine)
+        % (self.tensorC.dataType.toOpenCL(), self.endLine)
 
     ####################################
     # MADs - DONE
     # TODO - mix real/complex
-    if self.dataTypeC.isReal():
+    if self.tensorC.dataType.isReal():
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
           + "DST = mad(MULA,MULB,DST);" + self.endLine
@@ -493,18 +522,18 @@ class Kernel:
     ####################################
     # free indices - DONE
     # self.freeIndexAssignments - performance defined
-    # self.summationIndexAssignments - performance defined
+    # self.indexAssignmentsSummation - performance defined
     # self.indexAssignmentsA - user defined
     # self.indexAssignmentsB - user defined
     # convert get_group_id(0) to however many free indices there are
     kStr += self.endLine
-    kStr += "  /* free indices */" + self.endLine
-    for i in range(0, self.operation.numFreeIndices):
-      index = self.freeIndexAssignments[i]
-      kStr += "  size_t freeIdx" + self.indexChars[i] \
+    kStr += "  /* c indices */" + self.endLine
+    for i in range(0, self.numIndicesC):
+      index = self.indexAssignmentsC[i]
+      kStr += "  size_t idx" + self.indexChars[i] \
           + " = ( get_group_id(0)"
-      for j in range( i, self.operation.numFreeIndices):
-        index2 = self.freeIndexAssignments[j]
+      for j in range( i, self.numIndicesC):
+        index2 = self.indexAssignmentsC[j]
         kStr += " / sizeC" + str(index2)
       kStr += " ) % sizeC" + str(index) + ";" + self.endLine
 
@@ -546,12 +575,12 @@ class Kernel:
     ####################################
     # summations loops - DONE
     indent = "  "
-    for i in range(0,len(self.summationIndexAssignments)):
-      indexChar = self.indexChars[self.summationIndexAssignments[i] \
-          + self.operation.numFreeIndices]
+    for i in range(0,len(self.indexAssignmentsSummation)):
+      indexChar = self.indexChars[self.indexAssignmentsSummation[i] \
+          + self.numIndicesC]
       kStr += indent + "size_t sumIdx" + indexChar \
           + " = sumSize" + indexChar
-      if i == len(self.summationIndexAssignments):
+      if i == len(self.indexAssignmentsSummation):
         kStr += " / NUM_UNROLL_ITER"
       kStr += ";" + self.endLine
       kStr += indent + "do {" + self.endLine
@@ -607,21 +636,21 @@ class Kernel:
         % (self.workGroupDim0*self.workGroupDim1)
 
     # zeroString for real and complex
-    if self.dataTypeA.value == Structs.DataType.singleComplex:
+    if self.tensorA.dataType.value == Structs.DataType.singleComplex:
       zeroStringA = "(float2)(0.f, 0.f)"
-    elif self.dataTypeA.value == Structs.DataType.doubleComplex:
+    elif self.tensorA.dataType.value == Structs.DataType.doubleComplex:
       zeroStringA = "(double2)(0.0, 0.0)"
     else:
       zeroStringA = "0.0"
-    if self.dataTypeB.value == Structs.DataType.singleComplex:
+    if self.tensorB.dataType.value == Structs.DataType.singleComplex:
       zeroStringB = "(float2)(0.f, 0.f)"
-    elif self.dataTypeB.value == Structs.DataType.doubleComplex:
+    elif self.tensorB.dataType.value == Structs.DataType.doubleComplex:
       zeroStringB = "(double2)(0.0, 0.0)"
     else:
       zeroStringB = "0.0"
-    if self.dataTypeC.value == Structs.DataType.singleComplex:
+    if self.tensorC.dataType.value == Structs.DataType.singleComplex:
       zeroStringC = "(float2)(0.f, 0.f)"
-    elif self.dataTypeC.value == Structs.DataType.doubleComplex:
+    elif self.tensorC.dataType.value == Structs.DataType.doubleComplex:
       zeroStringC = "(double2)(0.0, 0.0)"
     else:
       zeroStringC = "0.0"
@@ -632,26 +661,26 @@ class Kernel:
     # load global -> local
     for a in range(0, numALoads):
       kStr += "    lA[ %d*localAStride ] = " % a
-      if self.isRow():
+      if self.isEdge0():
         kStr += "( globalARow(%d) >= M) ? %s : " % ( a, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( globalARow(%d), globalACol(%d) ) ];%s" % (a, a, self.endLine)
     if numALoadsR:
       kStr += "    if ( localSerial + " + str(numALoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM0*MICRO_TILE_DIM0*NUM_UNROLL_ITER) ) {" + self.endLine
       kStr += "      lA[ %d*localAStride ] = " % numALoads
-      if self.isRow():
+      if self.isEdge0():
         kStr += "( globalARow(%d) >= M) ? %s : " % ( numALoads, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( globalARow(%d), globalACol(%d) ) ];%s" % (numALoads, numALoads, self.endLine)
       kStr += "    }" + self.endLine
 
     for b in range(0, numBLoads):
       kStr += "    lB[ %d*localBStride ] = " % b
-      if self.isCol():
+      if self.isEdge1():
         kStr += "( globalBCol(%d) >= N) ? %s : " % ( b, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( globalBRow(%d), globalBCol(%d) ) ];%s" % (b, b, self.endLine)
     if numBLoadsR:
       kStr += "    if ( localSerial + " + str(numBLoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM1*MICRO_TILE_DIM1*NUM_UNROLL_ITER) ) {" + self.endLine
       kStr += "      lB[ %d*localBStride ] = " % numBLoads
-      if self.isCol():
+      if self.isEdge1():
         kStr += "(globalBCol(%d) >= N) ? %s : " % ( numBLoads, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( globalBRow(%d), globalBCol(%d) ) ];%s" % (numBLoads, numBLoads, self.endLine)
       kStr += "    }" + self.endLine
@@ -684,8 +713,8 @@ class Kernel:
 
     ####################################
     # end loop - DONE
-    for i in reversed(range(0,len(self.summationIndexAssignments))):
-      indexChar = self.indexChars[self.summationIndexAssignments[i] + self.operation.numFreeIndices]
+    for i in reversed(range(0,len(self.indexAssignmentsSummation))):
+      indexChar = self.indexChars[self.indexAssignmentsSummation[i] + self.numIndicesC]
       kStr += indent + "} while (--sumIdx" + indexChar + " > 0);" + self.endLine
     kStr += self.endLine
 
@@ -700,21 +729,21 @@ class Kernel:
     # write global Cij
     kStr += self.endLine
     kStr += "  /* write global Cij */" + self.endLine
-    if self.dataTypeC == "c":
+    if self.tensorC.dataType == Structs.DataType.singleComplex:
       kStr += "  float type_mad_tmp;" + self.endLine
-    if self.dataTypeC == "z":
+    if self.tensorC.dataType == Structs.DataType.doubleComplex:
       kStr += "  double type_mad_tmp;" + self.endLine
 
     for a in range(0, self.microTileDim0):
       for b in range(0, self.microTileDim1):
-        if self.isRow():
+        if self.isEdge0():
           kStr += "  if (globalCRow+%d*WG_DIM0 < M)" % a
-        if self.isCol():
+        if self.isEdge1():
           kStr += "  if (globalCCol+%d*WG_DIM1 < N)" % b
-        if self.isRow() or self.isCol():
+        if self.isEdge0() or self.isEdge1():
           kStr += "{"
         kStr += "  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalCRow+%d*WG_DIM0, globalCCol+%d*WG_DIM1) ], alpha, rC[%d][%d], beta )" % (a, b, a, b)
-        if self.isRow() or self.isCol():
+        if self.isEdge0() or self.isEdge1():
           kStr += "}"
         kStr += self.endLine
 
@@ -779,41 +808,41 @@ def getHeaderFileString( kernel, backend):
 # Test GEMM
 ################################################################################
 def testGEMM():
-  print("Test GEMM Fast")
+  print("Test GEMM Fast: C[ij] = Sum_k A[ki] * B[kj]")
 
   # kernel parameters
   dimensionsC = []
   dimensionsC.append( Structs.Dimension(    1, 1024 ) )
   dimensionsC.append( Structs.Dimension( 1024,  512 ) )
   tensorC = Structs.Tensor( \
-      Structs.DataType.single,
+      Structs.DataType(Structs.DataType.single),
       dimensionsC )
 
   dimensionsA = []
   dimensionsA.append( Structs.Dimension(   1,  256 ) )
   dimensionsA.append( Structs.Dimension( 256, 1024 ) )
   tensorA = Structs.Tensor( \
-      Structs.DataType.single,
+      Structs.DataType(Structs.DataType.single),
       dimensionsA )
 
   dimensionsB = []
   dimensionsB.append( Structs.Dimension(   1, 256 ) )
   dimensionsB.append( Structs.Dimension( 256, 512 ) )
-  tensorA = Structs.Tensor( \
-      Structs.DataType.single,
+  tensorB = Structs.Tensor( \
+      Structs.DataType(Structs.DataType.single),
       dimensionsA )
 
   operationType = Structs.OperationType(Structs.OperationType.contraction)
   numFreeIndices = 2
-  numBatchIndices = 0
-  numSummationIndices = 1
-  indexAssignmentsA = [0, 2, 3]
-  indexAssignmentsB = [1, 2, 3]
+  numIndicesBatch = 0
+  numIndicesSummation = 1
+  indexAssignmentsA = [2, 0]
+  indexAssignmentsB = [2, 1]
   operation = Structs.Operation( \
       operationType, \
       numFreeIndices, \
-      numBatchIndices, \
-      numSummationIndices, \
+      numIndicesBatch, \
+      numIndicesSummation, \
       indexAssignmentsA, \
       indexAssignmentsB )
   alpha = False
@@ -827,13 +856,100 @@ def testGEMM():
       alpha, \
       beta )
 
-  kernel.assignTile( 16, 16, 6, 6, 96, 96, 16 )
+  kernel.assignTile( 16, 16, 4, 4, 64, 64, 16 )
 
-  print("Kernel Name: %s") % kernel.getName()
+  print("\"GEMM\" Kernel Name: %s") % kernel.getName()
   backend = Structs.Backend(Structs.Backend.opencl)
-  print("Kernel Body: %s") % kernel.getBody(backend)
+  print("\"GEMM\" Kernel Body: %s") % kernel.getBody(backend)
 
 def testAdvanced():
+  print("Test Advanced: C[ijk] = Sum_lm A[mkli] * B[jlkm]")
+  """
+  dimension sizes
+  i: 512
+  j: 256
+  k: 128
+  l:  64
+  m:  32
+
+  *** C ***
+  index stride size assignment dimorder
+  0:    32,768  512  (i)  2
+  1:         1  256  (j)  0
+  2:       256  128  (k)  1
+
+  *** A ***
+  index stride size assignment dimorder
+  0:        64   32  (m)  1
+  1: 1,048,576  128  (k)  3
+  2:         1   64  (l)  0
+  2:     2,048  512  (i)  2
+
+  *** B ***
+  index stride size assignment dimorder
+  0:        32  256  (j)  1
+  1: 1,048,576   64  (l)  3
+  2:     8,192  128  (k)  2
+  2:         1   32  (m)  0
+
+  """
+  # tensor dimensions
+  dimensionsC = []
+  dimensionsC.append( Structs.Dimension(   32768, 512 ) )
+  dimensionsC.append( Structs.Dimension(       1, 256 ) )
+  dimensionsC.append( Structs.Dimension(     256, 128 ) )
+  dimensionsA = []
+  dimensionsA.append( Structs.Dimension(      64,  32 ) )
+  dimensionsA.append( Structs.Dimension( 1048576, 128 ) )
+  dimensionsA.append( Structs.Dimension(       1,  64 ) )
+  dimensionsA.append( Structs.Dimension(    2048, 512 ) )
+  dimensionsB = []
+  dimensionsB.append( Structs.Dimension(      32, 256 ) )
+  dimensionsB.append( Structs.Dimension( 1048576,  64 ) )
+  dimensionsB.append( Structs.Dimension(    8192, 128 ) )
+  dimensionsB.append( Structs.Dimension(       1,  32 ) )
+
+  # tensor objects
+  tensorC = Structs.Tensor( \
+      Structs.DataType(Structs.DataType.single),
+      dimensionsC )
+  tensorA = Structs.Tensor( \
+      Structs.DataType(Structs.DataType.single),
+      dimensionsA )
+  tensorB = Structs.Tensor( \
+      Structs.DataType(Structs.DataType.single),
+      dimensionsA )
+
+  operationType = Structs.OperationType(Structs.OperationType.contraction)
+  numFreeIndices = 2
+  numIndicesBatch = 1
+  numIndicesSummation = 2
+  indexAssignmentsA = [ 4, 2, 3, 0 ]
+  indexAssignmentsB = [ 1, 3, 2, 4 ]
+  operation = Structs.Operation( \
+      operationType, \
+      numFreeIndices, \
+      numIndicesBatch, \
+      numIndicesSummation, \
+      indexAssignmentsA, \
+      indexAssignmentsB )
+  alpha = False
+  beta = False
+
+  kernel = Kernel(\
+      operation, \
+      tensorA, \
+      tensorB, \
+      tensorC, \
+      alpha, \
+      beta )
+
+  kernel.assignTile( 16, 16, 4, 4, 64, 64, 16 )
+
+  print("\"Advanced\" Kernel Name: %s") % kernel.getName()
+  backend = Structs.Backend(Structs.Backend.opencl)
+  print("\"Advanced\" Kernel Body: %s") % kernel.getBody(backend)
+
   pass
 
 ################################################################################
@@ -841,3 +957,5 @@ def testAdvanced():
 ################################################################################
 if __name__ == "__main__":
   testGEMM()
+  print("\n\n\n")
+  testAdvanced()

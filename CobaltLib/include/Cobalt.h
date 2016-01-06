@@ -191,9 +191,9 @@ typedef struct CobaltOperation_ {
   // indexAssignmentsB: {1, 3, 4, 2, 5}
 
   CobaltOperationType type;
-  size_t numFreeIndices;
-  size_t numBatchIndices;
-  size_t numSummationIndices;
+  size_t numIndicesFree;
+  size_t numIndicesBatch;
+  size_t numIndicesSummation;
   size_t indexAssignmentsA[CobaltTensor::maxDimensions];
   size_t indexAssignmentsB[CobaltTensor::maxDimensions];
 

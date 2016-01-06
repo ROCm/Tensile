@@ -120,7 +120,7 @@ std::string toString( CobaltOperationType type ) {
   state += indexChars[problem.tensorC.numDimensions];
   state += ":";
   //state += std::to_string(boundIndexSizes[0]);
-  for (size_t i = 1; i < problem.operation.numSummationIndices; i++) {
+  for (size_t i = 1; i < problem.operation.numIndicesSummation; i++) {
     state += ",";
     state += indexChars[problem.tensorA.numDimensions+i];
     state += ":";
@@ -177,7 +177,7 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   state += " string=\"" + toString(operation.type) + "\" />\n";
   // operationIndexAssignmentsA
   state += indent(indentLevel+1) + "<IndexAssignments tensor=\"A\" >\n";
-  for (size_t i = 0; i < operation.numFreeIndices/2 + operation.numBatchIndices + operation.numSummationIndices; i++) {
+  for (size_t i = 0; i < operation.numIndicesFree/2 + operation.numIndicesBatch + operation.numIndicesSummation; i++) {
     state += indent(indentLevel+2);
     state += "<IndexAssignment";
     state += " index=\"" + std::to_string(i) + "\"";
@@ -188,7 +188,7 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   state += indent(indentLevel+1) + "</IndexAssignments>\n";
   // operationIndexAssignmentsB
   state += indent(indentLevel+1) + "<IndexAssignments tensor=\"B\" >\n";
-  for (size_t i = 0; i < operation.numFreeIndices/2 + operation.numBatchIndices + operation.numSummationIndices; i++) {
+  for (size_t i = 0; i < operation.numIndicesFree/2 + operation.numIndicesBatch + operation.numIndicesSummation; i++) {
     state += indent(indentLevel+2);
     state += "<IndexAssignment";
     state += " index=\"" + std::to_string(i) + "\"";
@@ -319,23 +319,23 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
     return false;
   }
   // numFree,Batch,SummationIndices
-  if (l.numFreeIndices < r.numFreeIndices) {
+  if (l.numIndicesFree < r.numIndicesFree) {
     return true;
-  } else if (r.numFreeIndices < l.numFreeIndices) {
+  } else if (r.numIndicesFree < l.numIndicesFree) {
     return false;
   }
-  if (l.numBatchIndices < r.numBatchIndices) {
+  if (l.numIndicesBatch < r.numIndicesBatch) {
     return true;
-  } else if (r.numBatchIndices < l.numBatchIndices) {
+  } else if (r.numIndicesBatch < l.numIndicesBatch) {
     return false;
   }
-  if (l.numSummationIndices < r.numSummationIndices) {
+  if (l.numIndicesSummation < r.numIndicesSummation) {
     return true;
-  } else if (r.numSummationIndices < l.numSummationIndices) {
+  } else if (r.numIndicesSummation < l.numIndicesSummation) {
     return false;
   }
   // indexAssignmentsA
-  for (size_t i = 0; i < l.numFreeIndices/2+l.numBatchIndices+l.numSummationIndices; i++) {
+  for (size_t i = 0; i < l.numIndicesFree/2+l.numIndicesBatch+l.numIndicesSummation; i++) {
     if (l.indexAssignmentsA[i] < r.indexAssignmentsA[i]) {
       return true;
     } else if (r.indexAssignmentsA[i] < l.indexAssignmentsA[i]) {
@@ -343,7 +343,7 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
     }
   }
   // indexAssignmentsB
-  for (size_t i = 0; i < l.numFreeIndices/2+l.numBatchIndices+l.numSummationIndices; i++) {
+  for (size_t i = 0; i < l.numIndicesFree/2+l.numIndicesBatch+l.numIndicesSummation; i++) {
     if (l.indexAssignmentsB[i] < r.indexAssignmentsB[i]) {
       return true;
     } else if (r.indexAssignmentsB[i] < l.indexAssignmentsB[i]) {
