@@ -54,41 +54,27 @@ class Kernel:
     self.numIndicesC = len(self.tensorC.dimensions)
 
     # index assignments
-    self.indexAssignmentsC = []
-    self.indexAssignmentsSummation = []
+    self.indexOrderC = []
+    self.indexOrderSummation = []
     self.indexAssignmentTileDim0 = -1
     self.indexAssignmentTileDim1 = -1
     self.makeIndexAssignments( )
 
 
   ##############################################################################
-  # Row Kernel
+  # isEdge kernel along dimension
   # - macroTileDim0 == 1
   # - guards around gA -> lA
   # - guards around gC[gRow,:] = rC[row,:]
   ##############################################################################
-  def isEdge0(self):
-    return self.workGroupDim0 * self.microTileDim0 \
-        != self.macroTileDim0
+  def isEdge(self, dim):
+    if dim == self.indexAssignmentTileDim0:
+      return self.workGroupDim0 * self.microTileDim0 != self.macroTileDim0
+    if dim == self.indexAssignmentTileDim1:
+      return self.workGroupDim1 * self.microTileDim1 != self.macroTileDim1
+    return False
 
-  ##############################################################################
-  # Col Kernel
-  # - macroTileDim1 == 1
-  # - guards around gB -> lB
-  # - guards around gC[:,gCol] = rC[:,col]
-  ##############################################################################
-  def isEdge1(self):
-    return self.workGroupDim1 * self.microTileDim1 \
-        != self.macroTileDim1
 
-  ##############################################################################
-  # Corner Kernel
-  # - macroTileDim0,Cols == 1
-  # - guards around gA -> lA, gB -> lB
-  # - guards around gC[gRow,:] = rC[row,:], gC[:,gCol] = rC[:,col]
-  ##############################################################################
-  def isCor(self):
-    return self.isEdge0() and self.isEdge1()
 
   ##############################################################################
   # Make Index Assignments - DONE
@@ -96,13 +82,22 @@ class Kernel:
   def makeIndexAssignments(self):
 
     # C indices in order of descending stride
+    # sort free indices, then append after batched indices
     indicesUnsortedC = []
     for i in range(0,self.numIndicesC):
-      indicesUnsortedC.append( [self.tensorC.dimensions[i].stride, i] )
+      indexIsBatched = False
+      if i in self.operation.indexAssignmentsA:
+        if i in self.operation.indexAssignmentsB:
+          indexIsBatched = True
+      if indexIsBatched:
+        self.indexOrderC.append(i)
+      else:
+        indicesUnsortedC.append( [self.tensorC.dimensions[i].stride, i] )
     indicesSortedC = sorted( indicesUnsortedC, \
         key = lambda x: int(x[0]), reverse=True )
-    for i in range(0,self.numIndicesC):
-      self.indexAssignmentsC.append( indicesSortedC[i][1] )
+    for i in range(0,len(indicesSortedC)):
+      self.indexOrderC.append( indicesSortedC[i][1] )
+    print self.indexOrderC
 
     # summation indices in order of descending A-stride + B-stride
     indicesSummationUnsorted = []
@@ -122,12 +117,13 @@ class Kernel:
     indicesSummationSorted = sorted( indicesSummationUnsorted, \
         key = lambda x: int(x[0]), reverse=True )
     for i in range(0,len(indicesSummationSorted)):
-      self.indexAssignmentsSummation.append( indicesSummationSorted[i][1] )
+      self.indexOrderSummation.append( indicesSummationSorted[i][1] )
+    print self.indexOrderSummation
 
     # tile assignment - last two free indices?
-    self.indexAssignmentTileDim0 = self.indexAssignmentsC[ \
+    self.indexAssignmentTileDim0 = self.indexOrderC[ \
         self.numIndicesC - 2 ]
-    self.indexAssignmentTileDim1 = self.indexAssignmentsC[ \
+    self.indexAssignmentTileDim1 = self.indexOrderC[ \
         self.numIndicesC - 1 ]
 
   ##############################################################################
@@ -203,8 +199,8 @@ class Kernel:
     kernelName += "_"
 
     # c indices
-    for i in range(0,len(self.indexAssignmentsC)):
-      index = self.indexAssignmentsC[i]
+    for i in range(0,len(self.indexOrderC)):
+      index = self.indexOrderC[i]
       multipleStr = ":1"
       if index == self.indexAssignmentTileDim0:
         multipleStr = ":T0X" + str(self.workGroupDim0) \
@@ -216,14 +212,14 @@ class Kernel:
       kernelName += "_"
 
     # summation indices
-    for i in range(0,len(self.indexAssignmentsSummation)):
-      index = self.indexAssignmentsSummation[i]
+    for i in range(0,len(self.indexOrderSummation)):
+      index = self.indexOrderSummation[i]
       multiple = 1
-      if index == len(self.indexAssignmentsSummation)-1:
+      if index == len(self.indexOrderSummation)-1:
         multiple = self.unroll
       kernelName += self.indexChars[self.numIndicesC \
           + index].lower() + "X" + str(multiple)
-      if i != len(self.indexAssignmentsSummation)-1:
+      if i != len(self.indexOrderSummation)-1:
         kernelName += "_"
 
     return kernelName
@@ -239,7 +235,7 @@ class Kernel:
     s += self.endLine
     s += "__self void %s" % ( self.getName() )
     s += "(" + self.endLine
-    # tensor data
+    # pointers & offsets
     s += (
       "  __global DATA_TYPE_STR_C       *          C," + self.endLine +
       "  __global DATA_TYPE_STR_A const * restrict A," + self.endLine +
@@ -247,27 +243,26 @@ class Kernel:
       "  size_t const offsetC," + self.endLine +
       "  size_t const offsetA," + self.endLine +
       "  size_t const offsetB," + self.endLine )
-    # TODO - if convolution, need stride and pad for each sum dim
+    # strides
+    for i in range(0, self.numIndicesC):
+      s += "  size_t const strideC" + self.indexChars[i] + "," + self.endLine
+    for i in range(0, self.numIndicesA):
+      s += "  size_t const strideA" \
+          + self.indexChars[self.operation.indexAssignmentsA[i]] \
+          + "," + self.endLine
+    for i in range(0, self.numIndicesB):
+      s += "  size_t const strideB" \
+          + self.indexChars[self.operation.indexAssignmentsB[i]] \
+          + "," + self.endLine
+    # sizes
+    for i in range(0, self.numIndicesC+len(self.indexOrderSummation)):
+      s += "  size_t const size" + self.indexChars[i] + "," + self.endLine
+    # alpha & beta
     if self.alpha:
       s += "  DATA_TYPE_STR_C const alpha," + self.endLine
     if self.beta:
       s += "  DATA_TYPE_STR_C const beta," + self.endLine
-    # tensor C dimensions
-    for i in range(0, self.numIndicesC):
-      s += "  size_t const strideC" + str(i) + "," + self.endLine
-    for i in range(0, self.numIndicesC):
-      s += "  size_t const sizeC" + str(i) + "," + self.endLine
-    # tensor A dimensions
-    for i in range(0, self.numIndicesA):
-      s += "  size_t const strideA" + str(i) + "," + self.endLine
-    # tensor B dimensions
-    for i in range(0, self.numIndicesB):
-      s += "  size_t const strideB" + str(i) + "," + self.endLine
-    # summation dimensions
-    for i in range(0, self.numIndicesA):
-      s += "  size_t const sumSize" + str(i)
-      if i < len(self.operation.indexAssignmentsA):
-        s += "," + self.endLine
+    # TODO - if convolution, need stride and pad for each sum dim
     s += " )"
     return s
 
@@ -301,43 +296,46 @@ class Kernel:
         % ((self.workGroupDim0 * self.microTileDim0), self.endLine )
     kStr += "#define MACRO_TILE_DIM1  %s%s" \
         % ((self.workGroupDim1 * self.microTileDim1), self.endLine )
-    kStr += "#define NUM_UNROLL_ITER      %s%s" \
+    kStr += "#define NUM_UNROLL_ITER  %s%s" \
         % (self.unroll, self.endLine )
     kStr += "" + self.endLine
 
     ####################################
-    # global memory indices
+    # global memory indices - DONE
     kStr += self.endLine
     kStr += "/* global memory indices */" + self.endLine
-    kStr += "#define GET_GLOBAL_INDEX_A(IDX_" \
-        + self.indexChars[self.operation.indexAssignmentsA[0]]
-    for i in range(1, self.numIndicesA):
-      kStr += ", IDX_" + self.indexChars[self.operation.indexAssignmentsA[i]]
-    kStr += ") ( IDX_" + self.indexChars[self.operation.indexAssignmentsA[0]] \
-        + "*strideA0"
-    for i in range(1, self.numIndicesA):
-      kStr += " + IDX_" + self.indexChars[self.operation.indexAssignmentsA[i]] \
-          + "*strideA" + str(i)
-    kStr += " )" + self.endLine
-    kStr += "#define GET_GLOBAL_INDEX_B(IDX_" \
-        + self.indexChars[self.operation.indexAssignmentsB[0]]
-    for i in range(1, self.numIndicesB):
-      kStr += ", IDX_" + self.indexChars[self.operation.indexAssignmentsB[i]]
-    kStr += ") ( IDX_" + self.indexChars[self.operation.indexAssignmentsB[0]] \
-        + "*strideB0"
-    for i in range(1, self.numIndicesB):
-      kStr += " + IDX_" + self.indexChars[self.operation.indexAssignmentsB[i]] \
-          + "*strideB" + str(i)
-    kStr += " )" + self.endLine
-    kStr += "#define GET_GLOBAL_INDEX_C(IDX_" \
+    # C
+    kStr += "#define GET_GLOBAL_INDEX_C(IDX" \
         + self.indexChars[0]
     for i in range(1, self.numIndicesC):
-      kStr += ", IDX_" + self.indexChars[i]
-    kStr += ") ( IDX_" + self.indexChars[0] \
-        + "*strideC0"
+      kStr += ", IDX" + self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") ( IDX" + indexChar + "*strideC" + indexChar
     for i in range(1, self.numIndicesC):
-      kStr += " + IDX_" + self.indexChars[i] \
-          + "*strideC" + str(i)
+      indexChar = self.indexChars[i]
+      kStr += " + IDX" + indexChar + "*strideC" + indexChar
+    kStr += " )" + self.endLine
+    # A
+    kStr += "#define GET_GLOBAL_INDEX_A(IDX" \
+        + self.indexChars[self.operation.indexAssignmentsA[0]]
+    for i in range(1, self.numIndicesA):
+      kStr += ", IDX" + self.indexChars[self.operation.indexAssignmentsA[i]]
+    indexChar = self.indexChars[self.operation.indexAssignmentsA[0]]
+    kStr += ") ( IDX" + indexChar + "*strideA" + indexChar
+    for i in range(1, self.numIndicesA):
+      indexChar = self.indexChars[self.operation.indexAssignmentsA[i]]
+      kStr += " + IDX" + indexChar + "*strideA" + indexChar
+    kStr += " )" + self.endLine
+    # B
+    kStr += "#define GET_GLOBAL_INDEX_B(IDX" \
+        + self.indexChars[self.operation.indexAssignmentsB[0]]
+    for i in range(1, self.numIndicesB):
+      kStr += ", IDX" + self.indexChars[self.operation.indexAssignmentsB[i]]
+    indexChar = self.indexChars[self.operation.indexAssignmentsB[0]]
+    kStr += ") ( IDX" + indexChar + "*strideB" + indexChar
+    for i in range(1, self.numIndicesB):
+      indexChar = self.indexChars[self.operation.indexAssignmentsB[i]]
+      kStr += " + IDX" + indexChar + "*strideB" + indexChar
     kStr += " )" + self.endLine
 
 
@@ -476,8 +474,8 @@ class Kernel:
       kStr += "  rA[%d] = localA[offA + %d*WG_DIM0]; \\\\%s" % (a, a, self.endLine)
     for b in range(0, self.microTileDim1):
       kStr += "  rB[%d] = localB[offB + %d*WG_DIM1]; \\\\%s" % (b, b, self.endLine)
-    kStr += "  offA += (MACRO_TILE_DIM0+LOCAL_COL_PAD); \\\\" + self.endLine
-    kStr += "  offB += (MACRO_TILE_DIM1+LOCAL_ROW_PAD); \\\\" + self.endLine
+    kStr += "  offA += MACRO_TILE_DIM0; \\\\" + self.endLine
+    kStr += "  offB += MACRO_TILE_DIM1; \\\\" + self.endLine
     for a in range(0, self.microTileDim0):
       for b in range(0, self.microTileDim1):
         kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); \\\\%s" % (a, b, a, b, self.endLine)
@@ -495,9 +493,9 @@ class Kernel:
     kStr += self.endLine
     kStr += (
       "  /* apply offsets */" + self.endLine +
+      "  C += offsetC;" + self.endLine +
       "  A += offsetA;" + self.endLine +
-      "  B += offsetB;" + self.endLine +
-      "  C += offsetC;" + self.endLine )
+      "  B += offsetB;" + self.endLine )
 
     ####################################
     # allocate registers - DONE
@@ -520,52 +518,60 @@ class Kernel:
           + self.endLine )
 
     ####################################
-    # free indices - DONE
-    # self.freeIndexAssignments - performance defined
-    # self.indexAssignmentsSummation - performance defined
+    # c indices - DONE
+    # self.indexOrderC - performance defined
+    # self.indexOrderSummation - performance defined
     # self.indexAssignmentsA - user defined
     # self.indexAssignmentsB - user defined
-    # convert get_group_id(0) to however many free indices there are
+    # convert get_group_id(0) to however many c indices there are
     kStr += self.endLine
     kStr += "  /* c indices */" + self.endLine
     for i in range(0, self.numIndicesC):
-      index = self.indexAssignmentsC[i]
-      kStr += "  size_t idx" + self.indexChars[i] \
+      index = self.indexOrderC[i]
+      kStr += "  size_t groupIdx" + self.indexChars[index] \
           + " = ( get_group_id(0)"
-      for j in range( i, self.numIndicesC):
-        index2 = self.indexAssignmentsC[j]
-        kStr += " / sizeC" + str(index2)
-      kStr += " ) % sizeC" + str(index) + ";" + self.endLine
+      for j in reversed( range( i+1, self.numIndicesC) ):
+        index2 = self.indexOrderC[j]
+        kStr += " / size" + self.indexChars[index2]
+      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
 
     kStr += (
       "  uint localIdx0 = get_local_id(0);" + self.endLine +
       "  uint localIdx1 = get_local_id(1);" + self.endLine +
       "  uint localSerial = localIdx0 + localIdx1*WG_DIM0;" + self.endLine )
 
+    # multidim if (self.order=="clblasColumnMajor")==(self.transA=="N"):
+    tileIdxLaterA = self.indexAssignmentTileDim0 \
+        > self.indexOrderSummation[len(self.indexOrderSummation)-1]
+    tileIdxLaterB = self.indexAssignmentTileDim1 \
+        > self.indexOrderSummation[len(self.indexOrderSummation)-1]
+    unrollChar = self.indexChars[self.indexOrderSummation[ \
+        len(self.indexOrderSummation)-1] + self.numIndicesC]
+    tile0Char = self.indexChars[self.indexAssignmentTileDim0]
+    tile1Char = self.indexChars[self.indexAssignmentTileDim1]
+
     ####################################
     # global indices being loaded - TODO
     kStr += self.endLine
     kStr += "  /* global indices being loaded */" + self.endLine
 
-    """
-    if (self.order=="clblasColumnMajor")==(self.transA=="N"):
+    if tileIdxLaterA:
       kStr += (
-        "#define globalARow(LID) (groupRow*MACRO_TILE_DIM0 + (localSerial+(LID)*WG_DIM0*WG_DIM1)%MACRO_TILE_DIM0)" + self.endLine +
-        "#define globalACol(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)/MACRO_TILE_DIM0)" + self.endLine )
+        "#define globalIdxA" + tile0Char + "(LID) (groupIdx" + tile0Char + "*MACRO_TILE_DIM0 + (localSerial+(LID)*WG_DIM0*WG_DIM1)%MACRO_TILE_DIM0)" + self.endLine +
+        "#define globalIdxA" + unrollChar + "(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)/MACRO_TILE_DIM0)" + self.endLine )
     else:
       kStr += (
-        "#define globalARow(LID) (groupRow*MACRO_TILE_DIM0 + (localSerial+(LID)*WG_DIM0*WG_DIM1)/NUM_UNROLL_ITER)" + self.endLine +
-        "#define globalACol(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)%NUM_UNROLL_ITER)" + self.endLine )
+        "#define globalIdxA" + unrollChar + "(LID) (groupIdx" + tile1Char + "*MACRO_TILE_DIM0 + (localSerial+(LID)*WG_DIM0*WG_DIM1)/NUM_UNROLL_ITER)" + self.endLine +
+        "#define globalIdxA" + tile0Char + "(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)%NUM_UNROLL_ITER)" + self.endLine )
 
-    if (self.order=="clblasColumnMajor")==(self.transB=="N"):
+    if tileIdxLaterB:
       kStr += (
-        "#define globalBRow(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)%NUM_UNROLL_ITER)" + self.endLine +
-        "#define globalBCol(LID) (groupCol*MACRO_TILE_DIM1 + (localSerial+(LID)*WG_DIM0*WG_DIM1)/NUM_UNROLL_ITER)" + self.endLine )
+        "#define globalIdxB" + tile1Char + "(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)%NUM_UNROLL_ITER)" + self.endLine +
+        "#define globalIdxB" + unrollChar + "(LID) (groupCol*MACRO_TILE_DIM1 + (localSerial+(LID)*WG_DIM0*WG_DIM1)/NUM_UNROLL_ITER)" + self.endLine )
     else:
       kStr += (
-        "#define globalBRow(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)/MACRO_TILE_DIM1)" + self.endLine +
-        "#define globalBCol(LID) (groupCol*MACRO_TILE_DIM1 + (localSerial+(LID)*WG_DIM0*WG_DIM1)%MACRO_TILE_DIM1)" + self.endLine )
-    """
+        "#define globalIdxB" + unrollChar + "(LID) ((localSerial+(LID)*WG_DIM0*WG_DIM1)/MACRO_TILE_DIM1)" + self.endLine +
+        "#define globalIdxB" + tile1Char + "(LID) (groupCol*MACRO_TILE_DIM1 + (localSerial+(LID)*WG_DIM0*WG_DIM1)%MACRO_TILE_DIM1)" + self.endLine )
 
     #kStr += (
     #  "  A += GET_GLOBAL_INDEX_A( globalARow, globalACol );" + self.endLine +
@@ -575,57 +581,67 @@ class Kernel:
     ####################################
     # summations loops - DONE
     indent = "  "
-    for i in range(0,len(self.indexAssignmentsSummation)):
-      indexChar = self.indexChars[self.indexAssignmentsSummation[i] \
+    kStr += indent + "/* iterate over all summation indices */" + self.endLine
+    for i in range(0,len(self.indexOrderSummation)):
+      indexChar = self.indexChars[self.indexOrderSummation[i] \
           + self.numIndicesC]
-      kStr += indent + "size_t sumIdx" + indexChar \
-          + " = sumSize" + indexChar
-      if i == len(self.indexAssignmentsSummation):
+      kStr += indent + "size_t sumIter" + indexChar \
+          + " = size" + indexChar
+      if i == len(self.indexOrderSummation)-1:
         kStr += " / NUM_UNROLL_ITER"
       kStr += ";" + self.endLine
       kStr += indent + "do {" + self.endLine
+      indent += "  "
 
     ####################################
     # local indices being written
+    # thoroughly verify by hand for 4 GEMM cases (after doing global) - TODO
     kStr += self.endLine
-    """
     kStr += "    /* local indices being written */" + self.endLine
-    if (self.order=="clblasColumnMajor")==(self.transA=="N"):
-      kStr += (
-        "#define localARow (localSerial % MACRO_TILE_DIM0)" + self.endLine +
-        "#define localACol (localSerial / MACRO_TILE_DIM0)" + self.endLine +
-        "#define localAStride (WG_DIM0*WG_DIM1)" + self.endLine )
+# new indices will be localA_unroll and localA_tile, which gets assigned to row
+    if tileIdxLaterA:
+      kStr += "#define localA" + tile0Char \
+          + " (localSerial % MACRO_TILE_DIM0)" + self.endLine \
+          + "#define localA" + unrollChar \
+          +  " (localSerial / MACRO_TILE_DIM0)" + self.endLine \
+          + "#define localAStride (WG_DIM0*WG_DIM1)" + self.endLine
     else:
-      kStr += (
-        "#define localARow (localSerial / NUM_UNROLL_ITER)" + self.endLine +
-        "#define localACol (localSerial % NUM_UNROLL_ITER)" + self.endLine +
-        "#define localAStride (WG_DIM0*WG_DIM1/NUM_UNROLL_ITER)" + self.endLine )
+      kStr += "#define localA" + tile0Char \
+          + "(localSerial / NUM_UNROLL_ITER)" + self.endLine \
+          + "#define localA" + unrollChar \
+          + " (localSerial % NUM_UNROLL_ITER)" + self.endLine \
+          + "#define localAStride (WG_DIM0*WG_DIM1/NUM_UNROLL_ITER)" \
+          + self.endLine
 
-    if (self.order=="clblasColumnMajor")==(self.transB=="N"):
-      kStr += (
-        "#define localBRow ( localSerial % NUM_UNROLL_ITER )" + self.endLine +
-        "#define localBCol ( localSerial / NUM_UNROLL_ITER )" + self.endLine +
-        "#define localBStride (WG_DIM0*WG_DIM1/NUM_UNROLL_ITER)" + self.endLine )
+    if tileIdxLaterB:
+      kStr += "#define localB" + tile1Char \
+          + "( localSerial % NUM_UNROLL_ITER )" + self.endLine \
+          + "#define localB" + unrollChar \
+          + "( localSerial / NUM_UNROLL_ITER )" + self.endLine \
+          + "#define localBStride (WG_DIM0*WG_DIM1/NUM_UNROLL_ITER)" \
+          + self.endLine
     else:
-      kStr += (
-        "#define localBRow ( localSerial / MACRO_TILE_DIM1 )" + self.endLine +
-        "#define localBCol ( localSerial % MACRO_TILE_DIM1 )" + self.endLine +
-        "#define localBStride  (WG_DIM0*WG_DIM1)" + self.endLine )
-    """
+      kStr += "#define localB" + tile1Char \
+          + "( localSerial / MACRO_TILE_DIM1 )" + self.endLine \
+          + "#define localB" + unrollChar \
+          + "( localSerial % MACRO_TILE_DIM1 )" + self.endLine \
+          + "#define localBStride  (WG_DIM0*WG_DIM1)" + self.endLine
 
-    kStr += (
-      "    __local DATA_TYPE_STR *lA = localA + GET_LOCAL_INDEX_A(localARow, localACol);" + self.endLine +
-      "    __local DATA_TYPE_STR *lB = localB + GET_LOCAL_INDEX_B(localBRow, localBCol);" + self.endLine +
-      "    barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine )
-
+    kStr += indent + "__local DATA_TYPE_STR *lA = localA" \
+        + " + GET_LOCAL_INDEX_A(localA" + tile0Char + ", localA" \
+        + unrollChar + ");" + self.endLine \
+        + indent + "__local DATA_TYPE_STR *lB = localB" \
+        + " + GET_LOCAL_INDEX_B(localB" + tile1Char + ", localB" \
+        + unrollChar + ");" + self.endLine \
+        + indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine
 
     ####################################
-    # how many elements to load global -> local
+    # how many elements to load global -> local - DONE
     # threads to do loading = (workGroupDim0*workGroupDim1)
     # A elements to be loaded = workGroupDim0*microTileDim0*unroll
     # B elements to be loaded = workGroupDim1*microTileDim1*unroll
     kStr += self.endLine
-    kStr += "    /* load global -> local */" + self.endLine
+    kStr += indent + "/* load global -> local */" + self.endLine
     numALoads  = (self.workGroupDim0*self.microTileDim0*self.unroll) \
         / (self.workGroupDim0*self.workGroupDim1)
     numALoadsR = (self.workGroupDim0*self.microTileDim0*self.unroll) \
@@ -658,77 +674,125 @@ class Kernel:
 
 
     ####################################
-    # load global -> local
+    # load global -> local - DONE
     for a in range(0, numALoads):
-      kStr += "    lA[ %d*localAStride ] = " % a
-      if self.isEdge0():
+      kStr += indent + "lA[ %d*localAStride ] = " % a
+      if self.isEdge(0):
         kStr += "( globalARow(%d) >= M) ? %s : " % ( a, zeroStringA )
-      kStr += "A[ GET_GLOBAL_INDEX_A( globalARow(%d), globalACol(%d) ) ];%s" % (a, a, self.endLine)
+      kStr += "A[ GET_GLOBAL_INDEX_A( "
+      kStr += "globalIdxA" + self.indexChars[ \
+          self.operation.indexAssignmentsA[0]]  \
+          + "(" + str(a) + ")"
+      for i in range(1,len(self.tensorA.dimensions)):
+        kStr += ", globalIdxA" + self.indexChars[ \
+            self.operation.indexAssignmentsA[i]]  \
+            + "(" + str(a) + ")"
+      kStr += " ) ];" + self.endLine
+
     if numALoadsR:
-      kStr += "    if ( localSerial + " + str(numALoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM0*MICRO_TILE_DIM0*NUM_UNROLL_ITER) ) {" + self.endLine
-      kStr += "      lA[ %d*localAStride ] = " % numALoads
-      if self.isEdge0():
+      kStr += indent + "if ( localSerial + " + str(numALoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM0*MICRO_TILE_DIM0*NUM_UNROLL_ITER) ) {" + self.endLine
+      kStr += indent + "  lA[ %d*localAStride ] = " % numALoads
+      if self.isEdge(0):
         kStr += "( globalARow(%d) >= M) ? %s : " % ( numALoads, zeroStringA )
-      kStr += "A[ GET_GLOBAL_INDEX_A( globalARow(%d), globalACol(%d) ) ];%s" % (numALoads, numALoads, self.endLine)
-      kStr += "    }" + self.endLine
+      kStr += "A[ GET_GLOBAL_INDEX_A( "
+      kStr += "globalIdxA" + self.indexChars[ \
+          self.operation.indexAssignmentsA[0]]  \
+          + "(" + str(a) + ")"
+      for i in range(1,len(self.tensorA.dimensions)):
+        kStr += ", globalIdxA" + self.indexChars[ \
+            self.operation.indexAssignmentsA[i]]  \
+            + "(" + str(a) + ")"
+      kStr += " ) ];" + self.endLine
+      kStr += indent + "}" + self.endLine
 
     for b in range(0, numBLoads):
-      kStr += "    lB[ %d*localBStride ] = " % b
-      if self.isEdge1():
+      kStr += indent + "lB[ %d*localBStride ] = " % b
+      if self.isEdge(1):
         kStr += "( globalBCol(%d) >= N) ? %s : " % ( b, zeroStringB )
-      kStr += "B[ GET_GLOBAL_INDEX_B( globalBRow(%d), globalBCol(%d) ) ];%s" % (b, b, self.endLine)
+      kStr += "B[ GET_GLOBAL_INDEX_B( "
+      kStr += "globalIdxB" + self.indexChars[ \
+          self.operation.indexAssignmentsB[0]]  \
+          + "(" + str(b) + ")"
+      for i in range(1,len(self.tensorB.dimensions)):
+        kStr += ", globalIdxB" + self.indexChars[ \
+            self.operation.indexAssignmentsB[i]]  \
+            + "(" + str(b) + ")"
+      kStr += " ) ];" + self.endLine
+
     if numBLoadsR:
-      kStr += "    if ( localSerial + " + str(numBLoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM1*MICRO_TILE_DIM1*NUM_UNROLL_ITER) ) {" + self.endLine
-      kStr += "      lB[ %d*localBStride ] = " % numBLoads
-      if self.isEdge1():
+      kStr += indent + "if ( localSerial + " + str(numBLoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM1*MICRO_TILE_DIM1*NUM_UNROLL_ITER) ) {" + self.endLine
+      kStr += indent + "  lB[ %d*localBStride ] = " % numBLoads
+      if self.isEdge(1):
         kStr += "(globalBCol(%d) >= N) ? %s : " % ( numBLoads, zeroStringB )
-      kStr += "B[ GET_GLOBAL_INDEX_B( globalBRow(%d), globalBCol(%d) ) ];%s" % (numBLoads, numBLoads, self.endLine)
-      kStr += "    }" + self.endLine
+      kStr += "B[ GET_GLOBAL_INDEX_B( "
+      kStr += "globalIdxB" + self.indexChars[ \
+          self.operation.indexAssignmentsB[0]]  \
+          + "(" + str(b) + ")"
+      for i in range(1,len(self.tensorB.dimensions)):
+        kStr += ", globalIdxB" + self.indexChars[ \
+            self.operation.indexAssignmentsB[i]]  \
+            + "(" + str(b) + ")"
+      kStr += " ) ];" + self.endLine
+      kStr += indent + "}" + self.endLine
     kStr += (
-      "    barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine +
-      "    uint offA = localRow;" + self.endLine +
-      "    uint offB = localCol;" + self.endLine )
+      indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine +
+      indent + "uint offA = localIdx0;" + self.endLine +
+      indent + "uint offB = localIdx1;" + self.endLine )
 
     ####################################
-    # do mads
+    # do mads - DONE
     kStr += self.endLine
-    kStr += "    /* do mads */" + self.endLine
+    kStr += indent + "/* do mads */" + self.endLine
     for u in range(0, self.unroll):
-      kStr += "    MICRO_TILE" + self.endLine
-
-    ####################################
-    # shift to next k block
-    kStr += self.endLine
-    kStr += "    /* shift to next k block */" + self.endLine
-    """
-    if (self.order=="clblasColumnMajor")==(self.transA=="N"):
-      kStr += "    A += lda*NUM_UNROLL_ITER;" + self.endLine
-    else:
-      kStr += "    A += NUM_UNROLL_ITER;" + self.endLine
-    if (self.order=="clblasColumnMajor")==(self.transB=="N"):
-      kStr += "    B += NUM_UNROLL_ITER;" + self.endLine
-    else:
-      kStr += "    B += ldb*NUM_UNROLL_ITER;" + self.endLine
-    """
+      kStr += indent + "MICRO_TILE" + self.endLine
 
     ####################################
     # end loop - DONE
-    for i in reversed(range(0,len(self.indexAssignmentsSummation))):
-      indexChar = self.indexChars[self.indexAssignmentsSummation[i] + self.numIndicesC]
-      kStr += indent + "} while (--sumIdx" + indexChar + " > 0);" + self.endLine
+    for i in reversed(range(0,len(self.indexOrderSummation))):
+      loopChar = self.indexChars[self.indexOrderSummation[i] \
+          + self.numIndicesC]
+      # advance A, B along summation dimension
+      kStr += indent + "A += strideA" + loopChar
+      if i==len(self.indexOrderSummation)-1:
+        kStr += "*NUM_UNROLL_ITER"
+      else:
+        for j in range(i+1,len(self.indexOrderSummation)):
+          tmpChar = self.indexChars[self.indexOrderSummation[j] \
+              + self.numIndicesC]
+          kStr += " - strideA" + tmpChar + "*size" + tmpChar
+      kStr += ";" + self.endLine
+      kStr += indent + "B += strideB" + loopChar
+      if i==len(self.indexOrderSummation)-1:
+        kStr += "*NUM_UNROLL_ITER"
+      else:
+        for j in range(i+1,len(self.indexOrderSummation)):
+          tmpChar = self.indexChars[self.indexOrderSummation[j] \
+              + self.numIndicesC]
+          kStr += " - strideB" + tmpChar + "*size" + tmpChar
+      kStr += ";" + self.endLine
+      indent = indent[2:]
+      # close do-while loop
+      kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
     kStr += self.endLine
 
     ####################################
-    # which global Cij index
+    # which global Cij index - DONE
     kStr += self.endLine
     kStr += "  /* which global Cij index */" + self.endLine
-    kStr += "  uint globalCRow = groupRow * MACRO_TILE_DIM0 + localRow;" + self.endLine
-    kStr += "  uint globalCCol = groupCol * MACRO_TILE_DIM1 + localCol;" + self.endLine
+    for i in range(0, self.numIndicesC):
+      index = self.indexOrderC[i]
+      kStr += "  size_t globalIdx" + self.indexChars[index] \
+          + " = groupIdx" + self.indexChars[index]
+      if index == self.indexAssignmentTileDim0:
+        kStr += "*MACRO_TILE_DIM0 + localIdx0"
+      if index == self.indexAssignmentTileDim1:
+        kStr += "*MACRO_TILE_DIM1 + localIdx1"
+      kStr += ";" + self.endLine
 
     ####################################
-    # write global Cij
+    # write global Cij - DONE
     kStr += self.endLine
-    kStr += "  /* write global Cij */" + self.endLine
+    kStr += "  /* write global C */" + self.endLine
     if self.tensorC.dataType == Structs.DataType.singleComplex:
       kStr += "  float type_mad_tmp;" + self.endLine
     if self.tensorC.dataType == Structs.DataType.doubleComplex:
@@ -736,15 +800,35 @@ class Kernel:
 
     for a in range(0, self.microTileDim0):
       for b in range(0, self.microTileDim1):
-        if self.isEdge0():
-          kStr += "  if (globalCRow+%d*WG_DIM0 < M)" % a
-        if self.isEdge1():
-          kStr += "  if (globalCCol+%d*WG_DIM1 < N)" % b
-        if self.isEdge0() or self.isEdge1():
-          kStr += "{"
-        kStr += "  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalCRow+%d*WG_DIM0, globalCCol+%d*WG_DIM1) ], alpha, rC[%d][%d], beta )" % (a, b, a, b)
-        if self.isEdge0() or self.isEdge1():
-          kStr += "}"
+        numEdges = 0
+        for i in range(0, self.numIndicesC):
+          if self.isEdge(i):
+            kStr += "  if (globalIdx" + self.indexChars[i]
+            if i == self.indexAssignmentTileDim0:
+              kStr += " + " + str(a) + "*WG_DIM0"
+            if i == self.indexAssignmentTileDim1:
+              kStr += " + " + str(b) + "*WG_DIM1"
+            + " < size" + self.indexChars[i] + ") {"
+            numEdges += 1
+
+        kStr += "  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C("
+        for i in range(0, self.numIndicesC):
+          kStr += " globalIdx" + self.indexChars[i]
+          if i == self.indexAssignmentTileDim0:
+            kStr += " + " + str(a) + "*WG_DIM0"
+          if i == self.indexAssignmentTileDim1:
+            kStr += " + " + str(b) + "*WG_DIM1"
+          if i < self.numIndicesC-1:
+            kStr += ","
+        kStr += ") ]"
+        if self.alpha:
+          kStr += ", alpha"
+        kStr += ", rC[%d][%d]" % (a, b)
+        if self.beta:
+          kStr += ", beta"
+        kStr += ")"
+        for i in range(0,numEdges):
+          kStr += " }"
         kStr += self.endLine
 
     ####################################

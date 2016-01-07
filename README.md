@@ -25,3 +25,57 @@ but they all share the same core/inner-most-loop for achieving peak floating-poi
 
 Cobalt will be a single library back-end, similar to the successful AutoGemm, a "library behind the libraries", to flexibly generate gpu kernels (append domain-specific prefix and suffix to common inner-most-loop) and some necessary host-code to use in domain specific libraries.
 
+## Development Timeline:
+
+CobaltGenBenchmark
+  Reader
+    getProblemsFromXML
+  Engine
+    genSolutionSelectionLogic
+      selectSolutionSpecific
+    getSolutionsToProblem
+    getKernelsFromSolution - 1 week
+  Writer
+    writeKernels
+      getBody(opencl) - DONE
+    writeSolutionClasses
+    writeBenchmarkHeaders - 1 week
+      list of problems and every matching solution
+    writeSolutionSelectionLogic
+
+CobaltGenBackend
+  Reader
+    getProblemSolutionMapFromXML - 2 weeks
+  Engine
+    simplifyProblemSolutionMap - 2 weeks
+  Writer
+    writeKernels (duplicate)
+    writeSolutionClasses (duplicate)
+    writeKernelSelectionLogic
+
+  FileWriter
+    writeKernelFiles - 0.5 weeks
+    writeSolutionFiles - 0.5 weeks
+    writeBenchmarkFiles - 0.5 weeks
+    writeSolutionSelectionLogic - 2 weeks
+  GenLibrary
+    main, argparse
+  Solution
+    getHeaderString - 1 week
+    getSourceString - 2 weeks
+  Benchmarking
+    take many solution selection rules and simplify/merge - 1 week
+CobaltLib
+  write validation - 1 week
+  benchmarking architecture - 2 weeks
+Apps
+  exhaustive gemms - 1 week
+
+After writing this
+validate gemm solutions - 2 weeks
+validate solution selection logic - 1 week
+validate Cobalt architecture (multiple objects devices) - 2 weeks
+
+= 6 months for GEMM to work on OpenCL 1.2
++ advanced tensors = 2 weeks
++ other language = 4 weeks (mostly Solution.cpp "enqueueing")
