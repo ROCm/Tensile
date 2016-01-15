@@ -110,12 +110,19 @@ class Backend:
 ################################################################################
 class Device:
   def __init__(
+      self, \
       name, \
       numComputeUnits, \
       clockFrequency ):
     self.name = name
     self.numComputeUnits = numComputeUnits
     self.clockFrequency = clockFrequency; # MHz
+
+  def __str__(self):
+    return self.name
+
+  def __repr__(self):
+    return self.__str__()
 
 
 ################################################################################
@@ -126,6 +133,12 @@ class DeviceProfile:
     self.devices = []
   def __init__(self, devices):
     self.devices = devices
+
+  def __str__(self):
+    return str(self.devices)
+
+  def __repr__(self):
+    return self.__str__()
 
 
 ################################################################################
@@ -171,6 +184,19 @@ class Operation:
     self.pad = []
     self.stride = []
 
+  def __str__(self):
+    state = ""
+    state += "Operation[ "
+    state += "nF=" + str(self.numIndicesFree) + "; "
+    state += "nB=" + str(self.numIndicesBatch) + "; "
+    state += "nS=" + str(self.numIndicesSummation) + "; "
+    state += "iA=" + str(self.indexAssignmentsA) + "; "
+    state += "iB=" + str(self.indexAssignmentsB) + "]"
+    return state
+
+  def __repr__(self):
+    return self.__str__()
+
 
 ################################################################################
 # Problem
@@ -194,14 +220,26 @@ class Problem:
       tensorC, \
       tensorA, \
       tensorB, \
-      deviceProfile,
-      operation ):
+      operation, \
+      deviceProfile ):
     self.tensorC = tensorC
     self.tensorA = tensorA
     self.tensorB = tensorB
-    self.deviceProfile = deviceProfile
     self.operation = operation
+    self.deviceProfile = deviceProfile
 
+  def __str__(self):
+    state = ""
+    state += "Problem[ "
+    state += str(self.tensorC) + "; "
+    state += str(self.tensorA) + "; "
+    state += str(self.tensorB) + "; "
+    state += str(self.operation) + "; "
+    state += str(self.deviceProfile) + " ]"
+    return state
+
+  def __repr__(self):
+    return self.__str__()
 
 
 ################################################################################

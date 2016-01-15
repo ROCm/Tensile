@@ -58,16 +58,17 @@ def getOperationFromElement( element ):
   indexAssignmentsA = []
   for indexAssignmentElement in indexAssignmentElementsA:
     indexAssignmentsA.append( \
-        indexAssignmentElement.getAttribute("indexAssignment") )
+        int(indexAssignmentElement.getAttribute("indexAssignment")) )
 
   # indexAssignmentsB
   indexAssignmentElementsB = \
       indexAssignmentsElements[1].getElementsByTagName("IndexAssignment")
+  indexAssignmentsB = []
   for indexAssignmentElement in indexAssignmentElementsB:
     indexAssignmentsB.append( \
-        indexAssignmentElement.getAttribute("indexAssignment") )
+        int(indexAssignmentElement.getAttribute("indexAssignment")) )
 
-  return Structs.operation( \
+  return Structs.Operation( \
       operationType, \
       numIndicesFree, \
       numIndicesBatch, \
@@ -80,6 +81,15 @@ def getOperationFromElement( element ):
 # getDeviceProfileFromElement
 ################################################################################
 def getDeviceProfileFromElement( element ):
+  devices = []
+  deviceElements = \
+      element.getElementsByTagName("Device")
+  for deviceElement in deviceElements:
+    devices.append( Structs.Device( \
+        deviceElement.getAttribute("name"), \
+        deviceElement.getAttribute("numComputeUnits"), \
+        deviceElement.getAttribute("clockFrequency") ) )
+  return Structs.DeviceProfile( devices )
 
 
 ################################################################################
@@ -92,18 +102,12 @@ def getProblemsFromXML( inputFile, problemSet ):
   for getSolutionCall in getSolutionCalls:
     solution = getSolutionCall.getElementsByTagName("Solution")[0]
     problem = solution.getElementsByTagName("Problem")[0]
-    print "Problem: ", problem.getAttribute("string")
-
 
     # tensors
     tensorElements = problem.getElementsByTagName("Tensor")
     tensorC = getTensorFromElement(tensorElements[0])
     tensorA = getTensorFromElement(tensorElements[1])
     tensorB = getTensorFromElement(tensorElements[2])
-
-    print tensorC
-    print tensorA
-    print tensorB
 
     # device profile
     deviceProfileElement = problem.getElementsByTagName("DeviceProfile")[0]
@@ -118,17 +122,9 @@ def getProblemsFromXML( inputFile, problemSet ):
         tensorA, \
         tensorB, \
         tensorC, \
-        deviceProfile, \
-        operation )
-  """
-  for getSolutionCall in getSolutionCalls:
-    print getSolutionCall.tagName
-    for solution in getSolutionCalls.childNodes:
-      print solution.tagName
-      for problem in solution.childNodes:
-        print problem.tagName
-  """
-
+        operation, \
+        deviceProfile )
+    problemSet.add(problem)
 
 
 
@@ -146,3 +142,4 @@ if __name__ == "__main__":
   for inputFile in args.inputFiles:
     problemSet = set()
     getProblemsFromXML( inputFile, problemSet )
+  print problemSet
