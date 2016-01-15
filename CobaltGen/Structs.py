@@ -62,6 +62,10 @@ class Dimension:
   def __init__( self, stride, size ):
     self.stride = stride
     self.size = size
+  def __str__(self):
+    return "["+str(self.stride)+","+str(self.size)+"]"
+  def __repr__(self):
+    return self.__str__()
 
 
 ################################################################################
@@ -74,6 +78,10 @@ class Tensor:
       dimensions ):
     self.dataType = dataType
     self.dimensions = dimensions
+
+  def __str__(self):
+    state = "Tensor[ " + self.dataType.toChar() + ", " + self.dimensions.__str__() + " ]"
+    return state
 
 ################################################################################
 # Backend - Enum
@@ -183,14 +191,14 @@ class Operation:
 class Problem:
   def __init__( \
       self, \
+      tensorC, \
       tensorA, \
       tensorB, \
-      tensorC, \
       deviceProfile,
       operation ):
+    self.tensorC = tensorC
     self.tensorA = tensorA
     self.tensorB = tensorB
-    self.tensorC = tensorC
     self.deviceProfile = deviceProfile
     self.operation = operation
 

@@ -65,8 +65,6 @@ typedef enum CobaltStatus_ {
   cobaltStatusProblemNotSupported, // purposefully not supported
   cobaltStatusProblemNotFound, // should be supported but wasn't found
 
-  /* cobaltEnqueueSolution() */
-  cobaltStatusPerformanceWarningProblemSizeTooSmall,
 
   /* control errors */
   cobaltStatusControlInvalid,
@@ -79,6 +77,9 @@ typedef enum CobaltStatus_ {
   cobaltStatusPerformanceWarningMin,
 
   /* Performance Warnings */
+
+  /* cobaltEnqueueSolution() */
+  cobaltStatusPerformanceWarningProblemSizeTooSmall,
 
   cobaltStatusPerformanceWarningMax,
 
@@ -209,9 +210,9 @@ typedef struct CobaltOperation_ {
  * Problem
  ******************************************************************************/
 typedef struct CobaltProblem_ {
+  CobaltTensor tensorC;
   CobaltTensor tensorA;
   CobaltTensor tensorB;
-  CobaltTensor tensorC;
   CobaltDeviceProfile deviceProfile;
   CobaltOperation operation;
 } CobaltProblem;
@@ -246,9 +247,9 @@ CobaltStatus cobaltGetSolution(
 
 CobaltStatus cobaltEnqueueSolution(
     struct CobaltSolution *solution,
+    CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
-    CobaltTensorData tensorDataC,
     CobaltControl *control );
 
 

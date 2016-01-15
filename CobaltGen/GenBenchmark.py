@@ -22,7 +22,7 @@ def getKernelsFromSolutions( solutionSet ):
 def GenBenchmarkFromInputFiles( \
     inputFiles, \
     outputPath, \
-    language ):
+    backend ):
 
   ##############################################################################
   # (1) accumulate set of problems
@@ -60,17 +60,17 @@ if __name__ == "__main__":
   ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
   ap.add_argument("--output-path", dest="outputPath" )
   ap.add_argument("--input-file", dest="inputFiles", action="append" )
-  ap.add_argument("--language", dest="language" )
+  ap.add_argument("--backend", dest="backend" )
 
   # parse arguments
   args = ap.parse_args()
 
   # print settings
-  print "CobaltGenBenchmark.py: using language " + args.language
+  print "CobaltGenBenchmark.py: using backend " + args.backend
 
   # generate benchmark
   GenBenchmarkFromFiles( \
       args.inputFiles, \
       args.outputPath, \
-      args.language )
+      args.backend )
 

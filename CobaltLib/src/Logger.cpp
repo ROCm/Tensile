@@ -24,7 +24,7 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) {
   state += "<TraceEntry";
   state += " enum=\"" + std::to_string(type) + "\"";
   state += " string=\"" + Logger::toString(type) + "\"";
-  state += " status=\"" + ::toString(status) + " >\n";
+  state += " status=\"" + ::toString(status) + "\" >\n";
   if (solution) {
     state += solution->toString(indentLevel+1);
   }

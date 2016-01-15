@@ -155,9 +155,9 @@ std::string toString( CobaltOperationType type ) {
 std::string toStringXML( const CobaltProblem problem, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Problem string=\"" + toString(problem) + "\">\n";
+  state += toStringXML( problem.tensorC, indentLevel+1);
   state += toStringXML( problem.tensorA, indentLevel+1);
   state += toStringXML( problem.tensorB, indentLevel+1);
-  state += toStringXML( problem.tensorC, indentLevel+1);
   state += toStringXML( problem.operation, indentLevel+1);
   state += toStringXML( problem.deviceProfile, indentLevel+1);
   state += indent(indentLevel) + "</Problem>\n";
@@ -170,7 +170,11 @@ std::string toStringXML( const CobaltSolution *solution, size_t indentLevel ) {
 
 std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   std::string state = indent(indentLevel);
-  state += "<Operation>\n";
+  state += "<Operation ";
+  state += "numIndicesFree=\""+std::to_string(operation.numIndicesFree)+"\" ";
+  state += "numIndicesBatch=\""+std::to_string(operation.numIndicesBatch)+"\" ";
+  state += "numIndicesSummation=\""+std::to_string(operation.numIndicesSummation)+"\" ";
+  state += ">\n";
   state += indent(indentLevel+1);
   // type
   state += "<Type enum=\"" + std::to_string(operation.type) + "\"";
@@ -230,6 +234,7 @@ std::string toStringXML( const CobaltTensor tensor, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Tensor numDimensions=\"" + std::to_string(tensor.numDimensions)
       + "\"";
+  state += " dataType=\"" + toString( tensor.dataType ) + "\"";
   state += " >\n";
   for (size_t i = 0; i < tensor.numDimensions; i++) {
     state += indent(indentLevel+1) + "<Dimension stride=\""

@@ -39,6 +39,8 @@ CobaltGenBenchmark
     writeKernels
       getBody(opencl) - DONE
     writeSolutionClasses
+      header file
+      source file
     writeBenchmarkHeaders - 1 week
       list of problems and every matching solution
     writeSolutionSelectionLogic
@@ -53,23 +55,11 @@ CobaltGenBackend
     writeSolutionClasses (duplicate)
     writeKernelSelectionLogic
 
-  FileWriter
-    writeKernelFiles - 0.5 weeks
-    writeSolutionFiles - 0.5 weeks
-    writeBenchmarkFiles - 0.5 weeks
-    writeSolutionSelectionLogic - 2 weeks
-  GenLibrary
-    main, argparse
-  Solution
-    getHeaderString - 1 week
-    getSourceString - 2 weeks
-  Benchmarking
-    take many solution selection rules and simplify/merge - 1 week
 CobaltLib
   write validation - 1 week
-  benchmarking architecture - 2 weeks
 Apps
   exhaustive gemms - 1 week
+  benchmarking architecture - 2 weeks
 
 After writing this
 validate gemm solutions - 2 weeks
@@ -79,3 +69,5 @@ validate Cobalt architecture (multiple objects devices) - 2 weeks
 = 6 months for GEMM to work on OpenCL 1.2
 + advanced tensors = 2 weeks
 + other language = 4 weeks (mostly Solution.cpp "enqueueing")
+
+For what different devices do we need to pre-compile

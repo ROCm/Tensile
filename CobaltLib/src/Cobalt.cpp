@@ -52,7 +52,7 @@ CobaltStatus cobaltGetSolution(
 #if Cobalt_SOLVER_ENABLED
   status = cobaltGetSolutionTop( problem, solution );
 #else
-  solution = new LogSolution(problem);
+  *solution = new CobaltSolutionLogOnly(problem);
   status = cobaltStatusSuccess;
 #endif
 
