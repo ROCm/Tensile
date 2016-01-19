@@ -49,9 +49,9 @@ class Kernel:
     self.beta = beta
 
     # quick access
-    self.numIndicesA = len(self.tensorA.dimensions)
-    self.numIndicesB = len(self.tensorB.dimensions)
-    self.numIndicesC = len(self.tensorC.dimensions)
+    self.numIndicesA = self.numIndicesA
+    self.numIndicesB = self.numIndicesB
+    self.numIndicesC = self.numIndicesC
 
     # index assignments
     self.indexOrderC = []
@@ -73,58 +73,6 @@ class Kernel:
     if dim == self.indexAssignmentTileDim1:
       return self.workGroupDim1 * self.microTileDim1 != self.macroTileDim1
     return False
-
-
-
-  ##############################################################################
-  # Make Index Assignments - DONE
-  ##############################################################################
-  def makeIndexAssignments(self):
-
-    # C indices in order of descending stride
-    # sort free indices, then append after batched indices
-    indicesUnsortedC = []
-    for i in range(0,self.numIndicesC):
-      indexIsBatched = False
-      if i in self.operation.indexAssignmentsA:
-        if i in self.operation.indexAssignmentsB:
-          indexIsBatched = True
-      if indexIsBatched:
-        self.indexOrderC.append(i)
-      else:
-        indicesUnsortedC.append( [self.tensorC.dimensions[i].stride, i] )
-    indicesSortedC = sorted( indicesUnsortedC, \
-        key = lambda x: int(x[0]), reverse=True )
-    for i in range(0,len(indicesSortedC)):
-      self.indexOrderC.append( indicesSortedC[i][1] )
-    print self.indexOrderC
-
-    # summation indices in order of descending A-stride + B-stride
-    indicesSummationUnsorted = []
-    for i in range(0,self.operation.numIndicesSummation):
-      sumIndex = i + self.numIndicesC
-      assignmentA = -1
-      for j in range(0,len(self.tensorA.dimensions)):
-        if self.operation.indexAssignmentsA[j] == sumIndex:
-          assignmentA = j
-      assignmentB = -1
-      for j in range(0,len(self.tensorB.dimensions)):
-        if self.operation.indexAssignmentsB[j] == sumIndex:
-          assignmentB = j
-      indicesSummationUnsorted.append( \
-          [self.tensorA.dimensions[assignmentA].stride \
-          + self.tensorB.dimensions[assignmentB].stride, i] )
-    indicesSummationSorted = sorted( indicesSummationUnsorted, \
-        key = lambda x: int(x[0]), reverse=True )
-    for i in range(0,len(indicesSummationSorted)):
-      self.indexOrderSummation.append( indicesSummationSorted[i][1] )
-    print self.indexOrderSummation
-
-    # tile assignment - last two free indices?
-    self.indexAssignmentTileDim0 = self.indexOrderC[ \
-        self.numIndicesC - 2 ]
-    self.indexAssignmentTileDim1 = self.indexOrderC[ \
-        self.numIndicesC - 1 ]
 
   ##############################################################################
   # Assign Tile
@@ -683,7 +631,7 @@ class Kernel:
       kStr += "globalIdxA" + self.indexChars[ \
           self.operation.indexAssignmentsA[0]]  \
           + "(" + str(a) + ")"
-      for i in range(1,len(self.tensorA.dimensions)):
+      for i in range(1,self.numIndicesA):
         kStr += ", globalIdxA" + self.indexChars[ \
             self.operation.indexAssignmentsA[i]]  \
             + "(" + str(a) + ")"
@@ -698,7 +646,7 @@ class Kernel:
       kStr += "globalIdxA" + self.indexChars[ \
           self.operation.indexAssignmentsA[0]]  \
           + "(" + str(a) + ")"
-      for i in range(1,len(self.tensorA.dimensions)):
+      for i in range(1,self.numIndicesA):
         kStr += ", globalIdxA" + self.indexChars[ \
             self.operation.indexAssignmentsA[i]]  \
             + "(" + str(a) + ")"
@@ -713,7 +661,7 @@ class Kernel:
       kStr += "globalIdxB" + self.indexChars[ \
           self.operation.indexAssignmentsB[0]]  \
           + "(" + str(b) + ")"
-      for i in range(1,len(self.tensorB.dimensions)):
+      for i in range(1,self.numIndicesB):
         kStr += ", globalIdxB" + self.indexChars[ \
             self.operation.indexAssignmentsB[i]]  \
             + "(" + str(b) + ")"
@@ -728,7 +676,7 @@ class Kernel:
       kStr += "globalIdxB" + self.indexChars[ \
           self.operation.indexAssignmentsB[0]]  \
           + "(" + str(b) + ")"
-      for i in range(1,len(self.tensorB.dimensions)):
+      for i in range(1,self.numIndicesB):
         kStr += ", globalIdxB" + self.indexChars[ \
             self.operation.indexAssignmentsB[i]]  \
             + "(" + str(b) + ")"
@@ -922,15 +870,17 @@ def testGEMM():
   numIndicesSummation = 1
   indexAssignmentsA = [2, 0]
   indexAssignmentsB = [2, 1]
+  alpha = False
+  beta = False
   operation = Structs.Operation( \
       operationType, \
+      alpha, \
+      beta, \
       numFreeIndices, \
       numIndicesBatch, \
       numIndicesSummation, \
       indexAssignmentsA, \
       indexAssignmentsB )
-  alpha = False
-  beta = False
 
   kernel = Kernel(\
       operation, \

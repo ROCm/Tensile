@@ -23,8 +23,8 @@ def getTensorFromElement( element ):
   dimElements = element.getElementsByTagName("Dimension")
   for dimElement in dimElements:
     dims.append( Structs.Dimension( \
-        dimElement.getAttribute("stride"), \
-        dimElement.getAttribute("size") ) )
+        int(dimElement.getAttribute("stride")), \
+        int(dimElement.getAttribute("size")) ) )
   return Structs.Tensor( dataType, dims )
 
 
@@ -46,10 +46,12 @@ def getOperationFromElement( element ):
   else:
     print "OperationType " + operationTypeStr + " unrecognized."
 
-  # numIndices
-  numIndicesFree = element.getAttribute("numIndicesFree")
-  numIndicesBatch = element.getAttribute("numIndicesBatch")
-  numIndicesSummation = element.getAttribute("numIndicesSummation")
+  # alpha, beta, numIndices
+  alpha = int(element.getAttribute("alpha"))
+  beta = int(element.getAttribute("beta"))
+  numIndicesFree = int(element.getAttribute("numIndicesFree"))
+  numIndicesBatch = int(element.getAttribute("numIndicesBatch"))
+  numIndicesSummation = int(element.getAttribute("numIndicesSummation"))
 
   # indexAssignmentsA
   indexAssignmentsElements = element.getElementsByTagName("IndexAssignments")
@@ -70,6 +72,8 @@ def getOperationFromElement( element ):
 
   return Structs.Operation( \
       operationType, \
+      alpha, \
+      beta, \
       numIndicesFree, \
       numIndicesBatch, \
       numIndicesSummation, \
@@ -87,8 +91,8 @@ def getDeviceProfileFromElement( element ):
   for deviceElement in deviceElements:
     devices.append( Structs.Device( \
         deviceElement.getAttribute("name"), \
-        deviceElement.getAttribute("numComputeUnits"), \
-        deviceElement.getAttribute("clockFrequency") ) )
+        int(deviceElement.getAttribute("numComputeUnits")), \
+        int(deviceElement.getAttribute("clockFrequency")) ) )
   return Structs.DeviceProfile( devices )
 
 

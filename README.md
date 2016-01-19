@@ -29,11 +29,11 @@ Cobalt will be a single library back-end, similar to the successful AutoGemm, a 
 
 CobaltGenBenchmark
   Reader
-    getProblemsFromXML
+    getProblemsFromXML - DONE
   Engine
     genSolutionSelectionLogic
       selectSolutionSpecific
-    getSolutionsToProblem
+    getSolutionsToProblem - DEBUGGING
     getKernelsFromSolution - 1 week
   Writer
     writeKernels

@@ -171,6 +171,8 @@ std::string toStringXML( const CobaltSolution *solution, size_t indentLevel ) {
 std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Operation ";
+  state += "alpha=\""+std::to_string(operation.alpha)+"\" ";
+  state += "beta=\""+std::to_string(operation.beta)+"\" ";
   state += "numIndicesFree=\""+std::to_string(operation.numIndicesFree)+"\" ";
   state += "numIndicesBatch=\""+std::to_string(operation.numIndicesBatch)+"\" ";
   state += "numIndicesSummation=\""+std::to_string(operation.numIndicesSummation)+"\" ";
@@ -224,8 +226,8 @@ std::string toStringXML( const CobaltDevice device, size_t indentLevel ) {
   state += "<Device name=\"";
   state += device.name;
   state += "\"";
-  state += " numCUs=\"" + std::to_string(device.numComputeUnits) + "\"";
-  state += " clockFreq=\"" + std::to_string(device.clockFrequency) + "\"";
+  state += " numComputeUnits=\"" + std::to_string(device.numComputeUnits) + "\"";
+  state += " clockFrequency=\"" + std::to_string(device.clockFrequency) + "\"";
   state += " />\n";
   return state;
 }

@@ -192,6 +192,8 @@ typedef struct CobaltOperation_ {
   // indexAssignmentsB: {1, 3, 4, 2, 5}
 
   CobaltOperationType type;
+  bool alpha;
+  bool beta;
   size_t numIndicesFree;
   size_t numIndicesBatch;
   size_t numIndicesSummation;
