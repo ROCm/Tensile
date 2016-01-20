@@ -33,7 +33,7 @@ CobaltGenBenchmark
   Engine
     genSolutionSelectionLogic
       selectSolutionSpecific
-    getSolutionsToProblem - DEBUGGING
+    getSolutionsToProblem - DONE
     getKernelsFromSolution - 1 week
   Writer
     writeKernels

@@ -33,21 +33,21 @@ def GenBenchmarkFromInputFiles( \
 
   ##############################################################################
   # (2) list candidate solutions for each problem
-  globalSolutionSet = set() # all solutions to be written
-  globalKernelSet = set() # all gpu kernels to be written
+  allSolutions = set() # all solutions to be written
+  allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates
   for problem in problemSet:
     solutionCandidates = \
         SolutionCandidates.getSolutionCandidatesForProblem( \
         problem )
     benchmarkList.append( [problem, solutionCandidates] )
-    globalSolutionSet.add( solutionCandidates )
-    globalKernelSet.add( getKernelsFromSolutions(solutionCandidates) )
+    allSolutions.add( solutionCandidates )
+    allKernels.add( getKernelsFromSolutions(solutionCandidates) )
 
   ##############################################################################
   # (3) write benchmark files
-  FileWriter.writeKernelFiles( globalKernelSet )
-  FileWriter.writeSolutionFiles( globalSolutionSet )
+  FileWriter.writeKernelFiles( allKernels )
+  FileWriter.writeSolutionFiles( allSolutions )
   FileWriter.writeBenchmarkFiles( benchmarkList )
 
 

@@ -63,6 +63,12 @@ class DataType:
     else:
       return "ERROR"
 
+  def __str__(self):
+    return self.toChar()
+
+  def __repr__(self):
+    return self.__str__()
+
 
 
 ################################################################################
@@ -75,8 +81,10 @@ class Dimension:
   def __init__( self, stride, size ):
     self.stride = stride
     self.size = size
+
   def __str__(self):
     return "["+str(self.stride)+","+str(self.size)+"]"
+
   def __repr__(self):
     return self.__str__()
 
@@ -96,6 +104,10 @@ class Tensor:
     state = "[ Tensor " + self.dataType.toChar() + ", " + self.dimensions.__str__() + " ]"
     return state
 
+  def __repr__(self):
+    return self.__str__()
+
+
 ################################################################################
 # Backend - Enum
 ################################################################################
@@ -107,7 +119,7 @@ class Backend:
   def __init__( self, value ):
     self.value = value
 
-  def toString(self):
+  def __str__(self):
     if self.value == self.opencl:
       return "OCL"
     elif self.value == self.hsa:
@@ -116,6 +128,9 @@ class Backend:
       return "HCC"
     else:
       return "ERROR"
+
+  def __repr__(self):
+    return self.__str__()
 
 
 ################################################################################
@@ -132,6 +147,9 @@ class Device:
     self.clockFrequency = clockFrequency; # MHz
 
   def __str__(self):
+    state = "[ " + self.name
+    state += "; CUs=" + str(self.numComputeUnits)
+    state += "; Frq=" + str(self.clockFrequency) + " ]"
     return self.name
 
   def __repr__(self):
@@ -304,6 +322,7 @@ class Tile:
     state += " " + str(self.microTileDim0) + "x" + str(self.microTileDim1)
     state += " " + str(self.macroTileDim0) + "x" + str(self.macroTileDim1)
     state += " ]"
+    return state
 
   def __repr__(self):
     return self.__str__()
@@ -314,10 +333,30 @@ class Tile:
 ################################################################################
 class Kernel:
   def __init__( self ):
+    self.dataTypeC = DataType(-1)
+    self.dataTypeA = DataType(-1)
+    self.dataTypeB = DataType(-1)
+    self.operation = Operation()
+    # Index Assignments
+    self.indexOrderC = []
+    self.indexOrderSummation = []
+    self.indexAssignmentTileDim0 = -1
+    self.indexAssignmentTileDim1 = -1
+    self.indexUnroll = -1
+    # Tile
     self.tile = Tile()
     self.unrolls = []
-    #self.gridLocation = [ 1, 1 ]
     self.edge = [ False, False ]
+
+  def __str__(self):
+    state = "[ Kernel" + str(self.tile)
+    state += "; " + str(self.unrolls)
+    state += "; " + str(self.edge)
+    state += " ]"
+    return state
+
+  def __repr__(self):
+    return self.__str__()
 
 
 ################################################################################
@@ -348,3 +387,30 @@ class Solution:
     # Kernels
     self.kernelGrid = [ -1, -1 ]
     self.kernels = []
+
+  def __str__(self):
+    state = "[ Solution "
+    state += " op=" + str(self.operation)
+    state += "; dtC=" + str(self.dataTypeC)
+    state += "; dtA=" + str(self.dataTypeA)
+    state += "; dtB=" + str(self.dataTypeB)
+    state += "; nIF=" + str(self.numIndicesFree)
+    state += "; nIB=" + str(self.numIndicesBatch)
+    state += "; nIS=" + str(self.numIndicesSummation)
+    state += "; iOC=" + str(self.indexOrderC)
+    state += "; iOS=" + str(self.indexOrderSummation)
+    state += "; iA0=" + str(self.indexAssignmentTileDim0)
+    state += "; iA1=" + str(self.indexAssignmentTileDim1)
+    state += "; pS0=" + str(self.problemSizeDim0)
+    state += "; pS1=" + str(self.problemSizeDim1)
+    state += "; iU=" + str(self.indexUnroll)
+    state += "; psU=" + str(self.problemSizeUnroll)
+    state += "; tS0=" + str(self.tensorStrideDim0)
+    state += "; tS1=" + str(self.tensorStrideDim1)
+    state += "; kG=" + str(self.kernelGrid)
+    state += "; k=" + str(self.kernels)
+    state += " ]"
+    return state
+
+  def __repr__(self):
+    return self.__str__()
