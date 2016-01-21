@@ -55,7 +55,12 @@ class KernelWriter:
     # C dimensions
     kernelName += "C"
     for i in range(0, len(kernel.indexOrderC)):
-      kernelName += self.indexChars[i].lower()
+      kernelName += self.indexChars[kernel.indexOrderC[i]].lower()
+    kernelName += "=S"
+
+    # summation indices
+    for i in range(0,len(kernel.indexOrderSummation)):
+      kernelName += self.indexChars[kernel.indexOrderSummation[i]].lower()
     kernelName += "_"
 
     # A dimensions
@@ -76,7 +81,6 @@ class KernelWriter:
       kernelName += "1"
     else:
       kernelName += "0"
-    kernelName += "_"
 
     # beta
     kernelName += "b"
@@ -86,7 +90,46 @@ class KernelWriter:
       kernelName += "0"
     kernelName += "_"
 
+    # tile dim 0
+    kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
+    kernelName += str(kernel.tile.workGroupDim0)
+    if kernel.tile.macroTileDim0 == 1:
+      kernelName += "y"
+    else:
+      kernelName += "x"
+    kernelName += str(kernel.tile.microTileDim0)
+    kernelName += "_"
+
+    # tile dim 1
+    kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
+    kernelName += str(kernel.tile.workGroupDim1)
+    if kernel.tile.macroTileDim1 == 1:
+      kernelName += "y"
+    else:
+      kernelName += "x"
+    kernelName += str(kernel.tile.microTileDim1)
+    kernelName += "_"
+
+    # unroll
+    kernelName += self.indexChars[len(kernel.indexOrderC)+len(kernel.unrolls)-1].lower()
+    kernelName += str(kernel.unrolls[0])
+    for i in range(1,len(kernel.unrolls)):
+      kernelName += "_" + str(kernel.unrolls[i])
+
     # c indices
+    """for i in range(0,len(kernel.indexOrderC)):
+      index = kernel.indexOrderC[i]
+      if index == kernel.indexAssignmentDim0:
+        kernelName= "xT0X" + str(kernel.tile.workGroupDim0) \
+            + "x" + str(kernel.tile.microTileDim0)
+      if index == kernel.indexAssignmentDim1:
+        multipleStr = "xT1X" + str(kernel.tile.workGroupDim1) \
+            + "x" + str(kernel.tile.microTileDim1)
+      kernelName += self.indexChars[index].lower() + multipleStr
+      kernelName += "_"
+    """
+
+    """# c indices
     for i in range(0,len(kernel.indexOrderC)):
       index = kernel.indexOrderC[i]
       multipleStr = "x1"
@@ -97,9 +140,10 @@ class KernelWriter:
         multipleStr = "xT1X" + str(kernel.tile.workGroupDim1) \
             + "x" + str(kernel.tile.microTileDim1)
       kernelName += self.indexChars[index].lower() + multipleStr
-      kernelName += "_"
+      kernelName += "_" """
 
     # summation indices
+    """
     for i in range(0,len(kernel.indexOrderSummation)):
       index = kernel.indexOrderSummation[i]
       multipleStr = "1"
@@ -111,6 +155,7 @@ class KernelWriter:
           + index].lower() + "X" + multipleStr
       if i != len(kernel.indexOrderSummation)-1:
         kernelName += "_"
+    """
 
     return kernelName
 

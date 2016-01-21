@@ -38,8 +38,8 @@ def GenBenchmarkFromFiles( \
     print "status: reading problems from " + os.path.basename(inputFile)
     FileReader.getProblemsFromXML( inputFile, problemSet )
   print "status: " + str(len(problemSet)) + " unique problems found"
-  for problem in problemSet:
-    print str(problem)
+  #for problem in problemSet:
+  #  print str(problem)
 
   ##############################################################################
   # (2) list candidate solutions for each problem
@@ -68,8 +68,8 @@ def GenBenchmarkFromFiles( \
   print "status:   " + str(totalKernels) + " total kernels"
   print "status:   " + str(len(allKernels)) + " unique kernels"
   kernelWriter = KernelWriter.KernelWriter(backend)
-  for kernel in allKernels:
-    print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
+  #for kernel in allKernels:
+  #  print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
 
   ##############################################################################
   # (3) write benchmark files

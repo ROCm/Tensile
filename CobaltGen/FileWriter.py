@@ -106,6 +106,7 @@ class FileWriter:
           solutionSourceFileName
       solutionHeaderFilePath = self.outputPath + self.solutionSubdirectory + \
           solutionHeaderFileName
+      print "NameLength: " + str(len(solutionSourceFilePath))
       solutionSourceFile = open(solutionSourceFilePath, "w")
       solutionHeaderFile = open(solutionHeaderFilePath, "w")
 

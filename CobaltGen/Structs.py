@@ -442,7 +442,7 @@ class Kernel:
     self.indexOrderSummation = []
     self.indexAssignmentDim0 = -1
     self.indexAssignmentDim1 = -1
-    self.indexUnroll = -1
+    #self.indexUnroll = -1
     # Tile
     self.tile = Tile()
     self.unrolls = []
