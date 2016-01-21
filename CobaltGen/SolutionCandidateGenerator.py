@@ -239,7 +239,7 @@ class SolutionCandidateGenerator:
 
             # add kernels in grid
             for dim0 in range(0,solution.kernelGrid[0]):
-              for dim1 in range(1,solution.kernelGrid[1]):
+              for dim1 in range(0,solution.kernelGrid[1]):
                 kernel.unrolls = unroll
                 kernel.tile.workGroupDim0 = workGroupDim[0]
                 kernel.tile.workGroupDim1 = workGroupDim[1]

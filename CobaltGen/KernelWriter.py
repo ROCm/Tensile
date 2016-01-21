@@ -29,9 +29,9 @@ class KernelWriter:
   # - guards around gC[gRow,:] = rC[row,:]
   ##############################################################################
   def isEdge(self, kernel, dim):
-    if dim == kernel.indexAssignmentTileDim0:
+    if dim == kernel.indexAssignmentDim0:
       return kernel.tile.workGroupDim0 * kernel.tile.microTileDim0 != kernel.tile.macroTileDim0
-    if dim == kernel.indexAssignmentTileDim1:
+    if dim == kernel.indexAssignmentDim1:
       return kernel.tile.workGroupDim1 * kernel.tile.microTileDim1 != kernel.tile.macroTileDim1
     return False
 
@@ -90,10 +90,10 @@ class KernelWriter:
     for i in range(0,len(kernel.indexOrderC)):
       index = kernel.indexOrderC[i]
       multipleStr = "x1"
-      if index == kernel.indexAssignmentTileDim0:
+      if index == kernel.indexAssignmentDim0:
         multipleStr = "xT0X" + str(kernel.tile.workGroupDim0) \
             + "x" + str(kernel.tile.microTileDim0)
-      if index == kernel.indexAssignmentTileDim1:
+      if index == kernel.indexAssignmentDim1:
         multipleStr = "xT1X" + str(kernel.tile.workGroupDim1) \
             + "x" + str(kernel.tile.microTileDim1)
       kernelName += self.indexChars[index].lower() + multipleStr
@@ -431,14 +431,14 @@ class KernelWriter:
       "  uint localSerial = localIdx0 + localIdx1*WG_DIM0;" + self.endLine )
 
     # multidim if (kernel.order=="clblasColumnMajor")==(kernel.transA=="N"):
-    tileIdxLaterA = kernel.indexAssignmentTileDim0 \
+    tileIdxLaterA = kernel.indexAssignmentDim0 \
         > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
-    tileIdxLaterB = kernel.indexAssignmentTileDim1 \
+    tileIdxLaterB = kernel.indexAssignmentDim1 \
         > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
     unrollChar = self.indexChars[kernel.indexOrderSummation[ \
         len(kernel.indexOrderSummation)-1] + len(kernel.indexOrderC)]
-    tile0Char = self.indexChars[kernel.indexAssignmentTileDim0]
-    tile1Char = self.indexChars[kernel.indexAssignmentTileDim1]
+    tile0Char = self.indexChars[kernel.indexAssignmentDim0]
+    tile1Char = self.indexChars[kernel.indexAssignmentDim1]
 
     ####################################
     # global indices being loaded - TODO
@@ -673,9 +673,9 @@ class KernelWriter:
       index = kernel.indexOrderC[i]
       kStr += "  size_t globalIdx" + self.indexChars[index] \
           + " = groupIdx" + self.indexChars[index]
-      if index == kernel.indexAssignmentTileDim0:
+      if index == kernel.indexAssignmentDim0:
         kStr += "*MACRO_TILE_DIM0 + localIdx0"
-      if index == kernel.indexAssignmentTileDim1:
+      if index == kernel.indexAssignmentDim1:
         kStr += "*MACRO_TILE_DIM1 + localIdx1"
       kStr += ";" + self.endLine
 
@@ -694,19 +694,19 @@ class KernelWriter:
         for i in range(0, len(kernel.indexOrderC)):
           if self.isEdge(kernel,i):
             kStr += "  if (globalIdx" + self.indexChars[i]
-            if i == kernel.indexAssignmentTileDim0:
+            if i == kernel.indexAssignmentDim0:
               kStr += " + " + str(a) + "*WG_DIM0"
-            if i == kernel.indexAssignmentTileDim1:
+            if i == kernel.indexAssignmentDim1:
               kStr += " + " + str(b) + "*WG_DIM1"
-            + " < size" + self.indexChars[i] + ") {"
+            kStr += " < size" + self.indexChars[i] + ") {"
             numEdges += 1
 
         kStr += "  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C("
         for i in range(0, len(kernel.indexOrderC)):
           kStr += " globalIdx" + self.indexChars[i]
-          if i == kernel.indexAssignmentTileDim0:
+          if i == kernel.indexAssignmentDim0:
             kStr += " + " + str(a) + "*WG_DIM0"
-          if i == kernel.indexAssignmentTileDim1:
+          if i == kernel.indexAssignmentDim1:
             kStr += " + " + str(b) + "*WG_DIM1"
           if i < len(kernel.indexOrderC)-1:
             kStr += ","

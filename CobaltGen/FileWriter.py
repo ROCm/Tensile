@@ -40,6 +40,7 @@ class FileWriter:
   # writeKernelFiles
   ##############################################################################
   def writeKernelFiles( self, kernelSet ):
+    print "status: writing kernel files"
 
     # main kernel .cpp,.h files
     allKernelsSourceFilePath = self.outputPath + self.topDirectory \
@@ -84,6 +85,7 @@ class FileWriter:
   # writeSolutionFiles
   ##############################################################################
   def writeSolutionFiles( self, solutionSet ):
+    print "status: writing solution files"
 
     solutionWriter = SolutionWriter.SolutionWriter( self.backend )
 
@@ -131,6 +133,7 @@ class FileWriter:
   # writeBenchmarkFiles
   ##############################################################################
   def writeBenchmarkFiles( self, problemSolutionCandidates ):
+    print "status: writing benchmark files"
     # write a .h file which creates an array of problem/solution candidates
     pass
 

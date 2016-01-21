@@ -7,6 +7,7 @@ import Structs
 import FileReader
 import FileWriter
 import SolutionCandidateGenerator
+import KernelWriter
 
 
 
@@ -34,7 +35,11 @@ def GenBenchmarkFromFiles( \
   problemSet = set() # every problem we'll benchmark
   # for each input file, accumulate problems
   for inputFile in inputFiles:
+    print "status: reading problems from " + os.path.basename(inputFile)
     FileReader.getProblemsFromXML( inputFile, problemSet )
+  print "status: " + str(len(problemSet)) + " unique problems found"
+  for problem in problemSet:
+    print str(problem)
 
   ##############################################################################
   # (2) list candidate solutions for each problem
@@ -43,16 +48,28 @@ def GenBenchmarkFromFiles( \
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates
+  print "status: generating solution candidates for problems"
+  totalSolutions = 0
+  totalKernels = 0
   for problem in problemSet:
     solutionCandidates = \
         solutionCandidateGenerator.getSolutionCandidatesForProblem( \
         problem )
     benchmarkList.append( [problem, solutionCandidates] )
+    totalSolutions += len(solutionCandidates)
     for solution in solutionCandidates:
       allSolutions.add( solution )
     kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
     for kernel in kernelsInSolutionCandidates:
       allKernels.add( kernel )
+      totalKernels+=1
+  print "status:   " + str(totalSolutions) + " total solutions"
+  print "status:   " + str(len(allSolutions)) + " unique solutions"
+  print "status:   " + str(totalKernels) + " total kernels"
+  print "status:   " + str(len(allKernels)) + " unique kernels"
+  kernelWriter = KernelWriter.KernelWriter(backend)
+  for kernel in allKernels:
+    print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
 
   ##############################################################################
   # (3) write benchmark files
@@ -66,6 +83,7 @@ def GenBenchmarkFromFiles( \
 # CobaltGenBenchmark - Main
 ################################################################################
 if __name__ == "__main__":
+  print "status: CobaltGenBenchmark.py"
 
   # arguments
   ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
@@ -82,7 +100,7 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "CobaltGenBenchmark.py: using \"" + str(backend) + "\" backend."
+  print "status: using \"" + str(backend) + "\" backend"
 
   # generate benchmark
   GenBenchmarkFromFiles( \

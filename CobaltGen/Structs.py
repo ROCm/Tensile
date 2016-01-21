@@ -69,6 +69,13 @@ class DataType:
   def __repr__(self):
     return self.__str__()
 
+  def getAttributes(self):
+    return (self.value)
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
+
 
 
 ################################################################################
@@ -88,6 +95,13 @@ class Dimension:
   def __repr__(self):
     return self.__str__()
 
+  def getAttributes(self):
+    return ( self.stride, self.size )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Dimension) and self.getAttributes() == other.getAttributes()
+
 
 ################################################################################
 # Tensor
@@ -101,11 +115,21 @@ class Tensor:
     self.dimensions = dimensions
 
   def __str__(self):
-    state = "[ Tensor " + self.dataType.toChar() + ", " + self.dimensions.__str__() + " ]"
+    state = "[Tensor"
+    state += "; " + self.dataType.toChar()
+    state += "; " + str(self.dimensions)
+    state += "]"
     return state
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( self.dataType, frozenset(self.dimensions) )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Tensor) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -129,6 +153,13 @@ class Backend:
   def __repr__(self):
     return self.__str__()
 
+  def getAttributes(self):
+    return ( self.value )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Backend) and self.getAttributes() == other.getAttributes()
+
 
 ################################################################################
 # Device
@@ -144,13 +175,26 @@ class Device:
     self.clockFrequency = clockFrequency; # MHz
 
   def __str__(self):
-    state = "[ " + self.name
-    state += "; CUs=" + str(self.numComputeUnits)
-    state += "; Frq=" + str(self.clockFrequency) + " ]"
+    state = "[Device"
+    state += "; " + self.name
+    state += "; " + str(self.numComputeUnits)
+    state += "; " + str(self.clockFrequency)
+    state += "]"
     return self.name
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( \
+        self.name, \
+        self.numComputeUnits, \
+        self.clockFrequency, \
+        )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Device) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -167,6 +211,13 @@ class DeviceProfile:
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return (frozenset(self.devices))
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, DeviceProfile) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -192,6 +243,13 @@ class OperationType:
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return (self.value)
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, OperationType) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -221,19 +279,36 @@ class Operation:
 
   def __str__(self):
     state = ""
-    state += "[ Operation "
-    state += "ty=" + str(self.type) + "; "
-    state += "al=" + str(self.alpha) + "; "
-    state += "be=" + str(self.beta) + "; "
-    state += "nF=" + str(self.numIndicesFree) + "; "
-    state += "nB=" + str(self.numIndicesBatch) + "; "
-    state += "nS=" + str(self.numIndicesSummation) + "; "
-    state += "iA=" + str(self.indexAssignmentsA) + "; "
-    state += "iB=" + str(self.indexAssignmentsB) + " ]"
+    state += "[Operation"
+    state += "; " + str(self.type)
+    state += "; " + str(self.alpha)
+    state += "; " + str(self.beta)
+    state += "; " + str(self.numIndicesFree)
+    state += "; " + str(self.numIndicesBatch)
+    state += "; " + str(self.numIndicesSummation)
+    state += "; " + str(self.indexAssignmentsA)
+    state += "; " + str(self.indexAssignmentsB)
+    state += "]"
     return state
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( \
+        self.type, \
+        self.alpha, \
+        self.beta, \
+        self.numIndicesFree, \
+        self.numIndicesBatch, \
+        self.numIndicesSummation, \
+        frozenset(self.indexAssignmentsA), \
+        frozenset(self.indexAssignmentsB), \
+        )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Operation) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -267,16 +342,30 @@ class Problem:
     self.deviceProfile = deviceProfile
 
   def __str__(self):
-    state = "[ Problem "
-    state += "C" + str(self.tensorC) + "; "
-    state += "A" + str(self.tensorA) + "; "
-    state += "B" + str(self.tensorB) + "; "
-    state += "O" + str(self.operation) + "; "
-    state += "D" + str(self.deviceProfile) + " ]"
+    state = "[Problem"
+    state += "; " + str(self.tensorC)
+    state += "; " + str(self.tensorA)
+    state += "; " + str(self.tensorB)
+    state += "; " + str(self.operation)
+    state += "; " + str(self.deviceProfile)
+    state += "]"
     return state
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( \
+        self.tensorC, \
+        self.tensorA, \
+        self.tensorB, \
+        self.operation, \
+        self.deviceProfile, \
+        )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Problem) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -315,14 +404,28 @@ class Tile:
     self.macroTileDim1 = -1
 
   def __str__(self):
-    state = "[ " + str(self.workGroupDim0) + "x" + str(self.workGroupDim1)
-    state += " " + str(self.microTileDim0) + "x" + str(self.microTileDim1)
-    state += " " + str(self.macroTileDim0) + "x" + str(self.macroTileDim1)
-    state += " ]"
+    state = "[Tile; " + str(self.workGroupDim0) + "x" + str(self.workGroupDim1)
+    state += "; " + str(self.microTileDim0) + "x" + str(self.microTileDim1)
+    state += "; " + str(self.macroTileDim0) + "x" + str(self.macroTileDim1)
+    state += "]"
     return state
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( \
+        self.workGroupDim0, \
+        self.workGroupDim1, \
+        self.microTileDim0, \
+        self.microTileDim1, \
+        self.macroTileDim0, \
+        self.macroTileDim1, \
+        )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Tile) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -337,23 +440,50 @@ class Kernel:
     # Index Assignments
     self.indexOrderC = []
     self.indexOrderSummation = []
-    self.indexAssignmentTileDim0 = -1
-    self.indexAssignmentTileDim1 = -1
+    self.indexAssignmentDim0 = -1
+    self.indexAssignmentDim1 = -1
     self.indexUnroll = -1
     # Tile
     self.tile = Tile()
     self.unrolls = []
-    self.edge = [ False, False ]
 
   def __str__(self):
-    state = "[ Kernel" + str(self.tile)
+    state = "[Kernel; " + str(self.tile)
+    state += "; " + str(self.dataTypeC)
+    state += "; " + str(self.dataTypeA)
+    state += "; " + str(self.dataTypeB)
+    state += "; " + str(self.operation)
+    state += "; " + str(self.indexOrderC)
+    state += "; " + str(self.indexOrderSummation)
+    state += "; " + str(self.indexAssignmentDim0)
+    state += "; " + str(self.indexAssignmentDim1)
+    state += "; " + str(self.indexUnroll)
+    state += "; " + str(self.tile)
     state += "; " + str(self.unrolls)
-    state += "; " + str(self.edge)
-    state += " ]"
+    state += "]"
     return state
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( \
+        self.dataTypeC, \
+        self.dataTypeA, \
+        self.dataTypeB, \
+        self.operation, \
+        frozenset(self.indexOrderC), \
+        frozenset(self.indexOrderSummation), \
+        self.indexAssignmentDim0, \
+        self.indexAssignmentDim1, \
+        self.indexUnroll, \
+        self.tile, \
+        frozenset(self.unrolls), \
+        )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Kernel) and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -362,52 +492,27 @@ class Kernel:
 class Solution:
   def __init__(self):
     # Solution Correctness Parameters
-    self.operation = Operation()
-    self.dataTypeC = DataType(-1)
-    self.dataTypeA = DataType(-1)
-    self.dataTypeB = DataType(-1)
-    self.numIndicesFree = -1
-    self.numIndicesBatch = -1
-    self.numIndicesSummation = -1
-    # Index Assignments
-    self.indexOrderC = []
-    self.indexOrderSummation = []
-    self.indexAssignmentTileDim0 = -1
-    self.indexAssignmentTileDim1 = -1
-    # Problem Characteristics affecting performance
-    self.problemSizeDim0 = -1
-    self.problemSizeDim1 = -1
-    self.indexUnroll = -1
-    self.problemSizeUnroll = -1
-    self.tensorStrideDim0 = -1
-    self.tensorStrideDim1 = -1
     # Kernels
     self.kernelGrid = [ -1, -1 ]
     self.kernels = []
 
   def __str__(self):
-    state = "[ Solution "
-    state += " op=" + str(self.operation)
-    state += "; dtC=" + str(self.dataTypeC)
-    state += "; dtA=" + str(self.dataTypeA)
-    state += "; dtB=" + str(self.dataTypeB)
-    state += "; nIF=" + str(self.numIndicesFree)
-    state += "; nIB=" + str(self.numIndicesBatch)
-    state += "; nIS=" + str(self.numIndicesSummation)
-    state += "; iOC=" + str(self.indexOrderC)
-    state += "; iOS=" + str(self.indexOrderSummation)
-    state += "; iA0=" + str(self.indexAssignmentTileDim0)
-    state += "; iA1=" + str(self.indexAssignmentTileDim1)
-    state += "; pS0=" + str(self.problemSizeDim0)
-    state += "; pS1=" + str(self.problemSizeDim1)
-    state += "; iU=" + str(self.indexUnroll)
-    state += "; psU=" + str(self.problemSizeUnroll)
-    state += "; tS0=" + str(self.tensorStrideDim0)
-    state += "; tS1=" + str(self.tensorStrideDim1)
-    state += "; kG=" + str(self.kernelGrid)
-    state += "; k=" + str(self.kernels)
-    state += " ]"
+    state = "[Solution"
+    state += "; " + str(self.kernelGrid)
+    state += "; " + str(self.kernels)
+    state += "]"
     return state
 
   def __repr__(self):
     return self.__str__()
+
+  def getAttributes(self):
+    return ( \
+        frozenset(self.kernels), \
+        self.kernelGrid[0], \
+        self.kernelGrid[1] )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
+
