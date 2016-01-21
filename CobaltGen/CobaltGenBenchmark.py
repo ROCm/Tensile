@@ -3,6 +3,7 @@ import sys
 import argparse
 import getopt
 
+import Structs
 import FileReader
 import FileWriter
 import SolutionCandidateGenerator
@@ -13,13 +14,17 @@ import SolutionCandidateGenerator
 # getKernelsFromSolutions
 ################################################################################
 def getKernelsFromSolutions( solutionSet ):
-  pass
+  kernels = []
+  for solution in solutionSet:
+    for kernel in solution.kernels:
+      kernels.append(kernel)
+  return kernels
 
 
 ################################################################################
 # GenBenchmark
 ################################################################################
-def GenBenchmarkFromInputFiles( \
+def GenBenchmarkFromFiles( \
     inputFiles, \
     outputPath, \
     backend ):
@@ -33,44 +38,55 @@ def GenBenchmarkFromInputFiles( \
 
   ##############################################################################
   # (2) list candidate solutions for each problem
+  solutionCandidateGenerator = \
+      SolutionCandidateGenerator.SolutionCandidateGenerator()
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates
   for problem in problemSet:
     solutionCandidates = \
-        SolutionCandidates.getSolutionCandidatesForProblem( \
+        solutionCandidateGenerator.getSolutionCandidatesForProblem( \
         problem )
     benchmarkList.append( [problem, solutionCandidates] )
-    allSolutions.add( solutionCandidates )
-    allKernels.add( getKernelsFromSolutions(solutionCandidates) )
+    for solution in solutionCandidates:
+      allSolutions.add( solution )
+    kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
+    for kernel in kernelsInSolutionCandidates:
+      allKernels.add( kernel )
 
   ##############################################################################
   # (3) write benchmark files
-  FileWriter.writeKernelFiles( allKernels )
-  FileWriter.writeSolutionFiles( allSolutions )
-  FileWriter.writeBenchmarkFiles( benchmarkList )
+  fileWriter = FileWriter.FileWriter(outputPath, backend)
+  fileWriter.writeKernelFiles( allKernels )
+  fileWriter.writeSolutionFiles( allSolutions )
+  fileWriter.writeBenchmarkFiles( benchmarkList )
 
 
 ################################################################################
-# GenBenchmark - Main
+# CobaltGenBenchmark - Main
 ################################################################################
 if __name__ == "__main__":
 
   # arguments
   ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
-  ap.add_argument("--output-path", dest="outputPath" )
-  ap.add_argument("--input-file", dest="inputFiles", action="append" )
-  ap.add_argument("--backend", dest="backend" )
+  ap.add_argument("--output-path", dest="outputPath", required=True )
+  ap.add_argument("--input-file", dest="inputFiles", action="append", required=True )
+  ap.add_argument("--backend", dest="backend", required=True, choices=["OpenCL1.2", "HIP"] )
 
   # parse arguments
   args = ap.parse_args()
+  backend = Structs.Backend();
+  if args.backend == "OpenCL1.2":
+    backend.value = 0
+  elif args.backend == "HIP":
+    backend.value = 1
 
   # print settings
-  print "CobaltGenBenchmark.py: using backend " + args.backend
+  print "CobaltGenBenchmark.py: using \"" + str(backend) + "\" backend."
 
   # generate benchmark
   GenBenchmarkFromFiles( \
       args.inputFiles, \
       args.outputPath, \
-      args.backend )
+      backend )
 

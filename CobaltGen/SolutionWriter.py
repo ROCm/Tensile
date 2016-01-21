@@ -8,6 +8,7 @@ class SolutionCorrectnessParameters:
       tensB, \
       tensC, \
       operation ):
+    pass
 # This different from ProblemDescriptor, PD cares about M,N but SolutionCorrectness does not about the exact values of M,N
 # SC cares about numDim of A, B, C.
 
@@ -25,6 +26,7 @@ class SolutionPerformanceParameters:
       loadGlobalToLocalEnum, \
       branchLocationEnum, \
       multipleKernels ): # for K%4096
+    pass
 
 
 # A Solution (SolutionCorrectnessParameters + SolutionPerformanceParameters) contain all info necessary to write the kernel
@@ -35,3 +37,4 @@ class SolutionPerformanceParameters:
 class SolutionImplementation:
 
   def writeOpenCLSolutions(self):
+    pass

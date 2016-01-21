@@ -1,4 +1,5 @@
-import Kernel
+import os
+import KernelWriter
 import Solution
 
 ################################################################################
@@ -11,38 +12,59 @@ class FileWriter:
   kernelPreCompiledSubdirectory = "/Cobalt/Kernels/PreCompiled/"
   solutionSubdirectory = "/Cobalt/Solutions/"
 
+
+  ##############################################################################
+  # ensurePath
+  ##############################################################################
+  def ensurePath( self, path ):
+    dirname = os.path.dirname(path)
+    if not os.path.exists(dirname):
+      os.makedirs(dirname)
+
+
   ##############################################################################
   # constructor
-  def __init__( self, outputPath, language ):
+  ##############################################################################
+  def __init__( self, outputPath, backend ):
     self.outputPath = outputPath
-    self.language = language
+    self.backend = backend
+    self.kernelWriter = KernelWriter.KernelWriter(backend)
+
+    self.ensurePath( self.outputPath + self.topDirectory )
+    self.ensurePath( self.outputPath + self.kernelSubdirectory )
+    self.ensurePath( self.outputPath + self.kernelPreCompiledSubdirectory )
+    self.ensurePath( self.outputPath + self.solutionSubdirectory )
+
 
   ##############################################################################
   # writeKernelFiles
   ##############################################################################
-  def writeKernelFiles( kernelSet ):
+  def writeKernelFiles( self, kernelSet ):
 
     # main kernel .cpp,.h files
-    allKernelsSourceFilePath = outputPath + topDirectory + "CobaltKernels.cpp"
-    allkernelsHeaderFilePath = outputPath + topDirectory + "CobaltKernels.h"
-    allKernelsSourceFile = open(allKernelSourceFilePath, "w")
-    allKernelsHeaderFile = open(allKernelHeaderFilePath, "w")
+    allKernelsSourceFilePath = self.outputPath + self.topDirectory \
+        + "CobaltKernels.cpp"
+    allKernelsHeaderFilePath = self.outputPath + self.topDirectory \
+        + "CobaltKernels.h"
+    allKernelsSourceFile = open(allKernelsSourceFilePath, "w")
+    allKernelsHeaderFile = open(allKernelsHeaderFilePath, "w")
+
 
     for kernel in kernelSet:
       # open .inl,.h files
-      kernelName = Kernel.getName(kernel)
+      kernelName = self.kernelWriter.getName(kernel)
       kernelSourceFileName = kernelName + ".inl"
       kernelHeaderFileName = kernelName + ".h"
-      kernelSourceFilePath = outputPath + kernelSubdirectory + \
+      kernelSourceFilePath = self.outputPath + self.kernelSubdirectory + \
           kernelSourceFileName
-      kernelHeaderFilePath = outputPath + kernelSubdirectory + \
+      kernelHeaderFilePath = self.outputPath + self.kernelSubdirectory + \
           kernelHeaderFileName
       kernelSourceFile = open(kernelSourceFilePath, "w")
       kernelHeaderFile = open(kernelHeaderFilePath, "w")
 
       # get kernel file string
-      kernelSourceFileString = Kernel.getSourceFileString(kernel, language)
-      kernelHeaderFileString = Kernel.getHeaderFileString(kernel, language)
+      kernelSourceFileString = self.getKernelSourceFileString(kernel)
+      kernelHeaderFileString = self.getKernelHeaderFileString(kernel)
 
       # write kernel file string to file
       kernelSourceFile.write( kernelSourceFileString )
@@ -61,12 +83,12 @@ class FileWriter:
   ##############################################################################
   # writeSolutionFiles
   ##############################################################################
-  def writeSolutionFiles( solutionSet ):
+  def writeSolutionFiles( self, solutionSet ):
 
     # main solution .cpp,.h files
-    allSolutionsSourceFilePath = outputPath + topDirectory \
+    allSolutionsSourceFilePath = self.outputPath + self.topDirectory \
         + "CobaltSolutions.cpp"
-    allSolutionsHeaderFilePath = outputPath + topDirectory \
+    allSolutionsHeaderFilePath = self.outputPath + self.topDirectory \
         + "CobaltSolutions.h"
     allSolutionsSourceFile = open(allSolutionsSourceFilePath, "w")
     allSolutionsHeaderFile = open(allSolutionsHeaderFilePath, "w")
@@ -76,16 +98,16 @@ class FileWriter:
       solutionName = Solution.getName(solution)
       solutionSourceFileName = solutionName + ".inl"
       solutionHeaderFileName = solutionName + ".h"
-      solutionSourceFilePath = outputPath + solutionSubdirectory + \
+      solutionSourceFilePath = self.outputPath + self.solutionSubdirectory + \
           solutionSourceFileName
-      solutionHeaderFilePath = outputPath + solutionSubdirectory + \
+      solutionHeaderFilePath = self.outputPath + self.solutionSubdirectory + \
           solutionHeaderFileName
       solutionSourceFile = open(solutionSourceFilePath, "w")
       solutionHeaderFile = open(solutionHeaderFilePath, "w")
 
       # get solution file string
-      solutionSourceFileString = Solution.getSourceString( solution, language )
-      solutionHeaderFileString = Solution.getHeaderString( solution, language )
+      solutionSourceFileString = Solution.getSourceString( solution, backend )
+      solutionHeaderFileString = Solution.getHeaderString( solution, backend )
 
       # write solution file string to file
       solutionSourceFile.write( solutionSourceFileString )
@@ -106,9 +128,59 @@ class FileWriter:
   ##############################################################################
   # writeBenchmarkFiles
   ##############################################################################
-  def writeBenchmarkFiles( problemSolutionCandidates ):
+  def writeBenchmarkFiles( self, problemSolutionCandidates ):
     # write a .h file which creates an array of problem/solution candidates
     pass
 
 
+  ##############################################################################
+  # get source file string
+  ##############################################################################
+  def getKernelSourceFileString( self, kernel):
+    kernelName = self.kernelWriter.getName(kernel)
+    fileString = ""
+    #fileString += Common.getFileHeader()
+    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_INL\n"
+    fileString += "#define KERNEL_" + kernelName.upper() + "_INL\n"
+    fileString += "\n"
+    fileString += "const unsigned int %s_workGroupDim0 = %u;\n" \
+        % (kernelName, kernel.tile.workGroupDim0 )
+    fileString += "const unsigned int %s_workGroupDim1 = %u;\n" \
+        % (kernelName, kernel.tile.workGroupDim1 )
+    fileString += "const unsigned int %s_microTileDim0 = %u;\n" \
+        % (kernelName, kernel.tile.microTileDim0 )
+    fileString += "const unsigned int %s_microTileDim1 = %u;\n" \
+        % (kernelName, kernel.tile.microTileDim1 )
+    fileString += "const unsigned int %s_unroll = %u;\n" \
+        % (kernelName, kernel.unrolls[len(kernel.unrolls)-1])
+    fileString += "\n"
+    fileString += "const char * const %s_src =\"" % (kernelName)
+    fileString += self.kernelWriter.getBody( kernel )
+    fileString += "\";\n"
+    fileString += "\n"
+    fileString += "#else\n"
+    fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
+        % kernelName
+    fileString += "#endif\n"
+    return fileString
+
+
+  ##############################################################################
+  # get header file string
+  ##############################################################################
+  def getKernelHeaderFileString( self, kernel ):
+    kernelName = self.kernelWriter.getName(kernel)
+    fileString = ""
+    #fileString += Common.getFileHeader()
+    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
+    fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
+    fileString += "\n"
+    fileString += "extern const unsigned int %s_workGroupDim0;\n" % kernelName
+    fileString += "extern const unsigned int %s_workGroupDim1;\n" % kernelName
+    fileString += "extern const unsigned int %s_microTileDim0;\n" % kernelName
+    fileString += "extern const unsigned int %s_microTileDim1;\n" % kernelName
+    fileString += "extern const unsigned int %s_unroll;\n" % kernelName
+    fileString += "extern const char * const %s_src;\n" % kernelName
+    fileString += "#endif\n"
+    return fileString
 

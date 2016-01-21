@@ -1,3 +1,4 @@
+import copy
 import Structs
 import FileReader
 import argparse
@@ -5,7 +6,7 @@ import argparse
 ################################################################################
 # Make Index Assignments
 ################################################################################
-def makeIndexAssignments(solution, problem):
+def makeIndexAssignments(kernel, problem):
   numIndicesC = problem.operation.numIndicesFree \
       + problem.operation.numIndicesBatch
   numIndicesA = len(problem.operation.indexAssignmentsA)
@@ -49,24 +50,24 @@ def makeIndexAssignments(solution, problem):
 
   # last index will belong to A or B, find out which
   kernel.indexAssignmentDim1 = kernel.indexOrderC[ numIndicesC - 1 ]
-  solution.tensorAssignedDim0 = 0
+  kernel.tensorAssignedDim0 = 0
   if kernel.indexAssignmentDim1 in problem.operation.indexAssignmentsB:
-    solution.tensorAssignedDim0 = 1
+    kernel.tensorAssignedDim0 = 1
 
   # 2nd to last index must belong to other, make it so
   kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
       numIndicesC - 2 ]
-  solution.tensorAssignedDim1 = 1
+  kernel.tensorAssignedDim1 = 1
   if kernel.indexAssignmentDim0 in problem.operation.indexAssignmentsA:
-    solution.tensorAssignedDim1 = 0
+    kernel.tensorAssignedDim1 = 0
 
-  if solution.tensorAssignedDim0 == solution.tensorAssignedDim1:
-    print "SolutionCandidates::makeIndexAssignments() - ERROR TileDim0,1 same tensor"
+  if kernel.tensorAssignedDim0 == kernel.tensorAssignedDim1:
+    print "SolutionCandidateGenerator::makeIndexAssignments() - ERROR TileDim0,1 same tensor"
 
 ################################################################################
-# SolutionCandidates
+# SolutionCandidateGenerator
 ################################################################################
-class SolutionCandidates:
+class SolutionCandidateGenerator:
 
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
@@ -118,7 +119,7 @@ class SolutionCandidates:
     # Index Assignments
     kernel.indexOrderC = []
     kernel.indexOrderSummation = []
-    makeIndexAssignments( solution, problem )
+    makeIndexAssignments( kernel, problem )
     kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
         numIndicesC - 2 ]
     kernel.indexAssignmentDim1 = kernel.indexOrderC[ \
@@ -250,12 +251,12 @@ class SolutionCandidates:
                     and dim0==solution.kernelGrid[0]-1:
                   kernel.tile.macroTileDim0 = 1
                 if problemSizeDim1 % macroTileDim1 != 0 \
-                    and dim1==solution.kernelGrid[1]-1;
-                  kernel.tile.macroTileDim1
-                solution.kernels.append( kernel.copy() )
+                    and dim1==solution.kernelGrid[1]-1:
+                  kernel.tile.macroTileDim1 = 1
+                solution.kernels.append( copy.deepcopy(kernel) )
 
             # include this solution as candidate
-            solutionCandidates.append( solution.copy() )
+            solutionCandidates.append( copy.deepcopy(solution) )
     return solutionCandidates
 
 ################################################################################

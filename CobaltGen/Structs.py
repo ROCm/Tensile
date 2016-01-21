@@ -112,20 +112,17 @@ class Tensor:
 # Backend - Enum
 ################################################################################
 class Backend:
-  opencl = 0
-  hsa = 1
-  hcc = 2
+  opencl12 = 0
+  hip = 1
 
-  def __init__( self, value ):
+  def __init__( self, value=0 ):
     self.value = value
 
   def __str__(self):
-    if self.value == self.opencl:
-      return "OCL"
-    elif self.value == self.hsa:
-      return "HSA"
-    elif self.value == self.hcc:
-      return "HCC"
+    if self.value == self.opencl12:
+      return "OpenCL 1.2"
+    elif self.value == self.hip:
+      return "HIP"
     else:
       return "ERROR"
 
