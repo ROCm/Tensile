@@ -1,6 +1,6 @@
 import os
 import KernelWriter
-import Solution
+import SolutionWriter
 
 ################################################################################
 # File Writer
@@ -85,6 +85,8 @@ class FileWriter:
   ##############################################################################
   def writeSolutionFiles( self, solutionSet ):
 
+    solutionWriter = SolutionWriter.SolutionWriter( self.backend )
+
     # main solution .cpp,.h files
     allSolutionsSourceFilePath = self.outputPath + self.topDirectory \
         + "CobaltSolutions.cpp"
@@ -95,7 +97,7 @@ class FileWriter:
 
     for solution in solutionSet:
       # open file
-      solutionName = Solution.getName(solution)
+      solutionName = solutionWriter.getName(solution)
       solutionSourceFileName = solutionName + ".inl"
       solutionHeaderFileName = solutionName + ".h"
       solutionSourceFilePath = self.outputPath + self.solutionSubdirectory + \
@@ -106,8 +108,8 @@ class FileWriter:
       solutionHeaderFile = open(solutionHeaderFilePath, "w")
 
       # get solution file string
-      solutionSourceFileString = Solution.getSourceString( solution, backend )
-      solutionHeaderFileString = Solution.getHeaderString( solution, backend )
+      solutionSourceFileString = solutionWriter.getSourceString( solution )
+      solutionHeaderFileString = solutionWriter.getHeaderString( solution )
 
       # write solution file string to file
       solutionSourceFile.write( solutionSourceFileString )
