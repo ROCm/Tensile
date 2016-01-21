@@ -35,11 +35,10 @@ class KernelWriter:
       return kernel.tile.workGroupDim1 * kernel.tile.microTileDim1 != kernel.tile.macroTileDim1
     return False
 
-
   ##############################################################################
-  # get kernel name - DONE
+  # get kernel name from operation
   ##############################################################################
-  def getName(self, kernel):
+  def getNameOperation(self, kernel):
     kernelName = ""
 
     # operation type
@@ -88,7 +87,14 @@ class KernelWriter:
       kernelName += "1"
     else:
       kernelName += "0"
-    kernelName += "_"
+
+    return kernelName
+
+  ##############################################################################
+  # get kernel name from tile
+  ##############################################################################
+  def getNameTile(self, kernel):
+    kernelName = ""
 
     # tile dim 0
     kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
@@ -116,48 +122,21 @@ class KernelWriter:
     for i in range(1,len(kernel.unrolls)):
       kernelName += "_" + str(kernel.unrolls[i])
 
-    # c indices
-    """for i in range(0,len(kernel.indexOrderC)):
-      index = kernel.indexOrderC[i]
-      if index == kernel.indexAssignmentDim0:
-        kernelName= "xT0X" + str(kernel.tile.workGroupDim0) \
-            + "x" + str(kernel.tile.microTileDim0)
-      if index == kernel.indexAssignmentDim1:
-        multipleStr = "xT1X" + str(kernel.tile.workGroupDim1) \
-            + "x" + str(kernel.tile.microTileDim1)
-      kernelName += self.indexChars[index].lower() + multipleStr
-      kernelName += "_"
-    """
-
-    """# c indices
-    for i in range(0,len(kernel.indexOrderC)):
-      index = kernel.indexOrderC[i]
-      multipleStr = "x1"
-      if index == kernel.indexAssignmentDim0:
-        multipleStr = "xT0X" + str(kernel.tile.workGroupDim0) \
-            + "x" + str(kernel.tile.microTileDim0)
-      if index == kernel.indexAssignmentDim1:
-        multipleStr = "xT1X" + str(kernel.tile.workGroupDim1) \
-            + "x" + str(kernel.tile.microTileDim1)
-      kernelName += self.indexChars[index].lower() + multipleStr
-      kernelName += "_" """
-
-    # summation indices
-    """
-    for i in range(0,len(kernel.indexOrderSummation)):
-      index = kernel.indexOrderSummation[i]
-      multipleStr = "1"
-      if index == len(kernel.indexOrderSummation)-1:
-        multipleStr = str(kernel.unrolls[0])
-        for j in range(1,len(kernel.unrolls)):
-          multipleStr += "-" + str(kernel.unrolls[j])
-      kernelName += self.indexChars[len(kernel.indexOrderC) \
-          + index].lower() + "X" + multipleStr
-      if i != len(kernel.indexOrderSummation)-1:
-        kernelName += "_"
-    """
-
     return kernelName
+
+
+
+
+
+
+
+
+
+  ##############################################################################
+  # get kernel name - DONE
+  ##############################################################################
+  def getName(self, kernel):
+    return self.getNameOperation(kernel) + "_" + self.getNameTile(kernel)
 
 
   ##############################################################################

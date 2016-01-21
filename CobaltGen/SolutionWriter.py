@@ -17,9 +17,9 @@ class SolutionWriter:
   # getName
   ##############################################################################
   def getName(self, solution):
-    solutionName = ""
-    for kernel in solution.kernels:
-      solutionName += self.kernelWriter.getName(kernel) + "_"
+    solutionName = self.kernelWriter.getName(solution.kernels[0])
+    solutionName += "_G" + str(solution.kernelGrid[0])
+    solutionName += "x" + str(solution.kernelGrid[1])
     return solutionName
 
 
