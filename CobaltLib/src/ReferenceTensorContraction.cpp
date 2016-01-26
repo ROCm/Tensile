@@ -31,11 +31,12 @@ CobaltStatus ReferenceTensorContraction::enqueue(
     CobaltControl & ctrl ) {
 
   // pointers to data
-  float *dataA = (float *)tensorDataA.data;
+  // TODO need OpenCL read buffer here
+  float *dataA = 0; //  = (float *)tensorDataA.clMem;
   dataA += tensorDataA.offset;
-  float *dataB = (float *)tensorDataB.data;
+  float *dataB = 0; //  = (float *)tensorDataB.clMem;
   dataB += tensorDataB.offset;
-  float *dataC = (float *)tensorDataC.data;
+  float *dataC = 0; // = (float *)tensorDataC.clMem;
   dataC += tensorDataC.offset;
   
   size_t numIndicesFreeC = problem.tensorC.numDimensions;

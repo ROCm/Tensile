@@ -21,7 +21,7 @@ int main( char * argv[], int argc ) {
             order==1, // true means colMajor
             transA==1, // true means do transpose
             transB==1, // true means do transpose
-            size, // M
+            size, // Ma
             size, // N
             size);// K
         } // size
@@ -158,15 +158,17 @@ CobaltTensor createTensorForMatrix(
 
 CobaltOperation createOperationForGEMM() {
   CobaltOperation operation;
-  operation.type = cobaltOperationTypeTensorContraction;
+  operation.type = cobaltOperationTypeContraction;
   // C[i,j] = Sum_k A[i,k] * B[k,j]
   //   0,u freeA
   //   u,1 freeB
   //       boundA 1
   //       boundB 0
   // numIndicesFree = 2 b/c tensorC rank 2
-  operation.alpha = true;
-  operation.beta = false;
+  operation.alphaType = cobaltDataTypeSingle;
+  operation.alpha = nullptr;
+  operation.betaType = cobaltDataTypeSingle;
+  operation.beta = nullptr;
   operation.numIndicesFree = 2;
   operation.numIndicesBatch = 0;
   operation.numIndicesSummation = 1;

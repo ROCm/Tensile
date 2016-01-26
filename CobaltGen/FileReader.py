@@ -37,7 +37,7 @@ def getOperationFromElement( element ):
   operationTypeStr = \
     element.getElementsByTagName("Type")[0].getAttribute("string")
   operationType = Structs.OperationType(-1)
-  if operationTypeStr == "cobaltOperationTypeTensorContraction":
+  if operationTypeStr == "cobaltOperationTypeContraction":
     operationType = Structs.OperationType(0)
   elif operationTypeStr == "cobaltOperationTypeConvolution":
     operationType = Structs.OperationType(1)
@@ -47,7 +47,9 @@ def getOperationFromElement( element ):
     print "OperationType " + operationTypeStr + " unrecognized."
 
   # alpha, beta, numIndices
+  alphaType = Structs.DataType(int(element.getAttribute("alphaType")))
   alpha = int(element.getAttribute("alpha"))
+  betaType = Structs.DataType( int(element.getAttribute("betaType")))
   beta = int(element.getAttribute("beta"))
   numIndicesFree = int(element.getAttribute("numIndicesFree"))
   numIndicesBatch = int(element.getAttribute("numIndicesBatch"))
@@ -72,7 +74,9 @@ def getOperationFromElement( element ):
 
   return Structs.Operation( \
       operationType, \
+      alphaType, \
       alpha, \
+      betaType, \
       beta, \
       numIndicesFree, \
       numIndicesBatch, \

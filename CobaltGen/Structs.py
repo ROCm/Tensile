@@ -42,6 +42,30 @@ class DataType:
     else:
       return "ERROR"
 
+  def toCpp(self):
+    if self.value == self.single:
+      return "float"
+    elif self.value == self.double:
+      return "double"
+    elif self.value == self.singleComplex:
+      return "CobaltComplexFloat"
+    elif self.value == self.doubleComplex:
+      return "CobaltComplexDouble"
+    else:
+      return "ERROR"
+
+  def getLibString(self):
+    if self.value == self.single:
+      return "cobaltDataTypeSingle"
+    elif self.value == self.double:
+      return "cobaltDataTypeDouble"
+    elif self.value == self.singleComplex:
+      return "cobaltDataTypeSingleComplex"
+    elif self.value == self.doubleComplex:
+      return "cobaltDataTypeDoubleComplex"
+    else:
+      return "ERROR"
+
   def isReal(self):
     if self.value == self.single or self.value == self.double:
       return True
@@ -244,6 +268,17 @@ class OperationType:
   def __repr__(self):
     return self.__str__()
 
+  def getLibString(self):
+    if self.value == self.contraction:
+      return "cobaltOperationTypeContraction"
+    elif self.value == self.convolution:
+      return "cobaltOperationTypeConvolution"
+    elif self.value == self.correlation:
+      return "cobaltOperationTypeCorrelation"
+    else:
+      return "ERROR"
+
+
   def getAttributes(self):
     return (self.value)
   def __hash__(self):
@@ -259,7 +294,9 @@ class Operation:
   def __init__( \
       self, \
       type = OperationType(-1), \
+      alphaType = DataType(-1), \
       alpha = -1, \
+      betaType = DataType(-1), \
       beta = -1, \
       numIndicesFree = -1, \
       numIndicesBatch = -1, \
@@ -267,7 +304,9 @@ class Operation:
       indexAssignmentsA = [], \
       indexAssignmentsB = []):
     self.type = type
+    self.alphaType = alphaType
     self.alpha = alpha
+    self.betaType = betaType
     self.beta = beta
     self.numIndicesFree = numIndicesFree
     self.numIndicesBatch = numIndicesBatch
@@ -392,21 +431,66 @@ class ProblemRange:
 
 
 ################################################################################
+# BranchType - Enum
+################################################################################
+class BranchType:
+  none = 0
+  multiple = 1
+  branched = 2
+
+  def __init__(self, value):
+    self.value = value
+
+  def __str__(self):
+    if self.value == self.none:
+      return "none"
+    elif self.value == self.multiple:
+      return "multiple"
+    elif self.value == self.branched:
+      return "branched"
+    else:
+      return "ERROR"
+
+  def getChar(self):
+    if self.value == self.multiple:
+      return "m"
+    elif self.value == self.branched:
+      return "b"
+    else:
+      return "x"
+
+  def isNone(self):
+    return self.value == self.none
+  def isMultiple(self):
+    return self.value == self.multiple
+  def isBranched(self):
+    return self.value == self.branched
+
+  def __repr__(self):
+    return self.__str__()
+
+  def getAttributes(self):
+    return (self.value)
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, BranchType) \
+        and self.getAttributes() == other.getAttributes()
+
+
+################################################################################
 # Tile
 ################################################################################
 class Tile:
   def __init__( self ):
-    self.workGroupDim0 = -1
-    self.workGroupDim1 = -1
-    self.microTileDim0 = -1
-    self.microTileDim1 = -1
-    self.macroTileDim0 = -1
-    self.macroTileDim1 = -1
+    self.workGroup = [ -1, -1]
+    self.microTile = [ -1, -1]
+    self.branch = [ BranchType(-1), BranchType(-1)]
 
   def __str__(self):
-    state = "[Tile; " + str(self.workGroupDim0) + "x" + str(self.workGroupDim1)
-    state += "; " + str(self.microTileDim0) + "x" + str(self.microTileDim1)
-    state += "; " + str(self.macroTileDim0) + "x" + str(self.macroTileDim1)
+    state = "[Tile; " + str(self.workGroup[0]) + "x" + str(self.workGroup[1])
+    state += "; " + str(self.microTile[0]) + "x" + str(self.microTile[1])
+    state += "; " + str(self.branch[0]) + "x" + str(self.branch[1])
     state += "]"
     return state
 
@@ -415,17 +499,18 @@ class Tile:
 
   def getAttributes(self):
     return ( \
-        self.workGroupDim0, \
-        self.workGroupDim1, \
-        self.microTileDim0, \
-        self.microTileDim1, \
-        self.macroTileDim0, \
-        self.macroTileDim1, \
+        self.workGroup[0], \
+        self.workGroup[1], \
+        self.microTile[0], \
+        self.microTile[1], \
+        self.branch[0], \
+        self.branch[1], \
         )
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
-    return isinstance(other, Tile) and self.getAttributes() == other.getAttributes()
+    return isinstance(other, Tile) \
+        and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -493,7 +578,8 @@ class Solution:
   def __init__(self):
     # Solution Correctness Parameters
     # Kernels
-    self.kernelGrid = [ -1, -1 ]
+    self.kernelGrid = [ -1, -1, -1 ]
+    self.branch = [ BranchType(-1), BranchType(-1)]
     self.kernels = []
 
   def __str__(self):
@@ -510,7 +596,9 @@ class Solution:
     return ( \
         frozenset(self.kernels), \
         self.kernelGrid[0], \
-        self.kernelGrid[1] )
+        self.kernelGrid[1], \
+        self.branch[0], \
+        self.branch[1] )
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):

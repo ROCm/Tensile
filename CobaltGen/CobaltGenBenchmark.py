@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import getopt
+import glob
 
 import Structs
 import FileReader
@@ -28,6 +29,7 @@ def getKernelsFromSolutions( solutionSet ):
 def GenBenchmarkFromFiles( \
     inputFiles, \
     outputPath, \
+    resultFile, \
     backend ):
 
   ##############################################################################
@@ -35,9 +37,9 @@ def GenBenchmarkFromFiles( \
   problemSet = set() # every problem we'll benchmark
   # for each input file, accumulate problems
   for inputFile in inputFiles:
-    print "status: reading problems from " + os.path.basename(inputFile)
+    print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
     FileReader.getProblemsFromXML( inputFile, problemSet )
-  print "status: " + str(len(problemSet)) + " unique problems found"
+  print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problems found"
   #for problem in problemSet:
   #  print str(problem)
 
@@ -48,7 +50,7 @@ def GenBenchmarkFromFiles( \
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates
-  print "status: generating solution candidates for problems"
+  print "CobaltGenBenchmark: generating solution candidates for problems"
   totalSolutions = 0
   totalKernels = 0
   for problem in problemSet:
@@ -63,10 +65,10 @@ def GenBenchmarkFromFiles( \
     for kernel in kernelsInSolutionCandidates:
       allKernels.add( kernel )
       totalKernels+=1
-  print "status:   " + str(totalSolutions) + " total solutions"
-  print "status:   " + str(len(allSolutions)) + " unique solutions"
-  print "status:   " + str(totalKernels) + " total kernels"
-  print "status:   " + str(len(allKernels)) + " unique kernels"
+  print "CobaltGenBenchmark:   " + str(totalSolutions) + " total solutions"
+  print "CobaltGenBenchmark:   " + str(len(allSolutions)) + " unique solutions"
+  print "CobaltGenBenchmark:   " + str(totalKernels) + " total kernels"
+  print "CobaltGenBenchmark:   " + str(len(allKernels)) + " unique kernels"
   kernelWriter = KernelWriter.KernelWriter(backend)
   #for kernel in allKernels:
   #  print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
@@ -83,28 +85,31 @@ def GenBenchmarkFromFiles( \
 # CobaltGenBenchmark - Main
 ################################################################################
 if __name__ == "__main__":
-  print "status: CobaltGenBenchmark.py"
 
   # arguments
   ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
+  ap.add_argument("--input-path", dest="inputPath", required=True )
   ap.add_argument("--output-path", dest="outputPath", required=True )
-  ap.add_argument("--input-file", dest="inputFiles", action="append", required=True )
-  ap.add_argument("--backend", dest="backend", required=True, choices=["OpenCL1.2", "HIP"] )
+  ap.add_argument("--result-file", dest="resultFile", required=True )
+  ap.add_argument("--backend", dest="backend", required=True, \
+      choices=["OpenCL_1.2", "HIP"] )
 
   # parse arguments
   args = ap.parse_args()
+  inputFiles = glob.glob(args.inputPath + "/*.xml")
   backend = Structs.Backend();
-  if args.backend == "OpenCL1.2":
+  if args.backend == "OpenCL_1.2":
     backend.value = 0
   elif args.backend == "HIP":
     backend.value = 1
 
   # print settings
-  print "status: using \"" + str(backend) + "\" backend"
+  print "CobaltGenBenchmark[ " + str(backend) + " ] " + str(inputFiles)
 
   # generate benchmark
   GenBenchmarkFromFiles( \
-      args.inputFiles, \
+      inputFiles, \
       args.outputPath, \
+      args.resultFile, \
       backend )
 

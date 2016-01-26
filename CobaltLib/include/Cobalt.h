@@ -6,8 +6,30 @@
 #ifndef COBALT_H
 #define COBALT_H
 
-#if Cobalt_BACKEND_OPENCL
+#if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
+typedef cl_float2 CobaltComplexFloat;
+typedef cl_double2 CobaltComplexDouble;
+#else
+
+#if (defined( __GNUC__ ) || defined( __IBMC__ ))
+    #define Cobalt_ALIGNED(_x) __attribute__ ((aligned(_x)))
+#else
+    #define Cobalt_ALIGNED(_x)
+#endif
+
+typedef union {
+   float  Cobalt_ALIGNED(8) s[2];
+   struct{ float  x, y; };
+   struct{ float  s0, s1; };
+} CobaltComplexFloat;
+
+typedef union {
+   double  Cobalt_ALIGNED(8) s[2];
+   struct{ double  x, y; };
+   struct{ double  s0, s1; };
+} CobaltComplexDouble;
+
 #endif
 
 
@@ -120,24 +142,10 @@ typedef struct CobaltTensor_ {
  * Tensor Data - OpenCL 1.2
  ******************************************************************************/
 #if Cobalt_BACKEND_OPENCL12
+#include "CL/cl.h"
 
 typedef struct CobaltTensorData {
-  cl_mem clMem;
-  size_t offset;
-} CobaltTensorData;
-
-/*******************************************************************************
- * Tensor Data - OpenCL 2.0
- ******************************************************************************/
-#elif Cobalt_BACKEND_OPENCL20
-typedef enum CobaltOpenCLBufferType_ {
-  cobaltOpenCLBufferTypeClMem,
-  cobaltOpenClBufferTypeSVM
-} CobaltOpenCLBufferType;
-
-typedef struct CobaltTensorData_ {
-  void *data;
-  CobaltOpenCLBufferType bufferType;
+  cl_mem data;
   size_t offset;
 } CobaltTensorData;
 
@@ -176,7 +184,7 @@ typedef struct CobaltDeviceProfile_ {
  * Operation
  ******************************************************************************/
 typedef enum CobaltOperationType_ {
-  cobaltOperationTypeTensorContraction,
+  cobaltOperationTypeContraction,
   cobaltOperationTypeConvolution
   //cobaltOperationTypeCorrelation
 } CobaltOperationType;
@@ -192,8 +200,10 @@ typedef struct CobaltOperation_ {
   // indexAssignmentsB: {1, 3, 4, 2, 5}
 
   CobaltOperationType type;
-  bool alpha;
-  bool beta;
+  CobaltDataType alphaType;
+  void *alpha;
+  CobaltDataType betaType;
+  void *beta;
   size_t numIndicesFree;
   size_t numIndicesBatch;
   size_t numIndicesSummation;
@@ -226,13 +236,13 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem );
  ******************************************************************************/
 typedef struct CobaltControl_ {
   size_t numDependencies;
-#if Cobalt_BACKEND_OPENCL
-  size_t maxQueues = 16;
+#if Cobalt_BACKEND_OPENCL12
+  enum { maxQueues = 16 } maxQueues_;
   size_t numQueues;
   cl_command_queue queues[maxQueues];
-  size_t numInputEvents; // superfluous for AMD
+  cl_uint numInputEvents; // superfluous for AMD
   cl_event *inputEvents; // superfluous for AMD
-  size_t numOutputEvents; // superfluous for AMD
+  cl_uint numOutputEvents; // superfluous for AMD
   cl_event *outputEvents; // superfluous for AMD
 #endif
 } CobaltControl;

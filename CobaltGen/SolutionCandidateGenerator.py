@@ -92,6 +92,9 @@ class SolutionCandidateGenerator:
       [1,256], [2,128], [4,64], [8,32], [16,16], [32,8],  [64,4],  [128,2], \
                [256,1] ]
 
+  universeBranch = [ Structs.BranchType(0), Structs.BranchType(1), \
+      Structs.BranchType(2) ]
+
 
 
     # tile assignment - last two free indices?
@@ -161,32 +164,36 @@ class SolutionCandidateGenerator:
         selectedUnroll = unroll
         break
 
-    # Solution Universe
+    # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
+      kernel.unrolls = unroll
       # if last unroll is multiple of last/unrolled summation
-      if problemSizeUnroll % unroll[len(unroll)-1] > 0:
-        continue
-      for workGroupDim in self.universeWorkGroupDim:
-        # work-group not too skinny
-        if float(workGroupDim[1])/workGroupDim[0] \
+      #if problemSizeUnroll % unroll[len(unroll)-1] > 0:
+      #  continue
+      for workGroup in self.universeWorkGroupDim:
+        kernel.tile.workGroup = workGroup
+        # only try skinny work-group if problem is skinny
+        if float(workGroup[1])/workGroup[0] \
             > self.skinnyRatioWorkGroup[problemSkinnyDim0]:
           continue
-        if float(workGroupDim[0])/workGroupDim[1] \
+        if float(workGroup[0])/workGroup[1] \
             > self.skinnyRatioWorkGroup[problemSkinnyDim1]:
           continue
-        # all micro-tile dimensions
+        # for all micro-tile dimensions
         for microTileDim0 in range(1, self.maxMicroTileSize):
           for microTileDim1 in range(1, self.maxMicroTileSize):
-            # micro-tile not too skinny
-            if float(microTileDim1)/microTileDim0 \
+            microTile = [ microTileDim0, microTileDim1 ]
+            kernel.tile.microTile = microTile
+            # only try skinny micro-tile if problem is skinny
+            if float(microTile[1])/microTile[0] \
                 > self.skinnyRatioMicroTile[problemSkinnyDim0]:
               continue
-            if float(microTileDim0)/microTileDim1 \
+            if float(microTile[0])/microTile[1] \
                 > self.skinnyRatioMicroTile[problemSkinnyDim1]:
               continue
-            # macro-tile not too skinny
-            macroTileDim0 = workGroupDim[0] * microTileDim0
-            macroTileDim1 = workGroupDim[1] * microTileDim1
+            # only try skinny macro-tile if problem is skinny
+            macroTileDim0 = workGroup[0] * microTile[0]
+            macroTileDim1 = workGroup[1] * microTile[1]
             if float(macroTileDim1)/macroTileDim0 \
                 > self.skinnyRatioMacroTile[problemSkinnyDim0]:
               continue
@@ -194,69 +201,79 @@ class SolutionCandidateGenerator:
                 > self.skinnyRatioMacroTile[problemSkinnyDim1]:
               continue
             # macro-tile not too large
-            numWorkItems = workGroupDim[0] * workGroupDim[1]
-            numRegisters = numWorkItems * ( microTileDim0 * microTileDim1 \
+            numWorkItems = workGroup[0] * workGroup[1]
+            numRegisters = numWorkItems * ( microTile[0] * microTile[1] \
                 * kernel.dataTypeC.numRegistersPerElement() \
-                + microTileDim0 * kernel.dataTypeA.numRegistersPerElement() \
-                + microTileDim1 * kernel.dataTypeB.numRegistersPerElement() )
+                + microTile[0] * kernel.dataTypeA.numRegistersPerElement() \
+                + microTile[1] * kernel.dataTypeB.numRegistersPerElement() )
             maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
             if numRegisters > maxRegisters:
               continue
 
-            # tile exactly matches
-            if problemSizeDim0 % macroTileDim0 == 0 \
-                and problemSizeDim1 % macroTileDim1 == 0:
-              solution.kernelGrid = [ 1, 1 ]
-              tensorStrideDim1 = problem.tensorC.dimensions[ \
-                  kernel.indexAssignmentDim1].size
-              if tensorStrideDim0 % 1024 == 0:
-                solution.kernelGrid[0] = problemSizeDim0 / 1024;
-              if tensorStrideDim1 % 1024 == 0:
-                solution.kernelGrid[1] = problemSizeDim1 / 1024;
+            # kernel grid
+            kernelGrid = [ 1, 1, 1 ]
+            if tensorStrideDim0 % 1024 == 0:
+              kernelGrid[0] = problemSizeDim0 / 1024;
+            if tensorStrideDim1 % 1024 == 0:
+              kernelGrid[1] = problemSizeDim1 / 1024;
 
-            # dim0,1 are both edges
-            elif problemSizeDim0 % macroTileDim0 != 0 \
-                and problemSizeDim1 % macroTileDim1 != 0:
-              solution.kernelGrid = [ 2, 2 ]
+            # for branch types
+            for branchType in self.universeBranch:
+              solution.kernelGrid = kernelGrid
+              solution.kernels = []
 
-            # dim0 is edge
-            elif problemSizeDim0 % macroTileDim0 != 0 \
-                and problemSizeDim1 % macroTileDim1 == 0:
-              solution.kernelGrid = [ 2, 1 ]
-
-            # dim1 is edge
-            elif problemSizeDim0 % macroTileDim0 == 0 \
-                and problemSizeDim1 % macroTileDim1 != 0:
-              solution.kernelGrid = [ 1, 2 ]
-
-            """print str(workGroupDim[0]) + "x" + str(workGroupDim[1]) + "; " \
-                + str(microTileDim0) + "x" + str(microTileDim1) + "; " \
-                + str(unroll) + "; " + str(numRegisters) + "/" \
-                + str(maxRegisters)"""
-
-            # remove prior kernels; this will be new candidate
-            solution.kernels = []
-
-            # add kernels in grid
-            for dim0 in range(0,solution.kernelGrid[0]):
-              for dim1 in range(0,solution.kernelGrid[1]):
-                kernel.unrolls = unroll
-                kernel.tile.workGroupDim0 = workGroupDim[0]
-                kernel.tile.workGroupDim1 = workGroupDim[1]
-                kernel.tile.microTileDim0 = microTileDim0
-                kernel.tile.microTileDim1 = microTileDim1
-                kernel.tile.macroTileDim0 = macroTileDim0
-                kernel.tile.macroTileDim1 = macroTileDim1
+              # branch - 1 exact kernel
+              if branchType.isNone():
                 if problemSizeDim0 % macroTileDim0 != 0 \
-                    and dim0==solution.kernelGrid[0]-1:
-                  kernel.tile.macroTileDim0 = 1
-                if problemSizeDim1 % macroTileDim1 != 0 \
-                    and dim1==solution.kernelGrid[1]-1:
-                  kernel.tile.macroTileDim1 = 1
+                    or problemSizeDim1 % macroTileDim1 != 0:
+                  continue
+                solution.branch = [branchType, branchType]
+                kernel.tile.branch = [branchType, branchType ]
                 solution.kernels.append( copy.deepcopy(kernel) )
 
-            # include this solution as candidate
-            solutionCandidates.append( copy.deepcopy(solution) )
+              # branch - 2-4 kernels
+              elif branchType.isMultiple():
+                if problemSizeDim0 % macroTileDim0 == 0 \
+                    and problemSizeDim1 % macroTileDim1 == 0:
+                  continue
+                solution.branch = [Structs.BranchType(0), Structs.BranchType(0)]
+                # add main kernel
+                kernel.tile.branch = [Structs.BranchType(0), \
+                    Structs.BranchType(0)]
+                solution.kernels.append( copy.deepcopy(kernel) )
+                # add edge-0 kernel
+                if problemSizeDim0 % macroTileDim0 != 0:
+                  solution.kernelGrid[0] += 1
+                  solution.branch[0] = branchType
+                  kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
+                  solution.kernels.append( copy.deepcopy(kernel) )
+                # add edge-1 kernel
+                if problemSizeDim1 % macroTileDim1 != 0:
+                  solution.kernelGrid[1] += 1
+                  solution.branch[1] = branchType
+                  kernel.tile.branch = [ Structs.BranchType(0), branchType ]
+                  solution.kernels.append( copy.deepcopy(kernel) )
+                # add corner-01 kernel
+                if problemSizeDim0 % macroTileDim0 != 0 \
+                    and problemSizeDim1 % macroTileDim1 != 0:
+                  kernel.tile.branch = [ branchType, branchType ]
+                  solution.kernels.append( copy.deepcopy(kernel) )
+
+              # branch - 1 branched kernel
+              elif branchType.isBranched():
+                if problemSizeDim0 % macroTileDim0 == 0 \
+                    and problemSizeDim1 % macroTileDim1 == 0:
+                  continue
+                solution.branch = [branchType, branchType]
+                kernel.tile.branch = [branchType, branchType ]
+                solution.kernels.append( copy.deepcopy(kernel) )
+
+              # branch - unknown
+              else:
+                print "ERROR - unrecognized branchType"
+
+              # kernels, grid, and branching specified, now add solution
+              solutionCandidates.append( copy.deepcopy(solution) )
     return solutionCandidates
 
 ################################################################################

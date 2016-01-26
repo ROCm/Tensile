@@ -57,4 +57,6 @@ struct CobaltSolutionPtrComparator
   }
 };
 
+size_t getCobaltDataTypeSize( CobaltDataType type );
+
 #endif

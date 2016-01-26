@@ -10,7 +10,7 @@ CobaltSolution::CobaltSolution( CobaltProblem inputProblem)
   : problem(inputProblem) {
 }
 
-#ifdef COBALT_BACKEND_OPENCL
+#ifdef Cobalt_BACKEND_OPENCL12
 /*******************************************************************************
  * CobaltSolutionOpenCL:: constructor
  ******************************************************************************/
@@ -38,12 +38,23 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
       globalWorkOffset,
       globalWorkSize[i],
       localWorkSize[i],
-      ctrl.numEventsInWaitList,
-      ctrl.eventWaitList,
-      &ctrl.event );
+      ctrl.numInputEvents,
+      ctrl.inputEvents,
+      &ctrl.outputEvents[i] );
 
   }
+  ctrl.numOutputEvents = numKernels;
+  return cobaltStatusSuccess;
+}
 
+/*******************************************************************************
+ * LogSolution:: toString
+ ******************************************************************************/
+std::string CobaltSolutionOpenCL::toString( size_t indentLevel ) const {
+  std::string state = indent(indentLevel) + "<Solution>\n";
+  state += ::toStringXML(problem, indentLevel+1);
+  state += indent(indentLevel) + "</Solution>";
+  return state;
 }
 
 /*******************************************************************************
@@ -51,22 +62,68 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
  ******************************************************************************/
 CobaltSolutionOpenCLDummy::CobaltSolutionOpenCLDummy( CobaltProblem inputProblem)
   : CobaltSolutionOpenCL(inputProblem) {
-  numKernels = 1;
+  problem.tensorC.dimensions[0].stride;
+#if 0
+  indexAssignmentTileDim0 = 3;
+  tensorAssignedDim0 = 0;
+  indexAssignmentTileDim1 = 1;
+  tensorAssignedDim1 = 1;
+  indexAssignmentUnroll = 2;
+  // may as well write everything else out in case want to print
+
+
+  numKernels = 4;
   if (!CT_SSS_Cijk_Aij_bK_DeviceProfile_kernel) {
     // not yet compiled, so compile it
   }
-  kernels[0] = CT_SSS_Cijk_Aij_bK_kernel;
+  kernels[0] = CT_SSS_Cji=Si_Aik_Bkj_a1b0_j8x1_i8x1_k8__kernel;
+  kernels[1] = CT_SSS_Cji=Si_Aik_Bkj_a1b0_j8x1_i8y1_k8__kernel;
+  kernels[2] = CT_SSS_Cji=Si_Aik_Bkj_a1b0_j8y1_i8x1_k8__kernel;
+  kernels[3] = CT_SSS_Cji=Si_Aik_Bkj_a1b0_j8y1_i8y1_k8__kernel;
+
+  localWorkSize[0] = { 8, 8, 1 };
+  localWorkSize[1] = { 8, 8, 1 };
+  localWorkSize[2] = { 8, 8, 1 };
+  localWorkSize[3] = { 8, 8, 1 };
+
+  globalWorkSize[0][0] = tensorAssignedDim0 == TensorOrdinalA
+      ? problem.tensorA.dimensions[indexAssignmentTileDim0].size / macroTileDim0
+      : problem.tensorB.dimensions[indexAssignmentTileDim0].size / macroTileDim0;
+  globalWorkSize[0][1] = tensorAssignedDim1 == TensorOrdinalA
+      ? problem.tensorA.dimensions[indexAssignmentTileDim1].size / macroTileDim0
+      : problem.tensorB.dimensions[indexAssignmentTileDim1].size / macroTileDim0;
+  globalWorkSize[1] = { 1, globalWorkSize[0][1] };
+  globalWorkSize[2] = { globalWorkSize[0][0], 1 };
+  globalWorkSize[3] = { 1, 1 };
+  
   // set kernel args
+  // 3 pointers
+  // 3 offsets
+  // C strides
+  // A strides
+  // B strides
+  // dimension sizes, I, J, K...
+  // alpha
+  // beta
+  /*
+  strideCI
+  strideCJ
+  strideAI
+  strideAK
+  strideBK
+  strideBJ
+  sizeI  <-- even these for ifs and splits
+  sizeJ
+  sizeK
+
+  */
+  size_t alphaSize
+      = problem.operation.alphaType == cobaltDataTypeSingle ? sizeof(float)
+      : problem
   // set globalWorkSize...
+#endif
 }
 
-/*CobaltStatus CobaltSolutionOpenCL::enqueue(
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
-      CobaltTensorData tensorDataC,
-      CobaltControl & ctrl ) {
-  // delete me
-}*/
 #endif
 
 #if Cobalt_LOGGER_ENABLED

@@ -92,7 +92,7 @@ std::string toString( CobaltDataType dataType ) {
 
 std::string toString( CobaltOperationType type ) {
   switch( type ) {
-    COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeTensorContraction )
+    COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeContraction )
     COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeConvolution )
   default:
     return "Error in toString(CobaltDataType): no switch case for: "
@@ -171,8 +171,10 @@ std::string toStringXML( const CobaltSolution *solution, size_t indentLevel ) {
 std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Operation ";
-  state += "alpha=\""+std::to_string(operation.alpha)+"\" ";
-  state += "beta=\""+std::to_string(operation.beta)+"\" ";
+  state += "alphaType=\""+std::to_string(operation.alphaType)+"\" ";
+  state += "alpha=\""+std::to_string(operation.alpha!=nullptr)+"\" ";
+  state += "betaType=\""+std::to_string(operation.alphaType)+"\" ";
+  state += "beta=\""+std::to_string(operation.beta!=nullptr)+"\" ";
   state += "numIndicesFree=\""+std::to_string(operation.numIndicesFree)+"\" ";
   state += "numIndicesBatch=\""+std::to_string(operation.numIndicesBatch)+"\" ";
   state += "numIndicesSummation=\""+std::to_string(operation.numIndicesSummation)+"\" ";
@@ -408,6 +410,23 @@ bool operator< ( const CobaltSolution & l, const CobaltSolution & r ) {
   // problem
   return l.problem < r.problem;
 }
+
+// get size of CobaltDataType
+size_t getCobaltDataTypeSize( CobaltDataType type ) {
+  switch( type ) {
+  case cobaltDataTypeSingle:
+    return sizeof(float);
+  case cobaltDataTypeDouble:
+    return sizeof(double);
+  case cobaltDataTypeSingleComplex:
+    return 2*sizeof(float);
+  case cobaltDataTypeDoubleComplex:
+    return 2*sizeof(double);
+  default:
+    return -1;
+  }
+}
+
 
 #if 0
 size_t TensorDescriptor::coordsToSerial( std::vector<size_t> coords ) const {

@@ -21,20 +21,6 @@ class KernelWriter:
     pass
 
 
-
-  ##############################################################################
-  # isEdge kernel along dimension
-  # - macroTileDim0 == 1
-  # - guards around gA -> lA
-  # - guards around gC[gRow,:] = rC[row,:]
-  ##############################################################################
-  def isEdge(self, kernel, dim):
-    if dim == kernel.indexAssignmentDim0:
-      return kernel.tile.workGroupDim0 * kernel.tile.microTileDim0 != kernel.tile.macroTileDim0
-    if dim == kernel.indexAssignmentDim1:
-      return kernel.tile.workGroupDim1 * kernel.tile.microTileDim1 != kernel.tile.macroTileDim1
-    return False
-
   ##############################################################################
   # get kernel name from operation
   ##############################################################################
@@ -54,12 +40,13 @@ class KernelWriter:
     # C dimensions
     kernelName += "C"
     for i in range(0, len(kernel.indexOrderC)):
-      kernelName += self.indexChars[kernel.indexOrderC[i]].lower()
-    kernelName += "=S"
+      #kernelName += self.indexChars[kernel.indexOrderC[i]].lower()
+      kernelName += self.indexChars[i].lower()
+    kernelName += "_S"
 
     # summation indices
     for i in range(0,len(kernel.indexOrderSummation)):
-      kernelName += self.indexChars[kernel.indexOrderSummation[i]].lower()
+      kernelName += self.indexChars[len(kernel.indexOrderC) + kernel.indexOrderSummation[i]].lower()
     kernelName += "_"
 
     # A dimensions
@@ -98,22 +85,16 @@ class KernelWriter:
 
     # tile dim 0
     kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
-    kernelName += str(kernel.tile.workGroupDim0)
-    if kernel.tile.macroTileDim0 == 1:
-      kernelName += "y"
-    else:
-      kernelName += "x"
-    kernelName += str(kernel.tile.microTileDim0)
+    kernelName += str(kernel.tile.workGroup[0])
+    kernelName += kernel.tile.branch[0].getChar()
+    kernelName += str(kernel.tile.microTile[0])
     kernelName += "_"
 
     # tile dim 1
     kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
-    kernelName += str(kernel.tile.workGroupDim1)
-    if kernel.tile.macroTileDim1 == 1:
-      kernelName += "y"
-    else:
-      kernelName += "x"
-    kernelName += str(kernel.tile.microTileDim1)
+    kernelName += str(kernel.tile.workGroup[1])
+    kernelName += kernel.tile.branch[1].getChar()
+    kernelName += str(kernel.tile.microTile[1])
     kernelName += "_"
 
     # unroll
@@ -199,17 +180,17 @@ class KernelWriter:
     kStr += self.endLine
     kStr += "/* kernel parameters */" + self.endLine
     kStr += "#define WG_DIM0          %d%s" \
-        % (kernel.tile.workGroupDim0, self.endLine )
+        % (kernel.tile.workGroup[0], self.endLine )
     kStr += "#define WG_DIM1          %d%s" \
-        % (kernel.tile.workGroupDim1, self.endLine )
+        % (kernel.tile.workGroup[1], self.endLine )
     kStr += "#define MICRO_TILE_DIM0  %d%s" \
-        % (kernel.tile.microTileDim0, self.endLine )
+        % (kernel.tile.microTile[0], self.endLine )
     kStr += "#define MICRO_TILE_DIM1  %d%s" \
-        % (kernel.tile.microTileDim1, self.endLine )
+        % (kernel.tile.microTile[1], self.endLine )
     kStr += "#define MACRO_TILE_DIM0  %s%s" \
-        % ((kernel.tile.workGroupDim0 * kernel.tile.microTileDim0), self.endLine )
+        % ((kernel.tile.workGroup[0] * kernel.tile.microTile[0]), self.endLine )
     kStr += "#define MACRO_TILE_DIM1  %s%s" \
-        % ((kernel.tile.workGroupDim1 * kernel.tile.microTileDim1), self.endLine )
+        % ((kernel.tile.workGroup[1] * kernel.tile.microTile[1]), self.endLine )
     kStr += "#define NUM_UNROLL_ITER  %s%s" \
         % (kernel.unrolls[len(kernel.unrolls)-1], self.endLine )
     kStr += "" + self.endLine
@@ -382,16 +363,16 @@ class KernelWriter:
     ####################################
     # micro-tile - DONE
     kStr += self.endLine
-    kStr += "/* %dx%d micro-tile */%s" % (kernel.tile.microTileDim0, kernel.tile.microTileDim1, self.endLine)
+    kStr += "/* %dx%d micro-tile */%s" % (kernel.tile.microTile[0], kernel.tile.microTile[1], self.endLine)
     kStr += "#define MICRO_TILE \\\\" + self.endLine
-    for a in range(0, kernel.tile.microTileDim0):
+    for a in range(0, kernel.tile.microTile[0]):
       kStr += "  rA[%d] = localA[offA + %d*WG_DIM0]; \\\\%s" % (a, a, self.endLine)
-    for b in range(0, kernel.tile.microTileDim1):
+    for b in range(0, kernel.tile.microTile[1]):
       kStr += "  rB[%d] = localB[offB + %d*WG_DIM1]; \\\\%s" % (b, b, self.endLine)
     kStr += "  offA += MACRO_TILE_DIM0; \\\\" + self.endLine
     kStr += "  offB += MACRO_TILE_DIM1; \\\\" + self.endLine
-    for a in range(0, kernel.tile.microTileDim0):
-      for b in range(0, kernel.tile.microTileDim1):
+    for a in range(0, kernel.tile.microTile[0]):
+      for b in range(0, kernel.tile.microTile[1]):
         kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); \\\\%s" % (a, b, a, b, self.endLine)
     kStr += "  mem_fence(CLK_LOCAL_MEM_FENCE);" + self.endLine
     kStr += self.endLine
@@ -551,19 +532,19 @@ class KernelWriter:
 
     ####################################
     # how many elements to load global -> local - DONE
-    # threads to do loading = (workGroupDim0*workGroupDim1)
-    # A elements to be loaded = workGroupDim0*microTileDim0*unroll
-    # B elements to be loaded = workGroupDim1*microTileDim1*unroll
+    # threads to do loading = (workGroup[0]*workGroup[1])
+    # A elements to be loaded = workGroup[0]*microTile[0]*unroll
+    # B elements to be loaded = workGroup[1]*microTile[1]*unroll
     kStr += self.endLine
     kStr += indent + "/* load global -> local */" + self.endLine
-    numALoads  = (kernel.tile.workGroupDim0*kernel.tile.microTileDim0*kernel.unrolls[len(kernel.unrolls)-1]) \
-        / (kernel.tile.workGroupDim0*kernel.tile.workGroupDim1)
-    numALoadsR = (kernel.tile.workGroupDim0*kernel.tile.microTileDim0*kernel.unrolls[len(kernel.unrolls)-1]) \
-        % (kernel.tile.workGroupDim0*kernel.tile.workGroupDim1)
-    numBLoads  = (kernel.tile.workGroupDim1*kernel.tile.microTileDim1*kernel.unrolls[len(kernel.unrolls)-1]) \
-        / (kernel.tile.workGroupDim0*kernel.tile.workGroupDim1)
-    numBLoadsR = (kernel.tile.workGroupDim1*kernel.tile.microTileDim1*kernel.unrolls[len(kernel.unrolls)-1]) \
-        % (kernel.tile.workGroupDim0*kernel.tile.workGroupDim1)
+    numALoads  = (kernel.tile.workGroup[0]*kernel.tile.microTile[0]*kernel.unrolls[len(kernel.unrolls)-1]) \
+        / (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
+    numALoadsR = (kernel.tile.workGroup[0]*kernel.tile.microTile[0]*kernel.unrolls[len(kernel.unrolls)-1]) \
+        % (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
+    numBLoads  = (kernel.tile.workGroup[1]*kernel.tile.microTile[1]*kernel.unrolls[len(kernel.unrolls)-1]) \
+        / (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
+    numBLoadsR = (kernel.tile.workGroup[1]*kernel.tile.microTile[1]*kernel.unrolls[len(kernel.unrolls)-1]) \
+        % (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
 
     # zeroString for real and complex
     if kernel.dataTypeA.value == Structs.DataType.singleComplex:
@@ -591,7 +572,7 @@ class KernelWriter:
     # load global -> local - DONE
     for a in range(0, numALoads):
       kStr += indent + "lA[ %d*localAStride ] = " % a
-      if self.isEdge(kernel, 0):
+      if kernel.tile.branch[0]:
         kStr += "( globalARow(%d) >= M) ? %s : " % ( a, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + self.indexChars[ \
@@ -606,7 +587,7 @@ class KernelWriter:
     if numALoadsR:
       kStr += indent + "if ( localSerial + " + str(numALoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM0*MICRO_TILE_DIM0*NUM_UNROLL_ITER) ) {" + self.endLine
       kStr += indent + "  lA[ %d*localAStride ] = " % numALoads
-      if self.isEdge(kernel,0):
+      if kernel.tile.branch[0]:
         kStr += "( globalARow(%d) >= M) ? %s : " % ( numALoads, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + self.indexChars[ \
@@ -621,7 +602,7 @@ class KernelWriter:
 
     for b in range(0, numBLoads):
       kStr += indent + "lB[ %d*localBStride ] = " % b
-      if self.isEdge(kernel,1):
+      if kernel.tile.branch[1]:
         kStr += "( globalBCol(%d) >= N) ? %s : " % ( b, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( "
       kStr += "globalIdxB" + self.indexChars[ \
@@ -636,7 +617,7 @@ class KernelWriter:
     if numBLoadsR:
       kStr += indent + "if ( localSerial + " + str(numBLoads) + "*WG_DIM0*WG_DIM1 < (WG_DIM1*MICRO_TILE_DIM1*NUM_UNROLL_ITER) ) {" + self.endLine
       kStr += indent + "  lB[ %d*localBStride ] = " % numBLoads
-      if self.isEdge(kernel,1):
+      if kernel.tile.branch[1]:
         kStr += "(globalBCol(%d) >= N) ? %s : " % ( numBLoads, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( "
       kStr += "globalIdxB" + self.indexChars[ \
@@ -712,11 +693,11 @@ class KernelWriter:
     if kernel.dataTypeC == Structs.DataType.doubleComplex:
       kStr += "  double type_mad_tmp;" + self.endLine
 
-    for a in range(0, kernel.tile.microTileDim0):
-      for b in range(0, kernel.tile.microTileDim1):
+    for a in range(0, kernel.tile.microTile[0]):
+      for b in range(0, kernel.tile.microTile[1]):
         numEdges = 0
         for i in range(0, len(kernel.indexOrderC)):
-          if self.isEdge(kernel,i):
+          if kernel.tile.branch[i]:
             kStr += "  if (globalIdx" + self.indexChars[i]
             if i == kernel.indexAssignmentDim0:
               kStr += " + " + str(a) + "*WG_DIM0"
