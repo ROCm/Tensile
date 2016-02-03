@@ -6,11 +6,12 @@
  * Timer
  ******************************************************************************/
 class Timer {
-  public:
+public:
+  Timer();
   void start();
   double elapsed();
 
-  private:
+private:
   LARGE_INTEGER startTime;
   LARGE_INTEGER frequency; 
 };

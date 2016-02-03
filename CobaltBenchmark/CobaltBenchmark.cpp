@@ -38,12 +38,24 @@ double timeSolution(
     }
     // wait for queue
     // stop timer
-    float time = (float)timer.elapsed();
+    double time = timer.elapsed();
     sampleTimes[sampleIdx] = time;
   } // samples
 
-  // for median, sort and take middle
-
+  // for median, selection sort and take middle
+  for (size_t i = 0; i < numSamples; i++) {
+    size_t fastestIdx = i;
+    for (size_t j = i+1; j < numSamples; j++) {
+      if (sampleTimes[j] < sampleTimes[fastestIdx]) {
+        fastestIdx = j;
+      }
+    }
+    // swap i and fastest
+    double tmp = sampleTimes[i];
+    sampleTimes[i] = sampleTimes[fastestIdx];
+    sampleTimes[fastestIdx] = tmp;
+  }
+  return sampleTimes[ numSamples/2 ];
 }
 
 /*******************************************************************************
@@ -57,6 +69,12 @@ int main( void ) {
   CobaltTensorData tensorDataC;
   CobaltTensorData tensorDataA;
   CobaltTensorData tensorDataB;
+  tensorDataC.data = nullptr;
+  tensorDataC.offset = 0;
+  tensorDataA.data = nullptr;
+  tensorDataA.offset = 0;
+  tensorDataB.data = nullptr;
+  tensorDataB.offset = 0;
 
   // initialize Candidates
   initializeSolutionCandidates();

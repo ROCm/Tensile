@@ -10,6 +10,8 @@ set( CobaltBenchmark_NAME CobaltBenchmark )
 # static source files
 set( CobaltBenchmark_SRC_STATIC
   CobaltBenchmark.cpp
+  ../CobaltLib/src/Tools.h
+  ../CobaltLib/src/Tools.cpp
 )
 
 # generated source files
@@ -32,7 +34,7 @@ if( NOT EXISTS ${CobaltBenchmark_CMAKE_DYNAMIC})
       "include( \${Cobalt_SolutionFiles_CMAKE_DYNAMIC} )\n"
       "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
       "  \${Cobalt_KernelFiles_GENERATED_DYNAMIC}\n"
-      "  \${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n"
+      "  \${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
 include( ${CobaltBenchmark_CMAKE_DYNAMIC} )

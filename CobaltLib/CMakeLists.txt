@@ -34,6 +34,8 @@ set( CobaltLib_SRC_STATIC
   src/Solution.h
   src/StructOperations.cpp
   src/StructOperations.h
+  src/Tools.cpp
+  src/Tools.h
 )
 
 ############################################################
