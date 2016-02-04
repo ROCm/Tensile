@@ -27,20 +27,45 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
   cl_uint workDim = 2;
   size_t *globalWorkOffset = NULL;
 
+  // kernel 0 - main
+  // kernel 1 - edge 0
+  // kernel 2 - edge 1
+  // kernel 3 - edge 0,1
+  size_t kernelSerialIdx = 0;
+  for( size_t d0 = 0; d0 < kernelGrid[0]; d0++) {
+    for (size_t d1 = 0; d1 < kernelGrid[1]; d1++) {
+      for (size_t dk = 0; dk < kernelGrid[2]; dk++) {
+        // which kernel is getting enqueued for this kernel grid entry
+        size_t kernelIdx = 0;
+        if (d0 == kernelGrid[0]-1 && edge[0]) {
+          kernelIdx += 1;
+        }
+        if (d1 == kernelGrid[1]-1 && edge[1]) {
+          kernelIdx += 2;
+        }
+        // data pointers
+        status = clSetKernelArg( kernels[kernelIdx], 0, sizeof(cl_mem), tensorDataA.data );
+        status = clSetKernelArg( kernels[kernelIdx], 1, sizeof(cl_mem), tensorDataB.data );
+        status = clSetKernelArg( kernels[kernelIdx], 2, sizeof(cl_mem), tensorDataC.data );
+        // data offsets
+        // data sizes (truncated due to grid)
+
+        status = clEnqueueNDRangeKernel(
+          ctrl.queues[kernelSerialIdx%ctrl.numQueues],
+          kernels[kernelIdx],
+          workDim,
+          globalWorkOffset,
+          globalWorkSize[kernelIdx],
+          localWorkSize[kernelIdx],
+          ctrl.numInputEvents,
+          ctrl.inputEvents,
+          &ctrl.outputEvents[kernelSerialIdx] );
+          }
+        }
+  }
+
+
   for (size_t i = 0; i < numKernels; i++) {
-    status = clSetKernelArg( kernels[i], 0, sizeof(cl_mem), tensorDataA.data );
-    status = clSetKernelArg( kernels[i], 1, sizeof(cl_mem), tensorDataB.data );
-    status = clSetKernelArg( kernels[i], 2, sizeof(cl_mem), tensorDataC.data );
-    status = clEnqueueNDRangeKernel(
-      ctrl.queues[i%ctrl.numQueues],
-      kernels[i],
-      workDim,
-      globalWorkOffset,
-      globalWorkSize[i],
-      localWorkSize[i],
-      ctrl.numInputEvents,
-      ctrl.inputEvents,
-      &ctrl.outputEvents[i] );
 
   }
   ctrl.numOutputEvents = numKernels;

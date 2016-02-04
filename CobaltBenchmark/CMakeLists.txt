@@ -52,7 +52,7 @@ add_custom_command(
     --input-path=${Cobalt_DIR_PROBLEMS}
     --output-path=${Cobalt_DIR_GENERATED}
     --result-file=${Cobalt_FILE_PSM}
-  DEPENDS ${CobaltGenBenchmark}
+  DEPENDS ${CobaltGenBenchmark_SRC}
 )
 
 source_group( source FILES

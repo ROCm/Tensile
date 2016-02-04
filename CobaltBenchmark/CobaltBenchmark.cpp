@@ -29,12 +29,7 @@ double timeSolution(
     // start timer
     timer.start();
     for (size_t i = 0; i < numEnqueuesPerSample; i++) {
-      cobaltEnqueueSolution(
-          solution,
-          tensorDataC,
-          tensorDataA,
-          tensorDataB,
-          &ctrl );
+      solution->enqueue( tensorDataC, tensorDataA, tensorDataB, ctrl );
     }
     // wait for queue
     // stop timer
@@ -65,22 +60,38 @@ int main( void ) {
 
   // creat CobaltControl
   CobaltControl ctrl;
-
   CobaltTensorData tensorDataC;
   CobaltTensorData tensorDataA;
   CobaltTensorData tensorDataB;
-  tensorDataC.data = nullptr;
+
+  // setup opencl
+  cl_int status;
+  cl_uint numPlatforms;
+  status = clGetPlatformIDs( 0, nullptr, &numPlatforms );
+  cl_platform_id *platforms = new cl_platform_id[ numPlatforms ];
+  status = clGetPlatformIDs( numPlatforms, platforms, nullptr );
+  cl_platform_id platform = platforms[0];
+  cl_uint numDevices;
+  status = clGetDeviceIDs( platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices );
+  cl_device_id *devices = new cl_device_id[ numDevices ];
+  status = clGetDeviceIDs( platform, CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr );
+  cl_device_id device = devices[0];
+  cl_context context = clCreateContext( nullptr, 1, &device, nullptr, nullptr, &status );
+  cl_command_queue queue = clCreateCommandQueue( context, device, CL_QUEUE_PROFILING_ENABLE, &status );
+  
+  // create buffers
+  tensorDataC.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status );
   tensorDataC.offset = 0;
-  tensorDataA.data = nullptr;
+  tensorDataA.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxA, nullptr, &status );
   tensorDataA.offset = 0;
-  tensorDataB.data = nullptr;
+  tensorDataB.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxB, nullptr, &status );
   tensorDataB.offset = 0;
 
   // initialize Candidates
   initializeSolutionCandidates();
 
   size_t problemStartIdx = 0;
-  size_t problemEndIdx = 0;
+  size_t problemEndIdx = numProblems;
   size_t solutionStartIdx = 0;
   size_t solutionEndIdx;
 

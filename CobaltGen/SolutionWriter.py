@@ -50,43 +50,52 @@ class SolutionWriter:
 
     # solution properties (common to all kernels)
     s += "  /* solution properties */\n"
-    for i in range(0, len(solution.kernels[0].indexOrderC)):
-      s += "  indexOrderC[" + str(i) + "] = " \
-          + str(solution.kernels[0].indexOrderC[i]) + ";\n"
-    for i in range(0, len(solution.kernels[0].indexOrderSummation)):
-      s += "  indexOrderSummation[" + str(i) + "] = " \
-          + str(solution.kernels[0].indexOrderSummation[i]) + ";\n"
-    s += "  indexAssignmentDim0 = " \
-        + str(solution.kernels[0].indexAssignmentDim0) + ";\n"
-    s += "  indexAssignmentDim1 = " \
-        + str(solution.kernels[0].indexAssignmentDim1) + ";\n"
+    s += "  size_t indexOrderC[" + str(len(solution.kernels[0].indexOrderC)) \
+        + "] = { " + str(solution.kernels[0].indexOrderC[0])
+    for i in range(1, len(solution.kernels[0].indexOrderC)):
+      s += ", " + str(solution.kernels[0].indexOrderC[i])
+    s += " };\n"
+
+    s += "  size_t indexOrderSummation[" \
+        + str(len(solution.kernels[0].indexOrderSummation)) + "] = { " \
+        + str(solution.kernels[0].indexOrderSummation[0])
+    for i in range(1, len(solution.kernels[0].indexOrderSummation)):
+      s += ", " + str(solution.kernels[0].indexOrderSummation[i])
+    s += " };\n"
+    s += "  size_t indexAssignmentDim[3] = { " \
+        + str(solution.kernels[0].indexAssignmentDim0) + ", " \
+        + str(solution.kernels[0].indexAssignmentDim1) + ", " \
+        + str(solution.kernels[0].indexOrderSummation[len(solution.kernels[0].indexOrderSummation)-1]) + " };\n"
+    # TODO - kernelArgIdxOfAssignment
     s += "\n"
 
     # tile properties (common to all kernels)
     s += "  /* tile properties */\n"
-    s += "  workGroup = { " + str(solution.kernels[0].tile.workGroup[0]) \
+    s += "  size_t workGroup[workDim] = { " \
+        + str(solution.kernels[0].tile.workGroup[0]) \
         + ", " + str(solution.kernels[0].tile.workGroup[1]) + ", 1 };\n"
-    s += "  microTile = { " + str(solution.kernels[0].tile.microTile[0]) \
+    s += "  size_t microTile[workDim] = { " \
+        + str(solution.kernels[0].tile.microTile[0]) \
         + ", " + str(solution.kernels[0].tile.microTile[1]) + ", 1 };\n"
-    s += "  numUnrolls = " + str(len(solution.kernels[0].unrolls)) + ";\n"
-    for i in range(0,len(solution.kernels[0].unrolls)):
-      s += "  unrolls[" + str(i) + "] = " \
-          + str(solution.kernels[0].unrolls[i]) + ";\n"
+    s += "  size_t numUnrolls[" + str(len(solution.kernels[0].unrolls)) \
+        + "] = { " + str(solution.kernels[0].unrolls[0])
+    for i in range(1,len(solution.kernels[0].unrolls)):
+      s += ", " + str(solution.kernels[0].unrolls[i])
+    s += " };\n"
     s += "\n"
 
     # kernels
     s += "  /* kernels */\n"
-    s += "  kernelGrid = { " \
-        + str(solution.kernelGrid[0]) + ", " \
-        + str(solution.kernelGrid[1]) + ", " \
-        + str(solution.kernelGrid[2]) + " };\n"
+    s += "  kernelGrid[0] = " + str(solution.kernelGrid[0]) + ";\n"
+    s += "  kernelGrid[1] = " + str(solution.kernelGrid[1]) + ";\n"
+    s += "  kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
     s += "  numKernels = " + str(len(solution.kernels)) + ";\n"
     for i in range(0, len(solution.kernels)):
       s += "  kernels[" + str(i) + "] = " \
-          + self.kernelWriter.getName(solution.kernels[i]) + "__kernel;\n"
-    s += "  edge = { %s, %s };\n" \
-        % ("true" if solution.branch[0].isMultiple() else "false", \
-        "true" if solution.branch[1].isMultiple() else "false" )
+          + self.kernelWriter.getName(solution.kernels[i]) + "_kernel;\n"
+    s += "  edge[0] = %s;\n" % ("true" if solution.branch[0].isMultiple() else "false")
+    s += "  edge[1] = %s;\n" % ("true" if solution.branch[1].isMultiple() else "false")
+    s += "  edge[2] = false;\n"
     s += "\n"
 
     # compile kernels if needed
@@ -190,6 +199,11 @@ class SolutionWriter:
     s = ""
     # includes
     s += "#include \"Solution.h\"\n"
+    s += "\n"
+
+    # include kernels
+    for kernel in solution.kernels:
+      s += "#include \"" + self.kernelWriter.getName(kernel) + ".h\"\n"
     s += "\n"
 
     # class declaration

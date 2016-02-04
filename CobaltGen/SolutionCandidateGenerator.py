@@ -203,9 +203,9 @@ class SolutionCandidateGenerator:
             # macro-tile not too large
             numWorkItems = workGroup[0] * workGroup[1]
             numRegisters = numWorkItems * ( microTile[0] * microTile[1] \
-                * kernel.dataTypeC.numRegistersPerElement() \
-                + microTile[0] * kernel.dataTypeA.numRegistersPerElement() \
-                + microTile[1] * kernel.dataTypeB.numRegistersPerElement() )
+                * kernel.dataTypeC.sizeOf() \
+                + microTile[0] * kernel.dataTypeA.sizeOf() \
+                + microTile[1] * kernel.dataTypeB.sizeOf() )
             maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
             if numRegisters > maxRegisters:
               continue

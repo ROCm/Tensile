@@ -75,7 +75,7 @@ class DataType:
   def isComplex(self):
     return not self.isReal()
 
-  def numRegistersPerElement( self ):
+  def sizeOf( self ):
     if self.value == self.single:
       return 1
     elif self.value == self.double:

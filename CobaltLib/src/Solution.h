@@ -26,12 +26,11 @@ struct CobaltSolution {
   CobaltProblem problem; // problem used to get this solution
 
 }; // class Solution
-#define COBALT_BACKEND_OPENCL
-#ifdef COBALT_BACKEND_OPENCL
+#ifdef Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 
 /*******************************************************************************
- * CobaltSolutionOpenCL - used in LOG_ONLY mode
+ * CobaltSolutionOpenCL
  ******************************************************************************/
 class CobaltSolutionOpenCL : public CobaltSolution {
 public:
@@ -45,7 +44,7 @@ public:
 
   std::string toString( size_t indentLevel ) const;
 
-private:
+protected:
   // constants
   static const size_t workDim = 3;
   static const size_t maxNumKernels = 4;
@@ -53,13 +52,15 @@ private:
   // kernels
   cl_uint numKernels;
   cl_kernel kernels[maxNumKernels];
+  size_t kernelGrid[workDim];
+  size_t edge[workDim];
   // kernel dimensions
   size_t globalWorkSize[maxNumKernels][workDim];
   size_t localWorkSize[maxNumKernels][workDim];
   // kernel argumets
   size_t numKernelArgs;
-  void *gemmKernelArgs[maxKernelArgs];
-  size_t gemmKernelArgSizes[maxKernelArgs];
+  void *kernelArgs[maxKernelArgs];
+  size_t kernelArgSizes[maxKernelArgs];
 };
 
 class CobaltSolutionOpenCLDummy : public CobaltSolutionOpenCL {

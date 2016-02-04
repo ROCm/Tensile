@@ -191,6 +191,9 @@ class FileWriter:
     s += "  CobaltProblem problem;\n"
 
     solutionStartIdx = 0
+    tensorSizeMaxC = 0
+    tensorSizeMaxA = 0
+    tensorSizeMaxB = 0
 
     # for problems
     for problemIdx in range(0,numProblems):
@@ -291,8 +294,25 @@ class FileWriter:
             + self.solutionWriter.getName(solutionList[i])+"( problem ); // " \
             + str(i) + "/" + str(numSolutions) + "\n"
       s += "\n"
-
       solutionStartIdx = solutionEndIdx
+
+      # max tensor size
+      for dimension in problem.tensorC.dimensions:
+        tensorSizeDimC = dimension.stride * dimension.size \
+            * problem.tensorC.dataType.sizeOf()
+        if tensorSizeDimC > tensorSizeMaxC:
+          tensorSizeMaxC = tensorSizeDimC
+      for dimension in problem.tensorA.dimensions:
+        tensorSizeDimA = dimension.stride * dimension.size \
+            * problem.tensorA.dataType.sizeOf()
+        if tensorSizeDimA > tensorSizeMaxA:
+          tensorSizeMaxA = tensorSizeDimA
+      for dimension in problem.tensorB.dimensions:
+        tensorSizeDimB = dimension.stride * dimension.size \
+            * problem.tensorB.dataType.sizeOf()
+        if tensorSizeDimB > tensorSizeMaxB:
+          tensorSizeMaxB = tensorSizeDimB
+
     s += "}\n"
     benchmarkSourceFile.write(s)
     benchmarkSourceFile.close()
@@ -307,6 +327,9 @@ class FileWriter:
     s += "\n"
     s += "const size_t numProblems = " + str(numProblems) + ";\n"
     s += "const size_t numSolutions = " + str(numSolutions) + ";\n"
+    s += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
+    s += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxC) + ";\n"
+    s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxC) + ";\n"
     s += "extern size_t numSolutionsPerProblem[numProblems];\n"
     s += "extern CobaltProblem problems[numProblems];\n"
     s += "extern CobaltSolution *solutionCandidates[numSolutions];\n"
@@ -348,14 +371,16 @@ class FileWriter:
     kernelName = self.kernelWriter.getName(kernel)
     fileString = ""
     #fileString += Common.getFileHeader()
-    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_INL\n"
-    fileString += "#define KERNEL_" + kernelName.upper() + "_INL\n"
+    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_CPP\n"
+    fileString += "#define KERNEL_" + kernelName.upper() + "_CPP\n"
+    fileString += "#include \"" + kernelName + ".h\""
     fileString += "\n"
-    fileString += "const unsigned int %s_workGroup[3] = { %u, %u, 1 };\n" \
+    fileString += "cl_kernel " + kernelName + "_kernel = nullptr;\n"
+    fileString += "const size_t %s_workGroup[3] = { %u, %u, 1 };\n" \
         % (kernelName, kernel.tile.workGroup[0], kernel.tile.workGroup[1] )
-    fileString += "const unsigned int %s_microTile[2] = { %u, %u };\n" \
+    fileString += "const size_t %s_microTile[2] = { %u, %u };\n" \
         % (kernelName, kernel.tile.microTile[0], kernel.tile.microTile[0] )
-    fileString += "const unsigned int %s_unroll = %u;\n" \
+    fileString += "const size_t %s_unroll = %u;\n" \
         % (kernelName, kernel.unrolls[len(kernel.unrolls)-1])
     fileString += "\n"
     fileString += "const char * const %s_src =\"" % (kernelName)
@@ -378,13 +403,14 @@ class FileWriter:
     #fileString += Common.getFileHeader()
     fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
+    fileString += "#include \"CL/cl.h\"\n"
     fileString += "\n"
-    fileString += "extern const unsigned int %s_workGroup[0];\n" % kernelName
-    fileString += "extern const unsigned int %s_workGroup[1];\n" % kernelName
-    fileString += "extern const unsigned int %s_microTile[0];\n" % kernelName
-    fileString += "extern const unsigned int %s_microTile[1];\n" % kernelName
-    fileString += "extern const unsigned int %s_unroll;\n" % kernelName
+    fileString += "extern const size_t %s_workGroup[3];\n" % kernelName
+    fileString += "extern const size_t %s_microTile[2];\n" % kernelName
+    fileString += "extern const size_t %s_unroll;\n" \
+        % (kernelName)
     fileString += "extern const char * const %s_src;\n" % kernelName
+    fileString += "extern cl_kernel %s_kernel;\n" % kernelName
     fileString += "#endif\n"
     return fileString
 
