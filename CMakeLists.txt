@@ -86,21 +86,23 @@ file( MAKE_DIRECTORY ${Cobalt_DIR_PSM} )
 ############################################################
 # CobaltGen Files
 set( CobaltGenBenchmark_SRC
-  CobaltGen/CobaltGenBenchmark.py
-  CobaltGen/FileReader.py
-  CobaltGen/FileWriter.py
-  CobaltGen/SolutionCandidateGenerator.py
-  CobaltGen/SolutionSet.py
-  CobaltGen/SolutionWriter.py
-  CobaltGen/Structs.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/FileReader.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/FileWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionCandidateGenerator.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionSet.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
 )
 set( CobaltGenBackend_SRC
-  CobaltGen/CobaltGenBackend.py
-  CobaltGen/FileReader.py
-  CobaltGen/FileWriter.py
-  CobaltGen/SolutionSet.py
-  CobaltGen/SolutionWriter.py
-  CobaltGen/Structs.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/FileReader.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/FileWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionSet.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
 )
 
 ############################################################

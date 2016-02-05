@@ -247,17 +247,23 @@ class SolutionCandidateGenerator:
                   solution.branch[0] = branchType
                   kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
                   solution.kernels.append( copy.deepcopy(kernel) )
+                else:
+                  solution.kernels.append( None )
                 # add edge-1 kernel
                 if problemSizeDim1 % macroTileDim1 != 0:
                   solution.kernelGrid[1] += 1
                   solution.branch[1] = branchType
                   kernel.tile.branch = [ Structs.BranchType(0), branchType ]
                   solution.kernels.append( copy.deepcopy(kernel) )
+                else:
+                  solution.kernels.append( None )
                 # add corner-01 kernel
                 if problemSizeDim0 % macroTileDim0 != 0 \
                     and problemSizeDim1 % macroTileDim1 != 0:
                   kernel.tile.branch = [ branchType, branchType ]
                   solution.kernels.append( copy.deepcopy(kernel) )
+                else:
+                  solution.kernels.append( None )
 
               # branch - 1 branched kernel
               elif branchType.isBranched():
@@ -267,6 +273,9 @@ class SolutionCandidateGenerator:
                 solution.branch = [branchType, branchType]
                 kernel.tile.branch = [branchType, branchType ]
                 solution.kernels.append( copy.deepcopy(kernel) )
+                solution.kernels.append( None )
+                solution.kernels.append( None )
+                solution.kernels.append( None )
 
               # branch - unknown
               else:

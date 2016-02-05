@@ -36,6 +36,12 @@ class CobaltSolutionOpenCL : public CobaltSolution {
 public:
   CobaltSolutionOpenCL( CobaltProblem inputProblem );
 
+  void makeKernel(
+  cl_kernel *kernel,
+  cl_command_queue queue,
+  const char *kernelSource,
+  const char *sourceBuildOptions);
+
   CobaltStatus enqueue(
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
@@ -46,21 +52,35 @@ public:
 
 protected:
   // constants
-  static const size_t workDim = 3;
-  static const size_t maxNumKernels = 4;
+  static const unsigned int workDim = 3;
+  static const unsigned int maxNumKernels = 4;
   const static unsigned int maxKernelArgs = 3+3+2+4*CobaltTensor::maxDimensions;
   // kernels
   cl_uint numKernels;
   cl_kernel kernels[maxNumKernels];
-  size_t kernelGrid[workDim];
-  size_t edge[workDim];
+  const char *kernelSources[maxNumKernels];
+  unsigned int kernelGrid[workDim];
+  unsigned int edge[workDim];
   // kernel dimensions
   size_t globalWorkSize[maxNumKernels][workDim];
   size_t localWorkSize[maxNumKernels][workDim];
   // kernel argumets
-  size_t numKernelArgs;
+  cl_uint numKernelArgs;
   void *kernelArgs[maxKernelArgs];
   size_t kernelArgSizes[maxKernelArgs];
+
+  unsigned int indexAssignmentCd0;
+  unsigned int indexAssignmentCd1;
+  bool d0InTensorA;
+  unsigned int indexAssignmentAd0or1;
+  unsigned int indexAssignmentAdU;
+  unsigned int indexAssignmentBd0or1;
+  unsigned int indexAssignmentBdU;
+
+  unsigned int kernelArgIdxDim0;
+  unsigned int kernelArgIdxDim1;
+  unsigned int kernelArgIdxSummation;
+
 };
 
 class CobaltSolutionOpenCLDummy : public CobaltSolutionOpenCL {
@@ -89,5 +109,12 @@ public:
 
 };
 #endif
+
+#include <assert.h>
+#define CL_CHECK(RET) \
+  if(RET != CL_SUCCESS) { \
+    printf("OpenCL error %i on line %u\n", RET, __LINE__); \
+    /*assert(false);*/ \
+    }
 
 #endif

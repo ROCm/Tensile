@@ -77,8 +77,15 @@ int main( void ) {
   status = clGetDeviceIDs( platform, CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr );
   cl_device_id device = devices[0];
   cl_context context = clCreateContext( nullptr, 1, &device, nullptr, nullptr, &status );
-  cl_command_queue queue = clCreateCommandQueue( context, device, CL_QUEUE_PROFILING_ENABLE, &status );
-  
+  for ( ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
+    ctrl.queues[ctrl.numQueues] = clCreateCommandQueue( context, device, CL_QUEUE_PROFILING_ENABLE, &status );
+  }
+  ctrl.inputEvents = nullptr;
+  ctrl.numInputEvents = 0;
+  ctrl.numDependencies = 0;
+  ctrl.numOutputEvents = 0;
+  ctrl.outputEvents = nullptr;
+
   // create buffers
   tensorDataC.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status );
   tensorDataC.offset = 0;

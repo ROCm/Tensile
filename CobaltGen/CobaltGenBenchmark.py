@@ -63,8 +63,9 @@ def GenBenchmarkFromFiles( \
       allSolutions.add( solution )
     kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
     for kernel in kernelsInSolutionCandidates:
-      allKernels.add( kernel )
-      totalKernels+=1
+      if kernel != None:
+        allKernels.add( kernel )
+        totalKernels+=1
   print "CobaltGenBenchmark:   " + str(totalSolutions) + " total solutions"
   print "CobaltGenBenchmark:   " + str(len(allSolutions)) + " unique solutions"
   print "CobaltGenBenchmark:   " + str(totalKernels) + " total kernels"

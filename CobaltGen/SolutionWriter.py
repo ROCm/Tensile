@@ -65,8 +65,52 @@ class SolutionWriter:
     s += "  size_t indexAssignmentDim[3] = { " \
         + str(solution.kernels[0].indexAssignmentDim0) + ", " \
         + str(solution.kernels[0].indexAssignmentDim1) + ", " \
-        + str(solution.kernels[0].indexOrderSummation[len(solution.kernels[0].indexOrderSummation)-1]) + " };\n"
-    # TODO - kernelArgIdxOfAssignment
+        + str(len(solution.kernels[0].indexOrderC) \
+        +solution.kernels[0].indexOrderSummation[ \
+        len(solution.kernels[0].indexOrderSummation)-1]) + " };\n"
+    s += "\n"
+
+    # tensorC index assignments
+    s += "  indexAssignmentCd0 = " \
+        + str(solution.kernels[0].indexAssignmentDim0) + ";\n"
+    s += "  indexAssignmentCd1 = " \
+        + str(solution.kernels[0].indexAssignmentDim1) + ";\n"
+
+    # tensorA,B index assignments
+    d0InTensorA = False
+    indexAssignmentAd0or1 = -1
+    indexAssignmentAdU = -1
+    for i in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
+      index = solution.kernels[0].operation.indexAssignmentsA[i]
+      if index == solution.kernels[0].indexAssignmentDim0:
+        d0InTensorA = True
+      if index == solution.kernels[0].indexAssignmentDim0 \
+          or index == solution.kernels[0].indexAssignmentDim1:
+        indexAssignmentAd0or1 = i
+      if index == len(solution.kernels[0].indexOrderC) \
+          + solution.kernels[0].indexOrderSummation[ \
+          len(solution.kernels[0].indexOrderSummation)-1]:
+        indexAssignmentAdU = i
+    indexAssignmentBd0or1 = -1
+    indexAssignmentBdU = -1
+    for i in range(0,len(solution.kernels[0].operation.indexAssignmentsB)):
+      index = solution.kernels[0].operation.indexAssignmentsB[i]
+      if index == solution.kernels[0].indexAssignmentDim0 \
+          or index == solution.kernels[0].indexAssignmentDim1:
+        indexAssignmentBd0or1 = i
+      if index == len(solution.kernels[0].indexOrderC)\
+          + solution.kernels[0].indexOrderSummation[ \
+          len(solution.kernels[0].indexOrderSummation)-1]:
+        indexAssignmentBdU = i
+    s += "  d0InTensorA = " + ("true" if d0InTensorA else "false") + ";\n"
+    s += "  indexAssignmentAd0or1 = " \
+        + str(indexAssignmentAd0or1) + ";\n"
+    s += "  indexAssignmentAdU = " \
+        + str(indexAssignmentAdU) + ";\n"
+    s += "  indexAssignmentBd0or1 = " \
+        + str(indexAssignmentBd0or1) + ";\n"
+    s += "  indexAssignmentBdU = " \
+        + str(indexAssignmentBdU) + ";\n"
     s += "\n"
 
     # tile properties (common to all kernels)
@@ -91,8 +135,16 @@ class SolutionWriter:
     s += "  kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
     s += "  numKernels = " + str(len(solution.kernels)) + ";\n"
     for i in range(0, len(solution.kernels)):
-      s += "  kernels[" + str(i) + "] = " \
-          + self.kernelWriter.getName(solution.kernels[i]) + "_kernel;\n"
+      if solution.kernels[i] == None:
+        s += "  kernelSources[" + str(i) + "] = nullptr;\n"
+        s += "  kernels[" + str(i) + "] = nullptr;\n"
+      else:
+        name = self.kernelWriter.getName(solution.kernels[i])
+        srcName = name + "_src"
+        kernelName = name + "_kernel;\n"
+        s += "  kernelSources[" + str(i) + "] = " + srcName + ";\n"
+        s += "  kernels[" + str(i) + "] = " + kernelName + ";\n"
+    # edges
     s += "  edge[0] = %s;\n" % ("true" if solution.branch[0].isMultiple() else "false")
     s += "  edge[1] = %s;\n" % ("true" if solution.branch[1].isMultiple() else "false")
     s += "  edge[2] = false;\n"
@@ -137,6 +189,10 @@ class SolutionWriter:
     s += "  /* free index sizes */\n"
     for i in range(0,solution.kernels[0].operation.numIndicesFree \
         + solution.kernels[0].operation.numIndicesBatch ):
+      if i == solution.kernels[0].indexAssignmentDim0:
+        s += "  kernelArgIdxDim0 = numKernelArgs;\n"
+      if i == solution.kernels[0].indexAssignmentDim1:
+        s += "  kernelArgIdxDim1 = numKernelArgs;\n"
       s += "  kernelArgs[numKernelArgs] = &problem.tensorB.dimensions[" \
           + str(i) + "].stride; // size" + self.indexChars[i] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
@@ -156,6 +212,9 @@ class SolutionWriter:
         if solution.kernels[0].operation.indexAssignmentsA[j] == i:
           idx = j
           break
+      if i == solution.kernels[0].indexOrderSummation[ \
+          len(solution.kernels[0].indexOrderSummation)-1]:
+        s += "  kernelArgIdxSummation = numKernelArgs;\n"
       s += "  kernelArgs[numKernelArgs] = &problem.tensorA.dimensions[" \
           + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
@@ -203,7 +262,8 @@ class SolutionWriter:
 
     # include kernels
     for kernel in solution.kernels:
-      s += "#include \"" + self.kernelWriter.getName(kernel) + ".h\"\n"
+      if kernel != None:
+        s += "#include \"" + self.kernelWriter.getName(kernel) + ".h\"\n"
     s += "\n"
 
     # class declaration

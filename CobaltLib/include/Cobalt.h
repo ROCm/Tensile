@@ -126,14 +126,14 @@ typedef enum CobaltDataType_ {
 } CobaltDataType;
 
 typedef struct CobaltDimension_ {
-  size_t stride;
-  size_t size;
+  unsigned int stride;
+  unsigned int size;
 } CobaltDimension;
 
 typedef struct CobaltTensor_ {
   CobaltDataType dataType;
   enum { maxDimensions = 16 } maxDimensions_;
-  size_t numDimensions;
+  unsigned int numDimensions;
   CobaltDimension dimensions[maxDimensions];
 } CobaltTensor;
 
@@ -146,7 +146,7 @@ typedef struct CobaltTensor_ {
 
 typedef struct CobaltTensorData {
   cl_mem data;
-  size_t offset;
+  unsigned int offset;
 } CobaltTensorData;
 
 /*******************************************************************************
@@ -169,13 +169,13 @@ typedef void* CobaltTensorData;
 typedef struct CobaltDevice_ {
   enum { maxNameLength = 256 } maxNameLength_;
   char name[maxNameLength];
-  size_t numComputeUnits;
-  size_t clockFrequency;
+  unsigned int numComputeUnits;
+  unsigned int clockFrequency;
 } CobaltDevice;
 
 typedef struct CobaltDeviceProfile_ {
   enum { maxDevices = 1 } maxDevices_;
-  size_t numDevices;
+  unsigned int numDevices;
   CobaltDevice devices[maxDevices];
 } CobaltDeviceProfile;
 
@@ -204,16 +204,16 @@ typedef struct CobaltOperation_ {
   void *alpha;
   CobaltDataType betaType;
   void *beta;
-  size_t numIndicesFree;
-  size_t numIndicesBatch;
-  size_t numIndicesSummation;
-  size_t indexAssignmentsA[CobaltTensor::maxDimensions];
-  size_t indexAssignmentsB[CobaltTensor::maxDimensions];
+  unsigned int numIndicesFree;
+  unsigned int numIndicesBatch;
+  unsigned int numIndicesSummation;
+  unsigned int indexAssignmentsA[CobaltTensor::maxDimensions];
+  unsigned int indexAssignmentsB[CobaltTensor::maxDimensions];
 
   // used for convolutions/correlations only
-  size_t pad[CobaltTensor::maxDimensions];
-  size_t stride[CobaltTensor::maxDimensions];
-  // size_t upscale[CobaltOperation::maxSummationIndices]; // cuDNN requires 1
+  unsigned int pad[CobaltTensor::maxDimensions];
+  unsigned int stride[CobaltTensor::maxDimensions];
+  // unsigned int upscale[CobaltOperation::maxSummationIndices]; // cuDNN requires 1
 
 } CobaltOperation;
 
@@ -235,10 +235,10 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem );
  * Control
  ******************************************************************************/
 typedef struct CobaltControl_ {
-  size_t numDependencies;
+  unsigned int numDependencies;
 #if Cobalt_BACKEND_OPENCL12
   enum { maxQueues = 16 } maxQueues_;
-  size_t numQueues;
+  unsigned int numQueues;
   cl_command_queue queues[maxQueues];
   cl_uint numInputEvents; // superfluous for AMD
   cl_event *inputEvents; // superfluous for AMD
@@ -276,15 +276,13 @@ CobaltStatus cobaltTeardown();
  * toStrings
  ******************************************************************************/
 CobaltStatus cobaltStatusToString(
-    CobaltStatus code, char *cstr, size_t *size );
-CobaltStatus cobaltStatusToString(
-    CobaltStatus status, char *cstr, size_t *size );
+    CobaltStatus status, char *cstr, unsigned int *size );
 CobaltStatus cobaltDataTypeToString(
-    CobaltDataType dataType, char *cstr, size_t *size );
+    CobaltDataType dataType, char *cstr, unsigned int *size );
 CobaltStatus cobaltOperationToString(
-    CobaltOperationType type, char *cstr, size_t *size );
+    CobaltOperationType type, char *cstr, unsigned int *size );
 CobaltStatus cobaltProblemToString(
-    CobaltProblem problem, char *cstr, size_t *size );
+    CobaltProblem problem, char *cstr, unsigned int *size );
 
 
 #ifdef __cplusplus

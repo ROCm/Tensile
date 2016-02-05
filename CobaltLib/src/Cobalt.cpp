@@ -86,7 +86,7 @@ CobaltStatus cobaltEnqueueSolution(
 /*******************************************************************************
  * cobaltValidateProblem
  ******************************************************************************/
-bool arrayContains( size_t *array, size_t arraySize, size_t value) {
+bool arrayContains( unsigned int *array, size_t arraySize, size_t value) {
   for (size_t i = 0; i < arraySize; i++) {
     if (array[i] == value) {
       return true;
