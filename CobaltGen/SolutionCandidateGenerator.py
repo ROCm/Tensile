@@ -5,6 +5,12 @@ import argparse
 
 ################################################################################
 # Make Index Assignments
+# indicesSummation:
+#    largest stride -> shortest stride
+# indicesC:
+#    batched largest stride (A+B) -> shortest stride
+#    free largest stride (of A,B input tensor) -> shortest stride
+#    last two indices must belong to different A,B and are assigned d0,d1
 ################################################################################
 def makeIndexAssignments(kernel, problem):
   numIndicesC = problem.operation.numIndicesFree \
@@ -13,20 +19,57 @@ def makeIndexAssignments(kernel, problem):
   numIndicesB = len(problem.operation.indexAssignmentsB)
   # C indices in order of descending stride
   # sort free indices, then append after batched indices
-  indicesUnsortedC = []
+  indicesBatchedUnsorted = []
+  indicesFreeUnsorted = []
   for i in range(0,numIndicesC):
     indexIsBatched = False
     if i in problem.operation.indexAssignmentsA:
       if i in problem.operation.indexAssignmentsB:
         indexIsBatched = True
     if indexIsBatched:
-      kernel.indexOrderC.append(i)
+      stride = 0
+      if problem.operation.indexAssignmentsA[j] == i:
+          stride += problem.tensorA.dimensions[j].stride
+      if problem.operation.indexAssignmentsB[j] == i:
+          stride += problem.tensorB.dimensions[j].stride
+      indicesBatchedUnordered.append([stride, i])
     else:
-      indicesUnsortedC.append( [problem.tensorC.dimensions[i].stride, i] )
-  indicesSortedC = sorted( indicesUnsortedC, \
+      stride = 0
+      indexBelongsToTensor = 0
+      for j in range(0,numIndicesA):
+        if problem.operation.indexAssignmentsA[j] == i:
+          stride = problem.tensorA.dimensions[j].stride
+          indexBelongsToTensor = 0
+        if problem.operation.indexAssignmentsB[j] == i:
+          stride = problem.tensorB.dimensions[j].stride
+          indexBelongsToTensor = 1
+      indicesFreeUnsorted.append( [stride, i, indexBelongsToTensor] )
+
+  indicesBatchedSorted = sorted( indicesBatchedUnsorted, \
       key = lambda x: int(x[0]), reverse=True )
-  for i in range(0,len(indicesSortedC)):
-    kernel.indexOrderC.append( indicesSortedC[i][1] )
+  indicesFreeSorted = sorted( indicesFreeUnsorted, \
+      key = lambda x: int(x[0]), reverse=True )
+  # if last two free indices belong to same tensor
+  if indicesFreeSorted[len(indicesFreeSorted)-1][2] \
+      == indicesFreeSorted[len(indicesFreeSorted)-2][2]:
+    # look backwards for smallest stride belonging to different tensor
+    for i in range(len(indicesFreeSorted)-1, 0):
+      if indicesFreeSorted[len(indicesFreeSorted)-1][2] \
+          != indicesFreeSorted[i][3]:
+        # remove idx i from current location
+        tmp = indicesFreeSorted.pop(i)
+        # and place it second to last
+        indicesFreeSorted.insert(len(indicesFreeSorted)-1,tmp)
+
+  kernel.indexAssignmentDim0 = indicesFreeSorted[len(indicesFreeSorted)-2][1]
+  kernel.tensorAssignedDim0 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
+  kernel.indexAssignmentDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][1]
+  kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
+
+  for index in indicesBatchedSorted:
+    kernel.indexOrderC.append( index[1] )
+  for index in indicesFreeSorted:
+    kernel.indexOrderC.append( index[1] )
 
   # summation indices in order of descending A-stride + B-stride
   indicesSummationUnsorted = []
@@ -48,21 +91,22 @@ def makeIndexAssignments(kernel, problem):
   for i in range(0,len(indicesSummationSorted)):
     kernel.indexOrderSummation.append( indicesSummationSorted[i][1] )
 
-  # last index will belong to A or B, find out which
-  kernel.indexAssignmentDim1 = kernel.indexOrderC[ numIndicesC - 1 ]
-  kernel.tensorAssignedDim0 = 0
-  if kernel.indexAssignmentDim1 in problem.operation.indexAssignmentsB:
-    kernel.tensorAssignedDim0 = 1
+  unrollDimStride = indicesSummationSorted[len(indicesSummationSorted)-1][0]
 
-  # 2nd to last index must belong to other, make it so
-  kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
-      numIndicesC - 2 ]
-  kernel.tensorAssignedDim1 = 1
-  if kernel.indexAssignmentDim0 in problem.operation.indexAssignmentsA:
-    kernel.tensorAssignedDim1 = 0
-
-  if kernel.tensorAssignedDim0 == kernel.tensorAssignedDim1:
-    print "SolutionCandidateGenerator::makeIndexAssignments() - ERROR TileDim0,1 same tensor"
+  kernel.unrollDimStrideGreaterThanTileDimStride0 = \
+      indicesFreeSorted[len(indicesFreeSorted)-2][0] < unrollDimStride
+  kernel.unrollDimStrideGreaterThanTileDimStride1 = \
+      indicesFreeSorted[len(indicesFreeSorted)-1][0] < unrollDimStride
+  if kernel.tensorAssignedDim0 == 0: # A assigned dim0
+    kernel.unrollDimStrideGreaterThanTileDimStrideA = \
+        kernel.unrollDimStrideGreaterThanTileDimStride0
+    kernel.unrollDimStrideGreaterThanTileDimStrideB = \
+        kernel.unrollDimStrideGreaterThanTileDimStride1
+  else:
+    kernel.unrollDimStrideGreaterThanTileDimStrideA = \
+        kernel.unrollDimStrideGreaterThanTileDimStride1
+    kernel.unrollDimStrideGreaterThanTileDimStrideB = \
+        kernel.unrollDimStrideGreaterThanTileDimStride0
 
 ################################################################################
 # SolutionCandidateGenerator

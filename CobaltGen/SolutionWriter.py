@@ -212,8 +212,10 @@ class SolutionWriter:
         if solution.kernels[0].operation.indexAssignmentsA[j] == i:
           idx = j
           break
-      if i == solution.kernels[0].indexOrderSummation[ \
-          len(solution.kernels[0].indexOrderSummation)-1]:
+      if i == \
+            solution.kernels[0].operation.numIndicesFree \
+          + solution.kernels[0].operation.numIndicesBatch \
+          + solution.kernels[0].operation.numIndicesSummation - 1:
         s += "  kernelArgIdxSummation = numKernelArgs;\n"
       s += "  kernelArgs[numKernelArgs] = &problem.tensorA.dimensions[" \
           + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
