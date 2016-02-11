@@ -172,9 +172,9 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Operation ";
   state += "alphaType=\""+std::to_string(operation.alphaType)+"\" ";
-  state += "alpha=\""+std::to_string(operation.alpha!=nullptr)+"\" ";
+  state += "alpha=\""+std::to_string(operation.useAlpha)+"\" ";
   state += "betaType=\""+std::to_string(operation.alphaType)+"\" ";
-  state += "beta=\""+std::to_string(operation.beta!=nullptr)+"\" ";
+  state += "beta=\""+std::to_string(operation.useBeta)+"\" ";
   state += "numIndicesFree=\""+std::to_string(operation.numIndicesFree)+"\" ";
   state += "numIndicesBatch=\""+std::to_string(operation.numIndicesBatch)+"\" ";
   state += "numIndicesSummation=\""+std::to_string(operation.numIndicesSummation)+"\" ";

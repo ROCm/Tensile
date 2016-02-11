@@ -254,13 +254,13 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
  ******************************************************************************/
 
 CobaltStatus cppStringToCString(
-  std::string state, char *cstr, size_t *size ) {
+  std::string state, char *cstr, unsigned int *size ) {
   if (cstr) {
     // do copy
     if (size) {
       // copy up to size
       size_t lengthToCopy = std::min(*size-1 /* reserve space for null char*/,
-          state.size());
+          (unsigned int)state.size());
       memcpy(cstr, state.c_str(), lengthToCopy);
       cstr[lengthToCopy] = '\0';
     } else {
@@ -272,7 +272,7 @@ CobaltStatus cppStringToCString(
     // just return size
     if (size) {
       // return size
-      *size = state.size()+1; // include space for null char
+      *size = (unsigned int) (state.size()+1); // include space for null char
     } else {
       // can't do anything
       return cobaltStatusParametersInvalid;
@@ -281,25 +281,25 @@ CobaltStatus cppStringToCString(
   return cobaltStatusSuccess;
 }
 
-CobaltStatus cobaltStatusToString( CobaltStatus code, char *cstr, size_t *size ) {
+CobaltStatus cobaltStatusToString( CobaltStatus code, char *cstr, unsigned int *size ) {
   std::string state = toString(code);
   return cppStringToCString( state, cstr, size);
 }
 
 CobaltStatus cobaltDataTypeToString(
-    CobaltDataType dataType, char *cstr, size_t *size ) {
+    CobaltDataType dataType, char *cstr, unsigned int *size ) {
   std::string state = toString(dataType);
   return cppStringToCString( state, cstr, size );
 }
 
 CobaltStatus cobaltOperationToString(
-    CobaltOperationType type, char *cstr, size_t *size ) {
+    CobaltOperationType type, char *cstr, unsigned int *size ) {
   std::string state = toString(type);
   return cppStringToCString( state, cstr, size );
 }
 
 CobaltStatus cobaltProblemToString(
-    CobaltProblem problem, char *cstr, size_t *size ) {
+    CobaltProblem problem, char *cstr, unsigned int *size ) {
   std::string state = toString(problem);
   return cppStringToCString( state, cstr, size );
 }

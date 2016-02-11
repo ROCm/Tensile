@@ -109,9 +109,9 @@ class Dimension:
   def __init__( self ):
     self.stride = 0
     self.size = 0
-  def __init__( self, stride, size ):
-    self.stride = stride
-    self.size = size
+  #def __init__( self, stride, size ):
+  #  self.stride = stride
+  #  self.size = size
 
   def __str__(self):
     return "["+str(self.stride)+","+str(self.size)+"]"
@@ -131,12 +131,10 @@ class Dimension:
 # Tensor
 ################################################################################
 class Tensor:
-  def __init__(
-      self, \
-      dataType, \
-      dimensions ):
-    self.dataType = dataType
-    self.dimensions = dimensions
+  def __init__( self ):
+    self.dataType = DataType(-1)
+    self.dimensions = []
+    #print "Tensor::__init__" + str(self)
 
   def __str__(self):
     state = "[Tensor"
@@ -149,11 +147,12 @@ class Tensor:
     return self.__str__()
 
   def getAttributes(self):
-    return ( self.dataType, frozenset(self.dimensions) )
+    return ( self.dataType, frozenset(self.dimensions))
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
-    return isinstance(other, Tensor) and self.getAttributes() == other.getAttributes()
+    return isinstance(other, Tensor) \
+        and self.getAttributes() == other.getAttributes()
 
 
 ################################################################################
@@ -163,8 +162,8 @@ class Backend:
   opencl12 = 0
   hip = 1
 
-  def __init__( self, value=0 ):
-    self.value = value
+  def __init__( self ):
+    self.value = 0
 
   def __str__(self):
     if self.value == self.opencl12:
@@ -227,8 +226,6 @@ class Device:
 class DeviceProfile:
   def __init__(self):
     self.devices = []
-  def __init__(self, devices):
-    self.devices = devices
 
   def __str__(self):
     return str(self.devices)
@@ -291,28 +288,17 @@ class OperationType:
 # Operation
 ################################################################################
 class Operation:
-  def __init__( \
-      self, \
-      type = OperationType(-1), \
-      alphaType = DataType(-1), \
-      alpha = -1, \
-      betaType = DataType(-1), \
-      beta = -1, \
-      numIndicesFree = -1, \
-      numIndicesBatch = -1, \
-      numIndicesSummation = -1, \
-      indexAssignmentsA = [], \
-      indexAssignmentsB = []):
-    self.type = type
-    self.alphaType = alphaType
-    self.alpha = alpha
-    self.betaType = betaType
-    self.beta = beta
-    self.numIndicesFree = numIndicesFree
-    self.numIndicesBatch = numIndicesBatch
-    self.numIndicesSummation = numIndicesSummation
-    self.indexAssignmentsA = indexAssignmentsA
-    self.indexAssignmentsB = indexAssignmentsB
+  def __init__( self ):
+    self.type = OperationType(-1)
+    self.alphaType = DataType(-1)
+    self.alpha = -1
+    self.betaType = DataType(-1)
+    self.beta = -1
+    self.numIndicesFree = -1
+    self.numIndicesBatch = -1
+    self.numIndicesSummation = -1
+    self.indexAssignmentsA = []
+    self.indexAssignmentsB = []
     self.pad = []
     self.stride = []
 
@@ -367,18 +353,12 @@ class Operation:
 #   - Device - determined through benchmarking / file reading
 ################################################################################
 class Problem:
-  def __init__( \
-      self, \
-      tensorC, \
-      tensorA, \
-      tensorB, \
-      operation, \
-      deviceProfile ):
-    self.tensorC = tensorC
-    self.tensorA = tensorA
-    self.tensorB = tensorB
-    self.operation = operation
-    self.deviceProfile = deviceProfile
+  def __init__( self ):
+    self.tensorC = Tensor()
+    self.tensorA = Tensor()
+    self.tensorB = Tensor
+    self.operation = Operation()
+    self.deviceProfile = DeviceProfile()
 
   def __str__(self):
     state = "[Problem"
@@ -527,7 +507,6 @@ class Kernel:
     self.indexOrderSummation = []
     self.indexAssignmentDim0 = -1
     self.indexAssignmentDim1 = -1
-    #self.indexUnroll = -1
     # Tile
     self.tile = Tile()
     self.unrolls = []
@@ -542,7 +521,6 @@ class Kernel:
     state += "; " + str(self.indexOrderSummation)
     state += "; " + str(self.indexAssignmentDim0)
     state += "; " + str(self.indexAssignmentDim1)
-    state += "; " + str(self.indexUnroll)
     state += "; " + str(self.tile)
     state += "; " + str(self.unrolls)
     state += "]"
@@ -561,7 +539,6 @@ class Kernel:
         frozenset(self.indexOrderSummation), \
         self.indexAssignmentDim0, \
         self.indexAssignmentDim1, \
-        self.indexUnroll, \
         self.tile, \
         frozenset(self.unrolls), \
         )

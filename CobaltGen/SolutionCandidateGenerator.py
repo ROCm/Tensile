@@ -32,7 +32,7 @@ def makeIndexAssignments(kernel, problem):
           stride += problem.tensorA.dimensions[j].stride
       if problem.operation.indexAssignmentsB[j] == i:
           stride += problem.tensorB.dimensions[j].stride
-      indicesBatchedUnordered.append([stride, i])
+      indicesBatchedUnsorted.append([stride, i])
     else:
       stride = 0
       indexBelongsToTensor = 0

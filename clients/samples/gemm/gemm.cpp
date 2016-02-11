@@ -2,90 +2,140 @@
 #include <stdio.h>
 
 CobaltTensor createTensorForMatrix(
-    bool colMajor, bool trans, size_t numRows, size_t numCols );
-CobaltOperation createOperationForGEMM();
-void gemm( bool colMajor, bool transA, bool transB,
-    size_t M, size_t N, size_t K );
-
+    CobaltDataType dataType,
+    size_t initialStride,
+    size_t dim0,
+    size_t dim1,
+    size_t dimBatch );
+CobaltOperation createOperationGEMM(
+  CobaltDataType dataType,
+  bool transA,
+  bool transB,
+  bool alpha,
+  bool beta,
+  bool batched );
+CobaltProblem createProblemGEMM(
+    bool transA,
+    bool transB,
+    size_t M,
+    size_t N,
+    size_t K,
+    size_t initialStride,
+    size_t numBatches,
+    bool alpha,
+    bool beta,
+    CobaltDataType dataType );
 
 /*******************************************************************************
  * main
  ******************************************************************************/
 int main( char * argv[], int argc ) {
+  // transA, transB, strideMultiple, M, N, K
+  const size_t numSizes = 3;
+  size_t sizes[] = {1, 960-1, 960, 4096};
+  const size_t numStrides = 2;
+  size_t initialStrides[] = { 1, 64 };
+  const size_t numBatchSizes = 2;
+  size_t batches[] = { 1, 3 };
+  const size_t numDataTypes = 1;
+  const CobaltDataType dataTypes[] = {
+    cobaltDataTypeSingle,
+    cobaltDataTypeDouble,
+    cobaltDataTypeSingleComplex,
+    cobaltDataTypeDoubleComplex };
+  const size_t numAlphas = 1;
+  const bool alphas[] = { false, true };
+  const size_t numBetas = 1; // 2;
+  const bool betas[] = { false, true };
+  size_t numProblems = 0;
   cobaltSetup();
-  for (size_t order = 1; order < 2; order++) {
-    for (size_t transA = 0; transA < 2; transA++) {
-      for (size_t transB = 0; transB < 2; transB++) {
-        for (size_t size = 256; size <= 1024; size += 256) {
-          gemm(
-            order==1, // true means colMajor
-            transA==1, // true means do transpose
-            transB==1, // true means do transpose
-            size, // Ma
-            size, // N
-            size);// K
-        } // size
-      } // transB
-    } // transA
-  } // order
+  for (size_t transA = 0; transA < 2; transA++) {
+    for (size_t transB = 0; transB < 2; transB++) {
+      for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {
+        for (size_t nIdx = 0; nIdx < numSizes; nIdx++) {
+          for (size_t kIdx = 0; kIdx < numSizes; kIdx++) {
+            for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
+              for (size_t dtIdx = 0; dtIdx < numDataTypes; dtIdx++) {
+                for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
+                  for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
+                    for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
+                      size_t M = sizes[mIdx];
+                      size_t N = sizes[nIdx];
+                      size_t K = sizes[kIdx];
+                      size_t initStride = initialStrides[sIdx];
+                      CobaltDataType dataType = dataTypes[dtIdx];
+                      size_t numBatches = batches[bIdx];
+                      bool alpha = alphas[alphaIdx];
+                      bool beta = betas[betaIdx];
+                      CobaltProblem problem = createProblemGEMM(
+                          transA==1, // true means do transpose
+                          transB==1, // true means do transpose
+                          M, N, K,
+                          initStride,
+                          numBatches,
+                          alpha,
+                          beta,
+                          dataType );
+                      CobaltSolution *solution;
+                      CobaltStatus status = cobaltGetSolution( problem, &solution );
+                      numProblems++;
+                    } // beta
+                  } // alpha
+                } // batch
+              } // data type
+            } // stride
+          } // K
+        } // N
+      } // M
+    } // transB
+  } // transA
+  printf("Num Problems: %u\n", numProblems );
   cobaltTeardown();
+
   return 0;
 
 } // main
 
 
 /*******************************************************************************
- * gemm
+ * createProblemGEMM
  ******************************************************************************/
-void gemm(
-    bool colMajor,
+CobaltProblem createProblemGEMM(
     bool transA,
     bool transB,
     size_t M,
     size_t N,
-    size_t K ) {
-
-  // Matrix A
-  size_t numRowsA;
-  size_t numColsA;
-  if (transA==colMajor) {
-    numRowsA = K;
-    numColsA = M;
-  } else {
-    numRowsA = M;
-    numColsA = K;
-  }
-
-  // Matrix B
-  size_t numRowsB;
-  size_t numColsB;
-  if (transB==colMajor) {
-    numRowsB = N;
-    numColsB = K;
-  } else {
-    numRowsB = K;
-    numColsB = N;
-  }
-
-  // Matrix C
-  size_t numRowsC = M;
-  size_t numColsC = N;
-  if (colMajor) {
-    numRowsC = M;
-    numColsC = N;
-  } else {
-    numRowsC = N;
-    numColsC = M;
-  }
+    size_t K,
+    size_t initialStride,
+    size_t numBatches,
+    bool alpha,
+    bool beta,
+    CobaltDataType dataType ) {
 
   // problem - tensor
   CobaltProblem problem;
-  problem.tensorA = createTensorForMatrix(colMajor, transA, numRowsA, numColsA);
-  problem.tensorB = createTensorForMatrix(colMajor, transB, numRowsB, numColsB);
-  problem.tensorC = createTensorForMatrix(colMajor,  false, numRowsC, numColsC);
+  problem.tensorA = createTensorForMatrix(
+    dataType,
+    initialStride,
+    transA ? K : M,
+    transA ? M : K,
+    numBatches );
+  problem.tensorB = createTensorForMatrix(
+    dataType,
+    initialStride,
+    transB ? K : N,
+    transB ? N : K,
+    numBatches );
+  problem.tensorC = createTensorForMatrix(
+    dataType,
+    initialStride,
+    M,
+    N,
+    numBatches );
 
   // problem - operation GEMM
-  problem.operation = createOperationForGEMM();
+  problem.operation = createOperationGEMM(
+    dataType, transA, transB, alpha, beta, numBatches > 1);
 
   // problem - device problem
   problem.deviceProfile.numDevices = 1;
@@ -95,106 +145,74 @@ void gemm(
 
   // problem - validate
   CobaltStatus validationStatus = cobaltValidateProblem( problem );
-  size_t strLength;
+  unsigned int strLength;
   cobaltStatusToString(validationStatus, nullptr, &strLength);
   char *statusStr = new char[strLength];
   cobaltStatusToString(validationStatus, statusStr, &strLength);
   printf("%s\n", statusStr );
   delete[] statusStr;
-
-  // get solution
-  CobaltSolution *solution = nullptr;
-  CobaltStatus getSolutionStatus = cobaltGetSolution( problem, &solution );
-  if (cobaltStatusIsPerformanceWarning(getSolutionStatus)) {
-    printf("Warning: problem results in slow solution\n");
+  if (validationStatus != cobaltStatusSuccess) {
+    cobaltValidateProblem( problem );
   }
 
-  // control
-  CobaltControl ctrl;
-  ctrl.numDependencies = 0;
-
-  // data
-  CobaltTensorData dataA;
-  dataA.data = nullptr;
-  CobaltTensorData dataB;
-  dataB.data = nullptr;
-  CobaltTensorData dataC;
-  dataC.data = nullptr;
-
-  // enqueue solution
-  if (solution != nullptr) {
-    CobaltStatus enqueueSolutionStatus = cobaltEnqueueSolution(
-        solution, dataA, dataB, dataC, &ctrl);
-  }
+  return problem;
 }
 
 // TODO - debug this
 CobaltTensor createTensorForMatrix(
-    bool colMajor,
-    bool trans,
-    size_t numRows,
-    size_t numCols
+    CobaltDataType dataType,
+    size_t initialStride,
+    size_t dim0,
+    size_t dim1,
+    size_t dimBatch
     ) {
   CobaltTensor tensor;
-  tensor.dataType = cobaltDataTypeSingle;
+  tensor.dataType = dataType;
   tensor.numDimensions = 2;
-  if (colMajor != trans) {
-    // 0th dimension is col
-    tensor.dimensions[0].stride = 1; // incr to get to next row
-    tensor.dimensions[0].size = numRows; // how many times can we incr in this dimension
-    // 1th dimensions is row
-    tensor.dimensions[1].stride = numRows; // incr to get to next col
-    tensor.dimensions[1].size = numCols; // how many times can we incr in this dimension
-  } else {
-    // 0th dimension is col
-    tensor.dimensions[0].stride = 1; // incr to get to next col
-    tensor.dimensions[0].size = numCols; // how many time can we incr in this dimension
-    // 1th dimensions is row
-    tensor.dimensions[1].stride = numCols; // incr to get to next row
-    tensor.dimensions[1].size = numRows; // how many times can we incr in this dimension
+  tensor.dimensions[0].stride = (unsigned int) initialStride;
+  tensor.dimensions[0].size = (unsigned int) dim0;
+  tensor.dimensions[1].stride = (tensor.dimensions[0].stride*tensor.dimensions[0].size);
+  tensor.dimensions[1].size = (unsigned int) dim1;
+
+  if (dimBatch > 1) {
+    tensor.numDimensions++;
+    tensor.dimensions[2].stride = tensor.dimensions[1].stride*tensor.dimensions[1].size;
+    tensor.dimensions[2].size = (unsigned int) dimBatch;
   }
   return tensor;
 }
 
-CobaltOperation createOperationForGEMM() {
+CobaltOperation createOperationGEMM(
+  CobaltDataType dataType,
+  bool transA,
+  bool transB,
+  bool alpha,
+  bool beta,
+  bool batched ) {
   CobaltOperation operation;
   operation.type = cobaltOperationTypeContraction;
-  // C[i,j] = Sum_k A[i,k] * B[k,j]
-  //   0,u freeA
-  //   u,1 freeB
-  //       boundA 1
-  //       boundB 0
-  // numIndicesFree = 2 b/c tensorC rank 2
-  operation.alphaType = cobaltDataTypeSingle;
-  operation.alpha = nullptr;
-  operation.betaType = cobaltDataTypeSingle;
-  operation.beta = nullptr;
+  operation.useAlpha = alpha;
+  operation.alphaType = dataType;
+  //operation.alpha = nullptr;
+  operation.useBeta = beta;
+  operation.betaType = dataType;
+  //operation.beta = nullptr;
   operation.numIndicesFree = 2;
-  operation.numIndicesBatch = 0;
   operation.numIndicesSummation = 1;
-  operation.indexAssignmentsA[0] = 0; // i
-  operation.indexAssignmentsA[1] = 2; // j
-  operation.indexAssignmentsB[0] = 2; // i
-  operation.indexAssignmentsB[1] = 1; // j
-  //operation.numIndicesSummation = 1;
-  //operation.boundIndicesA[0] = 0; // k
-  //operation.boundIndicesB[0] = 1; // k
-
-  // C[i,j] = Sum_k A[i,k] * B[k,j]
-
-  //operation.numOperationIndexAssignmentsA = 2;
-  //operation.operationIndexAssignmentsA[0].type
-  //    = cobaltOperationIndexAssignmentTypeFree;
-  //operation.operationIndexAssignmentsA[0].index = 0;
-  //operation.operationIndexAssignmentsA[1].type
-  //    = cobaltOperationIndexAssignmentTypeBound;
-  //operation.operationIndexAssignmentsA[1].index = 0;
-  //operation.numOperationIndexAssignmentsB = 2;
-  //operation.operationIndexAssignmentsB[0].type
-  //    = cobaltOperationIndexAssignmentTypeBound;
-  //operation.operationIndexAssignmentsB[0].index = 1;
-  //operation.operationIndexAssignmentsB[1].type
-  //    = cobaltOperationIndexAssignmentTypeFree;
-  //operation.operationIndexAssignmentsB[1].index = 1;
+  if (batched) {
+  operation.numIndicesBatch = 1;
+  operation.indexAssignmentsA[0] = transA ? 3 : 0;
+  operation.indexAssignmentsA[1] = transA ? 0 : 3;
+  operation.indexAssignmentsA[2] = 2;
+  operation.indexAssignmentsB[0] = transB ? 1 : 3;
+  operation.indexAssignmentsB[1] = transB ? 3 : 1;
+  operation.indexAssignmentsB[2] = 2;
+  } else {
+  operation.numIndicesBatch = 0;
+  operation.indexAssignmentsA[0] = transA ? 2 : 0;
+  operation.indexAssignmentsA[1] = transA ? 0 : 2;
+  operation.indexAssignmentsB[0] = transB ? 1 : 2;
+  operation.indexAssignmentsB[1] = transB ? 2 : 1;
+  }
   return operation;
 }

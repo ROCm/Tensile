@@ -200,10 +200,12 @@ typedef struct CobaltOperation_ {
   // indexAssignmentsB: {1, 3, 4, 2, 5}
 
   CobaltOperationType type;
+  bool useAlpha; // alpha is specified
   CobaltDataType alphaType;
-  void *alpha;
+  //void *alpha;
+  bool useBeta; // beta is specified
   CobaltDataType betaType;
-  void *beta;
+  //void *beta;
   unsigned int numIndicesFree;
   unsigned int numIndicesBatch;
   unsigned int numIndicesSummation;
