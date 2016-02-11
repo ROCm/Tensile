@@ -147,7 +147,7 @@ class Tensor:
     return self.__str__()
 
   def getAttributes(self):
-    return ( self.dataType, frozenset(self.dimensions))
+    return ( self.dataType, tuple(self.dimensions))
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
@@ -234,7 +234,7 @@ class DeviceProfile:
     return self.__str__()
 
   def getAttributes(self):
-    return (frozenset(self.devices))
+    return (tuple(self.devices))
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
@@ -327,8 +327,8 @@ class Operation:
         self.numIndicesFree, \
         self.numIndicesBatch, \
         self.numIndicesSummation, \
-        frozenset(self.indexAssignmentsA), \
-        frozenset(self.indexAssignmentsB), \
+        tuple(self.indexAssignmentsA), \
+        tuple(self.indexAssignmentsB), \
         )
   def __hash__(self):
     return hash(self.getAttributes())
@@ -511,6 +511,11 @@ class Kernel:
     self.tile = Tile()
     self.unrolls = []
 
+    # frozens
+    self.indexOrderC_Frozen = []
+    self.indexOrderSummation_Frozen = []
+    self.unrolls_Frozen = []
+
   def __str__(self):
     state = "[Kernel; " + str(self.tile)
     state += "; " + str(self.dataTypeC)
@@ -535,12 +540,12 @@ class Kernel:
         self.dataTypeA, \
         self.dataTypeB, \
         self.operation, \
-        frozenset(self.indexOrderC), \
-        frozenset(self.indexOrderSummation), \
+        tuple(self.indexOrderC), \
+        tuple(self.indexOrderSummation), \
         self.indexAssignmentDim0, \
         self.indexAssignmentDim1, \
         self.tile, \
-        frozenset(self.unrolls), \
+        tuple(self.unrolls), \
         )
   def __hash__(self):
     return hash(self.getAttributes())
@@ -571,7 +576,7 @@ class Solution:
 
   def getAttributes(self):
     return ( \
-        frozenset(self.kernels), \
+        tuple(self.kernels), \
         self.kernelGrid[0], \
         self.kernelGrid[1], \
         self.branch[0], \

@@ -93,6 +93,8 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
     elif tag == "Problem": # DONE
       #print "Completed Problem:"
       #print str(self.problem)
+      if self.problem in self.problemSet:
+        print "Oops; problem already in set: " + str(self.problem)
       self.problemSet.add(copy.deepcopy(self.problem))
       self.numProblemsAdded += 1
     elif tag == "Tensor": # DONE

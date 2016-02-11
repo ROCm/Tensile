@@ -58,6 +58,8 @@ def GenBenchmarkFromFiles( \
     solutionCandidates = \
         solutionCandidateGenerator.getSolutionCandidatesForProblem( \
         problem )
+    if len(solutionCandidates) > 1000:
+      print problem
     benchmarkList.append( [problem, solutionCandidates] )
     totalSolutions += len(solutionCandidates)
     for solution in solutionCandidates:

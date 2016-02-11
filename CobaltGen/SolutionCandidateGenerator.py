@@ -116,7 +116,7 @@ class SolutionCandidateGenerator:
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
-  skinnyRatioWorkGroup = [ 1, 16]
+  skinnyRatioWorkGroup = [ 1, 2]
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
@@ -175,13 +175,13 @@ class SolutionCandidateGenerator:
     # Problem Characteristics affecting performance
     problemSizeDim0 = problem.tensorC.dimensions[ \
         kernel.indexAssignmentDim0].size
-    problemSkinnyDim0 = 0 # false
-    if problemSizeDim0 < 96:
-      problemSkinnyDim0 = 1
     problemSizeDim1 = problem.tensorC.dimensions[ \
         kernel.indexAssignmentDim1].size
+    problemSkinnyDim0 = 0 # false
+    if problemSizeDim0 < 96 and problemSizeDim1 > 1024:
+      problemSkinnyDim0 = 1
     problemSkinnyDim1 = 0
-    if problemSizeDim1 < 96:
+    if problemSizeDim1 < 96 and problemSizeDim0 > 1024:
       problemSkinnyDim1 = 1
     kernel.indexUnroll = kernel.indexOrderSummation[ \
         problem.operation.numIndicesSummation-1]
@@ -326,6 +326,7 @@ class SolutionCandidateGenerator:
                 print "ERROR - unrecognized branchType"
 
               # kernels, grid, and branching specified, now add solution
+              # print solution
               solutionCandidates.append( copy.deepcopy(solution) )
     return solutionCandidates
 

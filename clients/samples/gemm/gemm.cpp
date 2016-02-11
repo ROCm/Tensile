@@ -62,6 +62,7 @@ int main( char * argv[], int argc ) {
                       size_t M = sizes[mIdx];
                       size_t N = sizes[nIdx];
                       size_t K = sizes[kIdx];
+                      //if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       CobaltDataType dataType = dataTypes[dtIdx];
                       size_t numBatches = batches[bIdx];

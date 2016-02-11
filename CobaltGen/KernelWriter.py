@@ -710,15 +710,19 @@ class KernelWriter:
     for a in range(0, kernel.tile.microTile[0]):
       for b in range(0, kernel.tile.microTile[1]):
         numEdges = 0
-        for i in range(0, len(kernel.indexOrderC)):
-          if kernel.tile.branch[i]:
-            kStr += "  if (globalIdx" + self.indexChars[i]
-            if i == kernel.indexAssignmentDim0:
-              kStr += " + " + str(a) + "*WG_DIM0"
-            if i == kernel.indexAssignmentDim1:
-              kStr += " + " + str(b) + "*WG_DIM1"
-            kStr += " < size" + self.indexChars[i] + ") {"
-            numEdges += 1
+        #for i in range(0, len(kernel.indexOrderC)):
+        if kernel.tile.branch[0]:
+          kStr += "  if (globalIdx" \
+              + self.indexChars[kernel.indexAssignmentDim0] + " + " \
+              + str(a) + "*WG_DIM0" + " < size" \
+              + self.indexChars[kernel.indexAssignmentDim0] + ") {"
+          numEdges += 1
+        if kernel.tile.branch[1]:
+          kStr += "  if (globalIdx" \
+              + self.indexChars[kernel.indexAssignmentDim1] + " + " \
+              + str(b) + "*WG_DIM1" + " < size" \
+              + self.indexChars[kernel.indexAssignmentDim1] + ") {"
+          numEdges += 1
 
         kStr += "  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C("
         for i in range(0, len(kernel.indexOrderC)):
