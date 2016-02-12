@@ -9,7 +9,7 @@
 
 
 /*******************************************************************************
- * timeSolution
+ * timeSolution - milliseconds
  ******************************************************************************/
 double timeSolution(
     CobaltSolution *solution,
@@ -32,8 +32,12 @@ double timeSolution(
       solution->enqueue( tensorDataC, tensorDataA, tensorDataB, ctrl );
     }
     // wait for queue
+    for (size_t i = 0; i < ctrl.numQueues; i++) {
+      clFinish( ctrl.queues[i] );
+    }
     // stop timer
-    double time = timer.elapsed();
+    double time = timer.elapsed_ms();
+    //printf("%f\n", time);
     sampleTimes[sampleIdx] = time;
   } // samples
 
@@ -87,11 +91,17 @@ int main( void ) {
   ctrl.outputEvents = nullptr;
 
   // create buffers
-  tensorDataC.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status );
+  float *tensorDataHostC = new float[tensorSizeMaxC];
+  float *tensorDataHostA = new float[tensorSizeMaxA];
+  float *tensorDataHostB = new float[tensorSizeMaxB];
+  for (size_t i = 0; i < tensorSizeMaxC; i++) tensorDataHostC[i] = 0.f;
+  for (size_t i = 0; i < tensorSizeMaxA; i++) tensorDataHostA[i] = 1.f;
+  for (size_t i = 0; i < tensorSizeMaxB; i++) tensorDataHostB[i] = 1.f;
+  tensorDataC.data = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, tensorSizeMaxC, tensorDataHostC, &status );
   tensorDataC.offset = 0;
-  tensorDataA.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxA, nullptr, &status );
+  tensorDataA.data = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, tensorSizeMaxA, tensorDataHostA, &status );
   tensorDataA.offset = 0;
-  tensorDataB.data = clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxB, nullptr, &status );
+  tensorDataB.data = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, tensorSizeMaxB, tensorDataHostB, &status );
   tensorDataB.offset = 0;
 
   // initialize Candidates
@@ -100,13 +110,13 @@ int main( void ) {
   size_t problemStartIdx = 0;
   size_t problemEndIdx = numProblems;
   size_t solutionStartIdx = 0;
-  size_t solutionEndIdx;
+  size_t solutionEndIdx = 0;
 
   // for each problem
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
       problemIdx++ ) {
 
-    solutionEndIdx = numSolutionsPerProblem[problemIdx];
+    solutionEndIdx += numSolutionsPerProblem[problemIdx];
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
 
@@ -114,8 +124,10 @@ int main( void ) {
       CobaltSolution *solution = solutionCandidates[ solutionIdx ];
 
       // time solution
-      timeSolution( solution, tensorDataC, tensorDataA, tensorDataB, ctrl );
-
+      solution->enqueue( tensorDataC, tensorDataA, tensorDataB, ctrl );
+      double time = timeSolution( solution, tensorDataC, tensorDataA, tensorDataB, ctrl );
+      std::string solutionName = solution->toString(0);
+      printf("P[%04u] S[%03u] %7.3f %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solutionName.c_str() );
       // write time to result xml file
 
     } // solution loop

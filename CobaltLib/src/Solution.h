@@ -22,6 +22,7 @@ struct CobaltSolution {
       CobaltControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
+  std::string toStringXML( size_t indentLevel ) const;
 
   CobaltProblem problem; // problem used to get this solution
 
@@ -48,7 +49,7 @@ public:
       CobaltTensorData tensorDataC,
       CobaltControl & ctrl );
 
-  std::string toString( size_t indentLevel ) const;
+  virtual std::string toString( size_t indentLevel ) const = 0;
 
 protected:
   // constants
@@ -83,11 +84,7 @@ protected:
 
 };
 
-class CobaltSolutionOpenCLDummy : public CobaltSolutionOpenCL {
-public:
-  CobaltSolutionOpenCLDummy( CobaltProblem inputProblem );
 
-};
 
 #endif
 
@@ -105,7 +102,7 @@ public:
       CobaltTensorData tensorDataC,
       CobaltControl & ctrl );
 
-  virtual std::string toString( size_t indentLevel ) const;
+  std::string toString( size_t indentLevel ) const;
 
 };
 #endif

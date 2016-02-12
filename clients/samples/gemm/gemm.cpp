@@ -31,8 +31,8 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 3;
-  size_t sizes[] = {1, 960-1, 960, 4096};
+  const size_t numSizes = 1;
+  size_t sizes[] = {960-1, 960, 4096};
   const size_t numStrides = 2;
   size_t initialStrides[] = { 1, 64 };
   const size_t numBatchSizes = 2;
@@ -45,7 +45,7 @@ int main( char * argv[], int argc ) {
     cobaltDataTypeDoubleComplex };
   const size_t numAlphas = 1;
   const bool alphas[] = { false, true };
-  const size_t numBetas = 1; // 2;
+  const size_t numBetas = 1;
   const bool betas[] = { false, true };
   size_t numProblems = 0;
   cobaltSetup();
@@ -62,7 +62,7 @@ int main( char * argv[], int argc ) {
                       size_t M = sizes[mIdx];
                       size_t N = sizes[nIdx];
                       size_t K = sizes[kIdx];
-                      //if (M != N || M != K || N != K) continue;
+                      if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       CobaltDataType dataType = dataTypes[dtIdx];
                       size_t numBatches = batches[bIdx];

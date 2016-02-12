@@ -46,12 +46,12 @@ add_custom_command(
     ${CobaltBenchmark_SRC_GENERATED_STATIC}
     ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
     ${CobaltBenchmark_CMAKE_DYNAMIC}
+  #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py \
+  #  --backend=${Cobalt_BACKEND} \
+  #  --input-path=${Cobalt_DIR_PROBLEMS} \
+  #  --output-path=${Cobalt_DIR_GENERATED} \
+  #  --result-file=${Cobalt_FILE_PSM}"
   COMMAND
-    echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py \
-    --backend=${Cobalt_BACKEND} \
-    --input-path=${Cobalt_DIR_PROBLEMS} \
-    --output-path=${Cobalt_DIR_GENERATED} \
-    --result-file=${Cobalt_FILE_PSM}"
     python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
     --backend=${Cobalt_BACKEND}
     --input-path=${Cobalt_DIR_PROBLEMS}

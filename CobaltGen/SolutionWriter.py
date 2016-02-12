@@ -244,8 +244,16 @@ class SolutionWriter:
       s += "  /* beta unused */\n"
     s += "\n"
 
-# close constructor
+    # close constructor
     s += "} // end constructor\n"
+    s += "\n\n"
+
+    # toString
+    s += "/* toString */\n"
+    s += "std::string " + solutionName \
+        + "::toString( size_t indentLevel) const {\n"
+    s += "  return \"" + solutionName + "\";\n"
+    s += "}\n"
 
 # open enqueue
 # close enqueue
@@ -274,6 +282,9 @@ class SolutionWriter:
     s += "public:\n"
     s += "  /* constructor */\n"
     s += "  " + solutionName + "( CobaltProblem inputProblem );\n"
+    s += "\n"
+    s += "  std::string " + solutionName \
+        + "::toString( size_t indentLevel) const;\n"
     s += "\n"
     s += "}; // end class\n"
     return s

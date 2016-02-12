@@ -106,13 +106,6 @@ class KernelWriter:
     return kernelName
 
 
-
-
-
-
-
-
-
   ##############################################################################
   # get kernel name - DONE
   ##############################################################################
@@ -450,9 +443,9 @@ class KernelWriter:
     tileCharB = tileChar0 if (kernel.tensorAssignedDim0==1) else tileChar1
 
     ####################################
-    # global indices being loaded - TODO
+    # global tile indices being loaded - TODO
     kStr += self.endLine
-    kStr += "  /* global indices being loaded */" + self.endLine
+    kStr += "  /* global tile indices being loaded */" + self.endLine
 
     if kernel.unrollDimStrideGreaterThanTileDimStrideA:
       kStr += (
@@ -473,9 +466,29 @@ class KernelWriter:
         "#define globalIdxB" + tileCharB + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_DIM1 + (localSerial+(LID)*WG_DIM0*WG_DIM1)%MACRO_TILE_DIM1)" + self.endLine )
     kStr += self.endLine
 
-    #kStr += (
-    #  "  A += GET_GLOBAL_INDEX_A( globalARow, globalACol );" + self.endLine +
-    #  "  B += GET_GLOBAL_INDEX_B( globalBRow, globalBCol );" + self.endLine )
+    ####################################
+    # global non-tile indices being loaded (batch & outer summation)
+    kStr += "  /* global non-tile indices being loaded */" + self.endLine
+    # C free indices which don't belong to tile = groupIdx
+    # C batch = groupIdx
+    for indexC in kernel.indexOrderC:
+      if indexC == kernel.indexAssignmentDim0 \
+          or indexC == kernel.indexAssignmentDim1:
+        continue
+      if indexC in kernel.operation.indexAssignmentsA:
+        kStr += "#define globalIdxA" + self.indexChars[indexC] \
+            + "(LID) groupIdx" + self.indexChars[indexC] + self.endLine
+      if indexC in kernel.operation.indexAssignmentsB:
+        kStr += "#define globalIdxB" + self.indexChars[indexC] \
+            + "(LID) groupIdx" + self.indexChars[indexC] + self.endLine
+    # C outer summation indices which aren't unrolled = sumIdx
+    for i in range(0,len(kernel.indexOrderSummation)-1):
+      index = i + len(kernel.indexOrderC)
+      kStr += "#define globalIdxA" + self.indexChars[index] \
+            + "(LID) groupIdx" + self.indexChars[index] + self.endLine
+      kStr += "#define globalIdxB" + self.indexChars[index] \
+            + "(LID) groupIdx" + self.indexChars[index] + self.endLine
+    kStr += self.endLine
 
 
     ####################################

@@ -120,7 +120,8 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  maxMicroTileSize = 16
+  minMicroTileSize = 4 # 1
+  maxMicroTileSize = 6 # 16
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -128,6 +129,7 @@ class SolutionCandidateGenerator:
        8: [ [  8 ], [ 16, 8 ] ], \
       16: [ [ 16 ], [ 8 ] ] \
       }
+  """
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -135,6 +137,8 @@ class SolutionCandidateGenerator:
                 [24,8], [32,6], [48,4],  [64,3], [96,2], [192,1], \
       [1,256], [2,128], [4,64], [8,32], [16,16], [32,8],  [64,4],  [128,2], \
                [256,1] ]
+  """
+  universeWorkGroupDim = [ [16,16] ]
 
   universeBranch = [ Structs.BranchType(0), Structs.BranchType(1), \
       Structs.BranchType(2) ]
@@ -224,8 +228,10 @@ class SolutionCandidateGenerator:
             > self.skinnyRatioWorkGroup[problemSkinnyDim1]:
           continue
         # for all micro-tile dimensions
-        for microTileDim0 in range(1, self.maxMicroTileSize):
-          for microTileDim1 in range(1, self.maxMicroTileSize):
+        for microTileDim0 in range(self.minMicroTileSize, \
+            self.maxMicroTileSize):
+          for microTileDim1 in range(self.minMicroTileSize, \
+              self.maxMicroTileSize):
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
             # only try skinny micro-tile if problem is skinny

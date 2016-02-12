@@ -131,6 +131,8 @@ class FileWriter:
 
       # write the main CobaltSolutions.h,cpp file which #includes these
       solutionsCMakeFile.write( "  " + solutionFilePath \
+          + solutionHeaderFileName + "\n")
+      solutionsCMakeFile.write( "  " + solutionFilePath \
           + solutionSourceFileName + "\n")
       allSolutionsHeaderFile.write( "#include \"" \
           + solutionHeaderFileName + "\"\n")
@@ -241,6 +243,7 @@ class FileWriter:
       # operation.alpha
       s += "  problem.operation.alphaType = " \
           + problem.operation.alphaType.getLibString() + ";\n"
+      """
       s += "  problem.operation.alpha = &"
       if problem.operation.alphaType.value == 0:
         s += "alphaSingle"
@@ -251,10 +254,12 @@ class FileWriter:
       elif problem.operation.alphaType.value == 3:
         s += "alphaDoubleComplex"
       s += ";\n"
+      """
 
       # operation.beta
       s += "  problem.operation.betaType = " \
           + problem.operation.betaType.getLibString() + ";\n"
+      """
       s += "  problem.operation.beta = &"
       if problem.operation.betaType.value == 0:
         s += "betaSingle"
@@ -265,6 +270,7 @@ class FileWriter:
       elif problem.operation.betaType.value == 3:
         s += "betaDoubleComplex"
       s += ";\n"
+      """
 
       # operation.indices
       s += "  problem.operation.numIndicesFree = " \
