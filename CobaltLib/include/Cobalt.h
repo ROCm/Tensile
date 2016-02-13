@@ -144,10 +144,15 @@ typedef struct CobaltTensor_ {
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 
-typedef struct CobaltTensorData {
-  cl_mem data;
+typedef struct CobaltTensorData_ {
+  void *data;
   unsigned int offset;
 } CobaltTensorData;
+
+typedef struct CobaltScalarData_ {
+  void *data;
+  CobaltDataType dataType;
+} CobaltScalarData;
 
 /*******************************************************************************
  * Tensor Data - HCC
@@ -264,6 +269,8 @@ CobaltStatus cobaltEnqueueSolution(
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
     CobaltControl *control );
 
 

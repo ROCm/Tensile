@@ -19,6 +19,8 @@ struct CobaltSolution {
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
       CobaltTensorData tensorDataC,
+      CobaltScalarData alpha,
+      CobaltScalarData beta,
       CobaltControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
@@ -47,6 +49,8 @@ public:
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
       CobaltTensorData tensorDataC,
+      CobaltScalarData alpha,
+      CobaltScalarData beta,
       CobaltControl & ctrl );
 
   virtual std::string toString( size_t indentLevel ) const = 0;
@@ -100,6 +104,8 @@ public:
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
       CobaltTensorData tensorDataC,
+      CobaltScalarData alpha,
+      CobaltScalarData beta,
       CobaltControl & ctrl );
 
   std::string toString( size_t indentLevel ) const;

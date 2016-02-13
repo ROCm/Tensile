@@ -5,18 +5,20 @@
 
 
 /*******************************************************************************
- * ReferenceTensorContraction
+ * CobaltSolutionTensorContractionCPU
  * - compute tensor contraction on cpu using simple/slow loops
  ******************************************************************************/
-class ReferenceTensorContraction : CobaltSolution {
+class CobaltSolutionTensorContractionCPU : public CobaltSolution {
 public:
-  ReferenceTensorContraction( CobaltProblem inputProblem );
+  CobaltSolutionTensorContractionCPU( CobaltProblem inputProblem );
 
-  virtual CobaltStatus enqueue(
+  CobaltStatus enqueue(
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
       CobaltTensorData tensorDataC,
+      CobaltScalarData alpha,
+      CobaltScalarData beta,
       CobaltControl & ctrl );
 
-  virtual std::string toString( size_t indentLevel ) const;
+  std::string toString( size_t indentLevel ) const;
 };

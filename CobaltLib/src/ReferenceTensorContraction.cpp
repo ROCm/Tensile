@@ -8,7 +8,7 @@
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-ReferenceTensorContraction::ReferenceTensorContraction(
+CobaltSolutionTensorContractionCPU::CobaltSolutionTensorContractionCPU(
     CobaltProblem inputProblem )
   : CobaltSolution(inputProblem) {
 }
@@ -24,10 +24,12 @@ size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
 /*******************************************************************************
  * enqueue
  ******************************************************************************/
-CobaltStatus ReferenceTensorContraction::enqueue(
+CobaltStatus CobaltSolutionTensorContractionCPU::enqueue(
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
     CobaltTensorData tensorDataC,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
   // pointers to data
@@ -127,6 +129,6 @@ CobaltStatus ReferenceTensorContraction::enqueue(
 /*******************************************************************************
  * toString
  ******************************************************************************/
-std::string ReferenceTensorContraction::toString( size_t indentLevel ) const {
-  return "TODO";
+std::string CobaltSolutionTensorContractionCPU::toString( size_t indentLevel ) const {
+  return "CobaltSolutionTensorContractionCPU";
 }

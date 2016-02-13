@@ -137,6 +137,8 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
     CobaltTensorData tensorDataC,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
     CobaltControl & ctrl ) {
   cl_int status;
   cl_uint workDim = 2;
@@ -166,9 +168,9 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
           kernelIdx += 2;
         }
         // data pointers
-        status = clSetKernelArg( kernels[kernelIdx], 0, sizeof(cl_mem), tensorDataC.data );
-        status = clSetKernelArg( kernels[kernelIdx], 1, sizeof(cl_mem), tensorDataA.data );
-        status = clSetKernelArg( kernels[kernelIdx], 2, sizeof(cl_mem), tensorDataB.data );
+        status = clSetKernelArg( kernels[kernelIdx], 0, sizeof(cl_mem), &tensorDataC.data );
+        status = clSetKernelArg( kernels[kernelIdx], 1, sizeof(cl_mem), &tensorDataA.data );
+        status = clSetKernelArg( kernels[kernelIdx], 2, sizeof(cl_mem), &tensorDataB.data );
 
         // tensorC offsets
         unsigned int tensorOffsetCd0 = d0*problem.tensorC.dimensions[indexAssignmentCd0].stride/kernelGrid[0];
@@ -258,6 +260,8 @@ CobaltStatus CobaltSolutionLogOnly::enqueue(
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
     CobaltTensorData tensorDataC,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
     CobaltControl & ctrl ) {
   printf("CobaltSolutionLogOnly::enqueue()\n");
   return cobaltStatusSuccess;

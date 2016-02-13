@@ -2,6 +2,7 @@
 #include "Logger.h"
 #include <assert.h>
 #include <stdio.h>
+#include "ReferenceTensorContraction.h"
 
 #if Cobalt_SOLVER_ENABLED
 #include "CobaltGetSolution.h"
@@ -43,18 +44,48 @@ bool cobaltStatusIsPerformanceWarning( CobaltStatus status ) {
 /*******************************************************************************
  * cobaltGetSolution
  ******************************************************************************/
+CobaltStatus cobaltGetSolutionCPU(
+    CobaltProblem problem,
+    CobaltSolution **solution ) {
+  bool problemIsTensorContraction = true;
+
+  if (problemIsTensorContraction) {
+    *solution = new CobaltSolutionTensorContractionCPU( problem );
+    return cobaltStatusSuccess;
+  } else {
+  // TODO - reorganize to include CPU convolution also
+    return cobaltStatusProblemNotSupported;
+  }
+}
+
+
 CobaltStatus cobaltGetSolution(
     CobaltProblem problem,
     CobaltSolution **solution ) {
 
-  // request solution
   CobaltStatus status;
+
+  // if devices
+  if (problem.deviceProfile.numDevices) {
+    
+    // cpu device
+    if (problem.deviceProfile.devices[0].name == "cpu") {
+      status = cobaltGetSolutionCPU( problem, solution );
+
+    // gpu device
+    } else {
 #if Cobalt_SOLVER_ENABLED
-  status = cobaltGetSolutionTop( problem, solution );
+      status = cobaltGetSolutionGenerated( problem, solution );
 #else
-  *solution = new CobaltSolutionLogOnly(problem);
-  status = cobaltStatusSuccess;
+      *solution = new CobaltSolutionLogOnly(problem);
+      status = cobaltStatusSuccess;
 #endif
+    }
+
+  // no devices
+  } else {
+    status = cobaltStatusDeviceProfileNumDevicesInvalid;
+  }
 
 #if Cobalt_LOGGER_ENABLED
   Cobalt::logger.logGetSolution(*solution, status);
@@ -68,13 +99,16 @@ CobaltStatus cobaltGetSolution(
  ******************************************************************************/
 CobaltStatus cobaltEnqueueSolution(
     CobaltSolution *solution,
-    CobaltTensorData a,
-    CobaltTensorData b,
-    CobaltTensorData c,
+    CobaltTensorData tensorDataC,
+    CobaltTensorData tensorDataA,
+    CobaltTensorData tensorDataB,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
     CobaltControl *ctrl ) {
   CobaltStatus status = cobaltStatusSuccess;
 #if Cobalt_SOLVER_ENABLED
-  status = solution->enqueue( a, b, c, *ctrl );
+  status = solution->enqueue( tensorDataC, tensorDataA, tensorDataB,
+      alpha, beta, *ctrl );
 #endif
 #if Cobalt_LOGGER_ENABLED
   Cobalt::logger.logEnqueueSolution(solution, status, ctrl);
