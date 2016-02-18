@@ -1,5 +1,6 @@
 
 #include "StructOperations.h"
+#include "Solution.h"
 #include <assert.h>
 #include <string>
 #include <stdio.h>
@@ -82,8 +83,8 @@ std::string toString( CobaltDataType dataType ) {
   switch( dataType ) {
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingle )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDouble )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingleComplex )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDoubleComplex )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexSingle )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexDouble )
   default:
     return "Error in toString(CobaltDataType): no switch case for: "
         + std::to_string(dataType);
@@ -164,17 +165,17 @@ std::string toStringXML( const CobaltProblem problem, size_t indentLevel ) {
   return state;
 }
 
-std::string toStringXML( const CobaltSolution *solution, size_t indentLevel ) {
+std::string toStringXML( const CobaltSolutionBase *solution, size_t indentLevel ) {
   return solution->toString(indentLevel);
 }
 
 std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Operation ";
+  state += "useAlpha=\""+std::to_string(operation.useAlpha)+"\" ";
   state += "alphaType=\""+std::to_string(operation.alphaType)+"\" ";
-  state += "alpha=\""+std::to_string(operation.useAlpha)+"\" ";
+  state += "useBeta=\""+std::to_string(operation.useBeta)+"\" ";
   state += "betaType=\""+std::to_string(operation.alphaType)+"\" ";
-  state += "beta=\""+std::to_string(operation.useBeta)+"\" ";
   state += "numIndicesFree=\""+std::to_string(operation.numIndicesFree)+"\" ";
   state += "numIndicesBatch=\""+std::to_string(operation.numIndicesBatch)+"\" ";
   state += "numIndicesSummation=\""+std::to_string(operation.numIndicesSummation)+"\" ";
@@ -406,9 +407,9 @@ bool operator< ( const CobaltControl & l, const CobaltControl & r ) {
 }
 
 // CobaltSolution
-bool operator< ( const CobaltSolution & l, const CobaltSolution & r ) {
+bool operator< ( const CobaltSolutionBase & l, const CobaltSolutionBase & r ) {
   // problem
-  return l.problem < r.problem;
+  return l.getProblem() < r.getProblem();
 }
 
 // get size of CobaltDataType
@@ -418,9 +419,9 @@ size_t getCobaltDataTypeSize( CobaltDataType type ) {
     return sizeof(float);
   case cobaltDataTypeDouble:
     return sizeof(double);
-  case cobaltDataTypeSingleComplex:
+  case cobaltDataTypeComplexSingle:
     return 2*sizeof(float);
-  case cobaltDataTypeDoubleComplex:
+  case cobaltDataTypeComplexDouble:
     return 2*sizeof(double);
   default:
     return -1;

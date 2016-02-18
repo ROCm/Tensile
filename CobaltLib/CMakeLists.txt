@@ -44,7 +44,6 @@ set( CobaltLib_SRC_STATIC
 if ( Cobalt_BUILD_MODE MATCHES "Cobalt_BUILD_MODE_LOGGER")
   add_definitions( -DCobalt_LOGGER_ENABLED=1)
   add_definitions( -DCobalt_SOLVER_ENABLED=0)
-  source_group( source FILES ${CobaltLib_SRC_STATIC} )
 
 else()
 ################################################################################
@@ -98,7 +97,10 @@ else()
   )
   source_group( CobaltGenBackend FILES ${CobaltGenBackend_SRC} )
 endif()
-add_definitions(-DLOG_FILE_PREFIX="${Cobalt_FILE_PROBLEMS}")
+
+add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
+add_definitions(-DCobalt_DIR_PSM="${Cobalt_DIR_PSM}")
+add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")
 
 
 

@@ -290,10 +290,10 @@ class OperationType:
 class Operation:
   def __init__( self ):
     self.type = OperationType(-1)
+    self.useAlpha = -1
     self.alphaType = DataType(-1)
-    self.alpha = -1
+    self.useBeta = -1
     self.betaType = DataType(-1)
-    self.beta = -1
     self.numIndicesFree = -1
     self.numIndicesBatch = -1
     self.numIndicesSummation = -1
@@ -306,8 +306,10 @@ class Operation:
     state = ""
     state += "[Operation"
     state += "; " + str(self.type)
-    state += "; " + str(self.alpha)
-    state += "; " + str(self.beta)
+    state += "; " + str(self.useAlpha)
+    state += "; " + str(self.alphaType)
+    state += "; " + str(self.useBeta)
+    state += "; " + str(self.betaType)
     state += "; " + str(self.numIndicesFree)
     state += "; " + str(self.numIndicesBatch)
     state += "; " + str(self.numIndicesSummation)
@@ -322,8 +324,10 @@ class Operation:
   def getAttributes(self):
     return ( \
         self.type, \
-        self.alpha, \
-        self.beta, \
+        self.useAlpha, \
+        self.alphaType, \
+        self.useBeta, \
+        self.betaType, \
         self.numIndicesFree, \
         self.numIndicesBatch, \
         self.numIndicesSummation, \

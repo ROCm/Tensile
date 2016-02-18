@@ -94,12 +94,20 @@ double timeSolution(
 int main( int argc, char *argv[] ) {
 
   bool doValidation = false;
+  bool doValidationKernels = false;
   for ( int argIdx = 0; argIdx < argc; argIdx++) {
-    printf(argv[argIdx]);
-    if (argv[argIdx] == "--enable-validation" ) {
+    char *arg = argv[argIdx];
+    printf(arg);
+    if ( strcmp(arg, "--validate")==0 ) {
       doValidation = true;
     }
+    if (strcmp( arg, "--validate-kernels")==0 ) {
+      doValidationKernels = true;
+    }
   }
+
+  // setup Cobalt
+  cobaltSetup("CobaltBenchmark");
 
   // creat CobaltControl
   CobaltStatus cobaltStatus;
@@ -169,14 +177,21 @@ int main( int argc, char *argv[] ) {
 
   // scalars
   CobaltScalarData alpha;
-  alpha.data = nullptr;
+  float alphaArray[] = { 2.0, 3.0, 4.0, 5.0 };
+  alpha.data = &alphaArray[0];
   alpha.dataType = cobaltDataTypeSingle;
   CobaltScalarData beta;
-  beta.data = nullptr;
+  float betaArray[] = { 6.0, 7.0, 8.0, 9.0 };
+  beta.data = &betaArray[0];
   beta.dataType = cobaltDataTypeSingle;
 
   // initialize Candidates
   initializeSolutionCandidates();
+
+  // reference device
+  CobaltDeviceProfile deviceProfileReference;
+  deviceProfileReference.numDevices = 1;
+  sprintf_s(deviceProfileReference.devices[0].name, "cpu" );
 
   size_t problemStartIdx = 0;
   size_t problemEndIdx = numProblems;
@@ -192,23 +207,25 @@ int main( int argc, char *argv[] ) {
         solutionIdx++ ) {
 
       // get solution candidate
-      CobaltSolution *solution = solutionCandidates[ solutionIdx ];
+      CobaltSolutionBase *solution = solutionCandidates[ solutionIdx ];
       // ensure kernels are compiled before timing
       solution->enqueue( tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl );
 
       // validate before enqueueing multiple times
       if (doValidation) {
+        printf("doing validation\n");
         // get cpu result
-        CobaltSolution *solutionCPU;
-        CobaltProblem problem = problems[problemIdx];
-        cobaltStatus = cobaltGetSolution( problems[problemIdx], &solutionCPU );
-        cobaltStatus = cobaltEnqueueSolution( solutionCPU, tensorDataValidationC, tensorDataValidationA,
+        CobaltSolution *solutionReference;
+        CobaltProblem problemReference = problems[problemIdx];
+        problemReference.deviceProfile = deviceProfileReference;
+        cobaltStatus = cobaltGetSolution( problemReference, &solutionReference );
+        cobaltStatus = cobaltEnqueueSolution( solutionReference, tensorDataValidationC, tensorDataValidationA,
           tensorDataValidationB, alpha, beta, &ctrlValidation );
         // get gpu result
         for ( unsigned int q = 0; q < ctrl.numQueues; q++) {
           status = clFinish( ctrl.queues[q] );
         }
-        compareTensors( tensorDataC, tensorDataValidationC, problem.tensorC, ctrl );
+        compareTensors( tensorDataC, tensorDataValidationC, problemReference.tensorC, ctrl );
       }
 
       // time solution
@@ -222,7 +239,7 @@ int main( int argc, char *argv[] ) {
     solutionStartIdx = solutionEndIdx;
     
   } // problem loop
-
+  cobaltTeardown();
   return 0;
 }
 

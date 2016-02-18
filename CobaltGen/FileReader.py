@@ -46,14 +46,12 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
       self.tensor.dimensions.append( dim )
       pass
     elif tag == "Operation":
+      self.problem.operation.useAlpha = int(attributes["useAlpha"])
       self.problem.operation.alphaType = \
           Structs.DataType(int(attributes["alphaType"]))
-      self.problem.operation.alpha = \
-          int(attributes["alpha"])
+      self.problem.operation.useBeta = int(attributes["useBeta"])
       self.problem.operation.betaType = \
           Structs.DataType(int(attributes["betaType"]))
-      self.problem.operation.beta = \
-          int(attributes["beta"])
       self.problem.operation.numIndicesFree = \
           int(attributes["numIndicesFree"])
       self.problem.operation.numIndicesBatch = \
@@ -138,156 +136,20 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
 
 
 
-
-
-
-
-
-
-"""
-from xml.dom.minidom import parse
-import xml.dom.minidom
-
-################################################################################
-# getTensorFromElement
-################################################################################
-def getTensorFromElement( element ):
-  dataType = Structs.DataType(-1)
-  dataTypeString = element.getAttribute("dataType")
-  if dataTypeString == "cobaltDataTypeSingle":
-    dataType = Structs.DataType(0)
-  elif dataTypeString == "cobaltDataTypeDouble":
-    dataType = Structs.DataType(1)
-  elif dataTypeString == "cobaltDataTypeSingleComplex":
-    dataType = Structs.DataType(2)
-  elif dataTypeString == "cobaltDataTypeDoubleComplex":
-    dataType = Structs.DataType(3)
-  else:
-    print "Tensor dataType string \"" + dataTypeString + "\" unrecognized"
-  dims = []
-  dimElements = element.getElementsByTagName("Dimension")
-  for dimElement in dimElements:
-    dims.append( Structs.Dimension( \
-        int(dimElement.getAttribute("stride")), \
-        int(dimElement.getAttribute("size")) ) )
-  return Structs.Tensor( dataType, dims )
-
-
-################################################################################
-# getOperationFromElement
-################################################################################
-def getOperationFromElement( element ):
-
-  # type
-  operationTypeStr = \
-    element.getElementsByTagName("Type")[0].getAttribute("string")
-  operationType = Structs.OperationType(-1)
-  if operationTypeStr == "cobaltOperationTypeContraction":
-    operationType = Structs.OperationType(0)
-  elif operationTypeStr == "cobaltOperationTypeConvolution":
-    operationType = Structs.OperationType(1)
-  elif operationTypeStr == "cobaltOperationTypeCorrelation":
-    operationType = Structs.OperationType(2)
-  else:
-    print "OperationType " + operationTypeStr + " unrecognized."
-
-  # alpha, beta, numIndices
-  alphaType = Structs.DataType(int(element.getAttribute("alphaType")))
-  alpha = int(element.getAttribute("alpha"))
-  betaType = Structs.DataType( int(element.getAttribute("betaType")))
-  beta = int(element.getAttribute("beta"))
-  numIndicesFree = int(element.getAttribute("numIndicesFree"))
-  numIndicesBatch = int(element.getAttribute("numIndicesBatch"))
-  numIndicesSummation = int(element.getAttribute("numIndicesSummation"))
-
-  # indexAssignmentsA
-  indexAssignmentsElements = element.getElementsByTagName("IndexAssignments")
-  indexAssignmentElementsA = \
-      indexAssignmentsElements[0].getElementsByTagName("IndexAssignment")
-  indexAssignmentsA = []
-  for indexAssignmentElement in indexAssignmentElementsA:
-    indexAssignmentsA.append( \
-        int(indexAssignmentElement.getAttribute("indexAssignment")) )
-
-  # indexAssignmentsB
-  indexAssignmentElementsB = \
-      indexAssignmentsElements[1].getElementsByTagName("IndexAssignment")
-  indexAssignmentsB = []
-  for indexAssignmentElement in indexAssignmentElementsB:
-    indexAssignmentsB.append( \
-        int(indexAssignmentElement.getAttribute("indexAssignment")) )
-
-  return Structs.Operation( \
-      operationType, \
-      alphaType, \
-      alpha, \
-      betaType, \
-      beta, \
-      numIndicesFree, \
-      numIndicesBatch, \
-      numIndicesSummation, \
-      indexAssignmentsA, \
-      indexAssignmentsB )
-
-
-################################################################################
-# getDeviceProfileFromElement
-################################################################################
-def getDeviceProfileFromElement( element ):
-  devices = []
-  deviceElements = \
-      element.getElementsByTagName("Device")
-  for deviceElement in deviceElements:
-    devices.append( Structs.Device( \
-        deviceElement.getAttribute("name"), \
-        int(deviceElement.getAttribute("numComputeUnits")), \
-        int(deviceElement.getAttribute("clockFrequency")) ) )
-  return Structs.DeviceProfile( devices )
-"""
-
-
 ################################################################################
 # getProblemsFromXML
 ################################################################################
 def getProblemsFromXML( inputFile, problemSet ):
-  """
-  DOMTree = xml.dom.minidom.parse( inputFile )
-  log = DOMTree.documentElement
-  getSolutionCalls = log.getElementsByTagName("GetSolution")
-  for getSolutionCall in getSolutionCalls:
-    solution = getSolutionCall.getElementsByTagName("Solution")[0]
-    problem = solution.getElementsByTagName("Problem")[0]
-
-    # tensors
-    tensorElements = problem.getElementsByTagName("Tensor")
-    tensorC = getTensorFromElement(tensorElements[0])
-    tensorA = getTensorFromElement(tensorElements[1])
-    tensorB = getTensorFromElement(tensorElements[2])
-
-    # device profile
-    deviceProfileElement = problem.getElementsByTagName("DeviceProfile")[0]
-    deviceProfile = getDeviceProfileFromElement(deviceProfileElement)
-
-    # operation
-    operationElement = problem.getElementsByTagName("Operation")[0]
-    operation = getOperationFromElement( operationElement )
-
-    # problem
-    problem = Structs.Problem( \
-        tensorA, \
-        tensorB, \
-        tensorC, \
-        operation, \
-        deviceProfile )
-    problemSet.add(problem)
-  """
-  print "getProblemsFromXML"
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   appProblemsHandler = AppProblemsHandler(problemSet)
   parser.setContentHandler( appProblemsHandler )
-  parser.parse( inputFile )
-  print "AppProblemsHandler::NumProblemsAdded = " + str(appProblemsHandler.numProblemsAdded)
+  try:
+    parser.parse( inputFile )
+    print inputFile + " added " + str(appProblemsHandler.numProblemsAdded) \
+        + " problems"
+  except:
+    print inputFile + " error"
 
 
 ################################################################################

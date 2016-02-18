@@ -83,9 +83,12 @@ class FileWriter:
       # write the main CobaltKernels.h,cpp file which #includes these
       kernelsCMakeFile.write( "  " + kernelFilePath \
           + kernelSourceFileName + "\n")
+      kernelsCMakeFile.write( "  " + kernelFilePath \
+          + kernelHeaderFileName + "\n")
       allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\r")
 
     kernelsCMakeFile.write(")\n")
+    kernelsCMakeFile.write("source_group(Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n")
     kernelsCMakeFile.close()
     allKernelsHeaderFile.close()
 
@@ -138,6 +141,7 @@ class FileWriter:
           + solutionHeaderFileName + "\"\n")
 
     solutionsCMakeFile.write(")\n")
+    solutionsCMakeFile.write("source_group(Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n")
     solutionsCMakeFile.close()
     allSolutionsHeaderFile.close()
 
@@ -187,7 +191,7 @@ class FileWriter:
     # DeviceProfile
     s += "  CobaltDeviceProfile deviceProfile;\n"
     s += "  deviceProfile.numDevices = 1;\n"
-    #s += "  deviceProfile.devices[0].name = \"TODO\";\n"
+    s += "  sprintf_s(deviceProfile.devices[0].name, \"TODO\" );\n"
     s += "  deviceProfile.devices[0].numComputeUnits = -1;\n"
     s += "  deviceProfile.devices[0].clockFrequency = -1;\n"
     s += "  CobaltProblem problem;\n"
@@ -207,6 +211,8 @@ class FileWriter:
 
       # problem.tensorC
       s += "/* problem " + str(problemIdx) + "/" + str(numProblems) + " */\n"
+      s += "  problem.tensorC.dataType = " \
+          + problem.tensorC.dataType.getLibString() + ";\n"
       tensorDimC = len(problem.tensorC.dimensions)
       s += "  problem.tensorC.numDimensions = " + str(tensorDimC) + ";\n"
       for i in range(0,tensorDimC):
@@ -216,6 +222,8 @@ class FileWriter:
             + str(problem.tensorC.dimensions[i].size) + ";\n"
 
       # problem.tensorA
+      s += "  problem.tensorA.dataType = " \
+          + problem.tensorA.dataType.getLibString() + ";\n"
       tensorDimA = len(problem.tensorA.dimensions)
       s += "  problem.tensorA.numDimensions = " + str(tensorDimA) + ";\n"
       for i in range(0,tensorDimA):
@@ -225,6 +233,8 @@ class FileWriter:
             + str(problem.tensorA.dimensions[i].size) + ";\n"
 
       # problem.tensorB
+      s += "  problem.tensorB.dataType = " \
+          + problem.tensorB.dataType.getLibString() + ";\n"
       tensorDimB = len(problem.tensorB.dimensions)
       s += "  problem.tensorB.numDimensions = " + str(tensorDimB) + ";\n"
       for i in range(0,tensorDimB):
@@ -241,36 +251,16 @@ class FileWriter:
           + problem.operation.type.getLibString() + ";\n"
 
       # operation.alpha
+      s += "  problem.operation.useAlpha = " \
+          + ( "true" if problem.operation.useAlpha else "false" ) + ";\n"
       s += "  problem.operation.alphaType = " \
           + problem.operation.alphaType.getLibString() + ";\n"
-      """
-      s += "  problem.operation.alpha = &"
-      if problem.operation.alphaType.value == 0:
-        s += "alphaSingle"
-      elif problem.operation.alphaType.value == 1:
-        s += "alphaDouble"
-      if problem.operation.alphaType.value == 2:
-        s += "alphaSingleComplex"
-      elif problem.operation.alphaType.value == 3:
-        s += "alphaDoubleComplex"
-      s += ";\n"
-      """
 
       # operation.beta
+      s += "  problem.operation.useBeta = " \
+          + ( "true" if problem.operation.useBeta else "false" ) + ";\n"
       s += "  problem.operation.betaType = " \
           + problem.operation.betaType.getLibString() + ";\n"
-      """
-      s += "  problem.operation.beta = &"
-      if problem.operation.betaType.value == 0:
-        s += "betaSingle"
-      elif problem.operation.betaType.value == 1:
-        s += "betaDouble"
-      if problem.operation.betaType.value == 2:
-        s += "betaSingleComplex"
-      elif problem.operation.betaType.value == 3:
-        s += "betaDoubleComplex"
-      s += ";\n"
-      """
 
       # operation.indices
       s += "  problem.operation.numIndicesFree = " \

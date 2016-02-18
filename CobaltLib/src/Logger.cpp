@@ -8,7 +8,7 @@ namespace Cobalt {
  ******************************************************************************/
 Logger::TraceEntry::TraceEntry(
     TraceEntryType inputType,
-    const CobaltSolution *inputSolution,
+    const CobaltSolutionBase *inputSolution,
     CobaltStatus inputStatus
     )
     : type(inputType),
@@ -50,10 +50,14 @@ std::string Logger::toString( Logger::TraceEntryType type ) {
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-Logger::Logger( std::string logFilePrefix) {
-  printf("Logger::Logger(%s)\n", logFilePrefix.c_str() );
-  std::string logFileName = logFilePrefix;
-  file.open( logFileName, std::fstream::out );
+Logger::Logger() {
+}
+
+void Logger::init( std::string logFileName) {
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  logFilePath += "/" + logFileName + "_log.xml";
+  printf("Logger::init(%s)\n", logFilePath.c_str() );
+  file.open( logFilePath, std::fstream::out );
   file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n";
   file << "<CobaltLog>\n\n";
   file << Logger::comment("Trace");
@@ -75,7 +79,7 @@ Logger::~Logger() {
  * log get solution
  ******************************************************************************/
 void Logger::logGetSolution(
-    const CobaltSolution *solution,
+    const CobaltSolutionBase *solution,
     CobaltStatus status ) {
   printf("Logger::logGetSolution(%p)\n", solution );
   // create entry
@@ -91,7 +95,7 @@ void Logger::logGetSolution(
  * log enqueue solution
  ******************************************************************************/
 void Logger::logEnqueueSolution(
-    const CobaltSolution *solution,
+    const CobaltSolutionBase *solution,
     CobaltStatus status,
     const CobaltControl *ctrl ) {
   printf("Logger::logEnqueueSolution(%p)\n", solution );
@@ -131,7 +135,7 @@ void Logger::flush() {
  * summaryEntryToString
  ******************************************************************************/
 std::string summaryEntryToString(
-    std::string tag,const CobaltSolution *solution,
+    std::string tag, const CobaltSolutionBase *solution,
     size_t count, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
@@ -151,9 +155,9 @@ void Logger::writeSummary() {
   file << comment("Summary of Problem::getSolution()");
   file << "<SummaryGetSolution numEntries=\""
       + std::to_string(getSummary.size()) + "\" >\n";
-  std::map<const CobaltSolution*, unsigned long long>::iterator i;
+  std::map<const CobaltSolutionBase*, unsigned long long>::iterator i;
   for ( i = getSummary.begin(); i != getSummary.end(); i++) {
-    const CobaltSolution *solution = i->first;
+    const CobaltSolutionBase *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
@@ -167,7 +171,7 @@ void Logger::writeSummary() {
   file << "<SummaryEnqueueSolution numEntries=\""
       + std::to_string(enqueueSummary.size()) + "\" >\n";
   for ( i = enqueueSummary.begin(); i != enqueueSummary.end(); i++) {
-    const CobaltSolution *solution = i->first;
+    const CobaltSolutionBase *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
@@ -184,6 +188,6 @@ void Logger::writeSummary() {
 
 
 // global logger object
-Logger logger(LOG_FILE_PREFIX);
+//Logger logger(LOG_FILE_PREFIX);
 
 } // namespace Cobalt

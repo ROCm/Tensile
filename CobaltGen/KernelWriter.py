@@ -63,14 +63,14 @@ class KernelWriter:
 
     # alpha
     kernelName += "a"
-    if kernel.operation.alpha:
+    if kernel.operation.useAlpha:
       kernelName += "1"
     else:
       kernelName += "0"
 
     # beta
     kernelName += "b"
-    if kernel.operation.beta:
+    if kernel.operation.useBeta:
       kernelName += "1"
     else:
       kernelName += "0"
@@ -144,9 +144,9 @@ class KernelWriter:
     for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
     # alpha & beta
-    if kernel.operation.alpha:
+    if kernel.operation.useAlpha:
       s += "," + self.endLine + "  DATA_TYPE_STR_C const alpha"
-    if kernel.operation.beta:
+    if kernel.operation.useBeta:
       s += "," + self.endLine + "  DATA_TYPE_STR_C const beta"
     # TODO - if convolution, need stride and pad for each sum dim
     s += " )"
@@ -250,8 +250,8 @@ class KernelWriter:
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
           + "DST = mad(MULA,MULB,DST);" + self.endLine
-      if kernel.operation.alpha:
-        if kernel.operation.beta:
+      if kernel.operation.useAlpha:
+        if kernel.operation.useBeta:
           # dst = alpha*reg + beta*dst
           kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) " \
               + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
@@ -260,7 +260,7 @@ class KernelWriter:
           kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG) " \
               + "DST = (ALPHA)*(REG);" + self.endLine
       else:
-        if kernel.operation.beta:
+        if kernel.operation.useBeta:
           # dst = reg + beta*dst
           kStr += "#define TYPE_MAD_WRITE(DST,REG,BETA) " \
               + "DST = (REG) + (BETA)*(DST);" + self.endLine
@@ -302,8 +302,8 @@ class KernelWriter:
           "  DST.s0 = mad(  MULA.s1, -MULB.s1, DST.s0 ); \\\\" + self.endLine +
           "  DST.s1 = mad(  MULA.s0, -MULB.s1, DST.s1 ); \\\\" + self.endLine +
           "  DST.s1 = mad( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel.operation.alpha:
-        if kernel.operation.beta:
+      if kernel.operation.useAlpha:
+        if kernel.operation.useBeta:
           # dst = alpha*reg + beta*dst
           kStr += (
             "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) \\\\" + self.endLine +
@@ -333,7 +333,7 @@ class KernelWriter:
             "  /* (3) */ \\\\" + self.endLine +
             "  DST = REG;" + self.endLine )
       else:
-        if kernel.operation.beta:
+        if kernel.operation.useBeta:
           # dst = reg + beta*dst
           kStr += (
             "#define TYPE_MAD_WRITE( DST, REG, BETA ) \\\\" + self.endLine +
@@ -747,10 +747,10 @@ class KernelWriter:
           if i < len(kernel.indexOrderC)-1:
             kStr += ","
         kStr += ") ]"
-        if kernel.operation.alpha:
+        if kernel.operation.useAlpha:
           kStr += ", alpha"
         kStr += ", rC[%d][%d]" % (a, b)
-        if kernel.operation.beta:
+        if kernel.operation.useBeta:
           kStr += ", beta"
         kStr += ")"
         for i in range(0,numEdges):
@@ -799,25 +799,23 @@ def testGEMM():
   numIndicesSummation = 1
   indexAssignmentsA = [2, 0]
   indexAssignmentsB = [2, 1]
-  alpha = False
-  beta = False
+  useAlpha = False
+  useBeta = False
   operation = Structs.Operation( \
       operationType, \
-      alpha, \
-      beta, \
+      useAlpha, \
+      useBeta, \
       numFreeIndices, \
       numIndicesBatch, \
       numIndicesSummation, \
       indexAssignmentsA, \
       indexAssignmentsB )
 
-  kernel = Kernel(\
+  kernel = Structs.Kernel(\
       operation, \
       tensorA, \
       tensorB, \
-      tensorC, \
-      alpha, \
-      beta )
+      tensorC )
 
   kernel.assignTile( 16, 16, 4, 4, 64, 64, 16 )
 
@@ -896,16 +894,14 @@ def testAdvanced():
       numIndicesSummation, \
       indexAssignmentsA, \
       indexAssignmentsB )
-  alpha = False
-  beta = False
+  useAlpha = False
+  useBeta = False
 
   kernel = Kernel(\
       operation, \
       tensorA, \
       tensorB, \
-      tensorC, \
-      alpha, \
-      beta )
+      tensorC )
 
   kernel.assignTile( 16, 16, 4, 4, 64, 64, 16 )
 

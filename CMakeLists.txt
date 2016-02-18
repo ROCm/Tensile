@@ -17,8 +17,8 @@ set( ${CobaltSuper_NAME}_VERSION_PATCH 0 )
 
 ############################################################
 # App Name
-set( Cobalt_APP_NAME "App" CACHE STRING
-  "Prefix for application-specific files" )
+#set( Cobalt_APP_NAME "App" CACHE STRING
+#  "Prefix for application-specific files" )
 #set_property( CACHE Cobalt_APP_NAME )
 
 ############################################################
@@ -74,14 +74,14 @@ source_group(include FILES ${CobaltLib_API} )
 ############################################################
 # Directories
 set( Cobalt_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated )
-set( Cobalt_DIR_PROBLEMS ${Cobalt_DIR_GENERATED}/XML/AppProblemLogs )
-set( Cobalt_FILE_PROBLEMS ${Cobalt_DIR_PROBLEMS}/${Cobalt_APP_NAME}_Log.xml )
-set( Cobalt_DIR_PSM ${Cobalt_DIR_GENERATED}/XML/ProblemSolutionMaps )
-set( Cobalt_FILE_PSM ${Cobalt_DIR_PSM}/${Cobalt_APP_NAME}_PSM.xml )
+set( Cobalt_DIR_PROBLEMS ${Cobalt_DIR_GENERATED}/XML/Problems )
+#set( Cobalt_FILE_PROBLEMS ${Cobalt_DIR_PROBLEMS}/${Cobalt_APP_NAME}_Log.xml )
+set( Cobalt_DIR_SOLUTIONS ${Cobalt_DIR_GENERATED}/XML/SolutionTimes )
+set( Cobalt_FILE_SOLUTIONS ${Cobalt_DIR_SOLUTIONS}/Benchmark.xml )
 
 file( MAKE_DIRECTORY ${Cobalt_DIR_GENERATED} )
 file( MAKE_DIRECTORY ${Cobalt_DIR_PROBLEMS} )
-file( MAKE_DIRECTORY ${Cobalt_DIR_PSM} )
+file( MAKE_DIRECTORY ${Cobalt_DIR_SOLUTIONS} )
 
 ############################################################
 # CobaltGen Files
@@ -91,7 +91,6 @@ set( CobaltGenBenchmark_SRC
   ${CMAKE_SOURCE_DIR}/CobaltGen/FileWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionCandidateGenerator.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionSet.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
 )
@@ -114,6 +113,7 @@ set( Cobalt_KernelFiles_CMAKE_DYNAMIC
 if( NOT EXISTS ${Cobalt_KernelFiles_CMAKE_DYNAMIC})
   file( WRITE ${Cobalt_KernelFiles_CMAKE_DYNAMIC}
     "set( Cobalt_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
+    "source_group(Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
 # Solutions
@@ -122,6 +122,7 @@ set( Cobalt_SolutionFiles_CMAKE_DYNAMIC
 if( NOT EXISTS ${Cobalt_SolutionFiles_CMAKE_DYNAMIC})
   file( WRITE ${Cobalt_SolutionFiles_CMAKE_DYNAMIC}
     "set( Cobalt_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
+    "source_group(Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
 

@@ -1,4 +1,3 @@
-
 #ifndef LOGGER_H
 #define LOGGER_H
 
@@ -41,11 +40,11 @@ public:
   class TraceEntry {
   public:
     TraceEntryType type;
-    const CobaltSolution *solution;
+    const CobaltSolutionBase *solution;
     CobaltStatus status;
     TraceEntry(
         TraceEntryType inputType,
-        const CobaltSolution *inputSolution,
+        const CobaltSolutionBase *inputSolution,
         CobaltStatus inputStatus);
     std::string toString( size_t indentLevel );
   };
@@ -54,7 +53,8 @@ public:
 /*******************************************************************************
  * constructor - default is fine
  ******************************************************************************/
-  Logger(std::string logFilePrefix);
+  Logger();
+  void init( std::string logFileName);
   
 /*******************************************************************************
  * open - initialize logger by opening file for writing
@@ -72,7 +72,7 @@ public:
  * - record a cobaltGetSolution() call
  ******************************************************************************/
   void logGetSolution(
-      const CobaltSolution *solution,
+      const CobaltSolutionBase *solution,
       CobaltStatus status );
 
 /*******************************************************************************
@@ -80,7 +80,7 @@ public:
  * - record a Problem.enqueueSolution() call
  ******************************************************************************/
   void logEnqueueSolution(
-      const CobaltSolution *solution,
+      const CobaltSolutionBase *solution,
       CobaltStatus status,
       const CobaltControl *ctrl );
 
@@ -96,9 +96,9 @@ private:
  * log state
  ******************************************************************************/
   std::queue<TraceEntry> trace;
-  std::map<const CobaltSolution*, unsigned long long,
+  std::map<const CobaltSolutionBase*, unsigned long long,
       CobaltSolutionPtrComparator> getSummary;
-  std::map<const CobaltSolution*, unsigned long long,
+  std::map<const CobaltSolutionBase*, unsigned long long,
       CobaltSolutionPtrComparator> enqueueSummary;
 
 /*******************************************************************************

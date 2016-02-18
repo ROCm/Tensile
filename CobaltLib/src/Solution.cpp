@@ -4,35 +4,56 @@
 
 
 /*******************************************************************************
- * CobaltSolution:: constructor
+ * CobaltSolutionBase constructor
  ******************************************************************************/
-CobaltSolution::CobaltSolution( CobaltProblem inputProblem)
-  : problem(inputProblem) {
-}
+CobaltSolutionBase::CobaltSolutionBase( CobaltProblem inputProblem)
+  : problem(inputProblem) { }
 
 
 /*******************************************************************************
- * CobaltSolution:: toStringXML
+ * toStringXML
  ******************************************************************************/
-std::string CobaltSolution::toStringXML( size_t indentLevel ) const {
+std::string CobaltSolutionBase::toStringXML( size_t indentLevel ) const {
   std::string state = indent(indentLevel) + "<Solution>\n";
   state += ::toStringXML(problem, indentLevel+1);
   state += indent(indentLevel) + "</Solution>";
   return state;
 }
 
-#ifdef Cobalt_BACKEND_OPENCL12
 /*******************************************************************************
- * CobaltSolutionOpenCL:: constructor
+ * toStringXML
  ******************************************************************************/
-CobaltSolutionOpenCL::CobaltSolutionOpenCL( CobaltProblem inputProblem)
-  : CobaltSolution(inputProblem) {
+CobaltProblem CobaltSolutionBase::getProblem() const {
+  return problem;
 }
 
+
+
+
+/*******************************************************************************
+ * CobaltSolutionTemplate constructor
+ ******************************************************************************/
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionTemplate( CobaltProblem inputProblem)
+  : CobaltSolutionBase(inputProblem) { }
+
+
+
+
+/*******************************************************************************
+ * CobaltSolutionOpenCL constructor
+ ******************************************************************************/
+#ifdef Cobalt_BACKEND_OPENCL12
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionOpenCL( CobaltProblem inputProblem)
+  : CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) { }
+
+
 /******************************************************************************
- * Make Gemm Kernel
+ * makeKernel
  *****************************************************************************/
-void CobaltSolutionOpenCL::makeKernel(
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+void CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   cl_kernel *kernel,
   cl_command_queue queue,
   const char *kernelSource,
@@ -133,10 +154,15 @@ void CobaltSolutionOpenCL::makeKernel(
   }
 }
 
-CobaltStatus CobaltSolutionOpenCL::enqueue(
+  
+/******************************************************************************
+ * enqueue
+ *****************************************************************************/
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+CobaltStatus CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+    CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
-    CobaltTensorData tensorDataC,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
@@ -213,6 +239,22 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
         unsigned int sizeSummation = *(unsigned int *)kernelArgs[kernelArgIdxSummation] / kernelGrid[2];
         status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxSummation, kernelArgSizes[kernelArgIdxSummation], &sizeSummation );
 
+        // alpha
+        unsigned int argIdx = numKernelArgs;
+        if (problem.operation.useAlpha) {
+          unsigned int sizeAlpha = getCobaltDataTypeSize(problem.operation.alphaType);
+          status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, sizeAlpha, alpha.data );
+          argIdx++;
+        }
+
+        // beta
+        if (problem.operation.useBeta) {
+          unsigned int sizeBeta = getCobaltDataTypeSize(problem.operation.betaType);
+          status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, sizeBeta, beta.data );
+          argIdx++;
+        }
+
+        // enqueue
         status = clEnqueueNDRangeKernel(
           ctrl.queues[kernelSerialIdx%ctrl.numQueues],
           kernels[kernelIdx],
@@ -223,8 +265,8 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
           ctrl.numInputEvents,
           ctrl.inputEvents,
           &ctrl.outputEvents[kernelSerialIdx] );
-          }
-        }
+      }
+    }
   }
 
 
@@ -237,35 +279,52 @@ CobaltStatus CobaltSolutionOpenCL::enqueue(
 #endif
 
 
-#if Cobalt_LOGGER_ENABLED
+
+
+
 /*******************************************************************************
  * LogSolution:: constructor
  ******************************************************************************/
-CobaltSolutionLogOnly::CobaltSolutionLogOnly( CobaltProblem inputProblem)
-  : CobaltSolution(inputProblem) {
+#if Cobalt_LOGGER_ENABLED
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionLogOnly( CobaltProblem inputProblem)
+  : CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 
 
 /*******************************************************************************
  * LogSolution:: toString
  ******************************************************************************/
-std::string CobaltSolutionLogOnly::toString( size_t indentLevel ) const {
-  return toStringXML(indentLevel);
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+std::string CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
+  return "CobaltSolutionLogOnly";
 }
 
 /*******************************************************************************
  * LogSolution:: enqueue
  ******************************************************************************/
-CobaltStatus CobaltSolutionLogOnly::enqueue(
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+CobaltStatus CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+    CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
-    CobaltTensorData tensorDataC,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
-  printf("CobaltSolutionLogOnly::enqueue()\n");
+  printf("ERROR - CobaltSolutionLogOnly::enqueue() should never be called.\n");
   return cobaltStatusSuccess;
 }
 
 
 #endif
+
+
+/*******************************************************************************
+ * Explicit Template Instantiation
+ ******************************************************************************/
+template class CobaltSolutionTemplate<float,float,float,float,float>;
+template class CobaltSolutionTemplate<double,double,double,double,double>;
+template class CobaltSolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
+template class CobaltSolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
+
+template class CobaltSolutionLogOnly<void,void,void,void,void>;

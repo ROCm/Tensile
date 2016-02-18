@@ -41,14 +41,14 @@ int main( char * argv[], int argc ) {
   const CobaltDataType dataTypes[] = {
     cobaltDataTypeSingle,
     cobaltDataTypeDouble,
-    cobaltDataTypeSingleComplex,
-    cobaltDataTypeDoubleComplex };
+    cobaltDataTypeComplexSingle,
+    cobaltDataTypeComplexDouble };
   const size_t numAlphas = 1;
   const bool alphas[] = { false, true };
   const size_t numBetas = 1;
   const bool betas[] = { false, true };
   size_t numProblems = 0;
-  cobaltSetup();
+  cobaltSetup("GEMM");
   for (size_t transA = 0; transA < 2; transA++) {
     for (size_t transB = 0; transB < 2; transB++) {
       for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {

@@ -2,43 +2,59 @@
 #include "ReferenceTensorContraction.h"
 #include "StructOperations.h"
 #include <assert.h>
-
+#include <algorithm>
 
 
 /*******************************************************************************
  * constructor
  ******************************************************************************/
-CobaltSolutionTensorContractionCPU::CobaltSolutionTensorContractionCPU(
-    CobaltProblem inputProblem )
-  : CobaltSolution(inputProblem) {
+template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
+CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionTensorContractionCPU( CobaltProblem inputProblem )
+  : CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 
-size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
-  size_t serial = 0;
-  for (size_t i = 0; i < tensor.numDimensions; i++) {
-    serial += coords[i] * tensor.dimensions[i].stride;
-  }
-  return serial;
-}
 
 /*******************************************************************************
  * enqueue
  ******************************************************************************/
-CobaltStatus CobaltSolutionTensorContractionCPU::enqueue(
+template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
+CobaltStatus CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+    CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
-    CobaltTensorData tensorDataC,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
+  // GEMM
+  //if (problem.operation.numIndicesFree == 2
+  //    && problem.operation.numIndicesBatch == 0
+  //    && problem.operation.numIndicesSummation == 1) {
+  //  return gemm(
+  //      tensorDataC,
+  //      tensorDataA,
+  //      tensorDataB,
+  //      alpha,
+  //      beta,
+  //      ctrl );
+  //} else if (problem.operation.numIndicesFree == 2
+  //    && problem.operation.numIndicesBatch == 1
+  //    && problem.operation.numIndicesSummation == 1) {
+  //  return gemm_batched(
+  //      tensorDataC,
+  //      tensorDataA,
+  //      tensorDataB,
+  //      alpha,
+  //      beta,
+  //      ctrl );
+  //}
+
   // pointers to data
-  // TODO need OpenCL read buffer here
-  float *dataA = 0; //  = (float *)tensorDataA.clMem;
+  float *dataA = (float *)tensorDataA.data;
   dataA += tensorDataA.offset;
-  float *dataB = 0; //  = (float *)tensorDataB.clMem;
+  float *dataB = (float *)tensorDataB.data;
   dataB += tensorDataB.offset;
-  float *dataC = 0; // = (float *)tensorDataC.clMem;
+  float *dataC = (float *)tensorDataC.data;
   dataC += tensorDataC.offset;
   
   size_t numIndicesFreeC = problem.tensorC.numDimensions;
@@ -126,9 +142,174 @@ CobaltStatus CobaltSolutionTensorContractionCPU::enqueue(
 } // referenceTensorContraction
 
 
+#if 0
+/*******************************************************************************
+ * gemm_batched
+ ******************************************************************************/
+CobaltStatus CobaltSolutionTensorContractionCPU::gemm_batched(
+    CobaltTensorData tensorDataC,
+    CobaltTensorData tensorDataA,
+    CobaltTensorData tensorDataB,
+    CobaltScalarData alphaScalar,
+    CobaltScalarData betaScalar,
+    CobaltControl & ctrl ) {
+
+  // find batch index
+  unsigned int batchIdxC;
+  unsigned int batchIdxA;
+  unsigned int batchIdxB;
+  for (unsigned int i = 0; i < problem.tensorC.numDimensions; i++) {
+    unsigned int idxA = *std::find(problem.operation.indexAssignmentsA, problem.operation.indexAssignmentsA+3, i);
+    unsigned int idxB = *std::find(problem.operation.indexAssignmentsB, problem.operation.indexAssignmentsB+3, i);
+    if (idxA < 3 && idxB < 3) {
+      batchIdxC = i;
+      batchIdxA = idxA;
+      batchIdxB = idxB;
+      break;
+    }
+  }
+
+  CobaltStatus status = cobaltStatusSuccess;
+  for ( unsigned int batch = 0; batch < problem.tensorC.dimensions[batchIdxC].size; batch++) {
+    tensorDataC.data = (void *)((float *)tensorDataC.data + problem.tensorC.dimensions[batchIdxC].stride);
+    tensorDataA.data = (void *)((float *)tensorDataA.data + problem.tensorA.dimensions[batchIdxA].stride);
+    tensorDataB.data = (void *)((float *)tensorDataB.data + problem.tensorB.dimensions[batchIdxB].stride);
+    status = gemm( tensorDataC,
+        tensorDataA,
+        tensorDataB,
+        alphaScalar,
+        betaScalar,
+        ctrl );
+  }
+  return status;
+}
+
+/*******************************************************************************
+ * gemm
+ ******************************************************************************/
+CobaltStatus CobaltSolutionTensorContractionCPU::gemm(
+    CobaltTensorData tensorDataC,
+    CobaltTensorData tensorDataA,
+    CobaltTensorData tensorDataB,
+    CobaltScalarData alphaScalar,
+    CobaltScalarData betaScalar,
+    CobaltControl & ctrl ) {
+
+  float  alpha = *((float *)alphaScalar.data);
+  float  beta  = *((float *)betaScalar.data);
+  float *dataC =   (float *)tensorDataC.data;
+  
+  unsigned int tensorAIdxSummation = (unsigned int) (std::find(problem.operation.indexAssignmentsA, problem.operation.indexAssignmentsA+problem.tensorA.numDimensions, 2) - problem.operation.indexAssignmentsA);
+  unsigned int tensorBIdxSummation = (unsigned int) (std::find(problem.operation.indexAssignmentsB, problem.operation.indexAssignmentsB+problem.tensorB.numDimensions, 2) - problem.operation.indexAssignmentsB);
+  unsigned int tensorAIdxFree;
+  unsigned int tensorAStrideFree;
+  unsigned int tensorBIdxFree;
+  unsigned int tensorBStrideFree;
+  for (unsigned int i = 0; i < problem.tensorA.numDimensions; i++) {
+    if (problem.operation.indexAssignmentsA[i] == 0) {
+      tensorAIdxFree = i;
+      tensorAStrideFree = problem.tensorA.dimensions[0].stride;
+      break;
+    }
+    if (problem.operation.indexAssignmentsA[i] == 1) {
+      tensorAIdxFree = i;
+      tensorAStrideFree = problem.tensorA.dimensions[1].stride;
+      break;
+    }
+  }
+  for (unsigned int i = 0; i < problem.tensorB.numDimensions; i++) {
+    if (problem.operation.indexAssignmentsB[i] == 0) {
+      tensorBIdxFree = i;
+      tensorBStrideFree = problem.tensorB.dimensions[0].stride;
+      break;
+    }
+    if (problem.operation.indexAssignmentsB[i] == 1) {
+      tensorBIdxFree = i;
+      tensorBStrideFree = problem.tensorB.dimensions[1].stride;
+      break;
+    }
+  }
+  unsigned int sumMax = problem.tensorA.dimensions[tensorAIdxSummation].size;
+  unsigned int d[2];
+  for (d[0] = 0; d[0] < problem.tensorC.dimensions[0].size; d[0]++) {
+    for (d[1] = 0; d[1] < problem.tensorC.dimensions[1].size; d[1]++) {
+      float sum = 0.f;
+      for (unsigned int sumIdx = 0; sumIdx < sumMax; sumIdx++) {
+        unsigned int idxA = (d[tensorAIdxFree])*tensorAStrideFree
+          + sumIdx*problem.tensorA.dimensions[tensorAIdxSummation].stride;
+        unsigned int idxB = d[tensorBIdxFree]*tensorBStrideFree
+          + sumIdx*problem.tensorB.dimensions[tensorBIdxSummation].stride;
+        float elementA = ((float *) tensorDataA.data)[idxA];
+        float elementB = ((float *) tensorDataB.data)[idxB];
+        sum += elementA * elementB;
+      }
+      unsigned int idxC = d[0]*problem.tensorC.dimensions[0].stride
+        + d[1]*problem.tensorC.dimensions[1].stride;
+      dataC[idxC] = alpha*sum + beta*dataC[idxC];
+    }
+  }
+  return cobaltStatusSuccess;
+}
+#endif
+
 /*******************************************************************************
  * toString
  ******************************************************************************/
-std::string CobaltSolutionTensorContractionCPU::toString( size_t indentLevel ) const {
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+std::string CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
   return "CobaltSolutionTensorContractionCPU";
 }
+
+
+size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
+  size_t serial = 0;
+  for (size_t i = 0; i < tensor.numDimensions; i++) {
+    serial += coords[i] * tensor.dimensions[i].stride;
+  }
+  return serial;
+}
+
+/*******************************************************************************
+ * cobaltGetSolution
+ * need to list all wanted template variants for compiler in this file
+ ******************************************************************************/
+CobaltStatus cobaltGetSolutionCPU(
+    CobaltProblem problem,
+    CobaltSolution **solution ) {
+  bool problemIsTensorContraction = true;
+
+  if (problemIsTensorContraction) {
+    switch(problem.tensorC.dataType) {
+    case cobaltDataTypeSingle:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<float,float,float,float,float>( problem );
+      break;
+    case cobaltDataTypeDouble:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<double,double,double,double,double>( problem );
+      break;
+    case cobaltDataTypeComplexSingle:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>( problem );
+      break;
+    case cobaltDataTypeComplexDouble:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem );
+      break;
+    default:
+      (*solution)->pimpl = nullptr;
+      return cobaltStatusProblemNotSupported;
+    }
+
+    return cobaltStatusSuccess;
+  } else {
+  // TODO - reorganize to include CPU convolution also
+    return cobaltStatusProblemNotSupported;
+  }
+}
+
+
+
+/*******************************************************************************
+ * Explicit Template Instantiation - redundant of cobaltGetSolutionCPU
+ ******************************************************************************/
+//template class CobaltSolutionTensorContractionCPU<float,float,float,float,float>;
+//template class CobaltSolutionTensorContractionCPU<double,double,double,double,double>;
+//template class CobaltSolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
+//template class CobaltSolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;

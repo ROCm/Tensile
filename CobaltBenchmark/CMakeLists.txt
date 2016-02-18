@@ -4,7 +4,7 @@ set( CobaltBenchmark_NAME CobaltBenchmark )
 # defined externally
 #set( Cobalt_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated ) # temp
 #set( Cobalt_DIR_PROBLEMS ${Cobalt_DIR_GENERATED}/AppProblemLogs ) # input
-#set( Cobalt_PSM ${Cobalt_PSM}/Cobal_PSM_PREFIX.xml ) # output
+#set( Cobalt_SOLUTIONS ${Cobalt_SOLUTIONS}/Cobal_SOLUTIONS_PREFIX.xml ) # output
 
 
 # static source files
@@ -46,22 +46,16 @@ add_custom_command(
     ${CobaltBenchmark_SRC_GENERATED_STATIC}
     ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
     ${CobaltBenchmark_CMAKE_DYNAMIC}
-  #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py \
-  #  --backend=${Cobalt_BACKEND} \
-  #  --input-path=${Cobalt_DIR_PROBLEMS} \
-  #  --output-path=${Cobalt_DIR_GENERATED} \
-  #  --result-file=${Cobalt_FILE_PSM}"
   COMMAND
     python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
     --backend=${Cobalt_BACKEND}
     --input-path=${Cobalt_DIR_PROBLEMS}
     --output-path=${Cobalt_DIR_GENERATED}
-    --result-file=${Cobalt_FILE_PSM}
+    --result-file=${Cobalt_FILE_SOLUTIONS}
   DEPENDS ${CobaltGenBenchmark_SRC}
 )
 
-source_group( source FILES
-  ${CobaltBenchmark_SRC_STATIC}
+source_group( Generated FILES
   ${CobaltBenchmark_SRC_GENERATED_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
 )
@@ -96,7 +90,7 @@ endif()
 ############################################################
 # CobaltBenchmark - generates ProblemSolutionMap.xml
 add_custom_command(
-  OUTPUT ${Cobalt_FILE_PSM}
+  OUTPUT ${Cobalt_FILE_SOLUTIONS}
   COMMAND ${CobaltBenchmark_NAME}
   DEPENDS
     ${CobaltBenchmark_SRC_STATIC}

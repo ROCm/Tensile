@@ -141,7 +141,7 @@ class SolutionWriter:
       else:
         name = self.kernelWriter.getName(solution.kernels[i])
         srcName = name + "_src"
-        kernelName = name + "_kernel;\n"
+        kernelName = name + "_kernel"
         s += "  kernelSources[" + str(i) + "] = " + srcName + ";\n"
         s += "  kernels[" + str(i) + "] = " + kernelName + ";\n"
     # edges
@@ -224,9 +224,10 @@ class SolutionWriter:
       s += "  numKernelArgs++;\n"
     s += "\n"
 
-    if solution.kernels[0].operation.alpha:
+    """
+    if solution.kernels[0].operation.useAlpha:
       s += "  /* alpha */\n"
-      s += "  kernelArgs[numKernelArgs] = problem.operation.alpha;\n"
+      s += "  kernelArgs[numKernelArgs] = alpha.data;\n"
       s += "  kernelArgSizes[numKernelArgs] = getCobaltDataTypeSize( " \
           + "problem.operation.alphaType );\n"
       s += "  numKernelArgs++;\n"
@@ -234,15 +235,16 @@ class SolutionWriter:
       s += "  /* alpha unused */\n"
     s += "\n"
 
-    if solution.kernels[0].operation.beta:
+    if solution.kernels[0].operation.useBeta:
       s += "  /* beta */\n"
-      s += "  kernelArgs[numKernelArgs] = problem.operation.beta;\n"
+      s += "  kernelArgs[numKernelArgs] = beta.data;\n"
       s += "  kernelArgSizes[numKernelArgs] = getCobaltDataTypeSize( " \
           + "problem.operation.betaType );\n"
       s += "  numKernelArgs++;\n"
     else:
       s += "  /* beta unused */\n"
     s += "\n"
+    """
 
     # close constructor
     s += "} // end constructor\n"

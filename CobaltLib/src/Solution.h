@@ -1,4 +1,3 @@
-
 #ifndef SOLUTION_H
 #define SOLUTION_H
 
@@ -8,34 +7,68 @@
 
 
 /*******************************************************************************
- * CobaltSolution (abstract)
+ * CobaltSolutionBase - base private class
  ******************************************************************************/
-struct CobaltSolution {
-
-  CobaltSolution( CobaltProblem inputProblem );
-  //virtual ~CobaltSolution() = 0;
-
+class CobaltSolutionBase {
+public:
+  CobaltSolutionBase( CobaltProblem inputProblem );
+  
   virtual CobaltStatus enqueue(
+      CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
-      CobaltTensorData tensorDataC,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
+  
   std::string toStringXML( size_t indentLevel ) const;
 
-  CobaltProblem problem; // problem used to get this solution
+  CobaltProblem getProblem() const;
 
-}; // class Solution
-#ifdef Cobalt_BACKEND_OPENCL12
-#include "CL/cl.h"
+protected:
+  CobaltProblem problem;
+
+};
+
+
+/*******************************************************************************
+ * CobaltSolution - public pimpl
+ ******************************************************************************/
+struct CobaltSolution {
+  CobaltSolutionBase *pimpl;
+};
+
+
+/*******************************************************************************
+ * CobaltSolutionTemplate - parent class for all solutions
+ ******************************************************************************/
+template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
+class CobaltSolutionTemplate : public CobaltSolutionBase {
+public:
+  CobaltSolutionTemplate( CobaltProblem inputProblem );
+  
+  virtual CobaltStatus enqueue(
+      CobaltTensorData tensorDataC,
+      CobaltTensorData tensorDataA,
+      CobaltTensorData tensorDataB,
+      CobaltScalarData alpha,
+      CobaltScalarData beta,
+      CobaltControl & ctrl ) = 0;
+
+  virtual std::string toString( size_t indentLevel ) const = 0;
+
+};
+
 
 /*******************************************************************************
  * CobaltSolutionOpenCL
  ******************************************************************************/
-class CobaltSolutionOpenCL : public CobaltSolution {
+#ifdef Cobalt_BACKEND_OPENCL12
+#include "CL/cl.h"
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+class CobaltSolutionOpenCL : public CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   CobaltSolutionOpenCL( CobaltProblem inputProblem );
 
@@ -44,11 +77,11 @@ public:
   cl_command_queue queue,
   const char *kernelSource,
   const char *sourceBuildOptions);
-
+  
   CobaltStatus enqueue(
+      CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
-      CobaltTensorData tensorDataC,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl );
@@ -88,22 +121,21 @@ protected:
 
 };
 
-
-
 #endif
 
-#if Cobalt_LOGGER_ENABLED
 /*******************************************************************************
  * CobaltSolutionLogOnly - used in LOG_ONLY mode
  ******************************************************************************/
-class CobaltSolutionLogOnly : public CobaltSolution {
+#if Cobalt_LOGGER_ENABLED
+template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
+class CobaltSolutionLogOnly : public CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   CobaltSolutionLogOnly( CobaltProblem inputProblem );
-
-  virtual CobaltStatus enqueue(
+  
+  CobaltStatus enqueue(
+      CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
-      CobaltTensorData tensorDataC,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl );
@@ -112,6 +144,8 @@ public:
 
 };
 #endif
+
+
 
 #include <assert.h>
 #define CL_CHECK(RET) \

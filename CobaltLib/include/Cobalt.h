@@ -119,10 +119,12 @@ bool cobaltStatusIsPerformanceWarning( CobaltStatus status );
  * Tensor
  ******************************************************************************/
 typedef enum CobaltDataType_ {
+  cobaltDataTypeHalf,
   cobaltDataTypeSingle,
   cobaltDataTypeDouble,
-  cobaltDataTypeSingleComplex,
-  cobaltDataTypeDoubleComplex
+  cobaltdataTypeComplexHalf,
+  cobaltDataTypeComplexSingle,
+  cobaltDataTypeComplexDouble
 } CobaltDataType;
 
 typedef struct CobaltDimension_ {
@@ -218,8 +220,8 @@ typedef struct CobaltOperation_ {
   unsigned int indexAssignmentsB[CobaltTensor::maxDimensions];
 
   // used for convolutions/correlations only
-  unsigned int pad[CobaltTensor::maxDimensions];
-  unsigned int stride[CobaltTensor::maxDimensions];
+  // unsigned int pad[CobaltTensor::maxDimensions];
+  // unsigned int stride[CobaltTensor::maxDimensions];
   // unsigned int upscale[CobaltOperation::maxSummationIndices]; // cuDNN requires 1
 
 } CobaltOperation;
@@ -243,6 +245,7 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem );
  ******************************************************************************/
 typedef struct CobaltControl_ {
   unsigned int numDependencies;
+  unsigned int mode; // bitfield
 #if Cobalt_BACKEND_OPENCL12
   enum { maxQueues = 16 } maxQueues_;
   unsigned int numQueues;
@@ -254,6 +257,10 @@ typedef struct CobaltControl_ {
 #endif
 } CobaltControl;
 
+#define Cobalt_CONTROL_MODE_VALIDATE          (1<<0)
+#define Cobalt_CONTROL_MODE_VALIDATE_KERNELS  (1<<1)
+#define Cobalt_CONTROL_MODE_BENCHMARK         (1<<2)
+#define Cobalt_CONTROL_MODE_BENCHMARK_KERNELS (1<<3)
 
 /*******************************************************************************
  * Solution
@@ -276,8 +283,13 @@ CobaltStatus cobaltEnqueueSolution(
 
 /*******************************************************************************
  * Setup & Teardown
+ * --enable-validation - validates and records results in log
+ * --enable-validation-kernels - validates individual kernels and records results in log
+ * --enable-benchmarking - times each solution and records in log
+ * --enable-benchmarking-kernels - times each kernel and records in log
+ * ? results queryable through
  ******************************************************************************/
-CobaltStatus cobaltSetup();
+CobaltStatus cobaltSetup( const char *logFileName );
 CobaltStatus cobaltTeardown();
 
 

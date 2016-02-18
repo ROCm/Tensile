@@ -8,11 +8,14 @@
 #include "CobaltGetSolution.h"
 #endif
 
+Cobalt::Logger Cobalt::logger;
 
 /*******************************************************************************
  * cobaltSetup()
  ******************************************************************************/
-CobaltStatus cobaltSetup() {
+CobaltStatus cobaltSetup( const char *logFileName ) {
+  
+  Cobalt::logger.init(logFileName);
   return cobaltStatusSuccess;
 }
 
@@ -41,6 +44,7 @@ bool cobaltStatusIsPerformanceWarning( CobaltStatus status ) {
       && status > cobaltStatusPerformanceWarningMin;
 }
 
+#if 0
 /*******************************************************************************
  * cobaltGetSolution
  ******************************************************************************/
@@ -50,14 +54,31 @@ CobaltStatus cobaltGetSolutionCPU(
   bool problemIsTensorContraction = true;
 
   if (problemIsTensorContraction) {
-    *solution = new CobaltSolutionTensorContractionCPU( problem );
+    switch(problem.tensorC.dataType) {
+    case cobaltDataTypeSingle:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<float,float,float,float,float>( problem );
+      break;
+    case cobaltDataTypeDouble:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<double,double,double,double,double>( problem );
+      break;
+    case cobaltDataTypeComplexSingle:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>( problem );
+      break;
+    case cobaltDataTypeComplexDouble:
+      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem );
+      break;
+    default:
+      (*solution)->pimpl = nullptr;
+      return cobaltStatusProblemNotSupported;
+    }
+
     return cobaltStatusSuccess;
   } else {
   // TODO - reorganize to include CPU convolution also
     return cobaltStatusProblemNotSupported;
   }
 }
-
+#endif
 
 CobaltStatus cobaltGetSolution(
     CobaltProblem problem,
@@ -69,7 +90,7 @@ CobaltStatus cobaltGetSolution(
   if (problem.deviceProfile.numDevices) {
     
     // cpu device
-    if (problem.deviceProfile.devices[0].name == "cpu") {
+    if ( strcmp(problem.deviceProfile.devices[0].name, "cpu")==0 ) {
       status = cobaltGetSolutionCPU( problem, solution );
 
     // gpu device
@@ -77,7 +98,7 @@ CobaltStatus cobaltGetSolution(
 #if Cobalt_SOLVER_ENABLED
       status = cobaltGetSolutionGenerated( problem, solution );
 #else
-      *solution = new CobaltSolutionLogOnly(problem);
+      (*solution)->pimpl = new CobaltSolutionLogOnly<void,void,void,void,void>(problem);
       status = cobaltStatusSuccess;
 #endif
     }
@@ -88,7 +109,7 @@ CobaltStatus cobaltGetSolution(
   }
 
 #if Cobalt_LOGGER_ENABLED
-  Cobalt::logger.logGetSolution(*solution, status);
+  Cobalt::logger.logGetSolution((*solution)->pimpl, status);
 #endif
 
   return status;
@@ -106,12 +127,20 @@ CobaltStatus cobaltEnqueueSolution(
     CobaltScalarData beta,
     CobaltControl *ctrl ) {
   CobaltStatus status = cobaltStatusSuccess;
+  // cpu device
+  if ( strcmp(solution->pimpl->getProblem().deviceProfile.devices[0].name, "cpu")==0 ) {
+      status = solution->pimpl->enqueue( tensorDataC, tensorDataA, tensorDataB,
+          alpha, beta, *ctrl );
+
+  // gpu device
+  } else {
 #if Cobalt_SOLVER_ENABLED
-  status = solution->enqueue( tensorDataC, tensorDataA, tensorDataB,
-      alpha, beta, *ctrl );
+    status = solution->enqueue( tensorDataC, tensorDataA, tensorDataB,
+        alpha, beta, *ctrl );
 #endif
+  }
 #if Cobalt_LOGGER_ENABLED
-  Cobalt::logger.logEnqueueSolution(solution, status, ctrl);
+  Cobalt::logger.logEnqueueSolution(solution->pimpl, status, ctrl);
 #endif
   return status;
 }
