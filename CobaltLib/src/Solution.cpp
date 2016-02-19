@@ -242,14 +242,14 @@ CobaltStatus CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue
         // alpha
         unsigned int argIdx = numKernelArgs;
         if (problem.operation.useAlpha) {
-          unsigned int sizeAlpha = getCobaltDataTypeSize(problem.operation.alphaType);
+          unsigned int sizeAlpha = (unsigned int)getCobaltDataTypeSize(problem.operation.alphaType);
           status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, sizeAlpha, alpha.data );
           argIdx++;
         }
 
         // beta
         if (problem.operation.useBeta) {
-          unsigned int sizeBeta = getCobaltDataTypeSize(problem.operation.betaType);
+          unsigned int sizeBeta = (unsigned int)getCobaltDataTypeSize(problem.operation.betaType);
           status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, sizeBeta, beta.data );
           argIdx++;
         }
@@ -319,12 +319,21 @@ CobaltStatus CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueu
 #endif
 
 
+
+
 /*******************************************************************************
  * Explicit Template Instantiation
  ******************************************************************************/
+// used for cpu classes
 template class CobaltSolutionTemplate<float,float,float,float,float>;
 template class CobaltSolutionTemplate<double,double,double,double,double>;
 template class CobaltSolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
 template class CobaltSolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
+// used for gpu classes
+//template class CobaltSolutionOpenCL<float,float,float,void,void>;
+//template class CobaltSolutionOpenCL<double,double,double,void,void>;
+//template class CobaltSolutionOpenCL<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,void,void>;
+//template class CobaltSolutionOpenCL<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,void,void>;
+#include "SolutionTemplateInstantiations.inl"
 
 template class CobaltSolutionLogOnly<void,void,void,void,void>;

@@ -169,7 +169,7 @@ class FileWriter:
       numSolutions += len(solutionList)
     s += "size_t numSolutionsPerProblem[numProblems];\n"
     s += "CobaltProblem problems[numProblems];\n"
-    s += "CobaltSolution *solutionCandidates[numSolutions];\n"
+    s += "CobaltSolutionBase *solutionCandidates[numSolutions];\n"
 
     dataType = Structs.DataType(0)
     s += dataType.toCpp() + " alphaSingle = 2.f;\n"
@@ -195,7 +195,7 @@ class FileWriter:
     s += "  deviceProfile.devices[0].numComputeUnits = -1;\n"
     s += "  deviceProfile.devices[0].clockFrequency = -1;\n"
     s += "  CobaltProblem problem;\n"
-
+    templateInstantiationSet = set()
     solutionStartIdx = 0
     tensorSizeMaxC = 0
     tensorSizeMaxA = 0
@@ -287,8 +287,9 @@ class FileWriter:
           + str(numSolutions) + ";\n"
       for i in range(0,numSolutions):
         s += "  solutionCandidates[" + str(solutionStartIdx+i) + "] = new " \
-            + self.solutionWriter.getName(solutionList[i])+"( problem ); // " \
+            + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( problem ); // " \
             + str(i) + "/" + str(numSolutions) + "\n"
+        templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solutionList[i]))
       s += "\n"
       solutionStartIdx = solutionEndIdx
 
@@ -328,7 +329,7 @@ class FileWriter:
     s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxC) + ";\n"
     s += "extern size_t numSolutionsPerProblem[numProblems];\n"
     s += "extern CobaltProblem problems[numProblems];\n"
-    s += "extern CobaltSolution *solutionCandidates[numSolutions];\n"
+    s += "extern CobaltSolutionBase *solutionCandidates[numSolutions];\n"
     s += "extern float alphaSingle;\n"
     s += "extern float betaSingle;\n"
     s += "extern double alphaDouble;\n"
@@ -342,6 +343,16 @@ class FileWriter:
     s += "\n"
     benchmarkHeaderFile.write(s)
     benchmarkHeaderFile.close()
+
+    # explicit template instantiation
+    templateInstantiationsPath = self.outputPath + self.solutionSubdirectory \
+        + "SolutionTemplateInstantiations.inl"
+    templateInstantiationsFile = open(templateInstantiationsPath, "w")
+    templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
+    for templateInstantiationStr in templateInstantiationSet:
+      templateInstantiationsFile.write("template class CobaltSolutionOpenCL" \
+          +templateInstantiationStr + ";\n")
+
 
     # write CobaltBenchmark.cmake
     """benchmarkCMakePath = self.outputPath + self.benchmarkSubdirectory \

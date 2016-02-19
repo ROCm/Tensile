@@ -35,6 +35,19 @@ class KernelWriter:
     kernelName += kernel.dataTypeA.toChar().upper()
     kernelName += kernel.dataTypeB.toChar().upper()
     kernelName += kernel.dataTypeC.toChar().upper()
+
+    # alpha
+    if kernel.operation.useAlpha:
+      kernelName += kernel.operation.alphaType.toChar().upper()
+    else:
+      kernelName += "0"
+
+    # beta
+    if kernel.operation.useBeta:
+      kernelName += kernel.operation.betaType.toChar().upper()
+    else:
+      kernelName += "0"
+
     kernelName += "_"
 
     # C dimensions
@@ -59,21 +72,7 @@ class KernelWriter:
     kernelName += "B"
     for i in range(0,len(kernel.operation.indexAssignmentsB)):
       kernelName += self.indexChars[kernel.operation.indexAssignmentsB[i]].lower()
-    kernelName += "_"
 
-    # alpha
-    kernelName += "a"
-    if kernel.operation.useAlpha:
-      kernelName += "1"
-    else:
-      kernelName += "0"
-
-    # beta
-    kernelName += "b"
-    if kernel.operation.useBeta:
-      kernelName += "1"
-    else:
-      kernelName += "0"
 
     return kernelName
 

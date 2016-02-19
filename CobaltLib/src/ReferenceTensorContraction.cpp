@@ -1,6 +1,7 @@
 
 #include "ReferenceTensorContraction.h"
 #include "StructOperations.h"
+#include "MathTemplates.h"
 #include <assert.h>
 #include <algorithm>
 
@@ -26,36 +27,13 @@ CobaltStatus CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,Type
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
-  // GEMM
-  //if (problem.operation.numIndicesFree == 2
-  //    && problem.operation.numIndicesBatch == 0
-  //    && problem.operation.numIndicesSummation == 1) {
-  //  return gemm(
-  //      tensorDataC,
-  //      tensorDataA,
-  //      tensorDataB,
-  //      alpha,
-  //      beta,
-  //      ctrl );
-  //} else if (problem.operation.numIndicesFree == 2
-  //    && problem.operation.numIndicesBatch == 1
-  //    && problem.operation.numIndicesSummation == 1) {
-  //  return gemm_batched(
-  //      tensorDataC,
-  //      tensorDataA,
-  //      tensorDataB,
-  //      alpha,
-  //      beta,
-  //      ctrl );
-  //}
-
   // pointers to data
-  float *dataA = (float *)tensorDataA.data;
-  dataA += tensorDataA.offset;
-  float *dataB = (float *)tensorDataB.data;
-  dataB += tensorDataB.offset;
-  float *dataC = (float *)tensorDataC.data;
+  TypeC *dataC = (TypeC *)tensorDataC.data;
   dataC += tensorDataC.offset;
+  TypeA *dataA = (TypeA *)tensorDataA.data;
+  dataA += tensorDataA.offset;
+  TypeB *dataB = (TypeB *)tensorDataB.data;
+  dataB += tensorDataB.offset;
   
   size_t numIndicesFreeC = problem.tensorC.numDimensions;
   size_t numIndicesSummation = problem.operation.numIndicesSummation;
@@ -96,7 +74,7 @@ CobaltStatus CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,Type
     }
 
     // iterate over entire bound index 
-    float sumC = 0.f;
+    TypeC sumC = getZero<TypeC>();
     while (true) {
       boundCoord[problem.operation.numIndicesSummation-1]++;
       for ( size_t b = problem.operation.numIndicesSummation-1; b > 0; b--) {
@@ -125,12 +103,14 @@ CobaltStatus CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,Type
       }
       
       size_t serialIdxA = coordsToSerial( problem.tensorA, coordsA);
-      float valueA = dataA[serialIdxA];
+      TypeA valueA = dataA[serialIdxA];
 
       size_t serialIdxB = coordsToSerial( problem.tensorB, coordsB);
-      float valueB = dataB[serialIdxB];
+      TypeB valueB = dataB[serialIdxB];
 
-      sumC += valueA * valueB;
+      TypeC product = multiply<TypeC,TypeA,TypeB>( valueA, valueB);
+
+      sumC = add<TypeC,TypeA,TypeB>(sumC,product);
 
     } // bound range
     size_t serialIdxC = coordsToSerial(problem.tensorC, freeCoord);

@@ -28,6 +28,24 @@ class SolutionWriter:
     solutionName += str(solution.kernelGrid[1])
     return solutionName
 
+  ##############################################################################
+  # getTemplateArgList
+  ##############################################################################
+  def getTemplateArgList(self, solution):
+    templateArgList = "<"
+    templateArgList += solution.kernels[0].dataTypeC.toCpp() + ","
+    templateArgList += solution.kernels[0].dataTypeA.toCpp() + ","
+    templateArgList += solution.kernels[0].dataTypeB.toCpp() + ","
+    if solution.kernels[0].operation.useAlpha:
+      templateArgList += solution.kernels[0].operation.alphaType.toCpp() + ","
+    else:
+      templateArgList += "void,"
+    if solution.kernels[0].operation.useBeta:
+      templateArgList += solution.kernels[0].operation.betaType.toCpp() + ">"
+    else:
+      templateArgList += "void>"
+    return templateArgList
+
 
   ##############################################################################
   # getSourceString
@@ -43,9 +61,10 @@ class SolutionWriter:
 
     # contructor signature
     s += "/* solution constructor */\n"
-    s += solutionName + "::" + solutionName
+    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
+    s += solutionName + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::" + solutionName
     s += "( CobaltProblem inputProblem )\n"
-    s += "    : CobaltSolutionOpenCL( inputProblem ) {\n"
+    s += "    : CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
     s += "\n"
 
     # solution properties (common to all kernels)
@@ -224,41 +243,26 @@ class SolutionWriter:
       s += "  numKernelArgs++;\n"
     s += "\n"
 
-    """
-    if solution.kernels[0].operation.useAlpha:
-      s += "  /* alpha */\n"
-      s += "  kernelArgs[numKernelArgs] = alpha.data;\n"
-      s += "  kernelArgSizes[numKernelArgs] = getCobaltDataTypeSize( " \
-          + "problem.operation.alphaType );\n"
-      s += "  numKernelArgs++;\n"
-    else:
-      s += "  /* alpha unused */\n"
-    s += "\n"
-
-    if solution.kernels[0].operation.useBeta:
-      s += "  /* beta */\n"
-      s += "  kernelArgs[numKernelArgs] = beta.data;\n"
-      s += "  kernelArgSizes[numKernelArgs] = getCobaltDataTypeSize( " \
-          + "problem.operation.betaType );\n"
-      s += "  numKernelArgs++;\n"
-    else:
-      s += "  /* beta unused */\n"
-    s += "\n"
-    """
-
     # close constructor
     s += "} // end constructor\n"
     s += "\n\n"
 
     # toString
     s += "/* toString */\n"
+    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += "std::string " + solutionName \
-        + "::toString( size_t indentLevel) const {\n"
+        + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel) const {\n"
     s += "  return \"" + solutionName + "\";\n"
     s += "}\n"
+    s += "\n"
 
-# open enqueue
-# close enqueue
+    # explicit template instantiation
+    s += "/* explicit template instantiation */\n"
+    #s += "template class CobaltSolutionOpenCL" \
+    #    + self.getTemplateArgList(solution) + ";\n"
+    s += "template class " + solutionName \
+        + self.getTemplateArgList(solution) + ";\n"
+
     return s
 
 
@@ -280,13 +284,15 @@ class SolutionWriter:
 
     # class declaration
     s += "/* solution class */\n"
-    s += "class " + solutionName + " : public CobaltSolutionOpenCL {\n"
+    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >"
+    s += "class " + solutionName + " : public CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
     s += "public:\n"
     s += "  /* constructor */\n"
     s += "  " + solutionName + "( CobaltProblem inputProblem );\n"
     s += "\n"
-    s += "  std::string " + solutionName \
-        + "::toString( size_t indentLevel) const;\n"
+    #s += "  std::string " + solutionName \
+    #    + "::toString( size_t indentLevel) const;\n"
+    s += "  std::string toString( size_t indentLevel) const;\n"
     s += "\n"
     s += "}; // end class\n"
     return s

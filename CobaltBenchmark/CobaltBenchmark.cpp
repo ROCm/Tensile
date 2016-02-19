@@ -41,7 +41,7 @@ bool compareTensors(
  * timeSolution - milliseconds
  ******************************************************************************/
 double timeSolution(
-    CobaltSolution *solution,
+    CobaltSolutionBase *solution,
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,

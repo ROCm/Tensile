@@ -20,6 +20,7 @@ set( CobaltBenchmark_SRC_GENERATED_STATIC
   ${Cobalt_DIR_GENERATED}/Solutions/CobaltSolutions.h
   ${Cobalt_DIR_GENERATED}/Benchmark/CobaltSolutionCandidates.cpp
   ${Cobalt_DIR_GENERATED}/Benchmark/CobaltSolutionCandidates.h
+  ${Cobalt_DIR_GENERATED}/Library/SolutionTemplateInstantiations.inl
 )
 
 #set( CobaltBenchmark_SRC_GENERATED_DYNAMIC

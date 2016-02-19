@@ -28,6 +28,7 @@ set( CobaltLib_SRC_STATIC
   src/Cobalt.cpp
   src/Logger.cpp
   src/Logger.h
+  src/MathTemplates.h
   src/ReferenceTensorContraction.cpp
   src/ReferenceTensorContraction.h
   src/Solution.cpp
