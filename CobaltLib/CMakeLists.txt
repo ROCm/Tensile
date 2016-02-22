@@ -26,11 +26,15 @@ set( ${CobaltLib_NAME}_VERSION_PATCH 0 )
 # CobaltLib source files
 set( CobaltLib_SRC_STATIC
   src/Cobalt.cpp
+  src/CobaltCpp.cpp
+  src/CobaltCpp.h
   src/Logger.cpp
   src/Logger.h
   src/MathTemplates.h
-  src/ReferenceTensorContraction.cpp
-  src/ReferenceTensorContraction.h
+  src/Problem.cpp
+  src/Problem.h
+  src/SolutionTensorContractionCPU.cpp
+  src/SolutionTensorContractionCPU.h
   src/Solution.cpp
   src/Solution.h
   src/StructOperations.cpp

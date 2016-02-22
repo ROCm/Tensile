@@ -26,7 +26,7 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) {
   state += " string=\"" + Logger::toString(type) + "\"";
   state += " status=\"" + ::toString(status) + "\" >\n";
   if (solution) {
-    state += solution->toString(indentLevel+1);
+    state += solution->toStringXML(indentLevel+1);
   }
   state += indent(indentLevel) + "</TraceEntry>\n";
   return state;
@@ -139,7 +139,7 @@ std::string summaryEntryToString(
     size_t count, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
-  state += solution->toString(indentLevel+1);
+  state += solution->toStringXML(indentLevel+1);
   state += indent(indentLevel) + "</" + tag + ">\n";
   return state;
 }

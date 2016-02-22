@@ -1,5 +1,7 @@
 #include "Tools.h"
 
+namespace Cobalt {
+
 Timer::Timer() {
   QueryPerformanceFrequency( &frequency );
 }
@@ -25,3 +27,18 @@ double Timer::elapsed_us() {
   QueryPerformanceCounter( &currentTime );
   return double(currentTime.QuadPart-startTime.QuadPart)/(frequency.QuadPart/1000000.0);
 }
+
+
+/*******************************************************************************
+ * indent
+ ******************************************************************************/
+std::string indent(size_t level) {
+  std::string indentStr = "";
+  for (size_t i = 0; i < level; i++) {
+    indentStr += "  ";
+  }
+  return indentStr;
+}
+
+
+} // namespace

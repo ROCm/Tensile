@@ -1,19 +1,21 @@
 
 #include "Solution.h"
 #include "Logger.h"
+#include "StructOperations.h"
 
+namespace Cobalt {
 
 /*******************************************************************************
- * CobaltSolutionBase constructor
+ * Solution constructor
  ******************************************************************************/
-CobaltSolutionBase::CobaltSolutionBase( CobaltProblem inputProblem)
+Solution::Solution( CobaltProblem inputProblem)
   : problem(inputProblem) { }
 
 
 /*******************************************************************************
  * toStringXML
  ******************************************************************************/
-std::string CobaltSolutionBase::toStringXML( size_t indentLevel ) const {
+std::string Solution::toStringXML( size_t indentLevel ) const {
   std::string state = indent(indentLevel) + "<Solution>\n";
   state += ::toStringXML(problem, indentLevel+1);
   state += indent(indentLevel) + "</Solution>";
@@ -23,7 +25,7 @@ std::string CobaltSolutionBase::toStringXML( size_t indentLevel ) const {
 /*******************************************************************************
  * toStringXML
  ******************************************************************************/
-CobaltProblem CobaltSolutionBase::getProblem() const {
+CobaltProblem Solution::getProblem() const {
   return problem;
 }
 
@@ -34,8 +36,8 @@ CobaltProblem CobaltSolutionBase::getProblem() const {
  * CobaltSolutionTemplate constructor
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionTemplate( CobaltProblem inputProblem)
-  : CobaltSolutionBase(inputProblem) { }
+SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTemplate( CobaltProblem inputProblem)
+  : Solution(inputProblem) { }
 
 
 
@@ -45,15 +47,15 @@ CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionTemp
  ******************************************************************************/
 #ifdef Cobalt_BACKEND_OPENCL12
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionOpenCL( CobaltProblem inputProblem)
-  : CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) { }
+SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( CobaltProblem inputProblem)
+  : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) { }
 
 
 /******************************************************************************
  * makeKernel
  *****************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-void CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
+void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   cl_kernel *kernel,
   cl_command_queue queue,
   const char *kernelSource,
@@ -159,7 +161,7 @@ void CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
  * enqueue
  *****************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltStatus CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
@@ -287,8 +289,8 @@ CobaltStatus CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue
  ******************************************************************************/
 #if Cobalt_LOGGER_ENABLED
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionLogOnly( CobaltProblem inputProblem)
-  : CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
+SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionLogOnly( CobaltProblem inputProblem)
+  : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 
 
@@ -296,15 +298,15 @@ CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionLogOn
  * LogSolution:: toString
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-std::string CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
-  return "CobaltSolutionLogOnly";
+std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
+  return toStringXML(0);
 }
 
 /*******************************************************************************
  * LogSolution:: enqueue
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltStatus CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
@@ -318,6 +320,7 @@ CobaltStatus CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueu
 
 #endif
 
+}
 
 
 
@@ -325,10 +328,10 @@ CobaltStatus CobaltSolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueu
  * Explicit Template Instantiation
  ******************************************************************************/
 // used for cpu classes
-template class CobaltSolutionTemplate<float,float,float,float,float>;
-template class CobaltSolutionTemplate<double,double,double,double,double>;
-template class CobaltSolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
-template class CobaltSolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
+template class Cobalt::SolutionTemplate<float,float,float,float,float>;
+template class Cobalt::SolutionTemplate<double,double,double,double,double>;
+template class Cobalt::SolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
+template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
 // used for gpu classes
 //template class CobaltSolutionOpenCL<float,float,float,void,void>;
 //template class CobaltSolutionOpenCL<double,double,double,void,void>;
@@ -336,4 +339,4 @@ template class CobaltSolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,Co
 //template class CobaltSolutionOpenCL<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,void,void>;
 #include "SolutionTemplateInstantiations.inl"
 
-template class CobaltSolutionLogOnly<void,void,void,void,void>;
+template class Cobalt::SolutionLogOnly<void,void,void,void,void>;

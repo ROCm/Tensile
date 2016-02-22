@@ -49,6 +49,7 @@ typedef enum CobaltStatus_ {
   cobaltStatusValidationErrorMin,
   
   /* cobaltValidateProblem() */
+  cobaltStatusProblemIsNull,
 
   // tensor errors
   cobaltStatusTensorNumDimensionsInvalidA,
@@ -124,7 +125,9 @@ typedef enum CobaltDataType_ {
   cobaltDataTypeDouble,
   cobaltdataTypeComplexHalf,
   cobaltDataTypeComplexSingle,
-  cobaltDataTypeComplexDouble
+  cobaltDataTypeComplexDouble,
+  cobaltNumDataTypes,
+  cobaltDataTypeNone,
 } CobaltDataType;
 
 typedef struct CobaltDimension_ {
@@ -196,7 +199,7 @@ typedef enum CobaltOperationType_ {
   //cobaltOperationTypeCorrelation
 } CobaltOperationType;
 
-
+/*
 typedef struct CobaltOperation_ {
   // C[i,j,k] = Sum_l Sum_m Sum_n A[n,l,i,m,j] B[j,l,m,k,n]
   //   0,1,2        3     4     5   5 3 0 4 1    1 3 4 2 5
@@ -225,18 +228,18 @@ typedef struct CobaltOperation_ {
   // unsigned int upscale[CobaltOperation::maxSummationIndices]; // cuDNN requires 1
 
 } CobaltOperation;
-
+*/
 
 /*******************************************************************************
  * Problem
  ******************************************************************************/
-typedef struct CobaltProblem_ {
-  CobaltTensor tensorC;
-  CobaltTensor tensorA;
-  CobaltTensor tensorB;
-  CobaltDeviceProfile deviceProfile;
-  CobaltOperation operation;
-} CobaltProblem;
+//typedef struct CobaltProblem_ {
+//  CobaltTensor tensorC;
+//  CobaltTensor tensorA;
+//  CobaltTensor tensorB;
+//  CobaltDeviceProfile deviceProfile;
+//  CobaltOperation operation;
+//} CobaltProblem;
 
 CobaltStatus cobaltValidateProblem( CobaltProblem problem );
 
@@ -265,14 +268,27 @@ typedef struct CobaltControl_ {
 /*******************************************************************************
  * Solution
  ******************************************************************************/
-struct CobaltSolution; // forward declaration
+typedef struct _CobaltProblem * CobaltProblem; // forward declare pimpl
+typedef struct _CobaltSolution * CobaltSolution; // forward declare pimpl
 
-CobaltStatus cobaltGetSolution(
+CobaltProblem cobaltCreateProblem(
+    CobaltTensor tensorC,
+    CobaltTensor tensorA,
+    CobaltTensor tensorB,
+    unsigned int *indexAssignmentsA,
+    unsigned int *indexAssignmentsB,
+    CobaltOperationType operationType,
+    CobaltDataType alphaType,
+    CobaltDataType betaType,
+    CobaltDeviceProfile deviceProfile,
+    CobaltStatus *status );
+
+CobaltSolution cobaltGetSolutionForProblem(
     const CobaltProblem problem,
-    struct CobaltSolution **solution );
+    CobaltStatus *status );
 
 CobaltStatus cobaltEnqueueSolution(
-    struct CobaltSolution *solution,
+    CobaltSolution solution,
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,

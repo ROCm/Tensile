@@ -5,18 +5,13 @@
 #include <string>
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <vector>
+
+namespace Cobalt {
 
 
-/*******************************************************************************
- * enum toString
- ******************************************************************************/
-std::string indent(size_t level) {
-  std::string indentStr = "";
-  for (size_t i = 0; i < level; i++) {
-    indentStr += "  ";
-  }
-  return indentStr;
-}
 
 #define COBALT_ENUM_TO_STRING_CASE(X) case X: return #X;
 std::string toString( CobaltStatus status ) {
@@ -26,6 +21,7 @@ std::string toString( CobaltStatus status ) {
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusSuccess )
   
   /* cobaltValidateProblem() */
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemIsNull )
 
   // tensor errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidA )
@@ -148,24 +144,68 @@ std::string toString( CobaltOperationType type ) {
   state += "]";
   return state;
 }
-  
+ 
+ 
+size_t coordsToSerial( CobaltTensor tensor, std::vector<unsigned int> coords ) {
+  size_t serial = 0;
+  for (size_t i = 0; i < tensor.numDimensions; i++) {
+    serial += coords[i] * tensor.dimensions[i].stride;
+  }
+  return serial;
+}
+ 
 
-/*******************************************************************************
- * struct toString
- ******************************************************************************/
-std::string toStringXML( const CobaltProblem problem, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<Problem string=\"" + toString(problem) + "\">\n";
-  state += toStringXML( problem.tensorC, indentLevel+1);
-  state += toStringXML( problem.tensorA, indentLevel+1);
-  state += toStringXML( problem.tensorB, indentLevel+1);
-  state += toStringXML( problem.operation, indentLevel+1);
-  state += toStringXML( problem.deviceProfile, indentLevel+1);
-  state += indent(indentLevel) + "</Problem>\n";
-  return state;
+template<>
+std::string tensorElementToString<float> ( float element ) {
+  std::ostringstream state;
+  state.precision(3);
+  state << std::scientific << element;
+  return state.str();
+}
+template<>
+std::string tensorElementToString<double> ( double element ) {
+  std::ostringstream state;
+  state.precision(3);
+  state << std::scientific << element;
+  return state.str();
+}
+template<>
+std::string tensorElementToString<CobaltComplexFloat> ( CobaltComplexFloat element ) {
+  std::ostringstream state;
+  state.precision(3);
+  state << std::scientific << element.s[0] << ", " << element.s[1];
+  return state.str();
+}
+template<>
+std::string tensorElementToString<CobaltComplexDouble> ( CobaltComplexDouble element ) {
+  std::ostringstream state;
+  state.precision(3);
+  state << std::scientific << element.s[0] << ", " << element.s[1];
+  return state.str();
 }
 
-std::string toStringXML( const CobaltSolutionBase *solution, size_t indentLevel ) {
+std::string toString( CobaltTensorData tensorData, CobaltTensor tensor ) {
+  switch(tensor.dataType) {
+  case cobaltDataTypeSingle:
+    return toStringTemplate<float>(tensorData, tensor);
+  }
+}
+
+
+template<typename T>
+std::string toString( CobaltTensorData tensorData, CobaltTensor tensor ) {
+  std::string state;
+  std::vector<unsigned int> coords(tensor.numDimensions);
+
+  for (unsigned int d0 = 0; d0 < tensor.dimensions[0].size; d0++) {
+    size_t index = coordsToSerial(tensor, coords);
+    state += tensorElementToString( ((T *)tensorData.data)[index] );
+  }
+}
+
+
+
+std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) {
   return solution->toString(indentLevel);
 }
 
@@ -407,7 +447,7 @@ bool operator< ( const CobaltControl & l, const CobaltControl & r ) {
 }
 
 // CobaltSolution
-bool operator< ( const CobaltSolutionBase & l, const CobaltSolutionBase & r ) {
+bool operator< ( const Cobalt::Solution & l, const Cobalt::Solution & r ) {
   // problem
   return l.getProblem() < r.getProblem();
 }
@@ -428,6 +468,7 @@ size_t getCobaltDataTypeSize( CobaltDataType type ) {
   }
 }
 
+} // namespace
 
 #if 0
 size_t TensorDescriptor::coordsToSerial( std::vector<size_t> coords ) const {

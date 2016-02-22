@@ -1,17 +1,19 @@
-
+#include "Problem.h"
 #include "ReferenceTensorContraction.h"
 #include "StructOperations.h"
 #include "MathTemplates.h"
+
 #include <assert.h>
 #include <algorithm>
 
+namespace Cobalt {
 
 /*******************************************************************************
  * constructor
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::CobaltSolutionTensorContractionCPU( CobaltProblem inputProblem )
-  : CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
+SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTensorContractionCPU( CobaltProblem inputProblem )
+  : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 
 
@@ -19,7 +21,7 @@ CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::Cobalt
  * enqueue
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-CobaltStatus CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
@@ -236,7 +238,7 @@ CobaltStatus CobaltSolutionTensorContractionCPU::gemm(
  * toString
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-std::string CobaltSolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
+std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
   return "CobaltSolutionTensorContractionCPU";
 }
 
@@ -253,38 +255,30 @@ size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
  * cobaltGetSolution
  * need to list all wanted template variants for compiler in this file
  ******************************************************************************/
-CobaltStatus cobaltGetSolutionCPU(
-    CobaltProblem problem,
-    CobaltSolution **solution ) {
+std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Cobalt::Problem & problem) {
+
   bool problemIsTensorContraction = true;
 
   if (problemIsTensorContraction) {
-    switch(problem.tensorC.dataType) {
+    switch(problem.getDataTypeC()) {
     case cobaltDataTypeSingle:
-      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<float,float,float,float,float>( problem );
-      break;
+      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<float,float,float,float,float>( problem ), cobaltStatusSuccess );
     case cobaltDataTypeDouble:
-      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<double,double,double,double,double>( problem );
-      break;
+      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<double,double,double,double,double>( problem ), cobaltStatusSuccess );
     case cobaltDataTypeComplexSingle:
-      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>( problem );
-      break;
+      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>( problem ), cobaltStatusSuccess );
     case cobaltDataTypeComplexDouble:
-      (*solution)->pimpl = new CobaltSolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem );
-      break;
+      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem ), cobaltStatusSuccess );
     default:
-      (*solution)->pimpl = nullptr;
-      return cobaltStatusProblemNotSupported;
+      return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
     }
-
-    return cobaltStatusSuccess;
   } else {
   // TODO - reorganize to include CPU convolution also
-    return cobaltStatusProblemNotSupported;
+      return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
   }
 }
 
-
+} // namespace
 
 /*******************************************************************************
  * Explicit Template Instantiation - redundant of cobaltGetSolutionCPU

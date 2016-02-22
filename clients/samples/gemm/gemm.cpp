@@ -32,11 +32,11 @@ CobaltProblem createProblemGEMM(
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   const size_t numSizes = 1;
-  size_t sizes[] = {960-1, 960, 4096};
-  const size_t numStrides = 2;
+  size_t sizes[] = {2, 960, 4096};
+  const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 64 };
-  const size_t numBatchSizes = 2;
-  size_t batches[] = { 1, 3 };
+  const size_t numBatchSizes = 1;
+  size_t batches[] = { 2 };
   const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[] = {
     cobaltDataTypeSingle,

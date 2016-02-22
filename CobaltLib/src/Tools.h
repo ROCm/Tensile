@@ -1,6 +1,9 @@
+#include <string>
 #ifdef WIN32
 #include "Windows.h"
 #endif
+
+namespace Cobalt {
 
 /*******************************************************************************
  * Timer
@@ -17,3 +20,11 @@ private:
   LARGE_INTEGER startTime;
   LARGE_INTEGER frequency; 
 };
+
+
+/*******************************************************************************
+ * xml tags for toString
+ ******************************************************************************/
+std::string indent(size_t level);
+
+} // namespace

@@ -1,5 +1,5 @@
-#ifndef MATH_H
-#define MATH_H
+#ifndef MATH_TEMPLATES_H
+#define MATH_TEMPLATES_H
 
 
 /*******************************************************************************

@@ -51,7 +51,8 @@ public:
  * cobaltGetSolution
  * need to list all wanted template variants for compiler in this file
  ******************************************************************************/
-std::tuple<Solution *, CobaltStatus> cobaltGetSolutionCPU( CobaltProblem problem );
+std::tuple<Cobalt::Solution *, CobaltStatus> getSolutionCPU(
+    const Cobalt::Problem & problem );
 
 } // namespace
 

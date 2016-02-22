@@ -5,13 +5,14 @@
 
 #include <string>
 
+namespace Cobalt {
 
 /*******************************************************************************
- * CobaltSolutionBase - base private class
+ * Solution - base private class
  ******************************************************************************/
-class CobaltSolutionBase {
+class Solution {
 public:
-  CobaltSolutionBase( CobaltProblem inputProblem );
+  Solution( CobaltProblem inputProblem );
   
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
@@ -33,21 +34,15 @@ protected:
 };
 
 
-/*******************************************************************************
- * CobaltSolution - public pimpl
- ******************************************************************************/
-struct CobaltSolution {
-  CobaltSolutionBase *pimpl;
-};
 
 
 /*******************************************************************************
  * CobaltSolutionTemplate - parent class for all solutions
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-class CobaltSolutionTemplate : public CobaltSolutionBase {
+class SolutionTemplate : public Solution {
 public:
-  CobaltSolutionTemplate( CobaltProblem inputProblem );
+  SolutionTemplate( CobaltProblem inputProblem );
   
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
@@ -68,9 +63,9 @@ public:
 #ifdef Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-class CobaltSolutionOpenCL : public CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
+class SolutionOpenCL : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
-  CobaltSolutionOpenCL( CobaltProblem inputProblem );
+  SolutionOpenCL( CobaltProblem inputProblem );
 
   void makeKernel(
   cl_kernel *kernel,
@@ -128,9 +123,9 @@ protected:
  ******************************************************************************/
 #if Cobalt_LOGGER_ENABLED
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-class CobaltSolutionLogOnly : public CobaltSolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
+class SolutionLogOnly : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
-  CobaltSolutionLogOnly( CobaltProblem inputProblem );
+  SolutionLogOnly( CobaltProblem inputProblem );
   
   CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
@@ -145,6 +140,7 @@ public:
 };
 #endif
 
+}
 
 
 #include <assert.h>
@@ -154,6 +150,14 @@ public:
     /*assert(false);*/ \
     }
 
+
+
+/*******************************************************************************
+ * CobaltSolution - public pimpl
+ ******************************************************************************/
+struct _CobaltSolution {
+  Cobalt::Solution *pimpl;
+};
 
 
 #endif

@@ -20,7 +20,7 @@ bool compareTensors(
   float *gpuData = new float[tensorSize];
   clEnqueueReadBuffer( ctrl.queues[0], (cl_mem) gpu.data, true, 0, tensorSizeMaxC, gpuData, 0, nullptr, nullptr);
   float *cpuData = (float *)cpu.data;
-  unsigned int maxToPrint = 0;
+  unsigned int maxToPrint = 16;
   unsigned int printCount = 0;
   bool equal = true;
   for ( unsigned long long i = 0; i < tensorSize; i++) {
@@ -34,7 +34,7 @@ bool compareTensors(
       }
     }
   }
-  return false;
+  return equal;
 }
 
 /*******************************************************************************
@@ -225,6 +225,12 @@ int main( int argc, char *argv[] ) {
         for ( unsigned int q = 0; q < ctrl.numQueues; q++) {
           status = clFinish( ctrl.queues[q] );
         }
+
+        // print tensorA
+        // print tensorB
+        // print tensorC-cpu
+        // print tensorC-gpu
+
         compareTensors( tensorDataC, tensorDataValidationC, problemReference.tensorC, ctrl );
       }
 
