@@ -2,6 +2,7 @@
 #define LOGGER_H
 
 #include "Cobalt.h"
+#include "Problem.h"
 #include "Solution.h"
 #include "StructOperations.h"
 
@@ -40,11 +41,11 @@ public:
   class TraceEntry {
   public:
     TraceEntryType type;
-    const CobaltSolutionBase *solution;
+    const Cobalt::Solution *solution;
     CobaltStatus status;
     TraceEntry(
         TraceEntryType inputType,
-        const CobaltSolutionBase *inputSolution,
+        const Cobalt::Solution *inputSolution,
         CobaltStatus inputStatus);
     std::string toString( size_t indentLevel );
   };
@@ -72,7 +73,7 @@ public:
  * - record a cobaltGetSolution() call
  ******************************************************************************/
   void logGetSolution(
-      const CobaltSolutionBase *solution,
+      const Cobalt::Solution *solution,
       CobaltStatus status );
 
 /*******************************************************************************
@@ -80,7 +81,7 @@ public:
  * - record a Problem.enqueueSolution() call
  ******************************************************************************/
   void logEnqueueSolution(
-      const CobaltSolutionBase *solution,
+      const Cobalt::Solution *solution,
       CobaltStatus status,
       const CobaltControl *ctrl );
 
@@ -96,9 +97,9 @@ private:
  * log state
  ******************************************************************************/
   std::queue<TraceEntry> trace;
-  std::map<const CobaltSolutionBase*, unsigned long long,
+  std::map<const Cobalt::Solution*, unsigned long long,
       CobaltSolutionPtrComparator> getSummary;
-  std::map<const CobaltSolutionBase*, unsigned long long,
+  std::map<const Cobalt::Solution*, unsigned long long,
       CobaltSolutionPtrComparator> enqueueSummary;
 
 /*******************************************************************************

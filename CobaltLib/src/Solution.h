@@ -2,6 +2,7 @@
 #define SOLUTION_H
 
 #include "Cobalt.h"
+#include "Problem.h"
 
 #include <string>
 
@@ -12,7 +13,7 @@ namespace Cobalt {
  ******************************************************************************/
 class Solution {
 public:
-  Solution( CobaltProblem inputProblem );
+  Solution( const Problem & inputProblem );
   
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
@@ -26,11 +27,21 @@ public:
   
   std::string toStringXML( size_t indentLevel ) const;
 
-  CobaltProblem getProblem() const;
+  Problem getProblem() const;
+
+  virtual bool operator<( const Solution & other) const;
 
 protected:
-  CobaltProblem problem;
+  Problem problem;
 
+};
+
+struct CobaltSolutionPtrComparator
+    : std::binary_function<const Solution *,
+    const Solution *, bool> {
+  bool  operator() (const Solution *l, const Solution *r) const {
+    return *l < *r;
+  }
 };
 
 
@@ -42,7 +53,7 @@ protected:
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
 class SolutionTemplate : public Solution {
 public:
-  SolutionTemplate( CobaltProblem inputProblem );
+  SolutionTemplate( const Problem & inputProblem );
   
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
@@ -65,7 +76,7 @@ public:
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 class SolutionOpenCL : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
-  SolutionOpenCL( CobaltProblem inputProblem );
+  SolutionOpenCL( const Problem & inputProblem );
 
   void makeKernel(
   cl_kernel *kernel,
@@ -99,7 +110,7 @@ protected:
   size_t localWorkSize[maxNumKernels][workDim];
   // kernel argumets
   cl_uint numKernelArgs;
-  void *kernelArgs[maxKernelArgs];
+  const void *kernelArgs[maxKernelArgs];
   size_t kernelArgSizes[maxKernelArgs];
 
   unsigned int indexAssignmentCd0;
@@ -125,7 +136,7 @@ protected:
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
 class SolutionLogOnly : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
-  SolutionLogOnly( CobaltProblem inputProblem );
+  SolutionLogOnly( const Problem & inputProblem );
   
   CobaltStatus enqueue(
       CobaltTensorData tensorDataC,

@@ -1,5 +1,5 @@
 #include "Problem.h"
-#include "ReferenceTensorContraction.h"
+#include "SolutionTensorContractionCPU.h"
 #include "StructOperations.h"
 #include "MathTemplates.h"
 
@@ -12,7 +12,7 @@ namespace Cobalt {
  * constructor
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTensorContractionCPU( CobaltProblem inputProblem )
+SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTensorContractionCPU( const Problem & inputProblem )
   : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 
@@ -37,49 +37,49 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
   TypeB *dataB = (TypeB *)tensorDataB.data;
   dataB += tensorDataB.offset;
   
-  size_t numIndicesFreeC = problem.tensorC.numDimensions;
-  size_t numIndicesSummation = problem.operation.numIndicesSummation;
-  size_t numIndicesFreeAB = problem.tensorA.numDimensions - numIndicesSummation;
+  unsigned int numIndicesFreeC = problem.tensorC.numDims();
+  unsigned int numIndicesSummation = static_cast<unsigned int>(problem.indicesSummation.size());
+  unsigned int numIndicesFreeAB = problem.tensorA.numDims() - numIndicesSummation;
 
-  size_t *freeCoord = new size_t[numIndicesFreeC];
-  //size_t *freeIndexSizes = new size_t[problem.operation.numIndicesFree];
+  std::vector<unsigned int> freeCoord(numIndicesFreeC);
+  std::vector<unsigned int> boundCoord( numIndicesSummation );
+  std::vector<unsigned int> boundIndexSizes( numIndicesSummation );
+  //size_t *freeIndexSizes = new size_t[problem.numIndicesFree];
   for (size_t i = 0; i < numIndicesFreeC; i++) {
     freeCoord[i] = 0;
   //  freeIndexSizes[i] = problem.tensorC.dimensions[freeIndicesC[i]].size;
   }
-  size_t *boundCoord = new size_t[numIndicesSummation];
-  for (size_t b = 0; b < numIndicesSummation; b++) boundCoord[b] = 0;
-  size_t *boundIndexSizes = new size_t[numIndicesSummation];
-  for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
-    if ( problem.operation.indexAssignmentsA[i] >= numIndicesFreeC) {
-      boundIndexSizes[problem.operation.indexAssignmentsA[i]-numIndicesFreeC] = problem.tensorA.dimensions[i].size;
+  for (unsigned int b = 0; b < numIndicesSummation; b++) boundCoord[b] = 0;
+  for (size_t i = 0; i < problem.tensorA.numDims(); i++) {
+    if ( problem.indicesA[i] >= numIndicesFreeC) {
+      boundIndexSizes[problem.indicesA[i]-numIndicesFreeC] = problem.tensorA[i].size;
       // TODO - verify
     }
   }
-  size_t *coordsA = new size_t[problem.tensorA.numDimensions];
-  size_t *coordsB = new size_t[problem.tensorB.numDimensions];
-  size_t *coordsC = new size_t[problem.tensorC.numDimensions];
+  std::vector<unsigned int> coordsA( problem.tensorA.numDims() );
+  std::vector<unsigned int> coordsB( problem.tensorB.numDims() );
+  std::vector<unsigned int> coordsC( problem.tensorC.numDims() );
 
   // iterate over entire free index range
   while (true) {
 
     // next free element is along last free dimension
-    freeCoord[problem.tensorC.numDimensions-1]++;
-    for (size_t f = problem.tensorC.numDimensions-1; f > 0; f--) {
-      if (freeCoord[f] >= problem.tensorC.dimensions[f].size) {
+    freeCoord[problem.tensorC.numDims()-1]++;
+    for (size_t f = problem.tensorC.numDims()-1; f > 0; f--) {
+      if (freeCoord[f] >= problem.tensorC[f].size) {
         freeCoord[f] = 0;
         freeCoord[f-1]++;
       }
     }
-    if (freeCoord[0] >= problem.tensorC.dimensions[0].size) {
+    if (freeCoord[0] >= problem.tensorC[0].size) {
       break; // done with last free element of C
     }
 
     // iterate over entire bound index 
     TypeC sumC = getZero<TypeC>();
     while (true) {
-      boundCoord[problem.operation.numIndicesSummation-1]++;
-      for ( size_t b = problem.operation.numIndicesSummation-1; b > 0; b--) {
+      boundCoord[numIndicesSummation-1]++;
+      for ( size_t b = numIndicesSummation-1; b > 0; b--) {
         if ( boundCoord[b] >= boundIndexSizes[b]) {
           boundCoord[b] = 0;
           boundCoord[b-1]++;
@@ -89,25 +89,25 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
         break; // done with last element
       }
       // convert free/bound coord into tensorA,B 
-      for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
-        if (problem.operation.indexAssignmentsA[i] < numIndicesFreeC) {
-          coordsA[i] = freeCoord[problem.operation.indexAssignmentsA[i]];
+      for (unsigned int i = 0; i < problem.tensorA.numDims(); i++) {
+        if (problem.indicesA[i] < numIndicesFreeC) {
+          coordsA[i] = freeCoord[problem.indicesA[i]];
         } else {
-          coordsA[i] = boundCoord[problem.operation.indexAssignmentsA[i]-numIndicesFreeC];
+          coordsA[i] = boundCoord[problem.indicesA[i]-numIndicesFreeC];
         }
       }
-      for (size_t i = 0; i < problem.tensorB.numDimensions; i++) {
-        if (problem.operation.indexAssignmentsB[i] < numIndicesFreeC) {
-          coordsB[i] = freeCoord[problem.operation.indexAssignmentsB[i]];
+      for (unsigned int i = 0; i < problem.tensorB.numDims(); i++) {
+        if (problem.indicesB[i] < numIndicesFreeC) {
+          coordsB[i] = freeCoord[problem.indicesB[i]];
         } else {
-          coordsB[i] = boundCoord[problem.operation.indexAssignmentsB[i]-numIndicesFreeC];
+          coordsB[i] = boundCoord[problem.indicesB[i]-numIndicesFreeC];
         }
       }
       
-      size_t serialIdxA = coordsToSerial( problem.tensorA, coordsA);
+      size_t serialIdxA = problem.tensorA.getIndex(coordsA);
       TypeA valueA = dataA[serialIdxA];
 
-      size_t serialIdxB = coordsToSerial( problem.tensorB, coordsB);
+      size_t serialIdxB = problem.tensorB.getIndex(coordsB);
       TypeB valueB = dataB[serialIdxB];
 
       TypeC product = multiply<TypeC,TypeA,TypeB>( valueA, valueB);
@@ -115,7 +115,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       sumC = add<TypeC,TypeA,TypeB>(sumC,product);
 
     } // bound range
-    size_t serialIdxC = coordsToSerial(problem.tensorC, freeCoord);
+    size_t serialIdxC = problem.tensorC.getIndex(freeCoord);
     dataC[serialIdxC] = sumC; // TODO - or += allow split among k
 
   } // free range
@@ -141,8 +141,8 @@ CobaltStatus CobaltSolutionTensorContractionCPU::gemm_batched(
   unsigned int batchIdxA;
   unsigned int batchIdxB;
   for (unsigned int i = 0; i < problem.tensorC.numDimensions; i++) {
-    unsigned int idxA = *std::find(problem.operation.indexAssignmentsA, problem.operation.indexAssignmentsA+3, i);
-    unsigned int idxB = *std::find(problem.operation.indexAssignmentsB, problem.operation.indexAssignmentsB+3, i);
+    unsigned int idxA = *std::find(problem.indicesA, problem.indicesA+3, i);
+    unsigned int idxB = *std::find(problem.indicesB, problem.indicesB+3, i);
     if (idxA < 3 && idxB < 3) {
       batchIdxC = i;
       batchIdxA = idxA;
@@ -181,31 +181,31 @@ CobaltStatus CobaltSolutionTensorContractionCPU::gemm(
   float  beta  = *((float *)betaScalar.data);
   float *dataC =   (float *)tensorDataC.data;
   
-  unsigned int tensorAIdxSummation = (unsigned int) (std::find(problem.operation.indexAssignmentsA, problem.operation.indexAssignmentsA+problem.tensorA.numDimensions, 2) - problem.operation.indexAssignmentsA);
-  unsigned int tensorBIdxSummation = (unsigned int) (std::find(problem.operation.indexAssignmentsB, problem.operation.indexAssignmentsB+problem.tensorB.numDimensions, 2) - problem.operation.indexAssignmentsB);
+  unsigned int tensorAIdxSummation = (unsigned int) (std::find(problem.indicesA, problem.indicesA+problem.tensorA.numDimensions, 2) - problem.indicesA);
+  unsigned int tensorBIdxSummation = (unsigned int) (std::find(problem.indicesB, problem.indicesB+problem.tensorB.numDimensions, 2) - problem.indicesB);
   unsigned int tensorAIdxFree;
   unsigned int tensorAStrideFree;
   unsigned int tensorBIdxFree;
   unsigned int tensorBStrideFree;
   for (unsigned int i = 0; i < problem.tensorA.numDimensions; i++) {
-    if (problem.operation.indexAssignmentsA[i] == 0) {
+    if (problem.indicesA[i] == 0) {
       tensorAIdxFree = i;
       tensorAStrideFree = problem.tensorA.dimensions[0].stride;
       break;
     }
-    if (problem.operation.indexAssignmentsA[i] == 1) {
+    if (problem.indicesA[i] == 1) {
       tensorAIdxFree = i;
       tensorAStrideFree = problem.tensorA.dimensions[1].stride;
       break;
     }
   }
   for (unsigned int i = 0; i < problem.tensorB.numDimensions; i++) {
-    if (problem.operation.indexAssignmentsB[i] == 0) {
+    if (problem.indicesB[i] == 0) {
       tensorBIdxFree = i;
       tensorBStrideFree = problem.tensorB.dimensions[0].stride;
       break;
     }
-    if (problem.operation.indexAssignmentsB[i] == 1) {
+    if (problem.indicesB[i] == 1) {
       tensorBIdxFree = i;
       tensorBStrideFree = problem.tensorB.dimensions[1].stride;
       break;
@@ -255,7 +255,7 @@ size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
  * cobaltGetSolution
  * need to list all wanted template variants for compiler in this file
  ******************************************************************************/
-std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Cobalt::Problem & problem) {
+std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Problem & problem) {
 
   bool problemIsTensorContraction = true;
 

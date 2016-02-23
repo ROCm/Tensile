@@ -2,61 +2,18 @@
 #define PROBLEM_H
 
 #include "Cobalt.h"
-#include "CobaltCpp.h"
+#include "Tensor.h"
+#include "DeviceProfile.h"
 
 #include <vector>
 
 namespace Cobalt {
-  
-/*******************************************************************************
- * Tensor
- ******************************************************************************/
-class Tensor {
-  friend class Problem;
-public:
-  Tensor( CobaltTensor tensor );
-  unsigned int numDims() const;
-  std::string toString() const;
-  std::string toStringXML(size_t indent) const;
-
-protected:
-  CobaltDataType dataType;
-  std::vector<CobaltDimension> dimensions;
-
-};
-
-
-/*******************************************************************************
- * DeviceProfile
- ******************************************************************************/
-class Device {
-  friend class DeviceProfile;
-  friend class Problem;
-public:
-  Device( CobaltDevice device );
-  void init( CobaltDevice device );
-  std::string toStringXML(size_t indent) const;
-
-protected:
-  std::string name;
-  unsigned int numComputeUnits;
-  unsigned int clockFrequency;
-};
-
-class DeviceProfile {
-  friend class Problem;
-public:
-  DeviceProfile( CobaltDeviceProfile profile );
-  std::string toStringXML(size_t indent) const;
-protected:
-  std::vector<Device> devices;
-};
-
 
 /*******************************************************************************
  * Problem
  ******************************************************************************/
 class Problem {
+  friend class Solution;
 public:
   Problem(
     CobaltTensor tensorC,
@@ -80,8 +37,11 @@ public:
   CobaltDataType getDataTypeB() const;
   CobaltDataType getDataTypeAlpha() const;
   CobaltDataType getDataTypeBeta() const;
+  size_t alphaSize() const;
+  size_t betaSize() const;
+  bool operator<( const Problem & other ) const;
 
-protected:
+//protected: // leave public since Solution classes need to access them and friendship isn't inherited
   Tensor tensorC;
   Tensor tensorA;
   Tensor tensorB;
@@ -94,12 +54,12 @@ protected:
   std::vector<std::pair<unsigned int,unsigned int>> indicesSummation;
   std::vector<unsigned int> indicesA;
   std::vector<unsigned int> indicesB;
-  bool invalidationCaughtInConstructor;
-
+  CobaltStatus constructorStatus;
 
 };
 
 } // namespace
+
 
 /*******************************************************************************
  * CobaltProblem - public pimpl

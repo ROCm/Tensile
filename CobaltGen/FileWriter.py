@@ -169,18 +169,18 @@ class FileWriter:
       numSolutions += len(solutionList)
     s += "size_t numSolutionsPerProblem[numProblems];\n"
     s += "CobaltProblem problems[numProblems];\n"
-    s += "CobaltSolutionBase *solutionCandidates[numSolutions];\n"
+    s += "Cobalt::Solution *solutionCandidates[numSolutions];\n"
 
-    dataType = Structs.DataType(0)
+    dataType = Structs.DataType(Structs.DataType.single)
     s += dataType.toCpp() + " alphaSingle = 2.f;\n"
     s += dataType.toCpp() + " betaSingle = 3.f;\n"
-    dataType = Structs.DataType(1)
+    dataType = Structs.DataType(Structs.DataType.double)
     s += dataType.toCpp() + " alphaDouble = 4.f;\n"
     s += dataType.toCpp() + " betaDouble = 5.f;\n"
-    dataType = Structs.DataType(2)
+    dataType = Structs.DataType(Structs.DataType.singleComplex)
     s += dataType.toCpp() + " alphaSingleComplex = { 6.f, 7.f };\n"
     s += dataType.toCpp() + " betaSingleComplex = {8.f, 9.f };\n"
-    dataType = Structs.DataType(3)
+    dataType = Structs.DataType(Structs.DataType.doubleComplex)
     s += dataType.toCpp() + " alphaDoubleComplex = { 10.0, 11.0 };\n"
     s += dataType.toCpp() + " betaDoubleComplex = {12.0, 13.0 };\n"
     s += "\n"
@@ -194,7 +194,16 @@ class FileWriter:
     s += "  sprintf_s(deviceProfile.devices[0].name, \"TODO\" );\n"
     s += "  deviceProfile.devices[0].numComputeUnits = -1;\n"
     s += "  deviceProfile.devices[0].clockFrequency = -1;\n"
-    s += "  CobaltProblem problem;\n"
+    s += "\n"
+    s += "  CobaltTensor tensorC;\n"
+    s += "  CobaltTensor tensorA;\n"
+    s += "  CobaltTensor tensorB;\n"
+    s += "  std::vector<unsigned int> indexAssignmentsA(CobaltTensor::maxDimensions);\n"
+    s += "  std::vector<unsigned int> indexAssignmentsB(CobaltTensor::maxDimensions);\n"
+    s += "  CobaltOperationType operationType;\n"
+    s += "  CobaltDataType alphaType;\n"
+    s += "  CobaltDataType betaType;\n"
+    s += "  CobaltStatus status;\n"
     templateInstantiationSet = set()
     solutionStartIdx = 0
     tensorSizeMaxC = 0
@@ -211,83 +220,90 @@ class FileWriter:
 
       # problem.tensorC
       s += "/* problem " + str(problemIdx) + "/" + str(numProblems) + " */\n"
-      s += "  problem.tensorC.dataType = " \
+      s += "  tensorC.dataType = " \
           + problem.tensorC.dataType.getLibString() + ";\n"
       tensorDimC = len(problem.tensorC.dimensions)
-      s += "  problem.tensorC.numDimensions = " + str(tensorDimC) + ";\n"
+      s += "  tensorC.numDimensions = " + str(tensorDimC) + ";\n"
       for i in range(0,tensorDimC):
-        s += "  problem.tensorC.dimensions[" + str(i) + "].stride = " \
+        s += "  tensorC.dimensions[" + str(i) + "].stride = " \
             + str(problem.tensorC.dimensions[i].stride) + ";\n"
-        s += "  problem.tensorC.dimensions[" + str(i) + "].size = " \
+        s += "  tensorC.dimensions[" + str(i) + "].size = " \
             + str(problem.tensorC.dimensions[i].size) + ";\n"
 
       # problem.tensorA
-      s += "  problem.tensorA.dataType = " \
+      s += "  tensorA.dataType = " \
           + problem.tensorA.dataType.getLibString() + ";\n"
       tensorDimA = len(problem.tensorA.dimensions)
-      s += "  problem.tensorA.numDimensions = " + str(tensorDimA) + ";\n"
+      s += "  tensorA.numDimensions = " + str(tensorDimA) + ";\n"
       for i in range(0,tensorDimA):
-        s += "  problem.tensorA.dimensions[" + str(i) + "].stride = " \
+        s += "  tensorA.dimensions[" + str(i) + "].stride = " \
             + str(problem.tensorA.dimensions[i].stride) + ";\n"
-        s += "  problem.tensorA.dimensions[" + str(i) + "].size = " \
+        s += "  tensorA.dimensions[" + str(i) + "].size = " \
             + str(problem.tensorA.dimensions[i].size) + ";\n"
 
       # problem.tensorB
-      s += "  problem.tensorB.dataType = " \
+      s += "  tensorB.dataType = " \
           + problem.tensorB.dataType.getLibString() + ";\n"
       tensorDimB = len(problem.tensorB.dimensions)
-      s += "  problem.tensorB.numDimensions = " + str(tensorDimB) + ";\n"
+      s += "  tensorB.numDimensions = " + str(tensorDimB) + ";\n"
       for i in range(0,tensorDimB):
-        s += "  problem.tensorB.dimensions[" + str(i) + "].stride = " \
+        s += "  tensorB.dimensions[" + str(i) + "].stride = " \
             + str(problem.tensorB.dimensions[i].stride) + ";\n"
-        s += "  problem.tensorB.dimensions[" + str(i) + "].size = " \
+        s += "  tensorB.dimensions[" + str(i) + "].size = " \
             + str(problem.tensorB.dimensions[i].size) + ";\n"
 
-      # problem.deviceProfile
-      s += "  problem.deviceProfile = deviceProfile;\n"
-
       # problem.operation
-      s += "  problem.operation.type = " \
+      s += "  operationType = " \
           + problem.operation.type.getLibString() + ";\n"
 
       # operation.alpha
-      s += "  problem.operation.useAlpha = " \
-          + ( "true" if problem.operation.useAlpha else "false" ) + ";\n"
-      s += "  problem.operation.alphaType = " \
+      #s += "  problem.operation.useAlpha = " \
+      #    + ( "true" if problem.operation.useAlpha else "false" ) + ";\n"
+      s += "  alphaType = " \
           + problem.operation.alphaType.getLibString() + ";\n"
 
       # operation.beta
-      s += "  problem.operation.useBeta = " \
-          + ( "true" if problem.operation.useBeta else "false" ) + ";\n"
-      s += "  problem.operation.betaType = " \
+      #s += "  problem.operation.useBeta = " \
+      #    + ( "true" if problem.operation.useBeta else "false" ) + ";\n"
+      s += "  betaType = " \
           + problem.operation.betaType.getLibString() + ";\n"
 
       # operation.indices
-      s += "  problem.operation.numIndicesFree = " \
-          + str(problem.operation.numIndicesFree) + ";\n"
-      s += "  problem.operation.numIndicesBatch = " \
-          + str(problem.operation.numIndicesBatch) + ";\n"
-      s += "  problem.operation.numIndicesSummation = " \
-          + str(problem.operation.numIndicesSummation) + ";\n"
+      #s += "  problem.operation.numIndicesFree = " \
+      #    + str(problem.operation.numIndicesFree) + ";\n"
+      #s += "  problem.operation.numIndicesBatch = " \
+      #    + str(problem.operation.numIndicesBatch) + ";\n"
+      #s += "  problem.operation.numIndicesSummation = " \
+      #    + str(problem.operation.numIndicesSummation) + ";\n"
       numIndicesA = len(problem.operation.indexAssignmentsA)
       for i in range(0,numIndicesA):
-        s += "  problem.operation.indexAssignmentsA[" + str(i) + "] = " \
+        s += "  indexAssignmentsA[" + str(i) + "] = " \
             + str(problem.operation.indexAssignmentsA[i]) + ";\n"
       numIndicesB = len(problem.operation.indexAssignmentsB)
       for i in range(0,numIndicesB):
-        s += "  problem.operation.indexAssignmentsB[" + str(i) + "] = " \
+        s += "  indexAssignmentsB[" + str(i) + "] = " \
             + str(problem.operation.indexAssignmentsB[i]) + ";\n"
 
       # store problem
-      s += "  problems[" + str(problemIdx) + "] = problem;\n"
+      s += "  problems[" + str(problemIdx) + "] = cobaltCreateProblem(\n"
+      s += "      tensorC,\n"
+      s += "      tensorA,\n"
+      s += "      tensorB,\n"
+      s += "      &indexAssignmentsA[0],\n"
+      s += "      &indexAssignmentsB[0],\n"
+      s += "      operationType,\n"
+      s += "      alphaType,\n"
+      s += "      betaType,\n"
+      s += "      deviceProfile,\n"
+      s += "      &status);\n"
       s += "\n"
 
       # numSolutionsPerProblem
       s += "  numSolutionsPerProblem[" + str(problemIdx) + "] = " \
           + str(numSolutions) + ";\n"
       for i in range(0,numSolutions):
-        s += "  solutionCandidates[" + str(solutionStartIdx+i) + "] = new " \
-            + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( problem ); // " \
+        s += "  solutionCandidates[" + str(solutionStartIdx+i) + "] = new Cobalt::" \
+            + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( *(problems[" + str(problemIdx) + "]->pimpl) ); // " \
             + str(i) + "/" + str(numSolutions) + "\n"
         templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solutionList[i]))
       s += "\n"
@@ -329,7 +345,7 @@ class FileWriter:
     s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxC) + ";\n"
     s += "extern size_t numSolutionsPerProblem[numProblems];\n"
     s += "extern CobaltProblem problems[numProblems];\n"
-    s += "extern CobaltSolutionBase *solutionCandidates[numSolutions];\n"
+    s += "extern Cobalt::Solution *solutionCandidates[numSolutions];\n"
     s += "extern float alphaSingle;\n"
     s += "extern float betaSingle;\n"
     s += "extern double alphaDouble;\n"
@@ -350,7 +366,7 @@ class FileWriter:
     templateInstantiationsFile = open(templateInstantiationsPath, "w")
     templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
     for templateInstantiationStr in templateInstantiationSet:
-      templateInstantiationsFile.write("template class CobaltSolutionOpenCL" \
+      templateInstantiationsFile.write("template class Cobalt::SolutionOpenCL" \
           +templateInstantiationStr + ";\n")
 
 

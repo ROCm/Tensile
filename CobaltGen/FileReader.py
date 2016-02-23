@@ -30,14 +30,20 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
     elif tag == "Tensor": # DONE
       self.tensor = Structs.Tensor()
       dataTypeString = attributes["dataType"]
-      if dataTypeString == "cobaltDataTypeSingle":
+      if dataTypeString == "cobaltDataTypeHalf":
         self.tensor.dataType.value = 0
-      elif dataTypeString == "cobaltDataTypeDouble":
+      elif dataTypeString == "cobaltDataTypeSingle":
         self.tensor.dataType.value = 1
-      elif dataTypeString == "cobaltDataTypeSingleComplex":
+      elif dataTypeString == "cobaltDataTypeDouble":
         self.tensor.dataType.value = 2
-      elif dataTypeString == "cobaltDataTypeDoubleComplex":
+      elif dataTypeString == "cobaltDataTypeHalfComplex":
         self.tensor.dataType.value = 3
+      elif dataTypeString == "cobaltDataTypeSingleComplex":
+        self.tensor.dataType.value = 4
+      elif dataTypeString == "cobaltDataTypeDoubleComplex":
+        self.tensor.dataType.value = 5
+      elif dataTypeString == "cobaltDataTypeNone":
+        self.tensor.dataType.value = 7
       pass
     elif tag == "Dimension": # DONE
       dim = Structs.Dimension()

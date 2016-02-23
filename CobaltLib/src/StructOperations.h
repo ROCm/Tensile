@@ -3,6 +3,7 @@
 #define STRUCT_OPERATIONS_H
 
 #include "Cobalt.h"
+#include "Tools.h"
 //#include "Solution.h"
 #include <string>
 
@@ -16,9 +17,10 @@ std::string toString( CobaltDataType dataType );
 std::string toString( CobaltOperationType type );
 std::string toString( CobaltProblem problem ); // TODO move to problem.h
 
-std::string toString( CobaltTensorData data, CobaltTensor tensor );
-template<typename T>
-std::string toStringTemplate( CobaltTensorData data, CobaltTensor tensor );
+//std::string toString( CobaltTensorData data, Tensor tensor );
+
+//template<typename T>
+//std::string toStringTemplate( CobaltTensorData data, Tensor tensor );
 
 template<typename T>
 std::string tensorElementToString( T element );
@@ -39,23 +41,20 @@ std::string tensorElementToString( T element );
  * comparators for STL
  ******************************************************************************/
 bool operator<(const CobaltDimension & l, const CobaltDimension & r);
-bool operator<(const CobaltTensor & l, const CobaltTensor & r);
-bool operator<(const CobaltDevice & l, const CobaltDevice & r);
-bool operator<(const CobaltDeviceProfile & l, const CobaltDeviceProfile & r);
+//bool operator<(const CobaltTensor & l, const CobaltTensor & r);
+//bool operator<(const CobaltDevice & l, const CobaltDevice & r);
+//bool operator<(const CobaltDeviceProfile & l, const CobaltDeviceProfile & r);
 //bool operator<(const CobaltOperation & l, const CobaltOperation & r);
 //bool operator<(const CobaltProblem & l, const CobaltProblem & r);
 bool operator<(const CobaltControl & l, const CobaltControl & r);
-bool operator<(const Cobalt::Solution & l, const Cobalt::Solution & r);
-struct CobaltSolutionPtrComparator
-    : std::binary_function<const Cobalt::Solution *,
-    const Cobalt::Solution *, bool> {
-  bool  operator() (const Cobalt::Solution *l, const Cobalt::Solution *r) const {
-    return *l < *r;
-  }
-};
+
 
 size_t getCobaltDataTypeSize( CobaltDataType type );
 
 } // namespace
+
+
+bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r);
+bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r);
 
 #endif

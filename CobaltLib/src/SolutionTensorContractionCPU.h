@@ -14,7 +14,7 @@ namespace Cobalt {
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
 class SolutionTensorContractionCPU : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
-  SolutionTensorContractionCPU( CobaltProblem inputProblem );
+  SolutionTensorContractionCPU( const Problem & inputProblem );
 
 
   CobaltStatus enqueue(

@@ -60,11 +60,13 @@ class SolutionWriter:
     s += "\n"
 
     # contructor signature
+    s += "namespace Cobalt {\n"
+    s += "\n"
     s += "/* solution constructor */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += solutionName + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::" + solutionName
-    s += "( CobaltProblem inputProblem )\n"
-    s += "    : CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
+    s += "( const Problem & inputProblem )\n"
+    s += "    : SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
     s += "\n"
 
     # solution properties (common to all kernels)
@@ -178,30 +180,30 @@ class SolutionWriter:
 
     s += "  /* C strides */\n"
     for i in range(0,len(solution.kernels[0].indexOrderC)):
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorC.dimensions[" \
+      s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
           + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
-          + ".dimensions[" + str(i) + "].stride);\n"
+          + "[" + str(i) + "].stride);\n"
       s += "  numKernelArgs++;\n"
     s += "\n"
 
     s += "  /* A strides */\n"
     for i in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorA.dimensions[" \
+      s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
           + str(i) + "].stride; // strideA" + self.indexChars[ \
           solution.kernels[0].operation.indexAssignmentsA[i]] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
-          + ".dimensions[" + str(i) + "].stride);\n"
+          + "[" + str(i) + "].stride);\n"
       s += "  numKernelArgs++;\n"
     s += "\n"
 
     s += "  /* B strides */\n"
     for i in range(0,len(solution.kernels[0].operation.indexAssignmentsB)):
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorB.dimensions[" \
+      s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
           + str(i) + "].stride; // strideB" + self.indexChars[ \
           solution.kernels[0].operation.indexAssignmentsB[i]] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
-          + ".dimensions[" + str(i) + "].stride);\n"
+          + "[" + str(i) + "].stride);\n"
       s += "  numKernelArgs++;\n"
     s += "\n"
 
@@ -212,10 +214,10 @@ class SolutionWriter:
         s += "  kernelArgIdxDim0 = numKernelArgs;\n"
       if i == solution.kernels[0].indexAssignmentDim1:
         s += "  kernelArgIdxDim1 = numKernelArgs;\n"
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorB.dimensions[" \
+      s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
           + str(i) + "].stride; // size" + self.indexChars[i] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
-          + ".dimensions[" + str(i) + "].size);\n"
+          + "[" + str(i) + "].size);\n"
       s += "  numKernelArgs++;\n"
     s += "\n"
 
@@ -236,15 +238,15 @@ class SolutionWriter:
           + solution.kernels[0].operation.numIndicesBatch \
           + solution.kernels[0].operation.numIndicesSummation - 1:
         s += "  kernelArgIdxSummation = numKernelArgs;\n"
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorA.dimensions[" \
+      s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
           + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
-          + ".dimensions[" + str(idx) + "].size);\n"
+          + "[" + str(idx) + "].size);\n"
       s += "  numKernelArgs++;\n"
     s += "\n"
 
     # close constructor
-    s += "} // end constructor\n"
+    s += "} // constructor\n"
     s += "\n\n"
 
     # toString
@@ -253,15 +255,19 @@ class SolutionWriter:
     s += "std::string " + solutionName \
         + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel) const {\n"
     s += "  return \"" + solutionName + "\";\n"
-    s += "}\n"
+    s += "} // toString\n"
     s += "\n"
 
     # explicit template instantiation
     s += "/* explicit template instantiation */\n"
-    #s += "template class CobaltSolutionOpenCL" \
+    #s += "template class SolutionOpenCL" \
     #    + self.getTemplateArgList(solution) + ";\n"
     s += "template class " + solutionName \
         + self.getTemplateArgList(solution) + ";\n"
+
+    s += "\n"
+    s += "} // namespace\n"
+    s += "\n"
 
     return s
 
@@ -283,18 +289,24 @@ class SolutionWriter:
     s += "\n"
 
     # class declaration
+    s += "\n"
+    s += "namespace Cobalt {\n"
+    s += "\n"
     s += "/* solution class */\n"
-    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >"
-    s += "class " + solutionName + " : public CobaltSolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
+    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
+    s += "class " + solutionName + " : public SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
     s += "public:\n"
     s += "  /* constructor */\n"
-    s += "  " + solutionName + "( CobaltProblem inputProblem );\n"
+    s += "  " + solutionName + "( const Problem & inputProblem );\n"
     s += "\n"
     #s += "  std::string " + solutionName \
     #    + "::toString( size_t indentLevel) const;\n"
     s += "  std::string toString( size_t indentLevel) const;\n"
     s += "\n"
-    s += "}; // end class\n"
+    s += "}; // class\n"
+    s += "\n"
+    s += "} // namespace\n"
+    s += "\n"
     return s
 
 

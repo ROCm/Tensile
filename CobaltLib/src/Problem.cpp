@@ -7,80 +7,7 @@
 namespace Cobalt {
 
 /*******************************************************************************
- * Tensor
- ******************************************************************************/
-Tensor::Tensor(CobaltTensor tensor)
-  : dataType(tensor.dataType),
-  dimensions(tensor.dimensions, tensor.dimensions+tensor.numDimensions) { }
-
-unsigned int Tensor::numDims() const {
-  return dimensions.size();
-}
-
-std::string Tensor::toString() const {
-  std::string state = "";
-  return state;
-}
-
-std::string Tensor::toStringXML( size_t indent ) const {
-  std::string state = Cobalt::indent(indent);
-  state += "<Tensor numDimensions=\"" + std::to_string(dimensions.size())
-      + "\"";
-  state += " dataType=\"" + Cobalt::toString( dataType ) + "\"";
-  state += " >\n";
-  for (size_t i = 0; i < numDims(); i++) {
-    state += Cobalt::indent(indent+1) + "<Dimension stride=\""
-        + std::to_string(dimensions[i].stride) + "\"";
-    state += " size=\"" + std::to_string(dimensions[i].size) + "\" />\n";
-  }
-  state += Cobalt::indent(indent) + "</Tensor>\n";
-  return state;
-}
-
-/*******************************************************************************
- * DeviceProfile
- ******************************************************************************/
-Device::Device( CobaltDevice device )
-  : name(device.name),
-  numComputeUnits(device.numComputeUnits),
-  clockFrequency(device.clockFrequency) { }
-
-void Device::init( CobaltDevice device ) {
-  name.assign(device.name);
-  numComputeUnits = device.numComputeUnits;
-  clockFrequency = device.clockFrequency;
-}
-std::string toStringXML( const CobaltDevice device, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<Device name=\"";
-  state += device.name;
-  state += "\"";
-  state += " numComputeUnits=\"" + std::to_string(device.numComputeUnits) + "\"";
-  state += " clockFrequency=\"" + std::to_string(device.clockFrequency) + "\"";
-  state += " />\n";
-  return state;
-}
-
-DeviceProfile::DeviceProfile( CobaltDeviceProfile profile)
-  : devices(profile.numDevices) {
-  for (unsigned int i = 0; i < profile.numDevices; i++) {
-    devices[i].init(profile.devices[i]);
-  }
-}
-std::string DeviceProfile::toStringXML( size_t indent ) const {
-  std::string state = Cobalt::indent(indent);
-  state += "<DeviceProfile";
-  state += " numDevices=\"" + std::to_string(devices.size())
-      + "\" >\n";
-  for (size_t i = 0; i < devices.size(); i++) {
-    state += devices[i].toStringXML(indent+1);
-  }
-  state += Cobalt::indent(indent) + "</DeviceProfile>\n";
-  return state;
-}
-
-/*******************************************************************************
- * Problem
+ * constructor
  ******************************************************************************/
 Problem::Problem(
     CobaltTensor inputTensorC,
@@ -101,26 +28,56 @@ Problem::Problem(
   deviceProfile( inputDeviceProfile ),
   indicesA(inputIndexAssignmentsA, inputIndexAssignmentsA + inputTensorA.numDimensions),
   indicesB(inputIndexAssignmentsB, inputIndexAssignmentsB + inputTensorB.numDimensions),
-  invalidationCaughtInConstructor(false)
+  constructorStatus(cobaltStatusSuccess)
 {
+  // we don't want to validate in constructor because that takes time
+  // however we do calculate "numIndicesFree" here, i.e. indicesFree.size()
+  for (unsigned int i = 0; i < tensorC.numDims() + tensorA.numDims(); i++) {
+    bool inC = i < tensorC.numDims();
+    unsigned int idxA = static_cast<unsigned int>(std::find( indicesA.begin(), indicesA.end(), i) - indicesA.begin());
+    unsigned int idxB = static_cast<unsigned int>(std::find( indicesB.begin(), indicesB.end(), i) - indicesB.begin());
+    bool inA = idxA < indicesA.size();
+    bool inB = idxB < indicesB.size();
 
-  
+    // batch index
+    if (inC && (inA && inB) ) {
+      indicesBatch.push_back(i);
+
+    // free index
+    } else if (inC && (inA || inB) ) {
+      indicesFree.push_back(i);
+
+    // unused free index
+    } else if (inC && !inA && !inB) {
+      constructorStatus = cobaltStatusOperationIndexUnassigned;
+
+    // summation index
+    } else if (!inC && inA && inB) {
+      indicesSummation.push_back( std::make_pair(idxA,idxB) );
+      
+      // index mismatch
+    } else if (!inC && (inA || inB) ) {
+      constructorStatus = cobaltStatusOperationSummationIndexAssignmentsInvalid;
+      
+      // this is okay, we just iterated over too many indices
+    } else if (!inC && !inA && !inB) {
+
+      // are there any other mismatches I haven't thought of?
+    } else {
+      printf("Cobalt::Problem::constructor() - Error; mismatch I hadn't thought of.\n");
+      constructorStatus = cobaltStatusProblemNotFound;
+    }
+  }
 }
-
-bool Problem::useAlpha() const {
-  return alphaType != cobaltDataTypeNone;
-}
-
-bool Problem::useBeta() const {
-  return betaType != cobaltDataTypeNone;
-}
-
-
 
 /*******************************************************************************
  * validate
  ******************************************************************************/
 CobaltStatus Problem::validate( ) {
+
+  if (constructorStatus != cobaltStatusSuccess) {
+    return cobaltStatusSuccess;
+  }
 
   /* tensorA */
   if (tensorA.numDims() < 1
@@ -170,42 +127,7 @@ CobaltStatus Problem::validate( ) {
   }
 
   
-  for (unsigned int i = 0; i < tensorC.numDims() + tensorA.numDims(); i++) {
-    bool inC = i < tensorC.numDims();
-    unsigned int idxA = std::find( indicesA.begin(), indicesA.end(), i) - indicesA.begin();
-    unsigned int idxB = std::find( indicesB.begin(), indicesB.end(), i) - indicesB.begin();
-    bool inA = idxA < indicesA.size();
-    bool inB = idxB < indicesB.size();
-
-    // batch index
-    if (inC && (inA && inB) ) {
-      indicesBatch.push_back(i);
-
-    // free index
-    } else if (inC && (inA || inB) ) {
-      indicesFree.push_back(i);
-
-    // unused free index
-    } else if (inC && !inA && !inB) {
-      return cobaltStatusOperationIndexUnassigned;
-
-    // summation index
-    } else if (!inC && inA && inB) {
-      indicesSummation.push_back( std::make_pair(idxA,idxB) );
-      
-      // index mismatch
-    } else if (!inC && (inA || inB) ) {
-      return cobaltStatusOperationSummationIndexAssignmentsInvalid;
-      
-      // this is okay, we just iterated over too many indices
-    } else if (!inC && !inA && !inB) {
-
-      // are there any other mismatches I haven't thought of?
-    } else {
-      printf("Cobalt::Problem::constructor() - Error; mismatch I hadn't thought of.\n");
-      invalidationCaughtInConstructor = true;
-    }
-  }
+  
 
 
   /* operation */
@@ -302,9 +224,8 @@ CobaltStatus Problem::validate( ) {
   return state;
 } // toString
 
-
- /*******************************************************************************
- * struct toString
+/*******************************************************************************
+ * toStringXML
  ******************************************************************************/
 std::string Problem::toStringXML( size_t indentLevel ) const {
   std::string state = Cobalt::indent(indentLevel);
@@ -359,11 +280,100 @@ std::string Problem::toStringOperationXML( size_t indentLevel ) const {
   return state;
 }
 
+/*******************************************************************************
+ * accessors
+ ******************************************************************************/
 CobaltDataType Problem::getDataTypeC() const { return tensorC.dataType; }
 CobaltDataType Problem::getDataTypeA() const { return tensorA.dataType; }
 CobaltDataType Problem::getDataTypeB() const { return tensorB.dataType; }
 CobaltDataType Problem::getDataTypeAlpha() const { return alphaType; }
 CobaltDataType Problem::getDataTypeBeta() const { return betaType; }
+bool Problem::useAlpha() const { return alphaType != cobaltDataTypeNone; }
+bool Problem::useBeta() const { return betaType != cobaltDataTypeNone; }
+size_t Problem::alphaSize() const { return getCobaltDataTypeSize(alphaType); }
+size_t Problem::betaSize() const { return getCobaltDataTypeSize(betaType); }
+bool Problem::deviceIsReference() const {
+  return strcmp( deviceProfile.devices[0].name.c_str(), "cpu" ) == 0;
+}
 
+/*******************************************************************************
+ * comparator
+ ******************************************************************************/
+bool Problem::operator<(const Problem & other) const {
+  
+  // tensor C
+  if( tensorC < other.tensorC) {
+    return true;
+  } else if ( other.tensorC < tensorC ) {
+    return false;
+  }
+
+  // tensor A
+  if( tensorA < other.tensorA) {
+    return true;
+  } else if (other.tensorA < tensorA ) {
+    return false;
+  }
+
+  // tensor B
+  if( tensorB < other.tensorB) {
+    return true;
+  } else if ( other.tensorB < tensorB ) {
+    return false;
+  }
+
+  // type
+  if (operationType < other.operationType) {
+    return true;
+  } else if (other.operationType < operationType) {
+    return false;
+  }
+  if (alphaType < other.alphaType) {
+    return true;
+  } else if (other.alphaType < alphaType) {
+    return false;
+  }
+  if (betaType < other.betaType) {
+    return true;
+  } else if (other.betaType < betaType) {
+    return false;
+  }
+
+  // index assignments
+  if (indicesFree < other.indicesFree) {
+    return true;
+  } else if (other.indicesFree < indicesFree) {
+    return false;
+  }
+  if (indicesBatch < other.indicesBatch) {
+    return true;
+  } else if (other.indicesBatch < indicesBatch) {
+    return false;
+  }
+  if (indicesSummation < other.indicesSummation) {
+    return true;
+  } else if (other.indicesSummation < indicesSummation) {
+    return false;
+  }
+  if (indicesA < other.indicesA) {
+    return true;
+  } else if (other.indicesA < indicesA) {
+    return false;
+  }
+  if (indicesB < other.indicesB) {
+    return true;
+  } else if (other.indicesB < indicesB) {
+    return false;
+  }
+  // device
+  if( deviceProfile < other.deviceProfile) {
+    return true;
+  } else if ( other.deviceProfile < deviceProfile ) {
+    return false;
+  }
+
+  // identical
+  return false;
+}
 
 } // namespace

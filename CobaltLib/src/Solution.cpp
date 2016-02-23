@@ -8,7 +8,7 @@ namespace Cobalt {
 /*******************************************************************************
  * Solution constructor
  ******************************************************************************/
-Solution::Solution( CobaltProblem inputProblem)
+Solution::Solution( const Problem & inputProblem)
   : problem(inputProblem) { }
 
 
@@ -16,19 +16,22 @@ Solution::Solution( CobaltProblem inputProblem)
  * toStringXML
  ******************************************************************************/
 std::string Solution::toStringXML( size_t indentLevel ) const {
-  std::string state = indent(indentLevel) + "<Solution>\n";
-  state += ::toStringXML(problem, indentLevel+1);
-  state += indent(indentLevel) + "</Solution>";
+  std::string state = Cobalt::indent(indentLevel) + "<Solution>\n";
+  state += problem.toStringXML(indentLevel+1);
+  state += Cobalt::indent(indentLevel) + "</Solution>";
   return state;
 }
 
 /*******************************************************************************
  * toStringXML
  ******************************************************************************/
-CobaltProblem Solution::getProblem() const {
+Problem Solution::getProblem() const {
   return problem;
 }
 
+bool Solution::operator<( const Solution & other ) const {
+  return problem < other.getProblem();
+}
 
 
 
@@ -36,7 +39,7 @@ CobaltProblem Solution::getProblem() const {
  * CobaltSolutionTemplate constructor
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTemplate( CobaltProblem inputProblem)
+SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTemplate( const Problem & inputProblem)
   : Solution(inputProblem) { }
 
 
@@ -47,7 +50,7 @@ SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTemplate( Cobalt
  ******************************************************************************/
 #ifdef Cobalt_BACKEND_OPENCL12
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( CobaltProblem inputProblem)
+SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( const Problem & inputProblem)
   : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) { }
 
 
@@ -201,20 +204,20 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         status = clSetKernelArg( kernels[kernelIdx], 2, sizeof(cl_mem), &tensorDataB.data );
 
         // tensorC offsets
-        unsigned int tensorOffsetCd0 = d0*problem.tensorC.dimensions[indexAssignmentCd0].stride/kernelGrid[0];
-        unsigned int tensorOffsetCd1 = d1*problem.tensorC.dimensions[indexAssignmentCd1].stride/kernelGrid[1];
+        unsigned int tensorOffsetCd0 = d0*problem.tensorC[indexAssignmentCd0].stride/kernelGrid[0];
+        unsigned int tensorOffsetCd1 = d1*problem.tensorC[indexAssignmentCd1].stride/kernelGrid[1];
 
         // tensorA,B offsets
-        unsigned int tensorOffsetAdU = dU*problem.tensorA.dimensions[indexAssignmentAdU].stride/kernelGrid[2];
-        unsigned int tensorOffsetBdU = dU*problem.tensorB.dimensions[indexAssignmentBdU].stride/kernelGrid[2];
+        unsigned int tensorOffsetAdU = dU*problem.tensorA[indexAssignmentAdU].stride/kernelGrid[2];
+        unsigned int tensorOffsetBdU = dU*problem.tensorB[indexAssignmentBdU].stride/kernelGrid[2];
         unsigned int tensorOffsetAd0or1 = 0;
         unsigned int tensorOffsetBd0or1 = 0;
         if (d0InTensorA) {
-          tensorOffsetAd0or1 = d0*problem.tensorA.dimensions[indexAssignmentAd0or1].stride/kernelGrid[0];
-          tensorOffsetBd0or1 = d1*problem.tensorB.dimensions[indexAssignmentBd0or1].stride/kernelGrid[1];
+          tensorOffsetAd0or1 = d0*problem.tensorA[indexAssignmentAd0or1].stride/kernelGrid[0];
+          tensorOffsetBd0or1 = d1*problem.tensorB[indexAssignmentBd0or1].stride/kernelGrid[1];
         } else {
-          tensorOffsetAd0or1 = d1*problem.tensorA.dimensions[indexAssignmentAd0or1].stride/kernelGrid[1];
-          tensorOffsetBd0or1 = d0*problem.tensorB.dimensions[indexAssignmentBd0or1].stride/kernelGrid[0];
+          tensorOffsetAd0or1 = d1*problem.tensorA[indexAssignmentAd0or1].stride/kernelGrid[1];
+          tensorOffsetBd0or1 = d0*problem.tensorB[indexAssignmentBd0or1].stride/kernelGrid[0];
         }
         // data offsets
         unsigned int tensorOffsetC = tensorDataC.offset + tensorOffsetCd0 + tensorOffsetCd1;
@@ -243,16 +246,14 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
         // alpha
         unsigned int argIdx = numKernelArgs;
-        if (problem.operation.useAlpha) {
-          unsigned int sizeAlpha = (unsigned int)getCobaltDataTypeSize(problem.operation.alphaType);
-          status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, sizeAlpha, alpha.data );
+        if (problem.useAlpha()) {
+          status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, problem.alphaSize(), alpha.data );
           argIdx++;
         }
 
         // beta
-        if (problem.operation.useBeta) {
-          unsigned int sizeBeta = (unsigned int)getCobaltDataTypeSize(problem.operation.betaType);
-          status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, sizeBeta, beta.data );
+        if (problem.useBeta()) {
+          status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, problem.betaSize(), beta.data );
           argIdx++;
         }
 
@@ -289,7 +290,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
  ******************************************************************************/
 #if Cobalt_LOGGER_ENABLED
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionLogOnly( CobaltProblem inputProblem)
+SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionLogOnly( const Problem & inputProblem)
   : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 

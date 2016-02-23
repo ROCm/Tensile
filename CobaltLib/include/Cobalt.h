@@ -115,26 +115,42 @@ typedef enum CobaltStatus_ {
 bool cobaltStatusIsValidationError( CobaltStatus status );
 bool cobaltStatusIsPerformanceWarning( CobaltStatus status );
 
+/*******************************************************************************
+ * Setup & Teardown
+ * --enable-validation - validates and records results in log
+ * --enable-validation-kernels - validates individual kernels and records results in log
+ * --enable-benchmarking - times each solution and records in log
+ * --enable-benchmarking-kernels - times each kernel and records in log
+ * ? results queryable through
+ ******************************************************************************/
+CobaltStatus cobaltSetup( const char *logFileName );
+CobaltStatus cobaltTeardown();
 
 /*******************************************************************************
- * Tensor
+ * Data Type
  ******************************************************************************/
 typedef enum CobaltDataType_ {
-  cobaltDataTypeHalf,
-  cobaltDataTypeSingle,
-  cobaltDataTypeDouble,
-  cobaltdataTypeComplexHalf,
-  cobaltDataTypeComplexSingle,
-  cobaltDataTypeComplexDouble,
-  cobaltNumDataTypes,
-  cobaltDataTypeNone,
+  cobaltDataTypeHalf, // 0
+  cobaltDataTypeSingle, // 1
+  cobaltDataTypeDouble, // 2
+  cobaltDataTypeComplexHalf, // 3
+  cobaltDataTypeComplexSingle, // 4
+  cobaltDataTypeComplexDouble, // 5
+  cobaltNumDataTypes, // 6
+  cobaltDataTypeNone, // 7
 } CobaltDataType;
 
+/*******************************************************************************
+ * Dimension
+ ******************************************************************************/
 typedef struct CobaltDimension_ {
   unsigned int stride;
   unsigned int size;
 } CobaltDimension;
 
+/*******************************************************************************
+ * Tensor
+ ******************************************************************************/
 typedef struct CobaltTensor_ {
   CobaltDataType dataType;
   enum { maxDimensions = 16 } maxDimensions_;
@@ -183,6 +199,9 @@ typedef struct CobaltDevice_ {
   unsigned int clockFrequency;
 } CobaltDevice;
 
+/*******************************************************************************
+ * Device Profile
+ ******************************************************************************/
 typedef struct CobaltDeviceProfile_ {
   enum { maxDevices = 1 } maxDevices_;
   unsigned int numDevices;
@@ -241,7 +260,6 @@ typedef struct CobaltOperation_ {
 //  CobaltOperation operation;
 //} CobaltProblem;
 
-CobaltStatus cobaltValidateProblem( CobaltProblem problem );
 
 /*******************************************************************************
  * Control
@@ -266,11 +284,14 @@ typedef struct CobaltControl_ {
 #define Cobalt_CONTROL_MODE_BENCHMARK_KERNELS (1<<3)
 
 /*******************************************************************************
- * Solution
+ * Problem & Solution forward declarations
  ******************************************************************************/
-typedef struct _CobaltProblem * CobaltProblem; // forward declare pimpl
-typedef struct _CobaltSolution * CobaltSolution; // forward declare pimpl
+typedef struct _CobaltProblem * CobaltProblem;
+typedef struct _CobaltSolution * CobaltSolution;
 
+/*******************************************************************************
+ * create problem
+ ******************************************************************************/
 CobaltProblem cobaltCreateProblem(
     CobaltTensor tensorC,
     CobaltTensor tensorA,
@@ -282,11 +303,24 @@ CobaltProblem cobaltCreateProblem(
     CobaltDataType betaType,
     CobaltDeviceProfile deviceProfile,
     CobaltStatus *status );
+CobaltStatus cobaltDestroyProblem( CobaltProblem *problem );
 
+/*******************************************************************************
+ * validate problem
+ ******************************************************************************/
+CobaltStatus cobaltValidateProblem( CobaltProblem problem );
+
+/*******************************************************************************
+ * get solution for problem
+ ******************************************************************************/
 CobaltSolution cobaltGetSolutionForProblem(
     const CobaltProblem problem,
     CobaltStatus *status );
+CobaltStatus cobaltDestroySolution( CobaltSolution *solution );
 
+/*******************************************************************************
+ * enqueue solution
+ ******************************************************************************/
 CobaltStatus cobaltEnqueueSolution(
     CobaltSolution solution,
     CobaltTensorData tensorDataC,
@@ -298,28 +332,15 @@ CobaltStatus cobaltEnqueueSolution(
 
 
 /*******************************************************************************
- * Setup & Teardown
- * --enable-validation - validates and records results in log
- * --enable-validation-kernels - validates individual kernels and records results in log
- * --enable-benchmarking - times each solution and records in log
- * --enable-benchmarking-kernels - times each kernel and records in log
- * ? results queryable through
- ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFileName );
-CobaltStatus cobaltTeardown();
-
-
-/*******************************************************************************
- * toStrings
+ * toStrings - allow user to print status, problem, solution
  ******************************************************************************/
 CobaltStatus cobaltStatusToString(
     CobaltStatus status, char *cstr, unsigned int *size );
-CobaltStatus cobaltDataTypeToString(
-    CobaltDataType dataType, char *cstr, unsigned int *size );
-CobaltStatus cobaltOperationToString(
-    CobaltOperationType type, char *cstr, unsigned int *size );
 CobaltStatus cobaltProblemToString(
     CobaltProblem problem, char *cstr, unsigned int *size );
+CobaltStatus cobaltSolutionToString(
+    CobaltProblem problem, char *cstr, unsigned int *size );
+
 
 
 #ifdef __cplusplus

@@ -7,13 +7,6 @@ CobaltTensor createTensorForMatrix(
     size_t dim0,
     size_t dim1,
     size_t dimBatch );
-CobaltOperation createOperationGEMM(
-  CobaltDataType dataType,
-  bool transA,
-  bool transB,
-  bool alpha,
-  bool beta,
-  bool batched );
 CobaltProblem createProblemGEMM(
     bool transA,
     bool transB,
@@ -77,8 +70,8 @@ int main( char * argv[], int argc ) {
                           alpha,
                           beta,
                           dataType );
-                      CobaltSolution *solution;
-                      CobaltStatus status = cobaltGetSolution( problem, &solution );
+                      CobaltStatus status;
+                      CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
                       numProblems++;
                     } // beta
                   } // alpha
@@ -114,35 +107,71 @@ CobaltProblem createProblemGEMM(
     CobaltDataType dataType ) {
 
   // problem - tensor
-  CobaltProblem problem;
-  problem.tensorA = createTensorForMatrix(
+  CobaltTensor tensorA = createTensorForMatrix(
     dataType,
     initialStride,
     transA ? K : M,
     transA ? M : K,
     numBatches );
-  problem.tensorB = createTensorForMatrix(
+  CobaltTensor tensorB = createTensorForMatrix(
     dataType,
     initialStride,
     transB ? K : N,
     transB ? N : K,
     numBatches );
-  problem.tensorC = createTensorForMatrix(
+  CobaltTensor tensorC = createTensorForMatrix(
     dataType,
     initialStride,
     M,
     N,
     numBatches );
 
-  // problem - operation GEMM
-  problem.operation = createOperationGEMM(
-    dataType, transA, transB, alpha, beta, numBatches > 1);
+  // operation
+  CobaltOperationType operationType = cobaltOperationTypeContraction;
+  CobaltDataType alphaType = alpha ? dataType : cobaltDataTypeNone;
+  CobaltDataType betaType = beta ? dataType : cobaltDataTypeNone;
+  unsigned int indexAssignmentsA[CobaltTensor::maxDimensions];
+  unsigned int indexAssignmentsB[CobaltTensor::maxDimensions];
+  if (numBatches > 1) {
+    indexAssignmentsA[0] = transA ? 3 : 0;
+    indexAssignmentsA[1] = transA ? 0 : 3;
+    indexAssignmentsA[2] = 2;
+    indexAssignmentsB[0] = transB ? 1 : 3;
+    indexAssignmentsB[1] = transB ? 3 : 1;
+    indexAssignmentsB[2] = 2;
+  } else {
+    indexAssignmentsA[0] = transA ? 2 : 0;
+    indexAssignmentsA[1] = transA ? 0 : 2;
+    indexAssignmentsB[0] = transB ? 1 : 2;
+    indexAssignmentsB[1] = transB ? 2 : 1;
+  }
+
+
+
+
+
 
   // problem - device problem
-  problem.deviceProfile.numDevices = 1;
-  sprintf_s(problem.deviceProfile.devices[0].name, "Hawaii" );
-  problem.deviceProfile.devices[0].numComputeUnits = 44;
-  problem.deviceProfile.devices[0].clockFrequency = 900; // MHz
+  CobaltDeviceProfile deviceProfile;
+  deviceProfile.numDevices = 1;
+  sprintf_s(deviceProfile.devices[0].name, "Hawaii" );
+  deviceProfile.devices[0].numComputeUnits = 44;
+  deviceProfile.devices[0].clockFrequency = 900; // MHz
+
+
+  CobaltStatus status;
+  CobaltProblem problem = cobaltCreateProblem(
+      tensorC,
+      tensorA,
+      tensorB,
+      indexAssignmentsA,
+      indexAssignmentsB,
+      operationType,
+      alphaType,
+      betaType,
+      deviceProfile,
+      &status );
+
 
   // problem - validate
   CobaltStatus validationStatus = cobaltValidateProblem( problem );
@@ -183,37 +212,37 @@ CobaltTensor createTensorForMatrix(
   return tensor;
 }
 
-CobaltOperation createOperationGEMM(
-  CobaltDataType dataType,
-  bool transA,
-  bool transB,
-  bool alpha,
-  bool beta,
-  bool batched ) {
-  CobaltOperation operation;
-  operation.type = cobaltOperationTypeContraction;
-  operation.useAlpha = alpha;
-  operation.alphaType = dataType;
-  //operation.alpha = nullptr;
-  operation.useBeta = beta;
-  operation.betaType = dataType;
-  //operation.beta = nullptr;
-  operation.numIndicesFree = 2;
-  operation.numIndicesSummation = 1;
-  if (batched) {
-  operation.numIndicesBatch = 1;
-  operation.indexAssignmentsA[0] = transA ? 3 : 0;
-  operation.indexAssignmentsA[1] = transA ? 0 : 3;
-  operation.indexAssignmentsA[2] = 2;
-  operation.indexAssignmentsB[0] = transB ? 1 : 3;
-  operation.indexAssignmentsB[1] = transB ? 3 : 1;
-  operation.indexAssignmentsB[2] = 2;
-  } else {
-  operation.numIndicesBatch = 0;
-  operation.indexAssignmentsA[0] = transA ? 2 : 0;
-  operation.indexAssignmentsA[1] = transA ? 0 : 2;
-  operation.indexAssignmentsB[0] = transB ? 1 : 2;
-  operation.indexAssignmentsB[1] = transB ? 2 : 1;
-  }
-  return operation;
-}
+//CobaltOperation createOperationGEMM(
+//  CobaltDataType dataType,
+//  bool transA,
+//  bool transB,
+//  bool alpha,
+//  bool beta,
+//  bool batched ) {
+//  CobaltOperation operation;
+//  operation.type = cobaltOperationTypeContraction;
+//  operation.useAlpha = alpha;
+//  operation.alphaType = dataType;
+//  //operation.alpha = nullptr;
+//  operation.useBeta = beta;
+//  operation.betaType = dataType;
+//  //operation.beta = nullptr;
+//  operation.numIndicesFree = 2;
+//  operation.numIndicesSummation = 1;
+//  if (batched) {
+//  operation.numIndicesBatch = 1;
+//  operation.indexAssignmentsA[0] = transA ? 3 : 0;
+//  operation.indexAssignmentsA[1] = transA ? 0 : 3;
+//  operation.indexAssignmentsA[2] = 2;
+//  operation.indexAssignmentsB[0] = transB ? 1 : 3;
+//  operation.indexAssignmentsB[1] = transB ? 3 : 1;
+//  operation.indexAssignmentsB[2] = 2;
+//  } else {
+//  operation.numIndicesBatch = 0;
+//  operation.indexAssignmentsA[0] = transA ? 2 : 0;
+//  operation.indexAssignmentsA[1] = transA ? 0 : 2;
+//  operation.indexAssignmentsB[0] = transB ? 1 : 2;
+//  operation.indexAssignmentsB[1] = transB ? 2 : 1;
+//  }
+//  return operation;
+//}

@@ -1,3 +1,6 @@
+#ifndef TOOLS_H
+#define TOOLS_H
+
 #include <string>
 #ifdef WIN32
 #include "Windows.h"
@@ -28,3 +31,5 @@ private:
 std::string indent(size_t level);
 
 } // namespace
+
+#endif

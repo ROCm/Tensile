@@ -1,5 +1,6 @@
 
 #include "Logger.h"
+#include "Tools.h"
 
 namespace Cobalt {
   
@@ -8,7 +9,7 @@ namespace Cobalt {
  ******************************************************************************/
 Logger::TraceEntry::TraceEntry(
     TraceEntryType inputType,
-    const CobaltSolutionBase *inputSolution,
+    const Cobalt::Solution *inputSolution,
     CobaltStatus inputStatus
     )
     : type(inputType),
@@ -20,11 +21,11 @@ Logger::TraceEntry::TraceEntry(
  * TraceEntry:: toString
  ******************************************************************************/
 std::string Logger::TraceEntry::toString( size_t indentLevel ) {
-  std::string state = indent(indentLevel);
+  std::string state = Cobalt::indent(indentLevel);
   state += "<TraceEntry";
   state += " enum=\"" + std::to_string(type) + "\"";
   state += " string=\"" + Logger::toString(type) + "\"";
-  state += " status=\"" + ::toString(status) + "\" >\n";
+  state += " status=\"" + Cobalt::toString(status) + "\" >\n";
   if (solution) {
     state += solution->toStringXML(indentLevel+1);
   }
@@ -79,7 +80,7 @@ Logger::~Logger() {
  * log get solution
  ******************************************************************************/
 void Logger::logGetSolution(
-    const CobaltSolutionBase *solution,
+    const Cobalt::Solution *solution,
     CobaltStatus status ) {
   printf("Logger::logGetSolution(%p)\n", solution );
   // create entry
@@ -95,7 +96,7 @@ void Logger::logGetSolution(
  * log enqueue solution
  ******************************************************************************/
 void Logger::logEnqueueSolution(
-    const CobaltSolutionBase *solution,
+    const Cobalt::Solution *solution,
     CobaltStatus status,
     const CobaltControl *ctrl ) {
   printf("Logger::logEnqueueSolution(%p)\n", solution );
@@ -135,7 +136,7 @@ void Logger::flush() {
  * summaryEntryToString
  ******************************************************************************/
 std::string summaryEntryToString(
-    std::string tag, const CobaltSolutionBase *solution,
+    std::string tag, const Cobalt::Solution *solution,
     size_t count, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<" + tag + " count=\"" + std::to_string(count) + "\" >\n";
@@ -155,9 +156,9 @@ void Logger::writeSummary() {
   file << comment("Summary of Problem::getSolution()");
   file << "<SummaryGetSolution numEntries=\""
       + std::to_string(getSummary.size()) + "\" >\n";
-  std::map<const CobaltSolutionBase*, unsigned long long>::iterator i;
+  std::map<const Cobalt::Solution*, unsigned long long>::iterator i;
   for ( i = getSummary.begin(); i != getSummary.end(); i++) {
-    const CobaltSolutionBase *solution = i->first;
+    const Cobalt::Solution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry
@@ -171,7 +172,7 @@ void Logger::writeSummary() {
   file << "<SummaryEnqueueSolution numEntries=\""
       + std::to_string(enqueueSummary.size()) + "\" >\n";
   for ( i = enqueueSummary.begin(); i != enqueueSummary.end(); i++) {
-    const CobaltSolutionBase *solution = i->first;
+    const Cobalt::Solution *solution = i->first;
     size_t count = i->second;
 
     // write state of entry

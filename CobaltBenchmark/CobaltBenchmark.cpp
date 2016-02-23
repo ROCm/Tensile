@@ -4,30 +4,48 @@
 
 #include "Cobalt.h"
 #include "Tools.h"
+#include "Solution.h"
 #include "CobaltSolutionCandidates.h"
+#include "SolutionTensorContractionCPU.h"
+#include "StructOperations.h"
 
-bool compareTensors(
-  CobaltTensorData gpu,
-  CobaltTensorData cpu,
-  CobaltTensor tensor,
-  CobaltControl ctrl ) {
-  unsigned long long tensorSize = 0;
-  for ( unsigned int d = 0; d < tensor.numDimensions; d++) {
-    if (tensor.dimensions[d].size * tensor.dimensions[d].stride > tensorSize) {
-      tensorSize = tensor.dimensions[d].size * tensor.dimensions[d].stride;
-    }
-  }
-  float *gpuData = new float[tensorSize];
-  clEnqueueReadBuffer( ctrl.queues[0], (cl_mem) gpu.data, true, 0, tensorSizeMaxC, gpuData, 0, nullptr, nullptr);
-  float *cpuData = (float *)cpu.data;
+#include <tuple>
+
+
+template<typename DataType>
+void printMismatch( size_t index, DataType gpuData, DataType cpuData );
+
+template<>
+void printMismatch<float>( size_t index, float gpuData, float cpuData ) {
+  printf("%6i: %.6f != %.6f\n", index, gpuData, cpuData );
+}
+template<>
+void printMismatch<double>( size_t index, double gpuData, double cpuData ) {
+  printf("%6i: %.6f != %.6f\n", index, gpuData, cpuData );
+}
+template<>
+void printMismatch<CobaltComplexFloat>( size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData ) {
+  printf("%6i: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1 );
+}
+template<>
+void printMismatch<CobaltComplexDouble>( size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData ) {
+  printf("%6i: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1 );
+}
+
+template<typename DataType>
+bool compareTensorsTemplate(
+  DataType *gpuData,
+  DataType *cpuData,
+  Cobalt::Tensor tensor) {
+  
   unsigned int maxToPrint = 16;
   unsigned int printCount = 0;
   bool equal = true;
-  for ( unsigned long long i = 0; i < tensorSize; i++) {
-    if (cpuData[i] != gpuData[i]) {
+  for ( unsigned long long i = 0; i < tensor.size(); i++) {
+    if ( !(cpuData[i] == gpuData[i]) ) {
       equal = false;
       if (printCount < maxToPrint) {
-        printf("%6i: %f != %f\n", cpuData[i], gpuData[i]);
+        printMismatch<DataType>(i, gpuData[i], cpuData[i]);
         printCount++;
       } else {
         break;
@@ -37,11 +55,33 @@ bool compareTensors(
   return equal;
 }
 
+
+bool compareTensors(
+    CobaltTensorData gpu,
+    CobaltTensorData cpu,
+    Cobalt::Tensor tensor,
+    CobaltControl ctrl ) {
+
+  switch( tensor.getDataType() ) {
+  case cobaltDataTypeSingle:
+    return compareTensorsTemplate<float>((float *)gpu.data, (float *)cpu.data, tensor);
+  case cobaltDataTypeDouble:
+    return compareTensorsTemplate<double>((double *)gpu.data, (double *)cpu.data, tensor);
+  case cobaltDataTypeComplexSingle:
+    return compareTensorsTemplate<CobaltComplexFloat>((CobaltComplexFloat *)gpu.data, (CobaltComplexFloat *)cpu.data, tensor);
+  case cobaltDataTypeComplexDouble:
+    return compareTensorsTemplate<CobaltComplexDouble>((CobaltComplexDouble *)gpu.data, (CobaltComplexDouble *)cpu.data, tensor);
+  default:
+    printf("ERROR\n");
+    return false;
+  }
+}
+
 /*******************************************************************************
  * timeSolution - milliseconds
  ******************************************************************************/
 double timeSolution(
-    CobaltSolutionBase *solution,
+    Cobalt::Solution *solution,
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
     CobaltTensorData tensorDataB,
@@ -53,7 +93,7 @@ double timeSolution(
   const size_t numSamples = 5;
 
   double sampleTimes[numSamples];
-  Timer timer;
+  Cobalt::Timer timer;
 
   for ( size_t sampleIdx = 0; sampleIdx < numSamples; sampleIdx++) {
 
@@ -207,7 +247,7 @@ int main( int argc, char *argv[] ) {
         solutionIdx++ ) {
 
       // get solution candidate
-      CobaltSolutionBase *solution = solutionCandidates[ solutionIdx ];
+      Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
       // ensure kernels are compiled before timing
       solution->enqueue( tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl );
 
@@ -215,23 +255,31 @@ int main( int argc, char *argv[] ) {
       if (doValidation) {
         printf("doing validation\n");
         // get cpu result
-        CobaltSolution *solutionReference;
+        Cobalt::Solution *solutionReference;
         CobaltProblem problemReference = problems[problemIdx];
-        problemReference.deviceProfile = deviceProfileReference;
-        cobaltStatus = cobaltGetSolution( problemReference, &solutionReference );
-        cobaltStatus = cobaltEnqueueSolution( solutionReference, tensorDataValidationC, tensorDataValidationA,
-          tensorDataValidationB, alpha, beta, &ctrlValidation );
+        problemReference->pimpl->deviceProfile = deviceProfileReference;
+        std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
+        solutionReference->enqueue( tensorDataValidationC, tensorDataValidationA,
+            tensorDataValidationB, alpha, beta, ctrlValidation );
         // get gpu result
         for ( unsigned int q = 0; q < ctrl.numQueues; q++) {
           status = clFinish( ctrl.queues[q] );
         }
 
         // print tensorA
-        // print tensorB
-        // print tensorC-cpu
-        // print tensorC-gpu
+        printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
 
-        compareTensors( tensorDataC, tensorDataValidationC, problemReference.tensorC, ctrl );
+        // print tensorB
+        printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
+
+        // print tensorC-cpu
+        printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
+
+        // print tensorC-gpu
+        clEnqueueReadBuffer( ctrl.queues[0], (cl_mem)tensorDataC.data, CL_TRUE, 0, problemReference->pimpl->tensorC.size(), tensorDataHostC, 0, nullptr, nullptr );
+        printf( problemReference->pimpl->tensorC.toString(tensorDataC).c_str() );
+
+        compareTensors( tensorDataC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
       }
 
       // time solution

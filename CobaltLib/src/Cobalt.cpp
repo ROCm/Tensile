@@ -15,22 +15,6 @@
 Cobalt::Logger Cobalt::logger;
 
 /*******************************************************************************
- * cobaltSetup()
- ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFileName ) {
-  Cobalt::logger.init(logFileName);
-  return cobaltStatusSuccess;
-}
-
-/*******************************************************************************
- * cobaltTeardown
- ******************************************************************************/
-CobaltStatus cobaltTeardown() {
-  return cobaltStatusSuccess;
-}
-
-
-/*******************************************************************************
  * cobaltStatusIsValidationError
  ******************************************************************************/
 bool cobaltStatusIsValidationError( CobaltStatus status ) {
@@ -49,6 +33,22 @@ bool cobaltStatusIsPerformanceWarning( CobaltStatus status ) {
 
 
 /*******************************************************************************
+ * cobaltSetup()
+ ******************************************************************************/
+CobaltStatus cobaltSetup( const char *logFileName ) {
+  Cobalt::logger.init(logFileName);
+  return cobaltStatusSuccess;
+}
+
+/*******************************************************************************
+ * cobaltTeardown
+ ******************************************************************************/
+CobaltStatus cobaltTeardown() {
+  return cobaltStatusSuccess;
+}
+
+
+/*******************************************************************************
  * cobaltCreateProblem
  ******************************************************************************/
 CobaltProblem cobaltCreateProblem(
@@ -63,30 +63,30 @@ CobaltProblem cobaltCreateProblem(
     CobaltDeviceProfile deviceProfile,
     CobaltStatus *status ) {
 
-  CobaltProblem problem;
+  CobaltProblem problem = new _CobaltProblem();
+  problem->pimpl = new Cobalt::Problem(
+      tensorC,
+      tensorA,
+      tensorB,
+      indexAssignmentsA,
+      indexAssignmentsB,
+      operationType,
+      alphaType,
+      betaType,
+      deviceProfile );
+  *status = cobaltStatusSuccess;
 
-  try{
-    problem = new _CobaltProblem();
-    problem->pimpl = new Cobalt::Problem(
-        tensorC,
-        tensorA,
-        tensorB,
-        indexAssignmentsA,
-        indexAssignmentsB,
-        operationType,
-        alphaType,
-        betaType,
-        deviceProfile );
-        *status = cobaltStatusSuccess;
-  } catch( const std::exception& e) {
-    *status = cobaltStatusProblemNotSupported;
-    problem = nullptr;
-  }
   return problem;
 };
 
 
-
+CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
+  if (problem == nullptr) {
+  return problem->pimpl->validate();
+  } else {
+    return cobaltStatusProblemIsNull;
+  }
+}
 
 
 /*******************************************************************************
@@ -96,20 +96,19 @@ CobaltSolution cobaltGetSolutionForProblem(
     CobaltProblem problem,
     CobaltStatus *status ) {
 
-  CobaltSolution solution;
+  CobaltSolution solution = new _CobaltSolution();
 
   // cpu device
   if ( problem->pimpl->deviceIsReference() ) {
     solution = new _CobaltSolution();
-    std::tie(solution->pimpl, *status) = Cobalt::getSolutionCPU( problem );
+    std::tie(solution->pimpl, *status) = Cobalt::getSolutionCPU( *(problem->pimpl) );
 
   // gpu device
   } else {
 #if Cobalt_SOLVER_ENABLED
-    status = cobaltGetSolutionGenerated( problem, solution );
+    //status = cobaltGetSolutionGenerated( problem, solution );
 #else
-    CobaltSolution solution = new _CobaltSolution();
-    solution->pimpl = new Cobalt::SolutionLogOnly<void,void,void,void,void>(problem);
+    solution->pimpl = new Cobalt::SolutionLogOnly<void,void,void,void,void>(*(problem->pimpl));
     *status = cobaltStatusSuccess;
 #endif
   }
@@ -122,6 +121,7 @@ CobaltSolution cobaltGetSolutionForProblem(
 
   return solution;
 }
+
 
 /*******************************************************************************
  * cobaltEnqueueSolution
@@ -136,7 +136,7 @@ CobaltStatus cobaltEnqueueSolution(
     CobaltControl *ctrl ) {
   CobaltStatus status = cobaltStatusSuccess;
   // cpu device
-  if (solution->pimpl->getProblem()->pimpl->deviceIsReference()) {
+  if (solution->pimpl->getProblem().deviceIsReference()) {
       status = solution->pimpl->enqueue( tensorDataC, tensorDataA, tensorDataB,
           alpha, beta, *ctrl );
 
@@ -155,36 +155,15 @@ CobaltStatus cobaltEnqueueSolution(
 
 
 /*******************************************************************************
- * cobaltValidateProblem
- ******************************************************************************/
-bool arrayContains( unsigned int *array, size_t arraySize, size_t value) {
-  for (size_t i = 0; i < arraySize; i++) {
-    if (array[i] == value) {
-      return true;
-    }
-  }
-  return false;
-}
-
-CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
-  if (problem == nullptr) {
-  return problem->pimpl->validate();
-  } else {
-    return cobaltStatusProblemIsNull;
-  }
-}
-
-/*******************************************************************************
  * toStrings
  ******************************************************************************/
-
 CobaltStatus cppStringToCString(
   std::string state, char *cstr, unsigned int *size ) {
   if (cstr) {
     // do copy
     if (size) {
       // copy up to size
-      size_t lengthToCopy = std::min(*size-1 /* reserve space for null char*/,
+      size_t lengthToCopy = min(*size-1 /* reserve space for null char*/,
           (unsigned int)state.size());
       memcpy(cstr, state.c_str(), lengthToCopy);
       cstr[lengthToCopy] = '\0';
@@ -211,20 +190,15 @@ CobaltStatus cobaltStatusToString( CobaltStatus code, char *cstr, unsigned int *
   return cppStringToCString( state, cstr, size);
 }
 
-CobaltStatus cobaltDataTypeToString(
-    CobaltDataType dataType, char *cstr, unsigned int *size ) {
-  std::string state = Cobalt::toString(dataType);
-  return cppStringToCString( state, cstr, size );
-}
-
-CobaltStatus cobaltOperationToString(
-    CobaltOperationType type, char *cstr, unsigned int *size ) {
-  std::string state = Cobalt::toString(type);
-  return cppStringToCString( state, cstr, size );
-}
-
 CobaltStatus cobaltProblemToString(
     CobaltProblem problem, char *cstr, unsigned int *size ) {
   std::string state = problem->pimpl->toString();
   return cppStringToCString( state, cstr, size );
 }
+
+CobaltStatus cobaltSolutionToString(
+    CobaltSolution solution, char *cstr, unsigned int *size ) {
+  std::string state = solution->pimpl->toString(0);
+  return cppStringToCString( state, cstr, size );
+}
+

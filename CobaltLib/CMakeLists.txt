@@ -26,8 +26,8 @@ set( ${CobaltLib_NAME}_VERSION_PATCH 0 )
 # CobaltLib source files
 set( CobaltLib_SRC_STATIC
   src/Cobalt.cpp
-  src/CobaltCpp.cpp
-  src/CobaltCpp.h
+  src/DeviceProfile.cpp
+  src/DeviceProfile.h
   src/Logger.cpp
   src/Logger.h
   src/MathTemplates.h
@@ -39,6 +39,8 @@ set( CobaltLib_SRC_STATIC
   src/Solution.h
   src/StructOperations.cpp
   src/StructOperations.h
+  src/Tensor.cpp
+  src/Tensor.h
   src/Tools.cpp
   src/Tools.h
 )

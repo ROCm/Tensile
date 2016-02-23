@@ -10,10 +10,14 @@ class Status:
 # Data Type - Enum
 ################################################################################
 class DataType:
-  single = 0
-  double = 1
-  singleComplex = 2
-  doubleComplex = 3
+  half = 0
+  single = 1
+  double = 2
+  halfComplex = 3
+  singleComplex = 4
+  doubleComplex = 5
+  # num = 6
+  none = 7
 
   def __init__( self, value ):
     self.value = value
@@ -27,8 +31,10 @@ class DataType:
       return "C"
     elif self.value == self.doubleComplex:
       return "Z"
+    elif self.value == self.none:
+      return "0"
     else:
-      return "ERROR"
+      return "ERROR(" + str(self.value) + ")"
 
   def toOpenCL(self):
     if self.value == self.single:
@@ -40,7 +46,7 @@ class DataType:
     elif self.value == self.doubleComplex:
       return "double2"
     else:
-      return "ERROR"
+      return "ERROR(" + str(self.value) + ")"
 
   def toCpp(self):
     if self.value == self.single:
@@ -51,8 +57,10 @@ class DataType:
       return "CobaltComplexFloat"
     elif self.value == self.doubleComplex:
       return "CobaltComplexDouble"
+    elif self.value == self.none:
+      return "void"
     else:
-      return "ERROR"
+      return "ERROR(" + str(self.value) + ")"
 
   def getLibString(self):
     if self.value == self.single:
@@ -63,8 +71,10 @@ class DataType:
       return "cobaltDataTypeSingleComplex"
     elif self.value == self.doubleComplex:
       return "cobaltDataTypeDoubleComplex"
+    elif self.value == self.none:
+      return "cobaltDataTypeNone"
     else:
-      return "ERROR"
+      return "ERROR(" + str(self.value) + ")"
 
   def isReal(self):
     if self.value == self.single or self.value == self.double:
@@ -85,7 +95,7 @@ class DataType:
     elif self.value == self.doubleComplex:
       return 4
     else:
-      return "ERROR"
+      return "ERROR(" + str(self.value) + ")"
 
   def __str__(self):
     return self.toChar()

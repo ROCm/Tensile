@@ -77,10 +77,13 @@ std::string toString( CobaltStatus status ) {
 
 std::string toString( CobaltDataType dataType ) {
   switch( dataType ) {
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeHalf )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingle )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDouble )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexHalf )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexSingle )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexDouble )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeNone )
   default:
     return "Error in toString(CobaltDataType): no switch case for: "
         + std::to_string(dataType);
@@ -96,56 +99,7 @@ std::string toString( CobaltOperationType type ) {
         + std::to_string(type);
   };
 }
-
-// pretty print
- std::string toString( CobaltProblem problem ) {
-   // assumes problem has already been validated
-  std::string state = "";
-  static const char *indexChars = "ijklmnopqrstuvwxyz";
-
-  state += "C[";
-  state += indexChars[0];
-  state += ":";
-  state += std::to_string(problem.tensorC.dimensions[0].size);
-  for (size_t i = 1; i < problem.tensorC.numDimensions; i++) {
-    state += ",";
-    state += indexChars[i];
-    state += ":";
-    state += std::to_string(problem.tensorC.dimensions[i].size);
-  }
-  state += "] = Sum(";
-  state += indexChars[problem.tensorC.numDimensions];
-  state += ":";
-  //state += std::to_string(boundIndexSizes[0]);
-  for (size_t i = 1; i < problem.operation.numIndicesSummation; i++) {
-    state += ",";
-    state += indexChars[problem.tensorA.numDimensions+i];
-    state += ":";
-    for (size_t j = 0; j < problem.tensorA.numDimensions; j++) {
-      if (problem.operation.indexAssignmentsA[j] == i) {
-        state += std::to_string(problem.tensorA.dimensions[j].size);
-      }
-    }
-  }
-  state += ") A[";
-  for (size_t i = 0; i < problem.tensorA.numDimensions; i++) {
-    state += indexChars[problem.operation.indexAssignmentsA[i]];
-    if (i < problem.tensorA.numDimensions-1) {
-      state += ",";
-    }
-  }
-  state += "] * B[";
-  for (size_t i = 0; i < problem.tensorB.numDimensions; i++) {
-    state += indexChars[problem.operation.indexAssignmentsB[i]];
-    if (i < problem.tensorB.numDimensions-1) {
-      state += ",";
-    }
-  }
-  state += "]";
-  return state;
-}
- 
- 
+#if 0
 size_t coordsToSerial( CobaltTensor tensor, std::vector<unsigned int> coords ) {
   size_t serial = 0;
   for (size_t i = 0; i < tensor.numDimensions; i++) {
@@ -153,7 +107,7 @@ size_t coordsToSerial( CobaltTensor tensor, std::vector<unsigned int> coords ) {
   }
   return serial;
 }
- 
+#endif
 
 template<>
 std::string tensorElementToString<float> ( float element ) {
@@ -184,31 +138,10 @@ std::string tensorElementToString<CobaltComplexDouble> ( CobaltComplexDouble ele
   return state.str();
 }
 
-std::string toString( CobaltTensorData tensorData, CobaltTensor tensor ) {
-  switch(tensor.dataType) {
-  case cobaltDataTypeSingle:
-    return toStringTemplate<float>(tensorData, tensor);
-  }
-}
-
-
-template<typename T>
-std::string toString( CobaltTensorData tensorData, CobaltTensor tensor ) {
-  std::string state;
-  std::vector<unsigned int> coords(tensor.numDimensions);
-
-  for (unsigned int d0 = 0; d0 < tensor.dimensions[0].size; d0++) {
-    size_t index = coordsToSerial(tensor, coords);
-    state += tensorElementToString( ((T *)tensorData.data)[index] );
-  }
-}
-
-
-
 std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) {
   return solution->toString(indentLevel);
 }
-
+#if 0
 std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   std::string state = indent(indentLevel);
   state += "<Operation ";
@@ -249,8 +182,8 @@ std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
   state += indent(indentLevel) + "</Operation>\n";
   return state;
 }
-
-
+#endif
+#if 0
 std::string toStringXML(
     const CobaltDeviceProfile deviceProfile, size_t indentLevel ) {
   std::string state = indent(indentLevel);
@@ -289,7 +222,7 @@ std::string toStringXML( const CobaltTensor tensor, size_t indentLevel ) {
   state += indent(indentLevel) + "</Tensor>\n";
   return state;
 }
-
+#endif
 
 /*******************************************************************************
  * comparators
@@ -310,7 +243,7 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
   // identical
   return false;
 }
-
+#if 0
 // CobaltTensor
 bool operator<(const CobaltTensor & l, const CobaltTensor & r) {
   // dataType
@@ -335,12 +268,14 @@ bool operator<(const CobaltTensor & l, const CobaltTensor & r) {
   // identical
   return false;
 }
-
+#endif
+#if 0
 // CobaltDevice
 bool operator< ( const CobaltDevice & l, const CobaltDevice & r ) {
   return l.name < r.name;
 }
-
+#endif
+#if 0
 // CobaltDeviceProfile
 bool operator< (
     const CobaltDeviceProfile & l, const CobaltDeviceProfile & r ) {
@@ -359,8 +294,9 @@ bool operator< (
   // identical
   return false;
 }
-
+#endif
 // CobaltOperation
+#if 0
 bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
   // type
   if (l.type < r.type) {
@@ -404,7 +340,8 @@ bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
   // identical
   return false;
 }
-
+#endif
+#if 0
 // CobaltProblem
 bool operator<(const CobaltProblem & l, const CobaltProblem & r) {
   // tensor A
@@ -440,6 +377,7 @@ bool operator<(const CobaltProblem & l, const CobaltProblem & r) {
   // identical
   return false;
 }
+#endif
 
 // CobaltControl
 bool operator< ( const CobaltControl & l, const CobaltControl & r ) {
@@ -447,10 +385,14 @@ bool operator< ( const CobaltControl & l, const CobaltControl & r ) {
 }
 
 // CobaltSolution
+// TODO solution should have their own comparator for tile sizes, num kernels...
+#if 0
 bool operator< ( const Cobalt::Solution & l, const Cobalt::Solution & r ) {
   // problem
   return l.getProblem() < r.getProblem();
 }
+#endif
+
 
 // get size of CobaltDataType
 size_t getCobaltDataTypeSize( CobaltDataType type ) {
@@ -460,15 +402,29 @@ size_t getCobaltDataTypeSize( CobaltDataType type ) {
   case cobaltDataTypeDouble:
     return sizeof(double);
   case cobaltDataTypeComplexSingle:
-    return 2*sizeof(float);
+    return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexDouble:
-    return 2*sizeof(double);
+    return sizeof(CobaltComplexDouble);
+  case cobaltDataTypeNone:
+    return 0;
   default:
     return -1;
   }
 }
 
+
+
+
+
 } // namespace
+
+
+bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
+  return l.s0 == r.s0 && l.s1 == r.s1;
+}
+bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
+  return l.s0 == r.s0 && l.s1 == r.s1;
+}
 
 #if 0
 size_t TensorDescriptor::coordsToSerial( std::vector<size_t> coords ) const {
