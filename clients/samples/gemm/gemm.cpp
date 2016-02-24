@@ -211,38 +211,3 @@ CobaltTensor createTensorForMatrix(
   }
   return tensor;
 }
-
-//CobaltOperation createOperationGEMM(
-//  CobaltDataType dataType,
-//  bool transA,
-//  bool transB,
-//  bool alpha,
-//  bool beta,
-//  bool batched ) {
-//  CobaltOperation operation;
-//  operation.type = cobaltOperationTypeContraction;
-//  operation.useAlpha = alpha;
-//  operation.alphaType = dataType;
-//  //operation.alpha = nullptr;
-//  operation.useBeta = beta;
-//  operation.betaType = dataType;
-//  //operation.beta = nullptr;
-//  operation.numIndicesFree = 2;
-//  operation.numIndicesSummation = 1;
-//  if (batched) {
-//  operation.numIndicesBatch = 1;
-//  operation.indexAssignmentsA[0] = transA ? 3 : 0;
-//  operation.indexAssignmentsA[1] = transA ? 0 : 3;
-//  operation.indexAssignmentsA[2] = 2;
-//  operation.indexAssignmentsB[0] = transB ? 1 : 3;
-//  operation.indexAssignmentsB[1] = transB ? 3 : 1;
-//  operation.indexAssignmentsB[2] = 2;
-//  } else {
-//  operation.numIndicesBatch = 0;
-//  operation.indexAssignmentsA[0] = transA ? 2 : 0;
-//  operation.indexAssignmentsA[1] = transA ? 0 : 2;
-//  operation.indexAssignmentsB[0] = transB ? 1 : 2;
-//  operation.indexAssignmentsB[1] = transB ? 2 : 1;
-//  }
-//  return operation;
-//}

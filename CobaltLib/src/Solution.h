@@ -108,6 +108,7 @@ protected:
   // kernel dimensions
   size_t globalWorkSize[maxNumKernels][workDim];
   size_t localWorkSize[maxNumKernels][workDim];
+  void assignWorkSizes();
   // kernel argumets
   cl_uint numKernelArgs;
   const void *kernelArgs[maxKernelArgs];

@@ -172,7 +172,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
   cl_int status;
-  cl_uint workDim = 2;
+  cl_uint workDim = 3;
   size_t *globalWorkOffset = NULL;
 
   // compile kernels

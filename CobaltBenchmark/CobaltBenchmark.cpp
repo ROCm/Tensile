@@ -184,8 +184,8 @@ int main( int argc, char *argv[] ) {
   float *tensorDataHostA = new float[tensorSizeMaxA];
   float *tensorDataHostB = new float[tensorSizeMaxB];
   for (size_t i = 0; i < tensorSizeMaxC; i++) tensorDataHostC[i] = 0.f;
-  for (size_t i = 0; i < tensorSizeMaxA; i++) tensorDataHostA[i] = 1.f;
-  for (size_t i = 0; i < tensorSizeMaxB; i++) tensorDataHostB[i] = 1.f;
+  for (size_t i = 0; i < tensorSizeMaxA; i++) tensorDataHostA[i] = (float) (i+1);
+  for (size_t i = 0; i < tensorSizeMaxB; i++) tensorDataHostB[i] = (float) (i+1);
   tensorDataC.data = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, tensorSizeMaxC, tensorDataHostC, &status );
   tensorDataC.offset = 0;
   tensorDataA.data = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, tensorSizeMaxA, tensorDataHostA, &status );
@@ -257,6 +257,8 @@ int main( int argc, char *argv[] ) {
         // get cpu result
         Cobalt::Solution *solutionReference;
         CobaltProblem problemReference = problems[problemIdx];
+        printf( problemReference->pimpl->toString().c_str() );
+
         problemReference->pimpl->deviceProfile = deviceProfileReference;
         std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
         solutionReference->enqueue( tensorDataValidationC, tensorDataValidationA,

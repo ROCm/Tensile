@@ -278,6 +278,8 @@ class SolutionWriter:
   def getHeaderString(self, solution):
     solutionName = self.getName(solution)
     s = ""
+    s += "#ifndef " + solutionName.upper() + "_H\n"
+    s += "#define " + solutionName.upper() + "_H\n\n"
     # includes
     s += "#include \"Solution.h\"\n"
     s += "\n"
@@ -306,6 +308,8 @@ class SolutionWriter:
     s += "}; // class\n"
     s += "\n"
     s += "} // namespace\n"
+    s += "\n"
+    s += "#endif\n"
     s += "\n"
     return s
 
