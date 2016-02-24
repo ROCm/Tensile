@@ -99,15 +99,7 @@ std::string toString( CobaltOperationType type ) {
         + std::to_string(type);
   };
 }
-#if 0
-size_t coordsToSerial( CobaltTensor tensor, std::vector<unsigned int> coords ) {
-  size_t serial = 0;
-  for (size_t i = 0; i < tensor.numDimensions; i++) {
-    serial += coords[i] * tensor.dimensions[i].stride;
-  }
-  return serial;
-}
-#endif
+
 
 template<>
 std::string tensorElementToString<float> ( float element ) {
@@ -138,91 +130,32 @@ std::string tensorElementToString<CobaltComplexDouble> ( CobaltComplexDouble ele
   return state.str();
 }
 
+
+template<>
+std::ostream& appendElement<float>(std::ostream& os, const float& element) {
+  os << element;
+  return os;
+}
+template<>
+std::ostream& appendElement<double>(std::ostream& os, const double& element) {
+  os << element;
+  return os;
+}
+template<>
+std::ostream& appendElement<CobaltComplexFloat>(std::ostream& os, const CobaltComplexFloat& element) {
+  os << element.s[0] << "," << element.s[1];
+  return os;
+}
+template<>
+std::ostream& appendElement<CobaltComplexDouble>(std::ostream& os, const CobaltComplexDouble& element) {
+  os << element.s[0] << "," << element.s[1];
+  return os;
+}
+
+
 std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) {
   return solution->toString(indentLevel);
 }
-#if 0
-std::string toStringXML( const CobaltOperation operation, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<Operation ";
-  state += "useAlpha=\""+std::to_string(operation.useAlpha)+"\" ";
-  state += "alphaType=\""+std::to_string(operation.alphaType)+"\" ";
-  state += "useBeta=\""+std::to_string(operation.useBeta)+"\" ";
-  state += "betaType=\""+std::to_string(operation.alphaType)+"\" ";
-  state += "numIndicesFree=\""+std::to_string(operation.numIndicesFree)+"\" ";
-  state += "numIndicesBatch=\""+std::to_string(operation.numIndicesBatch)+"\" ";
-  state += "numIndicesSummation=\""+std::to_string(operation.numIndicesSummation)+"\" ";
-  state += ">\n";
-  state += indent(indentLevel+1);
-  // type
-  state += "<Type enum=\"" + std::to_string(operation.type) + "\"";
-  state += " string=\"" + toString(operation.type) + "\" />\n";
-  // operationIndexAssignmentsA
-  state += indent(indentLevel+1) + "<IndexAssignments tensor=\"A\" >\n";
-  for (size_t i = 0; i < operation.numIndicesFree/2 + operation.numIndicesBatch + operation.numIndicesSummation; i++) {
-    state += indent(indentLevel+2);
-    state += "<IndexAssignment";
-    state += " index=\"" + std::to_string(i) + "\"";
-    state += " indexAssignment=\""
-        + std::to_string(operation.indexAssignmentsA[i]) + "\"";
-    state += " />\n";
-  }
-  state += indent(indentLevel+1) + "</IndexAssignments>\n";
-  // operationIndexAssignmentsB
-  state += indent(indentLevel+1) + "<IndexAssignments tensor=\"B\" >\n";
-  for (size_t i = 0; i < operation.numIndicesFree/2 + operation.numIndicesBatch + operation.numIndicesSummation; i++) {
-    state += indent(indentLevel+2);
-    state += "<IndexAssignment";
-    state += " index=\"" + std::to_string(i) + "\"";
-    state += " indexAssignment=\""
-      + std::to_string(operation.indexAssignmentsB[i]) + "\"";
-    state += " />\n";
-  }
-  state += indent(indentLevel+1) + "</IndexAssignments>\n";
-  state += indent(indentLevel) + "</Operation>\n";
-  return state;
-}
-#endif
-#if 0
-std::string toStringXML(
-    const CobaltDeviceProfile deviceProfile, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<DeviceProfile";
-  state += " numDevices=\"" + std::to_string(deviceProfile.numDevices)
-      + "\" >\n";
-  for (size_t i = 0; i < deviceProfile.numDevices; i++) {
-    state += toStringXML( deviceProfile.devices[i], indentLevel+1);
-  }
-  state += indent(indentLevel) + "</DeviceProfile>\n";
-  return state;
-}
-
-std::string toStringXML( const CobaltDevice device, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<Device name=\"";
-  state += device.name;
-  state += "\"";
-  state += " numComputeUnits=\"" + std::to_string(device.numComputeUnits) + "\"";
-  state += " clockFrequency=\"" + std::to_string(device.clockFrequency) + "\"";
-  state += " />\n";
-  return state;
-}
-
-std::string toStringXML( const CobaltTensor tensor, size_t indentLevel ) {
-  std::string state = indent(indentLevel);
-  state += "<Tensor numDimensions=\"" + std::to_string(tensor.numDimensions)
-      + "\"";
-  state += " dataType=\"" + toString( tensor.dataType ) + "\"";
-  state += " >\n";
-  for (size_t i = 0; i < tensor.numDimensions; i++) {
-    state += indent(indentLevel+1) + "<Dimension stride=\""
-        + std::to_string(tensor.dimensions[i].stride) + "\"";
-    state += " size=\"" + std::to_string(tensor.dimensions[i].size) + "\" />\n";
-  }
-  state += indent(indentLevel) + "</Tensor>\n";
-  return state;
-}
-#endif
 
 /*******************************************************************************
  * comparators
@@ -243,141 +176,6 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
   // identical
   return false;
 }
-#if 0
-// CobaltTensor
-bool operator<(const CobaltTensor & l, const CobaltTensor & r) {
-  // dataType
-  if (l.dataType < r.dataType) {
-    return true;
-  } else if (r.dataType < l.dataType) {
-    return false;
-  }
-  // dimensions
-  if (l.numDimensions < r.numDimensions) {
-    return true;
-  } else if (r.numDimensions < l.numDimensions) {
-    return false;
-  }
-  for (size_t i = 0; i < l.numDimensions; i++) {
-    if (l.dimensions[i] < r.dimensions[i]) {
-      return true;
-    } else if (r.dimensions[i] < l.dimensions[i]) {
-      return false;
-    }
-  }
-  // identical
-  return false;
-}
-#endif
-#if 0
-// CobaltDevice
-bool operator< ( const CobaltDevice & l, const CobaltDevice & r ) {
-  return l.name < r.name;
-}
-#endif
-#if 0
-// CobaltDeviceProfile
-bool operator< (
-    const CobaltDeviceProfile & l, const CobaltDeviceProfile & r ) {
-  if (l.numDevices < r.numDevices) {
-    return true;
-  } else if (r.numDevices < l.numDevices) {
-    return false;
-  }
-  for (size_t i = 0; i < l.numDevices; i++) {
-    if (l.devices[i] < r.devices[i]) {
-      return true;
-    } else if (r.devices[i] < l.devices[i]) {
-      return false;
-    }
-  }
-  // identical
-  return false;
-}
-#endif
-// CobaltOperation
-#if 0
-bool operator<(const CobaltOperation & l, const CobaltOperation & r) {
-  // type
-  if (l.type < r.type) {
-    return true;
-  } else if (r.type < l.type) {
-    return false;
-  }
-  // numFree,Batch,SummationIndices
-  if (l.numIndicesFree < r.numIndicesFree) {
-    return true;
-  } else if (r.numIndicesFree < l.numIndicesFree) {
-    return false;
-  }
-  if (l.numIndicesBatch < r.numIndicesBatch) {
-    return true;
-  } else if (r.numIndicesBatch < l.numIndicesBatch) {
-    return false;
-  }
-  if (l.numIndicesSummation < r.numIndicesSummation) {
-    return true;
-  } else if (r.numIndicesSummation < l.numIndicesSummation) {
-    return false;
-  }
-  // indexAssignmentsA
-  for (size_t i = 0; i < l.numIndicesFree/2+l.numIndicesBatch+l.numIndicesSummation; i++) {
-    if (l.indexAssignmentsA[i] < r.indexAssignmentsA[i]) {
-      return true;
-    } else if (r.indexAssignmentsA[i] < l.indexAssignmentsA[i]) {
-      return false;
-    }
-  }
-  // indexAssignmentsB
-  for (size_t i = 0; i < l.numIndicesFree/2+l.numIndicesBatch+l.numIndicesSummation; i++) {
-    if (l.indexAssignmentsB[i] < r.indexAssignmentsB[i]) {
-      return true;
-    } else if (r.indexAssignmentsB[i] < l.indexAssignmentsB[i]) {
-      return false;
-    }
-  }
-
-  // identical
-  return false;
-}
-#endif
-#if 0
-// CobaltProblem
-bool operator<(const CobaltProblem & l, const CobaltProblem & r) {
-  // tensor A
-  if( l.tensorA < r.tensorA) {
-    return true;
-  } else if (r.tensorA < l.tensorA ) {
-    return false;
-  }
-  // tensor B
-  if( l.tensorB < r.tensorB) {
-    return true;
-  } else if ( r.tensorB < l.tensorB ) {
-    return false;
-  }
-  // tensor C
-  if( l.tensorC < r.tensorC) {
-    return true;
-  } else if ( r.tensorC < l.tensorC ) {
-    return false;
-  }
-  // operation
-  if( l.operation < r.operation) {
-    return true;
-  } else if ( r.operation < l.operation ) {
-    return false;
-  }
-  // device
-  if( l.deviceProfile < r.deviceProfile) {
-    return true;
-  } else if ( r.deviceProfile < l.deviceProfile ) {
-    return false;
-  }
-  // identical
-  return false;
-}
-#endif
 
 // CobaltControl
 bool operator< ( const CobaltControl & l, const CobaltControl & r ) {
@@ -425,42 +223,3 @@ bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
   return l.s0 == r.s0 && l.s1 == r.s1;
 }
-
-#if 0
-size_t TensorDescriptor::coordsToSerial( std::vector<size_t> coords ) const {
-  size_t serial = 0;
-  for (size_t i = 0; i < dimensions.size(); i++) {
-    serial += coords[i] * dimensions[i].stride;
-  }
-  return serial;
-}
-
-std::vector<size_t> TensorDescriptor::serialToCoords( size_t serial ) const {
-  std::vector<size_t> coords( dimensions.size() );
-  size_t remainder = serial;
-  for (size_t i = dimensions.size()-1; i >= 0; i--) {
-    size_t coord = remainder / dimensions[i].stride;
-    remainder = remainder % dimensions[i].stride;
-  }
-  return coords;
-}
-
-std::vector<DimensionDescriptor> TensorDescriptor::compactSizesToDimensions( std::vector<size_t> compactSizes ) {
-  std::vector<DimensionDescriptor> dimensions( compactSizes.size() );
-  dimensions[0].stride = 1;
-  for (size_t i = 0; i < compactSizes.size()-1; i++) {
-    dimensions[i].size = compactSizes[i];
-    dimensions[i+1].stride = dimensions[i].size;
-  }
-  dimensions[compactSizes.size()-1].size = compactSizes[compactSizes.size()-1];
-  return dimensions;
-}
-numElements = 1000*100*10 = 1,000,000
-idx0 x100000
-idx1 x1000
-idx2 x10
-
-idx0 = (serial / 10 / 1000) % 100000
-idx1 = (serial / 10) % 1000
-idx2 = serial % 10
-#endif

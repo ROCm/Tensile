@@ -267,18 +267,23 @@ int main( int argc, char *argv[] ) {
         }
 
         // print tensorA
+        printf("\nTensorA:\n");
         printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
 
         // print tensorB
+        printf("\nTensorB:\n");
         printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
 
         // print tensorC-cpu
+        printf("\nTensorC-CPU:\n");
         printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
 
         // print tensorC-gpu
+        printf("\nTensorC-GPU:\n");
         clEnqueueReadBuffer( ctrl.queues[0], (cl_mem)tensorDataC.data, CL_TRUE, 0, problemReference->pimpl->tensorC.size(), tensorDataHostC, 0, nullptr, nullptr );
         printf( problemReference->pimpl->tensorC.toString(tensorDataC).c_str() );
-
+        
+        printf("\nComparing...\n");
         compareTensors( tensorDataC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
       }
 

@@ -1,6 +1,8 @@
 #include "Tensor.h"
 #include "StructOperations.h"
 
+#include <sstream>
+
 namespace Cobalt {
 
 /*******************************************************************************
@@ -52,14 +54,60 @@ std::string Tensor::toString( CobaltTensorData tensorData ) const {
 
 template<typename T>
 std::string Tensor::toStringTemplate( CobaltTensorData tensorData ) const {
-  std::string state;
+  std::ostringstream stream;
   std::vector<unsigned int> coords(numDims());
-
-  for (unsigned int d0 = 0; d0 < dimensions[0].size; d0++) {
-    size_t index = getIndex(coords);
-    state += tensorElementToString( ((T *)tensorData.data)[index] );
+  for (auto i = 0; i < coords.size(); i++) {
+    coords[i] = 0;
   }
-  return state;
+  bool done = false;
+  while (!done) { // exit criteria specified below
+
+    // d0 is a screen row
+    for (coords[0] = 0; coords[0] < dimensions[0].size; coords[0]++) {
+      size_t index = getIndex(coords);
+      stream.setf(std::ios::fixed);
+      stream.precision(0);
+      stream.width(4);
+      appendElement(stream, ((T *)tensorData.data)[index] );
+      stream << "; ";
+    } // d0
+    // append coords
+    stream << "(0:" << dimensions[0].size << "-1";
+    for (auto d = 1; d < coords.size(); d++) {
+      stream << ", " << coords[d];
+    }
+    stream << ")";
+
+    // if 1-dimensional done
+    if (coords.size() == 1) {
+      done = true;
+      break;
+    } else { // 2+ dimensions
+      bool dimIncremented = false; // for printing extra line
+      // increment coord
+      coords[1]++;
+      for (auto d = 1; d < coords.size(); d++) {
+        if (coords[d] >= dimensions[d].size) {
+          if (d == coords.size()-1) {
+            // exit criteria - last dimension full
+            done = true;
+            break;
+          }
+          dimIncremented = true;
+          coords[d] = 0;
+          coords[d+1]++;
+        }
+      }
+      // new lines
+      stream << std::endl;
+      if (dimIncremented && !done) {
+        stream << std::endl;
+      }
+
+    }
+  }
+
+  return stream.str();
 }
 
 /*******************************************************************************
