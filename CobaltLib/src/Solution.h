@@ -106,6 +106,8 @@ protected:
   unsigned int kernelGrid[workDim];
   unsigned int edge[workDim];
   // kernel dimensions
+  size_t workGroup[workDim];
+  size_t microTile[workDim];
   size_t globalWorkSize[maxNumKernels][workDim];
   size_t localWorkSize[maxNumKernels][workDim];
   void assignWorkSizes();

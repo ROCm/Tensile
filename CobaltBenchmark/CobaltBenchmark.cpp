@@ -241,6 +241,36 @@ int main( int argc, char *argv[] ) {
   // for each problem
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
       problemIdx++ ) {
+        
+    CobaltProblem problemReference;
+    if (doValidation) {
+      printf("doing validation\n");
+      // get cpu result
+      Cobalt::Solution *solutionReference;
+      problemReference = problems[problemIdx];
+      printf( problemReference->pimpl->toString().c_str() );
+
+      problemReference->pimpl->deviceProfile = deviceProfileReference;
+      std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
+      solutionReference->enqueue( tensorDataValidationC, tensorDataValidationA,
+          tensorDataValidationB, alpha, beta, ctrlValidation );
+
+      // print tensorA
+      printf("\nTensorA:\n");
+      printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
+
+      // print tensorB
+      printf("\nTensorB:\n");
+      printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
+
+      // print tensorC-cpu
+      printf("\nTensorC-CPU:\n");
+      printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
+
+    }
+
+
+
 
     solutionEndIdx += numSolutionsPerProblem[problemIdx];
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
@@ -253,32 +283,10 @@ int main( int argc, char *argv[] ) {
 
       // validate before enqueueing multiple times
       if (doValidation) {
-        printf("doing validation\n");
-        // get cpu result
-        Cobalt::Solution *solutionReference;
-        CobaltProblem problemReference = problems[problemIdx];
-        printf( problemReference->pimpl->toString().c_str() );
-
-        problemReference->pimpl->deviceProfile = deviceProfileReference;
-        std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
-        solutionReference->enqueue( tensorDataValidationC, tensorDataValidationA,
-            tensorDataValidationB, alpha, beta, ctrlValidation );
         // get gpu result
         for ( unsigned int q = 0; q < ctrl.numQueues; q++) {
           status = clFinish( ctrl.queues[q] );
         }
-
-        // print tensorA
-        printf("\nTensorA:\n");
-        printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
-
-        // print tensorB
-        printf("\nTensorB:\n");
-        printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
-
-        // print tensorC-cpu
-        printf("\nTensorC-CPU:\n");
-        printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
 
         // print tensorC-gpu
         printf("\nTensorC-GPU:\n");
@@ -287,6 +295,7 @@ int main( int argc, char *argv[] ) {
         
         printf("\nComparing...\n");
         compareTensors( tensorDataC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
+        printf("\nDone Comparing.\n");
       }
 
       // time solution

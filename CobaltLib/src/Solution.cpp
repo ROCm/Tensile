@@ -55,6 +55,79 @@ SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( const Prob
 
 
 /******************************************************************************
+ * assignWorkSizes - global and local
+ *****************************************************************************/
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
+
+  // work-group sizes
+  for (unsigned int i = 0; i < maxNumKernels; i++) {
+    localWorkSize[i][0] = workGroup[0]; // * microTile[0];
+    localWorkSize[i][1] = workGroup[1]; // * microTile[1];
+    localWorkSize[i][2] = 1;
+  }
+
+  // kernel - main
+  size_t sizeOfAllOtherDimensions = 1;
+  for (unsigned int i = 0; i < problem.tensorC.numDims(); i++) {
+    if (i != indexAssignmentCd0 && i != indexAssignmentCd1) {
+      sizeOfAllOtherDimensions *= problem.tensorC[i].size;
+    }
+  }
+  size_t sizeOfCAlongD0 = problem.tensorC[indexAssignmentCd0].size;
+  size_t sizeOfCAlongD1 = problem.tensorC[indexAssignmentCd1].size;
+  size_t macroTileSizeAlongD0 = workGroup[0] * microTile[0]; // macroTile
+  size_t macroTileSizeAlongD1 = workGroup[1] * microTile[1]; // macroTile
+  size_t numWorkGroupsAlongD1 = sizeOfCAlongD1 / macroTileSizeAlongD1;
+  size_t numWorkGroupsAlongD0 = sizeOfCAlongD0 / macroTileSizeAlongD0;
+  //size_t numWorkGroups = numWorkGroupsAlongD0 * numWorkGroupsAlongD1 * sizeOfAllOtherDimensions;
+  // divide work groups among kernels in kernelGrid
+  numWorkGroupsAlongD0 /= edge[0] ? (kernelGrid[0]-1) : (kernelGrid[0]);
+  numWorkGroupsAlongD1 /= edge[1] ? (kernelGrid[1]-1) : (kernelGrid[1]);
+  globalWorkSize[0][0] = localWorkSize[0][0] * numWorkGroupsAlongD0;
+  globalWorkSize[0][1] = localWorkSize[0][1] * numWorkGroupsAlongD1;
+  globalWorkSize[0][2] = localWorkSize[0][2] * sizeOfAllOtherDimensions;
+
+  // kernel - edge0
+  if (edge[0]) {
+    globalWorkSize[1][0] = localWorkSize[1][0] * numWorkGroupsAlongD0;
+    globalWorkSize[1][1] = localWorkSize[1][1];
+    globalWorkSize[1][2] = localWorkSize[1][2] * sizeOfAllOtherDimensions;
+  } else {
+    globalWorkSize[1][0] = 0;
+    globalWorkSize[1][1] = 0;
+    globalWorkSize[1][2] = 0;
+  }
+
+  // kernel - edge1
+  if (edge[1]) {
+    globalWorkSize[2][0] = localWorkSize[2][0];
+    globalWorkSize[2][1] = localWorkSize[2][1] * numWorkGroupsAlongD1;
+    globalWorkSize[2][2] = localWorkSize[2][2] * sizeOfAllOtherDimensions;
+  } else {
+    globalWorkSize[2][0] = 0;
+    globalWorkSize[2][1] = 0;
+    globalWorkSize[2][2] = 0;
+  }
+
+  // kernel - edge01
+  if (edge[0] && edge[1]) {
+    globalWorkSize[3][0] = localWorkSize[3][0];
+    globalWorkSize[3][1] = localWorkSize[3][1];
+    globalWorkSize[3][2] = localWorkSize[3][2] * sizeOfAllOtherDimensions;
+
+  } else {
+    globalWorkSize[3][0] = 0;
+    globalWorkSize[3][1] = 0;
+    globalWorkSize[3][2] = 0;
+  }
+
+
+
+}
+
+
+/******************************************************************************
  * makeKernel
  *****************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
@@ -125,6 +198,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       printf("%s\n", buildLog);
       //printf("\n\nKernel String:\n\n");
       //printf("%s\n", kernelSource);
+      printf("\n");
     }
 
     err = clCreateKernelsInProgram(
@@ -198,10 +272,22 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         if (d1 == kernelGrid[1]-1 && edge[1]) {
           kernelIdx += 2;
         }
+
+        // if this kernelIdx isn't necessary (no edges or corner only...) continue
+        if (globalWorkSize[kernelIdx][0] *
+            globalWorkSize[kernelIdx][1] *
+            globalWorkSize[kernelIdx][2] == 0) {
+          continue;
+        }
+
+
         // data pointers
         status = clSetKernelArg( kernels[kernelIdx], 0, sizeof(cl_mem), &tensorDataC.data );
+        CL_CHECK(status)
         status = clSetKernelArg( kernels[kernelIdx], 1, sizeof(cl_mem), &tensorDataA.data );
+        CL_CHECK(status)
         status = clSetKernelArg( kernels[kernelIdx], 2, sizeof(cl_mem), &tensorDataB.data );
+        CL_CHECK(status)
 
         // tensorC offsets
         unsigned int tensorOffsetCd0 = d0*problem.tensorC[indexAssignmentCd0].stride/kernelGrid[0];
@@ -225,39 +311,56 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         unsigned int tensorOffsetB = tensorDataB.offset + tensorOffsetBd0or1 + tensorOffsetBdU;
         
         status = clSetKernelArg( kernels[kernelIdx], 3, sizeof(unsigned int), &tensorOffsetC );
+        CL_CHECK(status)
         status = clSetKernelArg( kernels[kernelIdx], 4, sizeof(unsigned int), &tensorOffsetA );
+        CL_CHECK(status)
         status = clSetKernelArg( kernels[kernelIdx], 5, sizeof(unsigned int), &tensorOffsetB );
+        CL_CHECK(status)
 
         // data sizes (truncated due to grid)
         for (cl_uint i = 6; i < numKernelArgs; i++) {
           status = clSetKernelArg( kernels[kernelIdx], i, kernelArgSizes[i], kernelArgs[i] );
+        CL_CHECK(status)
         }
 
         // d0 size override
         unsigned int sizeDim0 = *(unsigned int *)kernelArgs[kernelArgIdxDim0] / kernelGrid[0];
         status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim0, kernelArgSizes[kernelArgIdxDim0], &sizeDim0 );
+        CL_CHECK(status)
         // d1 size override
         unsigned int sizeDim1 = *(unsigned int *)kernelArgs[kernelArgIdxDim1] / kernelGrid[1];
         status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim1, kernelArgSizes[kernelArgIdxDim1], &sizeDim1 );
+        CL_CHECK(status)
 
-        // d0 size override
+        // dU size override
         unsigned int sizeSummation = *(unsigned int *)kernelArgs[kernelArgIdxSummation] / kernelGrid[2];
         status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxSummation, kernelArgSizes[kernelArgIdxSummation], &sizeSummation );
+        CL_CHECK(status)
 
         // alpha
         unsigned int argIdx = numKernelArgs;
         if (problem.useAlpha()) {
           status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, problem.alphaSize(), alpha.data );
+        CL_CHECK(status)
           argIdx++;
         }
 
         // beta
         if (problem.useBeta()) {
           status = clSetKernelArg( kernels[argIdx], kernelArgIdxSummation, problem.betaSize(), beta.data );
+        CL_CHECK(status)
           argIdx++;
         }
 
         // enqueue
+        printf("%s: enq[%u] g{%u, %u, %u} l{%u, %u, %u}\n",
+          toString(0).c_str(), kernelIdx,
+          globalWorkSize[kernelIdx][0],
+          globalWorkSize[kernelIdx][1],
+          globalWorkSize[kernelIdx][2],
+          localWorkSize[kernelIdx][0],
+          localWorkSize[kernelIdx][1],
+          localWorkSize[kernelIdx][2]);
         status = clEnqueueNDRangeKernel(
           ctrl.queues[kernelSerialIdx%ctrl.numQueues],
           kernels[kernelIdx],
@@ -268,15 +371,19 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           ctrl.numInputEvents,
           ctrl.inputEvents,
           &ctrl.outputEvents[kernelSerialIdx] );
+        CL_CHECK(status)
+        status = clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
+        CL_CHECK(status)
+        kernelSerialIdx++;
       }
     }
   }
 
 
-  for (size_t i = 0; i < numKernels; i++) {
-
-  }
-  ctrl.numOutputEvents = numKernels;
+  //for (size_t i = 0; i < numKernels; i++) {
+  //
+  //}
+  ctrl.numOutputEvents = kernelSerialIdx;;
   return cobaltStatusSuccess;
 }
 #endif

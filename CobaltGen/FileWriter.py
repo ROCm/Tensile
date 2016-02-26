@@ -396,15 +396,16 @@ class FileWriter:
     #fileString += Common.getFileHeader()
     fileString += "#ifndef KERNEL_" + kernelName.upper() + "_CPP\n"
     fileString += "#define KERNEL_" + kernelName.upper() + "_CPP\n"
-    fileString += "#include \"" + kernelName + ".h\""
+    fileString += "\n"
+    fileString += "#include \"" + kernelName + ".h\"\n"
     fileString += "\n"
     fileString += "cl_kernel " + kernelName + "_kernel = nullptr;\n"
-    fileString += "const size_t %s_workGroup[3] = { %u, %u, 1 };\n" \
-        % (kernelName, kernel.tile.workGroup[0], kernel.tile.workGroup[1] )
-    fileString += "const size_t %s_microTile[2] = { %u, %u };\n" \
-        % (kernelName, kernel.tile.microTile[0], kernel.tile.microTile[0] )
-    fileString += "const size_t %s_unroll = %u;\n" \
-        % (kernelName, kernel.unrolls[len(kernel.unrolls)-1])
+    #fileString += "// const size_t %s_workGroup[3] = { %u, %u, 1 };\n" \
+    #    % (kernelName, kernel.tile.workGroup[0], kernel.tile.workGroup[1] )
+    #fileString += "// const size_t %s_microTile[2] = { %u, %u };\n" \
+    #    % (kernelName, kernel.tile.microTile[0], kernel.tile.microTile[0] )
+    #fileString += "// const size_t %s_unroll = %u;\n" \
+    #    % (kernelName, kernel.unrolls[len(kernel.unrolls)-1])
     fileString += "\n"
     fileString += "const char * const %s_src =\"" % (kernelName)
     fileString += self.kernelWriter.getBody( kernel )

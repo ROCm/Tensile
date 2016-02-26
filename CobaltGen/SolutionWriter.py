@@ -136,12 +136,16 @@ class SolutionWriter:
 
     # tile properties (common to all kernels)
     s += "  /* tile properties */\n"
-    s += "  size_t workGroup[workDim] = { " \
-        + str(solution.kernels[0].tile.workGroup[0]) \
-        + ", " + str(solution.kernels[0].tile.workGroup[1]) + ", 1 };\n"
-    s += "  size_t microTile[workDim] = { " \
-        + str(solution.kernels[0].tile.microTile[0]) \
-        + ", " + str(solution.kernels[0].tile.microTile[1]) + ", 1 };\n"
+    s += "  workGroup[0] = " \
+        + str(solution.kernels[0].tile.workGroup[0]) + ";\n"
+    s += "  workGroup[1] = " \
+        + str(solution.kernels[0].tile.workGroup[1]) + ";\n"
+    s += "  workGroup[2] = 1;\n"
+    s += "  microTile[0] = " \
+        + str(solution.kernels[0].tile.microTile[0]) + ";\n"
+    s += "  microTile[1] = " \
+        + str(solution.kernels[0].tile.microTile[1]) + ";\n"
+    s += "  microTile[2] = 1;\n"
     s += "  size_t numUnrolls[" + str(len(solution.kernels[0].unrolls)) \
         + "] = { " + str(solution.kernels[0].unrolls[0])
     for i in range(1,len(solution.kernels[0].unrolls)):
@@ -243,6 +247,11 @@ class SolutionWriter:
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
           + "[" + str(idx) + "].size);\n"
       s += "  numKernelArgs++;\n"
+    s += "\n"
+
+    # close constructor
+    s += "  /* determine globalWorkSize */\n"
+    s += "  assignWorkSizes();\n"
     s += "\n"
 
     # close constructor
