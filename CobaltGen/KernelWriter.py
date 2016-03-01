@@ -478,6 +478,12 @@ class KernelWriter:
         + " + localIdx" + tileChar1 + "*WG_DIM_" + tileChar0 \
         + ";" + self.endLine
 
+    # debug printf - global data
+    kStr += "  if( localSerial < 8) printf(\\\"T[%u,%u] A[%u] = %f; B[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), localSerial, A[localSerial], localSerial, B[localSerial]"
+    kStr += ");" + self.endLine
+    # end debug printf
+
+
     # multidim if (kernel.order=="clblasColumnMajor")==(kernel.transA=="N"):
     #tensorAssignedToTileDim = []
     #if kernel.tensorAssignedDim0:
@@ -516,8 +522,8 @@ class KernelWriter:
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
           + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
       kStr += "#define globalIdxB" + unrollChar \
-          + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_" + tileChar1 + " \
-          + (localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
+          + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_" + tileChar1 \
+          + " + (localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
           + tileChar1 + ")/NUM_UNROLL_ITER)" + self.endLine
     else:
       kStr += "#define globalIdxB" + unrollChar \
@@ -613,6 +619,25 @@ class KernelWriter:
         + unrollChar + ");" + self.endLine \
         + indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine
 
+    # debug printf - LDS load offsets
+    #kStr += "  printf(\\\"T[%u,%u] localIdx = %u, %u\\\\n\\\", get_local_id(0), get_local_id(1), "
+    #kStr += "GET_LOCAL_INDEX_A(localA" + tileCharA + ", localA" \
+    #    + unrollChar + "), "
+    #kStr += "GET_LOCAL_INDEX_B(localB" + tileCharB + ", localB" \
+    #    + unrollChar + ") "
+    #kStr += ");" + self.endLine
+    # end debug printf
+
+# print
+# bool 1
+# bool 2
+# localIndex
+# globalIndex
+# globalValue
+#
+#
+#
+
     ####################################
     # how many elements to load global -> local - DONE
     # threads to do loading = (workGroup[0]*workGroup[1])
@@ -653,6 +678,11 @@ class KernelWriter:
 
     ####################################
     # load global -> local - DONE
+    kStr += "/* numALoads = " + str(numALoads) + " */" + self.endLine
+    kStr += "/* numALoadsR = " + str(numALoadsR) + " */" + self.endLine
+    kStr += "/* numBLoads = " + str(numBLoads) + " */" + self.endLine
+    kStr += "/* numBLoadsR = " + str(numBLoadsR) + " */" + self.endLine
+    # load A whole WG
     for a in range(0, numALoads):
       kStr += indent + "lA[ %d*localAStride ] = " % a
       if kernel.tile.branch[0]:
@@ -668,6 +698,7 @@ class KernelWriter:
             + "(" + str(a) + ")"
       kStr += " ) ];" + self.endLine
 
+    # load A remainder
     if numALoadsR:
       kStr += indent + "if ( localSerial + " + str(numALoads) + \
           "*WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + " < (WG_DIM_" + tileChar0 + "*MICRO_TILE_" + tileChar0 + "*NUM_UNROLL_ITER) ) {" \
@@ -680,14 +711,42 @@ class KernelWriter:
       kStr += "A[ GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + indexChars[ \
           kernel.operation.indexAssignmentsA[0]]  \
-          + "(" + str(a) + ")"
+          + "(" + str(numALoads) + ")"
       for i in range(1,len(kernel.operation.indexAssignmentsA)):
         kStr += ", globalIdxA" + indexChars[ \
             kernel.operation.indexAssignmentsA[i]]  \
-            + "(" + str(a) + ")"
+            + "(" + str(numALoads) + ")"
       kStr += " ) ];" + self.endLine
+
+      # debug printf - values loading into LDS
+      kStr += "  printf(\\\"T[%u,%u] localA[%u] = globalA[%u] = %f; %u"
+      for i in range(1,len(kernel.operation.indexAssignmentsA)):
+        kStr += ", %u"
+      kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), GET_LOCAL_INDEX_A(localA" + tileCharA \
+          + ", localA" + unrollChar +"), "
+      kStr += "GET_GLOBAL_INDEX_A( "
+      kStr += "globalIdxA" + indexChars[ \
+          kernel.operation.indexAssignmentsA[0]]  \
+          + "(" + str(numALoads) + ")"
+      for i in range(1,len(kernel.operation.indexAssignmentsA)):
+        kStr += ", globalIdxA" + indexChars[ \
+            kernel.operation.indexAssignmentsA[i]]  \
+            + "(" + str(numALoads) + ")"
+      kStr += " ), "
+      kStr += " lA[0],"
+      kStr += "globalIdxA" + indexChars[ \
+          kernel.operation.indexAssignmentsA[0]]  \
+          + "(" + str(numALoads) + ")"
+      for i in range(1,len(kernel.operation.indexAssignmentsA)):
+        kStr += ", globalIdxA" + indexChars[ \
+            kernel.operation.indexAssignmentsA[i]]  \
+            + "(" + str(numALoads) + ")"
+      kStr += ");" + self.endLine
+      # end debug printf
+
       kStr += indent + "}" + self.endLine
 
+    # load B whole WG
     for b in range(0, numBLoads):
       kStr += indent + "lB[ %d*localBStride ] = " % b
       if kernel.tile.branch[1]:
@@ -703,6 +762,7 @@ class KernelWriter:
             + "(" + str(b) + ")"
       kStr += " ) ];" + self.endLine
 
+    # load B remainder
     if numBLoadsR:
       kStr += indent + "if ( localSerial + " + str(numBLoads) + \
           "*WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + " < (WG_DIM_" + tileChar1 + "*MICRO_TILE_" + tileChar1 + "*NUM_UNROLL_ITER) ) {" \
@@ -714,17 +774,18 @@ class KernelWriter:
       kStr += "B[ GET_GLOBAL_INDEX_B( "
       kStr += "globalIdxB" + indexChars[ \
           kernel.operation.indexAssignmentsB[0]]  \
-          + "(" + str(b) + ")"
+          + "(" + str(numBLoads) + ")"
       for i in range(1,len(kernel.operation.indexAssignmentsB)):
         kStr += ", globalIdxB" + indexChars[ \
             kernel.operation.indexAssignmentsB[i]]  \
-            + "(" + str(b) + ")"
+            + "(" + str(numBLoads) + ")"
       kStr += " ) ];" + self.endLine
       kStr += indent + "}" + self.endLine
     kStr += (
       indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine +
       indent + "uint offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
       indent + "uint offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
+
 
     ####################################
     # do mads - DONE
@@ -779,7 +840,8 @@ class KernelWriter:
     ####################################
     # write global Cij - DONE
     kStr += self.endLine
-    kStr += "  printf(\\\"T[%u,%u] checking in\\\\n\\\", get_local_id(0), get_local_id(1));" + self.endLine
+    # debug printf
+    #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxK, size0I, size1J);" + self.endLine
     kStr += "  /* write global C */" + self.endLine
     if kernel.dataTypeC == Structs.DataType.singleComplex:
       kStr += "  float type_mad_tmp;" + self.endLine
@@ -820,7 +882,7 @@ class KernelWriter:
           kStr += ", beta"
         kStr += ")"
         # debug printf
-        kStr += " printf(\\\"T[%u,%u] writing Cijk\\\\n\\\", get_local_id(0), get_local_id(1));"
+        #kStr += " printf(\\\"T[%u,%u] Cijk = %f\\\\n\\\", get_local_id(0), get_local_id(1), rC[" + str(a) + "][" + str(b) + "] );"
         for i in range(0,numEdges):
           kStr += " }"
         kStr += self.endLine
@@ -986,3 +1048,20 @@ if __name__ == "__main__":
   testGEMM()
   print("\n\n\n")
   testAdvanced()
+
+
+
+################################################################################
+# Transpose Cases
+################################################################################
+# traditional GEMM as NN, NT... transpose cases which are different speeds.
+# how do those map to new dimensions and strides
+# in new terminology, we can do long/fast loads along d0,d1 (i,j) but only short slower loads along dU (k), so we prefer dimensions d0,d1 to be the ones with shortest strides (1 preferably). If ever dU of one of the tensors is the dimension with stride 1, that tensors will get read relatively slow.
+
+# N*: read A fast b/c
+# old: if (kernel.order=="clblasColumnMajor")==(kernel.transA=="N"):
+# new: unrollDimStrideGreaterThanTileDimStrideA == true
+
+# *T: read B fast b/c
+# old: if (kernel.order=="clblasColumnMajor")==(kernel.transB=="T"):
+# new: unrollDimStrideGreaterThanTileDimStrideB == true

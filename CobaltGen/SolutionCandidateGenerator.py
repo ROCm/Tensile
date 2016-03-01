@@ -121,7 +121,7 @@ class SolutionCandidateGenerator:
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 4 # 1
-  maxMicroTileSize = 6 # 16
+  maxMicroTileSize = 4 # 16
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -229,9 +229,9 @@ class SolutionCandidateGenerator:
           continue
         # for all micro-tile dimensions
         for microTileDim0 in range(self.minMicroTileSize, \
-            self.maxMicroTileSize):
+            self.maxMicroTileSize+1):
           for microTileDim1 in range(self.minMicroTileSize, \
-              self.maxMicroTileSize):
+              self.maxMicroTileSize+1):
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
             # only try skinny micro-tile if problem is skinny
@@ -253,9 +253,9 @@ class SolutionCandidateGenerator:
             # macro-tile not too large
             numWorkItems = workGroup[0] * workGroup[1]
             numRegisters = numWorkItems * ( microTile[0] * microTile[1] \
-                * kernel.dataTypeC.sizeOf() \
-                + microTile[0] * kernel.dataTypeA.sizeOf() \
-                + microTile[1] * kernel.dataTypeB.sizeOf() )
+                * kernel.dataTypeC.numRegisters() \
+                + microTile[0] * kernel.dataTypeA.numRegisters() \
+                + microTile[1] * kernel.dataTypeB.numRegisters() )
             maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
             if numRegisters > maxRegisters:
               continue

@@ -286,16 +286,31 @@ int main( int argc, char *argv[] ) {
         // get gpu result
         for ( unsigned int q = 0; q < ctrl.numQueues; q++) {
           status = clFinish( ctrl.queues[q] );
+          CL_CHECK(status)
         }
+
+        CobaltTensorData tmpC;
+        tmpC.offset = 0;
+        tmpC.data = new float[problemReference->pimpl->tensorC.size()];
+        memset(tmpC.data, 0, problemReference->pimpl->tensorC.size());
 
         // print tensorC-gpu
         printf("\nTensorC-GPU:\n");
-        clEnqueueReadBuffer( ctrl.queues[0], (cl_mem)tensorDataC.data, CL_TRUE, 0, problemReference->pimpl->tensorC.size(), tensorDataHostC, 0, nullptr, nullptr );
+        status = clEnqueueReadBuffer(
+          ctrl.queues[0],
+          (cl_mem)tensorDataC.data,
+          CL_TRUE,
+          0,
+          problemReference->pimpl->tensorC.size()*Cobalt::sizeOf(problemReference->pimpl->tensorC.getDataType()),
+          tmpC.data,
+          0, nullptr, nullptr );
+        CL_CHECK(status)
         printf( problemReference->pimpl->tensorC.toString(tensorDataC).c_str() );
         
         printf("\nComparing...\n");
-        compareTensors( tensorDataC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
+        compareTensors( tmpC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
         printf("\nDone Comparing.\n");
+        delete[] tmpC.data;
       }
 
       // time solution

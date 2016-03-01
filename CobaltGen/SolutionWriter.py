@@ -219,7 +219,7 @@ class SolutionWriter:
       if i == solution.kernels[0].indexAssignmentDim1:
         s += "  kernelArgIdxDim1 = numKernelArgs;\n"
       s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
-          + str(i) + "].stride; // size" + self.indexChars[i] + "\n"
+          + str(i) + "].size; // size" + self.indexChars[i] + "\n"
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
           + "[" + str(i) + "].size);\n"
       s += "  numKernelArgs++;\n"

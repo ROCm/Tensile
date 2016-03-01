@@ -110,6 +110,9 @@ protected:
   size_t microTile[workDim];
   size_t globalWorkSize[maxNumKernels][workDim];
   size_t localWorkSize[maxNumKernels][workDim];
+  unsigned int kernelNumElementsDim0[maxNumKernels];
+  unsigned int kernelNumElementsDim1[maxNumKernels];
+  unsigned int kernelNumElementsDimU[maxNumKernels];
   void assignWorkSizes();
   // kernel argumets
   cl_uint numKernelArgs;

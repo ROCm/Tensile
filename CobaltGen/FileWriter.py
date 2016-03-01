@@ -312,17 +312,17 @@ class FileWriter:
       # max tensor size
       for dimension in problem.tensorC.dimensions:
         tensorSizeDimC = dimension.stride * dimension.size \
-            * problem.tensorC.dataType.sizeOf()
+            * problem.tensorC.dataType.numBytes()
         if tensorSizeDimC > tensorSizeMaxC:
           tensorSizeMaxC = tensorSizeDimC
       for dimension in problem.tensorA.dimensions:
         tensorSizeDimA = dimension.stride * dimension.size \
-            * problem.tensorA.dataType.sizeOf()
+            * problem.tensorA.dataType.numBytes()
         if tensorSizeDimA > tensorSizeMaxA:
           tensorSizeMaxA = tensorSizeDimA
       for dimension in problem.tensorB.dimensions:
         tensorSizeDimB = dimension.stride * dimension.size \
-            * problem.tensorB.dataType.sizeOf()
+            * problem.tensorB.dataType.numBytes()
         if tensorSizeDimB > tensorSizeMaxB:
           tensorSizeMaxB = tensorSizeDimB
 

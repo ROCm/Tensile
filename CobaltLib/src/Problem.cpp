@@ -290,8 +290,8 @@ CobaltDataType Problem::getDataTypeAlpha() const { return alphaType; }
 CobaltDataType Problem::getDataTypeBeta() const { return betaType; }
 bool Problem::useAlpha() const { return alphaType != cobaltDataTypeNone; }
 bool Problem::useBeta() const { return betaType != cobaltDataTypeNone; }
-size_t Problem::alphaSize() const { return getCobaltDataTypeSize(alphaType); }
-size_t Problem::betaSize() const { return getCobaltDataTypeSize(betaType); }
+size_t Problem::alphaSize() const { return sizeOf(alphaType); }
+size_t Problem::betaSize() const { return sizeOf(betaType); }
 bool Problem::deviceIsReference() const {
   return strcmp( deviceProfile.devices[0].name.c_str(), "cpu" ) == 0;
 }

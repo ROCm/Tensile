@@ -85,7 +85,7 @@ class DataType:
   def isComplex(self):
     return not self.isReal()
 
-  def sizeOf( self ):
+  def numRegisters( self ):
     if self.value == self.single:
       return 1
     elif self.value == self.double:
@@ -96,6 +96,9 @@ class DataType:
       return 4
     else:
       return "ERROR(" + str(self.value) + ")"
+
+  def numBytes( self ):
+    return self.numRegisters() * 4
 
   def __str__(self):
     return self.toChar()

@@ -31,7 +31,7 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r);
 bool operator<(const CobaltControl & l, const CobaltControl & r);
 
 
-size_t getCobaltDataTypeSize( CobaltDataType type );
+size_t sizeOf( CobaltDataType type );
 
 } // namespace
 

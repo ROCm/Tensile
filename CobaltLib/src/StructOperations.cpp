@@ -193,7 +193,7 @@ bool operator< ( const Cobalt::Solution & l, const Cobalt::Solution & r ) {
 
 
 // get size of CobaltDataType
-size_t getCobaltDataTypeSize( CobaltDataType type ) {
+size_t sizeOf( CobaltDataType type ) {
   switch( type ) {
   case cobaltDataTypeSingle:
     return sizeof(float);
