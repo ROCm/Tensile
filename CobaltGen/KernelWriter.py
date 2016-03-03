@@ -56,21 +56,19 @@ class KernelWriter:
     for i in range(0, len(kernel.indexOrderC)):
       #kernelName += self.indexChars[kernel.indexOrderC[i]].lower()
       kernelName += self.indexChars[i].lower()
-    kernelName += "_S"
 
     # summation indices
+    kernelName += "_S"
     for i in range(0,len(kernel.indexOrderSummation)):
       kernelName += self.indexChars[len(kernel.indexOrderC) + kernel.indexOrderSummation[i]].lower()
-    kernelName += "_"
 
     # A dimensions
-    kernelName += "A"
+    kernelName += "_A"
     for i in range(0, len(kernel.operation.indexAssignmentsA)):
       kernelName += self.indexChars[kernel.operation.indexAssignmentsA[i]].lower()
-    kernelName += "_"
 
     # B dimensions
-    kernelName += "B"
+    kernelName += "_B"
     for i in range(0,len(kernel.operation.indexAssignmentsB)):
       kernelName += self.indexChars[kernel.operation.indexAssignmentsB[i]].lower()
 
@@ -83,22 +81,46 @@ class KernelWriter:
   def getNameTile(self, kernel):
     kernelName = ""
 
-    # tile dim 0
-    kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
-    kernelName += str(kernel.tile.workGroup[0])
-    kernelName += kernel.tile.branch[0].getChar()
-    kernelName += str(kernel.tile.microTile[0])
+# put dims in A,B order rather than 0,1 order?
+# Yes,
+
+    # tile dim A
+    if kernel.tensorAssignedDim0 == 0: #A assigned d0
+      kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
+      kernelName += str(kernel.tile.workGroup[0])
+      kernelName += kernel.tile.branch[0].getChar()
+      kernelName += str(kernel.tile.microTile[0])
+    else:
+      kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
+      kernelName += str(kernel.tile.workGroup[1])
+      kernelName += kernel.tile.branch[1].getChar()
+      kernelName += str(kernel.tile.microTile[1])
+    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+      kernelName += "f"
+    else:
+      kernelName += "s"
     kernelName += "_"
 
-    # tile dim 1
-    kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
-    kernelName += str(kernel.tile.workGroup[1])
-    kernelName += kernel.tile.branch[1].getChar()
-    kernelName += str(kernel.tile.microTile[1])
+    # tile dim B
+    if kernel.tensorAssignedDim0 == 1: #B assigned d0
+      kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
+      kernelName += str(kernel.tile.workGroup[0])
+      kernelName += kernel.tile.branch[0].getChar()
+      kernelName += str(kernel.tile.microTile[0])
+    else:
+      kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
+      kernelName += str(kernel.tile.workGroup[1])
+      kernelName += kernel.tile.branch[1].getChar()
+      kernelName += str(kernel.tile.microTile[1])
+    # "f"ast or "s"low
+    if kernel.unrollDimStrideGreaterThanTileDimStrideB:
+      kernelName += "f"
+    else:
+      kernelName += "s"
     kernelName += "_"
 
     # unroll
-    kernelName += self.indexChars[len(kernel.indexOrderC)+len(kernel.unrolls)-1].lower()
+    kernelName += self.indexChars[len(kernel.indexOrderC)+len(kernel.indexOrderSummation)-1].lower()
     kernelName += str(kernel.unrolls[0])
     for i in range(1,len(kernel.unrolls)):
       kernelName += "_" + str(kernel.unrolls[i])

@@ -24,18 +24,18 @@ std::string tensorElementToString( T element );
 template<typename DataType>
 std::ostream& appendElement(std::ostream& os, const DataType& element);
 
+size_t sizeOf( CobaltDataType type );
+
+} // namespace
+
+
 /*******************************************************************************
  * comparators for STL
  ******************************************************************************/
 bool operator<(const CobaltDimension & l, const CobaltDimension & r);
 bool operator<(const CobaltControl & l, const CobaltControl & r);
 
-
-size_t sizeOf( CobaltDataType type );
-
-} // namespace
-
-
+bool operator==(const CobaltDimension & l, const CobaltDimension & r);
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r);
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r);
 

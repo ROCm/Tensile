@@ -68,18 +68,18 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
   }
 
   // kernel - main
-  size_t sizeOfAllOtherDimensions = 1;
+  unsigned int sizeOfAllOtherDimensions = 1;
   for (unsigned int i = 0; i < problem.tensorC.numDims(); i++) {
     if (i != indexAssignmentCd0 && i != indexAssignmentCd1) {
       sizeOfAllOtherDimensions *= problem.tensorC[i].size;
     }
   }
-  size_t sizeOfCAlongD0 = problem.tensorC[indexAssignmentCd0].size;
-  size_t sizeOfCAlongD1 = problem.tensorC[indexAssignmentCd1].size;
-  size_t macroTileSizeAlongD0 = workGroup[0] * microTile[0]; // macroTile
-  size_t macroTileSizeAlongD1 = workGroup[1] * microTile[1]; // macroTile
-  size_t numWorkGroupsAlongD1 = sizeOfCAlongD1 / macroTileSizeAlongD1;
-  size_t numWorkGroupsAlongD0 = sizeOfCAlongD0 / macroTileSizeAlongD0;
+  unsigned int sizeOfCAlongD0 = problem.tensorC[indexAssignmentCd0].size;
+  unsigned int sizeOfCAlongD1 = problem.tensorC[indexAssignmentCd1].size;
+  unsigned int macroTileSizeAlongD0 = static_cast<unsigned int>(workGroup[0] * microTile[0]); // macroTile
+  unsigned int macroTileSizeAlongD1 = static_cast<unsigned int>(workGroup[1] * microTile[1]); // macroTile
+  unsigned int numWorkGroupsAlongD1 = sizeOfCAlongD1 / macroTileSizeAlongD1;
+  unsigned int numWorkGroupsAlongD0 = sizeOfCAlongD0 / macroTileSizeAlongD0;
   //size_t numWorkGroups = numWorkGroupsAlongD0 * numWorkGroupsAlongD1 * sizeOfAllOtherDimensions;
   // divide work groups among kernels in kernelGrid
   numWorkGroupsAlongD0 /= edge[0] ? (kernelGrid[0]-1) : (kernelGrid[0]);
@@ -382,7 +382,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         }
 
         // enqueue
-        printf("%s: enq[%u] g{%u, %u, %u} l{%u, %u, %u}\n",
+        printf("%s: enq[%u] g{%zu, %zu, %zu} l{%zu, %zu, %zu}\n",
           toString(0).c_str(), kernelIdx,
           globalWorkSize[kernelIdx][0],
           globalWorkSize[kernelIdx][1],

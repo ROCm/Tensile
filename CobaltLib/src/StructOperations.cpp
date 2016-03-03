@@ -157,40 +157,6 @@ std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) 
   return solution->toString(indentLevel);
 }
 
-/*******************************************************************************
- * comparators
- ******************************************************************************/
-
-// CobaltDimension
-bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
-  if (l.size < r.size) {
-    return true;
-  } else if (r.size < l.size) {
-    return false;
-  }
-  if (l.stride < r.stride) {
-    return true;
-  } else if (r.stride < l.stride) {
-    return false;
-  }
-  // identical
-  return false;
-}
-
-// CobaltControl
-bool operator< ( const CobaltControl & l, const CobaltControl & r ) {
-  return l.numDependencies < r.numDependencies;
-}
-
-// CobaltSolution
-// TODO solution should have their own comparator for tile sizes, num kernels...
-#if 0
-bool operator< ( const Cobalt::Solution & l, const Cobalt::Solution & r ) {
-  // problem
-  return l.getProblem() < r.getProblem();
-}
-#endif
-
 
 // get size of CobaltDataType
 size_t sizeOf( CobaltDataType type ) {
@@ -216,6 +182,33 @@ size_t sizeOf( CobaltDataType type ) {
 
 } // namespace
 
+  // CobaltDimension
+bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
+
+  if (l.stride > r.stride) {
+    return true;
+  }
+  else if (r.stride > l.stride) {
+    return false;
+  }
+  if (l.size > r.size) {
+    return true;
+  }
+  else if (r.size > l.size) {
+    return false;
+  }
+  // identical
+  return false;
+}
+
+// CobaltControl
+bool operator< (const CobaltControl & l, const CobaltControl & r) {
+  return l.numDependencies < r.numDependencies;
+}
+
+bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
+  return l.size == r.size && l.stride == r.stride;
+}
 
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
   return l.s0 == r.s0 && l.s1 == r.s1;

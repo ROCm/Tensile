@@ -2,6 +2,7 @@
 #include "StructOperations.h"
 
 #include <sstream>
+#include <algorithm>
 
 namespace Cobalt {
 
@@ -137,6 +138,20 @@ bool Tensor::operator<(const Tensor & other) const {
   return false;
 }
 
+// descending stride; return change
+std::vector<unsigned int> Tensor::sortDimensions() {
+  auto dimensionsOld = dimensions;
+  std::sort(dimensions.begin(), dimensions.end());
+  std::vector<unsigned int> order;
+  for (unsigned int i = 0; i < numDims(); i++) {
+    auto value = dimensionsOld[i];
+    auto foundIdx = std::find(dimensions.begin(), dimensions.end(), value);
+    size_t idx = foundIdx - dimensions.begin();
+    order.push_back(static_cast<unsigned int>(idx));
+  }
+  return order;
+}
+
 /*******************************************************************************
  * accessors
  ******************************************************************************/
@@ -156,7 +171,7 @@ unsigned int Tensor::numDims() const {
   return static_cast<unsigned int>(dimensions.size());
 }
 
-size_t Tensor::size() const {
+size_t Tensor::numElements() const {
   size_t size = 0;
   for (unsigned int i = 0; i < numDims(); i++) {
     size_t dimSize = dimensions[i].size * dimensions[i].stride;

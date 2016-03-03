@@ -70,6 +70,8 @@ int main( char * argv[], int argc ) {
                           alpha,
                           beta,
                           dataType );
+                      printf("%s%s\n", transA == 1 ? "T" : "N", transB == 1 ? "T" : "N");
+                      
                       CobaltStatus status;
                       CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
                       numProblems++;

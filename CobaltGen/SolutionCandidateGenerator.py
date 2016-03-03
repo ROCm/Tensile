@@ -11,6 +11,7 @@ import argparse
 #    batched largest stride (A+B) -> shortest stride
 #    free largest stride (of A,B input tensor) -> shortest stride
 #    last two indices must belong to different A,B and are assigned d0,d1
+# TODO - should batched be mingled among free for faster performance?
 ################################################################################
 def makeIndexAssignments(kernel, problem):
   numIndicesC = problem.operation.numIndicesFree \
@@ -28,9 +29,10 @@ def makeIndexAssignments(kernel, problem):
         indexIsBatched = True
     if indexIsBatched:
       stride = 0
-      if problem.operation.indexAssignmentsA[j] == i:
+      for j in range(0,numIndicesA):
+        if problem.operation.indexAssignmentsA[j] == i:
           stride += problem.tensorA.dimensions[j].stride
-      if problem.operation.indexAssignmentsB[j] == i:
+        if problem.operation.indexAssignmentsB[j] == i:
           stride += problem.tensorB.dimensions[j].stride
       indicesBatchedUnsorted.append([stride, i])
     else:
@@ -65,6 +67,9 @@ def makeIndexAssignments(kernel, problem):
   kernel.tensorAssignedDim0 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
   kernel.indexAssignmentDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][1]
   kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
+  strideD0 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
+  strideD1 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
+  print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1) + "\n"
 
   for index in indicesBatchedSorted:
     kernel.indexOrderC.append( index[1] )
@@ -91,22 +96,34 @@ def makeIndexAssignments(kernel, problem):
   for i in range(0,len(indicesSummationSorted)):
     kernel.indexOrderSummation.append( indicesSummationSorted[i][1] )
 
-  unrollDimStride = indicesSummationSorted[len(indicesSummationSorted)-1][0]
 
-  kernel.unrollDimStrideGreaterThanTileDimStride0 = \
-      indicesFreeSorted[len(indicesFreeSorted)-2][0] < unrollDimStride
-  kernel.unrollDimStrideGreaterThanTileDimStride1 = \
-      indicesFreeSorted[len(indicesFreeSorted)-1][0] < unrollDimStride
+  #unrollDimStride = indicesSummationSorted[len(indicesSummationSorted)-1][0]
+  unrollIndex = kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1] + len(problem.tensorC.dimensions)
+  unrollIndexA = problem.operation.indexAssignmentsA.index(unrollIndex)
+  unrollIndexB = problem.operation.indexAssignmentsB.index(unrollIndex)
+  print "unrollIndex = " + str(unrollIndex)
+  print "indexAssignmentsA = " + str(problem.operation.indexAssignmentsA)
+  print "indexAssignmentsB = " + str(problem.operation.indexAssignmentsB)
+  print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
+
+  unrollDimStrideA = problem.tensorA.dimensions[unrollIndexA].stride
+  unrollDimStrideB = problem.tensorB.dimensions[unrollIndexB].stride
+  print "strideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
+
+  #kernel.unrollDimStrideGreaterThanTileDimStride0 = \
+  #    indicesFreeSorted[len(indicesFreeSorted)-2][0] < unrollDimStride
+  #kernel.unrollDimStrideGreaterThanTileDimStride1 = \
+  #    indicesFreeSorted[len(indicesFreeSorted)-1][0] < unrollDimStride
   if kernel.tensorAssignedDim0 == 0: # A assigned dim0
     kernel.unrollDimStrideGreaterThanTileDimStrideA = \
-        kernel.unrollDimStrideGreaterThanTileDimStride0
+      strideD0 < unrollDimStrideA
     kernel.unrollDimStrideGreaterThanTileDimStrideB = \
-        kernel.unrollDimStrideGreaterThanTileDimStride1
+      strideD1 < unrollDimStrideB
   else:
     kernel.unrollDimStrideGreaterThanTileDimStrideA = \
-        kernel.unrollDimStrideGreaterThanTileDimStride1
+      strideD1 < unrollDimStrideA
     kernel.unrollDimStrideGreaterThanTileDimStrideB = \
-        kernel.unrollDimStrideGreaterThanTileDimStride0
+      strideD0 < unrollDimStrideB
 
 ################################################################################
 # SolutionCandidateGenerator
