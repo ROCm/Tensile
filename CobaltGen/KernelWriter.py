@@ -81,9 +81,6 @@ class KernelWriter:
   def getNameTile(self, kernel):
     kernelName = ""
 
-# put dims in A,B order rather than 0,1 order?
-# Yes,
-
     # tile dim A
     if kernel.tensorAssignedDim0 == 0: #A assigned d0
       kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
@@ -430,6 +427,13 @@ class KernelWriter:
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
 
+    # debug printf - kernel args
+    kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
+    kStr += ");" + self.endLine
+    # end debug printf
+
+
+
     ####################################
     # apply offsets - DONE
     kStr += self.endLine
@@ -501,8 +505,8 @@ class KernelWriter:
         + ";" + self.endLine
 
     # debug printf - global data
-    kStr += "  if( localSerial < 8) printf(\\\"T[%u,%u] A[%u] = %f; B[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), localSerial, A[localSerial], localSerial, B[localSerial]"
-    kStr += ");" + self.endLine
+    #kStr += "  if( localSerial < 8) printf(\\\"T[%u,%u] A[%u] = %f; B[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), localSerial, A[localSerial], localSerial, B[localSerial]"
+    #kStr += ");" + self.endLine
     # end debug printf
 
 
@@ -539,7 +543,7 @@ class KernelWriter:
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
           + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
 
-    if kernel.unrollDimStrideGreaterThanTileDimStrideB:
+    if not kernel.unrollDimStrideGreaterThanTileDimStrideB:
       kStr += "#define globalIdxB" + tileCharB \
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
           + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
@@ -619,7 +623,7 @@ class KernelWriter:
           + "#define localAStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + "/NUM_UNROLL_ITER)" \
           + self.endLine
 
-    if kernel.unrollDimStrideGreaterThanTileDimStrideB:
+    if not kernel.unrollDimStrideGreaterThanTileDimStrideB:
       kStr += "#define localB" + tileCharB \
           + " ( localSerial % NUM_UNROLL_ITER )" + self.endLine \
           + "#define localB" + unrollChar \
@@ -741,6 +745,7 @@ class KernelWriter:
       kStr += " ) ];" + self.endLine
 
       # debug printf - values loading into LDS
+      """
       kStr += "  printf(\\\"T[%u,%u] localA[%u] = globalA[%u] = %f; %u"
       for i in range(1,len(kernel.operation.indexAssignmentsA)):
         kStr += ", %u"
@@ -764,6 +769,7 @@ class KernelWriter:
             kernel.operation.indexAssignmentsA[i]]  \
             + "(" + str(numALoads) + ")"
       kStr += ");" + self.endLine
+      """
       # end debug printf
 
       kStr += indent + "}" + self.endLine
@@ -864,6 +870,7 @@ class KernelWriter:
     kStr += self.endLine
     # debug printf
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxK, size0I, size1J);" + self.endLine
+    # end debug
     kStr += "  /* write global C */" + self.endLine
     if kernel.dataTypeC == Structs.DataType.singleComplex:
       kStr += "  float type_mad_tmp;" + self.endLine

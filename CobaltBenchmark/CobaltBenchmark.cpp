@@ -33,6 +33,26 @@ void printMismatch<CobaltComplexDouble>( size_t index, CobaltComplexDouble gpuDa
 }
 
 template<typename DataType>
+void printMatch(size_t index, DataType gpuData, DataType cpuData);
+
+template<>
+void printMatch<float>(size_t index, float gpuData, float cpuData) {
+  printf("%5zi: %.6f == %.6f\n", index, gpuData, cpuData);
+}
+template<>
+void printMatch<double>(size_t index, double gpuData, double cpuData) {
+  printf("%6zi: %.6f == %.6f\n", index, gpuData, cpuData);
+}
+template<>
+void printMatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
+  printf("%6zi: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1);
+}
+template<>
+void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
+  printf("%6zi: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1);
+}
+
+template<typename DataType>
 bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
@@ -50,6 +70,9 @@ bool compareTensorsTemplate(
       } else {
         break;
       }
+    }
+    else {
+      printMatch<DataType>(i, gpuData[i], cpuData[i]);
     }
   }
   return equal;
@@ -305,7 +328,11 @@ int main( int argc, char *argv[] ) {
           tmpC.data,
           0, nullptr, nullptr );
         CL_CHECK(status)
-        printf( problemReference->pimpl->tensorC.toString(tensorDataC).c_str() );
+        status = clFinish(ctrl.queues[0]);
+        CL_CHECK(status)
+        float *tmp = static_cast<float *>(tmpC.data);
+        printf("%f, %f, %f, %f\n", tmp[0], tmp[1], tmp[2], tmp[3]);
+        printf( problemReference->pimpl->tensorC.toString(tmpC).c_str() );
         
         printf("\nComparing...\n");
         compareTensors( tmpC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );

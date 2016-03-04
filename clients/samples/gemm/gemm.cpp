@@ -25,11 +25,11 @@ CobaltProblem createProblemGEMM(
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   const size_t numSizes = 1;
-  size_t sizes[] = {2}; // , 960, 4096};
+  size_t sizes[] = {3}; // , 960, 4096};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1}; // , 64 };
   const size_t numBatchSizes = 1;
-  size_t batches[] = { 2 };
+  size_t batches[] = { 3 };
   const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[] = {
     cobaltDataTypeSingle,
@@ -52,13 +52,13 @@ int main( char * argv[], int argc ) {
                 for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
                   for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
                     for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
-                      size_t M = sizes[mIdx];
-                      size_t N = sizes[nIdx];
-                      size_t K = sizes[kIdx];
-                      if (M != N || M != K || N != K) continue;
+                      size_t numBatches = 2; // batches[bIdx];
+                      size_t M = 3; // sizes[mIdx];
+                      size_t N = 4; //  sizes[nIdx];
+                      size_t K = 5; //  sizes[kIdx];
+                      //if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       CobaltDataType dataType = dataTypes[dtIdx];
-                      size_t numBatches = batches[bIdx];
                       bool alpha = alphas[alphaIdx];
                       bool beta = betas[betaIdx];
                       CobaltProblem problem = createProblemGEMM(
@@ -138,8 +138,8 @@ CobaltProblem createProblemGEMM(
     indexAssignmentsA[0] = transA ? 3 : 0;
     indexAssignmentsA[1] = transA ? 0 : 3;
     indexAssignmentsA[2] = 2;
-    indexAssignmentsB[0] = transB ? 1 : 3;
-    indexAssignmentsB[1] = transB ? 3 : 1;
+    indexAssignmentsB[0] = transB ? 3 : 1; // fixed
+    indexAssignmentsB[1] = transB ? 1 : 3;
     indexAssignmentsB[2] = 2;
   } else {
     indexAssignmentsA[0] = transA ? 2 : 0;
@@ -147,11 +147,6 @@ CobaltProblem createProblemGEMM(
     indexAssignmentsB[0] = transB ? 1 : 2;
     indexAssignmentsB[1] = transB ? 2 : 1;
   }
-
-
-
-
-
 
   // problem - device problem
   CobaltDeviceProfile deviceProfile;

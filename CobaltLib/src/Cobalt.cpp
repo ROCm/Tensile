@@ -82,9 +82,9 @@ CobaltProblem cobaltCreateProblem(
 
 CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   if (problem == nullptr) {
-  return problem->pimpl->validate();
-  } else {
     return cobaltStatusProblemIsNull;
+  } else {
+    return problem->pimpl->validate();
   }
 }
 

@@ -218,9 +218,6 @@ CobaltStatus Problem::validate( ) {
     }
   }
 
-  
-  
-
 
   /* operation */
   // every element must correspond to a valid free idx or valid sum idx
@@ -251,13 +248,70 @@ CobaltStatus Problem::validate( ) {
       return cobaltStatusOperationIndexAssignmentInvalidB;
     }
     for (size_t j = i+1; j < tensorA.numDims(); j++) {
-      if ( indicesA[i]
-          == indicesA[j] ) {
+      if ( indicesA[i] == indicesA[j] ) {
         return cobaltStatusOperationIndexAssignmentDuplicateA;
       }
-          if ( indicesB[i]
-          == indicesB[j] ) {
+      if ( indicesB[i] == indicesB[j] ) {
         return cobaltStatusOperationIndexAssignmentDuplicateB;
+      }
+    }
+  }
+
+  /* indexAssignments */
+  // matching indices must have same size
+  for (size_t i = 0; i < indicesA.size(); i++) {
+    unsigned int indexAssignment = indicesA[i];
+    if (indexAssignment < tensorC.numDims()) { // match C
+      if (tensorC[indexAssignment].size != tensorA[i].size) {
+        return cobaltStatusOperationIndexAssignmentInvalidA;
+      }
+    }
+    else { // match B
+      // find this index in B
+      bool indexFound = false;
+      unsigned int indexB;
+      for (unsigned int j = 0; j < tensorB.numDims(); j++) {
+        if (indicesB[j] == indexAssignment) {
+          indexFound = true;
+          indexB = j;
+          break;
+        }
+      }
+      if (indexFound) {
+        if (tensorB[indexB].size != tensorA[i].size) {
+          return cobaltStatusOperationIndexAssignmentInvalidA;
+        }
+      }
+      else {
+        return cobaltStatusOperationIndexUnassigned;
+      }
+    }
+  }
+  for (size_t i = 0; i < indicesB.size(); i++) {
+    unsigned int indexAssignment = indicesB[i];
+    if (indexAssignment < tensorC.numDims()) { // match C
+      if (tensorC[indexAssignment].size != tensorB[i].size) {
+        return cobaltStatusOperationIndexAssignmentInvalidB;
+      }
+    }
+    else { // match A
+      // find this index in A
+      bool indexFound = false;
+      unsigned int indexA;
+      for (unsigned int j = 0; j < tensorA.numDims(); j++) {
+        if (indicesA[j] == indexAssignment) {
+          indexFound = true;
+          indexA = j;
+          break;
+        }
+      }
+      if (indexFound) {
+        if (tensorA[indexA].size != tensorB[i].size) {
+          return cobaltStatusOperationIndexAssignmentInvalidB;
+        }
+      }
+      else {
+        return cobaltStatusOperationIndexUnassigned;
       }
     }
   }
