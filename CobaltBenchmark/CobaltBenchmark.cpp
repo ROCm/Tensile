@@ -58,7 +58,7 @@ bool compareTensorsTemplate(
   DataType *cpuData,
   Cobalt::Tensor tensor) {
   
-  unsigned int maxToPrint = 16;
+  unsigned int maxToPrint = 64;
   unsigned int printCount = 0;
   bool equal = true;
   for ( unsigned long long i = 0; i < tensor.numElements(); i++) {

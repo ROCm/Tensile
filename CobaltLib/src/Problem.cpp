@@ -148,7 +148,7 @@ Problem::Problem(
       constructorStatus = cobaltStatusProblemNotFound;
     }
   }
-  printf("%s\n", toStringXML(2).c_str());
+  //printf("%s\n", toStringXML(2).c_str());
 }
 
 bool Problem::sortIndicesC( unsigned int i, unsigned int j) const {

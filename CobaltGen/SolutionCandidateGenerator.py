@@ -99,6 +99,7 @@ def makeIndexAssignments(kernel, problem):
 
   #unrollDimStride = indicesSummationSorted[len(indicesSummationSorted)-1][0]
   unrollIndex = kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1] + len(problem.tensorC.dimensions)
+  kernel.indexUnroll = unrollIndex
   unrollIndexA = problem.operation.indexAssignmentsA.index(unrollIndex)
   unrollIndexB = problem.operation.indexAssignmentsB.index(unrollIndex)
   print "unrollIndex = " + str(unrollIndex)
@@ -137,8 +138,8 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 4 # 1
-  maxMicroTileSize = 4 # 16
+  minMicroTileSize = 1 # 1
+  maxMicroTileSize = 1 # 16
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -204,8 +205,6 @@ class SolutionCandidateGenerator:
     problemSkinnyDim1 = 0
     if problemSizeDim1 < 96 and problemSizeDim0 > 1024:
       problemSkinnyDim1 = 1
-    kernel.indexUnroll = kernel.indexOrderSummation[ \
-        problem.operation.numIndicesSummation-1]
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
       if kernel.indexUnroll == problem.operation.indexAssignmentsA[i]:
@@ -231,6 +230,9 @@ class SolutionCandidateGenerator:
 
     # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
+      # TODO remove this; for debugging just to one unroll
+      if len(unroll) > 1:
+        continue
       kernel.unrolls = unroll
       # if last unroll is multiple of last/unrolled summation
       #if problemSizeUnroll % unroll[len(unroll)-1] > 0:
