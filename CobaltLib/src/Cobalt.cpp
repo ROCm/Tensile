@@ -14,10 +14,13 @@
 // global logger object
 Cobalt::Logger Cobalt::logger;
 
+
+
+
 /*******************************************************************************
  * cobaltStatusIsValidationError
  ******************************************************************************/
-bool cobaltStatusIsValidationError( CobaltStatus status ) {
+bool cobaltStatusIsError( CobaltStatus status ) {
   return status < cobaltStatusValidationErrorMax
       && status > cobaltStatusValidationErrorMin;
 }
@@ -26,7 +29,7 @@ bool cobaltStatusIsValidationError( CobaltStatus status ) {
 /*******************************************************************************
  * cobaltStatusIsPerformanceWarning
  ******************************************************************************/
-bool cobaltStatusIsPerformanceWarning( CobaltStatus status ) {
+bool cobaltStatusIsWarning( CobaltStatus status ) {
   return status < cobaltStatusPerformanceWarningMax
       && status > cobaltStatusPerformanceWarningMin;
 }
@@ -63,20 +66,26 @@ CobaltProblem cobaltCreateProblem(
     CobaltDeviceProfile deviceProfile,
     CobaltStatus *status ) {
 
-  CobaltProblem problem = new _CobaltProblem();
-  problem->pimpl = new Cobalt::Problem(
-      tensorC,
-      tensorA,
-      tensorB,
-      indexAssignmentsA,
-      indexAssignmentsB,
-      operationType,
-      alphaType,
-      betaType,
-      deviceProfile );
-  *status = cobaltStatusSuccess;
+  try {
+    Cobalt::Problem *problemPtr = new Cobalt::Problem(
+        tensorC,
+        tensorA,
+        tensorB,
+        indexAssignmentsA,
+        indexAssignmentsB,
+        operationType,
+        alphaType,
+        betaType,
+        deviceProfile );
+    *status = cobaltStatusSuccess;
+    CobaltProblem problem = new _CobaltProblem();
+    problem->pimpl = problemPtr;
+    return problem;
+  } catch ( CobaltStatus errorStatus ) {
+    *status = errorStatus;
+    return nullptr;
+  }
 
-  return problem;
 };
 
 

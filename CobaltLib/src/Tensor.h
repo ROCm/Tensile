@@ -22,7 +22,7 @@ public:
   size_t numElements() const;
   CobaltDataType getDataType() const;
   const CobaltDimension & operator[]( size_t index ) const;
-  std::vector<unsigned int> sortDimensions();
+  //std::vector<unsigned int> sortDimensions();
 
   template<typename T>
   std::string toStringTemplate( CobaltTensorData tensorData ) const;

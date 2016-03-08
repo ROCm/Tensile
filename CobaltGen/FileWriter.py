@@ -315,16 +315,19 @@ class FileWriter:
             * problem.tensorC.dataType.numBytes()
         if tensorSizeDimC > tensorSizeMaxC:
           tensorSizeMaxC = tensorSizeDimC
+          print tensorSizeMaxC
       for dimension in problem.tensorA.dimensions:
         tensorSizeDimA = dimension.stride * dimension.size \
             * problem.tensorA.dataType.numBytes()
         if tensorSizeDimA > tensorSizeMaxA:
           tensorSizeMaxA = tensorSizeDimA
+          print tensorSizeMaxA
       for dimension in problem.tensorB.dimensions:
         tensorSizeDimB = dimension.stride * dimension.size \
             * problem.tensorB.dataType.numBytes()
         if tensorSizeDimB > tensorSizeMaxB:
           tensorSizeMaxB = tensorSizeDimB
+          print tensorSizeMaxB
 
     s += "}\n"
     benchmarkSourceFile.write(s)

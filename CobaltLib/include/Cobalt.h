@@ -52,15 +52,10 @@ typedef enum CobaltStatus_ {
   cobaltStatusProblemIsNull,
 
   // tensor errors
-  cobaltStatusTensorNumDimensionsInvalidA,
-  cobaltStatusTensorNumDimensionsInvalidB,
-  cobaltStatusTensorNumDimensionsInvalidC,
-  cobaltStatusTensorDimensionSizeInvalidA,
-  cobaltStatusTensorDimensionSizeInvalidB,
-  cobaltStatusTensorDimensionSizeInvalidC,
-  cobaltStatusTensorDimensionStrideInvalidA,
-  cobaltStatusTensorDimensionStrideInvalidB,
-  cobaltStatusTensorDimensionStrideInvalidC,
+  cobaltStatusTensorNumDimensionsInvalid,
+  cobaltStatusTensorDimensionOrderInvalid,
+  cobaltStatusTensorDimensionStrideInvalid,
+  cobaltStatusTensorDimensionSizeInvalid,
   
   // operation errors
   cobaltStatusOperandNumDimensionsMismatch,
@@ -109,11 +104,25 @@ typedef enum CobaltStatus_ {
 
 } CobaltStatus;
 
+#define cobaltStatusCheck(status) \
+  if (cobaltStatusIsError(status) || cobaltStatusIsError(status)) { \
+    unsigned int _cobaltStatusStringSize; \
+    cobaltStatusToString( status, nullptr, &_cobaltStatusStringSize); \
+    char *_cobaltStatusString = new char[_cobaltStatusStringSize]; \
+    cobaltStatusToString(status, _cobaltStatusString, &_cobaltStatusStringSize); \
+    printf("CobaltStatus::%s::%s on line %u of %s\n", \
+      cobaltStatusIsError(status) ? "Error" : "Warning", \
+      _cobaltStatusString, \
+      __LINE__, \
+      __FILE__); \
+    delete[] _cobaltStatusString; \
+  }
+
 /*******************************************************************************
  * Status is Error (incorrect) vs Warning (correct but slow)
  ******************************************************************************/
-bool cobaltStatusIsValidationError( CobaltStatus status );
-bool cobaltStatusIsPerformanceWarning( CobaltStatus status );
+bool cobaltStatusIsError( CobaltStatus status );
+bool cobaltStatusIsWarning( CobaltStatus status );
 
 /*******************************************************************************
  * Setup & Teardown

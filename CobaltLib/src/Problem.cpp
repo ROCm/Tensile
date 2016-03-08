@@ -30,82 +30,81 @@ Problem::Problem(
   betaType( inputBetaType ),
   deviceProfile( inputDeviceProfile ),
   indicesA(inputIndexAssignmentsA, inputIndexAssignmentsA + inputTensorA.numDimensions),
-  indicesB(inputIndexAssignmentsB, inputIndexAssignmentsB + inputTensorB.numDimensions),
-  constructorStatus(cobaltStatusSuccess)
+  indicesB(inputIndexAssignmentsB, inputIndexAssignmentsB + inputTensorB.numDimensions)
 {
 
   // (1) determine batch, free and summation indices
-  for (unsigned int i = 0; i < tensorC.numDims() + tensorA.numDims(); i++) {
-    bool inC = i < tensorC.numDims();
-    unsigned int idxA = static_cast<unsigned int>(std::find( indicesA.begin(), indicesA.end(), i) - indicesA.begin());
-    unsigned int idxB = static_cast<unsigned int>(std::find( indicesB.begin(), indicesB.end(), i) - indicesB.begin());
-    bool inA = idxA < indicesA.size();
-    bool inB = idxB < indicesB.size();
-
-    if (!inC && inA && inB) {
-      indicesSummation.push_back( std::make_pair(idxA,idxB) );
-    }
-  }
+  //for (unsigned int i = 0; i < tensorC.numDims() + tensorA.numDims(); i++) {
+  //  bool inC = i < tensorC.numDims();
+  //  unsigned int idxA = static_cast<unsigned int>(std::find( indicesA.begin(), indicesA.end(), i) - indicesA.begin());
+  //  unsigned int idxB = static_cast<unsigned int>(std::find( indicesB.begin(), indicesB.end(), i) - indicesB.begin());
+  //  bool inA = idxA < indicesA.size();
+  //  bool inB = idxB < indicesB.size();
+  //
+  //  if (!inC && inA && inB) {
+  //    indicesSummation.push_back( std::make_pair(idxA,idxB) );
+  //  }
+  //}
   //printf("Problem::(0)\n%s\n", toStringXML(2).c_str());
 
   // (2) sort C indices by decreasing stride
-  std::vector<unsigned int> indicesNewC;
-  for (unsigned int i = 0; i < tensorC.numDims(); i++) {
-    indicesNewC.push_back(i);
-  }
-  std::sort(indicesNewC.begin(), indicesNewC.end(), std::bind(&Cobalt::Problem::sortIndicesC, this, std::placeholders::_1, std::placeholders::_2) );
+  //std::vector<unsigned int> indicesNewC;
+  //for (unsigned int i = 0; i < tensorC.numDims(); i++) {
+  //  indicesNewC.push_back(i);
+  //}
+  //std::sort(indicesNewC.begin(), indicesNewC.end(), std::bind(&Cobalt::Problem::sortIndicesC, this, std::placeholders::_1, std::placeholders::_2) );
   
   // (3) sort summation indices by decreasing total(a+b) stride
-  std::vector<std::pair<unsigned int,unsigned int>> indicesSummationNew = indicesSummation;
-  std::sort(indicesSummationNew.begin(), indicesSummationNew.end(), std::bind(&Cobalt::Problem::sortSummationIndexDescending, this, std::placeholders::_1, std::placeholders::_2) );
+  //std::vector<std::pair<unsigned int,unsigned int>> indicesSummationNew = indicesSummation;
+  //std::sort(indicesSummationNew.begin(), indicesSummationNew.end(), std::bind(&Cobalt::Problem::sortSummationIndexDescending, this, std::placeholders::_1, std::placeholders::_2) );
 
   // (4) based on (2) rearrange tensorC dimensions
-  std::vector<CobaltDimension> dimensionsNewC(tensorC.numDims());
-  for (unsigned int i = 0; i < tensorC.numDims(); i++) {
-    dimensionsNewC[indicesNewC[i]] = tensorC[i];
-  }
-  tensorC.dimensions = dimensionsNewC;
+  //std::vector<CobaltDimension> dimensionsNewC(tensorC.numDims());
+  //for (unsigned int i = 0; i < tensorC.numDims(); i++) {
+  //  dimensionsNewC[indicesNewC[i]] = tensorC[i];
+  //}
+  //tensorC.dimensions = dimensionsNewC;
 
   // (5) based on (2,3) rearrange indicesA,B
-  std::vector<unsigned int> indicesNew = indicesNewC;
-  // append indicesSummationSorted to indicesNew
-  for (size_t i = 0; i < indicesSummation.size(); i++) {
-    auto pair = indicesSummation[i];
-    auto foundIdx = std::find(indicesSummationNew.begin(), indicesSummationNew.end(), pair);
-    size_t idx = foundIdx - indicesSummationNew.begin();
-    indicesNew.push_back(static_cast<unsigned int>(idx + indicesNewC.size()));
-  }
-  for (auto i = 0; i < indicesA.size(); i++) {
-    indicesA[i] = indicesNew[indicesA[i]];
-  }
-  for (auto i = 0; i < indicesB.size(); i++) {
-    indicesB[i] = indicesNew[indicesB[i]];
-  }
+  //std::vector<unsigned int> indicesNew = indicesNewC;
+  //// append indicesSummationSorted to indicesNew
+  //for (size_t i = 0; i < indicesSummation.size(); i++) {
+  //  auto pair = indicesSummation[i];
+  //  auto foundIdx = std::find(indicesSummationNew.begin(), indicesSummationNew.end(), pair);
+  //  size_t idx = foundIdx - indicesSummationNew.begin();
+  //  indicesNew.push_back(static_cast<unsigned int>(idx + indicesNewC.size()));
+  //}
+  //for (auto i = 0; i < indicesA.size(); i++) {
+  //  indicesA[i] = indicesNew[indicesA[i]];
+  //}
+  //for (auto i = 0; i < indicesB.size(); i++) {
+  //  indicesB[i] = indicesNew[indicesB[i]];
+  //}
   //printf("Problem::(5)\n%s\n", toStringXML(2).c_str());
 
   // (6) A gets indices largest->smallest stride
-  std::vector<unsigned int> orderNewA = tensorA.sortDimensions();
-  // (6a) A indexAssignments
-  std::vector<unsigned int> indicesNewA;
-  for (auto i = 0; i < indicesA.size(); i++) {
-    indicesNewA.push_back( indicesA[orderNewA[i] ] );
-  }
-  indicesA = indicesNewA;
+  //std::vector<unsigned int> orderNewA = tensorA.sortDimensions();
+  //// (6a) A indexAssignments
+  //std::vector<unsigned int> indicesNewA;
+  //for (auto i = 0; i < indicesA.size(); i++) {
+  //  indicesNewA.push_back( indicesA[orderNewA[i] ] );
+  //}
+  //indicesA = indicesNewA;
   //printf("Problem::(6)\n%s\n", toStringXML(2).c_str());
   
 
   // (7) B gets indices largest->smallest stride
-  std::vector<unsigned int> orderNewB = tensorB.sortDimensions();
-  // (7a) B indexAssignments
-  std::vector<unsigned int> indicesNewB;
-  for (auto i = 0; i < indicesB.size(); i++) {
-    indicesNewB.push_back(indicesB[orderNewB[i]]);
-  }
-  indicesB = indicesNewB;
+  //std::vector<unsigned int> orderNewB = tensorB.sortDimensions();
+  //// (7a) B indexAssignments
+  //std::vector<unsigned int> indicesNewB;
+  //for (auto i = 0; i < indicesB.size(); i++) {
+  //  indicesNewB.push_back(indicesB[orderNewB[i]]);
+  //}
+  //indicesB = indicesNewB;
   //printf("Problem::(7)\n%s\n", toStringXML(2).c_str());
 
   // (8) determine batch, free and summation indices
-  indicesSummation.clear();
+  //indicesSummation.clear();
   for (unsigned int i = 0; i < tensorC.numDims() + tensorA.numDims(); i++) {
     bool inC = i < tensorC.numDims();
     unsigned int idxA = static_cast<unsigned int>(std::find(indicesA.begin(), indicesA.end(), i) - indicesA.begin());
@@ -118,34 +117,28 @@ Problem::Problem(
       indicesBatch.push_back(i);
 
       // free index
-    }
-    else if (inC && (inA || inB)) {
+    } else if (inC && (inA || inB)) {
       indicesFree.push_back(i);
 
       // ERROR - unused free index
-    }
-    else if (inC && !inA && !inB) {
-      constructorStatus = cobaltStatusOperationIndexUnassigned;
+    } else if (inC && !inA && !inB) {
+      throw cobaltStatusOperationIndexUnassigned;
 
       // summation index
-    }
-    else if (!inC && inA && inB) {
+    } else if (!inC && inA && inB) {
       indicesSummation.push_back(std::make_pair(idxA, idxB));
 
       // ERROR - index mismatch
-    }
-    else if (!inC && (inA || inB)) {
-      constructorStatus = cobaltStatusOperationSummationIndexAssignmentsInvalid;
+    } else if (!inC && (inA || inB)) {
+      throw cobaltStatusOperationSummationIndexAssignmentsInvalid;
 
       // this is okay, we just iterated over too many indices
-    }
-    else if (!inC && !inA && !inB) {
+    } else if (!inC && !inA && !inB) {
 
       // are there any other ERRORS I haven't thought of?
-    }
-    else {
+    } else {
       printf("Cobalt::Problem::constructor() - Error; mismatch I hadn't thought of.\n");
-      constructorStatus = cobaltStatusProblemNotFound;
+      throw cobaltStatusProblemNotFound;
     }
   }
   //printf("%s\n", toStringXML(2).c_str());
@@ -167,55 +160,9 @@ bool Problem::sortSummationIndexDescending( std::pair<unsigned int, unsigned int
  ******************************************************************************/
 CobaltStatus Problem::validate( ) {
 
-  if (constructorStatus != cobaltStatusSuccess) {
-    return cobaltStatusSuccess;
-  }
-
-  /* tensorA */
-  if (tensorA.numDims() < 1
-    || tensorA.numDims() > CobaltTensor::maxDimensions ) {
-      return cobaltStatusTensorNumDimensionsInvalidA;
-  }
-  for (size_t i = 0; i < tensorA.numDims(); i++) {
-    if (tensorA.dimensions[i].size < 1) {
-      return cobaltStatusTensorDimensionSizeInvalidA;
-    }
-    if (tensorA.dimensions[i].stride < 1) {
-      return cobaltStatusTensorDimensionStrideInvalidA;
-    }
-  }
-
-  /* tensorB */
-  if (tensorB.numDims() < 1
-    || tensorB.numDims() > CobaltTensor::maxDimensions ) {
-      return cobaltStatusTensorNumDimensionsInvalidB;
-  }
-  for (size_t i = 0; i < tensorB.numDims(); i++) {
-    if (tensorB.dimensions[i].size < 1) {
-      return cobaltStatusTensorDimensionSizeInvalidB;
-    }
-    if (tensorB.dimensions[i].stride < 1) {
-      return cobaltStatusTensorDimensionStrideInvalidB;
-    }
-  }
-
   /* tensorA,B */
   if (tensorA.numDims() != tensorB.numDims()) {
     return cobaltStatusOperandNumDimensionsMismatch;
-  }
-  
-  /* tensorC */
-  if (tensorC.numDims() < 1
-    || tensorC.numDims() > CobaltTensor::maxDimensions ) {
-      return cobaltStatusTensorNumDimensionsInvalidC;
-  }
-  for (size_t i = 0; i < tensorC.numDims(); i++) {
-    if (tensorC.dimensions[i].size < 1) {
-      return cobaltStatusTensorDimensionSizeInvalidC;
-    }
-    if (tensorC.dimensions[i].stride < 1) {
-      return cobaltStatusTensorDimensionStrideInvalidC;
-    }
   }
 
 
@@ -265,8 +212,7 @@ CobaltStatus Problem::validate( ) {
       if (tensorC[indexAssignment].size != tensorA[i].size) {
         return cobaltStatusOperationIndexAssignmentInvalidA;
       }
-    }
-    else { // match B
+    } else { // match B
       // find this index in B
       bool indexFound = false;
       unsigned int indexB;
@@ -281,8 +227,7 @@ CobaltStatus Problem::validate( ) {
         if (tensorB[indexB].size != tensorA[i].size) {
           return cobaltStatusOperationIndexAssignmentInvalidA;
         }
-      }
-      else {
+      } else {
         return cobaltStatusOperationIndexUnassigned;
       }
     }
@@ -293,8 +238,7 @@ CobaltStatus Problem::validate( ) {
       if (tensorC[indexAssignment].size != tensorB[i].size) {
         return cobaltStatusOperationIndexAssignmentInvalidB;
       }
-    }
-    else { // match A
+    } else { // match A
       // find this index in A
       bool indexFound = false;
       unsigned int indexA;
@@ -309,8 +253,7 @@ CobaltStatus Problem::validate( ) {
         if (tensorA[indexA].size != tensorB[i].size) {
           return cobaltStatusOperationIndexAssignmentInvalidB;
         }
-      }
-      else {
+      } else {
         return cobaltStatusOperationIndexUnassigned;
       }
     }
@@ -341,13 +284,18 @@ CobaltStatus Problem::validate( ) {
   state += "] = Sum(";
   state += indexChars[tensorC.numDims()];
   state += ":";
+  for (size_t j = 0; j < tensorA.numDims(); j++) {
+    if (indicesA[j] == 0 + tensorC.numDims()) {
+      state += std::to_string(tensorA.dimensions[j].size);
+    }
+  }
   //state += std::to_string(boundIndexSizes[0]);
   for (size_t i = 1; i < indicesSummation.size(); i++) {
     state += ",";
     state += indexChars[tensorA.numDims()+i];
     state += ":";
     for (size_t j = 0; j < tensorA.numDims(); j++) {
-      if (indicesA[j] == i) {
+      if (indicesA[j] == i+tensorC.numDims()) {
         state += std::to_string(tensorA.dimensions[j].size);
       }
     }

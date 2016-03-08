@@ -42,8 +42,8 @@ int main( char * argv[], int argc ) {
   const bool betas[] = { false, true };
   size_t numProblems = 0;
   cobaltSetup("GEMM");
-  for (size_t transA = 0; transA < 2; transA++) {
-    for (size_t transB = 0; transB < 2; transB++) {
+  for (size_t transA = 0; transA < 1; transA++) {
+    for (size_t transB = 1; transB < 2; transB++) {
       for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {
         for (size_t nIdx = 0; nIdx < numSizes; nIdx++) {
           for (size_t kIdx = 0; kIdx < numSizes; kIdx++) {
@@ -61,6 +61,7 @@ int main( char * argv[], int argc ) {
                       CobaltDataType dataType = dataTypes[dtIdx];
                       bool alpha = alphas[alphaIdx];
                       bool beta = betas[betaIdx];
+                      printf("%s%s\n", transA == 1 ? "T" : "N", transB == 1 ? "T" : "N");
                       CobaltProblem problem = createProblemGEMM(
                           transA==1, // true means do transpose
                           transB==1, // true means do transpose
@@ -70,7 +71,6 @@ int main( char * argv[], int argc ) {
                           alpha,
                           beta,
                           dataType );
-                      printf("%s%s\n", transA == 1 ? "T" : "N", transB == 1 ? "T" : "N");
                       
                       CobaltStatus status;
                       CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
@@ -85,7 +85,7 @@ int main( char * argv[], int argc ) {
       } // M
     } // transB
   } // transA
-  printf("Num Problems: %u\n", numProblems );
+  printf("Num Problems: %llu\n", numProblems );
   cobaltTeardown();
 
   return 0;
@@ -109,23 +109,23 @@ CobaltProblem createProblemGEMM(
     CobaltDataType dataType ) {
 
   // problem - tensor
-  CobaltTensor tensorA = createTensorForMatrix(
-    dataType,
-    initialStride,
-    transA ? K : M,
-    transA ? M : K,
-    numBatches );
-  CobaltTensor tensorB = createTensorForMatrix(
-    dataType,
-    initialStride,
-    transB ? K : N,
-    transB ? N : K,
-    numBatches );
   CobaltTensor tensorC = createTensorForMatrix(
     dataType,
     initialStride,
     M,
     N,
+    numBatches);
+  CobaltTensor tensorA = createTensorForMatrix(
+    dataType,
+    initialStride,
+    transA ? M : K,
+    transA ? K : M,
+    numBatches );
+  CobaltTensor tensorB = createTensorForMatrix(
+    dataType,
+    initialStride,
+    transB ? N : K,
+    transB ? K : N,
     numBatches );
 
   // operation
@@ -135,17 +135,17 @@ CobaltProblem createProblemGEMM(
   unsigned int indexAssignmentsA[CobaltTensor::maxDimensions];
   unsigned int indexAssignmentsB[CobaltTensor::maxDimensions];
   if (numBatches > 1) {
-    indexAssignmentsA[0] = transA ? 3 : 0;
-    indexAssignmentsA[1] = transA ? 0 : 3;
+    indexAssignmentsA[0] = transA ? 0 : 3;
+    indexAssignmentsA[1] = transA ? 3 : 0;
     indexAssignmentsA[2] = 2;
-    indexAssignmentsB[0] = transB ? 3 : 1; // fixed
-    indexAssignmentsB[1] = transB ? 1 : 3;
+    indexAssignmentsB[0] = transB ? 1 : 3;
+    indexAssignmentsB[1] = transB ? 3 : 1;
     indexAssignmentsB[2] = 2;
   } else {
-    indexAssignmentsA[0] = transA ? 2 : 0;
-    indexAssignmentsA[1] = transA ? 0 : 2;
-    indexAssignmentsB[0] = transB ? 1 : 2;
-    indexAssignmentsB[1] = transB ? 2 : 1;
+    indexAssignmentsA[0] = transA ? 0 : 2;
+    indexAssignmentsA[1] = transA ? 2 : 0;
+    indexAssignmentsB[0] = transB ? 2 : 1;
+    indexAssignmentsB[1] = transB ? 1 : 2;
   }
 
   // problem - device problem
@@ -168,16 +168,23 @@ CobaltProblem createProblemGEMM(
       betaType,
       deviceProfile,
       &status );
+  cobaltStatusCheck(status);
+  unsigned int problemStringSize;
+  cobaltProblemToString(problem, nullptr, &problemStringSize);
+  char *problemString = new char[problemStringSize];
+  cobaltProblemToString(problem, problemString, &problemStringSize);
+  printf("%s\n", problemString);
 
 
   // problem - validate
   CobaltStatus validationStatus = cobaltValidateProblem( problem );
-  unsigned int strLength;
-  cobaltStatusToString(validationStatus, nullptr, &strLength);
-  char *statusStr = new char[strLength];
-  cobaltStatusToString(validationStatus, statusStr, &strLength);
-  printf("%s\n", statusStr );
-  delete[] statusStr;
+  cobaltStatusCheck(validationStatus);
+  //unsigned int strLength;
+  //cobaltStatusToString(validationStatus, nullptr, &strLength);
+  //char *statusStr = new char[strLength];
+  //cobaltStatusToString(validationStatus, statusStr, &strLength);
+  //printf("%s\n", statusStr );
+  //delete[] statusStr;
   if (validationStatus != cobaltStatusSuccess) {
     cobaltValidateProblem( problem );
   }
@@ -196,10 +203,10 @@ CobaltTensor createTensorForMatrix(
   CobaltTensor tensor;
   tensor.dataType = dataType;
   tensor.numDimensions = 2;
-  tensor.dimensions[0].stride = (unsigned int) initialStride;
-  tensor.dimensions[0].size = (unsigned int) dim0;
+  tensor.dimensions[0].stride = (unsigned int)initialStride;
+  tensor.dimensions[0].size = (unsigned int)dim0;
   tensor.dimensions[1].stride = (tensor.dimensions[0].stride*tensor.dimensions[0].size);
-  tensor.dimensions[1].size = (unsigned int) dim1;
+  tensor.dimensions[1].size = (unsigned int)dim1;
 
   if (dimBatch > 1) {
     tensor.numDimensions++;

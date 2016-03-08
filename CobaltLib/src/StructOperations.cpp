@@ -24,15 +24,10 @@ std::string toString( CobaltStatus status ) {
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemIsNull )
 
   // tensor errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalidC )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalidC )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalidC )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionOrderInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalid )
   
   // operation errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperandNumDimensionsMismatch )
@@ -187,14 +182,12 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
 
   if (l.stride > r.stride) {
     return true;
-  }
-  else if (r.stride > l.stride) {
+  } else if (r.stride > l.stride) {
     return false;
   }
   if (l.size > r.size) {
     return true;
-  }
-  else if (r.size > l.size) {
+  } else if (r.size > l.size) {
     return false;
   }
   // identical

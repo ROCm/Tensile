@@ -218,9 +218,9 @@ class SolutionWriter:
         s += "  kernelArgIdxDim0 = numKernelArgs;\n"
       if i == solution.kernels[0].indexAssignmentDim1:
         s += "  kernelArgIdxDim1 = numKernelArgs;\n"
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
+      s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
           + str(i) + "].size; // size" + self.indexChars[i] + "\n"
-      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
+      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
           + "[" + str(i) + "].size);\n"
       s += "  numKernelArgs++;\n"
     s += "\n"

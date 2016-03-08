@@ -11,7 +11,24 @@ namespace Cobalt {
  ******************************************************************************/
 Tensor::Tensor(CobaltTensor tensor)
   : dataType(tensor.dataType),
-  dimensions(tensor.dimensions, tensor.dimensions+tensor.numDimensions) { }
+  dimensions(tensor.dimensions, tensor.dimensions+tensor.numDimensions) {
+  if (numDims() < 1 || numDims() > CobaltTensor::maxDimensions) {
+    throw cobaltStatusTensorNumDimensionsInvalid;
+  }
+  for (size_t d = 0; d < numDims(); d++) {
+    if (d < numDims() - 1) {
+      if (dimensions[d].stride > dimensions[d + 1].stride) {
+        throw cobaltStatusTensorDimensionOrderInvalid;
+      }
+    }
+    if (dimensions[d].stride < 1) {
+      throw cobaltStatusTensorDimensionStrideInvalid;
+    }
+    if (dimensions[d].size < 1) {
+      throw cobaltStatusTensorDimensionSizeInvalid;
+    }
+  }
+}
 
 /*******************************************************************************
  * toString
@@ -57,13 +74,13 @@ template<typename T>
 std::string Tensor::toStringTemplate( CobaltTensorData tensorData ) const {
   std::ostringstream stream;
   std::vector<unsigned int> coords(numDims());
-  for (auto i = 0; i < coords.size(); i++) {
+  for (unsigned int i = 0; i < numDims(); i++) {
     coords[i] = 0;
   }
   bool done = false;
   while (!done) { // exit criteria specified below
 
-    // d0 is a screen row
+    // last is a screen row
     for (coords[0] = 0; coords[0] < dimensions[0].size; coords[0]++) {
       size_t index = getIndex(coords);
       stream.setf(std::ios::fixed);
@@ -73,8 +90,9 @@ std::string Tensor::toStringTemplate( CobaltTensorData tensorData ) const {
       stream << "; ";
     } // d0
     // append coords
-    stream << "(0:" << dimensions[0].size << "-1";
-    for (auto d = 1; d < coords.size(); d++) {
+    stream << "(";
+    stream << "0:" << dimensions[0].size;
+    for (unsigned int d = 1; d < numDims(); d++) {
       stream << ", " << coords[d];
     }
     stream << ")";
@@ -87,9 +105,9 @@ std::string Tensor::toStringTemplate( CobaltTensorData tensorData ) const {
       bool dimIncremented = false; // for printing extra line
       // increment coord
       coords[1]++;
-      for (auto d = 1; d < coords.size(); d++) {
+      for (unsigned int d = 1; d < numDims(); d++) {
         if (coords[d] >= dimensions[d].size) {
-          if (d == coords.size()-1) {
+          if (d == numDims()-1) {
             // exit criteria - last dimension full
             done = true;
             break;
@@ -139,18 +157,18 @@ bool Tensor::operator<(const Tensor & other) const {
 }
 
 // descending stride; return change
-std::vector<unsigned int> Tensor::sortDimensions() {
-  auto dimensionsOld = dimensions;
-  std::sort(dimensions.begin(), dimensions.end());
-  std::vector<unsigned int> order;
-  for (unsigned int i = 0; i < numDims(); i++) {
-    auto value = dimensionsOld[i];
-    auto foundIdx = std::find(dimensions.begin(), dimensions.end(), value);
-    size_t idx = foundIdx - dimensions.begin();
-    order.push_back(static_cast<unsigned int>(idx));
-  }
-  return order;
-}
+//std::vector<unsigned int> Tensor::sortDimensions() {
+//  auto dimensionsOld = dimensions;
+//  std::sort(dimensions.begin(), dimensions.end());
+//  std::vector<unsigned int> order;
+//  for (unsigned int i = 0; i < numDims(); i++) {
+//    auto value = dimensionsOld[i];
+//    auto foundIdx = std::find(dimensions.begin(), dimensions.end(), value);
+//    size_t idx = foundIdx - dimensions.begin();
+//    order.push_back(static_cast<unsigned int>(idx));
+//  }
+//  return order;
+//}
 
 /*******************************************************************************
  * accessors

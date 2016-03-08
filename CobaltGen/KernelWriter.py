@@ -18,7 +18,7 @@ class KernelWriter:
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, kernel ):
+  def __init__( self, backend ):
     pass
 
 
@@ -93,9 +93,9 @@ class KernelWriter:
       kernelName += kernel.tile.branch[1].getChar()
       kernelName += str(kernel.tile.microTile[1])
     if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kernelName += "f"
-    else:
       kernelName += "s"
+    else:
+      kernelName += "f"
     kernelName += "_"
 
     # tile dim B
@@ -110,17 +110,18 @@ class KernelWriter:
       kernelName += kernel.tile.branch[1].getChar()
       kernelName += str(kernel.tile.microTile[1])
     # "f"ast or "s"low
-    if kernel.unrollDimStrideGreaterThanTileDimStrideB:
-      kernelName += "f"
-    else:
+    if kernel.unrollDimStrideLessThanTileDimStrideB:
       kernelName += "s"
+    else:
+      kernelName += "f"
     kernelName += "_"
 
     # unroll
     kernelName += self.indexChars[len(kernel.indexOrderC)+len(kernel.indexOrderSummation)-1].lower()
-    kernelName += str(kernel.unrolls[0])
-    for i in range(1,len(kernel.unrolls)):
-      kernelName += "_" + str(kernel.unrolls[i])
+    if len(kernel.unrolls)>0:
+      kernelName += str(kernel.unrolls[0])
+      for i in range(1,len(kernel.unrolls)):
+        kernelName += "_" + str(kernel.unrolls[i])
 
     return kernelName
 
@@ -275,6 +276,72 @@ class KernelWriter:
       kStr += " + IDX" + indexChar + "*strideB" + indexChar
     kStr += " )" + self.endLine
 
+    ####################################
+    # global tile indices being loaded - TODO
+    kStr += self.endLine
+    kStr += "  /* global tile indices being loaded */" + self.endLine
+
+    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+      kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" + tileChar0 \
+          + "*MACRO_TILE_" + tileChar0 + " + (localSerial+(LID)*WG_DIM_" \
+          + tileChar0 + "*WG_DIM_" + tileChar1 + ")%MACRO_TILE_" \
+          + tileChar0 + ")" + self.endLine
+      kStr += "#define globalIdxA" + unrollChar \
+          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
+          + tileChar1 + ")/MACRO_TILE_" + tileChar0 + ")" + self.endLine
+    else:
+      kStr += "#define globalIdxA" + unrollChar + "(LID) (groupIdx" \
+          + tileChar1 + "*MACRO_TILE_" + tileChar0 \
+          + " + (localSerial+(LID)*WG_DIM_" \
+          + tileChar0 + "*WG_DIM_" + tileChar1 + ")/NUM_UNROLL_ITER)" \
+          + self.endLine
+      kStr += "#define globalIdxA" + tileCharA \
+          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
+          + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
+
+    if kernel.unrollDimStrideLessThanTileDimStrideB:
+      kStr += "#define globalIdxB" + tileCharB \
+          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
+          + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
+      kStr += "#define globalIdxB" + unrollChar \
+          + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_" + tileChar1 \
+          + " + (localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
+          + tileChar1 + ")/NUM_UNROLL_ITER)" + self.endLine
+    else:
+      kStr += "#define globalIdxB" + unrollChar \
+          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
+          + "*WG_DIM_" + tileChar1 + ")/MACRO_TILE_" + tileChar1 + ")" \
+          + self.endLine
+      kStr += "#define globalIdxB" + tileCharB \
+          + "(LID) (groupIdx" + tileChar1 \
+          + "*MACRO_TILE_" + tileChar1 + " + (localSerial+(LID)*WG_DIM_" \
+          + tileChar0 + "*WG_DIM_" + tileChar1 \
+          + ")%MACRO_TILE_" + tileChar1 + ")" + self.endLine
+    kStr += self.endLine
+
+    ####################################
+    # global non-tile indices being loaded (batch & outer summation)
+    kStr += "  /* global non-tile indices being loaded */" + self.endLine
+    # C free indices which don't belong to tile = groupIdx
+    # C batch = groupIdx
+    for indexC in kernel.indexOrderC:
+      if indexC == kernel.indexAssignmentDim0 \
+          or indexC == kernel.indexAssignmentDim1:
+        continue
+      if indexC in kernel.operation.indexAssignmentsA:
+        kStr += "#define globalIdxA" + indexChars[indexC] \
+            + "(LID) groupIdx" + indexChars[indexC] + self.endLine
+      if indexC in kernel.operation.indexAssignmentsB:
+        kStr += "#define globalIdxB" + indexChars[indexC] \
+            + "(LID) groupIdx" + indexChars[indexC] + self.endLine
+    # C outer summation indices which aren't unrolled = sumIdx
+    for i in range(0,len(kernel.indexOrderSummation)-1):
+      index = i + len(kernel.indexOrderC)
+      kStr += "#define globalIdxA" + indexChars[index] \
+            + "(LID) groupIdx" + indexChars[index] + self.endLine
+      kStr += "#define globalIdxB" + indexChars[index] \
+            + "(LID) groupIdx" + indexChars[index] + self.endLine
+    kStr += self.endLine
 
     ####################################
     # local memory indices - TODO
@@ -282,6 +349,41 @@ class KernelWriter:
     kStr += "/* local memory indices */" + self.endLine
     kStr += "#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_" + tileChar0 + ") )" + self.endLine
     kStr += "#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MACRO_TILE_" + tileChar1 + ") )" + self.endLine
+
+    ####################################
+    # local indices being written
+    # thoroughly verify by hand for 4 GEMM cases (after doing global) - TODO
+    kStr += self.endLine
+    kStr += "    /* local indices being written */" + self.endLine
+# new indices will be localA_unroll and localA_tile, which gets assigned to row
+    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+      kStr += "#define localA" + tileCharA \
+          + " (localSerial % MACRO_TILE_" + tileChar0 + ")" + self.endLine \
+          + "#define localA" + unrollChar \
+          +  " (localSerial / MACRO_TILE_" + tileChar0 + ")" + self.endLine \
+          + "#define localAStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + ")" + self.endLine
+    else:
+      kStr += "#define localA" + tileCharA \
+          + " (localSerial / NUM_UNROLL_ITER)" + self.endLine \
+          + "#define localA" + unrollChar \
+          + " (localSerial % NUM_UNROLL_ITER)" + self.endLine \
+          + "#define localAStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + "/NUM_UNROLL_ITER)" \
+          + self.endLine
+
+    if not kernel.unrollDimStrideLessThanTileDimStrideB:
+      kStr += "#define localB" + tileCharB \
+          + " ( localSerial % NUM_UNROLL_ITER )" + self.endLine \
+          + "#define localB" + unrollChar \
+          + " ( localSerial / NUM_UNROLL_ITER )" + self.endLine \
+          + "#define localBStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + "/NUM_UNROLL_ITER)" \
+          + self.endLine
+    else:
+      kStr += "#define localB" + tileCharB \
+          + " ( localSerial / MACRO_TILE_" + tileChar1 + " )" + self.endLine \
+          + "#define localB" + unrollChar \
+          + " ( localSerial % MACRO_TILE_" + tileChar1 + " )" + self.endLine \
+          + "#define localBStride  (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + ")" + self.endLine
+
 
     ####################################
     # data types - DONE
@@ -428,8 +530,8 @@ class KernelWriter:
     kStr += " {" + self.endLine
 
     # debug printf - kernel args
-    kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
-    kStr += ");" + self.endLine
+    #kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
+    #kStr += ");" + self.endLine
     # end debug printf
 
 
@@ -474,10 +576,8 @@ class KernelWriter:
 
     kStr += self.endLine
     kStr += "  /* c indices */" + self.endLine
-    # d0
     kStr += "  unsigned int groupIdx" + tileChar0 + " = get_group_id(0);" \
         + " // d0, tensor" + tensorChar0 + self.endLine
-    # d1
     kStr += "  unsigned int groupIdx" + tileChar1 + " = get_group_id(1);" \
         + " // d1, tensor" + tensorChar1 + self.endLine
 
@@ -504,8 +604,23 @@ class KernelWriter:
         + " + localIdx" + tileChar1 + "*WG_DIM_" + tileChar0 \
         + ";" + self.endLine
 
+    ####################################
+    # which global Cij index - DONE
+    kStr += self.endLine
+    kStr += "  /* which global Cij index */" + self.endLine
+    for i in range(0, len(kernel.indexOrderC)):
+      index = kernel.indexOrderC[i]
+      kStr += "  unsigned int globalIdx" + indexChars[index] \
+          + " = groupIdx" + indexChars[index]
+      if index == kernel.indexAssignmentDim0:
+        kStr += "*MACRO_TILE_" + tileChar0 + " + localIdx" + tileChar0
+      if index == kernel.indexAssignmentDim1:
+        kStr += "*MACRO_TILE_" + tileChar1 + " + localIdx" + tileChar1
+      kStr += ";" + self.endLine
+
+
     # debug printf - global data
-    #kStr += "  if( localSerial < 8) printf(\\\"T[%u,%u] A[%u] = %f; B[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), localSerial, A[localSerial], localSerial, B[localSerial]"
+    #kStr += "  printf(\\\"T[%u,%u] A[%u] = %f; B[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), localSerial, A[localSerial], localSerial, B[localSerial]"
     #kStr += ");" + self.endLine
     # end debug printf
 
@@ -517,75 +632,25 @@ class KernelWriter:
     #unrollStrideGreaterThanTileA
     #kernel.unrollDimStrideGreaterThanTileDimStrideA = kernel.indexAssignmentDim0 \
      #   > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
-    #kernel.unrollDimStrideGreaterThanTileDimStrideB = kernel.indexAssignmentDim1 \
+    #kernel.unrollDimStrideLessThanTileDimStrideB = kernel.indexAssignmentDim1 \
     #    > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
 
-    ####################################
-    # global tile indices being loaded - TODO
-    kStr += self.endLine
-    kStr += "  /* global tile indices being loaded */" + self.endLine
 
-    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" + tileChar0 \
-          + "*MACRO_TILE_" + tileChar0 + " + (localSerial+(LID)*WG_DIM_" \
-          + tileChar0 + "*WG_DIM_" + tileChar1 + ")%MACRO_TILE_" \
-          + tileChar0 + ")" + self.endLine
-      kStr += "#define globalIdxA" + unrollChar \
-          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
-          + tileChar1 + ")/MACRO_TILE_" + tileChar0 + ")" + self.endLine
-    else:
-      kStr += "#define globalIdxA" + unrollChar + "(LID) (groupIdx" \
-          + tileChar1 + "*MACRO_TILE_" + tileChar0 \
-          + " + (localSerial+(LID)*WG_DIM_" \
-          + tileChar0 + "*WG_DIM_" + tileChar1 + ")/NUM_UNROLL_ITER)" \
-          + self.endLine
-      kStr += "#define globalIdxA" + tileCharA \
-          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
-          + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
+    kStr += "  bool validC ="
+    if kernel.tile.branch[0]:
+      kStr += " (globalIdx" \
+          + tileChar0 + " + " \
+          + str(a) + "*WG_DIM_" + tileChar0 + "" + " < size" \
+          + tileChar0 + ")"
+    if kernel.tile.branch[0] and kernel.tile.branch[1]:
+      kStr += " &&"
+    if kernel.tile.branch[1]:
+      kStr += " (globalIdx" \
+          + tileChar1 + " + " \
+          + str(b) + "*WG_DIM_" + tileChar1 + "" + " < size" \
+          + tileChar1 + ")"
+    kStr += ";" + self.endLine
 
-    if not kernel.unrollDimStrideGreaterThanTileDimStrideB:
-      kStr += "#define globalIdxB" + tileCharB \
-          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
-          + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
-      kStr += "#define globalIdxB" + unrollChar \
-          + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_" + tileChar1 \
-          + " + (localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
-          + tileChar1 + ")/NUM_UNROLL_ITER)" + self.endLine
-    else:
-      kStr += "#define globalIdxB" + unrollChar \
-          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
-          + "*WG_DIM_" + tileChar1 + ")/MACRO_TILE_" + tileChar1 + ")" \
-          + self.endLine
-      kStr += "#define globalIdxB" + tileCharB \
-          + "(LID) (groupIdx" + tileChar1 \
-          + "*MACRO_TILE_" + tileChar1 + " + (localSerial+(LID)*WG_DIM_" \
-          + tileChar0 + "*WG_DIM_" + tileChar1 \
-          + ")%MACRO_TILE_" + tileChar1 + ")" + self.endLine
-    kStr += self.endLine
-
-    ####################################
-    # global non-tile indices being loaded (batch & outer summation)
-    kStr += "  /* global non-tile indices being loaded */" + self.endLine
-    # C free indices which don't belong to tile = groupIdx
-    # C batch = groupIdx
-    for indexC in kernel.indexOrderC:
-      if indexC == kernel.indexAssignmentDim0 \
-          or indexC == kernel.indexAssignmentDim1:
-        continue
-      if indexC in kernel.operation.indexAssignmentsA:
-        kStr += "#define globalIdxA" + indexChars[indexC] \
-            + "(LID) groupIdx" + indexChars[indexC] + self.endLine
-      if indexC in kernel.operation.indexAssignmentsB:
-        kStr += "#define globalIdxB" + indexChars[indexC] \
-            + "(LID) groupIdx" + indexChars[indexC] + self.endLine
-    # C outer summation indices which aren't unrolled = sumIdx
-    for i in range(0,len(kernel.indexOrderSummation)-1):
-      index = i + len(kernel.indexOrderC)
-      kStr += "#define globalIdxA" + indexChars[index] \
-            + "(LID) groupIdx" + indexChars[index] + self.endLine
-      kStr += "#define globalIdxB" + indexChars[index] \
-            + "(LID) groupIdx" + indexChars[index] + self.endLine
-    kStr += self.endLine
 
 
     ####################################
@@ -602,40 +667,6 @@ class KernelWriter:
       kStr += ";" + self.endLine
       kStr += indent + "do {" + self.endLine
       indent += "  "
-
-    ####################################
-    # local indices being written
-    # thoroughly verify by hand for 4 GEMM cases (after doing global) - TODO
-    kStr += self.endLine
-    kStr += "    /* local indices being written */" + self.endLine
-# new indices will be localA_unroll and localA_tile, which gets assigned to row
-    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kStr += "#define localA" + tileCharA \
-          + " (localSerial % MACRO_TILE_" + tileChar0 + ")" + self.endLine \
-          + "#define localA" + unrollChar \
-          +  " (localSerial / MACRO_TILE_" + tileChar0 + ")" + self.endLine \
-          + "#define localAStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + ")" + self.endLine
-    else:
-      kStr += "#define localA" + tileCharA \
-          + " (localSerial / NUM_UNROLL_ITER)" + self.endLine \
-          + "#define localA" + unrollChar \
-          + " (localSerial % NUM_UNROLL_ITER)" + self.endLine \
-          + "#define localAStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + "/NUM_UNROLL_ITER)" \
-          + self.endLine
-
-    if not kernel.unrollDimStrideGreaterThanTileDimStrideB:
-      kStr += "#define localB" + tileCharB \
-          + " ( localSerial % NUM_UNROLL_ITER )" + self.endLine \
-          + "#define localB" + unrollChar \
-          + " ( localSerial / NUM_UNROLL_ITER )" + self.endLine \
-          + "#define localBStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + "/NUM_UNROLL_ITER)" \
-          + self.endLine
-    else:
-      kStr += "#define localB" + tileCharB \
-          + " ( localSerial / MACRO_TILE_" + tileChar1 + " )" + self.endLine \
-          + "#define localB" + unrollChar \
-          + " ( localSerial % MACRO_TILE_" + tileChar1 + " )" + self.endLine \
-          + "#define localBStride  (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + ")" + self.endLine
 
     kStr += indent + "__local DATA_TYPE_STR_A *lA = localA" \
         + " + GET_LOCAL_INDEX_A(localA" + tileCharA + ", localA" \
@@ -654,15 +685,6 @@ class KernelWriter:
     #kStr += ");" + self.endLine
     # end debug printf
 
-# print
-# bool 1
-# bool 2
-# localIndex
-# globalIndex
-# globalValue
-#
-#
-#
 
     ####################################
     # how many elements to load global -> local - DONE
@@ -704,10 +726,10 @@ class KernelWriter:
 
     ####################################
     # load global -> local - DONE
-    kStr += "/* numALoads = " + str(numALoads) + " */" + self.endLine
-    kStr += "/* numALoadsR = " + str(numALoadsR) + " */" + self.endLine
-    kStr += "/* numBLoads = " + str(numBLoads) + " */" + self.endLine
-    kStr += "/* numBLoadsR = " + str(numBLoadsR) + " */" + self.endLine
+    kStr += "    /* numALoads = " + str(numALoads) + " */" + self.endLine
+    kStr += "    /* numALoadsR = " + str(numALoadsR) + " */" + self.endLine
+    kStr += "    /* numBLoads = " + str(numBLoads) + " */" + self.endLine
+    kStr += "    /* numBLoadsR = " + str(numBLoadsR) + " */" + self.endLine
     # load A whole WG
     for a in range(0, numALoads):
       kStr += indent + "lA[ %d*localAStride ] = " % a
@@ -745,11 +767,10 @@ class KernelWriter:
       kStr += " ) ];" + self.endLine
 
       # debug printf - values loading into LDS
-      """
-      kStr += "  printf(\\\"T[%u,%u] localA[%u] = globalA[%u] = %f; %u"
+      kStr += "  printf(\\\"T[%u,%u]%u localA[%u] = globalA[%u] = %f; %u"
       for i in range(1,len(kernel.operation.indexAssignmentsA)):
         kStr += ", %u"
-      kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), GET_LOCAL_INDEX_A(localA" + tileCharA \
+      kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxK, GET_LOCAL_INDEX_A(localA" + tileCharA \
           + ", localA" + unrollChar +"), "
       kStr += "GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + indexChars[ \
@@ -769,7 +790,6 @@ class KernelWriter:
             kernel.operation.indexAssignmentsA[i]]  \
             + "(" + str(numALoads) + ")"
       kStr += ");" + self.endLine
-      """
       # end debug printf
 
       kStr += indent + "}" + self.endLine
@@ -822,6 +842,24 @@ class KernelWriter:
     for u in range(0, kernel.unrolls[len(kernel.unrolls)-1]):
       kStr += indent + "MICRO_TILE" + self.endLine
 
+    # debug printf - global data
+    kStr += "  if (validC) printf(\\\"T[%u,%u]%u rC[%u][%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxK, 0, 0, rC[0][0]"
+    kStr += ");" + self.endLine
+    # end debug printf
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ####################################
     # end loop - DONE
     for i in reversed(range(0,len(kernel.indexOrderSummation))):
@@ -851,19 +889,6 @@ class KernelWriter:
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
     kStr += self.endLine
 
-    ####################################
-    # which global Cij index - DONE
-    kStr += self.endLine
-    kStr += "  /* which global Cij index */" + self.endLine
-    for i in range(0, len(kernel.indexOrderC)):
-      index = kernel.indexOrderC[i]
-      kStr += "  unsigned int globalIdx" + indexChars[index] \
-          + " = groupIdx" + indexChars[index]
-      if index == kernel.indexAssignmentDim0:
-        kStr += "*MACRO_TILE_" + tileChar0 + " + localIdx" + tileChar0
-      if index == kernel.indexAssignmentDim1:
-        kStr += "*MACRO_TILE_" + tileChar1 + " + localIdx" + tileChar1
-      kStr += ";" + self.endLine
 
     ####################################
     # write global Cij - DONE
@@ -1093,4 +1118,4 @@ if __name__ == "__main__":
 
 # *T: read B fast b/c
 # old: if (kernel.order=="clblasColumnMajor")==(kernel.transB=="T"):
-# new: unrollDimStrideGreaterThanTileDimStrideB == true
+# new: unrollDimStrideLessThanTileDimStrideB == true

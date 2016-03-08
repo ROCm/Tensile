@@ -1,6 +1,7 @@
 import copy
 import Structs
 import FileReader
+import KernelWriter
 import argparse
 
 ################################################################################
@@ -69,7 +70,7 @@ def makeIndexAssignments(kernel, problem):
   kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
   strideD0 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
   strideD1 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
-  print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1) + "\n"
+  print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1)
 
   for index in indicesBatchedSorted:
     kernel.indexOrderC.append( index[1] )
@@ -106,10 +107,12 @@ def makeIndexAssignments(kernel, problem):
   print "indexAssignmentsA = " + str(problem.operation.indexAssignmentsA)
   print "indexAssignmentsB = " + str(problem.operation.indexAssignmentsB)
   print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
-
   unrollDimStrideA = problem.tensorA.dimensions[unrollIndexA].stride
   unrollDimStrideB = problem.tensorB.dimensions[unrollIndexB].stride
-  print "strideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
+  print "unrollStrideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
+  print "tensorAssignedDim0 = " + ("A" if kernel.tensorAssignedDim0==0 else "B")
+  print "strideD0 = " + str(strideD0)
+  print "strideD1 = " + str(strideD1)
 
   #kernel.unrollDimStrideGreaterThanTileDimStride0 = \
   #    indicesFreeSorted[len(indicesFreeSorted)-2][0] < unrollDimStride
@@ -117,14 +120,19 @@ def makeIndexAssignments(kernel, problem):
   #    indicesFreeSorted[len(indicesFreeSorted)-1][0] < unrollDimStride
   if kernel.tensorAssignedDim0 == 0: # A assigned dim0
     kernel.unrollDimStrideGreaterThanTileDimStrideA = \
-      strideD0 < unrollDimStrideA
-    kernel.unrollDimStrideGreaterThanTileDimStrideB = \
-      strideD1 < unrollDimStrideB
+      unrollDimStrideA > strideD0
+    kernel.unrollDimStrideLessThanTileDimStrideB = \
+      unrollDimStrideB < strideD1
   else:
     kernel.unrollDimStrideGreaterThanTileDimStrideA = \
-      strideD1 < unrollDimStrideA
-    kernel.unrollDimStrideGreaterThanTileDimStrideB = \
-      strideD0 < unrollDimStrideB
+      unrollDimStrideA > strideD1
+    kernel.unrollDimStrideLessThanTileDimStrideB = \
+      unrollDimStrideB < strideD0
+
+  # print kernel name
+  kw = KernelWriter.KernelWriter(0)
+  print kw.getName(kernel)
+  print "\n"
 
 ################################################################################
 # SolutionCandidateGenerator

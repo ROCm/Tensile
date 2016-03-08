@@ -56,7 +56,6 @@ public:
   std::vector<std::pair<unsigned int,unsigned int>> indicesSummation;
   std::vector<unsigned int> indicesA;
   std::vector<unsigned int> indicesB;
-  CobaltStatus constructorStatus;
 
 
 };
