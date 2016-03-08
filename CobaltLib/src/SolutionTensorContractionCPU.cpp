@@ -55,7 +55,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
   for (size_t i = 0; i < problem.tensorA.numDims(); i++) {
     if ( problem.indicesA[i] >= numIndicesFreeC) {
       boundIndexSizes[problem.indicesA[i]-numIndicesFreeC] = problem.tensorA[i].size;
-      printf("boundIndexSizes[%u] = %u\n", problem.indicesA[i] - numIndicesFreeC, problem.tensorA[i].size);
+      //printf("boundIndexSizes[%u] = %u\n", problem.indicesA[i] - numIndicesFreeC, problem.tensorA[i].size);
       // TODO - verify
     }
   }

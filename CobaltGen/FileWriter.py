@@ -315,19 +315,19 @@ class FileWriter:
             * problem.tensorC.dataType.numBytes()
         if tensorSizeDimC > tensorSizeMaxC:
           tensorSizeMaxC = tensorSizeDimC
-          print tensorSizeMaxC
+          print "tensorSizeMaxC = " + str(tensorSizeMaxC)
       for dimension in problem.tensorA.dimensions:
         tensorSizeDimA = dimension.stride * dimension.size \
             * problem.tensorA.dataType.numBytes()
         if tensorSizeDimA > tensorSizeMaxA:
           tensorSizeMaxA = tensorSizeDimA
-          print tensorSizeMaxA
+          print "tensorSizeMaxA = " + str(tensorSizeMaxA)
       for dimension in problem.tensorB.dimensions:
         tensorSizeDimB = dimension.stride * dimension.size \
             * problem.tensorB.dataType.numBytes()
         if tensorSizeDimB > tensorSizeMaxB:
           tensorSizeMaxB = tensorSizeDimB
-          print tensorSizeMaxB
+          print "tensorSizeMaxB = " + str(tensorSizeMaxB)
 
     s += "}\n"
     benchmarkSourceFile.write(s)
@@ -344,8 +344,8 @@ class FileWriter:
     s += "const size_t numProblems = " + str(numProblems) + ";\n"
     s += "const size_t numSolutions = " + str(numSolutions) + ";\n"
     s += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
-    s += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxC) + ";\n"
-    s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxC) + ";\n"
+    s += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
+    s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
     s += "extern size_t numSolutionsPerProblem[numProblems];\n"
     s += "extern CobaltProblem problems[numProblems];\n"
     s += "extern Cobalt::Solution *solutionCandidates[numSolutions];\n"

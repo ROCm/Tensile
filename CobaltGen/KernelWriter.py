@@ -248,10 +248,10 @@ class KernelWriter:
     for i in range(1, len(kernel.indexOrderC)):
       kStr += ", IDX" + indexChars[i]
     indexChar = indexChars[0]
-    kStr += ") ( IDX" + indexChar + "*strideC" + indexChar
+    kStr += ") ( (IDX" + indexChar + ")*strideC" + indexChar
     for i in range(1, len(kernel.indexOrderC)):
       indexChar = indexChars[i]
-      kStr += " + IDX" + indexChar + "*strideC" + indexChar
+      kStr += " + (IDX" + indexChar + ")*strideC" + indexChar
     kStr += " )" + self.endLine
     # A
     kStr += "#define GET_GLOBAL_INDEX_A(IDX" \
@@ -259,10 +259,10 @@ class KernelWriter:
     for i in range(1, len(kernel.operation.indexAssignmentsA)):
       kStr += ", IDX" + indexChars[kernel.operation.indexAssignmentsA[i]]
     indexChar = indexChars[kernel.operation.indexAssignmentsA[0]]
-    kStr += ") ( IDX" + indexChar + "*strideA" + indexChar
+    kStr += ") ( (IDX" + indexChar + ")*strideA" + indexChar
     for i in range(1, len(kernel.operation.indexAssignmentsA)):
       indexChar = indexChars[kernel.operation.indexAssignmentsA[i]]
-      kStr += " + IDX" + indexChar + "*strideA" + indexChar
+      kStr += " + (IDX" + indexChar + ")*strideA" + indexChar
     kStr += " )" + self.endLine
     # B
     kStr += "#define GET_GLOBAL_INDEX_B(IDX" \
@@ -270,10 +270,10 @@ class KernelWriter:
     for i in range(1, len(kernel.operation.indexAssignmentsB)):
       kStr += ", IDX" + indexChars[kernel.operation.indexAssignmentsB[i]]
     indexChar = indexChars[kernel.operation.indexAssignmentsB[0]]
-    kStr += ") ( IDX" + indexChar + "*strideB" + indexChar
+    kStr += ") ( (IDX" + indexChar + ")*strideB" + indexChar
     for i in range(1, len(kernel.operation.indexAssignmentsB)):
       indexChar = indexChars[kernel.operation.indexAssignmentsB[i]]
-      kStr += " + IDX" + indexChar + "*strideB" + indexChar
+      kStr += " + (IDX" + indexChar + ")*strideB" + indexChar
     kStr += " )" + self.endLine
 
     ####################################
@@ -281,7 +281,8 @@ class KernelWriter:
     kStr += self.endLine
     kStr += "  /* global tile indices being loaded */" + self.endLine
 
-    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+    if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
+      kStr += "/* fast read */" + self.endLine
       kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" + tileChar0 \
           + "*MACRO_TILE_" + tileChar0 + " + (localSerial+(LID)*WG_DIM_" \
           + tileChar0 + "*WG_DIM_" + tileChar1 + ")%MACRO_TILE_" \
@@ -290,24 +291,27 @@ class KernelWriter:
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
           + tileChar1 + ")/MACRO_TILE_" + tileChar0 + ")" + self.endLine
     else:
-      kStr += "#define globalIdxA" + unrollChar + "(LID) (groupIdx" \
+      kStr += "/* slow read */" + self.endLine
+      kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" \
           + tileChar1 + "*MACRO_TILE_" + tileChar0 \
           + " + (localSerial+(LID)*WG_DIM_" \
           + tileChar0 + "*WG_DIM_" + tileChar1 + ")/NUM_UNROLL_ITER)" \
           + self.endLine
-      kStr += "#define globalIdxA" + tileCharA \
+      kStr += "#define globalIdxA" + unrollChar \
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
           + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
 
     if kernel.unrollDimStrideLessThanTileDimStrideB:
-      kStr += "#define globalIdxB" + tileCharB \
+      kStr += "/* slow read */" + self.endLine
+      kStr += "#define globalIdxB" + unrollChar \
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
           + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
-      kStr += "#define globalIdxB" + unrollChar \
+      kStr += "#define globalIdxB" + tileCharB \
           + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_" + tileChar1 \
           + " + (localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
           + tileChar1 + ")/NUM_UNROLL_ITER)" + self.endLine
     else:
+      kStr += "/* fast read */" + self.endLine
       kStr += "#define globalIdxB" + unrollChar \
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
           + "*WG_DIM_" + tileChar1 + ")/MACRO_TILE_" + tileChar1 + ")" \
@@ -356,7 +360,7 @@ class KernelWriter:
     kStr += self.endLine
     kStr += "    /* local indices being written */" + self.endLine
 # new indices will be localA_unroll and localA_tile, which gets assigned to row
-    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+    if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
       kStr += "#define localA" + tileCharA \
           + " (localSerial % MACRO_TILE_" + tileChar0 + ")" + self.endLine \
           + "#define localA" + unrollChar \
@@ -370,7 +374,7 @@ class KernelWriter:
           + "#define localAStride (WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + "/NUM_UNROLL_ITER)" \
           + self.endLine
 
-    if not kernel.unrollDimStrideLessThanTileDimStrideB:
+    if kernel.unrollDimStrideLessThanTileDimStrideB:
       kStr += "#define localB" + tileCharB \
           + " ( localSerial % NUM_UNROLL_ITER )" + self.endLine \
           + "#define localB" + unrollChar \
@@ -610,7 +614,7 @@ class KernelWriter:
     kStr += "  /* which global Cij index */" + self.endLine
     for i in range(0, len(kernel.indexOrderC)):
       index = kernel.indexOrderC[i]
-      kStr += "  unsigned int globalIdx" + indexChars[index] \
+      kStr += "  unsigned int globalIdxC" + indexChars[index] \
           + " = groupIdx" + indexChars[index]
       if index == kernel.indexAssignmentDim0:
         kStr += "*MACRO_TILE_" + tileChar0 + " + localIdx" + tileChar0
@@ -638,14 +642,14 @@ class KernelWriter:
 
     kStr += "  bool validC ="
     if kernel.tile.branch[0]:
-      kStr += " (globalIdx" \
+      kStr += " (globalIdxC" \
           + tileChar0 + " + " \
           + str(a) + "*WG_DIM_" + tileChar0 + "" + " < size" \
           + tileChar0 + ")"
     if kernel.tile.branch[0] and kernel.tile.branch[1]:
       kStr += " &&"
     if kernel.tile.branch[1]:
-      kStr += " (globalIdx" \
+      kStr += " (globalIdxC" \
           + tileChar1 + " + " \
           + str(b) + "*WG_DIM_" + tileChar1 + "" + " < size" \
           + tileChar1 + ")"
@@ -767,12 +771,7 @@ class KernelWriter:
       kStr += " ) ];" + self.endLine
 
       # debug printf - values loading into LDS
-      kStr += "  printf(\\\"T[%u,%u]%u localA[%u] = globalA[%u] = %f; %u"
-      for i in range(1,len(kernel.operation.indexAssignmentsA)):
-        kStr += ", %u"
-      kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxK, GET_LOCAL_INDEX_A(localA" + tileCharA \
-          + ", localA" + unrollChar +"), "
-      kStr += "GET_GLOBAL_INDEX_A( "
+      kStr += "    unsigned int tmpIdx = GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + indexChars[ \
           kernel.operation.indexAssignmentsA[0]]  \
           + "(" + str(numALoads) + ")"
@@ -780,8 +779,16 @@ class KernelWriter:
         kStr += ", globalIdxA" + indexChars[ \
             kernel.operation.indexAssignmentsA[i]]  \
             + "(" + str(numALoads) + ")"
-      kStr += " ), "
-      kStr += " lA[0],"
+      kStr += " );" + self.endLine
+      kStr += "printf(\\\"T[%u,%u]%u:%u localA[%u] = %f <- globalA[%u] = %f; %u"
+      for i in range(1,len(kernel.operation.indexAssignmentsA)):
+        kStr += ", %u"
+
+      kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, sumIterL, GET_LOCAL_INDEX_A(localA" + tileCharA \
+          + ", localA" + unrollChar +"), "
+      kStr += " lA[0], tmpIdx, A[tmpIdx], "
+
+
       kStr += "globalIdxA" + indexChars[ \
           kernel.operation.indexAssignmentsA[0]]  \
           + "(" + str(numALoads) + ")"
@@ -842,9 +849,8 @@ class KernelWriter:
     for u in range(0, kernel.unrolls[len(kernel.unrolls)-1]):
       kStr += indent + "MICRO_TILE" + self.endLine
 
-    # debug printf - global data
-    kStr += "  if (validC) printf(\\\"T[%u,%u]%u rC[%u][%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxK, 0, 0, rC[0][0]"
-    kStr += ");" + self.endLine
+    # debug printf - accumulation in registers
+    kStr += "  if (validC) printf(\\\"T[%u,%u]%u rC = %f gIdx=%u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, rC[0][0], GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J, globalIdxCK) );" + self.endLine
     # end debug printf
 
 
@@ -894,7 +900,7 @@ class KernelWriter:
     # write global Cij - DONE
     kStr += self.endLine
     # debug printf
-    #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxK, size0I, size1J);" + self.endLine
+    #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxCK, size0I, size1J);" + self.endLine
     # end debug
     kStr += "  /* write global C */" + self.endLine
     if kernel.dataTypeC == Structs.DataType.singleComplex:
@@ -907,13 +913,13 @@ class KernelWriter:
         numEdges = 0
         #for i in range(0, len(kernel.indexOrderC)):
         if kernel.tile.branch[0]:
-          kStr += "  if (globalIdx" \
+          kStr += "  if (globalIdxC" \
               + tileChar0 + " + " \
               + str(a) + "*WG_DIM_" + tileChar0 + "" + " < size" \
               + tileChar0 + ") {"
           numEdges += 1
         if kernel.tile.branch[1]:
-          kStr += "  if (globalIdx" \
+          kStr += "  if (globalIdxC" \
               + tileChar1 + " + " \
               + str(b) + "*WG_DIM_" + tileChar1 + "" + " < size" \
               + tileChar1 + ") {"
@@ -921,7 +927,7 @@ class KernelWriter:
 
         kStr += "  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C("
         for i in range(0, len(kernel.indexOrderC)):
-          kStr += " globalIdx" + indexChars[i]
+          kStr += " globalIdxC" + indexChars[i]
           if i == kernel.indexAssignmentDim0:
             kStr += " + " + str(a) + "*WG_DIM_" + tileChar0
           if i == kernel.indexAssignmentDim1:
@@ -937,9 +943,16 @@ class KernelWriter:
         kStr += ")"
         # debug printf
         #kStr += " printf(\\\"T[%u,%u] Cijk = %f\\\\n\\\", get_local_id(0), get_local_id(1), rC[" + str(a) + "][" + str(b) + "] );"
+
+        # debug printf
+        kStr += "  printf(\\\"T[%u,%u]%u writing C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J, globalIdxCK), rC[0][0]"
+        kStr += ");" + self.endLine
+        # end debug printf
+
         for i in range(0,numEdges):
           kStr += " }"
         kStr += self.endLine
+        kStr += "  if (localSerial < 24) printf(\\\"T[%u,%u]%u C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, localSerial, C[localSerial]);"
 
     ####################################
     # end kernel

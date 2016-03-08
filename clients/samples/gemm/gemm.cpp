@@ -42,8 +42,8 @@ int main( char * argv[], int argc ) {
   const bool betas[] = { false, true };
   size_t numProblems = 0;
   cobaltSetup("GEMM");
-  for (size_t transA = 0; transA < 1; transA++) {
-    for (size_t transB = 1; transB < 2; transB++) {
+  for (size_t transA = 0; transA < 2; transA++) {
+    for (size_t transB = 0; transB < 2; transB++) {
       for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {
         for (size_t nIdx = 0; nIdx < numSizes; nIdx++) {
           for (size_t kIdx = 0; kIdx < numSizes; kIdx++) {

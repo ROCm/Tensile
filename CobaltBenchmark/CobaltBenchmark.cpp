@@ -266,12 +266,13 @@ int main( int argc, char *argv[] ) {
       problemIdx++ ) {
         
     CobaltProblem problemReference;
+
+    // calculate reference C once for problem
     if (doValidation) {
-      printf("doing validation\n");
       // get cpu result
       Cobalt::Solution *solutionReference;
       problemReference = problems[problemIdx];
-      printf( problemReference->pimpl->toString().c_str() );
+      printf(problemReference->pimpl->toString().c_str());
 
       problemReference->pimpl->deviceProfile = deviceProfileReference;
       std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
@@ -312,32 +313,55 @@ int main( int argc, char *argv[] ) {
           CL_CHECK(status)
         }
 
-        CobaltTensorData tmpC;
-        tmpC.offset = 0;
-        tmpC.data = new float[problemReference->pimpl->tensorC.numElements()];
-        memset(tmpC.data, 0, problemReference->pimpl->tensorC.numElements());
+        CobaltTensorData gpuTensorDataOnHostC;
+        gpuTensorDataOnHostC.offset = 0;
+        gpuTensorDataOnHostC.data = new float[problemReference->pimpl->tensorC.numElements()];
+        memset(gpuTensorDataOnHostC.data, 0, problemReference->pimpl->tensorC.numElements());
+
 
         // print tensorC-gpu
-        printf("\nTensorC-GPU:\n");
+        //printf("\nTensorC-GPU:\n");
         status = clEnqueueReadBuffer(
           ctrl.queues[0],
           (cl_mem)tensorDataC.data,
           CL_TRUE,
           0,
           problemReference->pimpl->tensorC.numElements()*Cobalt::sizeOf(problemReference->pimpl->tensorC.getDataType()),
-          tmpC.data,
+          gpuTensorDataOnHostC.data,
           0, nullptr, nullptr );
         CL_CHECK(status)
         status = clFinish(ctrl.queues[0]);
         CL_CHECK(status)
-        float *tmp = static_cast<float *>(tmpC.data);
-        printf("%f, %f, %f, %f\n", tmp[0], tmp[1], tmp[2], tmp[3]);
-        printf( problemReference->pimpl->tensorC.toString(tmpC).c_str() );
+        float *gpuDataC = static_cast<float *>(gpuTensorDataOnHostC.data);
+        float *cpuDataC = static_cast<float *>(tensorDataValidationC.data);
+        printf("\n");
+        printf(problemReference->pimpl->toString().c_str());
+        printf("\n");
+        // print raw gpu buffer
+        printf("gpuC={");
+        for (unsigned int i = 0; i < problemReference->pimpl->tensorC.numElements(); i++) {
+          printf("%4.0f, ", gpuDataC[i]);
+        }
+        printf("}\n");
+        printf("cpuC={");
+        for (unsigned int i = 0; i < problemReference->pimpl->tensorC.numElements(); i++) {
+          printf("%4.0f, ", cpuDataC[i]);
+        }
+        printf("}\n");
+
+
+        // print cpu in tensor form
+        printf("\nTensorC-CPU:\n");
+        printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
+
+        // print gpu in tensor form
+        printf("\nTensorC-GPU:\n");
+        printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
         
         printf("\nComparing...\n");
-        compareTensors( tmpC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
+        compareTensors(gpuTensorDataOnHostC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
         printf("\nDone Comparing.\n");
-        delete[] tmpC.data;
+        delete[] gpuTensorDataOnHostC.data;
       }
 
       // time solution
