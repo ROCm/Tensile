@@ -85,21 +85,13 @@ file( MAKE_DIRECTORY ${Cobalt_DIR_SOLUTIONS} )
 
 ############################################################
 # CobaltGen Files
-set( CobaltGenBenchmark_SRC
+set( CobaltGen_SRC
+  ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/FileReader.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/FileWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionCandidateGenerator.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
-)
-set( CobaltGenBackend_SRC
-  ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/FileReader.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/FileWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionSet.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
 )

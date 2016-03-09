@@ -94,15 +94,8 @@ else()
       --backend=${Cobalt_BACKEND}
       --input-path=${Cobalt_DIR_PSM}
       --output-path=${Cobalt_DIR_GENERATED}
-    DEPENDS ${CobaltGenBackend_SRC}
+    DEPENDS ${CobaltGen_SRC}
   )
-  source_group(
-    source FILES
-    ${CobaltLib_SRC_STATIC}
-    ${CobaltLib_SRC_GENERATED_STATIC}
-    ${CobaltLib_SRC_GENERATED_DYNAMIC}
-  )
-  source_group( CobaltGenBackend FILES ${CobaltGenBackend_SRC} )
 endif()
 
 add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
@@ -129,7 +122,14 @@ add_library( ${CobaltLib_NAME}
   ${CobaltLib_SRC_STATIC}
   ${CobaltLib_SRC_GENERATED_STATIC}
   ${CobaltLib_SRC_GENERATED_DYNAMIC}
+  ${CobaltGen_SRC}
   )
+
+source_group(CobaltGen\\Scripts FILES ${CobaltGen_SRC})
+source_group(CobaltGen\\Generated FILES
+  ${CobaltLib_SRC_GENERATED_STATIC}
+  ${CobaltLib_SRC_GENERATED_DYNAMIC}
+)
 
 ############################################################
 # Cobalt depends on OpenCL

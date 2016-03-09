@@ -63,13 +63,23 @@ def makeIndexAssignments(kernel, problem):
         tmp = indicesFreeSorted.pop(i)
         # and place it second to last
         indicesFreeSorted.insert(len(indicesFreeSorted)-1,tmp)
+  print indicesFreeSorted
 
-  kernel.indexAssignmentDim0 = indicesFreeSorted[len(indicesFreeSorted)-2][1]
-  kernel.tensorAssignedDim0 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
-  kernel.indexAssignmentDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][1]
-  kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
-  strideD0 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
-  strideD1 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
+  # the last two indices will be d0,d1; d0 is the one with the shortest C stride
+  if problem.tensorC.dimensions[indicesFreeSorted[len(indicesFreeSorted)-1][1]].stride \
+      > problem.tensorC.dimensions[indicesFreeSorted[len(indicesFreeSorted)-2][1]].stride: # need to swap
+    print "swapping d0,d1"
+    tmp = indicesFreeSorted.pop()
+    indicesFreeSorted.insert(len(indicesFreeSorted)-1,tmp)
+    print indicesFreeSorted
+
+  kernel.indexAssignmentDim0 = indicesFreeSorted[len(indicesFreeSorted)-1][1]
+  kernel.tensorAssignedDim0 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
+  kernel.indexAssignmentDim1 = indicesFreeSorted[len(indicesFreeSorted)-2][1]
+  kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
+  strideD0 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
+  strideD1 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
+  print "d0=%u, d1=%u" % (kernel.indexAssignmentDim0, kernel.indexAssignmentDim1)
   print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1)
 
   for index in indicesBatchedSorted:
@@ -197,10 +207,10 @@ class SolutionCandidateGenerator:
     kernel.indexOrderC = []
     kernel.indexOrderSummation = []
     makeIndexAssignments( kernel, problem )
-    kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
-        numIndicesC - 2 ]
-    kernel.indexAssignmentDim1 = kernel.indexOrderC[ \
-        numIndicesC - 1 ]
+    #kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
+    #    numIndicesC - 2 ]
+    #kernel.indexAssignmentDim1 = kernel.indexOrderC[ \
+    #    numIndicesC - 1 ]
 
     # Problem Characteristics affecting performance
     problemSizeDim0 = problem.tensorC.dimensions[ \

@@ -156,6 +156,10 @@ double timeSolution(
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
 
+  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+  }
+
   bool doValidation = false;
   bool doValidationKernels = false;
   for ( int argIdx = 0; argIdx < argc; argIdx++) {
@@ -247,10 +251,23 @@ int main( int argc, char *argv[] ) {
   float betaArray[] = { 6.0, 7.0, 8.0, 9.0 };
   beta.data = &betaArray[0];
   beta.dataType = cobaltDataTypeSingle;
-
+  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+  }
   // initialize Candidates
   initializeSolutionCandidates();
-
+  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+  }
+  if (CT_SSS00_Cijk_Sl_Alik_Bjlk_i16m1f_j16m1f_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bjlk_i16m1f_j16m1f_l1_kernel no longer NULL\n");
+  }
+  if (CT_SSS00_Cijk_Sl_Ailk_Bljk_i16m1s_j16m1s_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Ailk_Bljk_i16m1s_j16m1s_l1_kernel no longer NULL\n");
+  }
+  if (CT_SSS00_Cijk_Sl_Ailk_Bjlk_i16m1s_j16m1f_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Ailk_Bjlk_i16m1s_j16m1f_l1_kernel no longer NULL\n");
+  }
   // reference device
   CobaltDeviceProfile deviceProfileReference;
   deviceProfileReference.numDevices = 1;
@@ -260,6 +277,9 @@ int main( int argc, char *argv[] ) {
   size_t problemEndIdx = numProblems;
   size_t solutionStartIdx = 0;
   size_t solutionEndIdx = 0;
+  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+  }
 
   // for each problem
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
@@ -276,8 +296,17 @@ int main( int argc, char *argv[] ) {
 
       problemReference->pimpl->deviceProfile = deviceProfileReference;
       std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
+
+      if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+        printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+      }
+
       solutionReference->enqueue( tensorDataValidationC, tensorDataValidationA,
           tensorDataValidationB, alpha, beta, ctrlValidation );
+      
+      if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+        printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+      }
 
       // print tensorA
       printf("\nTensorA:\n");
@@ -299,6 +328,11 @@ int main( int argc, char *argv[] ) {
     solutionEndIdx += numSolutionsPerProblem[problemIdx];
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
+
+      if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
+        printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
+      }
+
 
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];

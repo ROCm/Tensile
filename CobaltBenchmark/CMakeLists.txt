@@ -23,9 +23,6 @@ set( CobaltBenchmark_SRC_GENERATED_STATIC
   ${Cobalt_DIR_GENERATED}/Library/SolutionTemplateInstantiations.inl
 )
 
-#set( CobaltBenchmark_SRC_GENERATED_DYNAMIC
-  # from CobaltBenchmark.cmake
-#)
 set( CobaltBenchmark_CMAKE_DYNAMIC
   ${Cobalt_DIR_GENERATED}/Benchmark/CobaltBenchmark.cmake
 )
@@ -49,22 +46,24 @@ add_custom_command(
     ${CobaltBenchmark_CMAKE_DYNAMIC}
   COMMAND
     python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
-    --backend=${Cobalt_BACKEND}
-    --input-path=${Cobalt_DIR_PROBLEMS}
-    --output-path=${Cobalt_DIR_GENERATED}
-    --result-file=${Cobalt_FILE_SOLUTIONS}
-  DEPENDS ${CobaltGenBenchmark_SRC}
+      --backend=${Cobalt_BACKEND}
+      --input-path=${Cobalt_DIR_PROBLEMS}
+      --output-path=${Cobalt_DIR_GENERATED}
+      --result-file=${Cobalt_FILE_SOLUTIONS}
+  #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py --backend=${Cobalt_BACKEND} --input-path=${Cobalt_DIR_PROBLEMS} --output-path=${Cobalt_DIR_GENERATED} --result-file=${Cobalt_FILE_SOLUTIONS}"
+  DEPENDS ${CobaltGen_SRC}
 )
 
-source_group( Generated FILES
-  ${CobaltBenchmark_SRC_GENERATED_STATIC}
-  ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
-)
-source_group( CobaltGenBenchmark FILES ${CobaltGenBenchmark_SRC} )
 
 # benchmark executable
 add_executable( ${CobaltBenchmark_NAME}
   ${CobaltBenchmark_SRC_STATIC}
+  ${CobaltBenchmark_SRC_GENERATED_STATIC}
+  ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
+  ${CobaltGen_SRC}
+)
+source_group( CobaltGen\\Scripts FILES ${CobaltGen_SRC} )
+source_group( CobaltGen\\Generated FILES
   ${CobaltBenchmark_SRC_GENERATED_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
 )

@@ -266,6 +266,9 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
+  printf("%s::enqueue()\n",
+    toString(0).c_str());
+
   cl_int status;
   cl_uint workDim = 3;
   size_t *globalWorkOffset = NULL;
@@ -342,9 +345,6 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         unsigned int tensorOffsetA = tensorDataA.offset; //  + tensorOffsetAd0or1 + tensorOffsetAdU;
         unsigned int tensorOffsetB = tensorDataB.offset; //  + tensorOffsetBd0or1 + tensorOffsetBdU;
 
-#if 1
-
-#endif
         
         status = clSetKernelArg( kernels[kernelIdx], 3, sizeof(unsigned int), &tensorOffsetC );
         CL_CHECK(status)

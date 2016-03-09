@@ -80,14 +80,17 @@ class KernelWriter:
   ##############################################################################
   def getNameTile(self, kernel):
     kernelName = ""
-
     # tile dim A
     if kernel.tensorAssignedDim0 == 0: #A assigned d0
+      print "tensorA has d0"
+      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
       kernelName += str(kernel.tile.workGroup[0])
       kernelName += kernel.tile.branch[0].getChar()
       kernelName += str(kernel.tile.microTile[0])
     else:
+      print "tensorA has d1"
+      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
       kernelName += str(kernel.tile.workGroup[1])
       kernelName += kernel.tile.branch[1].getChar()
@@ -100,11 +103,15 @@ class KernelWriter:
 
     # tile dim B
     if kernel.tensorAssignedDim0 == 1: #B assigned d0
+      print "tensorB has d0"
+      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
       kernelName += str(kernel.tile.workGroup[0])
       kernelName += kernel.tile.branch[0].getChar()
       kernelName += str(kernel.tile.microTile[0])
     else:
+      print "tensorB has d1"
+      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
       kernelName += str(kernel.tile.workGroup[1])
       kernelName += kernel.tile.branch[1].getChar()
@@ -122,7 +129,7 @@ class KernelWriter:
       kernelName += str(kernel.unrolls[0])
       for i in range(1,len(kernel.unrolls)):
         kernelName += "_" + str(kernel.unrolls[i])
-
+    print kernelName
     return kernelName
 
 
@@ -138,6 +145,7 @@ class KernelWriter:
   ##############################################################################
   def getSignature(self, kernel ):
 
+    # determine chars for fast access
     indexChars = copy.deepcopy(self.indexChars)
     indexChars[kernel.indexAssignmentDim0] \
         = "0" + indexChars[kernel.indexAssignmentDim0]
@@ -154,7 +162,7 @@ class KernelWriter:
 
     s = ""
     # kernel name
-    s += "__attribute__((reqd_work_group_size(WG_DIM_" + tileChar1 + ",WG_DIM_" + tileChar0 + ",1)))"
+    s += "__attribute__((reqd_work_group_size(WG_DIM_" + tileChar0 + ",WG_DIM_" + tileChar1 + ",1)))"
     s += self.endLine
     s += "__kernel void %s" % ( self.getName(kernel) )
     s += "(" + self.endLine
@@ -195,6 +203,7 @@ class KernelWriter:
   ##############################################################################
   def getBody( self, kernel ):
 
+    # determine chars for fast access
     indexChars = copy.deepcopy(self.indexChars)
     indexChars[kernel.indexAssignmentDim0] \
         = "0" + indexChars[kernel.indexAssignmentDim0]
@@ -212,14 +221,14 @@ class KernelWriter:
     tensorChar1 = "A" if (kernel.tensorAssignedDim1==0) else "B"
 
     ####################################
-    # initializations - DONE
+    # initializations
     kStr = ""
     kStr += self.endLine
     kStr += "/* %s */" % self.getName(kernel)
     kStr += self.endLine
 
     ####################################
-    # kernel preprocessor definitions - DONE
+    # kernel preprocessor definitions
     kStr += self.endLine
     kStr += "/* tile parameters */" + self.endLine
     kStr += "#define WG_DIM_%s          %d%s" \
@@ -239,7 +248,7 @@ class KernelWriter:
     kStr += "" + self.endLine
 
     ####################################
-    # global memory indices - DONE
+    # global memory indices
     kStr += self.endLine
     kStr += "/* global memory indices */" + self.endLine
     # C
@@ -277,7 +286,7 @@ class KernelWriter:
     kStr += " )" + self.endLine
 
     ####################################
-    # global tile indices being loaded - TODO
+    # global tile indices being loaded
     kStr += self.endLine
     kStr += "  /* global tile indices being loaded */" + self.endLine
 
@@ -348,7 +357,7 @@ class KernelWriter:
     kStr += self.endLine
 
     ####################################
-    # local memory indices - TODO
+    # local memory indices
     kStr += self.endLine
     kStr += "/* local memory indices */" + self.endLine
     kStr += "#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_" + tileChar0 + ") )" + self.endLine
@@ -356,7 +365,7 @@ class KernelWriter:
 
     ####################################
     # local indices being written
-    # thoroughly verify by hand for 4 GEMM cases (after doing global) - TODO
+    # thoroughly verify by hand for 4 GEMM cases (after doing global)
     kStr += self.endLine
     kStr += "    /* local indices being written */" + self.endLine
 # new indices will be localA_unroll and localA_tile, which gets assigned to row
@@ -390,7 +399,7 @@ class KernelWriter:
 
 
     ####################################
-    # data types - DONE
+    # data types
     kStr += self.endLine
     kStr += "/* data types */" + self.endLine
     kStr += "#define DATA_TYPE_STR_A %s%s" \
@@ -401,7 +410,7 @@ class KernelWriter:
         % (kernel.dataTypeC.toOpenCL(), self.endLine)
 
     ####################################
-    # MADs - DONE
+    # MADs
     # TODO - mix real/complex
     if kernel.dataTypeC.isReal():
       # real data
@@ -509,7 +518,7 @@ class KernelWriter:
             "  DST = REG;" + self.endLine )
 
     ####################################
-    # micro-tile - DONE
+    # micro-tile
     kStr += self.endLine
     kStr += "/* %dx%d micro-tile */%s" % (kernel.tile.microTile[0], kernel.tile.microTile[1], self.endLine)
     kStr += "#define MICRO_TILE \\\\" + self.endLine
@@ -528,7 +537,7 @@ class KernelWriter:
     kStr += self.endLine
 
     ####################################
-    # function signature - DONE
+    # function signature
     ####################################
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
@@ -541,7 +550,7 @@ class KernelWriter:
 
 
     ####################################
-    # apply offsets - DONE
+    # apply offsets
     kStr += self.endLine
     kStr += (
       "  /* apply offsets */" + self.endLine +
@@ -550,7 +559,7 @@ class KernelWriter:
       "  B += offsetB;" + self.endLine )
 
     ####################################
-    # allocate registers - DONE
+    # allocate registers
     kStr += self.endLine
     kStr += (
       "  /* allocate registers */" + self.endLine +
@@ -560,7 +569,7 @@ class KernelWriter:
       "  DATA_TYPE_STR_B rB[MICRO_TILE_" + tileChar1 + "];" + self.endLine )
 
     ####################################
-    # allocate local memory - DONE
+    # allocate local memory
     kStr += self.endLine
     kStr += (
       "  /* allocate local memory */" + self.endLine +
@@ -570,7 +579,7 @@ class KernelWriter:
           + self.endLine )
 
     ####################################
-    # c indices - DONE
+    # c indices
     # kernel.indexOrderC - performance defined
     # kernel.indexOrderSummation - performance defined
     # kernel.indexAssignmentsA - user defined
@@ -609,7 +618,7 @@ class KernelWriter:
         + ";" + self.endLine
 
     ####################################
-    # which global Cij index - DONE
+    # which global Cij index
     kStr += self.endLine
     kStr += "  /* which global Cij index */" + self.endLine
     for i in range(0, len(kernel.indexOrderC)):
@@ -658,7 +667,7 @@ class KernelWriter:
 
 
     ####################################
-    # summations loops - DONE
+    # summations loops
     indent = "  "
     kStr += indent + "/* iterate over all summation indices */" + self.endLine
     for i in range(0,len(kernel.indexOrderSummation)):
@@ -691,7 +700,7 @@ class KernelWriter:
 
 
     ####################################
-    # how many elements to load global -> local - DONE
+    # how many elements to load global -> local
     # threads to do loading = (workGroup[0]*workGroup[1])
     # A elements to be loaded = workGroup[0]*microTile[0]*unroll
     # B elements to be loaded = workGroup[1]*microTile[1]*unroll
@@ -729,7 +738,7 @@ class KernelWriter:
 
 
     ####################################
-    # load global -> local - DONE
+    # load global -> local
     kStr += "    /* numALoads = " + str(numALoads) + " */" + self.endLine
     kStr += "    /* numALoadsR = " + str(numALoadsR) + " */" + self.endLine
     kStr += "    /* numBLoads = " + str(numBLoads) + " */" + self.endLine
@@ -771,6 +780,7 @@ class KernelWriter:
       kStr += " ) ];" + self.endLine
 
       # debug printf - values loading into LDS
+      """
       kStr += "    unsigned int tmpIdx = GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + indexChars[ \
           kernel.operation.indexAssignmentsA[0]]  \
@@ -797,6 +807,7 @@ class KernelWriter:
             kernel.operation.indexAssignmentsA[i]]  \
             + "(" + str(numALoads) + ")"
       kStr += ");" + self.endLine
+      """
       # end debug printf
 
       kStr += indent + "}" + self.endLine
@@ -843,14 +854,14 @@ class KernelWriter:
 
 
     ####################################
-    # do mads - DONE
+    # do mads
     kStr += self.endLine
     kStr += indent + "/* do mads */" + self.endLine
     for u in range(0, kernel.unrolls[len(kernel.unrolls)-1]):
       kStr += indent + "MICRO_TILE" + self.endLine
 
     # debug printf - accumulation in registers
-    kStr += "  if (validC) printf(\\\"T[%u,%u]%u rC = %f gIdx=%u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, rC[0][0], GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J, globalIdxCK) );" + self.endLine
+    #kStr += "  if (validC) printf(\\\"T[%u,%u]%u rC = %f gIdx=%u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, rC[0][0], GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J, globalIdxCK) );" + self.endLine
     # end debug printf
 
 
@@ -867,7 +878,7 @@ class KernelWriter:
 
 
     ####################################
-    # end loop - DONE
+    # end loop
     for i in reversed(range(0,len(kernel.indexOrderSummation))):
       loopChar = indexChars[kernel.indexOrderSummation[i] \
           + len(kernel.indexOrderC)]
@@ -897,7 +908,7 @@ class KernelWriter:
 
 
     ####################################
-    # write global Cij - DONE
+    # write global Cij
     kStr += self.endLine
     # debug printf
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxCK, size0I, size1J);" + self.endLine
@@ -945,14 +956,14 @@ class KernelWriter:
         #kStr += " printf(\\\"T[%u,%u] Cijk = %f\\\\n\\\", get_local_id(0), get_local_id(1), rC[" + str(a) + "][" + str(b) + "] );"
 
         # debug printf
-        kStr += "  printf(\\\"T[%u,%u]%u writing C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J, globalIdxCK), rC[0][0]"
-        kStr += ");" + self.endLine
+        #kStr += "  printf(\\\"T[%u,%u]%u writing C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, GET_GLOBAL_INDEX_C(globalIdxC1I, globalIdxC0J, globalIdxCK), rC[0][0]"
+        #kStr += ");" + self.endLine
         # end debug printf
 
         for i in range(0,numEdges):
           kStr += " }"
         kStr += self.endLine
-        kStr += "  if (localSerial < 24) printf(\\\"T[%u,%u]%u C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, localSerial, C[localSerial]);"
+        #kStr += "  if (localSerial < 24) printf(\\\"T[%u,%u]%u C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, localSerial, C[localSerial]);"
 
     ####################################
     # end kernel
