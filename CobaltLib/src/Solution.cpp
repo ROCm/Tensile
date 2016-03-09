@@ -474,6 +474,7 @@ template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,
 //template class CobaltSolutionOpenCL<double,double,double,void,void>;
 //template class CobaltSolutionOpenCL<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,void,void>;
 //template class CobaltSolutionOpenCL<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,void,void>;
+
 #include "SolutionTemplateInstantiations.inl"
 
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;

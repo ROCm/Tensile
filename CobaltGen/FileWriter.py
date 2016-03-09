@@ -209,6 +209,7 @@ class FileWriter:
     tensorSizeMaxC = 0
     tensorSizeMaxA = 0
     tensorSizeMaxB = 0
+    solutionEndIdx = -1
 
     # for problems
     for problemIdx in range(0,numProblems):
@@ -342,7 +343,7 @@ class FileWriter:
     s += "#include \"CL/cl.h\"\n"
     s += "\n"
     s += "const size_t numProblems = " + str(numProblems) + ";\n"
-    s += "const size_t numSolutions = " + str(numSolutions) + ";\n"
+    s += "const size_t numSolutions = " + str(solutionEndIdx) + ";\n"
     s += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
     s += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
     s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"

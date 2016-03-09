@@ -55,16 +55,16 @@ double multiply( double a, double b ) {
 template< >
 CobaltComplexFloat multiply( CobaltComplexFloat a, CobaltComplexFloat b ) {
   CobaltComplexFloat c;
-  c.x = a.x*b.x - a.y*b.y;
-  c.y = a.x*b.y + a.y*b.x;
+  c.s[0] = a.s[0]*b.s[0] - a.s[1]*b.s[1];
+  c.s[1] = a.s[0]*b.s[1] + a.s[1]*b.s[0];
   return c;
 };
 // complex double
 template< >
 CobaltComplexDouble multiply( CobaltComplexDouble a, CobaltComplexDouble b ) {
   CobaltComplexDouble c;
-  c.x = a.x*b.x - a.y*b.y;
-  c.y = a.x*b.y + a.y*b.x;
+  c.s[0] = a.s[0]*b.s[0] - a.s[1]*b.s[1];
+  c.s[1] = a.s[0]*b.s[1] + a.s[1]*b.s[0];
   return c;
 };
 
@@ -90,16 +90,16 @@ double add( double a, double b ) {
 template< >
 CobaltComplexFloat add( CobaltComplexFloat a, CobaltComplexFloat b ) {
   CobaltComplexFloat c;
-  c.x = a.x+b.x;
-  c.y = a.y+b.y;
+  c.s[0] = a.s[0]+b.s[0];
+  c.s[1] = a.s[1]+b.s[1];
   return c;
 };
 // complex double
 template< >
 CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
   CobaltComplexDouble c;
-  c.x = a.x+b.x;
-  c.y = a.y+b.y;
+  c.s[0] = a.s[0]+b.s[0];
+  c.s[1] = a.s[1]+b.s[1];
   return c;
 };
 

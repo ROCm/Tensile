@@ -204,8 +204,8 @@ bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
 }
 
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
-  return l.s0 == r.s0 && l.s1 == r.s1;
+  return l.s[0] == r.s[0] && l.s[1] == r.s[1];
 }
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
-  return l.s0 == r.s0 && l.s1 == r.s1;
+  return l.s[0] == r.s[0] && l.s[1] == r.s[1];
 }

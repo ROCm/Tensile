@@ -17,19 +17,19 @@ void printMismatch( size_t index, DataType gpuData, DataType cpuData );
 
 template<>
 void printMismatch<float>( size_t index, float gpuData, float cpuData ) {
-  printf("%5zi: %.6f != %.6f\n", index, gpuData, cpuData );
+  printf("%5llu: %.6f != %.6f\n", index, gpuData, cpuData );
 }
 template<>
 void printMismatch<double>( size_t index, double gpuData, double cpuData ) {
-  printf("%6zi: %.6f != %.6f\n", index, gpuData, cpuData );
+  printf("%6llu: %.6f != %.6f\n", index, gpuData, cpuData );
 }
 template<>
 void printMismatch<CobaltComplexFloat>( size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData ) {
-  printf("%6zi: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1 );
+  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1] );
 }
 template<>
 void printMismatch<CobaltComplexDouble>( size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData ) {
-  printf("%6zi: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1 );
+  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1] );
 }
 
 template<typename DataType>
@@ -37,19 +37,19 @@ void printMatch(size_t index, DataType gpuData, DataType cpuData);
 
 template<>
 void printMatch<float>(size_t index, float gpuData, float cpuData) {
-  printf("%5zi: %.6f == %.6f\n", index, gpuData, cpuData);
+  printf("%5llu: %.6f == %.6f\n", index, gpuData, cpuData);
 }
 template<>
 void printMatch<double>(size_t index, double gpuData, double cpuData) {
-  printf("%6zi: %.6f == %.6f\n", index, gpuData, cpuData);
+  printf("%6llu: %.6f == %.6f\n", index, gpuData, cpuData);
 }
 template<>
 void printMatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
-  printf("%6zi: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1);
+  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
 }
 template<>
 void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
-  printf("%6zi: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s0, gpuData.s1, cpuData.s0, cpuData.s1);
+  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
 }
 
 template<typename DataType>
@@ -112,8 +112,8 @@ double timeSolution(
     CobaltScalarData beta,
     CobaltControl &ctrl) {
 
-  size_t numEnqueuesPerSample = 6;
-  const size_t numSamples = 5;
+  size_t numEnqueuesPerSample = 1;
+  const size_t numSamples = 1;
 
   double sampleTimes[numSamples];
   Cobalt::Timer timer;
@@ -401,7 +401,7 @@ int main( int argc, char *argv[] ) {
       // time solution
       double time = timeSolution( solution, tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl );
       std::string solutionName = solution->toString(0);
-      printf("P[%04zu] S[%03zu] %7.3f %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solutionName.c_str() );
+      printf("P[%04llu] S[%03llu] %7.3f %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solutionName.c_str() );
       // write time to result xml file
 
     } // solution loop
