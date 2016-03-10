@@ -266,7 +266,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
-  printf("%s::enqueue()\n",
+  printf("Status: Enqueueing %s\n",
     toString(0).c_str());
 
   cl_int status;
@@ -367,29 +367,34 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxSummation, kernelArgSizes[kernelArgIdxSummation], &kernelNumElementsDimU[kernelIdx] );
         CL_CHECK(status)
 
+        // alpha
         unsigned int argIdx = numKernelArgs;
         if (problem.useAlpha()) {
-          status = clSetKernelArg( kernels[argIdx], argIdx, problem.alphaSize(), alpha.data );
+          status = clSetKernelArg( kernels[kernelIdx], argIdx, problem.alphaSize(), alpha.data );
           CL_CHECK(status)
           argIdx++;
         }
 
         // beta
         if (problem.useBeta()) {
-          status = clSetKernelArg( kernels[argIdx], argIdx, problem.betaSize(), beta.data );
+          status = clSetKernelArg( kernels[kernelIdx], argIdx, problem.betaSize(), beta.data );
           CL_CHECK(status)
           argIdx++;
         }
 
         // enqueue
-        printf("%s: enq[%u] g{%zu, %zu, %zu} l{%zu, %zu, %zu}\n",
+        /*printf("%s: enq[%u] g{%zu, %zu, %zu} l{%zu, %zu, %zu}\n",
           toString(0).c_str(), kernelIdx,
           globalWorkSize[kernelIdx][0],
           globalWorkSize[kernelIdx][1],
           globalWorkSize[kernelIdx][2],
           localWorkSize[kernelIdx][0],
           localWorkSize[kernelIdx][1],
-          localWorkSize[kernelIdx][2]);
+          localWorkSize[kernelIdx][2]);*/
+        cl_event *outEvent = nullptr;
+        if (ctrl.numOutputEvents) {
+          outEvent = &(ctrl.outputEvents[kernelSerialIdx%ctrl.numOutputEvents]);
+        }
         status = clEnqueueNDRangeKernel(
           ctrl.queues[kernelSerialIdx%ctrl.numQueues],
           kernels[kernelIdx],
@@ -399,7 +404,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           localWorkSize[kernelIdx],
           ctrl.numInputEvents,
           ctrl.inputEvents,
-          &ctrl.outputEvents[kernelSerialIdx] );
+          outEvent );
         CL_CHECK(status)
         status = clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
         CL_CHECK(status)
@@ -408,11 +413,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     }
   }
 
-
-  //for (size_t i = 0; i < numKernels; i++) {
-  //
-  //}
-  ctrl.numOutputEvents = kernelSerialIdx;;
+  //ctrl.numOutputEvents = kernelSerialIdx;;
   return cobaltStatusSuccess;
 }
 #endif

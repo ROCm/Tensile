@@ -58,7 +58,7 @@ bool compareTensorsTemplate(
   DataType *cpuData,
   Cobalt::Tensor tensor) {
   
-  unsigned int maxToPrint = 64;
+  unsigned int maxToPrint = 16;
   unsigned int printCount = 0;
   bool equal = true;
   for ( unsigned long long i = 0; i < tensor.numElements(); i++) {
@@ -70,10 +70,9 @@ bool compareTensorsTemplate(
       } else {
         break;
       }
-    }
-    else {
+    } /*else {
       printMatch<DataType>(i, gpuData[i], cpuData[i]);
-    }
+    }*/
   }
   return equal;
 }
@@ -156,10 +155,6 @@ double timeSolution(
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
 
-  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-  }
-
   bool doValidation = false;
   bool doValidationKernels = false;
   for ( int argIdx = 0; argIdx < argc; argIdx++) {
@@ -238,8 +233,7 @@ int main( int argc, char *argv[] ) {
     ctrlValidation.numDependencies = 0;
     ctrlValidation.numOutputEvents = 0;
     ctrlValidation.outputEvents = nullptr;
-    ctrlValidation.numQueues = 0;
-    
+    ctrlValidation.numQueues = 0; 
   }
 
   // scalars
@@ -251,23 +245,12 @@ int main( int argc, char *argv[] ) {
   float betaArray[] = { 6.0, 7.0, 8.0, 9.0 };
   beta.data = &betaArray[0];
   beta.dataType = cobaltDataTypeSingle;
-  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-  }
+
   // initialize Candidates
+  printf("Status: Initializing solution candidates...");
   initializeSolutionCandidates();
-  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-  }
-  if (CT_SSS00_Cijk_Sl_Alik_Bjlk_i16m1f_j16m1f_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bjlk_i16m1f_j16m1f_l1_kernel no longer NULL\n");
-  }
-  if (CT_SSS00_Cijk_Sl_Ailk_Bljk_i16m1s_j16m1s_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Ailk_Bljk_i16m1s_j16m1s_l1_kernel no longer NULL\n");
-  }
-  if (CT_SSS00_Cijk_Sl_Ailk_Bjlk_i16m1s_j16m1f_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Ailk_Bjlk_i16m1s_j16m1f_l1_kernel no longer NULL\n");
-  }
+  printf("done.\n");
+
   // reference device
   CobaltDeviceProfile deviceProfileReference;
   deviceProfileReference.numDevices = 1;
@@ -277,9 +260,6 @@ int main( int argc, char *argv[] ) {
   size_t problemEndIdx = numProblems;
   size_t solutionStartIdx = 0;
   size_t solutionEndIdx = 0;
-  if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-    printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-  }
 
   // for each problem
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
@@ -292,33 +272,26 @@ int main( int argc, char *argv[] ) {
       // get cpu result
       Cobalt::Solution *solutionReference;
       problemReference = problems[problemIdx];
-      printf(problemReference->pimpl->toString().c_str());
 
       problemReference->pimpl->deviceProfile = deviceProfileReference;
       std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
 
-      if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-        printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-      }
-
+      printf("Status: Enqueueing reference for %s ...", problemReference->pimpl->toString().c_str());
       solutionReference->enqueue( tensorDataValidationC, tensorDataValidationA,
           tensorDataValidationB, alpha, beta, ctrlValidation );
-      
-      if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-        printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-      }
+      printf("done.\n");
 
       // print tensorA
-      printf("\nTensorA:\n");
-      printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
+      //printf("\nTensorA:\n");
+      //printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
 
       // print tensorB
-      printf("\nTensorB:\n");
-      printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
+      //printf("\nTensorB:\n");
+      //printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
 
       // print tensorC-cpu
-      printf("\nTensorC-CPU:\n");
-      printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
+      //printf("\nTensorC-CPU:\n");
+      //printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
 
     }
 
@@ -328,11 +301,6 @@ int main( int argc, char *argv[] ) {
     solutionEndIdx += numSolutionsPerProblem[problemIdx];
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
-
-      if (CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel) {
-        printf("ERROR; CT_SSS00_Cijk_Sl_Alik_Bljk_i16m1f_j16m1s_l1_kernel no longer NULL\n");
-      }
-
 
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
@@ -368,40 +336,40 @@ int main( int argc, char *argv[] ) {
         CL_CHECK(status)
         float *gpuDataC = static_cast<float *>(gpuTensorDataOnHostC.data);
         float *cpuDataC = static_cast<float *>(tensorDataValidationC.data);
-        printf("\n");
-        printf(problemReference->pimpl->toString().c_str());
-        printf("\n");
+        //printf("\n");
+        //printf(problemReference->pimpl->toString().c_str());
+        //printf("\n");
         // print raw gpu buffer
-        printf("gpuC={");
-        for (unsigned int i = 0; i < problemReference->pimpl->tensorC.numElements(); i++) {
-          printf("%4.0f, ", gpuDataC[i]);
-        }
-        printf("}\n");
-        printf("cpuC={");
-        for (unsigned int i = 0; i < problemReference->pimpl->tensorC.numElements(); i++) {
-          printf("%4.0f, ", cpuDataC[i]);
-        }
-        printf("}\n");
+        //printf("gpuC={");
+        //for (unsigned int i = 0; i < problemReference->pimpl->tensorC.numElements(); i++) {
+        //  printf("%4.0f, ", gpuDataC[i]);
+        //}
+        //printf("}\n");
+        //printf("cpuC={");
+        //for (unsigned int i = 0; i < problemReference->pimpl->tensorC.numElements(); i++) {
+        //  printf("%4.0f, ", cpuDataC[i]);
+        //}
+        //printf("}\n");
 
 
         // print cpu in tensor form
-        printf("\nTensorC-CPU:\n");
-        printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
+        //printf("\nTensorC-CPU:\n");
+        //printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
 
         // print gpu in tensor form
-        printf("\nTensorC-GPU:\n");
-        printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
+        //printf("\nTensorC-GPU:\n");
+        //printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
         
-        printf("\nComparing...\n");
-        compareTensors(gpuTensorDataOnHostC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
-        printf("\nDone Comparing.\n");
+        //printf("\nComparing...\n");
+        bool equal = compareTensors(gpuTensorDataOnHostC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
+        //printf("\nDone Comparing.\n");
         delete[] gpuTensorDataOnHostC.data;
+        printf("P[%04llu] S[%03llu] %7s - %s\n", problemIdx, solutionIdx-solutionStartIdx, equal?"PASSED":"FAILED", solution->toString(0).c_str() );
       }
 
       // time solution
       double time = timeSolution( solution, tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl );
-      std::string solutionName = solution->toString(0);
-      printf("P[%04llu] S[%03llu] %7.3f %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solutionName.c_str() );
+      printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
       // write time to result xml file
 
     } // solution loop

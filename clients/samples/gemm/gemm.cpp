@@ -24,21 +24,21 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 3;
-  size_t sizes[] = {3, 4, 5}; // , 960, 4096};
-  const size_t numStrides = 1;
-  size_t initialStrides[] = { 1}; // , 64 };
-  const size_t numBatchSizes = 1;
-  size_t batches[] = { 3 };
+  const size_t numSizes = 2;
+  size_t sizes[] = {95, 96}; // , 960, 4096};
+  const size_t numStrides = 2;
+  size_t initialStrides[] = { 1, 2 }; // , 64 };
+  const size_t numBatchSizes = 2;
+  size_t batches[] = { 1, 3 };
   const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[] = {
     cobaltDataTypeSingle,
     cobaltDataTypeDouble,
     cobaltDataTypeComplexSingle,
     cobaltDataTypeComplexDouble };
-  const size_t numAlphas = 1;
+  const size_t numAlphas = 2;
   const bool alphas[] = { false, true };
-  const size_t numBetas = 1;
+  const size_t numBetas = 2;
   const bool betas[] = { false, true };
   size_t numProblems = 0;
   cobaltSetup("GEMM");
