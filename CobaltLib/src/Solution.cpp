@@ -96,8 +96,8 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
   // kernel - edge0
   if (edge[0]) {
-    globalWorkSize[1][0] = localWorkSize[1][0] * numWorkGroupsAlongD0;
-    globalWorkSize[1][1] = localWorkSize[1][1];
+    globalWorkSize[1][0] = localWorkSize[1][0]; // * numWorkGroupsAlongD0;
+    globalWorkSize[1][1] = localWorkSize[1][1] * numWorkGroupsAlongD1;
     globalWorkSize[1][2] = localWorkSize[1][2] * sizeOfAllOtherDimensions;
     kernelNumElementsDim0[1] = sizeOfCAlongD0 % macroTileSizeAlongD0;
     kernelNumElementsDim1[1] = sizeOfCAlongD1;
@@ -113,8 +113,8 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
   // kernel - edge1
   if (edge[1]) {
-    globalWorkSize[2][0] = localWorkSize[2][0];
-    globalWorkSize[2][1] = localWorkSize[2][1] * numWorkGroupsAlongD1;
+    globalWorkSize[2][0] = localWorkSize[2][0] * numWorkGroupsAlongD0;
+    globalWorkSize[2][1] = localWorkSize[2][1]; // * numWorkGroupsAlongD1;
     globalWorkSize[2][2] = localWorkSize[2][2] * sizeOfAllOtherDimensions;
     kernelNumElementsDim0[2] = sizeOfCAlongD0;
     kernelNumElementsDim1[2] = sizeOfCAlongD1 % macroTileSizeAlongD1;

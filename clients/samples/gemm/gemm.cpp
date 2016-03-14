@@ -25,7 +25,7 @@ CobaltProblem createProblemGEMM(
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   const size_t numSizes = 1;
-  size_t sizes[] = {95, 96}; // , 960, 4096};
+  size_t sizes[] = {33, 35, 37}; // , 960, 4096};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
@@ -53,9 +53,9 @@ int main( char * argv[], int argc ) {
                   for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
                     for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
                       size_t numBatches = 2; // batches[bIdx];
-                      size_t M = 17; // sizes[mIdx];
-                      size_t N = 18; // sizes[nIdx];
-                      size_t K = 19; // sizes[kIdx];
+                      size_t M = sizes[mIdx];
+                      size_t N = sizes[nIdx];
+                      size_t K = sizes[kIdx];
                       //if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       CobaltDataType dataType = dataTypes[dtIdx];

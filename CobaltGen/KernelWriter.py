@@ -302,7 +302,7 @@ class KernelWriter:
     else:
       kStr += "/* slow read */" + self.endLine
       kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" \
-          + tileChar1 + "*MACRO_TILE_" + tileChar0 \
+          + tileChar0 + "*MACRO_TILE_" + tileChar0 \
           + " + (localSerial+(LID)*WG_DIM_" \
           + tileChar0 + "*WG_DIM_" + tileChar1 + ")/NUM_UNROLL_ITER)" \
           + self.endLine

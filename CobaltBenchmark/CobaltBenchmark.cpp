@@ -371,7 +371,7 @@ int main( int argc, char *argv[] ) {
 
       // time solution
       double time = timeSolution( solution, tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl );
-      printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
+      //printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
       // write time to result xml file
 
     } // solution loop
