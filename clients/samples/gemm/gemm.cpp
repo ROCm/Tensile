@@ -29,13 +29,14 @@ int main( char * argv[], int argc ) {
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
-  size_t batches[] = { 1, 2 };
-  const size_t numDataTypes = 1;
+  size_t batches[] = { 2 };
+  const size_t numDataTypes = 3;
   const CobaltDataType dataTypes[] = {
-    cobaltDataTypeSingle,
+    //cobaltDataTypeSingle,
     cobaltDataTypeDouble,
     cobaltDataTypeComplexSingle,
-    cobaltDataTypeComplexDouble };
+    cobaltDataTypeComplexDouble
+  };
   const size_t numAlphas = 1;
   const bool alphas[] = { false, true };
   const size_t numBetas = 1;

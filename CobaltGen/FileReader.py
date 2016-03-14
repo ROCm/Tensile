@@ -36,11 +36,11 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
         self.tensor.dataType.value = 1
       elif dataTypeString == "cobaltDataTypeDouble":
         self.tensor.dataType.value = 2
-      elif dataTypeString == "cobaltDataTypeHalfComplex":
+      elif dataTypeString == "cobaltDataTypeComplexHalf":
         self.tensor.dataType.value = 3
-      elif dataTypeString == "cobaltDataTypeSingleComplex":
+      elif dataTypeString == "cobaltDataTypeComplexSingle":
         self.tensor.dataType.value = 4
-      elif dataTypeString == "cobaltDataTypeDoubleComplex":
+      elif dataTypeString == "cobaltDataTypeComplexDouble":
         self.tensor.dataType.value = 5
       elif dataTypeString == "cobaltDataTypeNone":
         self.tensor.dataType.value = 7

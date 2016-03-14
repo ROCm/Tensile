@@ -68,9 +68,9 @@ class DataType:
     elif self.value == self.double:
       return "cobaltDataTypeDouble"
     elif self.value == self.singleComplex:
-      return "cobaltDataTypeSingleComplex"
+      return "cobaltDataTypeComplexSingle"
     elif self.value == self.doubleComplex:
-      return "cobaltDataTypeDoubleComplex"
+      return "cobaltDataTypeComplexDouble"
     elif self.value == self.none:
       return "cobaltDataTypeNone"
     else:
