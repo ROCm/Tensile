@@ -266,8 +266,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
-  printf("Status: Enqueueing %s\n",
-    toString(0).c_str());
+  //printf("Status: Enqueueing %s\n", toString(0).c_str());
 
   cl_int status;
   cl_uint workDim = 3;
@@ -383,7 +382,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         }
 
         // enqueue
-        printf("enq[%u,%u,%u] k%u: o{%u, %u, %u} g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
+        /* printf("enq[%u,%u,%u] k%u: o{%u, %u, %u} g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
           d0, d1, dU,
           kernelIdx,
           tensorOffsetC, tensorOffsetA, tensorOffsetB,
@@ -392,7 +391,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           globalWorkSize[kernelIdx][2],
           localWorkSize[kernelIdx][0],
           localWorkSize[kernelIdx][1],
-          localWorkSize[kernelIdx][2]);
+          localWorkSize[kernelIdx][2]); */
         cl_event *outEvent = nullptr;
         if (ctrl.numOutputEvents) {
           outEvent = &(ctrl.outputEvents[kernelSerialIdx%ctrl.numOutputEvents]);

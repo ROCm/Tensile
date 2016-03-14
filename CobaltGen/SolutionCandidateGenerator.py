@@ -63,15 +63,15 @@ def makeIndexAssignments(kernel, problem):
         tmp = indicesFreeSorted.pop(i)
         # and place it second to last
         indicesFreeSorted.insert(len(indicesFreeSorted)-1,tmp)
-  print indicesFreeSorted
+  #print indicesFreeSorted
 
   # the last two indices will be d0,d1; d0 is the one with the shortest C stride
   if problem.tensorC.dimensions[indicesFreeSorted[len(indicesFreeSorted)-1][1]].stride \
       > problem.tensorC.dimensions[indicesFreeSorted[len(indicesFreeSorted)-2][1]].stride: # need to swap
-    print "swapping d0,d1"
+    #print "swapping d0,d1"
     tmp = indicesFreeSorted.pop()
     indicesFreeSorted.insert(len(indicesFreeSorted)-1,tmp)
-    print indicesFreeSorted
+    #print indicesFreeSorted
 
   kernel.indexAssignmentDim0 = indicesFreeSorted[len(indicesFreeSorted)-1][1]
   kernel.tensorAssignedDim0 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
@@ -79,8 +79,8 @@ def makeIndexAssignments(kernel, problem):
   kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
   strideD0 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
   strideD1 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
-  print "d0=%u, d1=%u" % (kernel.indexAssignmentDim0, kernel.indexAssignmentDim1)
-  print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1)
+  #print "d0=%u, d1=%u" % (kernel.indexAssignmentDim0, kernel.indexAssignmentDim1)
+  #print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1)
 
   for index in indicesBatchedSorted:
     kernel.indexOrderC.append( index[1] )
@@ -113,16 +113,16 @@ def makeIndexAssignments(kernel, problem):
   kernel.indexUnroll = unrollIndex
   unrollIndexA = problem.operation.indexAssignmentsA.index(unrollIndex)
   unrollIndexB = problem.operation.indexAssignmentsB.index(unrollIndex)
-  print "unrollIndex = " + str(unrollIndex)
-  print "indexAssignmentsA = " + str(problem.operation.indexAssignmentsA)
-  print "indexAssignmentsB = " + str(problem.operation.indexAssignmentsB)
-  print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
+  #print "unrollIndex = " + str(unrollIndex)
+  #print "indexAssignmentsA = " + str(problem.operation.indexAssignmentsA)
+  #print "indexAssignmentsB = " + str(problem.operation.indexAssignmentsB)
+  #print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
   unrollDimStrideA = problem.tensorA.dimensions[unrollIndexA].stride
   unrollDimStrideB = problem.tensorB.dimensions[unrollIndexB].stride
-  print "unrollStrideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
-  print "tensorAssignedDim0 = " + ("A" if kernel.tensorAssignedDim0==0 else "B")
-  print "strideD0 = " + str(strideD0)
-  print "strideD1 = " + str(strideD1)
+  #print "unrollStrideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
+  #print "tensorAssignedDim0 = " + ("A" if kernel.tensorAssignedDim0==0 else "B")
+  #print "strideD0 = " + str(strideD0)
+  #print "strideD1 = " + str(strideD1)
 
   #kernel.unrollDimStrideGreaterThanTileDimStride0 = \
   #    indicesFreeSorted[len(indicesFreeSorted)-2][0] < unrollDimStride
@@ -140,9 +140,9 @@ def makeIndexAssignments(kernel, problem):
       unrollDimStrideB < strideD0
 
   # print kernel name
-  kw = KernelWriter.KernelWriter(0)
-  print kw.getName(kernel)
-  print "\n"
+  #kw = KernelWriter.KernelWriter(0)
+  #print kw.getName(kernel)
+  #print "\n"
 
 ################################################################################
 # SolutionCandidateGenerator
@@ -156,8 +156,8 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 1 # 1
-  maxMicroTileSize = 1 # 16
+  minMicroTileSize = 1
+  maxMicroTileSize = 16
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -165,7 +165,7 @@ class SolutionCandidateGenerator:
        8: [ [  8 ], [ 16, 8 ] ], \
       16: [ [ 16 ], [ 8 ] ] \
       }
-  """
+  
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -175,7 +175,7 @@ class SolutionCandidateGenerator:
                [256,1] ]
   """
   universeWorkGroupDim = [ [16,16] ]
-
+  """
   universeBranch = [ Structs.BranchType(0), Structs.BranchType(1), \
       Structs.BranchType(2) ]
 
@@ -294,6 +294,7 @@ class SolutionCandidateGenerator:
                 + microTile[0] * kernel.dataTypeA.numRegisters() \
                 + microTile[1] * kernel.dataTypeB.numRegisters() )
             maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
+            maxRegisters /= 2; # TODO remove this; bypasses VS compiler limit string length
             if numRegisters > maxRegisters:
               continue
 

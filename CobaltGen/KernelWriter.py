@@ -82,15 +82,15 @@ class KernelWriter:
     kernelName = ""
     # tile dim A
     if kernel.tensorAssignedDim0 == 0: #A assigned d0
-      print "tensorA has d0"
-      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
+      #print "tensorA has d0"
+      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
       kernelName += str(kernel.tile.workGroup[0])
       kernelName += kernel.tile.branch[0].getChar()
       kernelName += str(kernel.tile.microTile[0])
     else:
-      print "tensorA has d1"
-      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
+      #print "tensorA has d1"
+      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
       kernelName += str(kernel.tile.workGroup[1])
       kernelName += kernel.tile.branch[1].getChar()
@@ -103,15 +103,15 @@ class KernelWriter:
 
     # tile dim B
     if kernel.tensorAssignedDim0 == 1: #B assigned d0
-      print "tensorB has d0"
-      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
+      #print "tensorB has d0"
+      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
       kernelName += str(kernel.tile.workGroup[0])
       kernelName += kernel.tile.branch[0].getChar()
       kernelName += str(kernel.tile.microTile[0])
     else:
-      print "tensorB has d1"
-      print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
+      #print "tensorB has d1"
+      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
       kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
       kernelName += str(kernel.tile.workGroup[1])
       kernelName += kernel.tile.branch[1].getChar()
@@ -129,7 +129,7 @@ class KernelWriter:
       kernelName += str(kernel.unrolls[0])
       for i in range(1,len(kernel.unrolls)):
         kernelName += "_" + str(kernel.unrolls[i])
-    print kernelName
+    #print kernelName
     return kernelName
 
 

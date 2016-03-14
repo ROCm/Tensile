@@ -282,16 +282,16 @@ int main( int argc, char *argv[] ) {
       printf("done.\n");
 
       // print tensorA
-      printf("\nTensorA:\n");
-      printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
+      //printf("\nTensorA:\n");
+      //printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
 
       // print tensorB
-      printf("\nTensorB:\n");
-      printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
+      //printf("\nTensorB:\n");
+      //printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
 
       // print tensorC-cpu
-      printf("\nTensorC-CPU:\n");
-      printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
+      //printf("\nTensorC-CPU:\n");
+      //printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
 
     }
 
@@ -352,12 +352,12 @@ int main( int argc, char *argv[] ) {
 
 
         // print cpu in tensor form
-        printf("\nTensorC-CPU:\n");
-        printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
+        //printf("\nTensorC-CPU:\n");
+        //printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
 
         // print gpu in tensor form
-        printf("\nTensorC-GPU:\n");
-        printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
+        //printf("\nTensorC-GPU:\n");
+        //printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
         
         //printf("\nComparing...\n");
         bool equal = compareTensors(gpuTensorDataOnHostC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
