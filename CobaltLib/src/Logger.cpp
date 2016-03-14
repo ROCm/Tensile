@@ -82,7 +82,7 @@ Logger::~Logger() {
 void Logger::logGetSolution(
     const Cobalt::Solution *solution,
     CobaltStatus status ) {
-  printf("Logger::logGetSolution(%p)\n", solution );
+  //printf("Logger::logGetSolution(%p)\n", solution );
   // create entry
   TraceEntry entry(getSolution, solution, status);
   // add to trace
@@ -99,7 +99,7 @@ void Logger::logEnqueueSolution(
     const Cobalt::Solution *solution,
     CobaltStatus status,
     const CobaltControl *ctrl ) {
-  printf("Logger::logEnqueueSolution(%p)\n", solution );
+  //printf("Logger::logEnqueueSolution(%p)\n", solution );
   // create entry
   CobaltProblem *problem = nullptr;
   TraceEntry entry(TraceEntryType::enqueueSolution, solution, status);

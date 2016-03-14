@@ -68,7 +68,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
   while (true) { // iterate over entire free index range
 
     TypeC sumC = getZero<TypeC>();
-    // reset bound coordinates
+    // reset summation indices
     for (unsigned int b = 0; b < numIndicesSummation; b++) {
       boundCoord[b] = 0;
     }
@@ -102,13 +102,13 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
       // increment bound coord
       boundCoord[numIndicesSummation-1]++;
-      for ( size_t b = numIndicesSummation-1; b > 0; b--) {
+      for ( size_t b = 0; b < numIndicesSummation - 1; b++) {
         if ( boundCoord[b] >= boundIndexSizes[b]) {
           boundCoord[b] = 0;
-          boundCoord[b-1]++;
+          boundCoord[b+1]++;
         }
       }
-      if (boundCoord[0] >= boundIndexSizes[0]) {
+      if (boundCoord[numIndicesSummation - 1] >= boundIndexSizes[numIndicesSummation - 1]) {
         break; // bound index range exit criteria
       }
 
@@ -118,14 +118,14 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     dataC[serialIdxC] = sumC; // TODO - or += allow split among k
 
     // increment free coord
-    freeCoord[problem.tensorC.numDims()-1]++;
-    for (size_t f = problem.tensorC.numDims()-1; f > 0; f--) {
+    freeCoord[0]++;
+    for (size_t f = 0; f < problem.tensorC.numDims()-1; f++) {
       if (freeCoord[f] >= problem.tensorC[f].size) {
         freeCoord[f] = 0;
-        freeCoord[f-1]++;
+        freeCoord[f+1]++;
       }
     }
-    if (freeCoord[0] >= problem.tensorC[0].size) {
+    if (freeCoord[problem.tensorC.numDims() - 1] >= problem.tensorC[problem.tensorC.numDims() - 1].size) {
       break; // free index range exit criteria
     }
 

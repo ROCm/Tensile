@@ -282,16 +282,16 @@ int main( int argc, char *argv[] ) {
       printf("done.\n");
 
       // print tensorA
-      //printf("\nTensorA:\n");
-      //printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
+      printf("\nTensorA:\n");
+      printf( problemReference->pimpl->tensorA.toString(tensorDataValidationA).c_str() );
 
       // print tensorB
-      //printf("\nTensorB:\n");
-      //printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
+      printf("\nTensorB:\n");
+      printf( problemReference->pimpl->tensorB.toString(tensorDataValidationB).c_str() );
 
       // print tensorC-cpu
-      //printf("\nTensorC-CPU:\n");
-      //printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
+      printf("\nTensorC-CPU:\n");
+      printf( problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str() );
 
     }
 
@@ -322,7 +322,6 @@ int main( int argc, char *argv[] ) {
 
 
         // print tensorC-gpu
-        //printf("\nTensorC-GPU:\n");
         status = clEnqueueReadBuffer(
           ctrl.queues[0],
           (cl_mem)tensorDataC.data,
@@ -336,7 +335,7 @@ int main( int argc, char *argv[] ) {
         CL_CHECK(status)
         float *gpuDataC = static_cast<float *>(gpuTensorDataOnHostC.data);
         float *cpuDataC = static_cast<float *>(tensorDataValidationC.data);
-        //printf("\n");
+        //printf("\nTensorC-GPU:\n");
         //printf(problemReference->pimpl->toString().c_str());
         //printf("\n");
         // print raw gpu buffer
@@ -353,18 +352,21 @@ int main( int argc, char *argv[] ) {
 
 
         // print cpu in tensor form
-        //printf("\nTensorC-CPU:\n");
-        //printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
+        printf("\nTensorC-CPU:\n");
+        printf(problemReference->pimpl->tensorC.toString(tensorDataValidationC).c_str());
 
         // print gpu in tensor form
-        //printf("\nTensorC-GPU:\n");
-        //printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
+        printf("\nTensorC-GPU:\n");
+        printf( problemReference->pimpl->tensorC.toString(gpuTensorDataOnHostC).c_str() );
         
         //printf("\nComparing...\n");
         bool equal = compareTensors(gpuTensorDataOnHostC, tensorDataValidationC, problemReference->pimpl->tensorC, ctrl );
         //printf("\nDone Comparing.\n");
         delete[] gpuTensorDataOnHostC.data;
         printf("P[%04llu] S[%03llu] %7s - %s\n", problemIdx, solutionIdx-solutionStartIdx, equal?"PASSED":"FAILED", solution->toString(0).c_str() );
+        if (!equal) {
+          printf("Oops!\n");
+        }
       }
 
       // time solution

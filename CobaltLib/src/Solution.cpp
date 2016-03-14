@@ -295,8 +295,8 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   // kernel 2 - edge 1
   // kernel 3 - edge 0,1
   unsigned int kernelSerialIdx = 0;
-  for( unsigned int d0 = 0; d0 < kernelGrid[0]; d0++) {
-    for (unsigned int d1 = 0; d1 < kernelGrid[1]; d1++) {
+  for( unsigned int d1 = 0; d1 < kernelGrid[1]; d1++) {
+    for (unsigned int d0 = 0; d0 < kernelGrid[0]; d0++) {
       for (unsigned int dU = 0; dU < kernelGrid[2]; dU++) {
         // which kernel is getting enqueued for this kernel grid entry
         unsigned int kernelIdx = 0;
@@ -334,16 +334,16 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         unsigned int tensorOffsetAd0or1 = 0;
         unsigned int tensorOffsetBd0or1 = 0;
         if (d0InTensorA) {
-          tensorOffsetAd0or1 = d0*(problem.tensorA[indexAssignmentAd0or1].size/numMainKernels0)*problem.tensorA[indexAssignmentAd0or1].stride;
-          tensorOffsetBd0or1 = d1*(problem.tensorB[indexAssignmentBd0or1].size/numMainKernels1)*problem.tensorB[indexAssignmentBd0or1].stride;
+          tensorOffsetAd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorA[indexAssignmentAd0or1].stride;
+          tensorOffsetBd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorB[indexAssignmentBd0or1].stride;
         } else {
-          tensorOffsetAd0or1 = d1*(problem.tensorA[indexAssignmentAd0or1].size/numMainKernels1)*problem.tensorA[indexAssignmentAd0or1].stride;
-          tensorOffsetBd0or1 = d0*(problem.tensorB[indexAssignmentBd0or1].size/numMainKernels0)*problem.tensorB[indexAssignmentBd0or1].stride;
+          tensorOffsetAd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorA[indexAssignmentAd0or1].stride;
+          tensorOffsetBd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorB[indexAssignmentBd0or1].stride;
         }
         // data offsets
-        unsigned int tensorOffsetC = tensorDataC.offset; //  + tensorOffsetCd0 + tensorOffsetCd1; // TODO - fix these for multi kernels
-        unsigned int tensorOffsetA = tensorDataA.offset; //  + tensorOffsetAd0or1 + tensorOffsetAdU;
-        unsigned int tensorOffsetB = tensorDataB.offset; //  + tensorOffsetBd0or1 + tensorOffsetBdU;
+        unsigned int tensorOffsetC = tensorDataC.offset + tensorOffsetCd0 + tensorOffsetCd1; // TODO - fix these for multi kernels
+        unsigned int tensorOffsetA = tensorDataA.offset + tensorOffsetAd0or1 + tensorOffsetAdU;
+        unsigned int tensorOffsetB = tensorDataB.offset + tensorOffsetBd0or1 + tensorOffsetBdU;
 
         
         status = clSetKernelArg( kernels[kernelIdx], 3, sizeof(unsigned int), &tensorOffsetC );
@@ -383,14 +383,16 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         }
 
         // enqueue
-        /*printf("%s: enq[%u] g{%zu, %zu, %zu} l{%zu, %zu, %zu}\n",
-          toString(0).c_str(), kernelIdx,
+        printf("enq[%u,%u,%u] k%u: o{%u, %u, %u} g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
+          d0, d1, dU,
+          kernelIdx,
+          tensorOffsetC, tensorOffsetA, tensorOffsetB,
           globalWorkSize[kernelIdx][0],
           globalWorkSize[kernelIdx][1],
           globalWorkSize[kernelIdx][2],
           localWorkSize[kernelIdx][0],
           localWorkSize[kernelIdx][1],
-          localWorkSize[kernelIdx][2]);*/
+          localWorkSize[kernelIdx][2]);
         cl_event *outEvent = nullptr;
         if (ctrl.numOutputEvents) {
           outEvent = &(ctrl.outputEvents[kernelSerialIdx%ctrl.numOutputEvents]);

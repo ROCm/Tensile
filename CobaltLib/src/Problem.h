@@ -40,8 +40,8 @@ public:
   size_t alphaSize() const;
   size_t betaSize() const;
   bool operator<( const Problem & other ) const;
-  bool sortIndicesC( unsigned int i, unsigned int j) const;
-  bool sortSummationIndexDescending( std::pair<unsigned int, unsigned int> i, std::pair<unsigned int, unsigned int> j) const;
+  bool sortIndicesC( unsigned int i, unsigned int j) const; // TODO - remove?
+  bool sortSummationIndexDescending( std::pair<unsigned int, unsigned int> i, std::pair<unsigned int, unsigned int> j) const; // TODO - remove?
 
 //protected: // leave public since Solution classes need to access them and friendship isn't inherited
   Tensor tensorC;
