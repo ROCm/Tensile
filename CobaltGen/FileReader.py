@@ -31,19 +31,25 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
       self.tensor = Structs.Tensor()
       dataTypeString = attributes["dataType"]
       if dataTypeString == "cobaltDataTypeHalf":
-        self.tensor.dataType.value = 0
+        self.tensor.dataType.value = Structs.DataType.half
       elif dataTypeString == "cobaltDataTypeSingle":
-        self.tensor.dataType.value = 1
+        self.tensor.dataType.value = Structs.DataType.single
       elif dataTypeString == "cobaltDataTypeDouble":
-        self.tensor.dataType.value = 2
+        self.tensor.dataType.value = Structs.DataType.double
       elif dataTypeString == "cobaltDataTypeComplexHalf":
-        self.tensor.dataType.value = 3
+        self.tensor.dataType.value = Structs.DataType.complexHalf
       elif dataTypeString == "cobaltDataTypeComplexSingle":
-        self.tensor.dataType.value = 4
+        self.tensor.dataType.value = Structs.DataType.complexSingle
       elif dataTypeString == "cobaltDataTypeComplexDouble":
-        self.tensor.dataType.value = 5
+        self.tensor.dataType.value = Structs.DataType.complexDouble
+      elif dataTypeString == "cobaltDataTypeComplexConjugateHalf":
+        self.tensor.dataType.value = Structs.DataType.complexConjugateHalf
+      elif dataTypeString == "cobaltDataTypeComplexConjugateSingle":
+        self.tensor.dataType.value = Structs.DataType.complexConjugateSingle
+      elif dataTypeString == "cobaltDataTypeComplexConjugateDouble":
+        self.tensor.dataType.value = Structs.DataType.complexConjugateDouble
       elif dataTypeString == "cobaltDataTypeNone":
-        self.tensor.dataType.value = 7
+        self.tensor.dataType.value = Structs.DataType.none
       pass
     elif tag == "Dimension": # DONE
       dim = Structs.Dimension()

@@ -30,6 +30,7 @@ set( CobaltLib_SRC_STATIC
   src/DeviceProfile.h
   src/Logger.cpp
   src/Logger.h
+  src/MathTemplates.cpp
   src/MathTemplates.h
   src/Problem.cpp
   src/Problem.h

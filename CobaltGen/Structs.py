@@ -10,27 +10,40 @@ class Status:
 # Data Type - Enum
 ################################################################################
 class DataType:
-  half = 0
-  single = 1
-  double = 2
-  halfComplex = 3
-  singleComplex = 4
-  doubleComplex = 5
-  # num = 6
-  none = 7
+  half          = 0
+  single        = 1
+  double        = 2
+  complexHalf   = 3
+  complexSingle = 4
+  complexDouble = 5
+  complexConjugateHalf    = 6
+  complexConjugateSingle  = 7
+  complexConjugateDouble    = 8
+  # num         = 9
+  none          = 10
 
   def __init__( self, value ):
     self.value = value
 
   def toChar(self):
+    if self.value == self.half:
+      return "H"
     if self.value == self.single:
       return "S"
     elif self.value == self.double:
       return "D"
-    elif self.value == self.singleComplex:
+    elif self.value == self.complexHalf:
+      return "Q"
+    elif self.value == self.complexSingle:
       return "C"
-    elif self.value == self.doubleComplex:
+    elif self.value == self.complexDouble:
       return "Z"
+    elif self.value == self.complexConjugateHalf:
+      return "W"
+    elif self.value == self.complexConjugateSingle:
+      return "X"
+    elif self.value == self.complexConjugateDouble:
+      return "Y"
     elif self.value == self.none:
       return "0"
     else:
@@ -41,9 +54,9 @@ class DataType:
       return "float"
     elif self.value == self.double:
       return "double"
-    elif self.value == self.singleComplex:
+    elif self.value == self.complexSingle or self.value == self.complexConjugateSingle:
       return "float2"
-    elif self.value == self.doubleComplex:
+    elif self.value == self.complexDouble or self.value == self.complexConjugateDouble:
       return "double2"
     else:
       return "ERROR(" + str(self.value) + ")"
@@ -53,9 +66,9 @@ class DataType:
       return "float"
     elif self.value == self.double:
       return "double"
-    elif self.value == self.singleComplex:
+    elif self.value == self.complexSingle or self.value == self.complexConjugateSingle:
       return "CobaltComplexFloat"
-    elif self.value == self.doubleComplex:
+    elif self.value == self.complexDouble or self.value == self.complexConjugateDouble:
       return "CobaltComplexDouble"
     elif self.value == self.none:
       return "void"
@@ -63,21 +76,42 @@ class DataType:
       return "ERROR(" + str(self.value) + ")"
 
   def getLibString(self):
+    if self.value == self.half:
+      return "cobaltDataTypeHalf"
     if self.value == self.single:
       return "cobaltDataTypeSingle"
     elif self.value == self.double:
       return "cobaltDataTypeDouble"
-    elif self.value == self.singleComplex:
+    elif self.value == self.complexHalf:
+      return "cobaltDataTypeComplexHalf"
+    elif self.value == self.complexSingle:
       return "cobaltDataTypeComplexSingle"
-    elif self.value == self.doubleComplex:
+    elif self.value == self.complexDouble:
       return "cobaltDataTypeComplexDouble"
+    elif self.value == self.complexConjugateHalf:
+      return "cobaltDataTypeComplexConjugateHalf"
+    elif self.value == self.complexConjugateSingle:
+      return "cobaltDataTypeComplexConjugateSingle"
+    elif self.value == self.complexConjugateDouble:
+      return "cobaltDataTypeComplexConjugateDouble"
     elif self.value == self.none:
       return "cobaltDataTypeNone"
     else:
       return "ERROR(" + str(self.value) + ")"
 
+  def zeroStringOpenCL(self):
+    zeroString = "("
+    zeroString += self.toOpenCL()
+    zeroString += ")("
+    if self.isReal():
+      zeroString += "0.0, 0.0"
+    else:
+      zeroString += "0.0"
+    zeroString += ")"
+    return zeroString
+
   def isReal(self):
-    if self.value == self.single or self.value == self.double:
+    if self.value == self.half or self.value == self.single or self.value == self.double:
       return True
     else:
       return False
@@ -85,14 +119,20 @@ class DataType:
   def isComplex(self):
     return not self.isReal()
 
+  def isConjugate(self):
+    if self.value == self.complexConjugateHalf or self.value == self.complexConjugateSingle or self.value == self.complexConjugateDouble:
+      return True
+    else:
+      return False
+
   def numRegisters( self ):
     if self.value == self.single:
       return 1
     elif self.value == self.double:
       return 2
-    elif self.value == self.singleComplex:
+    elif self.value == self.complexSingle or self.value == self.complexConjugateSingle:
       return 2
-    elif self.value == self.doubleComplex:
+    elif self.value == self.complexDouble or self.value == self.complexConjugateDouble:
       return 4
     else:
       return "ERROR(" + str(self.value) + ")"

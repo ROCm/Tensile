@@ -78,6 +78,9 @@ std::string toString( CobaltDataType dataType ) {
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexHalf )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexSingle )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexDouble )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateHalf)
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateSingle)
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateDouble)
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeNone )
   default:
     return "Error in toString(CobaltDataType): no switch case for: "
@@ -163,6 +166,10 @@ size_t sizeOf( CobaltDataType type ) {
   case cobaltDataTypeComplexSingle:
     return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexDouble:
+    return sizeof(CobaltComplexDouble);
+  case cobaltDataTypeComplexConjugateSingle:
+    return sizeof(CobaltComplexFloat);
+  case cobaltDataTypeComplexConjugateDouble:
     return sizeof(CobaltComplexDouble);
   case cobaltDataTypeNone:
     return 0;

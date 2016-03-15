@@ -8,6 +8,7 @@
 #include "CobaltSolutionCandidates.h"
 #include "SolutionTensorContractionCPU.h"
 #include "StructOperations.h"
+#include "MathTemplates.h"
 
 #include <tuple>
 
@@ -57,12 +58,12 @@ bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
   Cobalt::Tensor tensor) {
-  
+  // TODO - respect dimension strides so we don't read gaps
   unsigned int maxToPrint = 16;
   unsigned int printCount = 0;
   bool equal = true;
   for ( unsigned long long i = 0; i < tensor.numElements(); i++) {
-    if ( !(cpuData[i] == gpuData[i]) ) {
+    if ( !(almostEqual(cpuData[i], gpuData[i]) ) ) {
       equal = false;
       if (printCount < maxToPrint) {
         printMismatch<DataType>(i, gpuData[i], cpuData[i]);
@@ -317,9 +318,24 @@ int main( int argc, char *argv[] ) {
 
         CobaltTensorData gpuTensorDataOnHostC;
         gpuTensorDataOnHostC.offset = 0;
-        gpuTensorDataOnHostC.data = new float[problemReference->pimpl->tensorC.numElements()];
-        memset(gpuTensorDataOnHostC.data, 0, problemReference->pimpl->tensorC.numElements());
-
+        gpuTensorDataOnHostC.data;
+        switch(problemReference->pimpl->tensorC.getDataType()) {
+        case cobaltDataTypeSingle:
+          gpuTensorDataOnHostC.data = new float[problemReference->pimpl->tensorC.numElements()];
+          break;
+        case cobaltDataTypeDouble:
+          gpuTensorDataOnHostC.data = new double[problemReference->pimpl->tensorC.numElements()];
+          break;
+        case cobaltDataTypeComplexSingle:
+        case cobaltDataTypeComplexConjugateSingle:
+          gpuTensorDataOnHostC.data = new CobaltComplexFloat[problemReference->pimpl->tensorC.numElements()];
+          break;
+        case cobaltDataTypeComplexDouble:
+        case cobaltDataTypeComplexConjugateDouble:
+          gpuTensorDataOnHostC.data = new CobaltComplexDouble[problemReference->pimpl->tensorC.numElements()];
+          break;
+        }
+        memset(gpuTensorDataOnHostC.data, 0, problemReference->pimpl->tensorC.numElements()*Cobalt::sizeOf(problemReference->pimpl->tensorC.getDataType()));
 
         // print tensorC-gpu
         status = clEnqueueReadBuffer(
@@ -333,8 +349,8 @@ int main( int argc, char *argv[] ) {
         CL_CHECK(status)
         status = clFinish(ctrl.queues[0]);
         CL_CHECK(status)
-        float *gpuDataC = static_cast<float *>(gpuTensorDataOnHostC.data);
-        float *cpuDataC = static_cast<float *>(tensorDataValidationC.data);
+        //float *gpuDataC = static_cast<float *>(gpuTensorDataOnHostC.data);
+        //float *cpuDataC = static_cast<float *>(tensorDataValidationC.data);
         //printf("\nTensorC-GPU:\n");
         //printf(problemReference->pimpl->toString().c_str());
         //printf("\n");

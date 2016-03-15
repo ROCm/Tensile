@@ -163,7 +163,7 @@ public:
 #include <assert.h>
 #define CL_CHECK(RET) \
   if(RET != CL_SUCCESS) { \
-    printf("OpenCL error %i on line %u\n", RET, __LINE__); \
+    printf("OpenCL Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
     /*assert(false);*/ \
     }
 

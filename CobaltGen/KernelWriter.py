@@ -436,7 +436,7 @@ class KernelWriter:
               + "DST = (REG);" + self.endLine
     else:
       # complex data
-      if not kernel.conjugateA and not kernel.conjugateB:
+      if not kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # neither conjugate
         kStr += (
           "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
@@ -444,7 +444,7 @@ class KernelWriter:
           "  DST.s0 = mad( -MULA.s1, MULB.s1, DST.s0 ); \\\\" + self.endLine +
           "  DST.s1 = mad(  MULA.s0, MULB.s1, DST.s1 ); \\\\" + self.endLine +
           "  DST.s1 = mad(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
-      elif kernel.conjugateA and not kernel.conjugateB:
+      elif kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # A conjugate (negate imaginary A.s1)
         kStr += (
           "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
@@ -452,7 +452,7 @@ class KernelWriter:
           "  DST.s0 = mad(  MULA.s1, MULB.s1, DST.s0 ); \\\\" + self.endLine +
           "  DST.s1 = mad(  MULA.s0, MULB.s1, DST.s1 ); \\\\" + self.endLine +
           "  DST.s1 = mad( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
-      elif not kernel.conjugateA and kernel.conjugateB:
+      elif not kernel.dataTypeA.isConjugate() and kernel.dataTypeB.isConjugate():
         # B conjugate (negate imaginary B.s1)
         kStr += (
           "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
@@ -716,24 +716,28 @@ class KernelWriter:
         % (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
 
     # zeroString for real and complex
-    if kernel.dataTypeA.value == Structs.DataType.singleComplex:
-      zeroStringA = "(float2)(0.f, 0.f)"
-    elif kernel.dataTypeA.value == Structs.DataType.doubleComplex:
-      zeroStringA = "(double2)(0.0, 0.0)"
-    else:
-      zeroStringA = "0.0"
-    if kernel.dataTypeB.value == Structs.DataType.singleComplex:
-      zeroStringB = "(float2)(0.f, 0.f)"
-    elif kernel.dataTypeB.value == Structs.DataType.doubleComplex:
-      zeroStringB = "(double2)(0.0, 0.0)"
-    else:
-      zeroStringB = "0.0"
-    if kernel.dataTypeC.value == Structs.DataType.singleComplex:
-      zeroStringC = "(float2)(0.f, 0.f)"
-    elif kernel.dataTypeC.value == Structs.DataType.doubleComplex:
-      zeroStringC = "(double2)(0.0, 0.0)"
-    else:
-      zeroStringC = "0.0"
+    zeroStringC = kernel.dataTypeC.zeroStringOpenCL()
+    zeroStringA = kernel.dataTypeA.zeroStringOpenCL()
+    zeroStringB = kernel.dataTypeB.zeroStringOpenCL()
+
+    #if kernel.dataTypeA.value == Structs.DataType.complexSingle:
+    #  zeroStringA = "(float2)(0.f, 0.f)"
+    #elif kernel.dataTypeA.value == Structs.DataType.complexDouble:
+    #  zeroStringA = "(double2)(0.0, 0.0)"
+    #else:
+    #  zeroStringA = "0.0"
+    #if kernel.dataTypeB.value == Structs.DataType.complexSingle:
+    #  zeroStringB = "(float2)(0.f, 0.f)"
+    #elif kernel.dataTypeB.value == Structs.DataType.doubleComplex:
+    #  zeroStringB = "(double2)(0.0, 0.0)"
+    #else:
+    #  zeroStringB = "0.0"
+    #if kernel.dataTypeC.value == Structs.DataType.complexSingle:
+    #  zeroStringC = "(float2)(0.f, 0.f)"
+    #elif kernel.dataTypeC.value == Structs.DataType.doubleComplex:
+    #  zeroStringC = "(double2)(0.0, 0.0)"
+    #else:
+    #  zeroStringC = "0.0"
 
 
 
@@ -914,9 +918,9 @@ class KernelWriter:
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxCK, size0I, size1J);" + self.endLine
     # end debug
     kStr += "  /* write global C */" + self.endLine
-    if kernel.dataTypeC == Structs.DataType.singleComplex:
+    if kernel.dataTypeC == Structs.DataType.complexSingle or kernel.dataTypeC == Structs.DataType.complexConjugateSingle:
       kStr += "  float type_mad_tmp;" + self.endLine
-    if kernel.dataTypeC == Structs.DataType.doubleComplex:
+    if kernel.dataTypeC == Structs.DataType.complexDouble or kernel.dataTypeC == Structs.DataType.complexConjugateDouble:
       kStr += "  double type_mad_tmp;" + self.endLine
 
     for a in range(0, kernel.tile.microTile[0]):

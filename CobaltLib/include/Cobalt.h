@@ -139,14 +139,17 @@ CobaltStatus cobaltTeardown();
  * Data Type
  ******************************************************************************/
 typedef enum CobaltDataType_ {
-  cobaltDataTypeHalf, // 0
-  cobaltDataTypeSingle, // 1
-  cobaltDataTypeDouble, // 2
-  cobaltDataTypeComplexHalf, // 3
-  cobaltDataTypeComplexSingle, // 4
-  cobaltDataTypeComplexDouble, // 5
-  cobaltNumDataTypes, // 6
-  cobaltDataTypeNone, // 7
+  cobaltDataTypeHalf,                   // 0
+  cobaltDataTypeSingle,                 // 1
+  cobaltDataTypeDouble,                 // 2
+  cobaltDataTypeComplexHalf,            // 3
+  cobaltDataTypeComplexSingle,          // 4
+  cobaltDataTypeComplexDouble,          // 5
+  cobaltDataTypeComplexConjugateHalf,   // 6
+  cobaltDataTypeComplexConjugateSingle, // 7
+  cobaltDataTypeComplexConjugateDouble, // 8
+  cobaltNumDataTypes,                   // 9
+  cobaltDataTypeNone,                   // 10
 } CobaltDataType;
 
 /*******************************************************************************
