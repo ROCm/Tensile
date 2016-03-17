@@ -92,9 +92,25 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       
       size_t serialIdxA = problem.tensorA.getIndex(coordsA);
       TypeA valueA = dataA[serialIdxA];
+      if ( std::is_same<TypeA,CobaltComplexFloat>::value
+        || std::is_same<TypeA, CobaltComplexDouble>::value) {
+        if ( problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf
+          || problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
+          || problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateDouble) {
+          complexConjugate<TypeA>( valueA );
+        }
+      }
 
       size_t serialIdxB = problem.tensorB.getIndex(coordsB);
       TypeB valueB = dataB[serialIdxB];
+      if (std::is_same<TypeB, CobaltComplexFloat>::value
+        || std::is_same<TypeB, CobaltComplexDouble>::value) {
+        if ( problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf
+          || problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateSingle
+          || problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateDouble) {
+          complexConjugate<TypeB>( valueB );
+        }
+      }
 
       TypeC product = multiply<TypeC,TypeA,TypeB>( valueA, valueB);
 

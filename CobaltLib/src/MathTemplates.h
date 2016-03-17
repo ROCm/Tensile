@@ -43,5 +43,10 @@ bool almostEqual( T a, T b); /* {
   return std::fabs(a - b) < std::numeric_limits<T>::epsilon();
 } */
 
+/*******************************************************************************
+* Complex Conjugate
+******************************************************************************/
+template<typename T>
+void complexConjugate(T&);
 
 #endif

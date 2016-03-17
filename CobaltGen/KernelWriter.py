@@ -33,9 +33,9 @@ class KernelWriter:
     kernelName += "_"
 
     # data dataTypes
+    kernelName += kernel.dataTypeC.toChar().upper()
     kernelName += kernel.dataTypeA.toChar().upper()
     kernelName += kernel.dataTypeB.toChar().upper()
-    kernelName += kernel.dataTypeC.toChar().upper()
 
     # alpha
     if kernel.operation.useAlpha:

@@ -157,7 +157,7 @@ class SolutionCandidateGenerator:
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1
-  maxMicroTileSize = 16
+  maxMicroTileSize = 4
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -165,7 +165,7 @@ class SolutionCandidateGenerator:
        8: [ [  8 ], [ 16, 8 ] ], \
       16: [ [ 16 ], [ 8 ] ] \
       }
-  
+  """ 
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -175,7 +175,7 @@ class SolutionCandidateGenerator:
                [256,1] ]
   """
   universeWorkGroupDim = [ [16,16] ]
-  """
+ 
   universeBranch = [ Structs.BranchType(0), Structs.BranchType(1), \
       Structs.BranchType(2) ]
 

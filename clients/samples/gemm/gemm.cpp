@@ -17,7 +17,10 @@ CobaltProblem createProblemGEMM(
     size_t numBatches,
     bool alpha,
     bool beta,
-    CobaltDataType dataType );
+    CobaltDataType dataTypeC,
+    CobaltDataType dataTypeA,
+    CobaltDataType dataTypeB
+  );
 
 /*******************************************************************************
  * main
@@ -30,14 +33,21 @@ int main( char * argv[], int argc ) {
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
   size_t batches[] = { 2 };
-  const size_t numDataTypes = 3;
-  const CobaltDataType dataTypes[] = {
-    //cobaltDataTypeSingle,
-    cobaltDataTypeDouble,
-    cobaltDataTypeComplexSingle,
-    cobaltDataTypeComplexDouble,
-    cobaltDataTypeComplexConjugateSingle,
-    cobaltDataTypeComplexConjugateDouble
+  const size_t numDataTypes = 10;
+  const CobaltDataType dataTypes[][3] = {
+    { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
+    { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
+
+    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle },
+    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble },
+
+    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexConjugateSingle, cobaltDataTypeComplexSingle },
+    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle, cobaltDataTypeComplexConjugateSingle },
+    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexConjugateSingle, cobaltDataTypeComplexConjugateSingle },
+
+    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexDouble },
+    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
+    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
   const size_t numAlphas = 1;
   const bool alphas[] = { false, true };
@@ -61,7 +71,6 @@ int main( char * argv[], int argc ) {
                       size_t K = sizes[kIdx];
                       //if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
-                      CobaltDataType dataType = dataTypes[dtIdx];
                       bool alpha = alphas[alphaIdx];
                       bool beta = betas[betaIdx];
                       printf("%s%s\n", transA == 1 ? "T" : "N", transB == 1 ? "T" : "N");
@@ -73,7 +82,10 @@ int main( char * argv[], int argc ) {
                           numBatches,
                           alpha,
                           beta,
-                          dataType );
+                          dataTypes[dtIdx][0],
+                          dataTypes[dtIdx][1],
+                          dataTypes[dtIdx][2]
+                        );
                       
                       CobaltStatus status;
                       CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
@@ -109,23 +121,26 @@ CobaltProblem createProblemGEMM(
     size_t numBatches,
     bool alpha,
     bool beta,
-    CobaltDataType dataType ) {
+    CobaltDataType dataTypeC,
+    CobaltDataType dataTypeA,
+    CobaltDataType dataTypeB
+  ) {
 
   // problem - tensor
   CobaltTensor tensorC = createTensorForMatrix(
-    dataType,
+    dataTypeC,
     initialStride,
     M,
     N,
     numBatches);
   CobaltTensor tensorA = createTensorForMatrix(
-    dataType,
+    dataTypeA,
     initialStride,
     transA ? M : K,
     transA ? K : M,
     numBatches );
   CobaltTensor tensorB = createTensorForMatrix(
-    dataType,
+    dataTypeB,
     initialStride,
     transB ? N : K,
     transB ? K : N,
@@ -133,8 +148,8 @@ CobaltProblem createProblemGEMM(
 
   // operation
   CobaltOperationType operationType = cobaltOperationTypeContraction;
-  CobaltDataType alphaType = alpha ? dataType : cobaltDataTypeNone;
-  CobaltDataType betaType = beta ? dataType : cobaltDataTypeNone;
+  CobaltDataType alphaType = alpha ? dataTypeC : cobaltDataTypeNone;
+  CobaltDataType betaType = beta ? dataTypeC : cobaltDataTypeNone;
   unsigned int indexAssignmentsA[CobaltTensor::maxDimensions];
   unsigned int indexAssignmentsB[CobaltTensor::maxDimensions];
   if (numBatches > 1) {

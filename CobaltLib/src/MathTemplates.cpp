@@ -1,5 +1,6 @@
 #include "Cobalt.h"
 #include "MathTemplates.h"
+#include <cstdio>
 
 /*******************************************************************************
  * Zero Templates
@@ -99,11 +100,21 @@ CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
 ******************************************************************************/
 template< >
 bool almostEqual(float a, float b) {
-  return std::fabs(a - b)/(std::fabs(a)+std::fabs(b)) < 0.00001; // 7 digits of precision - 2
+  bool equal = std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.001; // 7 digits of precision - 3
+  if (!equal) {
+    printf("a=%.7e, b=%.7e, a-b=%.7e, denom=%.7e, frac=%.7e\n",
+      a,
+      b,
+      std::fabs(a - b),
+      (std::fabs(a) + std::fabs(b) + 1),
+      std::fabs(a - b) / (std::fabs(a) + std::fabs(b) + 1)
+      );
+  }
+  return equal;
 }
 template< >
 bool almostEqual(double a, double b) {
-  return std::fabs(a - b) / ( std::fabs(a) + std::fabs(b) ) < 0.0000000000001; // 15 digits of precision - 2
+  return std::fabs(a - b) / ( std::fabs(a) + std::fabs(b)+1 ) < 0.00000000001; // 15 digits of precision - 3
 }
 template< >
 bool almostEqual( CobaltComplexFloat a, CobaltComplexFloat b) {
@@ -114,3 +125,18 @@ bool almostEqual(CobaltComplexDouble a, CobaltComplexDouble b) {
   return almostEqual(a.s[0], b.s[0]) && almostEqual(a.s[1], b.s[1]);
 }
 
+/*******************************************************************************
+* Complex Conjugate
+******************************************************************************/
+//template< >
+//void complexConjugate(float & v) {}
+//template< >
+//void complexConjugate(double & v) {}
+template< >
+void complexConjugate( CobaltComplexFloat & v) {
+  v.s[1] = -v.s[1];
+}
+template< >
+void complexConjugate(CobaltComplexDouble & v) {
+  v.s[1] = -v.s[1];
+}
