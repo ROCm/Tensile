@@ -489,13 +489,13 @@ class KernelWriter:
         else:
           # dst = alpha*reg
           kStr += (
-            "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) \\\\"+endLine+
+            "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) \\\\"+self.endLine+
             "  /* (1) */ \\\\" + self.endLine +
             "  type_mad_tmp = REG.s0; \\\\" + self.endLine +
             "  REG.s0 *= ALPHA.s0; \\\\" + self.endLine +
             "  REG.s0 = mad( -ALPHA.s1, REG.s1, REG.s0 ); \\\\" + self.endLine +
             "  REG.s1 *= ALPHA.s0; \\\\" + self.endLine +
-            "  REG.s1 = mad(  ALPHA.s1, type_mad_tmp, REG.s1 ); \\\\"+endLine+
+            "  REG.s1 = mad(  ALPHA.s1, type_mad_tmp, REG.s1 ); \\\\"+self.endLine+
             "  /* (3) */ \\\\" + self.endLine +
             "  DST = REG;" + self.endLine )
       else:
@@ -918,9 +918,9 @@ class KernelWriter:
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdx0I, globalIdx1J, globalIdxCK, size0I, size1J);" + self.endLine
     # end debug
     kStr += "  /* write global C */" + self.endLine
-    if kernel.dataTypeC == Structs.DataType.complexSingle or kernel.dataTypeC == Structs.DataType.complexConjugateSingle:
+    if kernel.dataTypeC.value == Structs.DataType.complexSingle or kernel.dataTypeC.value == Structs.DataType.complexConjugateSingle:
       kStr += "  float type_mad_tmp;" + self.endLine
-    if kernel.dataTypeC == Structs.DataType.complexDouble or kernel.dataTypeC == Structs.DataType.complexConjugateDouble:
+    if kernel.dataTypeC.value == Structs.DataType.complexDouble or kernel.dataTypeC.value == Structs.DataType.complexConjugateDouble:
       kStr += "  double type_mad_tmp;" + self.endLine
 
     for a in range(0, kernel.tile.microTile[0]):

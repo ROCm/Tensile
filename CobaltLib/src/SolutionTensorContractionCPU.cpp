@@ -131,6 +131,16 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     } // bound range
     size_t serialIdxC = problem.tensorC.getIndex(freeCoord);
     // TODO alpha, beta
+    if (problem.getDataTypeAlpha() != cobaltDataTypeNone) {
+      TypeAlpha *alphaData = static_cast<TypeAlpha*>(alpha.data);
+      sumC = multiply<TypeC,TypeAlpha,TypeC>(*alphaData,sumC);
+    }
+    if (problem.getDataTypeBeta() != cobaltDataTypeNone) {
+      TypeBeta *betaData = static_cast<TypeBeta*>(beta.data);
+      TypeC tmp = multiply<TypeC,TypeBeta,TypeC>(*betaData, dataC[serialIdxC]);
+      sumC = add<TypeC,TypeC,TypeC>(tmp,sumC);
+    }
+
     dataC[serialIdxC] = sumC; // TODO - or += allow split among k
 
     // increment free coord

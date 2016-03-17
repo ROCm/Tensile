@@ -72,7 +72,12 @@ bool compareTensorsTemplate(
         break;
       }
     } /*else {
-      printMatch<DataType>(i, gpuData[i], cpuData[i]);
+      if (printCount < maxToPrint) {
+        printMatch<DataType>(i, gpuData[i], cpuData[i]);
+        printCount++;
+      } else {
+        break;
+      }
     }*/
   }
   return equal;

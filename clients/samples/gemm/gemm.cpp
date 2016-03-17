@@ -27,13 +27,13 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 3;
-  size_t sizes[] = {97, 93, 99}; // , 960, 4096};
+  const size_t numSizes = 1;
+  size_t sizes[] = {64}; // , 960, 4096};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
   size_t batches[] = { 2 };
-  const size_t numDataTypes = 10;
+  const size_t numDataTypes = 4;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
@@ -49,7 +49,7 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 1;
+  const size_t numAlphas = 2;
   const bool alphas[] = { false, true };
   const size_t numBetas = 1;
   const bool betas[] = { false, true };
