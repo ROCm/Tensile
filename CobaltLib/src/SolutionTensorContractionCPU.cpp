@@ -28,6 +28,19 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
+  //bool zzz0zC = std::is_same<TypeC, CobaltComplexDouble>::value;
+  //bool zzz0zA = std::is_same<TypeA, CobaltComplexDouble>::value;
+  //bool zzz0zB = std::is_same<TypeB, CobaltComplexDouble>::value;
+  //bool zzz0zAlpha = problem.getDataTypeAlpha() == cobaltDataTypeNone;
+  //bool zzz0zBeta = std::is_same<TypeBeta, CobaltComplexDouble>::value;
+  //printf("zzz0z=%s,%s,%s,%s,%s\n",
+  //  zzz0zC ? "T" : "F",
+  //  zzz0zA ? "T" : "F",
+  //  zzz0zB ? "T" : "F",
+  //  zzz0zAlpha ? "T" : "F",
+  //  zzz0zBeta ? "T" : "F"
+  //  );
+  //bool zzz0z = zzz0zC && zzz0zA && zzz0zB && zzz0zAlpha && zzz0zBeta;
 
   // pointers to data
   TypeC *dataC = (TypeC *)tensorDataC.data;
@@ -129,6 +142,8 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       }
 
     } // bound range
+
+
     size_t serialIdxC = problem.tensorC.getIndex(freeCoord);
     // TODO alpha, beta
     if (problem.getDataTypeAlpha() != cobaltDataTypeNone) {
@@ -136,6 +151,9 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       sumC = multiply<TypeC,TypeAlpha,TypeC>(*alphaData,sumC);
     }
     if (problem.getDataTypeBeta() != cobaltDataTypeNone) {
+      //if (zzz0z) {
+      //  printf("C[%llu] = %s\n", serialIdxC, tensorElementToString(dataC[serialIdxC]).c_str() );
+      //}
       TypeBeta *betaData = static_cast<TypeBeta*>(beta.data);
       TypeC tmp = multiply<TypeC,TypeBeta,TypeC>(*betaData, dataC[serialIdxC]);
       sumC = add<TypeC,TypeC,TypeC>(tmp,sumC);

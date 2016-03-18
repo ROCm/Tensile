@@ -10,6 +10,7 @@ set( CobaltBenchmark_NAME CobaltBenchmark )
 # static source files
 set( CobaltBenchmark_SRC_STATIC
   CobaltBenchmark.cpp
+  CobaltBenchmark.h
   ../CobaltLib/src/Tools.h
   ../CobaltLib/src/Tools.cpp
 )

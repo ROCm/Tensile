@@ -29,11 +29,11 @@ int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   const size_t numSizes = 1;
   size_t sizes[] = {64}; // , 960, 4096};
-  const size_t numStrides = 1;
+  const size_t numStrides = 2;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
   size_t batches[] = { 2 };
-  const size_t numDataTypes = 4;
+  const size_t numDataTypes = 2;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
@@ -49,7 +49,7 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 2;
+  const size_t numAlphas = 1;
   const bool alphas[] = { false, true };
   const size_t numBetas = 1;
   const bool betas[] = { false, true };
@@ -223,12 +223,12 @@ CobaltTensor createTensorForMatrix(
   tensor.numDimensions = 2;
   tensor.dimensions[0].stride = (unsigned int)initialStride;
   tensor.dimensions[0].size = (unsigned int)dim0;
-  tensor.dimensions[1].stride = (tensor.dimensions[0].stride*tensor.dimensions[0].size);
+  tensor.dimensions[1].stride = (unsigned int)(tensor.dimensions[0].stride*tensor.dimensions[0].size*initialStride);
   tensor.dimensions[1].size = (unsigned int)dim1;
 
   if (dimBatch > 1) {
     tensor.numDimensions++;
-    tensor.dimensions[2].stride = tensor.dimensions[1].stride*tensor.dimensions[1].size;
+    tensor.dimensions[2].stride = (unsigned int)(tensor.dimensions[1].stride*tensor.dimensions[1].size*initialStride);
     tensor.dimensions[2].size = (unsigned int) dimBatch;
   }
   return tensor;

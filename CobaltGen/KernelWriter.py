@@ -478,7 +478,7 @@ class KernelWriter:
             "  REG.s0 *= ALPHA.s0; \\\\" + self.endLine +
             "  REG.s0 = mad( -ALPHA.s1, REG.s1, REG.s0 ); \\\\" + self.endLine +
             "  REG.s1 *= ALPHA.s0; \\\\" + self.endLine +
-            "  REG.s1 = mad(  ALPHA.s1, type_mad_tmp, REG.s1 ); \\\\"+endLine+
+            "  REG.s1 = mad(  ALPHA.s1, type_mad_tmp, REG.s1 ); \\\\"+self.endLine+
             "  /* (2) */ \\\\" + self.endLine +
             "  REG.s0 = mad(  BETA.s0, DST.s0, REG.s0 ); \\\\" + self.endLine +
             "  REG.s0 = mad( -BETA.s1, DST.s1, REG.s0 ); \\\\" + self.endLine +

@@ -1,5 +1,6 @@
 #include "Tensor.h"
 #include "StructOperations.h"
+#include "MathTemplates.h"
 
 #include <sstream>
 #include <algorithm>
@@ -197,8 +198,102 @@ size_t Tensor::numElements() const {
   }
   return size;
 }
+size_t Tensor::numBytes() const {
+  return numElements() * sizeOf(dataType);
+}
 
 CobaltDataType Tensor::getDataType() const { return dataType; }
 
+
+CobaltTensor Tensor::getTensorStruct() const {
+  CobaltTensor simple;
+  simple.dataType = dataType;
+  simple.numDimensions = static_cast<unsigned int>(numDims());
+  for (unsigned int d = 0; d < numDims(); d++) {
+    simple.dimensions[d].stride = dimensions[d].stride;
+    simple.dimensions[d].size = dimensions[d].size;
+  }
+  return simple;
+}
+
+/* Fill TensorData with values*/
+void Tensor::fill(
+  CobaltTensorData tensorData,
+  FillType fillType,
+  void *src) const {
+  switch (dataType) {
+  case cobaltDataTypeSingle:
+    return fillTemplate<float>(tensorData, fillType, src);
+  case cobaltDataTypeDouble:
+    return fillTemplate<double>(tensorData, fillType, src);
+  case cobaltDataTypeComplexSingle:
+    return fillTemplate<CobaltComplexFloat>(tensorData, fillType, src);
+  case cobaltDataTypeComplexDouble:
+    return fillTemplate<CobaltComplexDouble>(tensorData, fillType, src);
+  case cobaltDataTypeNone:
+    return;
+  default:
+    return;
+  }
+}
+
+template<typename T>
+void Tensor::fillTemplate(
+    CobaltTensorData tensorData,
+    FillType fillType,
+    void *srcVoid) const {
+
+  T *src = static_cast<T*>(srcVoid);
+
+  std::vector<unsigned int> coords(numDims());
+  for (unsigned int i = 0; i < numDims(); i++) {
+    coords[i] = 0;
+  }
+  bool done = false;
+  size_t srcIdx = 0;
+
+  while (!done) { // exit criteria specified below
+
+    for (coords[0] = 0; coords[0] < dimensions[0].size; coords[0]++) {
+      size_t index = getIndex(coords);
+      switch(fillType) {
+      case fillTypeZero:
+        static_cast<T*>(tensorData.data)[index] = Cobalt::getZero<T>();
+        break;
+      case fillTypeOne:
+        static_cast<T*>(tensorData.data)[index] = Cobalt::getOne<T>();
+        break;
+      case fillTypeRandom:
+        static_cast<T*>(tensorData.data)[index] = Cobalt::getRandom<T>();
+        break;
+      case fillTypeCopy:
+        static_cast<T*>(tensorData.data)[index] = src[srcIdx++];
+        break;
+      }
+    } // d0
+
+    // if 1-dimensional done
+    if (coords.size() == 1) {
+      done = true;
+      break;
+    } else { // 2+ dimensions
+      bool dimIncremented = false; // for printing extra line
+                                   // increment coord
+      coords[1]++;
+      for (unsigned int d = 1; d < numDims(); d++) {
+        if (coords[d] >= dimensions[d].size) {
+          if (d == numDims() - 1) {
+            // exit criteria - last dimension full
+            done = true;
+            break;
+          }
+          dimIncremented = true;
+          coords[d] = 0;
+          coords[d + 1]++;
+        }
+      }
+    }
+  }
+}
 
 } // namespace

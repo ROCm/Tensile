@@ -172,17 +172,17 @@ class FileWriter:
     s += "Cobalt::Solution *solutionCandidates[numSolutions];\n"
 
     dataType = Structs.DataType(Structs.DataType.single)
-    s += dataType.toCpp() + " alphaSingle = 2.f;\n"
-    s += dataType.toCpp() + " betaSingle = 3.f;\n"
+    s += "// " + dataType.toCpp() + " alphaSingle = 2.f;\n"
+    s += "// " + dataType.toCpp() + " betaSingle = 3.f;\n"
     dataType = Structs.DataType(Structs.DataType.double)
-    s += dataType.toCpp() + " alphaDouble = 4.f;\n"
-    s += dataType.toCpp() + " betaDouble = 5.f;\n"
+    s += "// " + dataType.toCpp() + " alphaDouble = 4.f;\n"
+    s += "// " + dataType.toCpp() + " betaDouble = 5.f;\n"
     dataType = Structs.DataType(Structs.DataType.complexSingle)
-    s += dataType.toCpp() + " alphaComplexSingle = { 6.f, 7.f };\n"
-    s += dataType.toCpp() + " betaComplexSingle = {8.f, 9.f };\n"
+    s += "// " + dataType.toCpp() + " alphaComplexSingle = { 6.f, 7.f };\n"
+    s += "// " + dataType.toCpp() + " betaComplexSingle = {8.f, 9.f };\n"
     dataType = Structs.DataType(Structs.DataType.complexDouble)
-    s += dataType.toCpp() + " alphaComplexDouble = { 10.0, 11.0 };\n"
-    s += dataType.toCpp() + " betaComplexDouble = {12.0, 13.0 };\n"
+    s += "// " + dataType.toCpp() + " alphaComplexDouble = { 10.0, 11.0 };\n"
+    s += "// " + dataType.toCpp() + " betaComplexDouble = {12.0, 13.0 };\n"
     s += "\n"
 
     # initializeSolutionCandidates
@@ -322,13 +322,13 @@ class FileWriter:
             * problem.tensorA.dataType.numBytes()
         if tensorSizeDimA > tensorSizeMaxA:
           tensorSizeMaxA = tensorSizeDimA
-          print "tensorSizeMaxA = " + str(tensorSizeMaxA)
+          #print "tensorSizeMaxA = " + str(tensorSizeMaxA)
       for dimension in problem.tensorB.dimensions:
         tensorSizeDimB = dimension.stride * dimension.size \
             * problem.tensorB.dataType.numBytes()
         if tensorSizeDimB > tensorSizeMaxB:
           tensorSizeMaxB = tensorSizeDimB
-          print "tensorSizeMaxB = " + str(tensorSizeMaxB)
+          #print "tensorSizeMaxB = " + str(tensorSizeMaxB)
 
     s += "}\n"
     benchmarkSourceFile.write(s)
@@ -337,7 +337,8 @@ class FileWriter:
     benchmarkHeaderPath = self.outputPath + self.benchmarkSubdirectory \
         + "CobaltSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
-    s = ""
+    s = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
+    s += "#define COBALT_SOLUTION_CANDIDATES_H\n"
     s += "#include \"Cobalt.h\"\n"
     s += "#include \"CobaltSolutions.h\"\n"
     s += "#include \"CL/cl.h\"\n"
@@ -350,16 +351,18 @@ class FileWriter:
     s += "extern size_t numSolutionsPerProblem[numProblems];\n"
     s += "extern CobaltProblem problems[numProblems];\n"
     s += "extern Cobalt::Solution *solutionCandidates[numSolutions];\n"
-    s += "extern float alphaSingle;\n"
-    s += "extern float betaSingle;\n"
-    s += "extern double alphaDouble;\n"
-    s += "extern double betaDouble;\n"
-    s += "extern CobaltComplexFloat alphaSingleComplex;\n"
-    s += "extern CobaltComplexFloat betaSingleComplex;\n"
-    s += "extern CobaltComplexDouble alphaDoubleComplex;\n"
-    s += "extern CobaltComplexDouble betaDoubleComplex;\n"
+    s += "// extern float alphaSingle;\n"
+    s += "// extern float betaSingle;\n"
+    s += "// extern double alphaDouble;\n"
+    s += "// extern double betaDouble;\n"
+    s += "// extern CobaltComplexFloat alphaSingleComplex;\n"
+    s += "// extern CobaltComplexFloat betaSingleComplex;\n"
+    s += "// extern CobaltComplexDouble alphaDoubleComplex;\n"
+    s += "// extern CobaltComplexDouble betaDoubleComplex;\n"
     s += "\n"
     s += "void initializeSolutionCandidates();\n"
+    s += "\n"
+    s += "#endif\n"
     s += "\n"
     benchmarkHeaderFile.write(s)
     benchmarkHeaderFile.close()

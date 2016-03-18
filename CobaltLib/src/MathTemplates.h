@@ -3,6 +3,8 @@
 #include <cmath>
 #include <limits>
 
+namespace Cobalt {
+
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
@@ -13,6 +15,11 @@ template< typename T> T getZero(); // { return static_cast<T>(0); };
  * One Templates
  ******************************************************************************/
 template< typename T> T getOne(); // { return static_cast<T>(1); };
+
+/*******************************************************************************
+ * Random Templates
+ ******************************************************************************/
+template< typename T> T getRandom(); // { return static_cast<T>(1); };
 
 
 
@@ -48,5 +55,7 @@ bool almostEqual( T a, T b); /* {
 ******************************************************************************/
 template<typename T>
 void complexConjugate(T&);
+
+} // end Cobalt namespace
 
 #endif

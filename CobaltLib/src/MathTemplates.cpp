@@ -2,6 +2,8 @@
 #include "MathTemplates.h"
 #include <cstdio>
 
+namespace Cobalt {
+
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
@@ -31,6 +33,20 @@ template<> CobaltComplexDouble getOne<CobaltComplexDouble>() {
   return zero;
 }
 
+
+/*******************************************************************************
+* Random Templates
+******************************************************************************/
+template<> float getRandom<float>() { return static_cast<float>(rand())/static_cast<float>(RAND_MAX); }
+template<> double getRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
+template<> CobaltComplexFloat getRandom<CobaltComplexFloat>() {
+  //CobaltComplexFloat r = { 1.f, 0.f };
+  return { getRandom<float>(), getRandom<float>() };
+}
+template<> CobaltComplexDouble getRandom<CobaltComplexDouble>() {
+  //CobaltComplexDouble r = { 1.0, 0.0 };
+  return { getRandom<double>(), getRandom<double>()};
+}
 
 /*******************************************************************************
  * Multiply Templates
@@ -140,3 +156,5 @@ template< >
 void complexConjugate(CobaltComplexDouble & v) {
   v.s[1] = -v.s[1];
 }
+
+} // end namespace Cobalt
