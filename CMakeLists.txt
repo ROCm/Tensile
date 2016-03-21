@@ -22,18 +22,18 @@ set( ${CobaltSuper_NAME}_VERSION_PATCH 0 )
 #set_property( CACHE Cobalt_APP_NAME )
 
 ############################################################
-# Cobalt Build Mode
+# OPTION - Cobalt Build Mode
 # - LOGGER - Cobalt.lib in log-only mode
 # - BACKEND - Cobalt.lib in full-backend mode
-set( Cobalt_BUILD_MODE "Cobalt_BUILD_MODE_LOGGER" CACHE STRING
+set( Cobalt_BUILD_MODE "LOG_ONLY" CACHE STRING
   "Cobalt operation mode?" )
 set_property( CACHE Cobalt_BUILD_MODE PROPERTY STRINGS
-  Cobalt_BUILD_MODE_LOGGER
-  Cobalt_BUILD_MODE_BACKEND )
+  LOG_ONLY 
+  FULL_BACKEND )
 
 
 ############################################################
-# Cobalt Backend
+# OPTION - Cobalt Backend
 # - OpenCL 1.2
 # - HCC
 set( Cobalt_BACKEND "OpenCL_1.2" CACHE STRING
@@ -62,6 +62,23 @@ if( Cobalt_BACKEND MATCHES "HSA")
   add_definitions( -DCobalt_BACKEND_HSA=1 )
   message( SEND_ERROR "${Cobalt_BACKEND} backend not yet supported." )
 endif()
+
+
+############################################################
+# OPTION - Cobalt Optimizations
+# - On - do write kernels specifically optimized for alpha=1, beta=0
+# - Off - don't write kernels specifically optimized for alpha=1, beta=0
+set( Cobalt_OPTIMIZE_ALPHA "Off" CACHE STRING
+  "Should Cobalt write optimized kernels for alpha=1?" )
+set_property( CACHE Cobalt_OPTIMIZE_ALPHA PROPERTY STRINGS
+  On
+  Off)
+set( Cobalt_OPTIMIZE_BETA "Off" CACHE STRING
+  "Should Cobalt write optimized kernels for beta=0?" )
+set_property( CACHE Cobalt_OPTIMIZE_BETA PROPERTY STRINGS
+  On
+  Off)
+
 
 ############################################################
 # Cobalt Headers needed for all subprojects

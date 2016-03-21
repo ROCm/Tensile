@@ -46,12 +46,15 @@ add_custom_command(
     ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
     ${CobaltBenchmark_CMAKE_DYNAMIC}
   COMMAND
-    python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
+  
+  python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
       --backend=${Cobalt_BACKEND}
       --input-path=${Cobalt_DIR_PROBLEMS}
       --output-path=${Cobalt_DIR_GENERATED}
       --result-file=${Cobalt_FILE_SOLUTIONS}
-  #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py --backend=${Cobalt_BACKEND} --input-path=${Cobalt_DIR_PROBLEMS} --output-path=${Cobalt_DIR_GENERATED} --result-file=${Cobalt_FILE_SOLUTIONS}"
+      --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
+      --optimize-beta=${Cobalt_OPTIMIZE_BETA}
+      #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py --backend=${Cobalt_BACKEND} --input-path=${Cobalt_DIR_PROBLEMS} --output-path=${Cobalt_DIR_GENERATED} --result-file=${Cobalt_FILE_SOLUTIONS} --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA} --optimize-beta=${Cobalt_OPTIMIZE_BETA}"
   DEPENDS ${CobaltGen_SRC}
 )
 

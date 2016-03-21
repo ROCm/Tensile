@@ -10,19 +10,6 @@ set( ${CobaltLib_NAME}_VERSION_PATCH 0 )
 
 
 ############################################################
-# External Definitions
-#set( Cobalt_BACKEND)
-#set( Cobalt_DIR_PSM "" )
-#set( Cobalt_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated )
-
-############################################################
-# Cobalt Headers needed for all subprojects
-#set( CobaltLib_DIR_INCLUDE ${CMAKE_SOURCE_DIR}/CobaltLib/include )
-#set( CobaltLib_PUBLIC_HEADERS ${CobaltLib_DIR_INCLUDE}/Cobalt.h )
-#source_group(API FILES ${CobaltLib_PUBLIC_HEADERS} )
-
-
-############################################################
 # CobaltLib source files
 set( CobaltLib_SRC_STATIC
   src/Cobalt.cpp
@@ -49,7 +36,7 @@ set( CobaltLib_SRC_STATIC
 ############################################################
 # CobaltLib log-only mode
 # - don't generate any files
-if ( Cobalt_BUILD_MODE MATCHES "Cobalt_BUILD_MODE_LOGGER")
+if ( Cobalt_BUILD_MODE MATCHES "LOG_ONLY")
   add_definitions( -DCobalt_LOGGER_ENABLED=1)
   add_definitions( -DCobalt_SOLVER_ENABLED=0)
 
@@ -95,6 +82,8 @@ else()
       --backend=${Cobalt_BACKEND}
       --input-path=${Cobalt_DIR_PSM}
       --output-path=${Cobalt_DIR_GENERATED}
+      --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
+      --optimize-beta=${Cobalt_OPTIMIZE_BETA}
     DEPENDS ${CobaltGen_SRC}
   )
 endif()

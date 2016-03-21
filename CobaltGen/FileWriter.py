@@ -316,7 +316,6 @@ class FileWriter:
             * problem.tensorC.dataType.numBytes()
         if tensorSizeDimC > tensorSizeMaxC:
           tensorSizeMaxC = tensorSizeDimC
-          print "tensorSizeMaxC = " + str(tensorSizeMaxC)
       for dimension in problem.tensorA.dimensions:
         tensorSizeDimA = dimension.stride * dimension.size \
             * problem.tensorA.dataType.numBytes()

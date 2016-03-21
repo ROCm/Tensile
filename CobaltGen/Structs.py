@@ -104,9 +104,9 @@ class DataType:
     zeroString += self.toOpenCL()
     zeroString += ")("
     if self.isReal():
-      zeroString += "0.0, 0.0"
-    else:
       zeroString += "0.0"
+    else:
+      zeroString += "0.0, 0.0"
     zeroString += ")"
     return zeroString
 

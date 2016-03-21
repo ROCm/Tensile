@@ -13,30 +13,9 @@
 
 #include <tuple>
 
-#if 0
-
-// maximums host buffers
-initialHostC float and double
-initialHostA float and double
-initialHostB float and double
-
-cl_mem initialDeviceA = copy initialHostA
-cl_mem initialDeviceB = copy initialHostB
-
-
-for problems
-  solve problem on cpu
-    cpuC = initialC
-  for solutions
-    solve problem on gpu for validation
-      devC = clMemcopy initialHostC
-    benchmark solution
-
-#endif
-
-Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeOne;
 
 
 /*******************************************************************************
@@ -77,7 +56,9 @@ int main( int argc, char *argv[] ) {
     bool isFloatA = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeA());
     bool isFloatB = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeB());
     bool isFloatAlpha = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeAlpha());
+    bool isDoubleAlpha = cobaltDataTypeIsDouble(problemReference->pimpl->getDataTypeAlpha());
     bool isFloatBeta = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeBeta());
+    bool isDoubleBeta = cobaltDataTypeIsDouble(problemReference->pimpl->getDataTypeBeta());
     size_t sizeC = problemReference->pimpl->tensorC.numBytes();
     size_t sizeA = problemReference->pimpl->tensorA.numBytes();
     size_t sizeB = problemReference->pimpl->tensorB.numBytes();
@@ -85,10 +66,10 @@ int main( int argc, char *argv[] ) {
     void *initialDataA = isFloatA ? initialTensorDataFloatA.data : initialTensorDataDoubleA.data;
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
     CobaltScalarData alpha;
-    alpha.data = isFloatAlpha ? alphaFloat.data : alphaDouble.data;
+    alpha.data = isFloatAlpha ? alphaFloat.data : isDoubleAlpha ? alphaDouble.data : nullptr;
     alpha.dataType = problemReference->pimpl->getDataTypeAlpha();
     CobaltScalarData beta;
-    beta.data = isFloatBeta ? betaFloat.data : betaDouble.data;
+    beta.data = isFloatBeta ? betaFloat.data : isDoubleBeta ? betaDouble.data : nullptr; 
     beta.dataType = problemReference->pimpl->getDataTypeBeta();
 
     //if (isFloatC) {
@@ -238,6 +219,7 @@ int main( int argc, char *argv[] ) {
 } // end main
 
 void initTensorData() {
+  printf("Status: Initializing tensor data %.1f MB ...", (tensorSizeMaxC + tensorSizeMaxA + tensorSizeMaxB)/(1024.f*1024.f) );
   // dummy tensors for filling initial data
   initialTensorFloatC.dataType = cobaltDataTypeSingle;
   initialTensorFloatC.numDimensions = 1;
@@ -318,7 +300,7 @@ void initTensorData() {
   betaDouble.data = new double[2];
   static_cast<double *>(betaDouble.data)[0] = 2.0;
   static_cast<double *>(betaDouble.data)[1] = 2.0;
-
+  printf("done.\n");
 }
 
 
@@ -390,7 +372,7 @@ bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
   Cobalt::Tensor tensor) {
-  unsigned int maxToPrint = 4;
+  unsigned int maxToPrint = 16*16;
   unsigned int printCount = 0;
   bool equal = true;
 

@@ -158,7 +158,7 @@ class SolutionWriter:
     s += "  kernelGrid[0] = " + str(solution.kernelGrid[0]) + ";\n"
     s += "  kernelGrid[1] = " + str(solution.kernelGrid[1]) + ";\n"
     s += "  kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
-    s += "  numKernels = " + str(len(solution.kernels)) + ";\n"
+    numKernels = 0
     for i in range(0, len(solution.kernels)):
       if solution.kernels[i] == None:
         s += "  kernelSources[" + str(i) + "] = nullptr;\n"
@@ -169,6 +169,8 @@ class SolutionWriter:
         kernelName = name + "_kernel"
         s += "  kernelSources[" + str(i) + "] = " + srcName + ";\n"
         s += "  kernels[" + str(i) + "] = " + kernelName + ";\n"
+        numKernels += 1
+    s += "  numKernels = " + str(numKernels) + ";\n"
     # edges
     s += "  edge[0] = %s;\n" % ("true" if solution.branch[0].isMultiple() else "false")
     s += "  edge[1] = %s;\n" % ("true" if solution.branch[1].isMultiple() else "false")
@@ -247,6 +249,14 @@ class SolutionWriter:
       s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
           + "[" + str(idx) + "].size);\n"
       s += "  numKernelArgs++;\n"
+    s += "\n"
+
+    # alpha & beta
+    s += "  /* alpha & beta */\n"
+    s += "  requireAlpha = " + "true" if solution.kernels[0].operation.useAlpha else "false"
+    s += ";\n"
+    s += "  requireBeta = " + "true" if solution.kernels[0].operation.useBeta else "false"
+    s += ";\n"
     s += "\n"
 
     # close constructor

@@ -117,6 +117,7 @@ CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
 template< >
 bool almostEqual(float a, float b) {
   bool equal = std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.0001; // 7 digits of precision - 2
+#if 0
   if (!equal) {
     printf("a=%.7e, b=%.7e, a-b=%.7e, denom=%.7e, frac=%.7e\n",
       a,
@@ -126,6 +127,7 @@ bool almostEqual(float a, float b) {
       std::fabs(a - b) / (std::fabs(a) + std::fabs(b) + 1)
       );
   }
+#endif
   return equal;
 }
 template< >

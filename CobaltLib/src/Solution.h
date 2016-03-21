@@ -131,6 +131,9 @@ protected:
   unsigned int kernelArgIdxDim1;
   unsigned int kernelArgIdxSummation;
 
+  bool requireAlpha;
+  bool requireBeta;
+
 };
 
 #endif

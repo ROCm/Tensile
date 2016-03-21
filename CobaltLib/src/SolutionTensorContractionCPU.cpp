@@ -49,6 +49,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
   dataA += tensorDataA.offset;
   TypeB *dataB = (TypeB *)tensorDataB.data;
   dataB += tensorDataB.offset;
+
   
   // index sizes
   unsigned int numIndicesFreeC = problem.tensorC.numDims();
@@ -105,7 +106,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       
       size_t serialIdxA = problem.tensorA.getIndex(coordsA);
       TypeA valueA = dataA[serialIdxA];
-      if ( std::is_same<TypeA,CobaltComplexFloat>::value
+      if ( std::is_same<TypeA, CobaltComplexFloat>::value
         || std::is_same<TypeA, CobaltComplexDouble>::value) {
         if ( problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf
           || problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
@@ -145,15 +146,11 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
 
     size_t serialIdxC = problem.tensorC.getIndex(freeCoord);
-    // TODO alpha, beta
-    if (problem.getDataTypeAlpha() != cobaltDataTypeNone) {
+    if (alpha.data) {
       TypeAlpha *alphaData = static_cast<TypeAlpha*>(alpha.data);
       sumC = multiply<TypeC,TypeAlpha,TypeC>(*alphaData,sumC);
     }
-    if (problem.getDataTypeBeta() != cobaltDataTypeNone) {
-      //if (zzz0z) {
-      //  printf("C[%llu] = %s\n", serialIdxC, tensorElementToString(dataC[serialIdxC]).c_str() );
-      //}
+    if (beta.data) {
       TypeBeta *betaData = static_cast<TypeBeta*>(beta.data);
       TypeC tmp = multiply<TypeC,TypeBeta,TypeC>(*betaData, dataC[serialIdxC]);
       sumC = add<TypeC,TypeC,TypeC>(tmp,sumC);

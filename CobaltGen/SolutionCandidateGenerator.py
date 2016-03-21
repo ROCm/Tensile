@@ -149,6 +149,8 @@ def makeIndexAssignments(kernel, problem):
 ################################################################################
 class SolutionCandidateGenerator:
 
+
+
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
@@ -157,7 +159,7 @@ class SolutionCandidateGenerator:
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1
-  maxMicroTileSize = 1 # 16
+  maxMicroTileSize = 6
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -165,7 +167,8 @@ class SolutionCandidateGenerator:
        8: [ [  8 ], [ 16, 8 ] ], \
       16: [ [ 16 ], [ 8 ] ] \
       }
-  """ 
+  
+  """
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -179,14 +182,26 @@ class SolutionCandidateGenerator:
   universeBranch = [ Structs.BranchType(0), Structs.BranchType(1), \
       Structs.BranchType(2) ]
 
-
-
-    # tile assignment - last two free indices?
+  ##############################################################################
+  # init
+  ##############################################################################
+  def __init__(self, optimizeAlpha, optimizeBeta):
+    self.optimizeAlpha = optimizeAlpha
+    self.optimizeBeta = optimizeBeta
 
   ##############################################################################
   # getSolutionCandidatesForProblem
   ##############################################################################
-  def getSolutionCandidatesForProblem( self, problem ):
+  def getSolutionCandidatesForProblem( self, inputProblem ):
+    problem = copy.deepcopy(inputProblem)
+
+    # optimize alpha and beta?
+    if not self.optimizeAlpha and problem.operation.useAlpha==0:
+      problem.operation.useAlpha = True
+      problem.operation.alphaType = problem.tensorC.dataType
+    if not self.optimizeBeta and problem.operation.useBeta==0:
+      problem.operation.useBeta = True
+      problem.operation.betaType = problem.tensorC.dataType
 
     numIndicesC = len(problem.tensorC.dimensions)
     numIndicesA = len(problem.tensorA.dimensions)
@@ -307,7 +322,7 @@ class SolutionCandidateGenerator:
 
             # for branch types
             for branchType in self.universeBranch:
-              solution.kernelGrid = kernelGrid
+              solution.kernelGrid = copy.deepcopy(kernelGrid)
               solution.kernels = []
 
               # branch - 1 exact kernel

@@ -27,17 +27,17 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 1;
-  size_t sizes[] = {64}; // , 960, 4096};
-  const size_t numStrides = 2;
+  const size_t numSizes = 2;
+  size_t sizes[] = {127, 128};
+  const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
-  size_t batches[] = { 2 };
-  const size_t numDataTypes = 2;
+  size_t batches[] = { 1, 2 };
+  const size_t numDataTypes = 10;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
-
+    
     { cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble },
 
@@ -49,14 +49,16 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 1;
+  const size_t numAlphas = 2;
   const bool alphas[] = { false, true };
-  const size_t numBetas = 1;
+  const size_t numBetas = 2;
   const bool betas[] = { false, true };
+  size_t numTransA = 1;
+  size_t numTransB = 1;
   size_t numProblems = 0;
   cobaltSetup("GEMM");
-  for (size_t transA = 0; transA < 2; transA++) {
-    for (size_t transB = 0; transB < 2; transB++) {
+  for (size_t transA = 0; transA < numTransA; transA++) {
+    for (size_t transB = 0; transB < numTransB; transB++) {
       for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {
         for (size_t nIdx = 0; nIdx < numSizes; nIdx++) {
           for (size_t kIdx = 0; kIdx < numSizes; kIdx++) {
@@ -69,7 +71,7 @@ int main( char * argv[], int argc ) {
                       size_t M = sizes[mIdx];
                       size_t N = sizes[nIdx];
                       size_t K = sizes[kIdx];
-                      //if (M != N || M != K || N != K) continue;
+                      if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       bool alpha = alphas[alphaIdx];
                       bool beta = betas[betaIdx];

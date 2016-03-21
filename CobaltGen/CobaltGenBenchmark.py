@@ -30,7 +30,9 @@ def GenBenchmarkFromFiles( \
     inputFiles, \
     outputPath, \
     resultFile, \
-    backend ):
+    backend, \
+    optimizeAlpha, \
+    optimizeBeta):
 
   ##############################################################################
   # (1) accumulate set of problems
@@ -46,7 +48,7 @@ def GenBenchmarkFromFiles( \
   ##############################################################################
   # (2) list candidate solutions for each problem
   solutionCandidateGenerator = \
-      SolutionCandidateGenerator.SolutionCandidateGenerator()
+      SolutionCandidateGenerator.SolutionCandidateGenerator(optimizeAlpha, optimizeBeta)
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates
@@ -102,6 +104,10 @@ if __name__ == "__main__":
   ap.add_argument("--result-file", dest="resultFile", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
+  ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
+  ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+  ap.set_defaults(optimizeAlphaStr="Off")
+  ap.set_defaults(optimizeBetaStr="Off")
 
   # parse arguments
   args = ap.parse_args()
@@ -114,11 +120,15 @@ if __name__ == "__main__":
 
   # print settings
   print "CobaltGenBenchmark[ " + str(backend) + " ] " + str(inputFiles)
+  print "oAS = " + args.optimizeAlphaStr
+  print "oBS = " + args.optimizeBetaStr
 
   # generate benchmark
   GenBenchmarkFromFiles( \
       inputFiles, \
       args.outputPath, \
       args.resultFile, \
-      backend )
+      backend,
+      args.optimizeAlphaStr=="On",
+      args.optimizeBetaStr=="On" )
 
