@@ -42,9 +42,11 @@ CobaltScalarData betaDouble;
 
 // device tensor data; max sized; initial data get clWriteBuffer each time
 CobaltTensorData deviceTensorDataC; // input and result buffer
-CobaltTensorData deviceTensorDataOnHostC; // result buffer coppied back to host for comparison
 CobaltTensorData deviceTensorDataA;
 CobaltTensorData deviceTensorDataB;
+CobaltTensorData deviceTensorDataOnHostC; // result buffer coppied back to host for comparison
+CobaltTensorData deviceTensorDataOnHostA; // result buffer coppied back to host for comparison
+CobaltTensorData deviceTensorDataOnHostB; // result buffer coppied back to host for comparison
 
 // reference tensor data
 CobaltTensorData referenceTensorDataC; // input and result buffer on host

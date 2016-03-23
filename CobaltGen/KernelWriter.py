@@ -544,10 +544,18 @@ class KernelWriter:
 
     # debug printf - kernel args
     #kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
+    #kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sAK=%u, sAI=%u, sBJ=%u, sBK=%u, sI=%u, sJ=%u, sK=%u\\\\n\\\", offsetC, offsetA, offsetB, strideC0I, strideC1J, strideAK, strideA0I, strideB1J, strideBK, size0I, size1J, sizeK"
     #kStr += ");" + self.endLine
     # end debug printf
 
-
+    # debug printf - tensor A, B
+    #kStr += "unsigned int idx1 = get_global_id(0) + get_global_size(0)*(get_global_id(1)+get_global_size(1)*get_global_id(2));" + self.endLine
+    #kStr += "unsigned int idx2 = idx1+(get_global_size(0)*get_global_size(1)*get_global_size(2));" + self.endLine
+    #
+    #kStr += "printf(\\\"A[%u] = %f, A[%u] = %f; B[%u] = %f, B[%u] = %f\\\\n\\\", idx1, A[idx1], idx2, A[idx2], idx1, B[idx1], idx2, B[idx2]"
+    #kStr += ");" + self.endLine
+    # end debug printf
+    
 
     ####################################
     # apply offsets
@@ -750,7 +758,7 @@ class KernelWriter:
     # load A whole WG
     for a in range(0, numALoads):
       kStr += indent + "lA[ %d*localAStride ] = " % a
-      if kernel.tile.branch[0]:
+      if not kernel.tile.branch[0].isNone():
         kStr += "( globalIdxA%s(%d) >= size%s) ? %s : " \
             % ( tileCharA, a, tileCharA, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( "
@@ -770,7 +778,7 @@ class KernelWriter:
           + self.endLine
       kStr += indent + "  lA[ %d*localAStride ] = " \
           % numALoads
-      if kernel.tile.branch[0]:
+      if not kernel.tile.branch[0].isNone():
         kStr += "( globalIdxA%s(%d) >= size%s) ? %s : " \
             % ( tileCharA, numALoads, tileCharA, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( "
@@ -784,34 +792,34 @@ class KernelWriter:
       kStr += " ) ];" + self.endLine
 
       # debug printf - values loading into LDS
-      """
-      kStr += "    unsigned int tmpIdx = GET_GLOBAL_INDEX_A( "
-      kStr += "globalIdxA" + indexChars[ \
-          kernel.operation.indexAssignmentsA[0]]  \
-          + "(" + str(numALoads) + ")"
-      for i in range(1,len(kernel.operation.indexAssignmentsA)):
-        kStr += ", globalIdxA" + indexChars[ \
-            kernel.operation.indexAssignmentsA[i]]  \
-            + "(" + str(numALoads) + ")"
-      kStr += " );" + self.endLine
-      kStr += "printf(\\\"T[%u,%u]%u:%u localA[%u] = %f <- globalA[%u] = %f; %u"
-      for i in range(1,len(kernel.operation.indexAssignmentsA)):
-        kStr += ", %u"
-
-      kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, sumIterL, GET_LOCAL_INDEX_A(localA" + tileCharA \
-          + ", localA" + unrollChar +"), "
-      kStr += " lA[0], tmpIdx, A[tmpIdx], "
-
-
-      kStr += "globalIdxA" + indexChars[ \
-          kernel.operation.indexAssignmentsA[0]]  \
-          + "(" + str(numALoads) + ")"
-      for i in range(1,len(kernel.operation.indexAssignmentsA)):
-        kStr += ", globalIdxA" + indexChars[ \
-            kernel.operation.indexAssignmentsA[i]]  \
-            + "(" + str(numALoads) + ")"
-      kStr += ");" + self.endLine
-      """
+      # 
+      # kStr += "    unsigned int tmpIdx = GET_GLOBAL_INDEX_A( "
+      # kStr += "globalIdxA" + indexChars[ \
+      #     kernel.operation.indexAssignmentsA[0]]  \
+      #     + "(" + str(numALoads) + ")"
+      # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      #   kStr += ", globalIdxA" + indexChars[ \
+      #       kernel.operation.indexAssignmentsA[i]]  \
+      #       + "(" + str(numALoads) + ")"
+      # kStr += " );" + self.endLine
+      # kStr += "printf(\\\"T[%u,%u] localA[%u] = %f <- globalA[%u] = %f; %u"
+      # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      #   kStr += ", %u"
+      # 
+      # kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), GET_LOCAL_INDEX_A(localA" + tileCharA \
+      #     + ", localA" + unrollChar +"), "
+      # kStr += " lA[0], tmpIdx, A[tmpIdx], "
+      # 
+      # 
+      # kStr += "globalIdxA" + indexChars[ \
+      #     kernel.operation.indexAssignmentsA[0]]  \
+      #     + "(" + str(numALoads) + ")"
+      # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      #   kStr += ", globalIdxA" + indexChars[ \
+      #       kernel.operation.indexAssignmentsA[i]]  \
+      #       + "(" + str(numALoads) + ")"
+      # kStr += ");" + self.endLine
+      # 
       # end debug printf
 
       kStr += indent + "}" + self.endLine
@@ -819,7 +827,7 @@ class KernelWriter:
     # load B whole WG
     for b in range(0, numBLoads):
       kStr += indent + "lB[ %d*localBStride ] = " % b
-      if kernel.tile.branch[1]:
+      if not kernel.tile.branch[1].isNone():
         kStr += "( globalIdxB%s(%d) >= size%s) ? %s : " \
             % ( tileCharB, b, tileCharB, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( "
@@ -838,7 +846,7 @@ class KernelWriter:
           "*WG_DIM_" + tileChar0 + "*WG_DIM_" + tileChar1 + " < (WG_DIM_" + tileChar1 + "*MICRO_TILE_" + tileChar1 + "*NUM_UNROLL_ITER) ) {" \
           + self.endLine
       kStr += indent + "  lB[ %d*localBStride ] = " % numBLoads
-      if kernel.tile.branch[1]:
+      if not kernel.tile.branch[1].isNone():
         kStr += "(globalIdxB%s(%d) >= size%s) ? %s : " \
             % ( tileCharB, numBLoads, tileCharB, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( "
@@ -856,6 +864,69 @@ class KernelWriter:
       indent + "uint offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
       indent + "uint offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
 
+    # debug printf - values loading into LDS
+    
+    # kStr += "    unsigned int tmpIdxA = GET_GLOBAL_INDEX_A( "
+    # kStr += "globalIdxA" + indexChars[ \
+    #     kernel.operation.indexAssignmentsA[0]]  \
+    #     + "(0)"
+    # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+    #   kStr += ", globalIdxA" + indexChars[ \
+    #       kernel.operation.indexAssignmentsA[i]]  \
+    #       + "(0)"
+    # kStr += " );" + self.endLine
+    # 
+    # 
+    # kStr += "    unsigned int tmpIdxB = GET_GLOBAL_INDEX_B( "
+    # kStr += "globalIdxB" + indexChars[ \
+    #     kernel.operation.indexAssignmentsB[0]]  \
+    #     + "(0)"
+    # for i in range(1,len(kernel.operation.indexAssignmentsB)):
+    #   kStr += ", globalIdxB" + indexChars[ \
+    #       kernel.operation.indexAssignmentsB[i]]  \
+    #       + "(0)"
+    # kStr += " );" + self.endLine
+    # 
+    # 
+    # kStr += "printf(\\\"T[%u,%u]"
+    # kStr += " localA[%u] = %f <- gA[%u] = %f; %u"
+    # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+    #   kStr += ", %u"
+    # kStr += "; "
+    # kStr += " localB[%u] = %f <- gB[%u] = %f; %u"
+    # for i in range(1,len(kernel.operation.indexAssignmentsB)):
+    #   kStr += ", %u"
+    # kStr += "; "
+    # 
+    # kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), "
+    # kStr += "GET_LOCAL_INDEX_A(localA" + tileCharA \
+    #     + ", localA" + unrollChar +"), "
+    # kStr += " lA[0], tmpIdxA, A[tmpIdxA], "
+    # kStr += "globalIdxA" + indexChars[ \
+    #     kernel.operation.indexAssignmentsA[0]]  \
+    #     + "(0)"
+    # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+    #   kStr += ", globalIdxA" + indexChars[ \
+    #       kernel.operation.indexAssignmentsA[i]]  \
+    #       + "(0)"
+    # kStr += ", "
+    # kStr += "GET_LOCAL_INDEX_B(localB" + tileCharB \
+    #     + ", localB" + unrollChar +"), "
+    # kStr += " lB[0], tmpIdxB, B[tmpIdxB], "
+    # kStr += "globalIdxB" + indexChars[ \
+    #     kernel.operation.indexAssignmentsB[0]]  \
+    #     + "(0)"
+    # for i in range(1,len(kernel.operation.indexAssignmentsB)):
+    #   kStr += ", globalIdxB" + indexChars[ \
+    #       kernel.operation.indexAssignmentsB[i]]  \
+    #       + "(0)"
+    # 
+    # 
+    # kStr += ");" + self.endLine
+    # 
+    # end debug printf
+
+
 
     ####################################
     # do mads
@@ -865,7 +936,7 @@ class KernelWriter:
       kStr += indent + "MICRO_TILE" + self.endLine
 
     # debug printf - accumulation in registers
-    #kStr += "  if (validC) printf(\\\"T[%u,%u]%u rC = %f gIdx=%u\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, rC[0][0], GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J, globalIdxCK) );" + self.endLine
+    # kStr += "  if (validC) printf(\\\"T[%u,%u] rC = %f gIdx=%u\\\\n\\\", get_local_id(0), get_local_id(1), rC[0][0], GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J) );" + self.endLine
     # end debug printf
 
 
@@ -927,13 +998,13 @@ class KernelWriter:
       for b in range(0, kernel.tile.microTile[1]):
         numEdges = 0
         #for i in range(0, len(kernel.indexOrderC)):
-        if kernel.tile.branch[0]:
+        if not kernel.tile.branch[0].isNone():
           kStr += "  if (globalIdxC" \
               + tileChar0 + " + " \
               + str(a) + "*WG_DIM_" + tileChar0 + "" + " < size" \
               + tileChar0 + ") {"
           numEdges += 1
-        if kernel.tile.branch[1]:
+        if not kernel.tile.branch[1].isNone():
           kStr += "  if (globalIdxC" \
               + tileChar1 + " + " \
               + str(b) + "*WG_DIM_" + tileChar1 + "" + " < size" \

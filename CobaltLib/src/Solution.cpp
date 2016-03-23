@@ -332,6 +332,12 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           kernelIdx += 2;
         }
 
+        if ( kernelNumElementsDim0[kernelIdx] == 0
+            || kernelNumElementsDim1[kernelIdx] == 0
+            || kernelNumElementsDimU[kernelIdx] == 0 ) {
+          continue;
+        }
+
         // if this kernelIdx isn't necessary (no edges or corner only...) continue
         if (globalWorkSize[kernelIdx][0] *
             globalWorkSize[kernelIdx][1] *

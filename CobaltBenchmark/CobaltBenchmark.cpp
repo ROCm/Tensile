@@ -73,33 +73,33 @@ int main( int argc, char *argv[] ) {
     beta.dataType = problemReference->pimpl->getDataTypeBeta();
 
     //if (isFloatC) {
-    //  float tmpC[1024];
-    //  memcpy(tmpC, initialDataC, 1024*sizeof(float));
+    //  float tmpC[tensorSizeMaxC/4];
+    //  memcpy(tmpC, initialDataC, tensorSizeMaxC);
     //  printf("floatC[0]=%f\n", tmpC[0]);
     //} else {
-    //  double tmpC[1024];
-    //  memcpy(tmpC, initialDataC, 1024 * sizeof(double));
+    //  double tmpC[tensorSizeMaxC/8];
+    //  memcpy(tmpC, initialDataC, tensorSizeMaxC);
     //  printf("doubleC[0]=%f\n", tmpC[0]);
     //}
     //if (isFloatA) {
-    //  float tmpA[1024];
-    //  memcpy(tmpA, initialDataA, 1024 * sizeof(float));
+    //  float tmpA[tensorSizeMaxA/4];
+    //  memcpy(tmpA, initialDataA, tensorSizeMaxA);
     //  printf("floatA[0]=%f\n", tmpA[0]);
     //} else {
-    //  double tmpA[1024];
-    //  memcpy(tmpA, initialDataA, 1024 * sizeof(double));
+    //  double tmpA[tensorSizeMaxA / 2];
+    //  memcpy(tmpA, initialDataA, tensorSizeMaxA);
     //  printf("doubleA[0]=%f\n", tmpA[0]);
     //}
     //if (isFloatB) {
-    //  float tmpB[1024];
-    //  memcpy(tmpB, initialDataB, 1024 * sizeof(float));
+    //  float tmpB[tensorSizeMaxB / 4];
+    //  memcpy(tmpB, initialDataB, tensorSizeMaxB);
     //  printf("floatB[0]=%f\n", tmpB[0]);
     //} else {
-    //  double tmpB[1024];
-    //  memcpy(tmpB, initialDataB, 1024 * sizeof(double));
+    //  double tmpB[tensorSizeMaxB / 8];
+    //  memcpy(tmpB, initialDataB, tensorSizeMaxB);
     //  printf("doubleB[0]=%f\n", tmpB[0]);
     //}
-    //
+    
     //if (isFloatBeta) {
     //  float tmpBeta[2];
     //  memcpy(tmpBeta, beta.data, 2 * sizeof(float));
@@ -149,7 +149,9 @@ int main( int argc, char *argv[] ) {
       //printf( problemReference->pimpl->tensorC.toString(referenceTensorDataC).c_str() );
     }
 
-
+    //if ( problemIdx == 6 || ) {
+    //  printf("problemIdx = %u\n", problemIdx);
+    //}
 
 
     solutionEndIdx += numSolutionsPerProblem[problemIdx];
@@ -161,7 +163,9 @@ int main( int argc, char *argv[] ) {
 
       // re-initialize device C buffers
       clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataC.data), CL_TRUE, deviceTensorDataC.offset, sizeC, initialDataC, 0, nullptr, nullptr);
-
+      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_TRUE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
+      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_TRUE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
+      clFinish(ctrl.queues[0]);
 
       // ensure kernels are compiled before timing
       solution->enqueue(
@@ -181,19 +185,27 @@ int main( int argc, char *argv[] ) {
         }
 
         // print tensorC-gpu
-        status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataC.data, CL_TRUE, 0, sizeC,
-            deviceTensorDataOnHostC.data, 0, nullptr, nullptr );
+        status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataC.data, CL_TRUE, deviceTensorDataC.offset, sizeC, deviceTensorDataOnHostC.data, 0, nullptr, nullptr);
+        //status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataA.data, CL_TRUE, deviceTensorDataA.offset, sizeA, deviceTensorDataOnHostA.data, 0, nullptr, nullptr);
+        //status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataB.data, CL_TRUE, deviceTensorDataB.offset, sizeB, deviceTensorDataOnHostB.data, 0, nullptr, nullptr );
         CL_CHECK(status)
         status = clFinish(ctrl.queues[0]);
         CL_CHECK(status)
 
-        // print cpu in tensor form
-        // printf("\nTensorC-CPU:\n");
-        // printf(problemReference->pimpl->tensorC.toString(referenceTensorDataC).c_str());
 
         // print gpu in tensor form
-        // printf("\nTensorC-GPU:\n");
-        // printf( problemReference->pimpl->tensorC.toString(deviceTensorDataOnHostC).c_str() );
+        //printf("\nTensorA read from GPU:\n");
+        //printf(problemReference->pimpl->tensorA.toString(deviceTensorDataOnHostA).c_str());
+        //printf("\nTensorB read from GPU:\n");
+        //printf(problemReference->pimpl->tensorB.toString(deviceTensorDataOnHostB).c_str());
+
+        // print cpu in tensor form
+        //printf("\nTensorC-CPU:\n");
+        //printf(problemReference->pimpl->tensorC.toString(referenceTensorDataC).c_str());
+
+        // print gpu in tensor form
+        //printf("\nTensorC-GPU:\n");
+        //printf( problemReference->pimpl->tensorC.toString(deviceTensorDataOnHostC).c_str() );
         
         //printf("\nComparing...\n");
         bool equal = compareTensors(deviceTensorDataOnHostC, referenceTensorDataC, problemReference->pimpl->tensorC, ctrl );
@@ -205,7 +217,9 @@ int main( int argc, char *argv[] ) {
       }
 
       // time solution
-      double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
+      //double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
+      // TODO
+      
       //printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
       // write time to result xml file
 
@@ -275,8 +289,12 @@ void initTensorData() {
   deviceTensorDataOnHostC.offset = 0;
   deviceTensorDataA.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxA, nullptr, &status));
   deviceTensorDataA.offset = 0;
+  deviceTensorDataOnHostA.data = malloc(tensorSizeMaxA);
+  deviceTensorDataOnHostA.offset = 0;
   deviceTensorDataB.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxB, nullptr, &status));
   deviceTensorDataB.offset = 0;
+  deviceTensorDataOnHostB.data = malloc(tensorSizeMaxB);
+  deviceTensorDataOnHostB.offset = 0;
 
   // reference tensor data
   referenceTensorDataC.data = malloc(tensorSizeMaxC);
@@ -372,7 +390,7 @@ bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
   Cobalt::Tensor tensor) {
-  unsigned int maxToPrint = 16*16;
+  unsigned int maxToPrint = 1;
   unsigned int printCount = 0;
   bool equal = true;
 

@@ -2,6 +2,7 @@ import glob
 import argparse
 
 import FileWriter
+import Structs
 
 ################################################################################
 # Generate Backend Files
@@ -78,6 +79,9 @@ if __name__ == "__main__":
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
   ap.add_argument("--enable-validation", dest="validate", action="store_true" )
+  ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
+  ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+
 
   # parse arguments
   args = ap.parse_args()
@@ -89,7 +93,7 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "CobaltGenBackend[ " + str(backend) + " ] " + inputFiles
+  print "CobaltGenBackend[ " + str(backend) + " ] " + str(inputFiles)
 
   # generate backend
   GenBackendFromFiles( \

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <assert.h>
 
 namespace Cobalt {
 
@@ -162,6 +163,7 @@ CobaltStatus Problem::validate( ) {
 
   /* tensorA,B */
   if (tensorA.numDims() != tensorB.numDims()) {
+    assert(false);
     return cobaltStatusOperandNumDimensionsMismatch;
   }
 
@@ -171,34 +173,42 @@ CobaltStatus Problem::validate( ) {
   // no duplicates
   if (indicesFree.size()%2 != 0
       || indicesFree.size() < 2) {
+    assert(false);
     return cobaltStatusOperationNumFreeIndicesInvalid;
   }
   if (indicesFree.size()/2
       + indicesBatch.size()
       + indicesSummation.size()
       != tensorA.numDims() ) {
+    assert(false);
     return cobaltStatusOperationOperandNumIndicesMismatch;
   }
   if (indicesFree.size() + indicesBatch.size()
       != tensorC.numDims() ) {
+    assert(false);
     return cobaltStatusOperationNumFreeIndicesInvalid;
   }
   if (indicesSummation.size() < 1 ) {
+    assert(false);
     return cobaltStatusOperationNumSummationIndicesInvalid;
   }
   size_t maxAssignmentIndex = indicesFree.size() + indicesBatch.size() + indicesSummation.size() - 1;
   for (size_t i = 0; i < tensorA.numDims(); i++) {
     if (indicesA[i] > maxAssignmentIndex) {
+      assert(false);
       return cobaltStatusOperationIndexAssignmentInvalidA;
     }
     if (indicesB[i] > maxAssignmentIndex) {
+      assert(false);
       return cobaltStatusOperationIndexAssignmentInvalidB;
     }
     for (size_t j = i+1; j < tensorA.numDims(); j++) {
       if ( indicesA[i] == indicesA[j] ) {
+        assert(false);
         return cobaltStatusOperationIndexAssignmentDuplicateA;
       }
       if ( indicesB[i] == indicesB[j] ) {
+        assert(false);
         return cobaltStatusOperationIndexAssignmentDuplicateB;
       }
     }
@@ -210,6 +220,7 @@ CobaltStatus Problem::validate( ) {
     unsigned int indexAssignment = indicesA[i];
     if (indexAssignment < tensorC.numDims()) { // match C
       if (tensorC[indexAssignment].size != tensorA[i].size) {
+        assert(false);
         return cobaltStatusOperationIndexAssignmentInvalidA;
       }
     } else { // match B
@@ -225,9 +236,11 @@ CobaltStatus Problem::validate( ) {
       }
       if (indexFound) {
         if (tensorB[indexB].size != tensorA[i].size) {
+          assert(false);
           return cobaltStatusOperationIndexAssignmentInvalidA;
         }
       } else {
+        assert(false);
         return cobaltStatusOperationIndexUnassigned;
       }
     }
@@ -236,6 +249,7 @@ CobaltStatus Problem::validate( ) {
     unsigned int indexAssignment = indicesB[i];
     if (indexAssignment < tensorC.numDims()) { // match C
       if (tensorC[indexAssignment].size != tensorB[i].size) {
+        assert(false);
         return cobaltStatusOperationIndexAssignmentInvalidB;
       }
     } else { // match A
@@ -251,9 +265,11 @@ CobaltStatus Problem::validate( ) {
       }
       if (indexFound) {
         if (tensorA[indexA].size != tensorB[i].size) {
+          assert(false);
           return cobaltStatusOperationIndexAssignmentInvalidB;
         }
       } else {
+        assert(false);
         return cobaltStatusOperationIndexUnassigned;
       }
     }

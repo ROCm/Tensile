@@ -27,13 +27,13 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 2;
-  size_t sizes[] = {127, 128};
-  const size_t numStrides = 1;
+  const size_t numSizes = 3;
+  size_t sizes[] = {63, 64, 127, 128};
+  const size_t numStrides = 2;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
-  const size_t numBatchSizes = 1;
+  const size_t numBatchSizes = 2;
   size_t batches[] = { 1, 2 };
-  const size_t numDataTypes = 10;
+  const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
@@ -49,12 +49,12 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 2;
+  const size_t numAlphas = 1;
   const bool alphas[] = { false, true };
-  const size_t numBetas = 2;
+  const size_t numBetas = 1;
   const bool betas[] = { false, true };
-  size_t numTransA = 1;
-  size_t numTransB = 1;
+  size_t numTransA = 2;
+  size_t numTransB = 2;
   size_t numProblems = 0;
   cobaltSetup("GEMM");
   for (size_t transA = 0; transA < numTransA; transA++) {
@@ -71,7 +71,7 @@ int main( char * argv[], int argc ) {
                       size_t M = sizes[mIdx];
                       size_t N = sizes[nIdx];
                       size_t K = sizes[kIdx];
-                      if (M != N || M != K || N != K) continue;
+                      //if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       bool alpha = alphas[alphaIdx];
                       bool beta = betas[betaIdx];
@@ -144,8 +144,8 @@ CobaltProblem createProblemGEMM(
   CobaltTensor tensorB = createTensorForMatrix(
     dataTypeB,
     initialStride,
-    transB ? N : K,
     transB ? K : N,
+    transB ? N : K,
     numBatches );
 
   // operation
@@ -158,8 +158,8 @@ CobaltProblem createProblemGEMM(
     indexAssignmentsA[0] = transA ? 0 : 3;
     indexAssignmentsA[1] = transA ? 3 : 0;
     indexAssignmentsA[2] = 2;
-    indexAssignmentsB[0] = transB ? 1 : 3;
-    indexAssignmentsB[1] = transB ? 3 : 1;
+    indexAssignmentsB[0] = transB ? 3 : 1;
+    indexAssignmentsB[1] = transB ? 1 : 3;
     indexAssignmentsB[2] = 2;
   } else {
     indexAssignmentsA[0] = transA ? 0 : 2;

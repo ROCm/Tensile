@@ -179,8 +179,8 @@ class SolutionCandidateGenerator:
   """
   universeWorkGroupDim = [ [16,16] ]
  
-  universeBranch = [ Structs.BranchType(0), Structs.BranchType(1), \
-      Structs.BranchType(2) ]
+  # removed non-branch type
+  universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
 
   ##############################################################################
   # init
@@ -268,8 +268,8 @@ class SolutionCandidateGenerator:
         continue
       kernel.unrolls = unroll
       # if last unroll is multiple of last/unrolled summation
-      #if problemSizeUnroll % unroll[len(unroll)-1] > 0:
-      #  continue
+      if problemSizeUnroll % unroll[len(unroll)-1] > 0:
+        continue
       for workGroup in self.universeWorkGroupDim:
         kernel.tile.workGroup = workGroup
         # only try skinny work-group if problem is skinny
@@ -336,37 +336,21 @@ class SolutionCandidateGenerator:
 
               # branch - 2-4 kernels
               elif branchType.isMultiple():
-                if problemSizeDim0 % macroTileDim0 == 0 \
-                    and problemSizeDim1 % macroTileDim1 == 0:
-                  continue
-                solution.branch = [Structs.BranchType(0), Structs.BranchType(0)]
+                solution.branch = [branchType, branchType]
                 # add main kernel
-                kernel.tile.branch = [Structs.BranchType(0), \
-                    Structs.BranchType(0)]
+                kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
                 solution.kernels.append( copy.deepcopy(kernel) )
                 # add edge-0 kernel
-                if problemSizeDim0 % macroTileDim0 != 0:
-                  solution.kernelGrid[0] += 1
-                  solution.branch[0] = branchType
-                  kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
-                  solution.kernels.append( copy.deepcopy(kernel) )
-                else:
-                  solution.kernels.append( None )
+                solution.kernelGrid[0] += 1
+                kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
+                solution.kernels.append( copy.deepcopy(kernel) )                
                 # add edge-1 kernel
-                if problemSizeDim1 % macroTileDim1 != 0:
-                  solution.kernelGrid[1] += 1
-                  solution.branch[1] = branchType
-                  kernel.tile.branch = [ Structs.BranchType(0), branchType ]
-                  solution.kernels.append( copy.deepcopy(kernel) )
-                else:
-                  solution.kernels.append( None )
+                solution.kernelGrid[1] += 1
+                kernel.tile.branch = [ Structs.BranchType(0), branchType ]
+                solution.kernels.append( copy.deepcopy(kernel) )
                 # add corner-01 kernel
-                if problemSizeDim0 % macroTileDim0 != 0 \
-                    and problemSizeDim1 % macroTileDim1 != 0:
-                  kernel.tile.branch = [ branchType, branchType ]
-                  solution.kernels.append( copy.deepcopy(kernel) )
-                else:
-                  solution.kernels.append( None )
+                kernel.tile.branch = [ branchType, branchType ]
+                solution.kernels.append( copy.deepcopy(kernel) )
 
               # branch - 1 branched kernel
               elif branchType.isBranched():
