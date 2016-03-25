@@ -16,7 +16,6 @@ class SolutionTensorContractionCPU : public SolutionTemplate<TypeC,TypeA,TypeB,T
 public:
   SolutionTensorContractionCPU( const Problem & inputProblem );
 
-
   CobaltStatus enqueue(
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
@@ -26,30 +25,11 @@ public:
       CobaltControl & ctrl );
   
   std::string toString( size_t indentLevel ) const;
- 
-
-
-  //CobaltStatus gemm_batched(
-  //  CobaltTensorData tensorDataC,
-  //  CobaltTensorData tensorDataA,
-  //  CobaltTensorData tensorDataB,
-  //  CobaltScalarData alpha,
-  //  CobaltScalarData beta,
-  //  CobaltControl & ctrl );
-  //
-  //CobaltStatus gemm(
-  //  CobaltTensorData tensorDataC,
-  //  CobaltTensorData tensorDataA,
-  //  CobaltTensorData tensorDataB,
-  //  CobaltScalarData alpha,
-  //  CobaltScalarData beta,
-  //  CobaltControl & ctrl );
 };
 
 
 /*******************************************************************************
  * cobaltGetSolution
- * need to list all wanted template variants for compiler in this file
  ******************************************************************************/
 std::tuple<Cobalt::Solution *, CobaltStatus> getSolutionCPU(
     const Cobalt::Problem & problem );

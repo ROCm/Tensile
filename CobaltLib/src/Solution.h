@@ -9,7 +9,7 @@
 namespace Cobalt {
 
 /*******************************************************************************
- * Solution - base private class
+ * Solution - base abstract class without templates
  ******************************************************************************/
 class Solution {
 public:
@@ -48,7 +48,7 @@ struct CobaltSolutionPtrComparator
 
 
 /*******************************************************************************
- * CobaltSolutionTemplate - parent class for all solutions
+ * SolutionTemplate - parent class for all solutions; with templates
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
 class SolutionTemplate : public Solution {
@@ -69,7 +69,7 @@ public:
 
 
 /*******************************************************************************
- * CobaltSolutionOpenCL
+ * CobaltSolutionOpenCL - parent class for OpenCL solutions
  ******************************************************************************/
 #ifdef Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"

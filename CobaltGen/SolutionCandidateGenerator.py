@@ -154,12 +154,12 @@ class SolutionCandidateGenerator:
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
-  skinnyRatioWorkGroup = [ 1, 2]
+  skinnyRatioWorkGroup = [ 256, 2]
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 4
-  maxMicroTileSize = 6
+  minMicroTileSize = 1
+  maxMicroTileSize = 8
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -168,7 +168,6 @@ class SolutionCandidateGenerator:
       16: [ [ 16 ], [ 8 ] ] \
       }
   
-  """
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -178,6 +177,7 @@ class SolutionCandidateGenerator:
                [256,1] ]
   """
   universeWorkGroupDim = [ [16,16] ]
+  """
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
@@ -264,8 +264,8 @@ class SolutionCandidateGenerator:
     # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
       # TODO remove this; for debugging just to one unroll
-      if len(unroll) > 1:
-        continue
+      # if len(unroll) > 1:
+      #   continue
       kernel.unrolls = unroll
       # if last unroll is multiple of last/unrolled summation
       if problemSizeUnroll % unroll[len(unroll)-1] > 0:
@@ -312,6 +312,17 @@ class SolutionCandidateGenerator:
             #maxRegisters /= 2; # TODO remove this; bypasses VS compiler limit string length
             if numRegisters > maxRegisters:
               continue
+
+            localMemoryBytes = 0
+            if kernel.tensorAssignedDim0 == 0: # dim0 in tesnsorA
+              localMemoryBytes = unroll[0] * (macroTileDim0*kernel.dataTypeA.numBytes() + macroTileDim1*kernel.dataTypeB.numBytes())
+            else: # dim1 in tensorA
+              localMemoryBytes = unroll[0] * (macroTileDim0*kernel.dataTypeB.numBytes() + macroTileDim1*kernel.dataTypeA.numBytes())
+            maxLocalMemoryBytes = 32768
+            if localMemoryBytes > maxLocalMemoryBytes:
+              #print "%u = %u * ( %u*%u + %u*%u)\n" % (localMemoryBytes, unroll[0], macroTileDim0, kernel.dataTypeA.numBytes(), macroTileDim1, kernel.dataTypeB.numBytes())
+              continue
+# 1649 candidates -> 128 -> 
 
             # kernel grid
             kernelGrid = [ 1, 1, 1 ]

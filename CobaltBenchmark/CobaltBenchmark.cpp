@@ -462,8 +462,8 @@ double timeSolution(
   CobaltScalarData beta,
   CobaltControl &ctrl) {
 
-  size_t numEnqueuesPerSample = 2;
-  const size_t numSamples = 2;
+  size_t numEnqueuesPerSample = 1;
+  const size_t numSamples = 1;
 
   double sampleTimes[numSamples];
   Cobalt::Timer timer;
