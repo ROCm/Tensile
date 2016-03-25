@@ -298,7 +298,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   size_t *globalWorkOffset = NULL;
 
   // compile kernels
-  char *buildOptions = "";
+  char *buildOptions = "-cl-std=CL2.0";
   for (size_t i = 0; i < numKernels; i++) {
     if (kernelSources[i]) {
       makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );

@@ -158,7 +158,7 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 1
+  minMicroTileSize = 4
   maxMicroTileSize = 6
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
@@ -309,7 +309,7 @@ class SolutionCandidateGenerator:
                 + microTile[0] * kernel.dataTypeA.numRegisters() \
                 + microTile[1] * kernel.dataTypeB.numRegisters() )
             maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
-            maxRegisters /= 2; # TODO remove this; bypasses VS compiler limit string length
+            #maxRegisters /= 2; # TODO remove this; bypasses VS compiler limit string length
             if numRegisters > maxRegisters:
               continue
 

@@ -96,9 +96,9 @@ class KernelWriter:
       kernelName += kernel.tile.branch[1].getChar()
       kernelName += str(kernel.tile.microTile[1])
     if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kernelName += "s"
-    else:
       kernelName += "f"
+    else:
+      kernelName += "s"
     kernelName += "_"
 
     # tile dim B

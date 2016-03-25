@@ -217,7 +217,7 @@ int main( int argc, char *argv[] ) {
       }
 
       // time solution
-      //double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
+      double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
       // TODO
       
       //printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
@@ -462,8 +462,8 @@ double timeSolution(
   CobaltScalarData beta,
   CobaltControl &ctrl) {
 
-  size_t numEnqueuesPerSample = 1;
-  const size_t numSamples = 1;
+  size_t numEnqueuesPerSample = 2;
+  const size_t numSamples = 2;
 
   double sampleTimes[numSamples];
   Cobalt::Timer timer;
