@@ -564,6 +564,9 @@ class Kernel:
     self.indexOrderSummation = []
     self.indexAssignmentDim0 = -1
     self.indexAssignmentDim1 = -1
+    self.unrollDimStride0 = -1
+    self.unrollDimStride1 = -1
+    self.unrollDimSize = -1
     self.unrollDimStrideGreaterThanTileDimStrideA = False
     self.unrollDimStrideLessThanTileDimStrideB = False
 

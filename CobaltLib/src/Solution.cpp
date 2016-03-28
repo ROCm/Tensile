@@ -274,7 +274,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
-  //printf("Status: Enqueueing %s\n", toString(0).c_str());
+  printf("Status: Enqueueing %s\n", toString(0).c_str());
 
   // user is allowed to pass in null for alpha & beta, in which case we'll provide
   // the default values here
@@ -413,7 +413,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         }
 
         // enqueue
-#if 0
+#if 1
         printf("enq[%u,%u,%u] k%u: o{%u, %u, %u} s{%u, %u, %u}, g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
           d0, d1, dU,
           kernelIdx,

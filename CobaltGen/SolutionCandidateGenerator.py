@@ -119,6 +119,7 @@ def makeIndexAssignments(kernel, problem):
   #print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
   unrollDimStrideA = problem.tensorA.dimensions[unrollIndexA].stride
   unrollDimStrideB = problem.tensorB.dimensions[unrollIndexB].stride
+  kernel.unrollDimSize = problem.tensorA.dimensions[unrollIndexA].size
   #print "unrollStrideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
   #print "tensorAssignedDim0 = " + ("A" if kernel.tensorAssignedDim0==0 else "B")
   #print "strideD0 = " + str(strideD0)
@@ -133,11 +134,15 @@ def makeIndexAssignments(kernel, problem):
       unrollDimStrideA > strideD0
     kernel.unrollDimStrideLessThanTileDimStrideB = \
       unrollDimStrideB < strideD1
+    kernel.unrollDimStride0 = unrollDimStrideA
+    kernel.unrollDimStride1 = unrollDimStrideB
   else:
     kernel.unrollDimStrideGreaterThanTileDimStrideA = \
       unrollDimStrideA > strideD1
     kernel.unrollDimStrideLessThanTileDimStrideB = \
       unrollDimStrideB < strideD0
+    kernel.unrollDimStride0 = unrollDimStrideB
+    kernel.unrollDimStride1 = unrollDimStrideA
 
   # print kernel name
   #kw = KernelWriter.KernelWriter(0)
@@ -154,8 +159,8 @@ class SolutionCandidateGenerator:
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
-  skinnyRatioWorkGroup = [ 4, 2]
-  skinnyRatioMicroTile = [ 256, 2]
+  skinnyRatioWorkGroup = [ 1, 2]
+  skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1
@@ -168,6 +173,7 @@ class SolutionCandidateGenerator:
       16: [ [ 16 ], [ 8 ] ] \
       }
   
+  """
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -177,7 +183,6 @@ class SolutionCandidateGenerator:
                [256,1] ]
   """
   universeWorkGroupDim = [ [16,16] ]
-  """
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
@@ -326,10 +331,12 @@ class SolutionCandidateGenerator:
 
             # kernel grid
             kernelGrid = [ 1, 1, 1 ]
-            if tensorStrideDim0 % 1024 == 0:
-              kernelGrid[0] = problemSizeDim0 / 1024;
-            if tensorStrideDim1 % 1024 == 0:
-              kernelGrid[1] = problemSizeDim1 / 1024;
+            if kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0:
+              kernelGrid[0] = kernel.unrollDimStride0 / 1024;
+              kernelGrid[1] = kernel.unrollDimStride1 / 1024;
+              kernelGrid[2] = kernel.unrollDimSize / 1024
+              print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
+
 
             # for branch types
             for branchType in self.universeBranch:
