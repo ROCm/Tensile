@@ -154,8 +154,8 @@ class SolutionCandidateGenerator:
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
-  skinnyRatioWorkGroup = [ 256, 2]
-  skinnyRatioMicroTile = [ 1, 2]
+  skinnyRatioWorkGroup = [ 4, 2]
+  skinnyRatioMicroTile = [ 256, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1

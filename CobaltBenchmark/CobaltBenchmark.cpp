@@ -13,9 +13,9 @@
 
 #include <tuple>
 
-Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeOne;
-Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeOne;
-Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
 
 /*******************************************************************************
