@@ -253,9 +253,9 @@ class SolutionWriter:
 
     # alpha & beta
     s += "  /* alpha & beta */\n"
-    s += "  requireAlpha = " + "true" if solution.kernels[0].operation.useAlpha else "false"
+    s += "  requireAlpha = " + ("true" if solution.kernels[0].operation.useAlpha else "false")
     s += ";\n"
-    s += "  requireBeta = " + "true" if solution.kernels[0].operation.useBeta else "false"
+    s += "  requireBeta = " + ("true" if solution.kernels[0].operation.useBeta else "false")
     s += ";\n"
     s += "\n"
 

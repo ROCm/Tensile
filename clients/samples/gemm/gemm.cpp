@@ -28,7 +28,7 @@ CobaltProblem createProblemGEMM(
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   const size_t numSizes = 1;
-  size_t sizes[] = {4096};
+  size_t sizes[] = {2048};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
@@ -49,10 +49,10 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 1;
-  const bool alphas[] = { false, true };
-  const size_t numBetas = 1;
-  const bool betas[] = { false, true };
+  const size_t numAlphas = 2;
+  const bool alphas[] = { true, false };
+  const size_t numBetas = 2;
+  const bool betas[] = { true, false };
   const size_t numTransA = 1;
   const bool transAs[] = {false, true};
   const size_t numTransB = 1;

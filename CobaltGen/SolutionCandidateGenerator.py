@@ -343,7 +343,7 @@ class SolutionCandidateGenerator:
               solution.kernelGrid = copy.deepcopy(kernelGrid)
               solution.kernels = []
 
-              # branch - 1 exact kernel
+              # branch - 1 exact kernel; DEPRECATED
               if branchType.isNone():
                 if problemSizeDim0 % macroTileDim0 != 0 \
                     or problemSizeDim1 % macroTileDim1 != 0:
@@ -374,6 +374,8 @@ class SolutionCandidateGenerator:
               elif branchType.isBranched():
                 if problemSizeDim0 % macroTileDim0 == 0 \
                     and problemSizeDim1 % macroTileDim1 == 0:
+                  continue
+                if kernelGrid[0] > 1 or kernelGrid[1] > 1 or kernelGrid[2] > 1: # don't use b kernels for 4096 cases b/c already not using single kernel
                   continue
                 solution.branch = [branchType, branchType]
                 kernel.tile.branch = [branchType, branchType ]

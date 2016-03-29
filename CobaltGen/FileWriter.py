@@ -171,20 +171,6 @@ class FileWriter:
     s += "CobaltProblem problems[numProblems];\n"
     s += "Cobalt::Solution *solutionCandidates[numSolutions];\n"
 
-    dataType = Structs.DataType(Structs.DataType.single)
-    s += "// " + dataType.toCpp() + " alphaSingle = 2.f;\n"
-    s += "// " + dataType.toCpp() + " betaSingle = 3.f;\n"
-    dataType = Structs.DataType(Structs.DataType.double)
-    s += "// " + dataType.toCpp() + " alphaDouble = 4.f;\n"
-    s += "// " + dataType.toCpp() + " betaDouble = 5.f;\n"
-    dataType = Structs.DataType(Structs.DataType.complexSingle)
-    s += "// " + dataType.toCpp() + " alphaComplexSingle = { 6.f, 7.f };\n"
-    s += "// " + dataType.toCpp() + " betaComplexSingle = {8.f, 9.f };\n"
-    dataType = Structs.DataType(Structs.DataType.complexDouble)
-    s += "// " + dataType.toCpp() + " alphaComplexDouble = { 10.0, 11.0 };\n"
-    s += "// " + dataType.toCpp() + " betaComplexDouble = {12.0, 13.0 };\n"
-    s += "\n"
-
     # initializeSolutionCandidates
     s += "void initializeSolutionCandidates() {\n"
 

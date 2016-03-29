@@ -68,7 +68,13 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
     localWorkSize[i][2] = 1;
   }
 
-  // kernel - main
+
+  unsigned int numEdgeKernels0 = edge[0] ? 1 : 0;
+  unsigned int numEdgeKernels1 = edge[1] ? 1 : 0;
+  unsigned int numMainKernels0 = kernelGrid[0] - numEdgeKernels0;
+  unsigned int numMainKernels1 = kernelGrid[1] - numEdgeKernels1;
+
+  // 3rd dim is size of all other dimension
   unsigned int sizeOfAllOtherDimensions = 1;
   for (unsigned int i = 0; i < problem.tensorC.numDims(); i++) {
     if (i != indexAssignmentCd0 && i != indexAssignmentCd1) {
@@ -79,36 +85,35 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
   unsigned int sizeOfCAlongD1 = problem.tensorC[indexAssignmentCd1].size;
   unsigned int macroTileSizeAlongD0 = static_cast<unsigned int>(workGroup[0] * microTile[0]); // macroTile
   unsigned int macroTileSizeAlongD1 = static_cast<unsigned int>(workGroup[1] * microTile[1]); // macroTile
-  unsigned int numWorkGroupsAlongD0 = sizeOfCAlongD0 / macroTileSizeAlongD0;
-  unsigned int numWorkGroupsAlongD1 = sizeOfCAlongD1 / macroTileSizeAlongD1;
-  // branch kernel
-  if ( !edge[0] && numWorkGroupsAlongD0*macroTileSizeAlongD0 < sizeOfCAlongD0) {
-    numWorkGroupsAlongD0++;
-  }
-  if (!edge[1] && numWorkGroupsAlongD1*macroTileSizeAlongD1 < sizeOfCAlongD1) {
-    numWorkGroupsAlongD1++;
-  }
-  //size_t numWorkGroups = numWorkGroupsAlongD0 * numWorkGroupsAlongD1 * sizeOfAllOtherDimensions;
+  unsigned int totalWorkGroupsAlongD0 = sizeOfCAlongD0 / macroTileSizeAlongD0;
+  unsigned int totalWorkGroupsAlongD1 = sizeOfCAlongD1 / macroTileSizeAlongD1;
   // divide work groups among kernels in kernelGrid
-  numWorkGroupsAlongD0 /= edge[0] ? (kernelGrid[0]-1) : (kernelGrid[0]);
-  numWorkGroupsAlongD1 /= edge[1] ? (kernelGrid[1]-1) : (kernelGrid[1]);
-  globalWorkSize[0][0] = localWorkSize[0][0] * numWorkGroupsAlongD0;
-  globalWorkSize[0][1] = localWorkSize[0][1] * numWorkGroupsAlongD1;
+  unsigned int mainWorkGroupsAlongD0 = totalWorkGroupsAlongD0 / numMainKernels0; // edge[0] ? (kernelGrid[0]-1) : (kernelGrid[0]);
+  unsigned int mainWorkGroupsAlongD1 = totalWorkGroupsAlongD0 / numMainKernels1; // edge[1] ? (kernelGrid[1]-1) : (kernelGrid[1]);
+  globalWorkSize[0][0] = localWorkSize[0][0] * mainWorkGroupsAlongD0;
+  globalWorkSize[0][1] = localWorkSize[0][1] * mainWorkGroupsAlongD1;
   globalWorkSize[0][2] = localWorkSize[0][2] * sizeOfAllOtherDimensions;
   
-  kernelNumElementsDim0[0] = edge[0] ? numWorkGroupsAlongD0 * macroTileSizeAlongD0 : sizeOfCAlongD0;
-  kernelNumElementsDim1[0] = edge[1] ? numWorkGroupsAlongD1 * macroTileSizeAlongD1 : sizeOfCAlongD1;
+  kernelNumElementsDim0[0] = /*edge[0] ?*/ mainWorkGroupsAlongD0 * macroTileSizeAlongD0; // : sizeOfCAlongD0;
+  kernelNumElementsDim1[0] = /*edge[1] ?*/ mainWorkGroupsAlongD1 * macroTileSizeAlongD1; // : sizeOfCAlongD1;
   kernelNumElementsDimU[0] = problem.tensorA[indexAssignmentAdU].size/kernelGrid[2];
 
-  
+
+  // branch kernel
+  if (/*!edge[0] &&*/ totalWorkGroupsAlongD0*macroTileSizeAlongD0 < sizeOfCAlongD0) {
+    totalWorkGroupsAlongD0++;
+  }
+  if (/*!edge[1] &&*/ totalWorkGroupsAlongD1*macroTileSizeAlongD1 < sizeOfCAlongD1) {
+    totalWorkGroupsAlongD1++;
+  }
 
   // kernel - edge0
   if (edge[0]) {
-    globalWorkSize[1][0] = localWorkSize[1][0]; // * numWorkGroupsAlongD0;
-    globalWorkSize[1][1] = localWorkSize[1][1] * numWorkGroupsAlongD1;
+    globalWorkSize[1][0] = localWorkSize[1][0] * (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0); // * mainWorkGroupsAlongD0;
+    globalWorkSize[1][1] = localWorkSize[1][1] * mainWorkGroupsAlongD1;
     globalWorkSize[1][2] = localWorkSize[1][2] * sizeOfAllOtherDimensions;
-    kernelNumElementsDim0[1] = sizeOfCAlongD0 % macroTileSizeAlongD0;
-    kernelNumElementsDim1[1] = sizeOfCAlongD1;
+    kernelNumElementsDim0[1] = sizeOfCAlongD0 - numMainKernels0*mainWorkGroupsAlongD0*macroTileSizeAlongD0; // % macroTileSizeAlongD0;
+    kernelNumElementsDim1[1] = kernelNumElementsDim1[0]; // sizeOfCAlongD1;
     kernelNumElementsDimU[1] = kernelNumElementsDimU[0];
   } else {
     globalWorkSize[1][0] = 0;
@@ -121,11 +126,11 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
   // kernel - edge1
   if (edge[1]) {
-    globalWorkSize[2][0] = localWorkSize[2][0] * numWorkGroupsAlongD0;
-    globalWorkSize[2][1] = localWorkSize[2][1]; // * numWorkGroupsAlongD1;
+    globalWorkSize[2][0] = localWorkSize[2][0] * mainWorkGroupsAlongD0;
+    globalWorkSize[2][1] = localWorkSize[2][1] * (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1); // * mainWorkGroupsAlongD1;
     globalWorkSize[2][2] = localWorkSize[2][2] * sizeOfAllOtherDimensions;
-    kernelNumElementsDim0[2] = sizeOfCAlongD0;
-    kernelNumElementsDim1[2] = sizeOfCAlongD1 % macroTileSizeAlongD1;
+    kernelNumElementsDim0[2] = kernelNumElementsDim0[0]; // sizeOfCAlongD0;
+    kernelNumElementsDim1[2] = sizeOfCAlongD1 - numMainKernels1*mainWorkGroupsAlongD1*macroTileSizeAlongD1; // % macroTileSizeAlongD1;
     kernelNumElementsDimU[2] = kernelNumElementsDimU[0];
   } else {
     globalWorkSize[2][0] = 0;
@@ -138,8 +143,8 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
   // kernel - edge01
   if (edge[0] && edge[1]) {
-    globalWorkSize[3][0] = localWorkSize[3][0];
-    globalWorkSize[3][1] = localWorkSize[3][1];
+    globalWorkSize[3][0] = localWorkSize[3][0] * (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
+    globalWorkSize[3][1] = localWorkSize[3][1] * (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
     globalWorkSize[3][2] = localWorkSize[3][2] * sizeOfAllOtherDimensions;
     kernelNumElementsDim0[3] = kernelNumElementsDim0[1]; // same Dim0 as edge0 (kernel 1)
     kernelNumElementsDim1[3] = kernelNumElementsDim1[2]; // same Dim1 as edge1 (kernel 2)
@@ -285,13 +290,14 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   if (!alpha.data && requireAlpha) {
     fallbackAlpha = Cobalt::getOne<TypeC>();
     alpha.data = &fallbackAlpha;
-    sizeOfAlpha = sizeof(TypeAlpha);
+    sizeOfAlpha = sizeof(TypeC);
   }
   if (!beta.data && requireBeta) {
     fallbackBeta = Cobalt::getZero<TypeC>();
     beta.data = &fallbackBeta;
-    sizeOfBeta = sizeof(TypeBeta);
+    sizeOfBeta = sizeof(TypeC);
   }
+  TypeC betaOne = Cobalt::getOne<TypeC>(); // if summation unrolled
 
   cl_int status;
   cl_uint workDim = 3;
@@ -407,7 +413,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
         // beta
         if (requireBeta) {
-          status = clSetKernelArg( kernels[kernelIdx], argIdx, sizeOfBeta, beta.data );
+          status = clSetKernelArg( kernels[kernelIdx], argIdx, sizeOfBeta, (dU>0) ? static_cast<void *>(&betaOne) : beta.data );
           CL_CHECK(status)
           argIdx++;
         }

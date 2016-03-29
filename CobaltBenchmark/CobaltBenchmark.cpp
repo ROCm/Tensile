@@ -16,7 +16,8 @@
 Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
-
+// alpha = 2
+// beta = 2
 
 /*******************************************************************************
  * main
@@ -214,10 +215,21 @@ int main( int argc, char *argv[] ) {
         if (!equal) {
           printf("Oops!\n");
         }
-      }
+      } // validation
+#if 0
+      // peek at gpu result
+      status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataC.data, CL_TRUE, deviceTensorDataC.offset, sizeC, deviceTensorDataOnHostC.data, 0, nullptr, nullptr);
+      CL_CHECK(status)
+      status = clFinish(ctrl.queues[0]);
+      CL_CHECK(status)
+
+        // print gpu in tensor form
+        printf("\nTensorC-GPU:\n");
+        printf( problemReference->pimpl->tensorC.toString(deviceTensorDataOnHostC).c_str() );
+#endif
 
       // time solution
-      double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
+      // double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
       // TODO
       
       //printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
