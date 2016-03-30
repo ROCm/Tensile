@@ -291,7 +291,7 @@ class KernelWriter:
     kStr += "  /* global tile indices being loaded */" + self.endLine
 
     if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kStr += "/* fast read */" + self.endLine
+      kStr += "/* slow read */" + self.endLine
       kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" + tileChar0 \
           + "*MACRO_TILE_" + tileChar0 + " + (localSerial+(LID)*WG_DIM_" \
           + tileChar0 + "*WG_DIM_" + tileChar1 + ")%MACRO_TILE_" \
@@ -300,21 +300,19 @@ class KernelWriter:
           + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \
           + tileChar1 + ")/MACRO_TILE_" + tileChar0 + ")" + self.endLine
     else:
-      kStr += "/* slow read */" + self.endLine
+      kStr += "/* fast read */" + self.endLine
       kStr += "#define globalIdxA" + tileCharA + "(LID) (groupIdx" \
           + tileChar0 + "*MACRO_TILE_" + tileChar0 \
           + " + (localSerial+(LID)*WG_DIM_" \
           + tileChar0 + "*WG_DIM_" + tileChar1 + ")/NUM_UNROLL_ITER)" \
           + self.endLine
       kStr += "#define globalIdxA" + unrollChar \
-          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
-          + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
+          + "(LID) (localSerial%NUM_UNROLL_ITER)" + self.endLine
 
     if kernel.unrollDimStrideLessThanTileDimStrideB:
       kStr += "/* slow read */" + self.endLine
       kStr += "#define globalIdxB" + unrollChar \
-          + "(LID) ((localSerial+(LID)*WG_DIM_" + tileChar0 \
-          + "*WG_DIM_" + tileChar1 + ")%NUM_UNROLL_ITER)" + self.endLine
+          + "(LID) (localSerial%NUM_UNROLL_ITER)" + self.endLine
       kStr += "#define globalIdxB" + tileCharB \
           + "(LID) (groupIdx" + tileChar1 + "*MACRO_TILE_" + tileChar1 \
           + " + (localSerial+(LID)*WG_DIM_" + tileChar0 + "*WG_DIM_" \

@@ -310,9 +310,11 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       // compare results
       bool equal = compareTensors(gpuOnHostC, *(static_cast<CobaltTensorData *>(ctrl.validate) ), problem.tensorC, ctrl);
       entry.validationStatus = equal ? ValidationStatus::statusValid : ValidationStatus::statusInvalid;
-      printf("%s validation %s", equal ? "PASSED" : "FAILED", toString(0).c_str() );
+      printf("%s validation %s;", equal ? "PASSED" : "FAILED", toString(0).c_str() );
       // cleanup
       delete gpuOnHostC.data;
+    } else {
+      printf("%s;", toString(0).c_str());
     }
 
     // benchmarking

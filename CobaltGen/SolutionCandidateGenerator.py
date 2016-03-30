@@ -155,6 +155,8 @@ def makeIndexAssignments(kernel, problem):
 class SolutionCandidateGenerator:
 
 
+  maxLocalMemoryBytes = 32768
+  maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
 
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
@@ -163,8 +165,8 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 1
-  maxMicroTileSize = 8
+  minMicroTileSize = 4
+  maxMicroTileSize = 6
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -313,9 +315,8 @@ class SolutionCandidateGenerator:
                 * kernel.dataTypeC.numRegisters() \
                 + microTile[0] * kernel.dataTypeA.numRegisters() \
                 + microTile[1] * kernel.dataTypeB.numRegisters() )
-            maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
             #maxRegisters /= 2; # TODO remove this; bypasses VS compiler limit string length
-            if numRegisters > maxRegisters:
+            if numRegisters > self.maxRegisters:
               continue
 
             localMemoryBytes = 0
@@ -323,8 +324,7 @@ class SolutionCandidateGenerator:
               localMemoryBytes = unroll[0] * (macroTileDim0*kernel.dataTypeA.numBytes() + macroTileDim1*kernel.dataTypeB.numBytes())
             else: # dim1 in tensorA
               localMemoryBytes = unroll[0] * (macroTileDim0*kernel.dataTypeB.numBytes() + macroTileDim1*kernel.dataTypeA.numBytes())
-            maxLocalMemoryBytes = 32768
-            if localMemoryBytes > maxLocalMemoryBytes:
+            if localMemoryBytes > self.maxLocalMemoryBytes:
               #print "%u = %u * ( %u*%u + %u*%u)\n" % (localMemoryBytes, unroll[0], macroTileDim0, kernel.dataTypeA.numBytes(), macroTileDim1, kernel.dataTypeB.numBytes())
               continue
 # 1649 candidates -> 128 -> 

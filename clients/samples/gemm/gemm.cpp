@@ -34,7 +34,7 @@ int main( char * argv[], int argc ) {
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
   size_t batches[] = { 1, 2 };
-  const size_t numDataTypes = 4;
+  const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },

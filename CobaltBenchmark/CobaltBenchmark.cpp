@@ -30,7 +30,7 @@ int main( int argc, char *argv[] ) {
   // setup CobaltLib
   std::string logFilePath = Cobalt_DIR_SOLUTIONS;
   logFilePath += "/CobaltBenchmark_log.xml";
-  cobaltSetup(logFilePath);
+  cobaltSetup(logFilePath.c_str());
 
   // create CobaltControl
   initControls();
@@ -119,7 +119,7 @@ int main( int argc, char *argv[] ) {
       clFinish(ctrl.queues[0]);
 
       // ensure kernels are compiled before timing
-      ctrl.benchmark = 10;
+      ctrl.benchmark = 1;
       solution->enqueueEntry(
           deviceTensorDataC,
           deviceTensorDataA,
