@@ -335,7 +335,11 @@ class SolutionCandidateGenerator:
               kernelGrid[0] = kernel.unrollDimStride0 / 1024;
               kernelGrid[1] = kernel.unrollDimStride1 / 1024;
               kernelGrid[2] = kernel.unrollDimSize / 1024
-              print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
+              if kernelGrid[2] > 1 and not kernel.operation.useBeta:
+                  kernel.operation.useBeta = True
+                  kernel.operation.betaType = problem.tensorC.dataType
+                  print "forcing useBeta=True due to mod1024 kernel grid"
+              # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
 
 
             # for branch types
