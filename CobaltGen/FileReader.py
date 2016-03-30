@@ -89,9 +89,7 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
     elif tag == "DeviceProfile":
       pass
     elif tag == "Device":
-      device = Structs.Device(attributes["name"], \
-          int(attributes["numComputeUnits"]), \
-          int(attributes["clockFrequency"]) )
+      device = Structs.Device(attributes["name"] )
       self.problem.deviceProfile.devices.append( device )
       pass
 

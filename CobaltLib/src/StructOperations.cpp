@@ -203,7 +203,32 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
 
 // CobaltControl
 bool operator< (const CobaltControl & l, const CobaltControl & r) {
-  return l.numDependencies < r.numDependencies;
+  if (l.validate < r.validate) {
+    return true;
+  } else if (r.validate < l.validate) {
+    return false;
+  }
+  if (l.benchmark < r.benchmark) {
+    return true;
+  } else if (r.benchmark < l.benchmark) {
+    return false;
+  }
+#if Cobalt_BACKEND_OPENCL12
+  if (l.numQueues < r.numQueues) {
+    return true;
+  } else if (r.numQueues < l.numQueues) {
+    return false;
+  }
+  for (unsigned int i = 0; i < l.numQueues; i++) {
+    if (l.queues[i] < r.queues[i]) {
+      return true;
+    } else if (r.queues[i] < l.queues[i]) {
+      return false;
+    }
+  }
+#endif
+  // identical
+  return false;
 }
 
 bool operator==(const CobaltDimension & l, const CobaltDimension & r) {

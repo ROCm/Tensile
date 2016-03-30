@@ -27,8 +27,8 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 1;
-  size_t sizes[] = {2048};
+  const size_t numSizes = 2;
+  size_t sizes[] = {31, 96};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
@@ -49,7 +49,7 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 2;
+  const size_t numAlphas = 1;
   const bool alphas[] = { true, false };
   const size_t numBetas = 2;
   const bool betas[] = { true, false };
@@ -73,7 +73,7 @@ int main( char * argv[], int argc ) {
                       size_t M = sizes[mIdx];
                       size_t N = sizes[nIdx];
                       size_t K = sizes[kIdx];
-                      if (M != N || M != K || N != K) continue;
+                      //if (M != N || M != K || N != K) continue;
                       size_t initStride = initialStrides[sIdx];
                       bool alpha = alphas[alphaIdx];
                       bool beta = betas[betaIdx];
@@ -171,11 +171,9 @@ CobaltProblem createProblemGEMM(
   }
 
   // problem - device problem
-  CobaltDeviceProfile deviceProfile;
+  CobaltDeviceProfile deviceProfile = cobaltCreateDeviceProfile();
   deviceProfile.numDevices = 1;
   sprintf_s(deviceProfile.devices[0].name, "Hawaii" );
-  deviceProfile.devices[0].numComputeUnits = 44;
-  deviceProfile.devices[0].clockFrequency = 900; // MHz
 
 
   CobaltStatus status;
@@ -222,7 +220,7 @@ CobaltTensor createTensorForMatrix(
     size_t dim1,
     size_t dimBatch
     ) {
-  CobaltTensor tensor;
+  CobaltTensor tensor = cobaltCreateTensor();
   tensor.dataType = dataType;
   tensor.numDimensions = 2;
   tensor.dimensions[0].stride = (unsigned int)initialStride;

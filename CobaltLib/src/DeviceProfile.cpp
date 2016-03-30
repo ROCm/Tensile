@@ -7,9 +7,7 @@ namespace Cobalt {
  * Device - constructors
  ******************************************************************************/
 Device::Device( CobaltDevice device )
-  : name(device.name),
-  numComputeUnits(device.numComputeUnits),
-  clockFrequency(device.clockFrequency) { }
+  : name(device.name) { }
 
 Device::Device()
   : name("uninitialized"),
@@ -18,8 +16,6 @@ Device::Device()
 
 void Device::init( CobaltDevice device ) {
   name.assign(device.name);
-  numComputeUnits = device.numComputeUnits;
-  clockFrequency = device.clockFrequency;
 }
 
 /*******************************************************************************
@@ -30,8 +26,6 @@ std::string Device::toStringXML( size_t indentLevel ) const {
   state += "<Device name=\"";
   state += name;
   state += "\"";
-  state += " numComputeUnits=\"" + std::to_string(numComputeUnits) + "\"";
-  state += " clockFrequency=\"" + std::to_string(clockFrequency) + "\"";
   state += " />\n";
   return state;
 }

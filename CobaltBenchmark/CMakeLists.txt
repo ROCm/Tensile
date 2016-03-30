@@ -1,16 +1,13 @@
 set( CobaltBenchmark_NAME CobaltBenchmark )
 
-############################################################
-# defined externally
-#set( Cobalt_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated ) # temp
-#set( Cobalt_DIR_PROBLEMS ${Cobalt_DIR_GENERATED}/AppProblemLogs ) # input
-#set( Cobalt_SOLUTIONS ${Cobalt_SOLUTIONS}/Cobal_SOLUTIONS_PREFIX.xml ) # output
-
-
 # static source files
 set( CobaltBenchmark_SRC_STATIC
   CobaltBenchmark.cpp
   CobaltBenchmark.h
+  ../CobaltLib/include/Cobalt.h
+  ../CobaltLib/src/Cobalt.cpp
+  ../CobaltLib/src/Solution.h
+  ../CobaltLib/src/Solution.cpp
   ../CobaltLib/src/Tools.h
   ../CobaltLib/src/Tools.cpp
 )
@@ -102,3 +99,5 @@ add_custom_command(
     ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
 )
 
+add_definitions( -DCobalt_LOGGER_ENABLED=1)
+add_definitions( -DCobalt_SOLVER_ENABLED=0)

@@ -243,18 +243,12 @@ class Backend:
 class Device:
   def __init__(
       self, \
-      name, \
-      numComputeUnits, \
-      clockFrequency ):
+      name):
     self.name = name
-    self.numComputeUnits = numComputeUnits
-    self.clockFrequency = clockFrequency; # MHz
 
   def __str__(self):
     state = "[Device"
     state += "; " + self.name
-    state += "; " + str(self.numComputeUnits)
-    state += "; " + str(self.clockFrequency)
     state += "]"
     return self.name
 
@@ -264,8 +258,6 @@ class Device:
   def getAttributes(self):
     return ( \
         self.name, \
-        self.numComputeUnits, \
-        self.clockFrequency, \
         )
   def __hash__(self):
     return hash(self.getAttributes())

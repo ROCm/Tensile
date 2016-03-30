@@ -43,11 +43,64 @@ CobaltStatus cobaltSetup( const char *logFileName ) {
   return cobaltStatusSuccess;
 }
 
+
 /*******************************************************************************
  * cobaltTeardown
  ******************************************************************************/
 CobaltStatus cobaltTeardown() {
   return cobaltStatusSuccess;
+}
+
+
+/*******************************************************************************
+* cobaltCreateTensor
+* - returns CobaltTensor initialized to zero
+******************************************************************************/
+CobaltTensor cobaltCreateTensor() {
+  CobaltTensor tensor;
+  tensor.dataType = cobaltDataTypeNone;
+  tensor.numDimensions = 0;
+  for (int i = 0; i < CobaltTensor::maxDimensions; i++) {
+    tensor.dimensions[i].size = 0;
+    tensor.dimensions[i].stride = 0;
+  }
+  return tensor;
+}
+
+
+/*******************************************************************************
+* cobaltCreateDeviceProfile
+* returns CobaltDeviceProfile initialized to zero
+******************************************************************************/
+CobaltDeviceProfile cobaltCreateDeviceProfile() {
+  CobaltDeviceProfile profile;
+  profile.numDevices = 0;
+  for (int i = 0; i < CobaltDeviceProfile::maxDevices; i++) {
+    profile.devices[i].name[0] = '\0';
+  }
+  return profile;
+}
+
+
+/*******************************************************************************
+* cobaltCreateControl
+* returns CobaltControl initialized to zero
+******************************************************************************/
+CobaltControl cobaltCreateControl() {
+  CobaltControl control;
+  control.validate = nullptr;
+  control.benchmark = 0;
+#if Cobalt_BACKEND_OPENCL12
+  control.numQueues = 0;
+  control.numInputEvents = 0;
+  control.numOutputEvents = 0;
+  control.inputEvents = nullptr;
+  control.outputEvents = nullptr;
+  for (int i = 0; i < CobaltControl::maxQueues; i++) {
+    control.queues[i] = nullptr;
+  }
+#endif
+  return control;
 }
 
 

@@ -68,10 +68,10 @@ int main( int argc, char *argv[] ) {
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
     CobaltScalarData alpha;
     alpha.data = isFloatAlpha ? alphaFloat.data : isDoubleAlpha ? alphaDouble.data : nullptr;
-    alpha.dataType = problemReference->pimpl->getDataTypeAlpha();
+    //alpha.dataType = problemReference->pimpl->getDataTypeAlpha();
     CobaltScalarData beta;
     beta.data = isFloatBeta ? betaFloat.data : isDoubleBeta ? betaDouble.data : nullptr; 
-    beta.dataType = problemReference->pimpl->getDataTypeBeta();
+    //beta.dataType = problemReference->pimpl->getDataTypeBeta();
 
     //if (isFloatC) {
     //  float tmpC[tensorSizeMaxC/4];
@@ -352,22 +352,13 @@ void initControls() {
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
 
   // device control
+  ctrl = cobaltCreateControl();
   for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
     ctrl.queues[ctrl.numQueues] = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   }
-  ctrl.inputEvents = nullptr;
-  ctrl.numInputEvents = 0;
-  ctrl.numDependencies = 0;
-  ctrl.numOutputEvents = 0;
-  ctrl.outputEvents = nullptr;
 
   // host control
-  ctrlValidation.inputEvents = nullptr;
-  ctrlValidation.numInputEvents = 0;
-  ctrlValidation.numDependencies = 0;
-  ctrlValidation.numOutputEvents = 0;
-  ctrlValidation.outputEvents = nullptr;
-  ctrlValidation.numQueues = 0;
+  ctrlValidation = cobaltCreateControl();
 
   // reference device
   deviceProfileReference.numDevices = 1;

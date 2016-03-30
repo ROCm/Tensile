@@ -181,6 +181,11 @@ typedef struct CobaltTensor_ {
   CobaltDimension dimensions[maxDimensions];
 } CobaltTensor;
 
+/*******************************************************************************
+* cobaltCreateTensor
+* - returns CobaltTensor initialized to zero
+******************************************************************************/
+CobaltTensor cobaltCreateTensor();
 
 /*******************************************************************************
  * Tensor Data - OpenCL 1.2
@@ -195,7 +200,6 @@ typedef struct CobaltTensorData_ {
 
 typedef struct CobaltScalarData_ {
   void *data;
-  CobaltDataType dataType; // TODO remove
 } CobaltScalarData;
 
 /*******************************************************************************
@@ -220,8 +224,6 @@ typedef void* CobaltTensorData;
 typedef struct CobaltDevice_ {
   enum { maxNameLength = 256 } maxNameLength_;
   char name[maxNameLength];
-  unsigned int numComputeUnits;
-  unsigned int clockFrequency;
 } CobaltDevice;
 
 
@@ -235,6 +237,11 @@ typedef struct CobaltDeviceProfile_ {
   CobaltDevice devices[maxDevices];
 } CobaltDeviceProfile;
 
+/*******************************************************************************
+* cobaltCreateDeviceProfile
+* returns CobaltDeviceProfile initialized to zero
+******************************************************************************/
+CobaltDeviceProfile cobaltCreateDeviceProfile();
 
 /*******************************************************************************
  * CobaltOperationType
@@ -251,23 +258,24 @@ typedef enum CobaltOperationType_ {
  * controls the execution of the solution (queue, dependencies, dependents)
  ******************************************************************************/
 typedef struct CobaltControl_ {
-  unsigned int numDependencies;
-  unsigned int mode; // bitfield
+  void *validate;
+  unsigned int benchmark;
 #if Cobalt_BACKEND_OPENCL12
   enum { maxQueues = 16 } maxQueues_;
   unsigned int numQueues;
   cl_command_queue queues[maxQueues];
-  cl_uint numInputEvents; // superfluous for AMD
-  cl_event *inputEvents; // superfluous for AMD
-  cl_uint numOutputEvents; // superfluous for AMD
-  cl_event *outputEvents; // superfluous for AMD
+  cl_uint numInputEvents;
+  cl_event *inputEvents;
+  cl_uint numOutputEvents;
+  cl_event *outputEvents;
 #endif
 } CobaltControl;
 
-#define Cobalt_CONTROL_MODE_VALIDATE          (1<<0)
-#define Cobalt_CONTROL_MODE_VALIDATE_KERNELS  (1<<1)
-#define Cobalt_CONTROL_MODE_BENCHMARK         (1<<2)
-#define Cobalt_CONTROL_MODE_BENCHMARK_KERNELS (1<<3)
+/*******************************************************************************
+* cobaltCreateControl
+* returns CobaltControl initialized to zero
+******************************************************************************/
+CobaltControl cobaltCreateControl();
 
 
 /*******************************************************************************
