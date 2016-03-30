@@ -1,5 +1,6 @@
 #include "Cobalt.h"
 #include <stdio.h>
+#include <string>
 
 CobaltTensor createTensorForMatrix(
     CobaltDataType dataType,
@@ -27,13 +28,13 @@ CobaltProblem createProblemGEMM(
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 2;
-  size_t sizes[] = {31, 96};
+  const size_t numSizes = 1;
+  size_t sizes[] = {5760};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
   size_t batches[] = { 1, 2 };
-  const size_t numDataTypes = 1;
+  const size_t numDataTypes = 4;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
@@ -51,14 +52,16 @@ int main( char * argv[], int argc ) {
   };
   const size_t numAlphas = 1;
   const bool alphas[] = { true, false };
-  const size_t numBetas = 2;
+  const size_t numBetas = 1;
   const bool betas[] = { true, false };
-  const size_t numTransA = 1;
+  const size_t numTransA = 2;
   const bool transAs[] = {false, true};
-  const size_t numTransB = 1;
+  const size_t numTransB = 2;
   const bool transBs[] = {true, false};
   size_t numProblems = 0;
-  cobaltSetup("GEMM");
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  logFilePath += "/GEMM_log.xml";
+  cobaltSetup(logFilePath.c_str());
   for (size_t transA = 0; transA < numTransA; transA++) {
     for (size_t transB = 0; transB < numTransB; transB++) {
       for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {
@@ -171,7 +174,7 @@ CobaltProblem createProblemGEMM(
   }
 
   // problem - device problem
-  CobaltDeviceProfile deviceProfile = cobaltCreateDeviceProfile();
+  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
   deviceProfile.numDevices = 1;
   sprintf_s(deviceProfile.devices[0].name, "Hawaii" );
 
@@ -220,7 +223,7 @@ CobaltTensor createTensorForMatrix(
     size_t dim1,
     size_t dimBatch
     ) {
-  CobaltTensor tensor = cobaltCreateTensor();
+  CobaltTensor tensor = cobaltCreateEmptyTensor();
   tensor.dataType = dataType;
   tensor.numDimensions = 2;
   tensor.dimensions[0].stride = (unsigned int)initialStride;

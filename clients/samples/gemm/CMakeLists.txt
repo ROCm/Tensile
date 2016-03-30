@@ -18,3 +18,7 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( ${SAMPLE_GEMM_NAME} ${OpenCL_LIBRARY} )
 endif()
 
+
+add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
+add_definitions(-DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}")
+add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")

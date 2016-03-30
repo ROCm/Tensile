@@ -47,6 +47,27 @@ protected:
 
 };
 
+
+template<typename DataType>
+bool compareTensorsTemplate(
+  DataType *gpuData,
+  DataType *cpuData,
+  Cobalt::Tensor tensor);
+
+
+bool compareTensors(
+  CobaltTensorData gpu,
+  CobaltTensorData cpu,
+  Cobalt::Tensor tensor,
+  CobaltControl ctrl);
+
+
+template<typename DataType>
+void printMismatch(size_t index, DataType gpuData, DataType cpuData);
+
+template<typename DataType>
+void printMatch(size_t index, DataType gpuData, DataType cpuData);
+
 } // namespace
 
 #endif

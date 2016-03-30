@@ -175,13 +175,13 @@ class FileWriter:
     s += "void initializeSolutionCandidates() {\n"
 
     # DeviceProfile
-    s += "  CobaltDeviceProfile deviceProfile = cobaltCreateDeviceProfile();\n"
+    s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
     s += "  deviceProfile.numDevices = 1;\n"
     s += "  sprintf_s(deviceProfile.devices[0].name, \"TODO\" );\n"
     s += "\n"
-    s += "  CobaltTensor tensorC = cobaltCreateTensor();\n"
-    s += "  CobaltTensor tensorA = cobaltCreateTensor();\n"
-    s += "  CobaltTensor tensorB = cobaltCreateTensor();\n"
+    s += "  CobaltTensor tensorC = cobaltCreateEmptyTensor();\n"
+    s += "  CobaltTensor tensorA = cobaltCreateEmptyTensor();\n"
+    s += "  CobaltTensor tensorB = cobaltCreateEmptyTensor();\n"
     s += "  std::vector<unsigned int> indexAssignmentsA(CobaltTensor::maxDimensions);\n"
     s += "  std::vector<unsigned int> indexAssignmentsB(CobaltTensor::maxDimensions);\n"
     s += "  CobaltOperationType operationType;\n"

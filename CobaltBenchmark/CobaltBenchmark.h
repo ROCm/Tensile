@@ -73,38 +73,6 @@ void initTensorData();
 void fillTensor(CobaltTensor, CobaltTensorData, Cobalt::Tensor::FillType, void *src);
 void initControls();
 
-template<typename DataType>
-void printMismatch( size_t index, DataType gpuData, DataType cpuData );
-
-template<typename DataType>
-void printMatch(size_t index, DataType gpuData, DataType cpuData);
-
-
-template<typename DataType>
-bool compareTensorsTemplate(
-  DataType *gpuData,
-  DataType *cpuData,
-  Cobalt::Tensor tensor);
-
-
-bool compareTensors(
-    CobaltTensorData gpu,
-    CobaltTensorData cpu,
-    Cobalt::Tensor tensor,
-    CobaltControl ctrl );
-
-/*******************************************************************************
- * timeSolution - milliseconds
- ******************************************************************************/
-double timeSolution(
-    Cobalt::Solution *solution,
-    CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
-    CobaltControl &ctrl);
-
 bool cobaltDataTypeIsHalf( CobaltDataType dataType );
 bool cobaltDataTypeIsFloat( CobaltDataType dataType );
 bool cobaltDataTypeIsDouble( CobaltDataType dataType );

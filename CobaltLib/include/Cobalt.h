@@ -182,10 +182,10 @@ typedef struct CobaltTensor_ {
 } CobaltTensor;
 
 /*******************************************************************************
-* cobaltCreateTensor
+* cobaltCreateEmptyTensor
 * - returns CobaltTensor initialized to zero
 ******************************************************************************/
-CobaltTensor cobaltCreateTensor();
+CobaltTensor cobaltCreateEmptyTensor();
 
 /*******************************************************************************
  * Tensor Data - OpenCL 1.2
@@ -238,10 +238,10 @@ typedef struct CobaltDeviceProfile_ {
 } CobaltDeviceProfile;
 
 /*******************************************************************************
-* cobaltCreateDeviceProfile
+* cobaltCreateEmptyDeviceProfile
 * returns CobaltDeviceProfile initialized to zero
 ******************************************************************************/
-CobaltDeviceProfile cobaltCreateDeviceProfile();
+CobaltDeviceProfile cobaltCreateEmptyDeviceProfile();
 
 /*******************************************************************************
  * CobaltOperationType
@@ -272,10 +272,10 @@ typedef struct CobaltControl_ {
 } CobaltControl;
 
 /*******************************************************************************
-* cobaltCreateControl
+* cobaltCreateEmptyControl
 * returns CobaltControl initialized to zero
 ******************************************************************************/
-CobaltControl cobaltCreateControl();
+CobaltControl cobaltCreateEmptyControl();
 
 
 /*******************************************************************************
@@ -362,7 +362,7 @@ CobaltStatus cobaltStatusToString(
 CobaltStatus cobaltProblemToString(
     CobaltProblem problem, char *cstr, unsigned int *size );
 CobaltStatus cobaltSolutionToString(
-    CobaltProblem problem, char *cstr, unsigned int *size );
+    CobaltSolution solution, char *cstr, unsigned int *size );
 
 
 

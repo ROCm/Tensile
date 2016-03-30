@@ -11,7 +11,6 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
   def __init__(self, problemSet):
     self.problemSet = problemSet
     self.numProblemsAdded = 0
-    self.inSummaryGetSolution = False
     self.problem = Structs.Problem()
 
     self.currentTensor = 0
@@ -21,11 +20,7 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
     self.indexAssignments = []
 
   def startElement(self, tag, attributes):
-    if tag == "SummaryGetSolution": # DONE
-      self.inSummaryGetSolution = True
-    elif not self.inSummaryGetSolution: # DONE
-      return
-    elif tag == "Problem": # DONE
+    if tag == "Problem": # DONE
       self.problem = Structs.Problem()
     elif tag == "Tensor": # DONE
       self.tensor = Structs.Tensor()
@@ -94,15 +89,11 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
       pass
 
   def endElement(self, tag):
-    if tag == "SummaryGetSolution": # DONE
-      self.inSummaryGetSolution = False
-    elif not self.inSummaryGetSolution: # DONE
-      return
-    elif tag == "Problem": # DONE
+    if tag == "Problem": # DONE
       #print "Completed Problem:"
       #print str(self.problem)
-      if self.problem in self.problemSet:
-        print "Oops; problem already in set: " + str(self.problem)
+      # if self.problem in self.problemSet:
+      #   print "Oops; problem already in set: " + str(self.problem)
       self.problemSet.add(copy.deepcopy(self.problem))
       self.numProblemsAdded += 1
     elif tag == "Tensor": # DONE
@@ -156,8 +147,8 @@ def getProblemsFromXML( inputFile, problemSet ):
   parser.setContentHandler( appProblemsHandler )
   try:
     parser.parse( inputFile )
-    print inputFile + " added " + str(appProblemsHandler.numProblemsAdded) \
-        + " problems"
+    print "  + " + str(appProblemsHandler.numProblemsAdded) \
+        + " problem(s) from " + os.path.basename(inputFile)
   except:
     print inputFile + " error"
 

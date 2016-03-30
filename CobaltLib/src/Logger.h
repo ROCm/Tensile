@@ -13,7 +13,12 @@
 #include <fstream>
 
 namespace Cobalt {
-  
+
+  typedef enum ValidationStatus_ {
+    statusValid,
+    statusInvalid,
+    statusNotValidated
+  } ValidationStatus;
 
 /*******************************************************************************
  * Logger
@@ -34,19 +39,19 @@ public:
   } TraceEntryType;
   static std::string toString( TraceEntryType type );
   
+
 /*******************************************************************************
  * trace entry
- * - contains a Problem and an entry type
+ * - contains a Solution and an entry type
  ******************************************************************************/
   class TraceEntry {
   public:
     TraceEntryType type;
     const Cobalt::Solution *solution;
     CobaltStatus status;
-    TraceEntry(
-        TraceEntryType inputType,
-        const Cobalt::Solution *inputSolution,
-        CobaltStatus inputStatus);
+    ValidationStatus validationStatus;
+    std::vector<double> benchmarkTimes;
+    TraceEntry();
     std::string toString( size_t indentLevel );
   };
 
@@ -72,18 +77,19 @@ public:
  * logGetSolution
  * - record a cobaltGetSolution() call
  ******************************************************************************/
-  void logGetSolution(
-      const Cobalt::Solution *solution,
-      CobaltStatus status );
+ // void logGetSolution(
+ //     const Cobalt::Solution *solution,
+ //     CobaltStatus status );
 
 /*******************************************************************************
  * logEnqueueSolution
  * - record a Problem.enqueueSolution() call
  ******************************************************************************/
-  void logEnqueueSolution(
-      const Cobalt::Solution *solution,
-      CobaltStatus status,
-      const CobaltControl *ctrl );
+ // void logEnqueueSolution(
+ //     const Cobalt::Solution *solution,
+ //     CobaltStatus status,
+ //     const CobaltControl *ctrl );
+  void Logger::log(const TraceEntry & entry);
 
 /*******************************************************************************
  * toString xml
@@ -97,10 +103,10 @@ private:
  * log state
  ******************************************************************************/
   std::queue<TraceEntry> trace;
-  std::map<const Cobalt::Solution*, unsigned long long,
-      CobaltSolutionPtrComparator> getSummary;
-  std::map<const Cobalt::Solution*, unsigned long long,
-      CobaltSolutionPtrComparator> enqueueSummary;
+  //std::map<const Cobalt::Solution*, unsigned long long,
+  //    CobaltSolutionPtrComparator> getSummary;
+  //std::map<const Cobalt::Solution*, unsigned long long,
+  //    CobaltSolutionPtrComparator> enqueueSummary;
 
 /*******************************************************************************
  * xml file
@@ -117,7 +123,7 @@ private:
  * writeSummary
  * - write summaries to file upon completion
  ******************************************************************************/
-  void writeSummary();
+//  void writeSummary();
 
 }; // class Logger
 

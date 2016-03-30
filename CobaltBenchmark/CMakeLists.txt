@@ -101,3 +101,9 @@ add_custom_command(
 
 add_definitions( -DCobalt_LOGGER_ENABLED=1)
 add_definitions( -DCobalt_SOLVER_ENABLED=0)
+
+
+
+add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
+add_definitions(-DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}")
+add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")

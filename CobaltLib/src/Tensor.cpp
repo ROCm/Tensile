@@ -296,4 +296,133 @@ void Tensor::fillTemplate(
   }
 }
 
+/*******************************************************************************
+* Compare Tensors
+******************************************************************************/
+bool compareTensors(
+  CobaltTensorData gpu,
+  CobaltTensorData cpu,
+  Cobalt::Tensor tensor,
+  CobaltControl ctrl) {
+
+  switch (tensor.getDataType()) {
+  case cobaltDataTypeSingle:
+    return compareTensorsTemplate<float>((float *)gpu.data, (float *)cpu.data, tensor);
+  case cobaltDataTypeDouble:
+    return compareTensorsTemplate<double>((double *)gpu.data, (double *)cpu.data, tensor);
+  case cobaltDataTypeComplexSingle:
+    return compareTensorsTemplate<CobaltComplexFloat>((CobaltComplexFloat *)gpu.data, (CobaltComplexFloat *)cpu.data, tensor);
+  case cobaltDataTypeComplexDouble:
+    return compareTensorsTemplate<CobaltComplexDouble>((CobaltComplexDouble *)gpu.data, (CobaltComplexDouble *)cpu.data, tensor);
+  default:
+    printf("ERROR\n");
+    return false;
+  }
+}
+template<typename DataType>
+bool compareTensorsTemplate(
+  DataType *gpuData,
+  DataType *cpuData,
+  Cobalt::Tensor tensor) {
+  unsigned int maxToPrint = 1;
+  unsigned int printCount = 0;
+  bool equal = true;
+
+  std::vector<unsigned int> coords(tensor.numDims());
+  for (unsigned int i = 0; i < tensor.numDims(); i++) {
+    coords[i] = 0;
+  }
+  bool done = false;
+
+  while (!done) { // exit criteria specified below
+
+    for (coords[0] = 0; coords[0] < tensor[0].size; coords[0]++) {
+      size_t index = tensor.getIndex(coords);
+      if (!(Cobalt::almostEqual(cpuData[index], gpuData[index]))) {
+        equal = false;
+        if (printCount < maxToPrint) {
+          printMismatch<DataType>(index, gpuData[index], cpuData[index]);
+          printCount++;
+        }
+        else {
+          done = true;
+          break;
+        }
+      }
+#if 0
+      else {
+        if (printCount < maxToPrint) {
+          printMatch<DataType>(index, gpuData[index], cpuData[index]);
+          printCount++;
+        } else {
+          break;
+        }
+      }
+#endif
+    } // d0
+
+      // if 1-dimensional done
+    if (coords.size() == 1) {
+      done = true;
+      break;
+    }
+    else { // 2+ dimensions
+      bool dimIncremented = false; // for printing extra line
+                                   // increment coord
+      coords[1]++;
+      for (unsigned int d = 1; d < tensor.numDims(); d++) {
+        if (coords[d] >= tensor[d].size) {
+          if (d == tensor.numDims() - 1) {
+            // exit criteria - last dimension full
+            done = true;
+            break;
+          }
+          dimIncremented = true;
+          coords[d] = 0;
+          coords[d + 1]++;
+        }
+      }
+    }
+  }
+
+  return equal;
+}
+
+
+/*******************************************************************************
+* Print Match / Mismatch
+******************************************************************************/
+template<>
+void printMismatch<float>(size_t index, float gpuData, float cpuData) {
+  printf("%5llu: %.6f != %.6f\n", index, gpuData, cpuData);
+}
+template<>
+void printMismatch<double>(size_t index, double gpuData, double cpuData) {
+  printf("%6llu: %.6f != %.6f\n", index, gpuData, cpuData);
+}
+template<>
+void printMismatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
+  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+}
+template<>
+void printMismatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
+  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+}
+template<>
+void printMatch<float>(size_t index, float gpuData, float cpuData) {
+  printf("%5llu: %.6f == %.6f\n", index, gpuData, cpuData);
+}
+template<>
+void printMatch<double>(size_t index, double gpuData, double cpuData) {
+  printf("%6llu: %.6f == %.6f\n", index, gpuData, cpuData);
+}
+template<>
+void printMatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
+  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+}
+template<>
+void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
+  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+}
+
 } // namespace

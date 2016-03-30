@@ -80,7 +80,7 @@ else()
     COMMAND
       python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
       --backend=${Cobalt_BACKEND}
-      --input-path=${Cobalt_DIR_PSM}
+      --input-path=${Cobalt_DIR_SOLUTIONS}
       --output-path=${Cobalt_DIR_GENERATED}
       --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
       --optimize-beta=${Cobalt_OPTIMIZE_BETA}
@@ -89,7 +89,7 @@ else()
 endif()
 
 add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
-add_definitions(-DCobalt_DIR_PSM="${Cobalt_DIR_PSM}")
+add_definitions(-DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}")
 add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")
 
 

@@ -7,15 +7,12 @@ namespace Cobalt {
 /*******************************************************************************
  * TraceEntry:: constructor
  ******************************************************************************/
-Logger::TraceEntry::TraceEntry(
-    TraceEntryType inputType,
-    const Cobalt::Solution *inputSolution,
-    CobaltStatus inputStatus
-    )
-    : type(inputType),
-    solution(inputSolution),
-    status(inputStatus) {
-}
+Logger::TraceEntry::TraceEntry() :
+    type(TraceEntryType::getSolution),
+    solution(nullptr),
+    status(cobaltStatusProblemIsNull),
+    validationStatus(statusNotValidated)
+{ };
 
 /*******************************************************************************
  * TraceEntry:: toString
@@ -29,6 +26,27 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) {
   if (solution) {
     state += solution->toStringXML(indentLevel+1);
   }
+
+  // validation
+  if (validationStatus != statusNotValidated) {
+    state += Cobalt::indent(indentLevel+1);
+    state += "<Validation status=\"";
+    if (validationStatus == statusValid) {
+      state += "PASSED";
+    } else {
+      state += "FAILED";
+    }
+    state += "\" />\n";
+  }
+
+  // benchmarking
+  for (size_t i = 0; i < benchmarkTimes.size(); i++) {
+    state += Cobalt::indent(indentLevel+1);
+    state += "<Benchmark time=\"";
+    state += std::to_string(benchmarkTimes[i]);
+    state += "\" />\n";
+  }
+
   state += indent(indentLevel) + "</TraceEntry>\n";
   return state;
 }
@@ -54,15 +72,13 @@ std::string Logger::toString( Logger::TraceEntryType type ) {
 Logger::Logger() {
 }
 
-void Logger::init( std::string logFileName) {
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
-  logFilePath += "/" + logFileName + "_log.xml";
+void Logger::init( std::string logFilePath) {
   printf("Logger::init(%s)\n", logFilePath.c_str() );
   file.open( logFilePath, std::fstream::out );
   file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n";
   file << "<CobaltLog>\n\n";
   file << Logger::comment("Trace");
-  file << "<Trace>\n";
+  //file << "<Trace>\n";
 }
 
 
@@ -72,42 +88,24 @@ void Logger::init( std::string logFileName) {
 Logger::~Logger() {
   printf("Logger::~Logger()\n");
   flush();
-  writeSummary();
+  //file << "</Trace>\n\n";
+  file << "</CobaltLog>\n";
   file.close();
 }
 
-/*******************************************************************************
- * log get solution
- ******************************************************************************/
-void Logger::logGetSolution(
-    const Cobalt::Solution *solution,
-    CobaltStatus status ) {
-  //printf("Logger::logGetSolution(%p)\n", solution );
-  // create entry
-  TraceEntry entry(getSolution, solution, status);
-  // add to trace
-  trace.push(entry); // append to end of list
-  if (solution) {
-    getSummary[solution]++;
-  }
-}
 
 /*******************************************************************************
- * log enqueue solution
- ******************************************************************************/
-void Logger::logEnqueueSolution(
-    const Cobalt::Solution *solution,
-    CobaltStatus status,
-    const CobaltControl *ctrl ) {
-  //printf("Logger::logEnqueueSolution(%p)\n", solution );
-  // create entry
-  CobaltProblem *problem = nullptr;
-  TraceEntry entry(TraceEntryType::enqueueSolution, solution, status);
+* log Entry
+******************************************************************************/
+void Logger::log( const TraceEntry & entry) {
   // add to trace
   trace.push(entry); // append to end of list
-  if (solution) {
-    enqueueSummary[solution]++;
+  if (trace.size() >= 10) {
+    flush();
   }
+  //if (entry.solution) {
+  //  enqueueSummary[entry.solution]++;
+  //}
 }
 
 /*******************************************************************************
@@ -148,6 +146,7 @@ std::string summaryEntryToString(
 /*******************************************************************************
  * writeSummary
  ******************************************************************************/
+#if 0
 void Logger::writeSummary() {
   // close trace
   file << "</Trace>\n\n";
@@ -186,7 +185,7 @@ void Logger::writeSummary() {
   file << "</CobaltLog>\n";
 
 }
-
+#endif
 
 // global logger object
 //Logger logger(LOG_FILE_PREFIX);

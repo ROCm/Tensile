@@ -276,6 +276,87 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   }
 }
 
+
+  /******************************************************************************
+  * enqueueEntry
+  * enter enqueue process here; can do validation and benchmarking
+  *****************************************************************************/
+  CobaltStatus Solution::enqueueEntry(
+    CobaltTensorData tensorDataC,
+    CobaltTensorData tensorDataA,
+    CobaltTensorData tensorDataB,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
+    CobaltControl & ctrl) {
+
+    Logger::TraceEntry entry;
+    entry.type = Logger::TraceEntryType::enqueueSolution;
+    entry.solution = this;
+    
+    // validation
+    if (ctrl.validate) {
+      // enqueue gpu solution
+      enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
+      for (size_t i = 0; i < ctrl.numQueues; i++) { clFlush(ctrl.queues[i]); }
+      // allocate memory for gpu result on host
+      size_t sizeC = problem.tensorC.numBytes();
+      CobaltTensorData gpuOnHostC;
+      gpuOnHostC.offset = 0;
+      gpuOnHostC.data = malloc(sizeC);
+      // wait for gpu solution
+      for (size_t i = 0; i < ctrl.numQueues; i++) { clFinish(ctrl.queues[i]); }
+      // copy results back
+      clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data, CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data, 0, nullptr, nullptr);
+      // compare results
+      bool equal = compareTensors(gpuOnHostC, *(static_cast<CobaltTensorData *>(ctrl.validate) ), problem.tensorC, ctrl);
+      entry.validationStatus = equal ? ValidationStatus::statusValid : ValidationStatus::statusInvalid;
+      printf("%s validation %s", equal ? "PASSED" : "FAILED", toString(0).c_str() );
+      // cleanup
+      delete gpuOnHostC.data;
+    }
+
+    // benchmarking
+    if (ctrl.benchmark) {
+      Cobalt::Timer timer;
+      CobaltStatus status;
+
+      // warmup 
+      status = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl); 
+      for (size_t i = 0; i < ctrl.numQueues; i++) { clFinish(ctrl.queues[i]); }
+
+      // start timer
+      timer.start();
+      // enqueue solution
+      for (size_t i = 0; i < ctrl.benchmark; i++) {
+        status = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
+      } // samples
+      // wait for queues
+      for (size_t i = 0; i < ctrl.numQueues; i++) {
+        clFinish(ctrl.queues[i]);
+      }
+      // stop timer
+      double time = timer.elapsed_ms();
+      time /= ctrl.benchmark;
+      printf(" t = %7.3f ms (avg of %u)", time, ctrl.benchmark);
+      entry.benchmarkTimes.push_back(time);
+
+      if (!ctrl.validate) {
+        entry.status = status;
+      }
+    }
+    printf("\n");
+
+    // if we didn't do any of the previous, enqueue here
+    if( !ctrl.validate && !ctrl.benchmark ) {
+      entry.status = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
+    }
+
+#if Cobalt_LOGGER_ENABLED
+    Cobalt::logger.log(entry);
+#endif
+
+    return entry.status;
+  }
   
 /******************************************************************************
  * enqueue
@@ -288,7 +369,6 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
-  printf("Status: Enqueueing %s\n", toString(0).c_str());
 
   // user is allowed to pass in null for alpha & beta, in which case we'll provide
   // the default values here

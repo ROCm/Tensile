@@ -14,7 +14,15 @@ namespace Cobalt {
 class Solution {
 public:
   Solution( const Problem & inputProblem );
-  
+
+  CobaltStatus enqueueEntry(
+    CobaltTensorData tensorDataC,
+    CobaltTensorData tensorDataA,
+    CobaltTensorData tensorDataB,
+    CobaltScalarData alpha,
+    CobaltScalarData beta,
+    CobaltControl & ctrl);
+
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,

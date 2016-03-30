@@ -39,9 +39,9 @@ def GenBenchmarkFromFiles( \
   problemSet = set() # every problem we'll benchmark
   # for each input file, accumulate problems
   for inputFile in inputFiles:
-    print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
+    # print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
     FileReader.getProblemsFromXML( inputFile, problemSet )
-  print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problems found"
+  print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
   #for problem in problemSet:
   #  print str(problem)
 
@@ -76,10 +76,10 @@ def GenBenchmarkFromFiles( \
         totalKernels+=1
     print "Prob[" + str(problemIdx) + "]: " + str(len(solutionCandidates)) + "/" + str(len(allSolutions)) + " solutions"
     problemIdx += 1
-  print "CobaltGenBenchmark:   " + str(totalSolutions) + " total solutions"
   print "CobaltGenBenchmark:   " + str(len(allSolutions)) + " unique solutions"
-  print "CobaltGenBenchmark:   " + str(totalKernels) + " total kernels"
   print "CobaltGenBenchmark:   " + str(len(allKernels)) + " unique kernels"
+  print "CobaltGenBenchmark:   " + str(totalSolutions) + " total solutions will be enqueued"
+  print "CobaltGenBenchmark:   " + str(totalKernels) + " total kernels will be enqueued"
   kernelWriter = KernelWriter.KernelWriter(backend)
   #for kernel in allKernels:
   #  print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
@@ -119,9 +119,7 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "CobaltGenBenchmark[ " + str(backend) + " ] " + str(inputFiles)
-  print "oAS = " + args.optimizeAlphaStr
-  print "oBS = " + args.optimizeBetaStr
+  print "\nCobaltGenBenchmark[ " + str(backend) + " ] " + str(inputFiles)
 
   # generate benchmark
   GenBenchmarkFromFiles( \

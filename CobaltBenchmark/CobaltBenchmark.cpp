@@ -28,7 +28,9 @@ int main( int argc, char *argv[] ) {
   parseCommandLineOptions(argc, argv);
 
   // setup CobaltLib
-  cobaltSetup("CobaltBenchmark");
+  std::string logFilePath = Cobalt_DIR_SOLUTIONS;
+  logFilePath += "/CobaltBenchmark_log.xml";
+  cobaltSetup(logFilePath);
 
   // create CobaltControl
   initControls();
@@ -68,49 +70,8 @@ int main( int argc, char *argv[] ) {
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
     CobaltScalarData alpha;
     alpha.data = isFloatAlpha ? alphaFloat.data : isDoubleAlpha ? alphaDouble.data : nullptr;
-    //alpha.dataType = problemReference->pimpl->getDataTypeAlpha();
     CobaltScalarData beta;
     beta.data = isFloatBeta ? betaFloat.data : isDoubleBeta ? betaDouble.data : nullptr; 
-    //beta.dataType = problemReference->pimpl->getDataTypeBeta();
-
-    //if (isFloatC) {
-    //  float tmpC[tensorSizeMaxC/4];
-    //  memcpy(tmpC, initialDataC, tensorSizeMaxC);
-    //  printf("floatC[0]=%f\n", tmpC[0]);
-    //} else {
-    //  double tmpC[tensorSizeMaxC/8];
-    //  memcpy(tmpC, initialDataC, tensorSizeMaxC);
-    //  printf("doubleC[0]=%f\n", tmpC[0]);
-    //}
-    //if (isFloatA) {
-    //  float tmpA[tensorSizeMaxA/4];
-    //  memcpy(tmpA, initialDataA, tensorSizeMaxA);
-    //  printf("floatA[0]=%f\n", tmpA[0]);
-    //} else {
-    //  double tmpA[tensorSizeMaxA / 2];
-    //  memcpy(tmpA, initialDataA, tensorSizeMaxA);
-    //  printf("doubleA[0]=%f\n", tmpA[0]);
-    //}
-    //if (isFloatB) {
-    //  float tmpB[tensorSizeMaxB / 4];
-    //  memcpy(tmpB, initialDataB, tensorSizeMaxB);
-    //  printf("floatB[0]=%f\n", tmpB[0]);
-    //} else {
-    //  double tmpB[tensorSizeMaxB / 8];
-    //  memcpy(tmpB, initialDataB, tensorSizeMaxB);
-    //  printf("doubleB[0]=%f\n", tmpB[0]);
-    //}
-    
-    //if (isFloatBeta) {
-    //  float tmpBeta[2];
-    //  memcpy(tmpBeta, beta.data, 2 * sizeof(float));
-    //  printf("beta={%f, %f}\n", tmpBeta[0], tmpBeta[1]);
-    //}
-    //else {
-    //  double tmpBeta[2];
-    //  memcpy(tmpBeta, beta.data, 2 * sizeof(double));
-    //  printf("beta={%f, %f}\n", tmpBeta[0], tmpBeta[1]);
-    //}
 
     // re-initialize device input buffers
     clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_TRUE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
@@ -128,8 +89,6 @@ int main( int argc, char *argv[] ) {
       memcpy(referenceTensorDataC.data, initialDataC, sizeC);
       referenceTensorDataA.data = initialDataA;
       referenceTensorDataB.data = initialDataB;
-      //memcpy(referenceTensorDataA.data, initialDataA, sizeA);
-      //memcpy(referenceTensorDataB.data, initialDataB, sizeB);
 
       // enqueue reference solution
       printf("Status: Enqueueing reference for %s ...", problemReference->pimpl->toString().c_str());
@@ -140,19 +99,10 @@ int main( int argc, char *argv[] ) {
         alpha,
         beta,
         ctrlValidation );
+      ctrl.validate = &referenceTensorDataC;
       printf("done.\n");
 
-      //printf("\nTensorA:\n");
-      //printf( problemReference->pimpl->tensorA.toString(referenceTensorDataA).c_str() );
-      //printf("\nTensorB:\n");
-      //printf( problemReference->pimpl->tensorB.toString(referenceTensorDataB).c_str() );
-      //printf("\nTensorC-CPU:\n");
-      //printf( problemReference->pimpl->tensorC.toString(referenceTensorDataC).c_str() );
     }
-
-    //if ( problemIdx == 6 || ) {
-    //  printf("problemIdx = %u\n", problemIdx);
-    //}
 
 
     solutionEndIdx += numSolutionsPerProblem[problemIdx];
@@ -169,7 +119,8 @@ int main( int argc, char *argv[] ) {
       clFinish(ctrl.queues[0]);
 
       // ensure kernels are compiled before timing
-      solution->enqueue(
+      ctrl.benchmark = 10;
+      solution->enqueueEntry(
           deviceTensorDataC,
           deviceTensorDataA,
           deviceTensorDataB,
@@ -177,45 +128,6 @@ int main( int argc, char *argv[] ) {
           beta,
           ctrl );
 
-      // validate before enqueueing multiple times
-      if (doValidation) {
-        // get gpu result
-        for ( unsigned int q = 0; q < ctrl.numQueues; q++) {
-          status = clFinish( ctrl.queues[q] );
-          CL_CHECK(status)
-        }
-
-        // print tensorC-gpu
-        status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataC.data, CL_TRUE, deviceTensorDataC.offset, sizeC, deviceTensorDataOnHostC.data, 0, nullptr, nullptr);
-        //status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataA.data, CL_TRUE, deviceTensorDataA.offset, sizeA, deviceTensorDataOnHostA.data, 0, nullptr, nullptr);
-        //status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataB.data, CL_TRUE, deviceTensorDataB.offset, sizeB, deviceTensorDataOnHostB.data, 0, nullptr, nullptr );
-        CL_CHECK(status)
-        status = clFinish(ctrl.queues[0]);
-        CL_CHECK(status)
-
-
-        // print gpu in tensor form
-        //printf("\nTensorA read from GPU:\n");
-        //printf(problemReference->pimpl->tensorA.toString(deviceTensorDataOnHostA).c_str());
-        //printf("\nTensorB read from GPU:\n");
-        //printf(problemReference->pimpl->tensorB.toString(deviceTensorDataOnHostB).c_str());
-
-        // print cpu in tensor form
-        //printf("\nTensorC-CPU:\n");
-        //printf(problemReference->pimpl->tensorC.toString(referenceTensorDataC).c_str());
-
-        // print gpu in tensor form
-        //printf("\nTensorC-GPU:\n");
-        //printf( problemReference->pimpl->tensorC.toString(deviceTensorDataOnHostC).c_str() );
-        
-        //printf("\nComparing...\n");
-        bool equal = compareTensors(deviceTensorDataOnHostC, referenceTensorDataC, problemReference->pimpl->tensorC, ctrl );
-        //printf("\nDone Comparing.\n");
-        printf("P[%04llu] S[%03llu] %7s - %s\n", problemIdx, solutionIdx-solutionStartIdx, equal?"PASSED":"FAILED", solution->toString(0).c_str() );
-        if (!equal) {
-          printf("Oops!\n");
-        }
-      } // validation
 #if 0
       // peek at gpu result
       status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataC.data, CL_TRUE, deviceTensorDataC.offset, sizeC, deviceTensorDataOnHostC.data, 0, nullptr, nullptr);
@@ -227,13 +139,6 @@ int main( int argc, char *argv[] ) {
         printf("\nTensorC-GPU:\n");
         printf( problemReference->pimpl->tensorC.toString(deviceTensorDataOnHostC).c_str() );
 #endif
-
-      // time solution
-      // double time = timeSolution( solution, deviceTensorDataC, deviceTensorDataA, deviceTensorDataB, alpha, beta, ctrl );
-      // TODO
-      
-      //printf("P[%04llu] S[%03llu] %7.3f - %s\n", problemIdx, solutionIdx-solutionStartIdx, time, solution->toString(0).c_str() );
-      // write time to result xml file
 
     } // solution loop
 
@@ -333,7 +238,6 @@ void initTensorData() {
   printf("done.\n");
 }
 
-
 void fillTensor(CobaltTensor inputTensor, CobaltTensorData tensorData, Cobalt::Tensor::FillType fillType, void *src) {
   Cobalt::Tensor tensor(inputTensor);
   tensor.fill(tensorData, fillType, src);
@@ -352,158 +256,18 @@ void initControls() {
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
 
   // device control
-  ctrl = cobaltCreateControl();
+  ctrl = cobaltCreateEmptyControl();
   for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
     ctrl.queues[ctrl.numQueues] = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   }
 
   // host control
-  ctrlValidation = cobaltCreateControl();
+  ctrlValidation = cobaltCreateEmptyControl();
 
   // reference device
   deviceProfileReference.numDevices = 1;
   sprintf_s(deviceProfileReference.devices[0].name, "cpu");
 }
-
- /*******************************************************************************
-  * Compare Tensors
-  ******************************************************************************/
-bool compareTensors(
-  CobaltTensorData gpu,
-  CobaltTensorData cpu,
-  Cobalt::Tensor tensor,
-  CobaltControl ctrl) {
-
-  switch (tensor.getDataType()) {
-  case cobaltDataTypeSingle:
-    return compareTensorsTemplate<float>((float *)gpu.data, (float *)cpu.data, tensor);
-  case cobaltDataTypeDouble:
-    return compareTensorsTemplate<double>((double *)gpu.data, (double *)cpu.data, tensor);
-  case cobaltDataTypeComplexSingle:
-    return compareTensorsTemplate<CobaltComplexFloat>((CobaltComplexFloat *)gpu.data, (CobaltComplexFloat *)cpu.data, tensor);
-  case cobaltDataTypeComplexDouble:
-    return compareTensorsTemplate<CobaltComplexDouble>((CobaltComplexDouble *)gpu.data, (CobaltComplexDouble *)cpu.data, tensor);
-  default:
-    printf("ERROR\n");
-    return false;
-  }
-}
-template<typename DataType>
-bool compareTensorsTemplate(
-  DataType *gpuData,
-  DataType *cpuData,
-  Cobalt::Tensor tensor) {
-  unsigned int maxToPrint = 1;
-  unsigned int printCount = 0;
-  bool equal = true;
-
-  std::vector<unsigned int> coords(tensor.numDims());
-  for (unsigned int i = 0; i < tensor.numDims(); i++) {
-    coords[i] = 0;
-  }
-  bool done = false;
-
-  while (!done) { // exit criteria specified below
-
-    for (coords[0] = 0; coords[0] < tensor[0].size; coords[0]++) {
-      size_t index = tensor.getIndex(coords);
-      if (!(Cobalt::almostEqual(cpuData[index], gpuData[index]))) {
-        equal = false;
-        if (printCount < maxToPrint) {
-          printMismatch<DataType>(index, gpuData[index], cpuData[index]);
-          printCount++;
-        } else {
-          done = true;
-          break;
-        }
-      } /*else {
-        if (printCount < maxToPrint) {
-          printMatch<DataType>(index, gpuData[index], cpuData[index]);
-          printCount++;
-        } else {
-          break;
-        }
-      }*/
-    } // d0
-
-    // if 1-dimensional done
-    if (coords.size() == 1) {
-      done = true;
-      break;
-    } else { // 2+ dimensions
-      bool dimIncremented = false; // for printing extra line
-                                   // increment coord
-      coords[1]++;
-      for (unsigned int d = 1; d < tensor.numDims(); d++) {
-        if (coords[d] >= tensor[d].size) {
-          if (d == tensor.numDims() - 1) {
-            // exit criteria - last dimension full
-            done = true;
-            break;
-          }
-          dimIncremented = true;
-          coords[d] = 0;
-          coords[d + 1]++;
-        }
-      }
-    }
-  }
-
-  return equal;
-}
-
-
-/*******************************************************************************
-* timeSolution - milliseconds
-******************************************************************************/
-double timeSolution(
-  Cobalt::Solution *solution,
-  CobaltTensorData tensorDataC,
-  CobaltTensorData tensorDataA,
-  CobaltTensorData tensorDataB,
-  CobaltScalarData alpha,
-  CobaltScalarData beta,
-  CobaltControl &ctrl) {
-
-  size_t numEnqueuesPerSample = 1;
-  const size_t numSamples = 1;
-
-  double sampleTimes[numSamples];
-  Cobalt::Timer timer;
-
-  for (size_t sampleIdx = 0; sampleIdx < numSamples; sampleIdx++) {
-
-    // start timer
-    timer.start();
-    for (size_t i = 0; i < numEnqueuesPerSample; i++) {
-      solution->enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
-    }
-    // wait for queue
-    for (size_t i = 0; i < ctrl.numQueues; i++) {
-      clFinish(ctrl.queues[i]);
-    }
-    // stop timer
-    double time = timer.elapsed_ms();
-    //printf("%f\n", time);
-    sampleTimes[sampleIdx] = time;
-  } // samples
-
-    // for median, selection sort and take middle
-  for (size_t i = 0; i < numSamples; i++) {
-    size_t fastestIdx = i;
-    for (size_t j = i + 1; j < numSamples; j++) {
-      if (sampleTimes[j] < sampleTimes[fastestIdx]) {
-        fastestIdx = j;
-      }
-    }
-    // swap i and fastest
-    double tmp = sampleTimes[i];
-    sampleTimes[i] = sampleTimes[fastestIdx];
-    sampleTimes[fastestIdx] = tmp;
-  }
-  return sampleTimes[numSamples / 2];
-}
-
 
 void parseCommandLineOptions(int argc, char *argv[]) {
   doValidation = false;
@@ -519,44 +283,6 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     }
   }
 }
-
-
- /*******************************************************************************
-  * Print Match / Mismatch
-  ******************************************************************************/
-template<>
-void printMismatch<float>(size_t index, float gpuData, float cpuData) {
-  printf("%5llu: %.6f != %.6f\n", index, gpuData, cpuData);
-}
-template<>
-void printMismatch<double>(size_t index, double gpuData, double cpuData) {
-  printf("%6llu: %.6f != %.6f\n", index, gpuData, cpuData);
-}
-template<>
-void printMismatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
-  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
-}
-template<>
-void printMismatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
-  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
-}
-template<>
-void printMatch<float>(size_t index, float gpuData, float cpuData) {
-  printf("%5llu: %.6f == %.6f\n", index, gpuData, cpuData);
-}
-template<>
-void printMatch<double>(size_t index, double gpuData, double cpuData) {
-  printf("%6llu: %.6f == %.6f\n", index, gpuData, cpuData);
-}
-template<>
-void printMatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
-  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
-}
-template<>
-void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
-  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
-}
-
 
 bool cobaltDataTypeIsHalf(CobaltDataType dataType) {
   return dataType == cobaltDataTypeHalf

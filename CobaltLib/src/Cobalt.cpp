@@ -53,10 +53,10 @@ CobaltStatus cobaltTeardown() {
 
 
 /*******************************************************************************
-* cobaltCreateTensor
+* cobaltCreateEmptyTensor
 * - returns CobaltTensor initialized to zero
 ******************************************************************************/
-CobaltTensor cobaltCreateTensor() {
+CobaltTensor cobaltCreateEmptyTensor() {
   CobaltTensor tensor;
   tensor.dataType = cobaltDataTypeNone;
   tensor.numDimensions = 0;
@@ -72,7 +72,7 @@ CobaltTensor cobaltCreateTensor() {
 * cobaltCreateDeviceProfile
 * returns CobaltDeviceProfile initialized to zero
 ******************************************************************************/
-CobaltDeviceProfile cobaltCreateDeviceProfile() {
+CobaltDeviceProfile cobaltCreateEmptyDeviceProfile() {
   CobaltDeviceProfile profile;
   profile.numDevices = 0;
   for (int i = 0; i < CobaltDeviceProfile::maxDevices; i++) {
@@ -86,7 +86,7 @@ CobaltDeviceProfile cobaltCreateDeviceProfile() {
 * cobaltCreateControl
 * returns CobaltControl initialized to zero
 ******************************************************************************/
-CobaltControl cobaltCreateControl() {
+CobaltControl cobaltCreateEmptyControl() {
   CobaltControl control;
   control.validate = nullptr;
   control.benchmark = 0;
@@ -141,6 +141,16 @@ CobaltProblem cobaltCreateProblem(
 
 };
 
+CobaltStatus cobaltDestoyProblem( CobaltProblem *problem ) {
+  if (problem) {
+    delete problem;
+    problem = nullptr;
+    return cobaltStatusSuccess;
+  } else {
+    return cobaltStatusParametersInvalid;
+  }
+}
+
 
 CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   if (problem == nullptr) {
@@ -157,12 +167,12 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
 CobaltSolution cobaltGetSolutionForProblem(
     CobaltProblem problem,
     CobaltStatus *status ) {
-
+  Cobalt::Logger::TraceEntry entry;
+  entry.type = Cobalt::Logger::TraceEntryType::getSolution;
   CobaltSolution solution = new _CobaltSolution();
 
   // cpu device
   if ( problem->pimpl->deviceIsReference() ) {
-    solution = new _CobaltSolution();
     std::tie(solution->pimpl, *status) = Cobalt::getSolutionCPU( *(problem->pimpl) );
 
   // gpu device
@@ -175,15 +185,26 @@ CobaltSolution cobaltGetSolutionForProblem(
 #endif
   }
 
-
+  entry.solution = solution->pimpl;
+  entry.status = *status;
 
 #if Cobalt_LOGGER_ENABLED
-  Cobalt::logger.logGetSolution(solution->pimpl, *status);
+  Cobalt::logger.log(entry);
 #endif
 
   return solution;
 }
 
+CobaltStatus cobaltDestroySolution(CobaltSolution *solution) {
+  if (solution) {
+    delete solution;
+    solution = nullptr;
+    return cobaltStatusSuccess;
+  }
+  else {
+    return cobaltStatusParametersInvalid;
+  }
+}
 
 /*******************************************************************************
  * cobaltEnqueueSolution
@@ -197,21 +218,18 @@ CobaltStatus cobaltEnqueueSolution(
     CobaltScalarData beta,
     CobaltControl *ctrl ) {
   CobaltStatus status = cobaltStatusSuccess;
-  // cpu device
+  // if cpu device, enqueue even if solver turned off
   if (solution->pimpl->getProblem().deviceIsReference()) {
-      status = solution->pimpl->enqueue( tensorDataC, tensorDataA, tensorDataB,
+      status = solution->pimpl->enqueueEntry( tensorDataC, tensorDataA, tensorDataB,
           alpha, beta, *ctrl );
 
-  // gpu device
+  // gpu device, only enqueue if solver turned on
   } else {
 #if Cobalt_SOLVER_ENABLED
-    status = solution->pimpl->enqueue( tensorDataC, tensorDataA, tensorDataB,
+    status = solution->pimpl->enqueueEntry( tensorDataC, tensorDataA, tensorDataB,
         alpha, beta, *ctrl );
 #endif
   }
-#if Cobalt_LOGGER_ENABLED
-  Cobalt::logger.logEnqueueSolution(solution->pimpl, status, ctrl);
-#endif
   return status;
 }
 
