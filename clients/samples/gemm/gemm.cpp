@@ -29,7 +29,7 @@ CobaltProblem createProblemGEMM(
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   const size_t numSizes = 1;
-  size_t sizes[] = {128};
+  size_t sizes[] = {131, 5760};
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;

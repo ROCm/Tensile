@@ -143,6 +143,17 @@ class KernelWriter:
     else:
       ppdStr = "O0"
     kernelName += "_" + ppdStr
+
+    # anything #defined in the kernel has to be part of the name for uniqueness
+    # leading strides; only optimized if 1, so they're accounted for above
+    # offsets; only optimized if zero, so they're accounted for above
+    # all sizes; TODO
+
+
+
+
+
+
     #print kernelName
     return kernelName
 
