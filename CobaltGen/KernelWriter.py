@@ -129,6 +129,20 @@ class KernelWriter:
       kernelName += str(kernel.unrolls[0])
       for i in range(1,len(kernel.unrolls)):
         kernelName += "_" + str(kernel.unrolls[i])
+
+    # optimization level
+      ppdStr = ""
+    if kernel.ppdOffsets and not kernel.ppdLeadingStride:
+      ppdStr = "O1"
+    elif not kernel.ppdOffsets and kernel.ppdLeadingStride:
+      ppdStr = "O2"
+    elif kernel.ppdOffsets and kernel.ppdLeadingStride and not kernel.ppdAll:
+      ppdStr = "O3"
+    elif kernel.ppdAll:
+      ppdStr = "O4"
+    else:
+      ppdStr = "O0"
+    kernelName += "_" + ppdStr
     #print kernelName
     return kernelName
 
@@ -166,26 +180,41 @@ class KernelWriter:
     s += self.endLine
     s += "__kernel void %s" % ( self.getName(kernel) )
     s += "(" + self.endLine
-    # pointers & offsets
+    # pointers
     s += (
       "  __global DATA_TYPE_STR_C       *          C," + self.endLine +
       "  __global DATA_TYPE_STR_A const * restrict A," + self.endLine +
-      "  __global DATA_TYPE_STR_B const * restrict B," + self.endLine +
-      "  unsigned int const offsetC," + self.endLine +
-      "  unsigned int const offsetA," + self.endLine +
-      "  unsigned int const offsetB" )
+      "  __global DATA_TYPE_STR_B const * restrict B")
+    # offsets
+    if not kernel.ppdOffsets:
+      s += ( "," + self.endLine + "  unsigned int const offsetC," + self.endLine +
+        "  unsigned int const offsetA," + self.endLine +
+        "  unsigned int const offsetB" )
+
     # strides
-    for i in range(0, len(kernel.indexOrderC)):
+    firstStride = 0
+    if kernel.ppdLeadingStride:
+      firstStride = 1
+    lastStrideC = len(kernel.indexOrderC)
+    lastStrideA = len(kernel.operation.indexAssignmentsA)
+    lastStrideB = len(kernel.operation.indexAssignmentsB)
+    if kernel.ppdAll:
+      lastStrideC = firstStride
+      lastStrideA = firstStride
+      lastStrideB = firstStride
+    for i in range(firstStride, lastStrideC):
       s += "," + self.endLine + "  unsigned int const strideC" + indexChars[i]
-    for i in range(0, len(kernel.operation.indexAssignmentsA)):
+    for i in range(firstStride, lastStrideA):
       s += "," + self.endLine + "  unsigned int const strideA" \
           + indexChars[kernel.operation.indexAssignmentsA[i]]
-    for i in range(0, len(kernel.operation.indexAssignmentsB)):
+    for i in range(firstStride, lastStrideB):
       s += "," + self.endLine + "  unsigned int const strideB" \
           + indexChars[kernel.operation.indexAssignmentsB[i]]
+
     # sizes
-    for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
-      s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
+    if not kernel.ppdAll:
+      for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
+        s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
 
     # alpha & beta
     if kernel.operation.useAlpha:
@@ -288,7 +317,7 @@ class KernelWriter:
     ####################################
     # global tile indices being loaded
     kStr += self.endLine
-    kStr += "  /* global tile indices being loaded */" + self.endLine
+    kStr += "/* global tile indices being loaded */" + self.endLine
 
     if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
       kStr += "/* slow read */" + self.endLine
@@ -332,7 +361,7 @@ class KernelWriter:
 
     ####################################
     # global non-tile indices being loaded (batch & outer summation)
-    kStr += "  /* global non-tile indices being loaded */" + self.endLine
+    kStr += "/* global non-tile indices being loaded */" + self.endLine
     # C free indices which don't belong to tile = groupIdx
     # C batch = groupIdx
     for indexC in kernel.indexOrderC:
@@ -365,7 +394,7 @@ class KernelWriter:
     # local indices being written
     # thoroughly verify by hand for 4 GEMM cases (after doing global)
     kStr += self.endLine
-    kStr += "    /* local indices being written */" + self.endLine
+    kStr += "/* local indices being written */" + self.endLine
 # new indices will be localA_unroll and localA_tile, which gets assigned to row
     if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
       kStr += "#define localA" + tileCharA \
@@ -535,6 +564,53 @@ class KernelWriter:
     kStr += self.endLine
 
     ####################################
+    # preprocessor definitions of kernel arguments
+    kStr += "/* preprocessor definitions of kernel arguments*/" + self.endLine
+    firstStride = 0
+    lastStrideC = len(kernel.indexOrderC)
+    lastStrideA = len(kernel.operation.indexAssignmentsA)
+    lastStrideB = len(kernel.operation.indexAssignmentsB)
+    if kernel.ppdAll:
+      #optimize all
+      pass
+    elif kernel.ppdLeadingStride:
+      # optimize leading stride
+      lastStrideC = 1
+      lastStrideA = 1
+      lastStrideB = 1
+    else:
+      # no optimization, do none
+      lastStrideC = 0
+      lastStrideA = 0
+      lastStrideB = 0
+
+    for i in range(firstStride, lastStrideC):
+      kStr += "#define strideC" + indexChars[i] + " " + str(kernel.problem.tensorC.dimensions[i].stride) + self.endLine
+    for i in range(firstStride, lastStrideA):
+      kStr += "#define strideA" + indexChars[kernel.operation.indexAssignmentsA[i]] + " " + str(kernel.problem.tensorA.dimensions[i].stride) + self.endLine
+    for i in range(firstStride, lastStrideB):
+      kStr += "#define strideB" + indexChars[kernel.operation.indexAssignmentsB[i]] + " " + str(kernel.problem.tensorB.dimensions[i].stride) + self.endLine
+
+    # sizes
+    if kernel.ppdAll:
+      for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
+        kStr += "#define size" + indexChars[i] + " "
+        # which index of tensorA or B is assigned to that index; use its size
+        size = -1
+        for j in range(0, len(kernel.operation.indexAssignmentsA)):
+          index = kernel.operation.indexAssignmentsA[j]
+          if index == i:
+            size = kernel.problem.tensorA.dimensions[j].size
+            break
+        for j in range(0, len(kernel.operation.indexAssignmentsB)):
+          index = kernel.operation.indexAssignmentsB[j]
+          if index == i:
+            size = kernel.problem.tensorB.dimensions[j].size
+            break
+        kStr += str(size) + self.endLine
+    kStr += self.endLine + self.endLine
+
+    ####################################
     # function signature
     ####################################
     kStr += self.getSignature(kernel)
@@ -558,11 +634,11 @@ class KernelWriter:
     ####################################
     # apply offsets
     kStr += self.endLine
-    kStr += (
-      "  /* apply offsets */" + self.endLine +
-      "  C += offsetC;" + self.endLine +
-      "  A += offsetA;" + self.endLine +
-      "  B += offsetB;" + self.endLine )
+    kStr += "  /* apply offsets */" + self.endLine
+    if not kernel.ppdOffsets:
+      kStr += ("  C += offsetC;" + self.endLine +
+        "  A += offsetA;" + self.endLine +
+        "  B += offsetB;" + self.endLine )
 
     ####################################
     # allocate registers

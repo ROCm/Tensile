@@ -177,79 +177,97 @@ class SolutionWriter:
     s += "  edge[2] = false;\n"
     s += "\n"
 
-    # compile kernels if needed
 
     # kernel arguments
     s += "  /* kernel arguments */\n"
-    s += "  numKernelArgs = 6; // pointers and enqueues\n"
+    s += "  numKernelArgs = 0; // pointers and offsets\n"
     s += "\n"
 
-    s += "  /* C strides */\n"
-    for i in range(0,len(solution.kernels[0].indexOrderC)):
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
-          + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
-      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
-          + "[" + str(i) + "].stride);\n"
-      s += "  numKernelArgs++;\n"
-    s += "\n"
+    s += "  /* preprocessor optimizations */\n"
+    s += "  argOffsets = %s;\n" % ("true" if not solution.kernels[0].ppdOffsets else "false")
+    s += "  argSizes = %s;\n" % ("true" if not solution.kernels[0].ppdAll else "false")
 
-    s += "  /* A strides */\n"
-    for i in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
-          + str(i) + "].stride; // strideA" + self.indexChars[ \
-          solution.kernels[0].operation.indexAssignmentsA[i]] + "\n"
-      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
-          + "[" + str(i) + "].stride);\n"
-      s += "  numKernelArgs++;\n"
-    s += "\n"
+    if not solution.ppdAll:
 
-    s += "  /* B strides */\n"
-    for i in range(0,len(solution.kernels[0].operation.indexAssignmentsB)):
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
-          + str(i) + "].stride; // strideB" + self.indexChars[ \
-          solution.kernels[0].operation.indexAssignmentsB[i]] + "\n"
-      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
-          + "[" + str(i) + "].stride);\n"
-      s += "  numKernelArgs++;\n"
-    s += "\n"
-
-    s += "  /* free index sizes */\n"
-    for i in range(0,solution.kernels[0].operation.numIndicesFree \
-        + solution.kernels[0].operation.numIndicesBatch ):
-      if i == solution.kernels[0].indexAssignmentDim0:
-        s += "  kernelArgIdxDim0 = numKernelArgs;\n"
-      if i == solution.kernels[0].indexAssignmentDim1:
-        s += "  kernelArgIdxDim1 = numKernelArgs;\n"
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
-          + str(i) + "].size; // size" + self.indexChars[i] + "\n"
-      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
-          + "[" + str(i) + "].size);\n"
-      s += "  numKernelArgs++;\n"
-    s += "\n"
-
-    s += "  /* summation index sizes */\n"
-    for i in range(solution.kernels[0].operation.numIndicesFree \
-          + solution.kernels[0].operation.numIndicesBatch, \
-            solution.kernels[0].operation.numIndicesFree \
-          + solution.kernels[0].operation.numIndicesBatch \
-          + solution.kernels[0].operation.numIndicesSummation ):
-      # which index of A sums this
-      idx = -1
-      for j in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
-        if solution.kernels[0].operation.indexAssignmentsA[j] == i:
-          idx = j
-          break
-      if i == \
-            solution.kernels[0].operation.numIndicesFree \
-          + solution.kernels[0].operation.numIndicesBatch \
-          + solution.kernels[0].operation.numIndicesSummation - 1:
-        s += "  kernelArgIdxSummation = numKernelArgs;\n"
-      s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
-          + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
-      s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
-          + "[" + str(idx) + "].size);\n"
-      s += "  numKernelArgs++;\n"
-    s += "\n"
+      # strides
+      firstStride = 0
+      if solution.ppdLeadingStride:
+        firstStride = 1
+      lastStrideC = len(solution.kernels[0].indexOrderC)
+      lastStrideA = len(solution.kernels[0].operation.indexAssignmentsA)
+      lastStrideB = len(solution.kernels[0].operation.indexAssignmentsB)
+      if solution.ppdAll:
+        lastStrideC = firstStride
+        lastStrideA = firstStride
+        lastStrideB = firstStride
+      s += "  /* C strides */\n"
+      for i in range(firstStride,lastStrideC):
+        s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
+            + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
+        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
+            + "[" + str(i) + "].stride);\n"
+        s += "  numKernelArgs++;\n"
+      s += "\n"
+      
+      s += "  /* A strides */\n"
+      for i in range(firstStride,lastStrideA):
+        s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
+            + str(i) + "].stride; // strideA" + self.indexChars[ \
+            solution.kernels[0].operation.indexAssignmentsA[i]] + "\n"
+        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
+            + "[" + str(i) + "].stride);\n"
+        s += "  numKernelArgs++;\n"
+      s += "\n"
+      
+      s += "  /* B strides */\n"
+      for i in range(firstStride,lastStrideB):
+        s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
+            + str(i) + "].stride; // strideB" + self.indexChars[ \
+            solution.kernels[0].operation.indexAssignmentsB[i]] + "\n"
+        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
+            + "[" + str(i) + "].stride);\n"
+        s += "  numKernelArgs++;\n"
+      s += "\n"
+      
+      
+      
+      s += "  /* free index sizes */\n"
+      for i in range(0,solution.kernels[0].operation.numIndicesFree \
+          + solution.kernels[0].operation.numIndicesBatch ):
+        if i == solution.kernels[0].indexAssignmentDim0:
+          s += "  kernelArgIdxDim0 = numKernelArgs;\n"
+        if i == solution.kernels[0].indexAssignmentDim1:
+          s += "  kernelArgIdxDim1 = numKernelArgs;\n"
+        s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
+            + str(i) + "].size; // size" + self.indexChars[i] + "\n"
+        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
+            + "[" + str(i) + "].size);\n"
+        s += "  numKernelArgs++;\n"
+      s += "\n"
+      
+      s += "  /* summation index sizes */\n"
+      for i in range(solution.kernels[0].operation.numIndicesFree \
+            + solution.kernels[0].operation.numIndicesBatch, \
+              solution.kernels[0].operation.numIndicesFree \
+            + solution.kernels[0].operation.numIndicesBatch \
+            + solution.kernels[0].operation.numIndicesSummation ):
+        # which index of A sums this
+        idx = -1
+        for j in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
+          if solution.kernels[0].operation.indexAssignmentsA[j] == i:
+            idx = j
+            break
+        if i == \
+              solution.kernels[0].operation.numIndicesFree \
+            + solution.kernels[0].operation.numIndicesBatch \
+            + solution.kernels[0].operation.numIndicesSummation - 1:
+          s += "  kernelArgIdxSummation = numKernelArgs;\n"
+        s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
+            + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
+        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
+            + "[" + str(idx) + "].size);\n"
+        s += "  numKernelArgs++;\n"
+      s += "\n"
 
     # alpha & beta
     s += "  /* alpha & beta */\n"

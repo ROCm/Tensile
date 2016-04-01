@@ -562,9 +562,17 @@ class Kernel:
     self.unrollDimStrideGreaterThanTileDimStrideA = False
     self.unrollDimStrideLessThanTileDimStrideB = False
 
+    # a kernel holds a copy of the problem so it can #define strides if necessary
+    self.problem = Problem()
+
     # Tile
     self.tile = Tile()
     self.unrolls = []
+
+    # Pre-Processor definition optimizations
+    self.ppdOffsets = False # offsets are #defined and not arguments
+    self.ppdLeadingStride = False #leading strides are #defined and not arguments
+    self.ppdAll = False #everything is #defined and not arguments
 
     # frozens
     self.indexOrderC_Frozen = []
@@ -601,6 +609,9 @@ class Kernel:
         self.indexAssignmentDim1, \
         self.tile, \
         tuple(self.unrolls), \
+        self.ppdOffsets, \
+        self.ppdLeadingStride, \
+        self.ppdAll
         )
   def __hash__(self):
     return hash(self.getAttributes())
@@ -619,6 +630,11 @@ class Solution:
     self.branch = [ BranchType(-1), BranchType(-1)]
     self.kernels = []
 
+    # PreProcessor optimizations (#defining arguments)
+    self.ppdOffsets = False # offsets are #defined and not arguments
+    self.ppdLeadingStride = False #leading strides are #defined and not arguments
+    self.ppdAll = False #everything is #defined and not arguments
+
   def __str__(self):
     state = "[Solution"
     state += "; " + str(self.kernelGrid)
@@ -635,7 +651,10 @@ class Solution:
         self.kernelGrid[0], \
         self.kernelGrid[1], \
         self.branch[0], \
-        self.branch[1] )
+        self.branch[1], \
+        self.ppdOffsets, \
+        self.ppdLeadingStride, \
+        self.ppdAll )
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):

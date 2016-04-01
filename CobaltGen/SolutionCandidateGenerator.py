@@ -155,6 +155,12 @@ def makeIndexAssignments(kernel, problem):
 class SolutionCandidateGenerator:
 
 
+  # Pre-Processor definition optimizations
+  ppdOffsets = True
+  ppdLeadingStride = True
+  ppdAll = False
+
+  # limit work-group size to boost occupancy
   maxLocalMemoryBytes = 32768
   maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
 
@@ -224,6 +230,7 @@ class SolutionCandidateGenerator:
     kernel.dataTypeC = problem.tensorC.dataType
     kernel.dataTypeA = problem.tensorA.dataType
     kernel.dataTypeB = problem.tensorB.dataType
+    kernel.problem = problem
 
     # Index Assignments
     kernel.indexOrderC = []
@@ -348,30 +355,54 @@ class SolutionCandidateGenerator:
               solution.kernels = []
 
               # branch - 1 exact kernel; DEPRECATED
-              if branchType.isNone():
-                if problemSizeDim0 % macroTileDim0 != 0 \
-                    or problemSizeDim1 % macroTileDim1 != 0:
-                  continue
-                solution.branch = [branchType, branchType]
-                kernel.tile.branch = [branchType, branchType ]
-                solution.kernels.append( copy.deepcopy(kernel) )
-
+              #if branchType.isNone():
+              #  if problemSizeDim0 % macroTileDim0 != 0 \
+              #      or problemSizeDim1 % macroTileDim1 != 0:
+              #    continue
+              #  solution.branch = [branchType, branchType]
+              #  kernel.tile.branch = [branchType, branchType ]
+              #  solution.kernels.append( copy.deepcopy(kernel) )
+              leadingStridesOne = False
+              if problem.tensorC.dimensions[0].stride == 1 \
+                  and problem.tensorA.dimensions[0].stride == 1 \
+                  and problem.tensorB.dimensions[0].stride == 1:
+                leadingStridesOne = True
               # branch - 2-4 kernels
-              elif branchType.isMultiple():
+              if branchType.isMultiple():
                 solution.branch = [branchType, branchType]
+                if leadingStridesOne:
+                  solution.ppdLeadingStride = self.ppdLeadingStride
+                solution.ppdOffsets = False # kernels 1-3 will need offsets
+                solution.ppdAll = False # kernels 1-3 will need sizes
                 # add main kernel
                 kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
+                if leadingStridesOne:
+                  kernel.ppdLeadingStride = self.ppdLeadingStride
+                kernel.ppdOffsets = self.ppdOffsets
+                kernel.ppdAll = self.ppdAll
                 solution.kernels.append( copy.deepcopy(kernel) )
                 # add edge-0 kernel
                 solution.kernelGrid[0] += 1
                 kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
+                if leadingStridesOne:
+                  kernel.ppdLeadingStride = self.ppdLeadingStride
+                kernel.ppdOffsets = False
+                kernel.ppdAll = False
                 solution.kernels.append( copy.deepcopy(kernel) )                
                 # add edge-1 kernel
                 solution.kernelGrid[1] += 1
                 kernel.tile.branch = [ Structs.BranchType(0), branchType ]
+                if leadingStridesOne:
+                  kernel.ppdLeadingStride = self.ppdLeadingStride
+                kernel.ppdOffsets = False
+                kernel.ppdAll = False
                 solution.kernels.append( copy.deepcopy(kernel) )
                 # add corner-01 kernel
                 kernel.tile.branch = [ branchType, branchType ]
+                if leadingStridesOne:
+                  kernel.ppdLeadingStride = self.ppdLeadingStride
+                kernel.ppdOffsets = False
+                kernel.ppdAll = False
                 solution.kernels.append( copy.deepcopy(kernel) )
 
               # branch - 1 branched kernel
@@ -382,7 +413,14 @@ class SolutionCandidateGenerator:
                 if kernelGrid[0] > 1 or kernelGrid[1] > 1 or kernelGrid[2] > 1: # don't use b kernels for 4096 cases b/c already not using single kernel
                   continue
                 solution.branch = [branchType, branchType]
+                if leadingStridesOne:
+                  solution.ppdLeadingStride = self.ppdLeadingStride
+                solution.ppdOffsets = self.ppdOffsets
+                solution.ppdAll = self.ppdAll
                 kernel.tile.branch = [branchType, branchType ]
+                kernel.ppdLeadingStride = self.ppdLeadingStride
+                kernel.ppdOffsets = self.ppdOffsets
+                kernel.ppdAll = self.ppdAll
                 solution.kernels.append( copy.deepcopy(kernel) )
                 solution.kernels.append( None )
                 solution.kernels.append( None )

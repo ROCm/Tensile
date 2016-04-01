@@ -402,14 +402,6 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     }
   }
   
-  unsigned int numElements0 = *(unsigned int *)kernelArgs[kernelArgIdxDim0];
-  unsigned int numElements1 = *(unsigned int *)kernelArgs[kernelArgIdxDim1];
-  unsigned int numEdgeKernels0 = edge[0] ? 1 : 0;
-  unsigned int numEdgeKernels1 = edge[1] ? 1 : 0;
-  unsigned int numMainKernels0 = kernelGrid[0] - numEdgeKernels0;
-  unsigned int numMainKernels1 = kernelGrid[1] - numEdgeKernels1;
-  unsigned int numElementsPerMainKernel0 = numElements0 / numMainKernels0;
-
 
   // kernel 0 - main
   // kernel 1 - edge 0
@@ -442,71 +434,78 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           continue;
         }
 
+        unsigned int argIdx = 0;
 
         // data pointers
-        status = clSetKernelArg( kernels[kernelIdx], 0, sizeof(cl_mem), &tensorDataC.data );
+        status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(cl_mem), &tensorDataC.data );
         CL_CHECK(status)
-        status = clSetKernelArg( kernels[kernelIdx], 1, sizeof(cl_mem), &tensorDataA.data );
+        status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(cl_mem), &tensorDataA.data );
         CL_CHECK(status)
-        status = clSetKernelArg( kernels[kernelIdx], 2, sizeof(cl_mem), &tensorDataB.data );
-        CL_CHECK(status)
-
-        // tensorC offsets
-        unsigned int tensorOffsetCd0 = d0*kernelNumElementsDim0[0]*problem.tensorC[indexAssignmentCd0].stride;
-        unsigned int tensorOffsetCd1 = d1*kernelNumElementsDim1[0]*problem.tensorC[indexAssignmentCd1].stride;
-
-        // tensorA,B offsets
-        unsigned int tensorOffsetAdU = dU*kernelNumElementsDimU[0]*problem.tensorA[indexAssignmentAdU].stride;
-        unsigned int tensorOffsetBdU = dU*kernelNumElementsDimU[0]*problem.tensorB[indexAssignmentAdU].stride;
-        unsigned int tensorOffsetAd0or1 = 0;
-        unsigned int tensorOffsetBd0or1 = 0;
-        if (d0InTensorA) {
-          tensorOffsetAd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorA[indexAssignmentAd0or1].stride;
-          tensorOffsetBd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorB[indexAssignmentBd0or1].stride;
-        } else {
-          tensorOffsetAd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorA[indexAssignmentAd0or1].stride;
-          tensorOffsetBd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorB[indexAssignmentBd0or1].stride;
-        }
-        // data offsets
-        unsigned int tensorOffsetC = tensorDataC.offset + tensorOffsetCd0 + tensorOffsetCd1; // TODO - fix these for multi kernels
-        unsigned int tensorOffsetA = tensorDataA.offset + tensorOffsetAd0or1 + tensorOffsetAdU;
-        unsigned int tensorOffsetB = tensorDataB.offset + tensorOffsetBd0or1 + tensorOffsetBdU;
-
-        
-        status = clSetKernelArg( kernels[kernelIdx], 3, sizeof(unsigned int), &tensorOffsetC );
-        CL_CHECK(status)
-        status = clSetKernelArg( kernels[kernelIdx], 4, sizeof(unsigned int), &tensorOffsetA );
-        CL_CHECK(status)
-        status = clSetKernelArg( kernels[kernelIdx], 5, sizeof(unsigned int), &tensorOffsetB );
+        status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(cl_mem), &tensorDataB.data );
         CL_CHECK(status)
 
-        // data sizes (truncated due to grid)
-        for (cl_uint i = 6; i < numKernelArgs; i++) {
-          status = clSetKernelArg( kernels[kernelIdx], i, kernelArgSizes[i], kernelArgs[i] );
+        if (argOffsets || kernelIdx > 0) {
+          // tensorC offsets
+          unsigned int tensorOffsetCd0 = d0*kernelNumElementsDim0[0]*problem.tensorC[indexAssignmentCd0].stride;
+          unsigned int tensorOffsetCd1 = d1*kernelNumElementsDim1[0]*problem.tensorC[indexAssignmentCd1].stride;
+
+          // tensorA,B offsets
+          unsigned int tensorOffsetAdU = dU*kernelNumElementsDimU[0]*problem.tensorA[indexAssignmentAdU].stride;
+          unsigned int tensorOffsetBdU = dU*kernelNumElementsDimU[0]*problem.tensorB[indexAssignmentAdU].stride;
+          unsigned int tensorOffsetAd0or1 = 0;
+          unsigned int tensorOffsetBd0or1 = 0;
+          if (d0InTensorA) {
+            tensorOffsetAd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorA[indexAssignmentAd0or1].stride;
+            tensorOffsetBd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorB[indexAssignmentBd0or1].stride;
+          } else {
+            tensorOffsetAd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorA[indexAssignmentAd0or1].stride;
+            tensorOffsetBd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorB[indexAssignmentBd0or1].stride;
+          }
+          // data offsets
+          unsigned int tensorOffsetC = tensorDataC.offset + tensorOffsetCd0 + tensorOffsetCd1;
+          unsigned int tensorOffsetA = tensorDataA.offset + tensorOffsetAd0or1 + tensorOffsetAdU;
+          unsigned int tensorOffsetB = tensorDataB.offset + tensorOffsetBd0or1 + tensorOffsetBdU;
+
+          
+          status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetC );
+          CL_CHECK(status)
+          status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetA );
+          CL_CHECK(status)
+          status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetB );
           CL_CHECK(status)
         }
 
-        // size overrides
-        status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim0, kernelArgSizes[kernelArgIdxDim0], &kernelNumElementsDim0[kernelIdx] );
-        CL_CHECK(status)
-        status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim1, kernelArgSizes[kernelArgIdxDim1], &kernelNumElementsDim1[kernelIdx] );
-        CL_CHECK(status)
-        status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxSummation, kernelArgSizes[kernelArgIdxSummation], &kernelNumElementsDimU[kernelIdx] );
-        CL_CHECK(status)
+        if (argSizes || kernelIdx > 0) {
+          // data sizes (truncated due to grid)
+          unsigned int readShift = argIdx;
+          //if (!argOffsets && kernelIdx == 0) {
+          //  readShift = 3;
+          //}
+          for ( unsigned int i = 0; i < numKernelArgs; i++) {
+            status = clSetKernelArg( kernels[kernelIdx], argIdx+i, kernelArgSizes[i], kernelArgs[i] );
+            CL_CHECK(status)
+          }
+
+          // size overrides
+          status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim0+readShift, kernelArgSizes[kernelArgIdxDim0], &kernelNumElementsDim0[kernelIdx] );
+          CL_CHECK(status)
+          status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim1+readShift, kernelArgSizes[kernelArgIdxDim1], &kernelNumElementsDim1[kernelIdx] );
+          CL_CHECK(status)
+          status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxSummation+readShift, kernelArgSizes[kernelArgIdxSummation], &kernelNumElementsDimU[kernelIdx] );
+          CL_CHECK(status)
+          argIdx += numKernelArgs;
+        }
 
         // alpha
-        unsigned int argIdx = numKernelArgs;
         if (requireAlpha) {
-          status = clSetKernelArg( kernels[kernelIdx], argIdx, sizeOfAlpha, alpha.data );
+          status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeOfAlpha, alpha.data );
           CL_CHECK(status)
-          argIdx++;
         }
 
         // beta
         if (requireBeta) {
-          status = clSetKernelArg( kernels[kernelIdx], argIdx, sizeOfBeta, (dU>0) ? static_cast<void *>(&betaOne) : beta.data );
+          status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeOfBeta, (dU>0) ? static_cast<void *>(&betaOne) : beta.data );
           CL_CHECK(status)
-          argIdx++;
         }
 
         // enqueue

@@ -142,6 +142,10 @@ protected:
   bool requireAlpha;
   bool requireBeta;
 
+  // preprocessor optimizations
+  bool argOffsets;
+  bool argSizes;
+
 };
 
 #endif
