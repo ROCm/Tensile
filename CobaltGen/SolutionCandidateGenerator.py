@@ -341,8 +341,8 @@ class SolutionCandidateGenerator:
             # kernel grid
             kernelGrid = [ 1, 1, 1 ]
             if kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0:
-              kernelGrid[0] = kernel.unrollDimStride0 / 1024;
-              kernelGrid[1] = kernel.unrollDimStride1 / 1024;
+              kernelGrid[0] = kernel.unrollDimStride0 / 2048;
+              kernelGrid[1] = kernel.unrollDimStride1 / 2048;
               kernelGrid[2] = kernel.unrollDimSize / 1024
               if kernelGrid[2] > 1 and not kernel.operation.useBeta:
                   kernel.operation.useBeta = True

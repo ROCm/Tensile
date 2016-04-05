@@ -410,13 +410,62 @@ class Problem:
     self.deviceProfile = DeviceProfile()
 
   def __str__(self):
-    state = "[Problem"
-    state += "; " + str(self.tensorC)
-    state += "; " + str(self.tensorA)
-    state += "; " + str(self.tensorB)
-    state += "; " + str(self.operation)
-    state += "; " + str(self.deviceProfile)
-    state += "]"
+    #state = "[Problem"
+    #state += "; " + str(self.tensorC)
+    #state += "; " + str(self.tensorA)
+    #state += "; " + str(self.tensorB)
+    #state += "; " + str(self.operation)
+    #state += "; " + str(self.deviceProfile)
+    #state += "]"
+
+    state = ""
+    indexChars = "ijklmnopqrstuvwxyz"
+
+    # device
+    for device in self.deviceProfile.devices:
+      state += device.name + "_"
+    # operation type
+    state += self.operation.type.__str__() + "_"
+    # precisions
+    state += self.tensorC.dataType.toChar()
+    state += self.tensorA.dataType.toChar()
+    state += self.tensorB.dataType.toChar()
+    state += self.operation.alphaType.toChar()
+    state += self.operation.betaType.toChar()
+    # C
+    state += "_C_"
+    state += indexChars[0]
+    state += str(self.tensorC.dimensions[0].stride) + "_" + str(self.tensorC.dimensions[0].size)
+    for i in range(1, len(self.tensorC.dimensions)):
+      state += "_"
+      state += indexChars[i]
+      state += str(self.tensorC.dimensions[i].stride) + "_" + str(self.tensorC.dimensions[i].size)
+    # Sum
+    state += "_Sum_"
+    state += indexChars[len(self.tensorC.dimensions)]
+    for j in range(0, len(self.tensorA.dimensions)):
+      if self.operation.indexAssignmentsA[j] == 0 + len(self.tensorC.dimensions):
+        state += str(self.tensorA.dimensions[j].size)
+    for i in range(1, self.operation.numIndicesSummation):
+      state += "_"
+      state += self.indexChars[tensorA.numDims()+i]
+      for j in range( 0, len(self.tensorA.dimensions)):
+        if self.operation.indexAssignmentsA[j] == i+len(self.tensorC.dimensions):
+          state += str(self.tensorA.dimensions[j].size)
+    # A
+    state += "_A_"
+    for i in range(0, len(self.tensorA.dimensions)):
+      state += indexChars[self.operation.indexAssignmentsA[i]]
+      state += str(self.tensorA.dimensions[i].stride)
+      if i < len(self.tensorA.dimensions)-1:
+        state += "_"
+    # B
+    state += "_B_";
+    for i in range(0, len(self.tensorB.dimensions)):
+      state += indexChars[self.operation.indexAssignmentsB[i]];
+      state += str(self.tensorB.dimensions[i].stride)
+      if i < len(self.tensorB.dimensions)-1:
+        state += "_"
     return state
 
   def __repr__(self):

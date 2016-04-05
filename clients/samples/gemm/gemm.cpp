@@ -1,6 +1,8 @@
 #include "Cobalt.h"
 #include <stdio.h>
 #include <string>
+#include <vector>
+#include <array>
 
 CobaltTensor createTensorForMatrix(
     CobaltDataType dataType,
@@ -23,13 +25,64 @@ CobaltProblem createProblemGEMM(
     CobaltDataType dataTypeB
   );
 
+
+const size_t sgemmSizeBoundsSize = 6;
+const size_t sgemmSizeBounds[][2] = {
+  {16 * 1, 1536},
+  {16 * 2, 2048},
+  {16 * 3, 2048},
+  {16 * 4, 3072},
+  {16 * 5, 3072},
+  {16 * 6, 4096} };
+
+#if 0
+  sgemm
+  16*1, 0, 1.5k
+  16*2, 0, 2k
+  16*3, 0, 2k
+  16*4, 0, 3k
+  16*5, 0, 3k
+  16*6, 0, 4k
+
+  dgemm
+  16*1, 0, 1.5k
+  16*2, 0, 3k
+  16*3, 0, 4k
+  16*4, 0, 5k
+  16*5, 0, 4k
+
+  cgemm
+  16*1, 0, 1k
+  16*2, 0, 2.5k
+  16*3, 0, 3k
+  16*4, 0, 4k
+  16*5, 0, 4k
+  16*6, 0, 4k
+
+  zgemm
+  16*1,2,3,4, 0, 3k
+  
+#endif
+
 /*******************************************************************************
  * main
  ******************************************************************************/
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
-  const size_t numSizes = 1;
-  size_t sizes[] = {131, 5760};
+  std::vector<std::array<size_t,3>> sizes;
+  for (size_t i = 16; i < 4096+16*12; i+= 16) {
+    bool useSize = false;
+    for (size_t j = 0; j < sgemmSizeBoundsSize; j++) {
+      if (i < sgemmSizeBounds[j][1] && i % sgemmSizeBounds[j][0]==0) {
+        useSize = true;
+        break;
+      }
+    }
+    if (useSize) {
+      sizes.push_back({ i, i, i });
+    }
+  }
+
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
@@ -64,46 +117,46 @@ int main( char * argv[], int argc ) {
   cobaltSetup(logFilePath.c_str());
   for (size_t transA = 0; transA < numTransA; transA++) {
     for (size_t transB = 0; transB < numTransB; transB++) {
-      for (size_t mIdx = 0; mIdx < numSizes; mIdx++) {
-        for (size_t nIdx = 0; nIdx < numSizes; nIdx++) {
-          for (size_t kIdx = 0; kIdx < numSizes; kIdx++) {
-            for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
-              for (size_t dtIdx = 0; dtIdx < numDataTypes; dtIdx++) {
-                for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
-                  for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
-                    for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
-                      size_t numBatches = batches[bIdx];
-                      size_t M = sizes[mIdx];
-                      size_t N = sizes[nIdx];
-                      size_t K = sizes[kIdx];
-                      //if (M != N || M != K || N != K) continue;
-                      size_t initStride = initialStrides[sIdx];
-                      bool alpha = alphas[alphaIdx];
-                      bool beta = betas[betaIdx];
-                      printf("%s%s\n", transA == 1 ? "T" : "N", transB == 1 ? "T" : "N");
-                      CobaltProblem problem = createProblemGEMM(
-                          transAs[transA],
-                          transBs[transB],
-                          M, N, K,
-                          initStride,
-                          numBatches,
-                          alpha,
-                          beta,
-                          dataTypes[dtIdx][0],
-                          dataTypes[dtIdx][1],
-                          dataTypes[dtIdx][2]
-                        );
-                      
-                      CobaltStatus status;
-                      CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
-                      numProblems++;
-                    } // beta
-                  } // alpha
-                } // batch
-              } // data type
-            } // stride
-          } // K
-        } // N
+      for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
+        for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
+          for (size_t dtIdx = 0; dtIdx < numDataTypes; dtIdx++) {
+            for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
+              for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
+                for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
+                  size_t numBatches = batches[bIdx];
+                  size_t M = sizes[mIdx][0];
+                  size_t N = sizes[mIdx][1];
+                  size_t K = sizes[mIdx][2];
+                  //if (M != N || M != K || N != K) continue;
+                  size_t initStride = initialStrides[sIdx];
+                  bool alpha = alphas[alphaIdx];
+                  bool beta = betas[betaIdx];
+                  CobaltProblem problem = createProblemGEMM(
+                      transAs[transA],
+                      transBs[transB],
+                      M, N, K,
+                      initStride,
+                      numBatches,
+                      alpha,
+                      beta,
+                      dataTypes[dtIdx][0],
+                      dataTypes[dtIdx][1],
+                      dataTypes[dtIdx][2]
+                    );
+                  //unsigned int nameSize;
+                  //cobaltProblemToString(problem, nullptr, &nameSize);
+                  //char *nameStr = new char[nameSize];
+                  //cobaltProblemToString(problem, nameStr, &nameSize);
+                  //delete[] nameStr;
+                  
+                  CobaltStatus status;
+                  CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
+                  numProblems++;
+                } // beta
+              } // alpha
+            } // batch
+          } // data type
+        } // stride
       } // M
     } // transB
   } // transA
@@ -196,7 +249,8 @@ CobaltProblem createProblemGEMM(
   cobaltProblemToString(problem, nullptr, &problemStringSize);
   char *problemString = new char[problemStringSize];
   cobaltProblemToString(problem, problemString, &problemStringSize);
-  printf("%s\n", problemString);
+  printf("%4llux%4llux%4llu %s\n", M, N, K, problemString);
+  delete[] problemString;
 
 
   // problem - validate

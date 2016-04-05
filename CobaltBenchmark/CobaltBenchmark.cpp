@@ -37,34 +37,28 @@ int main( int argc, char *argv[] ) {
 
   // initialize initial buffer values for validation
   initTensorData();
-
-  // initialize Candidates
-  printf("Status: Initializing solution candidates...");
-  initializeSolutionCandidates();
-  printf("done.\n");
-
-
+  
   size_t problemStartIdx = 0;
   size_t problemEndIdx = numProblems;
-  size_t solutionStartIdx = 0;
-  size_t solutionEndIdx = 0;
 
   // for each problem
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
       problemIdx++ ) {
 
     // info about problem
-    CobaltProblem problemReference = problems[problemIdx];
-    bool isFloatC = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeC());
-    bool isFloatA = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeA());
-    bool isFloatB = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeB());
-    bool isFloatAlpha = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeAlpha());
-    bool isDoubleAlpha = cobaltDataTypeIsDouble(problemReference->pimpl->getDataTypeAlpha());
-    bool isFloatBeta = cobaltDataTypeIsFloat(problemReference->pimpl->getDataTypeBeta());
-    bool isDoubleBeta = cobaltDataTypeIsDouble(problemReference->pimpl->getDataTypeBeta());
-    size_t sizeC = problemReference->pimpl->tensorC.numBytes();
-    size_t sizeA = problemReference->pimpl->tensorA.numBytes();
-    size_t sizeB = problemReference->pimpl->tensorB.numBytes();
+    CobaltProblem problem;
+    std::vector<Cobalt::Solution *> solutionCandidates;
+    initializeSolutionCandidates(&problem, &solutionCandidates, problemIdx);
+    bool isFloatC = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeC());
+    bool isFloatA = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeA());
+    bool isFloatB = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeB());
+    bool isFloatAlpha = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeAlpha());
+    bool isDoubleAlpha = cobaltDataTypeIsDouble(problem->pimpl->getDataTypeAlpha());
+    bool isFloatBeta = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeBeta());
+    bool isDoubleBeta = cobaltDataTypeIsDouble(problem->pimpl->getDataTypeBeta());
+    size_t sizeC = problem->pimpl->tensorC.numBytes();
+    size_t sizeA = problem->pimpl->tensorA.numBytes();
+    size_t sizeB = problem->pimpl->tensorB.numBytes();
     void *initialDataC = isFloatC ? initialTensorDataFloatC.data : initialTensorDataDoubleC.data;
     void *initialDataA = isFloatA ? initialTensorDataFloatA.data : initialTensorDataDoubleA.data;
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
@@ -82,8 +76,8 @@ int main( int argc, char *argv[] ) {
 
       // get reference solution
       Cobalt::Solution *solutionReference;
-      problemReference->pimpl->deviceProfile = deviceProfileReference;
-      std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problemReference->pimpl) );
+      problem->pimpl->deviceProfile = deviceProfileReference;
+      std::tie(solutionReference,cobaltStatus) = getSolutionCPU( *(problem->pimpl) );
 
       // re-initialize reference buffers
       memcpy(referenceTensorDataC.data, initialDataC, sizeC);
@@ -91,7 +85,7 @@ int main( int argc, char *argv[] ) {
       referenceTensorDataB.data = initialDataB;
 
       // enqueue reference solution
-      printf("Status: Enqueueing reference for %s ...", problemReference->pimpl->toString().c_str());
+      printf("Status: Enqueueing reference for %s ...", problem->pimpl->toString().c_str());
       solutionReference->enqueue(
         referenceTensorDataC,
         referenceTensorDataA,
@@ -105,7 +99,8 @@ int main( int argc, char *argv[] ) {
     }
 
 
-    solutionEndIdx += numSolutionsPerProblem[problemIdx];
+    size_t solutionStartIdx = 0;
+    size_t solutionEndIdx = solutionCandidates.size();
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
 

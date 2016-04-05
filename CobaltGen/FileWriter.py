@@ -47,7 +47,7 @@ class FileWriter:
     print "status: writing kernel files"
 
     # main kernel .cpp,.h files
-    kernelFilePath = "${Cobalt_DIR_GENERATED}/Kernels/"
+    kernelFilePath = "${Cobalt_DIR_GENERATED}" + self.kernelSubdirectory
     kernelsCMakeFilePath = self.outputPath + self.kernelSubdirectory \
         + "CobaltKernels.cmake"
     allKernelsHeaderFilePath = self.outputPath + self.kernelSubdirectory \
@@ -88,7 +88,7 @@ class FileWriter:
       allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\r")
 
     kernelsCMakeFile.write(")\n")
-    kernelsCMakeFile.write("source_group(Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n")
+    kernelsCMakeFile.write("source_group(CobaltGen\\\\Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n")
     kernelsCMakeFile.close()
     allKernelsHeaderFile.close()
 
@@ -100,7 +100,7 @@ class FileWriter:
     print "status: writing solution files"
 
     # main solution .cpp,.h files
-    solutionFilePath = "${Cobalt_DIR_GENERATED}/Solutions/"
+    solutionFilePath = "${Cobalt_DIR_GENERATED}" + self.solutionSubdirectory
     solutionsCMakeFilePath = self.outputPath + self.solutionSubdirectory \
         + "CobaltSolutions.cmake"
     allSolutionsHeaderFilePath = self.outputPath + self.solutionSubdirectory \
@@ -141,7 +141,7 @@ class FileWriter:
           + solutionHeaderFileName + "\"\n")
 
     solutionsCMakeFile.write(")\n")
-    solutionsCMakeFile.write("source_group(Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n")
+    solutionsCMakeFile.write("source_group(CobaltGen\\\\Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n")
     solutionsCMakeFile.close()
     allSolutionsHeaderFile.close()
 
@@ -151,43 +151,11 @@ class FileWriter:
   ##############################################################################
   def writeBenchmarkFiles( self, problemSolutionCandidates ):
     print "status: writing benchmark files"
-    # write a .cpp file which creates an array of problem/solution candidates
-    benchmarkSourcePath = self.outputPath + self.benchmarkSubdirectory \
-        + "CobaltSolutionCandidates.cpp"
-    benchmarkSourceFile = open(benchmarkSourcePath, "w")
-    s = ""
-    s += "#include \"CobaltSolutionCandidates.h\"\n"
-    s += "\n"
-    s += "/* benchmark stuff */\n"
-    s += "\n"
 
-    # declarations
     numProblems = len(problemSolutionCandidates);
     numSolutions = 0
-    for problemSolutionPair in problemSolutionCandidates:
-      solutionList = problemSolutionPair[1]
-      numSolutions += len(solutionList)
-    s += "size_t numSolutionsPerProblem[numProblems];\n"
-    s += "CobaltProblem problems[numProblems];\n"
-    s += "Cobalt::Solution *solutionCandidates[numSolutions];\n"
 
-    # initializeSolutionCandidates
-    s += "void initializeSolutionCandidates() {\n"
 
-    # DeviceProfile
-    s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
-    s += "  deviceProfile.numDevices = 1;\n"
-    s += "  sprintf_s(deviceProfile.devices[0].name, \"TODO\" );\n"
-    s += "\n"
-    s += "  CobaltTensor tensorC = cobaltCreateEmptyTensor();\n"
-    s += "  CobaltTensor tensorA = cobaltCreateEmptyTensor();\n"
-    s += "  CobaltTensor tensorB = cobaltCreateEmptyTensor();\n"
-    s += "  std::vector<unsigned int> indexAssignmentsA(CobaltTensor::maxDimensions);\n"
-    s += "  std::vector<unsigned int> indexAssignmentsB(CobaltTensor::maxDimensions);\n"
-    s += "  CobaltOperationType operationType;\n"
-    s += "  CobaltDataType alphaType;\n"
-    s += "  CobaltDataType betaType;\n"
-    s += "  CobaltStatus status;\n"
     templateInstantiationSet = set()
     solutionStartIdx = 0
     tensorSizeMaxC = 0
@@ -201,10 +169,39 @@ class FileWriter:
       problem = problemSolutionPair[0]
       solutionList = problemSolutionPair[1]
       numSolutions = len(solutionList)
-      solutionEndIdx = solutionStartIdx + numSolutions
+      solutionEndIdx = numSolutions
+
+      problemName = str(problem)
+      # open problem file
+      problemFileNameBase = "init_" + problemName + "_candidates"
+      problemSourcePath = self.outputPath + self.benchmarkSubdirectory \
+          + problemFileNameBase + ".cpp"
+      problemSourceFile = open(problemSourcePath, "w")
+      problemHeaderPath = self.outputPath + self.benchmarkSubdirectory \
+          + problemFileNameBase + ".h"
+      problemHeaderFile = open(problemHeaderPath, "w")
+
+      s = "" # source file string
+      s += "#include \"" + problemFileNameBase + ".h\"\n"
+      s += "\n"
+      s += "/* problem " + str(problemIdx) + "/" + str(numProblems) + ": " + problemName + " */\n"
+      s += "\n"
+
+      # initializeSolutionCandidates
+      s += "void init_" + problemName + "_candidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates) {\n"
+
+      # DeviceProfile
+      s += "\n"
+      s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
+      s += "  deviceProfile.numDevices = %u;\n" % len(problem.deviceProfile.devices)
+      for i in range(0,len(problem.deviceProfile.devices)):
+        s += "  sprintf_s(deviceProfile.devices[%u].name, \"%s\" );\n" % (i, problem.deviceProfile.devices[i].name)
+      s += "\n"
+
 
       # problem.tensorC
-      s += "/* problem " + str(problemIdx) + "/" + str(numProblems) + " */\n"
+      s += "\n  /* tensorC */\n"
+      s += "  CobaltTensor tensorC = cobaltCreateEmptyTensor();\n"
       s += "  tensorC.dataType = " \
           + problem.tensorC.dataType.getLibString() + ";\n"
       tensorDimC = len(problem.tensorC.dimensions)
@@ -216,6 +213,8 @@ class FileWriter:
             + str(problem.tensorC.dimensions[i].size) + ";\n"
 
       # problem.tensorA
+      s += "\n  /* tensorA */\n"
+      s += "  CobaltTensor tensorA = cobaltCreateEmptyTensor();\n"
       s += "  tensorA.dataType = " \
           + problem.tensorA.dataType.getLibString() + ";\n"
       tensorDimA = len(problem.tensorA.dimensions)
@@ -227,6 +226,8 @@ class FileWriter:
             + str(problem.tensorA.dimensions[i].size) + ";\n"
 
       # problem.tensorB
+      s += "\n  /* tensorB */\n"
+      s += "  CobaltTensor tensorB = cobaltCreateEmptyTensor();\n"
       s += "  tensorB.dataType = " \
           + problem.tensorB.dataType.getLibString() + ";\n"
       tensorDimB = len(problem.tensorB.dimensions)
@@ -237,40 +238,30 @@ class FileWriter:
         s += "  tensorB.dimensions[" + str(i) + "].size = " \
             + str(problem.tensorB.dimensions[i].size) + ";\n"
 
+
+
       # problem.operation
-      s += "  operationType = " \
+      s += "\n  /* operation */\n"
+      s += "  CobaltOperationType operationType = " \
           + problem.operation.type.getLibString() + ";\n"
-
-      # operation.alpha
-      #s += "  problem.operation.useAlpha = " \
-      #    + ( "true" if problem.operation.useAlpha else "false" ) + ";\n"
-      s += "  alphaType = " \
+      s += "  CobaltDataType alphaType = " \
           + problem.operation.alphaType.getLibString() + ";\n"
-
-      # operation.beta
-      #s += "  problem.operation.useBeta = " \
-      #    + ( "true" if problem.operation.useBeta else "false" ) + ";\n"
-      s += "  betaType = " \
+      s += "  CobaltDataType betaType = " \
           + problem.operation.betaType.getLibString() + ";\n"
-
-      # operation.indices
-      #s += "  problem.operation.numIndicesFree = " \
-      #    + str(problem.operation.numIndicesFree) + ";\n"
-      #s += "  problem.operation.numIndicesBatch = " \
-      #    + str(problem.operation.numIndicesBatch) + ";\n"
-      #s += "  problem.operation.numIndicesSummation = " \
-      #    + str(problem.operation.numIndicesSummation) + ";\n"
       numIndicesA = len(problem.operation.indexAssignmentsA)
+      s += "  std::vector<unsigned int> indexAssignmentsA("+str(numIndicesA)+");\n"
       for i in range(0,numIndicesA):
         s += "  indexAssignmentsA[" + str(i) + "] = " \
             + str(problem.operation.indexAssignmentsA[i]) + ";\n"
       numIndicesB = len(problem.operation.indexAssignmentsB)
+      s += "  std::vector<unsigned int> indexAssignmentsB("+str(numIndicesB)+");\n"
       for i in range(0,numIndicesB):
         s += "  indexAssignmentsB[" + str(i) + "] = " \
             + str(problem.operation.indexAssignmentsB[i]) + ";\n"
-
+      s += "\n"
+      s += "  CobaltStatus status;\n"
       # store problem
-      s += "  problems[" + str(problemIdx) + "] = cobaltCreateProblem(\n"
+      s += "  *problem = cobaltCreateProblem(\n"
       s += "      tensorC,\n"
       s += "      tensorA,\n"
       s += "      tensorB,\n"
@@ -283,12 +274,9 @@ class FileWriter:
       s += "      &status);\n"
       s += "\n"
 
-      # numSolutionsPerProblem
-      s += "  numSolutionsPerProblem[" + str(problemIdx) + "] = " \
-          + str(numSolutions) + ";\n"
       for i in range(0,numSolutions):
-        s += "  solutionCandidates[" + str(solutionStartIdx+i) + "] = new Cobalt::" \
-            + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( *(problems[" + str(problemIdx) + "]->pimpl) ); // " \
+        s += "  solutionCandidates->push_back( new Cobalt::" \
+            + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( *((*problem)->pimpl) ) ); // " \
             + str(i) + "/" + str(numSolutions) + "\n"
         templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solutionList[i]))
       s += "\n"
@@ -313,41 +301,82 @@ class FileWriter:
           tensorSizeMaxB = tensorSizeDimB
           #print "tensorSizeMaxB = " + str(tensorSizeMaxB)
 
+      s += "}\n"
+      problemSourceFile.write(s)
+      problemSourceFile.close()
+
+      # problem header
+      h = "" # header file string
+      h += "#ifndef " + problemFileNameBase.upper() + "_H\n"
+      h += "#define " + problemFileNameBase.upper() + "_H\n"
+      h += "\n"
+      h += "//#include \"Cobalt.h\"\n"
+      h += "//#include \"Solution.h\"\n"
+      h += "\n"
+      for i in range(0,numSolutions):
+        h += "#include \""+ self.solutionWriter.getName(solutionList[i]) + ".h\"\n"
+      h += "\n"
+      h += "void init_" + problemName + "_candidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates);\n"
+      h += "\n"
+      h += "#endif\n"
+      problemHeaderFile.write(h)
+      problemHeaderFile.close()
+
+    ########################################
+    # top level benchmark file
+    benchmarkSourcePath = self.outputPath + self.benchmarkSubdirectory \
+      + "CobaltSolutionCandidates.cpp"
+    benchmarkSourceFile = open(benchmarkSourcePath, "w")
+    s = ""
+    s += "#include \"CobaltSolutionCandidates.h\"\n"
+    s += "\n"
+    # include candidates
+    for problemIdx in range(0,numProblems):
+      problemSolutionPair = problemSolutionCandidates[problemIdx]
+      problem = problemSolutionPair[0]
+      problemName = str(problem)
+      problemFileNameBase = "init_" + problemName + "_candidates"
+      s += "#include \"" + problemFileNameBase + ".h\"\n"
+    # init function
+    s += "\n"
+    s += "void initializeSolutionCandidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex) {\n"
+    s += "  switch( problemIndex ) {\n"
+    for problemIdx in range(0,numProblems):
+      problemSolutionPair = problemSolutionCandidates[problemIdx]
+      problem = problemSolutionPair[0]
+      problemName = str(problem)
+      s += "  case " + str(problemIdx) + ":\n"
+      s += "    init_" + problemName + "_candidates(problem, solutionCandidates);\n"
+      s += "    break;\n"
+
+    s += "  default:\n"
+    s += "    printf(\"Oops\\n\");\n"
+    s += "  }\n"
     s += "}\n"
     benchmarkSourceFile.write(s)
     benchmarkSourceFile.close()
 
+    ###########################################
+    # top level benchmark header file
     benchmarkHeaderPath = self.outputPath + self.benchmarkSubdirectory \
         + "CobaltSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
-    s = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
-    s += "#define COBALT_SOLUTION_CANDIDATES_H\n"
-    s += "#include \"Cobalt.h\"\n"
-    s += "#include \"CobaltSolutions.h\"\n"
-    s += "#include \"CL/cl.h\"\n"
-    s += "\n"
-    s += "const size_t numProblems = " + str(numProblems) + ";\n"
-    s += "const size_t numSolutions = " + str(solutionEndIdx) + ";\n"
-    s += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
-    s += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
-    s += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
-    s += "extern size_t numSolutionsPerProblem[numProblems];\n"
-    s += "extern CobaltProblem problems[numProblems];\n"
-    s += "extern Cobalt::Solution *solutionCandidates[numSolutions];\n"
-    s += "// extern float alphaSingle;\n"
-    s += "// extern float betaSingle;\n"
-    s += "// extern double alphaDouble;\n"
-    s += "// extern double betaDouble;\n"
-    s += "// extern CobaltComplexFloat alphaSingleComplex;\n"
-    s += "// extern CobaltComplexFloat betaSingleComplex;\n"
-    s += "// extern CobaltComplexDouble alphaDoubleComplex;\n"
-    s += "// extern CobaltComplexDouble betaDoubleComplex;\n"
-    s += "\n"
-    s += "void initializeSolutionCandidates();\n"
-    s += "\n"
-    s += "#endif\n"
-    s += "\n"
-    benchmarkHeaderFile.write(s)
+    h = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
+    h += "#define COBALT_SOLUTION_CANDIDATES_H\n"
+    h += "#include \"Cobalt.h\"\n"
+    h += "#include \"CobaltSolutions.h\"\n"
+    h += "#include \"CL/cl.h\"\n"
+    h += "\n"
+    h += "const size_t numProblems = " + str(numProblems) + ";\n"
+    h += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
+    h += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
+    h += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
+    h += "\n"
+    h += "void initializeSolutionCandidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
+    h += "\n"
+    h += "#endif\n"
+    h += "\n"
+    benchmarkHeaderFile.write(h)
     benchmarkHeaderFile.close()
 
     # explicit template instantiation
@@ -361,20 +390,31 @@ class FileWriter:
 
 
     # write CobaltBenchmark.cmake
-    """benchmarkCMakePath = self.outputPath + self.benchmarkSubdirectory \
+    benchmarkCMakePath = self.outputPath + self.benchmarkSubdirectory \
         + "CobaltBenchmark.cmake"
     benchmarkCMakeFile = open(benchmarkCMakePath, "w")
     s = "# CobaltBenchmark.cmake\n"
     s += "\n"
-    s += "# include list of kernel files\n"
-    s += "include( " + self.outputPath + self.kernelSubdirectory \
-        + "CobaltKernels.cmake"
+    s += "include( ${Cobalt_KernelFiles_CMAKE_DYNAMIC} )\n"
+    s += "include( ${Cobalt_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
-    s += "# include list of solution files\n"
-    s += "include( " + self.outputPath + self.solutionSubdirectory \
-        + "CobaltSolutions.cmake"
+    s += "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
+    for problemIdx in range(0,numProblems):
+      problemSolutionPair = problemSolutionCandidates[problemIdx]
+      problem = problemSolutionPair[0]
+      problemName = str(problem)
+      problemFileNameBase = "init_" + problemName + "_candidates"
+      s += "  ${Cobalt_DIR_GENERATED}" + self.benchmarkSubdirectory + problemFileNameBase + ".cpp\n"
+      s += "  ${Cobalt_DIR_GENERATED}" + self.benchmarkSubdirectory + problemFileNameBase + ".h\n"
+    s += ")\n"
     s += "\n"
-    """
+    s += "source_group(CobaltGen\\\\Benchmark FILES\n"
+    s += "  ${CobaltBenchmark_SRC_GENERATED_STATIC}\n"
+    s += "  ${CobaltBenchmark_SRC_GENERATED_DYNAMIC} )\n"
+    s += "\n"
+    benchmarkCMakeFile.write(s)
+    benchmarkCMakeFile.close()
+    
 
 
   ##############################################################################

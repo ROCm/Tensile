@@ -61,10 +61,14 @@ add_executable( ${CobaltBenchmark_NAME}
   ${CobaltBenchmark_SRC_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
+  ${Cobalt_KernelFiles_GENERATED_DYNAMIC}
+  ${Cobalt_SolutionFiles_GENERATED_DYNAMIC}
   ${CobaltGen_SRC}
 )
 source_group( CobaltGen\\Scripts FILES ${CobaltGen_SRC} )
-source_group( CobaltGen\\Generated FILES
+source_group( CobaltGen\\Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )
+source_group( CobaltGen\\Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )
+source_group( CobaltGen\\Benchmark FILES
   ${CobaltBenchmark_SRC_GENERATED_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
 )

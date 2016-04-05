@@ -250,7 +250,7 @@ CobaltStatus cppStringToCString(
     } else {
       // copy all
       memcpy(cstr, state.c_str(), state.size());
-      cstr[state.size()+1] = '\0';
+      cstr[state.size()] = '\0';
     }
   } else {
     // just return size

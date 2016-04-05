@@ -74,7 +74,7 @@ def GenBenchmarkFromFiles( \
       if kernel != None:
         allKernels.add( kernel )
         totalKernels+=1
-    print "Prob[" + str(problemIdx) + "]: " + str(len(solutionCandidates)) + "/" + str(len(allSolutions)) + " solutions"
+    print "Prob[" + str(problemIdx) + "] \"" + str(problem) + "\": " + str(len(solutionCandidates)) + "/" + str(len(allSolutions)) + " solutions"
     problemIdx += 1
   print "CobaltGenBenchmark:   " + str(len(allSolutions)) + " unique solutions"
   print "CobaltGenBenchmark:   " + str(len(allKernels)) + " unique kernels"
