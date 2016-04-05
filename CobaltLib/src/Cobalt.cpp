@@ -141,14 +141,15 @@ CobaltProblem cobaltCreateProblem(
 
 };
 
-CobaltStatus cobaltDestoyProblem( CobaltProblem *problem ) {
+CobaltStatus cobaltDestroyProblem( CobaltProblem *problem ) {
   if (problem) {
-    delete problem;
-    problem = nullptr;
-    return cobaltStatusSuccess;
-  } else {
-    return cobaltStatusParametersInvalid;
+    if ((*problem)->pimpl) {
+      delete (*problem)->pimpl;
+      (*problem)->pimpl = nullptr;
+      return cobaltStatusSuccess;
+    }
   }
+  return cobaltStatusParametersInvalid;
 }
 
 

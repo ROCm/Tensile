@@ -100,9 +100,9 @@ Logger::~Logger() {
 void Logger::log( const TraceEntry & entry) {
   // add to trace
   trace.push(entry); // append to end of list
-  if (trace.size() >= 10) {
-    flush();
-  }
+  //if (trace.size() >= 10) {
+  flush();
+  //}
   //if (entry.solution) {
   //  enqueueSummary[entry.solution]++;
   //}

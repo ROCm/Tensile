@@ -134,10 +134,10 @@ int main( int argc, char *argv[] ) {
         printf("\nTensorC-GPU:\n");
         printf( problemReference->pimpl->tensorC.toString(deviceTensorDataOnHostC).c_str() );
 #endif
-
+      delete solution;
+      solutionCandidates[ solutionIdx ] = nullptr;
     } // solution loop
-
-    solutionStartIdx = solutionEndIdx;
+    cobaltDestroyProblem( &problem );
     
   } // problem loop
   cobaltTeardown();
