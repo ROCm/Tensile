@@ -337,9 +337,8 @@ class SolutionWriter:
     s += "public:\n"
     s += "  /* constructor */\n"
     s += "  " + solutionName + "( const Problem & inputProblem );\n"
+    #s += "  ~" + solutionName + "() {printf(\"~"+solutionName+"\\n\");}\n"
     s += "\n"
-    #s += "  std::string " + solutionName \
-    #    + "::toString( size_t indentLevel) const;\n"
     s += "  std::string toString( size_t indentLevel) const;\n"
     s += "\n"
     s += "}; // class\n"

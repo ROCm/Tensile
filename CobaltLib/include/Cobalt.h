@@ -6,6 +6,10 @@
 #ifndef COBALT_H
 #define COBALT_H
 
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
+
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 typedef cl_float2 CobaltComplexFloat;
@@ -311,7 +315,7 @@ CobaltProblem cobaltCreateProblem(
     CobaltDataType betaType,
     CobaltDeviceProfile deviceProfile,
     CobaltStatus *status );
-CobaltStatus cobaltDestroyProblem( CobaltProblem *problem );
+CobaltStatus cobaltDestroyProblem( CobaltProblem problem );
 
 
 /*******************************************************************************

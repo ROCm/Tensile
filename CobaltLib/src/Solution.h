@@ -14,7 +14,8 @@ namespace Cobalt {
 class Solution {
 public:
   Solution( const Problem & inputProblem );
-
+  virtual ~Solution() { /*nothing*/ };
+  
   CobaltStatus enqueueEntry(
     CobaltTensorData tensorDataC,
     CobaltTensorData tensorDataA,
@@ -62,7 +63,8 @@ template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, ty
 class SolutionTemplate : public Solution {
 public:
   SolutionTemplate( const Problem & inputProblem );
-  
+  virtual ~SolutionTemplate() { /*nothing*/ };
+
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,
@@ -85,6 +87,7 @@ template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typ
 class SolutionOpenCL : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   SolutionOpenCL( const Problem & inputProblem );
+  ~SolutionOpenCL();
 
   void makeKernel(
   cl_kernel *kernel,
@@ -158,7 +161,8 @@ template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, ty
 class SolutionLogOnly : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   SolutionLogOnly( const Problem & inputProblem );
-  
+  ~SolutionLogOnly();
+
   CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,

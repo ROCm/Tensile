@@ -54,6 +54,15 @@ template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typ
 SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( const Problem & inputProblem)
   : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) { }
 
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+SolutionOpenCL<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionOpenCL() {
+  for (unsigned int i = 0; i < maxNumKernels; i++) {
+    if (kernels[i]) {
+      clReleaseKernel( kernels[i] );
+    }
+  }
+}
+
 
 /******************************************************************************
  * assignWorkSizes - global and local
@@ -183,27 +192,6 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   cl_int err;
   if (*kernel) {
     // kernel has already been built, return
-#ifdef AUTOGEMM_PRINT_DEBUG
-    // get kernel name
-    size_t kernelNameLength;
-    err = clGetKernelInfo(
-      *clKernel,
-      CL_KERNEL_FUNCTION_NAME,
-      sizeof(kernelNameLength),
-      NULL,
-      &kernelNameLength );
-    CL_CHECK(err)
-    char *kernelName = new char[kernelNameLength];
-    err = clGetKernelInfo(
-      *clKernel,
-      CL_KERNEL_FUNCTION_NAME,
-      kernelNameLength*sizeof(char),
-      kernelName,
-      NULL );
-    CL_CHECK(err)
-    printf("makeGemmKernel: \"%s\" already built; returning.\n", kernelName);
-    delete[] kernelName;
-#endif
     return;
   } else {
     // kernel has not been built, so build it (from binary, preferably)
@@ -242,6 +230,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       //printf("\n\nKernel String:\n\n");
       //printf("%s\n", kernelSource);
       printf("\n");
+      delete[] buildLog;
     }
 
     err = clCreateKernelsInProgram(
@@ -249,30 +238,8 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       1, kernel,
       NULL );
     CL_CHECK(err)
-	err = clReleaseProgram(clProgram);
-	CL_CHECK(err)
-    
-#ifdef AUTOGEMM_PRINT_DEBUG
-    // get kernel name
-    size_t kernelNameLength;
-    err = clGetKernelInfo(
-      *clKernel,
-      CL_KERNEL_FUNCTION_NAME,
-      sizeof(kernelNameLength),
-      NULL,
-      &kernelNameLength );
-    CL_CHECK(err)
-    char *kernelName = new char[kernelNameLength];
-    err = clGetKernelInfo(
-      *clKernel,
-      CL_KERNEL_FUNCTION_NAME,
-      kernelNameLength*sizeof(char),
-      kernelName,
-      NULL );
-    CL_CHECK(err)
-    printf("makeGemmKernel: \"%s\" now built; returning.\n", kernelName);
-    delete[] kernelName;
-#endif
+	  err = clReleaseProgram(clProgram);
+	  CL_CHECK(err)
   }
 }
 
@@ -564,6 +531,13 @@ SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionLogOnly( const Pr
   : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
 }
 
+/*******************************************************************************
+* LogSolution:: destructor
+******************************************************************************/
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+SolutionLogOnly<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionLogOnly() {
+  // nothing
+}
 
 /*******************************************************************************
  * LogSolution:: toString

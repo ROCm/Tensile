@@ -141,11 +141,14 @@ CobaltProblem cobaltCreateProblem(
 
 };
 
-CobaltStatus cobaltDestroyProblem( CobaltProblem *problem ) {
+CobaltStatus cobaltDestroyProblem( CobaltProblem problem ) {
   if (problem) {
-    if ((*problem)->pimpl) {
-      delete (*problem)->pimpl;
-      (*problem)->pimpl = nullptr;
+    printf("cobaltDestroyProblem:: problem=%p\n", problem);
+    if (problem->pimpl) {
+      printf("cobaltDestroyProblem:: problem->pimpl=%p\n", problem->pimpl);
+      delete problem->pimpl;
+      delete problem;
+      problem = nullptr;
       return cobaltStatusSuccess;
     }
   }

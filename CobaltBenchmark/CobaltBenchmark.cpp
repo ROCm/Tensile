@@ -1,6 +1,9 @@
 /*******************************************************************************
  * Cobalt Benchmark
  ******************************************************************************/
+#define _CRTDBG_MAP_ALLOC
+#include <stdlib.h>
+#include <crtdbg.h>
 
 #include "CobaltBenchmark.h"
 #include "Cobalt.h"
@@ -16,6 +19,10 @@
 Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
+
+#define MAX_PROBLEMS 1
+#define MAX_SOLUTIONS_PER_PROBLEM 16000000
+
 // alpha = 2
 // beta = 2
 
@@ -23,6 +30,8 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
  * main
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
+
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 
   // parse commandline options
   parseCommandLineOptions(argc, argv);
@@ -40,7 +49,11 @@ int main( int argc, char *argv[] ) {
   
   size_t problemStartIdx = 0;
   size_t problemEndIdx = numProblems;
-
+#ifdef MAX_PROBLEMS
+  if (problemEndIdx > MAX_PROBLEMS) {
+    problemEndIdx = MAX_PROBLEMS;
+  }
+#endif
   // for each problem
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
       problemIdx++ ) {
@@ -101,6 +114,11 @@ int main( int argc, char *argv[] ) {
 
     size_t solutionStartIdx = 0;
     size_t solutionEndIdx = solutionCandidates.size();
+#ifdef MAX_SOLUTIONS_PER_PROBLEM
+      if (solutionEndIdx > MAX_SOLUTIONS_PER_PROBLEM) {
+        solutionEndIdx = MAX_SOLUTIONS_PER_PROBLEM;
+      }
+#endif
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
 
@@ -114,14 +132,16 @@ int main( int argc, char *argv[] ) {
       clFinish(ctrl.queues[0]);
 
       // ensure kernels are compiled before timing
-      ctrl.benchmark = 1;
-      solution->enqueueEntry(
-          deviceTensorDataC,
-          deviceTensorDataA,
-          deviceTensorDataB,
-          alpha,
-          beta,
-          ctrl );
+        ctrl.benchmark = 4;
+      for (unsigned int s = 0; s < 5; s++) {
+        solution->enqueueEntry(
+            deviceTensorDataC,
+            deviceTensorDataA,
+            deviceTensorDataB,
+            alpha,
+            beta,
+            ctrl );
+      }
 
 #if 0
       // peek at gpu result
@@ -137,10 +157,13 @@ int main( int argc, char *argv[] ) {
       delete solution;
       solutionCandidates[ solutionIdx ] = nullptr;
     } // solution loop
-    cobaltDestroyProblem( &problem );
+    cobaltDestroyProblem( problem );
     
   } // problem loop
+  destroyTensorData();
+  destroyControls();
   cobaltTeardown();
+  int leaks = _CrtDumpMemoryLeaks();
   return 0;
 } // end main
 
@@ -233,6 +256,33 @@ void initTensorData() {
   printf("done.\n");
 }
 
+void destroyTensorData() {
+
+
+  delete[] initialTensorDataFloatC.data;
+  delete[] initialTensorDataFloatA.data;
+  delete[] initialTensorDataFloatB.data;
+  delete[] initialTensorDataDoubleC.data;
+  delete[] initialTensorDataDoubleA.data;
+  delete[] initialTensorDataDoubleB.data;
+
+  delete[] deviceTensorDataOnHostC.data;
+  delete[] deviceTensorDataOnHostA.data;
+  delete[] deviceTensorDataOnHostB.data;
+  delete[] referenceTensorDataC.data;
+
+
+  clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataC.data));
+  clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataA.data));
+  clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataB.data));
+
+
+  delete[] alphaFloat.data;
+  delete[] betaFloat.data;
+  delete[] alphaDouble.data;
+  delete[] betaDouble.data;
+}
+
 void fillTensor(CobaltTensor inputTensor, CobaltTensorData tensorData, Cobalt::Tensor::FillType fillType, void *src) {
   Cobalt::Tensor tensor(inputTensor);
   tensor.fill(tensorData, fillType, src);
@@ -264,12 +314,24 @@ void initControls() {
   sprintf_s(deviceProfileReference.devices[0].name, "cpu");
 }
 
+void destroyControls() {
+  for (unsigned int i = 0; i < ctrl.numQueues; i++) {
+    clReleaseCommandQueue(ctrl.queues[i]);
+  }
+  clReleaseContext(context);
+
+  for (unsigned int i = 0; i < numDevices; i++) {
+    clReleaseDevice(devices[i]);
+  }
+  delete[] devices;
+  delete[] platforms;
+}
+
 void parseCommandLineOptions(int argc, char *argv[]) {
   doValidation = false;
   doValidationKernels = false;
   for (int argIdx = 0; argIdx < argc; argIdx++) {
     char *arg = argv[argIdx];
-    printf(arg);
     if (strcmp(arg, "--validate") == 0) {
       doValidation = true;
     }

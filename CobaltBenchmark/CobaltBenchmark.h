@@ -70,8 +70,10 @@ CobaltControl ctrl;
 CobaltControl ctrlValidation;
 
 void initTensorData();
+void destroyTensorData();
 void fillTensor(CobaltTensor, CobaltTensorData, Cobalt::Tensor::FillType, void *src);
 void initControls();
+void destroyControls();
 
 bool cobaltDataTypeIsHalf( CobaltDataType dataType );
 bool cobaltDataTypeIsFloat( CobaltDataType dataType );
