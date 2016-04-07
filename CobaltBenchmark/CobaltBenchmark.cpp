@@ -4,6 +4,13 @@
 #define _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
+#ifndef DBG_NEW
+#define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
+#define new DBG_NEW
+#endif
+_CrtMemState s1;
+_CrtMemState s2;
+_CrtMemState s3;
 
 #include "CobaltBenchmark.h"
 #include "Cobalt.h"
@@ -20,8 +27,8 @@ Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
-#define MAX_PROBLEMS 1
-#define MAX_SOLUTIONS_PER_PROBLEM 16000000
+//#define MAX_PROBLEMS 16
+//#define MAX_SOLUTIONS_PER_PROBLEM 16
 
 // alpha = 2
 // beta = 2
@@ -32,7 +39,6 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 int main( int argc, char *argv[] ) {
 
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
-
   // parse commandline options
   parseCommandLineOptions(argc, argv);
 
@@ -58,10 +64,20 @@ int main( int argc, char *argv[] ) {
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
       problemIdx++ ) {
 
+    if (problemIdx > 0) {
+      _CrtMemCheckpoint( &s2 );
+      int diff = _CrtMemDifference(&s3, &s1, &s2);
+      _CrtMemDumpStatistics(&s3);
+      printf("Difference[%llu] = %i\n", problemIdx-1, diff);
+    }
+    _CrtMemCheckpoint(&s1);
+
+
     // info about problem
     CobaltProblem problem;
     std::vector<Cobalt::Solution *> solutionCandidates;
     initializeSolutionCandidates(&problem, &solutionCandidates, problemIdx);
+    printf("solutions = %llu\n", solutionCandidates.size());
     bool isFloatC = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeC());
     bool isFloatA = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeA());
     bool isFloatB = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeB());
@@ -81,8 +97,8 @@ int main( int argc, char *argv[] ) {
     beta.data = isFloatBeta ? betaFloat.data : isDoubleBeta ? betaDouble.data : nullptr; 
 
     // re-initialize device input buffers
-    clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_TRUE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
-    clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_TRUE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
+    clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
+    clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
 
     // calculate reference C once for problem
     if (doValidation) {
@@ -109,6 +125,8 @@ int main( int argc, char *argv[] ) {
       ctrl.validate = &referenceTensorDataC;
       printf("done.\n");
 
+    } else {
+      printf("Status: Problem[%llu/%llu] %s\n", problemIdx, problemEndIdx, problem->pimpl->toString().c_str());
     }
 
 
@@ -125,15 +143,16 @@ int main( int argc, char *argv[] ) {
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
 
-      // re-initialize device C buffers
-      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataC.data), CL_TRUE, deviceTensorDataC.offset, sizeC, initialDataC, 0, nullptr, nullptr);
-      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_TRUE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
-      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_TRUE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
+      // re-initialize device buffers
+      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataC.data), CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC, 0, nullptr, nullptr);
+      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
+      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
       clFinish(ctrl.queues[0]);
 
       // ensure kernels are compiled before timing
-        ctrl.benchmark = 4;
-      for (unsigned int s = 0; s < 5; s++) {
+      // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
+      ctrl.benchmark = 5;
+      for (unsigned int s = 0; s < 4; s++) {
         solution->enqueueEntry(
             deviceTensorDataC,
             deviceTensorDataA,
@@ -161,9 +180,11 @@ int main( int argc, char *argv[] ) {
     
   } // problem loop
   destroyTensorData();
-  destroyControls();
-  cobaltTeardown();
   int leaks = _CrtDumpMemoryLeaks();
+  destroyControls();
+  leaks = _CrtDumpMemoryLeaks();
+  cobaltTeardown();
+  leaks = _CrtDumpMemoryLeaks();
   return 0;
 } // end main
 

@@ -56,9 +56,13 @@ SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( const Prob
 
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 SolutionOpenCL<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionOpenCL() {
+  //Cobalt::Timer timer;
   for (unsigned int i = 0; i < maxNumKernels; i++) {
     if (kernels[i]) {
+      //timer.start();
       clReleaseKernel( kernels[i] );
+      //double timeReleaseKernel = timer.elapsed_us();
+      //printf("kernel-release: %3.0fus\n", timeReleaseKernel);
     }
   }
 }
@@ -178,6 +182,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
 }
 
+#define TIME_KERNEL_COMPILATION 1
 
 /******************************************************************************
  * makeKernel
@@ -191,10 +196,11 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
 {
   cl_int err;
   if (*kernel) {
+    //printf("kernel already built\n");
     // kernel has already been built, return
     return;
   } else {
-    // kernel has not been built, so build it (from binary, preferably)
+    //printf("building kernel\n");
     cl_context clContext;
     cl_device_id clDevice;
     err = clGetCommandQueueInfo( queue, CL_QUEUE_CONTEXT, sizeof(clContext), &clContext, NULL);
@@ -202,12 +208,12 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
     err = clGetCommandQueueInfo( queue, CL_QUEUE_DEVICE, sizeof(clDevice), &clDevice, NULL);
     CL_CHECK(err)
     cl_program clProgram;
-    
     clProgram = clCreateProgramWithSource(
       clContext,
       1, &kernelSource,
       NULL, &err );
     CL_CHECK(err)
+    // driver leaks ~200kB at this call
     err = clBuildProgram(
       clProgram,
       1, &clDevice,
@@ -223,16 +229,12 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       size_t len = 0;
       clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
       char* buildLog = new char[len];
-
       clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len*sizeof(char), buildLog, 0);
       printf("\n\n\nBuild Log:\n\n");
       printf("%s\n", buildLog);
-      //printf("\n\nKernel String:\n\n");
-      //printf("%s\n", kernelSource);
       printf("\n");
       delete[] buildLog;
     }
-
     err = clCreateKernelsInProgram(
       clProgram,
       1, kernel,
@@ -271,7 +273,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       gpuOnHostC.offset = 0;
       gpuOnHostC.data = malloc(sizeC);
       // wait for gpu solution
-      for (size_t i = 0; i < ctrl.numQueues; i++) { clFinish(ctrl.queues[i]); }
+      for (size_t i = 0; i < ctrl.numQueuesUsed; i++) { clFinish(ctrl.queues[i]); }
       // copy results back
       clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data, CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data, 0, nullptr, nullptr);
       // compare results
@@ -291,7 +293,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
 
       // warmup 
       status = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl); 
-      for (size_t i = 0; i < ctrl.numQueues; i++) { clFinish(ctrl.queues[i]); }
+      for (size_t i = 0; i < ctrl.numQueuesUsed; i++) { clFinish(ctrl.queues[i]); }
 
       // start timer
       timer.start();
@@ -300,7 +302,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
         status = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
       } // samples
       // wait for queues
-      for (size_t i = 0; i < ctrl.numQueues; i++) {
+      for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
         clFinish(ctrl.queues[i]);
       }
       // stop timer
@@ -506,11 +508,16 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           outEvent );
 #endif
         CL_CHECK(status)
-        status = clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
-        CL_CHECK(status)
+        //status = clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
+        //CL_CHECK(status)
         kernelSerialIdx++;
       }
     }
+  }
+  if (kernelSerialIdx > ctrl.numQueues) {
+    ctrl.numQueuesUsed = ctrl.numQueues;
+  } else {
+    ctrl.numQueuesUsed = kernelSerialIdx;
   }
 
   //ctrl.numOutputEvents = kernelSerialIdx;;

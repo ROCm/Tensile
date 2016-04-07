@@ -70,7 +70,7 @@ const size_t sgemmSizeBounds[][2] = {
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-  for (size_t i = 16; i < 4096+16*12; i+= 16) {
+  for (size_t i = 16; i < 2048+16*12; i+= 16) {
     bool useSize = false;
     for (size_t j = 0; j < sgemmSizeBoundsSize; j++) {
       if (i < sgemmSizeBounds[j][1] && i % sgemmSizeBounds[j][0]==0) {

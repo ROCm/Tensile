@@ -1,6 +1,8 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#define USE_QUEUE 0
+
 #include "Cobalt.h"
 #include "Problem.h"
 #include "Solution.h"
@@ -52,7 +54,7 @@ public:
     ValidationStatus validationStatus;
     std::vector<double> benchmarkTimes;
     TraceEntry();
-    std::string toString( size_t indentLevel );
+    std::string toString( size_t indentLevel ) const;
   };
 
   
@@ -65,7 +67,7 @@ public:
 /*******************************************************************************
  * open - initialize logger by opening file for writing
  ******************************************************************************/
-  void open( std::string fileName );
+//void open( std::string fileName );
 
 /*******************************************************************************
  * destructor
@@ -102,7 +104,9 @@ private:
 /*******************************************************************************
  * log state
  ******************************************************************************/
+#if USE_QUEUE
   std::queue<TraceEntry> trace;
+#endif
   //std::map<const Cobalt::Solution*, unsigned long long,
   //    CobaltSolutionPtrComparator> getSummary;
   //std::map<const Cobalt::Solution*, unsigned long long,
@@ -117,8 +121,10 @@ private:
  * flush
  * - write trace if too large or upon completion
  ******************************************************************************/
+#if USE_QUEUE
   void flush();
-  
+#endif
+
 /*******************************************************************************
  * writeSummary
  * - write summaries to file upon completion

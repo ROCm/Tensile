@@ -17,7 +17,7 @@ Logger::TraceEntry::TraceEntry() :
 /*******************************************************************************
  * TraceEntry:: toString
  ******************************************************************************/
-std::string Logger::TraceEntry::toString( size_t indentLevel ) {
+std::string Logger::TraceEntry::toString( size_t indentLevel ) const {
   std::string state = Cobalt::indent(indentLevel);
   state += "<TraceEntry";
   state += " enum=\"" + std::to_string(type) + "\"";
@@ -87,8 +87,9 @@ void Logger::init( std::string logFilePath) {
  ******************************************************************************/
 Logger::~Logger() {
   printf("Logger::~Logger()\n");
+#if USE_QUEUE
   flush();
-  //file << "</Trace>\n\n";
+#endif
   file << "</CobaltLog>\n";
   file.close();
 }
@@ -99,13 +100,14 @@ Logger::~Logger() {
 ******************************************************************************/
 void Logger::log( const TraceEntry & entry) {
   // add to trace
-  trace.push(entry); // append to end of list
-  //if (trace.size() >= 10) {
+#if USE_QUEUE
+  trace.push(entry);
   flush();
-  //}
-  //if (entry.solution) {
-  //  enqueueSummary[entry.solution]++;
-  //}
+#else
+  std::string state = entry.toString(1);
+  file << state;
+#endif
+  file.flush();
 }
 
 /*******************************************************************************
@@ -122,6 +124,7 @@ std::string Logger::comment(std::string comment) {
 /*******************************************************************************
  * flush - flush trace to file
  ******************************************************************************/
+#if USE_QUEUE
 void Logger::flush() {
   for ( ; !trace.empty(); trace.pop() ) {
     TraceEntry entry = trace.front();
@@ -129,6 +132,7 @@ void Logger::flush() {
     file << state;
   }
 }
+#endif
 
 /*******************************************************************************
  * summaryEntryToString

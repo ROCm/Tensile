@@ -175,6 +175,7 @@ class SolutionCandidateGenerator:
       16: [ [ 16 ], [ 8 ] ] \
       }
   # preprocessor define leading strides, offsets, everything
+
   ppdUniverse = [ \
       [ True,  True,  True], \
       [False, False, False], \
@@ -182,7 +183,12 @@ class SolutionCandidateGenerator:
       [ True, False, False], \
       [False,  True, False], \
       ]
-  
+  """
+  ppdUniverse = [ \
+      [ True,  True, False], \
+      ]
+  """
+
   """
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \

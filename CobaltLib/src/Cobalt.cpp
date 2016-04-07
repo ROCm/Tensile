@@ -92,6 +92,7 @@ CobaltControl cobaltCreateEmptyControl() {
   control.benchmark = 0;
 #if Cobalt_BACKEND_OPENCL12
   control.numQueues = 0;
+  control.numQueuesUsed = 0;
   control.numInputEvents = 0;
   control.numOutputEvents = 0;
   control.inputEvents = nullptr;
