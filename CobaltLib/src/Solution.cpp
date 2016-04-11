@@ -478,7 +478,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         }
 
         // enqueue
-#if 1
+#if 0
         printf("enq[%u,%u,%u] k%u: s{%u, %u, %u}, g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
           d0, d1, dU,
           kernelIdx,

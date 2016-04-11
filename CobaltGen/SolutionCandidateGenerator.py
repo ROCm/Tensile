@@ -254,10 +254,14 @@ class SolutionCandidateGenerator:
     problemSizeDim1 = problem.tensorC.dimensions[ \
         kernel.indexAssignmentDim1].size
     problemSkinnyDim0 = 0 # false
-    if problemSizeDim0 < 96 and problemSizeDim1 > 1024:
+    # size < 96 begins to behave skinny, i.e., becomes bandwidth bound
+    # but only < 32 does a unique tile improve performance;
+    # for sizes 32-96 square tiles are still withing 4% performance of best skinny
+    # TODO: haven't tested > 1024 threshold 
+    if problemSizeDim0 < 32 and problemSizeDim1 > 1024:
       problemSkinnyDim0 = 1
     problemSkinnyDim1 = 0
-    if problemSizeDim1 < 96 and problemSizeDim0 > 1024:
+    if problemSizeDim1 < 32 and problemSizeDim0 > 1024:
       problemSkinnyDim1 = 1
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
