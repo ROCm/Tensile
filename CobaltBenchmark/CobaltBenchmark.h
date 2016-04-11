@@ -78,3 +78,11 @@ void destroyControls();
 bool cobaltDataTypeIsHalf( CobaltDataType dataType );
 bool cobaltDataTypeIsFloat( CobaltDataType dataType );
 bool cobaltDataTypeIsDouble( CobaltDataType dataType );
+
+
+unsigned int tensorSizeMaxC_0;
+unsigned int tensorSizeMaxC_1;
+unsigned int tensorSizeMaxA_0;
+unsigned int tensorSizeMaxA_1;
+unsigned int tensorSizeMaxB_0;
+unsigned int tensorSizeMaxB_1;

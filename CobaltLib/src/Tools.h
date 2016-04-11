@@ -30,6 +30,9 @@ private:
  ******************************************************************************/
 std::string indent(size_t level);
 
+bool factor( size_t input, unsigned int & a, unsigned int & b);
+
+
 } // namespace
 
 #endif

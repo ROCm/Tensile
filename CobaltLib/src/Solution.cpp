@@ -111,7 +111,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
   // divide work groups among kernels in kernelGrid
   unsigned int mainWorkGroupsAlongD0 = totalWorkGroupsAlongD0 / numMainKernels0;
-  unsigned int mainWorkGroupsAlongD1 = totalWorkGroupsAlongD0 / numMainKernels1;
+  unsigned int mainWorkGroupsAlongD1 = totalWorkGroupsAlongD1 / numMainKernels1;
   globalWorkSize[0][0] = localWorkSize[0][0] * mainWorkGroupsAlongD0;
   globalWorkSize[0][1] = localWorkSize[0][1] * mainWorkGroupsAlongD1;
   globalWorkSize[0][2] = localWorkSize[0][2] * sizeOfAllOtherDimensions;
@@ -478,11 +478,11 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         }
 
         // enqueue
-#if 0
-        printf("enq[%u,%u,%u] k%u: o{%u, %u, %u} s{%u, %u, %u}, g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
+#if 1
+        printf("enq[%u,%u,%u] k%u: s{%u, %u, %u}, g{%llu, %llu, %llu} l{%llu, %llu, %llu}\n",
           d0, d1, dU,
           kernelIdx,
-          tensorOffsetC, tensorOffsetA, tensorOffsetB,
+          //tensorOffsetC, tensorOffsetA, tensorOffsetB,
           kernelNumElementsDim0[kernelIdx], kernelNumElementsDim1[kernelIdx], kernelNumElementsDimU[kernelIdx],
           globalWorkSize[kernelIdx][0],
           globalWorkSize[kernelIdx][1],

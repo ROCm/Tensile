@@ -161,12 +161,12 @@ class SolutionCandidateGenerator:
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
-  skinnyRatioWorkGroup = [ 1, 2]
+  skinnyRatioWorkGroup = [ 1, 256]
   skinnyRatioMicroTile = [ 1, 2]
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 4
-  maxMicroTileSize = 6
+  minMicroTileSize = 1
+  maxMicroTileSize = 12
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -176,6 +176,7 @@ class SolutionCandidateGenerator:
       }
   # preprocessor define leading strides, offsets, everything
 
+  """
   ppdUniverse = [ \
       [ True,  True,  True], \
       [False, False, False], \
@@ -187,9 +188,7 @@ class SolutionCandidateGenerator:
   ppdUniverse = [ \
       [ True,  True, False], \
       ]
-  """
 
-  """
   universeWorkGroupDim = [ \
        [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
       [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
@@ -199,9 +198,11 @@ class SolutionCandidateGenerator:
                [256,1] ]
   """
   universeWorkGroupDim = [ [16,16] ]
+  """
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
+  noBranches = True
 
   ##############################################################################
   # init
@@ -346,7 +347,7 @@ class SolutionCandidateGenerator:
 
             # kernel grid
             kernelGrid = [ 1, 1, 1 ]
-            if kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0:
+            if not problemSkinnyDim0 and not problemSkinnyDim1 and (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
               kernelGrid[0] = kernel.unrollDimStride0 / 2048;
               kernelGrid[1] = kernel.unrollDimStride1 / 2048;
               kernelGrid[2] = kernel.unrollDimSize / 1024
@@ -380,6 +381,11 @@ class SolutionCandidateGenerator:
                   leadingStridesOne = True
                 # branch - 2-4 kernels
                 if branchType.isMultiple():
+                  if self.noBranches:
+                    if problemSizeDim0 % macroTileDim0 != 0 \
+                        or problemSizeDim1 % macroTileDim1 != 0:
+                      continue
+
                   solution.branch = [branchType, branchType]
                   if leadingStridesOne:
                     solution.ppdLeadingStride = ppdLeadingStride
@@ -422,6 +428,8 @@ class SolutionCandidateGenerator:
                       and problemSizeDim1 % macroTileDim1 == 0:
                     continue
                   if kernelGrid[0] > 1 or kernelGrid[1] > 1 or kernelGrid[2] > 1: # don't use b kernels for 4096 cases b/c already not using single kernel
+                    continue
+                  if self.noBranches:
                     continue
                   solution.branch = [branchType, branchType]
                   if leadingStridesOne:

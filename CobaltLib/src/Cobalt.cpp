@@ -144,9 +144,9 @@ CobaltProblem cobaltCreateProblem(
 
 CobaltStatus cobaltDestroyProblem( CobaltProblem problem ) {
   if (problem) {
-    printf("cobaltDestroyProblem:: problem=%p\n", problem);
+    //printf("cobaltDestroyProblem:: problem=%p\n", problem);
     if (problem->pimpl) {
-      printf("cobaltDestroyProblem:: problem->pimpl=%p\n", problem->pimpl);
+      //printf("cobaltDestroyProblem:: problem->pimpl=%p\n", problem->pimpl);
       delete problem->pimpl;
       delete problem;
       problem = nullptr;

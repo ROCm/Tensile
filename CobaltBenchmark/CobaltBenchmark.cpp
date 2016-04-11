@@ -77,7 +77,6 @@ int main( int argc, char *argv[] ) {
     CobaltProblem problem;
     std::vector<Cobalt::Solution *> solutionCandidates;
     initializeSolutionCandidates(&problem, &solutionCandidates, problemIdx);
-    printf("solutions = %llu\n", solutionCandidates.size());
     bool isFloatC = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeC());
     bool isFloatA = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeA());
     bool isFloatB = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeB());
@@ -152,7 +151,12 @@ int main( int argc, char *argv[] ) {
       // ensure kernels are compiled before timing
       // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
       ctrl.benchmark = 5;
-      for (unsigned int s = 0; s < 4; s++) {
+      unsigned int numSamples = 4;
+      if (doValidation) {
+        ctrl.benchmark = 0;
+        numSamples = 1;
+      }
+      for (unsigned int s = 0; s < numSamples; s++) {
         solution->enqueueEntry(
             deviceTensorDataC,
             deviceTensorDataA,
@@ -189,41 +193,64 @@ int main( int argc, char *argv[] ) {
 } // end main
 
 void initTensorData() {
-  printf("Status: Initializing tensor data %.1f MB ...", (tensorSizeMaxC + tensorSizeMaxA + tensorSizeMaxB)/(1024.f*1024.f) );
+  printf("Status: Initializing tensor data %.1f MB", 2*(tensorSizeMaxC + tensorSizeMaxA + tensorSizeMaxB)/(1024.f*1024.f) );
   // dummy tensors for filling initial data
+
+
+  bool factoredC = Cobalt::factor(tensorSizeMaxC, tensorSizeMaxC_0, tensorSizeMaxC_1);
+  bool factoredA = Cobalt::factor(tensorSizeMaxA, tensorSizeMaxA_0, tensorSizeMaxA_1);
+  bool factoredB = Cobalt::factor(tensorSizeMaxB, tensorSizeMaxB_0, tensorSizeMaxB_1);
+
+  printf("maxC: %llu %s %u * %u\n", tensorSizeMaxC, factoredC ? "==" : "!=", tensorSizeMaxC_0, tensorSizeMaxC_1);
+  printf("maxA: %llu %s %u * %u\n", tensorSizeMaxA, factoredA ? "==" : "!=", tensorSizeMaxA_0, tensorSizeMaxA_1);
+  printf("maxB: %llu %s %u * %u\n", tensorSizeMaxB, factoredB ? "==" : "!=", tensorSizeMaxB_0, tensorSizeMaxB_1);
+
+
   initialTensorFloatC.dataType = cobaltDataTypeSingle;
-  initialTensorFloatC.numDimensions = 1;
+  initialTensorFloatC.numDimensions = 2;
   initialTensorFloatC.dimensions[0].stride = 1;
-  initialTensorFloatC.dimensions[0].size = tensorSizeMaxC / 4 /*bytes per float*/;
+  initialTensorFloatC.dimensions[0].size = tensorSizeMaxC_0 / 4 /*bytes per float*/;
+  initialTensorFloatC.dimensions[1].stride = initialTensorFloatC.dimensions[0].size;
+  initialTensorFloatC.dimensions[1].size = tensorSizeMaxC_1;
   initialTensorFloatA.dataType = cobaltDataTypeSingle;
-  initialTensorFloatA.numDimensions = 1;
+  initialTensorFloatA.numDimensions = 2;
   initialTensorFloatA.dimensions[0].stride = 1;
-  initialTensorFloatA.dimensions[0].size = tensorSizeMaxA / 4 /*bytes per float*/;
+  initialTensorFloatA.dimensions[0].size = tensorSizeMaxA_0 / 4 /*bytes per float*/;
+  initialTensorFloatA.dimensions[1].stride = initialTensorFloatA.dimensions[0].size;
+  initialTensorFloatA.dimensions[1].size = tensorSizeMaxA_1;
   initialTensorFloatB.dataType = cobaltDataTypeSingle;
-  initialTensorFloatB.numDimensions = 1;
+  initialTensorFloatB.numDimensions = 2;
   initialTensorFloatB.dimensions[0].stride = 1;
-  initialTensorFloatB.dimensions[0].size = tensorSizeMaxB / 4 /*bytes per float*/;
+  initialTensorFloatB.dimensions[0].size = tensorSizeMaxB_0 / 4 /*bytes per float*/;
+  initialTensorFloatB.dimensions[1].stride = initialTensorFloatB.dimensions[0].size;
+  initialTensorFloatB.dimensions[1].size = tensorSizeMaxB_1;
 
   initialTensorDoubleC.dataType = cobaltDataTypeDouble;
   initialTensorDoubleC.numDimensions = 1;
   initialTensorDoubleC.dimensions[0].stride = 1;
-  initialTensorDoubleC.dimensions[0].size = tensorSizeMaxC / 8 /*bytes per double*/;
+  initialTensorDoubleC.dimensions[0].size = tensorSizeMaxC_0 / 8 /*bytes per double*/;
+  initialTensorDoubleC.dimensions[1].stride = initialTensorDoubleC.dimensions[0].size;
+  initialTensorDoubleC.dimensions[1].size = tensorSizeMaxC_1;
   initialTensorDoubleA.dataType = cobaltDataTypeDouble;
   initialTensorDoubleA.numDimensions = 1;
   initialTensorDoubleA.dimensions[0].stride = 1;
-  initialTensorDoubleA.dimensions[0].size = tensorSizeMaxA / 8 /*bytes per double*/;
+  initialTensorDoubleA.dimensions[0].size = tensorSizeMaxA_0 / 8 /*bytes per double*/;
+  initialTensorDoubleA.dimensions[1].stride = initialTensorDoubleA.dimensions[0].size;
+  initialTensorDoubleA.dimensions[1].size = tensorSizeMaxA_1;
   initialTensorDoubleB.dataType = cobaltDataTypeDouble;
   initialTensorDoubleB.numDimensions = 1;
   initialTensorDoubleB.dimensions[0].stride = 1;
-  initialTensorDoubleB.dimensions[0].size = tensorSizeMaxB / 8 /*bytes per double*/;
+  initialTensorDoubleB.dimensions[0].size = tensorSizeMaxB_0 / 8 /*bytes per double*/;
+  initialTensorDoubleB.dimensions[1].stride = initialTensorDoubleB.dimensions[0].size;
+  initialTensorDoubleB.dimensions[1].size = tensorSizeMaxB_1;
 
   // initial tensor data for host buffers
-  initialTensorDataFloatC.data = new float[initialTensorFloatC.dimensions[0].size];
-  initialTensorDataFloatA.data = new float[initialTensorFloatA.dimensions[0].size];
-  initialTensorDataFloatB.data = new float[initialTensorFloatB.dimensions[0].size];
-  initialTensorDataDoubleC.data = new double[initialTensorDoubleC.dimensions[0].size];
-  initialTensorDataDoubleA.data = new double[initialTensorDoubleA.dimensions[0].size];
-  initialTensorDataDoubleB.data = new double[initialTensorDoubleB.dimensions[0].size];
+  initialTensorDataFloatC.data = new float[initialTensorFloatC.dimensions[1].stride * initialTensorFloatC.dimensions[1].size];
+  initialTensorDataFloatA.data = new float[initialTensorFloatA.dimensions[1].stride * initialTensorFloatA.dimensions[1].size];
+  initialTensorDataFloatB.data = new float[initialTensorFloatB.dimensions[1].stride * initialTensorFloatB.dimensions[1].size];
+  initialTensorDataDoubleC.data = new double[initialTensorDoubleC.dimensions[1].stride * initialTensorDoubleC.dimensions[1].size];
+  initialTensorDataDoubleA.data = new double[initialTensorDoubleA.dimensions[1].stride * initialTensorDoubleA.dimensions[1].size];
+  initialTensorDataDoubleB.data = new double[initialTensorDoubleB.dimensions[1].stride * initialTensorDoubleB.dimensions[1].size];
   initialTensorDataFloatC.offset = 0;
   initialTensorDataFloatA.offset = 0;
   initialTensorDataFloatB.offset = 0;
@@ -231,13 +258,13 @@ void initTensorData() {
   initialTensorDataDoubleA.offset = 0;
   initialTensorDataDoubleB.offset = 0;
 
-  fillTensor( initialTensorFloatC, initialTensorDataFloatC, tensorFillTypeC, nullptr);
-  fillTensor( initialTensorFloatA, initialTensorDataFloatA, tensorFillTypeA, nullptr);
-  fillTensor( initialTensorFloatB, initialTensorDataFloatB, tensorFillTypeB, nullptr);
-  fillTensor( initialTensorDoubleC, initialTensorDataDoubleC, tensorFillTypeC, nullptr);
-  fillTensor( initialTensorDoubleA, initialTensorDataDoubleA, tensorFillTypeA, nullptr);
-  fillTensor( initialTensorDoubleB, initialTensorDataDoubleB, tensorFillTypeB, nullptr);
-
+  printf("."); fillTensor( initialTensorFloatC, initialTensorDataFloatC, tensorFillTypeC, nullptr);
+  printf("."); fillTensor( initialTensorFloatA, initialTensorDataFloatA, tensorFillTypeA, nullptr);
+  printf("."); fillTensor( initialTensorFloatB, initialTensorDataFloatB, tensorFillTypeB, nullptr);
+  printf("."); fillTensor( initialTensorDoubleC, initialTensorDataDoubleC, tensorFillTypeC, nullptr);
+  printf("."); fillTensor( initialTensorDoubleA, initialTensorDataDoubleA, tensorFillTypeA, nullptr);
+  printf("."); fillTensor( initialTensorDoubleB, initialTensorDataDoubleB, tensorFillTypeB, nullptr);
+  printf("."); 
   // device tensor data; max sized; initial data get clWriteBuffer each time
   deviceTensorDataC.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status));
   deviceTensorDataC.offset = 0;

@@ -70,7 +70,8 @@ const size_t sgemmSizeBounds[][2] = {
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-  for (size_t i = 16; i < 2048+16*12; i+= 16) {
+#if 0
+  for (size_t i = 16; i < 2046+16*12; i+= 16*4) {
     bool useSize = false;
     for (size_t j = 0; j < sgemmSizeBoundsSize; j++) {
       if (i < sgemmSizeBounds[j][1] && i % sgemmSizeBounds[j][0]==0) {
@@ -82,6 +83,16 @@ int main( char * argv[], int argc ) {
       sizes.push_back({ i, i, i });
     }
   }
+#endif
+#if 1
+  sizes.push_back({ (1048576/256)   , 128, 512});
+  sizes.push_back({ (1048576/256)* 2,  64, 512 });
+  sizes.push_back({ (1048576/256)* 4,  32, 512 });
+  sizes.push_back({ (1048576/256)* 8,  16, 512 });
+  sizes.push_back({ (1048576/256)*16,   8, 512 });
+#endif
+  //sizes.push_back({5760, 5760, 5760});
+
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -107,9 +118,9 @@ int main( char * argv[], int argc ) {
   const bool alphas[] = { true, false };
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
-  const size_t numTransA = 2;
+  const size_t numTransA = 1;
   const bool transAs[] = {false, true};
-  const size_t numTransB = 2;
+  const size_t numTransB = 1;
   const bool transBs[] = {true, false};
   size_t numProblems = 0;
   std::string logFilePath = Cobalt_DIR_PROBLEMS;
