@@ -161,8 +161,8 @@ class SolutionCandidateGenerator:
   # Tuneable Performance Parameters
   # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
   # increasing these parameters will test a wider variety of tiles
-  skinnyRatioWorkGroup = [ 1, 256]
-  skinnyRatioMicroTile = [ 1, 2]
+  skinnyRatioWorkGroup = [ 1, 16] # verified against 8xHuge system
+  skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1
@@ -190,12 +190,10 @@ class SolutionCandidateGenerator:
       ]
 
   universeWorkGroupDim = [ \
-       [1,64],  [2,32], [4,16],  [8,8],  [16,4], [32,2],  [64,1], \
-      [1,128],  [2,64], [4,32], [8,16],  [16,8], [32,4],  [64,2], [128,1], \
-      [1,192],  [2,96], [3,64], [4,48],  [6,32], [8,24], [12,16], [16, 12], \
-                [24,8], [32,6], [48,4],  [64,3], [96,2], [192,1], \
-      [1,256], [2,128], [4,64], [8,32], [16,16], [32,8],  [64,4],  [128,2], \
-               [256,1] ]
+       [4,16],  [8,8],  [16,4], \
+      [4,32], [8,16],  [16,8], [32,4], \
+      [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
+      [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   """
   universeWorkGroupDim = [ [16,16] ]
   """
@@ -351,6 +349,12 @@ class SolutionCandidateGenerator:
               kernelGrid[0] = kernel.unrollDimStride0 / 2048;
               kernelGrid[1] = kernel.unrollDimStride1 / 2048;
               kernelGrid[2] = kernel.unrollDimSize / 1024
+              if kernelGrid[0] == 0:
+                kernelGrid[0]=1
+              if kernelGrid[1] == 0:
+                kernelGrid[1]=1
+              if kernelGrid[2] == 0:
+                kernelGrid[2]=1
               if kernelGrid[2] > 1 and not kernel.operation.useBeta:
                   kernel.operation.useBeta = True
                   kernel.operation.betaType = problem.tensorC.dataType

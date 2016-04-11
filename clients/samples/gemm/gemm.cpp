@@ -85,11 +85,12 @@ int main( char * argv[], int argc ) {
   }
 #endif
 #if 1
-  sizes.push_back({ (1048576/256)   , 128, 512});
-  sizes.push_back({ (1048576/256)* 2,  64, 512 });
-  sizes.push_back({ (1048576/256)* 4,  32, 512 });
-  sizes.push_back({ (1048576/256)* 8,  16, 512 });
-  sizes.push_back({ (1048576/256)*16,   8, 512 });
+  sizes.push_back({ (1048576/256)   , 128, 512 }); // 
+  //sizes.push_back({ (1048576/256)* 2,  64, 512 }); // 
+  //sizes.push_back({ (1048576/256)* 4,  32, 512 }); // 16.1x16.1 and 8.1x8.1 2% slower than fastest (0.49ms)
+  //sizes.push_back({ (1048576/256)* 8,  16, 512 }); // 
+  //sizes.push_back({ (1048576/256)*16,   8, 512 }); // 64.2x4.2 
+  //sizes.push_back({ (1048576/256)*32,   4, 512 }); // 64.2x4.2 
 #endif
   //sizes.push_back({5760, 5760, 5760});
 
