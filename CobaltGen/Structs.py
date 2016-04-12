@@ -400,8 +400,28 @@ class ExactMatch:
     self.indexAssignmentsA = []
     self.indexAssignmentsB = []
     self.ppdOffsets = False # if true, solution must allow offset parameters; if false, enqueue must not use offsets
-    self.ppdInitialStrides = False # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
+    self.ppdLeadingStrides = False # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
     # self.ppdAll = False # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
+
+  def __str__(self):
+    state = ""
+    state += "[ExactMatch"
+    state += "; " + str(self.deviceProfile)
+    state += "_" + str(self.typeC)
+    state += "" + str(self.typeA)
+    state += "" + str(self.typeB)
+    state += "" + str(self.typeAlpha)
+    state += "" + str(self.typeBeta)
+    state += "_" + str(self.operationType)
+    state += "; " + str(self.indexAssignmentsA)
+    state += "; " + str(self.indexAssignmentsB)
+    state += "; " + str(self.ppdOffsets)
+    state += "; " + str(self.ppdLeadingStrides)
+    state += "]"
+    return state
+
+  def __repr__(self):
+    return self.__str__()
 
   def getAttributes(self):
     return ( \
@@ -415,7 +435,7 @@ class ExactMatch:
       tuple(self.indexAssignmentsA), \
       tuple(self.indexAssignmentsB), \
       self.ppdOffsets, \
-      self.ppdInitialStrides \
+      self.ppdLeadingStrides \
       )
   def __hash__(self):
     return hash(self.getAttributes())

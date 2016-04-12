@@ -7,13 +7,15 @@ import copy
 import sys
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
-  if exactMatch not in psMap:
-    psMap[exactMatch] = {}
-  if problem not in psMap[exactMatch]:
-    psMap[exactMatch][problem] = {}
-  if solution not in psMap[exactMatch][problem]:
-    psMap[exactMatch][problem][solution] = Structs.SolutionBenchmark()
-  psMap[exactMatch][problem][solution].times.append(time)
+  if exactMatch.deviceProfile not in psMap:
+    psMap[exactMatch.deviceProfile] = {}
+  if exactMatch not in psMap[exactMatch.deviceProfile]:
+    psMap[exactMatch.deviceProfile][exactMatch] = {}
+  if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
+  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
+  psMap[exactMatch.deviceProfile][exactMatch][problem][solution].times.append(time)
 
 def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus ):
   if exactMatch not in psMap:
@@ -158,7 +160,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
       time = float(attributes["time"])
       exactMatch = Structs.ExactMatch()
       self.assignExactMatch(exactMatch)
-      addTimeToMap( self.data, exactMatch, self.problem, self.solution, time )
+      addTimeToMap( self.data, exactMatch, copy.deepcopy(self.problem), copy.deepcopy(self.solution), time )
     elif tag == "Validation":
       valid = 1 if attributes["status"] == "True" else -1
       exactMatch = Structs.ExactMatch()
