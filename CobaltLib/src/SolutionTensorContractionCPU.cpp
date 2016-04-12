@@ -28,19 +28,6 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
-  //bool zzz0zC = std::is_same<TypeC, CobaltComplexDouble>::value;
-  //bool zzz0zA = std::is_same<TypeA, CobaltComplexDouble>::value;
-  //bool zzz0zB = std::is_same<TypeB, CobaltComplexDouble>::value;
-  //bool zzz0zAlpha = problem.getDataTypeAlpha() == cobaltDataTypeNone;
-  //bool zzz0zBeta = std::is_same<TypeBeta, CobaltComplexDouble>::value;
-  //printf("zzz0z=%s,%s,%s,%s,%s\n",
-  //  zzz0zC ? "T" : "F",
-  //  zzz0zA ? "T" : "F",
-  //  zzz0zB ? "T" : "F",
-  //  zzz0zAlpha ? "T" : "F",
-  //  zzz0zBeta ? "T" : "F"
-  //  );
-  //bool zzz0z = zzz0zC && zzz0zA && zzz0zB && zzz0zAlpha && zzz0zBeta;
 
   // pointers to data
   TypeC *dataC = (TypeC *)tensorDataC.data;
@@ -185,6 +172,17 @@ std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
 }
 
 
+/*******************************************************************************
+* toString
+******************************************************************************/
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel ) const {
+  std::string detail = Cobalt::indent(indentLevel);
+  detail += "<ImplementationDetails/>\n";
+  return detail;
+}
+
+
 size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
   size_t serial = 0;
   for (size_t i = 0; i < tensor.numDimensions; i++) {
@@ -222,10 +220,3 @@ std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Problem & problem) {
 
 } // namespace
 
-/*******************************************************************************
- * Explicit Template Instantiation - redundant of cobaltGetSolutionCPU
- ******************************************************************************/
-//template class CobaltSolutionTensorContractionCPU<float,float,float,float,float>;
-//template class CobaltSolutionTensorContractionCPU<double,double,double,double,double>;
-//template class CobaltSolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
-//template class CobaltSolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;

@@ -386,6 +386,44 @@ class Operation:
 
 
 ################################################################################
+# ExactMatch - parameters which must exactly match between problem and solution
+################################################################################
+class ExactMatch:
+  def __init__(self):
+    self.deviceProfile = DeviceProfile()
+    self.typeC = DataType(-1)
+    self.typeA = DataType(-1)
+    self.typeB = DataType(-1)
+    self.typeAlpha = DataType(-1)
+    self.typeBeta = DataType(-1)
+    self.operationType = OperationType(-1)
+    self.indexAssignmentsA = []
+    self.indexAssignmentsB = []
+    self.ppdOffsets = False # if true, solution must allow offset parameters; if false, enqueue must not use offsets
+    self.ppdInitialStrides = False # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
+    # self.ppdAll = False # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
+
+  def getAttributes(self):
+    return ( \
+      self.deviceProfile, \
+      self.typeC, \
+      self.typeA, \
+      self.typeB, \
+      self.typeAlpha, \
+      self.typeBeta, \
+      self.operationType, \
+      tuple(self.indexAssignmentsA), \
+      tuple(self.indexAssignmentsB), \
+      self.useOffsets, \
+      self.useInitialStrides, \
+      )
+  def __hash__(self):
+    return hash(self.getAttributes())
+  def __eq__(self, other):
+    return isinstance(other, ExactMatch) and self.getAttributes() == other.getAttributes()
+
+
+################################################################################
 # Problem
 # - some problem descriptors get passed in as kernel argument and
 #   Don't need to be exactly matched to solution
@@ -624,6 +662,7 @@ class Kernel:
     self.ppdAll = False #everything is #defined and not arguments
 
     # frozens
+    # TODO remove these
     self.indexOrderC_Frozen = []
     self.indexOrderSummation_Frozen = []
     self.unrolls_Frozen = []

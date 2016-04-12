@@ -158,15 +158,18 @@ class SolutionCandidateGenerator:
   maxLocalMemoryBytes = 32768
   maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
 
-  # Tuneable Performance Parameters
-  # skinnyness: dim1 / dim0 <= ratio[not skinny, is skinny]
-  # increasing these parameters will test a wider variety of tiles
+  # problem is skinny if smaller dim < 32 and larger dim > 4096
+  skinnyThresholds = [32, 4096]
+
+  # tile for non-skinny problem must be square: tile1/tile0 <= 1
+  # tile for skinny problem must be tile1/tile0 <= 16*2
   skinnyRatioWorkGroup = [ 1, 16] # verified against 8xHuge system
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1
-  maxMicroTileSize = 12
+  maxMicroTileSize = 8
+  # TODO; if unroll=8 is faster than unroll=16 then also check unroll=4
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -189,6 +192,7 @@ class SolutionCandidateGenerator:
       [ True,  True, False], \
       ]
 
+  # non-skinny problem will only choose from 8x8 and 16x16
   universeWorkGroupDim = [ \
        [4,16],  [8,8],  [16,4], \
       [4,32], [8,16],  [16,8], [32,4], \

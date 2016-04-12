@@ -25,6 +25,7 @@ public:
       CobaltControl & ctrl );
   
   std::string toString( size_t indentLevel ) const;
+  std::string toStringDetailXML( size_t indentLevel ) const;
 };
 
 

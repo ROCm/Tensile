@@ -295,6 +295,48 @@ class SolutionWriter:
     s += "} // toString\n"
     s += "\n"
 
+    # toString XML
+    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
+    s += "std::string " + solutionName \
+        + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel) const {\n"
+    s += "  std::string indent = Cobalt::indent(indentLevel);\n"
+    s += "  std::string detail = \"\";\n"
+    s += "  detail += indent + \"<ImplementationDetails\";\n"
+    s += "  detail += \" kernelGrid0=\\\"" + str(solution.kernelGrid[0]) + "\\\"\";\n"
+    s += "  detail += \" kernelGrid1=\\\"" + str(solution.kernelGrid[1]) + "\\\"\";\n"
+    s += "  detail += \" kernelGrid2=\\\"" + str(solution.kernelGrid[2]) + "\\\"\";\n"
+    s += "  detail += \" branch0=\\\"" + str(solution.branch[0]) + "\\\"\";\n"
+    s += "  detail += \" branch1=\\\"" + str(solution.branch[1]) + "\\\"\";\n"
+    s += "  detail += \" ppdOffsets=\\\"" + str(solution.ppdOffsets) + "\\\"\";\n"
+    s += "  detail += \" ppdLeadingStride=\\\"" + str(solution.ppdLeadingStride) + "\\\"\";\n"
+    s += "  detail += \" ppdAll=\\\"" + str(solution.ppdAll) + "\\\"\";\n"
+    s += "  detail += \">\\n\";\n"
+    for k in range(0, len(solution.kernels)):
+      kernel = solution.kernels[k]
+      s += "  detail += indent + \"  <Kernel\";\n"
+      if kernel != None:
+        s += "  detail += \" index=\\\"" + str(k) + "\\\"\";\n"
+        s += "  detail += \" name=\\\"" + self.kernelWriter.getName(kernel) + "\\\"\";\n"
+        s += "  detail += \" workGroup0=\\\"" + str(kernel.tile.workGroup[0]) + "\\\"\";\n"
+        s += "  detail += \" workGroup1=\\\"" + str(kernel.tile.workGroup[1]) + "\\\"\";\n"
+        s += "  detail += \" microTile0=\\\"" + str(kernel.tile.microTile[0]) + "\\\"\";\n"
+        s += "  detail += \" microTile1=\\\"" + str(kernel.tile.microTile[1]) + "\\\"\";\n"
+        s += "  detail += \" branch0=\\\"" + str(kernel.tile.branch[0]) + "\\\"\";\n"
+        s += "  detail += \" branch1=\\\"" + str(kernel.tile.branch[1]) + "\\\"\";\n"
+        s += "  detail += \" unroll0=\\\"" + str(kernel.unrolls[0]) + "\\\"\";\n"
+        if len(kernel.unrolls) > 1:
+          s += "  detail += \" unroll1=\\\"" + str(kernel.unrolls[1]) + "\\\"\";\n"
+        else:
+          s += "  detail += \" unroll1=\\\"" + str(0) + "\\\"\";\n"
+      else:
+        s += "  detail += \" name=\\\"" + "None" + "\\\"\";\n"
+      s += "  detail += \">\\n\";\n"
+
+    s += "  detail += indent + \"</ImplementationDetails>\\n\";\n"
+    s += "  return detail;\n"
+    s += "} // toStringDetailXML\n"
+    s += "\n"
+
     # explicit template instantiation
     s += "/* explicit template instantiation */\n"
     #s += "template class SolutionOpenCL" \
@@ -319,6 +361,7 @@ class SolutionWriter:
     s += "#define " + solutionName.upper() + "_H\n\n"
     # includes
     s += "#include \"Solution.h\"\n"
+    s += "#include \"Tools.h\"\n"
     s += "\n"
 
     # include kernels
@@ -340,6 +383,7 @@ class SolutionWriter:
     #s += "  ~" + solutionName + "() {printf(\"~"+solutionName+"\\n\");}\n"
     s += "\n"
     s += "  std::string toString( size_t indentLevel) const;\n"
+    s += "  std::string toStringDetailXML( size_t indentLevel) const;\n"
     s += "\n"
     s += "}; // class\n"
     s += "\n"

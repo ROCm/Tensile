@@ -35,6 +35,8 @@ public:
   virtual std::string toString( size_t indentLevel ) const = 0;
   
   std::string toStringXML( size_t indentLevel ) const;
+  virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
+  
 
   Problem getProblem() const;
 
@@ -74,6 +76,7 @@ public:
       CobaltControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
+  virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
 
 };
 
@@ -104,6 +107,7 @@ public:
       CobaltControl & ctrl );
 
   virtual std::string toString( size_t indentLevel ) const = 0;
+  virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
 
 protected:
   // constants
@@ -172,6 +176,7 @@ public:
       CobaltControl & ctrl );
 
   std::string toString( size_t indentLevel ) const;
+  std::string toStringDetailXML( size_t indentLevel ) const;
 
 };
 #endif

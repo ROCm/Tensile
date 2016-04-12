@@ -4,6 +4,96 @@ import argparse
 import FileWriter
 import Structs
 
+psMap = {} #Dict
+
+def addToMap( exactMatch, problem, solution, time, validationStatus ):
+  if exactMatch not in psMap:
+    psMap[exactMatch] = {}
+  if problem not in psMap[exactMatch]:
+    psMap[exactMatch][problem] = {}
+  if solution not in psMap[exactMatch][problem]:
+    psMap[exactMatch][problem][solution] = []
+  psMap[exactMatch][problem][solution].append(time)
+
+
+# EXACT_MATCH:
+#  deviceProfile-
+#  precisions-
+#  operationType-
+#  indexAssignments-
+#  offsetsRequired
+#  initialStridesRequired
+
+#Implementation Details
+# Solution
+#   kernelGrid = {2, 2, 1}
+#   branch = { 1, 1}
+#   ppdOffsets = false
+#   ppdLeadingStride = false
+#   ppdAll = false
+# Kernel[0]
+#   typeC, A, B
+#   Operation
+#   indexOrderC
+#   indexOrderSummation
+#   indexAssignmentDim0
+#   indexAssignmentDim1
+#   unrollDimStride0
+#   unrollDimStride1
+#   unrollDimSize
+#   unrollDimStrideGreaterThanTileDimStrideA
+#   unrollDimStrideLessThanTileDimStrideB
+#   problem = ()
+#   tile = ()
+#   unrolls = {}
+#   ppdOffsets = False
+#   ppdLeadingStride = False
+#   ppdAll = False
+# Kernel[1] = null
+#   
+
+# SIZE
+# PERFORMANCE_MATCH:
+#  stride%1024
+#  tile
+#  unroll
+#  branch
+#  optimize away alpha, beta, offsets, initial strides
+
+#Problem/Solution Map
+# 1) Read in list
+# 2) SolutionsForProblem[EXACT_MATCH].append( [Problem/Solution, time] )
+# 3) for each EXACT_MATCH
+# 4) for each Problem/Solution, condense all times into single time score
+
+# if size > sizeThreshold
+#     same organization as AutoGEMM
+#     use fastest if multiple of teastest
+#     use 2nd fastest if multiple of 2nd fastest
+#     ... continue until they aren't faster than fallback
+#     use fallback
+# next largest size
+# scan backward through sizes until you lose performance %PerfTol
+
+# write 1 file per EXACT_MATCH
+# will need to write out
+# if (size0 < 32 && size1 > threshold) return skinny0()
+# elif (size1 < 32 && size0 > threshold) return skinny1();
+# else regular()
+
+
+#P1) getSolution(Problem)
+#  deviceProfile
+
+#P2) getSolution_DeviceProfile(Problem)
+
+#P3) getSolution_DeviceProfile_EXACT_MATCH
+#  skinny
+#  requires alpha, beta
+#  requires offsets
+#  requires leading strides
+
+#P4 sizes
 ################################################################################
 # Generate Backend Files
 ################################################################################

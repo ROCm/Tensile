@@ -19,9 +19,11 @@ Solution::Solution( const Problem & inputProblem)
 std::string Solution::toStringXML( size_t indentLevel ) const {
   std::string state = Cobalt::indent(indentLevel) + "<Solution>\n";
   state += problem.toStringXML(indentLevel+1);
+  state += toStringDetailXML(indentLevel+1);
   state += Cobalt::indent(indentLevel) + "</Solution>\n";
   return state;
 }
+
 
 /*******************************************************************************
  * toStringXML
@@ -552,6 +554,14 @@ SolutionLogOnly<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionLogOnly() {
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
   return toStringXML(0);
+}
+
+/*******************************************************************************
+* LogSolution:: toStringDetailXML
+******************************************************************************/
+template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
+std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel ) const {
+  return "";
 }
 
 /*******************************************************************************
