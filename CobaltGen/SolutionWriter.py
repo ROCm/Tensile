@@ -305,8 +305,8 @@ class SolutionWriter:
     s += "  detail += \" kernelGrid0=\\\"" + str(solution.kernelGrid[0]) + "\\\"\";\n"
     s += "  detail += \" kernelGrid1=\\\"" + str(solution.kernelGrid[1]) + "\\\"\";\n"
     s += "  detail += \" kernelGrid2=\\\"" + str(solution.kernelGrid[2]) + "\\\"\";\n"
-    s += "  detail += \" branch0=\\\"" + str(solution.branch[0]) + "\\\"\";\n"
-    s += "  detail += \" branch1=\\\"" + str(solution.branch[1]) + "\\\"\";\n"
+    s += "  detail += \" branch0=\\\"" + str(solution.branch[0].value) + "\\\"\";\n"
+    s += "  detail += \" branch1=\\\"" + str(solution.branch[1].value) + "\\\"\";\n"
     s += "  detail += \" ppdOffsets=\\\"" + str(solution.ppdOffsets) + "\\\"\";\n"
     s += "  detail += \" ppdLeadingStride=\\\"" + str(solution.ppdLeadingStride) + "\\\"\";\n"
     s += "  detail += \" ppdAll=\\\"" + str(solution.ppdAll) + "\\\"\";\n"
@@ -321,8 +321,8 @@ class SolutionWriter:
         s += "  detail += \" workGroup1=\\\"" + str(kernel.tile.workGroup[1]) + "\\\"\";\n"
         s += "  detail += \" microTile0=\\\"" + str(kernel.tile.microTile[0]) + "\\\"\";\n"
         s += "  detail += \" microTile1=\\\"" + str(kernel.tile.microTile[1]) + "\\\"\";\n"
-        s += "  detail += \" branch0=\\\"" + str(kernel.tile.branch[0]) + "\\\"\";\n"
-        s += "  detail += \" branch1=\\\"" + str(kernel.tile.branch[1]) + "\\\"\";\n"
+        s += "  detail += \" branch0=\\\"" + str(kernel.tile.branch[0].value) + "\\\"\";\n"
+        s += "  detail += \" branch1=\\\"" + str(kernel.tile.branch[1].value) + "\\\"\";\n"
         s += "  detail += \" unroll0=\\\"" + str(kernel.unrolls[0]) + "\\\"\";\n"
         if len(kernel.unrolls) > 1:
           s += "  detail += \" unroll1=\\\"" + str(kernel.unrolls[1]) + "\\\"\";\n"
@@ -330,7 +330,7 @@ class SolutionWriter:
           s += "  detail += \" unroll1=\\\"" + str(0) + "\\\"\";\n"
       else:
         s += "  detail += \" name=\\\"" + "None" + "\\\"\";\n"
-      s += "  detail += \">\\n\";\n"
+      s += "  detail += \" />\\n\";\n"
 
     s += "  detail += indent + \"</ImplementationDetails>\\n\";\n"
     s += "  return detail;\n"

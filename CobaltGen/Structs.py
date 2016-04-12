@@ -414,14 +414,18 @@ class ExactMatch:
       self.operationType, \
       tuple(self.indexAssignmentsA), \
       tuple(self.indexAssignmentsB), \
-      self.useOffsets, \
-      self.useInitialStrides, \
+      self.ppdOffsets, \
+      self.ppdInitialStrides \
       )
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, ExactMatch) and self.getAttributes() == other.getAttributes()
 
+class SolutionBenchmark:
+  def __init__(self):
+    self.times = []
+    self.validationStatus = 0 # -1 invalid, 0 unspecified, +1 valid
 
 ################################################################################
 # Problem

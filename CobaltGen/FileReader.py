@@ -1,15 +1,43 @@
 import argparse
 import Structs
+import SolutionCandidateGenerator
 
 import xml.sax
 import copy
+import sys
+
+def addTimeToMap( psMap, exactMatch, problem, solution, time ):
+  if exactMatch not in psMap:
+    psMap[exactMatch] = {}
+  if problem not in psMap[exactMatch]:
+    psMap[exactMatch][problem] = {}
+  if solution not in psMap[exactMatch][problem]:
+    psMap[exactMatch][problem][solution] = Structs.SolutionBenchmark()
+  psMap[exactMatch][problem][solution].times.append(time)
+
+def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus ):
+  if exactMatch not in psMap:
+    psMap[exactMatch] = {}
+  if problem not in psMap[exactMatch]:
+    psMap[exactMatch][problem] = {}
+  if solution not in psMap[exactMatch][problem]:
+    psMap[exactMatch][problem][solution] = Structs.SolutionBenchmark()
+
+  if psMap[exactMatch][problem][solution].validationStatus == 0:
+    psMap[exactMatch][problem][solution].validationStatus = validationStatus
+  elif psMap[exactMatch][problem][solution].validationStatus != validationStatus:
+    print "ERROR: conflicting validation reports"
 
 ################################################################################
-# AppProblemsHandler
+# CobaltHandler
 ################################################################################
-class AppProblemsHandler( xml.sax.ContentHandler ):
-  def __init__(self, problemSet):
-    self.problemSet = problemSet
+class CobaltHandler( xml.sax.ContentHandler ):
+  def __init__(self, data, readSolutions):
+    self.data = data
+    self.readSolutions = readSolutions # read problems and solutions for GenBackend
+    self.readProblems = not readSolutions # read problems only for GenBenchmark
+
+    # for reading problems
     self.numProblemsAdded = 0
     self.problem = Structs.Problem()
 
@@ -18,6 +46,9 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
 
     self.currentIndexAssignments = 0
     self.indexAssignments = []
+
+    # for reading solutions
+    self.solution = Structs.Solution()
 
   def startElement(self, tag, attributes):
     if tag == "Problem": # DONE
@@ -87,21 +118,60 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
       device = Structs.Device(attributes["name"] )
       self.problem.deviceProfile.devices.append( device )
       pass
+    elif tag == "ImplementationDetails":
+      self.solution.kernels = []
+      self.solution.kernelGrid = [ int(attributes["kernelGrid0"]), int(attributes["kernelGrid1"]), int(attributes["kernelGrid2"]) ]
+      self.solution.branch = [ Structs.BranchType(int(attributes["branch0"])), Structs.BranchType(int(attributes["branch1"])) ]
+      self.solution.ppdOffsets = attributes["ppdOffsets"] == "True"
+      self.solution.ppdLeadingStride = attributes["ppdLeadingStride"] == "True"
+      self.solution.ppdAll = attributes["ppdAll"] == "True"
+      pass
+    elif tag == "Kernel":
+      # read data from xml
+      if attributes["name"] != "None":
+        kernel = Structs.Kernel()
+        kernel.tile.workGroup = [int(attributes["workGroup0"]), int(attributes["workGroup1"])]
+        kernel.tile.microTile = [int(attributes["microTile0"]), int(attributes["microTile1"])]
+        kernel.tile.branch = [ Structs.BranchType(int(attributes["branch0"])), Structs.BranchType(int(attributes["branch1"])) ]
+        kernel.unrolls = [ int(attributes["unroll0"]) ]
+        secondUnroll = int(attributes["unroll1"])
+        if secondUnroll > 0:
+          kernel.unrolls.append( secondUnroll )
+        # pull data from problem and solution
+        kernel.dataTypeC = self.problem.tensorC.dataType
+        kernel.dataTypeA = self.problem.tensorA.dataType
+        kernel.dataTypeB = self.problem.tensorB.dataType
+        kernel.operation = self.problem.operation
+        kernel.problem = self.problem
+        kernel.ppdOffsets = self.solution.ppdOffsets
+        kernel.ppdLeadingStride = self.solution.ppdLeadingStride
+        kernel.ppdAll = self.solution.ppdAll
+        # make index assignments (rather than storing in xml)
+        SolutionCandidateGenerator.makeIndexAssignments(kernel, self.problem)
+        # append kernel to current solution
+        self.solution.kernels.append(kernel)
+      else:
+        self.solution.kernels.append(None)
+      pass
+    elif tag == "Benchmark":
+      # basically end of TraceEntry
+      time = float(attributes["time"])
+      exactMatch = Structs.ExactMatch()
+      self.assignExactMatch(exactMatch)
+      addTimeToMap( self.data, exactMatch, self.problem, self.solution, time )
+    elif tag == "Validation":
+      valid = 1 if attributes["status"] == "True" else -1
+      exactMatch = Structs.ExactMatch()
+      self.assignExactMatch(exactMatch)
+      addValidationToMap( self.data, exactMatch, self.problem, self.solution, valid )
+
 
   def endElement(self, tag):
     if tag == "Problem": # DONE
-      #print "Completed Problem:"
-      #print str(self.problem)
-      # if self.problem in self.problemSet:
-      #   print "Oops; problem already in set: " + str(self.problem)
-      self.problemSet.add(copy.deepcopy(self.problem))
-      self.numProblemsAdded += 1
+      if self.readProblems:
+        self.data.add(copy.deepcopy(self.problem))
+        self.numProblemsAdded += 1
     elif tag == "Tensor": # DONE
-      #print "Completed Tensor: " + str(self.currentTensor)
-      #print str(self.tensor)
-      #print "tensorC: " + str(self.problem.tensorC)
-      #print "tensorA: " + str(self.problem.tensorA)
-      #print "tensorB: " + str(self.problem.tensorB)
       if self.currentTensor == 0: # C
         self.problem.tensorC = copy.deepcopy(self.tensor)
       elif self.currentTensor == 1: # A
@@ -131,9 +201,33 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
       pass
     elif tag == "Device":
       pass
+    elif tag == "ImplementationDetails":
+      pass
+    elif tag == "Kernel":
+      pass
+    elif tag == "Benchmark":
+      pass
+    elif tag == "TraceEntry":
+      pass
+    elif tag == "CobaltLog":
+      pass
 
   def characters(self, content):
     pass
+
+  def assignExactMatch(self, exactMatch):
+    exactMatch.deviceProfile = self.problem.deviceProfile
+    exactMatch.indexAssignmentsA = self.problem.operation.indexAssignmentsA
+    exactMatch.indexAssignmentsB = self.problem.operation.indexAssignmentsB
+    exactMatch.operationType = self.problem.operation.type
+    exactMatch.ppdOffsets = self.solution.ppdOffsets
+    exactMatch.ppdLeadingStride = self.solution.ppdLeadingStride
+    exactMatch.ppdAll = self.solution.ppdAll
+    exactMatch.typeC = self.problem.tensorC.dataType
+    exactMatch.typeA = self.problem.tensorA.dataType
+    exactMatch.typeB = self.problem.tensorB.dataType
+    exactMatch.typeAlpha = self.problem.operation.alphaType
+    exactMatch.typeBeta = self.problem.operation.betaType
 
 
 
@@ -143,7 +237,8 @@ class AppProblemsHandler( xml.sax.ContentHandler ):
 def getProblemsFromXML( inputFile, problemSet ):
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
-  appProblemsHandler = AppProblemsHandler(problemSet)
+  readSolutions = False
+  appProblemsHandler = CobaltHandler(problemSet, readSolutions)
   parser.setContentHandler( appProblemsHandler )
   try:
     parser.parse( inputFile )
@@ -152,6 +247,20 @@ def getProblemsFromXML( inputFile, problemSet ):
   except:
     print inputFile + " error"
 
+################################################################################
+# getProblemsFromXML
+################################################################################
+def getSolutionsFromXML( inputFile, psMap ):
+  parser = xml.sax.make_parser()
+  parser.setFeature(xml.sax.handler.feature_namespaces, 0)
+  readSolutions = True
+  solutionsHandler = CobaltHandler(psMap, readSolutions)
+  parser.setContentHandler( solutionsHandler )
+  try:
+    parser.parse( inputFile )
+  except:
+    print inputFile + " error"
+  
 
 ################################################################################
 # Main

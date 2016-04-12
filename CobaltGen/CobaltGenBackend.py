@@ -1,19 +1,13 @@
 import glob
 import argparse
+import os
 
+import FileReader
 import FileWriter
 import Structs
 
-psMap = {} #Dict
 
-def addToMap( exactMatch, problem, solution, time, validationStatus ):
-  if exactMatch not in psMap:
-    psMap[exactMatch] = {}
-  if problem not in psMap[exactMatch]:
-    psMap[exactMatch][problem] = {}
-  if solution not in psMap[exactMatch][problem]:
-    psMap[exactMatch][problem][solution] = []
-  psMap[exactMatch][problem][solution].append(time)
+
 
 
 # EXACT_MATCH:
@@ -100,18 +94,13 @@ def addToMap( exactMatch, problem, solution, time, validationStatus ):
 def GenBackendFromFiles( \
     inputFiles, \
     outputPath, \
-    backend, \
-    validate ):
-  pass
-
-  ##############################################################################
-  # (1) accumulate set of problems
-  #problemSet = set() # every problem we'll benchmark
-  # for each input file, accumulate problems
-  #for inputFile in inputFiles:
-  #  print "status: reading problems from " + os.path.basename(inputFile)
-  #  FileReader.getProblemsFromXML( inputFile, problemSet )
-  #print "status: " + str(len(problemSet)) + " unique problems found"
+    backend ):
+  
+  psMap = {} #Problem Solution Map
+  for inputFile in inputFiles:
+    print "status: reading problem/solutions from " + os.path.basename(inputFile)
+    FileReader.getSolutionsFromXML( inputFile, psMap )
+  print str(psMap)
   #for problem in problemSet:
   #  print str(problem)
 
@@ -144,16 +133,16 @@ def GenBackendFromFiles( \
   #kernelWriter = KernelWriter.KernelWriter(backend)
   #for kernel in allKernels:
   #  print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
-  allKernels = set()
-  allSolutions = set()
-  getSolutionLogic = []
+  #allKernels = set()
+  #allSolutions = set()
+  #getSolutionLogic = []
 
   ##############################################################################
   # (3) write benchmark files
-  fileWriter = FileWriter.FileWriter(outputPath, backend)
-  fileWriter.writeKernelFiles( allKernels )
-  fileWriter.writeSolutionFiles( allSolutions )
-  fileWriter.writeBackendFiles( getSolutionLogic )
+  #fileWriter = FileWriter.FileWriter(outputPath, backend)
+  #fileWriter.writeKernelFiles( allKernels )
+  #fileWriter.writeSolutionFiles( allSolutions )
+  #fileWriter.writeBackendFiles( getSolutionLogic )
 
 
 
@@ -168,9 +157,9 @@ if __name__ == "__main__":
   ap.add_argument("--output-path", dest="outputPath", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
-  ap.add_argument("--enable-validation", dest="validate", action="store_true" )
-  ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
-  ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+  # ap.add_argument("--enable-validation", dest="validate", action="store_true" )
+  # ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
+  # ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
 
 
   # parse arguments
@@ -189,6 +178,5 @@ if __name__ == "__main__":
   GenBackendFromFiles( \
       inputFiles, \
       args.outputPath, \
-      backend, \
-      args.validate )
+      backend )
 
