@@ -5,6 +5,7 @@ import SolutionCandidateGenerator
 import xml.sax
 import copy
 import sys
+import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
   if exactMatch.deviceProfile not in psMap:

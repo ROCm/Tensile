@@ -492,23 +492,23 @@ class FileWriter:
   ##############################################################################
   # write backend files - TODO delete this?
   ##############################################################################
-  def writeBackendFiles( self, psMap ):
+  def writeBackendFiles( self, psTimes ):
     print "status: writing backend files"
      # (1) Write Top-Level Solution Selection files
-    sslw = SolutionSelectionWriter.SolutionSelectionWriter(self.backend)
+    sslw = SolutionSelectionWriter.SolutionSelectionWriter(psTimes, self.backend)
     baseName = "CobaltGetSolution"
     sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
     sslSourceFile = open(sslSourcePath, "w")
     sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
     sslHeaderFile = open(sslHeaderPath, "w")
-    sslSourceString, sslHeaderString = sslw.writeGetSolutionTop(psMap) # match device
+    sslSourceString, sslHeaderString = sslw.writeGetSolutionTop() # match device
     sslSourceFile.write(sslSourceString)
     sslSourceFile.close()
     sslHeaderFile.write(sslHeaderString)
     sslHeaderFile.close()
 
-    for deviceProfile, exactMatches in psMap.iteritems():
-      print str(deviceProfile), str(exactMatches)
+    for deviceProfile, exactMatches in psTimes.iteritems():
+      # print str(deviceProfile), str(exactMatches)
       # (2) Write Device-Level Solution Selection files
       baseName = "CobaltGetSolution_" + deviceProfile.libString()
       sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
@@ -521,27 +521,29 @@ class FileWriter:
       sslHeaderFile.write(sslHeaderString)
       sslHeaderFile.close()
 
-      for exactMatch, problems in exactMatches.iteritems():
+      for exactMatch, problemSolutionPairs in exactMatches.iteritems():
         # (3) Write Exact-Match-Level Solution Selection files
         baseName = "CobaltGetSolution_" + exactMatch.libString()
         sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
         sslSourceFile = open(sslSourcePath, "w")
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
-        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, problems) # match size and mod
+        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, problemSolutionPairs) # match size and mod
         sslSourceFile.write(sslSourceString)
         sslSourceFile.close()
         sslHeaderFile.write(sslHeaderString)
         sslHeaderFile.close()
 
     # (4) Write Kernel Files
+    self.writeKernelFiles(sslw.getKernelSet())
 
     # (5) Write Solution Files
+    self.writeSolutionFiles(sslw.getSolutionSet())
 
     # (6) Write CMake File
     backendCMakePath = self.outputPath + self.otherSubdirectory + "CobaltLib.cmake"
     backendCMakeFile = open(backendCMakePath, "w")
-    s = sslw.writeCobaltLibCMake(psMap, self.otherSubdirectory)
+    s = sslw.writeCobaltLibCMake(self.otherSubdirectory)
     backendCMakeFile.write(s)
     backendCMakeFile.close()
 

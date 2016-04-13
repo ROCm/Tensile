@@ -72,7 +72,7 @@ int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
 #if 1
-  for (size_t i = 16; i < 2048+16*12; i+= 16*4) {
+  for (size_t i = 16; i < 64; i+= 16) {
     bool useSize = false;
     for (size_t j = 0; j < sgemmSizeBoundsSize; j++) {
       if (i < sgemmSizeBounds[j][1] && i % sgemmSizeBounds[j][0]==0) {
@@ -81,7 +81,11 @@ int main( char * argv[], int argc ) {
       }
     }
     if (useSize) {
-      sizes.push_back({ i, i, i });
+      sizes.push_back({ i, i, i }); // exact tile, exact unroll
+      //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
+      //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
+      sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
+      // TODO - are above important enough for SolutionSelectionLogic to handle it
     }
   }
 #endif

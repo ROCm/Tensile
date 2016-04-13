@@ -62,7 +62,7 @@ SolutionOpenCL<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionOpenCL() {
   for (unsigned int i = 0; i < maxNumKernels; i++) {
     if (kernels[i]) {
       //timer.start();
-      clReleaseKernel( kernels[i] );
+      //clReleaseKernel( kernels[i] );
       //double timeReleaseKernel = timer.elapsed_us();
       //printf("kernel-release: %3.0fus\n", timeReleaseKernel);
     }
@@ -186,6 +186,13 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
 #define TIME_KERNEL_COMPILATION 1
 
+
+#if defined( _WIN32 )
+__declspec(thread) static KernelMap *kernelMap = 0;
+#else
+__thread static KernelMap *kernelMap = 0;
+#endif
+
 /******************************************************************************
  * makeKernel
  *****************************************************************************/
@@ -196,55 +203,76 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   const char *kernelSource,
   const char *sourceBuildOptions)
 {
-  cl_int err;
-  if (*kernel) {
-    //printf("kernel already built\n");
-    // kernel has already been built, return
-    return;
-  } else {
-    //printf("building kernel\n");
-    cl_context clContext;
-    cl_device_id clDevice;
-    err = clGetCommandQueueInfo( queue, CL_QUEUE_CONTEXT, sizeof(clContext), &clContext, NULL);
-    CL_CHECK(err)
-    err = clGetCommandQueueInfo( queue, CL_QUEUE_DEVICE, sizeof(clDevice), &clDevice, NULL);
-    CL_CHECK(err)
-    cl_program clProgram;
-    clProgram = clCreateProgramWithSource(
-      clContext,
-      1, &kernelSource,
-      NULL, &err );
-    CL_CHECK(err)
-    // driver leaks ~200kB at this call
-    err = clBuildProgram(
-      clProgram,
-      1, &clDevice,
-      sourceBuildOptions, NULL, NULL );
-    CL_CHECK(err)
-
-    // print build failure
-    if (err != CL_SUCCESS) {
-      printf("clBuildProgram Failed; Error = %d\n", err);
-      printf("\nKernel Source:\n\n");
-      printf("%s\n", kernelSource);
-
-      size_t len = 0;
-      clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
-      char* buildLog = new char[len];
-      clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len*sizeof(char), buildLog, 0);
-      printf("\n\n\nBuild Log:\n\n");
-      printf("%s\n", buildLog);
-      printf("\n");
-      delete[] buildLog;
-    }
-    err = clCreateKernelsInProgram(
-      clProgram,
-      1, kernel,
-      NULL );
-    CL_CHECK(err)
-	  err = clReleaseProgram(clProgram);
-	  CL_CHECK(err)
+  // initialize kernel map
+  if (!kernelMap) {
+    kernelMap = new KernelMap();
   }
+
+  // was kernel already taken care of for this solution instance?
+  if (*kernel) {
+    return;
+  }
+
+  // get context and device from queue
+  cl_int err;
+  cl_context clContext;
+  cl_device_id clDevice;
+  err = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(clContext), &clContext, NULL);
+  CL_CHECK(err)
+    err = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(clDevice), &clDevice, NULL);
+  CL_CHECK(err)
+
+  // is kernel already compiled?
+  KernelMapKey key;
+  key.kernelSource = kernelSource;
+  key.context = clContext;
+  key.device = clDevice;
+  KernelMap::iterator idx = kernelMap->find(key);
+  if (idx != kernelMap->end()) {
+    *kernel = idx->second;
+    printf("kernel already compiled %p %p\n", kernel, *kernel);
+    return;
+  }
+  
+  //printf("building kernel\n");
+  cl_program clProgram;
+  clProgram = clCreateProgramWithSource(
+    clContext,
+    1, &kernelSource,
+    NULL, &err );
+  CL_CHECK(err)
+  // driver leaks ~200kB at this call
+  err = clBuildProgram(
+    clProgram,
+    1, &clDevice,
+    sourceBuildOptions, NULL, NULL );
+  CL_CHECK(err)
+
+  // print build failure
+  if (err != CL_SUCCESS) {
+    printf("clBuildProgram Failed; Error = %d\n", err);
+    printf("\nKernel Source:\n\n");
+    printf("%s\n", kernelSource);
+
+    size_t len = 0;
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+    char* buildLog = new char[len];
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len*sizeof(char), buildLog, 0);
+    printf("\n\n\nBuild Log:\n\n");
+    printf("%s\n", buildLog);
+    printf("\n");
+    delete[] buildLog;
+  }
+  err = clCreateKernelsInProgram(
+    clProgram,
+    1, kernel,
+    NULL );
+  CL_CHECK(err)
+	err = clReleaseProgram(clProgram);
+	CL_CHECK(err)
+
+  // put kernel in map
+  (*kernelMap)[key] = *kernel;
 }
 
 
@@ -589,6 +617,28 @@ CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 }
 
 
+bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
+
+  if (l.kernelSource < r.kernelSource) {
+    return true;
+  }
+  else if (r.kernelSource < l.kernelSource) {
+    return false;
+  }
+  if (l.context < r.context) {
+    return true;
+  }
+  else if (r.context < l.context) {
+    return false;
+  }
+  if (l.device < r.device) {
+    return true;
+  }
+  else if (r.device < l.device) {
+    return false;
+  }
+  return false;
+}
 
 /*******************************************************************************
  * Explicit Template Instantiation

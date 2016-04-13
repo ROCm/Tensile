@@ -19,6 +19,7 @@ public:
   void init( CobaltDevice device );
   std::string toStringXML(size_t indent) const;
   bool operator<( const Device & other ) const;
+  bool matches( std::string name ) const;
 
 protected:
   std::string name;
@@ -36,6 +37,8 @@ public:
   DeviceProfile( CobaltDeviceProfile profile );
   std::string toStringXML(size_t indent) const;
   bool operator<( const DeviceProfile & other ) const;
+  const Device & operator[]( size_t index ) const;
+  size_t numDevices() const;
 protected:
   std::vector<Device> devices;
 };

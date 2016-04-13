@@ -171,6 +171,10 @@ int main( int argc, char *argv[] ) {
             beta,
             ctrl );
       }
+      for (unsigned int i = 0; i < ctrl.numQueues; i++) {
+        status = clFinish(ctrl.queues[i]);
+        CL_CHECK(status)
+      }
 
 #if 0
       // peek at gpu result

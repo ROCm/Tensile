@@ -167,8 +167,8 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 1
-  maxMicroTileSize = 8
+  minMicroTileSize = 4
+  maxMicroTileSize = 6
   # TODO; if unroll=8 is faster than unroll=16 then also check unroll=4
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
@@ -204,7 +204,7 @@ class SolutionCandidateGenerator:
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
-  noBranches = True
+  noBranches = False
 
   ##############################################################################
   # init

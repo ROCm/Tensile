@@ -18,6 +18,11 @@ void Device::init( CobaltDevice device ) {
   name.assign(device.name);
 }
 
+
+bool Device::matches( std::string inputName ) const {
+  return name == inputName;
+}
+
 /*******************************************************************************
  * Device - toString
  ******************************************************************************/
@@ -82,6 +87,15 @@ bool DeviceProfile::operator<(const DeviceProfile & other) const {
   }
   // identical
   return false;
+}
+
+
+const Device & DeviceProfile::operator[]( size_t index ) const {
+  return devices[index];
+}
+
+size_t DeviceProfile::numDevices() const {
+  return devices.size();
 }
 
 } // namespace

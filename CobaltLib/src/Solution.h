@@ -3,7 +3,7 @@
 
 #include "Cobalt.h"
 #include "Problem.h"
-
+#include <map>
 #include <string>
 
 namespace Cobalt {
@@ -182,8 +182,23 @@ public:
 };
 #endif
 
-}
 
+
+
+
+
+} // end namespace
+
+
+  // cache kernels so they only get compiled once
+typedef struct KernelMapKey_ {
+  cl_context context; // address of context
+  cl_device_id device; // address of device
+  const char *kernelSource; // address of kernel source
+} KernelMapKey;
+typedef std::map<KernelMapKey, cl_kernel> KernelMap;
+
+bool operator<(const KernelMapKey & l, const KernelMapKey & r);
 
 #include <assert.h>
 #define CL_CHECK(RET) \

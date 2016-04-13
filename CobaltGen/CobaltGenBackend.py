@@ -56,44 +56,47 @@ def GenBackendFromFiles( \
     backend ):
   
   # read raw solution times
-  psTimes = {}
+  psTimesRaw = {}
   for inputFile in inputFiles:
     print "status: reading problem/solutions from " + os.path.basename(inputFile)
-    FileReader.getSolutionsFromXML( inputFile, psTimes )
-  print "status: created dictionary - " + str(psTimes)
+    FileReader.getSolutionsFromXML( inputFile, psTimesRaw )
+  # print "status: created dictionary - " + str(psTimes)
   
   # structures needed to write backend
-  psMap = {}
+  psTimes = {}
   kernelSet = set()
   solutionSet = set()
-  for deviceProfile, exactMatches in psTimes.iteritems():
-    psMap[deviceProfile] = {}
-    print "DeviceProfile: " + str(deviceProfile)
+  for deviceProfile, exactMatches in psTimesRaw.iteritems():
+    psTimes[deviceProfile] = {}
+    #print "DeviceProfile: " + str(deviceProfile)
     for exactMatch, problems in exactMatches.iteritems():
-      psMap[deviceProfile][exactMatch] = {}
-      print "ExactMatch: " + str(exactMatch)
+      psTimes[deviceProfile][exactMatch] = []
+      #print "ExactMatch: " + str(exactMatch)
       for problem, solutionCandidates in problems.iteritems():
-        print "Problem: " + str(problem)
+        #print "Problem: " + str(problem)
         # choose fastest solution
         solutionCandidatesUnsorted = []
         for solution, solutionBenchmark in solutionCandidates.iteritems():
           avgTime = 1e100
-          if len(solutionBenchmark.times)>0:
+          if len(solutionBenchmark.times) > 0:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
-          solutionCandidatesUnsorted.append( [solution, avgTime] )
-        solutionCandidatesSorted = sorted( solutionCandidatesUnsorted, \
-          key = lambda x: int(x[1]))
-        fastestSolution = solutionCandidatesSorted[0][0]
-        fastestSolutionTime = solutionCandidatesSorted[0][1]
-        print "Winner: " + str(fastestSolutionTime) + " is " + str(fastestSolution)
+          psTimes[deviceProfile][exactMatch].append([problem, solution, avgTime])
+        #  solutionCandidatesUnsorted.append( [solution, avgTime] )
+        #solutionCandidatesSorted = sorted( solutionCandidatesUnsorted, \
+        #  key = lambda x: int(x[1]))
+        #fastestSolution = solutionCandidatesSorted[0][0]
+        #fastestSolutionTime = solutionCandidatesSorted[0][1]
+        #print "Winner: " + str(fastestSolutionTime) + " is " + str(fastestSolution)
 
         # add fastest solution to backend
-        psMap[deviceProfile][exactMatch][problem] = fastestSolution
-        solutionSet.add(fastestSolution)
-        for kernel in fastestSolution.kernels:
-          kernelSet.add(kernel)
+        # psMap[deviceProfile][exactMatch].append([problem, fastestSolution, fastestSolutionTime])
+        #solutionSet.add(fastestSolution)
+        #for kernel in fastestSolution.kernels:
+        #  kernelSet.add(kernel)
+
+  # kernelSet.remove(None)
   fileWriter = FileWriter.FileWriter(outputPath, backend, False)
-  fileWriter.writeBackendFiles(psMap)
+  fileWriter.writeBackendFiles(psTimes)
   
   # getSolution(problem) - top level
     # which device do i match, with default
