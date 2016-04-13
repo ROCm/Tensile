@@ -2,17 +2,16 @@ import os
 import Structs
 import KernelWriter
 import SolutionWriter
+import SolutionSelectionWriter
 
 ################################################################################
 # File Writer
 ################################################################################
 class FileWriter:
 
-  topDirectory = "/"
-  kernelSubdirectory = topDirectory + "/Kernels/"
-  solutionSubdirectory = topDirectory + "/Solutions/"
-  benchmarkSubdirectory = topDirectory + "/Benchmark/"
-  librarySubdirectory = topDirectory + "/Library/"
+  kernelSubdirectory = "/Kernels/"
+  solutionSubdirectory = "/Solutions/"
+  otherSubdirectory = "/Other/"
 
 
   ##############################################################################
@@ -27,17 +26,22 @@ class FileWriter:
   ##############################################################################
   # constructor
   ##############################################################################
-  def __init__( self, outputPath, backend ):
+  def __init__( self, outputPath, backend, forBenchmark ):
     self.outputPath = outputPath
     self.backend = backend
     self.kernelWriter = KernelWriter.KernelWriter(backend)
     self.solutionWriter = SolutionWriter.SolutionWriter(self.backend)
 
-    self.ensurePath( self.outputPath + self.topDirectory )
+    self.ensurePath( self.outputPath )
     self.ensurePath( self.outputPath + self.kernelSubdirectory )
     self.ensurePath( self.outputPath + self.solutionSubdirectory )
-    self.ensurePath( self.outputPath + self.benchmarkSubdirectory )
-    self.ensurePath( self.outputPath + self.librarySubdirectory )
+    self.ensurePath( self.outputPath + self.otherSubdirectory )
+
+    self.forBenchmark = forBenchmark
+    self.cobaltDirGenerated = "${CobaltLib_DIR_GENERATED}"
+    if self.forBenchmark:
+      self.cobaltDirGenerated = "${CobaltBenchmark_DIR_GENERATED}"
+
 
 
   ##############################################################################
@@ -47,7 +51,7 @@ class FileWriter:
     print "status: writing kernel files"
 
     # main kernel .cpp,.h files
-    kernelFilePath = "${Cobalt_DIR_GENERATED}" + self.kernelSubdirectory
+    kernelFilePath = self.cobaltDirGenerated + self.kernelSubdirectory
     kernelsCMakeFilePath = self.outputPath + self.kernelSubdirectory \
         + "CobaltKernels.cmake"
     allKernelsHeaderFilePath = self.outputPath + self.kernelSubdirectory \
@@ -55,7 +59,10 @@ class FileWriter:
     kernelsCMakeFile = open(kernelsCMakeFilePath, "w")
     allKernelsHeaderFile = open(allKernelsHeaderFilePath, "w")
 
-    kernelsCMakeFile.write("\nset( Cobalt_KernelFiles_GENERATED_DYNAMIC\n")
+    if self.forBenchmark:
+      kernelsCMakeFile.write("\nset( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC\n")
+    else:
+      kernelsCMakeFile.write("\nset( CobaltLib_KernelFiles_GENERATED_DYNAMIC\n")
 
 
     for kernel in kernelSet:
@@ -88,7 +95,10 @@ class FileWriter:
       allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\r")
 
     kernelsCMakeFile.write(")\n")
-    kernelsCMakeFile.write("source_group(CobaltGen\\\\Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n")
+    if self.forBenchmark:
+      kernelsCMakeFile.write("source_group(CobaltGen\\\\Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n")
+    else:
+      kernelsCMakeFile.write("source_group(CobaltGen\\\\Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n")
     kernelsCMakeFile.close()
     allKernelsHeaderFile.close()
 
@@ -100,7 +110,7 @@ class FileWriter:
     print "status: writing solution files"
 
     # main solution .cpp,.h files
-    solutionFilePath = "${Cobalt_DIR_GENERATED}" + self.solutionSubdirectory
+    solutionFilePath = self.cobaltDirGenerated + self.solutionSubdirectory
     solutionsCMakeFilePath = self.outputPath + self.solutionSubdirectory \
         + "CobaltSolutions.cmake"
     allSolutionsHeaderFilePath = self.outputPath + self.solutionSubdirectory \
@@ -108,7 +118,10 @@ class FileWriter:
     solutionsCMakeFile = open(solutionsCMakeFilePath, "w")
     allSolutionsHeaderFile = open(allSolutionsHeaderFilePath, "w")
 
-    solutionsCMakeFile.write("set( Cobalt_SolutionFiles_GENERATED_DYNAMIC\n")
+    if self.forBenchmark:
+      solutionsCMakeFile.write("set( CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC\n")
+    else:
+      solutionsCMakeFile.write("set( CobaltLib_SolutionFiles_GENERATED_DYNAMIC\n")
 
     for solution in solutionSet:
       # open file
@@ -141,7 +154,10 @@ class FileWriter:
           + solutionHeaderFileName + "\"\n")
 
     solutionsCMakeFile.write(")\n")
-    solutionsCMakeFile.write("source_group(CobaltGen\\\\Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n")
+    if self.forBenchmark:
+      solutionsCMakeFile.write("source_group(CobaltGen\\\\Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n")
+    else:
+      solutionsCMakeFile.write("source_group(CobaltGen\\\\Solutions FILES ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n")
     solutionsCMakeFile.close()
     allSolutionsHeaderFile.close()
 
@@ -174,10 +190,10 @@ class FileWriter:
       problemName = str(problem)
       # open problem file
       problemFileNameBase = "init_" + problemName + "_candidates"
-      problemSourcePath = self.outputPath + self.benchmarkSubdirectory \
+      problemSourcePath = self.outputPath + self.otherSubdirectory \
           + problemFileNameBase + ".cpp"
       problemSourceFile = open(problemSourcePath, "w")
-      problemHeaderPath = self.outputPath + self.benchmarkSubdirectory \
+      problemHeaderPath = self.outputPath + self.otherSubdirectory \
           + problemFileNameBase + ".h"
       problemHeaderFile = open(problemHeaderPath, "w")
 
@@ -248,6 +264,8 @@ class FileWriter:
           + problem.operation.alphaType.getLibString() + ";\n"
       s += "  CobaltDataType betaType = " \
           + problem.operation.betaType.getLibString() + ";\n"
+      s += "  bool useOffsets = " \
+          + ("true" if problem.operation.useOffsets else "false") + ";\n"
       numIndicesA = len(problem.operation.indexAssignmentsA)
       s += "  std::vector<unsigned int> indexAssignmentsA("+str(numIndicesA)+");\n"
       for i in range(0,numIndicesA):
@@ -270,6 +288,7 @@ class FileWriter:
       s += "      operationType,\n"
       s += "      alphaType,\n"
       s += "      betaType,\n"
+      s += "      useOffsets,\n"
       s += "      deviceProfile,\n"
       s += "      &status);\n"
       s += "\n"
@@ -324,7 +343,7 @@ class FileWriter:
 
     ########################################
     # top level benchmark file
-    benchmarkSourcePath = self.outputPath + self.benchmarkSubdirectory \
+    benchmarkSourcePath = self.outputPath + self.otherSubdirectory \
       + "CobaltSolutionCandidates.cpp"
     benchmarkSourceFile = open(benchmarkSourcePath, "w")
     s = ""
@@ -358,13 +377,14 @@ class FileWriter:
 
     ###########################################
     # top level benchmark header file
-    benchmarkHeaderPath = self.outputPath + self.benchmarkSubdirectory \
+    benchmarkHeaderPath = self.outputPath + self.otherSubdirectory \
         + "CobaltSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
     h = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#define COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#include \"Cobalt.h\"\n"
     h += "#include \"CobaltSolutions.h\"\n"
+    h += "#include <vector>\n"
     h += "#include \"CL/cl.h\"\n"
     h += "\n"
     h += "const size_t numProblems = " + str(numProblems) + ";\n"
@@ -390,13 +410,13 @@ class FileWriter:
 
 
     # write CobaltBenchmark.cmake
-    benchmarkCMakePath = self.outputPath + self.benchmarkSubdirectory \
+    benchmarkCMakePath = self.outputPath + self.otherSubdirectory \
         + "CobaltBenchmark.cmake"
     benchmarkCMakeFile = open(benchmarkCMakePath, "w")
     s = "# CobaltBenchmark.cmake\n"
     s += "\n"
-    s += "include( ${Cobalt_KernelFiles_CMAKE_DYNAMIC} )\n"
-    s += "include( ${Cobalt_SolutionFiles_CMAKE_DYNAMIC} )\n"
+    s += "include( ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
+    s += "include( ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
     s += "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
     for problemIdx in range(0,numProblems):
@@ -404,8 +424,8 @@ class FileWriter:
       problem = problemSolutionPair[0]
       problemName = str(problem)
       problemFileNameBase = "init_" + problemName + "_candidates"
-      s += "  ${Cobalt_DIR_GENERATED}" + self.benchmarkSubdirectory + problemFileNameBase + ".cpp\n"
-      s += "  ${Cobalt_DIR_GENERATED}" + self.benchmarkSubdirectory + problemFileNameBase + ".h\n"
+      s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".cpp\n"
+      s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".h\n"
     s += ")\n"
     s += "\n"
     s += "source_group(CobaltGen\\\\Benchmark FILES\n"
@@ -470,26 +490,58 @@ class FileWriter:
 
 
   ##############################################################################
-  # write backend files
+  # write backend files - TODO delete this?
   ##############################################################################
-  def writeBackendFiles( self, getSolutionLogic ):
+  def writeBackendFiles( self, psMap ):
     print "status: writing backend files"
-    # main solution .cpp,.h files
-    backendCMakeFilePath = self.outputPath + self.librarySubdirectory \
-        + "CobaltLib.cmake"
-    getSolutionHeaderFilePath = self.outputPath + self.librarySubdirectory \
-        + "CobaltGetSolution.h"
-    getSolutionSourceFilePath = self.outputPath + self.librarySubdirectory \
-        + "CobaltGetSolution.cpp"
+     # (1) Write Top-Level Solution Selection files
+    sslw = SolutionSelectionWriter.SolutionSelectionWriter(self.backend)
+    baseName = "CobaltGetSolution"
+    sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
+    sslSourceFile = open(sslSourcePath, "w")
+    sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
+    sslHeaderFile = open(sslHeaderPath, "w")
+    sslSourceString, sslHeaderString = sslw.writeGetSolutionTop(psMap) # match device
+    sslSourceFile.write(sslSourceString)
+    sslSourceFile.close()
+    sslHeaderFile.write(sslHeaderString)
+    sslHeaderFile.close()
 
-    backendCMakeFile = open(backendCMakeFilePath, "w")
-    getSolutionHeaderFile = open(getSolutionHeaderFilePath, "w")
-    getSolutionSourceFile = open(getSolutionSourceFilePath, "w")
+    for deviceProfile, exactMatches in psMap.iteritems():
+      print str(deviceProfile), str(exactMatches)
+      # (2) Write Device-Level Solution Selection files
+      baseName = "CobaltGetSolution_" + deviceProfile.libString()
+      sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
+      sslSourceFile = open(sslSourcePath, "w")
+      sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
+      sslHeaderFile = open(sslHeaderPath, "w")
+      sslSourceString, sslHeaderString = sslw.writeGetSolutionForDevice(deviceProfile, exactMatches) # match exact
+      sslSourceFile.write(sslSourceString)
+      sslSourceFile.close()
+      sslHeaderFile.write(sslHeaderString)
+      sslHeaderFile.close()
 
-    backendCMakeFile.write("# CobaltLib Backend CMakeFile\n")
-    getSolutionHeaderFile.write("/* GetSolution.h */\n")
-    getSolutionSourceFile.write("/* GetSolution.cpp */\n")
+      for exactMatch, problems in exactMatches.iteritems():
+        # (3) Write Exact-Match-Level Solution Selection files
+        baseName = "CobaltGetSolution_" + exactMatch.libString()
+        sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
+        sslSourceFile = open(sslSourcePath, "w")
+        sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
+        sslHeaderFile = open(sslHeaderPath, "w")
+        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, problems) # match size and mod
+        sslSourceFile.write(sslSourceString)
+        sslSourceFile.close()
+        sslHeaderFile.write(sslHeaderString)
+        sslHeaderFile.close()
 
+    # (4) Write Kernel Files
+
+    # (5) Write Solution Files
+
+    # (6) Write CMake File
+    backendCMakePath = self.outputPath + self.otherSubdirectory + "CobaltLib.cmake"
+    backendCMakeFile = open(backendCMakePath, "w")
+    s = sslw.writeCobaltLibCMake(psMap, self.otherSubdirectory)
+    backendCMakeFile.write(s)
     backendCMakeFile.close()
-    getSolutionHeaderFile.close()
-    getSolutionSourceFile.close()
+

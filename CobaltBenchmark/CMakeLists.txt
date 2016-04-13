@@ -14,23 +14,32 @@ set( CobaltBenchmark_SRC_STATIC
 
 # generated source files
 set( CobaltBenchmark_SRC_GENERATED_STATIC
-  ${Cobalt_DIR_GENERATED}/Kernels/CobaltKernels.h
-  ${Cobalt_DIR_GENERATED}/Solutions/CobaltSolutions.h
-  ${Cobalt_DIR_GENERATED}/Benchmark/CobaltSolutionCandidates.cpp
-  ${Cobalt_DIR_GENERATED}/Benchmark/CobaltSolutionCandidates.h
-  ${Cobalt_DIR_GENERATED}/Library/SolutionTemplateInstantiations.inl
+  ${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.h
+  ${CobaltBenchmark_DIR_GENERATED}/Solutions/CobaltSolutions.h
+  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.cpp
+  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.h
+  ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
 )
 
+
+if( NOT EXISTS ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+  MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
+  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+      ""
+  )
+endif()
+
+
 set( CobaltBenchmark_CMAKE_DYNAMIC
-  ${Cobalt_DIR_GENERATED}/Benchmark/CobaltBenchmark.cmake
+  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake
 )
 if( NOT EXISTS ${CobaltBenchmark_CMAKE_DYNAMIC})
   file( WRITE ${CobaltBenchmark_CMAKE_DYNAMIC}
-      "include( \${Cobalt_KernelFiles_CMAKE_DYNAMIC} )\n"
-      "include( \${Cobalt_SolutionFiles_CMAKE_DYNAMIC} )\n"
+      "include( \${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
+      "include( \${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
       "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
-      "  \${Cobalt_KernelFiles_GENERATED_DYNAMIC}\n"
-      "  \${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n"
+      "  \${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}\n"
+      "  \${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
 include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
@@ -46,9 +55,8 @@ add_custom_command(
   
   python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
       --backend=${Cobalt_BACKEND}
-      --input-path=${Cobalt_DIR_PROBLEMS}
-      --output-path=${Cobalt_DIR_GENERATED}
-      --result-file=${Cobalt_FILE_SOLUTIONS}
+      --input-path=${CobaltBenchmark_DIR_PROBLEMS}
+      --output-path=${CobaltBenchmark_DIR_GENERATED}
       --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
       --optimize-beta=${Cobalt_OPTIMIZE_BETA}
       #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py --backend=${Cobalt_BACKEND} --input-path=${Cobalt_DIR_PROBLEMS} --output-path=${Cobalt_DIR_GENERATED} --result-file=${Cobalt_FILE_SOLUTIONS} --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA} --optimize-beta=${Cobalt_OPTIMIZE_BETA}"
@@ -61,13 +69,13 @@ add_executable( ${CobaltBenchmark_NAME}
   ${CobaltBenchmark_SRC_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
-  ${Cobalt_KernelFiles_GENERATED_DYNAMIC}
-  ${Cobalt_SolutionFiles_GENERATED_DYNAMIC}
+  ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}
+  ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC}
   ${CobaltGen_SRC}
 )
 source_group( CobaltGen\\Scripts FILES ${CobaltGen_SRC} )
-source_group( CobaltGen\\Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )
-source_group( CobaltGen\\Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )
+source_group( CobaltGen\\Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )
+source_group( CobaltGen\\Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )
 source_group( CobaltGen\\Benchmark FILES
   ${CobaltBenchmark_SRC_GENERATED_STATIC}
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
@@ -81,9 +89,10 @@ target_link_libraries( ${CobaltBenchmark_NAME}
 # include Cobalt headers
 include_directories(
   ${CobaltLib_DIRS_INCLUDE}
-  ${Cobalt_DIR_GENERATED}/Benchmark
-  ${Cobalt_DIR_GENERATED}/Kernels
-  ${Cobalt_DIR_GENERATED}/Solutions
+  ${CobaltBenchmark_DIR_GENERATED}
+  ${CobaltBenchmark_DIR_GENERATED}/Kernels
+  ${CobaltBenchmark_DIR_GENERATED}/Solutions
+  ${CobaltBenchmark_DIR_GENERATED}/Other
 )
 
 # Cobalt depends on OpenCL
@@ -94,20 +103,20 @@ endif()
 
 ############################################################
 # CobaltBenchmark - generates ProblemSolutionMap.xml
-add_custom_command(
-  OUTPUT ${Cobalt_FILE_SOLUTIONS}
-  COMMAND ${CobaltBenchmark_NAME}
-  DEPENDS
-    ${CobaltBenchmark_SRC_STATIC}
-    ${CobaltBenchmark_SRC_GENERATED_STATIC}
-    ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
-)
+#add_custom_command(
+#  OUTPUT ${Cobalt_FILE_SOLUTIONS}
+#  COMMAND ${CobaltBenchmark_NAME}
+#  DEPENDS
+#    ${CobaltBenchmark_SRC_STATIC}
+#    ${CobaltBenchmark_SRC_GENERATED_STATIC}
+#    ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
+#)
 
 add_definitions( -DCobalt_LOGGER_ENABLED=1)
 add_definitions( -DCobalt_SOLVER_ENABLED=0)
 
 
 
-add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
-add_definitions(-DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}")
-add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")
+#add_definitions(-DCobaltBenchmark_DIR_PROBLEMS="${CobaltBenchmark_DIR_PROBLEMS}")
+add_definitions(-DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")
+#add_definitions(-DCobaltBenchmark_DIR_GENERATED="${CobaltBenchmark_DIR_GENERATED}")

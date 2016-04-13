@@ -151,6 +151,7 @@ protected:
 
   // preprocessor optimizations
   bool argOffsets;
+  bool argLeadingStrides;
   bool argSizes;
 
 };

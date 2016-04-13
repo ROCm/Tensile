@@ -2,6 +2,8 @@
  * Cobalt Benchmark
  ******************************************************************************/
 #define _CRTDBG_MAP_ALLOC
+
+#ifdef _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
 #ifndef DBG_NEW
@@ -11,6 +13,8 @@
 _CrtMemState s1;
 _CrtMemState s2;
 _CrtMemState s3;
+#endif
+
 
 #include "CobaltBenchmark.h"
 #include "Cobalt.h"
@@ -37,13 +41,14 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
  * main
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
-
+#ifdef _CRTDBG_MAP_ALLOC
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
+#endif
   // parse commandline options
   parseCommandLineOptions(argc, argv);
 
   // setup CobaltLib
-  std::string logFilePath = Cobalt_DIR_SOLUTIONS;
+  std::string logFilePath = CobaltBenchmark_DIR_SOLUTIONS;
   logFilePath += "/CobaltBenchmark_log.xml";
   cobaltSetup(logFilePath.c_str());
 
@@ -64,6 +69,7 @@ int main( int argc, char *argv[] ) {
   for ( size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx;
       problemIdx++ ) {
 
+#ifdef _CRTDBG_MAP_ALLOC
     if (problemIdx > 0) {
       _CrtMemCheckpoint( &s2 );
       int diff = _CrtMemDifference(&s3, &s1, &s2);
@@ -71,7 +77,7 @@ int main( int argc, char *argv[] ) {
       printf("Difference[%llu] = %i\n", problemIdx-1, diff);
     }
     _CrtMemCheckpoint(&s1);
-
+#endif
 
     // info about problem
     CobaltProblem problem;
@@ -184,11 +190,11 @@ int main( int argc, char *argv[] ) {
     
   } // problem loop
   destroyTensorData();
-  int leaks = _CrtDumpMemoryLeaks();
   destroyControls();
-  leaks = _CrtDumpMemoryLeaks();
   cobaltTeardown();
-  leaks = _CrtDumpMemoryLeaks();
+#ifdef _CRTDBG_MAP_ALLOC
+  int leaks = _CrtDumpMemoryLeaks();
+#endif
   return 0;
 } // end main
 

@@ -29,7 +29,6 @@ def getKernelsFromSolutions( solutionSet ):
 def GenBenchmarkFromFiles( \
     inputFiles, \
     outputPath, \
-    resultFile, \
     backend, \
     optimizeAlpha, \
     optimizeBeta):
@@ -86,7 +85,7 @@ def GenBenchmarkFromFiles( \
 
   ##############################################################################
   # (3) write benchmark files
-  fileWriter = FileWriter.FileWriter(outputPath, backend)
+  fileWriter = FileWriter.FileWriter(outputPath, backend, True)
   fileWriter.writeKernelFiles( allKernels )
   fileWriter.writeSolutionFiles( allSolutions )
   fileWriter.writeBenchmarkFiles( benchmarkList )
@@ -101,7 +100,6 @@ if __name__ == "__main__":
   ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
   ap.add_argument("--input-path", dest="inputPath", required=True )
   ap.add_argument("--output-path", dest="outputPath", required=True )
-  ap.add_argument("--result-file", dest="resultFile", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
   ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
@@ -125,7 +123,6 @@ if __name__ == "__main__":
   GenBenchmarkFromFiles( \
       inputFiles, \
       args.outputPath, \
-      args.resultFile, \
       backend,
       args.optimizeAlphaStr=="On",
       args.optimizeBetaStr=="On" )

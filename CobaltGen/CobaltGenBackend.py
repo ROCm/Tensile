@@ -11,41 +11,6 @@ import Structs
 
 
 # EXACT_MATCH:
-#  deviceProfile-
-#  precisions-
-#  operationType-
-#  indexAssignments-
-#  offsetsRequired
-#  initialStridesRequired
-
-#Implementation Details
-# Solution
-#   kernelGrid = {2, 2, 1}
-#   branch = { 1, 1}
-#   ppdOffsets = false
-#   ppdLeadingStride = false
-#   ppdAll = false
-# Kernel[0]
-#   typeC, A, B
-#   Operation
-#   indexOrderC
-#   indexOrderSummation
-#   indexAssignmentDim0
-#   indexAssignmentDim1
-#   unrollDimStride0
-#   unrollDimStride1
-#   unrollDimSize
-#   unrollDimStrideGreaterThanTileDimStrideA
-#   unrollDimStrideLessThanTileDimStrideB
-#   problem = ()
-#   tile = ()
-#   unrolls = {}
-#   ppdOffsets = False
-#   ppdLeadingStride = False
-#   ppdAll = False
-# Kernel[1] = null
-#   
-
 # SIZE
 # PERFORMANCE_MATCH:
 #  stride%1024
@@ -53,12 +18,6 @@ import Structs
 #  unroll
 #  branch
 #  optimize away alpha, beta, offsets, initial strides
-
-#Problem/Solution Map
-# 1) Read in list
-# 2) SolutionsForProblem[EXACT_MATCH].append( [Problem/Solution, time] )
-# 3) for each EXACT_MATCH
-# 4) for each Problem/Solution, condense all times into single time score
 
 # if size > sizeThreshold
 #     same organization as AutoGEMM
@@ -133,49 +92,17 @@ def GenBackendFromFiles( \
         solutionSet.add(fastestSolution)
         for kernel in fastestSolution.kernels:
           kernelSet.add(kernel)
+  fileWriter = FileWriter.FileWriter(outputPath, backend, False)
+  fileWriter.writeBackendFiles(psMap)
   
-  #for problem in problemSet:
-  #  print str(problem)
-
-  ##############################################################################
-  # (2) list candidate solutions for each problem
-  #solutionCandidateGenerator = \
-  #    SolutionCandidateGenerator.SolutionCandidateGenerator()
-  #allSolutions = set() # all solutions to be written
-  #allKernels = set() # all gpu kernels to be written
-  #benchmarkList = [] # problems and associated solution candidates
-  #print "status: generating solution candidates for problems"
-  #totalSolutions = 0
-  #totalKernels = 0
-  #for problem in problemSet:
-  #  solutionCandidates = \
-  #      solutionCandidateGenerator.getSolutionCandidatesForProblem( \
-  #      problem )
-  #  benchmarkList.append( [problem, solutionCandidates] )
-  #  totalSolutions += len(solutionCandidates)
-  #  for solution in solutionCandidates:
-  #    allSolutions.add( solution )
-  #  kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
-  #  for kernel in kernelsInSolutionCandidates:
-  #    allKernels.add( kernel )
-  #    totalKernels+=1
-  #print "status:   " + str(totalSolutions) + " total solutions"
-  #print "status:   " + str(len(allSolutions)) + " unique solutions"
-  #print "status:   " + str(totalKernels) + " total kernels"
-  #print "status:   " + str(len(allKernels)) + " unique kernels"
-  #kernelWriter = KernelWriter.KernelWriter(backend)
-  #for kernel in allKernels:
-  #  print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
-  #allKernels = set()
-  #allSolutions = set()
-  #getSolutionLogic = []
-
-  ##############################################################################
-  # (3) write benchmark files
-  #fileWriter = FileWriter.FileWriter(outputPath, backend)
-  #fileWriter.writeKernelFiles( allKernels )
-  #fileWriter.writeSolutionFiles( allSolutions )
-  #fileWriter.writeBackendFiles( getSolutionLogic )
+  # getSolution(problem) - top level
+    # which device do i match, with default
+  # getSolution_DeviceProfile(problem) - device level
+    # which exact match do i match, with default
+  # getSolution_DeviceProfile_ExactMatch(problem) - problem level
+    # which size and mod do i match, with default
+        
+  
 
 
 
@@ -205,7 +132,7 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "CobaltGenBackend[ " + str(backend) + " ] " + str(inputFiles)
+  print "\nCobaltGenBackend: backend=\"" + str(backend) + "\"; outputPath=\"" + args.outputPath + "\"; inputFiles=" + str(inputFiles)
 
   # generate backend
   GenBackendFromFiles( \

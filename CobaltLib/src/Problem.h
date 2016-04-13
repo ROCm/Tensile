@@ -24,6 +24,7 @@ public:
     CobaltOperationType operationType,
     CobaltDataType alphaType,
     CobaltDataType betaType,
+    bool useOffsets,
     CobaltDeviceProfile deviceProfile );
   bool useAlpha() const;
   bool useBeta() const;
@@ -50,13 +51,13 @@ public:
   CobaltOperationType operationType;
   CobaltDataType alphaType;
   CobaltDataType betaType;
+  bool useOffsets;
   DeviceProfile deviceProfile;
   std::vector<unsigned int> indicesFree;
   std::vector<unsigned int> indicesBatch;
   std::vector<std::pair<unsigned int,unsigned int>> indicesSummation;
   std::vector<unsigned int> indicesA;
   std::vector<unsigned int> indicesB;
-
 
 };
 

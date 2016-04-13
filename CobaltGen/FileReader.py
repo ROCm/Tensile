@@ -92,6 +92,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.problem.operation.useBeta = int(attributes["useBeta"])
       self.problem.operation.betaType = \
           Structs.DataType(int(attributes["betaType"]))
+      self.problem.operation.useOffsets = int(attributes["useOffsets"])
       self.problem.operation.numIndicesFree = \
           int(attributes["numIndicesFree"])
       self.problem.operation.numIndicesBatch = \
@@ -219,6 +220,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
 
   def assignExactMatch(self, exactMatch):
     exactMatch.deviceProfile = self.problem.deviceProfile
+    exactMatch.numIndicesFree = len(self.problem.tensorC.dimensions)
     exactMatch.indexAssignmentsA = self.problem.operation.indexAssignmentsA
     exactMatch.indexAssignmentsB = self.problem.operation.indexAssignmentsB
     exactMatch.operationType = self.problem.operation.type

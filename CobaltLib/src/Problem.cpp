@@ -22,6 +22,7 @@ Problem::Problem(
     CobaltOperationType inputOperationType,
     CobaltDataType inputAlphaType,
     CobaltDataType inputBetaType,
+    bool inputUseOffsets,
     CobaltDeviceProfile inputDeviceProfile ) :
   tensorC( inputTensorC ),
   tensorA( inputTensorA ),
@@ -29,6 +30,7 @@ Problem::Problem(
   operationType(inputOperationType),
   alphaType( inputAlphaType ),
   betaType( inputBetaType ),
+  useOffsets(inputUseOffsets),
   deviceProfile( inputDeviceProfile ),
   indicesA(inputIndexAssignmentsA, inputIndexAssignmentsA + inputTensorA.numDimensions),
   indicesB(inputIndexAssignmentsB, inputIndexAssignmentsB + inputTensorB.numDimensions)
@@ -286,6 +288,7 @@ std::string Problem::toStringOperationXML( size_t indentLevel ) const {
   state += "alphaType=\""+std::to_string(alphaType)+"\" ";
   state += "useBeta=\""+std::to_string(useBeta())+"\" ";
   state += "betaType=\""+std::to_string(betaType)+"\" ";
+  state += "useOffsets=\""+std::to_string(useOffsets)+"\" ";
   state += "numIndicesFree=\""+std::to_string(indicesFree.size())+"\" ";
   state += "numIndicesBatch=\""+std::to_string(indicesBatch.size())+"\" ";
   state += "numIndicesSummation=\""+std::to_string(indicesSummation.size())+"\" ";

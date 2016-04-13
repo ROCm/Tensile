@@ -272,6 +272,12 @@ class DeviceProfile:
   def __init__(self):
     self.devices = []
 
+  def libString(self):
+    s = self.devices[0].name
+    for i in range( 1, len(self.devices)):
+      s += "_" + self.devices[i].name
+    return s
+
   def __str__(self):
     return str(self.devices)
 
@@ -339,6 +345,7 @@ class Operation:
     self.alphaType = DataType(-1)
     self.useBeta = -1
     self.betaType = DataType(-1)
+    self.useOffsets = -1
     self.numIndicesFree = -1
     self.numIndicesBatch = -1
     self.numIndicesSummation = -1
@@ -355,6 +362,7 @@ class Operation:
     state += "; " + str(self.alphaType)
     state += "; " + str(self.useBeta)
     state += "; " + str(self.betaType)
+    state += "; " + str(self.useOffsets)
     state += "; " + str(self.numIndicesFree)
     state += "; " + str(self.numIndicesBatch)
     state += "; " + str(self.numIndicesSummation)
@@ -373,6 +381,7 @@ class Operation:
         self.alphaType, \
         self.useBeta, \
         self.betaType, \
+        self.useOffsets, \
         self.numIndicesFree, \
         self.numIndicesBatch, \
         self.numIndicesSummation, \
@@ -389,6 +398,7 @@ class Operation:
 # ExactMatch - parameters which must exactly match between problem and solution
 ################################################################################
 class ExactMatch:
+  indexChars = "ijklmnopqrstuvwxyz"
   def __init__(self):
     self.deviceProfile = DeviceProfile()
     self.typeC = DataType(-1)
@@ -397,6 +407,7 @@ class ExactMatch:
     self.typeAlpha = DataType(-1)
     self.typeBeta = DataType(-1)
     self.operationType = OperationType(-1)
+    self.numIndicesFree = -1
     self.indexAssignmentsA = []
     self.indexAssignmentsB = []
     self.ppdOffsets = False # if true, solution must allow offset parameters; if false, enqueue must not use offsets
@@ -404,20 +415,44 @@ class ExactMatch:
     # self.ppdAll = False # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
 
   def __str__(self):
+    return self.libString()
+
+  def libString(self):
     state = ""
-    state += "[ExactMatch"
-    state += "; " + str(self.deviceProfile)
-    state += "_" + str(self.typeC)
-    state += "" + str(self.typeA)
-    state += "" + str(self.typeB)
-    state += "" + str(self.typeAlpha)
-    state += "" + str(self.typeBeta)
-    state += "_" + str(self.operationType)
-    state += "; " + str(self.indexAssignmentsA)
-    state += "; " + str(self.indexAssignmentsB)
-    state += "; " + str(self.ppdOffsets)
-    state += "; " + str(self.ppdLeadingStrides)
-    state += "]"
+    state += self.deviceProfile.libString()
+    state += "_"
+    state += str(self.operationType)
+    state += "_"
+    state += self.typeC.toChar().upper()
+    state += self.typeA.toChar().upper()
+    state += self.typeB.toChar().upper()
+    state += self.typeAlpha.toChar().upper()
+    state += self.typeBeta.toChar().upper()
+    state += "_"
+    # C dimensions
+    state += "C"
+    for i in range(0, self.numIndicesFree):
+      state += self.indexChars[i].lower()
+    # A dimensions
+    state += "_A"
+    for i in self.indexAssignmentsA:
+      state += self.indexChars[i].lower()
+    # B dimensions
+    state += "_B"
+    for i in self.indexAssignmentsB:
+      state += self.indexChars[i].lower()
+      
+    # optimization level
+    ppdStr = ""
+    if self.ppdOffsets and not self.ppdLeadingStride:
+      ppdStr = "O1"
+    elif not self.ppdOffsets and self.ppdLeadingStride:
+      ppdStr = "O2"
+    elif self.ppdOffsets and self.ppdLeadingStride:
+      ppdStr = "O3"
+    else:
+      ppdStr = "O0"
+    state += "_" + ppdStr
     return state
 
   def __repr__(self):

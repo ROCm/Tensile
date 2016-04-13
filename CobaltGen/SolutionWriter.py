@@ -186,7 +186,14 @@ class SolutionWriter:
     s += "  /* preprocessor optimizations */\n"
     s += "  argOffsets = %s;\n" % ("true" if not solution.kernels[0].ppdOffsets else "false")
     s += "  argSizes = %s;\n" % ("true" if not solution.kernels[0].ppdAll else "false")
-
+    s += "  argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStride else "false")
+    s += "  if ( !argOffsets && inputProblem.useOffsets) {\n"
+    s += "    throw cobaltStatusSolutionDoesNotSupportOffsets;\n"
+    s += "  }\n"
+    s += "  if ( !argLeadingStrides && inputProblem.tensorC[0].stride != 1 || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
+    s += "    throw cobaltStatusSolutionDoesNotSupportLeadingStrides;\n"
+    s += "  }\n"
+    s += "\n"
     if not solution.ppdAll:
 
       # strides

@@ -178,7 +178,7 @@ class SolutionCandidateGenerator:
       16: [ [ 16 ], [ 8 ] ] \
       }
   # preprocessor define leading strides, offsets, everything
-
+  # if problem conflicts with optimization level, generator reverts optimization level below
   """
   ppdUniverse = [ \
       [ True,  True,  True], \
@@ -194,7 +194,7 @@ class SolutionCandidateGenerator:
 
   # non-skinny problem will only choose from 8x8 and 16x16
   universeWorkGroupDim = [ \
-       [4,16],  [8,8],  [16,4], \
+      [4,16],  [8,8],  [16,4], \
       [4,32], [8,16],  [16,8], [32,4], \
       [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
       [4,64], [8,32], [16,16], [32,8],  [64,4] ]
@@ -373,6 +373,20 @@ class SolutionCandidateGenerator:
               ppdLeadingStride = ppdOptimization[0]
               ppdOffsets = ppdOptimization[1]
               ppdAll = ppdOptimization[2]
+
+              # if optimization level optimizes away offsets, but problem requires offsets, fix it
+              if ppdOffsets and problem.operation.useOffsets:
+                print "reverting ppdOffsets->False"
+                ppdOffsets = False
+
+              # if optimization level optimizes away initial strides, but problem uses non-zero initial strides, fix it
+              if ppdLeadingStride and \
+                (  problem.tensorC.dimensions[0].stride != 1 \
+                or problem.tensorA.dimensions[0].stride != 1 \
+                or problem.tensorB.dimensions[0].stride != 1):
+                print "reverting ppdLeadingStride->False"
+                ppdLeadingStride = False
+
               # for branch types
               for branchType in self.universeBranch:
                 solution.kernelGrid = copy.deepcopy(kernelGrid)
@@ -401,7 +415,7 @@ class SolutionCandidateGenerator:
                   solution.branch = [branchType, branchType]
                   if leadingStridesOne:
                     solution.ppdLeadingStride = ppdLeadingStride
-                  solution.ppdOffsets = False # kernels 1-3 will need offsets
+                  solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
                   solution.ppdAll = False # kernels 1-3 will need sizes
                   # add main kernel
                   kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]

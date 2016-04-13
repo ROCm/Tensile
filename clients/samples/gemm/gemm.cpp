@@ -20,6 +20,7 @@ CobaltProblem createProblemGEMM(
     size_t numBatches,
     bool alpha,
     bool beta,
+    bool useOffsets,
     CobaltDataType dataTypeC,
     CobaltDataType dataTypeA,
     CobaltDataType dataTypeB
@@ -114,8 +115,11 @@ int main( char * argv[], int argc ) {
   const bool transAs[] = {false, true};
   const size_t numTransB = 1;
   const bool transBs[] = {true, false};
+  const size_t numUseOffsets = 1;
+  const bool useOffsets[] = {false, true};
+
   size_t numProblems = 0;
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  std::string logFilePath = CobaltBenchmark_DIR_PROBLEMS;
   logFilePath += "/GEMM_log.xml";
   cobaltSetup(logFilePath.c_str());
   for (size_t transA = 0; transA < numTransA; transA++) {
@@ -126,35 +130,39 @@ int main( char * argv[], int argc ) {
             for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
               for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
                 for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
-                  size_t numBatches = batches[bIdx];
-                  size_t M = sizes[mIdx][0];
-                  size_t N = sizes[mIdx][1];
-                  size_t K = sizes[mIdx][2];
-                  //if (M != N || M != K || N != K) continue;
-                  size_t initStride = initialStrides[sIdx];
-                  bool alpha = alphas[alphaIdx];
-                  bool beta = betas[betaIdx];
-                  CobaltProblem problem = createProblemGEMM(
-                      transAs[transA],
-                      transBs[transB],
-                      M, N, K,
-                      initStride,
-                      numBatches,
-                      alpha,
-                      beta,
-                      dataTypes[dtIdx][0],
-                      dataTypes[dtIdx][1],
-                      dataTypes[dtIdx][2]
-                    );
-                  //unsigned int nameSize;
-                  //cobaltProblemToString(problem, nullptr, &nameSize);
-                  //char *nameStr = new char[nameSize];
-                  //cobaltProblemToString(problem, nameStr, &nameSize);
-                  //delete[] nameStr;
-                  
-                  CobaltStatus status;
-                  CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
-                  numProblems++;
+                  for (size_t offsetIdx = 0; offsetIdx < numUseOffsets; offsetIdx++) {
+                    size_t numBatches = batches[bIdx];
+                    size_t M = sizes[mIdx][0];
+                    size_t N = sizes[mIdx][1];
+                    size_t K = sizes[mIdx][2];
+                    //if (M != N || M != K || N != K) continue;
+                    size_t initStride = initialStrides[sIdx];
+                    bool alpha = alphas[alphaIdx];
+                    bool beta = betas[betaIdx];
+                    bool useOffset = useOffsets[offsetIdx];
+                    CobaltProblem problem = createProblemGEMM(
+                        transAs[transA],
+                        transBs[transB],
+                        M, N, K,
+                        initStride,
+                        numBatches,
+                        alpha,
+                        beta,
+                        useOffset,
+                        dataTypes[dtIdx][0],
+                        dataTypes[dtIdx][1],
+                        dataTypes[dtIdx][2]
+                      );
+                    //unsigned int nameSize;
+                    //cobaltProblemToString(problem, nullptr, &nameSize);
+                    //char *nameStr = new char[nameSize];
+                    //cobaltProblemToString(problem, nameStr, &nameSize);
+                    //delete[] nameStr;
+                    
+                    CobaltStatus status;
+                    CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
+                    numProblems++;
+                  } // offsets
                 } // beta
               } // alpha
             } // batch
@@ -184,6 +192,7 @@ CobaltProblem createProblemGEMM(
     size_t numBatches,
     bool alpha,
     bool beta,
+    bool useOffsets,
     CobaltDataType dataTypeC,
     CobaltDataType dataTypeA,
     CobaltDataType dataTypeB
@@ -245,6 +254,7 @@ CobaltProblem createProblemGEMM(
       operationType,
       alphaType,
       betaType,
+      useOffsets,
       deviceProfile,
       &status );
   cobaltStatusCheck(status);

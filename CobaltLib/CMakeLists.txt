@@ -8,6 +8,13 @@ set( ${CobaltLib_NAME}_VERSION_MAJOR 0 )
 set( ${CobaltLib_NAME}_VERSION_MINOR 1 )
 set( ${CobaltLib_NAME}_VERSION_PATCH 0 )
 
+if( NOT EXISTS ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+  MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for CobaltLib")
+  file( WRITE ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+      ""
+  )
+endif()
+
 
 ############################################################
 # CobaltLib source files
@@ -48,24 +55,24 @@ else()
   add_definitions( -DCobalt_SOLVER_ENABLED=1)
 
   set( CobaltLib_SRC_GENERATED_STATIC
-    ${Cobalt_DIR_GENERATED}/Kernels/CobaltKernels.h
-    ${Cobalt_DIR_GENERATED}/Solutions/CobaltSolutions.h
-    ${Cobalt_DIR_GENERATED}/Library/CobaltGetSolution.cpp
-    ${Cobalt_DIR_GENERATED}/Library/CobaltGetSolution.h
+    ${CobaltLib_DIR_GENERATED}/Kernels/CobaltKernels.h
+    ${CobaltLib_DIR_GENERATED}/Solutions/CobaltSolutions.h
+    ${CobaltLib_DIR_GENERATED}/Other/CobaltGetSolution.cpp
+    ${CobaltLib_DIR_GENERATED}/Other/CobaltGetSolution.h
   )
   #set( CobaltLib_SRC_GENERATED_DYNAMIC
     # needs to be put into another .cmake file
   #)
   set( CobaltLib_CMAKE_DYNAMIC
-    ${Cobalt_DIR_GENERATED}/Library/CobaltLib.cmake
+    ${CobaltLib_DIR_GENERATED}/Other/CobaltLib.cmake
   )
   if( NOT EXISTS ${CobaltLib_CMAKE_DYNAMIC})
     file( WRITE ${CobaltLib_CMAKE_DYNAMIC}
-      "include( \${Cobalt_KernelFiles_CMAKE_DYNAMIC} )\n"
-      "include( \${Cobalt_SolutionFiles_CMAKE_DYNAMIC} )\n"
+      "include( \${CobaltLib_KernelFiles_CMAKE_DYNAMIC} )\n"
+      "include( \${CobaltLib_SolutionFiles_CMAKE_DYNAMIC} )\n"
       "set( CobaltLib_SRC_GENERATED_DYNAMIC\n"
-      "  \${Cobalt_KernelFiles_GENERATED_DYNAMIC}\n"
-      "  \${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n"
+      "  \${CobaltLib_KernelFiles_GENERATED_DYNAMIC}\n"
+      "  \${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n"
     )
   endif()
   include( ${CobaltLib_CMAKE_DYNAMIC} )
@@ -80,15 +87,15 @@ else()
     COMMAND
       python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
       --backend=${Cobalt_BACKEND}
-      --input-path=${Cobalt_DIR_SOLUTIONS}
-      --output-path=${Cobalt_DIR_GENERATED}
+      --input-path=${CobaltBenchmark_DIR_SOLUTIONS}
+      --output-path=${CobaltLib_DIR_GENERATED}
     DEPENDS ${CobaltGen_SRC}
   )
 endif()
 
-add_definitions(-DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
-add_definitions(-DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}")
-add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")
+add_definitions(-DCobaltLib_DIR_PROBLEMS="${CobaltLib_DIR_PROBLEMS}")
+add_definitions(-DCobaltLib_DIR_SOLUTIONS="${CobaltLib_DIR_SOLUTIONS}")
+add_definitions(-DCobaltLib_DIR_GENERATED="${CobaltLib_DIR_GENERATED}")
 
 
 
@@ -97,10 +104,10 @@ add_definitions(-DCobalt_DIR_GENERATED="${Cobalt_DIR_GENERATED}")
 include_directories(
   src
   ${CobaltLib_DIRS_INCLUDE}
-  ${Cobalt_DIR_GENERATED}
-  ${Cobalt_DIR_GENERATED}/Library
-  ${Cobalt_DIR_GENERATED}/Kernels
-  ${Cobalt_DIR_GENERATED}/Solutions
+  ${CobaltLib_DIR_GENERATED}
+  ${CobaltLib_DIR_GENERATED}/Kernels
+  ${CobaltLib_DIR_GENERATED}/Solutions
+  ${CobaltLib_DIR_GENERATED}/Other
   )
 
 ############################################################

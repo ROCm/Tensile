@@ -87,7 +87,8 @@ typedef enum CobaltStatus_ {
   cobaltStatusDeviceProfileNotFound,
   cobaltStatusProblemNotSupported, // purposefully not supported
   cobaltStatusProblemNotFound, // should be supported but wasn't found
-
+  cobaltStatusSolutionDoesNotSupportOffsets, // tried to construct a Solution which doesn't support TensorData.offsets using a Problem which does require them
+  cobaltStatusSolutionDoesNotSupportLeadingStrides, // tried to construct a Solution which doesn't support leading strides using a Problem which does have leading strides
 
   /* control errors */
   cobaltStatusControlInvalid,
@@ -314,6 +315,7 @@ CobaltProblem cobaltCreateProblem(
     CobaltOperationType operationType,
     CobaltDataType alphaType,
     CobaltDataType betaType,
+    bool useOffsets,
     CobaltDeviceProfile deviceProfile,
     CobaltStatus *status );
 CobaltStatus cobaltDestroyProblem( CobaltProblem problem );

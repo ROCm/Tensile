@@ -82,7 +82,8 @@ set_property( CACHE Cobalt_OPTIMIZE_BETA PROPERTY STRINGS
 
 ############################################################
 # Cobalt Headers needed for all subprojects
-set( CobaltLib_DIRS_INCLUDE ${CMAKE_SOURCE_DIR}/CobaltLib/include
+set( CobaltLib_DIRS_INCLUDE
+  ${CMAKE_SOURCE_DIR}/CobaltLib/include
   ${CMAKE_SOURCE_DIR}/CobaltLib/src)
 set( CobaltLib_API ${CMAKE_SOURCE_DIR}/CobaltLib/include/Cobalt.h )
 set( CobaltLib_NAME CobaltLib )
@@ -90,15 +91,15 @@ source_group(include FILES ${CobaltLib_API} )
 
 ############################################################
 # Directories
-set( Cobalt_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated )
-set( Cobalt_DIR_PROBLEMS ${Cobalt_DIR_GENERATED}/XML/Problems )
-#set( Cobalt_FILE_PROBLEMS ${Cobalt_DIR_PROBLEMS}/${Cobalt_APP_NAME}_Log.xml )
-set( Cobalt_DIR_SOLUTIONS ${Cobalt_DIR_GENERATED}/XML/SolutionTimes )
-set( Cobalt_FILE_SOLUTIONS ${Cobalt_DIR_SOLUTIONS}/Benchmark.xml )
+set( CobaltBenchmark_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated/CobaltBenchmark )
+set( CobaltLib_DIR_GENERATED   ${CMAKE_BINARY_DIR}/CobaltGenerated/CobaltLib )
+set( CobaltBenchmark_DIR_PROBLEMS  ${CobaltBenchmark_DIR_GENERATED}/XML_ApplicationProblemTraces )
+set( CobaltBenchmark_DIR_SOLUTIONS ${CobaltBenchmark_DIR_GENERATED}/XML_BenchmarkSolutionTimes )
 
-file( MAKE_DIRECTORY ${Cobalt_DIR_GENERATED} )
-file( MAKE_DIRECTORY ${Cobalt_DIR_PROBLEMS} )
-file( MAKE_DIRECTORY ${Cobalt_DIR_SOLUTIONS} )
+file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_GENERATED} )
+file( MAKE_DIRECTORY ${CobaltLib_DIR_GENERATED} )
+file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_PROBLEMS} )
+file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_SOLUTIONS} )
 
 ############################################################
 # CobaltGen Files
@@ -110,28 +111,50 @@ set( CobaltGen_SRC
   ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionCandidateGenerator.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
+  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionSelectionWriter.py
   ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
 )
 
 ############################################################
 # Dynamic CMake files - will be over-written later
 ############################################################
-# Kernels
-set( Cobalt_KernelFiles_CMAKE_DYNAMIC
-    ${Cobalt_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
-if( NOT EXISTS ${Cobalt_KernelFiles_CMAKE_DYNAMIC})
-  file( WRITE ${Cobalt_KernelFiles_CMAKE_DYNAMIC}
-    "set( Cobalt_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Kernels FILES ${Cobalt_KernelFiles_GENERATED_DYNAMIC} )\n"
+# Benchmark Kernels
+set( CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC
+    ${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
+if( NOT EXISTS ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC})
+  file( WRITE ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC}
+    "set( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
+    "source_group(Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
-# Solutions
-set( Cobalt_SolutionFiles_CMAKE_DYNAMIC
-  ${Cobalt_DIR_GENERATED}/Solutions/CobaltSolutions.cmake )
-if( NOT EXISTS ${Cobalt_SolutionFiles_CMAKE_DYNAMIC})
-  file( WRITE ${Cobalt_SolutionFiles_CMAKE_DYNAMIC}
-    "set( Cobalt_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Solutions FILES ${Cobalt_SolutionFiles_GENERATED_DYNAMIC} )\n"
+
+# Lib Kernels
+set( CobaltLib_KernelFiles_CMAKE_DYNAMIC
+  ${CobaltLib_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
+if( NOT EXISTS ${CobaltLib_KernelFiles_CMAKE_DYNAMIC})
+  file( WRITE ${CobaltLib_KernelFiles_CMAKE_DYNAMIC}
+    "set( CobaltLib_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
+    "source_group(Kernels FILES ${CobaltLib_KernelFiles_GENERATED_DYNAMIC} )\n"
+  )
+endif()
+
+# Benchmark Solutions
+set( CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC
+  ${CobaltBenchmark_DIR_GENERATED}/Solutions/CobaltSolutions.cmake )
+if( NOT EXISTS ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC})
+  file( WRITE ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC}
+    "set( CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
+    "source_group(Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n"
+  )
+endif()
+
+# Lib Solutions
+set( CobaltLib_SolutionFiles_CMAKE_DYNAMIC
+  ${CobaltLib_DIR_GENERATED}/Solutions/CobaltSolutions.cmake )
+if( NOT EXISTS ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC})
+  file( WRITE ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC}
+    "set( CobaltLib_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
+    "source_group(Solutions FILES ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
 

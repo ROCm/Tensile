@@ -117,6 +117,7 @@ CobaltProblem cobaltCreateProblem(
     CobaltOperationType operationType,
     CobaltDataType alphaType,
     CobaltDataType betaType,
+    bool useOffsets,
     CobaltDeviceProfile deviceProfile,
     CobaltStatus *status ) {
 
@@ -130,6 +131,7 @@ CobaltProblem cobaltCreateProblem(
         operationType,
         alphaType,
         betaType,
+        useOffsets,
         deviceProfile );
     *status = cobaltStatusSuccess;
     CobaltProblem problem = new _CobaltProblem();
