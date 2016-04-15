@@ -344,31 +344,105 @@ class SolutionSelectionWriter:
 
   # two rules conflict only if they same elements in different order
   def rulesConflict(self, rule, newRule):
-    """
-    for each ordered unit in rule
-      for subsequent ordered unit in rule
-        rule says all elements in ordered unit are faster than all elements in subsequent ordered unit
-        for each ordered unit in new rule
-          for each subsequent ordered unit in new rule
-            new rule says all elements in ordered unit are faster than all elements in subsequent ordered unit
-              for each tile in ordered unit in rule
-                if tile in subsequent ordered unit in new rule
-                  for each stile in subsequent ordered unit in rule
-                    if stile in ordered unit in new rule
-                      CONFLICT
-    """
-    # for each ordered unit in rule
-
-    # for each solution in rule
-    #   for each newSolution in newRule which does not equal solution
-    #     for each size which both solutions cover
-    #       
-    pass
+    unorderedGroups = rule[0]
+    unorderedGroupsNew = newRule[0]
+    for i in range(0,len(unorderedGroups)):
+      unorderedGroup = unorderedGroups[i]
+      for j in range(i+1, len(unorderedGroups)):
+        unorderedGroupSubsequent = unorderedGroups[j]
+        #rule says all elements in ordered unit are faster than all elements in subsequent ordered unit
+        for iNew in range(0,len(unorderedGroupsNew)):
+          unorderedGroupNew = unorderedGroupsNew[iNew]
+          for jNew in range(iNew+1, len(unorderedGroupsNew)):
+            unorderedGroupNewSubsequent = unorderedGroupsNew[jNew]
+            #new rule says all elements in ordered unit are faster than all elements in subsequent ordered unit
+            for psp in unorderedGroup:
+              solution = psp[1]
+              solutionInNewRuleSubsequent = False
+              for pspNew in unorderedGroupNewSubsequent:
+                if pspNew[1] == solution:
+                  solutionInNewRuleSubsequent = True
+                  break
+              if solutionInNewRuleSubsequent:
+                for pspSubsequent in unorderedGroupSubsequent:
+                  solutionSubsequent = pspSubsequent[1]
+                  solutionSubsequentInNewRule = False # if stile in ordered unit in new rule
+                  for pspNew in unorderedGroupNew:
+                    if pspNew[1] == solutionSubsequent:
+                      solutionSubsequentInNewRule = True
+                      break
+                  if solutionSubsequentInNewRule:
+                    # TODO does the conflict surpass tolerance?
+                    print "rule conflict detected"
+                    return True
+    return False
 
 
   def mergeRules(self, rule, newRule):
+    # already determined no conflicts
     # order only determined when multiple tiles show up in same problem size
-    pass
+    ugs = copy.deepcopy(rule[0]) # unordered groups
+    nugs = copy.deepcopy(newRule[0]) # new unordered groups
+    mugs = [] # merged unordered groups
+
+    ugi = 0 # unordered group idx
+    nugi = 0 # new unordered group idx
+    #mugi = 0 # merged unordered group idx
+
+    while ugi < len(ugs) or nugi < len(nugs):
+      ugsValid = []
+      if ugi < len(ugs):
+        ugsValid.append(ugs[ugi])
+        # eliminate ones in nugs[nugi+1+]
+        for ug in ugsValid:
+          invalid = False
+          for j in range( nugi+1, len(nugs)):
+            nug = nugs[j]
+            for psp in nug:
+              if psp[1] == ug[1]:
+                # remove this from ugsValid
+                invalid = True
+          if invalid:
+            ugsValid.remove(ug)
+
+      nugsValid = []
+      if nugi < len(nugs):
+        nugsValid.append(nugs[nugi])
+        # eliminate ones in ugs[ugi+1+]
+        for nug in nugsValid:
+          invalid = False
+          for j in range( ugi+1, len(ugs)):
+            ug = ugs[j]
+            for psp in ug:
+              if psp[1] == nug[1]:
+                # remove this from nugsValid
+                invalid = True
+          if invalid:
+            nugsValid.remove(ug)
+
+      mugsValid = []
+      for psp in ugsValid:
+        mugsValid.append(psp)
+      for psp in nugsValid:
+        mugsValid.append(psp)
+      mugs.append(mugsValid)
+      
+      if ugi < len(ugs):
+        # remove ugsValid from ugs[ugi]
+        for ug in ugsValid:
+          ugs.remove(ug)
+        if len(ugs[ugi]) == 0:
+          ugi+=1
+      if nugi < len(nugs):
+        # remove nugsValid from nugs[nugi]
+        for nug in nugsValid:
+          nugs.remove(nug)
+        if len(nugs[nugi]) == 0:
+          nugi+=1
+
+    # update rule with new unorderedGroups
+    rule[0] = mugs
+    return
 
   #############################################################################
   # write exact match level getSolution
