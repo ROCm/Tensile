@@ -167,18 +167,19 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 4
-  maxMicroTileSize = 6
-  # TODO; if unroll=8 is faster than unroll=16 then also check unroll=4
+  minMicroTileSize = 1
+  maxMicroTileSize = 8
+  # TODO; if unroll=8 is faster than unroll=16 then also check unroll=4; yes helped
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
        4: [ [  4 ], [ 16, 4 ], [  8, 4 ] ], \
-       8: [ [  8 ], [ 16, 8 ] ], \
-      16: [ [ 16 ], [ 8 ] ] \
+       8: [ [  8 ], [ 16, 8 ], [ 4 ] ], \
+      16: [ [ 16 ], [ 8 ], [ 4 ] ] \
       }
   # preprocessor define leading strides, offsets, everything
   # if problem conflicts with optimization level, generator reverts optimization level below
+  
   """
   ppdUniverse = [ \
       [ True,  True,  True], \
@@ -191,7 +192,6 @@ class SolutionCandidateGenerator:
   ppdUniverse = [ \
       [ True,  True, False], \
       ]
-
   # non-skinny problem will only choose from 8x8 and 16x16
   universeWorkGroupDim = [ \
       [4,16],  [8,8],  [16,4], \
@@ -298,6 +298,9 @@ class SolutionCandidateGenerator:
       kernel.unrolls = unroll
       # if last unroll is multiple of last/unrolled summation
       if problemSizeUnroll % unroll[len(unroll)-1] > 0:
+        continue
+      # do-while summation loop has to do at least one iteration
+      if problemSizeUnroll < unroll[0]:
         continue
       for workGroup in self.universeWorkGroupDim:
         kernel.tile.workGroup = workGroup

@@ -152,7 +152,11 @@ class DataType:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, DataType) and self.getAttributes() == other.getAttributes()
-
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -178,6 +182,11 @@ class Dimension:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Dimension) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -206,6 +215,11 @@ class Tensor:
   def __eq__(self, other):
     return isinstance(other, Tensor) \
         and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -235,6 +249,11 @@ class Backend:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Backend) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -263,6 +282,11 @@ class Device:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Device) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -290,6 +314,11 @@ class DeviceProfile:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, DeviceProfile) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -333,6 +362,11 @@ class OperationType:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, OperationType) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -392,6 +426,11 @@ class Operation:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Operation) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -476,6 +515,11 @@ class ExactMatch:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, ExactMatch) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 class SolutionBenchmark:
   def __init__(self):
@@ -580,6 +624,11 @@ class Problem:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Problem) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -651,6 +700,11 @@ class BranchType:
   def __eq__(self, other):
     return isinstance(other, BranchType) \
         and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -686,6 +740,11 @@ class Tile:
   def __eq__(self, other):
     return isinstance(other, Tile) \
         and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -764,6 +823,11 @@ class Kernel:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Kernel) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 
 
 ################################################################################
@@ -806,4 +870,9 @@ class Solution:
     return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
+  def __ne__(self, other):
+    result = self.__eq__(other)
+    if result is NotImplemented:
+      return result
+    return not result
 

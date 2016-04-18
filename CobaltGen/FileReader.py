@@ -256,13 +256,18 @@ def getProblemsFromXML( inputFile, problemSet ):
 # getProblemsFromXML
 ################################################################################
 def getSolutionsFromXML( inputFile, psMap ):
+  print "creating parser\n"
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = True
+  print "creating handler\n"
   solutionsHandler = CobaltHandler(psMap, readSolutions)
+  print "setting handler\n"
   parser.setContentHandler( solutionsHandler )
   try:
+    print "parsing file\n"
     parser.parse( inputFile )
+    print "parsing file - done\n"
   except:
     print inputFile + " error"
   

@@ -72,7 +72,7 @@ int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
 #if 1
-  for (size_t i = 16; i < 64; i+= 16) {
+  for (size_t i = 16; i <= 2048; i+= 16) {
     bool useSize = false;
     for (size_t j = 0; j < sgemmSizeBoundsSize; j++) {
       if (i < sgemmSizeBounds[j][1] && i % sgemmSizeBounds[j][0]==0) {
@@ -89,7 +89,7 @@ int main( char * argv[], int argc ) {
     }
   }
 #endif
-
+  //sizes.push_back( {5760, 5760, 5760 });
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -245,7 +245,7 @@ CobaltProblem createProblemGEMM(
   // problem - device problem
   CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
   deviceProfile.numDevices = 1;
-  sprintf_s(deviceProfile.devices[0].name, "Hawaii" );
+  sprintf_s(deviceProfile.devices[0].name, "Fiji" );
 
 
   CobaltStatus status;

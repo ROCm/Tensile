@@ -1,4 +1,3 @@
-set( CobaltBenchmark_NAME CobaltBenchmark )
 
 # static source files
 set( CobaltBenchmark_SRC_STATIC

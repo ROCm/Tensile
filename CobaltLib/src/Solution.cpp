@@ -230,7 +230,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   KernelMap::iterator idx = kernelMap->find(key);
   if (idx != kernelMap->end()) {
     *kernel = idx->second;
-    printf("kernel already compiled %p %p\n", kernel, *kernel);
+    //printf("kernel already compiled %p %p\n", kernel, *kernel);
     return;
   }
   

@@ -144,6 +144,7 @@ int main( int argc, char *argv[] ) {
 #endif
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
+      printf("S[%llu/%llu] ", solutionIdx, solutionEndIdx);
 
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];

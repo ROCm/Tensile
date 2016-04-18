@@ -7,46 +7,6 @@ import FileWriter
 import Structs
 
 
-
-
-
-# EXACT_MATCH:
-# SIZE
-# PERFORMANCE_MATCH:
-#  stride%1024
-#  tile
-#  unroll
-#  branch
-#  optimize away alpha, beta, offsets, initial strides
-
-# if size > sizeThreshold
-#     same organization as AutoGEMM
-#     use fastest if multiple of teastest
-#     use 2nd fastest if multiple of 2nd fastest
-#     ... continue until they aren't faster than fallback
-#     use fallback
-# next largest size
-# scan backward through sizes until you lose performance %PerfTol
-
-# write 1 file per EXACT_MATCH
-# will need to write out
-# if (size0 < 32 && size1 > threshold) return skinny0()
-# elif (size1 < 32 && size0 > threshold) return skinny1();
-# else regular()
-
-
-#P1) getSolution(Problem)
-#  deviceProfile
-
-#P2) getSolution_DeviceProfile(Problem)
-
-#P3) getSolution_DeviceProfile_EXACT_MATCH
-#  skinny
-#  requires alpha, beta
-#  requires offsets
-#  requires leading strides
-
-#P4 sizes
 ################################################################################
 # Generate Backend Files
 ################################################################################
@@ -58,7 +18,7 @@ def GenBackendFromFiles( \
   # read raw solution times
   psTimesRaw = {}
   for inputFile in inputFiles:
-    print "status: reading problem/solutions from " + os.path.basename(inputFile)
+    print "status: reading problem/solutions from " + os.path.basename(inputFile) + "\n"
     FileReader.getSolutionsFromXML( inputFile, psTimesRaw )
   # print "status: created dictionary - " + str(psTimes)
   

@@ -6,14 +6,17 @@ cmake_minimum_required(VERSION 2.8)
 
 ############################################################
 # Cobalt project name
-set( CobaltSuper_NAME CobaltSuper)
-project( ${CobaltSuper_NAME} C CXX )
+set( CobaltProj_NAME Cobalt)
+set( CobaltLib_NAME CobaltLib )
+set( CobaltBenchmark_NAME CobaltBenchmark )
+
+project( ${CobaltProj_NAME} C CXX )
 
 ############################################################
 # Cobalt Version
-set( ${CobaltSuper_NAME}_VERSION_MAJOR 0 )
-set( ${CobaltSuper_NAME}_VERSION_MINOR 1 )
-set( ${CobaltSuper_NAME}_VERSION_PATCH 0 )
+set( ${CobaltProj_NAME}_VERSION_MAJOR 0 )
+set( ${CobaltProj_NAME}_VERSION_MINOR 1 )
+set( ${CobaltProj_NAME}_VERSION_PATCH 0 )
 
 ############################################################
 # App Name
@@ -86,7 +89,6 @@ set( CobaltLib_DIRS_INCLUDE
   ${CMAKE_SOURCE_DIR}/CobaltLib/include
   ${CMAKE_SOURCE_DIR}/CobaltLib/src)
 set( CobaltLib_API ${CMAKE_SOURCE_DIR}/CobaltLib/include/Cobalt.h )
-set( CobaltLib_NAME CobaltLib )
 source_group(include FILES ${CobaltLib_API} )
 
 ############################################################
