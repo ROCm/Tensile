@@ -138,6 +138,7 @@ class SolutionSelectionWriter:
     return (s, h)
   
   # fallback problem/solution pair = "b" solution or "m" solution which launched multiple kernels
+  # TODO - doesn't check if last unroll is zero
   def isFallback(self, problem, solution):
     if solution.branch[0].isBranched() and solution.branch[1].isBranched():
       return True
@@ -185,13 +186,36 @@ class SolutionSelectionWriter:
       inB = index in problem.operation.indexAssignmentsB
       if inB and not inC: # is summation dimension
         totalFlops *= problem.tensorA.dimensions[i].size
-
-    if problem.tensorA.dataType.isReal():
-      totalFlops *= 2
-    else:
-      totalFlops *= 8
+        
     gFlops = (totalFlops/1000000000.0) / (timeMS/1000.0)
     return gFlops
+        
+  def getGFlopsString(self, problem, timeMS):
+    s = ""
+    totalFlops = 1
+    if problem.tensorA.dataType.isReal():
+      totalFlops *= 2
+      s += "2"
+    else:
+      totalFlops *= 8
+      s += "8"
+    # free indices
+    for dimension in problem.tensorC.dimensions:
+      totalFlops *= dimension.size
+      s += "*" + str(dimension.size)
+    # multiply summation indices
+    for i in range(0, len(problem.operation.indexAssignmentsA)):
+      index = problem.operation.indexAssignmentsA[i]
+      inC = index < len(problem.tensorC.dimensions)
+      inB = index in problem.operation.indexAssignmentsB
+      if inB and not inC: # is summation dimension
+        totalFlops *= problem.tensorA.dimensions[i].size
+        s += "*" + str(problem.tensorA.dimensions[i].size)
+
+    gFlops = (totalFlops/1000000000.0) / (timeMS/1000.0)
+    s += " ops / %.3fms = %.0f GFlop/s" % (timeMS, gFlops)
+    return s
+
 
   def getFallbacks(self, problemSolutionPairs):
     fallbacks = []
@@ -311,9 +335,9 @@ class SolutionSelectionWriter:
     s = []
     for i in range(0, len(psps)):
       psp = psps[i]
-      # print "checking if size of psps[%u] matches %u" % (i, self.getSize(sizeP)**(1.0/3.0))
+      # print "checking if size of psps[%u] matches %u" % (i, self.getSize(sizeP)**(1.0/2.0))
       if self.compareSize(psp[0], sizeP) == 0:
-        #print "appending psp for size %u" % self.getSize(sizeP)**(1.0/3.0)
+        #print "appending psp for size %u" % self.getSize(sizeP)**(1.0/2.0)
         s.append(psp)
     #print "returning getPSPsForSize"
     return s
@@ -330,6 +354,9 @@ class SolutionSelectionWriter:
       if self.getGFlops(psp[0], psp[2]) > fastGFlops:
         # make sure it isn't a duplicate
         s.append(psp)
+        #print "%s faster than %s" % (self.pspToString(psp), self.pspToString(fasterThan))
+      #else:
+        #print "%s slower than %s" % (self.pspToString(psp), self.pspToString(fasterThan))
     return s
 
   def removeTileDuplicates(self, psps):
@@ -344,7 +371,7 @@ class SolutionSelectionWriter:
     return s
 
   def pspToString(self, psp):
-    return "%6.1f - %s___%s" % ( self.getGFlops(psp[0], psp[2]), str(psp[0]), self.solutionWriter.getName(psp[1]) )
+    return "%s - %s-----%s" % ( self.getGFlopsString(psp[0], psp[2]), str(psp[0]), self.solutionWriter.getName(psp[1]) )
 
   def ruleToString(self, rule):
     s = "size = "
@@ -372,7 +399,7 @@ class SolutionSelectionWriter:
     
     # fallback  
     fallback = rule[1]
-    s += "  " + self.pspToString(fallback)
+    s += "fb" + self.pspToString(fallback)
     return s
     
 
@@ -617,29 +644,39 @@ class SolutionSelectionWriter:
         self.addPSPToSets(psp)
     self.addPSPToSets(rule[1]) # fallback
 
-  def ruleToLibString(self, rule, indent):
-    
-    s = indent + "if ("
-    if rule[2] != None:
-      thresholdUpper = int( self.getSize(rule[2])**(1.0/2.0) )
-      s += " sizeFree < %u*%u" % (thresholdUpper, thresholdUpper)
-    if rule[2] != None and rule[3] != None:
-      s += " && "
-    if rule[3] != None:
-      thresholdLower = int( self.getSize(rule[3])**(1.0/2.0) )
-      s += " sizeFree >= %u*%u" % (thresholdLower, thresholdLower)
-    s += " ) {\n"
+  def ruleToLibString(self, rule, firstSizeGroup, lastSizeGroup, indent):
+    s = ""
+    if firstSizeGroup:
+      s += "if ("
+    elif lastSizeGroup:
+      s += " else "
+    else:
+      s += " else if ("
+    if not lastSizeGroup:
+      if rule[2] != None:
+        thresholdUpper = int( self.getSize(rule[2])**(1.0/2.0) )
+        s += " sizeFree < %u*%u" % (thresholdUpper, thresholdUpper)
+      if rule[2] != None and rule[3] != None:
+        s += " && "
+      if rule[3] != None:
+        thresholdLower = int( self.getSize(rule[3])**(1.0/2.0) )
+        s += " sizeFree >= %u*%u" % (thresholdLower, thresholdLower)
+      s += " ) "
+    s += "{\n"
     for ug in rule[0]:
       for exactPSP in ug:
         solution = exactPSP[1]
         size0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
         size1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
         sizeU = solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1]
+        gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
         s += indent + "  if ( size0 %% %2u && size1 %% %2u && sizeU %% %2u ) {" % (size0, size1, sizeU)
-        s += " return new Cobalt::" + self.solutionWriter.getName(solution)+self.solutionWriter.getTemplateArgList(solution)+"( problem ); }\n"
-    fallbackSolution = rule[1][1]
-    s += indent + "  return new Cobalt::" + self.solutionWriter.getName(fallbackSolution)+self.solutionWriter.getTemplateArgList(fallbackSolution)+"( problem );\n"
-    s += indent + "}\n"
+        s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
+    fallbackPSP = rule[1]
+    fallbackSolution = fallbackPSP[1]
+    gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
+    s += indent + "  return new Cobalt::%s%s( problem ); // %s\n" % (self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+    s += indent + "}"
     return s
 
 
@@ -650,12 +687,12 @@ class SolutionSelectionWriter:
   def writeGetSolutionForExactMatch(self, exactMatch, inputProblemSolutionPairs):
     problemSolutionPairsUnsorted = copy.deepcopy(inputProblemSolutionPairs)
     problemSolutionPairs = self.sortSizePSPs(problemSolutionPairsUnsorted)
-    index = 0
-    for psp in problemSolutionPairs:
-      size = self.getSize(psp[0])**(1.0/2.0)
-      name = self.solutionWriter.getName(psp[1])
-      print "(%4u) %4ux%4u - %s" % (index, size, size, name)
-      index += 1
+    # index = 0
+    # for psp in problemSolutionPairs:
+    #   size = self.getSize(psp[0])**(1.0/2.0)
+    #   name = self.solutionWriter.getName(psp[1])
+    #   print "(%4u) %4ux%4u - %s" % (index, size, size, name)
+    #   index += 1
     localSolutionSet = set() # for solution header includes
     kernel = Structs.Kernel()
     problem = problemSolutionPairs[0][0]
@@ -666,6 +703,7 @@ class SolutionSelectionWriter:
 
     s = ""
     s += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status ) {\n"
+    s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
     s += "  unsigned int size1 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim1)
     dimU = kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
@@ -674,14 +712,21 @@ class SolutionSelectionWriter:
       if problem.operation.indexAssignmentsA[i] == dimU:
         idxU = i
     s += "  unsigned int sizeU = problem.tensorA[%u].size;\n" % (idxU)
-    s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
+    s += "  *status = cobaltStatusSuccess; // if you made it this far, you're guaranteed a correct solution\n"
+
+    firstSizeGroup = True
+    lastSizeGroup = False
 
     while len(problemSolutionPairs) > 0:
       #print "psps remaining = " + str(len(problemSolutionPairs))
 
+      #########################################################################
       # (a) determine fastest fallback psp at largest size
+      #########################################################################
       ruleSizeThresholdUpperP = None
       largestSizeP = self.getLargestSize(problemSolutionPairs)
+      size = self.getSize(largestSizeP)**0.5
+      print "STATUS - creating rule for size %u*%u and above" % (size, size)
       pspsForLargestSize = self.getPSPsForSize(problemSolutionPairs, largestSizeP)
       fallbacksForLargestSize = self.getFallbacks(pspsForLargestSize)
       while len(fallbacksForLargestSize) < 1:
@@ -709,8 +754,16 @@ class SolutionSelectionWriter:
       fallbackSolution = fallback[1]
       fallbackTime = fallback[2]
       fallbackGFlops = self.getGFlops(fallbackProblem, fallbackTime)
+      size = self.getSize(fallbackProblem)**0.5
+      pspString = self.pspToString(fallback)
+      print "STATUS - fastest fallback for size %u*%u is %s" % (size, size, pspString)
 
-      # (b) going from largest problem to smallest problem, find smallest size for which the fastest fallback solution at the problem size is still the fastest fallback solution
+      #########################################################################
+      # (b) going from largest problem to smallest problem,
+      # find smallest size for which the fastest fallback solution
+      # at the problem size is still the fastest fallback solution
+      #########################################################################
+      fallbackLowerBoundP = fallbackProblem
       if fallbackExists:
         fallbacks = self.getFallbacks(problemSolutionPairs)
         fallbackSizeThreshold = self.getSize(fallbackProblem)
@@ -724,104 +777,125 @@ class SolutionSelectionWriter:
               #print "WARNING - fallback wasn't benchmarked at this size"
               # fallback wasn't tested at this size
               continue
-            fallbackProblemForSize = fallbacksForSize[indexOfFallbackForSize][0]
-            fallbackSolutionForSize = fallbacksForSize[indexOfFallbackForSize][1]
-            fallbackTimeForSize = fallbacksForSize[indexOfFallbackForSize][2]
+            # original fallback solution benchmarked at current problem size
+            fallbackForSize = fallbacksForSize[indexOfFallbackForSize]
+            fallbackProblemForSize = fallbackForSize[0]
+            fallbackSolutionForSize = fallbackForSize[1]
+            fallbackTimeForSize = fallbackForSize[2]
             fallbackGFlopsForSize = self.getGFlops( fallbackProblemForSize, fallbackTimeForSize)
-            # get speed of current fastest
+            # fastest fallback solution benchmarked at current problem size
             indexOfFastestFallbackForSize = self.getIndexOfFastest(fallbacksForSize)
-            currentProblem = fallbacksForSize[indexOfFastestFallbackForSize][0]
-            currentSolution = fallbacksForSize[indexOfFastestFallbackForSize][1]
-            currentTime = fallbacksForSize[indexOfFastestFallbackForSize][2]
+            currentFallback = fallbacksForSize[indexOfFastestFallbackForSize]
+            currentProblem = currentFallback[0]
+            currentSolution = currentFallback[1]
+            currentTime = currentFallback[2]
             currentGFlops = self.getGFlops(currentProblem, currentTime)
             if not currentSolution == fallbackSolutionForSize:
               if currentGFlops > fallbackGFlopsForSize*self.tolerance:
                 # starting with current size, there's a new fastest fallback
                 print "STATUS - at size %u*%u new fastest fallback is %s" % (currentSize**0.5, currentSize**0.5, self.solutionWriter.getName(currentSolution))
+                print "  forSize = " + self.solutionWriter.getName(fallbackSolutionForSize)
+                print "  fallback= " + self.solutionWriter.getName(currentSolution)
                 break
               else:
                 # new fallback is faster but still within tolerance
-                print "STATUS - fallback is fastest at size %u*%u too (by threshold)" % (currentSize**0.5, currentSize**0.5)
-                fallbackSizeThreshold = currentSize
+                #print "STATUS - fallback is fastest at size %u*%u too (by threshold)" % (currentSize**0.5, currentSize**0.5)
+                #fallbackSizeThreshold = currentSize
+                #fallback = currentFallback # same fallback solution but benchmarked at current problem size
+                fallbackLowerBoundP = currentFallback[0]
+                #fallbackSolution = fallback[1]
+                #fallbackTime = fallback[2]
+                #fallbackGFlops = self.getGFlops(fallbackProblem, fallbackTime)
                 continue
             else:
               # fallback is fastest at this size also
-              print "STATUS - fallback is fastest at size %u*%u too" % (currentSize**0.5, currentSize**0.5)
-              fallbackSizeThreshold = currentSize
+              #print "STATUS - fallback is fastest at size %u*%u too" % (currentSize**0.5, currentSize**0.5)
+              #fallbackSizeThreshold = currentSize
+              fallbackLowerBoundP = currentFallback[0]
+              #fallback = currentFallback # same fallback solution but benchmarked at current problem size
+              #fallbackProblem = fallback[0]
+              #fallbackSolution = fallback[1]
+              #fallbackTime = fallback[2]
+              #fallbackGFlops = self.getGFlops(fallbackProblem, fallbackTime)
               continue
           else:
             continue # to to find smaller size
-      else:
+      #else:
         # no fallback, so it's "valid" all the way down to zero
-        fallbackSizeThreshold = 0
-      # this size is the first fallback-threshold
-      fallbackSizeThresholdMNK = fallbackSizeThreshold ** (1.0/2.0)
-      #print "Fallback " + str(fallbackSolution) + " is fastest down to size = " + str(fallbackSizeThreshold) + "(" + str(fallbackSizeThresholdMNK) + "^3)"
+        #fallbackSizeThreshold = 0
       
-      # (c) at the largest size make list of all psps which are faster than the fallback; logically all must be branch.multiple AND exact match (else would be fallback)
-      #for psp in pspsForLargestSize:
-      #  print "  %6.1f ~ %s___%s" % ( self.getGFlops(psp[0], psp[2]), str(psp[0]), self.solutionWriter.getName(psp[1]) )
+      size = self.getSize(fallbackLowerBoundP)**0.5
+      pspString = self.pspToString(fallback)
+      print "STATUS - fallback is fastest down to size %u*%u %s" % (size, size, pspString)
+      
+      #########################################################################
+      # (c) at the largest size make list of all psps which are faster
+      # than the fallback; logically all must be branch.multiple AND exact
+      # match (else would be fallback); sorted fastest to slowest
+      #########################################################################
       pspsFasterThanFallbackUnsorted = self.getPSPsFasterThan(pspsForLargestSize, fallback)
-
-      # (d) sort list of fast psps in order of fastest to slowest
       pspsFasterThanFallback = self.sortSpeedPSPs(pspsFasterThanFallbackUnsorted)
-      pspsFasterThanFallback = self.removeTileDuplicates( pspsFasterThanFallback ) # if same tile but differet unrolls, remove later
-
-      # (e) (b) and (d) are the "current rule" but without minimizing the size limit
-      ruleSizeThresholdLowerP = fallback[0]
+      pspsFasterThanFallback = self.removeTileDuplicates( pspsFasterThanFallback ) # if same tile but differet unrolls, remove slower
+      for psp in pspsFasterThanFallback:
+        print "~" + self.pspToString(psp)
+      
+      #########################################################################
+      # (d): (b) and (c) constitute the "rule"
+      #########################################################################
       unorderedGroups = []
       for psp in pspsFasterThanFallback:
         unorderedGroup = []
         unorderedGroup.append( psp )
         unorderedGroups.append( unorderedGroup )
-      rule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, ruleSizeThresholdLowerP]
+      rule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, fallbackLowerBoundP]
       ruleString = self.ruleToString(rule)
       print "RULE: " + ruleString
 
-      if len(pspsFasterThanFallback) > 0:
+      if len(pspsFasterThanFallback):
         # find size threshold of rule
         # (f) incrementally move down in size to fallback-threshold, at each size make sorted list of all psps faster than fallback
         indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, fallback[0])
-        nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
-        while self.compareSize(nextLargestSizeP, fallback[0]) < 0:
-          #print "checking size " + str(self.getSize(nextLargestSizeP)**(1.0/3.0))
-          #print "pspsForCurrentSize"
-          pspsForCurrentSize = self.getPSPsForSize(problemSolutionPairs, nextLargestSizeP)
-          #print "pspsFasterThanFallbackCurrentSizeUnsorted"
-          pspsFasterThanFallbackCurrentSizeUnsorted = self.getPSPsFasterThan(pspsForCurrentSize, fallback)
-          #print "pspsFasterThanFallbackCurrentSize"
-          pspsFasterThanFallbackCurrentSize = self.sortSpeedPSPs(pspsFasterThanFallbackCurrentSizeUnsorted)
-          #print "pspsFasterThanFallbackCurrentSize remove duplicates"
-          pspsFasterThanFallbackCurrentSize = self.removeTileDuplicates( pspsFasterThanFallbackCurrentSize )
-          #print "creating new ugs"
-          unorderedGroups = []
-          for psp in pspsFasterThanFallbackCurrentSize:
-            unorderedGroup = []
-            unorderedGroup.append( psp )
-            unorderedGroups.append( unorderedGroup )
-          #print "creating new rule"
-          newRule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, nextLargestSizeP]
-          newRuleString = self.ruleToString(newRule)
-          print "NEXT RULE: " + newRuleString
-
-          if self.rulesConflict(rule, newRule):
-            print "STATUS - NEXT RULE REJECTED"
-            # current rule is "the rule" with correct size threshold and correct
-            break
-          else:
-            print "STATUS - NEXT RULE ACCEPTED"
-            # we can make new rule which is at smaller size then "the rule" and may add more tiles without losing performance
-            self.mergeRules(rule, newRule)
-            ruleString = self.ruleToString(rule)
-            print "MERGED RULE: " + ruleString
-          #print "getting index of next largest size"
-          indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, nextLargestSizeP)
-          if indexOfNextLargestSize == len(problemSolutionPairs):
-            break
-          #print "getting index of next largest size - done"
+        if indexOfNextLargestSize < len(problemSolutionPairs):
           nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
-          #print "continuing while"
-        print "STATUS - Done scanning down sizes to find lowest size for rule"
+          while self.compareSize(nextLargestSizeP, fallbackLowerBoundP) >= 0:
+            #print "checking size " + str(self.getSize(nextLargestSizeP)**(1.0/2.0))
+            #print "pspsForCurrentSize"
+            pspsForCurrentSize = self.getPSPsForSize(problemSolutionPairs, nextLargestSizeP)
+            #print "pspsFasterThanFallbackCurrentSizeUnsorted"
+            pspsFasterThanFallbackCurrentSizeUnsorted = self.getPSPsFasterThan(pspsForCurrentSize, fallback)
+            #print "pspsFasterThanFallbackCurrentSize"
+            pspsFasterThanFallbackCurrentSize = self.sortSpeedPSPs(pspsFasterThanFallbackCurrentSizeUnsorted)
+            #print "pspsFasterThanFallbackCurrentSize remove duplicates"
+            pspsFasterThanFallbackCurrentSize = self.removeTileDuplicates( pspsFasterThanFallbackCurrentSize )
+            #print "creating new ugs"
+            unorderedGroups = []
+            for psp in pspsFasterThanFallbackCurrentSize:
+              unorderedGroup = []
+              unorderedGroup.append( psp )
+              unorderedGroups.append( unorderedGroup )
+            #print "creating new rule"
+            newRule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, nextLargestSizeP]
+            newRuleString = self.ruleToString(newRule)
+            print "NEXT RULE: " + newRuleString
+
+            if self.rulesConflict(rule, newRule):
+              print "STATUS - NEXT RULE REJECTED"
+              # current rule is "the rule" with correct size threshold and correct
+              break
+            else:
+              print "STATUS - NEXT RULE ACCEPTED"
+              # we can make new rule which is at smaller size then "the rule" and may add more tiles without losing performance
+              self.mergeRules(rule, newRule)
+              ruleString = self.ruleToString(rule)
+              print "MERGED RULE: " + ruleString
+            #print "getting index of next largest size"
+            indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, nextLargestSizeP)
+            if indexOfNextLargestSize == len(problemSolutionPairs):
+              break
+            #print "getting index of next largest size - done"
+            nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
+            #print "continuing while"
+          print "STATUS - Done scanning down sizes to find lowest size for rule"
 
       # (g) if (f) conflicts with (e) by more than tolerance, then this is the size threshold for rule
       # repeat (e) and (g)
@@ -833,10 +907,11 @@ class SolutionSelectionWriter:
       #######################
       # here is the rule
       #######################
+      lastSizeGroup = self.getIndexOfNextLargestSize(problemSolutionPairs, rule[3]) == len(problemSolutionPairs)
       finalRuleString = self.ruleToString(rule)
       print "FINAL RULE: " + finalRuleString
       self.addRuleToSets(rule)
-      s += self.ruleToLibString(rule, "  ")
+      s += self.ruleToLibString(rule, firstSizeGroup, lastSizeGroup, "  ")
       for ug in rule[0]: # exact tiles
         for psp in ug:
           localSolutionSet.add( psp[1] )
@@ -850,16 +925,17 @@ class SolutionSelectionWriter:
       sizeAfter = len(problemSolutionPairs)
       print "STATUS - # PSPs after removing >= %u*%u: %u -> %u" % (ruleSize, ruleSize, sizeBefore, sizeAfter)
 
-      # (i) begin again at (a)
       #print "Rule DONE"
-    
+      firstSizeGroup = False
+      
+      # END WHILE
+
     #print "done with all psps"
+    # s += "  *status = cobaltStatusProblemNotSupported;\n"
+    # s += "  return nullptr;\n"
 
-    s += "  return nullptr;\n"
 
-
-    s += "}\n"
-    s += "\n"
+    s += "\n}\n"
 
     # prepend includes
     inc = "#include \"Problem.h\"\n"
@@ -896,7 +972,7 @@ class SolutionSelectionWriter:
     s += "set( CobaltLib_SRC_GENERATED_DYNAMIC\n"
     
     for deviceProfile, exactMatches in self.psMap.iteritems():
-      print str(deviceProfile), str(exactMatches)
+      #print str(deviceProfile), str(exactMatches)
       # (2) Write Device-Level Solution Selection files
       baseName = "CobaltGetSolution_" + deviceProfile.libString()
       s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"

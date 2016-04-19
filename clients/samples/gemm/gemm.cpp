@@ -165,6 +165,8 @@ int main( char * argv[], int argc ) {
                     
                     CobaltStatus status;
                     CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
+
+
                     numProblems++;
                   } // offsets
                 } // beta
