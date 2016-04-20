@@ -29,7 +29,7 @@ class KernelWriter:
     kernelName = ""
 
     # operation type
-    kernelName += str(kernel.operation.type)
+    kernelName += str(kernel.problem.operation.type)
     kernelName += "_"
 
     # data dataTypes
@@ -38,14 +38,14 @@ class KernelWriter:
     kernelName += kernel.dataTypeB.toChar().upper()
 
     # alpha
-    if kernel.operation.useAlpha:
-      kernelName += kernel.operation.alphaType.toChar().upper()
+    if kernel.problem.operation.useAlpha:
+      kernelName += kernel.problem.operation.alphaType.toChar().upper()
     else:
       kernelName += "0"
 
     # beta
-    if kernel.operation.useBeta:
-      kernelName += kernel.operation.betaType.toChar().upper()
+    if kernel.problem.operation.useBeta:
+      kernelName += kernel.problem.operation.betaType.toChar().upper()
     else:
       kernelName += "0"
 
@@ -64,13 +64,13 @@ class KernelWriter:
 
     # A dimensions
     kernelName += "_A"
-    for i in range(0, len(kernel.operation.indexAssignmentsA)):
-      kernelName += self.indexChars[kernel.operation.indexAssignmentsA[i]].lower()
+    for i in range(0, len(kernel.problem.operation.indexAssignmentsA)):
+      kernelName += self.indexChars[kernel.problem.operation.indexAssignmentsA[i]].lower()
 
     # B dimensions
     kernelName += "_B"
-    for i in range(0,len(kernel.operation.indexAssignmentsB)):
-      kernelName += self.indexChars[kernel.operation.indexAssignmentsB[i]].lower()
+    for i in range(0,len(kernel.problem.operation.indexAssignmentsB)):
+      kernelName += self.indexChars[kernel.problem.operation.indexAssignmentsB[i]].lower()
 
 
     return kernelName
@@ -207,8 +207,8 @@ class KernelWriter:
     if kernel.ppdLeadingStride:
       firstStride = 1
     lastStrideC = len(kernel.indexOrderC)
-    lastStrideA = len(kernel.operation.indexAssignmentsA)
-    lastStrideB = len(kernel.operation.indexAssignmentsB)
+    lastStrideA = len(kernel.problem.operation.indexAssignmentsA)
+    lastStrideB = len(kernel.problem.operation.indexAssignmentsB)
     if kernel.ppdAll:
       lastStrideC = firstStride
       lastStrideA = firstStride
@@ -217,10 +217,10 @@ class KernelWriter:
       s += "," + self.endLine + "  unsigned int const strideC" + indexChars[i]
     for i in range(firstStride, lastStrideA):
       s += "," + self.endLine + "  unsigned int const strideA" \
-          + indexChars[kernel.operation.indexAssignmentsA[i]]
+          + indexChars[kernel.problem.operation.indexAssignmentsA[i]]
     for i in range(firstStride, lastStrideB):
       s += "," + self.endLine + "  unsigned int const strideB" \
-          + indexChars[kernel.operation.indexAssignmentsB[i]]
+          + indexChars[kernel.problem.operation.indexAssignmentsB[i]]
 
     # sizes
     if not kernel.ppdAll:
@@ -228,9 +228,9 @@ class KernelWriter:
         s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
 
     # alpha & beta
-    if kernel.operation.useAlpha:
+    if kernel.problem.operation.useAlpha:
       s += "," + self.endLine + "  DATA_TYPE_STR_C const alpha"
-    if kernel.operation.useBeta:
+    if kernel.problem.operation.useBeta:
       s += "," + self.endLine + "  DATA_TYPE_STR_C const beta"
     # TODO - if convolution, need stride and pad for each sum dim
     s += " )"
@@ -304,24 +304,24 @@ class KernelWriter:
     kStr += " )" + self.endLine
     # A
     kStr += "#define GET_GLOBAL_INDEX_A(IDX" \
-        + indexChars[kernel.operation.indexAssignmentsA[0]]
-    for i in range(1, len(kernel.operation.indexAssignmentsA)):
-      kStr += ", IDX" + indexChars[kernel.operation.indexAssignmentsA[i]]
-    indexChar = indexChars[kernel.operation.indexAssignmentsA[0]]
+        + indexChars[kernel.problem.operation.indexAssignmentsA[0]]
+    for i in range(1, len(kernel.problem.operation.indexAssignmentsA)):
+      kStr += ", IDX" + indexChars[kernel.problem.operation.indexAssignmentsA[i]]
+    indexChar = indexChars[kernel.problem.operation.indexAssignmentsA[0]]
     kStr += ") ( (IDX" + indexChar + ")*strideA" + indexChar
-    for i in range(1, len(kernel.operation.indexAssignmentsA)):
-      indexChar = indexChars[kernel.operation.indexAssignmentsA[i]]
+    for i in range(1, len(kernel.problem.operation.indexAssignmentsA)):
+      indexChar = indexChars[kernel.problem.operation.indexAssignmentsA[i]]
       kStr += " + (IDX" + indexChar + ")*strideA" + indexChar
     kStr += " )" + self.endLine
     # B
     kStr += "#define GET_GLOBAL_INDEX_B(IDX" \
-        + indexChars[kernel.operation.indexAssignmentsB[0]]
-    for i in range(1, len(kernel.operation.indexAssignmentsB)):
-      kStr += ", IDX" + indexChars[kernel.operation.indexAssignmentsB[i]]
-    indexChar = indexChars[kernel.operation.indexAssignmentsB[0]]
+        + indexChars[kernel.problem.operation.indexAssignmentsB[0]]
+    for i in range(1, len(kernel.problem.operation.indexAssignmentsB)):
+      kStr += ", IDX" + indexChars[kernel.problem.operation.indexAssignmentsB[i]]
+    indexChar = indexChars[kernel.problem.operation.indexAssignmentsB[0]]
     kStr += ") ( (IDX" + indexChar + ")*strideB" + indexChar
-    for i in range(1, len(kernel.operation.indexAssignmentsB)):
-      indexChar = indexChars[kernel.operation.indexAssignmentsB[i]]
+    for i in range(1, len(kernel.problem.operation.indexAssignmentsB)):
+      indexChar = indexChars[kernel.problem.operation.indexAssignmentsB[i]]
       kStr += " + (IDX" + indexChar + ")*strideB" + indexChar
     kStr += " )" + self.endLine
 
@@ -379,10 +379,10 @@ class KernelWriter:
       if indexC == kernel.indexAssignmentDim0 \
           or indexC == kernel.indexAssignmentDim1:
         continue
-      if indexC in kernel.operation.indexAssignmentsA:
+      if indexC in kernel.problem.operation.indexAssignmentsA:
         kStr += "#define globalIdxA" + indexChars[indexC] \
             + "(LID) groupIdx" + indexChars[indexC] + self.endLine
-      if indexC in kernel.operation.indexAssignmentsB:
+      if indexC in kernel.problem.operation.indexAssignmentsB:
         kStr += "#define globalIdxB" + indexChars[indexC] \
             + "(LID) groupIdx" + indexChars[indexC] + self.endLine
     # C outer summation indices which aren't unrolled = sumIdx
@@ -454,8 +454,8 @@ class KernelWriter:
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
           + "DST = mad(MULA,MULB,DST);" + self.endLine
-      if kernel.operation.useAlpha:
-        if kernel.operation.useBeta:
+      if kernel.problem.operation.useAlpha:
+        if kernel.problem.operation.useBeta:
           # dst = alpha*reg + beta*dst
           kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) " \
               + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
@@ -464,7 +464,7 @@ class KernelWriter:
           kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG) " \
               + "DST = (ALPHA)*(REG);" + self.endLine
       else:
-        if kernel.operation.useBeta:
+        if kernel.problem.operation.useBeta:
           # dst = reg + beta*dst
           kStr += "#define TYPE_MAD_WRITE(DST,REG,BETA) " \
               + "DST = (REG) + (BETA)*(DST);" + self.endLine
@@ -506,8 +506,8 @@ class KernelWriter:
           "  DST.s0 = mad(  MULA.s1, -MULB.s1, DST.s0 ); \\\\" + self.endLine +
           "  DST.s1 = mad(  MULA.s0, -MULB.s1, DST.s1 ); \\\\" + self.endLine +
           "  DST.s1 = mad( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel.operation.useAlpha:
-        if kernel.operation.useBeta:
+      if kernel.problem.operation.useAlpha:
+        if kernel.problem.operation.useBeta:
           # dst = alpha*reg + beta*dst
           kStr += (
             "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) \\\\" + self.endLine +
@@ -537,7 +537,7 @@ class KernelWriter:
             "  /* (3) */ \\\\" + self.endLine +
             "  DST = REG;" + self.endLine )
       else:
-        if kernel.operation.useBeta:
+        if kernel.problem.operation.useBeta:
           # dst = reg + beta*dst
           kStr += (
             "#define TYPE_MAD_WRITE( DST, REG, BETA ) \\\\" + self.endLine +
@@ -579,8 +579,8 @@ class KernelWriter:
     kStr += "/* preprocessor definitions of kernel arguments*/" + self.endLine
     firstStride = 0
     lastStrideC = len(kernel.indexOrderC)
-    lastStrideA = len(kernel.operation.indexAssignmentsA)
-    lastStrideB = len(kernel.operation.indexAssignmentsB)
+    lastStrideA = len(kernel.problem.operation.indexAssignmentsA)
+    lastStrideB = len(kernel.problem.operation.indexAssignmentsB)
     if kernel.ppdAll:
       #optimize all
       pass
@@ -598,9 +598,9 @@ class KernelWriter:
     for i in range(firstStride, lastStrideC):
       kStr += "#define strideC" + indexChars[i] + " " + str(kernel.problem.tensorC.dimensions[i].stride) + self.endLine
     for i in range(firstStride, lastStrideA):
-      kStr += "#define strideA" + indexChars[kernel.operation.indexAssignmentsA[i]] + " " + str(kernel.problem.tensorA.dimensions[i].stride) + self.endLine
+      kStr += "#define strideA" + indexChars[kernel.problem.operation.indexAssignmentsA[i]] + " " + str(kernel.problem.tensorA.dimensions[i].stride) + self.endLine
     for i in range(firstStride, lastStrideB):
-      kStr += "#define strideB" + indexChars[kernel.operation.indexAssignmentsB[i]] + " " + str(kernel.problem.tensorB.dimensions[i].stride) + self.endLine
+      kStr += "#define strideB" + indexChars[kernel.problem.operation.indexAssignmentsB[i]] + " " + str(kernel.problem.tensorB.dimensions[i].stride) + self.endLine
 
     # sizes
     if kernel.ppdAll:
@@ -608,13 +608,13 @@ class KernelWriter:
         kStr += "#define size" + indexChars[i] + " "
         # which index of tensorA or B is assigned to that index; use its size
         size = -1
-        for j in range(0, len(kernel.operation.indexAssignmentsA)):
-          index = kernel.operation.indexAssignmentsA[j]
+        for j in range(0, len(kernel.problem.operation.indexAssignmentsA)):
+          index = kernel.problem.operation.indexAssignmentsA[j]
           if index == i:
             size = kernel.problem.tensorA.dimensions[j].size
             break
-        for j in range(0, len(kernel.operation.indexAssignmentsB)):
-          index = kernel.operation.indexAssignmentsB[j]
+        for j in range(0, len(kernel.problem.operation.indexAssignmentsB)):
+          index = kernel.problem.operation.indexAssignmentsB[j]
           if index == i:
             size = kernel.problem.tensorB.dimensions[j].size
             break
@@ -734,7 +734,7 @@ class KernelWriter:
     # multidim if (kernel.order=="clblasColumnMajor")==(kernel.transA=="N"):
     #tensorAssignedToTileDim = []
     #if kernel.tensorAssignedDim0:
-    #  tensorAssignedToTileDim.append(kernel.operation.
+    #  tensorAssignedToTileDim.append(kernel.problem.operation.
     #unrollStrideGreaterThanTileA
     #kernel.unrollDimStrideGreaterThanTileDimStrideA = kernel.indexAssignmentDim0 \
      #   > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
@@ -848,11 +848,11 @@ class KernelWriter:
             % ( tileCharA, a, tileCharA, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + indexChars[ \
-          kernel.operation.indexAssignmentsA[0]]  \
+          kernel.problem.operation.indexAssignmentsA[0]]  \
           + "(" + str(a) + ")"
-      for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
         kStr += ", globalIdxA" + indexChars[ \
-            kernel.operation.indexAssignmentsA[i]]  \
+            kernel.problem.operation.indexAssignmentsA[i]]  \
             + "(" + str(a) + ")"
       kStr += " ) ];" + self.endLine
 
@@ -868,11 +868,11 @@ class KernelWriter:
             % ( tileCharA, numALoads, tileCharA, zeroStringA )
       kStr += "A[ GET_GLOBAL_INDEX_A( "
       kStr += "globalIdxA" + indexChars[ \
-          kernel.operation.indexAssignmentsA[0]]  \
+          kernel.problem.operation.indexAssignmentsA[0]]  \
           + "(" + str(numALoads) + ")"
-      for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
         kStr += ", globalIdxA" + indexChars[ \
-            kernel.operation.indexAssignmentsA[i]]  \
+            kernel.problem.operation.indexAssignmentsA[i]]  \
             + "(" + str(numALoads) + ")"
       kStr += " ) ];" + self.endLine
 
@@ -880,15 +880,15 @@ class KernelWriter:
       # 
       # kStr += "    unsigned int tmpIdx = GET_GLOBAL_INDEX_A( "
       # kStr += "globalIdxA" + indexChars[ \
-      #     kernel.operation.indexAssignmentsA[0]]  \
+      #     kernel.problem.operation.indexAssignmentsA[0]]  \
       #     + "(" + str(numALoads) + ")"
-      # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
       #   kStr += ", globalIdxA" + indexChars[ \
-      #       kernel.operation.indexAssignmentsA[i]]  \
+      #       kernel.problem.operation.indexAssignmentsA[i]]  \
       #       + "(" + str(numALoads) + ")"
       # kStr += " );" + self.endLine
       # kStr += "printf(\\\"T[%u,%u] localA[%u] = %f <- globalA[%u] = %f; %u"
-      # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
       #   kStr += ", %u"
       # 
       # kStr += "\\\\n\\\", get_local_id(0), get_local_id(1), GET_LOCAL_INDEX_A(localA" + tileCharA \
@@ -897,11 +897,11 @@ class KernelWriter:
       # 
       # 
       # kStr += "globalIdxA" + indexChars[ \
-      #     kernel.operation.indexAssignmentsA[0]]  \
+      #     kernel.problem.operation.indexAssignmentsA[0]]  \
       #     + "(" + str(numALoads) + ")"
-      # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+      # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
       #   kStr += ", globalIdxA" + indexChars[ \
-      #       kernel.operation.indexAssignmentsA[i]]  \
+      #       kernel.problem.operation.indexAssignmentsA[i]]  \
       #       + "(" + str(numALoads) + ")"
       # kStr += ");" + self.endLine
       # 
@@ -917,11 +917,11 @@ class KernelWriter:
             % ( tileCharB, b, tileCharB, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( "
       kStr += "globalIdxB" + indexChars[ \
-          kernel.operation.indexAssignmentsB[0]]  \
+          kernel.problem.operation.indexAssignmentsB[0]]  \
           + "(" + str(b) + ")"
-      for i in range(1,len(kernel.operation.indexAssignmentsB)):
+      for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
         kStr += ", globalIdxB" + indexChars[ \
-            kernel.operation.indexAssignmentsB[i]]  \
+            kernel.problem.operation.indexAssignmentsB[i]]  \
             + "(" + str(b) + ")"
       kStr += " ) ];" + self.endLine
 
@@ -936,11 +936,11 @@ class KernelWriter:
             % ( tileCharB, numBLoads, tileCharB, zeroStringB )
       kStr += "B[ GET_GLOBAL_INDEX_B( "
       kStr += "globalIdxB" + indexChars[ \
-          kernel.operation.indexAssignmentsB[0]]  \
+          kernel.problem.operation.indexAssignmentsB[0]]  \
           + "(" + str(numBLoads) + ")"
-      for i in range(1,len(kernel.operation.indexAssignmentsB)):
+      for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
         kStr += ", globalIdxB" + indexChars[ \
-            kernel.operation.indexAssignmentsB[i]]  \
+            kernel.problem.operation.indexAssignmentsB[i]]  \
             + "(" + str(numBLoads) + ")"
       kStr += " ) ];" + self.endLine
       kStr += indent + "}" + self.endLine
@@ -953,33 +953,33 @@ class KernelWriter:
     
     # kStr += "    unsigned int tmpIdxA = GET_GLOBAL_INDEX_A( "
     # kStr += "globalIdxA" + indexChars[ \
-    #     kernel.operation.indexAssignmentsA[0]]  \
+    #     kernel.problem.operation.indexAssignmentsA[0]]  \
     #     + "(0)"
-    # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+    # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
     #   kStr += ", globalIdxA" + indexChars[ \
-    #       kernel.operation.indexAssignmentsA[i]]  \
+    #       kernel.problem.operation.indexAssignmentsA[i]]  \
     #       + "(0)"
     # kStr += " );" + self.endLine
     # 
     # 
     # kStr += "    unsigned int tmpIdxB = GET_GLOBAL_INDEX_B( "
     # kStr += "globalIdxB" + indexChars[ \
-    #     kernel.operation.indexAssignmentsB[0]]  \
+    #     kernel.problem.operation.indexAssignmentsB[0]]  \
     #     + "(0)"
-    # for i in range(1,len(kernel.operation.indexAssignmentsB)):
+    # for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
     #   kStr += ", globalIdxB" + indexChars[ \
-    #       kernel.operation.indexAssignmentsB[i]]  \
+    #       kernel.problem.operation.indexAssignmentsB[i]]  \
     #       + "(0)"
     # kStr += " );" + self.endLine
     # 
     # 
     # kStr += "printf(\\\"T[%u,%u]"
     # kStr += " localA[%u] = %f <- gA[%u] = %f; %u"
-    # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+    # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
     #   kStr += ", %u"
     # kStr += "; "
     # kStr += " localB[%u] = %f <- gB[%u] = %f; %u"
-    # for i in range(1,len(kernel.operation.indexAssignmentsB)):
+    # for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
     #   kStr += ", %u"
     # kStr += "; "
     # 
@@ -988,22 +988,22 @@ class KernelWriter:
     #     + ", localA" + unrollChar +"), "
     # kStr += " lA[0], tmpIdxA, A[tmpIdxA], "
     # kStr += "globalIdxA" + indexChars[ \
-    #     kernel.operation.indexAssignmentsA[0]]  \
+    #     kernel.problem.operation.indexAssignmentsA[0]]  \
     #     + "(0)"
-    # for i in range(1,len(kernel.operation.indexAssignmentsA)):
+    # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
     #   kStr += ", globalIdxA" + indexChars[ \
-    #       kernel.operation.indexAssignmentsA[i]]  \
+    #       kernel.problem.operation.indexAssignmentsA[i]]  \
     #       + "(0)"
     # kStr += ", "
     # kStr += "GET_LOCAL_INDEX_B(localB" + tileCharB \
     #     + ", localB" + unrollChar +"), "
     # kStr += " lB[0], tmpIdxB, B[tmpIdxB], "
     # kStr += "globalIdxB" + indexChars[ \
-    #     kernel.operation.indexAssignmentsB[0]]  \
+    #     kernel.problem.operation.indexAssignmentsB[0]]  \
     #     + "(0)"
-    # for i in range(1,len(kernel.operation.indexAssignmentsB)):
+    # for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
     #   kStr += ", globalIdxB" + indexChars[ \
-    #       kernel.operation.indexAssignmentsB[i]]  \
+    #       kernel.problem.operation.indexAssignmentsB[i]]  \
     #       + "(0)"
     # 
     # 
@@ -1091,11 +1091,11 @@ class KernelWriter:
               % ( tileCharA, a, tileCharA, zeroStringA )
         kStr += "A[ GET_GLOBAL_INDEX_A( "
         kStr += "globalIdxA" + indexChars[ \
-            kernel.operation.indexAssignmentsA[0]]  \
+            kernel.problem.operation.indexAssignmentsA[0]]  \
             + "(" + str(a) + ")"
-        for i in range(1,len(kernel.operation.indexAssignmentsA)):
+        for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
           kStr += ", globalIdxA" + indexChars[ \
-              kernel.operation.indexAssignmentsA[i]]  \
+              kernel.problem.operation.indexAssignmentsA[i]]  \
               + "(" + str(a) + ")"
         kStr += " ) ];" + self.endLine
 
@@ -1111,11 +1111,11 @@ class KernelWriter:
               % ( tileCharA, numALoads, tileCharA, zeroStringA )
         kStr += "A[ GET_GLOBAL_INDEX_A( "
         kStr += "globalIdxA" + indexChars[ \
-            kernel.operation.indexAssignmentsA[0]]  \
+            kernel.problem.operation.indexAssignmentsA[0]]  \
             + "(" + str(numALoads) + ")"
-        for i in range(1,len(kernel.operation.indexAssignmentsA)):
+        for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
           kStr += ", globalIdxA" + indexChars[ \
-              kernel.operation.indexAssignmentsA[i]]  \
+              kernel.problem.operation.indexAssignmentsA[i]]  \
               + "(" + str(numALoads) + ")"
         kStr += " ) ];" + self.endLine
         kStr += indent + "}" + self.endLine
@@ -1128,11 +1128,11 @@ class KernelWriter:
               % ( tileCharB, b, tileCharB, zeroStringB )
         kStr += "B[ GET_GLOBAL_INDEX_B( "
         kStr += "globalIdxB" + indexChars[ \
-            kernel.operation.indexAssignmentsB[0]]  \
+            kernel.problem.operation.indexAssignmentsB[0]]  \
             + "(" + str(b) + ")"
-        for i in range(1,len(kernel.operation.indexAssignmentsB)):
+        for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
           kStr += ", globalIdxB" + indexChars[ \
-              kernel.operation.indexAssignmentsB[i]]  \
+              kernel.problem.operation.indexAssignmentsB[i]]  \
               + "(" + str(b) + ")"
         kStr += " ) ];" + self.endLine
 
@@ -1147,11 +1147,11 @@ class KernelWriter:
               % ( tileCharB, numBLoads, tileCharB, zeroStringB )
         kStr += "B[ GET_GLOBAL_INDEX_B( "
         kStr += "globalIdxB" + indexChars[ \
-            kernel.operation.indexAssignmentsB[0]]  \
+            kernel.problem.operation.indexAssignmentsB[0]]  \
             + "(" + str(numBLoads) + ")"
-        for i in range(1,len(kernel.operation.indexAssignmentsB)):
+        for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
           kStr += ", globalIdxB" + indexChars[ \
-              kernel.operation.indexAssignmentsB[i]]  \
+              kernel.problem.operation.indexAssignmentsB[i]]  \
               + "(" + str(numBLoads) + ")"
         kStr += " ) ];" + self.endLine
         kStr += indent + "}" + self.endLine
@@ -1241,10 +1241,10 @@ class KernelWriter:
           if i < len(kernel.indexOrderC)-1:
             kStr += ","
         kStr += ") ]"
-        if kernel.operation.useAlpha:
+        if kernel.problem.operation.useAlpha:
           kStr += ", alpha"
         kStr += ", rC[%d][%d]" % (a, b)
-        if kernel.operation.useBeta:
+        if kernel.problem.operation.useBeta:
           kStr += ", beta"
         kStr += ")"
         # debug printf

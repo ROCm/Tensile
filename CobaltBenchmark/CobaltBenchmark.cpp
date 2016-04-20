@@ -144,21 +144,22 @@ int main( int argc, char *argv[] ) {
 #endif
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
-      printf("S[%llu/%llu] ", solutionIdx, solutionEndIdx);
+      printf("P[%llu/%llu] S[%llu/%llu] ", problemIdx, problemEndIdx, solutionIdx, solutionEndIdx);
 
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
 
-      // re-initialize device buffers
-      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataC.data), CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC, 0, nullptr, nullptr);
-      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
-      clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
-      clFinish(ctrl.queues[0]);
-
+      if (doValidation) {
+        // re-initialize device buffers
+        clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataC.data), CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC, 0, nullptr, nullptr);
+        clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
+        clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
+        clFinish(ctrl.queues[0]);
+      }
       // ensure kernels are compiled before timing
       // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
-      ctrl.benchmark = 4; // 5;
-      unsigned int numSamples = 1; // 4;
+      ctrl.benchmark = 1; // 5;
+      unsigned int numSamples = 4; // 4;
       if (doValidation) {
         ctrl.benchmark = 0;
         numSamples = 1;
@@ -172,9 +173,11 @@ int main( int argc, char *argv[] ) {
             beta,
             ctrl );
       }
-      for (unsigned int i = 0; i < ctrl.numQueues; i++) {
-        status = clFinish(ctrl.queues[i]);
-        CL_CHECK(status)
+      if (doValidation) {
+        for (unsigned int i = 0; i < ctrl.numQueues; i++) {
+          status = clFinish(ctrl.queues[i]);
+          CL_CHECK(status)
+        }
       }
 
 #if 0

@@ -755,7 +755,7 @@ class Kernel:
     self.dataTypeC = DataType(-1)
     self.dataTypeA = DataType(-1)
     self.dataTypeB = DataType(-1)
-    self.operation = Operation()
+    #self.operation = Operation()
     # Index Assignments
     self.indexOrderC = []
     self.indexOrderSummation = []
@@ -808,7 +808,6 @@ class Kernel:
         self.dataTypeC, \
         self.dataTypeA, \
         self.dataTypeB, \
-        self.operation, \
         tuple(self.indexOrderC), \
         tuple(self.indexOrderSummation), \
         self.indexAssignmentDim0, \

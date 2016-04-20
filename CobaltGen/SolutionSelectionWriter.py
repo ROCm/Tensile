@@ -797,7 +797,7 @@ class SolutionSelectionWriter:
             currentTime = currentFallback[2]
             currentGFlops = self.getGFlops(currentProblem, currentTime)
             if not currentSolution == fallbackSolutionForSize:
-              if currentGFlops > fallbackGFlopsForSize*self.tolerance:
+              if currentGFlops > fallbackGFlopsForSize*(1+self.tolerance):
                 # starting with current size, there's a new fastest fallback
                 print "STATUS - at size %u*%u new fastest fallback is %s" % (currentSize**0.5, currentSize**0.5, self.solutionWriter.getName(currentSolution))
                 print "  forSize = " + self.solutionWriter.getName(fallbackSolutionForSize)

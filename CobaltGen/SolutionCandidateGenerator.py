@@ -167,7 +167,7 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 1
+  minMicroTileSize = 4
   maxMicroTileSize = 8
   # TODO; if unroll=8 is faster than unroll=16 then also check unroll=4; yes helped
   universeUnroll = { \
@@ -193,6 +193,7 @@ class SolutionCandidateGenerator:
       [ True,  True, False], \
       ]
   # non-skinny problem will only choose from 8x8 and 16x16
+  """
   universeWorkGroupDim = [ \
       [4,16],  [8,8],  [16,4], \
       [4,32], [8,16],  [16,8], [32,4], \
@@ -200,7 +201,6 @@ class SolutionCandidateGenerator:
       [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   """
   universeWorkGroupDim = [ [16,16] ]
-  """
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
@@ -237,7 +237,7 @@ class SolutionCandidateGenerator:
     solutionCandidates = []
 
     # Solution Correctness Parameters
-    kernel.operation = problem.operation
+    #kernel.operation = problem.operation
     kernel.dataTypeC = problem.tensorC.dataType
     kernel.dataTypeA = problem.tensorA.dataType
     kernel.dataTypeB = problem.tensorB.dataType
@@ -366,9 +366,9 @@ class SolutionCandidateGenerator:
                 kernelGrid[1]=1
               if kernelGrid[2] == 0:
                 kernelGrid[2]=1
-              if kernelGrid[2] > 1 and not kernel.operation.useBeta:
-                  kernel.operation.useBeta = True
-                  kernel.operation.betaType = problem.tensorC.dataType
+              if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta:
+                  kernel.problem.operation.useBeta = True
+                  kernel.problem.operation.betaType = problem.tensorC.dataType
                   print "forcing useBeta=True due to mod1024 kernel grid"
               # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
 

@@ -36,12 +36,12 @@ class SolutionWriter:
     templateArgList += solution.kernels[0].dataTypeC.toCpp() + ","
     templateArgList += solution.kernels[0].dataTypeA.toCpp() + ","
     templateArgList += solution.kernels[0].dataTypeB.toCpp() + ","
-    if solution.kernels[0].operation.useAlpha:
-      templateArgList += solution.kernels[0].operation.alphaType.toCpp() + ","
+    if solution.kernels[0].problem.operation.useAlpha:
+      templateArgList += solution.kernels[0].problem.operation.alphaType.toCpp() + ","
     else:
       templateArgList += "void,"
-    if solution.kernels[0].operation.useBeta:
-      templateArgList += solution.kernels[0].operation.betaType.toCpp() + ">"
+    if solution.kernels[0].problem.operation.useBeta:
+      templateArgList += solution.kernels[0].problem.operation.betaType.toCpp() + ">"
     else:
       templateArgList += "void>"
     return templateArgList
@@ -101,8 +101,8 @@ class SolutionWriter:
     d0InTensorA = False
     indexAssignmentAd0or1 = -1
     indexAssignmentAdU = -1
-    for i in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
-      index = solution.kernels[0].operation.indexAssignmentsA[i]
+    for i in range(0,len(solution.kernels[0].problem.operation.indexAssignmentsA)):
+      index = solution.kernels[0].problem.operation.indexAssignmentsA[i]
       if index == solution.kernels[0].indexAssignmentDim0:
         d0InTensorA = True
       if index == solution.kernels[0].indexAssignmentDim0 \
@@ -114,8 +114,8 @@ class SolutionWriter:
         indexAssignmentAdU = i
     indexAssignmentBd0or1 = -1
     indexAssignmentBdU = -1
-    for i in range(0,len(solution.kernels[0].operation.indexAssignmentsB)):
-      index = solution.kernels[0].operation.indexAssignmentsB[i]
+    for i in range(0,len(solution.kernels[0].problem.operation.indexAssignmentsB)):
+      index = solution.kernels[0].problem.operation.indexAssignmentsB[i]
       if index == solution.kernels[0].indexAssignmentDim0 \
           or index == solution.kernels[0].indexAssignmentDim1:
         indexAssignmentBd0or1 = i
@@ -201,8 +201,8 @@ class SolutionWriter:
       if solution.ppdLeadingStride:
         firstStride = 1
       lastStrideC = len(solution.kernels[0].indexOrderC)
-      lastStrideA = len(solution.kernels[0].operation.indexAssignmentsA)
-      lastStrideB = len(solution.kernels[0].operation.indexAssignmentsB)
+      lastStrideA = len(solution.kernels[0].problem.operation.indexAssignmentsA)
+      lastStrideB = len(solution.kernels[0].problem.operation.indexAssignmentsB)
       if solution.ppdAll:
         lastStrideC = firstStride
         lastStrideA = firstStride
@@ -220,7 +220,7 @@ class SolutionWriter:
       for i in range(firstStride,lastStrideA):
         s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
             + str(i) + "].stride; // strideA" + self.indexChars[ \
-            solution.kernels[0].operation.indexAssignmentsA[i]] + "\n"
+            solution.kernels[0].problem.operation.indexAssignmentsA[i]] + "\n"
         s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
             + "[" + str(i) + "].stride);\n"
         s += "  numKernelArgs++;\n"
@@ -230,7 +230,7 @@ class SolutionWriter:
       for i in range(firstStride,lastStrideB):
         s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
             + str(i) + "].stride; // strideB" + self.indexChars[ \
-            solution.kernels[0].operation.indexAssignmentsB[i]] + "\n"
+            solution.kernels[0].problem.operation.indexAssignmentsB[i]] + "\n"
         s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
             + "[" + str(i) + "].stride);\n"
         s += "  numKernelArgs++;\n"
@@ -239,8 +239,8 @@ class SolutionWriter:
       
       
       s += "  /* free index sizes */\n"
-      for i in range(0,solution.kernels[0].operation.numIndicesFree \
-          + solution.kernels[0].operation.numIndicesBatch ):
+      for i in range(0,solution.kernels[0].problem.operation.numIndicesFree \
+          + solution.kernels[0].problem.operation.numIndicesBatch ):
         if i == solution.kernels[0].indexAssignmentDim0:
           s += "  kernelArgIdxDim0 = numKernelArgs;\n"
         if i == solution.kernels[0].indexAssignmentDim1:
@@ -253,21 +253,21 @@ class SolutionWriter:
       s += "\n"
       
       s += "  /* summation index sizes */\n"
-      for i in range(solution.kernels[0].operation.numIndicesFree \
-            + solution.kernels[0].operation.numIndicesBatch, \
-              solution.kernels[0].operation.numIndicesFree \
-            + solution.kernels[0].operation.numIndicesBatch \
-            + solution.kernels[0].operation.numIndicesSummation ):
+      for i in range(solution.kernels[0].problem.operation.numIndicesFree \
+            + solution.kernels[0].problem.operation.numIndicesBatch, \
+              solution.kernels[0].problem.operation.numIndicesFree \
+            + solution.kernels[0].problem.operation.numIndicesBatch \
+            + solution.kernels[0].problem.operation.numIndicesSummation ):
         # which index of A sums this
         idx = -1
-        for j in range(0,len(solution.kernels[0].operation.indexAssignmentsA)):
-          if solution.kernels[0].operation.indexAssignmentsA[j] == i:
+        for j in range(0,len(solution.kernels[0].problem.operation.indexAssignmentsA)):
+          if solution.kernels[0].problem.operation.indexAssignmentsA[j] == i:
             idx = j
             break
         if i == \
-              solution.kernels[0].operation.numIndicesFree \
-            + solution.kernels[0].operation.numIndicesBatch \
-            + solution.kernels[0].operation.numIndicesSummation - 1:
+              solution.kernels[0].problem.operation.numIndicesFree \
+            + solution.kernels[0].problem.operation.numIndicesBatch \
+            + solution.kernels[0].problem.operation.numIndicesSummation - 1:
           s += "  kernelArgIdxSummation = numKernelArgs;\n"
         s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
             + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
@@ -278,9 +278,9 @@ class SolutionWriter:
 
     # alpha & beta
     s += "  /* alpha & beta */\n"
-    s += "  requireAlpha = " + ("true" if solution.kernels[0].operation.useAlpha else "false")
+    s += "  requireAlpha = " + ("true" if solution.kernels[0].problem.operation.useAlpha else "false")
     s += ";\n"
-    s += "  requireBeta = " + ("true" if solution.kernels[0].operation.useBeta else "false")
+    s += "  requireBeta = " + ("true" if solution.kernels[0].problem.operation.useBeta else "false")
     s += ";\n"
     s += "\n"
 

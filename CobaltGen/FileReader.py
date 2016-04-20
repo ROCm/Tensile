@@ -145,7 +145,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
         kernel.dataTypeC = self.problem.tensorC.dataType
         kernel.dataTypeA = self.problem.tensorA.dataType
         kernel.dataTypeB = self.problem.tensorB.dataType
-        kernel.operation = self.problem.operation
+        #kernel.operation = self.problem.operation
         kernel.problem = self.problem
         kernel.ppdOffsets = self.solution.ppdOffsets
         kernel.ppdLeadingStride = self.solution.ppdLeadingStride
