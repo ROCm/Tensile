@@ -179,6 +179,12 @@ class SolutionSelectionWriter:
 
   def getGFlops(self, problem, timeMS):
     totalFlops = self.getSize(problem)
+    if problem.tensorA.dataType.isReal():
+      totalFlops *= 2
+      s += "2"
+    else:
+      totalFlops *= 8
+      s += "8"
     ## multiply summation indices
     for i in range(0, len(problem.operation.indexAssignmentsA)):
       index = problem.operation.indexAssignmentsA[i]
@@ -655,12 +661,12 @@ class SolutionSelectionWriter:
     if not lastSizeGroup:
       if rule[2] != None:
         thresholdUpper = int( self.getSize(rule[2])**(1.0/2.0) )
-        s += " sizeFree < %u*%u" % (thresholdUpper, thresholdUpper)
+        s += " sizeFree < %5u*%5u" % (thresholdUpper, thresholdUpper)
       if rule[2] != None and rule[3] != None:
         s += " && "
       if rule[3] != None:
         thresholdLower = int( self.getSize(rule[3])**(1.0/2.0) )
-        s += " sizeFree >= %u*%u" % (thresholdLower, thresholdLower)
+        s += " sizeFree >= %5u*%5u" % (thresholdLower, thresholdLower)
       s += " ) "
     s += "{\n"
     for ug in rule[0]:
@@ -670,7 +676,7 @@ class SolutionSelectionWriter:
         size1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
         sizeU = solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1]
         gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
-        s += indent + "  if ( size0 %% %2u && size1 %% %2u && sizeU %% %2u ) {" % (size0, size1, sizeU)
+        s += indent + "  if ( size0 %% %3u && size1 %% %3u && sizeU %% %3u ) {" % (size0, size1, sizeU)
         s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
     fallbackPSP = rule[1]
     fallbackSolution = fallbackPSP[1]
@@ -957,6 +963,8 @@ class SolutionSelectionWriter:
     h += "\n"
     h += "#endif\n"
     h += "\n"
+
+
     return (s, h)
 
   
@@ -988,4 +996,96 @@ class SolutionSelectionWriter:
     s += "  ${CobaltLib_SRC_GENERATED_STATIC}\n"
     s += "  ${CobaltLib_SRC_GENERATED_DYNAMIC} )\n"
     s += "\n"
+    return s
+
+
+
+
+  def writePSPsToCSV(self, exactMatch, inputPSPs):
+    
+    pspsUnsorted = copy.deepcopy(inputPSPs)
+    psps = self.sortSizePSPs(pspsUnsorted)
+
+
+    # in this routine, size is sqrted
+    print "Writing PSPs to CSV"
+    # set of all solutions "sorted" smallest to largest
+    localSolutionSet = set()
+    for psp in psps:
+      localSolutionSet.add(psp[1])
+    solutionList = list(localSolutionSet)
+    solutionList = sorted(solutionList)
+    
+    pspMap = {}
+    index = 0
+    for solution in solutionList:
+      pspMap[solution] = []
+      pspMap[solution][:] = [psp  for psp in psps if psp[1] == solution]
+      #print "pspMap[%u] size = %u" % (index, len(pspMap[solution]))
+      index += 1
+
+    s = ""
+    # write row header
+    s += "size, "
+
+    # write column headers
+    for solution in solutionList:
+      s += self.solutionWriter.getName(solution) + ", "
+    s += " <-- Fallbacks -- Tiles -->, "
+    for solution in solutionList:
+      s += self.solutionWriter.getName(solution) + ", "
+    s += "\r"
+
+
+    prevSize = 0
+    while True:
+      print "prevSize = %u" % prevSize
+      size = 1e6 # 1M*1M
+      # get next larger size = smallest size that is still 2 larger than prev size
+      for i in range( len(psps)-1, 0, -1):
+        psp = psps[i]
+        currentSize = self.getSize(psp[0])**0.5
+        if currentSize < size and currentSize > prevSize+2:
+          size = currentSize
+          print "next size %u found at index %u" % (size, len(psps)-i)
+          break
+        psps.remove(psp)
+      if size == 1e6:
+        break
+      # size should be mod16-1
+      #print "size = %u" % size
+      # write row size
+      s += str(size+1) + ", "
+      # write solution speeds for fallbacks
+      for solution in solutionList:
+        pspFound = False
+        for i in range(len(pspMap[solution])-1, 0, -1):
+          #print i
+          psp = pspMap[solution][i]
+          if psp[1] == solution and int(self.getSize(psp[0])**0.5) == size:
+            pspFound = True
+            s += str(self.getGFlops(psp[0], psp[2])) + ", "
+            pspMap[solution].remove(psp) # after writing it, its no longer needed
+            break
+          # else:
+          #   print "%f != %u" % (int(self.getSize(psp[0])**0.5), size)
+        if not pspFound:
+          s += " , "
+      # write solution speeds for exact tiles
+      size += 1
+      s += " <-- Fallbacks -- Tiles -->, "
+      for solution in solutionList:
+        pspFound = False
+        for i in range(len(pspMap[solution])-1, 0, -1):
+          #print i
+          psp = pspMap[solution][i]
+          if psp[1] == solution and int(self.getSize(psp[0])**0.5) == size:
+            pspFound = True
+            s += str(self.getGFlops(psp[0], psp[2])) + ", "
+            pspMap[solution].remove(psp) # after writing it, its no longer needed
+            break
+        if not pspFound:
+          s += " , "
+      s += "\r"
+      prevSize = size
     return s

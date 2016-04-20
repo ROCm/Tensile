@@ -522,8 +522,19 @@ class FileWriter:
       sslHeaderFile.close()
 
       for exactMatch, problemSolutionPairs in exactMatches.iteritems():
-        # (3) Write Exact-Match-Level Solution Selection files
         baseName = "CobaltGetSolution_" + exactMatch.libString()
+        
+        # (7) Write CSV for verification
+        print "Writing CSV for %s" % baseName
+        csvPath = self.outputPath + self.otherSubdirectory + baseName + "_SolutionSpeeds.csv"
+        csvFile = open(csvPath, "w")
+        s = sslw.writePSPsToCSV(exactMatch, problemSolutionPairs)
+        csvFile.write(s)
+        csvFile.close()
+
+
+
+        # (3) Write Exact-Match-Level Solution Selection files
         sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
         sslSourceFile = open(sslSourcePath, "w")
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
@@ -533,6 +544,8 @@ class FileWriter:
         sslSourceFile.close()
         sslHeaderFile.write(sslHeaderString)
         sslHeaderFile.close()
+
+        
 
     # (4) Write Kernel Files
     self.writeKernelFiles(sslw.getKernelSet())
@@ -546,4 +559,3 @@ class FileWriter:
     s = sslw.writeCobaltLibCMake(self.otherSubdirectory)
     backendCMakeFile.write(s)
     backendCMakeFile.close()
-
