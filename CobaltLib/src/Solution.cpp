@@ -59,14 +59,15 @@ SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionOpenCL( const Prob
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 SolutionOpenCL<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionOpenCL() {
   //Cobalt::Timer timer;
-  for (unsigned int i = 0; i < maxNumKernels; i++) {
-    if (kernels[i]) {
-      //timer.start();
-      //clReleaseKernel( kernels[i] );
-      //double timeReleaseKernel = timer.elapsed_us();
-      //printf("kernel-release: %3.0fus\n", timeReleaseKernel);
-    }
-  }
+  //kernels deleted in cobaltTeardown()
+  //for (unsigned int i = 0; i < maxNumKernels; i++) {
+  //  if (kernels[i]) {
+  //    //timer.start();
+  //    //clReleaseKernel( kernels[i] );
+  //    //double timeReleaseKernel = timer.elapsed_us();
+  //    //printf("kernel-release: %3.0fus\n", timeReleaseKernel);
+  //  }
+  //}
 }
 
 
@@ -187,11 +188,6 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 #define TIME_KERNEL_COMPILATION 1
 
 
-#if defined( _WIN32 )
-__declspec(thread) static KernelMap *kernelMap = 0;
-#else
-__thread static KernelMap *kernelMap = 0;
-#endif
 
 /******************************************************************************
  * makeKernel
@@ -657,3 +653,10 @@ template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,
 #include "SolutionTemplateInstantiations.inl"
 
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+
+
+#if defined( _WIN32 )
+__declspec(thread) KernelMap *kernelMap = 0;
+#else
+__thread KernelMap *kernelMap = 0;
+#endif

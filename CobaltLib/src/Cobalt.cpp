@@ -48,6 +48,19 @@ CobaltStatus cobaltSetup( const char *logFileName ) {
  * cobaltTeardown
  ******************************************************************************/
 CobaltStatus cobaltTeardown() {
+
+  // delete kernels
+  if (kernelMap) {
+    unsigned int index = 0;
+    for ( KernelMap::iterator i = kernelMap->begin(); i != kernelMap->end(); i++) {
+      printf("releasing kernel %u\n", index);
+      clReleaseKernel(i->second);
+      index++;
+    }
+    delete kernelMap;
+    kernelMap = nullptr;
+  }
+
   return cobaltStatusSuccess;
 }
 

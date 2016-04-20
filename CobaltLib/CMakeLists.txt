@@ -85,7 +85,7 @@ else()
       ${CobaltLib_SRC_GENERATED_DYNAMIC}
       ${CobaltLib_CMAKE_DYNAMIC}
     COMMAND
-      python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
+      python -m cProfile ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
       --backend=${Cobalt_BACKEND}
       --input-path=${CobaltBenchmark_DIR_SOLUTIONS}
       --output-path=${CobaltLib_DIR_GENERATED}

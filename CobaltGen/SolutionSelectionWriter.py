@@ -181,10 +181,8 @@ class SolutionSelectionWriter:
     totalFlops = self.getSize(problem)
     if problem.tensorA.dataType.isReal():
       totalFlops *= 2
-      s += "2"
     else:
       totalFlops *= 8
-      s += "8"
     ## multiply summation indices
     for i in range(0, len(problem.operation.indexAssignmentsA)):
       index = problem.operation.indexAssignmentsA[i]
@@ -239,7 +237,7 @@ class SolutionSelectionWriter:
       solution = problemSolutionPairs[i][1]
       if self.isSingleton(problem, solution):
         singles.append( problemSolutionPairs[i] )
-    return fallbacks
+    return singles
 
   def getIndexOfFastest( self, psps ):
     fastestIndex = 0
@@ -370,7 +368,7 @@ class SolutionSelectionWriter:
     for newPSP in psps:
       tileAlreadyCovered = False
       for alreadyPSP in s:
-        if self.coversSameDim01(alreadyPSP[1], newPSP[1]):
+        if self.coversSameDim(alreadyPSP[1], newPSP[1]):
           tileAlreadyCovered = True
       if not tileAlreadyCovered:
         s.append(newPSP)
@@ -450,6 +448,23 @@ class SolutionSelectionWriter:
       return False
     return True
 
+  def coversSameDim( self, s0, s1 ):
+    mt_s0_d0 = s0.kernels[0].tile.workGroup[0] * s0.kernels[0].tile.microTile[0]
+    mt_s0_d1 = s0.kernels[0].tile.workGroup[1] * s0.kernels[0].tile.microTile[1]
+    mt_s0_dU = s0.kernels[0].unrolls[len(s0.kernels[0].unrolls)-1]
+    mt_s1_d0 = s1.kernels[0].tile.workGroup[0] * s1.kernels[0].tile.microTile[0]
+    mt_s1_d1 = s1.kernels[0].tile.workGroup[1] * s1.kernels[0].tile.microTile[1]
+    mt_s1_dU = s1.kernels[0].unrolls[len(s1.kernels[0].unrolls)-1]
+
+    if mt_s1_d0 % mt_s0_d0 > 0:
+      return False
+    if mt_s1_d1 % mt_s0_d1 > 0:
+      return False
+    if mt_s1_dU % mt_s0_dU > 0:
+      return False
+
+    return True
+
   # two rules conflict only if they have same elements in different order
   def rulesConflict(self, rule, newRule):
     #print "checking if rules conflict"
@@ -462,7 +477,7 @@ class SolutionSelectionWriter:
         for psp in ug:
           for npsp in nug:
             # if psp and npsp have exactly same tile but are different solution, then conflict
-            if self.coversSameDim01( psp[1], npsp[1]) and self.coversSameDim01( npsp[1], psp[1]):
+            if self.coversSameDim( psp[1], npsp[1]) and self.coversSameDim( npsp[1], psp[1]):
               if not psp[1] == npsp[1]:
                 #print "psp " + self.pspToString(psp) + " conflicts with npsp " + self.pspToString(npsp)
                 return True
@@ -493,7 +508,7 @@ class SolutionSelectionWriter:
               for pspNewi in range(0, len(unorderedGroupNewSubsequent)):
                 #print i, j, iNew, jNew, pspi, pspNewi
                 pspNew = unorderedGroupNewSubsequent[pspNewi]
-                if self.coversSameDim01( pspNew[1], solution): # TODO reverse?
+                if self.coversSameDim( pspNew[1], solution): # TODO reverse?
                   solutionInNewRuleSubsequent = True
                   break
               if solutionInNewRuleSubsequent:
@@ -501,7 +516,7 @@ class SolutionSelectionWriter:
                   solutionSubsequent = pspSubsequent[1]
                   solutionSubsequentInNewRule = False # if stile in ordered unit in new rule
                   for pspNew in unorderedGroupNew:
-                    if self.coversSameDim01(pspNew[1], solutionSubsequent): # TODO reverse?
+                    if self.coversSameDim(pspNew[1], solutionSubsequent): # TODO reverse?
                       solutionSubsequentInNewRule = True
                       break
                     #else:
@@ -548,7 +563,7 @@ class SolutionSelectionWriter:
           for j in range( nugi+1, len(nugs)):
             nug = nugs[j]
             for npsp in nug:
-              if self.coversSameDim01( npsp[1], psp[1]) and self.coversSameDim01( psp[1], npsp[1]):
+              if self.coversSameDim( npsp[1], psp[1]) and self.coversSameDim( psp[1], npsp[1]):
                 #print "invalidating pspsValid " + self.pspToString(psp) + " b/c " + self.pspToString(npsp)
                 # remove this from PSPsValid
                 invalid = True
@@ -566,7 +581,7 @@ class SolutionSelectionWriter:
           for j in range( ugi+1, len(ugs)):
             ug = ugs[j]
             for psp in ug:
-              if self.coversSameDim01( psp[1], npsp[1]) and self.coversSameDim01( npsp[1], psp[1]):
+              if self.coversSameDim( psp[1], npsp[1]) and self.coversSameDim( npsp[1], psp[1]):
                 #print "invalidating npspsValid " + self.pspToString(npsp) + " b/c " + self.pspToString(npsp)
                 # remove this from nPSPsValid
                 invalid = True
@@ -608,7 +623,7 @@ class SolutionSelectionWriter:
 
     # update rule with new unorderedGroups
     #print "updating rule with merged ugs"
-    rule[0] = mugs
+    rule[0] = self.removeTileDuplicates( mugs )
 
     # update rule with new upper limit
     #print "updating rule with merged upper limit"
@@ -839,17 +854,18 @@ class SolutionSelectionWriter:
       # than the fallback; logically all must be branch.multiple AND exact
       # match (else would be fallback); sorted fastest to slowest
       #########################################################################
-      pspsFasterThanFallbackUnsorted = self.getPSPsFasterThan(pspsForLargestSize, fallback)
-      pspsFasterThanFallback = self.sortSpeedPSPs(pspsFasterThanFallbackUnsorted)
-      pspsFasterThanFallback = self.removeTileDuplicates( pspsFasterThanFallback ) # if same tile but differet unrolls, remove slower
-      for psp in pspsFasterThanFallback:
+      singletonsForLargestSize = self.getSingletons(pspsForLargestSize)
+      singletonsFasterThanFallbackUnsorted = self.getPSPsFasterThan(singletonsForLargestSize, fallback)
+      singletonsFasterThanFallback = self.sortSpeedPSPs(singletonsFasterThanFallbackUnsorted)
+      singletonsFasterThanFallback = self.removeTileDuplicates( singletonsFasterThanFallback ) # if same tile but differet unrolls, remove slower
+      for psp in singletonsFasterThanFallback:
         print "~" + self.pspToString(psp)
       
       #########################################################################
       # (d): (b) and (c) constitute the "rule"
       #########################################################################
       unorderedGroups = []
-      for psp in pspsFasterThanFallback:
+      for psp in singletonsFasterThanFallback:
         unorderedGroup = []
         unorderedGroup.append( psp )
         unorderedGroups.append( unorderedGroup )
@@ -857,58 +873,61 @@ class SolutionSelectionWriter:
       ruleString = self.ruleToString(rule)
       print "RULE: " + ruleString
 
-      if len(pspsFasterThanFallback):
+      # if len(singletonsFasterThanFallback):
         # find size threshold of rule
-        # (f) incrementally move down in size to fallback-threshold, at each size make sorted list of all psps faster than fallback
-        indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, fallback[0])
-        if indexOfNextLargestSize < len(problemSolutionPairs):
-          nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
-          while self.compareSize(nextLargestSizeP, fallbackLowerBoundP) >= 0:
-            #print "checking size " + str(self.getSize(nextLargestSizeP)**(1.0/2.0))
-            #print "pspsForCurrentSize"
-            pspsForCurrentSize = self.getPSPsForSize(problemSolutionPairs, nextLargestSizeP)
-            #print "pspsFasterThanFallbackCurrentSizeUnsorted"
-            pspsFasterThanFallbackCurrentSizeUnsorted = self.getPSPsFasterThan(pspsForCurrentSize, fallback)
-            #print "pspsFasterThanFallbackCurrentSize"
-            pspsFasterThanFallbackCurrentSize = self.sortSpeedPSPs(pspsFasterThanFallbackCurrentSizeUnsorted)
-            #print "pspsFasterThanFallbackCurrentSize remove duplicates"
-            pspsFasterThanFallbackCurrentSize = self.removeTileDuplicates( pspsFasterThanFallbackCurrentSize )
-            #print "creating new ugs"
-            unorderedGroups = []
-            for psp in pspsFasterThanFallbackCurrentSize:
-              unorderedGroup = []
-              unorderedGroup.append( psp )
-              unorderedGroups.append( unorderedGroup )
-            #print "creating new rule"
-            newRule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, nextLargestSizeP]
-            newRuleString = self.ruleToString(newRule)
-            print "NEXT RULE: " + newRuleString
+        # (f) incrementally move down in size to fallback-threshold, at each size make sorted list of all singletons faster than fallback
+      indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, fallback[0])
+      if indexOfNextLargestSize < len(problemSolutionPairs):
+        nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
+        while self.compareSize(nextLargestSizeP, fallbackLowerBoundP) >= 0:
+          #print "checking size " + str(self.getSize(nextLargestSizeP)**(1.0/2.0))
+          #print "singletonsForCurrentSize"
+          singletonsForCurrentSize = self.getPSPsForSize(problemSolutionPairs, nextLargestSizeP)
+          #print "singletonsFasterThanFallbackCurrentSizeUnsorted"
+          singletonsFasterThanFallbackCurrentSizeUnsorted = self.getPSPsFasterThan(singletonsForCurrentSize, fallback)
+          #print "singletonsFasterThanFallbackCurrentSize"
+          singletonsFasterThanFallbackCurrentSize = self.sortSpeedPSPs(singletonsFasterThanFallbackCurrentSizeUnsorted)
+          #print "singletonsFasterThanFallbackCurrentSize remove duplicates"
+          singletonsFasterThanFallbackCurrentSize = self.removeTileDuplicates( singletonsFasterThanFallbackCurrentSize )
+          #print "creating new ugs"
+          unorderedGroups = []
+          for psp in singletonsFasterThanFallbackCurrentSize:
+            unorderedGroup = []
+            unorderedGroup.append( psp )
+            unorderedGroups.append( unorderedGroup )
+          #print "creating new rule"
+          newRule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, nextLargestSizeP]
+          newRuleString = self.ruleToString(newRule)
+          print "NEXT RULE: " + newRuleString
 
-            if self.rulesConflict(rule, newRule):
-              print "STATUS - NEXT RULE REJECTED"
-              # current rule is "the rule" with correct size threshold and correct
-              break
-            else:
-              print "STATUS - NEXT RULE ACCEPTED"
-              # we can make new rule which is at smaller size then "the rule" and may add more tiles without losing performance
-              self.mergeRules(rule, newRule)
-              ruleString = self.ruleToString(rule)
-              print "MERGED RULE: " + ruleString
-            #print "getting index of next largest size"
-            indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, nextLargestSizeP)
-            if indexOfNextLargestSize == len(problemSolutionPairs):
-              break
-            #print "getting index of next largest size - done"
-            nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
-            #print "continuing while"
-          print "STATUS - Done scanning down sizes to find lowest size for rule"
+          if self.rulesConflict(rule, newRule):
+            print "STATUS - NEXT RULE REJECTED"
+            # current rule is "the rule" with correct size threshold and correct
+            break
+          else:
+            print "STATUS - NEXT RULE ACCEPTED"
+            # we can make new rule which is at smaller size then "the rule" and may add more tiles without losing performance
+            self.mergeRules(rule, newRule)
+            ruleString = self.ruleToString(rule)
+            print "MERGED RULE: " + ruleString
+          #print "getting index of next largest size"
+          indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, nextLargestSizeP)
+          if indexOfNextLargestSize == len(problemSolutionPairs):
+            break
+          #print "getting index of next largest size - done"
+          nextLargestSizeP = problemSolutionPairs[indexOfNextLargestSize][0]
+          #print "continuing while"
+        print "STATUS - Done scanning down sizes to find lowest size for rule"
 
       # (g) if (f) conflicts with (e) by more than tolerance, then this is the size threshold for rule
       # repeat (e) and (g)
-      else:
-        # fallback is size threshold
-        print "ERROR"
-        rule.append(fallbackProblem)
+      #else:
+      #  # fallback is size threshold
+      #  print "ERROR"
+      #  rule.append(fallbackProblem)
+
+      # remove duplicates in the rule one last time
+      # rule[0] = self.removeTileDuplicates(rule[0])
 
       #######################
       # here is the rule
@@ -1039,7 +1058,7 @@ class SolutionSelectionWriter:
 
     prevSize = 0
     while True:
-      print "prevSize = %u" % prevSize
+      #print "prevSize = %u" % prevSize
       size = 1e6 # 1M*1M
       # get next larger size = smallest size that is still 2 larger than prev size
       for i in range( len(psps)-1, 0, -1):
@@ -1047,7 +1066,7 @@ class SolutionSelectionWriter:
         currentSize = self.getSize(psp[0])**0.5
         if currentSize < size and currentSize > prevSize+2:
           size = currentSize
-          print "next size %u found at index %u" % (size, len(psps)-i)
+          #print "next size %u found at index %u" % (size, len(psps)-i)
           break
         psps.remove(psp)
       if size == 1e6:

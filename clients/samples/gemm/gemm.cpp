@@ -80,7 +80,7 @@ int main( char * argv[], int argc ) {
       // TODO - are above important enough for SolutionSelectionLogic to handle it
   }
 #endif
-  sizes.push_back( {5760, 5760, 5760 });
+  sizes.push_back( {128, 128, 128 });
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
