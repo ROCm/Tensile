@@ -549,6 +549,15 @@ class Problem:
     self.tensorB = Tensor
     self.operation = Operation()
     self.deviceProfile = DeviceProfile()
+    self.sizeFree = 0
+
+  def getSizeFree(self):
+    if self.sizeFree == 0:
+      self.sizeFree = 1
+      for dimension in self.tensorC.dimensions:
+        self.sizeFree *= dimension.size
+    return self.sizeFree
+
 
   def __str__(self):
     #state = "[Problem"

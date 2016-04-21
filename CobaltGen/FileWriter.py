@@ -525,12 +525,12 @@ class FileWriter:
         baseName = "CobaltGetSolution_" + exactMatch.libString()
         
         # (7) Write CSV for verification
-        print "Writing CSV for %s" % baseName
-        csvPath = self.outputPath + self.otherSubdirectory + baseName + "_SolutionSpeeds.csv"
-        csvFile = open(csvPath, "w")
-        s = sslw.writePSPsToCSV(exactMatch, problemSolutionPairs)
-        csvFile.write(s)
-        csvFile.close()
+        #print "Writing CSV for %s" % baseName
+        #csvPath = self.outputPath + self.otherSubdirectory + baseName + "_SolutionSpeeds.csv"
+        #csvFile = open(csvPath, "w")
+        #s = sslw.writePSPsToCSV(exactMatch, problemSolutionPairs)
+        #csvFile.write(s)
+        #csvFile.close()
 
 
 
