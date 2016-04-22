@@ -12,7 +12,6 @@ import argparse
 #    batched largest stride (A+B) -> shortest stride
 #    free largest stride (of A,B input tensor) -> shortest stride
 #    last two indices must belong to different A,B and are assigned d0,d1
-# TODO - should batched be mingled among free for faster performance?
 ################################################################################
 def makeIndexAssignments(kernel, problem):
   numIndicesC = problem.operation.numIndicesFree \
@@ -169,7 +168,6 @@ class SolutionCandidateGenerator:
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 1
   maxMicroTileSize = 8
-  # TODO; if unroll=8 is faster than unroll=16 then also check unroll=4; yes helped
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -259,7 +257,6 @@ class SolutionCandidateGenerator:
     # size < 96 begins to behave skinny, i.e., becomes bandwidth bound
     # but only < 32 does a unique tile improve performance;
     # for sizes 32-96 square tiles are still withing 4% performance of best skinny
-    # TODO: haven't tested > 1024 threshold 
     if problemSizeDim0 < 32 and problemSizeDim1 > 1024:
       problemSkinnyDim0 = 1
     problemSkinnyDim1 = 0
@@ -290,9 +287,6 @@ class SolutionCandidateGenerator:
 
     # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
-      # TODO remove this; for debugging just to one unroll
-      # if len(unroll) > 1:
-      #   continue
       kernel.unrolls = unroll
       # if last unroll is multiple of last/unrolled summation
       if problemSizeUnroll % unroll[len(unroll)-1] > 0:
@@ -338,7 +332,6 @@ class SolutionCandidateGenerator:
                 * kernel.dataTypeC.numRegisters() \
                 + microTile[0] * kernel.dataTypeA.numRegisters() \
                 + microTile[1] * kernel.dataTypeB.numRegisters() )
-            #maxRegisters /= 2; # TODO remove this; bypasses VS compiler limit string length
             if numRegisters > self.maxRegisters:
               continue
 

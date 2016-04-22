@@ -15,7 +15,7 @@ namespace Cobalt {
 std::string toString( CobaltStatus code );
 std::string toString( CobaltDataType dataType );
 std::string toString( CobaltOperationType type );
-std::string toString( CobaltProblem problem ); // TODO move to problem.h
+std::string toString( CobaltProblem problem );
 
 template<typename T>
 std::string tensorElementToString( T element );

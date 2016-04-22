@@ -56,8 +56,6 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
   for (size_t i = 0; i < problem.tensorA.numDims(); i++) {
     if ( problem.indicesA[i] >= numIndicesFreeC) {
       boundIndexSizes[problem.indicesA[i]-numIndicesFreeC] = problem.tensorA[i].size;
-      //printf("boundIndexSizes[%u] = %u\n", problem.indicesA[i] - numIndicesFreeC, problem.tensorA[i].size);
-      // TODO - verify
     }
   }
 
@@ -143,7 +141,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       sumC = add<TypeC,TypeC,TypeC>(tmp,sumC);
     }
 
-    dataC[serialIdxC] = sumC; // TODO - or += allow split among k
+    dataC[serialIdxC] = sumC;
 
     // increment free coord
     freeCoord[0]++;
@@ -213,7 +211,6 @@ std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Problem & problem) {
       return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
     }
   } else {
-  // TODO - reorganize to include CPU convolution also
       return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
   }
 }

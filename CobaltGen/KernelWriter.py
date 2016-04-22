@@ -144,16 +144,6 @@ class KernelWriter:
       ppdStr = "O0"
     kernelName += "_" + ppdStr
 
-    # anything #defined in the kernel has to be part of the name for uniqueness
-    # leading strides; only optimized if 1, so they're accounted for above
-    # offsets; only optimized if zero, so they're accounted for above
-    # all sizes; TODO
-
-
-
-
-
-
     #print kernelName
     return kernelName
 
@@ -232,7 +222,6 @@ class KernelWriter:
       s += "," + self.endLine + "  DATA_TYPE_STR_C const alpha"
     if kernel.problem.operation.useBeta:
       s += "," + self.endLine + "  DATA_TYPE_STR_C const beta"
-    # TODO - if convolution, need stride and pad for each sum dim
     s += " )"
     return s
 
@@ -449,7 +438,6 @@ class KernelWriter:
 
     ####################################
     # MADs
-    # TODO - mix real/complex
     if kernel.dataTypeC.isReal():
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \

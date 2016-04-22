@@ -70,10 +70,6 @@ class SolutionSelectionWriter:
   #############################################################################
   # write device-level getSolution
   # chooses amongst exact matches
-  # TODO - in the future, we need another level of selection right after this one
-  # which matched the free index order (sorted by strideA+strideB) and summation
-  # index order (sorted by same) because that is an optimization which matters
-  # to higher dimensions
   #############################################################################
   def writeGetSolutionForDevice( self, deviceProfile, exactMatches):
     functionName = "getSolution_" + deviceProfile.libString()
@@ -515,7 +511,7 @@ class SolutionSelectionWriter:
               for pspNewi in range(0, len(unorderedGroupNewSubsequent)):
                 #print i, j, iNew, jNew, pspi, pspNewi
                 pspNew = unorderedGroupNewSubsequent[pspNewi]
-                if self.coversSameDim( pspNew[1], solution): # TODO reverse?
+                if self.coversSameDim( pspNew[1], solution):
                   solutionInNewRuleSubsequent = True
                   break
               if solutionInNewRuleSubsequent:
@@ -523,13 +519,12 @@ class SolutionSelectionWriter:
                   solutionSubsequent = pspSubsequent[1]
                   solutionSubsequentInNewRule = False # if stile in ordered unit in new rule
                   for pspNew in unorderedGroupNew:
-                    if self.coversSameDim(pspNew[1], solutionSubsequent): # TODO reverse?
+                    if self.coversSameDim(pspNew[1], solutionSubsequent):
                       solutionSubsequentInNewRule = True
                       break
                     #else:
                       #print "solutions not equal"
                   if solutionSubsequentInNewRule:
-                    # TODO does the conflict surpass tolerance?
                     #print "rule conflict detected"
                     return True
     #print "no rule conflict detected"

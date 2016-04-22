@@ -791,11 +791,6 @@ class Kernel:
     self.ppdLeadingStride = False #leading strides are #defined and not arguments
     self.ppdAll = False #everything is #defined and not arguments
 
-    # frozens
-    # TODO remove these
-    self.indexOrderC_Frozen = []
-    self.indexOrderSummation_Frozen = []
-    self.unrolls_Frozen = []
 
   def __str__(self):
     state = "[Kernel; " + str(self.tile)

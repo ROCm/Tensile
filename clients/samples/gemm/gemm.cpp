@@ -77,7 +77,6 @@ int main( char * argv[], int argc ) {
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
       sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
-      // TODO - are above important enough for SolutionSelectionLogic to handle it
   }
 #endif
   //sizes.push_back( {128, 128, 128 });
@@ -279,7 +278,7 @@ CobaltProblem createProblemGEMM(
   return problem;
 }
 
-// TODO - debug this
+
 CobaltTensor createTensorForMatrix(
     CobaltDataType dataType,
     size_t initialStride,

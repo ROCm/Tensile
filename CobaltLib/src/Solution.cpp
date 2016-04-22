@@ -386,7 +386,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   TypeC betaOne = Cobalt::getOne<TypeC>(); // if summation unrolled
 
   if (argOffsets && !problem.useOffsets) {
-    printf("SolutionOpenCL::enqueue() solution requires offsets but problem specifies not to use them; TODO - write code to provide dummyOffsets=0 for this scenario.\n");
+    printf("SolutionOpenCL::enqueue() solution requires offsets but problem specifies not to use them; write code to provide dummyOffsets=0 for this scenario.\n");
   }
 
   cl_int status;

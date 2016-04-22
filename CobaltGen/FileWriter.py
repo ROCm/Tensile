@@ -490,7 +490,7 @@ class FileWriter:
 
 
   ##############################################################################
-  # write backend files - TODO delete this?
+  # write backend files
   ##############################################################################
   def writeBackendFiles( self, psTimes ):
     print "status: writing backend files"
