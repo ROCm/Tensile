@@ -71,8 +71,8 @@ const size_t sgemmSizeBounds[][2] = {
 int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 0
-  for (size_t i = 16; i <= 6000; i+= 16) {
+#if 1
+  for (size_t i = 2048; i <= 6000; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
@@ -80,7 +80,7 @@ int main( char * argv[], int argc ) {
       // TODO - are above important enough for SolutionSelectionLogic to handle it
   }
 #endif
-  sizes.push_back( {128, 128, 128 });
+  //sizes.push_back( {128, 128, 128 });
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };

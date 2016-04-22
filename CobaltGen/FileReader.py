@@ -9,8 +9,10 @@ import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
   if exactMatch.deviceProfile not in psMap:
+    print "XML Parser: adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
+    print "XML Parser: adding %s" % exactMatch.libString()
     psMap[exactMatch.deviceProfile][exactMatch] = {}
   if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
     psMap[exactMatch.deviceProfile][exactMatch][problem] = {}

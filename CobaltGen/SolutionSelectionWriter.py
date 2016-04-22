@@ -138,8 +138,9 @@ class SolutionSelectionWriter:
     return (s, h)
   
   # fallback problem/solution pair = "b" solution or "m" solution which launched multiple kernels
-  # TODO - doesn't check if last unroll is zero
   def isFallback(self, problem, solution):
+    if solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1] > 1:
+      return False
     if solution.branch[0].isBranched() and solution.branch[1].isBranched():
       return True
     if solution.branch[0].isMultiple():
@@ -266,15 +267,19 @@ class SolutionSelectionWriter:
     return largestIndex
 
   def sortSizePSPs( self, inputPSPs ):
-    psps = copy.deepcopy(inputPSPs)
-    s = []
-    while len(psps) > 0:
-      indexOfLargest = self.getIndexOfLargest(psps)
-      s.append( psps.pop(indexOfLargest) )
-    return s
+    sorted(inputPSPs, key=lambda psp:psp[0].getSizeFree())
+    return inputPSPs
+
+    # psps = inputPSPs # copy.deepcopy(inputPSPs)
+    # s = []
+    # while len(psps) > 0:
+    #   indexOfLargest = self.getIndexOfLargest(psps)
+    #   #print "indexOfLargest = %u (%u)" % (indexOfLargest, psps[indexOfLargest][0].getSizeFree())
+    #   s.append( psps.pop(indexOfLargest) )
+    # return s
 
   def sortSpeedPSPs( self, inputPSPs ):
-    psps = copy.deepcopy(inputPSPs)
+    psps = inputPSPs # copy.deepcopy(inputPSPs)
     s = []
     while len(psps) > 0:
       indexOfFastest = self.getIndexOfFastest(psps)
@@ -283,10 +288,11 @@ class SolutionSelectionWriter:
 
   def getPSPsWithSize(self, psps, size ):
     s = []
-    for psp in psps:
-      self.sizeOfPSP = psp[0].getSizeFree()
-      if self.sizeOfPSP == size:
-        s.append(psp)
+    s[:] = [ psp for psp in psps if psp[0].getSizeFree() == size ]
+    # for psp in psps:
+    #   self.sizeOfPSP = psp[0].getSizeFree()
+    #   if self.sizeOfPSP == size:
+    #     s.append(psp)
     return s
 
   def getIndexOfSolution( self, psps, solution ):
@@ -665,6 +671,12 @@ class SolutionSelectionWriter:
       for psp in ug:
         self.addPSPToSets(psp)
     self.addPSPToSets(rule[1]) # fallback
+    newFallbackPSP = copy.deepcopy( rule[1] )
+    for i in range( 0, 4):
+      if newFallbackPSP[1].kernels[i] != None:
+        newFallbackPSP[1].kernels[i].unrolls = [ 1 ]
+    self.addPSPToSets(newFallbackPSP)
+
 
   def ruleToLibString(self, rule, firstSizeGroup, lastSizeGroup, indent):
     s = ""
@@ -699,14 +711,23 @@ class SolutionSelectionWriter:
           size0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
           size1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
           sizeU = solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1]
+          sizeUL = solution.kernels[0].unrolls[0]
           gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
-          s += indent + "  if ( size0 %% %3u && size1 %% %3u && sizeU %% %3u ) {" % (size0, size1, sizeU)
+          s += indent + "  if ( size0 %% %3u && size1 %% %3u && sizeU %% %2u && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
           s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(exactPSP)
     fallbackPSP = rule[1]
     fallbackSolution = fallbackPSP[1]
+    sizeUL = fallbackSolution.kernels[0].unrolls[0]
     gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
-    s += indent + "  return new Cobalt::%s%s( problem ); // %s\n" % (self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+    s += indent + "  if ( sizeU >= %2u) { return new Cobalt::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+    newFallbackSolution = copy.deepcopy( fallbackSolution )
+    for i in range( 0, 4):
+      if newFallbackSolution.kernels[i] != None:
+        newFallbackSolution.kernels[i].unrolls = [ 1 ]
+    s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
+    
+
     s += indent + "}"
     return s
 
@@ -716,8 +737,13 @@ class SolutionSelectionWriter:
   # chooses amongst sizes and mods
   #############################################################################
   def writeGetSolutionForExactMatch(self, exactMatch, inputProblemSolutionPairs):
-    problemSolutionPairsUnsorted = copy.deepcopy(inputProblemSolutionPairs)
+    problemSolutionPairsUnsorted = inputProblemSolutionPairs # deep copy
+    
+
+
+    print "Sorting %u PSPs" % len(inputProblemSolutionPairs)
     problemSolutionPairs = self.sortSizePSPs(problemSolutionPairsUnsorted)
+    print "Sorting done."
     # index = 0
     # for psp in problemSolutionPairs:
     #   size = self.getSize(psp[0])**(1.0/2.0)
@@ -951,6 +977,11 @@ class SolutionSelectionWriter:
         for psp in ug:
           localSolutionSet.add( psp[1] )
       localSolutionSet.add(rule[1][1])
+      newFallbackSolution = copy.deepcopy( rule[1][1] )
+      for i in range( 0, 4):
+        if newFallbackSolution.kernels[i] != None:
+          newFallbackSolution.kernels[i].unrolls = [ 1 ]
+      localSolutionSet.add(newFallbackSolution)
 
       # (h) remove psps which have size greater than rule-threshold
       sizeBefore = len(problemSolutionPairs)
