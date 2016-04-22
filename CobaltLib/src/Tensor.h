@@ -17,7 +17,7 @@ public:
   Tensor( CobaltTensor tensor );
   unsigned int numDims() const;
   std::string toString() const;
-  std::string toStringXML(size_t indent) const;
+  std::string toStringXML(size_t indent, std::string which) const;
   bool operator<(const Tensor & other) const;
   size_t getIndex( std::vector<unsigned int> coords ) const;
   size_t numElements() const;

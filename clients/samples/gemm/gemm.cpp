@@ -72,7 +72,7 @@ int main( char * argv[], int argc ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
 #if 1
-  for (size_t i = 2048; i <= 6000; i+= 16) {
+  for (size_t i = 16; i <= 32; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
@@ -103,9 +103,9 @@ int main( char * argv[], int argc ) {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
   const size_t numAlphas = 1;
-  const bool alphas[] = { false, true };
+  const bool alphas[] = { true, false };
   const size_t numBetas = 1;
-  const bool betas[] = { false, true };
+  const bool betas[] = { true, false };
   const size_t numTransA = 1;
   const bool transAs[] = {false, true};
   const size_t numTransB = 1;

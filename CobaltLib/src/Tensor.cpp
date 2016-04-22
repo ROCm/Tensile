@@ -39,18 +39,18 @@ std::string Tensor::toString() const {
   return state;
 }
 
-std::string Tensor::toStringXML( size_t indent ) const {
+std::string Tensor::toStringXML( size_t indent, std::string which ) const {
   std::string state = Cobalt::indent(indent);
-  state += "<Tensor numDimensions=\"" + std::to_string(dimensions.size())
-      + "\"";
-  state += " dataType=\"" + Cobalt::toString( dataType ) + "\"";
-  state += " >\n";
+  state += "<T" + which;
+  state += " t=\"" + std::to_string( dataType ) + "\"";
+  state += " n=\"" + std::to_string(dimensions.size()) + "\"";
   for (size_t i = 0; i < numDims(); i++) {
-    state += Cobalt::indent(indent+1) + "<Dimension stride=\""
+    state += " st" + std::to_string(i) + "=\""
         + std::to_string(dimensions[i].stride) + "\"";
-    state += " size=\"" + std::to_string(dimensions[i].size) + "\" />\n";
+    state += " sz" + std::to_string(i) + "=\""
+        + std::to_string(dimensions[i].size) + "\"";
   }
-  state += Cobalt::indent(indent) + "</Tensor>\n";
+  state += " />\n";
   return state;
 }
 

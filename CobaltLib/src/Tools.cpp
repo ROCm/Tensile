@@ -35,7 +35,7 @@ double Timer::elapsed_us() {
 std::string indent(size_t level) {
   std::string indentStr = "";
   for (size_t i = 0; i < level; i++) {
-    indentStr += "  ";
+    indentStr += " ";
   }
   return indentStr;
 }

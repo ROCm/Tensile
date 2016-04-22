@@ -220,11 +220,9 @@ class SolutionCandidateGenerator:
     problem = copy.deepcopy(inputProblem)
 
     # optimize alpha and beta?
-    if not self.optimizeAlpha and problem.operation.useAlpha==0:
-      problem.operation.useAlpha = True
+    if not self.optimizeAlpha and not problem.operation.useAlpha():
       problem.operation.alphaType = problem.tensorC.dataType
-    if not self.optimizeBeta and problem.operation.useBeta==0:
-      problem.operation.useBeta = True
+    if not self.optimizeBeta and not problem.operation.useBeta():
       problem.operation.betaType = problem.tensorC.dataType
 
     numIndicesC = len(problem.tensorC.dimensions)

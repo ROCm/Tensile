@@ -19,10 +19,7 @@ Logger::TraceEntry::TraceEntry() :
  ******************************************************************************/
 std::string Logger::TraceEntry::toString( size_t indentLevel ) const {
   std::string state = Cobalt::indent(indentLevel);
-  state += "<TraceEntry";
-  state += " enum=\"" + std::to_string(type) + "\"";
-  state += " string=\"" + Logger::toString(type) + "\"";
-  state += " status=\"" + Cobalt::toString(status) + "\" >\n";
+  state += "<TE>\n";
   if (solution) {
     state += solution->toStringXML(indentLevel+1);
   }
@@ -30,11 +27,11 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) const {
   // validation
   if (validationStatus != statusNotValidated) {
     state += Cobalt::indent(indentLevel+1);
-    state += "<Validation status=\"";
+    state += "<V s=\"";
     if (validationStatus == statusValid) {
-      state += "PASSED";
+      state += "P";
     } else {
-      state += "FAILED";
+      state += "F";
     }
     state += "\" />\n";
   }
@@ -42,12 +39,12 @@ std::string Logger::TraceEntry::toString( size_t indentLevel ) const {
   // benchmarking
   for (size_t i = 0; i < benchmarkTimes.size(); i++) {
     state += Cobalt::indent(indentLevel+1);
-    state += "<Benchmark time=\"";
+    state += "<B t=\"";
     state += std::to_string(benchmarkTimes[i]);
-    state += "\" />\n";
+    state += "\" u=\"ms\" />\n";
   }
 
-  state += indent(indentLevel) + "</TraceEntry>\n";
+  state += indent(indentLevel) + "</TE>\n";
   return state;
 }
 

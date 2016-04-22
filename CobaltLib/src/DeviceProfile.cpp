@@ -59,13 +59,12 @@ DeviceProfile::DeviceProfile( CobaltDeviceProfile profile)
  ******************************************************************************/
 std::string DeviceProfile::toStringXML( size_t indent ) const {
   std::string state = Cobalt::indent(indent);
-  state += "<DeviceProfile";
-  state += " numDevices=\"" + std::to_string(devices.size())
-      + "\" >\n";
+  state += "<DP";
+  state += " n=\"" + std::to_string(devices.size()) + "\"";
   for (size_t i = 0; i < devices.size(); i++) {
-    state += devices[i].toStringXML(indent+1);
+    state += " d" + std::to_string(i) + "=\"" + devices[i].name + "\"";
   }
-  state += Cobalt::indent(indent) + "</DeviceProfile>\n";
+  state += " />\n";
   return state;
 }
 

@@ -271,55 +271,44 @@ CobaltStatus Problem::validate( ) {
  ******************************************************************************/
 std::string Problem::toStringXML( size_t indentLevel ) const {
   std::string state = Cobalt::indent(indentLevel);
-  state += "<Problem string=\"" + toString() + "\">\n";
-  state += tensorC.toStringXML( indentLevel+1);
-  state += tensorA.toStringXML( indentLevel+1);
-  state += tensorB.toStringXML( indentLevel+1);
+  state += "<P>\n";
+  state += tensorC.toStringXML( indentLevel+1, "C");
+  state += tensorA.toStringXML( indentLevel+1, "A");
+  state += tensorB.toStringXML( indentLevel+1, "B");
   state += toStringOperationXML( indentLevel+1);
   state += deviceProfile.toStringXML( indentLevel+1);
-  state += Cobalt::indent(indentLevel) + "</Problem>\n";
+  state += Cobalt::indent(indentLevel) + "</P>\n";
   return state;
 }
 
 std::string Problem::toStringOperationXML( size_t indentLevel ) const {
   std::string state = Cobalt::indent(indentLevel);
-  state += "<Operation ";
-  state += "useAlpha=\""+std::to_string(useAlpha())+"\" ";
-  state += "alphaType=\""+std::to_string(alphaType)+"\" ";
-  state += "useBeta=\""+std::to_string(useBeta())+"\" ";
-  state += "betaType=\""+std::to_string(betaType)+"\" ";
-  state += "useOffsets=\""+std::to_string(useOffsets)+"\" ";
-  state += "numIndicesFree=\""+std::to_string(indicesFree.size())+"\" ";
-  state += "numIndicesBatch=\""+std::to_string(indicesBatch.size())+"\" ";
-  state += "numIndicesSummation=\""+std::to_string(indicesSummation.size())+"\" ";
-  state += ">\n";
-  state += Cobalt::indent(indentLevel+1);
+  state += "<O";
+  state += " t=\"" + std::to_string(operationType) + "\"";
+  state += " a=\""+std::to_string(alphaType)+"\"";
+  state += " b=\""+std::to_string(betaType)+"\"";
+  state += " o=\""+std::to_string(useOffsets)+"\"";
+  state += " nF=\""+std::to_string(indicesFree.size())+"\"";
+  state += " nB=\""+std::to_string(indicesBatch.size())+"\"";
+  state += " nS=\""+std::to_string(indicesSummation.size())+"\"";
+  state += " >\n";
   // type
-  state += "<Type enum=\"" + std::to_string(operationType) + "\"";
-  state += " string=\"" + Cobalt::toString(operationType) + "\" />\n";
-  // operationIndexAssignmentsA
-  state += Cobalt::indent(indentLevel+1) + "<IndexAssignments tensor=\"A\" >\n";
+  // index assignments A
+  state += Cobalt::indent(indentLevel+1) + "<IA";
+  state += " n=\"" + std::to_string(indicesA.size()) + "\"";
   for (size_t i = 0; i < indicesA.size(); i++) {
-    state += Cobalt::indent(indentLevel+2);
-    state += "<IndexAssignment";
-    state += " index=\"" + std::to_string(i) + "\"";
-    state += " indexAssignment=\""
-        + std::to_string(indicesA[i]) + "\"";
-    state += " />\n";
+    state += " i" + std::to_string(i) + "=\"" + std::to_string(indicesA[i]) + "\"";
   }
-  state += Cobalt::indent(indentLevel+1) + "</IndexAssignments>\n";
-  // operationIndexAssignmentsB
-  state += Cobalt::indent(indentLevel+1) + "<IndexAssignments tensor=\"B\" >\n";
+  state += " />\n";
+  // index assignments B
+  state += Cobalt::indent(indentLevel+1) + "<IB";
+  state += " n=\"" + std::to_string(indicesB.size()) + "\"";
   for (size_t i = 0; i < indicesB.size(); i++) {
-    state += Cobalt::indent(indentLevel+2);
-    state += "<IndexAssignment";
-    state += " index=\"" + std::to_string(i) + "\"";
-    state += " indexAssignment=\""
-      + std::to_string(indicesB[i]) + "\"";
-    state += " />\n";
+    state += " i" + std::to_string(i) + "=\"" + std::to_string(indicesB[i]) + "\"";
   }
-  state += Cobalt::indent(indentLevel+1) + "</IndexAssignments>\n";
-  state += Cobalt::indent(indentLevel) + "</Operation>\n";
+  state += " />\n";
+
+  state += Cobalt::indent(indentLevel) + "</O>\n";
   return state;
 }
 

@@ -47,175 +47,119 @@ class CobaltHandler( xml.sax.ContentHandler ):
     self.problem = Structs.Problem()
 
     self.currentTensor = 0
-    self.tensor = Structs.Tensor()
-
-    self.currentIndexAssignments = 0
-    self.indexAssignments = []
 
     # for reading solutions
     self.solution = Structs.Solution()
 
   def startElement(self, tag, attributes):
-    if tag == "Problem": # DONE
+    if tag == "P": # DONE
       self.problem = Structs.Problem()
-    elif tag == "Tensor": # DONE
-      self.tensor = Structs.Tensor()
-      dataTypeString = attributes["dataType"]
-      if dataTypeString == "cobaltDataTypeHalf":
-        self.tensor.dataType.value = Structs.DataType.half
-      elif dataTypeString == "cobaltDataTypeSingle":
-        self.tensor.dataType.value = Structs.DataType.single
-      elif dataTypeString == "cobaltDataTypeDouble":
-        self.tensor.dataType.value = Structs.DataType.double
-      elif dataTypeString == "cobaltDataTypeComplexHalf":
-        self.tensor.dataType.value = Structs.DataType.complexHalf
-      elif dataTypeString == "cobaltDataTypeComplexSingle":
-        self.tensor.dataType.value = Structs.DataType.complexSingle
-      elif dataTypeString == "cobaltDataTypeComplexDouble":
-        self.tensor.dataType.value = Structs.DataType.complexDouble
-      elif dataTypeString == "cobaltDataTypeComplexConjugateHalf":
-        self.tensor.dataType.value = Structs.DataType.complexConjugateHalf
-      elif dataTypeString == "cobaltDataTypeComplexConjugateSingle":
-        self.tensor.dataType.value = Structs.DataType.complexConjugateSingle
-      elif dataTypeString == "cobaltDataTypeComplexConjugateDouble":
-        self.tensor.dataType.value = Structs.DataType.complexConjugateDouble
-      elif dataTypeString == "cobaltDataTypeNone":
-        self.tensor.dataType.value = Structs.DataType.none
-      pass
-    elif tag == "Dimension": # DONE
-      dim = Structs.Dimension()
-      dim.stride = int(attributes["stride"])
-      dim.size = int(attributes["size"])
-      self.tensor.dimensions.append( dim )
-      pass
-    elif tag == "Operation":
-      self.problem.operation.useAlpha = int(attributes["useAlpha"])
-      self.problem.operation.alphaType = \
-          Structs.DataType(int(attributes["alphaType"]))
-      self.problem.operation.useBeta = int(attributes["useBeta"])
-      self.problem.operation.betaType = \
-          Structs.DataType(int(attributes["betaType"]))
-      self.problem.operation.useOffsets = int(attributes["useOffsets"])
+    elif tag == "TC": # DONE
+      self.problem.tensorC.dataType.value = int(attributes["t"])
+      n = int(attributes["n"])
+      for i in range(0,n):
+        dim = Structs.Dimension()
+        dim.stride = int(attributes["st"+str(i)])
+        dim.size = int(attributes["sz"+str(i)])
+        self.problem.tensorC.dimensions.append(dim)
+    elif tag == "TA": # DONE
+      self.problem.tensorA.dataType.value = int(attributes["t"])
+      n = int(attributes["n"])
+      for i in range(0,n):
+        dim = Structs.Dimension()
+        dim.stride = int(attributes["st"+str(i)])
+        dim.size = int(attributes["sz"+str(i)])
+        self.problem.tensorA.dimensions.append(dim)
+    elif tag == "TB": # DONE
+      self.problem.tensorB.dataType.value = int(attributes["t"])
+      n = int(attributes["n"])
+      for i in range(0,n):
+        dim = Structs.Dimension()
+        dim.stride = int(attributes["st"+str(i)])
+        dim.size = int(attributes["sz"+str(i)])
+        self.problem.tensorB.dimensions.append(dim)
+    elif tag == "O":
+      self.problem.operation.type.value = int(attributes["t"])
+      #self.problem.operation.useAlpha = int(attributes["useAlpha"])
+      self.problem.operation.alphaType.value = int(attributes["a"])
+      #self.problem.operation.useBeta = int(attributes["useBeta"])
+      self.problem.operation.betaType.value = int(attributes["b"])
+      self.problem.operation.useOffsets = int(attributes["o"])
       self.problem.operation.numIndicesFree = \
-          int(attributes["numIndicesFree"])
+          int(attributes["nF"])
       self.problem.operation.numIndicesBatch = \
-          int(attributes["numIndicesBatch"])
+          int(attributes["nB"])
       self.problem.operation.numIndicesSummation = \
-          int(attributes["numIndicesSummation"])
+          int(attributes["nS"])
       pass
-    elif tag == "Type":
-      operationTypeStr = attributes["string"]
-      if operationTypeStr == "cobaltOperationTypeContraction":
-        self.problem.operation.type = Structs.OperationType(0)
-      elif operationTypeStr == "cobaltOperationTypeConvolution":
-        self.problem.operation.type = Structs.OperationType(1)
-      elif operationTypeStr == "cobaltOperationTypeCorrelation":
-        self.problem.operation.type = Structs.OperationType(2)
+    elif tag == "IA":
+      n = int(attributes["n"])
+      for i in range(0,n):
+        self.problem.operation.indexAssignmentsA.append(int(attributes["i"+str(i)]))
       pass
-    elif tag == "IndexAssignments":
-      self.indexAssignments = []
+    elif tag == "IB":
+      n = int(attributes["n"])
+      for i in range(0,n):
+        self.problem.operation.indexAssignmentsB.append(int(attributes["i"+str(i)]))
       pass
-    elif tag == "IndexAssignment":
-      self.indexAssignments.append(int(attributes["indexAssignment"]))
+    elif tag == "DP":
+      n = int(attributes["n"])
+      for i in range(0,n):
+        name = attributes["d"+str(i)]
+        self.problem.deviceProfile.devices.append(Structs.Device( name ))
       pass
-    elif tag == "DeviceProfile":
-      pass
-    elif tag == "Device":
-      device = Structs.Device(attributes["name"] )
-      self.problem.deviceProfile.devices.append( device )
-      pass
-    elif tag == "ImplementationDetails":
+    elif tag == "ID":
       self.solution.kernels = []
-      self.solution.kernelGrid = [ int(attributes["kernelGrid0"]), int(attributes["kernelGrid1"]), int(attributes["kernelGrid2"]) ]
-      self.solution.branch = [ Structs.BranchType(int(attributes["branch0"])), Structs.BranchType(int(attributes["branch1"])) ]
-      self.solution.ppdOffsets = attributes["ppdOffsets"] == "True"
-      self.solution.ppdLeadingStride = attributes["ppdLeadingStride"] == "True"
+      for i in range(0,4):
+        self.solution.kernels.append(None)
+      self.solution.kernelGrid = [ int(attributes["kG0"]), int(attributes["kG1"]), int(attributes["kG2"]) ]
+      self.solution.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
+      self.solution.ppdOffsets = attributes["ppdO"] == "True"
+      self.solution.ppdLeadingStride = attributes["ppdLS"] == "True"
       self.solution.ppdAll = attributes["ppdAll"] == "True"
       pass
-    elif tag == "Kernel":
+    elif tag == "K":
       # read data from xml
-      if attributes["name"] != "None":
-        kernel = Structs.Kernel()
-        kernel.tile.workGroup = [int(attributes["workGroup0"]), int(attributes["workGroup1"])]
-        kernel.tile.microTile = [int(attributes["microTile0"]), int(attributes["microTile1"])]
-        kernel.tile.branch = [ Structs.BranchType(int(attributes["branch0"])), Structs.BranchType(int(attributes["branch1"])) ]
-        kernel.unrolls = [ int(attributes["unroll0"]) ]
-        secondUnroll = int(attributes["unroll1"])
-        if secondUnroll > 0:
-          kernel.unrolls.append( secondUnroll )
-        # pull data from problem and solution
-        kernel.dataTypeC = self.problem.tensorC.dataType
-        kernel.dataTypeA = self.problem.tensorA.dataType
-        kernel.dataTypeB = self.problem.tensorB.dataType
-        #kernel.operation = self.problem.operation
-        kernel.problem = self.problem
-        kernel.ppdOffsets = self.solution.ppdOffsets
-        kernel.ppdLeadingStride = self.solution.ppdLeadingStride
-        kernel.ppdAll = self.solution.ppdAll
-        # make index assignments (rather than storing in xml)
-        SolutionCandidateGenerator.makeIndexAssignments(kernel, self.problem)
-        # append kernel to current solution
-        self.solution.kernels.append(kernel)
-      else:
-        self.solution.kernels.append(None)
+      i = int(attributes["i"])
+      self.solution.kernels[i] = Structs.Kernel()
+      self.solution.kernels[i].tile.workGroup = [int(attributes["wG0"]), int(attributes["wG1"])]
+      self.solution.kernels[i].tile.microTile = [int(attributes["mT0"]), int(attributes["mT1"])]
+      self.solution.kernels[i].tile.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
+      self.solution.kernels[i].unrolls = [ int(attributes["u0"]) ]
+      secondUnroll = int(attributes["u1"])
+      if secondUnroll > 0:
+        self.solution.kernels[i].unrolls.append( secondUnroll )
+      # pull data from problem and solution
+      self.solution.kernels[i].dataTypeC = self.problem.tensorC.dataType
+      self.solution.kernels[i].dataTypeA = self.problem.tensorA.dataType
+      self.solution.kernels[i].dataTypeB = self.problem.tensorB.dataType
+      #kernel.operation = self.problem.operation
+      self.solution.kernels[i].problem = self.problem
+      self.solution.kernels[i].ppdOffsets = self.solution.ppdOffsets
+      self.solution.kernels[i].ppdLeadingStride = self.solution.ppdLeadingStride
+      self.solution.kernels[i].ppdAll = self.solution.ppdAll
+      # make index assignments (rather than storing in xml)
+      SolutionCandidateGenerator.makeIndexAssignments(self.solution.kernels[i], self.problem)
       pass
-    elif tag == "Benchmark":
+    elif tag == "B":
       # basically end of TraceEntry
-      time = float(attributes["time"])
+      time = float(attributes["t"])
       exactMatch = Structs.ExactMatch()
       self.assignExactMatch(exactMatch)
       addTimeToMap( self.data, exactMatch, copy.deepcopy(self.problem), copy.deepcopy(self.solution), time )
-    elif tag == "Validation":
-      valid = 1 if attributes["status"] == "True" else -1
+    elif tag == "V":
+      valid = 1 if attributes["s"] == "P" else -1
       exactMatch = Structs.ExactMatch()
       self.assignExactMatch(exactMatch)
       addValidationToMap( self.data, exactMatch, self.problem, self.solution, valid )
 
 
   def endElement(self, tag):
-    if tag == "Problem": # DONE
+    if tag == "P": # DONE
       if self.readProblems:
         self.data.add(copy.deepcopy(self.problem))
         self.numProblemsAdded += 1
-    elif tag == "Tensor": # DONE
-      if self.currentTensor == 0: # C
-        self.problem.tensorC = copy.deepcopy(self.tensor)
-      elif self.currentTensor == 1: # A
-        self.problem.tensorA = copy.deepcopy(self.tensor)
-      elif self.currentTensor == 2: # B
-        self.problem.tensorB = copy.deepcopy(self.tensor)
-      self.currentTensor = (self.currentTensor+1)%3
-      pass
-    elif tag == "Dimension": # DONE
-      pass
-    elif tag == "Operation": # DONE
-      pass
-    elif tag == "Type": # DONE
-      pass
-    elif tag == "IndexAssignments": # DONE
-      #print "Completed IndexAssignments:"
-      #print str(self.indexAssignments)
-      if self.currentIndexAssignments == 0: # A
-        self.problem.operation.indexAssignmentsA = self.indexAssignments
-      elif self.currentIndexAssignments == 1: # B
-        self.problem.operation.indexAssignmentsB = self.indexAssignments
-      self.currentIndexAssignments = (self.currentIndexAssignments+1)%2
-      pass
-    elif tag == "IndexAssignment": # DONE
-      pass
-    elif tag == "DeviceProfile":
-      pass
-    elif tag == "Device":
-      pass
-    elif tag == "ImplementationDetails":
-      pass
-    elif tag == "Kernel":
-      pass
-    elif tag == "Benchmark":
-      pass
-    elif tag == "TraceEntry":
-      pass
-    elif tag == "CobaltLog":
+    elif tag == "T": # DONE
       pass
 
   def characters(self, content):
@@ -247,29 +191,24 @@ def getProblemsFromXML( inputFile, problemSet ):
   readSolutions = False
   appProblemsHandler = CobaltHandler(problemSet, readSolutions)
   parser.setContentHandler( appProblemsHandler )
-  try:
-    parser.parse( inputFile )
-    print "  + " + str(appProblemsHandler.numProblemsAdded) \
-        + " problem(s) from " + os.path.basename(inputFile)
-  except:
-    print inputFile + " error"
+  #try:
+  parser.parse( inputFile )
+  print "  + " + str(appProblemsHandler.numProblemsAdded) \
+      + " problem(s) from " + os.path.basename(inputFile)
+  #except:
+  #  print inputFile + " error"
 
 ################################################################################
 # getProblemsFromXML
 ################################################################################
 def getSolutionsFromXML( inputFile, psMap ):
-  print "creating parser\n"
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = True
-  print "creating handler\n"
   solutionsHandler = CobaltHandler(psMap, readSolutions)
-  print "setting handler\n"
   parser.setContentHandler( solutionsHandler )
   try:
-    print "parsing file\n"
     parser.parse( inputFile )
-    print "parsing file - done\n"
   except:
     print inputFile + " error"
   

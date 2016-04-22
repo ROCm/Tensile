@@ -17,10 +17,10 @@ Solution::Solution( const Problem & inputProblem)
  * toStringXML
  ******************************************************************************/
 std::string Solution::toStringXML( size_t indentLevel ) const {
-  std::string state = Cobalt::indent(indentLevel) + "<Solution>\n";
+  std::string state = Cobalt::indent(indentLevel) + "<S>\n";
   state += problem.toStringXML(indentLevel+1);
   state += toStringDetailXML(indentLevel+1);
-  state += Cobalt::indent(indentLevel) + "</Solution>\n";
+  state += Cobalt::indent(indentLevel) + "</S>\n";
   return state;
 }
 

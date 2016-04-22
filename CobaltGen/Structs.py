@@ -375,9 +375,9 @@ class OperationType:
 class Operation:
   def __init__( self ):
     self.type = OperationType(-1)
-    self.useAlpha = -1
+    #self.useAlpha = -1
     self.alphaType = DataType(-1)
-    self.useBeta = -1
+    #self.useBeta = -1
     self.betaType = DataType(-1)
     self.useOffsets = -1
     self.numIndicesFree = -1
@@ -392,9 +392,9 @@ class Operation:
     state = ""
     state += "[Operation"
     state += "; " + str(self.type)
-    state += "; " + str(self.useAlpha)
+    #state += "; " + str(self.useAlpha)
     state += "; " + str(self.alphaType)
-    state += "; " + str(self.useBeta)
+    #state += "; " + str(self.useBeta)
     state += "; " + str(self.betaType)
     state += "; " + str(self.useOffsets)
     state += "; " + str(self.numIndicesFree)
@@ -405,15 +405,18 @@ class Operation:
     state += "]"
     return state
 
+  def useAlpha(self):
+    return self.alphaType.value != DataType.none
+  def useBeta(self):
+    return self.betaType.value != DataType.none
+
   def __repr__(self):
     return self.__str__()
 
   def getAttributes(self):
     return ( \
         self.type, \
-        self.useAlpha, \
         self.alphaType, \
-        self.useBeta, \
         self.betaType, \
         self.useOffsets, \
         self.numIndicesFree, \
@@ -546,7 +549,7 @@ class Problem:
   def __init__( self ):
     self.tensorC = Tensor()
     self.tensorA = Tensor()
-    self.tensorB = Tensor
+    self.tensorB = Tensor()
     self.operation = Operation()
     self.deviceProfile = DeviceProfile()
     self.sizeFree = 0
