@@ -17,7 +17,6 @@ _CrtMemState s2;
 _CrtMemState s3;
 #endif
 
-
 #include "CobaltBenchmark.h"
 #include "Cobalt.h"
 #include "Tools.h"
@@ -30,6 +29,8 @@ _CrtMemState s3;
 #include <tuple>
 #include <cstring>
 #include <cstdio>
+
+#define ULL (unsigned long long)
 
 Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
@@ -78,7 +79,7 @@ int main( int argc, char *argv[] ) {
       _CrtMemCheckpoint( &s2 );
       int diff = _CrtMemDifference(&s3, &s1, &s2);
       _CrtMemDumpStatistics(&s3);
-      printf("Difference[%llu] = %i\n", problemIdx-1, diff);
+      printf("Difference[%llu] = %i\n", ULL problemIdx-1, diff);
     }
     _CrtMemCheckpoint(&s1);
 #endif
@@ -135,7 +136,7 @@ int main( int argc, char *argv[] ) {
       printf("done.\n");
 
     } else {
-      printf("Status: Problem[%llu/%llu] %s\n", problemIdx, problemEndIdx, problem->pimpl->toString().c_str());
+      printf("Status: Problem[%llu/%llu] %s\n", ULL problemIdx, ULL problemEndIdx, problem->pimpl->toString().c_str());
     }
 
 
@@ -148,7 +149,7 @@ int main( int argc, char *argv[] ) {
 #endif
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
-      printf("P[%llu/%llu] S[%llu/%llu] ", problemIdx, problemEndIdx, solutionIdx, solutionEndIdx);
+      printf("P[%llu/%llu] S[%llu/%llu] ", ULL problemIdx, ULL problemEndIdx, ULL solutionIdx, ULL solutionEndIdx);
 
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
