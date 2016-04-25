@@ -91,7 +91,7 @@ public:
  //     const Cobalt::Solution *solution,
  //     CobaltStatus status,
  //     const CobaltControl *ctrl );
-  void Logger::log(const TraceEntry & entry);
+  void log(const TraceEntry & entry);
 
 /*******************************************************************************
  * toString xml

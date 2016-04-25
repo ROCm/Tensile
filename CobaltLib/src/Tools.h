@@ -4,6 +4,8 @@
 #include <string>
 #ifdef WIN32
 #include "Windows.h"
+#else
+#include <time.h>
 #endif
 
 namespace Cobalt {
@@ -20,8 +22,12 @@ public:
   double elapsed_us();
 
 private:
+#ifdef WIN32
   LARGE_INTEGER startTime;
   LARGE_INTEGER frequency; 
+#else
+  timespec startTime;
+#endif
 };
 
 

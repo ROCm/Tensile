@@ -198,10 +198,10 @@ typedef struct KernelMapKey_ {
 } KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
 
-#if defined( _WIN32 )
+#ifdef WIN32
 __declspec(thread) extern KernelMap *kernelMap;
 #else
-__thread extern KernelMap *kernelMap;
+extern __thread KernelMap *kernelMap;
 #endif
 
 bool operator<(const KernelMapKey & l, const KernelMapKey & r);

@@ -72,6 +72,7 @@ add_executable( ${CobaltBenchmark_NAME}
   ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC}
   ${CobaltGen_SRC}
 )
+#set_property(TARGET ${CobaltBenchmark_NAME} PROPERTY CXX_STANDARD 11 )
 source_group( CobaltGen\\Scripts FILES ${CobaltGen_SRC} )
 source_group( CobaltGen\\Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )
 source_group( CobaltGen\\Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )
@@ -96,8 +97,9 @@ include_directories(
 
 # Cobalt depends on OpenCL
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  include_directories( ${OpenCL_INCLUDE_DIR} )
-  target_link_libraries( ${CobaltBenchmark_NAME} ${OpenCL_LIBRARY} )
+  include_directories( ${OPENCL_INCLUDE_DIRS} )
+  target_link_libraries( ${CobaltBenchmark_NAME} ${OPENCL_LIBRARIES} )
+  MESSAGE( "CobaltBenchmark linking ${OPENCL_LIBRARIES}")
 endif()
 
 ############################################################

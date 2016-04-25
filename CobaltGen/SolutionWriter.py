@@ -92,9 +92,9 @@ class SolutionWriter:
     s += "\n"
 
     # tensorC index assignments
-    s += "  indexAssignmentCd0 = " \
+    s += "  this->indexAssignmentCd0 = " \
         + str(solution.kernels[0].indexAssignmentDim0) + ";\n"
-    s += "  indexAssignmentCd1 = " \
+    s += "  this->indexAssignmentCd1 = " \
         + str(solution.kernels[0].indexAssignmentDim1) + ";\n"
 
     # tensorA,B index assignments
@@ -123,29 +123,29 @@ class SolutionWriter:
           + solution.kernels[0].indexOrderSummation[ \
           len(solution.kernels[0].indexOrderSummation)-1]:
         indexAssignmentBdU = i
-    s += "  d0InTensorA = " + ("true" if d0InTensorA else "false") + ";\n"
-    s += "  indexAssignmentAd0or1 = " \
+    s += "  this->d0InTensorA = " + ("true" if d0InTensorA else "false") + ";\n"
+    s += "  this->indexAssignmentAd0or1 = " \
         + str(indexAssignmentAd0or1) + ";\n"
-    s += "  indexAssignmentAdU = " \
+    s += "  this->indexAssignmentAdU = " \
         + str(indexAssignmentAdU) + ";\n"
-    s += "  indexAssignmentBd0or1 = " \
+    s += "  this->indexAssignmentBd0or1 = " \
         + str(indexAssignmentBd0or1) + ";\n"
-    s += "  indexAssignmentBdU = " \
+    s += "  this->indexAssignmentBdU = " \
         + str(indexAssignmentBdU) + ";\n"
     s += "\n"
 
     # tile properties (common to all kernels)
     s += "  /* tile properties */\n"
-    s += "  workGroup[0] = " \
+    s += "  this->workGroup[0] = " \
         + str(solution.kernels[0].tile.workGroup[0]) + ";\n"
-    s += "  workGroup[1] = " \
+    s += "  this->workGroup[1] = " \
         + str(solution.kernels[0].tile.workGroup[1]) + ";\n"
-    s += "  workGroup[2] = 1;\n"
-    s += "  microTile[0] = " \
+    s += "  this->workGroup[2] = 1;\n"
+    s += "  this->microTile[0] = " \
         + str(solution.kernels[0].tile.microTile[0]) + ";\n"
-    s += "  microTile[1] = " \
+    s += "  this->microTile[1] = " \
         + str(solution.kernels[0].tile.microTile[1]) + ";\n"
-    s += "  microTile[2] = 1;\n"
+    s += "  this->microTile[2] = 1;\n"
     s += "  size_t numUnrolls[" + str(len(solution.kernels[0].unrolls)) \
         + "] = { " + str(solution.kernels[0].unrolls[0])
     for i in range(1,len(solution.kernels[0].unrolls)):
@@ -155,42 +155,42 @@ class SolutionWriter:
 
     # kernels
     s += "  /* kernels */\n"
-    s += "  kernelGrid[0] = " + str(solution.kernelGrid[0]) + ";\n"
-    s += "  kernelGrid[1] = " + str(solution.kernelGrid[1]) + ";\n"
-    s += "  kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
+    s += "  this->kernelGrid[0] = " + str(solution.kernelGrid[0]) + ";\n"
+    s += "  this->kernelGrid[1] = " + str(solution.kernelGrid[1]) + ";\n"
+    s += "  this->kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
     numKernels = 0
     for i in range(0, len(solution.kernels)):
       if solution.kernels[i] == None:
-        s += "  kernelSources[" + str(i) + "] = nullptr;\n"
-        s += "  kernels[" + str(i) + "] = nullptr;\n"
+        s += "  this->kernelSources[" + str(i) + "] = nullptr;\n"
+        s += "  this->kernels[" + str(i) + "] = nullptr;\n"
       else:
         name = self.kernelWriter.getName(solution.kernels[i])
         srcName = name + "_src"
         kernelName = name + "_kernel"
-        s += "  kernelSources[" + str(i) + "] = " + srcName + ";\n"
-        s += "  kernels[" + str(i) + "] = " + kernelName + ";\n"
+        s += "  this->kernelSources[" + str(i) + "] = " + srcName + ";\n"
+        s += "  this->kernels[" + str(i) + "] = " + kernelName + ";\n"
         numKernels += 1
-    s += "  numKernels = " + str(numKernels) + ";\n"
+    s += "  this->numKernels = " + str(numKernels) + ";\n"
     # edges
-    s += "  edge[0] = %s;\n" % ("true" if solution.branch[0].isMultiple() else "false")
-    s += "  edge[1] = %s;\n" % ("true" if solution.branch[1].isMultiple() else "false")
-    s += "  edge[2] = false;\n"
+    s += "  this->edge[0] = %s;\n" % ("true" if solution.branch[0].isMultiple() else "false")
+    s += "  this->edge[1] = %s;\n" % ("true" if solution.branch[1].isMultiple() else "false")
+    s += "  this->edge[2] = false;\n"
     s += "\n"
 
 
     # kernel arguments
     s += "  /* kernel arguments */\n"
-    s += "  numKernelArgs = 0; // pointers and offsets\n"
+    s += "  this->numKernelArgs = 0; // pointers and offsets\n"
     s += "\n"
 
     s += "  /* preprocessor optimizations */\n"
-    s += "  argOffsets = %s;\n" % ("true" if not solution.kernels[0].ppdOffsets else "false")
-    s += "  argSizes = %s;\n" % ("true" if not solution.kernels[0].ppdAll else "false")
-    s += "  argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStride else "false")
-    s += "  if ( !argOffsets && inputProblem.useOffsets) {\n"
+    s += "  this->argOffsets = %s;\n" % ("true" if not solution.kernels[0].ppdOffsets else "false")
+    s += "  this->argSizes = %s;\n" % ("true" if not solution.kernels[0].ppdAll else "false")
+    s += "  this->argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStride else "false")
+    s += "  if ( !this->argOffsets && inputProblem.useOffsets) {\n"
     s += "    throw cobaltStatusSolutionDoesNotSupportOffsets;\n"
     s += "  }\n"
-    s += "  if ( !argLeadingStrides && inputProblem.tensorC[0].stride != 1 || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
+    s += "  if ( !this->argLeadingStrides && inputProblem.tensorC[0].stride != 1 || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
     s += "    throw cobaltStatusSolutionDoesNotSupportLeadingStrides;\n"
     s += "  }\n"
     s += "\n"
@@ -209,49 +209,49 @@ class SolutionWriter:
         lastStrideB = firstStride
       s += "  /* C strides */\n"
       for i in range(firstStride,lastStrideC):
-        s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
+        s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
-        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
+        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
             + "[" + str(i) + "].stride);\n"
-        s += "  numKernelArgs++;\n"
+        s += "  this->numKernelArgs++;\n"
       s += "\n"
-      
+
       s += "  /* A strides */\n"
       for i in range(firstStride,lastStrideA):
-        s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
+        s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(i) + "].stride; // strideA" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsA[i]] + "\n"
-        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
+        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
             + "[" + str(i) + "].stride);\n"
-        s += "  numKernelArgs++;\n"
+        s += "  this->numKernelArgs++;\n"
       s += "\n"
-      
+
       s += "  /* B strides */\n"
       for i in range(firstStride,lastStrideB):
-        s += "  kernelArgs[numKernelArgs] = &problem.tensorB[" \
+        s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorB[" \
             + str(i) + "].stride; // strideB" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsB[i]] + "\n"
-        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorB" \
+        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorB" \
             + "[" + str(i) + "].stride);\n"
-        s += "  numKernelArgs++;\n"
+        s += "  this->numKernelArgs++;\n"
       s += "\n"
-      
-      
-      
+
+
+
       s += "  /* free index sizes */\n"
       for i in range(0,solution.kernels[0].problem.operation.numIndicesFree \
           + solution.kernels[0].problem.operation.numIndicesBatch ):
         if i == solution.kernels[0].indexAssignmentDim0:
-          s += "  kernelArgIdxDim0 = numKernelArgs;\n"
+          s += "  this->kernelArgIdxDim0 = this->numKernelArgs;\n"
         if i == solution.kernels[0].indexAssignmentDim1:
-          s += "  kernelArgIdxDim1 = numKernelArgs;\n"
-        s += "  kernelArgs[numKernelArgs] = &problem.tensorC[" \
+          s += "  this->kernelArgIdxDim1 = this->numKernelArgs;\n"
+        s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].size; // size" + self.indexChars[i] + "\n"
-        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorC" \
+        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
             + "[" + str(i) + "].size);\n"
-        s += "  numKernelArgs++;\n"
+        s += "  this->numKernelArgs++;\n"
       s += "\n"
-      
+
       s += "  /* summation index sizes */\n"
       for i in range(solution.kernels[0].problem.operation.numIndicesFree \
             + solution.kernels[0].problem.operation.numIndicesBatch, \
@@ -268,25 +268,25 @@ class SolutionWriter:
               solution.kernels[0].problem.operation.numIndicesFree \
             + solution.kernels[0].problem.operation.numIndicesBatch \
             + solution.kernels[0].problem.operation.numIndicesSummation - 1:
-          s += "  kernelArgIdxSummation = numKernelArgs;\n"
-        s += "  kernelArgs[numKernelArgs] = &problem.tensorA[" \
+          s += "  this->kernelArgIdxSummation = this->numKernelArgs;\n"
+        s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
-        s += "  kernelArgSizes[numKernelArgs] = sizeof(problem.tensorA" \
+        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
             + "[" + str(idx) + "].size);\n"
-        s += "  numKernelArgs++;\n"
+        s += "  this->numKernelArgs++;\n"
       s += "\n"
 
     # alpha & beta
     s += "  /* alpha & beta */\n"
-    s += "  requireAlpha = " + ("true" if solution.kernels[0].problem.operation.useAlpha else "false")
+    s += "  this->requireAlpha = " + ("true" if solution.kernels[0].problem.operation.useAlpha else "false")
     s += ";\n"
-    s += "  requireBeta = " + ("true" if solution.kernels[0].problem.operation.useBeta else "false")
+    s += "  this->requireBeta = " + ("true" if solution.kernels[0].problem.operation.useBeta else "false")
     s += ";\n"
     s += "\n"
 
     # close constructor
     s += "  /* determine globalWorkSize */\n"
-    s += "  assignWorkSizes();\n"
+    s += "  this->assignWorkSizes();\n"
     s += "\n"
 
     # close constructor

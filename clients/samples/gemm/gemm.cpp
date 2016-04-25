@@ -1,5 +1,5 @@
 #include "Cobalt.h"
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <vector>
 #include <array>
@@ -237,7 +237,7 @@ CobaltProblem createProblemGEMM(
   // problem - device problem
   CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
   deviceProfile.numDevices = 1;
-  sprintf_s(deviceProfile.devices[0].name, "Fiji" );
+  sprintf(deviceProfile.devices[0].name, "Fiji" );
 
 
   CobaltStatus status;
