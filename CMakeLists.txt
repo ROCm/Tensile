@@ -9,7 +9,8 @@ cmake_minimum_required(VERSION 2.8)
 set( CobaltProj_NAME Cobalt)
 set( CobaltLib_NAME CobaltLib )
 set( CobaltBenchmark_NAME CobaltBenchmark )
-
+set( TARGET_PLATFORM "64" )
+set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 project( ${CobaltProj_NAME} C CXX )
 
 ############################################################
@@ -19,10 +20,16 @@ set( ${CobaltProj_NAME}_VERSION_MINOR 1 )
 set( ${CobaltProj_NAME}_VERSION_PATCH 0 )
 
 ############################################################
-# App Name
-#set( Cobalt_APP_NAME "App" CACHE STRING
-#  "Prefix for application-specific files" )
-#set_property( CACHE Cobalt_APP_NAME )
+# FindOpenCL.cmake
+set( CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH}
+  ${PROJECT_SOURCE_DIR} )
+message( STATUS "CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}" )
+
+############################################################
+# require C++11
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
+
 
 ############################################################
 # OPTION - Cobalt Build Mode
@@ -48,7 +55,7 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions( -DCobalt_BACKEND_OPENCL12=1 )
   add_definitions( -DCobalt_BACKEND_HCC=0 )
   add_definitions( -DCobalt_BACKEND_HSA=0 )
-  find_package( OpenCL )
+  find_package( OpenCL REQUIRED )
   message( STATUS "${Cobalt_BACKEND} backend selected." )
 endif()
 # HCC / Kalmar

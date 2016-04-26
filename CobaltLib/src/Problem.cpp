@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <assert.h>
+#include <cstring>
 
 namespace Cobalt {
 
@@ -325,7 +326,7 @@ bool Problem::useBeta() const { return betaType != cobaltDataTypeNone; }
 size_t Problem::alphaSize() const { return sizeOf(alphaType); }
 size_t Problem::betaSize() const { return sizeOf(betaType); }
 bool Problem::deviceIsReference() const {
-  return strcmp( deviceProfile.devices[0].name.c_str(), "cpu" ) == 0;
+  return std::strcmp( deviceProfile.devices[0].name.c_str(), "cpu" ) == 0;
 }
 
 /*******************************************************************************

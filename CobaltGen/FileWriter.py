@@ -211,7 +211,7 @@ class FileWriter:
       s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
       s += "  deviceProfile.numDevices = %u;\n" % len(problem.deviceProfile.devices)
       for i in range(0,len(problem.deviceProfile.devices)):
-        s += "  sprintf_s(deviceProfile.devices[%u].name, \"%s\" );\n" % (i, problem.deviceProfile.devices[i].name)
+        s += "  sprintf(deviceProfile.devices[%u].name, \"%s\" );\n" % (i, problem.deviceProfile.devices[i].name)
       s += "\n"
 
 
@@ -434,7 +434,7 @@ class FileWriter:
     s += "\n"
     benchmarkCMakeFile.write(s)
     benchmarkCMakeFile.close()
-    
+
 
 
   ##############################################################################
@@ -523,7 +523,7 @@ class FileWriter:
 
       for exactMatch, problemSolutionPairs in exactMatches.iteritems():
         baseName = "CobaltGetSolution_" + exactMatch.libString()
-        
+
         # (7) Write CSV for verification
         #print "Writing CSV for %s" % baseName
         #csvPath = self.outputPath + self.otherSubdirectory + baseName + "_SolutionSpeeds.csv"
@@ -545,7 +545,7 @@ class FileWriter:
         sslHeaderFile.write(sslHeaderString)
         sslHeaderFile.close()
 
-        
+
 
     # (4) Write Kernel Files
     self.writeKernelFiles(sslw.getKernelSet())

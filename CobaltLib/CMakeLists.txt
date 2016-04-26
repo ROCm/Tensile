@@ -2,11 +2,11 @@
 # CobaltLib
 # project to generate Cobat.lib (full backend) from ProbSolMap.xml
 ################################################################################
-cmake_minimum_required(VERSION 2.8)
-project( ${CobaltLib_NAME} C CXX)
-set( ${CobaltLib_NAME}_VERSION_MAJOR 0 )
-set( ${CobaltLib_NAME}_VERSION_MINOR 1 )
-set( ${CobaltLib_NAME}_VERSION_PATCH 0 )
+#cmake_minimum_required(VERSION 2.8)
+#project( ${CobaltLib_NAME} C CXX)
+#set( ${CobaltLib_NAME}_VERSION_MAJOR 0 )
+#set( ${CobaltLib_NAME}_VERSION_MINOR 1 )
+#set( ${CobaltLib_NAME}_VERSION_PATCH 0 )
 
 if( NOT EXISTS ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
   MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for CobaltLib")
@@ -119,6 +119,7 @@ add_library( ${CobaltLib_NAME}
   ${CobaltLib_SRC_GENERATED_DYNAMIC}
   ${CobaltGen_SRC}
   )
+#set_property(TARGET ${CobaltLib_NAME} PROPERTY CXX_STANDARD 11 )
 
 source_group(CobaltGen\\Scripts FILES ${CobaltGen_SRC})
 source_group(CobaltGen\\Generated FILES
@@ -129,8 +130,9 @@ source_group(CobaltGen\\Generated FILES
 ############################################################
 # Cobalt depends on OpenCL
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  include_directories( ${OpenCL_INCLUDE_DIR} )
-  target_link_libraries( ${CobaltLib_NAME} ${OpenCL_LIBRARY} )
+  MESSAGE( "CobaltLib linking OpenCL: ${OPENCL_INCLUDE_DIRS}" )
+  include_directories( ${OPENCL_INCLUDE_DIRS} )
+  target_link_libraries( ${CobaltLib_NAME} ${OPENCL_LIBRARIES} )
 endif()
 
 

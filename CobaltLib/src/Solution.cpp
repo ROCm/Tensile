@@ -92,13 +92,13 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
 
   // 3rd dim is size of all other dimension
   unsigned int sizeOfAllOtherDimensions = 1;
-  for (unsigned int i = 0; i < problem.tensorC.numDims(); i++) {
+  for (unsigned int i = 0; i < Solution::problem.tensorC.numDims(); i++) {
     if (i != indexAssignmentCd0 && i != indexAssignmentCd1) {
-      sizeOfAllOtherDimensions *= problem.tensorC[i].size;
+      sizeOfAllOtherDimensions *= Solution::problem.tensorC[i].size;
     }
   }
-  unsigned int sizeOfCAlongD0 = problem.tensorC[indexAssignmentCd0].size;
-  unsigned int sizeOfCAlongD1 = problem.tensorC[indexAssignmentCd1].size;
+  unsigned int sizeOfCAlongD0 = Solution::problem.tensorC[indexAssignmentCd0].size;
+  unsigned int sizeOfCAlongD1 = Solution::problem.tensorC[indexAssignmentCd1].size;
   unsigned int macroTileSizeAlongD0 = static_cast<unsigned int>(workGroup[0] * microTile[0]);
   unsigned int macroTileSizeAlongD1 = static_cast<unsigned int>(workGroup[1] * microTile[1]);
   unsigned int totalWorkGroupsAlongD0 = sizeOfCAlongD0 / macroTileSizeAlongD0;
@@ -121,7 +121,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::assignWorkSizes() {
   
   kernelNumElementsDim0[0] = edge[0] ? mainWorkGroupsAlongD0 * macroTileSizeAlongD0 : sizeOfCAlongD0;
   kernelNumElementsDim1[0] = edge[1] ? mainWorkGroupsAlongD1 * macroTileSizeAlongD1 : sizeOfCAlongD1;
-  kernelNumElementsDimU[0] = problem.tensorA[indexAssignmentAdU].size/kernelGrid[2];
+  kernelNumElementsDimU[0] = Solution::problem.tensorA[indexAssignmentAdU].size/kernelGrid[2];
 
 
   // add extra work-group for multi-kernel solution here
@@ -294,7 +294,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
       for (size_t i = 0; i < ctrl.numQueues; i++) { clFlush(ctrl.queues[i]); }
       // allocate memory for gpu result on host
-      size_t sizeC = problem.tensorC.numBytes();
+      size_t sizeC = Solution::problem.tensorC.numBytes();
       CobaltTensorData gpuOnHostC;
       gpuOnHostC.offset = 0;
       gpuOnHostC.data = malloc(sizeC);
@@ -303,11 +303,11 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
       // copy results back
       clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data, CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data, 0, nullptr, nullptr);
       // compare results
-      bool equal = compareTensors(gpuOnHostC, *(static_cast<CobaltTensorData *>(ctrl.validate) ), problem.tensorC, ctrl);
+      bool equal = compareTensors(gpuOnHostC, *(static_cast<CobaltTensorData *>(ctrl.validate) ), Solution::problem.tensorC, ctrl);
       entry.validationStatus = equal ? ValidationStatus::statusValid : ValidationStatus::statusInvalid;
       printf("%s validation %s;", equal ? "PASSED" : "FAILED", toString(0).c_str() );
       // cleanup
-      delete gpuOnHostC.data;
+      delete static_cast<float *>(gpuOnHostC.data);
     } else {
       printf("%s;", toString(0).c_str());
     }
@@ -371,8 +371,8 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   // the default values here
   TypeC fallbackAlpha;
   TypeC fallbackBeta;
-  size_t sizeOfAlpha = problem.alphaSize(); // sizeof(TypeAlpha);
-  size_t sizeOfBeta = problem.betaSize(); // sizeof(TypeBeta);
+  size_t sizeOfAlpha = Solution::problem.alphaSize(); // sizeof(TypeAlpha);
+  size_t sizeOfBeta = Solution::problem.betaSize(); // sizeof(TypeBeta);
   if (!alpha.data && requireAlpha) {
     fallbackAlpha = Cobalt::getOne<TypeC>();
     alpha.data = &fallbackAlpha;
@@ -385,7 +385,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   }
   TypeC betaOne = Cobalt::getOne<TypeC>(); // if summation unrolled
 
-  if (argOffsets && !problem.useOffsets) {
+  if (argOffsets && !Solution::problem.useOffsets) {
     printf("SolutionOpenCL::enqueue() solution requires offsets but problem specifies not to use them; write code to provide dummyOffsets=0 for this scenario.\n");
   }
 
@@ -394,7 +394,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   size_t *globalWorkOffset = NULL;
 
   // compile kernels
-  char *buildOptions = "-cl-std=CL2.0";
+  const char *buildOptions = "-cl-std=CL2.0";
   for (size_t i = 0; i < numKernels; i++) {
     if (kernelSources[i]) {
       makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );
@@ -445,20 +445,20 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
         if (argOffsets || kernelIdx > 0) {
           // tensorC offsets
-          unsigned int tensorOffsetCd0 = d0*kernelNumElementsDim0[0]*problem.tensorC[indexAssignmentCd0].stride;
-          unsigned int tensorOffsetCd1 = d1*kernelNumElementsDim1[0]*problem.tensorC[indexAssignmentCd1].stride;
+          unsigned int tensorOffsetCd0 = d0*kernelNumElementsDim0[0]*Solution::problem.tensorC[indexAssignmentCd0].stride;
+          unsigned int tensorOffsetCd1 = d1*kernelNumElementsDim1[0]*Solution::problem.tensorC[indexAssignmentCd1].stride;
 
           // tensorA,B offsets
-          unsigned int tensorOffsetAdU = dU*kernelNumElementsDimU[0]*problem.tensorA[indexAssignmentAdU].stride;
-          unsigned int tensorOffsetBdU = dU*kernelNumElementsDimU[0]*problem.tensorB[indexAssignmentAdU].stride;
+          unsigned int tensorOffsetAdU = dU*kernelNumElementsDimU[0]*Solution::problem.tensorA[indexAssignmentAdU].stride;
+          unsigned int tensorOffsetBdU = dU*kernelNumElementsDimU[0]*Solution::problem.tensorB[indexAssignmentAdU].stride;
           unsigned int tensorOffsetAd0or1 = 0;
           unsigned int tensorOffsetBd0or1 = 0;
           if (d0InTensorA) {
-            tensorOffsetAd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorA[indexAssignmentAd0or1].stride;
-            tensorOffsetBd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorB[indexAssignmentBd0or1].stride;
+            tensorOffsetAd0or1 = d0*(kernelNumElementsDim0[0])*Solution::problem.tensorA[indexAssignmentAd0or1].stride;
+            tensorOffsetBd0or1 = d1*(kernelNumElementsDim1[0])*Solution::problem.tensorB[indexAssignmentBd0or1].stride;
           } else {
-            tensorOffsetAd0or1 = d1*(kernelNumElementsDim1[0])*problem.tensorA[indexAssignmentAd0or1].stride;
-            tensorOffsetBd0or1 = d0*(kernelNumElementsDim0[0])*problem.tensorB[indexAssignmentBd0or1].stride;
+            tensorOffsetAd0or1 = d1*(kernelNumElementsDim1[0])*Solution::problem.tensorA[indexAssignmentAd0or1].stride;
+            tensorOffsetBd0or1 = d0*(kernelNumElementsDim0[0])*Solution::problem.tensorB[indexAssignmentBd0or1].stride;
           }
           // data offsets
           unsigned int tensorOffsetC = tensorDataC.offset + tensorOffsetCd0 + tensorOffsetCd1;
@@ -581,7 +581,7 @@ SolutionLogOnly<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionLogOnly() {
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
-  return toStringXML(0);
+  return Solution::toStringXML(0);
 }
 
 /*******************************************************************************

@@ -6,9 +6,11 @@
 #ifndef COBALT_H
 #define COBALT_H
 
-#define _CRTDBG_MAP_ALLOC
+#undef _CRTDBG_MAP_ALLOC
+#ifdef _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
 #include <crtdbg.h>
+#endif
 
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"

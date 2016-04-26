@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <cstring>
 
 #if Cobalt_SOLVER_ENABLED
 #include "CobaltGetSolution.h"
@@ -263,13 +264,13 @@ CobaltStatus cppStringToCString(
     // do copy
     if (size) {
       // copy up to size
-      size_t lengthToCopy = min(*size-1 /* reserve space for null char*/,
+      size_t lengthToCopy = std::min(*size-1 /* reserve space for null char*/,
           (unsigned int)state.size());
-      memcpy(cstr, state.c_str(), lengthToCopy);
+      std::memcpy(cstr, state.c_str(), lengthToCopy);
       cstr[lengthToCopy] = '\0';
     } else {
       // copy all
-      memcpy(cstr, state.c_str(), state.size());
+      std::memcpy(cstr, state.c_str(), state.size());
       cstr[state.size()] = '\0';
     }
   } else {

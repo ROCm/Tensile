@@ -39,9 +39,9 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
   
   // index sizes
-  unsigned int numIndicesFreeC = problem.tensorC.numDims();
-  unsigned int numIndicesSummation = static_cast<unsigned int>(problem.indicesSummation.size());
-  unsigned int numIndicesFreeAB = problem.tensorA.numDims() - numIndicesSummation;
+  unsigned int numIndicesFreeC = Solution::problem.tensorC.numDims();
+  unsigned int numIndicesSummation = static_cast<unsigned int>(Solution::problem.indicesSummation.size());
+  unsigned int numIndicesFreeAB = Solution::problem.tensorA.numDims() - numIndicesSummation;
 
   // allocate coords and sizes
   std::vector<unsigned int> freeCoord(numIndicesFreeC);
@@ -53,16 +53,16 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     freeCoord[i] = 0;
   }
 
-  for (size_t i = 0; i < problem.tensorA.numDims(); i++) {
-    if ( problem.indicesA[i] >= numIndicesFreeC) {
-      boundIndexSizes[problem.indicesA[i]-numIndicesFreeC] = problem.tensorA[i].size;
+  for (size_t i = 0; i < Solution::problem.tensorA.numDims(); i++) {
+    if ( Solution::problem.indicesA[i] >= numIndicesFreeC) {
+      boundIndexSizes[Solution::problem.indicesA[i]-numIndicesFreeC] = Solution::problem.tensorA[i].size;
     }
   }
 
   // allocate tensor coords
-  std::vector<unsigned int> coordsC( problem.tensorC.numDims() );
-  std::vector<unsigned int> coordsA( problem.tensorA.numDims() );
-  std::vector<unsigned int> coordsB( problem.tensorB.numDims() );
+  std::vector<unsigned int> coordsC( Solution::problem.tensorC.numDims() );
+  std::vector<unsigned int> coordsA( Solution::problem.tensorA.numDims() );
+  std::vector<unsigned int> coordsB( Solution::problem.tensorB.numDims() );
 
   while (true) { // iterate over entire free index range
 
@@ -74,39 +74,39 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     while (true) { // iterate over entire bound index range
       
       // convert free/bound coord into tensorA,B 
-      for (unsigned int i = 0; i < problem.tensorA.numDims(); i++) {
-        if (problem.indicesA[i] < numIndicesFreeC) {
-          coordsA[i] = freeCoord[problem.indicesA[i]];
+      for (unsigned int i = 0; i < Solution::problem.tensorA.numDims(); i++) {
+        if (Solution::problem.indicesA[i] < numIndicesFreeC) {
+          coordsA[i] = freeCoord[Solution::problem.indicesA[i]];
         } else {
-          coordsA[i] = boundCoord[problem.indicesA[i]-numIndicesFreeC];
+          coordsA[i] = boundCoord[Solution::problem.indicesA[i]-numIndicesFreeC];
         }
       }
-      for (unsigned int i = 0; i < problem.tensorB.numDims(); i++) {
-        if (problem.indicesB[i] < numIndicesFreeC) {
-          coordsB[i] = freeCoord[problem.indicesB[i]];
+      for (unsigned int i = 0; i < Solution::problem.tensorB.numDims(); i++) {
+        if (Solution::problem.indicesB[i] < numIndicesFreeC) {
+          coordsB[i] = freeCoord[Solution::problem.indicesB[i]];
         } else {
-          coordsB[i] = boundCoord[problem.indicesB[i]-numIndicesFreeC];
+          coordsB[i] = boundCoord[Solution::problem.indicesB[i]-numIndicesFreeC];
         }
       }
       
-      size_t serialIdxA = problem.tensorA.getIndex(coordsA);
+      size_t serialIdxA = Solution::problem.tensorA.getIndex(coordsA);
       TypeA valueA = dataA[serialIdxA];
       if ( std::is_same<TypeA, CobaltComplexFloat>::value
         || std::is_same<TypeA, CobaltComplexDouble>::value) {
-        if ( problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf
-          || problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
-          || problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateDouble) {
+        if ( Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf
+          || Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
+          || Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateDouble) {
           complexConjugate<TypeA>( valueA );
         }
       }
 
-      size_t serialIdxB = problem.tensorB.getIndex(coordsB);
+      size_t serialIdxB = Solution::problem.tensorB.getIndex(coordsB);
       TypeB valueB = dataB[serialIdxB];
       if (std::is_same<TypeB, CobaltComplexFloat>::value
         || std::is_same<TypeB, CobaltComplexDouble>::value) {
-        if ( problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf
-          || problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateSingle
-          || problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateDouble) {
+        if ( Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf
+          || Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateSingle
+          || Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateDouble) {
           complexConjugate<TypeB>( valueB );
         }
       }
@@ -130,7 +130,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     } // bound range
 
 
-    size_t serialIdxC = problem.tensorC.getIndex(freeCoord);
+    size_t serialIdxC = Solution::problem.tensorC.getIndex(freeCoord);
     if (alpha.data) {
       TypeAlpha *alphaData = static_cast<TypeAlpha*>(alpha.data);
       sumC = multiply<TypeC,TypeAlpha,TypeC>(*alphaData,sumC);
@@ -145,13 +145,13 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
     // increment free coord
     freeCoord[0]++;
-    for (size_t f = 0; f < problem.tensorC.numDims()-1; f++) {
-      if (freeCoord[f] >= problem.tensorC[f].size) {
+    for (size_t f = 0; f < Solution::problem.tensorC.numDims()-1; f++) {
+      if (freeCoord[f] >= Solution::problem.tensorC[f].size) {
         freeCoord[f] = 0;
         freeCoord[f+1]++;
       }
     }
-    if (freeCoord[problem.tensorC.numDims() - 1] >= problem.tensorC[problem.tensorC.numDims() - 1].size) {
+    if (freeCoord[Solution::problem.tensorC.numDims() - 1] >= Solution::problem.tensorC[Solution::problem.tensorC.numDims() - 1].size) {
       break; // free index range exit criteria
     }
 

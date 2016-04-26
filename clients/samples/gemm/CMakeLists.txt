@@ -13,6 +13,7 @@ set( SAMPLE_GEMM_SRC gemm.cpp )
 
 # gemm executable
 add_executable( ${SAMPLE_GEMM_NAME} ${SAMPLE_GEMM_SRC} )
+#set_property(TARGET ${SAMPLE_GEMM_NAME} PROPERTY CXX_STANDARD 11 )
 
 # gemm links Cobalt
 target_link_libraries( ${SAMPLE_GEMM_NAME} ${CobaltLib_NAME} )
@@ -24,8 +25,8 @@ include_directories(
 
 # Cobalt depends on OpenCL
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  include_directories( ${OpenCL_INCLUDE_DIR} )
-  target_link_libraries( ${SAMPLE_GEMM_NAME} ${OpenCL_LIBRARY} )
+  include_directories( ${OPENCL_INCLUDE_DIRS} )
+  target_link_libraries( ${SAMPLE_GEMM_NAME} ${OPENCL_LIBRARY} )
 endif()
 
 

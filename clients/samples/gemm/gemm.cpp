@@ -1,9 +1,9 @@
 #include "Cobalt.h"
-#include <stdio.h>
+#include <cstdio>
 #include <string>
 #include <vector>
 #include <array>
-
+#define ULL (unsigned long long)
 CobaltTensor createTensorForMatrix(
     CobaltDataType dataType,
     size_t initialStride,
@@ -68,11 +68,11 @@ const size_t sgemmSizeBounds[][2] = {
 /*******************************************************************************
  * main
  ******************************************************************************/
-int main( char * argv[], int argc ) {
+int main( int argc, char * argv[] ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
 #if 1
-  for (size_t i = 16; i <= 32; i+= 16) {
+  for (size_t i = 16; i <= 1024; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
@@ -167,7 +167,7 @@ int main( char * argv[], int argc ) {
       } // M
     } // transB
   } // transA
-  printf("Num Problems: %llu\n", numProblems );
+  printf("Num Problems: %llu\n", ULL numProblems );
   cobaltTeardown();
 
   return 0;
@@ -237,7 +237,7 @@ CobaltProblem createProblemGEMM(
   // problem - device problem
   CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
   deviceProfile.numDevices = 1;
-  sprintf_s(deviceProfile.devices[0].name, "Fiji" );
+  sprintf(deviceProfile.devices[0].name, "Fiji" );
 
 
   CobaltStatus status;
@@ -258,7 +258,7 @@ CobaltProblem createProblemGEMM(
   cobaltProblemToString(problem, nullptr, &problemStringSize);
   char *problemString = new char[problemStringSize];
   cobaltProblemToString(problem, problemString, &problemStringSize);
-  printf("%4llux%4llux%4llu %s\n", M, N, K, problemString);
+  printf("%4llux%4llux%4llu %s\n", ULL M, ULL N, ULL K, problemString);
   delete[] problemString;
 
 

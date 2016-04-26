@@ -1,31 +1,47 @@
+
 #include "Tools.h"
+
+#include <cmath>
 
 namespace Cobalt {
 
 Timer::Timer() {
+#ifdef WIN32
   QueryPerformanceFrequency( &frequency );
+#else
+  // nothing
+#endif
 }
 
 void Timer::start() {
+#ifdef WIN32
   QueryPerformanceCounter( &startTime );
+#else
+  clock_gettime( CLOCK_REALTIME, &startTime );
+#endif
 }
 
 // returns elapsed time in seconds
 double Timer::elapsed_sec() {
-  LARGE_INTEGER currentTime;
-  QueryPerformanceCounter( &currentTime );
-  return double(currentTime.QuadPart-startTime.QuadPart)/frequency.QuadPart;
+  return elapsed_us() / 1000000.0;
 }
 // returns elapsed time in seconds
 double Timer::elapsed_ms() {
-  LARGE_INTEGER currentTime;
-  QueryPerformanceCounter( &currentTime );
-  return double(currentTime.QuadPart-startTime.QuadPart)/(frequency.QuadPart/1000.0);
+  return elapsed_us() / 1000.0;
 }
 double Timer::elapsed_us() {
+  double elapsed_us;
+#ifdef WIN32
   LARGE_INTEGER currentTime;
   QueryPerformanceCounter( &currentTime );
-  return double(currentTime.QuadPart-startTime.QuadPart)/(frequency.QuadPart/1000000.0);
+  elapsed_us = double(currentTime.QuadPart-startTime.QuadPart)/(frequency.QuadPart/1000000.0);
+#else
+  timespec currentTime;
+  clock_gettime( CLOCK_REALTIME, &currentTime);
+  elapsed_us = (currentTime.tv_sec - startTime.tv_sec)*1000000.0
+      + (currentTime.tv_nsec - startTime.tv_nsec)/1000.0;
+#endif
+  return elapsed_us;
 }
 
 

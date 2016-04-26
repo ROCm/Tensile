@@ -1,7 +1,9 @@
 /*******************************************************************************
  * Cobalt Benchmark
  ******************************************************************************/
+#ifdef WIN32
 #define _CRTDBG_MAP_ALLOC
+#endif
 
 #ifdef _CRTDBG_MAP_ALLOC
 #include <stdlib.h>
@@ -15,7 +17,6 @@ _CrtMemState s2;
 _CrtMemState s3;
 #endif
 
-
 #include "CobaltBenchmark.h"
 #include "Cobalt.h"
 #include "Tools.h"
@@ -26,6 +27,10 @@ _CrtMemState s3;
 #include "MathTemplates.h"
 
 #include <tuple>
+#include <cstring>
+#include <cstdio>
+
+#define ULL (unsigned long long)
 
 Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
@@ -74,7 +79,7 @@ int main( int argc, char *argv[] ) {
       _CrtMemCheckpoint( &s2 );
       int diff = _CrtMemDifference(&s3, &s1, &s2);
       _CrtMemDumpStatistics(&s3);
-      printf("Difference[%llu] = %i\n", problemIdx-1, diff);
+      printf("Difference[%llu] = %i\n", ULL problemIdx-1, diff);
     }
     _CrtMemCheckpoint(&s1);
 #endif
@@ -131,7 +136,7 @@ int main( int argc, char *argv[] ) {
       printf("done.\n");
 
     } else {
-      printf("Status: Problem[%llu/%llu] %s\n", problemIdx, problemEndIdx, problem->pimpl->toString().c_str());
+      printf("Status: Problem[%llu/%llu] %s\n", ULL problemIdx, ULL problemEndIdx, problem->pimpl->toString().c_str());
     }
 
 
@@ -144,7 +149,7 @@ int main( int argc, char *argv[] ) {
 #endif
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
-      printf("P[%llu/%llu] S[%llu/%llu] ", problemIdx, problemEndIdx, solutionIdx, solutionEndIdx);
+      printf("P[%llu/%llu] S[%llu/%llu] ", ULL problemIdx, ULL problemEndIdx, ULL solutionIdx, ULL solutionEndIdx);
 
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
@@ -321,17 +326,17 @@ void initTensorData() {
 void destroyTensorData() {
 
 
-  delete[] initialTensorDataFloatC.data;
-  delete[] initialTensorDataFloatA.data;
-  delete[] initialTensorDataFloatB.data;
-  delete[] initialTensorDataDoubleC.data;
-  delete[] initialTensorDataDoubleA.data;
-  delete[] initialTensorDataDoubleB.data;
+  delete[] static_cast<float *>(initialTensorDataFloatC.data);
+  delete[] static_cast<float *>(initialTensorDataFloatA.data);
+  delete[] static_cast<float *>(initialTensorDataFloatB.data);
+  delete[] static_cast<double *>(initialTensorDataDoubleC.data);
+  delete[] static_cast<double *>(initialTensorDataDoubleA.data);
+  delete[] static_cast<double *>(initialTensorDataDoubleB.data);
 
-  delete[] deviceTensorDataOnHostC.data;
-  delete[] deviceTensorDataOnHostA.data;
-  delete[] deviceTensorDataOnHostB.data;
-  delete[] referenceTensorDataC.data;
+  delete[] static_cast<float *>(deviceTensorDataOnHostC.data);
+  delete[] static_cast<float *>(deviceTensorDataOnHostA.data);
+  delete[] static_cast<float *>(deviceTensorDataOnHostB.data);
+  delete[] static_cast<float *>(referenceTensorDataC.data);
 
 
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataC.data));
@@ -339,10 +344,10 @@ void destroyTensorData() {
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataB.data));
 
 
-  delete[] alphaFloat.data;
-  delete[] betaFloat.data;
-  delete[] alphaDouble.data;
-  delete[] betaDouble.data;
+  delete[] static_cast<float *>(alphaFloat.data);
+  delete[] static_cast<float *>(betaFloat.data);
+  delete[] static_cast<double *>(alphaDouble.data);
+  delete[] static_cast<double *>(betaDouble.data);
 }
 
 void fillTensor(CobaltTensor inputTensor, CobaltTensorData tensorData, Cobalt::Tensor::FillType fillType, void *src) {
@@ -373,7 +378,7 @@ void initControls() {
 
   // reference device
   deviceProfileReference.numDevices = 1;
-  sprintf_s(deviceProfileReference.devices[0].name, "cpu");
+  std::sprintf(deviceProfileReference.devices[0].name, "cpu");
 }
 
 void destroyControls() {
@@ -394,10 +399,10 @@ void parseCommandLineOptions(int argc, char *argv[]) {
   doValidationKernels = false;
   for (int argIdx = 0; argIdx < argc; argIdx++) {
     char *arg = argv[argIdx];
-    if (strcmp(arg, "--validate") == 0) {
+    if (std::strcmp(arg, "--validate") == 0) {
       doValidation = true;
     }
-    if (strcmp(arg, "--validate-kernels") == 0) {
+    if (std::strcmp(arg, "--validate-kernels") == 0) {
       doValidationKernels = true;
     }
   }

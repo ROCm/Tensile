@@ -1,4 +1,3 @@
-#from enum import Enum
 
 ################################################################################
 # Status - Enum
@@ -483,7 +482,7 @@ class ExactMatch:
     state += "_B"
     for i in self.indexAssignmentsB:
       state += self.indexChars[i].lower()
-      
+
     # optimization level
     ppdStr = ""
     if self.ppdOffsets and not self.ppdLeadingStride:
