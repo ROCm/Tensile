@@ -92,7 +92,7 @@ class FileWriter:
           + kernelSourceFileName + "\n")
       kernelsCMakeFile.write( "  " + kernelFilePath \
           + kernelHeaderFileName + "\n")
-      allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\r")
+      allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\n")
 
     kernelsCMakeFile.write(")\n")
     if self.forBenchmark:
@@ -387,8 +387,8 @@ class FileWriter:
     h += "#include \"Solution.h\"\n"
     h += "#include \"CobaltSolutions.h\"\n"
     h += "#include <vector>\n"
-    if self.backend.isOpenCL():
-      h += "#include \"CL/cl.h\"\n"
+    #if self.backend.isOpenCL():
+    #  h += "#include \"CL/cl.h\"\n"
     
     h += "\n"
     h += "const size_t numProblems = " + str(numProblems) + ";\n"
@@ -409,8 +409,16 @@ class FileWriter:
     templateInstantiationsFile = open(templateInstantiationsPath, "w")
     templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
     for templateInstantiationStr in templateInstantiationSet:
-      templateInstantiationsFile.write("template class Cobalt::SolutionOpenCL" \
+      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
           +templateInstantiationStr + ";\n")
+      if self.backend.isOpenCL():
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionOpenCL" \
+            +templateInstantiationStr + ";\n")
+      else:
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionHIP" \
+            +templateInstantiationStr + ";\n")
 
 
     # write CobaltBenchmark.cmake
@@ -453,17 +461,20 @@ class FileWriter:
     fileString += "\n"
     fileString += "#include \"" + kernelName + ".h\"\n"
     fileString += "\n"
-    fileString += "cl_kernel " + kernelName + "_kernel = nullptr;\n"
-    #fileString += "// const size_t %s_workGroup[3] = { %u, %u, 1 };\n" \
-    #    % (kernelName, kernel.tile.workGroup[0], kernel.tile.workGroup[1] )
-    #fileString += "// const size_t %s_microTile[2] = { %u, %u };\n" \
-    #    % (kernelName, kernel.tile.microTile[0], kernel.tile.microTile[0] )
-    #fileString += "// const size_t %s_unroll = %u;\n" \
-    #    % (kernelName, kernel.unrolls[len(kernel.unrolls)-1])
+    #fileString += "cl_kernel " + kernelName + "_kernel = nullptr;\n"
+
+    # backend pre
     fileString += "\n"
-    fileString += "const char * const %s_src =\"" % (kernelName)
+    if self.backend.isOpenCL():
+      fileString += "const char * const %s_src =\"" % (kernelName)
+
+    # write kernel body
     fileString += self.kernelWriter.getBody( kernel )
-    fileString += "\";\n"
+
+    # backend post
+    if self.backend.isOpenCL():
+      fileString += "\";\n"
+
     fileString += "\n"
     fileString += "#else\n"
     fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
@@ -481,15 +492,16 @@ class FileWriter:
     #fileString += Common.getFileHeader()
     fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
-    if self.backend.isOpenCL():
-      fileString += "#include \"CL/cl.h\"\n"
     fileString += "\n"
-    fileString += "extern const size_t %s_workGroup[3];\n" % kernelName
-    fileString += "extern const size_t %s_microTile[2];\n" % kernelName
-    fileString += "extern const size_t %s_unroll;\n" \
-        % (kernelName)
-    fileString += "extern const char * const %s_src;\n" % kernelName
-    fileString += "extern cl_kernel %s_kernel;\n" % kernelName
+    if self.backend.isHIP():
+      fileString += "#include <hip_runtime.h>\n"
+      fileString += "\n"
+    if self.backend.isOpenCL():
+      fileString += "extern const char * const %s_src;\n" % kernelName
+    else:
+      fileString += self.kernelWriter.getSignature(kernel)
+      fileString += ";\n"
+
     fileString += "#endif\n"
     return fileString
 

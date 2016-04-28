@@ -50,21 +50,19 @@ CobaltStatus cobaltSetup( const char *logFileName ) {
  ******************************************************************************/
 CobaltStatus cobaltTeardown() {
 
+#if Cobalt_BACKEND_OPENCL12
   // delete kernels
   if (kernelMap) {
     unsigned int index = 0;
     for ( KernelMap::iterator i = kernelMap->begin(); i != kernelMap->end(); i++) {
       printf("releasing kernel %u\n", index);
-#if Cobalt_BACKEND_OPENCL12
       clReleaseKernel(i->second);
-#elif Cobalt_BACKEND_HIP
-      // TODO if HIP kernels compiled JIT
-#endif
       index++;
     }
     delete kernelMap;
     kernelMap = nullptr;
   }
+#endif
 
   return cobaltStatusSuccess;
 }

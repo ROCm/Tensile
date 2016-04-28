@@ -274,11 +274,9 @@ assignKernelArgs() {
    ***************************************/
 
   // work-group sizes
-  for (unsigned int i = 0; i < maxNumKernels; i++) {
-    localWorkSize[i][0] = workGroup[0]; // * microTile[0];
-    localWorkSize[i][1] = workGroup[1]; // * microTile[1];
-    localWorkSize[i][2] = 1;
-  }
+  localWorkSize[0] = workGroup[0]; // * microTile[0];
+  localWorkSize[1] = workGroup[1]; // * microTile[1];
+  localWorkSize[2] = 1;
 
   // num kernels
   unsigned int numEdgeKernels0 = edge[0] ? 1 : 0;
@@ -317,9 +315,9 @@ assignKernelArgs() {
   // divide work groups among kernels in kernelGrid
   unsigned int mainWorkGroupsAlongD0 = totalWorkGroupsAlongD0 / numMainKernels0;
   unsigned int mainWorkGroupsAlongD1 = totalWorkGroupsAlongD1 / numMainKernels1;
-  globalWorkSize[0][0] = localWorkSize[0][0] * mainWorkGroupsAlongD0;
-  globalWorkSize[0][1] = localWorkSize[0][1] * mainWorkGroupsAlongD1;
-  globalWorkSize[0][2] = localWorkSize[0][2] * sizeOfAllOtherDimensions;
+  globalWorkSize[0][0] = localWorkSize[0] * mainWorkGroupsAlongD0;
+  globalWorkSize[0][1] = localWorkSize[1] * mainWorkGroupsAlongD1;
+  globalWorkSize[0][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
   
   unsigned int kernelNumElementsDim0[maxNumKernels];
   unsigned int kernelNumElementsDim1[maxNumKernels];
@@ -345,10 +343,10 @@ assignKernelArgs() {
 
   // kernel - edge0
   if (edge[0]) {
-    globalWorkSize[1][0] = localWorkSize[1][0]
+    globalWorkSize[1][0] = localWorkSize[0]
         * (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
-    globalWorkSize[1][1] = localWorkSize[1][1] * mainWorkGroupsAlongD1;
-    globalWorkSize[1][2] = localWorkSize[1][2] * sizeOfAllOtherDimensions;
+    globalWorkSize[1][1] = localWorkSize[1] * mainWorkGroupsAlongD1;
+    globalWorkSize[1][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
     kernelNumElementsDim0[1] = sizeOfCAlongD0
         - numMainKernels0*mainWorkGroupsAlongD0*macroTileSizeAlongD0;
     kernelNumElementsDim1[1] = kernelNumElementsDim1[0]; // sizeOfCAlongD1;
@@ -364,10 +362,10 @@ assignKernelArgs() {
 
   // kernel - edge1
   if (edge[1]) {
-    globalWorkSize[2][0] = localWorkSize[2][0] * mainWorkGroupsAlongD0;
-    globalWorkSize[2][1] = localWorkSize[2][1]
+    globalWorkSize[2][0] = localWorkSize[0] * mainWorkGroupsAlongD0;
+    globalWorkSize[2][1] = localWorkSize[1]
         * (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
-    globalWorkSize[2][2] = localWorkSize[2][2] * sizeOfAllOtherDimensions;
+    globalWorkSize[2][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
     kernelNumElementsDim0[2] = kernelNumElementsDim0[0]; // sizeOfCAlongD0;
     kernelNumElementsDim1[2] = sizeOfCAlongD1
         - numMainKernels1*mainWorkGroupsAlongD1*macroTileSizeAlongD1;
@@ -383,11 +381,11 @@ assignKernelArgs() {
 
   // kernel - edge01
   if (edge[0] && edge[1]) {
-    globalWorkSize[3][0] = localWorkSize[3][0]
+    globalWorkSize[3][0] = localWorkSize[0]
         * (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
-    globalWorkSize[3][1] = localWorkSize[3][1]
+    globalWorkSize[3][1] = localWorkSize[1]
         * (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
-    globalWorkSize[3][2] = localWorkSize[3][2] * sizeOfAllOtherDimensions;
+    globalWorkSize[3][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
     kernelNumElementsDim0[3] = kernelNumElementsDim0[1]; // same Dim0 as edge0
     kernelNumElementsDim1[3] = kernelNumElementsDim1[2]; // same Dim1 as edge1
     kernelNumElementsDimU[3] = kernelNumElementsDimU[0];
@@ -408,7 +406,9 @@ assignKernelArgs() {
   // kernel 1 - edge 0
   // kernel 2 - edge 1
   // kernel 3 - edge 0,1
-  numEnqueues = 0;
+  for (unsigned int i = 0; i < maxNumKernels; i++) {
+    numEnqueues[i] = 0;
+  }
   for( unsigned int d1 = 0; d1 < kernelGrid[1]; d1++) {
     for (unsigned int d0 = 0; d0 < kernelGrid[0]; d0++) {
       for (unsigned int dU = 0; dU < kernelGrid[2]; dU++) {
@@ -435,9 +435,13 @@ assignKernelArgs() {
           continue;
         }
 
+        // init enqueue args for offsets
+        for ( unsigned int i = 0; i < 3; i++) {
+          enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][i] = 0;
+        }
         // copy kernel args into enqueue args
-        for ( unsigned int i = 0; i < numKernelArgs; i++) {
-          enqueueArgs[numEnqueues][i] = kernelArgs[i];
+        for ( unsigned int i = 3; i < numKernelArgs; i++) {
+          enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][i] = *kernelArgs[i];
         }
 
         // tensorC grid offsets
@@ -469,20 +473,20 @@ assignKernelArgs() {
         unsigned int tensorOffsetC = tensorOffsetCd0 + tensorOffsetCd1;
         unsigned int tensorOffsetA = tensorOffsetAd0or1 + tensorOffsetAdU;
         unsigned int tensorOffsetB = tensorOffsetBd0or1 + tensorOffsetBdU;
-        enqueueArgs[numEnqueues][0] = tensorOffsetC;
-        enqueueArgs[numEnqueues][1] = tensorOffsetA;
-        enqueueArgs[numEnqueues][2] = tensorOffsetB;
+        enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][0] = tensorOffsetC;
+        enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][1] = tensorOffsetA;
+        enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][2] = tensorOffsetB;
         
         // size overrides (due to kernel grid)
-        enqueueArgs[numEnqueues][kernelArgIdxDim0] =
+        enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][kernelArgIdxDim0] =
             kernelNumElementsDim0[kernelIdx];
-        enqueueArgs[numEnqueues][kernelArgIdxDim1] =
+        enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][kernelArgIdxDim1] =
             kernelNumElementsDim1[kernelIdx];
-        enqueueArgs[numEnqueues][kernelArgIdxSummation] =
+        enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][kernelArgIdxSummation] =
             kernelNumElementsDimU[kernelIdx];
 
         // add enqueue
-        numEnqueues++;
+        numEnqueues[kernelIdx]++;
       }
     }
   }
@@ -969,7 +973,7 @@ template<
     typename TypeBeta>
 SolutionHIP<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::
 ~SolutionHIP() {
-  // opencl kernels released in cobaltTeardown()
+  // no kernels to be released?
 }
 
 
@@ -993,14 +997,12 @@ enqueue(
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
-    // TODO add local offsets, then subtract afterwards
-
   for (unsigned int i = 0; i < numEnqueues; i++) {
-    enqueueKernel();
+
     hipLaunchKernel(
         HIP_KERNEL_NAME(sgemm),
-        numBlocks3D[i],
-        blockDim3D[i],
+        dim3(globalWorkSize[i][0], globalWorkSize[i][1], globalWorkSize[i][2]),
+        dim3(localWorkSize[i][0], localWorkSize[i][1], localWorkSize[i][2]),
         groupMemBytes,
         ctrl.queues[i%ctrl.numQueues],
         static_cast<TypeC*>(tensorDataC.data),
@@ -1008,12 +1010,10 @@ enqueue(
         static_cast<TypeB*>(tensorDataB.data),
         static_cast<TypeAlpha*>(alpha.data),
         static_cast<TypeBeta*>(beta.data)
-        kernelArgInts[i][0],
-        kernelArgInts[i][1],
-        kernelArgInts[i][2],
-        kernelArgInts[i][4],
-        kernelArgInts[i][5],
-        kernelArgInts[i][6],
+        enqueueArgs[i][0]+tensorDataC.offset,
+        enqueueArgs[i][1]+tensorDataA.offset,
+        enqueueArgs[i][2]+tensorDataB.offset,
+        enqueueArgs[i][3]
         );
   } // for enqueues
 
@@ -1030,7 +1030,7 @@ enqueue(
 
 } // namespace
 
-
+#if Cobalt_BACKEND_OPENCL12
 bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
 
   if (l.kernelSource < r.kernelSource) {
@@ -1053,6 +1053,7 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
   }
   return false;
 }
+#endif
 
 /*******************************************************************************
  * Explicit Template Instantiation
@@ -1072,9 +1073,10 @@ template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,
 
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
 
-
+#if Cobalt_BACKEND_OPENCL12
 #if defined( _WIN32 )
 __declspec(thread) KernelMap *kernelMap = 0;
 #else
 __thread KernelMap *kernelMap = 0;
+#endif
 #endif

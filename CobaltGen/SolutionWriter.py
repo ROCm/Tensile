@@ -66,7 +66,10 @@ class SolutionWriter:
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += solutionName + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::" + solutionName
     s += "( const Problem & inputProblem )\n"
-    s += "    : SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
+    if self.backend.isOpenCL():
+      s += "    : SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
+    else:
+      s += "    : SolutionHIP<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
     s += "\n"
 
     # solution properties (common to all kernels)
@@ -159,17 +162,18 @@ class SolutionWriter:
     s += "  this->kernelGrid[1] = " + str(solution.kernelGrid[1]) + ";\n"
     s += "  this->kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
     numKernels = 0
-    for i in range(0, len(solution.kernels)):
-      if solution.kernels[i] == None:
-        s += "  this->kernelSources[" + str(i) + "] = nullptr;\n"
-        s += "  this->kernels[" + str(i) + "] = nullptr;\n"
-      else:
-        name = self.kernelWriter.getName(solution.kernels[i])
-        srcName = name + "_src"
-        kernelName = name + "_kernel"
-        s += "  this->kernelSources[" + str(i) + "] = " + srcName + ";\n"
-        s += "  this->kernels[" + str(i) + "] = " + kernelName + ";\n"
-        numKernels += 1
+    if self.backend.isOpenCL():
+      for i in range(0, len(solution.kernels)):
+        if solution.kernels[i] == None:
+          s += "  this->kernelSources[" + str(i) + "] = nullptr;\n"
+          s += "  this->kernels[" + str(i) + "] = nullptr;\n"
+        else:
+          name = self.kernelWriter.getName(solution.kernels[i])
+          srcName = name + "_src"
+          kernelName = name + "_kernel"
+          s += "  this->kernelSources[" + str(i) + "] = " + srcName + ";\n"
+          s += "  this->kernels[" + str(i) + "] = " + kernelName + ";\n"
+          numKernels += 1
     s += "  this->numKernels = " + str(numKernels) + ";\n"
     # edges
     s += "  this->edge[0] = %s;\n" % ("true" if solution.branch[0].isMultiple() else "false")
@@ -180,7 +184,10 @@ class SolutionWriter:
 
     # kernel arguments
     s += "  /* kernel arguments */\n"
-    s += "  this->numKernelArgs = 0; // pointers and offsets\n"
+    if self.backend.isOpenCL():
+      s += "  this->numKernelArgs = 0; // pointers and offsets\n"
+    else:
+      s += "  this->numKernelArgs = 3; // pointers and offsets\n"
     s += "\n"
 
     s += "  /* preprocessor optimizations */\n"
@@ -190,7 +197,7 @@ class SolutionWriter:
     s += "  if ( !this->argOffsets && inputProblem.useOffsets) {\n"
     s += "    throw cobaltStatusSolutionDoesNotSupportOffsets;\n"
     s += "  }\n"
-    s += "  if ( !this->argLeadingStrides && inputProblem.tensorC[0].stride != 1 || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
+    s += "  if ( (!this->argLeadingStrides && inputProblem.tensorC[0].stride != 1) || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
     s += "    throw cobaltStatusSolutionDoesNotSupportLeadingStrides;\n"
     s += "  }\n"
     s += "\n"
@@ -211,8 +218,9 @@ class SolutionWriter:
       for i in range(firstStride,lastStrideC):
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
-        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
-            + "[" + str(i) + "].stride);\n"
+        if self.backend.isOpenCL():
+          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
+              + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -221,8 +229,9 @@ class SolutionWriter:
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(i) + "].stride; // strideA" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsA[i]] + "\n"
-        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
-            + "[" + str(i) + "].stride);\n"
+        if self.backend.isOpenCL():
+          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
+              + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -231,8 +240,9 @@ class SolutionWriter:
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorB[" \
             + str(i) + "].stride; // strideB" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsB[i]] + "\n"
-        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorB" \
-            + "[" + str(i) + "].stride);\n"
+        if self.backend.isOpenCL():
+          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorB" \
+              + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -247,8 +257,9 @@ class SolutionWriter:
           s += "  this->kernelArgIdxDim1 = this->numKernelArgs;\n"
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].size; // size" + self.indexChars[i] + "\n"
-        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
-            + "[" + str(i) + "].size);\n"
+        if self.backend.isOpenCL():
+          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
+              + "[" + str(i) + "].size);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -271,8 +282,9 @@ class SolutionWriter:
           s += "  this->kernelArgIdxSummation = this->numKernelArgs;\n"
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
-        s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
-            + "[" + str(idx) + "].size);\n"
+        if self.backend.isOpenCL():
+          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
+              + "[" + str(idx) + "].size);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -286,7 +298,7 @@ class SolutionWriter:
 
     # close constructor
     s += "  /* determine globalWorkSize */\n"
-    s += "  this->assignWorkSizes();\n"
+    s += "  this->assignKernelArgs();\n"
     s += "\n"
 
     # close constructor
@@ -341,6 +353,62 @@ class SolutionWriter:
     s += "} // toStringDetailXML\n"
     s += "\n"
 
+    # enqueue
+    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
+    s += "CobaltStatus " + solutionName \
+        + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(\n"
+    s += "      CobaltTensorData tensorDataC,\n"
+    s += "      CobaltTensorData tensorDataA,\n"
+    s += "      CobaltTensorData tensorDataB,\n"
+    s += "      CobaltScalarData alpha,\n"
+    s += "      CobaltScalarData beta,\n"
+    s += "      CobaltControl & ctrl ) {\n"
+    s += "\n"
+    s += "  unsigned int kernelIdx = 0;\n"
+    s += "\n"
+    for k in range(0, len(solution.kernels)):
+      kernel = solution.kernels[k]
+      if kernel != None:
+        s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
+        s += "    hipLaunchKernel(\n"
+        s += "        HIP_KERNEL_NAME(%s),\n" \
+            % self.kernelWriter.getName(kernel)
+        s += "        dim3(\n"
+        s += "            this->globalWorkSize[kernelIdx][0],\n"
+        s += "            this->globalWorkSize[kernelIdx][1],\n"
+        s += "            this->globalWorkSize[kernelIdx][2]),\n"
+        s += "        dim3(\n"
+        s += "            this->localWorkSize[0],\n"
+        s += "            this->localWorkSize[1],\n"
+        s += "            this->localWorkSize[2]),\n"
+        s += "        0, // groupMemBytes\n"
+        s += "        ctrl.queues[i%ctrl.numQueues],\n"
+        s += "        static_cast<TypeC*>(tensorDataC.data),\n"
+        s += "        static_cast<TypeA*>(tensorDataA.data),\n"
+        s += "        static_cast<TypeB*>(tensorDataB.data),\n"
+        s += "        *static_cast<TypeAlpha*>(alpha.data),\n"
+        s += "        *static_cast<TypeBeta*>(beta.data),\n"
+        s += "        this->enqueueArgs[kernelIdx][i][0]+tensorDataC.offset,\n"
+        s += "        this->enqueueArgs[kernelIdx][i][1]+tensorDataA.offset,\n"
+        s += "        this->enqueueArgs[kernelIdx][i][2]+tensorDataB.offset"
+        numStrides = len(solution.kernels[0].problem.tensorC.dimensions) \
+            + len(solution.kernels[0].problem.tensorA.dimensions) \
+            + len(solution.kernels[0].problem.tensorB.dimensions)
+        if solution.kernels[0].ppdLeadingStride:
+          numStrides -= 3
+        numSizes = len(solution.kernels[0].indexOrderC) + len(solution.kernels[0].indexOrderSummation)
+        numKernelArgs = numStrides + numSizes
+        for i in range(0, numKernelArgs):
+          s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3) 
+        s += " );\n"
+        s += "  }\n"
+        s += "\n"
+        s += "kernelIdx++;\n"
+
+    s += "}\n"
+    s += "\n"
+
+
     # explicit template instantiation
     s += "/* explicit template instantiation */\n"
     #s += "template class SolutionOpenCL" \
@@ -380,7 +448,11 @@ class SolutionWriter:
     s += "\n"
     s += "/* solution class */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
-    s += "class " + solutionName + " : public SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
+    s += "class " + solutionName
+    if self.backend.isOpenCL():
+      s += " : public SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
+    else:
+      s += " : public SolutionHIP<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
     s += "public:\n"
     s += "  /* constructor */\n"
     s += "  " + solutionName + "( const Problem & inputProblem );\n"
@@ -388,6 +460,13 @@ class SolutionWriter:
     s += "\n"
     s += "  std::string toString( size_t indentLevel) const;\n"
     s += "  std::string toStringDetailXML( size_t indentLevel) const;\n"
+    s += "  CobaltStatus enqueue(\n"
+    s += "      CobaltTensorData tensorDataC,\n"
+    s += "      CobaltTensorData tensorDataA,\n"
+    s += "      CobaltTensorData tensorDataB,\n"
+    s += "      CobaltScalarData alpha,\n"
+    s += "      CobaltScalarData beta,\n"
+    s += "      CobaltControl & ctrl );\n"
     s += "\n"
     s += "}; // class\n"
     s += "\n"

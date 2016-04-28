@@ -103,7 +103,7 @@ protected:
   static const unsigned int maxNumEnqueues = 4*4;
   const static unsigned int maxNumKernelArgs = 3+4*CobaltTensor::maxDimensions;
   unsigned int numKernels;
-  unsigned int numEnqueues;
+  unsigned int numEnqueues[maxNumKernels];
   unsigned int numKernelArgs; // integers only
   unsigned int kernelGrid[workDim];
   unsigned int edge[workDim];
@@ -112,7 +112,7 @@ protected:
   unsigned int workGroup[workDim];
   unsigned int microTile[workDim];
   unsigned int macroTile[workDim];
-  size_t globalWorkSize[maxNumEnqueues][workDim];
+  size_t globalWorkSize[maxNumKernels][workDim]; // all enqueues of a kernels are currently restricted to have identical grid size
   size_t localWorkSize[workDim];
 
   // kernel arguments
@@ -121,8 +121,8 @@ protected:
   bool argOffsets;
   bool argLeadingStrides;
   bool argSizes;
-  unsigned int kernelArgs[maxNumKernelArgs];
-  unsigned int enqueueArgs[maxNumEnqueues][maxNumKernelArgs];
+  const unsigned int *kernelArgs[maxNumKernelArgs];
+  unsigned int enqueueArgs[maxNumKernels][maxNumEnqueues][maxNumKernelArgs];
 
   // index assignments
   bool d0InTensorA;
@@ -153,7 +153,7 @@ template<
     typename TypeAlpha,
     typename TypeBeta>
 class SolutionOpenCL
-    : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
+    : public SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   SolutionOpenCL( const Problem & inputProblem );
   ~SolutionOpenCL();
@@ -210,7 +210,7 @@ protected:
  ******************************************************************************/
 #if Cobalt_BACKEND_HIP
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-class SolutionHIP : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
+class SolutionHIP : public SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   SolutionHIP( const Problem & inputProblem );
   ~SolutionHIP();
@@ -275,14 +275,7 @@ typedef struct KernelMapKey_ {
   const char *kernelSource; // address of kernel source
 } KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
-#elif Cobalt_BACKEND_HIP
-typedef struct KernelMapKey_ {
-  void* context; // address of context
-  void* device; // address of device
-  const char *kernelSource; // address of kernel source
-} KernelMapKey;
-typedef std::map<KernelMapKey, void*> KernelMap;
-#endif
+bool operator<(const KernelMapKey & l, const KernelMapKey & r);
 
 #ifdef WIN32
 __declspec(thread) extern KernelMap *kernelMap;
@@ -290,7 +283,11 @@ __declspec(thread) extern KernelMap *kernelMap;
 extern __thread KernelMap *kernelMap;
 #endif
 
-bool operator<(const KernelMapKey & l, const KernelMapKey & r);
+#elif Cobalt_BACKEND_HIP
+// not needed; pre-compiled
+#endif
+
+
 
 #include <assert.h>
 #if Cobalt_BACKEND_OPENCL12

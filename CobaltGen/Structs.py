@@ -124,6 +124,13 @@ class DataType:
     else:
       return False
 
+  def isDouble(self):
+    if self.value == self.double or self.value == self.complexDouble or self.value == self.complexConjugateDouble:
+      return True
+    else:
+      return False
+
+
   def numRegisters( self ):
     if self.value == self.single:
       return 1

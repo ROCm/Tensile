@@ -47,7 +47,7 @@ def GenBenchmarkFromFiles( \
   ##############################################################################
   # (2) list candidate solutions for each problem
   solutionCandidateGenerator = \
-      SolutionCandidateGenerator.SolutionCandidateGenerator(optimizeAlpha, optimizeBeta)
+      SolutionCandidateGenerator.SolutionCandidateGenerator(optimizeAlpha, optimizeBeta, backend )
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates

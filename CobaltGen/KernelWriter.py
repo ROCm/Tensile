@@ -11,7 +11,6 @@ import Structs
 ################################################################################
 class KernelWriter:
 
-  endLine = "\\n\"\n\""
   indexChars = [ "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", \
       "T", "U", "V", "W", "X", "Y", "Z" ]
 
@@ -19,6 +18,38 @@ class KernelWriter:
   # Make OpenCL Kernel String
   ##############################################################################
   def __init__( self, backend ):
+    self.backend = backend
+
+    if self.backend.isOpenCL():
+      # everything escaped extra b/c string 
+      self.endLine = "\\n\"\n\""
+      self.endLinePP = "\\\\" + self.endLine
+    else:
+      self.endLine = "\n"
+      self.endLinePP =  "\\" + self.endLine
+   
+    if self.backend.isOpenCL():
+      self.getGroupIdStr = "get_group_id"
+      self.getLocalIdStr = "get_local_id"
+      self.sharedDeclStr = "__local"
+      self.sharedPtrStr = "__local"
+      self.syncStr = "barrier(CLK_LOCAL_MEM_FENCE);"
+      self.fenceStr = "mem_fence(CLK_LOCAL_MEM_FENCE);"
+      self.fmaFStr = "mad"
+      self.fmaDStr = "mad"
+    else:
+      self.getGroupIdStr = "hc_get_group_id"
+      self.getLocalIdStr = "hc_get_workitem_id"
+      self.sharedDeclStr = "__shared__"
+      self.sharedPtrStr = ""
+      self.syncStr = "__syncthreads();"
+      self.fenceStr = self.syncStr
+      self.fmaFStr = "fmaf"
+      self.fmaDStr = "fma"
+
+
+
+
     pass
 
 
@@ -177,18 +208,44 @@ class KernelWriter:
 
     s = ""
     # kernel name
-    s += "__attribute__((reqd_work_group_size(WG_DIM_" + tileChar0 + ",WG_DIM_" + tileChar1 + ",1)))"
-    s += self.endLine
-    s += "__kernel void %s" % ( self.getName(kernel) )
+    if self.backend.isOpenCL():
+      s += "__attribute__((reqd_work_group_size(WG_DIM_" \
+          + tileChar0 + ",WG_DIM_" + tileChar1 + ",1)))"
+      s += self.endLine
+      s += "__kernel "
+    else:
+      s += "__global__ "
+    s += "void %s" % ( self.getName(kernel) )
     s += "(" + self.endLine
     # pointers
-    s += (
-      "  __global DATA_TYPE_STR_C       *          C," + self.endLine +
-      "  __global DATA_TYPE_STR_A const * restrict A," + self.endLine +
-      "  __global DATA_TYPE_STR_B const * restrict B")
+    globalStr = "__global "
+    if self.backend.isHIP():
+      s += "  hipLaunchParm lp," + self.endLine
+      globalStr = ""
+    restrictStr = "restrict"
+    if self.backend.isHIP():
+      restrictStr = "__restrict__"
+    s += "  " + globalStr + kernel.dataTypeC.toOpenCL() \
+        + "       *          C,"
+    s += self.endLine
+    s += "  " + globalStr + kernel.dataTypeA.toOpenCL() \
+        + " const * " + restrictStr + " A,"
+    s += self.endLine
+    s += "  " + globalStr + kernel.dataTypeB.toOpenCL() \
+        + " const * " + restrictStr + " B"
+
+    # alpha & beta
+    if kernel.problem.operation.useAlpha:
+      s += "," + self.endLine + "  " \
+          + kernel.dataTypeC.toOpenCL() + " const alpha"
+    if kernel.problem.operation.useBeta:
+      s += "," + self.endLine + "  " \
+          + kernel.dataTypeC.toOpenCL() + " const beta"
+
     # offsets
     if not kernel.ppdOffsets:
-      s += ( "," + self.endLine + "  unsigned int const offsetC," + self.endLine +
+      s += ( "," + self.endLine + "  unsigned int const offsetC,"
+        + self.endLine +
         "  unsigned int const offsetA," + self.endLine +
         "  unsigned int const offsetB" )
 
@@ -217,11 +274,6 @@ class KernelWriter:
       for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
         s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
 
-    # alpha & beta
-    if kernel.problem.operation.useAlpha:
-      s += "," + self.endLine + "  DATA_TYPE_STR_C const alpha"
-    if kernel.problem.operation.useBeta:
-      s += "," + self.endLine + "  DATA_TYPE_STR_C const beta"
     s += " )"
     return s
 
@@ -435,13 +487,23 @@ class KernelWriter:
         % (kernel.dataTypeB.toOpenCL(), self.endLine)
     kStr += "#define DATA_TYPE_STR_C %s%s" \
         % (kernel.dataTypeC.toOpenCL(), self.endLine)
+    kStr += "#define DATA_TYPE_STR_ALPHA %s%s" \
+        % (kernel.dataTypeC.toOpenCL(), self.endLine)
+    kStr += "#define DATA_TYPE_STR_BETA %s%s" \
+        % (kernel.dataTypeC.toOpenCL(), self.endLine)
+
+    if kernel.dataTypeC.isDouble():
+      kStr += "#define FMA(A,B,DST) %s(A,B,DST)" % self.fmaDStr
+    else:
+      kStr += "#define FMA(A,B,DST) %s(A,B,DST)" % self.fmaFStr
+    kStr += self.endLine
 
     ####################################
     # MADs
     if kernel.dataTypeC.isReal():
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
-          + "DST = mad(MULA,MULB,DST);" + self.endLine
+          + "DST = FMA(MULA,MULB,DST);" + self.endLine
       if kernel.problem.operation.useAlpha:
         if kernel.problem.operation.useBeta:
           # dst = alpha*reg + beta*dst
@@ -465,101 +527,102 @@ class KernelWriter:
       if not kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # neither conjugate
         kStr += (
-          "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
-          "  DST.s0 = mad(  MULA.s0, MULB.s0, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s0 = mad( -MULA.s1, MULB.s1, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s1 = mad(  MULA.s0, MULB.s1, DST.s1 ); \\\\" + self.endLine +
-          "  DST.s1 = mad(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " +self.contLine + self.endLine +
+          "  DST.s0 = FMA(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = FMA( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = FMA(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = FMA(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # A conjugate (negate imaginary A.s1)
         kStr += (
-          "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
-          "  DST.s0 = mad(  MULA.s0, MULB.s0, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s0 = mad(  MULA.s1, MULB.s1, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s1 = mad(  MULA.s0, MULB.s1, DST.s1 ); \\\\" + self.endLine +
-          "  DST.s1 = mad( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = FMA(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = FMA(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = FMA(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = FMA( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif not kernel.dataTypeA.isConjugate() and kernel.dataTypeB.isConjugate():
         # B conjugate (negate imaginary B.s1)
         kStr += (
-          "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
-          "  DST.s0 = mad(  MULA.s0,  MULB.s0, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s0 = mad( -MULA.s1, -MULB.s1, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s1 = mad(  MULA.s0, -MULB.s1, DST.s1 ); \\\\" + self.endLine +
-          "  DST.s1 = mad(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = FMA(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = FMA( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = FMA(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = FMA(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       else:
         # A & B conjugate (negate imaginary .s1)
         kStr += (
-          "#define TYPE_MAD(MULA,MULB,DST) \\\\" + self.endLine +
-          "  DST.s0 = mad(  MULA.s0,  MULB.s0, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s0 = mad(  MULA.s1, -MULB.s1, DST.s0 ); \\\\" + self.endLine +
-          "  DST.s1 = mad(  MULA.s0, -MULB.s1, DST.s1 ); \\\\" + self.endLine +
-          "  DST.s1 = mad( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = FMA(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = FMA(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = FMA(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = FMA( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       if kernel.problem.operation.useAlpha:
         if kernel.problem.operation.useBeta:
           # dst = alpha*reg + beta*dst
           kStr += (
-            "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) \\\\" + self.endLine +
-            "  /* (1) */ \\\\" + self.endLine +
-            "  type_mad_tmp = REG.s0; \\\\" + self.endLine +
-            "  REG.s0 *= ALPHA.s0; \\\\" + self.endLine +
-            "  REG.s0 = mad( -ALPHA.s1, REG.s1, REG.s0 ); \\\\" + self.endLine +
-            "  REG.s1 *= ALPHA.s0; \\\\" + self.endLine +
-            "  REG.s1 = mad(  ALPHA.s1, type_mad_tmp, REG.s1 ); \\\\"+self.endLine+
-            "  /* (2) */ \\\\" + self.endLine +
-            "  REG.s0 = mad(  BETA.s0, DST.s0, REG.s0 ); \\\\" + self.endLine +
-            "  REG.s0 = mad( -BETA.s1, DST.s1, REG.s0 ); \\\\" + self.endLine +
-            "  REG.s1 = mad(  BETA.s1, DST.s0, REG.s1 ); \\\\" + self.endLine +
-            "  REG.s1 = mad(  BETA.s0, DST.s1, REG.s1 ); \\\\" + self.endLine +
-            "  /* (3) */ \\\\" + self.endLine +
+            "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
+            "  /* (1) */ " + self.endLinePP +
+            "  type_FMA_tmp = REG.s0; " + self.endLinePP +
+            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s0 = FMA( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s1 = FMA(  ALPHA.s1, type_mad_tmp, REG.s1 ); "+self.endLinePP+
+            "  /* (2) */ " + self.endLinePP +
+            "  REG.s0 = FMA(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+            "  REG.s0 = FMA( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = FMA(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+            "  REG.s1 = FMA(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+            "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
         else:
           # dst = alpha*reg
           kStr += (
-            "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) \\\\"+self.endLine+
-            "  /* (1) */ \\\\" + self.endLine +
-            "  type_mad_tmp = REG.s0; \\\\" + self.endLine +
-            "  REG.s0 *= ALPHA.s0; \\\\" + self.endLine +
-            "  REG.s0 = mad( -ALPHA.s1, REG.s1, REG.s0 ); \\\\" + self.endLine +
-            "  REG.s1 *= ALPHA.s0; \\\\" + self.endLine +
-            "  REG.s1 = mad(  ALPHA.s1, type_mad_tmp, REG.s1 ); \\\\"+self.endLine+
-            "  /* (3) */ \\\\" + self.endLine +
+            "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
+            "  /* (1) */ " + self.endLinePP +
+            "  type_FMA_tmp = REG.s0; " + self.endLinePP +
+            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s0 = FMA( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+            "  REG.s1 = FMA(  ALPHA.s1, type_mad_tmp, REG.s1 ); "+self.endLinePP+
+            "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
       else:
         if kernel.problem.operation.useBeta:
           # dst = reg + beta*dst
           kStr += (
-            "#define TYPE_MAD_WRITE( DST, REG, BETA ) \\\\" + self.endLine +
-            "  /* (2) */ \\\\" + self.endLine +
-            "  REG.s0 = mad(  BETA.s0, DST.s0, REG.s0 ); \\\\" + self.endLine +
-            "  REG.s0 = mad( -BETA.s1, DST.s1, REG.s0 ); \\\\" + self.endLine +
-            "  REG.s1 = mad(  BETA.s0, DST.s1, REG.s1 ); \\\\" + self.endLine +
-            "  REG.s1 = mad(  BETA.s1, DST.s0, REG.s1 ); \\\\" + self.endLine +
-            "  /* (3) */ \\\\" + self.endLine +
+            "#define TYPE_MAD_WRITE( DST, REG, BETA ) " + self.endLinePP +
+            "  /* (2) */ " + self.endLinePP +
+            "  REG.s0 = FMA(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+            "  REG.s0 = FMA( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = FMA(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+            "  REG.s1 = FMA(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+            "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
         else:
           # dst = reg
           kStr += (
-            "#define TYPE_MAD_WRITE( DST, REG ) \\\\" + self.endLine +
-            "  /* (3) */ \\\\" + self.endLine +
+            "#define TYPE_MAD_WRITE( DST, REG ) " + self.endLinePP +
+            "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
 
     ####################################
     # micro-tile
     kStr += self.endLine
     kStr += "/* %dx%d micro-tile */%s" % (kernel.tile.microTile[0], kernel.tile.microTile[1], self.endLine)
-    kStr += "#define MICRO_TILE \\\\" + self.endLine
+    
+    kStr += "#define MICRO_TILE " + self.endLinePP
     for a in range(0, kernel.tile.microTile[0]):
-      kStr += "  rA[%d] = localA[offA + %d*WG_DIM_%s]; \\\\%s" \
-          % (a, a, tileChar0, self.endLine)
+      kStr += "  rA[%d] = localA[offA + %d*WG_DIM_%s]; %s" \
+          % (a, a, tileChar0, self.endLinePP)
     for b in range(0, kernel.tile.microTile[1]):
-      kStr += "  rB[%d] = localB[offB + %d*WG_DIM_%s]; \\\\%s" \
-          % (b, b, tileChar1, self.endLine)
-    kStr += "  offA += MACRO_TILE_" + tileChar0 + "; \\\\" + self.endLine
-    kStr += "  offB += MACRO_TILE_" + tileChar1 + "; \\\\" + self.endLine
+      kStr += "  rB[%d] = localB[offB + %d*WG_DIM_%s]; %s" \
+          % (b, b, tileChar1, self.endLinePP)
+    kStr += "  offA += MACRO_TILE_" + tileChar0 + "; " + self.endLinePP
+    kStr += "  offB += MACRO_TILE_" + tileChar1 + "; " + self.endLinePP
     for a in range(0, kernel.tile.microTile[0]):
       for b in range(0, kernel.tile.microTile[1]):
-        kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); \\\\%s" % (a, b, a, b, self.endLine)
-    kStr += "  mem_fence(CLK_LOCAL_MEM_FENCE);" + self.endLine
+        kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); %s" % (a, b, a, b, self.endLinePP)
+    kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
 
     ####################################
@@ -654,9 +717,9 @@ class KernelWriter:
     kStr += self.endLine
     kStr += (
       "  /* allocate local memory */" + self.endLine +
-      "  __local DATA_TYPE_STR_A localA[NUM_UNROLL_ITER*MACRO_TILE_" + tileChar0 + "];" \
+      "  " + self.sharedDeclStr + " DATA_TYPE_STR_A localA[NUM_UNROLL_ITER*MACRO_TILE_" + tileChar0 + "];" \
           + self.endLine +
-      "  __local DATA_TYPE_STR_B localB[NUM_UNROLL_ITER*MACRO_TILE_" + tileChar1 + "];" \
+      "  "+self.sharedDeclStr + " DATA_TYPE_STR_B localB[NUM_UNROLL_ITER*MACRO_TILE_" + tileChar1 + "];" \
           + self.endLine )
 
     ####################################
@@ -670,9 +733,11 @@ class KernelWriter:
 
     kStr += self.endLine
     kStr += "  /* c indices */" + self.endLine
-    kStr += "  unsigned int groupIdx" + tileChar0 + " = get_group_id(0);" \
+    kStr += "  unsigned int groupIdx" + tileChar0 + " = " \
+        + self.getGroupIdStr + "(0);" \
         + " // d0, tensor" + tensorChar0 + self.endLine
-    kStr += "  unsigned int groupIdx" + tileChar1 + " = get_group_id(1);" \
+    kStr += "  unsigned int groupIdx" + tileChar1 + " = " \
+         + self.getGroupIdStr + "(1);" \
         + " // d1, tensor" + tensorChar1 + self.endLine
 
     # other free indices
@@ -683,7 +748,7 @@ class KernelWriter:
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
       kStr += "  unsigned int groupIdx" + indexChars[index] \
-          + " = ( get_group_id(2)"
+          + " = ( " + self.getGroupIdStr + "(2)"
       for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
         index2 = nonTileFreeIndices[j]
         kStr += " / size" + indexChars[index2]
@@ -691,9 +756,9 @@ class KernelWriter:
 
     # local indices
     kStr += "  uint localIdx" + tileChar0 \
-        + " = get_local_id(0); // d0" + self.endLine
+        + " = " + self.getLocalIdStr + "(0); // d0" + self.endLine
     kStr += "  uint localIdx" + tileChar1 \
-        + " = get_local_id(1); // d1" + self.endLine
+        + " = " + self.getLocalIdStr + "(1); // d1" + self.endLine
     kStr += "  uint localSerial = localIdx" + tileChar0 \
         + " + localIdx" + tileChar1 + "*WG_DIM_" + tileChar0 \
         + ";" + self.endLine
@@ -762,13 +827,13 @@ class KernelWriter:
       kStr += indent + "do {" + self.endLine
       indent += "  "
 
-    kStr += indent + "__local DATA_TYPE_STR_A *lA = localA" \
+    kStr += indent + self.sharedPtrStr + " DATA_TYPE_STR_A *lA = localA" \
         + " + GET_LOCAL_INDEX_A(localA" + tileCharA + ", localA" \
         + unrollChar + ");" + self.endLine \
-        + indent + "__local DATA_TYPE_STR_B *lB = localB" \
+        + indent + self.sharedPtrStr + " DATA_TYPE_STR_B *lB = localB" \
         + " + GET_LOCAL_INDEX_B(localB" + tileCharB + ", localB" \
         + unrollChar + ");" + self.endLine \
-        + indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine
+        + indent + self.syncStr + self.endLine
 
     # debug printf - LDS load offsets
     #kStr += "  printf(\\\"T[%u,%u] localIdx = %u, %u\\\\n\\\", get_local_id(0), get_local_id(1), "
@@ -933,7 +998,7 @@ class KernelWriter:
       kStr += " ) ];" + self.endLine
       kStr += indent + "}" + self.endLine
     kStr += (
-      indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine +
+      indent + self.syncStr + self.endLine +
       indent + "uint offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
       indent + "uint offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
 
@@ -1043,13 +1108,13 @@ class KernelWriter:
       kStr += indent + "do {" + self.endLine
       indent += "  "
 
-      kStr += indent + "__local DATA_TYPE_STR_A *lA = localA" \
+      kStr += indent + self.sharedPtrStr + " DATA_TYPE_STR_A *lA = localA" \
           + " + GET_LOCAL_INDEX_A(localA" + tileCharA + ", localA" \
           + unrollChar + ");" + self.endLine \
-          + indent + "__local DATA_TYPE_STR_B *lB = localB" \
+          + indent + self.sharedPtrStr + " DATA_TYPE_STR_B *lB = localB" \
           + " + GET_LOCAL_INDEX_B(localB" + tileCharB + ", localB" \
           + unrollChar + ");" + self.endLine \
-          + indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine
+          + indent + self.syncStr + self.endLine
 
       ####################################
       # how many elements to load global -> local
@@ -1144,7 +1209,7 @@ class KernelWriter:
         kStr += " ) ];" + self.endLine
         kStr += indent + "}" + self.endLine
       kStr += (
-        indent + "barrier(CLK_LOCAL_MEM_FENCE);" + self.endLine +
+        indent + self.syncStr + self.endLine +
         indent + "uint offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
         indent + "uint offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
 
