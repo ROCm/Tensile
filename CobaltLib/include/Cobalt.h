@@ -17,7 +17,7 @@
 typedef cl_float2 CobaltComplexFloat;
 typedef cl_double2 CobaltComplexDouble;
 #else
-
+#include <hip_runtime.h>
 #if (defined( __GNUC__ ) || defined( __IBMC__ ))
     #define Cobalt_ALIGNED(_x) __attribute__ ((aligned(_x)))
 #else
@@ -205,23 +205,21 @@ typedef struct CobaltTensorData_ {
   unsigned int offset;
 } CobaltTensorData;
 
+
+/*******************************************************************************
+ * Tensor Data - HIP
+ ******************************************************************************/
+#elif Cobalt_BACKEND_HIP
+typedef struct CobaltTensorData_ {
+  void *data;
+  unsigned int offset;
+} CobaltTensorData;
+
+#endif
+
 typedef struct CobaltScalarData_ {
   void *data;
 } CobaltScalarData;
-
-/*******************************************************************************
- * Tensor Data - HCC
- ******************************************************************************/
-#elif Cobalt_BACKEND_HCC
-typedef void* CobaltTensorData;
-
-/*******************************************************************************
- * Tensor Data - HSA
- ******************************************************************************/
-#elif Cobalt_BACKEND_HSA  
-typedef void* CobaltTensorData;
-
-#endif
 
 
 /*******************************************************************************
@@ -267,17 +265,23 @@ typedef enum CobaltOperationType_ {
 typedef struct CobaltControl_ {
   void *validate;
   unsigned int benchmark;
-#if Cobalt_BACKEND_OPENCL12
   enum { maxQueues = 16 } maxQueues_;
   unsigned int numQueues;
   unsigned int numQueuesUsed; // by library
+  unsigned int numInputEvents;
+  unsigned int numOutputEvents;
+#if Cobalt_BACKEND_OPENCL12
   cl_command_queue queues[maxQueues];
-  cl_uint numInputEvents;
   cl_event *inputEvents;
-  cl_uint numOutputEvents;
   cl_event *outputEvents;
+#elif Cobalt_BACKEND_HIP
+  hipStream_t queues[maxQueues];
+  hipEvent_t *inputEvents;
+  hipEvent_t *outputEvents;
 #endif
 } CobaltControl;
+
+
 
 /*******************************************************************************
 * cobaltCreateEmptyControl

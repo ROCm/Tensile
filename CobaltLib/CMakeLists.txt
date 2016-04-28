@@ -93,9 +93,9 @@ else()
   )
 endif()
 
-add_definitions(-DCobaltLib_DIR_PROBLEMS="${CobaltLib_DIR_PROBLEMS}")
-add_definitions(-DCobaltLib_DIR_SOLUTIONS="${CobaltLib_DIR_SOLUTIONS}")
-add_definitions(-DCobaltLib_DIR_GENERATED="${CobaltLib_DIR_GENERATED}")
+add_definitions(-DCobaltLib_DIR_PROBLEMS=\\\"${CobaltLib_DIR_PROBLEMS}\\\")
+add_definitions(-DCobaltLib_DIR_SOLUTIONS=\\\"${CobaltLib_DIR_SOLUTIONS}\\\")
+add_definitions(-DCobaltLib_DIR_GENERATED=\\\"${CobaltLib_DIR_GENERATED}\\\")
 
 
 
@@ -133,6 +133,10 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   MESSAGE( "CobaltLib linking OpenCL: ${OPENCL_INCLUDE_DIRS}" )
   include_directories( ${OPENCL_INCLUDE_DIRS} )
   target_link_libraries( ${CobaltLib_NAME} ${OPENCL_LIBRARIES} )
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  MESSAGE( "CobaltLib linking HIP: ${HCC_INCLUDE_DIRS}" )
+  include_directories( ${HCC_INCLUDE_DIRS} )
+  target_link_libraries( ${CobaltLib_NAME} ${HSA_LIBRARIES} )
 endif()
 
 

@@ -45,32 +45,24 @@ set_property( CACHE Cobalt_BUILD_MODE PROPERTY STRINGS
 ############################################################
 # OPTION - Cobalt Backend
 # - OpenCL 1.2
-# - HCC
+# - HIP
 set( Cobalt_BACKEND "OpenCL_1.2" CACHE STRING
   "Which of Cobalt's backends to use?" )
 set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS
-  OpenCL_1.2 HCC HSA )
+  OpenCL_1.2 HIP )
 # OpenCL 1.2
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions( -DCobalt_BACKEND_OPENCL12=1 )
-  add_definitions( -DCobalt_BACKEND_HCC=0 )
-  add_definitions( -DCobalt_BACKEND_HSA=0 )
-  find_package( OpenCL REQUIRED )
-  message( STATUS "${Cobalt_BACKEND} backend selected." )
-endif()
-# HCC / Kalmar
-if( Cobalt_BACKEND MATCHES "HCC")
+  add_definitions( -DCobalt_BACKEND_HIP=0 )
+  find_package(OpenCL REQUIRED)
+  message(STATUS "${Cobalt_BACKEND} backend selected." )
+# HIP
+elseif( Cobalt_BACKEND MATCHES "HIP")
   add_definitions( -DCobalt_BACKEND_OPENCL12=0 )
-  add_definitions( -DCobalt_BACKEND_HCC=1 )
-  add_definitions( -DCobalt_BACKEND_HSA=0 )
-  message( SEND_ERROR "${Cobalt_BACKEND} backend not yet supported." )
-endif()
-# HSA
-if( Cobalt_BACKEND MATCHES "HSA")
-  add_definitions( -DCobalt_BACKEND_OPENCL12=0 )
-  add_definitions( -DCobalt_BACKEND_HCC=0 )
-  add_definitions( -DCobalt_BACKEND_HSA=1 )
-  message( SEND_ERROR "${Cobalt_BACKEND} backend not yet supported." )
+  add_definitions( -DCobalt_BACKEND_HIP=1 )
+  find_package( HIP REQUIRED )
+  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
+  message(STATUS "${Cobalt_BACKEND} backend selected." )
 endif()
 
 

@@ -100,6 +100,10 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   include_directories( ${OPENCL_INCLUDE_DIRS} )
   target_link_libraries( ${CobaltBenchmark_NAME} ${OPENCL_LIBRARIES} )
   MESSAGE( "CobaltBenchmark linking ${OPENCL_LIBRARIES}")
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  MESSAGE( "CobaltBenchmark linking HIP: ${HIP_INCLUDE_DIRS}" )
+  include_directories( ${HIP_INCLUDE_DIRS} )
+  # target_link_libraries( ${CobaltBenchmark_NAME} ${HSA_LIBRARIES} )
 endif()
 
 ############################################################
@@ -118,6 +122,6 @@ add_definitions( -DCobalt_SOLVER_ENABLED=0)
 
 
 
-#add_definitions(-DCobaltBenchmark_DIR_PROBLEMS="${CobaltBenchmark_DIR_PROBLEMS}")
-add_definitions(-DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")
-#add_definitions(-DCobaltBenchmark_DIR_GENERATED="${CobaltBenchmark_DIR_GENERATED}")
+add_definitions(
+  -DCobaltBenchmark_DIR_SOLUTIONS=\\\"${CobaltBenchmark_DIR_SOLUTIONS}\\\")
+#-DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")

@@ -30,6 +30,4 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
 endif()
 
 
-add_definitions(-DCobaltBenchmark_DIR_PROBLEMS="${CobaltBenchmark_DIR_PROBLEMS}")
-#add_definitions(-DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")
-#add_definitions(-DCobaltBenchmark_DIR_GENERATED="${CobaltBenchmark_DIR_GENERATED}")
+add_definitions(-DCobaltBenchmark_DIR_PROBLEMS=\\\"${CobaltBenchmark_DIR_PROBLEMS}\\\")

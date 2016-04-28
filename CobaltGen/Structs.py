@@ -239,6 +239,12 @@ class Backend:
     else:
       return "ERROR"
 
+  def isHIP(self):
+    return self.value == self.hip
+
+  def isOpenCL(self):
+    return self.value == self.opencl12
+
   def __repr__(self):
     return self.__str__()
 

@@ -54,14 +54,20 @@ CobaltTensorData referenceTensorDataA; // just points to initialTensorDataFloat 
 CobaltTensorData referenceTensorDataB;
 
 // setup opencl
+unsigned int numPlatforms;
+#if Cobalt_BACKEND_OPENCL12
+unsigned int numDevices;
 cl_int status;
-cl_uint numPlatforms;
 cl_platform_id *platforms;
 cl_platform_id platform;
-cl_uint numDevices;
 cl_device_id *devices;
 cl_device_id device;
 cl_context context;
+#elif Cobalt_BACKEND_HIP
+hipError_t status;
+int numDevices;
+int device;
+#endif
 
 // controls
 CobaltDeviceProfile deviceProfileReference;

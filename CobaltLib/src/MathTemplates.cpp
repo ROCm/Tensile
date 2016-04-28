@@ -1,6 +1,7 @@
 #include "Cobalt.h"
 #include "MathTemplates.h"
 #include <cstdio>
+#include <cstdlib>
 
 namespace Cobalt {
 

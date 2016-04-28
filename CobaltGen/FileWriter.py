@@ -348,6 +348,7 @@ class FileWriter:
     benchmarkSourceFile = open(benchmarkSourcePath, "w")
     s = ""
     s += "#include \"CobaltSolutionCandidates.h\"\n"
+    s += "#include <cstdio>\n"
     s += "\n"
     # include candidates
     for problemIdx in range(0,numProblems):
@@ -369,7 +370,7 @@ class FileWriter:
       s += "    break;\n"
 
     s += "  default:\n"
-    s += "    printf(\"Oops\\n\");\n"
+    s += "    printf(\"Oops: index too large.\\n\");\n"
     s += "  }\n"
     s += "}\n"
     benchmarkSourceFile.write(s)
@@ -383,9 +384,12 @@ class FileWriter:
     h = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#define COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#include \"Cobalt.h\"\n"
+    h += "#include \"Solution.h\"\n"
     h += "#include \"CobaltSolutions.h\"\n"
     h += "#include <vector>\n"
-    h += "#include \"CL/cl.h\"\n"
+    if self.backend.isOpenCL():
+      h += "#include \"CL/cl.h\"\n"
+    
     h += "\n"
     h += "const size_t numProblems = " + str(numProblems) + ";\n"
     h += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
@@ -477,7 +481,8 @@ class FileWriter:
     #fileString += Common.getFileHeader()
     fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
-    fileString += "#include \"CL/cl.h\"\n"
+    if self.backend.isOpenCL():
+      fileString += "#include \"CL/cl.h\"\n"
     fileString += "\n"
     fileString += "extern const size_t %s_workGroup[3];\n" % kernelName
     fileString += "extern const size_t %s_microTile[2];\n" % kernelName
