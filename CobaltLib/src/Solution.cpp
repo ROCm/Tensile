@@ -258,6 +258,32 @@ SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTemplate( const 
  ******************************************************************************/
 
 /******************************************************************************
+ * constructor
+ *****************************************************************************/
+template<
+    typename TypeC,
+    typename TypeA,
+    typename TypeB,
+    typename TypeAlpha,
+    typename TypeBeta>
+SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
+SolutionGPU( const Problem & inputProblem)
+    : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
+  // nothing
+}
+
+template<
+    typename TypeC,
+    typename TypeA,
+    typename TypeB,
+    typename TypeAlpha,
+    typename TypeBeta>
+SolutionGPU<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::
+~SolutionGPU() {
+  // no kernels to be released?
+}
+
+/******************************************************************************
  * assignKernelArgs
  *****************************************************************************/
 template<

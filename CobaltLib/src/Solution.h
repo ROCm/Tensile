@@ -83,13 +83,13 @@ public:
   SolutionGPU( const Problem & inputProblem );
   ~SolutionGPU();
 
-  CobaltStatus enqueue(
+  virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
       CobaltTensorData tensorDataA,
       CobaltTensorData tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
-      CobaltControl & ctrl );
+      CobaltControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;

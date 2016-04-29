@@ -402,9 +402,9 @@ class SolutionWriter:
           s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3) 
         s += " );\n"
         s += "  }\n"
+        s += "  kernelIdx++;\n"
         s += "\n"
-        s += "kernelIdx++;\n"
-
+    s += "return cobaltStatusSuccess;\n"
     s += "}\n"
     s += "\n"
 

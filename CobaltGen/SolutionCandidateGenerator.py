@@ -37,7 +37,7 @@ class SolutionCandidateGenerator:
   """
   unrollLevels = [1]
   universeUnroll = {  1: [ [ 4, 1 ] ] }
-  # preprocessor define leading strides, offsets, everything
+  # preprocessor define (0) leading strides, (1) offsets, (2) everything
   # if problem conflicts with optimization level, generator reverts optimization level below
   
   """
@@ -75,7 +75,7 @@ class SolutionCandidateGenerator:
     self.backend = backend
     if self.backend.isHIP():
       # remove optimizations so that all kernels have identical arguments 
-      self.ppdUniverse = [ [False, False, False] ]
+      self.ppdUniverse = [ [True, False, False] ]
 
   ##############################################################################
   # getSolutionCandidatesForProblem
