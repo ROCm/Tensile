@@ -32,9 +32,9 @@ _CrtMemState s3;
 
 #define ULL (unsigned long long)
 
-Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeOne;
 
 //#define MAX_PROBLEMS 16
 //#define MAX_SOLUTIONS_PER_PROBLEM 16
@@ -179,11 +179,11 @@ int main( int argc, char *argv[] ) {
         clFinish(ctrl.queues[0]);
 #elif Cobalt_BACKEND_HIP
         status = hipMemcpy( deviceTensorDataC.data, initialDataC,
-            sizeC, hipMemcpyDeviceToHost );
+            sizeC, hipMemcpyHostToDevice );
         status = hipMemcpy( deviceTensorDataA.data, initialDataA,
-            sizeA, hipMemcpyDeviceToHost );
+            sizeA, hipMemcpyHostToDevice );
         status = hipMemcpy( deviceTensorDataB.data, initialDataB,
-            sizeB, hipMemcpyDeviceToHost );
+            sizeB, hipMemcpyHostToDevice );
 #endif
       }
       // ensure kernels are compiled before timing
@@ -208,7 +208,7 @@ int main( int argc, char *argv[] ) {
 #if Cobalt_BACKEND_OPENCL12
           status = clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
-          status = hipStreamSynchronize(ctrl.queues[i]);
+          //status = hipStreamSynchronize(ctrl.queues[i]);
 #endif
           CL_CHECK(status)
         }

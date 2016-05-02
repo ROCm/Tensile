@@ -47,7 +47,7 @@ class KernelWriter:
       self.fmaFStr = "fmaf"
       self.fmaDStr = "fma"
 
-
+    self.returnOnly = False
 
 
     pass
@@ -214,6 +214,7 @@ class KernelWriter:
       s += self.endLine
       s += "__kernel "
     else:
+      s += "extern \"C\"\n"
       s += "__global__ "
     s += "void %s" % ( self.getName(kernel) )
     s += "(" + self.endLine
@@ -678,6 +679,7 @@ class KernelWriter:
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
 
+    
     # debug printf - kernel args
     #kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
     #kStr += "  if( get_local_id(0) ==0 && get_local_id(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sAK=%u, sAI=%u, sBJ=%u, sBK=%u, sI=%u, sJ=%u, sK=%u\\\\n\\\", offsetC, offsetA, offsetB, strideC0I, strideC1J, strideAK, strideA0I, strideB1J, strideBK, size0I, size1J, sizeK"
@@ -687,8 +689,7 @@ class KernelWriter:
     # debug printf - tensor A, B
     #kStr += "unsigned int idx1 = get_global_id(0) + get_global_size(0)*(get_global_id(1)+get_global_size(1)*get_global_id(2));" + self.endLine
     #kStr += "unsigned int idx2 = idx1+(get_global_size(0)*get_global_size(1)*get_global_size(2));" + self.endLine
-    #
-    #kStr += "printf(\\\"A[%u] = %f, A[%u] = %f; B[%u] = %f, B[%u] = %f\\\\n\\\", idx1, A[idx1], idx2, A[idx2], idx1, B[idx1], idx2, B[idx2]"
+    #kStr += "printf(\"C[0] = %f, A[0] = %f; B[0] = %f\\n\", C[0], A[0], B[0]"
     #kStr += ");" + self.endLine
     # end debug printf
     
@@ -712,6 +713,7 @@ class KernelWriter:
       "  DATA_TYPE_STR_A rA[MICRO_TILE_" + tileChar0 + "];" + self.endLine +
       "  DATA_TYPE_STR_B rB[MICRO_TILE_" + tileChar1 + "];" + self.endLine )
 
+      
     ####################################
     # allocate local memory
     kStr += self.endLine
@@ -755,11 +757,11 @@ class KernelWriter:
       kStr += " ) % size" + indexChars[index] + ";" + self.endLine
 
     # local indices
-    kStr += "  uint localIdx" + tileChar0 \
+    kStr += "  unsigned int localIdx" + tileChar0 \
         + " = " + self.getLocalIdStr + "(0); // d0" + self.endLine
-    kStr += "  uint localIdx" + tileChar1 \
+    kStr += "  unsigned int localIdx" + tileChar1 \
         + " = " + self.getLocalIdStr + "(1); // d1" + self.endLine
-    kStr += "  uint localSerial = localIdx" + tileChar0 \
+    kStr += "  unsigned int localSerial = localIdx" + tileChar0 \
         + " + localIdx" + tileChar1 + "*WG_DIM_" + tileChar0 \
         + ";" + self.endLine
 
@@ -810,6 +812,8 @@ class KernelWriter:
     #       + tileChar1 + ")"
     # kStr += ";" + self.endLine
 
+    #if self.returnOnly:
+    #  kStr += "return;" + self.endLine + "#if 0" + self.endLine
 
 
     ####################################
@@ -999,8 +1003,8 @@ class KernelWriter:
       kStr += indent + "}" + self.endLine
     kStr += (
       indent + self.syncStr + self.endLine +
-      indent + "uint offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
-      indent + "uint offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
+      indent + "unsigned int offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
+      indent + "unsigned int offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
 
     # debug printf - values loading into LDS
     
@@ -1095,6 +1099,8 @@ class KernelWriter:
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
       kStr += self.endLine
 
+
+
       ####################################
       # summations loops
       indent = "  "
@@ -1107,6 +1113,8 @@ class KernelWriter:
       # begin loop
       kStr += indent + "do {" + self.endLine
       indent += "  "
+      if self.returnOnly:
+        kStr += "#if 0" + self.endLine
 
       kStr += indent + self.sharedPtrStr + " DATA_TYPE_STR_A *lA = localA" \
           + " + GET_LOCAL_INDEX_A(localA" + tileCharA + ", localA" \
@@ -1210,8 +1218,8 @@ class KernelWriter:
         kStr += indent + "}" + self.endLine
       kStr += (
         indent + self.syncStr + self.endLine +
-        indent + "uint offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
-        indent + "uint offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
+        indent + "unsigned int offA = localIdx" + tileChar0 + "; // d0" + self.endLine +
+        indent + "unsigned int offB = localIdx" + tileChar1 + "; // d1" + self.endLine )
 
       ####################################
       # do mad
@@ -1251,8 +1259,11 @@ class KernelWriter:
       kStr += ";" + self.endLine
       indent = indent[2:]
       # close do-while loop
+      if self.returnOnly:
+        kStr += self.endLine + "#endif" + self.endLine
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
     kStr += self.endLine
+
 
 
     ####################################
@@ -1313,6 +1324,7 @@ class KernelWriter:
         kStr += self.endLine
         #kStr += "  if (localSerial < 24) printf(\\\"T[%u,%u]%u C[%u] = %f\\\\n\\\", get_local_id(0), get_local_id(1), globalIdxCK, localSerial, C[localSerial]);"
 
+    
     ####################################
     # end kernel
     kStr += self.endLine

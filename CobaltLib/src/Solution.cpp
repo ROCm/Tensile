@@ -92,7 +92,7 @@ CobaltStatus Solution::enqueueEntry(
 #if Cobalt_BACKEND_OPENCL12
       clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
-      status = hipStreamSynchronize( ctrl.queues[i] );
+      //status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
     // copy results back
@@ -102,7 +102,7 @@ CobaltStatus Solution::enqueueEntry(
         0, nullptr, nullptr);
 #elif Cobalt_BACKEND_HIP
     status = hipMemcpy(gpuOnHostC.data, tensorDataC.data, sizeC, hipMemcpyDeviceToHost);
-    status = hipStreamSynchronize( ctrl.queues[0] );
+    //status = hipStreamSynchronize( ctrl.queues[0] );
 #endif
     // compare results
     bool equal = compareTensors(gpuOnHostC,
@@ -341,9 +341,9 @@ assignKernelArgs() {
   // divide work groups among kernels in kernelGrid
   unsigned int mainWorkGroupsAlongD0 = totalWorkGroupsAlongD0 / numMainKernels0;
   unsigned int mainWorkGroupsAlongD1 = totalWorkGroupsAlongD1 / numMainKernels1;
-  globalWorkSize[0][0] = localWorkSize[0] * mainWorkGroupsAlongD0;
-  globalWorkSize[0][1] = localWorkSize[1] * mainWorkGroupsAlongD1;
-  globalWorkSize[0][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
+  globalWorkSize[0][0] = /*localWorkSize[0] */ mainWorkGroupsAlongD0;
+  globalWorkSize[0][1] = /*localWorkSize[1] */ mainWorkGroupsAlongD1;
+  globalWorkSize[0][2] = /*localWorkSize[2] */ sizeOfAllOtherDimensions;
   
   unsigned int kernelNumElementsDim0[maxNumKernels];
   unsigned int kernelNumElementsDim1[maxNumKernels];
@@ -369,10 +369,9 @@ assignKernelArgs() {
 
   // kernel - edge0
   if (edge[0]) {
-    globalWorkSize[1][0] = localWorkSize[0]
-        * (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
-    globalWorkSize[1][1] = localWorkSize[1] * mainWorkGroupsAlongD1;
-    globalWorkSize[1][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
+    globalWorkSize[1][0] = /*localWorkSize[0] */ (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
+    globalWorkSize[1][1] = /*localWorkSize[1] */ mainWorkGroupsAlongD1;
+    globalWorkSize[1][2] = /*localWorkSize[2] */ sizeOfAllOtherDimensions;
     kernelNumElementsDim0[1] = sizeOfCAlongD0
         - numMainKernels0*mainWorkGroupsAlongD0*macroTileSizeAlongD0;
     kernelNumElementsDim1[1] = kernelNumElementsDim1[0]; // sizeOfCAlongD1;
@@ -388,10 +387,9 @@ assignKernelArgs() {
 
   // kernel - edge1
   if (edge[1]) {
-    globalWorkSize[2][0] = localWorkSize[0] * mainWorkGroupsAlongD0;
-    globalWorkSize[2][1] = localWorkSize[1]
-        * (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
-    globalWorkSize[2][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
+    globalWorkSize[2][0] = /*localWorkSize[0] */ mainWorkGroupsAlongD0;
+    globalWorkSize[2][1] = /*localWorkSize[1] */ (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
+    globalWorkSize[2][2] = /*localWorkSize[2] */ sizeOfAllOtherDimensions;
     kernelNumElementsDim0[2] = kernelNumElementsDim0[0]; // sizeOfCAlongD0;
     kernelNumElementsDim1[2] = sizeOfCAlongD1
         - numMainKernels1*mainWorkGroupsAlongD1*macroTileSizeAlongD1;
@@ -407,11 +405,9 @@ assignKernelArgs() {
 
   // kernel - edge01
   if (edge[0] && edge[1]) {
-    globalWorkSize[3][0] = localWorkSize[0]
-        * (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
-    globalWorkSize[3][1] = localWorkSize[1]
-        * (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
-    globalWorkSize[3][2] = localWorkSize[2] * sizeOfAllOtherDimensions;
+    globalWorkSize[3][0] = /*localWorkSize[0] */ (totalWorkGroupsAlongD0 - numMainKernels0*mainWorkGroupsAlongD0);
+    globalWorkSize[3][1] = /*localWorkSize[1] */ (totalWorkGroupsAlongD1 - numMainKernels1*mainWorkGroupsAlongD1);
+    globalWorkSize[3][2] = /*localWorkSize[2] */ sizeOfAllOtherDimensions;
     kernelNumElementsDim0[3] = kernelNumElementsDim0[1]; // same Dim0 as edge0
     kernelNumElementsDim1[3] = kernelNumElementsDim1[2]; // same Dim1 as edge1
     kernelNumElementsDimU[3] = kernelNumElementsDimU[0];

@@ -29,7 +29,7 @@ message( STATUS "CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}" )
 ############################################################
 # require C++11
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
-
+#add_definitions( "-std=c++11" )
 
 ############################################################
 # OPTION - Cobalt Build Mode

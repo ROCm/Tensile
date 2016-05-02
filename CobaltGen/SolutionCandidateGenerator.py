@@ -25,7 +25,6 @@ class SolutionCandidateGenerator:
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 4
   maxMicroTileSize = 4
-  """
   unrollLevels = [16, 8, 4, 2, 1]
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
@@ -37,6 +36,7 @@ class SolutionCandidateGenerator:
   """
   unrollLevels = [1]
   universeUnroll = {  1: [ [ 4, 1 ] ] }
+  """
   # preprocessor define (0) leading strides, (1) offsets, (2) everything
   # if problem conflicts with optimization level, generator reverts optimization level below
   
@@ -154,12 +154,16 @@ class SolutionCandidateGenerator:
     # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
       kernel.unrolls = unroll
-      # if last unroll is multiple of last/unrolled summation
+      # summation must be multiple of last unroll
       if problemSizeUnroll % unroll[len(unroll)-1] > 0:
         continue
-      # do-while summation loop has to do at least one iteration
+      # first do-while summation loop has to do at least one iteration
       if problemSizeUnroll < unroll[0]:
         continue
+      # second do-while summation loop has to do at least one iteration
+      if len(unroll) > 1:
+        if problemSizeUnroll % unroll[0] < unroll[1]:
+          continue
       for workGroup in self.universeWorkGroupDim:
         kernel.tile.workGroup = workGroup
         # only try skinny work-group if problem is skinny
