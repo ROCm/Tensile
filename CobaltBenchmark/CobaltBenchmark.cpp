@@ -39,8 +39,8 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeOne;
 //#define MAX_PROBLEMS 16
 //#define MAX_SOLUTIONS_PER_PROBLEM 16
 
-// alpha = 2
-// beta = 2
+#define ALPHA 2
+#define BETA  2
 
 /*******************************************************************************
  * main
@@ -208,7 +208,7 @@ int main( int argc, char *argv[] ) {
 #if Cobalt_BACKEND_OPENCL12
           status = clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
-          //status = hipStreamSynchronize(ctrl.queues[i]);
+          status = hipStreamSynchronize(ctrl.queues[i]);
 #endif
           CL_CHECK(status)
         }
@@ -344,18 +344,18 @@ void initTensorData() {
 
   // scalars
   alphaFloat.data = new float[2];
-  static_cast<float *>(alphaFloat.data)[0] = 2.f;
-  static_cast<float *>(alphaFloat.data)[1] = 2.f;
+  static_cast<float *>(alphaFloat.data)[0] = ALPHA;
+  static_cast<float *>(alphaFloat.data)[1] = ALPHA;
   //alphaFloat.dataType = cobaltDataTypeComplexSingle;
   betaFloat.data = new float[2];
-  static_cast<float *>(betaFloat.data)[0] = 2.f;
-  static_cast<float *>(betaFloat.data)[1] = 2.f;
+  static_cast<float *>(betaFloat.data)[0] = BETA;
+  static_cast<float *>(betaFloat.data)[1] = BETA;
   alphaDouble.data = new double[2];
-  static_cast<double *>(alphaDouble.data)[0] = 2.0;
-  static_cast<double *>(alphaDouble.data)[1] = 2.0;
+  static_cast<double *>(alphaDouble.data)[0] = ALPHA;
+  static_cast<double *>(alphaDouble.data)[1] = ALPHA;
   betaDouble.data = new double[2];
-  static_cast<double *>(betaDouble.data)[0] = 2.0;
-  static_cast<double *>(betaDouble.data)[1] = 2.0;
+  static_cast<double *>(betaDouble.data)[0] = BETA;
+  static_cast<double *>(betaDouble.data)[1] = BETA;
   printf("done.\n");
 }
 

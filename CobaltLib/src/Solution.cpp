@@ -92,7 +92,7 @@ CobaltStatus Solution::enqueueEntry(
 #if Cobalt_BACKEND_OPENCL12
       clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
-      //status = hipStreamSynchronize( ctrl.queues[i] );
+      status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
     // copy results back
@@ -102,7 +102,7 @@ CobaltStatus Solution::enqueueEntry(
         0, nullptr, nullptr);
 #elif Cobalt_BACKEND_HIP
     status = hipMemcpy(gpuOnHostC.data, tensorDataC.data, sizeC, hipMemcpyDeviceToHost);
-    //status = hipStreamSynchronize( ctrl.queues[0] );
+    status = hipStreamSynchronize( ctrl.queues[0] );
 #endif
     // compare results
     bool equal = compareTensors(gpuOnHostC,
