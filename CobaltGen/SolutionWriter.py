@@ -385,7 +385,7 @@ class SolutionWriter:
         if True:
           s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
           s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
-          s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][1]"
+          s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"
           s += ",\n        (unsigned int)this->localWorkSize[0], (unsigned int)this->localWorkSize[1], (unsigned int)this->localWorkSize[2]"
           s += ",\n        static_cast<TypeC*>(tensorDataC.data), static_cast<TypeA*>(tensorDataA.data), static_cast<TypeB*>(tensorDataB.data)"
           s += ",\n        *static_cast<TypeAlpha*>(alpha.data), *static_cast<TypeBeta*>(beta.data)"
@@ -411,7 +411,7 @@ class SolutionWriter:
         s += "            this->localWorkSize[1],\n"
         s += "            this->localWorkSize[2]),\n"
         s += "        0, // groupMemBytes\n"
-        s += "        0, // ctrl.queues[enqueueIdx%ctrl.numQueues],\n"
+        s += "        ctrl.queues[enqueueIdx%ctrl.numQueues],\n"
         s += "        static_cast<TypeC*>(tensorDataC.data),\n"
         s += "        static_cast<TypeA*>(tensorDataA.data),\n"
         s += "        static_cast<TypeB*>(tensorDataB.data),\n"
@@ -430,6 +430,8 @@ class SolutionWriter:
         for i in range(0, numKernelArgs):
           s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3) 
         s += ");\n"
+        s += "hipStreamSynchronize( ctrl.queues[enqueueIdx%ctrl.numQueues] );\n"
+        
         s += "    enqueueIdx++;\n"  
         s += "  }\n"
         s += "  kernelIdx++;\n"
