@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <cstdio>
 #include <string>
+#include <cstring>
 #include <algorithm>
 
 #if Cobalt_SOLVER_ENABLED

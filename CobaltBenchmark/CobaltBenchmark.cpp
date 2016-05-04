@@ -28,6 +28,7 @@ _CrtMemState s3;
 
 #include <tuple>
 #include <string>
+#include <cstring>
 #include <cstdio>
 
 #define ULL (unsigned long long)

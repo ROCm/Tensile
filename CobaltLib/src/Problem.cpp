@@ -6,6 +6,7 @@
 #include <functional>
 #include <assert.h>
 #include <string>
+#include <cstring>
 
 namespace Cobalt {
 
