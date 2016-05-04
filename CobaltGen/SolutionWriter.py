@@ -218,9 +218,9 @@ class SolutionWriter:
       for i in range(firstStride,lastStrideC):
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
-        if self.backend.isOpenCL():
-          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
-              + "[" + str(i) + "].stride);\n"
+        #if self.backend.isOpenCL():
+        #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
+        #      + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -229,9 +229,9 @@ class SolutionWriter:
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(i) + "].stride; // strideA" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsA[i]] + "\n"
-        if self.backend.isOpenCL():
-          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
-              + "[" + str(i) + "].stride);\n"
+        #if self.backend.isOpenCL():
+        #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
+        #      + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -240,9 +240,9 @@ class SolutionWriter:
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorB[" \
             + str(i) + "].stride; // strideB" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsB[i]] + "\n"
-        if self.backend.isOpenCL():
-          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorB" \
-              + "[" + str(i) + "].stride);\n"
+        #if self.backend.isOpenCL():
+        #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorB" \
+        #      + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -257,9 +257,9 @@ class SolutionWriter:
           s += "  this->kernelArgIdxDim1 = this->numKernelArgs;\n"
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].size; // size" + self.indexChars[i] + "\n"
-        if self.backend.isOpenCL():
-          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
-              + "[" + str(i) + "].size);\n"
+        #if self.backend.isOpenCL():
+        #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
+        #      + "[" + str(i) + "].size);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -282,9 +282,9 @@ class SolutionWriter:
           s += "  this->kernelArgIdxSummation = this->numKernelArgs;\n"
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
-        if self.backend.isOpenCL():
-          s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
-              + "[" + str(idx) + "].size);\n"
+        #if self.backend.isOpenCL():
+        #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
+        #      + "[" + str(idx) + "].size);\n"
         s += "  this->numKernelArgs++;\n"
       s += "\n"
 
@@ -300,6 +300,16 @@ class SolutionWriter:
     s += "  /* determine globalWorkSize */\n"
     s += "  this->assignKernelArgs();\n"
     s += "\n"
+
+    # opencl global size *= local size
+    if self.backend.isOpenCL():
+      s += "\n"
+      s += "  for (unsigned int kernelIdx = 0; kernelIdx < this->maxNumKernels; kernelIdx++) {\n"
+      s += "    for (unsigned int i = 0; i < this->workDim; i++) {\n"
+      s += "      this->globalWorkSize[kernelIdx][i] *= this->localWorkSize[kenelIdx][i];\n"
+      s += "    }\n"
+      s += "  }\n"
+      s += "\n"
 
     # close constructor
     s += "} // constructor\n"

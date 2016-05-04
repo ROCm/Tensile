@@ -176,27 +176,29 @@ public:
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
 
 protected:
+  cl_kernel kernels[SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::maxNumKernels];
+  const char *kernelSources[SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::maxNumKernels];
+  cl_int status;
+
   // constants
   //static const unsigned int workDim = 3;
   // kernels
   //cl_uint numKernels;
-  cl_kernel kernels[maxNumKernels];
-  const char *kernelSources[maxNumKernels];
-  unsigned int kernelGrid[workDim];
-  unsigned int edge[workDim];
+  //unsigned int kernelGrid[workDim];
+  //unsigned int edge[this->workDim];
   // kernel dimensions
-  size_t workGroup[workDim];
-  size_t microTile[workDim];
-  size_t globalWorkSize[maxNumKernels][workDim];
-  size_t localWorkSize[maxNumKernels][workDim];
+  //size_t workGroup[workDim];
+  //size_t microTile[this->workDim];
+  //size_t globalWorkSize[this->maxNumKernels][this->workDim];
+  //size_t localWorkSize[this->maxNumKernels][this->workDim];
   //unsigned int kernelNumElementsDim0[maxNumKernels]; // local to assign
   //unsigned int kernelNumElementsDim1[maxNumKernels];
   //unsigned int kernelNumElementsDimU[maxNumKernels];
   //void assignWorkSizes(); // moved up to GPU and improved
   // kernel argumets
-  cl_uint numKernelArgs;
-  const void *kernelArgs[maxKernelArgs];
-  size_t kernelArgSizes[maxKernelArgs];
+  //cl_uint numKernelArgs;
+  //const void *kernelArgs[this->maxNumKernelArgs];
+  //size_t kernelArgSizes[this->maxNumKernelArgs];
 
 };
 #endif
@@ -227,6 +229,7 @@ public:
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
 
 protected:
+  hipError_t status;
   // pointers to kernel functions
   
 

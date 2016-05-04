@@ -549,7 +549,7 @@ SolutionOpenCL<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::
   // opencl kernels released in cobaltTeardown()
 }
 
-
+#if 0
 /******************************************************************************
  * assignWorkSizes - global and local
  *****************************************************************************/
@@ -678,6 +678,7 @@ assignWorkSizes() {
   }
 
 }
+#endif
 
 #define TIME_KERNEL_COMPILATION 1
 
@@ -778,6 +779,62 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
+  size_t *globalWorkOffset = NULL;
+
+  unsigned int kernelSerialIdx = 0;
+  for (unsigned int kernelIdx = 0; kernelIdx < this->maxNumKernels;
+      kernelIdx++) {
+    for (unsigned int enqueueIdx = 0;
+        enqueueIdx < this->numEnqueues[kernelIdx]; enqueueIdx++) {
+
+      // data pointers
+      status = clSetKernelArg( kernels[kernelIdx], 0,
+          sizeof(cl_mem), &tensorDataC.data ); CL_CHECK(status)
+      status = clSetKernelArg( kernels[kernelIdx], 1,
+          sizeof(cl_mem), &tensorDataA.data ); CL_CHECK(status)
+      status = clSetKernelArg( kernels[kernelIdx], 2,
+          sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
+      status = clSetKernelArg( kernels[kernelIdx], 3,
+          sizeof(TypeAlpha), alpha.data ); CL_CHECK(status)
+      status = clSetKernelArg( kernels[kernelIdx], 4,
+          sizeof(TypeBeta), beta.data ); CL_CHECK(status)
+
+      // uint args
+      for (unsigned int i = 0; i < this->numKernelArgs; i++) {
+        status = clSetKernelArg( kernels[kernelIdx], i+5, sizeof(unsigned int),
+            this->enqueueArgs[kernelIdx][enqueueIdx][i] ); CL_CHECK(status)
+      }
+
+      // out cl_event
+      cl_event *outEvent = nullptr;
+      if (ctrl.numOutputEvents) {
+        outEvent = &(ctrl.outputEvents[kernelSerialIdx%ctrl.numOutputEvents]);
+      }
+
+      size_t gws[3] = { this->globalWorkSize[kernelIdx][0],
+          this->globalWorkSize[kernelIdx][1],
+          this->globalWorkSize[kernelIdx][2] };
+      size_t lws[3] = { this->localWorkSize[kernelIdx][0],
+          this->localWorkSize[kernelIdx][1],
+          this->localWorkSize[kernelIdx][2] };
+      // enqueue
+      status = clEnqueueNDRangeKernel(
+          ctrl.queues[kernelSerialIdx++%ctrl.numQueues],
+          kernels[kernelIdx],
+          this->workDim,
+          globalWorkOffset,
+          gws,
+          lws,
+          ctrl.numInputEvents,
+          ctrl.inputEvents,
+          outEvent );
+      
+    }
+  }
+  return status;
+
+
+#if 0
   // user is allowed to pass in null for alpha & beta, in which case we'll provide
   // the default values here
   TypeC fallbackAlpha;
@@ -963,6 +1020,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
   //ctrl.numOutputEvents = kernelSerialIdx;;
   return cobaltStatusSuccess;
+#endif
 } // enqueue
 #endif
 
