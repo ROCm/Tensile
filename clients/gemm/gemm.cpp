@@ -71,15 +71,15 @@ const size_t sgemmSizeBounds[][2] = {
 int main( int argc, char * argv[] ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 0
+#if 1
   for (size_t i = 16; i <= 128; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
-      //sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
+      sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
-  sizes.push_back( {5760, 5760, 5760 });
+  // sizes.push_back( {5760, 5760, 5760 });
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };

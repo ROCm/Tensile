@@ -31,6 +31,7 @@ class KernelWriter:
     if self.backend.isOpenCL():
       self.getGroupIdStr = "get_group_id"
       self.getLocalIdStr = "get_local_id"
+      self.getGlobalIdStr = "get_global_id"
       self.sharedDeclStr = "__local"
       self.sharedPtrStr = "__local"
       self.syncStr = "barrier(CLK_LOCAL_MEM_FENCE);"
@@ -40,6 +41,7 @@ class KernelWriter:
     else:
       self.getGroupIdStr = "hc_get_group_id"
       self.getLocalIdStr = "hc_get_workitem_id"
+      self.getGlobalIdStr = "hc_get_workitem_absolute_id"
       self.sharedDeclStr = "__shared__"
       self.sharedPtrStr = ""
       self.syncStr = "__syncthreads();"
@@ -681,9 +683,14 @@ class KernelWriter:
 
     
     # debug printf - kernel args
-    #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
-    #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sAK=%u, sAI=%u, sBJ=%u, sBK=%u, sI=%u, sJ=%u, sK=%u\\\\n\\\", offsetC, offsetA, offsetB, strideC0I, strideC1J, strideAK, strideA0I, strideB1J, strideBK, size0I, size1J, sizeK"
-    #kStr += ");" + self.endLine
+    #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"alpha=%f, beta=%f, oC=%u, oA=%u, oB=%u, sCI=%u, sCJ=%u, sCK=%u, sAI=%u, sAK=%u, sAL=%u, sBI=%u, sBJ=%u, sBL=%u, sI=%u, sJ=%u, sK=%u, sL=%u\\\\n\\\", alpha, beta, offsetC, offsetA, offsetB, strideCI, strideC1J, strideC0K, strideAI, strideA0K, strideAL, strideBI, strideB1J, strideBL, sizeI, size1J, size0K, sizeL"
+    #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCJ=%u, sAK=%u, sBK=%u, sI=%u, sJ=%u, sK=%u\\\\n\\\", offsetC, offsetA, offsetB, strideC1J, strideAK, strideBK, size0I, size1J, sizeK);" + self.endLine
+    #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"%u, %u, %u, %u, %u, %u, %u, %u, %u,\\\\n\\\", offsetC, offsetA, offsetB, strideC1J, strideAK, strideBK, size0I, size1J, sizeK);" + self.endLine
+
+    kStr += "  printf(\\\"%u\\\\n\\\", sizeK);" + self.endLine
+    # end debug printf
+
+    # debug printf - tensor A, B
     # end debug printf
 
     # debug printf - tensor A, B

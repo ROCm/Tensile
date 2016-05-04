@@ -93,9 +93,15 @@ else()
   )
 endif()
 
-add_definitions(-DCobaltLib_DIR_PROBLEMS=\\\"${CobaltLib_DIR_PROBLEMS}\\\")
-add_definitions(-DCobaltLib_DIR_SOLUTIONS=\\\"${CobaltLib_DIR_SOLUTIONS}\\\")
-add_definitions(-DCobaltLib_DIR_GENERATED=\\\"${CobaltLib_DIR_GENERATED}\\\")
+if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  add_definitions(-DCobaltLib_DIR_PROBLEMS="${CobaltLib_DIR_PROBLEMS}")
+  add_definitions(-DCobaltLib_DIR_SOLUTIONS="${CobaltLib_DIR_SOLUTIONS}")
+  add_definitions(-DCobaltLib_DIR_GENERATED="${CobaltLib_DIR_GENERATED}")
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  add_definitions(-DCobaltLib_DIR_PROBLEMS=\\\"${CobaltLib_DIR_PROBLEMS}\\\")
+  add_definitions(-DCobaltLib_DIR_SOLUTIONS=\\\"${CobaltLib_DIR_SOLUTIONS}\\\")
+  add_definitions(-DCobaltLib_DIR_GENERATED=\\\"${CobaltLib_DIR_GENERATED}\\\")
+endif()
 
 
 

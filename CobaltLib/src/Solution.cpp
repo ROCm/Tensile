@@ -536,7 +536,12 @@ template<
     typename TypeBeta>
 SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
 SolutionOpenCL( const Problem & inputProblem)
-    : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) { }
+    : SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
+
+  for (size_t i = 0; i < this->maxNumKernels; i++) {
+    kernels[i] = nullptr;
+  }
+}
 
 template<
     typename TypeC,
@@ -779,6 +784,14 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
+  // compile kernels
+  const char *buildOptions = "-cl-std=CL2.0";
+  for (size_t i = 0; i < this->maxNumKernels; i++) {
+    if (kernelSources[i]) {
+      makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );
+    }
+  }
+
   size_t *globalWorkOffset = NULL;
 
   unsigned int kernelSerialIdx = 0;
@@ -795,14 +808,14 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
       status = clSetKernelArg( kernels[kernelIdx], 2,
           sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
       status = clSetKernelArg( kernels[kernelIdx], 3,
-          sizeof(TypeAlpha), alpha.data ); CL_CHECK(status)
+          sizeof(TypeAlpha), &alpha.data ); CL_CHECK(status)
       status = clSetKernelArg( kernels[kernelIdx], 4,
-          sizeof(TypeBeta), beta.data ); CL_CHECK(status)
+          sizeof(TypeBeta), &beta.data ); CL_CHECK(status)
 
       // uint args
       for (unsigned int i = 0; i < this->numKernelArgs; i++) {
         status = clSetKernelArg( kernels[kernelIdx], i+5, sizeof(unsigned int),
-            this->enqueueArgs[kernelIdx][enqueueIdx][i] ); CL_CHECK(status)
+            &this->enqueueArgs[kernelIdx][enqueueIdx][i] ); CL_CHECK(status)
       }
 
       // out cl_event
@@ -811,27 +824,58 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
         outEvent = &(ctrl.outputEvents[kernelSerialIdx%ctrl.numOutputEvents]);
       }
 
+      /*
       size_t gws[3] = { this->globalWorkSize[kernelIdx][0],
           this->globalWorkSize[kernelIdx][1],
           this->globalWorkSize[kernelIdx][2] };
-      size_t lws[3] = { this->localWorkSize[kernelIdx][0],
-          this->localWorkSize[kernelIdx][1],
-          this->localWorkSize[kernelIdx][2] };
+      size_t lws[3] = { this->localWorkSize[0],
+          this->localWorkSize[1],
+          this->localWorkSize[2] };
+       */
+
+      // print args
+      printf("openclKernelLaunch(%u:%u:%u):\n    g{%u,%u,%u};\n    l{%u,%u,%u};\n    p{%p,%p,%p};\n    ab{%f,%f};\n    o{%u,%u,%u};\n    s{%u,%u,%u,%u,%u,%u}\n",
+          kernelIdx,
+          enqueueIdx,
+          this->numKernelArgs,
+          (unsigned int)this->globalWorkSize[kernelIdx][0],
+          (unsigned int)this->globalWorkSize[kernelIdx][1],
+          (unsigned int)this->globalWorkSize[kernelIdx][2],
+          (unsigned int)this->localWorkSize[0],
+          (unsigned int)this->localWorkSize[1],
+          (unsigned int)this->localWorkSize[2],
+          static_cast<TypeC*>(tensorDataC.data),
+          static_cast<TypeA*>(tensorDataA.data),
+          static_cast<TypeB*>(tensorDataB.data),
+          *static_cast<TypeAlpha*>(alpha.data),
+          *static_cast<TypeBeta*>(beta.data),
+          this->enqueueArgs[kernelIdx][enqueueIdx][0],
+          this->enqueueArgs[kernelIdx][enqueueIdx][1],
+          this->enqueueArgs[kernelIdx][enqueueIdx][2],
+          this->enqueueArgs[kernelIdx][enqueueIdx][3],
+          this->enqueueArgs[kernelIdx][enqueueIdx][4],
+          this->enqueueArgs[kernelIdx][enqueueIdx][5],
+          this->enqueueArgs[kernelIdx][enqueueIdx][6],
+          this->enqueueArgs[kernelIdx][enqueueIdx][7],
+          this->enqueueArgs[kernelIdx][enqueueIdx][8] ); 
+
       // enqueue
       status = clEnqueueNDRangeKernel(
           ctrl.queues[kernelSerialIdx++%ctrl.numQueues],
           kernels[kernelIdx],
           this->workDim,
           globalWorkOffset,
-          gws,
-          lws,
+          this->globalWorkSize[kernelIdx],
+          this->localWorkSize,
           ctrl.numInputEvents,
           ctrl.inputEvents,
           outEvent );
-      
+      CL_CHECK(status)
+      clFinish(ctrl.queues[kernelSerialIdx]);
+      kernelSerialIdx++;
     }
   }
-  return status;
+  return cobaltStatusSuccess;
 
 
 #if 0

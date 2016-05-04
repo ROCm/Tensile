@@ -30,4 +30,10 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
 endif()
 
 
-add_definitions(-DCobaltBenchmark_DIR_PROBLEMS=\\\"${CobaltBenchmark_DIR_PROBLEMS}\\\")
+if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  add_definitions(
+    -DCobaltBenchmark_DIR_PROBLEMS="${CobaltBenchmark_DIR_PROBLEMS}")
+elseif( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  add_definitions(
+    -DCobaltBenchmark_DIR_PROBLEMS=\\\"${CobaltBenchmark_DIR_PROBLEMS}\\\")
+endif()

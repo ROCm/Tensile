@@ -49,8 +49,9 @@ class SolutionCandidateGenerator:
       [False,  True, False], \
       ]
   """
+  # opencl and hip now require offsets
   ppdUniverse = [ \
-      [ True,  True, False], \
+      [ True,  False, False], \
       ]
   # non-skinny problem will only choose from 8x8 and 16x16
   universeWorkGroupDim = [ \
@@ -64,7 +65,7 @@ class SolutionCandidateGenerator:
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
-  noBranches = True
+  noBranches = False
 
   ##############################################################################
   # init

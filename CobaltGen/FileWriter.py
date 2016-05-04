@@ -329,8 +329,9 @@ class FileWriter:
       h += "#ifndef " + problemFileNameBase.upper() + "_H\n"
       h += "#define " + problemFileNameBase.upper() + "_H\n"
       h += "\n"
-      h += "//#include \"Cobalt.h\"\n"
-      h += "//#include \"Solution.h\"\n"
+      h += "#include \"Cobalt.h\"\n"
+      h += "#include \"Solution.h\"\n"
+      h += "#include <vector>\n"
       h += "\n"
       for i in range(0,numSolutions):
         h += "#include \""+ self.solutionWriter.getName(solutionList[i]) + ".h\"\n"

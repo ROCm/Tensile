@@ -122,6 +122,10 @@ add_definitions( -DCobalt_SOLVER_ENABLED=0)
 
 
 
-add_definitions(
-  -DCobaltBenchmark_DIR_SOLUTIONS=\\\"${CobaltBenchmark_DIR_SOLUTIONS}\\\")
-#-DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")
+if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  add_definitions(
+    -DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  add_definitions(
+    -DCobaltBenchmark_DIR_SOLUTIONS=\\\"${CobaltBenchmark_DIR_SOLUTIONS}\\\")
+endif()

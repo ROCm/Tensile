@@ -166,13 +166,13 @@ class SolutionWriter:
       for i in range(0, len(solution.kernels)):
         if solution.kernels[i] == None:
           s += "  this->kernelSources[" + str(i) + "] = nullptr;\n"
-          s += "  this->kernels[" + str(i) + "] = nullptr;\n"
+          #s += "  this->kernels[" + str(i) + "] = nullptr;\n"
         else:
           name = self.kernelWriter.getName(solution.kernels[i])
           srcName = name + "_src"
           kernelName = name + "_kernel"
           s += "  this->kernelSources[" + str(i) + "] = " + srcName + ";\n"
-          s += "  this->kernels[" + str(i) + "] = " + kernelName + ";\n"
+          #s += "  this->kernels[" + str(i) + "] = " + kernelName + ";\n"
           numKernels += 1
     s += "  this->numKernels = " + str(numKernels) + ";\n"
     # edges
@@ -184,10 +184,10 @@ class SolutionWriter:
 
     # kernel arguments
     s += "  /* kernel arguments */\n"
-    if self.backend.isOpenCL():
-      s += "  this->numKernelArgs = 0; // pointers and offsets\n"
-    else:
-      s += "  this->numKernelArgs = 3; // pointers and offsets\n"
+    #if self.backend.isOpenCL():
+    #  s += "  this->numKernelArgs = 0; // pointers and offsets\n"
+    #else:
+    s += "  this->numKernelArgs = 3; // pointers and offsets\n"
     s += "\n"
 
     s += "  /* preprocessor optimizations */\n"
@@ -296,17 +296,30 @@ class SolutionWriter:
     s += ";\n"
     s += "\n"
 
-    # close constructor
+    # assign kernel args
     s += "  /* determine globalWorkSize */\n"
     s += "  this->assignKernelArgs();\n"
     s += "\n"
+
+    # compile kernels
+    #if self.backend.isOpenCL():
+      #s += "  // compile kernels\n"
+      #s += "  const char *buildOptions = \"-cl-std=CL2.0\";\n"
+      #s += "  for (size_t i = 0; i < this->numKernels; i++) {\n"
+      #s += "    kernels[i] = nullptr;\n"
+      #s += "    if (kernelSources[i]) {\n"
+      #s += "      makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );\n"
+      #s += "    }\n"
+      #s += "  }\n"
+      #s += "\n"
+
 
     # opencl global size *= local size
     if self.backend.isOpenCL():
       s += "\n"
       s += "  for (unsigned int kernelIdx = 0; kernelIdx < this->maxNumKernels; kernelIdx++) {\n"
       s += "    for (unsigned int i = 0; i < this->workDim; i++) {\n"
-      s += "      this->globalWorkSize[kernelIdx][i] *= this->localWorkSize[kenelIdx][i];\n"
+      s += "      this->globalWorkSize[kernelIdx][i] *= this->localWorkSize[i];\n"
       s += "    }\n"
       s += "  }\n"
       s += "\n"
@@ -364,86 +377,87 @@ class SolutionWriter:
     s += "\n"
 
     # enqueue
-    s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
-    s += "CobaltStatus " + solutionName \
-        + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(\n"
-    s += "      CobaltTensorData tensorDataC,\n"
-    s += "      CobaltTensorData tensorDataA,\n"
-    s += "      CobaltTensorData tensorDataB,\n"
-    s += "      CobaltScalarData alpha,\n"
-    s += "      CobaltScalarData beta,\n"
-    s += "      CobaltControl & ctrl ) {\n"
-    s += "\n"
-    s += "  unsigned int kernelIdx = 0;\n"
-    s += "  unsigned int enqueueIdx = 0;\n"
-    s += "\n"
-    for k in range(0, len(solution.kernels)):
-      kernel = solution.kernels[k]
-      if kernel != None:
-        s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
-        s += "\n"
-        if True:
-          s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
-          s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
-          s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"
-          s += ",\n        (unsigned int)this->localWorkSize[0], (unsigned int)this->localWorkSize[1], (unsigned int)this->localWorkSize[2]"
-          s += ",\n        static_cast<TypeC*>(tensorDataC.data), static_cast<TypeA*>(tensorDataA.data), static_cast<TypeB*>(tensorDataB.data)"
-          s += ",\n        *static_cast<TypeAlpha*>(alpha.data), *static_cast<TypeBeta*>(beta.data)"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][0]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][1]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][2]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][3]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][4]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][5]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][6]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][7]"
-          s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][8]);\n"
+    if self.backend.isHIP():
+      s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
+      s += "CobaltStatus " + solutionName \
+          + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(\n"
+      s += "      CobaltTensorData tensorDataC,\n"
+      s += "      CobaltTensorData tensorDataA,\n"
+      s += "      CobaltTensorData tensorDataB,\n"
+      s += "      CobaltScalarData alpha,\n"
+      s += "      CobaltScalarData beta,\n"
+      s += "      CobaltControl & ctrl ) {\n"
+      s += "\n"
+      s += "  unsigned int kernelIdx = 0;\n"
+      s += "  unsigned int enqueueIdx = 0;\n"
+      s += "\n"
+      for k in range(0, len(solution.kernels)):
+        kernel = solution.kernels[k]
+        if kernel != None:
+          s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
           s += "\n"
-        s += "    hipLaunchKernel(\n"
-        s += "        HIP_KERNEL_NAME(%s),\n" \
-            % self.kernelWriter.getName(kernel)
-        s += "        dim3(\n"
-        s += "            this->globalWorkSize[kernelIdx][0],\n"
-        s += "            this->globalWorkSize[kernelIdx][1],\n"
-        s += "            this->globalWorkSize[kernelIdx][2]),\n"
-        s += "        dim3(\n"
-        s += "            this->localWorkSize[0],\n"
-        s += "            this->localWorkSize[1],\n"
-        s += "            this->localWorkSize[2]),\n"
-        s += "        0, // groupMemBytes\n"
-        s += "        ctrl.queues[enqueueIdx%ctrl.numQueues],\n"
-        s += "        static_cast<TypeC*>(tensorDataC.data),\n"
-        s += "        static_cast<TypeA*>(tensorDataA.data),\n"
-        s += "        static_cast<TypeB*>(tensorDataB.data),\n"
-        s += "        *static_cast<TypeAlpha*>(alpha.data),\n"
-        s += "        *static_cast<TypeBeta*>(beta.data),\n"
-        s += "        this->enqueueArgs[kernelIdx][i][0]+tensorDataC.offset,\n"
-        s += "        this->enqueueArgs[kernelIdx][i][1]+tensorDataA.offset,\n"
-        s += "        this->enqueueArgs[kernelIdx][i][2]+tensorDataB.offset"
-        numStrides = len(solution.kernels[0].problem.tensorC.dimensions) \
-            + len(solution.kernels[0].problem.tensorA.dimensions) \
-            + len(solution.kernels[0].problem.tensorB.dimensions)
-        if solution.kernels[0].ppdLeadingStride:
-          numStrides -= 3
-        numSizes = len(solution.kernels[0].indexOrderC) + len(solution.kernels[0].indexOrderSummation)
-        numKernelArgs = numStrides + numSizes
-        for i in range(0, numKernelArgs):
-          s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3) 
-        s += ");\n"
-        s += "hipStreamSynchronize( ctrl.queues[enqueueIdx%ctrl.numQueues] );\n"
+          if True:
+            s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
+            s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
+            s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"
+            s += ",\n        (unsigned int)this->localWorkSize[0], (unsigned int)this->localWorkSize[1], (unsigned int)this->localWorkSize[2]"
+            s += ",\n        static_cast<TypeC*>(tensorDataC.data), static_cast<TypeA*>(tensorDataA.data), static_cast<TypeB*>(tensorDataB.data)"
+            s += ",\n        *static_cast<TypeAlpha*>(alpha.data), *static_cast<TypeBeta*>(beta.data)"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][0]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][1]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][2]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][3]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][4]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][5]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][6]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][7]"
+            s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][8]);\n"
+            s += "\n"
+          s += "    hipLaunchKernel(\n"
+          s += "        HIP_KERNEL_NAME(%s),\n" \
+              % self.kernelWriter.getName(kernel)
+          s += "        dim3(\n"
+          s += "            this->globalWorkSize[kernelIdx][0],\n"
+          s += "            this->globalWorkSize[kernelIdx][1],\n"
+          s += "            this->globalWorkSize[kernelIdx][2]),\n"
+          s += "        dim3(\n"
+          s += "            this->localWorkSize[0],\n"
+          s += "            this->localWorkSize[1],\n"
+          s += "            this->localWorkSize[2]),\n"
+          s += "        0, // groupMemBytes\n"
+          s += "        ctrl.queues[enqueueIdx%ctrl.numQueues],\n"
+          s += "        static_cast<TypeC*>(tensorDataC.data),\n"
+          s += "        static_cast<TypeA*>(tensorDataA.data),\n"
+          s += "        static_cast<TypeB*>(tensorDataB.data),\n"
+          s += "        *static_cast<TypeAlpha*>(alpha.data),\n"
+          s += "        *static_cast<TypeBeta*>(beta.data),\n"
+          s += "        this->enqueueArgs[kernelIdx][i][0]+tensorDataC.offset,\n"
+          s += "        this->enqueueArgs[kernelIdx][i][1]+tensorDataA.offset,\n"
+          s += "        this->enqueueArgs[kernelIdx][i][2]+tensorDataB.offset"
+          numStrides = len(solution.kernels[0].problem.tensorC.dimensions) \
+              + len(solution.kernels[0].problem.tensorA.dimensions) \
+              + len(solution.kernels[0].problem.tensorB.dimensions)
+          if solution.kernels[0].ppdLeadingStride:
+            numStrides -= 3
+          numSizes = len(solution.kernels[0].indexOrderC) + len(solution.kernels[0].indexOrderSummation)
+          numKernelArgs = numStrides + numSizes
+          for i in range(0, numKernelArgs):
+            s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3) 
+          s += ");\n"
+          s += "hipStreamSynchronize( ctrl.queues[enqueueIdx%ctrl.numQueues] );\n"
         
-        s += "    enqueueIdx++;\n"  
-        s += "  }\n"
-        s += "  kernelIdx++;\n"
-    s += "\n"
-    s += "  if (enqueueIdx > ctrl.numQueues) {\n"
-    s += "    ctrl.numQueuesUsed = ctrl.numQueues;\n"
-    s += "  } else {\n"
-    s += "    ctrl.numQueuesUsed = enqueueIdx;\n"
-    s += "  }\n"
-    s += "  return cobaltStatusSuccess;\n"
-    s += "}\n"
-    s += "\n"
+          s += "    enqueueIdx++;\n"  
+          s += "  }\n"
+          s += "  kernelIdx++;\n"
+      s += "\n"
+      s += "  if (enqueueIdx > ctrl.numQueues) {\n"
+      s += "    ctrl.numQueuesUsed = ctrl.numQueues;\n"
+      s += "  } else {\n"
+      s += "    ctrl.numQueuesUsed = enqueueIdx;\n"
+      s += "  }\n"
+      s += "  return cobaltStatusSuccess;\n"
+      s += "}\n"
+      s += "\n"
 
 
     # explicit template instantiation
@@ -497,13 +511,14 @@ class SolutionWriter:
     s += "\n"
     s += "  std::string toString( size_t indentLevel) const;\n"
     s += "  std::string toStringDetailXML( size_t indentLevel) const;\n"
-    s += "  CobaltStatus enqueue(\n"
-    s += "      CobaltTensorData tensorDataC,\n"
-    s += "      CobaltTensorData tensorDataA,\n"
-    s += "      CobaltTensorData tensorDataB,\n"
-    s += "      CobaltScalarData alpha,\n"
-    s += "      CobaltScalarData beta,\n"
-    s += "      CobaltControl & ctrl );\n"
+    if self.backend.isHIP():
+      s += "  CobaltStatus enqueue(\n"
+      s += "      CobaltTensorData tensorDataC,\n"
+      s += "      CobaltTensorData tensorDataA,\n"
+      s += "      CobaltTensorData tensorDataB,\n"
+      s += "      CobaltScalarData alpha,\n"
+      s += "      CobaltScalarData beta,\n"
+      s += "      CobaltControl & ctrl );\n"
     s += "\n"
     s += "}; // class\n"
     s += "\n"
