@@ -6,7 +6,7 @@
 #endif
 
 #ifdef _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
+#include <cstdlib>
 #include <crtdbg.h>
 #ifndef DBG_NEW
 #define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
@@ -27,7 +27,7 @@ _CrtMemState s3;
 #include "MathTemplates.h"
 
 #include <tuple>
-#include <cstring>
+#include <string>
 #include <cstdio>
 
 #define ULL (unsigned long long)

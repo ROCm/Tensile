@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <assert.h>
-#include <cstring>
+#include <string>
 
 namespace Cobalt {
 

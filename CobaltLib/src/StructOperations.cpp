@@ -3,7 +3,7 @@
 #include "Solution.h"
 #include <assert.h>
 #include <string>
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <iomanip>

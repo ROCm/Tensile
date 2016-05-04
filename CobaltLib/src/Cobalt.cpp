@@ -5,8 +5,9 @@
 #include "SolutionTensorContractionCPU.h"
 
 #include <assert.h>
-#include <stdio.h>
-#include <cstring>
+#include <cstdio>
+#include <string>
+#include <algorithm>
 
 #if Cobalt_SOLVER_ENABLED
 #include "CobaltGetSolution.h"
@@ -266,8 +267,7 @@ CobaltStatus cppStringToCString(
     // do copy
     if (size) {
       // copy up to size
-      size_t lengthToCopy = std::min(*size-1 /* reserve space for null char*/,
-          (unsigned int)state.size());
+      size_t lengthToCopy = *size-1 < state.size() ? *size-1 : state.size();
       std::memcpy(cstr, state.c_str(), lengthToCopy);
       cstr[lengthToCopy] = '\0';
     } else {

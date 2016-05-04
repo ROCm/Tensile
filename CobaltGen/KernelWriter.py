@@ -687,7 +687,7 @@ class KernelWriter:
     #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"oC=%u, oA=%u, oB=%u, sCJ=%u, sAK=%u, sBK=%u, sI=%u, sJ=%u, sK=%u\\\\n\\\", offsetC, offsetA, offsetB, strideC1J, strideAK, strideBK, size0I, size1J, sizeK);" + self.endLine
     #kStr += "  if( " + self.getLocalIdStr + "(0) ==0 && " + self.getLocalIdStr + "(1) == 0) printf(\\\"%u, %u, %u, %u, %u, %u, %u, %u, %u,\\\\n\\\", offsetC, offsetA, offsetB, strideC1J, strideAK, strideBK, size0I, size1J, sizeK);" + self.endLine
 
-    kStr += "  printf(\\\"%u\\\\n\\\", sizeK);" + self.endLine
+    #kStr += "  printf(\\\"%u\\\\n\\\", sizeK);" + self.endLine
     # end debug printf
 
     # debug printf - tensor A, B
@@ -1323,8 +1323,8 @@ class KernelWriter:
         #kStr += " printf(\\\"T[%u,%u] Cijk = %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[" + str(a) + "][" + str(b) + "] );"
 
         # debug printf
-        #kStr += "  printf(\\\"T[%u,%u]%u writing C[%u] = %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), globalIdxCK, GET_GLOBAL_INDEX_C(globalIdxC1I, globalIdxC0J, globalIdxCK), rC[0][0]"
-        #kStr += ");" + self.endLine
+        # kStr += "  printf(\\\"T[%u,%u] writing C[%u] = %f, %f, %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), GET_GLOBAL_INDEX_C(globalIdxC0I, globalIdxC1J), alpha, beta, rC[0][0]"
+        # kStr += ");" + self.endLine
         # end debug printf
 
         for i in range(0,numEdges):

@@ -6,9 +6,11 @@
 #ifndef COBALT_H
 #define COBALT_H
 
-#undef _CRTDBG_MAP_ALLOC
+#ifdef WIN32
+#define _CRTDBG_MAP_ALLOC
+#endif
 #ifdef _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
+#include <cstdlib>
 #include <crtdbg.h>
 #endif
 
@@ -145,7 +147,7 @@ bool cobaltStatusIsWarning( CobaltStatus status );
 
 /*******************************************************************************
  * cobaltSetup & cobaltTeardown
- * logFileName is cstring of where to write log file
+ * logFileName is c-string of where to write log file
  ******************************************************************************/
 CobaltStatus cobaltSetup( const char *logFileName );
 CobaltStatus cobaltTeardown();
@@ -366,7 +368,7 @@ CobaltStatus cobaltEnqueueSolution(
 
 /*******************************************************************************
  * cobalt*ToString
- * get cstring representation of objects
+ * get c-string representation of objects
  * if size is non-null, it is set to size if string user needs to allocate
  * if cstr is non-null, string is written to cstr buffer
  ******************************************************************************/

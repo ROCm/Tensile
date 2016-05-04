@@ -808,9 +808,9 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
       status = clSetKernelArg( kernels[kernelIdx], 2,
           sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
       status = clSetKernelArg( kernels[kernelIdx], 3,
-          sizeof(TypeAlpha), &alpha.data ); CL_CHECK(status)
+          sizeof(TypeAlpha), alpha.data ); CL_CHECK(status)
       status = clSetKernelArg( kernels[kernelIdx], 4,
-          sizeof(TypeBeta), &beta.data ); CL_CHECK(status)
+          sizeof(TypeBeta), beta.data ); CL_CHECK(status)
 
       // uint args
       for (unsigned int i = 0; i < this->numKernelArgs; i++) {
@@ -861,7 +861,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
       // enqueue
       status = clEnqueueNDRangeKernel(
-          ctrl.queues[kernelSerialIdx++%ctrl.numQueues],
+          ctrl.queues[kernelSerialIdx%ctrl.numQueues],
           kernels[kernelIdx],
           this->workDim,
           globalWorkOffset,
@@ -875,6 +875,13 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
       kernelSerialIdx++;
     }
   }
+
+  if (kernelSerialIdx > ctrl.numQueues) {
+    ctrl.numQueuesUsed = ctrl.numQueues;
+  } else {
+    ctrl.numQueuesUsed = kernelSerialIdx;
+  }
+
   return cobaltStatusSuccess;
 
 
