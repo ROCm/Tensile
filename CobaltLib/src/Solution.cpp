@@ -88,6 +88,7 @@ CobaltStatus Solution::enqueueEntry(
     gpuOnHostC.offset = 0;
     gpuOnHostC.data = malloc(sizeC);
     // wait for gpu solution
+    printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
       clFinish(ctrl.queues[i]);
@@ -96,13 +97,14 @@ CobaltStatus Solution::enqueueEntry(
 #endif
     }
     // copy results back
+    printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
 #if Cobalt_BACKEND_OPENCL12
     clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
         0, nullptr, nullptr);
 #elif Cobalt_BACKEND_HIP
     status = hipMemcpy(gpuOnHostC.data, tensorDataC.data, sizeC, hipMemcpyDeviceToHost);
-    status = hipStreamSynchronize( ctrl.queues[0] );
+    status = hipStreamSynchronize(nullptr);
 #endif
     // compare results
     bool equal = compareTensors(gpuOnHostC,
@@ -512,6 +514,12 @@ assignKernelArgs() {
       }
     }
   }
+
+  // manipulate which kernels get executed (for debugging)
+  //numEnqueues[0] = 0;
+  //numEnqueues[1] = 0;
+  //numEnqueues[2] = 0;
+  //numEnqueues[3] = 0;
 
 } // assign kernel arguments
 

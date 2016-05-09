@@ -33,12 +33,12 @@ _CrtMemState s3;
 
 #define ULL (unsigned long long)
 
-Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeOne;
-Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeOne;
-Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
-//#define MAX_PROBLEMS 16
-//#define MAX_SOLUTIONS_PER_PROBLEM 16
+//#define MAX_PROBLEMS 1
+//#define MAX_SOLUTIONS_PER_PROBLEM 1
 
 #define ALPHA 2
 #define BETA  2
@@ -116,6 +116,7 @@ int main( int argc, char *argv[] ) {
         sizeA, hipMemcpyHostToDevice );
     status = hipMemcpy( deviceTensorDataB.data, initialDataB,
         sizeB, hipMemcpyHostToDevice );
+    status = hipStreamSynchronize(nullptr);
 #endif
 
     // calculate reference C once for problem
@@ -162,6 +163,7 @@ int main( int argc, char *argv[] ) {
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
 
+      //for (unsigned int j = 0; j < 4; j++) {
       if (doValidation) {
         // re-initialize device buffers
 #if Cobalt_BACKEND_OPENCL12
@@ -185,9 +187,9 @@ int main( int argc, char *argv[] ) {
             sizeA, hipMemcpyHostToDevice );
         status = hipMemcpy( deviceTensorDataB.data, initialDataB,
             sizeB, hipMemcpyHostToDevice );
+        status = hipStreamSynchronize(nullptr);
 #endif
       }
-      // ensure kernels are compiled before timing
       // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
       ctrl.benchmark = 4; // 5;
       unsigned int numSamples = 1; // 4;
@@ -214,6 +216,7 @@ int main( int argc, char *argv[] ) {
           CL_CHECK(status)
         }
       }
+      //}
 
 #if 0
       // peek at gpu result
