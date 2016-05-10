@@ -79,7 +79,7 @@ int main( int argc, char * argv[] ) {
 
   size_t numProblems = 0;
   std::string logFilePath = CobaltBenchmark_DIR_PROBLEMS;
-  logFilePath += "/GEMM_log.xml";
+  //logFilePath += "/GEMM_log.xml";
   cobaltSetup(logFilePath.c_str());
   for (size_t transA = 0; transA < numTransA; transA++) {
     for (size_t transB = 0; transB < numTransB; transB++) {

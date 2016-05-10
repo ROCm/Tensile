@@ -20,28 +20,7 @@ set( CobaltBenchmark_SRC_GENERATED_STATIC
   ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
 )
 
-
-if( NOT EXISTS ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
-  MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
-  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
-      ""
-  )
-endif()
-
-
-set( CobaltBenchmark_CMAKE_DYNAMIC
-  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake
-)
-if( NOT EXISTS ${CobaltBenchmark_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltBenchmark_CMAKE_DYNAMIC}
-      "include( \${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
-      "include( \${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
-      "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
-      "  \${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}\n"
-      "  \${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n"
-  )
-endif()
-include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
+#include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
 
 ############################################################
 # CobaltGenBenchmark.py - generates benchmarking files
@@ -51,7 +30,6 @@ add_custom_command(
     ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
     ${CobaltBenchmark_CMAKE_DYNAMIC}
   COMMAND
-  
   python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
       --backend=${Cobalt_BACKEND}
       --input-path=${CobaltBenchmark_DIR_PROBLEMS}
@@ -59,7 +37,7 @@ add_custom_command(
       --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
       --optimize-beta=${Cobalt_OPTIMIZE_BETA}
       #echo "python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py --backend=${Cobalt_BACKEND} --input-path=${Cobalt_DIR_PROBLEMS} --output-path=${Cobalt_DIR_GENERATED} --result-file=${Cobalt_FILE_SOLUTIONS} --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA} --optimize-beta=${Cobalt_OPTIMIZE_BETA}"
-  DEPENDS ${CobaltGen_SRC}
+  DEPENDS ${CobaltGen_SRC} ${Cobalt_XML_PROBLEMS_FILE}
 )
 
 
@@ -81,9 +59,9 @@ source_group( CobaltGen\\Benchmark FILES
   ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
 )
 
-# gemm links Cobalt
+# benchmark links Cobalt
 target_link_libraries( ${CobaltBenchmark_NAME}
-  ${CobaltLib_NAME}
+  ${CobaltLogger_NAME}
 )
 
 # include Cobalt headers
@@ -103,7 +81,6 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
 elseif( Cobalt_BACKEND MATCHES "HIP")
   MESSAGE( "CobaltBenchmark linking HIP: ${HIP_INCLUDE_DIRS}" )
   include_directories( ${HIP_INCLUDE_DIRS} )
-  # target_link_libraries( ${CobaltBenchmark_NAME} ${HSA_LIBRARIES} )
 endif()
 
 ############################################################

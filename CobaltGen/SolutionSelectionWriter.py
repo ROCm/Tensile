@@ -48,6 +48,10 @@ class SolutionSelectionWriter:
     for deviceProfile, exactMatches in self.psMap.iteritems():
       s += "  /* doesn't match any known device; return a default */\n"
       s += "  return getSolution_" + deviceProfile.libString() + "(problem, status);\n"
+      break
+    if len(self.psMap) < 1:
+      s += "  *status = cobaltStatusProblemNotSupported;\n"
+      s += "  return nullptr;\n"
     s += "}\n"
     s += "\n"
 
@@ -782,7 +786,7 @@ class SolutionSelectionWriter:
       pspsForLargestSize = self.getPSPsForSize(problemSolutionPairs, largestSizeP)
       fallbacksForLargestSize = self.getFallbacks(pspsForLargestSize)
       while len(fallbacksForLargestSize) < 1:
-        size = self.getSize(largestSizeP)**(1.0/2.0)
+        size = largestSizeP.getSizeFree()**(1.0/2.0)
         if size%16 == 0:
           print "WARNING - not fallbacks for size " + str(size)
         indexOfNextLargestSize = self.getIndexOfNextLargestSize(problemSolutionPairs, largestSizeP)

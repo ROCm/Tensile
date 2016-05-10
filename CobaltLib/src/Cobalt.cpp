@@ -41,8 +41,8 @@ bool cobaltStatusIsWarning( CobaltStatus status ) {
 /*******************************************************************************
  * cobaltSetup()
  ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFileName ) {
-  Cobalt::logger.init(logFileName);
+CobaltStatus cobaltSetup( const char *logFilePath ) {
+  Cobalt::logger.init(logFilePath);
   return cobaltStatusSuccess;
 }
 

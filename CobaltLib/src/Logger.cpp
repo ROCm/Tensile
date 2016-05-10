@@ -70,8 +70,16 @@ Logger::Logger() {
 }
 
 void Logger::init( std::string logFilePath) {
-  printf("Logger::init(%s)\n", logFilePath.c_str() );
-  file.open( logFilePath, std::fstream::out );
+  std::string logName = "cobalt_trace.xml";
+  // append log to list of xmls
+  std::string listFileName = logFilePath + "/list_of_xmls.txt";
+  std::ofstream listFile;
+  listFile.open( listFileName, std::fstream::app );
+  listFile << logName << std::endl;
+  listFile.close();
+
+  //printf("Logger::init(%s)\n", logFilePath.c_str() );
+  file.open( logFilePath+"/"+logName, std::fstream::out );
   file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n";
   file << "<CobaltLog>\n\n";
   file << Logger::comment("Trace");

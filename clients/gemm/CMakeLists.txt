@@ -16,7 +16,7 @@ add_executable( ${SAMPLE_GEMM_NAME} ${SAMPLE_GEMM_SRC} )
 #set_property(TARGET ${SAMPLE_GEMM_NAME} PROPERTY CXX_STANDARD 11 )
 
 # gemm links Cobalt
-target_link_libraries( ${SAMPLE_GEMM_NAME} ${CobaltLib_NAME} )
+target_link_libraries( ${SAMPLE_GEMM_NAME} ${CobaltLogger_NAME} )
 
 # include Cobalt headers
 include_directories(

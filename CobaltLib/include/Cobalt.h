@@ -149,7 +149,7 @@ bool cobaltStatusIsWarning( CobaltStatus status );
  * cobaltSetup & cobaltTeardown
  * logFileName is c-string of where to write log file
  ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFileName );
+CobaltStatus cobaltSetup( const char *logFilePath );
 CobaltStatus cobaltTeardown();
 
 

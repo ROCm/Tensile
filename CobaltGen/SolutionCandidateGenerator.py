@@ -54,6 +54,7 @@ class SolutionCandidateGenerator:
       [ True,  False, False], \
       ]
   # non-skinny problem will only choose from 8x8 and 16x16
+  """
   universeWorkGroupDim = [ \
       [4,16],  [8,8],  [16,4], \
       [4,32], [8,16],  [16,8], [32,4], \
@@ -61,11 +62,10 @@ class SolutionCandidateGenerator:
       [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   """
   universeWorkGroupDim = [ [16,16] ]
-  """
  
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
-  noBranches = False
+  noBranches = True
 
   ##############################################################################
   # init

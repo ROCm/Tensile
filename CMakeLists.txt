@@ -8,6 +8,7 @@ cmake_minimum_required(VERSION 2.8)
 # Cobalt project name
 set( CobaltProj_NAME Cobalt)
 set( CobaltLib_NAME CobaltLib )
+set( CobaltLogger_NAME CobaltLogger )
 set( CobaltBenchmark_NAME CobaltBenchmark )
 set( TARGET_PLATFORM "64" )
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
@@ -35,11 +36,7 @@ add_definitions( "-std=c++11" )
 # OPTION - Cobalt Build Mode
 # - LOGGER - Cobalt.lib in log-only mode
 # - BACKEND - Cobalt.lib in full-backend mode
-set( Cobalt_BUILD_MODE "LOG_ONLY" CACHE STRING
-  "Cobalt operation mode?" )
-set_property( CACHE Cobalt_BUILD_MODE PROPERTY STRINGS
-  LOG_ONLY 
-  FULL_BACKEND )
+option( CobaltLib_ENABLE_LOGGER "Enable logger in CobaltLib?" )
 
 
 ############################################################
@@ -123,20 +120,21 @@ set( CobaltGen_SRC
 set( CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC
     ${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
 if( NOT EXISTS ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC}
+file( WRITE ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC}
     "set( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n"
-  )
+    "source_group(Kernels FILES "
+    "${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n"
+)
 endif()
 
 # Lib Kernels
 set( CobaltLib_KernelFiles_CMAKE_DYNAMIC
   ${CobaltLib_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
 if( NOT EXISTS ${CobaltLib_KernelFiles_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltLib_KernelFiles_CMAKE_DYNAMIC}
+file( WRITE ${CobaltLib_KernelFiles_CMAKE_DYNAMIC}
     "set( CobaltLib_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
     "source_group(Kernels FILES ${CobaltLib_KernelFiles_GENERATED_DYNAMIC} )\n"
-  )
+)
 endif()
 
 # Benchmark Solutions
@@ -158,6 +156,70 @@ if( NOT EXISTS ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC})
     "source_group(Solutions FILES ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n"
   )
 endif()
+
+# Templates
+if( NOT EXISTS
+  ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+  #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for CobaltLib")
+  file( WRITE
+    ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+    "" )
+endif()
+
+# CobaltLib
+set( CobaltLib_CMAKE_DYNAMIC
+  ${CobaltLib_DIR_GENERATED}/Other/CobaltLib.cmake )
+if( NOT EXISTS ${CobaltLib_CMAKE_DYNAMIC})
+  file( WRITE ${CobaltLib_CMAKE_DYNAMIC}
+  "include( \${CobaltLib_KernelFiles_CMAKE_DYNAMIC} )\n"
+  "include( \${CobaltLib_SolutionFiles_CMAKE_DYNAMIC} )\n"
+  "set( CobaltLib_SRC_GENERATED_DYNAMIC\n"
+  "  \${CobaltLib_KernelFiles_GENERATED_DYNAMIC}\n"
+  "  \${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n"
+  )
+endif()
+include( ${CobaltLib_CMAKE_DYNAMIC} )
+
+
+if( NOT EXISTS
+    ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+  #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
+  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+    "" )
+endif()
+
+
+set( CobaltBenchmark_CMAKE_DYNAMIC
+  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake
+)
+if( NOT EXISTS ${CobaltBenchmark_CMAKE_DYNAMIC})
+  file( WRITE ${CobaltBenchmark_CMAKE_DYNAMIC}
+    "include( \${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
+    "include( \${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
+    "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
+    "  \${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}\n"
+    "  \${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n" )
+endif()
+include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
+
+
+
+################################################################################
+# XML Lists
+################################################################################
+set( Cobalt_XML_PROBLEMS_FILE
+  ${CobaltBenchmark_DIR_PROBLEMS}/list_of_xmls.txt )
+if( NOT EXISTS ${Cobalt_XML_PROBLEMS_FILE})
+  file( WRITE ${Cobalt_XML_PROBLEMS_FILE}
+    "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBenchmark.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )
+endif()
+set( Cobalt_XML_SOLUTIONS_FILE
+  ${CobaltBenchmark_DIR_SOLUTIONS}/list_of_xmls.txt )
+if( NOT EXISTS ${Cobalt_XML_SOLUTIONS_FILE})
+  file( WRITE ${Cobalt_XML_SOLUTIONS_FILE}
+    "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBackend.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )
+endif()
+
 
 
 ################################################################################
