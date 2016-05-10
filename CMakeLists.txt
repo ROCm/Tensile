@@ -36,7 +36,7 @@ add_definitions( "-std=c++11" )
 # OPTION - Cobalt Build Mode
 # - LOGGER - Cobalt.lib in log-only mode
 # - BACKEND - Cobalt.lib in full-backend mode
-option( CobaltLib_ENABLE_LOGGER "Enable logger in CobaltLib?" )
+option( Cobalt_ENABLE_LOGGER "Enable logger in CobaltLib?" )
 
 
 ############################################################
@@ -67,16 +67,10 @@ endif()
 # OPTION - Cobalt Optimizations
 # - On - do write kernels specifically optimized for alpha=1, beta=0
 # - Off - don't write kernels specifically optimized for alpha=1, beta=0
-set( Cobalt_OPTIMIZE_ALPHA "Off" CACHE STRING
+option( Cobalt_OPTIMIZE_ALPHA
   "Should Cobalt write optimized kernels for alpha=1?" )
-set_property( CACHE Cobalt_OPTIMIZE_ALPHA PROPERTY STRINGS
-  On
-  Off)
-set( Cobalt_OPTIMIZE_BETA "Off" CACHE STRING
+option( Cobalt_OPTIMIZE_BETA
   "Should Cobalt write optimized kernels for beta=0?" )
-set_property( CACHE Cobalt_OPTIMIZE_BETA PROPERTY STRINGS
-  On
-  Off)
 
 
 ############################################################
@@ -91,13 +85,13 @@ source_group(include FILES ${CobaltLib_API} )
 # Directories
 set( CobaltBenchmark_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated/CobaltBenchmark )
 set( CobaltLib_DIR_GENERATED   ${CMAKE_BINARY_DIR}/CobaltGenerated/CobaltLib )
-set( CobaltBenchmark_DIR_PROBLEMS  ${CobaltBenchmark_DIR_GENERATED}/XML_ApplicationProblemTraces )
-set( CobaltBenchmark_DIR_SOLUTIONS ${CobaltBenchmark_DIR_GENERATED}/XML_BenchmarkSolutionTimes )
+set( Cobalt_DIR_PROBLEMS  ${CobaltBenchmark_DIR_GENERATED}/XML_ApplicationProblemTraces CACHE STRING "Directory from which to read application problem trace xml files")
+set( Cobalt_DIR_SOLUTIONS ${CobaltBenchmark_DIR_GENERATED}/XML_BenchmarkSolutionTimes CACHE STRING "Directory from which to read benchmark solution times xml files")
 
 file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_GENERATED} )
 file( MAKE_DIRECTORY ${CobaltLib_DIR_GENERATED} )
-file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_PROBLEMS} )
-file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_SOLUTIONS} )
+file( MAKE_DIRECTORY ${Cobalt_DIR_PROBLEMS} )
+file( MAKE_DIRECTORY ${Cobalt_DIR_SOLUTIONS} )
 
 ############################################################
 # CobaltGen Files
@@ -208,13 +202,13 @@ include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
 # XML Lists
 ################################################################################
 set( Cobalt_XML_PROBLEMS_FILE
-  ${CobaltBenchmark_DIR_PROBLEMS}/list_of_xmls.txt )
+  ${Cobalt_DIR_PROBLEMS}/list_of_xmls.txt )
 if( NOT EXISTS ${Cobalt_XML_PROBLEMS_FILE})
   file( WRITE ${Cobalt_XML_PROBLEMS_FILE}
     "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBenchmark.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )
 endif()
 set( Cobalt_XML_SOLUTIONS_FILE
-  ${CobaltBenchmark_DIR_SOLUTIONS}/list_of_xmls.txt )
+  ${Cobalt_DIR_SOLUTIONS}/list_of_xmls.txt )
 if( NOT EXISTS ${Cobalt_XML_SOLUTIONS_FILE})
   file( WRITE ${Cobalt_XML_SOLUTIONS_FILE}
     "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBackend.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )

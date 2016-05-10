@@ -54,7 +54,7 @@ int main( int argc, char *argv[] ) {
   parseCommandLineOptions(argc, argv);
 
   // setup CobaltLib
-  std::string logFilePath = CobaltBenchmark_DIR_SOLUTIONS;
+  std::string logFilePath = Cobalt_DIR_SOLUTIONS;
   logFilePath += "/CobaltBenchmark_log.xml";
   cobaltSetup(logFilePath.c_str());
 

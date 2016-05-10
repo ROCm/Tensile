@@ -86,7 +86,7 @@ add_custom_command(
   COMMAND
     python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
     --backend=${Cobalt_BACKEND}
-    --input-path=${CobaltBenchmark_DIR_SOLUTIONS}
+    --input-path=${Cobalt_DIR_SOLUTIONS}
     --output-path=${CobaltLib_DIR_GENERATED}
   DEPENDS ${CobaltGen_SRC} ${Cobalt_XML_SOLUTIONS_FILE}
 )
@@ -115,7 +115,7 @@ add_library( ${CobaltLib_NAME}
   ${CobaltGen_SRC}
   )
 #set_property(TARGET ${CobaltLib_NAME} PROPERTY CXX_STANDARD 11 )
-if( ${CobaltLib_ENABLE_LOGGER} )
+if( ${Cobalt_ENABLE_LOGGER} )
   set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
       "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=1" )
 else()

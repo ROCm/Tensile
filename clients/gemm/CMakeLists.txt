@@ -1,9 +1,9 @@
-if( NOT EXISTS ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
-  MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for client")
-  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
-      ""
-  )
-endif()
+#if( NOT EXISTS ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+#  MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for client")
+#  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+#      ""
+#  )
+#endif()
 
 set( SAMPLE_GEMM_NAME gemm)
 
@@ -32,8 +32,8 @@ endif()
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions(
-    -DCobaltBenchmark_DIR_PROBLEMS="${CobaltBenchmark_DIR_PROBLEMS}")
+    -DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
 elseif( Cobalt_BACKEND MATCHES "HIP")
   add_definitions(
-    -DCobaltBenchmark_DIR_PROBLEMS=\\\"${CobaltBenchmark_DIR_PROBLEMS}\\\")
+    -DCobalt_DIR_PROBLEMS=\\\"${Cobalt_DIR_PROBLEMS}\\\")
 endif()

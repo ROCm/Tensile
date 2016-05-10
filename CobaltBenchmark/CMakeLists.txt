@@ -32,7 +32,7 @@ add_custom_command(
   COMMAND
   python ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
       --backend=${Cobalt_BACKEND}
-      --input-path=${CobaltBenchmark_DIR_PROBLEMS}
+      --input-path=${Cobalt_DIR_PROBLEMS}
       --output-path=${CobaltBenchmark_DIR_GENERATED}
       --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
       --optimize-beta=${Cobalt_OPTIMIZE_BETA}
@@ -101,8 +101,8 @@ add_definitions( -DCobalt_SOLVER_ENABLED=0)
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions(
-    -DCobaltBenchmark_DIR_SOLUTIONS="${CobaltBenchmark_DIR_SOLUTIONS}")
+    -DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}")
 elseif( Cobalt_BACKEND MATCHES "HIP")
   add_definitions(
-    -DCobaltBenchmark_DIR_SOLUTIONS=\\\"${CobaltBenchmark_DIR_SOLUTIONS}\\\")
+    -DCobalt_DIR_SOLUTIONS=\\\"${Cobalt_DIR_SOLUTIONS}\\\")
 endif()

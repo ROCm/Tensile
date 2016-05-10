@@ -78,7 +78,7 @@ int main( int argc, char * argv[] ) {
   const bool useOffsets[] = {false, true};
 
   size_t numProblems = 0;
-  std::string logFilePath = CobaltBenchmark_DIR_PROBLEMS;
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
   //logFilePath += "/GEMM_log.xml";
   cobaltSetup(logFilePath.c_str());
   for (size_t transA = 0; transA < numTransA; transA++) {

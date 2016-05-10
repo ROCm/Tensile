@@ -95,7 +95,11 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "\nCobaltGenBackend: backend=\"" + str(backend) + "\"; outputPath=\"" + args.outputPath + "\"; inputFiles=" + str(inputFiles)
+  print "\nCobaltGenBackend:\n"
+  print "  backend=" + str(backend)
+  print "  outputPath=" + args.outputPath
+  print "  inputPath=" + args.inputPath
+  print "  inputFiles=" + str(inputFiles)
 
   # generate backend
   GenBackendFromFiles( \
