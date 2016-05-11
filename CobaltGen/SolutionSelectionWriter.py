@@ -685,6 +685,8 @@ class SolutionSelectionWriter:
       s += " else "
     else:
       s += " else if ("
+    if firstSizeGroup and listSizeGroup:
+        s += " true ||"
     if firstSizeGroup or not lastSizeGroup:
       if rule[2] != None:
         thresholdUpper = int( rule[2].getSizeFree()**(1.0/2.0) )
