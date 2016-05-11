@@ -685,7 +685,7 @@ class SolutionSelectionWriter:
       s += " else "
     else:
       s += " else if ("
-    if firstSizeGroup and listSizeGroup:
+    if firstSizeGroup and lastSizeGroup:
         s += " true ||"
     if firstSizeGroup or not lastSizeGroup:
       if rule[2] != None:
