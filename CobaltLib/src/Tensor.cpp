@@ -54,7 +54,7 @@ std::string Tensor::toStringXML( size_t indent, std::string which ) const {
   return state;
 }
 
-std::string Tensor::toString( CobaltTensorData tensorData ) const {
+std::string Tensor::toString( CobaltTensorDataConst tensorData ) const {
   switch(dataType) {
   case cobaltDataTypeSingle:
     return toStringTemplate<float>(tensorData);
@@ -72,7 +72,7 @@ std::string Tensor::toString( CobaltTensorData tensorData ) const {
 }
 
 template<typename T>
-std::string Tensor::toStringTemplate( CobaltTensorData tensorData ) const {
+std::string Tensor::toStringTemplate( CobaltTensorDataConst tensorData ) const {
   std::ostringstream stream;
   std::vector<unsigned int> coords(numDims());
   for (unsigned int i = 0; i < numDims(); i++) {
@@ -300,8 +300,8 @@ void Tensor::fillTemplate(
 * Compare Tensors
 ******************************************************************************/
 bool compareTensors(
-  CobaltTensorData gpu,
-  CobaltTensorData cpu,
+  CobaltTensorDataConst gpu,
+  CobaltTensorDataConst cpu,
   Cobalt::Tensor tensor,
   CobaltControl ctrl) {
 

@@ -50,8 +50,6 @@ CobaltTensorData deviceTensorDataOnHostB; // result buffer coppied back to host 
 
 // reference tensor data
 CobaltTensorData referenceTensorDataC; // input and result buffer on host
-CobaltTensorData referenceTensorDataA; // just points to initialTensorDataFloat or Double
-CobaltTensorData referenceTensorDataB;
 
 // setup opencl
 unsigned int numPlatforms;

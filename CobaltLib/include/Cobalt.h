@@ -206,6 +206,10 @@ typedef struct CobaltTensorData_ {
   void *data;
   unsigned int offset;
 } CobaltTensorData;
+typedef struct CobaltTensorDataConst_ {
+  const void *data;
+  unsigned int offset;
+} CobaltTensorDataConst;
 
 
 /*******************************************************************************
@@ -216,6 +220,10 @@ typedef struct CobaltTensorData_ {
   void *data;
   unsigned int offset;
 } CobaltTensorData;
+typedef struct CobaltTensorDataConst_ {
+  const void *data;
+  unsigned int offset;
+} CobaltTensorDataConst;
 
 #endif
 
@@ -359,8 +367,8 @@ CobaltStatus cobaltDestroySolution( CobaltSolution *solution );
 CobaltStatus cobaltEnqueueSolution(
     CobaltSolution solution,
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl *control );

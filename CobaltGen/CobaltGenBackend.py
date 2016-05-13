@@ -32,27 +32,27 @@ def GenBackendFromFiles( \
     for exactMatch, problems in exactMatches.iteritems():
       psTimes[deviceProfile][exactMatch] = []
       #print "ExactMatch: " + str(exactMatch)
+      #print len(problems)
       for problem, solutionCandidates in problems.iteritems():
+        #print str(solutionCandidates)
+        #print len(solutionCandidates)
         #print "Problem: " + str(problem)
         # choose fastest solution
-        solutionCandidatesUnsorted = []
         for solution, solutionBenchmark in solutionCandidates.iteritems():
           avgTime = 1e100
           if len(solutionBenchmark.times) > 0:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
-          psTimes[deviceProfile][exactMatch].append([problem, solution, avgTime])
-        #  solutionCandidatesUnsorted.append( [solution, avgTime] )
-        #solutionCandidatesSorted = sorted( solutionCandidatesUnsorted, \
-        #  key = lambda x: int(x[1]))
-        #fastestSolution = solutionCandidatesSorted[0][0]
-        #fastestSolutionTime = solutionCandidatesSorted[0][1]
-        #print "Winner: " + str(fastestSolutionTime) + " is " + str(fastestSolution)
+            psTimes[deviceProfile][exactMatch].append([problem, solution, avgTime])
+      # if this exact match didn't have any psps with times, remove
+      if len(psTimes[deviceProfile][exactMatch]) < 1:
+        print "CobaltGenBackend: ExactMatch %s has no benchmark times; removing." % str(exactMatch)
+        psTimes[deviceProfile].pop(exactMatch, None)
+    # if this device profile didn't have any exact matches with times, remove
+    if len(psTimes[deviceProfile]) < 1:
+      print "CobaltGenBackend: Device Profile %s has no benchmark times; removing." % str(deviceProfile)
+      psTimes.pop(deviceProfile, None)
 
-        # add fastest solution to backend
-        # psMap[deviceProfile][exactMatch].append([problem, fastestSolution, fastestSolutionTime])
-        #solutionSet.add(fastestSolution)
-        #for kernel in fastestSolution.kernels:
-        #  kernelSet.add(kernel)
+
 
   # kernelSet.remove(None)
   fileWriter = FileWriter.FileWriter(outputPath, backend, False)

@@ -23,8 +23,8 @@ SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTens
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
 CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {

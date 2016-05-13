@@ -129,8 +129,8 @@ int main( int argc, char *argv[] ) {
 
       // re-initialize reference buffers
       memcpy(referenceTensorDataC.data, initialDataC, sizeC);
-      referenceTensorDataA.data = initialDataA;
-      referenceTensorDataB.data = initialDataB;
+      CobaltTensorDataConst referenceTensorDataA{ initialDataA, 0 };
+      CobaltTensorDataConst referenceTensorDataB{ initialDataB, 0 };
 
       // enqueue reference solution
       printf("Status: Enqueueing reference for %s ...", problem->pimpl->toString().c_str());
@@ -197,11 +197,15 @@ int main( int argc, char *argv[] ) {
         ctrl.benchmark = 0;
         numSamples = 1;
       }
+      CobaltTensorDataConst constA{ deviceTensorDataA.data,
+          deviceTensorDataA.offset };
+      CobaltTensorDataConst constB{ deviceTensorDataB.data,
+          deviceTensorDataB.offset };
       for (unsigned int s = 0; s < numSamples; s++) {
         solution->enqueueEntry(
             deviceTensorDataC,
-            deviceTensorDataA,
-            deviceTensorDataB,
+            constA,
+            constB,
             alpha,
             beta,
             ctrl );
@@ -341,10 +345,6 @@ void initTensorData() {
   // reference tensor data
   referenceTensorDataC.data = malloc(tensorSizeMaxC);
   referenceTensorDataC.offset = 0;
-  referenceTensorDataA.data = nullptr;
-  referenceTensorDataA.offset = 0;
-  referenceTensorDataB.data = nullptr;
-  referenceTensorDataB.offset = 0;
 
   // scalars
   alphaFloat.data = new float[2];

@@ -17,15 +17,15 @@ public:
   virtual ~Solution() { /*nothing*/ };
   CobaltStatus enqueueEntry(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl);
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl ) = 0;
@@ -57,8 +57,8 @@ public:
   virtual ~SolutionTemplate() { /*nothing*/ };
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl ) = 0;
@@ -85,8 +85,8 @@ public:
 
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl ) = 0;
@@ -166,8 +166,8 @@ public:
   
   CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl );
@@ -219,8 +219,8 @@ public:
 
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl ) = 0;
@@ -250,8 +250,8 @@ public:
 
   CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
-      CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
+      CobaltTensorDataConst tensorDataA,
+      CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl );

@@ -809,7 +809,6 @@ class Kernel:
     state += "; " + str(self.dataTypeC)
     state += "; " + str(self.dataTypeA)
     state += "; " + str(self.dataTypeB)
-    state += "; " + str(self.operation)
     state += "; " + str(self.indexOrderC)
     state += "; " + str(self.indexOrderSummation)
     state += "; " + str(self.indexAssignmentDim0)

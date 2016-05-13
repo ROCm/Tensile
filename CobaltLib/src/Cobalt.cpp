@@ -237,8 +237,8 @@ CobaltStatus cobaltDestroySolution(CobaltSolution *solution) {
 CobaltStatus cobaltEnqueueSolution(
     CobaltSolution solution,
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl *ctrl ) {

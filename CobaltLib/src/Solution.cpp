@@ -56,8 +56,8 @@ bool Solution::operator<( const Solution & other ) const {
  *****************************************************************************/
 CobaltStatus Solution::enqueueEntry(
   CobaltTensorData tensorDataC,
-  CobaltTensorData tensorDataA,
-  CobaltTensorData tensorDataB,
+  CobaltTensorDataConst tensorDataA,
+  CobaltTensorDataConst tensorDataB,
   CobaltScalarData alpha,
   CobaltScalarData beta,
   CobaltControl & ctrl) {
@@ -107,8 +107,10 @@ CobaltStatus Solution::enqueueEntry(
     status = hipStreamSynchronize(nullptr);
 #endif
     // compare results
-    bool equal = compareTensors(gpuOnHostC,
-        *(static_cast<CobaltTensorData *>(ctrl.validate) ),
+    CobaltTensorData *ref = static_cast<CobaltTensorData *>(ctrl.validate);
+    CobaltTensorDataConst constRef{ ref->data, ref->offset};
+    CobaltTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
+    bool equal = compareTensors(constGPU, constRef,
         Solution::problem.tensorC, ctrl);
     entry.validationStatus = equal ? ValidationStatus::statusValid
         : ValidationStatus::statusInvalid;
@@ -224,8 +226,8 @@ std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetai
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
@@ -786,8 +788,8 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
@@ -1130,8 +1132,8 @@ template<
 CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
 enqueue(
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {

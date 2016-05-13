@@ -18,8 +18,8 @@ public:
 
   CobaltStatus enqueue(
       CobaltTensorData tensorDataA,
-      CobaltTensorData tensorDataB,
-      CobaltTensorData tensorDataC,
+      CobaltTensorDataConst tensorDataB,
+      CobaltTensorDataConst tensorDataC,
       CobaltScalarData alpha,
       CobaltScalarData beta,
       CobaltControl & ctrl );

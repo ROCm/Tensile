@@ -540,6 +540,9 @@ class FileWriter:
       sslHeaderFile.close()
 
       for exactMatch, problemSolutionPairs in exactMatches.iteritems():
+        # only support this exact match if some benchmark times existed
+        # otherwise none of the other files for it will have been written
+
         baseName = "CobaltGetSolution_" + exactMatch.libString()
 
         # (7) Write CSV for verification

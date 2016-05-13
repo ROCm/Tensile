@@ -737,11 +737,15 @@ class SolutionSelectionWriter:
   # write exact match level getSolution
   # chooses amongst sizes and mods
   #############################################################################
-  def writeGetSolutionForExactMatch(self, exactMatch, inputProblemSolutionPairs):
+  def writeGetSolutionForExactMatch(self, exactMatch, \
+      inputProblemSolutionPairs):
+
+    s = ""
+    h = ""
+    if len(inputProblemSolutionPairs) < 1:
+        return (s, h)
+
     problemSolutionPairsUnsorted = inputProblemSolutionPairs # deep copy
-    
-
-
     print "Sorting %u PSPs" % len(inputProblemSolutionPairs)
     problemSolutionPairs = self.sortSizePSPs(problemSolutionPairsUnsorted)
     print "Sorting done."
@@ -759,7 +763,6 @@ class SolutionSelectionWriter:
     functionName = "getSolution_" + exactMatch.libString()
 
 
-    s = ""
     s += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status ) {\n"
     s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
@@ -1013,7 +1016,6 @@ class SolutionSelectionWriter:
     s = inc + s
 
     # header file
-    h = ""
     h += "#ifndef COBALT_" + functionName.upper() + "_H\n"
     h += "#define COBALT_" + functionName.upper() + "_H\n"
     h += "\n"
