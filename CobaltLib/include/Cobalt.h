@@ -356,7 +356,7 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem );
 CobaltSolution cobaltGetSolutionForProblem(
     const CobaltProblem problem,
     CobaltStatus *status );
-CobaltStatus cobaltDestroySolution( CobaltSolution *solution );
+CobaltStatus cobaltDestroySolution( CobaltSolution solution );
 
 
 /*******************************************************************************

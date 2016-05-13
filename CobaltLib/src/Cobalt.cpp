@@ -220,11 +220,16 @@ CobaltSolution cobaltGetSolutionForProblem(
   return solution;
 }
 
-CobaltStatus cobaltDestroySolution(CobaltSolution *solution) {
+CobaltStatus cobaltDestroySolution(CobaltSolution solution) {
   if (solution) {
-    delete solution;
-    solution = nullptr;
-    return cobaltStatusSuccess;
+    if (solution->pimpl) {
+      delete solution->pimpl;
+      delete solution;
+      solution = nullptr;
+      return cobaltStatusSuccess;
+    } else {
+      return cobaltStatusParametersInvalid;
+    }
   }
   else {
     return cobaltStatusParametersInvalid;
