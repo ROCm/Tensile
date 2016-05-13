@@ -132,11 +132,11 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
     size_t serialIdxC = Solution::problem.tensorC.getIndex(freeCoord);
     if (alpha.data) {
-      TypeAlpha *alphaData = static_cast<TypeAlpha*>(alpha.data);
+      const TypeAlpha *alphaData = static_cast<const TypeAlpha*>(alpha.data);
       sumC = multiply<TypeC,TypeAlpha,TypeC>(*alphaData,sumC);
     }
     if (beta.data) {
-      TypeBeta *betaData = static_cast<TypeBeta*>(beta.data);
+      const TypeBeta *betaData = static_cast<const TypeBeta*>(beta.data);
       TypeC tmp = multiply<TypeC,TypeBeta,TypeC>(*betaData, dataC[serialIdxC]);
       sumC = add<TypeC,TypeC,TypeC>(tmp,sumC);
     }

@@ -102,10 +102,10 @@ int main( int argc, char *argv[] ) {
     void *initialDataC = isFloatC ? initialTensorDataFloatC.data : initialTensorDataDoubleC.data;
     void *initialDataA = isFloatA ? initialTensorDataFloatA.data : initialTensorDataDoubleA.data;
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
-    CobaltScalarData alpha;
-    alpha.data = isFloatAlpha ? alphaFloat.data : isDoubleAlpha ? alphaDouble.data : nullptr;
-    CobaltScalarData beta;
-    beta.data = isFloatBeta ? betaFloat.data : isDoubleBeta ? betaDouble.data : nullptr; 
+    CobaltScalarData alpha{ isFloatAlpha ? static_cast<void*>(alphaFloat)
+        : isDoubleAlpha ? static_cast<void*>(alphaDouble) : nullptr };
+    CobaltScalarData beta{ isFloatBeta ? static_cast<void*>(betaFloat)
+        : isDoubleBeta ? static_cast<void*>(betaDouble) : nullptr };
 
     // re-initialize device input buffers
 #if Cobalt_BACKEND_OPENCL12
@@ -347,19 +347,18 @@ void initTensorData() {
   referenceTensorDataC.offset = 0;
 
   // scalars
-  alphaFloat.data = new float[2];
-  static_cast<float *>(alphaFloat.data)[0] = ALPHA;
-  static_cast<float *>(alphaFloat.data)[1] = ALPHA;
-  //alphaFloat.dataType = cobaltDataTypeComplexSingle;
-  betaFloat.data = new float[2];
-  static_cast<float *>(betaFloat.data)[0] = BETA;
-  static_cast<float *>(betaFloat.data)[1] = BETA;
-  alphaDouble.data = new double[2];
-  static_cast<double *>(alphaDouble.data)[0] = ALPHA;
-  static_cast<double *>(alphaDouble.data)[1] = ALPHA;
-  betaDouble.data = new double[2];
-  static_cast<double *>(betaDouble.data)[0] = BETA;
-  static_cast<double *>(betaDouble.data)[1] = BETA;
+  alphaFloat = new float[2];
+  alphaFloat[0] = ALPHA;
+  alphaFloat[1] = ALPHA;
+  betaFloat = new float[2];
+  betaFloat[0] = BETA;
+  betaFloat[1] = BETA;
+  alphaDouble = new double[2];
+  alphaDouble[0] = ALPHA;
+  alphaDouble[1] = ALPHA;
+  betaDouble = new double[2];
+  betaDouble[0] = BETA;
+  betaDouble[1] = BETA;
   printf("done.\n");
 }
 
@@ -377,10 +376,10 @@ void destroyTensorData() {
   delete[] static_cast<float *>(deviceTensorDataOnHostB.data);
   delete[] static_cast<float *>(referenceTensorDataC.data);
 
-  delete[] static_cast<float *>(alphaFloat.data);
-  delete[] static_cast<float *>(betaFloat.data);
-  delete[] static_cast<double *>(alphaDouble.data);
-  delete[] static_cast<double *>(betaDouble.data);
+  delete[] alphaFloat;
+  delete[] betaFloat;
+  delete[] alphaDouble;
+  delete[] betaDouble;
 
 #if Cobalt_BACKEND_OPENCL12
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataC.data));

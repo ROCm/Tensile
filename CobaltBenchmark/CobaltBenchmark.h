@@ -35,10 +35,10 @@ CobaltTensorData initialTensorDataDoubleA;
 CobaltTensorData initialTensorDataDoubleB;
 
 // scalar data
-CobaltScalarData alphaFloat;
-CobaltScalarData betaFloat;
-CobaltScalarData alphaDouble;
-CobaltScalarData betaDouble;
+float *alphaFloat;
+float *betaFloat;
+double *alphaDouble;
+double *betaDouble;
 
 // device tensor data; max sized; initial data get clWriteBuffer each time
 CobaltTensorData deviceTensorDataC; // input and result buffer

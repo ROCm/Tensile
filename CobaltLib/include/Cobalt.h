@@ -228,7 +228,7 @@ typedef struct CobaltTensorDataConst_ {
 #endif
 
 typedef struct CobaltScalarData_ {
-  void *data;
+  const void *data;
 } CobaltScalarData;
 
 
