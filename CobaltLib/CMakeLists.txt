@@ -52,7 +52,7 @@ add_library( ${CobaltLogger_NAME}
   #${CobaltGen_SRC}
   )
 set_target_properties( ${CobaltLogger_NAME} PROPERTIES COMPILE_FLAGS
-    "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1" )
+  "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
 
 
 
@@ -117,10 +117,10 @@ add_library( ${CobaltLib_NAME}
 #set_property(TARGET ${CobaltLib_NAME} PROPERTY CXX_STANDARD 11 )
 if( ${Cobalt_ENABLE_LOGGER} )
   set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
-      "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=1" )
+    "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
 else()
   set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
-      "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1" )
+    "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
 endif()
 
 source_group(CobaltGen\\Scripts FILES ${CobaltGen_SRC})
