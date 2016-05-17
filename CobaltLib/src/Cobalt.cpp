@@ -18,26 +18,6 @@
 Cobalt::Logger Cobalt::logger;
 
 
-
-
-/*******************************************************************************
- * cobaltStatusIsValidationError
- ******************************************************************************/
-bool cobaltStatusIsError( CobaltStatus status ) {
-  return status < cobaltStatusValidationErrorMax
-      && status > cobaltStatusValidationErrorMin;
-}
-
-
-/*******************************************************************************
- * cobaltStatusIsPerformanceWarning
- ******************************************************************************/
-bool cobaltStatusIsWarning( CobaltStatus status ) {
-  return status < cobaltStatusPerformanceWarningMax
-      && status > cobaltStatusPerformanceWarningMin;
-}
-
-
 /*******************************************************************************
  * cobaltSetup()
  ******************************************************************************/
@@ -173,13 +153,13 @@ CobaltStatus cobaltDestroyProblem( CobaltProblem problem ) {
       return cobaltStatusSuccess;
     }
   }
-  return cobaltStatusParametersInvalid;
+  return cobaltStatusInvalidParameter;
 }
 
 
 CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   if (problem == nullptr) {
-    return cobaltStatusProblemIsNull;
+    return cobaltStatusInvalidParameter;
   } else {
     return problem->pimpl->validate();
   }
@@ -228,11 +208,11 @@ CobaltStatus cobaltDestroySolution(CobaltSolution solution) {
       solution = nullptr;
       return cobaltStatusSuccess;
     } else {
-      return cobaltStatusParametersInvalid;
+      return cobaltStatusInvalidParameter;
     }
   }
   else {
-    return cobaltStatusParametersInvalid;
+    return cobaltStatusInvalidParameter;
   }
 }
 
@@ -288,7 +268,7 @@ CobaltStatus cppStringToCString(
       *size = (unsigned int) (state.size()+1); // include space for null char
     } else {
       // can't do anything
-      return cobaltStatusParametersInvalid;
+      return cobaltStatusInvalidParameter;
     }
   }
   return cobaltStatusSuccess;

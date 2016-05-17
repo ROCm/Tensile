@@ -20,9 +20,6 @@ std::string toString( CobaltStatus status ) {
     // success
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusSuccess )
   
-  /* cobaltValidateProblem() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemIsNull )
-
   // tensor errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionOrderInvalid )
@@ -32,36 +29,25 @@ std::string toString( CobaltStatus status ) {
   // operation errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperandNumDimensionsMismatch )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationOperandNumIndicesMismatch )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesMismatch )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidA )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidB )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateA )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumFreeIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumSummationIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexUnassigned )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationFreeIndexAssignmentsInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationBatchIndexAssignmentsInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationSummationIndexAssignmentsInvalid )
 
-  // device profile errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileDeviceNameInvalid )
-
   /* cobaltGetSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported ) // purposefully not supported (real/complex mixed data types)
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotFound ) // should be supported but wasn't found
-
-  /* cobaltEnqueueSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusPerformanceWarningProblemSizeTooSmall )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNotSupported)
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported )
 
   /* control errors */
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusControlInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDependencyInvalid )
 
   /* misc */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusParametersInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusInvalidParameter )
 
 
   default:

@@ -73,7 +73,7 @@ Problem::Problem(
       // are there any other ERRORS I haven't thought of?
     } else {
       printf("Cobalt::Problem::constructor() - Error; mismatch I hadn't thought of.\n");
-      throw cobaltStatusProblemNotFound;
+      throw cobaltStatusProblemNotSupported;
     }
   }
   //printf("%s\n", toStringXML(2).c_str());
@@ -207,6 +207,10 @@ CobaltStatus Problem::validate( ) {
         return cobaltStatusOperationIndexUnassigned;
       }
     }
+  }
+
+  if (deviceProfile.numDevices() < 1 || deviceProfile.numDevices() > CobaltDeviceProfile::maxDevices) {
+    return cobaltStatusDeviceProfileNumDevicesInvalid;
   }
 
   return cobaltStatusSuccess;
