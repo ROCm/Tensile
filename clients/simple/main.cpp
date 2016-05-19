@@ -1,267 +1,99 @@
-#include <hip_runtime.h>
 #include <cstdio>
 
-// unroll can be 4, 8, 16 or 32
-// unroll = 8 hangs
-#define NUM_UNROLL_ITER     16
 
+#if Cobalt_BACKEND_HIP
 /*******************************************************************************
- * Kernel
+ * HIP stuff
  ******************************************************************************/
+#include <hip_runtime.h>
+#include "kernel_hip.h"
 
-/* CT_SSSSS_Cij_Sk_Aik_Bjk_i16x4f_j16x4f_k16_O2 */
+hipError_t status;
+#define CHECK(STATUS) \
+  { \
+    hipError_t tmp_status = STATUS;
+    if (tmp_status != hipSuccess) { \
+      fprintf(stderr, "error: '%s' (%d) at %s:%d\n", hipGetErrorString(tmp_status), tmp_status, __FILE__, __LINE__); \
+    } \
+  }
 
-/* tile parameters */
+#else
+/*******************************************************************************
+ * OpenCL stuff
+ ******************************************************************************/
+#include <CL/cl.h>
+#include "kernel_opencl.h"
+
+
+cl_int status;
+#define CHECK(STATUS) \
+  do { \
+    cl_int tmp_status = STATUS; \
+    if (tmp_status != CL_SUCCESS) { \
+      fprintf(stderr, "error: (%d) at %s:%d\n", tmp_status, __FILE__, __LINE__); \
+    } \
+  } while(false);
+
+void makeKernel(
+    cl_kernel *kernel,
+    cl_command_queue queue,
+    const char *kernelSource,
+    const char *sourceBuildOptions);
+
+#endif
+
+// these need to agree with kernel
+#define DATA_TYPE_STR_A     float
+#define DATA_TYPE_STR_B     float
+#define DATA_TYPE_STR_C     float
+#define DATA_TYPE_STR_ALPHA float
+#define DATA_TYPE_STR_BETA  float
 #define WG_DIM_0I           16
 #define WG_DIM_1J           16
-#define MICRO_TILE_0I       4
-#define MICRO_TILE_1J       4
-#define MACRO_TILE_0I       64
-#define MACRO_TILE_1J       64
+#define MICRO_TILE_0I       6
+#define MICRO_TILE_1J       6
+#define MACRO_TILE_0I       96
+#define MACRO_TILE_1J       96
 
+const unsigned int M = 5760;
+const unsigned int N = 5760;
+const unsigned int K = 5760;
 
-/* global memory indices */
-#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )
-#define GET_GLOBAL_INDEX_A(IDX0I, IDXK) ( (IDX0I)*strideA0I + (IDXK)*strideAK )
-#define GET_GLOBAL_INDEX_B(IDX1J, IDXK) ( (IDX1J)*strideB1J + (IDXK)*strideBK )
-
-/* global tile indices being loaded */
-/* fast read */
-#define globalIdxA0I(LID) (groupIdx0I*MACRO_TILE_0I + (localSerial+(LID)*WG_DIM_0I*WG_DIM_1J)/NUM_UNROLL_ITER)
-#define globalIdxAK(LID) (localSerial%NUM_UNROLL_ITER)
-/* fast read */
-#define globalIdxBK(LID) ((localSerial+(LID)*WG_DIM_0I*WG_DIM_1J)/MACRO_TILE_1J)
-#define globalIdxB1J(LID) (groupIdx1J*MACRO_TILE_1J + (localSerial+(LID)*WG_DIM_0I*WG_DIM_1J)%MACRO_TILE_1J)
-
-/* global non-tile indices being loaded */
-
-
-/* local memory indices */
-#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_0I) )
-#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MACRO_TILE_1J) )
-
-/* local indices being written */
-#define localA0I (localSerial / NUM_UNROLL_ITER)
-#define localAK (localSerial % NUM_UNROLL_ITER)
-#define localAStride (WG_DIM_0I*WG_DIM_1J/NUM_UNROLL_ITER)
-#define localB1J ( localSerial / MACRO_TILE_1J )
-#define localBK ( localSerial % MACRO_TILE_1J )
-#define localBStride  (WG_DIM_0I*WG_DIM_1J)
-
-/* data types */
-#define DATA_TYPE_STR_A float
-#define DATA_TYPE_STR_B float
-#define DATA_TYPE_STR_C float
-#define DATA_TYPE_STR_ALPHA float
-#define DATA_TYPE_STR_BETA float
-#define FMA(A,B,DST) fmaf(A,B,DST)
-#define TYPE_MAD(MULA,MULB,DST) DST = FMA(MULA,MULB,DST);
-#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);
-
-/* 4x4 micro-tile */
-#define MICRO_TILE \
-  rA[0] = localA[offA + 0*WG_DIM_0I]; \
-  rA[1] = localA[offA + 1*WG_DIM_0I]; \
-  rA[2] = localA[offA + 2*WG_DIM_0I]; \
-  rA[3] = localA[offA + 3*WG_DIM_0I]; \
-  rB[0] = localB[offB + 0*WG_DIM_1J]; \
-  rB[1] = localB[offB + 1*WG_DIM_1J]; \
-  rB[2] = localB[offB + 2*WG_DIM_1J]; \
-  rB[3] = localB[offB + 3*WG_DIM_1J]; \
-  offA += MACRO_TILE_0I; \
-  offB += MACRO_TILE_1J; \
-  TYPE_MAD(rA[0],rB[0],rC[0][0]); \
-  TYPE_MAD(rA[0],rB[1],rC[0][1]); \
-  TYPE_MAD(rA[0],rB[2],rC[0][2]); \
-  TYPE_MAD(rA[0],rB[3],rC[0][3]); \
-  TYPE_MAD(rA[1],rB[0],rC[1][0]); \
-  TYPE_MAD(rA[1],rB[1],rC[1][1]); \
-  TYPE_MAD(rA[1],rB[2],rC[1][2]); \
-  TYPE_MAD(rA[1],rB[3],rC[1][3]); \
-  TYPE_MAD(rA[2],rB[0],rC[2][0]); \
-  TYPE_MAD(rA[2],rB[1],rC[2][1]); \
-  TYPE_MAD(rA[2],rB[2],rC[2][2]); \
-  TYPE_MAD(rA[2],rB[3],rC[2][3]); \
-  TYPE_MAD(rA[3],rB[0],rC[3][0]); \
-  TYPE_MAD(rA[3],rB[1],rC[3][1]); \
-  TYPE_MAD(rA[3],rB[2],rC[3][2]); \
-  TYPE_MAD(rA[3],rB[3],rC[3][3]); \
-  __syncthreads();
-
-/* preprocessor definitions of kernel arguments*/
-#define strideC0I 1
-#define strideA0I 1
-#define strideB1J 1
-
-
-extern "C"
-__global__ void CT_SSSSS_Cij_Sk_Aik_Bjk_i16x4f_j16x4f_k_O2(
-  hipLaunchParm lp,
-  float       *          C,
-  float const * __restrict__ A,
-  float const * __restrict__ B,
-  float const alpha,
-  float const beta,
-  unsigned int const offsetC,
-  unsigned int const offsetA,
-  unsigned int const offsetB,
-  unsigned int const strideC1J,
-  unsigned int const strideAK,
-  unsigned int const strideBK,
-  unsigned int const size0I,
-  unsigned int const size1J,
-  unsigned int const sizeK ) {
-
-  /* apply offsets */
-  C += offsetC;
-  A += offsetA;
-  B += offsetB;
-
-  /* allocate registers */
-  DATA_TYPE_STR_C rC[MICRO_TILE_0I][MICRO_TILE_1J] = {{0}};
-  DATA_TYPE_STR_A rA[MICRO_TILE_0I];
-  DATA_TYPE_STR_B rB[MICRO_TILE_1J];
-
-  /* allocate local memory */
-  __shared__ DATA_TYPE_STR_A localA[NUM_UNROLL_ITER*MACRO_TILE_0I];
-  __shared__ DATA_TYPE_STR_B localB[NUM_UNROLL_ITER*MACRO_TILE_1J];
-
-  /* c indices */
-  unsigned int groupIdx0I = hc_get_group_id(0); // d0, tensorA
-  unsigned int groupIdx1J = hc_get_group_id(1); // d1, tensorB
-  unsigned int localIdx0I = hc_get_workitem_id(0); // d0
-  unsigned int localIdx1J = hc_get_workitem_id(1); // d1
-  unsigned int localSerial = localIdx0I + localIdx1J*WG_DIM_0I;
-
-  /* which global Cij index */
-  unsigned int globalIdxC1J = groupIdx1J*MACRO_TILE_1J + localIdx1J;
-  unsigned int globalIdxC0I = groupIdx0I*MACRO_TILE_0I + localIdx0I;
-  /* iterate over all summation indices */
-  unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
-  do {
-     DATA_TYPE_STR_A *lA = localA + GET_LOCAL_INDEX_A(localA0I, localAK);
-     DATA_TYPE_STR_B *lB = localB + GET_LOCAL_INDEX_B(localB1J, localBK);
-    __syncthreads();
-
-    /* load global -> local */
-    lA[ 0*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(0), globalIdxAK(0) ) ];
-#if NUM_UNROLL_ITER > 4
-    lA[ 1*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(1), globalIdxAK(1) ) ];
-#endif
-#if NUM_UNROLL_ITER > 8
-    lA[ 2*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(2), globalIdxAK(2) ) ];
-    lA[ 3*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(3), globalIdxAK(3) ) ];
-#endif
-#if NUM_UNROLL_ITER > 16
-    lA[ 4*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(4), globalIdxAK(4) ) ];
-    lA[ 5*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(5), globalIdxAK(5) ) ];
-    lA[ 6*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(6), globalIdxAK(6) ) ];
-    lA[ 7*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(7), globalIdxAK(7) ) ];
-#endif
-
-    lB[ 0*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(0), globalIdxBK(0) ) ];
-#if NUM_UNROLL_ITER > 4
-    lB[ 1*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(1), globalIdxBK(1) ) ];
-#endif
-#if NUM_UNROLL_ITER > 8
-    lB[ 2*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(2), globalIdxBK(2) ) ];
-    lB[ 3*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(3), globalIdxBK(3) ) ];
-#endif
-#if NUM_UNROLL_ITER > 16
-    lB[ 4*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(4), globalIdxBK(4) ) ];
-    lB[ 5*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(5), globalIdxBK(5) ) ];
-    lB[ 6*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(6), globalIdxBK(6) ) ];
-    lB[ 7*localBStride ] = B[ GET_GLOBAL_INDEX_B( globalIdxB1J(7), globalIdxBK(7) ) ];
-#endif
-
-    __syncthreads();
-    unsigned int offA = localIdx0I; // d0
-    unsigned int offB = localIdx1J; // d1
-
-    /* do mads */
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-#if NUM_UNROLL_ITER > 4
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-#endif
-#if NUM_UNROLL_ITER > 8
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-#endif
-#if NUM_UNROLL_ITER > 16
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-#endif
-
-
-    A += strideAK*NUM_UNROLL_ITER;
-    B += strideBK*NUM_UNROLL_ITER;
-  } while (--sumIterK > 0);
-
-
-  /* write global C */
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[0][0], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[0][1], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[0][2], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[0][3], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[1][0], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[1][1], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[1][2], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[1][3], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[2][0], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[2][1], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[2][2], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[2][3], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[3][0], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[3][1], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[3][2], beta)
-  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[3][3], beta)
-
-}
-
-
-
-#define CHECK(STATUS) \
-  if (STATUS != hipSuccess) { \
-    fprintf(stderr, "error: '%s' (%d) at %s:%d\n", hipGetErrorString(STATUS), STATUS, __FILE__, __LINE__); \
-  }
 
 /*******************************************************************************
  * main
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
 
+  // init runtime
+#if Cobalt_BACKEND_OPENCL12
+  printf("allocating opencl queue\n");
+  cl_platform_id platform;
+  cl_device_id device;
+  cl_context_properties props[3] = { CL_CONTEXT_PLATFORM, 0, 0 };
+  cl_context context;
+  cl_command_queue queue;
+  status = clGetPlatformIDs(1, &platform, nullptr); CHECK(status);
+  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, nullptr); CHECK(status);
+  props[1] = (cl_context_properties)platform;
+  context = clCreateContext(props, 1, &device, NULL, NULL, &status); CHECK(status);
+  queue = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status); CHECK(status);
+
+  // compile kernel
+  printf("compiling opencl kernel\n");
+  const char *buildOptions = "-cl-std=CL2.0";
+  cl_kernel kernel_opencl;
+  makeKernel(
+      &kernel_opencl,
+      queue,
+      kernelSource,
+      buildOptions);
+#endif
+
+
   // GEMM parameters
   // col-major means dim0=col, dim1=row
   // size0C = size of C column = C num rows
-  const unsigned int M = 64;
-  const unsigned int N = 64;
-  const unsigned int K = 64;
   const unsigned int size0C = M;
   const unsigned int size1C = N;
   const unsigned int size0A = M;
@@ -291,32 +123,46 @@ int main( int argc, char *argv[] ) {
 
   // allocate device buffers
   printf("allocating device buffers\n");
-  hipError_t status;
+#if Cobalt_BACKEND_HIP
   DATA_TYPE_STR_C *dC;
   DATA_TYPE_STR_A *dA;
   DATA_TYPE_STR_B *dB;
   status = hipMalloc( &dC, sizeC); CHECK(status);
   status = hipMalloc( &dA, sizeA); CHECK(status);
   status = hipMalloc( &dB, sizeB); CHECK(status);
-  
-  // init device buffers
-  printf("initializing device buffers\n");
   status = hipMemcpy( dC, hC, sizeC, hipMemcpyHostToDevice ); CHECK(status);
   status = hipMemcpy( dA, hA, sizeA, hipMemcpyHostToDevice ); CHECK(status);
   status = hipMemcpy( dB, hB, sizeB, hipMemcpyHostToDevice ); CHECK(status);
+#else
+  cl_mem dC = clCreateBuffer( context, CL_MEM_READ_WRITE, sizeC, nullptr, &status); CHECK(status);
+  cl_mem dA = clCreateBuffer( context, CL_MEM_READ_ONLY , sizeA, nullptr, &status); CHECK(status);
+  cl_mem dB = clCreateBuffer( context, CL_MEM_READ_ONLY , sizeB, nullptr, &status); CHECK(status);
+  clEnqueueWriteBuffer(queue, dC, CL_TRUE, 0, sizeC, hC, 0, nullptr, nullptr );
+  clEnqueueWriteBuffer(queue, dA, CL_TRUE, 0, sizeA, hA, 0, nullptr, nullptr );
+  clEnqueueWriteBuffer(queue, dB, CL_TRUE, 0, sizeB, hB, 0, nullptr, nullptr );
+#endif
+  
+  // init device buffers
+  printf("initializing device buffers\n");
 
   // alpha & beta
   DATA_TYPE_STR_ALPHA alpha = 2;
   DATA_TYPE_STR_BETA  beta  = 2;
 
   // enqueue dim
+#if Cobalt_BACKEND_HIP
   dim3 workGroup( WG_DIM_0I, WG_DIM_1J, 1 );
   dim3 blocks(size0C/MACRO_TILE_0I, size1C/MACRO_TILE_1J, 1);  
+#else
+  size_t localSize[3] = { WG_DIM_0I, WG_DIM_1J, 1 };
+  size_t globalSize[3] = { size0C/MICRO_TILE_0I, size1C/MICRO_TILE_1J, 1 };  
+#endif
 
   // enqueue kernel
-  printf("enqueueing kernel block=%ux%u, work-group=%ux%u\n",blocks.x, blocks.y, workGroup.x, workGroup.y);
+#if Cobalt_BACKEND_HIP
+  printf("enqueueing hip kernel block=%ux%u, work-group=%ux%u\n",blocks.x, blocks.y, workGroup.x, workGroup.y);
   hipLaunchKernel(
-      HIP_KERNEL_NAME(CT_SSSSS_Cij_Sk_Aik_Bjk_i16x4f_j16x4f_k_O2),
+      HIP_KERNEL_NAME(kernel_hip),
       blocks,
       workGroup,
       0, // groupMemBytes
@@ -335,22 +181,55 @@ int main( int argc, char *argv[] ) {
       M,
       N,
       K );
+#else
+  printf("enqueueing opencl kernel global=%llux%llu, local=%llux%llu\n", globalSize[0], globalSize[1], localSize[0], localSize[1]);
+  cl_uint argIdx = 0;
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dC ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dB ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(DATA_TYPE_STR_ALPHA), &alpha ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(DATA_TYPE_STR_BETA), &beta ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0C ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0B ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
+  clEnqueueNDRangeKernel(queue, kernel_opencl,
+    2, // num dims
+    nullptr, // global offset
+    globalSize,
+    localSize,
+    0, // num input events
+    nullptr, // input events
+    nullptr ); // output event
+#endif
 
   // wait for kernel
   printf("synchronizing stream\n");
+#if Cobalt_BACKEND_HIP
+  printf("synchronizing stream\n");
   status = hipStreamSynchronize( nullptr );
   CHECK(status);
+#else
+  CHECK( clFinish(queue); )
+#endif
 
   // copy result back to host
   printf("copying device results back to host\n");
+#if Cobalt_BACKEND_HIP
   status = hipMemcpy( hC, dC, sizeC, hipMemcpyDeviceToHost ); CHECK(status);
+#else
+  CHECK( clEnqueueReadBuffer(queue, dC, CL_TRUE, 0, sizeC, hC, 0, nullptr, nullptr ); )
+#endif
+
   DATA_TYPE_STR_C answer = K*alpha + beta;
   printf("validating %f\n", answer);
   size_t numInvalid = 0;
   for (unsigned int i = 0; i < numElementsC; i++) {
     if (hC[i] != answer) {
       numInvalid++;
-      if (numInvalid < 4*4) {
+      if (numInvalid < 96*96) {
         printf("C[%u] = %f rather than %f\n", i, hC[i], answer);
       }
     }
@@ -362,3 +241,55 @@ int main( int argc, char *argv[] ) {
   }
 
 }
+
+#if Cobalt_BACKEND_OPENCL12
+void makeKernel(
+    cl_kernel *kernel,
+    cl_command_queue queue,
+    const char *kernelSource,
+    const char *sourceBuildOptions) {
+
+  // get context and device from queue
+  cl_int err;
+  cl_context clContext;
+  cl_device_id clDevice;
+  CHECK( clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(clContext), &clContext, NULL); )
+  CHECK( clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(clDevice), &clDevice, NULL); )
+
+  //printf("building kernel\n");
+  cl_program clProgram;
+  clProgram = clCreateProgramWithSource(
+      clContext,
+      1, &kernelSource,
+      NULL, &err );
+  CHECK(err)
+  // driver leaks ~200kB at this call
+  err = clBuildProgram(
+      clProgram,
+      1, &clDevice,
+      sourceBuildOptions, NULL, NULL );
+  CHECK(err)
+
+  // print build failure
+  if (err != CL_SUCCESS) {
+    printf("clBuildProgram Failed; Error = %d\n", err);
+    printf("\nKernel Source:\n\n");
+    printf("%s\n", kernelSource);
+
+    size_t len = 0;
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+    char* buildLog = new char[len];
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len*sizeof(char), buildLog, 0);
+    printf("\n\n\nBuild Log:\n\n");
+    printf("%s\n", buildLog);
+    printf("\n");
+    delete[] buildLog;
+  }
+  CHECK( clCreateKernelsInProgram(
+      clProgram,
+      1, kernel,
+      NULL ); )
+  CHECK( clReleaseProgram(clProgram); )
+
+}
+#endif

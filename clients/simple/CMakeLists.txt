@@ -1,5 +1,12 @@
-# cmake_minimum_required(VERSION 2.8)
-# project( simple C CXX )
-# set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
-add_executable( simple main.cpp )
-include_directories( ${HIP_INCLUDE_DIRS} )
+add_executable( simple
+  main.cpp
+  kernel_opencl.h
+  kernel_hip.h
+  )
+if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  include_directories( ${OPENCL_INCLUDE_DIRS} )
+  target_link_libraries( simple ${OPENCL_LIBRARIES} )
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  include_directories( ${HIP_INCLUDE_DIRS} )
+endif()
+
