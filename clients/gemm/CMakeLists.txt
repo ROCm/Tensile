@@ -33,7 +33,12 @@ endif()
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions(
     -DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
+  include_directories( ${OPENCL_INCLUDE_DIRS} )
+  target_link_libraries( ${SAMPLE_GEMM_NAME} ${OPENCL_LIBRARIES} )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   add_definitions(
     -DCobalt_DIR_PROBLEMS=\\\"${Cobalt_DIR_PROBLEMS}\\\")
+  include_directories( ${HCC_INCLUDE_DIRS} )
+  target_link_libraries( ${SAMPLE_GEMM_NAME} ${HSA_LIBRARIES} )
 endif()
+

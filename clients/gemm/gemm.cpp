@@ -33,7 +33,7 @@ CobaltProblem createProblemGEMM(
 int main( int argc, char * argv[] ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 1
+#if 0
   for (size_t i = 16; i <= 128; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
@@ -41,7 +41,7 @@ int main( int argc, char * argv[] ) {
       //sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
-  // sizes.push_back( {5760, 5760, 5760 });
+  sizes.push_back( {5760, 5760, 5760 });
   //sizes.push_back( {64, 64, 64});
   //sizes.push_back( {96, 96, 96});
   //sizes.push_back( {64, 64, 64});
