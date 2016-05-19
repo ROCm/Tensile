@@ -195,10 +195,14 @@ class SolutionWriter:
     s += "  this->argSizes = %s;\n" % ("true" if not solution.kernels[0].ppdAll else "false")
     s += "  this->argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStride else "false")
     s += "  if ( !this->argOffsets && inputProblem.useOffsets) {\n"
-    s += "    throw cobaltStatusSolutionDoesNotSupportOffsets;\n"
+    s += "    // problem uses offsets but solution doesn't support offsets\n"
+    s += "    // cobaltGetSolution shouldn't have returned me\n"
+    s += "    throw cobaltStatusInvalidParameter;\n"
     s += "  }\n"
     s += "  if ( (!this->argLeadingStrides && inputProblem.tensorC[0].stride != 1) || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
-    s += "    throw cobaltStatusSolutionDoesNotSupportLeadingStrides;\n"
+    s += "    // problem uses leading strides but solution doesn't support offsets\n"
+    s += "    // cobaltGetSolution shouldn't have returned me\n"
+    s += "    throw cobaltStatusInvalidParameter;\n"
     s += "  }\n"
     s += "\n"
     if not solution.ppdAll:

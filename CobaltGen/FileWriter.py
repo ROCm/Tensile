@@ -277,9 +277,9 @@ class FileWriter:
         s += "  indexAssignmentsB[" + str(i) + "] = " \
             + str(problem.operation.indexAssignmentsB[i]) + ";\n"
       s += "\n"
-      s += "  CobaltStatus status;\n"
       # store problem
-      s += "  *problem = cobaltCreateProblem(\n"
+      s += "  CobaltStatus status = cobaltCreateProblem(\n"
+      s += "      problem,\n"
       s += "      tensorC,\n"
       s += "      tensorA,\n"
       s += "      tensorB,\n"
@@ -289,8 +289,7 @@ class FileWriter:
       s += "      alphaType,\n"
       s += "      betaType,\n"
       s += "      useOffsets,\n"
-      s += "      deviceProfile,\n"
-      s += "      &status);\n"
+      s += "      deviceProfile);\n"
       s += "\n"
 
       for i in range(0,numSolutions):

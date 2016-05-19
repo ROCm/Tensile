@@ -51,65 +51,41 @@ extern "C" {
  ******************************************************************************/
 typedef enum CobaltStatus_ {
 
-  // success
-  cobaltStatusSuccess = 0,
+  /* success */
+  cobaltStatusSuccess = 0,                                // success
 
-  /* VALIDATION ERRORS */
-  cobaltStatusValidationErrorMin,
+  /* tensor errors */
+  cobaltStatusTensorNumDimensionsInvalid,                 // num dimensions isn't between 1 and max
+  cobaltStatusTensorDimensionOrderInvalid,                // dimensions not in order smallest to largest stride
+  cobaltStatusTensorDimensionStrideInvalid,               // stride is 0
+  cobaltStatusTensorDimensionSizeInvalid,                 // size is 0
   
-  /* cobaltValidateProblem() */
-  cobaltStatusProblemIsNull,
-
-  // tensor errors
-  cobaltStatusTensorNumDimensionsInvalid,
-  cobaltStatusTensorDimensionOrderInvalid,
-  cobaltStatusTensorDimensionStrideInvalid,
-  cobaltStatusTensorDimensionSizeInvalid,
-  
-  // operation errors
-  cobaltStatusOperandNumDimensionsMismatch,
-  cobaltStatusOperationOperandNumIndicesMismatch,
-  cobaltStatusOperationNumIndicesMismatch,
-  cobaltStatusOperationIndexAssignmentInvalidA,
-  cobaltStatusOperationIndexAssignmentInvalidB,
-  cobaltStatusOperationIndexAssignmentDuplicateA,
-  cobaltStatusOperationIndexAssignmentDuplicateB,
-  cobaltStatusOperationNumIndicesInvalid,
-  cobaltStatusOperationNumFreeIndicesInvalid,
-  cobaltStatusOperationNumSummationIndicesInvalid,
-  cobaltStatusOperationIndexUnassigned,
-  cobaltStatusOperationFreeIndexAssignmentsInvalid,
-  cobaltStatusOperationBatchIndexAssignmentsInvalid,
-  cobaltStatusOperationSummationIndexAssignmentsInvalid,
-
-  // device profile errors
-  cobaltStatusDeviceProfileDeviceNameInvalid,
+  /* operation errors */
+  cobaltStatusOperandNumDimensionsMismatch,               // tensor and indexAssignments num dimensions don't match
+  cobaltStatusOperationOperandNumIndicesMismatch,         // tensor A,B don't have correct number of
+                                                          // free, summation and batch indices
+  cobaltStatusOperationIndexAssignmentInvalidA,           // indexAssignmentsA invalid
+  cobaltStatusOperationIndexAssignmentInvalidB,           // indexAssignmentsA invalid
+  cobaltStatusOperationIndexAssignmentDuplicateA,         // indexAssignmentsA contains duplicate assignments
+  cobaltStatusOperationIndexAssignmentDuplicateB,         // indexAssignmentsA contains duplicate assignments
+  cobaltStatusOperationNumFreeIndicesInvalid,             // tensorC doesn't have at least 2 free indices,
+                                                          // or it has a odd number of free indices
+                                                          // or num total - num batch != num free indices
+  cobaltStatusOperationNumSummationIndicesInvalid,        // indexAssignments don't contain at least 1 summation index
+  cobaltStatusOperationIndexUnassigned,                   // indexAssignments missing an assignment
+  cobaltStatusOperationSummationIndexAssignmentsInvalid,  // indexAssignment in C and either A or B but not both,
+                                                          // so assignment isn't free, summation or batch
 
   /* cobaltGetSolution() */
-  cobaltStatusOperationTypeNotFound,
-  cobaltStatusDeviceProfileNumDevicesInvalid,
-  cobaltStatusDeviceProfileNotFound,
-  cobaltStatusProblemNotSupported, // purposefully not supported
-  cobaltStatusProblemNotFound, // should be supported but wasn't found
-  cobaltStatusSolutionDoesNotSupportOffsets, // tried to construct a Solution which doesn't support TensorData.offsets using a Problem which does require them
-  cobaltStatusSolutionDoesNotSupportLeadingStrides, // tried to construct a Solution which doesn't support leading strides using a Problem which does have leading strides
+  cobaltStatusDeviceProfileNumDevicesInvalid,             // num devices isn't between 1 and max
+  cobaltStatusDeviceProfileNotSupported,                  // CobaltLib not configured for device profile
+  cobaltStatusProblemNotSupported,                        // CobaltLib doesn't have solution for problem
 
   /* control errors */
-  cobaltStatusControlInvalid,
-  cobaltStatusDependencyInvalid,
+  cobaltStatusControlInvalid,                             // enqueueSolution given invalid control object
 
   /* misc */
-  cobaltStatusParametersInvalid,
-
-  cobaltStatusValidationErrorMax,
-  cobaltStatusPerformanceWarningMin,
-
-  /* Performance Warnings */
-
-  /* cobaltEnqueueSolution() */
-  cobaltStatusPerformanceWarningProblemSizeTooSmall, // ?
-
-  cobaltStatusPerformanceWarningMax,
+  cobaltStatusInvalidParameter,                           // function passed invalid parameter
 
 } CobaltStatus;
 
@@ -119,30 +95,17 @@ typedef enum CobaltStatus_ {
  * prints whether status is error, warning or success and status string
  ******************************************************************************/
 #define cobaltStatusCheck(status) \
-  if (cobaltStatusIsError(status) || cobaltStatusIsError(status)) { \
+  if (status != cobaltStatusSuccess) { \
     unsigned int _cobaltStatusStringSize; \
     cobaltStatusToString( status, nullptr, &_cobaltStatusStringSize); \
     char *_cobaltStatusString = new char[_cobaltStatusStringSize]; \
     cobaltStatusToString(status, _cobaltStatusString, &_cobaltStatusStringSize); \
-    printf("CobaltStatus::%s::%s on line %u of %s\n", \
-      cobaltStatusIsError(status) ? "Error" : "Warning", \
+    printf("CobaltStatus::%s on line %u of %s\n", \
       _cobaltStatusString, \
       __LINE__, \
       __FILE__); \
     delete[] _cobaltStatusString; \
   }
-
-
-/*******************************************************************************
- * cobaltStatusIsError - status is an error
- ******************************************************************************/
-bool cobaltStatusIsError( CobaltStatus status );
-
-
-/*******************************************************************************
-* cobaltStatusIsWarning - status is a performance warning
-******************************************************************************/
-bool cobaltStatusIsWarning( CobaltStatus status );
 
 
 /*******************************************************************************
@@ -322,7 +285,8 @@ typedef struct _CobaltSolution * CobaltSolution;
  * creates CobaltProblem object
  * buffer pointers are not specified here
  ******************************************************************************/
-CobaltProblem cobaltCreateProblem(
+CobaltStatus cobaltCreateProblem(
+    CobaltProblem *problem,
     CobaltTensor tensorC,
     CobaltTensor tensorA,
     CobaltTensor tensorB,
@@ -332,8 +296,7 @@ CobaltProblem cobaltCreateProblem(
     CobaltDataType alphaType,
     CobaltDataType betaType,
     bool useOffsets,
-    CobaltDeviceProfile deviceProfile,
-    CobaltStatus *status );
+    CobaltDeviceProfile deviceProfile );
 CobaltStatus cobaltDestroyProblem( CobaltProblem problem );
 
 
@@ -353,9 +316,9 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem );
  * cobaltGetSolutionForProblem
  * returns optimal solution for input problem according to prior benchmarking
  ******************************************************************************/
-CobaltSolution cobaltGetSolutionForProblem(
-    const CobaltProblem problem,
-    CobaltStatus *status );
+CobaltStatus cobaltGetSolutionForProblem(
+    CobaltSolution *solution,
+    const CobaltProblem problem );
 CobaltStatus cobaltDestroySolution( CobaltSolution solution );
 
 

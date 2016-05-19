@@ -10,7 +10,7 @@ namespace Cobalt {
 Logger::TraceEntry::TraceEntry() :
     type(TraceEntryType::getSolution),
     solution(nullptr),
-    status(cobaltStatusProblemIsNull),
+    status(cobaltStatusSuccess),
     validationStatus(statusNotValidated)
 { };
 
