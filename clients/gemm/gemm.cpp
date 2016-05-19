@@ -117,9 +117,8 @@ int main( int argc, char * argv[] ) {
                     //char *nameStr = new char[nameSize];
                     //cobaltProblemToString(problem, nameStr, &nameSize);
                     //delete[] nameStr;
-                    
-                    CobaltStatus status;
-                    CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
+                    CobaltSolution solution;
+                    CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
 
 
                     numProblems++;
@@ -205,8 +204,10 @@ CobaltProblem createProblemGEMM(
   sprintf(deviceProfile.devices[0].name, "Fiji" );
 
 
-  CobaltStatus status;
-  CobaltProblem problem = cobaltCreateProblem(
+  
+  CobaltProblem problem;
+  CobaltStatus status = cobaltCreateProblem(
+      &problem,
       tensorC,
       tensorA,
       tensorB,
@@ -216,8 +217,7 @@ CobaltProblem createProblemGEMM(
       alphaType,
       betaType,
       useOffsets,
-      deviceProfile,
-      &status );
+      deviceProfile );
   cobaltStatusCheck(status);
   unsigned int problemStringSize;
   cobaltProblemToString(problem, nullptr, &problemStringSize);

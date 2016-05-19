@@ -285,7 +285,8 @@ typedef struct _CobaltSolution * CobaltSolution;
  * creates CobaltProblem object
  * buffer pointers are not specified here
  ******************************************************************************/
-CobaltProblem cobaltCreateProblem(
+CobaltStatus cobaltCreateProblem(
+    CobaltProblem *problem,
     CobaltTensor tensorC,
     CobaltTensor tensorA,
     CobaltTensor tensorB,
@@ -295,8 +296,7 @@ CobaltProblem cobaltCreateProblem(
     CobaltDataType alphaType,
     CobaltDataType betaType,
     bool useOffsets,
-    CobaltDeviceProfile deviceProfile,
-    CobaltStatus *status );
+    CobaltDeviceProfile deviceProfile );
 CobaltStatus cobaltDestroyProblem( CobaltProblem problem );
 
 
@@ -316,9 +316,9 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem );
  * cobaltGetSolutionForProblem
  * returns optimal solution for input problem according to prior benchmarking
  ******************************************************************************/
-CobaltSolution cobaltGetSolutionForProblem(
-    const CobaltProblem problem,
-    CobaltStatus *status );
+CobaltStatus cobaltGetSolutionForProblem(
+    CobaltSolution *solution,
+    const CobaltProblem problem );
 CobaltStatus cobaltDestroySolution( CobaltSolution solution );
 
 
