@@ -50,10 +50,10 @@ void makeKernel(
 #define DATA_TYPE_STR_BETA  float
 #define WG_DIM_0I           16
 #define WG_DIM_1J           16
-#define MICRO_TILE_0I       6
-#define MICRO_TILE_1J       6
-#define MACRO_TILE_0I       96
-#define MACRO_TILE_1J       96
+#define MICRO_TILE_0I       4
+#define MICRO_TILE_1J       4
+#define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
+#define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
 
 const unsigned int M = 5760;
 const unsigned int N = 5760;
@@ -229,7 +229,7 @@ int main( int argc, char *argv[] ) {
   for (unsigned int i = 0; i < numElementsC; i++) {
     if (hC[i] != answer) {
       numInvalid++;
-      if (numInvalid < 96*96) {
+      if (numInvalid < 4*4) {
         printf("C[%u] = %f rather than %f\n", i, hC[i], answer);
       }
     }
