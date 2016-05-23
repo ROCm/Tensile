@@ -50,8 +50,8 @@ void makeKernel(
 #define DATA_TYPE_STR_BETA  float
 #define WG_DIM_0I           16
 #define WG_DIM_1J           16
-#define MICRO_TILE_0I       4
-#define MICRO_TILE_1J       4
+#define MICRO_TILE_0I       6
+#define MICRO_TILE_1J       6
 #define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
 #define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
 
@@ -195,6 +195,7 @@ int main( int argc, char *argv[] ) {
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
+  for (unsigned int i = 0; i < 100; i++) {
   clEnqueueNDRangeKernel(queue, kernel_opencl,
     2, // num dims
     nullptr, // global offset
@@ -203,6 +204,7 @@ int main( int argc, char *argv[] ) {
     0, // num input events
     nullptr, // input events
     nullptr ); // output event
+  }
 #endif
 
   // wait for kernel
@@ -221,6 +223,7 @@ int main( int argc, char *argv[] ) {
   status = hipMemcpy( hC, dC, sizeC, hipMemcpyDeviceToHost ); CHECK(status);
 #else
   CHECK( clEnqueueReadBuffer(queue, dC, CL_TRUE, 0, sizeC, hC, 0, nullptr, nullptr ); )
+    CHECK( clFinish(queue); )
 #endif
 
   DATA_TYPE_STR_C answer = K*alpha + beta;
@@ -235,7 +238,7 @@ int main( int argc, char *argv[] ) {
     }
   }
   if (numInvalid) {
-    printf("FAILED validation\n");
+    printf("FAILED validation (%llu errors)\n", numInvalid);
   } else {
     printf("PASSED validation\n");
   }
