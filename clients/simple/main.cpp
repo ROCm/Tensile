@@ -58,6 +58,7 @@ void makeKernel(
 const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
+const unsigned int numEnqueues = 100;
 
 
 /*******************************************************************************
@@ -195,7 +196,7 @@ int main( int argc, char *argv[] ) {
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
-  for (unsigned int i = 0; i < 100; i++) {
+  for (unsigned int i = 0; i < 1; i++) {
   clEnqueueNDRangeKernel(queue, kernel_opencl,
     2, // num dims
     nullptr, // global offset
