@@ -1,6 +1,6 @@
 #include <cstdio>
 #include <random>
-#define VALIDATE 1
+#define VALIDATE 0
 
 #if Cobalt_BACKEND_HIP
 /*******************************************************************************
@@ -60,9 +60,9 @@ void makeKernel(
 #define MICRO_TILE_1J       6
 #define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
 #define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
-#if 0
-const unsigned int M = 5760;
-const unsigned int N = 5760;
+#if 1
+const unsigned int M = 5760-1;
+const unsigned int N = 5760-1;
 const unsigned int K = 5760;
 #else
 const unsigned int M = 4*96-1;

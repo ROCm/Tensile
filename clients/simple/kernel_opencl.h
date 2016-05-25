@@ -1319,6 +1319,9 @@ const char * kernelSource = R"(
 #define strideB1J 1
 
 
+)"
+R"(
+
 __attribute__((reqd_work_group_size(WG_DIM_0I,WG_DIM_1J,1)))
 __kernel void gemm_kernel(
   __global float       *          C,
@@ -1384,9 +1387,8 @@ __kernel void gemm_kernel(
     barrier(CLK_LOCAL_MEM_FENCE);
 
     /* load global -> local */
-#if 1
-    if (get_group_id(0) < get_num_groups(0)-1 && get_group_id(1) < get_num_groups(1)-1) {
-    // ternary operator
+    if (get_group_id(0) < get_num_groups(0)-1 &&
+        get_group_id(1) < get_num_groups(1)-1) {
       localPtr[ 0*TPI] = globalPtr[ 0*TPI];
       localPtr[ 1*TPI] = globalPtr[ 1*TPI];
       localPtr[ 2*TPI] = globalPtr[ 2*TPI];
@@ -1394,31 +1396,35 @@ __kernel void gemm_kernel(
       localPtr[ 4*TPI] = globalPtr[ 4*TPI];
       localPtr[ 5*TPI] = globalPtr[ 5*TPI];
     } else {
-      localPtr[ 0*TPI] = maxLoads > 0 ? globalPtr[ 0*TPI] : 0.f;
-      localPtr[ 1*TPI] = maxLoads > 1 ? globalPtr[ 1*TPI] : 0.f;
-      localPtr[ 2*TPI] = maxLoads > 2 ? globalPtr[ 2*TPI] : 0.f;
-      localPtr[ 3*TPI] = maxLoads > 3 ? globalPtr[ 3*TPI] : 0.f;
-      localPtr[ 4*TPI] = maxLoads > 4 ? globalPtr[ 4*TPI] : 0.f;
-      localPtr[ 5*TPI] = maxLoads > 5 ? globalPtr[ 5*TPI] : 0.f;
+      if (maxLoads >= 6) {
+        localPtr[ 0*TPI] = globalPtr[ 0*TPI];
+        localPtr[ 1*TPI] = globalPtr[ 1*TPI];
+        localPtr[ 2*TPI] = globalPtr[ 2*TPI];
+        localPtr[ 3*TPI] = globalPtr[ 3*TPI];
+        localPtr[ 4*TPI] = globalPtr[ 4*TPI];
+        localPtr[ 5*TPI] = globalPtr[ 5*TPI];
+      } else if (maxLoads == 5) {
+        localPtr[ 0*TPI] = globalPtr[ 0*TPI];
+        localPtr[ 1*TPI] = globalPtr[ 1*TPI];
+        localPtr[ 2*TPI] = globalPtr[ 2*TPI];
+        localPtr[ 3*TPI] = globalPtr[ 3*TPI];
+        localPtr[ 4*TPI] = globalPtr[ 4*TPI];
+      } else if (maxLoads == 4) {
+        localPtr[ 0*TPI] = globalPtr[ 0*TPI];
+        localPtr[ 1*TPI] = globalPtr[ 1*TPI];
+        localPtr[ 2*TPI] = globalPtr[ 2*TPI];
+        localPtr[ 3*TPI] = globalPtr[ 3*TPI];
+      } else if (maxLoads == 3) {
+        localPtr[ 0*TPI] = globalPtr[ 0*TPI];
+        localPtr[ 1*TPI] = globalPtr[ 1*TPI];
+        localPtr[ 2*TPI] = globalPtr[ 2*TPI];
+      } else if (maxLoads == 2) {
+        localPtr[ 0*TPI] = globalPtr[ 0*TPI];
+        localPtr[ 1*TPI] = globalPtr[ 1*TPI];
+      } else if (maxLoads == 1) {
+        localPtr[ 0*TPI] = globalPtr[ 0*TPI];
+      }
     }
-#else
-    // if/else
-    if (doLoad) {
-      localPtr[ 0*TPI] = globalPtr[ 0*TPI];
-      localPtr[ 1*TPI] = globalPtr[ 1*TPI];
-      localPtr[ 2*TPI] = globalPtr[ 2*TPI];
-      localPtr[ 3*TPI] = globalPtr[ 3*TPI];
-      localPtr[ 4*TPI] = globalPtr[ 4*TPI];
-      localPtr[ 5*TPI] = globalPtr[ 5*TPI];
-    } else {
-      localPtr[ 0*TPI] = 0.f;
-      localPtr[ 1*TPI] = 0.f;
-      localPtr[ 2*TPI] = 0.f;
-      localPtr[ 3*TPI] = 0.f;
-      localPtr[ 4*TPI] = 0.f;
-      localPtr[ 5*TPI] = 0.f;
-    }
-#endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
     unsigned int offA = localIdx0I; // d0
