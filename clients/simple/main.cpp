@@ -60,12 +60,18 @@ void makeKernel(
 #define MICRO_TILE_1J       6
 #define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
 #define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
-
+#if 0
 const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
-const unsigned int numEnqueues = 0;
-
+#else
+const unsigned int M = 96;
+const unsigned int N = 96;
+const unsigned int K = 96;
+#endif
+const unsigned int numEnqueues = 1;
+DATA_TYPE_STR_ALPHA alpha = 1;
+DATA_TYPE_STR_BETA  beta  = 0;
 
 /*******************************************************************************
  * main
@@ -105,8 +111,8 @@ int main( int argc, char *argv[] ) {
   const unsigned int size1C = N;
   const unsigned int size0A = M;
   const unsigned int size1A = K;
-  const unsigned int size0B = K;
-  const unsigned int size1B = N;
+  const unsigned int size0B = N; // swapped
+  const unsigned int size1B = K; // swapped
 
   // matrix sizes
   const size_t numElementsC = size0C*size1C;
@@ -127,13 +133,14 @@ int main( int argc, char *argv[] ) {
   printf("initializing host buffers\n");
 #if VALIDATE
   for (unsigned int i = 0; i < numElementsC; i++) {
-    hC[i] = rand()%101;
+    hC[i] = i; // rand()%101;
+    hC_ref[i] = hC[i];
   }
   for (unsigned int i = 0; i < numElementsA; i++) {
-    hA[i] = rand()%101;
+    hA[i] = i; // rand()%101;
   }
   for (unsigned int i = 0; i < numElementsB; i++) {
-    hB[i] = rand()%101;
+    hB[i] = i; // rand()%101;
   }
 #else
   for (unsigned int i = 0; i < numElementsC; i++) { hC[i] = 1; }
@@ -165,11 +172,7 @@ int main( int argc, char *argv[] ) {
   // init device buffers
   printf("initializing device buffers\n");
 
-  // alpha & beta
-  DATA_TYPE_STR_ALPHA alpha = 2;
-  DATA_TYPE_STR_BETA  beta  = 2;
-
-  // enqueue dim
+  // dim
 #if Cobalt_BACKEND_HIP
   dim3 workGroup( WG_DIM_0I, WG_DIM_1J, 1 );
   dim3 blocks(size0C/MACRO_TILE_0I, size1C/MACRO_TILE_1J, 1);  
@@ -215,16 +218,16 @@ int main( int argc, char *argv[] ) {
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
-  for (unsigned int i = 0; i < 1; i++) {
-  clEnqueueNDRangeKernel(queue, kernel_opencl,
-    2, // num dims
-    nullptr, // global offset
-    globalSize,
-    localSize,
-    0, // num input events
-    nullptr, // input events
-    nullptr ); // output event
-  }
+  for (unsigned int i = 0; i < numEnqueues; i++) {
+    clEnqueueNDRangeKernel(queue, kernel_opencl,
+        2, // num dims
+        nullptr, // global offset
+        globalSize,
+        localSize,
+        0, // num input events
+        nullptr, // input events
+        nullptr ); // output event
+    }
 #endif
 
   // wait for kernel
@@ -243,7 +246,7 @@ int main( int argc, char *argv[] ) {
   status = hipMemcpy( hC, dC, sizeC, hipMemcpyDeviceToHost ); CHECK(status);
 #else
   CHECK( clEnqueueReadBuffer(queue, dC, CL_TRUE, 0, sizeC, hC, 0, nullptr, nullptr ); )
-    CHECK( clFinish(queue); )
+  CHECK( clFinish(queue); )
 #endif
 
   size_t numInvalid = 0;
@@ -330,18 +333,25 @@ void makeKernel(
 
 }
 
+#endif
+
+
+#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*1 + (IDX1J)*strideC1J )
+#define GET_GLOBAL_INDEX_A(IDX0I, IDXK) ( (IDX0I)*1 + (IDXK)*strideAK )
+#define GET_GLOBAL_INDEX_B(IDX1J, IDXK) ( (IDX1J)*1 + (IDXK)*strideBK )
+
 void sgemm_NT(
-    float  *C,
-    float  *A,
-    float  *B,
-    float const alpha,
-    float const beta,
-    unsigned int const ldc,
-    unsigned int const lda,
-    unsigned int const ldb,
-    unsigned int const M,
-    unsigned int const N,
-    unsigned int const K ) {
+  float  *C,
+  float  *A,
+  float  *B,
+  float const alpha,
+  float const beta,
+  unsigned int const ldc,
+  unsigned int const lda,
+  unsigned int const ldb,
+  unsigned int const M,
+  unsigned int const N,
+  unsigned int const K ) {
 
   for (unsigned int i = 0; i < M; i++) {
     for (unsigned int j = 0; j < N; j++) {
@@ -354,7 +364,3 @@ void sgemm_NT(
     }
   }
 }
-
-
-
-#endif
