@@ -26,6 +26,7 @@ hipError_t status;
 #include "kernel_opencl.h"
 
 void sgemm_NT(
+  bool transA, bool transB,
   float  *C, float  *A, float  *B,
   float const alpha, float const beta,
   unsigned int const ldc, unsigned int const lda, unsigned int const ldb,
@@ -60,18 +61,20 @@ void makeKernel(
 #define MICRO_TILE_1J       6
 #define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
 #define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
-#if 1
-const unsigned int M = 5760-1;
-const unsigned int N = 5760-1;
-const unsigned int K = 5760;
-#else
-const unsigned int M = 4*96-1;
-const unsigned int N = 3*96-1;
+#if VALIDATE
+const unsigned int M = 4*96;
+const unsigned int N = 3*96;
 const unsigned int K = 2*96;
+#else
+const unsigned int M = 5760;
+const unsigned int N = 5760;
+const unsigned int K = 5760;
 #endif
 const unsigned int numEnqueues = 1;
 DATA_TYPE_STR_ALPHA alpha = 1;
 DATA_TYPE_STR_BETA  beta  = 0;
+const unsigned int transA = 0;
+const unsigned int transB = 0;
 
 /*******************************************************************************
  * main
@@ -95,6 +98,16 @@ int main( int argc, char *argv[] ) {
   // compile kernel
   printf("compiling opencl kernel\n");
   const char *buildOptions = "-cl-std=CL2.0";
+  const char *kernelSource;
+  if ( !transA && !transB ) {
+    kernelSource = kernelSource_NN;
+  } else if ( !transA && transB ) {
+    kernelSource = kernelSource_NT;
+  } else if ( transA && !transB ) {
+    kernelSource = kernelSource_TN;
+  } else if ( transA && transB ) {
+    kernelSource = kernelSource_TT;
+  }
   cl_kernel kernel_opencl;
   makeKernel(
       &kernel_opencl,
@@ -109,10 +122,10 @@ int main( int argc, char *argv[] ) {
   // size0C = size of C column = C num rows
   const unsigned int size0C = M;
   const unsigned int size1C = N;
-  const unsigned int size0A = M;
-  const unsigned int size1A = K;
-  const unsigned int size0B = N; // swapped
-  const unsigned int size1B = K; // swapped
+  const unsigned int size0A = transA ? K : M;
+  const unsigned int size1A = transA ? M : K;
+  const unsigned int size0B = transB ? N : K;
+  const unsigned int size1B = transB ? K : N;
 
   // matrix sizes
   const size_t numElementsC = size0C*size1C;
@@ -133,14 +146,14 @@ int main( int argc, char *argv[] ) {
   printf("initializing host buffers\n");
 #if VALIDATE
   for (unsigned int i = 0; i < numElementsC; i++) {
-    hC[i] = i; // rand()%101;
+    hC[i] = rand()%101;
     hC_ref[i] = hC[i];
   }
   for (unsigned int i = 0; i < numElementsA; i++) {
-    hA[i] = i; // rand()%101;
+    hA[i] = rand()%101;
   }
   for (unsigned int i = 0; i < numElementsB; i++) {
-    hB[i] = i; // rand()%101;
+    hB[i] = rand()%101;
   }
 #else
   for (unsigned int i = 0; i < numElementsC; i++) { hC[i] = 1; }
@@ -253,7 +266,7 @@ int main( int argc, char *argv[] ) {
   printf("validating...\n");
 #if VALIDATE
 
-    sgemm_NT( hC_ref, hA, hB, alpha, beta, size0C, size0A, size0B, M, N, K );
+    sgemm_NT( transA, transB, hC_ref, hA, hB, alpha, beta, size0C, size0A, size0B, M, N, K );
     for (unsigned int i = 0; i < numElementsC; i++) {
       if (hC[i] != hC_ref[i]) {
         numInvalid++;
@@ -341,6 +354,8 @@ void makeKernel(
 #define GET_GLOBAL_INDEX_B(IDX1J, IDXK) ( (IDX1J)*1 + (IDXK)*strideBK )
 
 void sgemm_NT(
+  bool transA,
+  bool transB,
   float  *C,
   float  *A,
   float  *B,
@@ -357,7 +372,9 @@ void sgemm_NT(
     for (unsigned int j = 0; j < N; j++) {
       float c = 0.f;
       for (unsigned int k = 0; k < K; k++) {
-        c += A[i+k*lda]*B[j+k*ldb];
+        float a = transA ? A[k+i*lda] : A[i+k*lda];
+        float b = transB ? B[j+k*ldb] : B[k+j*ldb];
+        c += a*b;
       }
       size_t cIdx = i+j*ldc;
       C[cIdx] = alpha*c + beta*C[cIdx];
