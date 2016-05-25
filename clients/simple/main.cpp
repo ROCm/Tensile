@@ -66,15 +66,15 @@ const unsigned int M = 4*96;
 const unsigned int N = 3*96;
 const unsigned int K = 2*96;
 #else
-const unsigned int M = 5760;
-const unsigned int N = 5760;
-const unsigned int K = 5760;
+const unsigned int M = 4096;
+const unsigned int N = 4096;
+const unsigned int K = 4096;
 #endif
 const unsigned int numEnqueues = 1;
 DATA_TYPE_STR_ALPHA alpha = 1;
 DATA_TYPE_STR_BETA  beta  = 0;
 const unsigned int transA = 0;
-const unsigned int transB = 0;
+const unsigned int transB = 1;
 
 /*******************************************************************************
  * main
