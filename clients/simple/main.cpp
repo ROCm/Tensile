@@ -1,5 +1,6 @@
 #include <cstdio>
-
+#include <random>
+#define VALIDATE 1
 
 #if Cobalt_BACKEND_HIP
 /*******************************************************************************
@@ -24,6 +25,11 @@ hipError_t status;
 #include <CL/cl.h>
 #include "kernel_opencl.h"
 
+void sgemm_NT(
+  float  *C, float  *A, float  *B,
+  float const alpha, float const beta,
+  unsigned int const ldc, unsigned int const lda, unsigned int const ldb,
+  unsigned int const M, unsigned int const N, unsigned int const K );
 
 cl_int status;
 #define CHECK(STATUS) \
@@ -58,7 +64,7 @@ void makeKernel(
 const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
-const unsigned int numEnqueues = 100;
+const unsigned int numEnqueues = 0;
 
 
 /*******************************************************************************
@@ -113,14 +119,27 @@ int main( int argc, char *argv[] ) {
   // allocate host buffers
   printf("allocating host buffers\n");
   DATA_TYPE_STR_C *hC = new DATA_TYPE_STR_C[numElementsC];
+  DATA_TYPE_STR_C *hC_ref = new DATA_TYPE_STR_C[numElementsC];
   DATA_TYPE_STR_A *hA = new DATA_TYPE_STR_A[numElementsA];
   DATA_TYPE_STR_B *hB = new DATA_TYPE_STR_B[numElementsB];
 
   // init host buffers
   printf("initializing host buffers\n");
+#if VALIDATE
+  for (unsigned int i = 0; i < numElementsC; i++) {
+    hC[i] = rand()%101;
+  }
+  for (unsigned int i = 0; i < numElementsA; i++) {
+    hA[i] = rand()%101;
+  }
+  for (unsigned int i = 0; i < numElementsB; i++) {
+    hB[i] = rand()%101;
+  }
+#else
   for (unsigned int i = 0; i < numElementsC; i++) { hC[i] = 1; }
   for (unsigned int i = 0; i < numElementsA; i++) { hA[i] = 1; }
   for (unsigned int i = 0; i < numElementsB; i++) { hB[i] = 1; }
+#endif
 
   // allocate device buffers
   printf("allocating device buffers\n");
@@ -227,9 +246,22 @@ int main( int argc, char *argv[] ) {
     CHECK( clFinish(queue); )
 #endif
 
-  DATA_TYPE_STR_C answer = K*alpha + beta;
-  printf("validating %f\n", answer);
   size_t numInvalid = 0;
+  printf("validating...\n");
+#if VALIDATE
+
+    sgemm_NT( hC_ref, hA, hB, alpha, beta, size0C, size0A, size0B, M, N, K );
+    for (unsigned int i = 0; i < numElementsC; i++) {
+      if (hC[i] != hC_ref[i]) {
+        numInvalid++;
+        if (numInvalid < 4*4) {
+          printf("C[%u] = %f rather than %f\n", i, hC[i], hC_ref[i]);
+        }
+      }
+    }
+
+#else
+  DATA_TYPE_STR_C answer = K*alpha + beta;
   for (unsigned int i = 0; i < numElementsC; i++) {
     if (hC[i] != answer) {
       numInvalid++;
@@ -238,6 +270,7 @@ int main( int argc, char *argv[] ) {
       }
     }
   }
+#endif
   if (numInvalid) {
     printf("FAILED validation (%llu errors)\n", numInvalid);
   } else {
@@ -296,4 +329,32 @@ void makeKernel(
   CHECK( clReleaseProgram(clProgram); )
 
 }
+
+void sgemm_NT(
+    float  *C,
+    float  *A,
+    float  *B,
+    float const alpha,
+    float const beta,
+    unsigned int const ldc,
+    unsigned int const lda,
+    unsigned int const ldb,
+    unsigned int const M,
+    unsigned int const N,
+    unsigned int const K ) {
+
+  for (unsigned int i = 0; i < M; i++) {
+    for (unsigned int j = 0; j < N; j++) {
+      float c = 0.f;
+      for (unsigned int k = 0; k < K; k++) {
+        c += A[i+k*lda]*B[j+k*ldb];
+      }
+      size_t cIdx = i+j*ldc;
+      C[cIdx] = alpha*c + beta*C[cIdx];
+    }
+  }
+}
+
+
+
 #endif
