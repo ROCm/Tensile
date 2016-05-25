@@ -65,8 +65,8 @@ const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
 #else
-const unsigned int M = 4*96;
-const unsigned int N = 3*96;
+const unsigned int M = 4*96-1;
+const unsigned int N = 3*96-1;
 const unsigned int K = 2*96;
 #endif
 const unsigned int numEnqueues = 1;
@@ -178,7 +178,7 @@ int main( int argc, char *argv[] ) {
   dim3 blocks(size0C/MACRO_TILE_0I, size1C/MACRO_TILE_1J, 1);  
 #else
   size_t localSize[3] = { WG_DIM_0I, WG_DIM_1J, 1 };
-  size_t globalSize[3] = { size0C/MICRO_TILE_0I, size1C/MICRO_TILE_1J, 1 };  
+  size_t globalSize[3] = { ((size0C+MACRO_TILE_0I-1)/MACRO_TILE_0I)*WG_DIM_0I, ((size1C+MACRO_TILE_1J-1)/MACRO_TILE_1J)*WG_DIM_1J, 1 };  
 #endif
 
   // enqueue kernel

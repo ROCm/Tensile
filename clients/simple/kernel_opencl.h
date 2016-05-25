@@ -1226,7 +1226,7 @@ __kernel void gemm_kernel(
 // unroll 8
 // single source load (w/ PAD to eliminate bank conflict added from ssl)
 // this is fastest so far: 60 vgpr, 90% valusage, 84%peak
-#if 0
+#if 1
 const char * kernelSource = R"(
 
 /* tile parameters */
@@ -1495,7 +1495,7 @@ __kernel void gemm_kernel(
 // unroll 8
 // single source load (w/ PAD to eliminate bank conflict added from ssl)
 // this is fastest so far: 60 vgpr, 90% valusage, 84%peak
-#if 1
+#if 0
 const char * kernelSource = R"(
 
 /* tile parameters */
