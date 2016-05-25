@@ -65,9 +65,9 @@ const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
 #else
-const unsigned int M = 96;
-const unsigned int N = 96;
-const unsigned int K = 96;
+const unsigned int M = 4*96;
+const unsigned int N = 3*96;
+const unsigned int K = 2*96;
 #endif
 const unsigned int numEnqueues = 1;
 DATA_TYPE_STR_ALPHA alpha = 1;

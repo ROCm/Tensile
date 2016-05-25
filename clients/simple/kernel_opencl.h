@@ -325,7 +325,7 @@ __kernel void gemm_kernel(
     globalPtr = A + GET_GLOBAL_INDEX_A(aI+groupIdx0I*MACRO_TILE_0I, aK);
     globalInc = strideAK*NUM_UNROLL_ITER;
   } else { // B
-    loadPtrOffset = GET_LOCAL_INDEX_A(bK, bJ);
+    loadPtrOffset = GET_LOCAL_INDEX_A(bJ, bK);
     loadPtrBase = localB_raw;
     loadSwapBit = NUM_UNROLL_ITER*MACRO_TILE_1J_POW2;
     globalPtr = B + GET_GLOBAL_INDEX_B(bJ+groupIdx1J*MACRO_TILE_1J, bK);
@@ -759,7 +759,7 @@ __kernel void gemm_kernel(
     globalPtr = A + GET_GLOBAL_INDEX_A(aI+groupIdx0I*MACRO_TILE_0I, aK);
     globalInc = strideAK*NUM_UNROLL_ITER;
   } else { // B
-    loadPtrOffset = GET_LOCAL_INDEX_A(bK, bJ);
+    loadPtrOffset = GET_LOCAL_INDEX_A(bJ, bK);
     loadPtrBase = localB_raw;
     loadSwapBit = NUM_UNROLL_ITER*MACRO_TILE_1J_POW2;
     globalPtr = B + GET_GLOBAL_INDEX_B(bJ+groupIdx1J*MACRO_TILE_1J, bK);
@@ -1058,7 +1058,7 @@ __kernel void gemm_kernel(
     globalPtr = A + GET_GLOBAL_INDEX_A(aI+groupIdx0I*MACRO_TILE_0I, aK);
     globalInc = strideAK*NUM_UNROLL_ITER;
   } else { // B
-    loadPtrOffset = GET_LOCAL_INDEX_A(bK, bJ);
+    loadPtrOffset = GET_LOCAL_INDEX_A(bJ, bK);
     loadPtrBase = localB_raw;
     loadSwapBit = NUM_UNROLL_ITER*MACRO_TILE_1J_POW2;
     globalPtr = B + GET_GLOBAL_INDEX_B(bJ+groupIdx1J*MACRO_TILE_1J, bK);
