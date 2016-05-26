@@ -133,7 +133,7 @@ const unsigned int numEnqueues = 1;
 DATA_TYPE_STR_ALPHA alpha = 1;
 DATA_TYPE_STR_BETA  beta  = 0;
 const unsigned int transA = 1;
-const unsigned int transB = 1;
+const unsigned int transB = 0;
 
 /*******************************************************************************
  * main
