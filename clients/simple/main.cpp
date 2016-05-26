@@ -1,6 +1,14 @@
 #include <cstdio>
 #include <random>
+#ifdef WIN32
+#include "Windows.h"
+#else
+#include <time.h>
+#endif
+
 #define VALIDATE 0
+#define SWITCH_AB 0
+
 
 #if Cobalt_BACKEND_HIP
 /*******************************************************************************
@@ -24,6 +32,57 @@ hipError_t status;
  ******************************************************************************/
 #include <CL/cl.h>
 #include "kernel_opencl.h"
+
+class Timer {
+public:
+  Timer::Timer() {
+#ifdef WIN32
+    QueryPerformanceFrequency( &frequency );
+#else
+    // nothing
+#endif
+  }
+
+  void Timer::start() {
+#ifdef WIN32
+    QueryPerformanceCounter( &startTime );
+#else
+    clock_gettime( CLOCK_REALTIME, &startTime );
+#endif
+  }
+
+  // returns elapsed time in seconds
+  double Timer::elapsed_sec() {
+    return elapsed_us() / 1000000.0;
+  }
+  // returns elapsed time in seconds
+  double Timer::elapsed_ms() {
+    return elapsed_us() / 1000.0;
+  }
+  double Timer::elapsed_us() {
+    double elapsed_us;
+#ifdef WIN32
+    LARGE_INTEGER currentTime;
+    QueryPerformanceCounter( &currentTime );
+    elapsed_us = double(currentTime.QuadPart-startTime.QuadPart)/(frequency.QuadPart/1000000.0);
+#else
+    timespec currentTime;
+    clock_gettime( CLOCK_REALTIME, &currentTime);
+    elapsed_us = (currentTime.tv_sec - startTime.tv_sec)*1000000.0
+      + (currentTime.tv_nsec - startTime.tv_nsec)/1000.0;
+#endif
+    return elapsed_us;
+  }
+
+
+private:
+#ifdef WIN32
+  LARGE_INTEGER startTime;
+  LARGE_INTEGER frequency; 
+#else
+  timespec startTime;
+#endif
+};
 
 void sgemm_NT(
   bool transA, bool transB,
@@ -66,14 +125,14 @@ const unsigned int M = 4*96;
 const unsigned int N = 3*96;
 const unsigned int K = 2*96;
 #else
-const unsigned int M = 4096;
-const unsigned int N = 4096;
-const unsigned int K = 4096;
+const unsigned int M = 5760;
+const unsigned int N = 5760;
+const unsigned int K = 5760;
 #endif
 const unsigned int numEnqueues = 1;
 DATA_TYPE_STR_ALPHA alpha = 1;
 DATA_TYPE_STR_BETA  beta  = 0;
-const unsigned int transA = 0;
+const unsigned int transA = 1;
 const unsigned int transB = 1;
 
 /*******************************************************************************
@@ -221,16 +280,28 @@ int main( int argc, char *argv[] ) {
   printf("enqueueing opencl kernel global=%llux%llu, local=%llux%llu\n", globalSize[0], globalSize[1], localSize[0], localSize[1]);
   cl_uint argIdx = 0;
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dC ); )
-  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
+#if SWITCH_AB
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dB ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
+#else
+    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
+    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dB ); )
+#endif
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(DATA_TYPE_STR_ALPHA), &alpha ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(DATA_TYPE_STR_BETA), &beta ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0C ); )
-  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
+#if SWITCH_AB
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0B ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
+#else
+    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
+    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0B ); )
+#endif
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
+  Timer timer;
+  timer.start();
   for (unsigned int i = 0; i < numEnqueues; i++) {
     clEnqueueNDRangeKernel(queue, kernel_opencl,
         2, // num dims
@@ -252,7 +323,7 @@ int main( int argc, char *argv[] ) {
 #else
   CHECK( clFinish(queue); )
 #endif
-
+  double time_ms = timer.elapsed_ms() / numEnqueues;
   // copy result back to host
   printf("copying device results back to host\n");
 #if Cobalt_BACKEND_HIP
@@ -292,6 +363,7 @@ int main( int argc, char *argv[] ) {
   } else {
     printf("PASSED validation\n");
   }
+  printf("t=%f ms\n", time_ms);
 
 }
 
@@ -349,9 +421,6 @@ void makeKernel(
 #endif
 
 
-#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*1 + (IDX1J)*strideC1J )
-#define GET_GLOBAL_INDEX_A(IDX0I, IDXK) ( (IDX0I)*1 + (IDXK)*strideAK )
-#define GET_GLOBAL_INDEX_B(IDX1J, IDXK) ( (IDX1J)*1 + (IDXK)*strideBK )
 
 void sgemm_NT(
   bool transA,
@@ -381,3 +450,4 @@ void sgemm_NT(
     }
   }
 }
+
