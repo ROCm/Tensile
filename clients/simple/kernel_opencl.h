@@ -1,5 +1,1338 @@
+
 /******************************************************************************
-  Final Kernels
+  Configurable Load Kernels
+******************************************************************************/
+
+/*
+TN - different load patterns
+
+*/
+#if 1
+const char * kernelSource_TN = R"(
+
+/* tile parameters */
+#define PAD               1
+#define WG_DIM_0I         16
+#define WG_DIM_1J         16
+#define MICRO_TILE_0I     6
+#define MICRO_TILE_1J     6
+#define MACRO_TILE_0I     96
+#define MACRO_TILE_1J     96
+#define NUM_UNROLL_ITER   32
+
+// num load instructions
+#define NUM_THREADS       (WG_DIM_0I*WG_DIM_1J)
+#define NUM_LOADS_A       ((MACRO_TILE_0I*NUM_UNROLL_ITER)/NUM_THREADS)
+#define NUM_LOADS_B       ((MACRO_TILE_1J*NUM_UNROLL_ITER)/NUM_THREADS)
+
+/* load pattern
+  restrictions:
+ - perp*para = num loads
+ - num_threads%(MACRO_TILE/NUM_LOADS_PERT) == 0
+ for 6x6 micro-tile: perp=12, 6, 3
+*/
+
+#define NUM_LOADS_PARA_COAL_A 4
+#define NUM_LOADS_PARA_COAL_B 4
+#define NUM_LOADS_PERP_COAL_A (NUM_LOADS_A/NUM_LOADS_PERP_COAL_A)
+#define NUM_LOADS_PERP_COAL_B (NUM_LOADS_B/NUM_LOADS_PERP_COAL_B)
+
+#define LOAD_SIZE_PARA_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_A)
+#define LOAD_SIZE_PARA_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_B)
+#define LOAD_SIZE_PERP_COAL_A (MACRO_TILE_0I/NUM_LOADS_PERP_COAL_A)
+#define LOAD_SIZE_PERP_COAL_B (MACRO_TILE_1J/NUM_LOADS_PERP_COAL_B)
+
+
+
+/* global memory indices */
+#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )
+#define GET_GLOBAL_INDEX_A( IDXK, IDX0I) ( (IDXK) *strideA0I + (IDX0I)*strideAK  )
+#define GET_GLOBAL_INDEX_B( IDXK, IDX1J) ( (IDXK) *strideB1J + (IDX1J)*strideBK )
+
+
+/* local memory indices */
+#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_0I+PAD) )
+#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MACRO_TILE_1J+PAD) )
+
+/* data types */
+#define DATA_TYPE_STR_A     float
+#define DATA_TYPE_STR_B     float
+#define DATA_TYPE_STR_C     float
+#define DATA_TYPE_STR_ALPHA float
+#define DATA_TYPE_STR_BETA  float
+#define FMA(A,B,DST)        mad(A,B,DST)
+#define TYPE_MAD(MULA,MULB,DST) DST = FMA(MULA,MULB,DST);
+#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);
+
+/* 6x6 micro-tile */
+#define MICRO_TILE \
+  rA[0] = localA[offA + 0*WG_DIM_0I]; \
+  rA[1] = localA[offA + 1*WG_DIM_0I]; \
+  rA[2] = localA[offA + 2*WG_DIM_0I]; \
+  rA[3] = localA[offA + 3*WG_DIM_0I]; \
+  rA[4] = localA[offA + 4*WG_DIM_0I]; \
+  rA[5] = localA[offA + 5*WG_DIM_0I]; \
+  rB[0] = localB[offB + 0*WG_DIM_1J]; \
+  rB[1] = localB[offB + 1*WG_DIM_1J]; \
+  rB[2] = localB[offB + 2*WG_DIM_1J]; \
+  rB[3] = localB[offB + 3*WG_DIM_1J]; \
+  rB[4] = localB[offB + 4*WG_DIM_1J]; \
+  rB[5] = localB[offB + 5*WG_DIM_1J]; \
+  offA += (MACRO_TILE_0I+PAD); \
+  offB += (MACRO_TILE_1J+PAD); \
+  TYPE_MAD(rA[0],rB[0],rC[0][0]); \
+  TYPE_MAD(rA[0],rB[1],rC[0][1]); \
+  TYPE_MAD(rA[0],rB[2],rC[0][2]); \
+  TYPE_MAD(rA[0],rB[3],rC[0][3]); \
+  TYPE_MAD(rA[0],rB[4],rC[0][4]); \
+  TYPE_MAD(rA[0],rB[5],rC[0][5]); \
+  TYPE_MAD(rA[1],rB[0],rC[1][0]); \
+  TYPE_MAD(rA[1],rB[1],rC[1][1]); \
+  TYPE_MAD(rA[1],rB[2],rC[1][2]); \
+  TYPE_MAD(rA[1],rB[3],rC[1][3]); \
+  TYPE_MAD(rA[1],rB[4],rC[1][4]); \
+  TYPE_MAD(rA[1],rB[5],rC[1][5]); \
+  TYPE_MAD(rA[2],rB[0],rC[2][0]); \
+  TYPE_MAD(rA[2],rB[1],rC[2][1]); \
+  TYPE_MAD(rA[2],rB[2],rC[2][2]); \
+  TYPE_MAD(rA[2],rB[3],rC[2][3]); \
+  TYPE_MAD(rA[2],rB[4],rC[2][4]); \
+  TYPE_MAD(rA[2],rB[5],rC[2][5]); \
+  TYPE_MAD(rA[3],rB[0],rC[3][0]); \
+  TYPE_MAD(rA[3],rB[1],rC[3][1]); \
+  TYPE_MAD(rA[3],rB[2],rC[3][2]); \
+  TYPE_MAD(rA[3],rB[3],rC[3][3]); \
+  TYPE_MAD(rA[3],rB[4],rC[3][4]); \
+  TYPE_MAD(rA[3],rB[5],rC[3][5]); \
+  TYPE_MAD(rA[4],rB[0],rC[4][0]); \
+  TYPE_MAD(rA[4],rB[1],rC[4][1]); \
+  TYPE_MAD(rA[4],rB[2],rC[4][2]); \
+  TYPE_MAD(rA[4],rB[3],rC[4][3]); \
+  TYPE_MAD(rA[4],rB[4],rC[4][4]); \
+  TYPE_MAD(rA[4],rB[5],rC[4][5]); \
+  TYPE_MAD(rA[5],rB[0],rC[5][0]); \
+  TYPE_MAD(rA[5],rB[1],rC[5][1]); \
+  TYPE_MAD(rA[5],rB[2],rC[5][2]); \
+  TYPE_MAD(rA[5],rB[3],rC[5][3]); \
+  TYPE_MAD(rA[5],rB[4],rC[5][4]); \
+  TYPE_MAD(rA[5],rB[5],rC[5][5]); \
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+
+/* preprocessor definitions of kernel arguments*/
+#define strideC0I 1
+#define strideA0I 1
+#define strideB1J 1
+
+)" R"(
+__attribute__((reqd_work_group_size(WG_DIM_0I,WG_DIM_1J,1)))
+__kernel void gemm_kernel(
+  __global float       *          C,
+  __global float const * restrict A,
+  __global float const * restrict B,
+  float const alpha,
+  float const beta,
+  unsigned int const strideC1J,
+  unsigned int const strideAK,
+  unsigned int const strideBK,
+  unsigned int const size0I,
+  unsigned int const size1J,
+  unsigned int const sizeK ) {
+
+  /* allocate registers */
+  float rC[MICRO_TILE_0I][MICRO_TILE_1J] = {{0}};
+  float rA[MICRO_TILE_0I];
+  float rB[MICRO_TILE_1J];
+
+  /* allocate local memory */
+  __local float localA[NUM_UNROLL_ITER*(MACRO_TILE_0I+PAD)];
+  __local float localB[NUM_UNROLL_ITER*(MACRO_TILE_1J+PAD)];
+
+  /* c indices */
+  unsigned int groupIdx0I = get_group_id(0);
+  unsigned int groupIdx1J = get_group_id(1);
+
+  unsigned int localIdx0I = get_local_id(0);
+  unsigned int localIdx1J = get_local_id(1);
+  unsigned int loadSerial = localIdx0I + localIdx1J*WG_DIM_0I; // orig
+
+/*
+#define NUM_LOADS_PERP_COAL_A 3
+#define NUM_LOADS_PERP_COAL_B 3
+#define NUM_LOADS_PARA_COAL_A (NUM_LOADS_A/NUM_LOADS_PERP_COAL_A)
+#define NUM_LOADS_PARA_COAL_B (NUM_LOADS_B/NUM_LOADS_PERP_COAL_B)
+*/
+
+  unsigned int aI = loadSerial/LOAD_SIZE_PARA_COAL_A;
+  unsigned int aK = loadSerial%LOAD_SIZE_PARA_COAL_A;
+  unsigned int bJ = loadSerial/LOAD_SIZE_PARA_COAL_B;
+  unsigned int bK = loadSerial%LOAD_SIZE_PARA_COAL_B;
+
+  A +=  GET_GLOBAL_INDEX_A(aK, aI+groupIdx0I*MACRO_TILE_0I);
+  B +=  GET_GLOBAL_INDEX_B(bK, bJ+groupIdx1J*MACRO_TILE_1J);
+
+  __local float *lA = localA + GET_LOCAL_INDEX_A(aI, aK);
+  __local float *lB = localB + GET_LOCAL_INDEX_B(bK, bJ);
+
+  /* iterate over all summation indices */
+  unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
+  do {
+    barrier(CLK_LOCAL_MEM_FENCE);
+#if 0
+    // 4x3=12 for u32
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+)" R"(
+#if 0
+    // 2x6
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 3
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 4
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 5
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+#if 1
+    // 1x12
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 3
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 4
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 5
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 6
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 6*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 6*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 6*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 6*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 7
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 7*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 7*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 7*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 7*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 8
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 8*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 8*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 8*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 8*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 9
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 9*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 9*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 9*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 9*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 10
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 10*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 10*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 10*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 10*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 11
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 11*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 11*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 11*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 11*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    unsigned int offA = localIdx0I; // d0
+    unsigned int offB = localIdx1J; // d1
+
+    /* do mads */
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#if NUM_UNROLL_ITER>8
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#endif
+#if NUM_UNROLL_ITER>16
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#endif
+
+    A += NUM_UNROLL_ITER;
+    B += NUM_UNROLL_ITER;
+  } while (--sumIterK > 0);
+
+)" R"(
+  //printf("%f, %f, %f, %f, %f, %f\n", rC[0][0], rC[1][1], rC[2][2], rC[3][3], rC[4][4], rC[5][5] );
+
+  /* which global Cij index */
+  unsigned int globalIdxC1J = groupIdx1J*MACRO_TILE_1J + localIdx1J;
+  unsigned int globalIdxC0I = groupIdx0I*MACRO_TILE_0I + localIdx0I;
+
+  //printf("%02u, %02u, %f\n", localIdx0I, localIdx1J, rC[0][0] );
+
+  /* write global C */
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[0][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[0][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[0][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[0][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[0][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[0][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[1][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[1][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[1][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[1][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[1][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[1][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[2][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[2][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[2][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[2][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[2][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[2][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[3][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[3][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[3][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[3][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[3][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[3][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[4][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[4][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[4][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[4][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[4][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[4][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[5][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[5][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[5][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[5][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[5][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[5][5], beta)
+
+};
+)";
+#endif
+
+
+/*
+NT - different load patterns
+
+*/
+#if 0
+const char * kernelSource_NT = R"(
+
+/* tile parameters */
+#define PAD               1
+#define WG_DIM_0I         16
+#define WG_DIM_1J         16
+#define MICRO_TILE_0I     6
+#define MICRO_TILE_1J     6
+#define MACRO_TILE_0I     96
+#define MACRO_TILE_1J     96
+#define NUM_UNROLL_ITER   32
+
+// num load instructions
+#define NUM_THREADS       (WG_DIM_0I*WG_DIM_1J)
+#define NUM_LOADS_A       ((MACRO_TILE_0I*NUM_UNROLL_ITER)/NUM_THREADS)
+#define NUM_LOADS_B       ((MACRO_TILE_1J*NUM_UNROLL_ITER)/NUM_THREADS)
+// restriction: NUM_LOADS must be whole number
+
+/* load pattern
+  restrictions:
+ - perp*para = num loads
+ - num_threads%(MACRO_TILE/NUM_LOADS_PERT) == 0
+ for 6x6 micro-tile: para=12, 6, 3
+*/
+#define NUM_LOADS_PARA_COAL_A 3
+#define NUM_LOADS_PARA_COAL_B 3
+#define NUM_LOADS_PERP_COAL_A (NUM_LOADS_A/NUM_LOADS_PARA_COAL_A)
+#define NUM_LOADS_PERP_COAL_B (NUM_LOADS_B/NUM_LOADS_PARA_COAL_B)
+
+//#define LOAD_SIZE_PERP_COAL_A (MACRO_TILE_0I/NUM_LOADS_PERP_COAL_A)
+//#define LOAD_SIZE_PERP_COAL_B (MACRO_TILE_1J/NUM_LOADS_PERP_COAL_B)
+//#define LOAD_SIZE_PARA_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_A)
+//#define LOAD_SIZE_PARA_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_B)
+
+#define LOAD_SIZE_PARA_COAL_A (MACRO_TILE_0I/NUM_LOADS_PARA_COAL_A)
+#define LOAD_SIZE_PARA_COAL_B (MACRO_TILE_1J/NUM_LOADS_PARA_COAL_B)
+#define LOAD_SIZE_PERP_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_A)
+#define LOAD_SIZE_PERP_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_B)
+#define PERP_A
+#define PARA_B
+
+/* global memory indices */
+#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )
+#define GET_GLOBAL_INDEX_A(IDX0I, IDXK)  ( (IDX0I)*strideA0I + (IDXK)*strideAK )
+#define GET_GLOBAL_INDEX_B(IDX1J, IDXK)  ( (IDX1J)*strideB1J + (IDXK)*strideBK )
+
+
+/* local memory indices */
+#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_0I+PAD) )
+#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MACRO_TILE_1J+PAD) )
+
+#define L_IDX_A
+#define G_IDX_A
+
+/* data types */
+#define DATA_TYPE_STR_A     float
+#define DATA_TYPE_STR_B     float
+#define DATA_TYPE_STR_C     float
+#define DATA_TYPE_STR_ALPHA float
+#define DATA_TYPE_STR_BETA  float
+#define FMA(A,B,DST)        mad(A,B,DST)
+#define TYPE_MAD(MULA,MULB,DST) DST = FMA(MULA,MULB,DST);
+#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);
+
+/* 6x6 micro-tile */
+#define MICRO_TILE \
+  rA[0] = localA[offA + 0*WG_DIM_0I]; \
+  rA[1] = localA[offA + 1*WG_DIM_0I]; \
+  rA[2] = localA[offA + 2*WG_DIM_0I]; \
+  rA[3] = localA[offA + 3*WG_DIM_0I]; \
+  rA[4] = localA[offA + 4*WG_DIM_0I]; \
+  rA[5] = localA[offA + 5*WG_DIM_0I]; \
+  rB[0] = localB[offB + 0*WG_DIM_1J]; \
+  rB[1] = localB[offB + 1*WG_DIM_1J]; \
+  rB[2] = localB[offB + 2*WG_DIM_1J]; \
+  rB[3] = localB[offB + 3*WG_DIM_1J]; \
+  rB[4] = localB[offB + 4*WG_DIM_1J]; \
+  rB[5] = localB[offB + 5*WG_DIM_1J]; \
+  offA += (MACRO_TILE_0I+PAD); \
+  offB += (MACRO_TILE_1J+PAD); \
+  TYPE_MAD(rA[0],rB[0],rC[0][0]); \
+  TYPE_MAD(rA[0],rB[1],rC[0][1]); \
+  TYPE_MAD(rA[0],rB[2],rC[0][2]); \
+  TYPE_MAD(rA[0],rB[3],rC[0][3]); \
+  TYPE_MAD(rA[0],rB[4],rC[0][4]); \
+  TYPE_MAD(rA[0],rB[5],rC[0][5]); \
+  TYPE_MAD(rA[1],rB[0],rC[1][0]); \
+  TYPE_MAD(rA[1],rB[1],rC[1][1]); \
+  TYPE_MAD(rA[1],rB[2],rC[1][2]); \
+  TYPE_MAD(rA[1],rB[3],rC[1][3]); \
+  TYPE_MAD(rA[1],rB[4],rC[1][4]); \
+  TYPE_MAD(rA[1],rB[5],rC[1][5]); \
+  TYPE_MAD(rA[2],rB[0],rC[2][0]); \
+  TYPE_MAD(rA[2],rB[1],rC[2][1]); \
+  TYPE_MAD(rA[2],rB[2],rC[2][2]); \
+  TYPE_MAD(rA[2],rB[3],rC[2][3]); \
+  TYPE_MAD(rA[2],rB[4],rC[2][4]); \
+  TYPE_MAD(rA[2],rB[5],rC[2][5]); \
+  TYPE_MAD(rA[3],rB[0],rC[3][0]); \
+  TYPE_MAD(rA[3],rB[1],rC[3][1]); \
+  TYPE_MAD(rA[3],rB[2],rC[3][2]); \
+  TYPE_MAD(rA[3],rB[3],rC[3][3]); \
+  TYPE_MAD(rA[3],rB[4],rC[3][4]); \
+  TYPE_MAD(rA[3],rB[5],rC[3][5]); \
+  TYPE_MAD(rA[4],rB[0],rC[4][0]); \
+  TYPE_MAD(rA[4],rB[1],rC[4][1]); \
+  TYPE_MAD(rA[4],rB[2],rC[4][2]); \
+  TYPE_MAD(rA[4],rB[3],rC[4][3]); \
+  TYPE_MAD(rA[4],rB[4],rC[4][4]); \
+  TYPE_MAD(rA[4],rB[5],rC[4][5]); \
+  TYPE_MAD(rA[5],rB[0],rC[5][0]); \
+  TYPE_MAD(rA[5],rB[1],rC[5][1]); \
+  TYPE_MAD(rA[5],rB[2],rC[5][2]); \
+  TYPE_MAD(rA[5],rB[3],rC[5][3]); \
+  TYPE_MAD(rA[5],rB[4],rC[5][4]); \
+  TYPE_MAD(rA[5],rB[5],rC[5][5]); \
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+
+/* preprocessor definitions of kernel arguments*/
+#define strideC0I 1
+#define strideA0I 1
+#define strideB1J 1
+
+)" R"(
+__attribute__((reqd_work_group_size(WG_DIM_0I,WG_DIM_1J,1)))
+__kernel void gemm_kernel(
+  __global float       *          C,
+  __global float const * restrict A,
+  __global float const * restrict B,
+  float const alpha,
+  float const beta,
+  unsigned int const strideC1J,
+  unsigned int const strideAK,
+  unsigned int const strideBK,
+  unsigned int const size0I,
+  unsigned int const size1J,
+  unsigned int const sizeK ) {
+
+#define NUM_LOADS_PARA_COAL_A 3
+#define NUM_LOADS_PARA_COAL_B 3
+#define NUM_LOADS_PERP_COAL_A (NUM_LOADS_A/NUM_LOADS_PARA_COAL_A)
+#define NUM_LOADS_PERP_COAL_B (NUM_LOADS_B/NUM_LOADS_PARA_COAL_B)
+
+//#define LOAD_SIZE_PERP_COAL_A (MACRO_TILE_0I/NUM_LOADS_PERP_COAL_A)
+//#define LOAD_SIZE_PERP_COAL_B (MACRO_TILE_1J/NUM_LOADS_PERP_COAL_B)
+//#define LOAD_SIZE_PARA_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_A)
+//#define LOAD_SIZE_PARA_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_B)
+
+#define LOAD_SIZE_PARA_COAL_A (MACRO_TILE_0I/NUM_LOADS_PARA_COAL_A)
+#define LOAD_SIZE_PARA_COAL_B (MACRO_TILE_1J/NUM_LOADS_PARA_COAL_B)
+#define LOAD_SIZE_PERP_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_A)
+#define LOAD_SIZE_PERP_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_B)
+  //if (get_global_id(0)==0 && get_global_id(1)==0) {
+  //  printf("N_PARA=%u, N_PERP=%u, S_PARA=%u, S_PERP=%u\n",NUM_LOADS_PARA_COAL_A, NUM_LOADS_PERP_COAL_A, LOAD_SIZE_PARA_COAL_A, LOAD_SIZE_PERP_COAL_A);
+  //}
+
+  /* allocate registers */
+  float rC[MICRO_TILE_0I][MICRO_TILE_1J] = {{0}};
+  float rA[MICRO_TILE_0I];
+  float rB[MICRO_TILE_1J];
+
+  /* allocate local memory */
+  __local float localA[NUM_UNROLL_ITER*(MACRO_TILE_0I+PAD)];
+  __local float localB[NUM_UNROLL_ITER*(MACRO_TILE_1J+PAD)];
+
+  /* c indices */
+  unsigned int groupIdx0I = get_group_id(0);
+  unsigned int groupIdx1J = get_group_id(1);
+
+  unsigned int localIdx0I = get_local_id(0);
+  unsigned int localIdx1J = get_local_id(1);
+  unsigned int loadSerial = localIdx0I + localIdx1J*WG_DIM_0I; // orig
+
+/*
+#define NUM_LOADS_PERP_COAL_A 3
+#define NUM_LOADS_PERP_COAL_B 3
+#define NUM_LOADS_PARA_COAL_A (NUM_LOADS_A/NUM_LOADS_PERP_COAL_A)
+#define NUM_LOADS_PARA_COAL_B (NUM_LOADS_B/NUM_LOADS_PERP_COAL_B)
+*/
+
+  //unsigned int aI = loadSerial/LOAD_SIZE_PARA_COAL_A;
+  //unsigned int aK = loadSerial%LOAD_SIZE_PARA_COAL_A;
+  //unsigned int bJ = loadSerial/LOAD_SIZE_PARA_COAL_B;
+  //unsigned int bK = loadSerial%LOAD_SIZE_PARA_COAL_B;
+
+  unsigned int aI = loadSerial%LOAD_SIZE_PARA_COAL_A;
+  unsigned int aK = loadSerial/LOAD_SIZE_PARA_COAL_A;
+  unsigned int bJ = loadSerial%LOAD_SIZE_PARA_COAL_B;
+  unsigned int bK = loadSerial/LOAD_SIZE_PARA_COAL_B;
+
+  A +=  GET_GLOBAL_INDEX_A(aI+groupIdx0I*MACRO_TILE_0I, aK);
+  B +=  GET_GLOBAL_INDEX_B(bJ+groupIdx1J*MACRO_TILE_1J, bK);
+
+  __local float *lA = localA + GET_LOCAL_INDEX_A(aI, aK);
+  __local float *lB = localB + GET_LOCAL_INDEX_B(bK, bJ);
+
+  /* iterate over all summation indices */
+  unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
+  do {
+    barrier(CLK_LOCAL_MEM_FENCE);
+#if 0
+    // 4x3=12 for u32
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+#endif
+#if 1
+    // 3x4=12 for u32
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lA[0*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lA[0*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lA[0*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A+0*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B+0*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    //for (unsigned int i = loadSerial; i<NUM_UNROLL_ITER*(MACRO_TILE_0I); i += 256) {
+    //printf("G[%02u][%02u] K[%05u] LID[%04u] lA=%3.0f; lB=%3.0f\n", groupIdx0I, groupIdx1J, sumIterK, i, lA[i], lB[i]);
+    //}
+#endif
+
+)" R"(
+#if 0
+    // 2x6
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 3
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 4
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 5
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+#if 0
+    // 1x12
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 3
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 4
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 5
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 6
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 6*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 6*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 6*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 6*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 7
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 7*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 7*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 7*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 7*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 8
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 8*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 8*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 8*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 8*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 9
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 9*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 9*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 9*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 9*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 10
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 10*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 10*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 10*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 10*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 11
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 11*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 11*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 11*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 11*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    unsigned int offA = localIdx0I; // d0
+    unsigned int offB = localIdx1J; // d1
+
+    /* do mads */
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#if NUM_UNROLL_ITER>8
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#endif
+#if NUM_UNROLL_ITER>16
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#endif
+
+    A += NUM_UNROLL_ITER*strideAK;
+    B += NUM_UNROLL_ITER*strideBK;
+  } while (--sumIterK > 0);
+
+)" R"(
+  //printf("%f, %f, %f, %f, %f, %f\n", rC[0][0], rC[1][1], rC[2][2], rC[3][3], rC[4][4], rC[5][5] );
+
+  /* which global Cij index */
+  unsigned int globalIdxC1J = groupIdx1J*MACRO_TILE_1J + localIdx1J;
+  unsigned int globalIdxC0I = groupIdx0I*MACRO_TILE_0I + localIdx0I;
+
+  //printf("%02u, %02u, %f\n", localIdx0I, localIdx1J, rC[0][0] );
+
+  /* write global C */
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[0][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[0][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[0][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[0][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[0][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[0][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[1][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[1][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[1][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[1][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[1][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[1][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[2][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[2][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[2][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[2][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[2][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[2][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[3][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[3][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[3][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[3][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[3][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[3][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[4][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[4][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[4][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[4][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[4][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[4][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[5][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[5][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[5][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[5][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[5][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[5][5], beta)
+
+};
+)";
+#endif
+
+/*
+  NT - branched; different load patterns
+*/
+#if 1
+const char * kernelSource_NT = R"(
+
+/* tile parameters */
+#define PAD               1
+#define WG_DIM_0I         16
+#define WG_DIM_1J         16
+#define MICRO_TILE_0I     6
+#define MICRO_TILE_1J     6
+#define MACRO_TILE_0I     96
+#define MACRO_TILE_1J     96
+#define NUM_UNROLL_ITER   32
+
+// num load instructions
+#define NUM_THREADS       (WG_DIM_0I*WG_DIM_1J)
+#define NUM_LOADS_A       ((MACRO_TILE_0I*NUM_UNROLL_ITER)/NUM_THREADS)
+#define NUM_LOADS_B       ((MACRO_TILE_1J*NUM_UNROLL_ITER)/NUM_THREADS)
+// restriction: NUM_LOADS must be whole number
+
+/* load pattern
+  restrictions:
+ - perp*para = num loads
+ - num_threads%(MACRO_TILE/NUM_LOADS_PERT) == 0
+ for 6x6 micro-tile: para=12, 6, 3
+*/
+#define NUM_LOADS_PARA_COAL_A 3
+#define NUM_LOADS_PARA_COAL_B 3
+#define NUM_LOADS_PERP_COAL_A (NUM_LOADS_A/NUM_LOADS_PARA_COAL_A)
+#define NUM_LOADS_PERP_COAL_B (NUM_LOADS_B/NUM_LOADS_PARA_COAL_B)
+
+//#define LOAD_SIZE_PERP_COAL_A (MACRO_TILE_0I/NUM_LOADS_PERP_COAL_A)
+//#define LOAD_SIZE_PERP_COAL_B (MACRO_TILE_1J/NUM_LOADS_PERP_COAL_B)
+//#define LOAD_SIZE_PARA_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_A)
+//#define LOAD_SIZE_PARA_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_B)
+
+#define LOAD_SIZE_PARA_COAL_A (MACRO_TILE_0I/NUM_LOADS_PARA_COAL_A)
+#define LOAD_SIZE_PARA_COAL_B (MACRO_TILE_1J/NUM_LOADS_PARA_COAL_B)
+#define LOAD_SIZE_PERP_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_A)
+#define LOAD_SIZE_PERP_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_B)
+#define PERP_A
+#define PARA_B
+
+/* global memory indices */
+#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )
+#define GET_GLOBAL_INDEX_A(IDX0I, IDXK)  ( (IDX0I)*strideA0I + (IDXK)*strideAK )
+#define GET_GLOBAL_INDEX_B(IDX1J, IDXK)  ( (IDX1J)*strideB1J + (IDXK)*strideBK )
+
+
+/* local memory indices */
+#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_0I+PAD) )
+#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MACRO_TILE_1J+PAD) )
+
+#define L_IDX_A
+#define G_IDX_A
+
+/* data types */
+#define DATA_TYPE_STR_A     float
+#define DATA_TYPE_STR_B     float
+#define DATA_TYPE_STR_C     float
+#define DATA_TYPE_STR_ALPHA float
+#define DATA_TYPE_STR_BETA  float
+#define FMA(A,B,DST)        mad(A,B,DST)
+#define TYPE_MAD(MULA,MULB,DST) DST = FMA(MULA,MULB,DST);
+#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);
+
+/* 6x6 micro-tile */
+#define MICRO_TILE \
+  rA[0] = localA[offA + 0*WG_DIM_0I]; \
+  rA[1] = localA[offA + 1*WG_DIM_0I]; \
+  rA[2] = localA[offA + 2*WG_DIM_0I]; \
+  rA[3] = localA[offA + 3*WG_DIM_0I]; \
+  rA[4] = localA[offA + 4*WG_DIM_0I]; \
+  rA[5] = localA[offA + 5*WG_DIM_0I]; \
+  rB[0] = localB[offB + 0*WG_DIM_1J]; \
+  rB[1] = localB[offB + 1*WG_DIM_1J]; \
+  rB[2] = localB[offB + 2*WG_DIM_1J]; \
+  rB[3] = localB[offB + 3*WG_DIM_1J]; \
+  rB[4] = localB[offB + 4*WG_DIM_1J]; \
+  rB[5] = localB[offB + 5*WG_DIM_1J]; \
+  offA += (MACRO_TILE_0I+PAD); \
+  offB += (MACRO_TILE_1J+PAD); \
+  TYPE_MAD(rA[0],rB[0],rC[0][0]); \
+  TYPE_MAD(rA[0],rB[1],rC[0][1]); \
+  TYPE_MAD(rA[0],rB[2],rC[0][2]); \
+  TYPE_MAD(rA[0],rB[3],rC[0][3]); \
+  TYPE_MAD(rA[0],rB[4],rC[0][4]); \
+  TYPE_MAD(rA[0],rB[5],rC[0][5]); \
+  TYPE_MAD(rA[1],rB[0],rC[1][0]); \
+  TYPE_MAD(rA[1],rB[1],rC[1][1]); \
+  TYPE_MAD(rA[1],rB[2],rC[1][2]); \
+  TYPE_MAD(rA[1],rB[3],rC[1][3]); \
+  TYPE_MAD(rA[1],rB[4],rC[1][4]); \
+  TYPE_MAD(rA[1],rB[5],rC[1][5]); \
+  TYPE_MAD(rA[2],rB[0],rC[2][0]); \
+  TYPE_MAD(rA[2],rB[1],rC[2][1]); \
+  TYPE_MAD(rA[2],rB[2],rC[2][2]); \
+  TYPE_MAD(rA[2],rB[3],rC[2][3]); \
+  TYPE_MAD(rA[2],rB[4],rC[2][4]); \
+  TYPE_MAD(rA[2],rB[5],rC[2][5]); \
+  TYPE_MAD(rA[3],rB[0],rC[3][0]); \
+  TYPE_MAD(rA[3],rB[1],rC[3][1]); \
+  TYPE_MAD(rA[3],rB[2],rC[3][2]); \
+  TYPE_MAD(rA[3],rB[3],rC[3][3]); \
+  TYPE_MAD(rA[3],rB[4],rC[3][4]); \
+  TYPE_MAD(rA[3],rB[5],rC[3][5]); \
+  TYPE_MAD(rA[4],rB[0],rC[4][0]); \
+  TYPE_MAD(rA[4],rB[1],rC[4][1]); \
+  TYPE_MAD(rA[4],rB[2],rC[4][2]); \
+  TYPE_MAD(rA[4],rB[3],rC[4][3]); \
+  TYPE_MAD(rA[4],rB[4],rC[4][4]); \
+  TYPE_MAD(rA[4],rB[5],rC[4][5]); \
+  TYPE_MAD(rA[5],rB[0],rC[5][0]); \
+  TYPE_MAD(rA[5],rB[1],rC[5][1]); \
+  TYPE_MAD(rA[5],rB[2],rC[5][2]); \
+  TYPE_MAD(rA[5],rB[3],rC[5][3]); \
+  TYPE_MAD(rA[5],rB[4],rC[5][4]); \
+  TYPE_MAD(rA[5],rB[5],rC[5][5]); \
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+
+/* preprocessor definitions of kernel arguments*/
+#define strideC0I 1
+#define strideA0I 1
+#define strideB1J 1
+
+)" R"(
+__attribute__((reqd_work_group_size(WG_DIM_0I,WG_DIM_1J,1)))
+__kernel void gemm_kernel(
+  __global float       *          C,
+  __global float const * restrict A,
+  __global float const * restrict B,
+  float const alpha,
+  float const beta,
+  unsigned int const strideC1J,
+  unsigned int const strideAK,
+  unsigned int const strideBK,
+  unsigned int const size0I,
+  unsigned int const size1J,
+  unsigned int const sizeK ) {
+
+#define NUM_LOADS_PARA_COAL_A 3
+#define NUM_LOADS_PARA_COAL_B 3
+#define NUM_LOADS_PERP_COAL_A (NUM_LOADS_A/NUM_LOADS_PARA_COAL_A)
+#define NUM_LOADS_PERP_COAL_B (NUM_LOADS_B/NUM_LOADS_PARA_COAL_B)
+
+//#define LOAD_SIZE_PERP_COAL_A (MACRO_TILE_0I/NUM_LOADS_PERP_COAL_A)
+//#define LOAD_SIZE_PERP_COAL_B (MACRO_TILE_1J/NUM_LOADS_PERP_COAL_B)
+//#define LOAD_SIZE_PARA_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_A)
+//#define LOAD_SIZE_PARA_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PARA_COAL_B)
+
+#define LOAD_SIZE_PARA_COAL_A (MACRO_TILE_0I/NUM_LOADS_PARA_COAL_A)
+#define LOAD_SIZE_PARA_COAL_B (MACRO_TILE_1J/NUM_LOADS_PARA_COAL_B)
+#define LOAD_SIZE_PERP_COAL_A (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_A)
+#define LOAD_SIZE_PERP_COAL_B (NUM_UNROLL_ITER/NUM_LOADS_PERP_COAL_B)
+  //if (get_global_id(0)==0 && get_global_id(1)==0) {
+  //  printf("N_PARA=%u, N_PERP=%u, S_PARA=%u, S_PERP=%u\n",NUM_LOADS_PARA_COAL_A, NUM_LOADS_PERP_COAL_A, LOAD_SIZE_PARA_COAL_A, LOAD_SIZE_PERP_COAL_A);
+  //}
+
+  /* allocate registers */
+  float rC[MICRO_TILE_0I][MICRO_TILE_1J] = {{0}};
+  float rA[MICRO_TILE_0I];
+  float rB[MICRO_TILE_1J];
+
+  /* allocate local memory */
+  __local float localA[NUM_UNROLL_ITER*(MACRO_TILE_0I+PAD)];
+  __local float localB[NUM_UNROLL_ITER*(MACRO_TILE_1J+PAD)];
+
+  /* c indices */
+  unsigned int groupIdx0I = get_group_id(0);
+  unsigned int groupIdx1J = get_group_id(1);
+
+  unsigned int localIdx0I = get_local_id(0);
+  unsigned int localIdx1J = get_local_id(1);
+  unsigned int loadSerial = localIdx0I + localIdx1J*WG_DIM_0I; // orig
+
+/*
+#define NUM_LOADS_PERP_COAL_A 3
+#define NUM_LOADS_PERP_COAL_B 3
+#define NUM_LOADS_PARA_COAL_A (NUM_LOADS_A/NUM_LOADS_PERP_COAL_A)
+#define NUM_LOADS_PARA_COAL_B (NUM_LOADS_B/NUM_LOADS_PERP_COAL_B)
+*/
+
+  //unsigned int aI = loadSerial/LOAD_SIZE_PARA_COAL_A;
+  //unsigned int aK = loadSerial%LOAD_SIZE_PARA_COAL_A;
+  //unsigned int bJ = loadSerial/LOAD_SIZE_PARA_COAL_B;
+  //unsigned int bK = loadSerial%LOAD_SIZE_PARA_COAL_B;
+
+  unsigned int aI = loadSerial%LOAD_SIZE_PARA_COAL_A;
+  unsigned int aK = loadSerial/LOAD_SIZE_PARA_COAL_A;
+  unsigned int bJ = loadSerial%LOAD_SIZE_PARA_COAL_B;
+  unsigned int bK = loadSerial/LOAD_SIZE_PARA_COAL_B;
+
+  A +=  GET_GLOBAL_INDEX_A(aI+groupIdx0I*MACRO_TILE_0I, aK);
+  B +=  GET_GLOBAL_INDEX_B(bJ+groupIdx1J*MACRO_TILE_1J, bK);
+
+  __local float *lA = localA + GET_LOCAL_INDEX_A(aI, aK);
+  __local float *lB = localB + GET_LOCAL_INDEX_B(bK, bJ);
+
+  /* iterate over all summation indices */
+  unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
+  do {
+    barrier(CLK_LOCAL_MEM_FENCE);
+#if 0
+    // 4x3=12 for u32
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A+0*strideAK + 0*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B+0*strideBK + 0*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A+0*strideAK + 1*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B+0*strideBK + 1*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[2*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lA[3*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[3*LOAD_SIZE_PARA_COAL_A+0*strideAK + 2*LOAD_SIZE_PERP_COAL_A+0*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[2*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+    lB[3*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[3*LOAD_SIZE_PARA_COAL_B+0*strideBK + 2*LOAD_SIZE_PERP_COAL_B+0*strideBK];
+#endif
+#if 1
+    // 3x4=12 for u32
+    lA[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+0*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+1*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[1*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+2*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[2*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+0*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+1*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[1*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+2*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[2*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+0*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+1*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[1*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+2*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[2*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+0*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+1*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[1*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[2*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*(MACRO_TILE_0I+PAD)] = (aI+groupIdx0I*MACRO_TILE_0I+2*LOAD_SIZE_PARA_COAL_A >= size0I) ? 0.f : A[2*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+0*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+1*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[1*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+2*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[2*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+0*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+1*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[1*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+2*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[2*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+0*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+1*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[1*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+2*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[2*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+0*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+1*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[1*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[2*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*(MACRO_TILE_1J+PAD)] = (bJ+groupIdx1J*MACRO_TILE_1J+2*LOAD_SIZE_PARA_COAL_B >= size1J) ? 0.f : B[2*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    //for (unsigned int i = loadSerial; i<NUM_UNROLL_ITER*(MACRO_TILE_0I); i += 256) {
+    //printf("G[%02u][%02u] K[%05u] LID[%04u] lA=%3.0f; lB=%3.0f\n", groupIdx0I, groupIdx1J, sumIterK, i, lA[i], lB[i]);
+    //}
+#endif
+
+)" R"(
+#if 0
+    // 2x6
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 3
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 4
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 5
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lA[1*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[1*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+    lB[1*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[1*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+#if 0
+    // 1x12
+    // col 0
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 0*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 0*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 1
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 1*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 1*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 1*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 1*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 2
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 2*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 2*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 2*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 2*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 3
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 3*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 3*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 3*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 3*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 4
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 4*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 4*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 4*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 4*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 5
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 5*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 5*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 5*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 5*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 6
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 6*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 6*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 6*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 6*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 7
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 7*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 7*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 7*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 7*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 8
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 8*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 8*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 8*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 8*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 9
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 9*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 9*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 9*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 9*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 10
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 10*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 10*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 10*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 10*LOAD_SIZE_PERP_COAL_B*strideBK];
+
+    // col 11
+    lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 11*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 11*LOAD_SIZE_PERP_COAL_A*strideAK];
+    lB[0*LOAD_SIZE_PARA_COAL_B*(MACRO_TILE_1J+PAD) + 11*LOAD_SIZE_PERP_COAL_B] = B[0*LOAD_SIZE_PARA_COAL_B + 11*LOAD_SIZE_PERP_COAL_B*strideBK];
+#endif
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    unsigned int offA = localIdx0I; // d0
+    unsigned int offB = localIdx1J; // d1
+
+    /* do mads */
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#if NUM_UNROLL_ITER>8
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#endif
+#if NUM_UNROLL_ITER>16
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+#endif
+
+    A += NUM_UNROLL_ITER*strideAK;
+    B += NUM_UNROLL_ITER*strideBK;
+  } while (--sumIterK > 0);
+
+)" R"(
+  //printf("%f, %f, %f, %f, %f, %f\n", rC[0][0], rC[1][1], rC[2][2], rC[3][3], rC[4][4], rC[5][5] );
+
+  /* which global Cij index */
+  unsigned int globalIdxC1J = groupIdx1J*MACRO_TILE_1J + localIdx1J;
+  unsigned int globalIdxC0I = groupIdx0I*MACRO_TILE_0I + localIdx0I;
+
+  //printf("%02u, %02u, %f\n", localIdx0I, localIdx1J, rC[0][0] );
+
+  /* write global C */
+  if (globalIdxC0I+0*WG_DIM_0I < size0I && globalIdxC1J+0*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[0][0], beta)}
+  if (globalIdxC0I+0*WG_DIM_0I < size0I && globalIdxC1J+1*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[0][1], beta)}
+  if (globalIdxC0I+0*WG_DIM_0I < size0I && globalIdxC1J+2*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[0][2], beta)}
+  if (globalIdxC0I+0*WG_DIM_0I < size0I && globalIdxC1J+3*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[0][3], beta)}
+  if (globalIdxC0I+0*WG_DIM_0I < size0I && globalIdxC1J+4*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[0][4], beta)}
+  if (globalIdxC0I+0*WG_DIM_0I < size0I && globalIdxC1J+5*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[0][5], beta)}
+  if (globalIdxC0I+1*WG_DIM_0I < size0I && globalIdxC1J+0*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[1][0], beta)}
+  if (globalIdxC0I+1*WG_DIM_0I < size0I && globalIdxC1J+1*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[1][1], beta)}
+  if (globalIdxC0I+1*WG_DIM_0I < size0I && globalIdxC1J+2*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[1][2], beta)}
+  if (globalIdxC0I+1*WG_DIM_0I < size0I && globalIdxC1J+3*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[1][3], beta)}
+  if (globalIdxC0I+1*WG_DIM_0I < size0I && globalIdxC1J+4*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[1][4], beta)}
+  if (globalIdxC0I+1*WG_DIM_0I < size0I && globalIdxC1J+5*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[1][5], beta)}
+  if (globalIdxC0I+2*WG_DIM_0I < size0I && globalIdxC1J+0*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[2][0], beta)}
+  if (globalIdxC0I+2*WG_DIM_0I < size0I && globalIdxC1J+1*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[2][1], beta)}
+  if (globalIdxC0I+2*WG_DIM_0I < size0I && globalIdxC1J+2*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[2][2], beta)}
+  if (globalIdxC0I+2*WG_DIM_0I < size0I && globalIdxC1J+3*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[2][3], beta)}
+  if (globalIdxC0I+2*WG_DIM_0I < size0I && globalIdxC1J+4*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[2][4], beta)}
+  if (globalIdxC0I+2*WG_DIM_0I < size0I && globalIdxC1J+5*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[2][5], beta)}
+  if (globalIdxC0I+3*WG_DIM_0I < size0I && globalIdxC1J+0*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[3][0], beta)}
+  if (globalIdxC0I+3*WG_DIM_0I < size0I && globalIdxC1J+1*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[3][1], beta)}
+  if (globalIdxC0I+3*WG_DIM_0I < size0I && globalIdxC1J+2*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[3][2], beta)}
+  if (globalIdxC0I+3*WG_DIM_0I < size0I && globalIdxC1J+3*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[3][3], beta)}
+  if (globalIdxC0I+3*WG_DIM_0I < size0I && globalIdxC1J+4*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[3][4], beta)}
+  if (globalIdxC0I+3*WG_DIM_0I < size0I && globalIdxC1J+5*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[3][5], beta)}
+  if (globalIdxC0I+4*WG_DIM_0I < size0I && globalIdxC1J+0*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[4][0], beta)}
+  if (globalIdxC0I+4*WG_DIM_0I < size0I && globalIdxC1J+1*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[4][1], beta)}
+  if (globalIdxC0I+4*WG_DIM_0I < size0I && globalIdxC1J+2*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[4][2], beta)}
+  if (globalIdxC0I+4*WG_DIM_0I < size0I && globalIdxC1J+3*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[4][3], beta)}
+  if (globalIdxC0I+4*WG_DIM_0I < size0I && globalIdxC1J+4*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[4][4], beta)}
+  if (globalIdxC0I+4*WG_DIM_0I < size0I && globalIdxC1J+5*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[4][5], beta)}
+  if (globalIdxC0I+5*WG_DIM_0I < size0I && globalIdxC1J+0*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 0*WG_DIM_1J) ], alpha, rC[5][0], beta)}
+  if (globalIdxC0I+5*WG_DIM_0I < size0I && globalIdxC1J+1*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 1*WG_DIM_1J) ], alpha, rC[5][1], beta)}
+  if (globalIdxC0I+5*WG_DIM_0I < size0I && globalIdxC1J+2*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 2*WG_DIM_1J) ], alpha, rC[5][2], beta)}
+  if (globalIdxC0I+5*WG_DIM_0I < size0I && globalIdxC1J+3*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 3*WG_DIM_1J) ], alpha, rC[5][3], beta)}
+  if (globalIdxC0I+5*WG_DIM_0I < size0I && globalIdxC1J+4*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 4*WG_DIM_1J) ], alpha, rC[5][4], beta)}
+  if (globalIdxC0I+5*WG_DIM_0I < size0I && globalIdxC1J+5*WG_DIM_1J < size1J ) {TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_DIM_0I, globalIdxC1J + 5*WG_DIM_1J) ], alpha, rC[5][5], beta)}
+
+};
+)";
+#endif
+
+
+
+/******************************************************************************
+  Final single-read-type Kernels
 ******************************************************************************/
 
 /*
@@ -279,7 +1612,7 @@ __kernel void gemm_kernel(
 /*
   NT - u8
 */
-#if 1
+#if 0
 const char * kernelSource_NT = R"(
 
 /* tile parameters */
@@ -1437,7 +2770,7 @@ __kernel void gemm_kernel(
   TN - different load patterns
 
 */
-#if 1
+#if 0
 const char * kernelSource_TN = R"(
 
 /* tile parameters */
@@ -1644,7 +2977,7 @@ __kernel void gemm_kernel(
 #endif
 
 )" R"(
-#if 1
+#if 0
     // 2x6
     // col 0
     lA[0*LOAD_SIZE_PARA_COAL_A*(MACRO_TILE_0I+PAD) + 0*LOAD_SIZE_PERP_COAL_A] = A[0*LOAD_SIZE_PARA_COAL_A + 0*LOAD_SIZE_PERP_COAL_A*strideAK];
