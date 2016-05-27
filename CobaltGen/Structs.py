@@ -797,6 +797,10 @@ class Kernel:
     # Tile
     self.tile = Tile()
     self.unrolls = []
+    # number of A loads parallel to coalesced dimension
+    self.numLoadsA = -1
+    # number of B loads parallel to coalesced dimension
+    self.numLoadsB = -1
 
     # Pre-Processor definition optimizations
     self.ppdOffsets = False # offsets are #defined and not arguments
