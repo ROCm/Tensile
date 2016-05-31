@@ -885,7 +885,7 @@ class KernelWriter:
           kStr += "*(MT_%s+PAD)" % tileCharA
         kStr += " ] = "
         if not kernel.tile.branch[0].isNone():
-          kStr += "( a%s+gIdx%s*MT_%s+%d*LS_PARA_A >= size%s) ? %s : " \
+          kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s) ? %s : " \
               % ( tileCharA, tileCharA, tileCharA, para, tileCharA, zeroStringA )
         kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
             % (para, perp, unrollChar, self.endLine)
@@ -937,7 +937,7 @@ class KernelWriter:
           kStr += "*(MT_%s+PAD)" % tileCharB
         kStr += " ] = "
         if not kernel.tile.branch[0].isNone():
-          kStr += "( a%s+gIdx%s*MT_%s+%d*LS_PARA_B >= size%s) ? %s : " \
+          kStr += "( b%s+g%s*MT_%s+%d*LS_PARA_B >= size%s) ? %s : " \
               % ( tileCharB, tileCharB, tileCharB, para, tileCharB, zeroStringB )
         kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
             % (para, perp, unrollChar, self.endLine)
@@ -1022,7 +1022,7 @@ class KernelWriter:
       kStr += indent + "MICRO_TILE" + self.endLine
 
     # debug printf - accumulation in registers
-    # kStr += "  if (validC) printf(\\\"T[%u,%u] rC = %f gIdx=%u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[0][0], GLOBAL_C(globalC0I, globalC1J) );" + self.endLine
+    # kStr += "  if (validC) printf(\\\"T[%u,%u] rC = %f g=%u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[0][0], GLOBAL_C(globalC0I, globalC1J) );" + self.endLine
     # end debug printf
 
 
@@ -1126,7 +1126,7 @@ class KernelWriter:
             kStr += "*(MT_%s+PAD)" % tileCharA
           kStr += " ] = "
           if not kernel.tile.branch[0].isNone():
-            kStr += "( a%s+gIdx%s*MT_%s+%d*LS_PARA_A >= size%s) ? %s : " \
+            kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s) ? %s : " \
                 % ( tileCharA, tileCharA, tileCharA, para, tileCharA, zeroStringA )
           kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
               % (para, perp, unrollChar, self.endLine)
@@ -1168,7 +1168,7 @@ class KernelWriter:
             kStr += "*(MT_%s+PAD)" % tileCharB
           kStr += " ] = "
           if not kernel.tile.branch[0].isNone():
-            kStr += "( a%s+gIdx%s*MT_%s+%d*LS_PARA_B >= size%s) ? %s : " \
+            kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_B >= size%s) ? %s : " \
                 % ( tileCharB, tileCharB, tileCharB, para, tileCharB, zeroStringB )
           kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
               % (para, perp, unrollChar, self.endLine)

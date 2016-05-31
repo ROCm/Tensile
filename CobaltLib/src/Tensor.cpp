@@ -324,7 +324,7 @@ bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
   Cobalt::Tensor tensor) {
-  unsigned int maxToPrint = 96*96;
+  unsigned int maxToPrint = 4;
   unsigned int printCount = 0;
   bool equal = true;
 
