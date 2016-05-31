@@ -232,7 +232,7 @@ class SolutionCandidateGenerator:
               if numLoadsA % numLoadsParaA > 0:
                 continue
               numLoadsPerpA = numLoadsA / numLoadsParaA
-              if workGroup[0]*workGroup[1]%(macroTileDim0/numLoadsPerpA) > 0:
+              if workGroup[0]*workGroup[1]%(macroTileDim0/numLoadsParaA) > 0:
                 continue
               else:
                 print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
@@ -241,7 +241,7 @@ class SolutionCandidateGenerator:
                 if numLoadsB % numLoadsParaB > 0:
                   continue
                 numLoadsPerpB = numLoadsB / numLoadsParaB
-                if workGroup[0]*workGroup[1]%(macroTileDim1/numLoadsPerpB) > 0:
+                if workGroup[0]*workGroup[1]%(macroTileDim1/numLoadsParaB) > 0:
                   continue
                 kernel.numLoadsB = numLoadsParaB
 

@@ -608,6 +608,14 @@ __kernel void gemm_kernel(
 
   __local float *lA = localA + GET_LOCAL_INDEX_A(aI, aK);
   __local float *lB = localB + GET_LOCAL_INDEX_B(bK, bJ);
+/*
+
+#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MACRO_TILE_0I+PAD) )
+#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MACRO_TILE_1J+PAD) )
+  __local float *lA = localA + ((aI) + (aK)*(MACRO_TILE_0I+PAD) )
+  __local float *lB = localB + ((bJ) + (bK)*(MACRO_TILE_1J+PAD) )     GET_LOCAL_INDEX_B(bK, bJ);
+
+*/
 
   /* iterate over all summation indices */
   unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
