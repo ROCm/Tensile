@@ -836,6 +836,8 @@ class Kernel:
         tuple(self.indexOrderSummation), \
         self.indexAssignmentDim0, \
         self.indexAssignmentDim1, \
+        self.unrollDimStrideGreaterThanTileDimStrideA, \
+        self.unrollDimStrideLessThanTileDimStrideB, \
         self.tile, \
         tuple(self.unrolls), \
         self.ppdOffsets, \

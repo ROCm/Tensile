@@ -364,12 +364,26 @@ class KernelWriter:
     kStr += "#define NL_PERP_B (NL_B/NL_PARA_B)" + self.endLine
     # load size
     kStr += "/* load size parallel and perpendicular to coalesced dimension */" + self.endLine
-    kStr += "#define LS_PARA_A (MT_%s/NL_PARA_A)%s" \
-        % (tileCharA, self.endLine)
-    kStr += "#define LS_PARA_B (MT_%s/NL_PARA_B)%s" \
-        % (tileCharB, self.endLine)
-    kStr += "#define LS_PERP_A (UNROLL/NL_PERP_A)" + self.endLine
-    kStr += "#define LS_PERP_B (UNROLL/NL_PERP_B)" + self.endLine
+
+    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+      kStr += "#define LS_PARA_A (MT_%s/NL_PARA_A)%s" \
+          % (tileCharA, self.endLine)
+      kStr += "#define LS_PERP_A (UNROLL/NL_PERP_A)" + self.endLine
+    else:
+      kStr += "#define LS_PARA_A (UNROLL/NL_PARA_A)%s" \
+          % (self.endLine)
+      kStr += "#define LS_PERP_A (MT_%s/NL_PERP_A)%s" \
+          % ( tileCharA, self.endLine)
+
+      
+    if not kernel.unrollDimStrideLessThanTileDimStrideB:
+      kStr += "#define LS_PARA_B (MT_%s/NL_PARA_B)%s" \
+          % (tileCharB, self.endLine)
+      kStr += "#define LS_PERP_B (UNROLL/NL_PERP_B)" + self.endLine
+    else:
+      kStr += "#define LS_PARA_B (UNROLL/NL_PARA_B)%s" \
+          % (self.endLine)
+      kStr += "#define LS_PERP_B (MT_%s/NL_PERP_B)%s" % (tileCharB, self.endLine)
 
 
     ####################################
@@ -889,7 +903,7 @@ class KernelWriter:
           kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s) ? %s : " \
               % ( tileCharA, tileCharA, tileCharA, para, tileCharA, zeroStringA )
         kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
-            % (para, perp, unrollChar, self.endLine)
+            % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, self.endLine)
     kStr += self.endLine
 
 
@@ -940,7 +954,7 @@ class KernelWriter:
           kStr += "( b%s+g%s*MT_%s+%d*LS_PARA_B >= size%s) ? %s : " \
               % ( tileCharB, tileCharB, tileCharB, para, tileCharB, zeroStringB )
         kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
-            % (para, perp, unrollChar, self.endLine)
+            % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, self.endLine)
     kStr += self.endLine
 
 

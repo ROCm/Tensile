@@ -221,27 +221,38 @@ class SolutionCandidateGenerator:
 # 1649 candidates -> 128 ->
 
             # load grid
+            #loadSizeParaA = (workGroup[0]*microTile[0]*unroll[0])
+            #loadSizeParaB = (workGroup[1]*microTile[1]*unroll[0])
+            #if kernel.unrollDimStrideGreaterThanTileDimStrideA:
+            loadSizeParaA = macroTileDim0 if kernel.unrollDimStrideGreaterThanTileDimStrideA else unroll[0];
+            loadSizeParaB = macroTileDim1 if not kernel.unrollDimStrideLessThanTileDimStrideB else unroll[0];
+            print loadSizeParaA, loadSizeParaB
             numLoadsA = (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1])
             numLoadsB = (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1])
             # whole number of loads
-            if workGroup[0]*microTile[0]*unroll[0]%(workGroup[0]*workGroup[1]) > 0:
+            if (workGroup[0]*microTile[0]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
               continue
-            if workGroup[1]*microTile[1]*unroll[0]%(workGroup[0]*workGroup[1]) > 0:
+            if (workGroup[1]*microTile[1]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
               continue
+
             for numLoadsParaA in range(1, numLoadsA+1):
               if numLoadsA % numLoadsParaA > 0:
                 continue
               numLoadsPerpA = numLoadsA / numLoadsParaA
-              if workGroup[0]*workGroup[1]%(macroTileDim0/numLoadsParaA) > 0:
+              if loadSizeParaA%numLoadsParaA>0:
                 continue
-              else:
-                print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
+              if (workGroup[0]*workGroup[1])%(loadSizeParaA/numLoadsParaA) > 0:
+                continue
+              #else:
+              #  print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
               kernel.numLoadsA = numLoadsParaA
               for numLoadsParaB in range(1, numLoadsB+1):
                 if numLoadsB % numLoadsParaB > 0:
                   continue
                 numLoadsPerpB = numLoadsB / numLoadsParaB
-                if workGroup[0]*workGroup[1]%(macroTileDim1/numLoadsParaB) > 0:
+                if loadSizeParaB%numLoadsParaB>0:
+                  continue
+                if (workGroup[0]*workGroup[1])%(loadSizeParaB/numLoadsParaB) > 0:
                   continue
                 kernel.numLoadsB = numLoadsParaB
 

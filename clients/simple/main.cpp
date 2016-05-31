@@ -121,8 +121,8 @@ void makeKernel(
 #define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
 #define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
 #if VALIDATE
-const unsigned int M = 4*96-1;
-const unsigned int N = 3*96-1;
+const unsigned int M = 4*96;
+const unsigned int N = 3*96;
 const unsigned int K = 2*96;
 #else
 const unsigned int M = 5760;
@@ -132,8 +132,8 @@ const unsigned int K = 5760;
 const unsigned int numEnqueues = 1;
 DATA_TYPE_STR_ALPHA alpha = 1;
 DATA_TYPE_STR_BETA  beta  = 0;
-const unsigned int transA = 0;
-const unsigned int transB = 1;
+const unsigned int transA = 1;
+const unsigned int transB = 0;
 
 /*******************************************************************************
  * main
