@@ -41,7 +41,9 @@ int main( int argc, char * argv[] ) {
       //sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
-  sizes.push_back( {5760, 5760, 5760 });
+  //sizes.push_back( {5760, 5760, 5760 });
+  sizes.push_back( {384, 384, 384 });
+  sizes.push_back( {384-1, 384-1, 384 });
   //sizes.push_back( {64, 64, 64});
   //sizes.push_back( {96, 96, 96});
   //sizes.push_back( {64, 64, 64});

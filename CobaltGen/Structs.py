@@ -819,6 +819,8 @@ class Kernel:
     state += "; " + str(self.indexAssignmentDim1)
     state += "; " + str(self.tile)
     state += "; " + str(self.unrolls)
+    state += "; " + str(self.numLoadsA)
+    state += "; " + str(self.numLoadsB)
     state += "]"
     return state
 
@@ -838,7 +840,9 @@ class Kernel:
         tuple(self.unrolls), \
         self.ppdOffsets, \
         self.ppdLeadingStride, \
-        self.ppdAll
+        self.ppdAll, \
+        self.numLoadsA, \
+        self.numLoadsB
         )
   def __hash__(self):
     return hash(self.getAttributes())

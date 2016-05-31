@@ -2,6 +2,7 @@ import copy
 import Structs
 import FileReader
 import KernelWriter
+import SolutionWriter
 import argparse
 
 
@@ -25,13 +26,14 @@ class SolutionCandidateGenerator:
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 4
   maxMicroTileSize = 8
-  unrollLevels = [16, 8, 4, 2, 1]
+  unrollLevels = [32, 16, 8, 4, 2, 1]
   universeUnroll = { \
-       1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
-       2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
-       4: [ [  4 ], [ 16, 4 ], [  8, 4 ] ], \
-       8: [ [  8 ], [ 16, 8 ], [ 4 ] ], \
-      16: [ [ 16 ], [ 8 ], [ 4 ] ] \
+       1: [ [  1 ], [ 32, 1 ], [ 16, 1 ], [  8, 1 ] ], \
+       2: [ [  2 ], [ 32, 2 ], [ 16, 2 ], [  8, 2 ] ], \
+       4: [ [  4 ], [ 32, 4 ], [ 16, 4 ], [  8, 4 ] ], \
+       8: [ [  8 ], [ 32, 8 ], [ 16, 8 ], [ 4 ] ], \
+      16: [ [ 16 ], [ 8 ], [ 4 ] ], \
+      32: [ [ 32 ], [ 16 ], [ 8 ], [ 4 ] ] \
       }
   """
   unrollLevels = [1]
@@ -39,7 +41,7 @@ class SolutionCandidateGenerator:
   """
   # preprocessor define (0) leading strides, (1) offsets, (2) everything
   # if problem conflicts with optimization level, generator reverts optimization level below
-  
+
   """
   ppdUniverse = [ \
       [ True,  True,  True], \
@@ -62,7 +64,7 @@ class SolutionCandidateGenerator:
       [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   """
   universeWorkGroupDim = [ [16,16] ]
- 
+
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
   noBranches = True
@@ -75,8 +77,10 @@ class SolutionCandidateGenerator:
     self.optimizeBeta = optimizeBeta
     self.backend = backend
     if self.backend.isHIP():
-      # remove optimizations so that all kernels have identical arguments 
+      # remove optimizations so that all kernels have identical arguments
       self.ppdUniverse = [ [True, False, False] ]
+    self.kernelWriter = KernelWriter.KernelWriter(backend)
+    self.solutionWriter = SolutionWriter.SolutionWriter(backend)
 
   ##############################################################################
   # getSolutionCandidatesForProblem
@@ -214,135 +218,162 @@ class SolutionCandidateGenerator:
             if localMemoryBytes > self.maxLocalMemoryBytes:
               #print "%u = %u * ( %u*%u + %u*%u)\n" % (localMemoryBytes, unroll[0], macroTileDim0, kernel.dataTypeA.numBytes(), macroTileDim1, kernel.dataTypeB.numBytes())
               continue
-# 1649 candidates -> 128 -> 
+# 1649 candidates -> 128 ->
 
-            # kernel grid
-            kernelGrid = [ 1, 1, 1 ]
-            if not problemSkinnyDim0 and not problemSkinnyDim1 and (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
-              kernelGrid[0] = kernel.unrollDimStride0 / 2048;
-              kernelGrid[1] = kernel.unrollDimStride1 / 2048;
-              kernelGrid[2] = kernel.unrollDimSize / 1024
-              if kernelGrid[0] == 0:
-                kernelGrid[0]=1
-              if kernelGrid[1] == 0:
-                kernelGrid[1]=1
-              if kernelGrid[2] == 0:
-                kernelGrid[2]=1
-              if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta:
-                  kernel.problem.operation.useBeta = True
-                  kernel.problem.operation.betaType = problem.tensorC.dataType
-                  print "forcing useBeta=True due to mod1024 kernel grid"
-              # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
+            # load grid
+            numLoadsA = (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1])
+            numLoadsB = (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1])
+            # whole number of loads
+            if workGroup[0]*microTile[0]*unroll[0]%(workGroup[0]*workGroup[1]) > 0:
+              continue
+            if workGroup[1]*microTile[1]*unroll[0]%(workGroup[0]*workGroup[1]) > 0:
+              continue
+            for numLoadsParaA in range(1, numLoadsA+1):
+              if numLoadsA % numLoadsParaA > 0:
+                continue
+              numLoadsPerpA = numLoadsA / numLoadsParaA
+              if workGroup[0]*workGroup[1]%(macroTileDim0/numLoadsPerpA) > 0:
+                continue
+              else:
+                print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
+              kernel.numLoadsA = numLoadsParaA
+              for numLoadsParaB in range(1, numLoadsB+1):
+                if numLoadsB % numLoadsParaB > 0:
+                  continue
+                numLoadsPerpB = numLoadsB / numLoadsParaB
+                if workGroup[0]*workGroup[1]%(macroTileDim1/numLoadsPerpB) > 0:
+                  continue
+                kernel.numLoadsB = numLoadsParaB
 
-            for ppdOptimization in self.ppdUniverse:
-              ppdLeadingStride = ppdOptimization[0]
-              ppdOffsets = ppdOptimization[1]
-              ppdAll = ppdOptimization[2]
+                # kernel grid
+                kernelGrid = [ 1, 1, 1 ]
+                if not problemSkinnyDim0 and not problemSkinnyDim1 and \
+                    (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
+                  kernelGrid[0] = kernel.unrollDimStride0 / 2048;
+                  kernelGrid[1] = kernel.unrollDimStride1 / 2048;
+                  kernelGrid[2] = kernel.unrollDimSize / 1024
+                  if kernelGrid[0] == 0:
+                    kernelGrid[0]=1
+                  if kernelGrid[1] == 0:
+                    kernelGrid[1]=1
+                  if kernelGrid[2] == 0:
+                    kernelGrid[2]=1
+                  if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta:
+                      kernel.problem.operation.useBeta = True
+                      kernel.problem.operation.betaType = problem.tensorC.dataType
+                      print "forcing useBeta=True due to mod1024 kernel grid"
+                  # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
 
-              # if optimization level optimizes away offsets, but problem requires offsets, fix it
-              if ppdOffsets and problem.operation.useOffsets:
-                print "reverting ppdOffsets->False"
-                ppdOffsets = False
+                for ppdOptimization in self.ppdUniverse:
+                  ppdLeadingStride = ppdOptimization[0]
+                  ppdOffsets = ppdOptimization[1]
+                  ppdAll = ppdOptimization[2]
 
-              # if optimization level optimizes away initial strides, but problem uses non-zero initial strides, fix it
-              if ppdLeadingStride and \
-                (  problem.tensorC.dimensions[0].stride != 1 \
-                or problem.tensorA.dimensions[0].stride != 1 \
-                or problem.tensorB.dimensions[0].stride != 1):
-                print "reverting ppdLeadingStride->False"
-                ppdLeadingStride = False
+                  # if optimization level optimizes away offsets, but problem requires offsets, fix it
+                  if ppdOffsets and problem.operation.useOffsets:
+                    print "reverting ppdOffsets->False"
+                    ppdOffsets = False
 
-              # for branch types
-              for branchType in self.universeBranch:
-                solution.kernelGrid = copy.deepcopy(kernelGrid)
-                solution.kernels = []
-              
-                # branch - 1 exact kernel; DEPRECATED
-                #if branchType.isNone():
-                #  if problemSizeDim0 % macroTileDim0 != 0 \
-                #      or problemSizeDim1 % macroTileDim1 != 0:
-                #    continue
-                #  solution.branch = [branchType, branchType]
-                #  kernel.tile.branch = [branchType, branchType ]
-                #  solution.kernels.append( copy.deepcopy(kernel) )
-                leadingStridesOne = False
-                if problem.tensorC.dimensions[0].stride == 1 \
-                    and problem.tensorA.dimensions[0].stride == 1 \
-                    and problem.tensorB.dimensions[0].stride == 1:
-                  leadingStridesOne = True
-                # branch - 2-4 kernels
-                if branchType.isMultiple():
-                  if self.noBranches:
-                    if problemSizeDim0 % macroTileDim0 != 0 \
-                        or problemSizeDim1 % macroTileDim1 != 0:
-                      continue
+                  # if optimization level optimizes away initial strides, but problem uses non-zero initial strides, fix it
+                  if ppdLeadingStride and \
+                    (  problem.tensorC.dimensions[0].stride != 1 \
+                    or problem.tensorA.dimensions[0].stride != 1 \
+                    or problem.tensorB.dimensions[0].stride != 1):
+                    print "reverting ppdLeadingStride->False"
+                    ppdLeadingStride = False
 
-                  solution.branch = [branchType, branchType]
-                  if leadingStridesOne:
-                    solution.ppdLeadingStride = ppdLeadingStride
-                  solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
-                  solution.ppdAll = False # kernels 1-3 will need sizes
-                  # add main kernel
-                  kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
-                  if leadingStridesOne:
-                    kernel.ppdLeadingStride = ppdLeadingStride
-                  kernel.ppdOffsets = ppdOffsets
-                  kernel.ppdAll = ppdAll
-                  solution.kernels.append( copy.deepcopy(kernel) )
-                  # add edge-0 kernel
-                  solution.kernelGrid[0] += 1
-                  kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
-                  if leadingStridesOne:
-                    kernel.ppdLeadingStride = ppdLeadingStride
-                  kernel.ppdOffsets = False
-                  kernel.ppdAll = False
-                  solution.kernels.append( copy.deepcopy(kernel) )                
-                  # add edge-1 kernel
-                  solution.kernelGrid[1] += 1
-                  kernel.tile.branch = [ Structs.BranchType(0), branchType ]
-                  if leadingStridesOne:
-                    kernel.ppdLeadingStride = ppdLeadingStride
-                  kernel.ppdOffsets = False
-                  kernel.ppdAll = False
-                  solution.kernels.append( copy.deepcopy(kernel) )
-                  # add corner-01 kernel
-                  kernel.tile.branch = [ branchType, branchType ]
-                  if leadingStridesOne:
-                    kernel.ppdLeadingStride = ppdLeadingStride
-                  kernel.ppdOffsets = False
-                  kernel.ppdAll = False
-                  solution.kernels.append( copy.deepcopy(kernel) )
-              
-                # branch - 1 branched kernel
-                elif branchType.isBranched():
-                  if problemSizeDim0 % macroTileDim0 == 0 \
-                      and problemSizeDim1 % macroTileDim1 == 0:
-                    continue
-                  if kernelGrid[0] > 1 or kernelGrid[1] > 1 or kernelGrid[2] > 1: # don't use b kernels for 4096 cases b/c already not using single kernel
-                    continue
-                  if self.noBranches:
-                    continue
-                  solution.branch = [branchType, branchType]
-                  if leadingStridesOne:
-                    solution.ppdLeadingStride = ppdLeadingStride
-                  solution.ppdOffsets = ppdOffsets
-                  solution.ppdAll = ppdAll
-                  kernel.tile.branch = [branchType, branchType ]
-                  kernel.ppdLeadingStride = ppdLeadingStride
-                  kernel.ppdOffsets = ppdOffsets
-                  kernel.ppdAll = ppdAll
-                  solution.kernels.append( copy.deepcopy(kernel) )
-                  solution.kernels.append( None )
-                  solution.kernels.append( None )
-                  solution.kernels.append( None )
-              
-                # branch - unknown
-                else:
-                  print "ERROR - unrecognized branchType"
-              
-                # kernels, grid, and branching specified, now add solution
-                # print solution
-                solutionCandidates.append( copy.deepcopy(solution) )
+                  # for branch types
+                  for branchType in self.universeBranch:
+                    solution.kernelGrid = copy.deepcopy(kernelGrid)
+                    solution.kernels = []
+
+                    # branch - 1 exact kernel; DEPRECATED
+                    #if branchType.isNone():
+                    #  if problemSizeDim0 % macroTileDim0 != 0 \
+                    #      or problemSizeDim1 % macroTileDim1 != 0:
+                    #    continue
+                    #  solution.branch = [branchType, branchType]
+                    #  kernel.tile.branch = [branchType, branchType ]
+                    #  solution.kernels.append( copy.deepcopy(kernel) )
+                    leadingStridesOne = False
+                    if problem.tensorC.dimensions[0].stride == 1 \
+                        and problem.tensorA.dimensions[0].stride == 1 \
+                        and problem.tensorB.dimensions[0].stride == 1:
+                      leadingStridesOne = True
+                    # branch - 2-4 kernels
+                    if branchType.isMultiple():
+                      if self.noBranches:
+                        if problemSizeDim0 % macroTileDim0 != 0 \
+                            or problemSizeDim1 % macroTileDim1 != 0:
+                          continue
+
+                      solution.branch = [branchType, branchType]
+                      if leadingStridesOne:
+                        solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
+                      solution.ppdAll = False # kernels 1-3 will need sizes
+                      # add main kernel
+                      kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
+                      if leadingStridesOne:
+                        kernel.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdOffsets = ppdOffsets
+                      kernel.ppdAll = ppdAll
+                      solution.kernels.append( copy.deepcopy(kernel) )
+                      # add edge-0 kernel
+                      solution.kernelGrid[0] += 1
+                      kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
+                      if leadingStridesOne:
+                        kernel.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdOffsets = False
+                      kernel.ppdAll = False
+                      solution.kernels.append( copy.deepcopy(kernel) )
+                      # add edge-1 kernel
+                      solution.kernelGrid[1] += 1
+                      kernel.tile.branch = [ Structs.BranchType(0), branchType ]
+                      if leadingStridesOne:
+                        kernel.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdOffsets = False
+                      kernel.ppdAll = False
+                      solution.kernels.append( copy.deepcopy(kernel) )
+                      # add corner-01 kernel
+                      kernel.tile.branch = [ branchType, branchType ]
+                      if leadingStridesOne:
+                        kernel.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdOffsets = False
+                      kernel.ppdAll = False
+                      solution.kernels.append( copy.deepcopy(kernel) )
+
+                    # branch - 1 branched kernel
+                    elif branchType.isBranched():
+                      if problemSizeDim0 % macroTileDim0 == 0 \
+                          and problemSizeDim1 % macroTileDim1 == 0:
+                        continue
+                      if kernelGrid[0] > 1 or kernelGrid[1] > 1 or kernelGrid[2] > 1: # don't use b kernels for 4096 cases b/c already not using single kernel
+                        continue
+                      if self.noBranches:
+                        continue
+                      solution.branch = [branchType, branchType]
+                      if leadingStridesOne:
+                        solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdOffsets = ppdOffsets
+                      solution.ppdAll = ppdAll
+                      kernel.tile.branch = [branchType, branchType ]
+                      kernel.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdOffsets = ppdOffsets
+                      kernel.ppdAll = ppdAll
+                      solution.kernels.append( copy.deepcopy(kernel) )
+                      solution.kernels.append( None )
+                      solution.kernels.append( None )
+                      solution.kernels.append( None )
+
+                    # branch - unknown
+                    else:
+                      print "ERROR - unrecognized branchType"
+
+                    # kernels, grid, and branching specified, now add solution
+                    # print solution
+                    print "  " + self.solutionWriter.getName(solution)
+                    solutionCandidates.append( copy.deepcopy(solution) )
     return solutionCandidates
 
 
