@@ -27,8 +27,8 @@ class SolutionCandidateGenerator:
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
   minMicroTileSize = 6
   maxMicroTileSize = 6
-  #unrollLevels = [32, 16, 8, 4, 2, 1]
-  unrollLevels = [16]
+  unrollLevels = [32, 16, 8, 4, 2, 1]
+  #unrollLevels = [16]
   universeUnroll = { \
        1: [ [  1 ], [ 32, 1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 32, 2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -69,7 +69,9 @@ class SolutionCandidateGenerator:
 
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
-  noBranches = True
+
+  # for research, =True means don't generate any solution requiring branches, i.e., only generate fastest
+  noBranches = False
 
   ##############################################################################
   # init
