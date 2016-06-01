@@ -13,6 +13,7 @@ class SolutionCandidateGenerator:
 
   # limit work-group size to boost occupancy
   maxLocalMemoryBytes = 32768
+  localMemPad = 1
   maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
 
   # problem is skinny if smaller dim < 32 and larger dim > 4096
@@ -24,9 +25,10 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 4
-  maxMicroTileSize = 8
-  unrollLevels = [32, 16, 8, 4, 2, 1]
+  minMicroTileSize = 6
+  maxMicroTileSize = 6
+  #unrollLevels = [32, 16, 8, 4, 2, 1]
+  unrollLevels = [16]
   universeUnroll = { \
        1: [ [  1 ], [ 32, 1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 32, 2 ], [ 16, 2 ], [  8, 2 ] ], \
@@ -212,9 +214,9 @@ class SolutionCandidateGenerator:
 
             localMemoryBytes = 0
             if kernel.tensorAssignedDim0 == 0: # dim0 in tesnsorA
-              localMemoryBytes = unroll[0] * (macroTileDim0*kernel.dataTypeA.numBytes() + macroTileDim1*kernel.dataTypeB.numBytes())
+              localMemoryBytes = unroll[0] * ((macroTileDim0+self.localMemPad)*kernel.dataTypeA.numBytes() + (macroTileDim1+self.localMemPad)*kernel.dataTypeB.numBytes())
             else: # dim1 in tensorA
-              localMemoryBytes = unroll[0] * (macroTileDim0*kernel.dataTypeB.numBytes() + macroTileDim1*kernel.dataTypeA.numBytes())
+              localMemoryBytes = unroll[0] * ((macroTileDim0+self.localMemPad)*kernel.dataTypeB.numBytes() + (macroTileDim1+self.localMemPad)*kernel.dataTypeA.numBytes())
             if localMemoryBytes > self.maxLocalMemoryBytes:
               #print "%u = %u * ( %u*%u + %u*%u)\n" % (localMemoryBytes, unroll[0], macroTileDim0, kernel.dataTypeA.numBytes(), macroTileDim1, kernel.dataTypeB.numBytes())
               continue

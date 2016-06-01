@@ -784,17 +784,24 @@ class KernelWriter:
     ####################################
     # offset global pointers
     if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kStr += "  A += GLOBAL_A( a%s+g%s*MT_%s, a%s);%s" \
-          % (tileCharA, tileCharA, tileCharA, unrollChar, self.endLine)
+      kStr += "  A += GLOBAL_A( a%s+g%s*MT_%s, a%s" \
+          % (tileCharA, tileCharA, tileCharA, unrollChar)
     else:
-      kStr += "  A += GLOBAL_A( a%s, a%s+g%s*MT_%s);%s" \
-          % (unrollChar, tileCharA, tileCharA, tileCharA, self.endLine)
+      kStr += "  A += GLOBAL_A( a%s, a%s+g%s*MT_%s" \
+          % (unrollChar, tileCharA, tileCharA, tileCharA)
+    for i in range(2, len(kernel.problem.operation.indexAssignmentsA)):
+      kStr += ", g%s" % indexChars[i]
+    kStr += " );" + self.endLine
+
     if kernel.unrollDimStrideLessThanTileDimStrideB:
-      kStr += "  B += GLOBAL_B( b%s, b%s+g%s*MT_%s);%s" \
-          % (unrollChar, tileCharB, tileCharB, tileCharB, self.endLine)
+      kStr += "  B += GLOBAL_B( b%s, b%s+g%s*MT_%s" \
+          % (unrollChar, tileCharB, tileCharB, tileCharB)
     else:
-      kStr += "  B += GLOBAL_B( b%s+g%s*MT_%s, b%s);%s" \
-          % (tileCharB, tileCharB, tileCharB, unrollChar, self.endLine)
+      kStr += "  B += GLOBAL_B( b%s+g%s*MT_%s, b%s" \
+          % (tileCharB, tileCharB, tileCharB, unrollChar)
+    for i in range(2, len(kernel.problem.operation.indexAssignmentsB)):
+      kStr += ", g%s" % indexChars[i]
+    kStr += " );" + self.endLine
 
     ####################################
     # offset local pointers

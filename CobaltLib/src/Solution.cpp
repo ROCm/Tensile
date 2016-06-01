@@ -844,6 +844,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
        */
 
       // print args
+#if 0
       printf("openclKernelLaunch(%u:%u:%u):\n    g{%u,%u,%u};\n    l{%u,%u,%u};\n    p{%p,%p,%p};\n    ab{%f,%f};\n    o{%u,%u,%u};\n    s{%u,%u,%u,%u,%u,%u}\n",
           kernelIdx,
           enqueueIdx,
@@ -868,7 +869,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           this->enqueueArgs[kernelIdx][enqueueIdx][6],
           this->enqueueArgs[kernelIdx][enqueueIdx][7],
           this->enqueueArgs[kernelIdx][enqueueIdx][8] ); 
-
+#endif
       // enqueue
       status = clEnqueueNDRangeKernel(
           ctrl.queues[kernelSerialIdx%ctrl.numQueues],
