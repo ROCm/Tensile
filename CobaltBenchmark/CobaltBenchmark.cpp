@@ -33,15 +33,15 @@ _CrtMemState s3;
 
 #define ULL (unsigned long long)
 
-Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
+Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeOne;
+Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeOne;
 
 //#define MAX_PROBLEMS 1
 //#define MAX_SOLUTIONS_PER_PROBLEM 1
 
-#define ALPHA 2
-#define BETA  2
+#define ALPHA 1
+#define BETA  0
 
 /*******************************************************************************
  * main

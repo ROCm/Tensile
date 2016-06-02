@@ -768,21 +768,8 @@ class KernelWriter:
 
 
     ####################################
-    # which global Cij index
-    kStr += self.endLine
-    kStr += "  /* which global Cij index */" + self.endLine
-    for i in range(0, len(kernel.indexOrderC)):
-      index = kernel.indexOrderC[i]
-      kStr += "  unsigned int globalC" + indexChars[index] \
-          + " = g" + indexChars[index]
-      if index == kernel.indexAssignmentDim0:
-        kStr += "*MT_" + tileChar0 + " + l" + tileChar0
-      if index == kernel.indexAssignmentDim1:
-        kStr += "*MT_" + tileChar1 + " + l" + tileChar1
-      kStr += ";" + self.endLine
-
-    ####################################
     # offset global pointers
+    kStr += "  /* where will this thread read from global memory */" + self.endLine
     if kernel.unrollDimStrideGreaterThanTileDimStrideA:
       kStr += "  A += GLOBAL_A( a%s+g%s*MT_%s, a%s" \
           % (tileCharA, tileCharA, tileCharA, unrollChar)
@@ -802,14 +789,16 @@ class KernelWriter:
     for i in range(2, len(kernel.problem.operation.indexAssignmentsB)):
       kStr += ", g%s" % indexChars[i]
     kStr += " );" + self.endLine
+    kStr += self.endLine
 
     ####################################
     # offset local pointers
+    kStr += "  /* where will this thread write to local memory */" + self.endLine
     kStr += "  %s TYPE_A *lA = localA + a%s + a%s*(MT_%s+PAD);%s" \
         % (self.sharedDeclStr, tileCharA, unrollChar, tileCharA, self.endLine)
     kStr += "  %s TYPE_B *lB = localB + b%s + b%s*(MT_%s+PAD);%s" \
         % (self.sharedDeclStr, tileCharB, unrollChar, tileCharB, self.endLine)
-
+    kStr += self.endLine
 
     ####################################
 
@@ -853,7 +842,7 @@ class KernelWriter:
     ####################################
     # summations loops
     indent = "  "
-    kStr += indent + "/* iterate over all summation indices */" + self.endLine
+    kStr += indent + "/* iterate over summation indice(s) */" + self.endLine
     for i in range(0,len(kernel.indexOrderSummation)):
       indexChar = indexChars[kernel.indexOrderSummation[i] \
           + len(kernel.indexOrderC)]
@@ -1040,6 +1029,7 @@ class KernelWriter:
     kStr += indent + "/* do mads */" + self.endLine
     for u in range(0, kernel.unrolls[0]):
       kStr += indent + "MICRO_TILE" + self.endLine
+    kStr += self.endLine
 
     # debug printf - accumulation in registers
     # kStr += "  if (validC) printf(\\\"T[%u,%u] rC = %f g=%u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[0][0], GLOBAL_C(globalC0I, globalC1J) );" + self.endLine
@@ -1133,19 +1123,18 @@ class KernelWriter:
             kStr += "*(MT_%s+PAD)" % tileCharA
           kStr += " ] = "
           if not kernel.tile.branch[0].isNone():
-            kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s ) && " \
+            kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s ) || " \
                 % ( tileCharA, tileCharA, tileCharA, para, tileCharA )
           # guard around K
           kStr += " ( a%s + " % (unrollChar)
           if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-            kStr += "%d*LS_PERP_A < sumIterK )" % perp
+            kStr += "%d*LS_PERP_A >= sumIter%s )" % (perp, unrollChar)
           else:
-            kStr += "%d*LS_PARA_A < sumIterK )" % para
+            kStr += "%d*LS_PARA_A >= sumIter%s )" % (para, unrollChar)
 
           kStr += " ? %s : " % zeroStringA
           kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
               % (para, perp, unrollChar, self.endLine)
-        kStr += self.endLine
       kStr += self.endLine
       
 
@@ -1154,28 +1143,32 @@ class KernelWriter:
       for perp in range(0, numLoadsPerpB):
         for para in range(0, numLoadsParaB):
           kStr += indent + "lB[ %d*LS_PARA_B" % para
-          if not kernel.unrollDimStrideLessThanTileDimStrideB:
+          if kernel.unrollDimStrideLessThanTileDimStrideB:
             kStr += "*(MT_%s+PAD)" % tileCharB
           kStr += " + %d*LS_PERP_B" % perp
-          if kernel.unrollDimStrideLessThanTileDimStrideB:
+          if not kernel.unrollDimStrideLessThanTileDimStrideB:
             kStr += "*(MT_%s+PAD)" % tileCharB
           kStr += " ] = "
           if not kernel.tile.branch[1].isNone():
-            kStr += "( b%s+g%s*MT_%s+%d*LS_PARA_B >= size%s ) && " \
+            kStr += "( b%s+g%s*MT_%s+%d*LS_PARA_B >= size%s ) || " \
               % ( tileCharB, tileCharB, tileCharB, para, tileCharB )
           # guard around k
           kStr += "( b%s + " % (unrollChar)
           if not kernel.unrollDimStrideLessThanTileDimStrideB:
-            kStr += "%d*LS_PERP_B < sumIterK )" % perp
+            kStr += "%d*LS_PERP_B >= sumIter%s )" % (perp, unrollChar)
           else:
-            kStr += "%d*LS_PARA_B < sumIterK )" % para
+            kStr += "%d*LS_PARA_B >= sumIter%s )" % (para, unrollChar)
 
           kStr += " ? %s : " % zeroStringB
           kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
               % (para, perp, unrollChar, self.endLine)
-        kStr += self.endLine
-        
-      kStr += self.syncStr + self.endLine
+      kStr += self.endLine
+      kStr += "  " + self.syncStr + self.endLine
+      
+      # full end loop b/c local full of zeros
+      kStr += indent + "/* full unroll loop */" + self.endLine
+      kStr += indent + "sumIter" + indexChar + " = UNROLL;" + self.endLine
+      kStr += self.endLine
 
       # re-define the unroll
       kStr += "#undef UNROLL" + self.endLine
@@ -1183,6 +1176,8 @@ class KernelWriter:
       kStr += self.endLine
       kStr += "  unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine
       kStr += "  unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine
+      kStr += self.endLine
+
 
       # begin loop
       kStr += indent + "do {" + self.endLine
@@ -1228,7 +1223,21 @@ class KernelWriter:
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
     kStr += self.endLine
 
+    
 
+    ####################################
+    # which global Cij index
+    kStr += "  /* which global Cij index */" + self.endLine
+    for i in range(0, len(kernel.indexOrderC)):
+      index = kernel.indexOrderC[i]
+      kStr += "  unsigned int globalC" + indexChars[index] \
+          + " = g" + indexChars[index]
+      if index == kernel.indexAssignmentDim0:
+        kStr += "*MT_" + tileChar0 + " + l" + tileChar0
+      if index == kernel.indexAssignmentDim1:
+        kStr += "*MT_" + tileChar1 + " + l" + tileChar1
+      kStr += ";" + self.endLine
+    kStr += self.endLine
 
     ####################################
     # write global Cij
