@@ -40,7 +40,7 @@ def GenBackendFromFiles( \
         # choose fastest solution
         for solution, solutionBenchmark in solutionCandidates.iteritems():
           avgTime = 1e100
-          if len(solutionBenchmark.times) > 0:
+          if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
             psTimes[deviceProfile][exactMatch].append([problem, solution, avgTime])
       # if this exact match didn't have any psps with times, remove

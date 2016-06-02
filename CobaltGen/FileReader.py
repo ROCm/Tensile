@@ -137,6 +137,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].tile.workGroup = [int(attributes["wG0"]), int(attributes["wG1"])]
       self.solution.kernels[i].tile.microTile = [int(attributes["mT0"]), int(attributes["mT1"])]
       self.solution.kernels[i].tile.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
+      self.solution.kernels[i].numLoadsA = int(attributes["nlA"])
+      self.solution.kernels[i].numLoadsB = int(attributes["nlB"])
       self.solution.kernels[i].unrolls = [ int(attributes["u0"]) ]
       secondUnroll = int(attributes["u1"])
       if secondUnroll > 0:

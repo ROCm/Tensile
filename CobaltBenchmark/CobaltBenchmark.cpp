@@ -55,7 +55,7 @@ int main( int argc, char *argv[] ) {
 
   // setup CobaltLib
   std::string logFilePath = Cobalt_DIR_SOLUTIONS;
-  logFilePath += "/CobaltBenchmark_log.xml";
+  //logFilePath += "/CobaltBenchmark_log.xml";
   cobaltSetup(logFilePath.c_str());
 
   // create CobaltControl
@@ -191,10 +191,10 @@ int main( int argc, char *argv[] ) {
 #endif
       }
       // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
-      ctrl.benchmark = 1; // 5;
-      unsigned int numSamples = 1; // 4;
+      ctrl.benchmark = 4;
+      unsigned int numSamples = 4;
       if (doValidation) {
-        ctrl.benchmark = 0;
+        //ctrl.benchmark = 0;
         numSamples = 1;
       }
       CobaltTensorDataConst constA{ deviceTensorDataA.data,

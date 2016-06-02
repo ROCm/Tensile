@@ -368,6 +368,8 @@ class SolutionWriter:
         s += "  detail += \" mT1=\\\"" + str(kernel.tile.microTile[1]) + "\\\"\";\n"
         s += "  detail += \" b0=\\\"" + str(kernel.tile.branch[0].value) + "\\\"\";\n"
         s += "  detail += \" b1=\\\"" + str(kernel.tile.branch[1].value) + "\\\"\";\n"
+        s += "  detail += \" nlA=\\\"" + str(kernel.numLoadsA) + "\\\"\";\n"
+        s += "  detail += \" nlB=\\\"" + str(kernel.numLoadsB) + "\\\"\";\n"
         s += "  detail += \" u0=\\\"" + str(kernel.unrolls[0]) + "\\\"\";\n"
         if len(kernel.unrolls) > 1:
           s += "  detail += \" u1=\\\"" + str(kernel.unrolls[1]) + "\\\"\";\n"
