@@ -25,8 +25,8 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 6
-  maxMicroTileSize = 6
+  minMicroTileSize = 2
+  maxMicroTileSize = 2
   unrollLevels = [32, 16, 8, 4, 2, 1]
   #unrollLevels = [16]
   universeUnroll = { \
@@ -230,7 +230,7 @@ class SolutionCandidateGenerator:
             #if kernel.unrollDimStrideGreaterThanTileDimStrideA:
             loadSizeParaA = macroTileDim0 if kernel.unrollDimStrideGreaterThanTileDimStrideA else unroll[0];
             loadSizeParaB = macroTileDim1 if not kernel.unrollDimStrideLessThanTileDimStrideB else unroll[0];
-            print loadSizeParaA, loadSizeParaB
+            # print loadSizeParaA, loadSizeParaB
             numLoadsA = (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1])
             numLoadsB = (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1])
             # whole number of loads
@@ -387,7 +387,7 @@ class SolutionCandidateGenerator:
 
                     # kernels, grid, and branching specified, now add solution
                     # print solution
-                    print "  " + self.solutionWriter.getName(solution)
+                    # print "  " + self.solutionWriter.getName(solution)
                     solutionCandidates.append( copy.deepcopy(solution) )
     return solutionCandidates
 

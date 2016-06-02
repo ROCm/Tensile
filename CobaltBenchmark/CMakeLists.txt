@@ -77,9 +77,9 @@ include_directories(
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   include_directories( ${OPENCL_INCLUDE_DIRS} )
   target_link_libraries( ${CobaltBenchmark_NAME} ${OPENCL_LIBRARIES} )
-  MESSAGE( "CobaltBenchmark linking ${OPENCL_LIBRARIES}")
+  message( STATUS "CobaltBenchmark linking OpenCL: ${OPENCL_LIBRARIES}")
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  MESSAGE( "CobaltBenchmark linking HIP: ${HIP_INCLUDE_DIRS}" )
+  message( STATUS "CobaltBenchmark linking HIP: ${HIP_INCLUDE_DIRS}" )
   include_directories( ${HIP_INCLUDE_DIRS} )
 endif()
 

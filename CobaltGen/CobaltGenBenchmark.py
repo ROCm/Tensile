@@ -68,11 +68,11 @@ def GenBenchmarkFromFiles( \
     totalSolutions += len(solutionCandidates)
     # print solutionCandidates
     for solution in solutionCandidates:
-      for s in allSolutions:
-        if s == solution:
-          print "match"
-          print s
-          print solution
+      # for s in allSolutions:
+        # if s == solution:
+        #   print "match"
+        #   print s
+        #   print solution
       allSolutions.add( solution )
       # print len(allSolutions)
     kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)

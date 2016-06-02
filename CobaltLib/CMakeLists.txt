@@ -132,11 +132,11 @@ source_group(CobaltGen\\Generated FILES
 ############################################################
 # Cobalt depends on OpenCL
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  MESSAGE( "CobaltLib linking OpenCL: ${OPENCL_INCLUDE_DIRS}" )
+  message( STATUS "CobaltLib linking OpenCL: ${OPENCL_INCLUDE_DIRS}" )
   include_directories( ${OPENCL_INCLUDE_DIRS} )
   target_link_libraries( ${CobaltLib_NAME} ${OPENCL_LIBRARIES} )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  MESSAGE( "CobaltLib linking HIP: ${HCC_INCLUDE_DIRS}" )
+  message( STATUS "CobaltLib linking HIP: ${HCC_INCLUDE_DIRS}" )
   include_directories( ${HCC_INCLUDE_DIRS} )
   target_link_libraries( ${CobaltLib_NAME} ${HSA_LIBRARIES} )
 endif()

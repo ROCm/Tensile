@@ -499,7 +499,7 @@ class KernelWriter:
       if not kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # neither conjugate
         kStr += (
-          "#define TYPE_MAD(MULA,MULB,DST) " +self.contLine + self.endLine +
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
           "  DST.s0 = FMA(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
           "  DST.s0 = FMA( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = FMA(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
