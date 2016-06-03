@@ -75,9 +75,9 @@ int main( int argc, char * argv[] ) {
   const bool alphas[] = { true, false };
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
-  const size_t numTransA = 2;
+  const size_t numTransA = 1;
   const bool transAs[] = {false, true};
-  const size_t numTransB = 2;
+  const size_t numTransB = 1;
   const bool transBs[] = {true, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
