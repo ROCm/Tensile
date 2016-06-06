@@ -30,7 +30,8 @@ message( STATUS "CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}" )
 ############################################################
 # require C++11
 if(MSVC)
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP2" )
+  # object-level build parallelism for VS, not just target-level
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
 else()
 endif()
 add_definitions( "-std=c++11" )

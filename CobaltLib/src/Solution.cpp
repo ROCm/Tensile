@@ -88,7 +88,7 @@ CobaltStatus Solution::enqueueEntry(
     gpuOnHostC.offset = 0;
     gpuOnHostC.data = malloc(sizeC);
     // wait for gpu solution
-    printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
+    //printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
       clFinish(ctrl.queues[i]);
@@ -97,7 +97,7 @@ CobaltStatus Solution::enqueueEntry(
 #endif
     }
     // copy results back
-    printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
+    //printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
 #if Cobalt_BACKEND_OPENCL12
     clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,

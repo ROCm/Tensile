@@ -1134,7 +1134,7 @@ class KernelWriter:
 
           kStr += " ? %s : " % zeroStringA
           kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
-              % (para, perp, unrollChar, self.endLine)
+              % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, self.endLine)
       kStr += self.endLine
 
 
@@ -1161,7 +1161,7 @@ class KernelWriter:
 
           kStr += " ? %s : " % zeroStringB
           kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
-              % (para, perp, unrollChar, self.endLine)
+              % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, self.endLine)
       kStr += self.endLine
       kStr += "  " + self.syncStr + self.endLine
 
@@ -1171,9 +1171,9 @@ class KernelWriter:
       kStr += self.endLine
 
       # re-define the unroll
-      kStr += "#undef UNROLL" + self.endLine
-      kStr += "#define UNROLL 1" + self.endLine
-      kStr += self.endLine
+      # kStr += "#undef UNROLL" + self.endLine
+      # kStr += "#define UNROLL 1" + self.endLine
+      # kStr += self.endLine
       kStr += "  unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine
       kStr += "  unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine
       kStr += self.endLine
