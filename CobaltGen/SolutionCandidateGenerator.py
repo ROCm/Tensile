@@ -25,7 +25,7 @@ class SolutionCandidateGenerator:
   skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
   skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
       skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 4
+  minMicroTileSize = 1
   maxMicroTileSize = 8
   unrollLevels = [32, 16, 8, 4, 2, 1]
   #unrollLevels = [16]

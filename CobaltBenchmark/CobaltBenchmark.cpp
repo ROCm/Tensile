@@ -50,6 +50,7 @@ int main( int argc, char *argv[] ) {
 #ifdef _CRTDBG_MAP_ALLOC
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 #endif
+  srand(4123570);
   // parse commandline options
   parseCommandLineOptions(argc, argv);
 

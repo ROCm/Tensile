@@ -38,7 +38,7 @@ template<> CobaltComplexDouble getOne<CobaltComplexDouble>() {
 /*******************************************************************************
 * Random Templates
 ******************************************************************************/
-template<> float getRandom<float>() { return static_cast<float>(rand())/static_cast<float>(RAND_MAX); }
+template<> float getRandom<float>() { return static_cast<float>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
 template<> double getRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
 template<> CobaltComplexFloat getRandom<CobaltComplexFloat>() {
   //CobaltComplexFloat r = { 1.f, 0.f };
