@@ -896,8 +896,12 @@ class KernelWriter:
           kStr += "*(MT_%s+PAD)" % tileCharA
         kStr += " ] = "
         if kernel.tile.branch[0].isMultiple():
-          kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s) ? %s : " \
-              % ( tileCharA, tileCharA, tileCharA, para, tileCharA, zeroStringA )
+          kStr += "( a%s+g%s*MT_%s+" % ( tileCharA, tileCharA, tileCharA)
+          if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
+            kStr += "%d*LS_PERP_A" % (perp)
+          else:
+            kStr += "%d*LS_PARA_A" % (para)
+          kStr += " >= size%s) ? %s : " %( tileCharA, zeroStringA )
         kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
             % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, self.endLine)
     kStr += self.endLine
@@ -947,8 +951,12 @@ class KernelWriter:
           kStr += "*(MT_%s+PAD)" % tileCharB
         kStr += " ] = "
         if kernel.tile.branch[1].isMultiple():
-          kStr += "( b%s+g%s*MT_%s+%d*LS_PARA_B >= size%s) ? %s : " \
-              % ( tileCharB, tileCharB, tileCharB, para, tileCharB, zeroStringB )
+          kStr += "( b%s+g%s*MT_%s+" % ( tileCharB, tileCharB, tileCharB)
+          if kernel.unrollDimStrideLessThanTileDimStrideB:
+            kStr += "%d*LS_PERP_B" % (perp)
+          else:
+            kStr += "%d*LS_PARA_B" % (para)
+          kStr += " >= size%s) ? %s : " % (tileCharB, zeroStringB )
         kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
             % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, self.endLine)
     kStr += self.endLine
@@ -1123,8 +1131,12 @@ class KernelWriter:
             kStr += "*(MT_%s+PAD)" % tileCharA
           kStr += " ] = "
           if kernel.tile.branch[0].isMultiple():
-            kStr += "( a%s+g%s*MT_%s+%d*LS_PARA_A >= size%s ) || " \
-                % ( tileCharA, tileCharA, tileCharA, para, tileCharA )
+            kStr += "( a%s+g%s*MT_%s+" % ( tileCharA, tileCharA, tileCharA)
+            if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
+              kStr += "%d*LS_PERP_A" % (perp)
+            else:
+              kStr += "%d*LS_PARA_A" % (para)
+            kStr += " >= size%s) ? %s : " %( tileCharA, zeroStringA )
           # guard around K
           kStr += " ( a%s + " % (unrollChar)
           if kernel.unrollDimStrideGreaterThanTileDimStrideA:
@@ -1150,8 +1162,12 @@ class KernelWriter:
             kStr += "*(MT_%s+PAD)" % tileCharB
           kStr += " ] = "
           if kernel.tile.branch[1].isMultiple():
-            kStr += "( b%s+g%s*MT_%s+%d*LS_PARA_B >= size%s ) || " \
-              % ( tileCharB, tileCharB, tileCharB, para, tileCharB )
+            kStr += "( b%s+g%s*MT_%s+" % ( tileCharB, tileCharB, tileCharB)
+            if kernel.unrollDimStrideLessThanTileDimStrideB:
+              kStr += "%d*LS_PERP_B" % (perp)
+            else:
+              kStr += "%d*LS_PARA_B" % (para)
+            kStr += " >= size%s) ? %s : " % (tileCharB, zeroStringB )
           # guard around k
           kStr += "( b%s + " % (unrollChar)
           if not kernel.unrollDimStrideLessThanTileDimStrideB:
