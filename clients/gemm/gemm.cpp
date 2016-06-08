@@ -33,7 +33,7 @@ CobaltProblem createProblemGEMM(
 int main( int argc, char * argv[] ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 1
+#if 0
   for (size_t i = 16; i <= 208; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
@@ -41,7 +41,7 @@ int main( int argc, char * argv[] ) {
       //sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
-  //sizes.push_back( {5760, 5760, 5760 });
+  sizes.push_back( {5760, 5760, 5760 });
   //sizes.push_back( {384, 384, 384 });
   //sizes.push_back( {384-1, 384-1, 384 });
   //sizes.push_back( {64, 64, 64});
@@ -55,7 +55,7 @@ int main( int argc, char * argv[] ) {
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   const size_t numBatchSizes = 1;
-  size_t batches[] = { 2, 1 };
+  size_t batches[] = { 1, 2 };
   const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
@@ -76,10 +76,10 @@ int main( int argc, char * argv[] ) {
   const bool alphas[] = { true, false };
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
-  const size_t numTransA = 1;
-  const bool transAs[] = {true, false};
-  const size_t numTransB = 1;
-  const bool transBs[] = {true, true};
+  const size_t numTransA = 2;
+  const bool transAs[] = {false, true};
+  const size_t numTransB = 2;
+  const bool transBs[] = {true, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
 

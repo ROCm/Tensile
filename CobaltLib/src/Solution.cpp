@@ -82,13 +82,14 @@ CobaltStatus Solution::enqueueEntry(
       // automatically flushed?
 #endif
     }
+    Sleep(100);
     // allocate memory for gpu result on host
     size_t sizeC = Solution::problem.tensorC.numBytes();
     CobaltTensorData gpuOnHostC;
     gpuOnHostC.offset = 0;
     gpuOnHostC.data = malloc(sizeC);
     // wait for gpu solution
-    //printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
+    printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
       clFinish(ctrl.queues[i]);
@@ -97,7 +98,7 @@ CobaltStatus Solution::enqueueEntry(
 #endif
     }
     // copy results back
-    //printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
+    printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
 #if Cobalt_BACKEND_OPENCL12
     clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
@@ -844,7 +845,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
        */
 
       // print args
-#if 1
+#if 0
       printf("openclKernelLaunch(%u:%u:%u):\n    g{%u,%u,%u};\n    l{%u,%u,%u};\n    p{%p,%p,%p};\n    ab{%f,%f};\n    o{%u,%u,%u};\n    s{%u,%u,%u,%u,%u,%u}\n",
           kernelIdx,
           enqueueIdx,
