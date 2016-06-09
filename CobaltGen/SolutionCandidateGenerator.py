@@ -25,18 +25,18 @@ class SolutionCandidateGenerator:
   skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
   skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
   skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 4
+  minMicroTileSize = 1
   maxMicroTileSize = 8
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
-  unrollLevels = [16, 8, 4, 2, 1]
+  unrollLevels = [32, 16, 8, 4, 2, 1]
   #unrollLevels = [16]
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
-       2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
-       4: [ [  4 ], [ 16, 4 ], [  8, 4 ] ], \
-       8: [ [  8 ], [ 16, 8 ], [ 4 ] ], \
-      16: [ [ 16 ], [ 8 ], ], \
+       2: [ [  2 ], [ 16, 1 ], [  8, 1 ] ], \
+       4: [ [  4 ], [ 16, 1 ], [  8, 1 ] ], \
+       8: [ [  8 ], [ 16, 1 ], [ 4 ] ], \
+      16: [ [ 16 ], [ 8 ], [ 4 ]], \
       32: [ [ 32 ], [ 16 ], [ 8 ] ] \
       }
   """
@@ -122,7 +122,6 @@ class SolutionCandidateGenerator:
     makeIndexAssignments( kernel, problem )
     transA = not kernel.unrollDimStrideGreaterThanTileDimStrideA
     transB = not kernel.unrollDimStrideLessThanTileDimStrideB
-    print transA, transB
 
     if transA and transB:
       # transpose work-group order for better cacheing
@@ -270,22 +269,17 @@ class SolutionCandidateGenerator:
               optionsParaB.append( 1 )
 
             for numLoadsParaA in optionsParaA:
-              print "0-numLoadsParaA: %i" % numLoadsParaA
               if numLoadsA % numLoadsParaA > 0:
                 continue
-              print "1-numLoadsParaA: %i, %i" % (numLoadsParaA, loadSizeParaA)
               numLoadsPerpA = numLoadsA / numLoadsParaA
               if loadSizeParaA%numLoadsParaA>0:
                 continue
-              print "2-numLoadsParaA: %i" % numLoadsParaA
               if (workGroup[0]*workGroup[1])%(loadSizeParaA/numLoadsParaA) > 0:
                 continue
-              print "3-numLoadsParaA: %i" % numLoadsParaA
               #else:
               #  print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
               kernel.numLoadsA = numLoadsParaA
               for numLoadsParaB in optionsParaB:
-                print "numLoadsParaB: %i" % numLoadsParaB
                 if numLoadsB % numLoadsParaB > 0:
                   continue
                 numLoadsPerpB = numLoadsB / numLoadsParaB
