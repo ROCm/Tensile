@@ -192,8 +192,8 @@ int main( int argc, char *argv[] ) {
 #endif
       }
       // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
-      ctrl.benchmark = 4;
-      unsigned int numSamples = 4;
+      ctrl.benchmark = 1;
+      unsigned int numSamples = 1;
       if (doValidation) {
         //ctrl.benchmark = 0;
         numSamples = 1;

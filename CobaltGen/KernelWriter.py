@@ -30,6 +30,7 @@ class KernelWriter:
 
     if self.backend.isOpenCL():
       self.getGroupIdStr = "get_group_id"
+      self.getNumGroupsStr = "get_num_groups"
       self.getLocalIdStr = "get_local_id"
       self.getGlobalIdStr = "get_global_id"
       self.sharedDeclStr = "__local"
@@ -40,6 +41,7 @@ class KernelWriter:
       self.fmaDStr = "mad"
     else:
       self.getGroupIdStr = "hc_get_group_id"
+      self.getNumGroupsStr = "hc_get_num_groups"
       self.getLocalIdStr = "hc_get_workitem_id"
       self.getGlobalIdStr = "hc_get_workitem_absolute_id"
       self.sharedDeclStr = "__shared__"
@@ -712,12 +714,21 @@ class KernelWriter:
     # work-group free indices
     kStr += self.endLine
     kStr += "  /* c indices */" + self.endLine
-    kStr += "  unsigned int g" + tileChar0 + " = " \
-        + self.getGroupIdStr + "(0);" \
-        + " // d0, tensor" + tensorChar0 + self.endLine
-    kStr += "  unsigned int g" + tileChar1 + " = " \
-         + self.getGroupIdStr + "(1);" \
-        + " // d1, tensor" + tensorChar1 + self.endLine
+
+
+    if kernel.transposeWorkGroupOrder:
+      # swap order in which work-groups cover C
+      kStr += "  unsigned int groupSerial = %s(0) * %s(1) + %s(1);%s" \
+        % (self.getGroupIdStr, self.getNumGroupsStr, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int g%s = groupSerial %% %s(0);%s" % (tileChar0, self.getNumGroupsStr, self.endLine)
+      kStr += "  unsigned int g%s = groupSerial / %s(0);%s" % (tileChar1, self.getNumGroupsStr, self.endLine)
+    else:
+      kStr += "  unsigned int g" + tileChar0 + " = " \
+          + self.getGroupIdStr + "(0);" \
+          + " // d0, tensor" + tensorChar0 + self.endLine
+      kStr += "  unsigned int g" + tileChar1 + " = " \
+          + self.getGroupIdStr + "(1);" \
+          + " // d1, tensor" + tensorChar1 + self.endLine
 
     # other free indices
     nonTileFreeIndices = copy.deepcopy(kernel.indexOrderC)

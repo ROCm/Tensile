@@ -21,21 +21,23 @@ class SolutionCandidateGenerator:
 
   # tile for non-skinny problem must be square: tile1/tile0 <= 1
   # tile for skinny problem must be tile1/tile0 <= 16*2
-  skinnyRatioWorkGroup = [ 1, 16] # verified against 8xHuge system
-  skinnyRatioMicroTile = [ 1, 2] # verified against 8xHuge system
-  skinnyRatioMacroTile = [ skinnyRatioWorkGroup[0]*skinnyRatioMicroTile[0], \
-      skinnyRatioWorkGroup[1]*skinnyRatioMicroTile[1] ]
-  minMicroTileSize = 1
+  # true means "TN" transpose system which is slowest and needs rectangular tile for better cacheing along 1 dim
+  skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
+  skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
+  skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
+  minMicroTileSize = 4
   maxMicroTileSize = 8
-  unrollLevels = [32, 16, 8, 4, 2, 1]
+  # don't include 32 as unroll level, uses too many sgprs and occupancy is low
+  # unroll 4 is usually too few (loads don't cache as well)
+  unrollLevels = [16, 8, 4, 2, 1]
   #unrollLevels = [16]
   universeUnroll = { \
-       1: [ [  1 ], [ 32, 1 ], [ 16, 1 ], [  8, 1 ] ], \
-       2: [ [  2 ], [ 32, 2 ], [ 16, 2 ], [  8, 2 ] ], \
-       4: [ [  4 ], [ 32, 4 ], [ 16, 4 ], [  8, 4 ] ], \
-       8: [ [  8 ], [ 32, 8 ], [ 16, 8 ], [ 4 ] ], \
-      16: [ [ 16 ], [ 8 ], [ 4 ] ], \
-      32: [ [ 32 ], [ 16 ], [ 8 ], [ 4 ] ] \
+       1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
+       2: [ [  2 ], [ 16, 2 ], [  8, 2 ] ], \
+       4: [ [  4 ], [ 16, 4 ], [  8, 4 ] ], \
+       8: [ [  8 ], [ 16, 8 ], [ 4 ] ], \
+      16: [ [ 16 ], [ 8 ], ], \
+      32: [ [ 32 ], [ 16 ], [ 8 ] ] \
       }
   """
   unrollLevels = [1]
@@ -58,14 +60,15 @@ class SolutionCandidateGenerator:
       [ True,  False, False], \
       ]
   # non-skinny problem will only choose from 8x8 and 16x16
-  """
-  universeWorkGroupDim = [ \
-      [4,16],  [8,8],  [16,4], \
-      [4,32], [8,16],  [16,8], [32,4], \
-      [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
-      [4,64], [8,32], [16,16], [32,8],  [64,4] ]
+  # universeWorkGroupDim = [ \
+  #     [4,16],  [8,8],  [16,4], \
+  #     [4,32], [8,16],  [16,8], [32,4], \
+  #     [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
+  #     [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   """
   universeWorkGroupDim = [ [16,16] ]
+  """
+  universeWorkGroupDim = [ [16, 16], [8, 8] ]
 
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
@@ -91,7 +94,6 @@ class SolutionCandidateGenerator:
   ##############################################################################
   def getSolutionCandidatesForProblem( self, inputProblem ):
     problem = copy.deepcopy(inputProblem)
-
     # optimize alpha and beta?
     if not self.optimizeAlpha and not problem.operation.useAlpha():
       problem.operation.alphaType = problem.tensorC.dataType
@@ -118,6 +120,14 @@ class SolutionCandidateGenerator:
     kernel.indexOrderC = []
     kernel.indexOrderSummation = []
     makeIndexAssignments( kernel, problem )
+    transA = not kernel.unrollDimStrideGreaterThanTileDimStrideA
+    transB = not kernel.unrollDimStrideLessThanTileDimStrideB
+    print transA, transB
+
+    if transA and transB:
+      # transpose work-group order for better cacheing
+      kernel.transposeWorkGroupOrder = True
+
     #kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
     #    numIndicesC - 2 ]
     #kernel.indexAssignmentDim1 = kernel.indexOrderC[ \
@@ -137,6 +147,10 @@ class SolutionCandidateGenerator:
     problemSkinnyDim1 = 0
     if problemSizeDim1 < 32 and problemSizeDim0 > 1024:
       problemSkinnyDim1 = 1
+    
+    # print self.skinnyRatioWorkGroup[transA and not transB]
+    # print self.skinnyRatioMicroTile[transA and not transB]
+    # print self.skinnyRatioMacroTile[transA and not transB]
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
       if kernel.indexUnroll == problem.operation.indexAssignmentsA[i]:
@@ -177,33 +191,37 @@ class SolutionCandidateGenerator:
         kernel.tile.workGroup = workGroup
         # only try skinny work-group if problem is skinny
         if float(workGroup[1])/workGroup[0] \
-            > self.skinnyRatioWorkGroup[problemSkinnyDim0]:
+            > self.skinnyRatioWorkGroup[transA and not transB][problemSkinnyDim0]:
           continue
         if float(workGroup[0])/workGroup[1] \
-            > self.skinnyRatioWorkGroup[problemSkinnyDim1]:
+            > self.skinnyRatioWorkGroup[transA and not transB][problemSkinnyDim1]:
           continue
         # for all micro-tile dimensions
         for microTileDim0 in range(self.minMicroTileSize, \
             self.maxMicroTileSize+1):
           for microTileDim1 in range(self.minMicroTileSize, \
               self.maxMicroTileSize+1):
+            if microTileDim0%2>0:
+              continue
+            if microTileDim1%2>0:
+              continue
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
             # only try skinny micro-tile if problem is skinny
             if float(microTile[1])/microTile[0] \
-                > self.skinnyRatioMicroTile[problemSkinnyDim0]:
+                > self.skinnyRatioMicroTile[transA and not transB][problemSkinnyDim0]:
               continue
             if float(microTile[0])/microTile[1] \
-                > self.skinnyRatioMicroTile[problemSkinnyDim1]:
+                > self.skinnyRatioMicroTile[transA and not transB][problemSkinnyDim1]:
               continue
             # only try skinny macro-tile if problem is skinny
             macroTileDim0 = workGroup[0] * microTile[0]
             macroTileDim1 = workGroup[1] * microTile[1]
             if float(macroTileDim1)/macroTileDim0 \
-                > self.skinnyRatioMacroTile[problemSkinnyDim0]:
+                > self.skinnyRatioMacroTile[transA and not transB][problemSkinnyDim0]:
               continue
             if float(macroTileDim0)/macroTileDim1 \
-                > self.skinnyRatioMacroTile[problemSkinnyDim1]:
+                > self.skinnyRatioMacroTile[transA and not transB][problemSkinnyDim1]:
               continue
             # macro-tile not too large
             numWorkItems = workGroup[0] * workGroup[1]
@@ -239,18 +257,35 @@ class SolutionCandidateGenerator:
             if (workGroup[1]*microTile[1]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
               continue
 
-            for numLoadsParaA in range(1, numLoadsA+1):
+            # could be any integer 1->numLoads, but these always are the fastest
+            optionsParaA = []
+            if not transA:
+              optionsParaA.append( numLoadsA )
+            else:
+              optionsParaA.append( 1 )
+            optionsParaB = []
+            if transB:
+              optionsParaB.append( numLoadsB )
+            else:
+              optionsParaB.append( 1 )
+
+            for numLoadsParaA in optionsParaA:
+              print "0-numLoadsParaA: %i" % numLoadsParaA
               if numLoadsA % numLoadsParaA > 0:
                 continue
+              print "1-numLoadsParaA: %i, %i" % (numLoadsParaA, loadSizeParaA)
               numLoadsPerpA = numLoadsA / numLoadsParaA
               if loadSizeParaA%numLoadsParaA>0:
                 continue
+              print "2-numLoadsParaA: %i" % numLoadsParaA
               if (workGroup[0]*workGroup[1])%(loadSizeParaA/numLoadsParaA) > 0:
                 continue
+              print "3-numLoadsParaA: %i" % numLoadsParaA
               #else:
               #  print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
               kernel.numLoadsA = numLoadsParaA
-              for numLoadsParaB in range(1, numLoadsB+1):
+              for numLoadsParaB in optionsParaB:
+                print "numLoadsParaB: %i" % numLoadsParaB
                 if numLoadsB % numLoadsParaB > 0:
                   continue
                 numLoadsPerpB = numLoadsB / numLoadsParaB

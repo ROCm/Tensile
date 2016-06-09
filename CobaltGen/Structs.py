@@ -790,6 +790,7 @@ class Kernel:
     self.unrollDimSize = -1
     self.unrollDimStrideGreaterThanTileDimStrideA = False
     self.unrollDimStrideLessThanTileDimStrideB = False
+    self.transposeWorkGroupOrder = False
 
     # a kernel holds a copy of the problem so it can #define strides if necessary
     self.problem = Problem()
