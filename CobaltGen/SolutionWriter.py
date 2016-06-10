@@ -402,7 +402,7 @@ class SolutionWriter:
         if kernel != None:
           s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
           s += "\n"
-          if True:
+          if False:
             s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
             s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
             s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"

@@ -82,7 +82,6 @@ CobaltStatus Solution::enqueueEntry(
       // automatically flushed?
 #endif
     }
-    Sleep(100);
     // allocate memory for gpu result on host
     size_t sizeC = Solution::problem.tensorC.numBytes();
     CobaltTensorData gpuOnHostC;

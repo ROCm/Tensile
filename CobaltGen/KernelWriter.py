@@ -235,22 +235,22 @@ class KernelWriter:
     restrictStr = "restrict"
     if self.backend.isHIP():
       restrictStr = "__restrict__"
-    s += "  " + globalStr + kernel.dataTypeC.toOpenCL() \
+    s += "  " + globalStr + kernel.dataTypeC.toDevice(self.backend) \
         + "       *          C,"
     s += self.endLine
-    s += "  " + globalStr + kernel.dataTypeA.toOpenCL() \
+    s += "  " + globalStr + kernel.dataTypeA.toDevice(self.backend) \
         + " const * " + restrictStr + " A,"
     s += self.endLine
-    s += "  " + globalStr + kernel.dataTypeB.toOpenCL() \
+    s += "  " + globalStr + kernel.dataTypeB.toDevice(self.backend) \
         + " const * " + restrictStr + " B"
 
     # alpha & beta
     if kernel.problem.operation.useAlpha:
       s += "," + self.endLine + "  " \
-          + kernel.dataTypeC.toOpenCL() + " const alpha"
+          + kernel.dataTypeC.toDevice(self.backend) + " const alpha"
     if kernel.problem.operation.useBeta:
       s += "," + self.endLine + "  " \
-          + kernel.dataTypeC.toOpenCL() + " const beta"
+          + kernel.dataTypeC.toDevice(self.backend) + " const beta"
 
     # offsets
     if not kernel.ppdOffsets:
@@ -456,21 +456,25 @@ class KernelWriter:
     kStr += self.endLine
     kStr += "/* data types */" + self.endLine
     kStr += "#define TYPE_A     %s%s" \
-        % (kernel.dataTypeA.toOpenCL(), self.endLine)
+        % (kernel.dataTypeA.toDevice(self.backend), self.endLine)
     kStr += "#define TYPE_B     %s%s" \
-        % (kernel.dataTypeB.toOpenCL(), self.endLine)
+        % (kernel.dataTypeB.toDevice(self.backend), self.endLine)
     kStr += "#define TYPE_C     %s%s" \
-        % (kernel.dataTypeC.toOpenCL(), self.endLine)
+        % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
     kStr += "#define TYPE_ALPHA %s%s" \
-        % (kernel.dataTypeC.toOpenCL(), self.endLine)
+        % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
     kStr += "#define TYPE_BETA  %s%s" \
-        % (kernel.dataTypeC.toOpenCL(), self.endLine)
+        % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
 
     if kernel.dataTypeC.isDouble():
       kStr += "#define FMA(A,B,DST) %s(A,B,DST)" % self.fmaDStr
     else:
       kStr += "#define FMA(A,B,DST) %s(A,B,DST)" % self.fmaFStr
     kStr += self.endLine
+
+    if self.backend.isHIP():
+      kStr += "#define s0 x" + self.endLine
+      kStr += "#define s1 y" + self.endLine
 
     ####################################
     # FMAs
@@ -806,9 +810,9 @@ class KernelWriter:
     # offset local pointers
     kStr += "  /* where will this thread write to local memory */" + self.endLine
     kStr += "  %s TYPE_A *lA = localA + a%s + a%s*(MT_%s+PAD);%s" \
-        % (self.sharedDeclStr, tileCharA, unrollChar, tileCharA, self.endLine)
+        % (self.sharedPtrStr, tileCharA, unrollChar, tileCharA, self.endLine)
     kStr += "  %s TYPE_B *lB = localB + b%s + b%s*(MT_%s+PAD);%s" \
-        % (self.sharedDeclStr, tileCharB, unrollChar, tileCharB, self.endLine)
+        % (self.sharedPtrStr, tileCharB, unrollChar, tileCharB, self.endLine)
     kStr += self.endLine
 
     ####################################
@@ -883,9 +887,14 @@ class KernelWriter:
     kStr += self.endLine
 
     # zeroString for real and complex
-    zeroStringC = kernel.dataTypeC.zeroStringOpenCL()
-    zeroStringA = kernel.dataTypeA.zeroStringOpenCL()
-    zeroStringB = kernel.dataTypeB.zeroStringOpenCL()
+    if self.backend.isOpenCL():
+      zeroStringC = kernel.dataTypeC.zeroStringOpenCL()
+      zeroStringA = kernel.dataTypeA.zeroStringOpenCL()
+      zeroStringB = kernel.dataTypeB.zeroStringOpenCL()
+    else:
+      zeroStringC = kernel.dataTypeC.zeroStringHIP()
+      zeroStringA = kernel.dataTypeA.zeroStringHIP()
+      zeroStringB = kernel.dataTypeB.zeroStringHIP()
 
     ####################################
     # load global -> local

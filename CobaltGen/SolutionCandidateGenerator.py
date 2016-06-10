@@ -25,11 +25,11 @@ class SolutionCandidateGenerator:
   skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
   skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
   skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 1
+  minMicroTileSize = 4
   maxMicroTileSize = 8
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
-  unrollLevels = [32, 16, 8, 4, 2, 1]
+  unrollLevels = [16, 8, 4, 2, 1]
   #unrollLevels = [16]
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
@@ -65,10 +65,10 @@ class SolutionCandidateGenerator:
   #     [4,32], [8,16],  [16,8], [32,4], \
   #     [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
   #     [4,64], [8,32], [16,16], [32,8],  [64,4] ]
-  """
   universeWorkGroupDim = [ [16,16] ]
   """
   universeWorkGroupDim = [ [16, 16], [8, 8] ]
+  """
 
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]

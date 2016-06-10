@@ -60,6 +60,24 @@ class DataType:
     else:
       return "ERROR(" + str(self.value) + ")"
 
+  def toHIP(self):
+    if self.value == self.single:
+      return "float"
+    elif self.value == self.double:
+      return "double"
+    elif self.value == self.complexSingle or self.value == self.complexConjugateSingle:
+      return "float_2"
+    elif self.value == self.complexDouble or self.value == self.complexConjugateDouble:
+      return "double_2"
+    else:
+      return "ERROR(" + str(self.value) + ")"
+
+  def toDevice(self, backend):
+    if backend.isOpenCL():
+      return self.toOpenCL()
+    else:
+      return self.toHIP()
+
   def toCpp(self):
     if self.value == self.single:
       return "float"
@@ -102,6 +120,17 @@ class DataType:
     zeroString = "("
     zeroString += self.toOpenCL()
     zeroString += ")("
+    if self.isReal():
+      zeroString += "0.0"
+    else:
+      zeroString += "0.0, 0.0"
+    zeroString += ")"
+    return zeroString
+
+  def zeroStringHIP(self):
+    zeroString = ""
+    zeroString += self.toHIP()
+    zeroString += "("
     if self.isReal():
       zeroString += "0.0"
     else:

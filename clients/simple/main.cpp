@@ -20,7 +20,7 @@
 hipError_t status;
 #define CHECK(STATUS) \
   { \
-    hipError_t tmp_status = STATUS;
+    hipError_t tmp_status = STATUS; \
     if (tmp_status != hipSuccess) { \
       fprintf(stderr, "error: '%s' (%d) at %s:%d\n", hipGetErrorString(tmp_status), tmp_status, __FILE__, __LINE__); \
     } \
@@ -33,9 +33,36 @@ hipError_t status;
 #include <CL/cl.h>
 #include "kernel_opencl.h"
 
+
+cl_int status;
+#define CHECK(STATUS) \
+  do { \
+    cl_int tmp_status = STATUS; \
+    if (tmp_status != CL_SUCCESS) { \
+      fprintf(stderr, "error: (%d) at %s:%d\n", tmp_status, __FILE__, __LINE__); \
+    } \
+  } while(false);
+
+void makeKernel(
+    cl_kernel *kernel,
+    cl_command_queue queue,
+    const char *kernelSource,
+    const char *sourceBuildOptions);
+
+#endif
+
+
+void sgemm_NT(
+  bool transA, bool transB,
+  float  *C, float  *A, float  *B,
+  float const alpha, float const beta,
+  unsigned int const ldc, unsigned int const lda, unsigned int const ldb,
+  unsigned int const M, unsigned int const N, unsigned int const K );
+
+
 class Timer {
 public:
-  Timer::Timer() {
+  Timer() {
 #ifdef WIN32
     QueryPerformanceFrequency( &frequency );
 #else
@@ -43,7 +70,7 @@ public:
 #endif
   }
 
-  void Timer::start() {
+  void start() {
 #ifdef WIN32
     QueryPerformanceCounter( &startTime );
 #else
@@ -52,14 +79,14 @@ public:
   }
 
   // returns elapsed time in seconds
-  double Timer::elapsed_sec() {
+  double elapsed_sec() {
     return elapsed_us() / 1000000.0;
   }
   // returns elapsed time in seconds
-  double Timer::elapsed_ms() {
+  double elapsed_ms() {
     return elapsed_us() / 1000.0;
   }
-  double Timer::elapsed_us() {
+  double elapsed_us() {
     double elapsed_us;
 #ifdef WIN32
     LARGE_INTEGER currentTime;
@@ -84,31 +111,11 @@ private:
 #endif
 };
 
-void sgemm_NT(
-  bool transA, bool transB,
-  float  *C, float  *A, float  *B,
-  float const alpha, float const beta,
-  unsigned int const ldc, unsigned int const lda, unsigned int const ldb,
-  unsigned int const M, unsigned int const N, unsigned int const K );
 
-cl_int status;
-#define CHECK(STATUS) \
-  do { \
-    cl_int tmp_status = STATUS; \
-    if (tmp_status != CL_SUCCESS) { \
-      fprintf(stderr, "error: (%d) at %s:%d\n", tmp_status, __FILE__, __LINE__); \
-    } \
-  } while(false);
 
-void makeKernel(
-    cl_kernel *kernel,
-    cl_command_queue queue,
-    const char *kernelSource,
-    const char *sourceBuildOptions);
-
-#endif
 
 // these need to agree with kernel
+#if Cobalt_BACKEND_OPENCL12
 #define DATA_TYPE_STR_A     float
 #define DATA_TYPE_STR_B     float
 #define DATA_TYPE_STR_C     float
@@ -120,6 +127,8 @@ void makeKernel(
 #define MICRO_TILE_1J       6
 #define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
 #define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
+#endif
+
 #if VALIDATE
 const unsigned int M = 4*96;
 const unsigned int N = 3*96;
@@ -253,6 +262,10 @@ int main( int argc, char *argv[] ) {
   size_t globalSize[3] = { ((size0C+MACRO_TILE_0I-1)/MACRO_TILE_0I)*WG_DIM_0I, ((size1C+MACRO_TILE_1J-1)/MACRO_TILE_1J)*WG_DIM_1J, 1 };  
 #endif
 
+
+  Timer timer;
+  timer.start();
+
   // enqueue kernel
 #if Cobalt_BACKEND_HIP
   printf("enqueueing hip kernel block=%ux%u, work-group=%ux%u\n",blocks.x, blocks.y, workGroup.x, workGroup.y);
@@ -277,7 +290,7 @@ int main( int argc, char *argv[] ) {
       N,
       K );
 #else
-  printf("enqueueing opencl kernel global=%llux%llu, local=%llux%llu\n", globalSize[0], globalSize[1], localSize[0], localSize[1]);
+  printf("enqueueing opencl kernel global=%ux%u, local=%ux%u\n", (unsigned int)globalSize[0], (unsigned int)globalSize[1], (unsigned int)localSize[0], (unsigned int)localSize[1]);
   cl_uint argIdx = 0;
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dC ); )
 #if SWITCH_AB
@@ -300,8 +313,6 @@ int main( int argc, char *argv[] ) {
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
-  Timer timer;
-  timer.start();
   for (unsigned int i = 0; i < numEnqueues; i++) {
     clEnqueueNDRangeKernel(queue, kernel_opencl,
         2, // num dims
@@ -359,7 +370,7 @@ int main( int argc, char *argv[] ) {
   }
 #endif
   if (numInvalid) {
-    printf("FAILED validation (%llu errors)\n", numInvalid);
+    printf("FAILED validation (%u errors)\n", (unsigned int)numInvalid);
   } else {
     printf("PASSED validation\n");
   }
