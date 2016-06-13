@@ -60,6 +60,24 @@ class DataType:
     else:
       return "ERROR(" + str(self.value) + ")"
 
+  def toHIP(self):
+    if self.value == self.single:
+      return "float"
+    elif self.value == self.double:
+      return "double"
+    elif self.value == self.complexSingle or self.value == self.complexConjugateSingle:
+      return "float_2"
+    elif self.value == self.complexDouble or self.value == self.complexConjugateDouble:
+      return "double_2"
+    else:
+      return "ERROR(" + str(self.value) + ")"
+
+  def toDevice(self, backend):
+    if backend.isOpenCL():
+      return self.toOpenCL()
+    else:
+      return self.toHIP()
+
   def toCpp(self):
     if self.value == self.single:
       return "float"
@@ -109,6 +127,17 @@ class DataType:
     zeroString += ")"
     return zeroString
 
+  def zeroStringHIP(self):
+    zeroString = ""
+    zeroString += self.toHIP()
+    zeroString += "("
+    if self.isReal():
+      zeroString += "0.0"
+    else:
+      zeroString += "0.0, 0.0"
+    zeroString += ")"
+    return zeroString
+
   def isReal(self):
     if self.value == self.half or self.value == self.single or self.value == self.double:
       return True
@@ -123,6 +152,13 @@ class DataType:
       return True
     else:
       return False
+
+  def isDouble(self):
+    if self.value == self.double or self.value == self.complexDouble or self.value == self.complexConjugateDouble:
+      return True
+    else:
+      return False
+
 
   def numRegisters( self ):
     if self.value == self.single:
@@ -238,6 +274,12 @@ class Backend:
       return "HIP"
     else:
       return "ERROR"
+
+  def isHIP(self):
+    return self.value == self.hip
+
+  def isOpenCL(self):
+    return self.value == self.opencl12
 
   def __repr__(self):
     return self.__str__()
@@ -777,6 +819,7 @@ class Kernel:
     self.unrollDimSize = -1
     self.unrollDimStrideGreaterThanTileDimStrideA = False
     self.unrollDimStrideLessThanTileDimStrideB = False
+    self.transposeWorkGroupOrder = False
 
     # a kernel holds a copy of the problem so it can #define strides if necessary
     self.problem = Problem()
@@ -784,6 +827,10 @@ class Kernel:
     # Tile
     self.tile = Tile()
     self.unrolls = []
+    # number of A loads parallel to coalesced dimension
+    self.numLoadsA = -1
+    # number of B loads parallel to coalesced dimension
+    self.numLoadsB = -1
 
     # Pre-Processor definition optimizations
     self.ppdOffsets = False # offsets are #defined and not arguments
@@ -796,13 +843,14 @@ class Kernel:
     state += "; " + str(self.dataTypeC)
     state += "; " + str(self.dataTypeA)
     state += "; " + str(self.dataTypeB)
-    state += "; " + str(self.operation)
     state += "; " + str(self.indexOrderC)
     state += "; " + str(self.indexOrderSummation)
     state += "; " + str(self.indexAssignmentDim0)
     state += "; " + str(self.indexAssignmentDim1)
     state += "; " + str(self.tile)
     state += "; " + str(self.unrolls)
+    state += "; " + str(self.numLoadsA)
+    state += "; " + str(self.numLoadsB)
     state += "]"
     return state
 
@@ -818,11 +866,15 @@ class Kernel:
         tuple(self.indexOrderSummation), \
         self.indexAssignmentDim0, \
         self.indexAssignmentDim1, \
+        self.unrollDimStrideGreaterThanTileDimStrideA, \
+        self.unrollDimStrideLessThanTileDimStrideB, \
         self.tile, \
         tuple(self.unrolls), \
         self.ppdOffsets, \
         self.ppdLeadingStride, \
-        self.ppdAll
+        self.ppdAll, \
+        self.numLoadsA, \
+        self.numLoadsB
         )
   def __hash__(self):
     return hash(self.getAttributes())

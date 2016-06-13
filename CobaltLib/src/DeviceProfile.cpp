@@ -1,6 +1,6 @@
 #include "DeviceProfile.h"
 #include "StructOperations.h"
-
+#include <sstream>
 namespace Cobalt {
 
 /*******************************************************************************

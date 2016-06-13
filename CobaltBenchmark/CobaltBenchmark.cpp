@@ -6,7 +6,7 @@
 #endif
 
 #ifdef _CRTDBG_MAP_ALLOC
-#include <stdlib.h>
+#include <cstdlib>
 #include <crtdbg.h>
 #ifndef DBG_NEW
 #define DBG_NEW new ( _NORMAL_BLOCK , __FILE__ , __LINE__ )
@@ -27,6 +27,7 @@ _CrtMemState s3;
 #include "MathTemplates.h"
 
 #include <tuple>
+#include <string>
 #include <cstring>
 #include <cstdio>
 
@@ -36,11 +37,11 @@ Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
 Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
-//#define MAX_PROBLEMS 16
-//#define MAX_SOLUTIONS_PER_PROBLEM 16
+//#define MAX_PROBLEMS 1
+//#define MAX_SOLUTIONS_PER_PROBLEM 1
 
-// alpha = 2
-// beta = 2
+#define ALPHA 1
+#define BETA  0
 
 /*******************************************************************************
  * main
@@ -49,12 +50,13 @@ int main( int argc, char *argv[] ) {
 #ifdef _CRTDBG_MAP_ALLOC
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
 #endif
+  srand(4123570);
   // parse commandline options
   parseCommandLineOptions(argc, argv);
 
   // setup CobaltLib
-  std::string logFilePath = CobaltBenchmark_DIR_SOLUTIONS;
-  logFilePath += "/CobaltBenchmark_log.xml";
+  std::string logFilePath = Cobalt_DIR_SOLUTIONS;
+  //logFilePath += "/CobaltBenchmark_log.xml";
   cobaltSetup(logFilePath.c_str());
 
   // create CobaltControl
@@ -101,14 +103,22 @@ int main( int argc, char *argv[] ) {
     void *initialDataC = isFloatC ? initialTensorDataFloatC.data : initialTensorDataDoubleC.data;
     void *initialDataA = isFloatA ? initialTensorDataFloatA.data : initialTensorDataDoubleA.data;
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
-    CobaltScalarData alpha;
-    alpha.data = isFloatAlpha ? alphaFloat.data : isDoubleAlpha ? alphaDouble.data : nullptr;
-    CobaltScalarData beta;
-    beta.data = isFloatBeta ? betaFloat.data : isDoubleBeta ? betaDouble.data : nullptr; 
+    CobaltScalarData alpha{ isFloatAlpha ? static_cast<void*>(alphaFloat)
+        : isDoubleAlpha ? static_cast<void*>(alphaDouble) : nullptr };
+    CobaltScalarData beta{ isFloatBeta ? static_cast<void*>(betaFloat)
+        : isDoubleBeta ? static_cast<void*>(betaDouble) : nullptr };
 
     // re-initialize device input buffers
+#if Cobalt_BACKEND_OPENCL12
     clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
     clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
+#elif Cobalt_BACKEND_HIP
+    status = hipMemcpy( deviceTensorDataA.data, initialDataA,
+        sizeA, hipMemcpyHostToDevice );
+    status = hipMemcpy( deviceTensorDataB.data, initialDataB,
+        sizeB, hipMemcpyHostToDevice );
+    status = hipStreamSynchronize(nullptr);
+#endif
 
     // calculate reference C once for problem
     if (doValidation) {
@@ -120,8 +130,8 @@ int main( int argc, char *argv[] ) {
 
       // re-initialize reference buffers
       memcpy(referenceTensorDataC.data, initialDataC, sizeC);
-      referenceTensorDataA.data = initialDataA;
-      referenceTensorDataB.data = initialDataB;
+      CobaltTensorDataConst referenceTensorDataA{ initialDataA, 0 };
+      CobaltTensorDataConst referenceTensorDataB{ initialDataB, 0 };
 
       // enqueue reference solution
       printf("Status: Enqueueing reference for %s ...", problem->pimpl->toString().c_str());
@@ -154,43 +164,71 @@ int main( int argc, char *argv[] ) {
       // get solution candidate
       Cobalt::Solution *solution = solutionCandidates[ solutionIdx ];
 
+      //for (unsigned int j = 0; j < 4; j++) {
       if (doValidation) {
         // re-initialize device buffers
-        clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataC.data), CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC, 0, nullptr, nullptr);
-        clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
-        clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
+#if Cobalt_BACKEND_OPENCL12
+        clEnqueueWriteBuffer(ctrl.queues[0],
+            static_cast<cl_mem>(deviceTensorDataC.data),
+            CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC,
+            0, nullptr, nullptr);
+        clEnqueueWriteBuffer(ctrl.queues[0],
+            static_cast<cl_mem>(deviceTensorDataA.data),
+            CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA,
+            0, nullptr, nullptr);
+        clEnqueueWriteBuffer(ctrl.queues[0],
+            static_cast<cl_mem>(deviceTensorDataB.data),
+            CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB,
+            0, nullptr, nullptr);
         clFinish(ctrl.queues[0]);
+#elif Cobalt_BACKEND_HIP
+        status = hipMemcpy( deviceTensorDataC.data, initialDataC,
+            sizeC, hipMemcpyHostToDevice );
+        status = hipMemcpy( deviceTensorDataA.data, initialDataA,
+            sizeA, hipMemcpyHostToDevice );
+        status = hipMemcpy( deviceTensorDataB.data, initialDataB,
+            sizeB, hipMemcpyHostToDevice );
+        status = hipStreamSynchronize(nullptr);
+#endif
       }
-      // ensure kernels are compiled before timing
       // for validation ctrl.benchmark = 0; 1 call to enqueueEntry below
-      ctrl.benchmark = 4; // 5;
-      unsigned int numSamples = 1; // 4;
+      ctrl.benchmark = 1;
+      unsigned int numSamples = 1;
       if (doValidation) {
-        ctrl.benchmark = 0;
+        //ctrl.benchmark = 0;
         numSamples = 1;
       }
+      CobaltTensorDataConst constA{ deviceTensorDataA.data,
+          deviceTensorDataA.offset };
+      CobaltTensorDataConst constB{ deviceTensorDataB.data,
+          deviceTensorDataB.offset };
       for (unsigned int s = 0; s < numSamples; s++) {
         solution->enqueueEntry(
             deviceTensorDataC,
-            deviceTensorDataA,
-            deviceTensorDataB,
+            constA,
+            constB,
             alpha,
             beta,
             ctrl );
       }
       if (doValidation) {
         for (unsigned int i = 0; i < ctrl.numQueues; i++) {
+#if Cobalt_BACKEND_OPENCL12
           status = clFinish(ctrl.queues[i]);
+#elif Cobalt_BACKEND_HIP
+          status = hipStreamSynchronize(ctrl.queues[i]);
+#endif
           CL_CHECK(status)
         }
       }
+      //}
 
 #if 0
       // peek at gpu result
       status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)deviceTensorDataC.data, CL_TRUE, deviceTensorDataC.offset, sizeC, deviceTensorDataOnHostC.data, 0, nullptr, nullptr);
       CL_CHECK(status)
       status = clFinish(ctrl.queues[0]);
-      CL_CHECK(status)
+      CL_CHECK(status
 
         // print gpu in tensor form
         printf("\nTensorC-GPU:\n");
@@ -284,16 +322,23 @@ void initTensorData() {
   printf("."); fillTensor( initialTensorDoubleA, initialTensorDataDoubleA, tensorFillTypeA, nullptr);
   printf("."); fillTensor( initialTensorDoubleB, initialTensorDataDoubleB, tensorFillTypeB, nullptr);
   printf("."); 
-  // device tensor data; max sized; initial data get clWriteBuffer each time
+
+#if Cobalt_BACKEND_OPENCL12
   deviceTensorDataC.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status));
+  deviceTensorDataA.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxA, nullptr, &status));
+  deviceTensorDataB.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxB, nullptr, &status));
+#elif Cobalt_BACKEND_HIP
+  status = hipMalloc( &deviceTensorDataC.data, tensorSizeMaxC );
+  status = hipMalloc( &deviceTensorDataA.data, tensorSizeMaxA );
+  status = hipMalloc( &deviceTensorDataB.data, tensorSizeMaxB );
+#endif
+
   deviceTensorDataC.offset = 0;
   deviceTensorDataOnHostC.data = malloc(tensorSizeMaxC);
   deviceTensorDataOnHostC.offset = 0;
-  deviceTensorDataA.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxA, nullptr, &status));
   deviceTensorDataA.offset = 0;
   deviceTensorDataOnHostA.data = malloc(tensorSizeMaxA);
   deviceTensorDataOnHostA.offset = 0;
-  deviceTensorDataB.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxB, nullptr, &status));
   deviceTensorDataB.offset = 0;
   deviceTensorDataOnHostB.data = malloc(tensorSizeMaxB);
   deviceTensorDataOnHostB.offset = 0;
@@ -301,30 +346,24 @@ void initTensorData() {
   // reference tensor data
   referenceTensorDataC.data = malloc(tensorSizeMaxC);
   referenceTensorDataC.offset = 0;
-  referenceTensorDataA.data = nullptr;
-  referenceTensorDataA.offset = 0;
-  referenceTensorDataB.data = nullptr;
-  referenceTensorDataB.offset = 0;
 
   // scalars
-  alphaFloat.data = new float[2];
-  static_cast<float *>(alphaFloat.data)[0] = 2.f;
-  static_cast<float *>(alphaFloat.data)[1] = 2.f;
-  //alphaFloat.dataType = cobaltDataTypeComplexSingle;
-  betaFloat.data = new float[2];
-  static_cast<float *>(betaFloat.data)[0] = 2.f;
-  static_cast<float *>(betaFloat.data)[1] = 2.f;
-  alphaDouble.data = new double[2];
-  static_cast<double *>(alphaDouble.data)[0] = 2.0;
-  static_cast<double *>(alphaDouble.data)[1] = 2.0;
-  betaDouble.data = new double[2];
-  static_cast<double *>(betaDouble.data)[0] = 2.0;
-  static_cast<double *>(betaDouble.data)[1] = 2.0;
+  alphaFloat = new float[2];
+  alphaFloat[0] = ALPHA;
+  alphaFloat[1] = ALPHA;
+  betaFloat = new float[2];
+  betaFloat[0] = BETA;
+  betaFloat[1] = BETA;
+  alphaDouble = new double[2];
+  alphaDouble[0] = ALPHA;
+  alphaDouble[1] = ALPHA;
+  betaDouble = new double[2];
+  betaDouble[0] = BETA;
+  betaDouble[1] = BETA;
   printf("done.\n");
 }
 
 void destroyTensorData() {
-
 
   delete[] static_cast<float *>(initialTensorDataFloatC.data);
   delete[] static_cast<float *>(initialTensorDataFloatA.data);
@@ -338,16 +377,21 @@ void destroyTensorData() {
   delete[] static_cast<float *>(deviceTensorDataOnHostB.data);
   delete[] static_cast<float *>(referenceTensorDataC.data);
 
+  delete[] alphaFloat;
+  delete[] betaFloat;
+  delete[] alphaDouble;
+  delete[] betaDouble;
 
+#if Cobalt_BACKEND_OPENCL12
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataC.data));
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataA.data));
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataB.data));
+#elif Cobalt_BACKEND_OPENCL12
+  hipFree(deviceTensorDataC.data);
+  hipFree(deviceTensorDataA.data);
+  hipFree(deviceTensorDataB.data);
+#endif
 
-
-  delete[] static_cast<float *>(alphaFloat.data);
-  delete[] static_cast<float *>(betaFloat.data);
-  delete[] static_cast<double *>(alphaDouble.data);
-  delete[] static_cast<double *>(betaDouble.data);
 }
 
 void fillTensor(CobaltTensor inputTensor, CobaltTensorData tensorData, Cobalt::Tensor::FillType fillType, void *src) {
@@ -356,6 +400,7 @@ void fillTensor(CobaltTensor inputTensor, CobaltTensorData tensorData, Cobalt::T
 }
 
 void initControls() {
+#if Cobalt_BACKEND_OPENCL12
   // setup opencl objects
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
   platforms = new cl_platform_id[numPlatforms];
@@ -372,6 +417,15 @@ void initControls() {
   for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
     ctrl.queues[ctrl.numQueues] = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   }
+#elif Cobalt_BACKEND_HIP
+  status = hipGetDeviceCount( &numDevices );
+  device = 0;
+  status = hipSetDevice( device );
+  ctrl = cobaltCreateEmptyControl();
+  for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
+    status = hipStreamCreate( &ctrl.queues[ctrl.numQueues] );
+  }
+#endif
 
   // host control
   ctrlValidation = cobaltCreateEmptyControl();
@@ -382,16 +436,23 @@ void initControls() {
 }
 
 void destroyControls() {
+
+#if Cobalt_BACKEND_OPENCL12
   for (unsigned int i = 0; i < ctrl.numQueues; i++) {
     clReleaseCommandQueue(ctrl.queues[i]);
   }
   clReleaseContext(context);
-
   for (unsigned int i = 0; i < numDevices; i++) {
     clReleaseDevice(devices[i]);
   }
   delete[] devices;
   delete[] platforms;
+#elif Cobalt_BACKEND_HIP
+  for (unsigned int i = 0; i < ctrl.numQueues; i++) {
+    hipStreamDestroy(ctrl.queues[i]);
+  }
+#endif
+
 }
 
 void parseCommandLineOptions(int argc, char *argv[]) {

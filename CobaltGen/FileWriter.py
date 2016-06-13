@@ -92,7 +92,7 @@ class FileWriter:
           + kernelSourceFileName + "\n")
       kernelsCMakeFile.write( "  " + kernelFilePath \
           + kernelHeaderFileName + "\n")
-      allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\r")
+      allKernelsHeaderFile.write( "#include \"" + kernelHeaderFileName + "\"\n")
 
     kernelsCMakeFile.write(")\n")
     if self.forBenchmark:
@@ -277,9 +277,9 @@ class FileWriter:
         s += "  indexAssignmentsB[" + str(i) + "] = " \
             + str(problem.operation.indexAssignmentsB[i]) + ";\n"
       s += "\n"
-      s += "  CobaltStatus status;\n"
       # store problem
-      s += "  *problem = cobaltCreateProblem(\n"
+      s += "  CobaltStatus status = cobaltCreateProblem(\n"
+      s += "      problem,\n"
       s += "      tensorC,\n"
       s += "      tensorA,\n"
       s += "      tensorB,\n"
@@ -289,8 +289,7 @@ class FileWriter:
       s += "      alphaType,\n"
       s += "      betaType,\n"
       s += "      useOffsets,\n"
-      s += "      deviceProfile,\n"
-      s += "      &status);\n"
+      s += "      deviceProfile);\n"
       s += "\n"
 
       for i in range(0,numSolutions):
@@ -329,8 +328,9 @@ class FileWriter:
       h += "#ifndef " + problemFileNameBase.upper() + "_H\n"
       h += "#define " + problemFileNameBase.upper() + "_H\n"
       h += "\n"
-      h += "//#include \"Cobalt.h\"\n"
-      h += "//#include \"Solution.h\"\n"
+      h += "#include \"Cobalt.h\"\n"
+      h += "#include \"Solution.h\"\n"
+      h += "#include <vector>\n"
       h += "\n"
       for i in range(0,numSolutions):
         h += "#include \""+ self.solutionWriter.getName(solutionList[i]) + ".h\"\n"
@@ -348,6 +348,7 @@ class FileWriter:
     benchmarkSourceFile = open(benchmarkSourcePath, "w")
     s = ""
     s += "#include \"CobaltSolutionCandidates.h\"\n"
+    s += "#include <cstdio>\n"
     s += "\n"
     # include candidates
     for problemIdx in range(0,numProblems):
@@ -369,7 +370,7 @@ class FileWriter:
       s += "    break;\n"
 
     s += "  default:\n"
-    s += "    printf(\"Oops\\n\");\n"
+    s += "    printf(\"Oops: index too large.\\n\");\n"
     s += "  }\n"
     s += "}\n"
     benchmarkSourceFile.write(s)
@@ -383,9 +384,12 @@ class FileWriter:
     h = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#define COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#include \"Cobalt.h\"\n"
+    h += "#include \"Solution.h\"\n"
     h += "#include \"CobaltSolutions.h\"\n"
     h += "#include <vector>\n"
-    h += "#include \"CL/cl.h\"\n"
+    #if self.backend.isOpenCL():
+    #  h += "#include \"CL/cl.h\"\n"
+    
     h += "\n"
     h += "const size_t numProblems = " + str(numProblems) + ";\n"
     h += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
@@ -405,8 +409,16 @@ class FileWriter:
     templateInstantiationsFile = open(templateInstantiationsPath, "w")
     templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
     for templateInstantiationStr in templateInstantiationSet:
-      templateInstantiationsFile.write("template class Cobalt::SolutionOpenCL" \
+      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
           +templateInstantiationStr + ";\n")
+      if self.backend.isOpenCL():
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionOpenCL" \
+            +templateInstantiationStr + ";\n")
+      else:
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionHIP" \
+            +templateInstantiationStr + ";\n")
 
 
     # write CobaltBenchmark.cmake
@@ -449,17 +461,20 @@ class FileWriter:
     fileString += "\n"
     fileString += "#include \"" + kernelName + ".h\"\n"
     fileString += "\n"
-    fileString += "cl_kernel " + kernelName + "_kernel = nullptr;\n"
-    #fileString += "// const size_t %s_workGroup[3] = { %u, %u, 1 };\n" \
-    #    % (kernelName, kernel.tile.workGroup[0], kernel.tile.workGroup[1] )
-    #fileString += "// const size_t %s_microTile[2] = { %u, %u };\n" \
-    #    % (kernelName, kernel.tile.microTile[0], kernel.tile.microTile[0] )
-    #fileString += "// const size_t %s_unroll = %u;\n" \
-    #    % (kernelName, kernel.unrolls[len(kernel.unrolls)-1])
+    #fileString += "cl_kernel " + kernelName + "_kernel = nullptr;\n"
+
+    # backend pre
     fileString += "\n"
-    fileString += "const char * const %s_src =\"" % (kernelName)
+    if self.backend.isOpenCL():
+      fileString += "const char * const %s_src =\"" % (kernelName)
+
+    # write kernel body
     fileString += self.kernelWriter.getBody( kernel )
-    fileString += "\";\n"
+
+    # backend post
+    if self.backend.isOpenCL():
+      fileString += "\";\n"
+
     fileString += "\n"
     fileString += "#else\n"
     fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
@@ -477,14 +492,16 @@ class FileWriter:
     #fileString += Common.getFileHeader()
     fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
-    fileString += "#include \"CL/cl.h\"\n"
     fileString += "\n"
-    fileString += "extern const size_t %s_workGroup[3];\n" % kernelName
-    fileString += "extern const size_t %s_microTile[2];\n" % kernelName
-    fileString += "extern const size_t %s_unroll;\n" \
-        % (kernelName)
-    fileString += "extern const char * const %s_src;\n" % kernelName
-    fileString += "extern cl_kernel %s_kernel;\n" % kernelName
+    if self.backend.isHIP():
+      fileString += "#include <hip_runtime.h>\n"
+      fileString += "\n"
+    if self.backend.isOpenCL():
+      fileString += "extern const char * const %s_src;\n" % kernelName
+    else:
+      fileString += self.kernelWriter.getSignature(kernel)
+      fileString += ";\n"
+
     fileString += "#endif\n"
     return fileString
 
@@ -522,6 +539,9 @@ class FileWriter:
       sslHeaderFile.close()
 
       for exactMatch, problemSolutionPairs in exactMatches.iteritems():
+        # only support this exact match if some benchmark times existed
+        # otherwise none of the other files for it will have been written
+
         baseName = "CobaltGetSolution_" + exactMatch.libString()
 
         # (7) Write CSV for verification

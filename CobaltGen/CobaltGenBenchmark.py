@@ -47,7 +47,7 @@ def GenBenchmarkFromFiles( \
   ##############################################################################
   # (2) list candidate solutions for each problem
   solutionCandidateGenerator = \
-      SolutionCandidateGenerator.SolutionCandidateGenerator(optimizeAlpha, optimizeBeta)
+      SolutionCandidateGenerator.SolutionCandidateGenerator(optimizeAlpha, optimizeBeta, backend )
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = [] # problems and associated solution candidates
@@ -66,8 +66,15 @@ def GenBenchmarkFromFiles( \
 
     benchmarkList.append( [problem, solutionCandidates] )
     totalSolutions += len(solutionCandidates)
+    # print solutionCandidates
     for solution in solutionCandidates:
+      # for s in allSolutions:
+        # if s == solution:
+        #   print "match"
+        #   print s
+        #   print solution
       allSolutions.add( solution )
+      # print len(allSolutions)
     kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
     for kernel in kernelsInSolutionCandidates:
       if kernel != None:
@@ -117,7 +124,11 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "\nCobaltGenBenchmark[ " + str(backend) + " ] " + str(inputFiles)
+  print "\nCobaltGenBenchmark:"
+  print "  backend=" + str(backend)
+  print "  outputPath=" + args.outputPath
+  print "  inputPath=" + args.inputPath
+  print "  inputFiles=" + str(inputFiles)
 
   # generate benchmark
   GenBenchmarkFromFiles( \

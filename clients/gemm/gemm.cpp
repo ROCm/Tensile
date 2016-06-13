@@ -27,59 +27,29 @@ CobaltProblem createProblemGEMM(
   );
 
 
-const size_t sgemmSizeBoundsSize = 6;
-const size_t sgemmSizeBounds[][2] = {
-  {16 * 1, 1536},
-  {16 * 2, 2048},
-  {16 * 3, 2048},
-  {16 * 4, 3072},
-  {16 * 5, 3072},
-  {16 * 6, 4096} };
-
-#if 0
-  sgemm
-  16*1, 0, 1.5k
-  16*2, 0, 2k
-  16*3, 0, 2k
-  16*4, 0, 3k
-  16*5, 0, 3k
-  16*6, 0, 4k
-
-  dgemm
-  16*1, 0, 1.5k
-  16*2, 0, 3k
-  16*3, 0, 4k
-  16*4, 0, 5k
-  16*5, 0, 4k
-
-  cgemm
-  16*1, 0, 1k
-  16*2, 0, 2.5k
-  16*3, 0, 3k
-  16*4, 0, 4k
-  16*5, 0, 4k
-  16*6, 0, 4k
-
-  zgemm
-  16*1,2,3,4, 0, 3k
-  
-#endif
-
 /*******************************************************************************
  * main
  ******************************************************************************/
 int main( int argc, char * argv[] ) {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 1
-  for (size_t i = 16; i <= 1024; i+= 16) {
+#if 0
+  for (size_t i = 16; i <= 208; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       //sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       //sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
-      sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
+      //sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
-  //sizes.push_back( {128, 128, 128 });
+  //sizes.push_back( {5760, 5760, 5760 });
+  //sizes.push_back( {384, 384, 384 });
+  //sizes.push_back( {384-1, 384-1, 384 });
+  //sizes.push_back( {64, 64, 64});
+  sizes.push_back( {96*3  , 96*2  , 96*1  });
+  sizes.push_back( {96*3  , 96*2  , 96*1-1});
+  sizes.push_back( {96*3-1, 96*2-1, 96*1  });
+  sizes.push_back( {96*3-1, 96*2-1, 96*1-1});
+  //sizes.push_back( {64, 64, 64});
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -105,16 +75,16 @@ int main( int argc, char * argv[] ) {
   const bool alphas[] = { true, false };
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
-  const size_t numTransA = 1;
+  const size_t numTransA = 2;
   const bool transAs[] = {false, true};
-  const size_t numTransB = 1;
+  const size_t numTransB = 2;
   const bool transBs[] = {true, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
 
   size_t numProblems = 0;
-  std::string logFilePath = CobaltBenchmark_DIR_PROBLEMS;
-  logFilePath += "/GEMM_log.xml";
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  //logFilePath += "/GEMM_log.xml";
   cobaltSetup(logFilePath.c_str());
   for (size_t transA = 0; transA < numTransA; transA++) {
     for (size_t transB = 0; transB < numTransB; transB++) {
@@ -152,9 +122,8 @@ int main( int argc, char * argv[] ) {
                     //char *nameStr = new char[nameSize];
                     //cobaltProblemToString(problem, nameStr, &nameSize);
                     //delete[] nameStr;
-                    
-                    CobaltStatus status;
-                    CobaltSolution solution = cobaltGetSolutionForProblem( problem, &status );
+                    CobaltSolution solution;
+                    CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
 
 
                     numProblems++;
@@ -240,8 +209,10 @@ CobaltProblem createProblemGEMM(
   sprintf(deviceProfile.devices[0].name, "Fiji" );
 
 
-  CobaltStatus status;
-  CobaltProblem problem = cobaltCreateProblem(
+  
+  CobaltProblem problem;
+  CobaltStatus status = cobaltCreateProblem(
+      &problem,
       tensorC,
       tensorA,
       tensorB,
@@ -251,8 +222,7 @@ CobaltProblem createProblemGEMM(
       alphaType,
       betaType,
       useOffsets,
-      deviceProfile,
-      &status );
+      deviceProfile );
   cobaltStatusCheck(status);
   unsigned int problemStringSize;
   cobaltProblemToString(problem, nullptr, &problemStringSize);

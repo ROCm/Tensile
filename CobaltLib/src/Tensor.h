@@ -37,9 +37,9 @@ public:
       void *src) const;
 
   template<typename T>
-  std::string toStringTemplate( CobaltTensorData tensorData ) const;
+  std::string toStringTemplate( CobaltTensorDataConst tensorData ) const;
 
-  std::string toString( CobaltTensorData tensorData ) const;
+  std::string toString( CobaltTensorDataConst tensorData ) const;
 
 protected:
   CobaltDataType dataType;
@@ -56,8 +56,8 @@ bool compareTensorsTemplate(
 
 
 bool compareTensors(
-  CobaltTensorData gpu,
-  CobaltTensorData cpu,
+  CobaltTensorDataConst gpu,
+  CobaltTensorDataConst cpu,
   Cobalt::Tensor tensor,
   CobaltControl ctrl);
 

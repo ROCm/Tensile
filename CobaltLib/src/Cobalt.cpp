@@ -5,8 +5,10 @@
 #include "SolutionTensorContractionCPU.h"
 
 #include <assert.h>
-#include <stdio.h>
+#include <cstdio>
+#include <string>
 #include <cstring>
+#include <algorithm>
 
 #if Cobalt_SOLVER_ENABLED
 #include "CobaltGetSolution.h"
@@ -16,31 +18,11 @@
 Cobalt::Logger Cobalt::logger;
 
 
-
-
-/*******************************************************************************
- * cobaltStatusIsValidationError
- ******************************************************************************/
-bool cobaltStatusIsError( CobaltStatus status ) {
-  return status < cobaltStatusValidationErrorMax
-      && status > cobaltStatusValidationErrorMin;
-}
-
-
-/*******************************************************************************
- * cobaltStatusIsPerformanceWarning
- ******************************************************************************/
-bool cobaltStatusIsWarning( CobaltStatus status ) {
-  return status < cobaltStatusPerformanceWarningMax
-      && status > cobaltStatusPerformanceWarningMin;
-}
-
-
 /*******************************************************************************
  * cobaltSetup()
  ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFileName ) {
-  Cobalt::logger.init(logFileName);
+CobaltStatus cobaltSetup( const char *logFilePath ) {
+  Cobalt::logger.init(logFilePath);
   return cobaltStatusSuccess;
 }
 
@@ -50,6 +32,7 @@ CobaltStatus cobaltSetup( const char *logFileName ) {
  ******************************************************************************/
 CobaltStatus cobaltTeardown() {
 
+#if Cobalt_BACKEND_OPENCL12
   // delete kernels
   if (kernelMap) {
     unsigned int index = 0;
@@ -61,6 +44,7 @@ CobaltStatus cobaltTeardown() {
     delete kernelMap;
     kernelMap = nullptr;
   }
+#endif
 
   return cobaltStatusSuccess;
 }
@@ -122,7 +106,8 @@ CobaltControl cobaltCreateEmptyControl() {
 /*******************************************************************************
  * cobaltCreateProblem
  ******************************************************************************/
-CobaltProblem cobaltCreateProblem(
+CobaltStatus cobaltCreateProblem(
+    CobaltProblem *problem,
     CobaltTensor tensorC,
     CobaltTensor tensorA,
     CobaltTensor tensorB,
@@ -132,8 +117,7 @@ CobaltProblem cobaltCreateProblem(
     CobaltDataType alphaType,
     CobaltDataType betaType,
     bool useOffsets,
-    CobaltDeviceProfile deviceProfile,
-    CobaltStatus *status ) {
+    CobaltDeviceProfile deviceProfile ) {
 
   try {
     Cobalt::Problem *problemPtr = new Cobalt::Problem(
@@ -147,13 +131,12 @@ CobaltProblem cobaltCreateProblem(
         betaType,
         useOffsets,
         deviceProfile );
-    *status = cobaltStatusSuccess;
-    CobaltProblem problem = new _CobaltProblem();
-    problem->pimpl = problemPtr;
-    return problem;
+    (*problem) = new _CobaltProblem();
+    (*problem)->pimpl = problemPtr;
+    return cobaltStatusSuccess;
   } catch ( CobaltStatus errorStatus ) {
-    *status = errorStatus;
-    return nullptr;
+    (*problem) = nullptr;
+    return errorStatus;
   }
 
 };
@@ -169,13 +152,13 @@ CobaltStatus cobaltDestroyProblem( CobaltProblem problem ) {
       return cobaltStatusSuccess;
     }
   }
-  return cobaltStatusParametersInvalid;
+  return cobaltStatusInvalidParameter;
 }
 
 
 CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
   if (problem == nullptr) {
-    return cobaltStatusProblemIsNull;
+    return cobaltStatusInvalidParameter;
   } else {
     return problem->pimpl->validate();
   }
@@ -185,45 +168,52 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
 /*******************************************************************************
  * cobaltGetSolutionForProblem
  ******************************************************************************/
-CobaltSolution cobaltGetSolutionForProblem(
-    CobaltProblem problem,
-    CobaltStatus *status ) {
+CobaltStatus cobaltGetSolutionForProblem(
+    CobaltSolution *solution,
+    CobaltProblem problem ) {
+
+  CobaltStatus status;
+
   Cobalt::Logger::TraceEntry entry;
   entry.type = Cobalt::Logger::TraceEntryType::getSolution;
-  CobaltSolution solution = new _CobaltSolution();
-
+  (*solution) = new _CobaltSolution();
   // cpu device
   if ( problem->pimpl->deviceIsReference() ) {
-    std::tie(solution->pimpl, *status) = Cobalt::getSolutionCPU( *(problem->pimpl) );
+    std::tie((*solution)->pimpl, status) = Cobalt::getSolutionCPU( *(problem->pimpl) );
 
   // gpu device
   } else {
 #if Cobalt_SOLVER_ENABLED
     //status = cobaltGetSolutionGenerated( problem, solution );
 #else
-    solution->pimpl = new Cobalt::SolutionLogOnly<void,void,void,void,void>(*(problem->pimpl));
-    *status = cobaltStatusSuccess;
+    (*solution)->pimpl = new Cobalt::SolutionLogOnly<void,void,void,void,void>(*(problem->pimpl));
+    status = cobaltStatusSuccess;
 #endif
   }
 
-  entry.solution = solution->pimpl;
-  entry.status = *status;
+  entry.solution = (*solution)->pimpl;
+  entry.status = status;
 
 #if Cobalt_LOGGER_ENABLED
   Cobalt::logger.log(entry);
 #endif
 
-  return solution;
+  return status;
 }
 
-CobaltStatus cobaltDestroySolution(CobaltSolution *solution) {
+CobaltStatus cobaltDestroySolution(CobaltSolution solution) {
   if (solution) {
-    delete solution;
-    solution = nullptr;
-    return cobaltStatusSuccess;
+    if (solution->pimpl) {
+      delete solution->pimpl;
+      delete solution;
+      solution = nullptr;
+      return cobaltStatusSuccess;
+    } else {
+      return cobaltStatusInvalidParameter;
+    }
   }
   else {
-    return cobaltStatusParametersInvalid;
+    return cobaltStatusInvalidParameter;
   }
 }
 
@@ -233,8 +223,8 @@ CobaltStatus cobaltDestroySolution(CobaltSolution *solution) {
 CobaltStatus cobaltEnqueueSolution(
     CobaltSolution solution,
     CobaltTensorData tensorDataC,
-    CobaltTensorData tensorDataA,
-    CobaltTensorData tensorDataB,
+    CobaltTensorDataConst tensorDataA,
+    CobaltTensorDataConst tensorDataB,
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl *ctrl ) {
@@ -264,8 +254,7 @@ CobaltStatus cppStringToCString(
     // do copy
     if (size) {
       // copy up to size
-      size_t lengthToCopy = std::min(*size-1 /* reserve space for null char*/,
-          (unsigned int)state.size());
+      size_t lengthToCopy = *size-1 < state.size() ? *size-1 : state.size();
       std::memcpy(cstr, state.c_str(), lengthToCopy);
       cstr[lengthToCopy] = '\0';
     } else {
@@ -280,7 +269,7 @@ CobaltStatus cppStringToCString(
       *size = (unsigned int) (state.size()+1); // include space for null char
     } else {
       // can't do anything
-      return cobaltStatusParametersInvalid;
+      return cobaltStatusInvalidParameter;
     }
   }
   return cobaltStatusSuccess;

@@ -9,34 +9,44 @@ import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
   if exactMatch.deviceProfile not in psMap:
-    print "XML Parser: adding %s" % exactMatch.deviceProfile.libString()
+    #print "XML Parser: b.adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
-    print "XML Parser: adding %s" % exactMatch.libString()
+    #print "XML Parser:   b.adding %s" % exactMatch.libString()
     psMap[exactMatch.deviceProfile][exactMatch] = {}
   if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    #print "XML Parser:     b.adding %s" % str(problem)
     psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
   if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    #print "XML Parser:       b.adding %s" % str(solution)
     psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
+  #print "XML Parser:       b.adding %f" % str(time)
   psMap[exactMatch.deviceProfile][exactMatch][problem][solution].times.append(time)
 
 def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus ):
-  if exactMatch not in psMap:
-    psMap[exactMatch] = {}
-  if problem not in psMap[exactMatch]:
-    psMap[exactMatch][problem] = {}
-  if solution not in psMap[exactMatch][problem]:
-    psMap[exactMatch][problem][solution] = Structs.SolutionBenchmark()
+  if exactMatch.deviceProfile not in psMap:
+    #print "XML Parser: v.adding %s" % exactMatch.deviceProfile.libString()
+    psMap[exactMatch.deviceProfile] = {}
+  if exactMatch not in psMap[exactMatch.deviceProfile]:
+    #print "XML Parser:   v.adding %s" % exactMatch.libString()
+    psMap[exactMatch.deviceProfile][exactMatch] = {}
+  if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    #print "XML Parser:     v.adding %s" % str(problem)
+    psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
+  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    #print "XML Parser:       v.adding %s" % str(solution)
+    psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
 
-  if psMap[exactMatch][problem][solution].validationStatus == 0:
-    psMap[exactMatch][problem][solution].validationStatus = validationStatus
-  elif psMap[exactMatch][problem][solution].validationStatus != validationStatus:
+  if psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus == 0:
+    psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus = validationStatus
+  elif psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus != validationStatus:
     print "ERROR: conflicting validation reports"
 
 ################################################################################
 # CobaltHandler
 ################################################################################
 class CobaltHandler( xml.sax.ContentHandler ):
+  dbgPrint = False
   def __init__(self, data, readSolutions):
     self.data = data
     self.readSolutions = readSolutions # read problems and solutions for GenBackend
@@ -52,6 +62,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
     self.solution = Structs.Solution()
 
   def startElement(self, tag, attributes):
+    if self.dbgPrint:
+      print "XML Parser: startElement(%s)" % tag
     if tag == "P": # DONE
       self.problem = Structs.Problem()
     elif tag == "TC": # DONE
@@ -125,6 +137,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].tile.workGroup = [int(attributes["wG0"]), int(attributes["wG1"])]
       self.solution.kernels[i].tile.microTile = [int(attributes["mT0"]), int(attributes["mT1"])]
       self.solution.kernels[i].tile.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
+      self.solution.kernels[i].numLoadsA = int(attributes["nlA"])
+      self.solution.kernels[i].numLoadsB = int(attributes["nlB"])
       self.solution.kernels[i].unrolls = [ int(attributes["u0"]) ]
       secondUnroll = int(attributes["u1"])
       if secondUnroll > 0:
@@ -151,10 +165,12 @@ class CobaltHandler( xml.sax.ContentHandler ):
       valid = 1 if attributes["s"] == "P" else -1
       exactMatch = Structs.ExactMatch()
       self.assignExactMatch(exactMatch)
-      addValidationToMap( self.data, exactMatch, self.problem, self.solution, valid )
+      addValidationToMap( self.data, exactMatch, copy.deepcopy(self.problem), copy.deepcopy(self.solution), valid )
 
 
   def endElement(self, tag):
+    if self.dbgPrint:
+      print "XML Parser: endElement(%s)" % tag
     if tag == "P": # DONE
       if self.readProblems:
         self.data.add(copy.deepcopy(self.problem))
@@ -207,10 +223,11 @@ def getSolutionsFromXML( inputFile, psMap ):
   readSolutions = True
   solutionsHandler = CobaltHandler(psMap, readSolutions)
   parser.setContentHandler( solutionsHandler )
-  try:
-    parser.parse( inputFile )
-  except:
-    print inputFile + " error"
+  #try:
+  #print "XML Parser: parsing %s" % str(inputFile)
+  parser.parse( inputFile )
+  #except:
+  #  print inputFile + " error"
   
 
 ################################################################################

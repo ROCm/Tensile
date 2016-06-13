@@ -3,7 +3,7 @@
 #include "Solution.h"
 #include <assert.h>
 #include <string>
-#include <stdio.h>
+#include <cstdio>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
@@ -20,9 +20,6 @@ std::string toString( CobaltStatus status ) {
     // success
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusSuccess )
   
-  /* cobaltValidateProblem() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemIsNull )
-
   // tensor errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionOrderInvalid )
@@ -32,36 +29,25 @@ std::string toString( CobaltStatus status ) {
   // operation errors
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperandNumDimensionsMismatch )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationOperandNumIndicesMismatch )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesMismatch )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidA )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidB )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateA )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumFreeIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumSummationIndicesInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexUnassigned )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationFreeIndexAssignmentsInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationBatchIndexAssignmentsInvalid )
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationSummationIndexAssignmentsInvalid )
 
-  // device profile errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileDeviceNameInvalid )
-
   /* cobaltGetSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported ) // purposefully not supported (real/complex mixed data types)
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotFound ) // should be supported but wasn't found
-
-  /* cobaltEnqueueSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusPerformanceWarningProblemSizeTooSmall )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNotSupported)
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported )
 
   /* control errors */
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusControlInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDependencyInvalid )
 
   /* misc */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusParametersInvalid )
+  COBALT_ENUM_TO_STRING_CASE( cobaltStatusInvalidParameter )
 
 
   default:
@@ -117,14 +103,14 @@ template<>
 std::string tensorElementToString<CobaltComplexFloat> ( CobaltComplexFloat element ) {
   std::ostringstream state;
   state.precision(3);
-  state << std::scientific << element.s[0] << ", " << element.s[1];
+  state << std::scientific << element.x << ", " << element.y;
   return state.str();
 }
 template<>
 std::string tensorElementToString<CobaltComplexDouble> ( CobaltComplexDouble element ) {
   std::ostringstream state;
   state.precision(3);
-  state << std::scientific << element.s[0] << ", " << element.s[1];
+  state << std::scientific << element.x << ", " << element.y;
   return state.str();
 }
 
@@ -141,12 +127,12 @@ std::ostream& appendElement<double>(std::ostream& os, const double& element) {
 }
 template<>
 std::ostream& appendElement<CobaltComplexFloat>(std::ostream& os, const CobaltComplexFloat& element) {
-  os << element.s[0] << "," << element.s[1];
+  os << element.x << "," << element.y;
   return os;
 }
 template<>
 std::ostream& appendElement<CobaltComplexDouble>(std::ostream& os, const CobaltComplexDouble& element) {
-  os << element.s[0] << "," << element.s[1];
+  os << element.x << "," << element.y;
   return os;
 }
 
@@ -236,8 +222,8 @@ bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
 }
 
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
-  return l.s[0] == r.s[0] && l.s[1] == r.s[1];
+  return l.x == r.x && l.y == r.y;
 }
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
-  return l.s[0] == r.s[0] && l.s[1] == r.s[1];
+  return l.x == r.x && l.y == r.y;
 }

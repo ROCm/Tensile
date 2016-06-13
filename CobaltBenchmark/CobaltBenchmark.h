@@ -35,10 +35,10 @@ CobaltTensorData initialTensorDataDoubleA;
 CobaltTensorData initialTensorDataDoubleB;
 
 // scalar data
-CobaltScalarData alphaFloat;
-CobaltScalarData betaFloat;
-CobaltScalarData alphaDouble;
-CobaltScalarData betaDouble;
+float *alphaFloat;
+float *betaFloat;
+double *alphaDouble;
+double *betaDouble;
 
 // device tensor data; max sized; initial data get clWriteBuffer each time
 CobaltTensorData deviceTensorDataC; // input and result buffer
@@ -50,18 +50,22 @@ CobaltTensorData deviceTensorDataOnHostB; // result buffer coppied back to host 
 
 // reference tensor data
 CobaltTensorData referenceTensorDataC; // input and result buffer on host
-CobaltTensorData referenceTensorDataA; // just points to initialTensorDataFloat or Double
-CobaltTensorData referenceTensorDataB;
 
 // setup opencl
+unsigned int numPlatforms;
+#if Cobalt_BACKEND_OPENCL12
+unsigned int numDevices;
 cl_int status;
-cl_uint numPlatforms;
 cl_platform_id *platforms;
 cl_platform_id platform;
-cl_uint numDevices;
 cl_device_id *devices;
 cl_device_id device;
 cl_context context;
+#elif Cobalt_BACKEND_HIP
+hipError_t status;
+int numDevices;
+int device;
+#endif
 
 // controls
 CobaltDeviceProfile deviceProfileReference;
