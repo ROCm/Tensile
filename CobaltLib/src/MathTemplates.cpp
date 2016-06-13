@@ -67,16 +67,16 @@ double multiply( double a, double b ) {
 template< >
 CobaltComplexFloat multiply( CobaltComplexFloat a, CobaltComplexFloat b ) {
   CobaltComplexFloat c;
-  c.s[0] = a.s[0]*b.s[0] - a.s[1]*b.s[1];
-  c.s[1] = a.s[0]*b.s[1] + a.s[1]*b.s[0];
+  c.x = a.x*b.x - a.y*b.y;
+  c.y = a.x*b.y + a.y*b.x;
   return c;
 }
 // complex double
 template< >
 CobaltComplexDouble multiply( CobaltComplexDouble a, CobaltComplexDouble b ) {
   CobaltComplexDouble c;
-  c.s[0] = a.s[0]*b.s[0] - a.s[1]*b.s[1];
-  c.s[1] = a.s[0]*b.s[1] + a.s[1]*b.s[0];
+  c.x = a.x*b.x - a.y*b.y;
+  c.y = a.x*b.y + a.y*b.x;
   return c;
 }
 
@@ -99,16 +99,16 @@ double add( double a, double b ) {
 template< >
 CobaltComplexFloat add( CobaltComplexFloat a, CobaltComplexFloat b ) {
   CobaltComplexFloat c;
-  c.s[0] = a.s[0]+b.s[0];
-  c.s[1] = a.s[1]+b.s[1];
+  c.x = a.x+b.x;
+  c.y = a.y+b.y;
   return c;
 }
 // complex double
 template< >
 CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
   CobaltComplexDouble c;
-  c.s[0] = a.s[0]+b.s[0];
-  c.s[1] = a.s[1]+b.s[1];
+  c.x = a.x+b.x;
+  c.y = a.y+b.y;
   return c;
 }
 
@@ -137,11 +137,11 @@ bool almostEqual(double a, double b) {
 }
 template< >
 bool almostEqual( CobaltComplexFloat a, CobaltComplexFloat b) {
-  return almostEqual(a.s[0], b.s[0]) && almostEqual(a.s[1], b.s[1]);
+  return almostEqual(a.x, b.x) && almostEqual(a.y, b.y);
 }
 template< >
 bool almostEqual(CobaltComplexDouble a, CobaltComplexDouble b) {
-  return almostEqual(a.s[0], b.s[0]) && almostEqual(a.s[1], b.s[1]);
+  return almostEqual(a.x, b.x) && almostEqual(a.y, b.y);
 }
 
 /*******************************************************************************
@@ -153,11 +153,11 @@ template< >
 void complexConjugate(double & v) {}
 template< >
 void complexConjugate( CobaltComplexFloat & v) {
-  v.s[1] = -v.s[1];
+  v.y = -v.y;
 }
 template< >
 void complexConjugate(CobaltComplexDouble & v) {
-  v.s[1] = -v.s[1];
+  v.y = -v.y;
 }
 
 } // end namespace Cobalt

@@ -402,11 +402,11 @@ void printMismatch<double>(size_t index, double gpuData, double cpuData) {
 }
 template<>
 void printMismatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
-  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", (unsigned long long)index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 template<>
 void printMismatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
-  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", (unsigned long long)index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+  printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 template<>
 void printMatch<float>(size_t index, float gpuData, float cpuData) {
@@ -418,11 +418,11 @@ void printMatch<double>(size_t index, double gpuData, double cpuData) {
 }
 template<>
 void printMatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
-  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", (unsigned long long)index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 template<>
 void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
-  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", (unsigned long long)index, gpuData.s[0], gpuData.s[1], cpuData.s[0], cpuData.s[1]);
+  printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 
 } // namespace

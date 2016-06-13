@@ -103,14 +103,14 @@ template<>
 std::string tensorElementToString<CobaltComplexFloat> ( CobaltComplexFloat element ) {
   std::ostringstream state;
   state.precision(3);
-  state << std::scientific << element.s[0] << ", " << element.s[1];
+  state << std::scientific << element.x << ", " << element.y;
   return state.str();
 }
 template<>
 std::string tensorElementToString<CobaltComplexDouble> ( CobaltComplexDouble element ) {
   std::ostringstream state;
   state.precision(3);
-  state << std::scientific << element.s[0] << ", " << element.s[1];
+  state << std::scientific << element.x << ", " << element.y;
   return state.str();
 }
 
@@ -127,12 +127,12 @@ std::ostream& appendElement<double>(std::ostream& os, const double& element) {
 }
 template<>
 std::ostream& appendElement<CobaltComplexFloat>(std::ostream& os, const CobaltComplexFloat& element) {
-  os << element.s[0] << "," << element.s[1];
+  os << element.x << "," << element.y;
   return os;
 }
 template<>
 std::ostream& appendElement<CobaltComplexDouble>(std::ostream& os, const CobaltComplexDouble& element) {
-  os << element.s[0] << "," << element.s[1];
+  os << element.x << "," << element.y;
   return os;
 }
 
@@ -222,8 +222,8 @@ bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
 }
 
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
-  return l.s[0] == r.s[0] && l.s[1] == r.s[1];
+  return l.x == r.x && l.y == r.y;
 }
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
-  return l.s[0] == r.s[0] && l.s[1] == r.s[1];
+  return l.x == r.x && l.y == r.y;
 }

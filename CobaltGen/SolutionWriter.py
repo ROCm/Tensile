@@ -402,13 +402,16 @@ class SolutionWriter:
         if kernel != None:
           s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
           s += "\n"
-          if False:
+          if True:
             s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
             s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
             s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"
             s += ",\n        (unsigned int)this->localWorkSize[0], (unsigned int)this->localWorkSize[1], (unsigned int)this->localWorkSize[2]"
             s += ",\n        static_cast<TypeC*>(tensorDataC.data), static_cast<const TypeA*>(tensorDataA.data), static_cast<const TypeB*>(tensorDataB.data)"
-            s += ",\n        *static_cast<const TypeAlpha*>(alpha.data), *static_cast<const TypeBeta*>(beta.data)"
+            if kernel.dataTypeC.isReal():
+              s += ",\n        *static_cast<const TypeAlpha*>(alpha.data), *static_cast<const TypeBeta*>(beta.data)"
+            else:
+              s += ",\n        static_cast<const TypeAlpha*>(alpha.data)->x, static_cast<const TypeBeta*>(beta.data)->y"
             s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][0]"
             s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][1]"
             s += ",\n        (unsigned int)this->enqueueArgs[kernelIdx][i][2]"

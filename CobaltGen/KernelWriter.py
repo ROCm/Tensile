@@ -356,6 +356,7 @@ class KernelWriter:
         % (tileCharA, tileChar0, tileChar1, self.endLine)
     kStr += "#define NL_B ((MT_%s*UNROLL)/(WG_%s*WG_%s))%s" \
         % (tileCharB, tileChar0, tileChar1, self.endLine)
+    kStr += self.endLine
     # num loads
     kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
     kStr += "#define NL_PARA_A %d%s" \
@@ -364,6 +365,7 @@ class KernelWriter:
         % (kernel.numLoadsB, self.endLine )
     kStr += "#define NL_PERP_A (NL_A/NL_PARA_A)" + self.endLine
     kStr += "#define NL_PERP_B (NL_B/NL_PARA_B)" + self.endLine
+    kStr += self.endLine
     # load size
     kStr += "/* load size parallel and perpendicular to coalesced dimension */" + self.endLine
 
@@ -425,6 +427,7 @@ class KernelWriter:
       indexChar = indexChars[kernel.problem.operation.indexAssignmentsB[i]]
       kStr += " + (IDX" + indexChar + ")*strideB" + indexChar
     kStr += " )" + self.endLine
+    kStr += self.endLine
 
     ####################################
     # global non-tile indices being loaded (batch & outer summation)
@@ -475,9 +478,11 @@ class KernelWriter:
     if self.backend.isHIP():
       kStr += "#define s0 x" + self.endLine
       kStr += "#define s1 y" + self.endLine
+    kStr += self.endLine
 
     ####################################
     # FMAs
+    kStr += "/* FMAs */" + self.endLine
     if kernel.dataTypeC.isReal():
       # real data
       kStr += "#define TYPE_FMA(MULA,MULB,DST) " \
@@ -653,6 +658,7 @@ class KernelWriter:
     ####################################
     # function signature
     ####################################
+    kStr += "/* kernel */" + self.endLine
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
 
@@ -779,6 +785,7 @@ class KernelWriter:
       kStr += "loadSerial%LS_PARA_B;" + self.endLine
     else:
       kStr += "loadSerial/LS_PARA_B;" + self.endLine
+    kStr += self.endLine
 
 
 
@@ -1280,6 +1287,7 @@ class KernelWriter:
     # debug printf
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
     # end debug
+    kStr += "  rC[0][0] = TYPE_C(1.23456789, -1.23456789);" + self.endLine
     kStr += "  /* write global C */" + self.endLine
     if kernel.dataTypeC.value == Structs.DataType.complexSingle or kernel.dataTypeC.value == Structs.DataType.complexConjugateSingle:
       kStr += "  float type_fma_tmp;" + self.endLine
