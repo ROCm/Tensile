@@ -1287,7 +1287,7 @@ class KernelWriter:
     # debug printf
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
     # end debug
-    kStr += "  rC[0][0] = TYPE_C(1.23456789, -1.23456789);" + self.endLine
+    # kStr += "  rC[0][0] = TYPE_C(1.23456789, -1.23456789);" + self.endLine
     kStr += "  /* write global C */" + self.endLine
     if kernel.dataTypeC.value == Structs.DataType.complexSingle or kernel.dataTypeC.value == Structs.DataType.complexConjugateSingle:
       kStr += "  float type_fma_tmp;" + self.endLine
