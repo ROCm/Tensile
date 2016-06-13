@@ -43,6 +43,9 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 #define ALPHA 1
 #define BETA  0
 
+size_t problemStartIdx = 0;
+size_t problemEndIdx = numProblems;
+
 /*******************************************************************************
  * main
  ******************************************************************************/
@@ -65,8 +68,6 @@ int main( int argc, char *argv[] ) {
   // initialize initial buffer values for validation
   initTensorData();
   
-  size_t problemStartIdx = 0;
-  size_t problemEndIdx = numProblems;
 #ifdef MAX_PROBLEMS
   if (problemEndIdx > MAX_PROBLEMS) {
     problemEndIdx = MAX_PROBLEMS;
@@ -465,6 +466,14 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     }
     if (std::strcmp(arg, "--validate-kernels") == 0) {
       doValidationKernels = true;
+    }
+    if (std::strcmp(arg, "--start-problem") == 0) {
+      problemStartIdx = atol(argv[argIdx+1]);
+      argIdx++;
+    }
+    if (std::strcmp(arg, "--end-problem") == 0) {
+      problemEndIdx = atol(argv[argIdx+1]);
+      argIdx++;
     }
   }
 }

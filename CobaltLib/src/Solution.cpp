@@ -882,7 +882,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           ctrl.inputEvents,
           outEvent );
       CL_CHECK(status)
-      clFinish(ctrl.queues[kernelSerialIdx]);
+      clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
       kernelSerialIdx++;
     }
   }
