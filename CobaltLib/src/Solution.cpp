@@ -127,7 +127,7 @@ CobaltStatus Solution::enqueueEntry(
     Cobalt::Timer timer;
     CobaltStatus returnStatus;
 
-    // warmup 
+    // warmup (ensure kernels compiled)
     returnStatus =
         enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl); 
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
@@ -137,6 +137,9 @@ CobaltStatus Solution::enqueueEntry(
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
+
+    // sleep 1s to let gpu cool down
+    Sleep(100);
 
     // start timer
     timer.start();
@@ -882,7 +885,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           ctrl.inputEvents,
           outEvent );
       CL_CHECK(status)
-      clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
+      //clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]); // only for debugging
       kernelSerialIdx++;
     }
   }
