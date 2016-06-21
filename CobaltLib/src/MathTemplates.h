@@ -56,6 +56,24 @@ bool almostEqual( T a, T b); /* {
 template<typename T>
 void complexConjugate(T&);
 
+
+/*******************************************************************************
+* sizeOf Type
+******************************************************************************/
+template<typename Type>
+size_t sizeOfType();
+
+
+//template<typename Type>
+//size_t sizeOfType<Type>() {
+//  return sizeof(Type);
+//}
+//
+//template<>
+//size_t sizeOfType<void>() {
+//  return 0;
+//}
+
 } // end Cobalt namespace
 
 #endif

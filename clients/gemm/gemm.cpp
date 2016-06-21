@@ -1,8 +1,10 @@
 #include "Cobalt.h"
+#include "dnn_gemms.h"
 #include <cstdio>
 #include <string>
 #include <vector>
 #include <array>
+
 #define ULL (unsigned long long)
 CobaltTensor createTensorForMatrix(
     CobaltDataType dataType,
@@ -25,12 +27,71 @@ CobaltProblem createProblemGEMM(
     CobaltDataType dataTypeA,
     CobaltDataType dataTypeB
   );
-
+unsigned int addGEMMCombinatorics();
+unsigned int addGEMMList();
 
 /*******************************************************************************
  * main
  ******************************************************************************/
 int main( int argc, char * argv[] ) {
+
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  //logFilePath += "/GEMM_log.xml";
+  cobaltSetup(logFilePath.c_str());
+
+  // unsigned int numGemmList = addGEMMList();
+  // printf("GEMM List: %u\n", numGemmList );
+
+  unsigned int numGemmCombinatorics = addGEMMCombinatorics();
+  printf("GEMM Comb: %u\n", numGemmCombinatorics );
+
+  cobaltTeardown();
+}
+
+// initially just for DNN, hence single precision
+unsigned int addGEMMList() {
+
+  for (unsigned int i = 129-9-6; i < num_gemm_params; i++) {
+    // get parameters from list
+    size_t M = gemm_params[i][0];
+    size_t N = gemm_params[i][1];
+    size_t K = gemm_params[i][2];
+    bool transA = gemm_params[i][3] == 1;
+    bool transB = gemm_params[i][4] == 1;
+    size_t initialStride = 1;
+    size_t numBatches = gemm_params[i][10];
+    bool alpha = gemm_params[i][8] == 1;
+    bool beta = gemm_params[i][9] == 1;
+    bool useOffsets = true;
+    CobaltDataType dataTypeC = cobaltDataTypeSingle;
+    CobaltDataType dataTypeA = cobaltDataTypeSingle;
+    CobaltDataType dataTypeB = cobaltDataTypeSingle;
+    
+    // create problem from parameters
+    CobaltProblem problem = createProblemGEMM(
+      transA,
+      transB,
+      M, N, K,
+      initialStride,
+      numBatches,
+      alpha,
+      beta,
+      useOffsets,
+      dataTypeC,
+      dataTypeA,
+      dataTypeB );
+
+    // send problem to logger
+    CobaltSolution solution;
+    CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
+    return 1;
+  }
+
+  return num_gemm_params;
+}
+
+
+unsigned int addGEMMCombinatorics() {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
 #if 1
@@ -76,16 +137,13 @@ int main( int argc, char * argv[] ) {
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
   const size_t numTransA = 1;
-  const bool transAs[] = {false, true};
+  const bool transAs[] = {true, true};
   const size_t numTransB = 1;
-  const bool transBs[] = {true, false};
+  const bool transBs[] = {false, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
 
-  size_t numProblems = 0;
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
-  //logFilePath += "/GEMM_log.xml";
-  cobaltSetup(logFilePath.c_str());
+  unsigned int numProblems = 0;
   for (size_t transA = 0; transA < numTransA; transA++) {
     for (size_t transB = 0; transB < numTransB; transB++) {
       for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
@@ -136,10 +194,8 @@ int main( int argc, char * argv[] ) {
       } // M
     } // transB
   } // transA
-  printf("Num Problems: %llu\n", ULL numProblems );
-  cobaltTeardown();
 
-  return 0;
+  return numProblems;
 
 } // main
 
@@ -182,6 +238,19 @@ CobaltProblem createProblemGEMM(
     transB ? N : K,
     transB ? K : N,
     numBatches );
+
+  size_t sizeC = numBatches>1 ? tensorC.dimensions[2].size*tensorC.dimensions[2].stride
+                              : tensorC.dimensions[1].size*tensorC.dimensions[1].stride;
+  size_t sizeA = numBatches>1 ? tensorA.dimensions[2].size*tensorA.dimensions[2].stride
+                              : tensorA.dimensions[1].size*tensorA.dimensions[1].stride;
+  size_t sizeB = numBatches>1 ? tensorB.dimensions[2].size*tensorB.dimensions[2].stride
+                              : tensorB.dimensions[1].size*tensorB.dimensions[1].stride;
+
+  //printf("sizeTotal = %.1f MB\n", (sizeC+sizeA+sizeB)/1024.0/1024.0);
+  //printf("    sizeC = %.1f MB\n", sizeC/1024.0/1024.0);
+  //printf("    sizeA = %.1f MB\n", sizeA/1024.0/1024.0);
+  //printf("    sizeB = %.1f MB\n", sizeB/1024.0/1024.0);
+  //printf("\n");
 
   // operation
   CobaltOperationType operationType = cobaltOperationTypeContraction;

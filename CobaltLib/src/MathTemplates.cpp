@@ -160,4 +160,27 @@ void complexConjugate(CobaltComplexDouble & v) {
   v.y = -v.y;
 }
 
+
+/*******************************************************************************
+ * sizeOf Type
+ ******************************************************************************/
+#if 1
+template<typename Type>
+size_t sizeOfType<Type>() {
+  return sizeof(Type);
+}
+template size_t sizeOfType<float>();
+template size_t sizeOfType<double>();
+template size_t sizeOfType<CobaltComplexFloat>();
+template size_t sizeOfType<CobaltComplexDouble>();
+
+
+template<>
+size_t sizeOfType<void>() {
+  return 0;
+}
+
+
+#endif
+
 } // end namespace Cobalt

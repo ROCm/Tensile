@@ -8,7 +8,7 @@
 set( SAMPLE_GEMM_NAME gemm)
 
 # gemm sample source files
-set( SAMPLE_GEMM_SRC gemm.cpp )
+set( SAMPLE_GEMM_SRC gemm.cpp dnn_gemms.h)
 
 
 # gemm executable

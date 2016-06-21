@@ -714,9 +714,11 @@ class SolutionSelectionWriter:
           size0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
           size1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
           sizeU = solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1]
-          sizeUL = solution.kernels[0].unrolls[0]
+          sizeUL = 0
+          for unroll in solution.kernels[0].unrolls:
+            sizeUL += unroll
           gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
-          s += indent + "  if ( size0 %% %3u && size1 %% %3u && sizeU %% %2u && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
+          s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
           s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(exactPSP)
     fallbackPSP = rule[1]

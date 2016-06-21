@@ -26,6 +26,7 @@ Problem::Problem(
     CobaltDataType inputBetaType,
     bool inputUseOffsets,
     CobaltDeviceProfile inputDeviceProfile ) :
+  /* member initialization list */
   tensorC( inputTensorC ),
   tensorA( inputTensorA ),
   tensorB( inputTensorB ),
