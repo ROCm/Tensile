@@ -855,7 +855,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
       // print args
 #if 0
-      printf("openclKernelLaunch(%u:%u:%u):\n    g{%u,%u,%u};\n    l{%u,%u,%u};\n    p{%p,%p,%p};\n    ab{%f,%f};\n    o{%u,%u,%u};\n    s{%u,%u,%u,%u,%u,%u}\n",
+      printf("openclKernelLaunch(%u:%u:%u):\n    g{%u,%u,%u};\n    l{%u,%u,%u};\n    p{%p,%p,%p};\n    ab{%f,%f};\n    o{%u,%u,%u};\n    s{%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u} s{%u,%u,%u,%u,%u,%u,%u}\n",
           kernelIdx,
           enqueueIdx,
           this->numKernelArgs,
@@ -878,7 +878,26 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           this->enqueueArgs[kernelIdx][enqueueIdx][5],
           this->enqueueArgs[kernelIdx][enqueueIdx][6],
           this->enqueueArgs[kernelIdx][enqueueIdx][7],
+#if 0
           this->enqueueArgs[kernelIdx][enqueueIdx][8] );
+#else
+          this->enqueueArgs[kernelIdx][enqueueIdx][8],
+          this->enqueueArgs[kernelIdx][enqueueIdx][9],
+          this->enqueueArgs[kernelIdx][enqueueIdx][10],
+          this->enqueueArgs[kernelIdx][enqueueIdx][11],
+          this->enqueueArgs[kernelIdx][enqueueIdx][12],
+          this->enqueueArgs[kernelIdx][enqueueIdx][13],
+          this->enqueueArgs[kernelIdx][enqueueIdx][14],
+          this->enqueueArgs[kernelIdx][enqueueIdx][15],
+          this->enqueueArgs[kernelIdx][enqueueIdx][16],
+          this->enqueueArgs[kernelIdx][enqueueIdx][17],
+          this->enqueueArgs[kernelIdx][enqueueIdx][18],
+          this->enqueueArgs[kernelIdx][enqueueIdx][19],
+          this->enqueueArgs[kernelIdx][enqueueIdx][20],
+          this->enqueueArgs[kernelIdx][enqueueIdx][21],
+          this->enqueueArgs[kernelIdx][enqueueIdx][22] ); 
+#endif
+
 #endif
       // enqueue
       status = clEnqueueNDRangeKernel(

@@ -117,13 +117,14 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
       // increment bound coord
       boundCoord[numIndicesSummation-1]++;
-      for ( size_t b = 0; b < numIndicesSummation - 1; b++) {
+      for ( size_t b = numIndicesSummation - 1; b > 0 ; b--) {
         if ( boundCoord[b] >= boundIndexSizes[b]) {
           boundCoord[b] = 0;
-          boundCoord[b+1]++;
+          boundCoord[b-1]++;
         }
       }
-      if (boundCoord[numIndicesSummation - 1] >= boundIndexSizes[numIndicesSummation - 1]) {
+      //if (boundCoord[numIndicesSummation - 1] >= boundIndexSizes[numIndicesSummation - 1]) {
+      if (boundCoord[0] >= boundIndexSizes[0]) {
         break; // bound index range exit criteria
       }
 

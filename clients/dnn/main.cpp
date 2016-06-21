@@ -54,7 +54,7 @@ int main( int argc, char * argv[] ) {
   H = 32;
   W = 32;
   C = 3;
-  N = 100;
+  N = 2; // 100
   R = 5;
   S = 5;
   K = 32;
@@ -68,12 +68,12 @@ int main( int argc, char * argv[] ) {
   cobaltStatusCheck(status);
   /* C[i:28,j:28,k:32,l:100] = Sum(m:3,n:5,o:5) A[o,n,i,j,m,l] * B[o,n,j,m,k,l] */
 
-
+#if 0
   /* Caffe Layer 2 */
   H = 16;
   W = 16;
   C = 32;
-  N = 100;
+  N = 2; // 100
   R = 5;
   S = 5;
   K = 32;
@@ -90,7 +90,7 @@ int main( int argc, char * argv[] ) {
   H = 8;
   W = 8;
   C = 32;
-  N = 100;
+  N = 2; // 100
   R = 5;
   S = 5;
   K = 64;
@@ -102,7 +102,7 @@ int main( int argc, char * argv[] ) {
   problem = createProblemForConvolutionAsContraction();
   status = cobaltGetSolutionForProblem( &solution, problem );
   cobaltStatusCheck(status);
-
+#endif
   cobaltTeardown();
 }
 
