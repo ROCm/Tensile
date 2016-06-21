@@ -66,6 +66,8 @@ int main( int argc, char * argv[] ) {
   problem = createProblemForConvolutionAsContraction();
   status = cobaltGetSolutionForProblem( &solution, problem );
   cobaltStatusCheck(status);
+  /* C[i:28,j:28,k:32,l:100] = Sum(m:3,n:5,o:5) A[o,n,i,j,m,l] * B[o,n,j,m,k,l] */
+
 
   /* Caffe Layer 2 */
   H = 16;

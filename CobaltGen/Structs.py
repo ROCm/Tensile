@@ -642,7 +642,7 @@ class Problem:
         state += str(self.tensorA.dimensions[j].size)
     for i in range(1, self.operation.numIndicesSummation):
       state += "_"
-      state += self.indexChars[tensorA.numDims()+i]
+      state += indexChars[len(self.tensorC.dimensions)+i]
       for j in range( 0, len(self.tensorA.dimensions)):
         if self.operation.indexAssignmentsA[j] == i+len(self.tensorC.dimensions):
           state += str(self.tensorA.dimensions[j].size)

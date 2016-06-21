@@ -17,14 +17,15 @@ Tensor::Tensor(CobaltTensor tensor)
     throw cobaltStatusTensorNumDimensionsInvalid;
   }
   for (size_t d = 0; d < numDims(); d++) {
-    if (d < numDims() - 1) {
-      if (dimensions[d].stride > dimensions[d + 1].stride) {
-        throw cobaltStatusTensorDimensionOrderInvalid;
-      }
-    }
-    if (dimensions[d].stride < 1) {
-      throw cobaltStatusTensorDimensionStrideInvalid;
-    }
+    // relax restrictions to support convolutions mapped to contractions
+    // if (d < numDims() - 1) {
+    //   if (dimensions[d].stride > dimensions[d + 1].stride) {
+    //     throw cobaltStatusTensorDimensionOrderInvalid;
+    //   }
+    // }
+    // if (dimensions[d].stride < 1) {
+    //   throw cobaltStatusTensorDimensionStrideInvalid;
+    // }
     if (dimensions[d].size < 1) {
       throw cobaltStatusTensorDimensionSizeInvalid;
     }

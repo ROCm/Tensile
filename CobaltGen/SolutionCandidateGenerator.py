@@ -30,12 +30,13 @@ class SolutionCandidateGenerator:
   maxMicroTileSize = 8
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
-  unrollLevels = [16, 8, 4, 2, 1]
+  unrollLevels = [16, 8, 5, 4, 2, 1]
   #unrollLevels = [16]
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
        2: [ [  2 ], [ 16, 1 ], [  8, 1 ] ], \
        4: [ [  4 ], [ 16, 1 ], [  8, 1 ] ], \
+       5: [ [  5 ], [ 1 ], ], \
        8: [ [  8 ], [ 16, 1 ], [ 4 ] ], \
       16: [ [ 16 ], [ 8 ], [ 4 ]], \
       32: [ [ 32 ], [ 16 ], [ 8 ] ] \
@@ -495,6 +496,14 @@ def makeIndexAssignments(kernel, problem):
   kernel.tensorAssignedDim0 = indicesFreeSorted[len(indicesFreeSorted)-1][2]
   kernel.indexAssignmentDim1 = indicesFreeSorted[len(indicesFreeSorted)-2][1]
   kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
+
+  if kernel.tensorAssignedDim0 == 0:
+    kernel.indexAssignmentTileA = [0, kernel.indexAssignmentDim0]
+    kernel.indexAssignmentTileB = [1, kernel.indexAssignmentDim1]
+  else:
+    kernel.indexAssignmentTileA = [1, kernel.indexAssignmentDim1]
+    kernel.indexAssignmentTileB = [0, kernel.indexAssignmentDim0]
+
   strideD0 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
   strideD1 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
   # print "d0=%u, d1=%u" % (kernel.indexAssignmentDim0, kernel.indexAssignmentDim1)
