@@ -139,7 +139,7 @@ unsigned int addGEMMCombinatorics() {
   const size_t numTransA = 1;
   const bool transAs[] = {true, true};
   const size_t numTransB = 1;
-  const bool transBs[] = {false, false};
+  const bool transBs[] = {true, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
 
