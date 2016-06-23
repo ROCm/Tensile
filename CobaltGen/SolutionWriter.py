@@ -36,11 +36,11 @@ class SolutionWriter:
     templateArgList += solution.kernels[0].dataTypeC.toCpp() + ","
     templateArgList += solution.kernels[0].dataTypeA.toCpp() + ","
     templateArgList += solution.kernels[0].dataTypeB.toCpp() + ","
-    if solution.kernels[0].problem.operation.useAlpha:
+    if solution.kernels[0].problem.operation.useAlpha():
       templateArgList += solution.kernels[0].problem.operation.alphaType.toCpp() + ","
     else:
       templateArgList += "void,"
-    if solution.kernels[0].problem.operation.useBeta:
+    if solution.kernels[0].problem.operation.useBeta():
       templateArgList += solution.kernels[0].problem.operation.betaType.toCpp() + ">"
     else:
       templateArgList += "void>"
@@ -294,9 +294,9 @@ class SolutionWriter:
 
     # alpha & beta
     s += "  /* alpha & beta */\n"
-    s += "  this->requireAlpha = " + ("true" if solution.kernels[0].problem.operation.useAlpha else "false")
+    s += "  this->requireAlpha = " + ("true" if solution.kernels[0].problem.operation.useAlpha() else "false")
     s += ";\n"
-    s += "  this->requireBeta = " + ("true" if solution.kernels[0].problem.operation.useBeta else "false")
+    s += "  this->requireBeta = " + ("true" if solution.kernels[0].problem.operation.useBeta() else "false")
     s += ";\n"
     s += "\n"
 

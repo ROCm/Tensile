@@ -144,6 +144,7 @@ class FileWriter:
       solutionHeaderFile.write( solutionHeaderFileString )
       solutionSourceFile.close()
       solutionHeaderFile.close()
+      # print "Wrote: " + solutionName
 
       # write the main CobaltSolutions.h,cpp file which #includes these
       solutionsCMakeFile.write( "  " + solutionFilePath \

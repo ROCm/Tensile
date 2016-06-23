@@ -18,6 +18,7 @@ class SolutionCandidateGenerator:
 
   # problem is skinny if smaller dim < 32 and larger dim > 4096
   skinnyThresholds = [32, 4096]
+  #skinnyThresholds = [128, 0]
 
   # tile for non-skinny problem must be square: tile1/tile0 <= 1
   # tile for skinny problem must be tile1/tile0 <= 16*2
@@ -25,7 +26,7 @@ class SolutionCandidateGenerator:
   skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
   skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
   skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 1
+  minMicroTileSize = 2
   maxMicroTileSize = 8
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
@@ -71,10 +72,12 @@ class SolutionCandidateGenerator:
   universeWorkGroupDim = [ [16, 16], [8, 8] ]
 
   # removed non-branch type
-  universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ]
+  universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ] # branched and multiple
+  # universeBranch = [ Structs.BranchType(2) ] # branched only < 3000^3
 
   # for research, =True means don't generate any solution requiring branches, i.e., only generate fastest
   noBranches = False
+  noMultipleKernels = False # don't generate solution requiring multiple kernels
 
   ##############################################################################
   # init
@@ -137,14 +140,14 @@ class SolutionCandidateGenerator:
         kernel.indexAssignmentDim0].size
     problemSizeDim1 = problem.tensorC.dimensions[ \
         kernel.indexAssignmentDim1].size
-    problemSkinnyDim0 = 0 # false
     # size < 96 begins to behave skinny, i.e., becomes bandwidth bound
     # but only < 32 does a unique tile improve performance;
     # for sizes 32-96 square tiles are still withing 4% performance of best skinny
-    if problemSizeDim0 < 32 and problemSizeDim1 > 1024:
+    problemSkinnyDim0 = 0 # false
+    if problemSizeDim0 < self.skinnyThresholds[0] and problemSizeDim1 > self.skinnyThresholds[1]:
       problemSkinnyDim0 = 1
     problemSkinnyDim1 = 0
-    if problemSizeDim1 < 32 and problemSizeDim0 > 1024:
+    if problemSizeDim1 < self.skinnyThresholds[0] and problemSizeDim0 > self.skinnyThresholds[1]:
       problemSkinnyDim1 = 1
     
     # print self.skinnyRatioWorkGroup[transA and not transB]
@@ -302,8 +305,7 @@ class SolutionCandidateGenerator:
                     kernelGrid[1]=1
                   if kernelGrid[2] == 0:
                     kernelGrid[2]=1
-                  if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta:
-                      kernel.problem.operation.useBeta = True
+                  if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta():
                       kernel.problem.operation.betaType = problem.tensorC.dataType
                       print "forcing useBeta=True due to mod1024 kernel grid"
                   # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
@@ -346,7 +348,7 @@ class SolutionCandidateGenerator:
                       leadingStridesOne = True
                     # branch - 2-4 kernels
                     if branchType.isMultiple():
-                      if self.noBranches:
+                      if self.noBranches or self.noMultipleKernels:
                         if problemSizeDim0 % macroTileDim0 != 0 \
                             or problemSizeDim1 % macroTileDim1 != 0:
                           continue
@@ -495,8 +497,8 @@ def makeIndexAssignments(kernel, problem):
   kernel.tensorAssignedDim1 = indicesFreeSorted[len(indicesFreeSorted)-2][2]
   strideD0 = indicesFreeSorted[len(indicesFreeSorted)-1][0]
   strideD1 = indicesFreeSorted[len(indicesFreeSorted)-2][0]
-  #print "d0=%u, d1=%u" % (kernel.indexAssignmentDim0, kernel.indexAssignmentDim1)
-  #print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1)
+  # print "d0=%u, d1=%u" % (kernel.indexAssignmentDim0, kernel.indexAssignmentDim1)
+  # print "strideD0,1 = " + str(strideD0) + ", " + str(strideD1)
 
   for index in indicesBatchedSorted:
     kernel.indexOrderC.append( index[1] )
@@ -529,17 +531,17 @@ def makeIndexAssignments(kernel, problem):
   kernel.indexUnroll = unrollIndex
   unrollIndexA = problem.operation.indexAssignmentsA.index(unrollIndex)
   unrollIndexB = problem.operation.indexAssignmentsB.index(unrollIndex)
-  #print "unrollIndex = " + str(unrollIndex)
-  #print "indexAssignmentsA = " + str(problem.operation.indexAssignmentsA)
-  #print "indexAssignmentsB = " + str(problem.operation.indexAssignmentsB)
-  #print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
+  # print "unrollIndex = " + str(unrollIndex)
+  # print "indexAssignmentsA = " + str(problem.operation.indexAssignmentsA)
+  # print "indexAssignmentsB = " + str(problem.operation.indexAssignmentsB)
+  # print "unrollIndexA,B = " + str(unrollIndexA) + ", " + str(unrollIndexB)
   unrollDimStrideA = problem.tensorA.dimensions[unrollIndexA].stride
   unrollDimStrideB = problem.tensorB.dimensions[unrollIndexB].stride
   kernel.unrollDimSize = problem.tensorA.dimensions[unrollIndexA].size
-  #print "unrollStrideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
-  #print "tensorAssignedDim0 = " + ("A" if kernel.tensorAssignedDim0==0 else "B")
-  #print "strideD0 = " + str(strideD0)
-  #print "strideD1 = " + str(strideD1)
+  # print "unrollStrideA,B = " + str(unrollDimStrideA) + ", " + str(unrollDimStrideB)
+  # print "tensorAssignedDim0 = " + ("A" if kernel.tensorAssignedDim0==0 else "B")
+  # print "strideD0 = " + str(strideD0)
+  # print "strideD1 = " + str(strideD1)
 
   #kernel.unrollDimStrideGreaterThanTileDimStride0 = \
   #    indicesFreeSorted[len(indicesFreeSorted)-2][0] < unrollDimStride
@@ -561,7 +563,9 @@ def makeIndexAssignments(kernel, problem):
     kernel.unrollDimStride1 = unrollDimStrideA
 
   # print kernel name
-  #kw = KernelWriter.KernelWriter(0)
+  backend = Structs.Backend()
+  backend.value = Structs.Backend.opencl12
+  kw = KernelWriter.KernelWriter(backend)
   #print kw.getName(kernel)
   #print "\n"
 

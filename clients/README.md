@@ -1,8 +1,9 @@
 
+### dnn
+A mock DNN application to generate CobaltProblems.
+
 ### gemm
-And simple GEMM application.
+A mock GEMM application to generate CobaltProblems.
 
-## Sandbox ?
-
-## Validation
-Host code for running tests/validation on Cobalt.
+### simple
+A sandbox for prototyping new GEMM kernels.

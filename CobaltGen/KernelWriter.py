@@ -73,16 +73,16 @@ class KernelWriter:
     kernelName += kernel.dataTypeB.toChar().upper()
 
     # alpha
-    if kernel.problem.operation.useAlpha:
-      kernelName += kernel.problem.operation.alphaType.toChar().upper()
-    else:
-      kernelName += "0"
+    # if kernel.problem.operation.useAlpha:
+    kernelName += kernel.problem.operation.alphaType.toChar().upper()
+    # else:
+    #   kernelName += "0"
 
     # beta
-    if kernel.problem.operation.useBeta:
-      kernelName += kernel.problem.operation.betaType.toChar().upper()
-    else:
-      kernelName += "0"
+    # if kernel.problem.operation.useBeta():
+    kernelName += kernel.problem.operation.betaType.toChar().upper()
+    # else:
+    #   kernelName += "0"
 
     kernelName += "_"
 
@@ -245,10 +245,10 @@ class KernelWriter:
         + " const * " + restrictStr + " B"
 
     # alpha & beta
-    if kernel.problem.operation.useAlpha:
+    if kernel.problem.operation.useAlpha():
       s += "," + self.endLine + "  " \
           + kernel.dataTypeC.toDevice(self.backend) + " const alpha"
-    if kernel.problem.operation.useBeta:
+    if kernel.problem.operation.useBeta():
       s += "," + self.endLine + "  " \
           + kernel.dataTypeC.toDevice(self.backend) + " const beta"
 
@@ -487,8 +487,8 @@ class KernelWriter:
       # real data
       kStr += "#define TYPE_FMA(MULA,MULB,DST) " \
           + "DST = FMA(MULA,MULB,DST);" + self.endLine
-      if kernel.problem.operation.useAlpha:
-        if kernel.problem.operation.useBeta:
+      if kernel.problem.operation.useAlpha():
+        if kernel.problem.operation.useBeta():
           # dst = alpha*reg + beta*dst
           kStr += "#define TYPE_FMA_WRITE(DST,ALPHA,REG,BETA) " \
               + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
@@ -497,7 +497,7 @@ class KernelWriter:
           kStr += "#define TYPE_FMA_WRITE(DST,ALPHA,REG) " \
               + "DST = (ALPHA)*(REG);" + self.endLine
       else:
-        if kernel.problem.operation.useBeta:
+        if kernel.problem.operation.useBeta():
           # dst = reg + beta*dst
           kStr += "#define TYPE_FMA_WRITE(DST,REG,BETA) " \
               + "DST = (REG) + (BETA)*(DST);" + self.endLine
@@ -539,8 +539,8 @@ class KernelWriter:
           "  DST.s0 = FMA(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = FMA(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = FMA( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel.problem.operation.useAlpha:
-        if kernel.problem.operation.useBeta:
+      if kernel.problem.operation.useAlpha():
+        if kernel.problem.operation.useBeta():
           # dst = alpha*reg + beta*dst
           kStr += (
             "#define TYPE_FMA_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
@@ -570,7 +570,7 @@ class KernelWriter:
             "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
       else:
-        if kernel.problem.operation.useBeta:
+        if kernel.problem.operation.useBeta():
           # dst = reg + beta*dst
           kStr += (
             "#define TYPE_FMA_WRITE( DST, REG, BETA ) " + self.endLinePP +
@@ -1321,10 +1321,10 @@ class KernelWriter:
           if i < len(kernel.indexOrderC)-1:
             kStr += ","
         kStr += ") ]"
-        if kernel.problem.operation.useAlpha:
+        if kernel.problem.operation.useAlpha():
           kStr += ", alpha"
         kStr += ", rC[%d][%d]" % (a, b)
-        if kernel.problem.operation.useBeta:
+        if kernel.problem.operation.useBeta():
           kStr += ", beta"
         kStr += ")"
         # debug printf
@@ -1349,159 +1349,7 @@ class KernelWriter:
     return kStr
 
 
-################################################################################
-# Test GEMM
-################################################################################
-def testGEMM():
-  print("Test GEMM Fast: C[ij] = Sum_k A[ki] * B[kj]")
 
-  # kernel parameters
-  dimensionsC = []
-  dimensionsC.append( Structs.Dimension(    1, 1024 ) )
-  dimensionsC.append( Structs.Dimension( 1024,  512 ) )
-  tensorC = Structs.Tensor( \
-      Structs.DataType(Structs.DataType.single),
-      dimensionsC )
-
-  dimensionsA = []
-  dimensionsA.append( Structs.Dimension(   1,  256 ) )
-  dimensionsA.append( Structs.Dimension( 256, 1024 ) )
-  tensorA = Structs.Tensor( \
-      Structs.DataType(Structs.DataType.single),
-      dimensionsA )
-
-  dimensionsB = []
-  dimensionsB.append( Structs.Dimension(   1, 256 ) )
-  dimensionsB.append( Structs.Dimension( 256, 512 ) )
-  tensorB = Structs.Tensor( \
-      Structs.DataType(Structs.DataType.single),
-      dimensionsA )
-
-  operationType = Structs.OperationType(Structs.OperationType.contraction)
-  numFreeIndices = 2
-  numIndicesBatch = 0
-  numIndicesSummation = 1
-  indexAssignmentsA = [2, 0]
-  indexAssignmentsB = [2, 1]
-  useAlpha = False
-  useBeta = False
-  operation = Structs.Operation( \
-      operationType, \
-      useAlpha, \
-      useBeta, \
-      numFreeIndices, \
-      numIndicesBatch, \
-      numIndicesSummation, \
-      indexAssignmentsA, \
-      indexAssignmentsB )
-
-  kernel = Structs.Kernel(\
-      operation, \
-      tensorA, \
-      tensorB, \
-      tensorC )
-
-  kernel.assignTile( 16, 16, 4, 4, 64, 64, 16 )
-
-  print("\"GEMM\" Kernel Name: %s") % kernel.getName()
-  backend = Structs.Backend(Structs.Backend.opencl)
-  print("\"GEMM\" Kernel Body: %s") % kernel.getBody(backend)
-
-def testAdvanced():
-  print("Test Advanced: C[ijk] = Sum_lm A[mkli] * B[jlkm]")
-  """
-  dimension sizes
-  i: 512
-  j: 256
-  k: 128
-  l:  64
-  m:  32
-
-  *** C ***
-  index stride size assignment dimorder
-  0:    32,768  512  (i)  2
-  1:         1  256  (j)  0
-  2:       256  128  (k)  1
-
-  *** A ***
-  index stride size assignment dimorder
-  0:        64   32  (m)  1
-  1: 1,048,576  128  (k)  3
-  2:         1   64  (l)  0
-  2:     2,048  512  (i)  2
-
-  *** B ***
-  index stride size assignment dimorder
-  0:        32  256  (j)  1
-  1: 1,048,576   64  (l)  3
-  2:     8,192  128  (k)  2
-  2:         1   32  (m)  0
-
-  """
-  # tensor dimensions
-  dimensionsC = []
-  dimensionsC.append( Structs.Dimension(   32768, 512 ) )
-  dimensionsC.append( Structs.Dimension(       1, 256 ) )
-  dimensionsC.append( Structs.Dimension(     256, 128 ) )
-  dimensionsA = []
-  dimensionsA.append( Structs.Dimension(      64,  32 ) )
-  dimensionsA.append( Structs.Dimension( 1048576, 128 ) )
-  dimensionsA.append( Structs.Dimension(       1,  64 ) )
-  dimensionsA.append( Structs.Dimension(    2048, 512 ) )
-  dimensionsB = []
-  dimensionsB.append( Structs.Dimension(      32, 256 ) )
-  dimensionsB.append( Structs.Dimension( 1048576,  64 ) )
-  dimensionsB.append( Structs.Dimension(    8192, 128 ) )
-  dimensionsB.append( Structs.Dimension(       1,  32 ) )
-
-  # tensor objects
-  tensorC = Structs.Tensor( \
-      Structs.DataType(Structs.DataType.single),
-      dimensionsC )
-  tensorA = Structs.Tensor( \
-      Structs.DataType(Structs.DataType.single),
-      dimensionsA )
-  tensorB = Structs.Tensor( \
-      Structs.DataType(Structs.DataType.single),
-      dimensionsA )
-
-  operationType = Structs.OperationType(Structs.OperationType.contraction)
-  numFreeIndices = 2
-  numIndicesBatch = 1
-  numIndicesSummation = 2
-  indexAssignmentsA = [ 4, 2, 3, 0 ]
-  indexAssignmentsB = [ 1, 3, 2, 4 ]
-  operation = Structs.Operation( \
-      operationType, \
-      numFreeIndices, \
-      numIndicesBatch, \
-      numIndicesSummation, \
-      indexAssignmentsA, \
-      indexAssignmentsB )
-  useAlpha = False
-  useBeta = False
-
-  kernel = Kernel(\
-      operation, \
-      tensorA, \
-      tensorB, \
-      tensorC )
-
-  kernel.assignTile( 16, 16, 4, 4, 64, 64, 16 )
-
-  print("\"Advanced\" Kernel Name: %s") % kernel.getName()
-  backend = Structs.Backend(Structs.Backend.opencl)
-  print("\"Advanced\" Kernel Body: %s") % kernel.getBody(backend)
-
-  pass
-
-################################################################################
-# Main
-################################################################################
-if __name__ == "__main__":
-  testGEMM()
-  print("\n\n\n")
-  testAdvanced()
 
 
 

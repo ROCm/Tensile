@@ -127,7 +127,7 @@ CobaltStatus Solution::enqueueEntry(
     Cobalt::Timer timer;
     CobaltStatus returnStatus;
 
-    // warmup 
+    // warmup (ensure kernels compiled)
     returnStatus =
         enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl); 
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
@@ -137,6 +137,9 @@ CobaltStatus Solution::enqueueEntry(
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
+
+    // sleep 200ms to let gpu cool down
+    Sleep(100);
 
     // start timer
     timer.start();
@@ -810,21 +813,28 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     for (unsigned int enqueueIdx = 0;
         enqueueIdx < this->numEnqueues[kernelIdx]; enqueueIdx++) {
 
+      size_t dataArgIdx = 0;
       // data pointers
-      status = clSetKernelArg( kernels[kernelIdx], 0,
+      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
           sizeof(cl_mem), &tensorDataC.data ); CL_CHECK(status)
-      status = clSetKernelArg( kernels[kernelIdx], 1,
+      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
           sizeof(cl_mem), &tensorDataA.data ); CL_CHECK(status)
-      status = clSetKernelArg( kernels[kernelIdx], 2,
+      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
           sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
-      status = clSetKernelArg( kernels[kernelIdx], 3,
-          sizeof(TypeAlpha), alpha.data ); CL_CHECK(status)
-      status = clSetKernelArg( kernels[kernelIdx], 4,
-          sizeof(TypeBeta), beta.data ); CL_CHECK(status)
+      // alpha if required
+      if (!std::is_void<TypeAlpha>::value) {
+      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+          sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
+      }
+      // beta if required
+      if (!std::is_void<TypeBeta>::value) {
+      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+          sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
+      }
 
       // uint args
       for (unsigned int i = 0; i < this->numKernelArgs; i++) {
-        status = clSetKernelArg( kernels[kernelIdx], i+5, sizeof(unsigned int),
+        status = clSetKernelArg( kernels[kernelIdx], i+dataArgIdx, sizeof(unsigned int),
             &this->enqueueArgs[kernelIdx][enqueueIdx][i] ); CL_CHECK(status)
       }
 
@@ -882,7 +892,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           ctrl.inputEvents,
           outEvent );
       CL_CHECK(status)
-      clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
+      //clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]); // only for debugging
       kernelSerialIdx++;
     }
   }
