@@ -19,6 +19,8 @@ project( ${CobaltProj_NAME} C CXX )
 set( ${CobaltProj_NAME}_VERSION_MAJOR 0 )
 set( ${CobaltProj_NAME}_VERSION_MINOR 1 )
 set( ${CobaltProj_NAME}_VERSION_PATCH 0 )
+set( ${CobaltProj_NAME}_VERSION_TWEAK 0 )
+set( CobaltProj_VERSION "${${CobaltProj_NAME}_VERSION_MAJOR}.${${CobaltProj_NAME}_VERSION_MINOR}.${${CobaltProj_NAME}_VERSION_PATCH}.${${CobaltProj_NAME}_VERSION_TWEAK}")
 
 ############################################################
 # FindOpenCL.cmake

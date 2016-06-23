@@ -51,10 +51,19 @@ add_library( ${CobaltLogger_NAME}
   #${CobaltLib_SRC_GENERATED_DYNAMIC}
   #${CobaltGen_SRC}
   )
+
+message( STATUS "HIP_INCLUDE_DIRS<<==>>${HIP_INCLUDE_DIRS}" )
+target_include_directories( ${CobaltLogger_NAME}
+  PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+          $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+          $<INSTALL_INTERFACE:include>
+)
+
+set_target_properties( ${CobaltLogger_NAME} PROPERTIES VERSION ${CobaltProj_VERSION} )
+set_target_properties( ${CobaltLogger_NAME} PROPERTIES DEBUG_POSTFIX "-d" )
+set_target_properties( ${CobaltLogger_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/staging" )
 set_target_properties( ${CobaltLogger_NAME} PROPERTIES COMPILE_FLAGS
   "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
-
-
 
 ################################################################################
 # CobaltLib
@@ -114,6 +123,17 @@ add_library( ${CobaltLib_NAME}
   ${CobaltLib_SRC_GENERATED_DYNAMIC}
   ${CobaltGen_SRC}
   )
+
+target_include_directories( ${CobaltLib_NAME}
+  PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+          $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+          $<INSTALL_INTERFACE:include>
+)
+
+set_target_properties( ${CobaltLib_NAME} PROPERTIES VERSION ${CobaltProj_VERSION} )
+set_target_properties( ${CobaltLib_NAME} PROPERTIES DEBUG_POSTFIX "-d" )
+set_target_properties( ${CobaltLib_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/staging" )
+
 #set_property(TARGET ${CobaltLib_NAME} PROPERTY CXX_STANDARD 11 )
 if( ${Cobalt_ENABLE_LOGGER} )
   set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
@@ -140,5 +160,3 @@ elseif( Cobalt_BACKEND MATCHES "HIP")
   include_directories( ${HCC_INCLUDE_DIRS} )
   target_link_libraries( ${CobaltLib_NAME} ${HSA_LIBRARIES} )
 endif()
-
-

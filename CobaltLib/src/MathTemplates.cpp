@@ -166,17 +166,17 @@ void complexConjugate(CobaltComplexDouble & v) {
  ******************************************************************************/
 #if 1
 template<typename Type>
-size_t sizeOfType<Type>() {
-  return sizeof(Type);
+size_t sizeOfType(Type T) {
+  return sizeof(T);
 }
-template size_t sizeOfType<float>();
-template size_t sizeOfType<double>();
-template size_t sizeOfType<CobaltComplexFloat>();
-template size_t sizeOfType<CobaltComplexDouble>();
+// template size_t sizeOfType<float>();
+// template size_t sizeOfType<double>();
+// template size_t sizeOfType<CobaltComplexFloat>();
+// template size_t sizeOfType<CobaltComplexDouble>();
 
 
 template<>
-size_t sizeOfType<void>() {
+size_t sizeOfType<void>(void) {
   return 0;
 }
 
