@@ -267,6 +267,9 @@ void Tensor::fillTemplate(
       case fillTypeRandom:
         static_cast<T*>(tensorData.data)[index] = Cobalt::getRandom<T>();
         break;
+      case fillTypeIndex:
+        static_cast<T*>(tensorData.data)[index] = Cobalt::getTypeForInt<T>(index);
+        break;
       case fillTypeCopy:
         static_cast<T*>(tensorData.data)[index] = src[srcIdx++];
         break;

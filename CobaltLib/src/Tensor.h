@@ -13,7 +13,7 @@ namespace Cobalt {
 class Tensor {
   friend class Problem;
 public:
-  typedef enum { fillTypeZero, fillTypeOne, fillTypeRandom, fillTypeCopy } FillType;
+  typedef enum { fillTypeZero, fillTypeOne, fillTypeRandom, fillTypeIndex, fillTypeCopy } FillType;
   Tensor( CobaltTensor tensor );
   unsigned int numDims() const;
   std::string toString() const;

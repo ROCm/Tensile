@@ -1102,18 +1102,18 @@ class KernelWriter:
     #
     # end debug printf
 
-    # LDS state
-    kStr += indent + "/* print LDS state */" + self.endLine
-    kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0 && rC[0][0] == 25.f) {" + self.endLine
-    kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
-    kStr += indent + "    for (unsigned int i = 0; i < MT_" + tileChar0 + "; i++) {" + self.endLine
-    kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u][%u,%u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, u, i, localA[i+u*(MT_" + tileChar0 + "+PAD)], localB[i+u*(MT_"+tileChar0+"+PAD)] );" + self.endLine
-    # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
-    # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
-    kStr += indent + "    }" + self.endLine
-    kStr += indent + "  }" + self.endLine
-    kStr += indent + "}" + self.endLine
-    # [work-group id] idx=%i a=%f; b=%f
+    # # LDS state
+    # kStr += indent + "/* print LDS state */" + self.endLine
+    # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0) {" + self.endLine
+    # # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
+    # kStr += indent + "    for (unsigned int i = 0; i < 5+0*MT_" + tileChar0 + "; i++) {" + self.endLine
+    # kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u,%u][%02u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, i, localA[i], localB[i] );" + self.endLine
+    # # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
+    # # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
+    # kStr += indent + "    }" + self.endLine
+    # # kStr += indent + "  }" + self.endLine
+    # kStr += indent + "}" + self.endLine
+    # # [work-group id] idx=%i a=%f; b=%f
    
 
     ####################################
@@ -1307,16 +1307,17 @@ class KernelWriter:
       if i==len(kernel.indexOrderSummation)-1:
         kStr += "*UNROLL"
       else:
-        for j in range(i+1,len(kernel.indexOrderSummation)):
+        for j in range(i+1,min(i+2, len(kernel.indexOrderSummation)) ):
           tmpChar = indexChars[kernel.indexOrderSummation[j] \
               + len(kernel.indexOrderC)]
           kStr += " - strideA" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
+
       kStr += indent + "B += (long) strideB" + loopChar
       if i==len(kernel.indexOrderSummation)-1:
         kStr += "*UNROLL"
       else:
-        for j in range(i+1,len(kernel.indexOrderSummation)):
+        for j in range(i+1,min(i+2,len(kernel.indexOrderSummation)) ):
           tmpChar = indexChars[kernel.indexOrderSummation[j] \
               + len(kernel.indexOrderC)]
           kStr += " - strideB" + tmpChar + "*size" + tmpChar

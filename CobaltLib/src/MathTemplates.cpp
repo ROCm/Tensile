@@ -49,6 +49,11 @@ template<> CobaltComplexDouble getRandom<CobaltComplexDouble>() {
   return { getRandom<double>(), getRandom<double>()};
 }
 
+template<> float getTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
+template<> double getTypeForInt<double>( size_t s ) { return static_cast<double>(s); }
+template<> CobaltComplexFloat getTypeForInt<CobaltComplexFloat>( size_t s ) { return {static_cast<float>(s), static_cast<float>(s)}; }
+template<> CobaltComplexDouble getTypeForInt<CobaltComplexDouble>( size_t s ) { return {static_cast<double>(s), static_cast<double>(s)}; }
+
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
