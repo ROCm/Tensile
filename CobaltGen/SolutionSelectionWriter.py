@@ -1077,12 +1077,13 @@ class SolutionSelectionWriter:
 
   def writePSPsToCSV(self, exactMatch, inputPSPs):
     
-    pspsUnsorted = copy.deepcopy(inputPSPs)
+    print "WritePSPtoCSV: sorting"
+    pspsUnsorted = inputPSPs # copy.deepcopy(inputPSPs)
     psps = self.sortSizePSPs(pspsUnsorted)
+    print "WritePSPtoCSV: done sorting"
 
 
     # in this routine, size is sqrted
-    print "Writing PSPs to CSV"
     # set of all solutions "sorted" smallest to largest
     localSolutionSet = set()
     for psp in psps:
@@ -1127,7 +1128,7 @@ class SolutionSelectionWriter:
       if size == 1e6:
         break
       # size should be mod16-1
-      #print "size = %u" % size
+      print "size = %u" % size
       # write row size
       s += str(size+1) + ", "
       # write solution speeds for fallbacks

@@ -798,7 +798,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltControl & ctrl ) {
 
   // compile kernels
-  const char *buildOptions = "-cl-std=CL2.0";
+  const char *buildOptions = "-cl-std=CL1.2";
   for (size_t i = 0; i < this->maxNumKernels; i++) {
     if (kernelSources[i]) {
       makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );

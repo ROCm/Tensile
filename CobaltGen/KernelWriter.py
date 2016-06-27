@@ -1102,7 +1102,19 @@ class KernelWriter:
     #
     # end debug printf
 
-
+    # LDS state
+    kStr += indent + "/* print LDS state */" + self.endLine
+    kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0 && rC[0][0] == 25.f) {" + self.endLine
+    kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
+    kStr += indent + "    for (unsigned int i = 0; i < MT_" + tileChar0 + "; i++) {" + self.endLine
+    kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u][%u,%u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, u, i, localA[i+u*(MT_" + tileChar0 + "+PAD)], localB[i+u*(MT_"+tileChar0+"+PAD)] );" + self.endLine
+    # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
+    # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
+    kStr += indent + "    }" + self.endLine
+    kStr += indent + "  }" + self.endLine
+    kStr += indent + "}" + self.endLine
+    # [work-group id] idx=%i a=%f; b=%f
+   
 
     ####################################
     # do fmas
@@ -1115,7 +1127,8 @@ class KernelWriter:
     # debug printf - accumulation in registers
     # kStr += "  if (validC) printf(\\\"T[%u,%u] rC = %f g=%u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[0][0], GLOBAL_C(globalC0I, globalC1J) );" + self.endLine
     # end debug printf
-
+    # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0 ) printf(\\\"[%u,%u,%u,%u] m=%u, n=%u, o=%u, r[0][0]=%.0f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, rC[0][0] );" + self.endLine
+    
 
     ########################################################################
     # BEGIN UNROLL=1 LOOP
@@ -1290,7 +1303,7 @@ class KernelWriter:
       loopChar = indexChars[kernel.indexOrderSummation[i] \
           + len(kernel.indexOrderC)]
       # advance A, B along summation dimension
-      kStr += indent + "A += strideA" + loopChar
+      kStr += indent + "A += (long) strideA" + loopChar
       if i==len(kernel.indexOrderSummation)-1:
         kStr += "*UNROLL"
       else:
@@ -1299,7 +1312,7 @@ class KernelWriter:
               + len(kernel.indexOrderC)]
           kStr += " - strideA" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
-      kStr += indent + "B += strideB" + loopChar
+      kStr += indent + "B += (long) strideB" + loopChar
       if i==len(kernel.indexOrderSummation)-1:
         kStr += "*UNROLL"
       else:
