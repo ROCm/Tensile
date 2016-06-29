@@ -1031,7 +1031,7 @@ class KernelWriter:
     kStr += indent + "/* load B global -> local */" + self.endLine
     if kernel.loadRequiresFewerThreadsB():
       kStr += indent + "if ( loadSerial < %d ) {%s" \
-          % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
+          % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
       indent += "  "
     for perp in range(0, kernel.numLoadsPerpB):
       for para in range(0, kernel.numLoadsParaB):
@@ -1259,7 +1259,7 @@ class KernelWriter:
       kStr += indent + "/* load B global -> local */" + self.endLine
       if kernel.loadRequiresFewerThreadsB():
         kStr += indent + "if ( loadSerial < %d ) {%s" \
-            % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
+            % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
         indent += "  "
       for perp in range(0, kernel.numLoadsPerpB):
         for para in range(0, kernel.numLoadsParaB):

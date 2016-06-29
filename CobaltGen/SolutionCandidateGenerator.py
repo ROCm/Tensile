@@ -27,8 +27,8 @@ class SolutionCandidateGenerator:
   skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
   skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
   skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 4
-  maxMicroTileSize = 4
+  minMicroTileSize = 1
+  maxMicroTileSize = 8
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
   # unrollLevels = [16, 8, 5, 4, 2, 1]
@@ -69,11 +69,10 @@ class SolutionCandidateGenerator:
   #     [4,32], [8,16],  [16,8], [32,4], \
   #     [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
   #     [4,64], [8,32], [16,16], [32,8],  [64,4] ]
-  """
-  universeWorkGroupDim = [ [16,16] ]
+  
+  # universeWorkGroupDim = [ [16,16] ]
   universeWorkGroupDim = [ [16, 16], [8, 8] ]
-  """
-  universeWorkGroupDim = [ [8, 8] ]
+  # universeWorkGroupDim = [ [8, 8] ]
 
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ] # branched and multiple
@@ -307,6 +306,8 @@ class SolutionCandidateGenerator:
               kernel.numLoadsParaA = numLoadsParaA
               kernel.loadSizeParaA = int(math.ceil(1.0*kernel.totalLoadSizeParaA / kernel.numLoadsParaA ) ) # round up
               kernel.loadSizePerpA = int( (workGroup[0]*workGroup[1])/kernel.loadSizeParaA ) # round down
+              if kernel.loadSizePerpA > kernel.totalLoadSizePerpA:
+                kernel.loadSizePerpA = kernel.totalLoadSizePerpA
               kernel.numLoadsPerpA = int(math.ceil(1.0*kernel.totalLoadSizePerpA / kernel.loadSizePerpA )) # round up
               print "  A: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaA, kernel.numLoadsPerpA, kernel.loadSizeParaA, kernel.loadSizePerpA)
 
@@ -321,6 +322,8 @@ class SolutionCandidateGenerator:
                 kernel.numLoadsParaB = numLoadsParaB
                 kernel.loadSizeParaB = int(math.ceil(1.0*kernel.totalLoadSizeParaB / kernel.numLoadsParaB )) # round up
                 kernel.loadSizePerpB = int((workGroup[0]*workGroup[1])/kernel.loadSizeParaB) # round down
+                if kernel.loadSizePerpB > kernel.totalLoadSizePerpB:
+                  kernel.loadSizePerpB = kernel.totalLoadSizePerpB
                 kernel.numLoadsPerpB = int(math.ceil(1.0*kernel.totalLoadSizePerpB / kernel.loadSizePerpB)) # round up
                 print "    B: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaB, kernel.numLoadsPerpB, kernel.loadSizeParaB, kernel.loadSizePerpB)
 
