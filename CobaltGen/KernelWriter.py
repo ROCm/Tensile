@@ -973,24 +973,13 @@ class KernelWriter:
           kStr += "*(MT_%s+PAD)" % tileCharA
         kStr += " ] = "
         
-        # conditions
-        condBranch = not kernel.tile.branch[1].isNone()
-        # if condBranch or condPara or condPerp:
-        if condBranch:
+        if not kernel.tile.branch[0].isNone():
           kStr += "( a%s+g%s*MT_%s+" % ( tileCharA, tileCharA, tileCharA)
           if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
             kStr += "%d*LS_PERP_A" % (perp)
           else:
             kStr += "%d*LS_PARA_A" % (para)
           kStr += " >= size%s)" %( tileCharA )
-          # if condPara:
-          #   if condBranch:
-          #     kStr += " || "
-          #   kStr += "( a%s >= %d )" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
-          # if condPerp:
-          #   if condBranch or condPara:
-          #     kStr += " || "
-          #   kStr += "( a%s >= %d )" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
           kStr += " ? %s : " %( zeroStringA )
 
         kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];" \
@@ -1067,25 +1056,13 @@ class KernelWriter:
           kStr += "*(MT_%s+PAD)" % tileCharB
         kStr += " ] = "
 
-        # conditions
-        condBranch = not kernel.tile.branch[1].isNone()
-        #if condBranch or condPara or condPerp:
-        if condBranch:
+        if not kernel.tile.branch[1].isNone():
           kStr += "( b%s+g%s*MT_%s+" % ( tileCharB, tileCharB, tileCharB)
           if kernel.unrollDimStrideLessThanTileDimStrideB:
             kStr += "%d*LS_PERP_B" % (perp)
           else:
             kStr += "%d*LS_PARA_B" % (para)
           kStr += " >= size%s)" % (tileCharB )
-          # if condPara:
-          #   if condBranch:
-          #     kStr += " || "
-          #   kStr += "( b%s >= %d )" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
-          # if condPerp:
-          #   if condBranch or condPara:
-          #     kStr += " || "
-          #   kStr += "( b%s >= %d )" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
-          # end conditions
           kStr += " ? %s : " % ( zeroStringB )
         
         kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
@@ -1210,7 +1187,7 @@ class KernelWriter:
       # close do-while loop
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
       kStr += self.endLine
-      kStr += self.syncStr + self.endLine
+      kStr += indent + self.syncStr + self.endLine
 
 
       ####################################
@@ -1230,7 +1207,19 @@ class KernelWriter:
         indent += "  "
       for perp in range(0, kernel.numLoadsPerpA):
         for para in range(0, kernel.numLoadsParaA):
-          kStr += indent + "lA[ %d*LS_PARA_A" % para
+          kStr += indent
+          condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
+          condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
+          if condPara or condPerp:
+            kStr += "if ( "
+            if condPara:
+              kStr += "a%s < %d" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
+            if condPerp:
+              if condPara:
+                kStr += " || "
+              kStr += "a%s < %d" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
+            kStr += " ) { "
+          kStr += "lA[ %d*LS_PARA_A" % para
           if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
             kStr += "*(MT_%s+PAD)" % tileCharA
           kStr += " + %d*LS_PERP_A" % perp
@@ -1252,18 +1241,12 @@ class KernelWriter:
             else:
               kStr += "%d*LS_PARA_A" % (para)
             kStr += " >= size%s)" %( tileCharA )
-          # guard para
-          if (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB()):
-            kStr += " || "
-            kStr += "( a%s >= %d )" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
-          # guard perp
-          if (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB()):
-            kStr += " || "
-            kStr += "( a%s >= %d )" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
-            
           kStr += " ? %s : " % zeroStringA
-          kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
-              % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, self.endLine)
+          kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];" \
+              % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
+          if condPara or condPerp:
+            kStr += " }"
+          kStr += self.endLine
       if kernel.loadRequiresFewerThreadsA():
         indent = indent[2:]
         kStr += indent + "}" + self.endLine
@@ -1280,7 +1263,20 @@ class KernelWriter:
         indent += "  "
       for perp in range(0, kernel.numLoadsPerpB):
         for para in range(0, kernel.numLoadsParaB):
-          kStr += indent + "lB[ %d*LS_PARA_B" % para
+          kStr += indent
+          condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
+          condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
+          if condPara or condPerp:
+            kStr += "if ( "
+            if condPara:
+                  kStr += "b%s < %d" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
+            if condPerp:
+              if condPara:
+                kStr += " || "
+              kStr += "b%s < %d" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
+            kStr += " ) { "
+
+          kStr += "lB[ %d*LS_PARA_B" % para
           if kernel.unrollDimStrideLessThanTileDimStrideB:
             kStr += "*(MT_%s+PAD)" % tileCharB
           kStr += " + %d*LS_PERP_B" % perp
@@ -1302,31 +1298,28 @@ class KernelWriter:
             else:
               kStr += "%d*LS_PARA_B" % (para)
             kStr += " >= size%s) " % (tileCharB )
-          # guard para  
-          if (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB()):
-            kStr += " || "
-            kStr += "( b%s >= %d )" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
-          # guard perp
-          if (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB()):
-            kStr += " || "
-            kStr += "( b%s >= %d )" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
-            
+         
           kStr += " ? %s : " % zeroStringB
-          kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
-              % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, self.endLine)
+          kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
+              % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
+        if condPara or condPerp:
+          kStr += " }"
+        kStr += self.endLine
       if kernel.loadRequiresFewerThreadsB():
         indent = indent[2:]
         kStr += indent + "}" + self.endLine
       kStr += self.endLine
-      kStr += "  " + self.syncStr + self.endLine
+      kStr += indent + self.syncStr + self.endLine
 
       # full end loop b/c local full of zeros
       kStr += indent + "/* full unroll loop */" + self.endLine
-      kStr += indent + "sumIter" + indexChar + " = UNROLL;" + self.endLine
+      #kStr += indent + "sumIter" + indexChar + " = UNROLL;" + self.endLine
+      kStr += "#undef UNROLL" + self.endLine
+      kStr += "#define UNROLL 1" + self.endLine
       kStr += self.endLine
 
-      kStr += "  unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine
-      kStr += "  unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine
+      kStr += indent + "unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine
+      kStr += indent + "unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine
       kStr += self.endLine
 
       # begin loop
