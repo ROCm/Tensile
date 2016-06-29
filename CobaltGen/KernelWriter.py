@@ -322,21 +322,21 @@ class KernelWriter:
     # kernel preprocessor definitions
     kStr += self.endLine
     kStr += "/* tile parameters */" + self.endLine
-    kStr += "#define WG_%s          %d%s" \
+    kStr += "#define WG_%s  %2d%s" \
         % (tileChar0, kernel.tile.workGroup[0], self.endLine )
-    kStr += "#define WG_%s          %d%s" \
+    kStr += "#define WG_%s  %2d%s" \
         % (tileChar1, kernel.tile.workGroup[1], self.endLine )
-    kStr += "#define UT_" + tileChar0 + "  %d%s" \
+    kStr += "#define UT_" + tileChar0 + "  %2d%s" \
         % (kernel.tile.microTile[0], self.endLine )
-    kStr += "#define UT_" + tileChar1 + "  %d%s" \
+    kStr += "#define UT_" + tileChar1 + "  %2d%s" \
         % (kernel.tile.microTile[1], self.endLine )
-    kStr += "#define MT_" + tileChar0 + "  %s%s" \
+    kStr += "#define MT_" + tileChar0 + "  %2d%s" \
         % ((kernel.tile.workGroup[0] * kernel.tile.microTile[0]), self.endLine )
-    kStr += "#define MT_" + tileChar1 + "  %s%s" \
+    kStr += "#define MT_" + tileChar1 + "  %2d%s" \
         % ((kernel.tile.workGroup[1] * kernel.tile.microTile[1]), self.endLine )
-    kStr += "#define UNROLL  %s%s" \
+    kStr += "#define UNROLL %2d%s" \
         % (kernel.unrolls[0], self.endLine )
-    kStr += "#define PAD 1" + self.endLine
+    kStr += "#define PAD     1" + self.endLine
     kStr += self.endLine
 
     ####################################
@@ -365,7 +365,7 @@ class KernelWriter:
     kStr += "#define NL_PERP_B %d%s" % (kernel.numLoadsPerpB, self.endLine )
     kStr += self.endLine
 
-    if True:
+    if False:
       # load size
       if kernel.unrollDimStrideGreaterThanTileDimStrideA:
         kStr += "#define LS_PARA_A (MT_%s/NL_PARA_A)%s" \
@@ -384,7 +384,7 @@ class KernelWriter:
         kStr += "#define LS_PARA_B (UNROLL/NL_PARA_B)%s" \
             % (self.endLine)
         kStr += "#define LS_PERP_B (MT_%s/NL_PERP_B)%s" % (tileCharB, self.endLine)
-    else:
+    if True:
       # load size
       kStr += "/* load size parallel and perpendicular to coalesced dimension */" + self.endLine
       kStr += "#define LS_PARA_A %d%s" % (kernel.loadSizeParaA, self.endLine)
@@ -958,11 +958,11 @@ class KernelWriter:
         if condPara or condPerp:
           kStr += "if ( "
           if condPara:
-            kStr += "a%s < %d" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
+            kStr += "a%s < %d" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
           if condPerp:
             if condPara:
               kStr += " || "
-            kStr += "a%s < %d" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
+            kStr += "a%s < %d" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
           kStr += " ) { "
 
         kStr += "lA[ %d*LS_PARA_A" % para
@@ -1052,11 +1052,11 @@ class KernelWriter:
         if condPara or condPerp:
           kStr += "if ( "
           if condPara:
-                kStr += "b%s < %d" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
+                kStr += "b%s < %d" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
           if condPerp:
             if condPara:
               kStr += " || "
-            kStr += "b%s < %d" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
+            kStr += "b%s < %d" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
           kStr += " ) { "
 
         kStr += "lB[ %d*LS_PARA_B" % para
@@ -1169,13 +1169,13 @@ class KernelWriter:
     # # LDS state
     # kStr += indent + "/* print LDS state */" + self.endLine
     # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0) {" + self.endLine
-    # # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
-    # kStr += indent + "    for (unsigned int i = 0; i < 5+0*MT_" + tileChar0 + "; i++) {" + self.endLine
-    # kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u,%u][%02u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, i, localA[i], localB[i] );" + self.endLine
+    # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
+    # kStr += indent + "    for (unsigned int i = 0; i < MT_" + tileChar0 + "; i++) {" + self.endLine
+    # kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u,%u][%02u,%02u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, u, i, localA[i+u*(MT_"+tileChar0+"+PAD)], localB[i+u*(MT_"+tileChar0+"+PAD)] );" + self.endLine
     # # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
     # # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
     # kStr += indent + "    }" + self.endLine
-    # # kStr += indent + "  }" + self.endLine
+    # kStr += indent + "  }" + self.endLine
     # kStr += indent + "}" + self.endLine
     # # [work-group id] idx=%i a=%f; b=%f
    
@@ -1255,11 +1255,11 @@ class KernelWriter:
           # guard para
           if (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB()):
             kStr += " || "
-            kStr += "( a%s >= %d )" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
+            kStr += "( a%s >= %d )" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
           # guard perp
           if (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB()):
             kStr += " || "
-            kStr += "( a%s >= %d )" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
+            kStr += "( a%s >= %d )" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
             
           kStr += " ? %s : " % zeroStringA
           kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];%s" \
@@ -1305,11 +1305,11 @@ class KernelWriter:
           # guard para  
           if (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB()):
             kStr += " || "
-            kStr += "( b%s >= %d )" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
+            kStr += "( b%s >= %d )" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
           # guard perp
           if (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB()):
             kStr += " || "
-            kStr += "( b%s >= %d )" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
+            kStr += "( b%s >= %d )" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
             
           kStr += " ? %s : " % zeroStringB
           kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];%s" \
