@@ -813,7 +813,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     for (unsigned int enqueueIdx = 0;
         enqueueIdx < this->numEnqueues[kernelIdx]; enqueueIdx++) {
 
-      size_t dataArgIdx = 0;
+      unsigned int dataArgIdx = 0;
       // data pointers
       status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
           sizeof(cl_mem), &tensorDataC.data ); CL_CHECK(status)
@@ -854,7 +854,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
        */
 
       // print args
-#if 0
+#if 1
       printf("openclKernelLaunch(%u:%u:%u):\n    g{%u,%u,%u};\n    l{%u,%u,%u};\n    p{%p,%p,%p};\n    ab{%f,%f};\n    o{%u,%u,%u};\n    s{%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u} s{%u,%u,%u,%u,%u,%u,%u}\n",
           kernelIdx,
           enqueueIdx,
