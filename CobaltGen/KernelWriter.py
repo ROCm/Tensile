@@ -953,8 +953,8 @@ class KernelWriter:
     for perp in range(0, kernel.numLoadsPerpA):
       for para in range(0, kernel.numLoadsParaA):
         kStr += indent
-        condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
-        condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
+        condPara = (para==kernel.numLoadsParaA-1 and kernel.lastLoadRequiresGuardParaA())
+        condPerp = (perp==kernel.numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
         if condPara or condPerp:
           kStr += "if ( "
           if condPara:
@@ -1208,8 +1208,8 @@ class KernelWriter:
       for perp in range(0, kernel.numLoadsPerpA):
         for para in range(0, kernel.numLoadsParaA):
           kStr += indent
-          condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
-          condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
+          condPara = (para==kernel.numLoadsParaA-1 and kernel.lastLoadRequiresGuardParaA())
+          condPerp = (perp==kernel.numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
           if condPara or condPerp:
             kStr += "if ( "
             if condPara:
