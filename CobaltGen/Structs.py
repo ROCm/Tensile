@@ -827,15 +827,41 @@ class Kernel:
     # Tile
     self.tile = Tile()
     self.unrolls = []
-    # number of A loads parallel to coalesced dimension
-    self.numLoadsA = -1
-    # number of B loads parallel to coalesced dimension
-    self.numLoadsB = -1
+
+    # global->local load strategy
+    self.numLoadsParaA = -1
+    self.numLoadsPerpA = -1
+    self.loadSizeParaA = -1
+    self.loadSizePerpA = -1
+    self.numLoadsParaB = -1
+    self.numLoadsPerpB = -1
+    self.loadSizeParaB = -1
+    self.loadSizePerpB = -1
+    self.totalLoadSizeParaA = -1
+    self.totalLoadSizePerpA = -1
+    self.totalLoadSizeParaB = -1
+    self.totalLoadSizePerpB = -1
 
     # Pre-Processor definition optimizations
     self.ppdOffsets = False # offsets are #defined and not arguments
     self.ppdLeadingStride = False #leading strides are #defined and not arguments
     self.ppdAll = False #everything is #defined and not arguments
+
+  # all loads using not all threads
+  def loadRequiresFewerThreadsA(self):
+    return self.tile.workGroup[0]*self.tile.workGroup[1] > self.loadSizeParaA * self.loadSizePerpA
+  def loadRequiresFewerThreadsB(self):
+    return self.tile.workGroup[0]*self.tile.workGroup[1] > self.loadSizeParaB * self.loadSizePerpB
+
+  # last load (para or perp) requires additional guard b/c loading sub-load
+  def lastLoadRequiresGuardParaA(self):
+    return self.totalLoadSizeParaA < self.numLoadsParaA * self.loadSizeParaA
+  def lastLoadRequiresGuardPerpA(self):
+    return self.totalLoadSizePerpA < self.numLoadsPerpA * self.loadSizePerpA
+  def lastLoadRequiresGuardParaB(self):
+    return self.totalLoadSizeParaB < self.numLoadsParaB * self.loadSizeParaB
+  def lastLoadRequiresGuardPerpB(self):
+    return self.totalLoadSizePerpB < self.numLoadsPerpB * self.loadSizePerpB
 
 
   def __str__(self):
@@ -873,8 +899,14 @@ class Kernel:
         self.ppdOffsets, \
         self.ppdLeadingStride, \
         self.ppdAll, \
-        self.numLoadsA, \
-        self.numLoadsB
+        self.numLoadsParaA, \
+        self.numLoadsPerpA, \
+        self.loadSizeParaA, \
+        self.loadSizePerpA, \
+        self.numLoadsParaB, \
+        self.numLoadsPerpB, \
+        self.loadSizeParaB, \
+        self.loadSizePerpB \
         )
   def __hash__(self):
     return hash(self.getAttributes())

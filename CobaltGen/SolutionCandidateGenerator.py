@@ -4,7 +4,7 @@ import FileReader
 import KernelWriter
 import SolutionWriter
 import argparse
-
+import math
 
 ################################################################################
 # SolutionCandidateGenerator
@@ -30,13 +30,14 @@ class SolutionCandidateGenerator:
   maxMicroTileSize = 8
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
-  unrollLevels = [16, 8, 5, 4, 2, 1]
+  # unrollLevels = [16, 8, 5, 4, 2, 1]
+  unrollLevels = [5, 1]
   #unrollLevels = [16]
   universeUnroll = { \
-       1: [ [  1 ], [ 16, 1 ], [  8, 1 ] ], \
+       1: [ [  1 ], [ 16, 1 ], [  8, 1 ], [4, 1] ], \
        2: [ [  2 ], [ 16, 1 ], [  8, 1 ] ], \
        4: [ [  4 ], [ 16, 1 ], [  8, 1 ] ], \
-       5: [ [  5 ], [ 1 ], ], \
+       5: [ [  5 ], [  4,  1], [ 1 ], ], \
        8: [ [  8 ], [ 16, 1 ], [ 4 ] ], \
       16: [ [ 16 ], [ 8 ], [ 4 ]], \
       32: [ [ 32 ], [ 16 ], [ 8 ] ] \
@@ -176,19 +177,22 @@ class SolutionCandidateGenerator:
       if problemSizeUnroll % unroll == 0:
         selectedUnroll = unroll
         break
-
     # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
+      print "unroll = " + str(unroll)
       kernel.unrolls = unroll
       # summation must be multiple of last unroll
       if problemSizeUnroll % unroll[len(unroll)-1] > 0:
+        print "sum not multiple of last unroll"
         continue
       # first do-while summation loop has to do at least one iteration
       if problemSizeUnroll < unroll[0]:
+        print "first loop not at least 1 iter"
         continue
       # second do-while summation loop has to do at least one iteration
       if len(unroll) > 1:
         if problemSizeUnroll % unroll[0] < unroll[1]:
+          print "second loop not at least 1 iter"
           continue
       for workGroup in self.universeWorkGroupDim:
         kernel.tile.workGroup = workGroup
@@ -245,53 +249,77 @@ class SolutionCandidateGenerator:
               continue
 # 1649 candidates -> 128 ->
 
+            print "TILE: wg=%ux%u; mt=%ux%u; u=%s" % (workGroup[0], workGroup[1], microTile[0], microTile[1], str(unroll) )
             # load grid
-            #loadSizeParaA = (workGroup[0]*microTile[0]*unroll[0])
-            #loadSizeParaB = (workGroup[1]*microTile[1]*unroll[0])
+            #totalLoadSizeParaA = (workGroup[0]*microTile[0]*unroll[0])
+            #totalLoadSizeParaB = (workGroup[1]*microTile[1]*unroll[0])
             #if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-            loadSizeParaA = macroTileDim0 if kernel.unrollDimStrideGreaterThanTileDimStrideA else unroll[0];
-            loadSizeParaB = macroTileDim1 if not kernel.unrollDimStrideLessThanTileDimStrideB else unroll[0];
-            # print loadSizeParaA, loadSizeParaB
-            numLoadsA = (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1])
-            numLoadsB = (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1])
+            kernel.totalLoadSizeParaA = macroTileDim0 if kernel.unrollDimStrideGreaterThanTileDimStrideA else unroll[0]
+            kernel.totalLoadSizePerpA = unroll[0] if kernel.unrollDimStrideGreaterThanTileDimStrideA else macroTileDim0
+            kernel.totalLoadSizeParaB = macroTileDim1 if not kernel.unrollDimStrideLessThanTileDimStrideB else unroll[0]
+            kernel.totalLoadSizePerpB = unroll[0] if not kernel.unrollDimStrideLessThanTileDimStrideB else macroTileDim1
+            # print totalLoadSizeParaA, loadSizeParaB
+            numLoadsA = max(1, (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1]) )
+            numLoadsB = max(1, (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1]) )
+            
             # whole number of loads
-            if (workGroup[0]*microTile[0]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
-              continue
-            if (workGroup[1]*microTile[1]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
-              continue
+            # if (workGroup[0]*microTile[0]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
+            #   print "not whole number of A loads"
+            #   continue
+            # if (workGroup[1]*microTile[1]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
+            #   print "not whole number of B loads"
+            #   continue
 
             # could be any integer 1->numLoads, but these always are the fastest
             optionsParaA = []
-            if not transA:
-              optionsParaA.append( numLoadsA )
-            else:
-              optionsParaA.append( 1 )
+            if False: # true means try every possibility
+              for i in range(1, numLoadsA+1):
+                optionsParaA.append(i)
+            else: # try only known fastest
+              if not transA:
+                optionsParaA.append( numLoadsA )
+              else:
+                optionsParaA.append( 1 )
+            # print "  optionsA = " + str(optionsParaA)
+            
             optionsParaB = []
-            if transB:
-              optionsParaB.append( numLoadsB )
-            else:
-              optionsParaB.append( 1 )
+            if False: # true means try every possibility
+              for i in range(1, numLoadsB+1):
+                optionsParaB.append(i)
+            else: # try only known fastest
+              if transB:
+                optionsParaB.append( numLoadsB )
+              else:
+                optionsParaB.append( 1 )
+            # print "    optionsB = " + str(optionsParaB)
 
             for numLoadsParaA in optionsParaA:
-              if numLoadsA % numLoadsParaA > 0:
-                continue
-              numLoadsPerpA = numLoadsA / numLoadsParaA
-              if loadSizeParaA%numLoadsParaA>0:
-                continue
-              if (workGroup[0]*workGroup[1])%(loadSizeParaA/numLoadsParaA) > 0:
-                continue
-              #else:
-              #  print "%d%%(%d/%d) == 0 (%d)"% (workGroup[0]*workGroup[1],macroTileDim0,numLoadsPerpA,numLoadsA )
-              kernel.numLoadsA = numLoadsParaA
+              if False: # true means only try perfect tiles w/o branches
+                if numLoadsA % numLoadsParaA > 0:
+                  continue
+                if totalLoadSizeParaA%numLoadsParaA>0:
+                  continue
+                if (workGroup[0]*workGroup[1])%(totalLoadSizeParaA/numLoadsParaA) > 0:
+                  continue
+              kernel.numLoadsParaA = numLoadsParaA
+              kernel.loadSizeParaA = int(math.ceil(1.0*kernel.totalLoadSizeParaA / kernel.numLoadsParaA ) ) # round up
+              kernel.loadSizePerpA = int( (workGroup[0]*workGroup[1])/kernel.loadSizeParaA ) # round down
+              kernel.numLoadsPerpA = int(math.ceil(1.0*kernel.totalLoadSizePerpA / kernel.loadSizePerpA )) # round up
+              print "  A: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaA, kernel.numLoadsPerpA, kernel.loadSizeParaA, kernel.loadSizePerpA)
+
               for numLoadsParaB in optionsParaB:
-                if numLoadsB % numLoadsParaB > 0:
-                  continue
-                numLoadsPerpB = numLoadsB / numLoadsParaB
-                if loadSizeParaB%numLoadsParaB>0:
-                  continue
-                if (workGroup[0]*workGroup[1])%(loadSizeParaB/numLoadsParaB) > 0:
-                  continue
-                kernel.numLoadsB = numLoadsParaB
+                if False: # true means only try perfect tiles w/o branches
+                  if numLoadsB % numLoadsParaB > 0:
+                    continue
+                  if totalLoadSizeParaB%numLoadsParaB>0:
+                    continue
+                  if (workGroup[0]*workGroup[1])%(totalLoadSizeParaB/numLoadsParaB) > 0:
+                    continue
+                kernel.numLoadsParaB = numLoadsParaB
+                kernel.loadSizeParaB = int(math.ceil(1.0*kernel.totalLoadSizeParaB / kernel.numLoadsParaB )) # round up
+                kernel.loadSizePerpB = int((workGroup[0]*workGroup[1])/kernel.loadSizeParaB) # round down
+                kernel.numLoadsPerpB = int(math.ceil(1.0*kernel.totalLoadSizePerpB / kernel.loadSizePerpB)) # round up
+                print "    B: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaB, kernel.numLoadsPerpB, kernel.loadSizeParaB, kernel.loadSizePerpB)
 
                 # kernel grid
                 kernelGrid = [ 1, 1, 1 ]

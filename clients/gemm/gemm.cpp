@@ -94,7 +94,7 @@ unsigned int addGEMMList() {
 unsigned int addGEMMCombinatorics() {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 1
+#if 0
   for (size_t i = 16; i <= 5760; i+= 16) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
@@ -110,7 +110,7 @@ unsigned int addGEMMCombinatorics() {
   //sizes.push_back( {96*3  , 96*2  , 96*1-1});
   //sizes.push_back( {96*3-1, 96*2-1, 96*1  });
   //sizes.push_back( {96*3-1, 96*2-1, 96*1-1});
-  //sizes.push_back( {64, 64, 64});
+  sizes.push_back( {28*28*100, 32, 75});
 
   const size_t numStrides = 1;
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -137,9 +137,9 @@ unsigned int addGEMMCombinatorics() {
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
   const size_t numTransA = 1;
-  const bool transAs[] = {true, true};
+  const bool transAs[] = {false, true};
   const size_t numTransB = 1;
-  const bool transBs[] = {true, false};
+  const bool transBs[] = {false, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
 
