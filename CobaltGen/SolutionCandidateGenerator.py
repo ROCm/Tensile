@@ -15,6 +15,7 @@ class SolutionCandidateGenerator:
   maxLocalMemoryBytes = 32768
   localMemPad = 1
   maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
+  evenMicroTilesOnly = False
 
   # problem is skinny if smaller dim < 32 and larger dim > 4096
   skinnyThresholds = [32, 4096]
@@ -26,8 +27,8 @@ class SolutionCandidateGenerator:
   skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
   skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
   skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 2
-  maxMicroTileSize = 8
+  minMicroTileSize = 4
+  maxMicroTileSize = 4
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
   # unrollLevels = [16, 8, 5, 4, 2, 1]
@@ -70,8 +71,9 @@ class SolutionCandidateGenerator:
   #     [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   """
   universeWorkGroupDim = [ [16,16] ]
-  """
   universeWorkGroupDim = [ [16, 16], [8, 8] ]
+  """
+  universeWorkGroupDim = [ [8, 8] ]
 
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ] # branched and multiple
@@ -208,10 +210,11 @@ class SolutionCandidateGenerator:
             self.maxMicroTileSize+1):
           for microTileDim1 in range(self.minMicroTileSize, \
               self.maxMicroTileSize+1):
-            if microTileDim0%2>0:
-              continue
-            if microTileDim1%2>0:
-              continue
+            if self.evenMicroTilesOnly:
+              if microTileDim0%2>0:
+                continue
+              if microTileDim1%2>0:
+                continue
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
             # only try skinny micro-tile if problem is skinny
