@@ -931,6 +931,9 @@ class KernelWriter:
       kStr += indent + "do {" + self.endLine
       indent += "  "
     kStr += self.endLine
+    
+    # 1st barrier
+    # kStr += indent + self.syncStr + self.endLine
 
     # zeroString for real and complex
     if self.backend.isOpenCL():
@@ -1075,7 +1078,7 @@ class KernelWriter:
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
 
-
+    # 2nd barrier
     kStr += (
       indent + self.syncStr + self.endLine +
       indent + "unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine +
@@ -1388,6 +1391,26 @@ class KernelWriter:
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
     # end debug
     # kStr += "  rC[0][0] = TYPE_C(1.23456789, -1.23456789);" + self.endLine
+    
+    # kStr += indent + "/* print LDS state */" + self.endLine
+    # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0) {" + self.endLine
+    # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
+    # kStr += indent + "    for (unsigned int i = 0; i < MT_" + tileChar0 + "; i++) {" + self.endLine
+    # kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u,%u][%02u,%02u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, u, i, localA[i+u*(MT_"+tileChar0+"+PAD)], localB[i+u*(MT_"+tileChar0+"+PAD)] );" + self.endLine
+    # # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
+    # # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
+    # kStr += indent + "    }" + self.endLine
+    # kStr += indent + "  }" + self.endLine
+    # kStr += indent + "}" + self.endLine
+
+   
+    # kStr += indent + "  for (unsigned int i = 0; i < 8; i++) {" + self.endLine
+    # kStr += indent + "    for (unsigned int j = 0; j < 8; j++) {" + self.endLine
+    # kStr += indent + "      rC[i][j] = 75.0;" + self.endLine
+    # kStr += indent + "    }" + self.endLine
+    # kStr += indent + "  }" + self.endLine
+    # kStr += self.endLine
+
     kStr += "  /* write global C */" + self.endLine
     if kernel.dataTypeC.value == Structs.DataType.complexSingle or kernel.dataTypeC.value == Structs.DataType.complexConjugateSingle:
       kStr += "  float type_fma_tmp;" + self.endLine

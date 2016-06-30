@@ -17,6 +17,9 @@ class SolutionCandidateGenerator:
   maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
   evenMicroTilesOnly = False
 
+  noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
+  noMultipleKernels = True # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
+
   # problem is skinny if smaller dim < 32 and larger dim > 4096
   skinnyThresholds = [32, 4096]
   #skinnyThresholds = [128, 0]
@@ -27,18 +30,18 @@ class SolutionCandidateGenerator:
   skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
   skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
   skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 1
-  maxMicroTileSize = 8
+  minMicroTileSize = 2
+  maxMicroTileSize = 4
   # don't include 32 as unroll level, uses too many sgprs and occupancy is low
   # unroll 4 is usually too few (loads don't cache as well)
-  # unrollLevels = [16, 8, 5, 4, 2, 1]
-  unrollLevels = [5, 1]
+  unrollLevels = [16, 8, 5, 4, 2, 1]
+  # unrollLevels = [5]
   #unrollLevels = [16]
   universeUnroll = { \
        1: [ [  1 ], [ 16, 1 ], [  8, 1 ], [4, 1] ], \
        2: [ [  2 ], [ 16, 1 ], [  8, 1 ] ], \
        4: [ [  4 ], [ 16, 1 ], [  8, 1 ] ], \
-       5: [ [  5 ], [  4,  1], [ 1 ], ], \
+       5: [ [  5 ], [4, 1], [16, 1], [8, 1] ], \
        8: [ [  8 ], [ 16, 1 ], [ 4 ] ], \
       16: [ [ 16 ], [ 8 ], [ 4 ]], \
       32: [ [ 32 ], [ 16 ], [ 8 ] ] \
@@ -71,16 +74,14 @@ class SolutionCandidateGenerator:
   #     [4,64], [8,32], [16,16], [32,8],  [64,4] ]
   
   # universeWorkGroupDim = [ [16,16] ]
-  universeWorkGroupDim = [ [16, 16], [8, 8] ]
+  universeWorkGroupDim = [ [14, 16], [7, 8] ]
   # universeWorkGroupDim = [ [8, 8] ]
 
   # removed non-branch type
   universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ] # branched and multiple
   # universeBranch = [ Structs.BranchType(2) ] # branched only < 3000^3
 
-  # for research, =True means don't generate any solution requiring branches, i.e., only generate fastest
-  noBranches = False
-  noMultipleKernels = False # don't generate solution requiring multiple kernels
+  
 
   ##############################################################################
   # init
@@ -180,20 +181,20 @@ class SolutionCandidateGenerator:
         break
     # for all unroll combinations of selected unroll level
     for unroll in self.universeUnroll[selectedUnroll]:
-      print "unroll = " + str(unroll)
+      # print "unroll = " + str(unroll)
       kernel.unrolls = unroll
       # summation must be multiple of last unroll
       if problemSizeUnroll % unroll[len(unroll)-1] > 0:
-        print "sum not multiple of last unroll"
+        # print "sum not multiple of last unroll"
         continue
       # first do-while summation loop has to do at least one iteration
       if problemSizeUnroll < unroll[0]:
-        print "first loop not at least 1 iter"
+        # print "first loop not at least 1 iter"
         continue
       # second do-while summation loop has to do at least one iteration
       if len(unroll) > 1:
         if problemSizeUnroll % unroll[0] < unroll[1]:
-          print "second loop not at least 1 iter"
+          # print "second loop not at least 1 iter"
           continue
       for workGroup in self.universeWorkGroupDim:
         kernel.tile.workGroup = workGroup
@@ -251,7 +252,7 @@ class SolutionCandidateGenerator:
               continue
 # 1649 candidates -> 128 ->
 
-            print "TILE: wg=%ux%u; mt=%ux%u; u=%s" % (workGroup[0], workGroup[1], microTile[0], microTile[1], str(unroll) )
+            # print "TILE: wg=%ux%u; mt=%ux%u; u=%s" % (workGroup[0], workGroup[1], microTile[0], microTile[1], str(unroll) )
             # load grid
             #totalLoadSizeParaA = (workGroup[0]*microTile[0]*unroll[0])
             #totalLoadSizeParaB = (workGroup[1]*microTile[1]*unroll[0])
@@ -309,7 +310,7 @@ class SolutionCandidateGenerator:
               if kernel.loadSizePerpA > kernel.totalLoadSizePerpA:
                 kernel.loadSizePerpA = kernel.totalLoadSizePerpA
               kernel.numLoadsPerpA = int(math.ceil(1.0*kernel.totalLoadSizePerpA / kernel.loadSizePerpA )) # round up
-              print "  A: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaA, kernel.numLoadsPerpA, kernel.loadSizeParaA, kernel.loadSizePerpA)
+              # print "  A: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaA, kernel.numLoadsPerpA, kernel.loadSizeParaA, kernel.loadSizePerpA)
 
               for numLoadsParaB in optionsParaB:
                 if False: # true means only try perfect tiles w/o branches
@@ -325,7 +326,7 @@ class SolutionCandidateGenerator:
                 if kernel.loadSizePerpB > kernel.totalLoadSizePerpB:
                   kernel.loadSizePerpB = kernel.totalLoadSizePerpB
                 kernel.numLoadsPerpB = int(math.ceil(1.0*kernel.totalLoadSizePerpB / kernel.loadSizePerpB)) # round up
-                print "    B: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaB, kernel.numLoadsPerpB, kernel.loadSizeParaB, kernel.loadSizePerpB)
+                # print "    B: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaB, kernel.numLoadsPerpB, kernel.loadSizeParaB, kernel.loadSizePerpB)
 
                 # kernel grid
                 kernelGrid = [ 1, 1, 1 ]

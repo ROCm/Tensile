@@ -54,7 +54,7 @@ int main( int argc, char * argv[] ) {
   H = 32;
   W = 32;
   C = 3;
-  N = 2; // 100;
+  N = 100;
   R = 5;
   S = 5;
   K = 32;
