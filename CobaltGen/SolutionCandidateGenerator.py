@@ -71,10 +71,10 @@ class SolutionCandidateGenerator:
   modeFast       = 0
 
   # mode selections
-  modeWorkGroups              = 1
-  modeMicroTiles              = 1
-  modeUnrolls                 = 1
-  modeLoads                   = 1
+  modeWorkGroups              = 0
+  modeMicroTiles              = 0
+  modeUnrolls                 = 0
+  modeLoads                   = 0
   modePreprocessorDefinitions = 0
 
   # thresholds
@@ -317,17 +317,15 @@ class SolutionCandidateGenerator:
             kernel.tile.microTile = microTile
 
             # micro-tile not too skinny
-            if float(microTile[1])/microTile[0] > microTileRatio:
-              continue
-            if float(microTile[0])/microTile[1] > microTileRatio:
+            if float(microTile[1])/microTile[0] > microTileRatio or float(microTile[0])/microTile[1] > microTileRatio:
+              #print "micro tile too skinny %u %u %u %u" % (workGroup[0], workGroup[1], microTile[0], microTile[1])
               continue
 
             # macro-tile not too skinny
             macroTileDim0 = workGroup[0] * microTile[0]
             macroTileDim1 = workGroup[1] * microTile[1]
-            if float(macroTileDim1)/macroTileDim0 > macroTileRatio:
-              continue
-            if float(macroTileDim0)/macroTileDim1 > macroTileRatio:
+            if float(macroTileDim1)/macroTileDim0 > macroTileRatio or float(macroTileDim0)/macroTileDim1 > macroTileRatio:
+              #print "macro tile too skinny %u %u %u %u" % (workGroup[0], workGroup[1], microTile[0], microTile[1])
               continue
 
             # macro-tile not too large
@@ -413,6 +411,8 @@ class SolutionCandidateGenerator:
                 kernel.numLoadsParaB = numLoadsParaB
                 kernel.loadSizeParaB = int(math.ceil(1.0*kernel.totalLoadSizeParaB / kernel.numLoadsParaB )) # round up
                 kernel.loadSizePerpB = int((workGroup[0]*workGroup[1])/kernel.loadSizeParaB) # round down
+                if kernel.loadSizePerpB < 1:
+                  kernel.loadSizePerpB = 1
                 if kernel.loadSizePerpB > kernel.totalLoadSizePerpB:
                   kernel.loadSizePerpB = kernel.totalLoadSizePerpB
                 kernel.numLoadsPerpB = int(math.ceil(1.0*kernel.totalLoadSizePerpB / kernel.loadSizePerpB)) # round up
