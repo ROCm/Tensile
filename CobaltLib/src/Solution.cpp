@@ -70,7 +70,7 @@ CobaltStatus Solution::enqueueEntry(
   Logger::TraceEntry entry;
   entry.type = Logger::TraceEntryType::enqueueSolution;
   entry.solution = this;
-    
+
   // validation
   if (ctrl.validate) {
     // enqueue gpu solution
@@ -129,7 +129,7 @@ CobaltStatus Solution::enqueueEntry(
 
     // warmup (ensure kernels compiled)
     returnStatus =
-        enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl); 
+        enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
       clFinish(ctrl.queues[i]);
@@ -139,7 +139,7 @@ CobaltStatus Solution::enqueueEntry(
     }
 
     // sleep 200ms to let gpu cool down
-    Sleep(100);
+    // Sleep(100);
 
     // start timer
     timer.start();
@@ -180,7 +180,7 @@ CobaltStatus Solution::enqueueEntry(
 
   return entry.status;
 }
-  
+
 
 
 /*******************************************************************************
@@ -351,7 +351,7 @@ assignKernelArgs() {
   globalWorkSize[0][0] = /*localWorkSize[0] */ mainWorkGroupsAlongD0;
   globalWorkSize[0][1] = /*localWorkSize[1] */ mainWorkGroupsAlongD1;
   globalWorkSize[0][2] = /*localWorkSize[2] */ sizeOfAllOtherDimensions;
-  
+
   unsigned int kernelNumElementsDim0[maxNumKernels];
   unsigned int kernelNumElementsDim1[maxNumKernels];
   unsigned int kernelNumElementsDimU[maxNumKernels];
@@ -505,7 +505,7 @@ assignKernelArgs() {
         enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][0] = tensorOffsetC;
         enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][1] = tensorOffsetA;
         enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][2] = tensorOffsetB;
-        
+
         // size overrides (due to kernel grid)
         enqueueArgs[kernelIdx][numEnqueues[kernelIdx]][kernelArgIdxDim0] =
             kernelNumElementsDim0[kernelIdx];
@@ -627,7 +627,7 @@ assignWorkSizes() {
   globalWorkSize[0][0] = localWorkSize[0][0] * mainWorkGroupsAlongD0;
   globalWorkSize[0][1] = localWorkSize[0][1] * mainWorkGroupsAlongD1;
   globalWorkSize[0][2] = localWorkSize[0][2] * sizeOfAllOtherDimensions;
-  
+
   kernelNumElementsDim0[0] =
       edge[0] ? mainWorkGroupsAlongD0 * macroTileSizeAlongD0 : sizeOfCAlongD0;
   kernelNumElementsDim1[0] =
@@ -742,7 +742,7 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
     //printf("kernel already compiled %p %p\n", kernel, *kernel);
     return;
   }
-  
+
   //printf("building kernel\n");
   cl_program clProgram;
   clProgram = clCreateProgramWithSource(
@@ -878,7 +878,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           this->enqueueArgs[kernelIdx][enqueueIdx][5],
           this->enqueueArgs[kernelIdx][enqueueIdx][6],
           this->enqueueArgs[kernelIdx][enqueueIdx][7],
-          this->enqueueArgs[kernelIdx][enqueueIdx][8] ); 
+          this->enqueueArgs[kernelIdx][enqueueIdx][8] );
 #endif
       // enqueue
       status = clEnqueueNDRangeKernel(
@@ -940,7 +940,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
       makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );
     }
   }
-  
+
 
   // kernel 0 - main
   // kernel 1 - edge 0
@@ -1005,7 +1005,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           unsigned int tensorOffsetA = tensorDataA.offset + tensorOffsetAd0or1 + tensorOffsetAdU;
           unsigned int tensorOffsetB = tensorDataB.offset + tensorOffsetBd0or1 + tensorOffsetBdU;
 
-          
+
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetC );
           CL_CHECK(status)
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetA );
