@@ -184,10 +184,10 @@ class SolutionWriter:
 
     # kernel arguments
     s += "  /* kernel arguments */\n"
-    #if self.backend.isOpenCL():
-    #  s += "  this->numKernelArgs = 0; // pointers and offsets\n"
-    #else:
-    s += "  this->numKernelArgs = 3; // pointers and offsets\n"
+    if solution.kernels[0].ppdOffsets:
+      s += "  this->numKernelArgs = 0; // pointers and offsets\n"
+    else:
+      s += "  this->numKernelArgs = 3; // pointers and offsets\n"
     s += "\n"
 
     s += "  /* preprocessor optimizations */\n"

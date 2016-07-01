@@ -5,81 +5,88 @@ import KernelWriter
 import SolutionWriter
 import argparse
 import math
+"""
+TODOs
+ - move loads
+ - debug ddp offsets
+"""
+
+
+"""
+3 levels
+ 2 - (e)xhaustive (everything that's supported; for validation)
+ 1 - (t)horough (for benchmarking new project; for research)
+ 0 - (f)ast (smallest subset "guaranteed" to find fastest solution; for production)
+
+work-groups (threshold = 256)
+ (e) all m*n <= threshold
+ (t) all m*n multiple of 64 and <= threshold; exact matches for small dimensions
+ (f) 8x8, 16x16, exact matches for small dimensions
+
+micro-tiles (threshold = 8*8)
+ (e) all m*n <= threshold
+ (t) m=n, m,n=[2,sqrt(threshold)]; if skinny m,n within factor of 2
+ (f) subset of (t): based on free index size; small tiles if problem is small, large tiles if problem is large
+
+unrolls (threshold = 16)
+ (e) all u <= threshold
+ (t) 4, 8, 16; if sum < threshold, exact match also
+ (f) same as (t)
+ 
+loads
+ (e) all
+ (t) only 1 or N depending on transpose
+ (f) same as (t)
+
+preprocessor defines
+[0] leading strides, [1] offsets, [2] everything
+ (e)
+     [ 0, 0, 0], \
+     [ 1, 0, 0], \
+     [ 0, 1, 0], \
+     [ 1, 1, 0], \
+     [ 1, 1, 1], \
+ (t) [ 1, 0, 0], \
+     [ 1, 1, 1], \
+ (f) [ 1, 0, 0], \
+
+
+
+"""
+
 
 ################################################################################
 # SolutionCandidateGenerator
 ################################################################################
 class SolutionCandidateGenerator:
-
-  # limit work-group size to boost occupancy
+  
+  # hardware limits
   maxLocalMemoryBytes = 32768
   localMemPad = 1
   maxRegisters = 16*16*( 4*4*4 + 4*4 + 4*4 )
-  evenMicroTilesOnly = False
 
+  # mode definitions
+  modeExhaustive = 2
+  modeThorough   = 1
+  modeFast       = 0
+
+  # mode selections
+  modeWorkGroups              = 1
+  modeMicroTiles              = 1
+  modeUnrolls                 = 1
+  modeLoads                   = 1
+  modePreprocessorDefinitions = 0
+
+  # thresholds
+  thresholdWorkGroups = 256
+  thresholdMicroTiles = 8*8
+  thresholdUnrolls    = 16
+  thresholdSkinny     = 128
+
+  # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
   noMultipleKernels = True # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
 
-  # problem is skinny if smaller dim < 32 and larger dim > 4096
-  skinnyThresholds = [32, 4096]
-  #skinnyThresholds = [128, 0]
-
-  # tile for non-skinny problem must be square: tile1/tile0 <= 1
-  # tile for skinny problem must be tile1/tile0 <= 16*2
-  # true means "TN" transpose system which is slowest and needs rectangular tile for better cacheing along 1 dim
-  skinnyRatioWorkGroup = { False: [ 1, 16], True: [2, 16] }
-  skinnyRatioMicroTile = { False: [ 1,  2], True: [2,  2] }
-  skinnyRatioMacroTile = { False: [ 1, 32], True: [2, 32] }
-  minMicroTileSize = 2
-  maxMicroTileSize = 4
-  # don't include 32 as unroll level, uses too many sgprs and occupancy is low
-  # unroll 4 is usually too few (loads don't cache as well)
-  unrollLevels = [16, 8, 5, 4, 2, 1]
-  # unrollLevels = [5]
-  #unrollLevels = [16]
-  universeUnroll = { \
-       1: [ [  1 ], [ 16, 1 ], [  8, 1 ], [4, 1] ], \
-       2: [ [  2 ], [ 16, 1 ], [  8, 1 ] ], \
-       4: [ [  4 ], [ 16, 1 ], [  8, 1 ] ], \
-       5: [ [  5 ], [4, 1], [16, 1], [8, 1] ], \
-       8: [ [  8 ], [ 16, 1 ], [ 4 ] ], \
-      16: [ [ 16 ], [ 8 ], [ 4 ]], \
-      32: [ [ 32 ], [ 16 ], [ 8 ] ] \
-      }
-  """
-  unrollLevels = [1]
-  universeUnroll = {  1: [ [ 4, 1 ] ] }
-  """
-  # preprocessor define (0) leading strides, (1) offsets, (2) everything
-  # if problem conflicts with optimization level, generator reverts optimization level below
-
-  """
-  ppdUniverse = [ \
-      [ True,  True,  True], \
-      [False, False, False], \
-      [ True,  True, False], \
-      [ True, False, False], \
-      [False,  True, False], \
-      ]
-  """
-  # opencl and hip now require offsets
-  ppdUniverse = [ \
-      [ True,  False, False], \
-      ]
-  # non-skinny problem will only choose from 8x8 and 16x16
-  # universeWorkGroupDim = [ \
-  #     [4,16],  [8,8],  [16,4], \
-  #     [4,32], [8,16],  [16,8], [32,4], \
-  #     [4,48],  [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
-  #     [4,64], [8,32], [16,16], [32,8],  [64,4] ]
-  
-  # universeWorkGroupDim = [ [16,16] ]
-  universeWorkGroupDim = [ [14, 16], [7, 8] ]
-  # universeWorkGroupDim = [ [8, 8] ]
-
-  # removed non-branch type
-  universeBranch = [ Structs.BranchType(1), Structs.BranchType(2) ] # branched and multiple
-  # universeBranch = [ Structs.BranchType(2) ] # branched only < 3000^3
 
   
 
@@ -101,6 +108,7 @@ class SolutionCandidateGenerator:
   ##############################################################################
   def getSolutionCandidatesForProblem( self, inputProblem ):
     problem = copy.deepcopy(inputProblem)
+    numCandidates = 0
     # optimize alpha and beta?
     if not self.optimizeAlpha and not problem.operation.useAlpha():
       problem.operation.alphaType = problem.tensorC.dataType
@@ -117,7 +125,6 @@ class SolutionCandidateGenerator:
     solutionCandidates = []
 
     # Solution Correctness Parameters
-    #kernel.operation = problem.operation
     kernel.dataTypeC = problem.tensorC.dataType
     kernel.dataTypeA = problem.tensorA.dataType
     kernel.dataTypeB = problem.tensorB.dataType
@@ -127,36 +134,24 @@ class SolutionCandidateGenerator:
     kernel.indexOrderC = []
     kernel.indexOrderSummation = []
     makeIndexAssignments( kernel, problem )
+    
+    ###################################
+    # Dimension Sizes
+    ###################################
+    
+    # transpose work-group order for better cacheing?
     transA = not kernel.unrollDimStrideGreaterThanTileDimStrideA
     transB = not kernel.unrollDimStrideLessThanTileDimStrideB
-
     if transA and transB:
-      # transpose work-group order for better cacheing
       kernel.transposeWorkGroupOrder = True
 
-    #kernel.indexAssignmentDim0 = kernel.indexOrderC[ \
-    #    numIndicesC - 2 ]
-    #kernel.indexAssignmentDim1 = kernel.indexOrderC[ \
-    #    numIndicesC - 1 ]
-
     # Problem Characteristics affecting performance
-    problemSizeDim0 = problem.tensorC.dimensions[ \
-        kernel.indexAssignmentDim0].size
-    problemSizeDim1 = problem.tensorC.dimensions[ \
-        kernel.indexAssignmentDim1].size
-    # size < 96 begins to behave skinny, i.e., becomes bandwidth bound
-    # but only < 32 does a unique tile improve performance;
-    # for sizes 32-96 square tiles are still withing 4% performance of best skinny
-    problemSkinnyDim0 = 0 # false
-    if problemSizeDim0 < self.skinnyThresholds[0] and problemSizeDim1 > self.skinnyThresholds[1]:
-      problemSkinnyDim0 = 1
-    problemSkinnyDim1 = 0
-    if problemSizeDim1 < self.skinnyThresholds[0] and problemSizeDim0 > self.skinnyThresholds[1]:
-      problemSkinnyDim1 = 1
+    problemSizeDim0 = problem.tensorC.dimensions[ kernel.indexAssignmentDim0].size
+    problemSizeDim1 = problem.tensorC.dimensions[ kernel.indexAssignmentDim1].size
+
+    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny
+    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny
     
-    # print self.skinnyRatioWorkGroup[transA and not transB]
-    # print self.skinnyRatioMicroTile[transA and not transB]
-    # print self.skinnyRatioMacroTile[transA and not transB]
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
       if kernel.indexUnroll == problem.operation.indexAssignmentsA[i]:
@@ -173,66 +168,168 @@ class SolutionCandidateGenerator:
         tensorStrideDim1 = problem.tensorA.dimensions[i].stride
         break
 
-    # only try the highest unroll level
-    selectedUnroll = -1
-    for unroll in self.unrollLevels:
-      if problemSizeUnroll % unroll == 0:
-        selectedUnroll = unroll
-        break
-    # for all unroll combinations of selected unroll level
-    for unroll in self.universeUnroll[selectedUnroll]:
+
+    ###################################
+    # determine search universe
+    ###################################
+
+    # work-groups
+    universeWorkGroups = []
+    workGroupRatio = 4
+    if self.modeWorkGroups == self.modeExhaustive:
+      for m in range(1, self.thresholdWorkGroups+1):
+        for n in range(1, self.thresholdWorkGroups+1):
+          if m/n < workGroupRatio and n/m < workGroupRatio:
+            universeWorkGroups.append( [m,n] )
+    else: # fast or thorough; both will include skinnies where applicable
+      if self.modeWorkGroups == self.modeThorough:
+        universeWorkGroups = [ \
+            [4,16], [8,8],  [16,4], \
+            [4,32], [8,16],  [16,8], [32,4], \
+            [4,48], [6,32], [8,24], [12,16], [16, 12], [24,8], [32,6], [48,4], \
+            [4,64], [8,32], [16,16], [32,8],  [64,4] ]
+      else: # fast
+        universeWorkGroups = [ [16,16], [8,8] ]
+      if problemSizeDim0 < self.thresholdSkinny:
+        print "SCG: adding skinny(dim0) work-groups"
+        for workGroupDim0 in range(1, self.thresholdWorkGroups+1):
+          if problemSizeDim0 % workGroupDim0 == 0:
+            for workGroupSize in [256, 192, 128, 64]:
+              workGroupDim1 = workGroupSize / problemSizeDim0
+              universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+      if problemSizeDim1 < self.thresholdSkinny:
+        print "SCG: adding skinny(dim1) work-groups"
+        for workGroupDim1 in range(1, self.thresholdWorkGroups+1):
+          if problemSizeDim1 % workGroupDim1 == 0:
+            for workGroupSize in [256, 192, 128, 64]:
+              workGroupDim0 = workGroupSize / problemSizeDim1
+              universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+    print "SCG: WorkGroups(" + str(len(universeWorkGroups)) + "): " + str(universeWorkGroups)
+
+    # micro-tiles
+    if self.modeMicroTiles == self.modeExhaustive:
+      microTileMin = 1
+      microTileMax = int(self.thresholdMicroTiles**0.5)
+      microTileRatio = 16
+    else:
+      microTileMin = 2
+      microTileMax = int(self.thresholdMicroTiles**0.5)
+      microTileRatio = 2
+    print "SCG: MicroTileRatio: " + str(microTileRatio)
+
+    # macro-tiles
+    if self.modeWorkGroups == self.modeExhaustive or self.modeMicroTiles == self.modeExhaustive:
+      macroTileRatio = self.thresholdMicroTiles * self.thresholdWorkGroups
+    elif self.modeWorkGroups == self.modeThorough or self.modeMicroTiles == self.modeThorough:
+      if problemSkinnyDim0 or problemSkinnyDim1:
+        macroTileRatio = 16
+      elif transA and not transB:
+        macroTileRatio = 2
+      else:
+        macroTileRatio = 1
+    else: # fast
+      if problemSkinnyDim0 or problemSkinnyDim1:
+        macroTileRatio = 16
+      elif transA and not transB:
+        macroTileRatio = 2
+      else:
+        macroTileRatio = 1
+    print "SCG: MacroTileRatio: " + str(microTileRatio)
+    
+    # unrolls
+    universeUnrolls = []
+    if self.modeUnrolls == self.modeExhaustive:
+      for unroll in range(1, self.thresholdUnrolls+1):
+        if unroll <= problemSizeUnroll and problemSizeUnroll % unroll == 0: # exact multiple
+          universeUnrolls.append( [unroll] )
+        elif unroll < problemSizeUnroll: # needs trailing loop
+          universeUnrolls.append( [unroll, 1] )
+    else: # thorough or fast
+      unrollFast = [16, 8, 4]
+      for unroll in unrollFast:
+        if unroll <= problemSizeUnroll and problemSizeUnroll % unroll == 0: # exact multiple
+          universeUnrolls.append( [unroll] )
+        elif unroll < problemSizeUnroll: # needs trailing loop
+          universeUnrolls.append( [unroll, 1] )
+      if problemSizeUnroll < self.thresholdUnrolls and not problemSizeUnroll in unrollFast:
+        universeUnrolls.append( [problemSizeUnroll] )
+    print "SCG: Unrolls(" + str(len(universeUnrolls)) + "): " + str(universeUnrolls)
+
+    # preprocessor defines
+    universePreprocessorDefinitions = []
+    if self.modePreprocessorDefinitions == self.modeExhaustive:
+      universePreprocessorDefinitions = [ \
+          [ 0, 0, 0], \
+          [ 1, 0, 0], \
+          [ 0, 1, 0], \
+          [ 1, 1, 0], \
+          [ 1, 1, 1] ]
+    elif self.modePreprocessorDefinitions == self.modeThorough:
+      universePreprocessorDefinitions = [ \
+          [ 1, 0, 0], \
+          [ 1, 1, 1] ]
+    else:
+      universePreprocessorDefinitions = [ \
+          [ 1, 0, 0] ]
+    print "SCG: PreprocessorDefinitions(" + str(len(universePreprocessorDefinitions)) + "): " + str(universePreprocessorDefinitions)
+
+    
+    # kernel grid TODO move above loop
+    kernelGrid = [ 1, 1, 1 ]
+    if not problemSkinnyDim0 and not problemSkinnyDim1 and \
+        (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
+      kernelGrid[0] = kernel.unrollDimStride0 / 2048;
+      kernelGrid[1] = kernel.unrollDimStride1 / 2048;
+      kernelGrid[2] = kernel.unrollDimSize / 1024
+      if kernelGrid[0] == 0:
+        kernelGrid[0]=1
+      if kernelGrid[1] == 0:
+        kernelGrid[1]=1
+      if kernelGrid[2] == 0:
+        kernelGrid[2]=1
+      if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta():
+          kernel.problem.operation.betaType = problem.tensorC.dataType
+          print "forcing useBeta=True due to mod1024 kernel grid"
+      # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
+
+    
+    ###################################
+    # begin solution universe
+    ###################################
+
+    
+    ###################################
+    # for unrolls
+    for unroll in universeUnrolls:
       # print "unroll = " + str(unroll)
       kernel.unrolls = unroll
-      # summation must be multiple of last unroll
-      if problemSizeUnroll % unroll[len(unroll)-1] > 0:
-        # print "sum not multiple of last unroll"
-        continue
-      # first do-while summation loop has to do at least one iteration
-      if problemSizeUnroll < unroll[0]:
-        # print "first loop not at least 1 iter"
-        continue
-      # second do-while summation loop has to do at least one iteration
-      if len(unroll) > 1:
-        if problemSizeUnroll % unroll[0] < unroll[1]:
-          # print "second loop not at least 1 iter"
-          continue
-      for workGroup in self.universeWorkGroupDim:
+      
+      ###################################
+      # for work-groups
+      for workGroup in universeWorkGroups:
         kernel.tile.workGroup = workGroup
-        # only try skinny work-group if problem is skinny
-        if float(workGroup[1])/workGroup[0] \
-            > self.skinnyRatioWorkGroup[transA and not transB][problemSkinnyDim0]:
-          continue
-        if float(workGroup[0])/workGroup[1] \
-            > self.skinnyRatioWorkGroup[transA and not transB][problemSkinnyDim1]:
-          continue
+        
+        ###################################
         # for all micro-tile dimensions
-        for microTileDim0 in range(self.minMicroTileSize, \
-            self.maxMicroTileSize+1):
-          for microTileDim1 in range(self.minMicroTileSize, \
-              self.maxMicroTileSize+1):
-            if self.evenMicroTilesOnly:
-              if microTileDim0%2>0:
-                continue
-              if microTileDim1%2>0:
-                continue
+        for microTileDim0 in range(microTileMin, microTileMax+1):
+          for microTileDim1 in range(microTileMin, microTileMax+1):
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
-            # only try skinny micro-tile if problem is skinny
-            if float(microTile[1])/microTile[0] \
-                > self.skinnyRatioMicroTile[transA and not transB][problemSkinnyDim0]:
+
+            # micro-tile not too skinny
+            if float(microTile[1])/microTile[0] > microTileRatio:
               continue
-            if float(microTile[0])/microTile[1] \
-                > self.skinnyRatioMicroTile[transA and not transB][problemSkinnyDim1]:
+            if float(microTile[0])/microTile[1] > microTileRatio:
               continue
-            # only try skinny macro-tile if problem is skinny
+
+            # macro-tile not too skinny
             macroTileDim0 = workGroup[0] * microTile[0]
             macroTileDim1 = workGroup[1] * microTile[1]
-            if float(macroTileDim1)/macroTileDim0 \
-                > self.skinnyRatioMacroTile[transA and not transB][problemSkinnyDim0]:
+            if float(macroTileDim1)/macroTileDim0 > macroTileRatio:
               continue
-            if float(macroTileDim0)/macroTileDim1 \
-                > self.skinnyRatioMacroTile[transA and not transB][problemSkinnyDim1]:
+            if float(macroTileDim0)/macroTileDim1 > macroTileRatio:
               continue
+
             # macro-tile not too large
             numWorkItems = workGroup[0] * workGroup[1]
             numRegisters = numWorkItems * ( microTile[0] * microTile[1] \
@@ -242,63 +339,52 @@ class SolutionCandidateGenerator:
             if numRegisters > self.maxRegisters:
               continue
 
+            # local memory not too large
             localMemoryBytes = 0
-            if kernel.tensorAssignedDim0 == 0: # dim0 in tesnsorA
+            if kernel.tensorAssignedDim0 == 0: # dim0 in tensorA
               localMemoryBytes = unroll[0] * ((macroTileDim0+self.localMemPad)*kernel.dataTypeA.numBytes() + (macroTileDim1+self.localMemPad)*kernel.dataTypeB.numBytes())
             else: # dim1 in tensorA
               localMemoryBytes = unroll[0] * ((macroTileDim0+self.localMemPad)*kernel.dataTypeB.numBytes() + (macroTileDim1+self.localMemPad)*kernel.dataTypeA.numBytes())
             if localMemoryBytes > self.maxLocalMemoryBytes:
-              #print "%u = %u * ( %u*%u + %u*%u)\n" % (localMemoryBytes, unroll[0], macroTileDim0, kernel.dataTypeA.numBytes(), macroTileDim1, kernel.dataTypeB.numBytes())
               continue
-# 1649 candidates -> 128 ->
 
-            # print "TILE: wg=%ux%u; mt=%ux%u; u=%s" % (workGroup[0], workGroup[1], microTile[0], microTile[1], str(unroll) )
             # load grid
-            #totalLoadSizeParaA = (workGroup[0]*microTile[0]*unroll[0])
-            #totalLoadSizeParaB = (workGroup[1]*microTile[1]*unroll[0])
-            #if kernel.unrollDimStrideGreaterThanTileDimStrideA:
             kernel.totalLoadSizeParaA = macroTileDim0 if kernel.unrollDimStrideGreaterThanTileDimStrideA else unroll[0]
             kernel.totalLoadSizePerpA = unroll[0] if kernel.unrollDimStrideGreaterThanTileDimStrideA else macroTileDim0
             kernel.totalLoadSizeParaB = macroTileDim1 if not kernel.unrollDimStrideLessThanTileDimStrideB else unroll[0]
             kernel.totalLoadSizePerpB = unroll[0] if not kernel.unrollDimStrideLessThanTileDimStrideB else macroTileDim1
-            # print totalLoadSizeParaA, loadSizeParaB
-            numLoadsA = max(1, (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1]) )
-            numLoadsB = max(1, (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1]) )
+            totalNumLoadsA = max(1, (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1]) )
+            totalNumLoadsB = max(1, (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1]) )
             
-            # whole number of loads
-            # if (workGroup[0]*microTile[0]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
-            #   print "not whole number of A loads"
-            #   continue
-            # if (workGroup[1]*microTile[1]*unroll[0])%(workGroup[0]*workGroup[1]) > 0:
-            #   print "not whole number of B loads"
-            #   continue
-
-            # could be any integer 1->numLoads, but these always are the fastest
-            optionsParaA = []
-            if False: # true means try every possibility
-              for i in range(1, numLoadsA+1):
-                optionsParaA.append(i)
-            else: # try only known fastest
+            # num loads parallel A
+            universeNumLoadsParaA = []
+            if self.modeLoads == self.modeExhaustive:
+              for i in range(1, totalNumLoadsA+1):
+                universeNumLoadsParaA.append(i)
+            else:
               if not transA:
-                optionsParaA.append( numLoadsA )
+                universeNumLoadsParaA.append( totalNumLoadsA )
               else:
-                optionsParaA.append( 1 )
-            # print "  optionsA = " + str(optionsParaA)
+                universeNumLoadsParaA.append( 1 )
+            # print "  optionsA = " + str(universeNumLoadsParaA)
             
-            optionsParaB = []
-            if False: # true means try every possibility
-              for i in range(1, numLoadsB+1):
-                optionsParaB.append(i)
-            else: # try only known fastest
+            # num loads parallel B
+            universeNumLoadsParaB = []
+            if self.modeLoads == self.modeExhaustive:
+              for i in range(1, totalNumLoadsB+1):
+                universeNumLoadsParaB.append(i)
+            else:
               if transB:
-                optionsParaB.append( numLoadsB )
+                universeNumLoadsParaB.append( totalNumLoadsB )
               else:
-                optionsParaB.append( 1 )
-            # print "    optionsB = " + str(optionsParaB)
-
-            for numLoadsParaA in optionsParaA:
-              if False: # true means only try perfect tiles w/o branches
-                if numLoadsA % numLoadsParaA > 0:
+                universeNumLoadsParaB.append( 1 )
+            # print "    optionsB = " + str(universeNumLoadsParaB)
+            
+            ###################################
+            # for num loads parallel A
+            for numLoadsParaA in universeNumLoadsParaA:
+              if False: # TODO, need this for mode scheme? true means only try perfect tiles w/o branches
+                if totalNumLoadsA % numLoadsParaA > 0:
                   continue
                 if totalLoadSizeParaA%numLoadsParaA>0:
                   continue
@@ -307,14 +393,18 @@ class SolutionCandidateGenerator:
               kernel.numLoadsParaA = numLoadsParaA
               kernel.loadSizeParaA = int(math.ceil(1.0*kernel.totalLoadSizeParaA / kernel.numLoadsParaA ) ) # round up
               kernel.loadSizePerpA = int( (workGroup[0]*workGroup[1])/kernel.loadSizeParaA ) # round down
+              if kernel.loadSizePerpA < 1:
+                kernel.loadSizePerpA = 1
               if kernel.loadSizePerpA > kernel.totalLoadSizePerpA:
                 kernel.loadSizePerpA = kernel.totalLoadSizePerpA
               kernel.numLoadsPerpA = int(math.ceil(1.0*kernel.totalLoadSizePerpA / kernel.loadSizePerpA )) # round up
               # print "  A: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaA, kernel.numLoadsPerpA, kernel.loadSizeParaA, kernel.loadSizePerpA)
-
-              for numLoadsParaB in optionsParaB:
+              
+              ###################################
+              # for num loads parallel B
+              for numLoadsParaB in universeNumLoadsParaB:
                 if False: # true means only try perfect tiles w/o branches
-                  if numLoadsB % numLoadsParaB > 0:
+                  if totalNumLoadsB % numLoadsParaB > 0:
                     continue
                   if totalLoadSizeParaB%numLoadsParaB>0:
                     continue
@@ -328,28 +418,13 @@ class SolutionCandidateGenerator:
                 kernel.numLoadsPerpB = int(math.ceil(1.0*kernel.totalLoadSizePerpB / kernel.loadSizePerpB)) # round up
                 # print "    B: nl=%.1fx%.1f ls=%.1fx%.1f" % (kernel.numLoadsParaB, kernel.numLoadsPerpB, kernel.loadSizeParaB, kernel.loadSizePerpB)
 
-                # kernel grid
-                kernelGrid = [ 1, 1, 1 ]
-                if not problemSkinnyDim0 and not problemSkinnyDim1 and \
-                    (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
-                  kernelGrid[0] = kernel.unrollDimStride0 / 2048;
-                  kernelGrid[1] = kernel.unrollDimStride1 / 2048;
-                  kernelGrid[2] = kernel.unrollDimSize / 1024
-                  if kernelGrid[0] == 0:
-                    kernelGrid[0]=1
-                  if kernelGrid[1] == 0:
-                    kernelGrid[1]=1
-                  if kernelGrid[2] == 0:
-                    kernelGrid[2]=1
-                  if kernelGrid[2] > 1 and not kernel.problem.operation.useBeta():
-                      kernel.problem.operation.betaType = problem.tensorC.dataType
-                      print "forcing useBeta=True due to mod1024 kernel grid"
-                  # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
-
-                for ppdOptimization in self.ppdUniverse:
+                  
+                ###################################
+                # for preprocessor definitions
+                for ppdOptimization in universePreprocessorDefinitions:
                   ppdLeadingStride = ppdOptimization[0]
-                  ppdOffsets = ppdOptimization[1]
-                  ppdAll = ppdOptimization[2]
+                  ppdOffsets       = ppdOptimization[1]
+                  ppdAll           = ppdOptimization[2]
 
                   # if optimization level optimizes away offsets, but problem requires offsets, fix it
                   if ppdOffsets and problem.operation.useOffsets:
@@ -363,20 +438,13 @@ class SolutionCandidateGenerator:
                     or problem.tensorB.dimensions[0].stride != 1):
                     print "reverting ppdLeadingStride->False"
                     ppdLeadingStride = False
-
+                    
+                  ###################################
                   # for branch types
-                  for branchType in self.universeBranch:
+                  branchTypes = [ Structs.BranchType(1), Structs.BranchType(2) ]
+                  for branchType in branchTypes:
                     solution.kernelGrid = copy.deepcopy(kernelGrid)
                     solution.kernels = []
-
-                    # branch - 1 exact kernel; DEPRECATED
-                    #if branchType.isNone():
-                    #  if problemSizeDim0 % macroTileDim0 != 0 \
-                    #      or problemSizeDim1 % macroTileDim1 != 0:
-                    #    continue
-                    #  solution.branch = [branchType, branchType]
-                    #  kernel.tile.branch = [branchType, branchType ]
-                    #  solution.kernels.append( copy.deepcopy(kernel) )
                     leadingStridesOne = False
                     if problem.tensorC.dimensions[0].stride == 1 \
                         and problem.tensorA.dimensions[0].stride == 1 \
@@ -455,7 +523,20 @@ class SolutionCandidateGenerator:
                     # kernels, grid, and branching specified, now add solution
                     # print solution
                     # print "  " + self.solutionWriter.getName(solution)
-                    solutionCandidates.append( copy.deepcopy(solution) )
+                    if self.modeWorkGroups == self.modeExhaustive \
+                        and self.modeMicroTiles == self.modeExhaustive \
+                        and self.modeUnrolls == self.modeExhaustive \
+                        and self.modeLoads == self.modeExhaustive \
+                        and self.modePreprocessorDefinitions == self.modeExhaustive:
+                      numCandidates += 1
+                    else:
+                      solutionCandidates.append( copy.deepcopy(solution) )
+    if self.modeWorkGroups == self.modeExhaustive \
+        and self.modeMicroTiles == self.modeExhaustive \
+        and self.modeUnrolls == self.modeExhaustive \
+        and self.modeLoads == self.modeExhaustive \
+        and self.modePreprocessorDefinitions == self.modeExhaustive:
+      print "NumCandidates: " + str(numCandidates)
     return solutionCandidates
 
 
