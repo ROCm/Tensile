@@ -472,10 +472,10 @@ class KernelWriter:
     kStr += "#define TYPE_BETA  %s%s" \
         % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
 
-    if kernel.dataTypeC.isDouble():
-      kStr += "#define FMA(A,B,DST) %s(A,B,DST)" % self.fmaDStr
+    if self.backend.isOpenCL():
+      kStr += "#define MAD(A,B,DST) mad(A,B,DST)"
     else:
-      kStr += "#define FMA(A,B,DST) %s(A,B,DST)" % self.fmaFStr
+      kStr += "#define MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
 
     if self.backend.isHIP():
@@ -484,110 +484,110 @@ class KernelWriter:
     kStr += self.endLine
 
     ####################################
-    # FMAs
-    kStr += "/* FMAs */" + self.endLine
+    # MADs
+    kStr += "/* MADs */" + self.endLine
     if kernel.dataTypeC.isReal():
       # real data
-      kStr += "#define TYPE_FMA(MULA,MULB,DST) " \
-          + "DST = FMA(MULA,MULB,DST);" + self.endLine
+      kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
+          + "DST = MAD(MULA,MULB,DST);" + self.endLine
       if kernel.problem.operation.useAlpha():
         if kernel.problem.operation.useBeta():
           # dst = alpha*reg + beta*dst
-          kStr += "#define TYPE_FMA_WRITE(DST,ALPHA,REG,BETA) " \
+          kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) " \
               + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
         else:
           # dst = alpha*reg
-          kStr += "#define TYPE_FMA_WRITE(DST,ALPHA,REG) " \
+          kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG) " \
               + "DST = (ALPHA)*(REG);" + self.endLine
       else:
         if kernel.problem.operation.useBeta():
           # dst = reg + beta*dst
-          kStr += "#define TYPE_FMA_WRITE(DST,REG,BETA) " \
+          kStr += "#define TYPE_MAD_WRITE(DST,REG,BETA) " \
               + "DST = (REG) + (BETA)*(DST);" + self.endLine
         else:
           # dst = reg
-          kStr += "#define TYPE_FMA_WRITE(DST,REG) " \
+          kStr += "#define TYPE_MAD_WRITE(DST,REG) " \
               + "DST = (REG);" + self.endLine
     else:
       # complex data
       if not kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # neither conjugate
         kStr += (
-          "#define TYPE_FMA(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = FMA(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = FMA( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = FMA(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = FMA(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAD( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAD(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
         # A conjugate (negate imaginary A.s1)
         kStr += (
-          "#define TYPE_FMA(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = FMA(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = FMA(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = FMA(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = FMA( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAD(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAD( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif not kernel.dataTypeA.isConjugate() and kernel.dataTypeB.isConjugate():
         # B conjugate (negate imaginary B.s1)
         kStr += (
-          "#define TYPE_FMA(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = FMA(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = FMA( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = FMA(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = FMA(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAD( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAD(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       else:
         # A & B conjugate (negate imaginary .s1)
         kStr += (
-          "#define TYPE_FMA(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = FMA(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = FMA(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = FMA(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = FMA( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
+          "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
+          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAD( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       if kernel.problem.operation.useAlpha():
         if kernel.problem.operation.useBeta():
           # dst = alpha*reg + beta*dst
           kStr += (
-            "#define TYPE_FMA_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
+            "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
             "  /* (1) */ " + self.endLinePP +
             "  type_fma_tmp = REG.s0; " + self.endLinePP +
             "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s0 = FMA( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
             "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s1 = FMA(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
+            "  REG.s1 = MAD(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
             "  /* (2) */ " + self.endLinePP +
-            "  REG.s0 = FMA(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-            "  REG.s0 = FMA( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-            "  REG.s1 = FMA(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
-            "  REG.s1 = FMA(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+            "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+            "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+            "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
             "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
         else:
           # dst = alpha*reg
           kStr += (
-            "#define TYPE_FMA_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
+            "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
             "  /* (1) */ " + self.endLinePP +
             "  type_fma_tmp = REG.s0; " + self.endLinePP +
             "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s0 = FMA( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
             "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s1 = FMA(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
+            "  REG.s1 = MAD(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
             "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
       else:
         if kernel.problem.operation.useBeta():
           # dst = reg + beta*dst
           kStr += (
-            "#define TYPE_FMA_WRITE( DST, REG, BETA ) " + self.endLinePP +
+            "#define TYPE_MAD_WRITE( DST, REG, BETA ) " + self.endLinePP +
             "  /* (2) */ " + self.endLinePP +
-            "  REG.s0 = FMA(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-            "  REG.s0 = FMA( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-            "  REG.s1 = FMA(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
-            "  REG.s1 = FMA(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+            "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+            "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
+            "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+            "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
             "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
         else:
           # dst = reg
           kStr += (
-            "#define TYPE_FMA_WRITE( DST, REG ) " + self.endLinePP +
+            "#define TYPE_MAD_WRITE( DST, REG ) " + self.endLinePP +
             "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
 
@@ -607,7 +607,7 @@ class KernelWriter:
     kStr += "  offB += (MT_" + tileChar1 + "+PAD); " + self.endLinePP
     for a in range(0, kernel.tile.microTile[0]):
       for b in range(0, kernel.tile.microTile[1]):
-        kStr += "  TYPE_FMA(rA[%d],rB[%d],rC[%d][%d]); %s" % (a, b, a, b, self.endLinePP)
+        kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); %s" % (a, b, a, b, self.endLinePP)
     kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
 
@@ -933,7 +933,7 @@ class KernelWriter:
     kStr += self.endLine
     
     # 1st barrier
-    # kStr += indent + self.syncStr + self.endLine
+    kStr += indent + self.syncStr + self.endLine
 
     # zeroString for real and complex
     if self.backend.isOpenCL():
@@ -1367,7 +1367,7 @@ class KernelWriter:
       kStr += ";" + self.endLine
       indent = indent[2:]
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
-    kStr += self.endLine
+      kStr += self.endLine
 
 
 
@@ -1434,7 +1434,7 @@ class KernelWriter:
               + tileChar1 + ") {"
           numEdges += 1
 
-        kStr += "  TYPE_FMA_WRITE( C[ GLOBAL_C("
+        kStr += "  TYPE_MAD_WRITE( C[ GLOBAL_C("
         for i in range(0, len(kernel.indexOrderC)):
           kStr += " globalC" + indexChars[i]
           if i == kernel.indexAssignmentDim0:
