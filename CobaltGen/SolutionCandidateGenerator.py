@@ -70,18 +70,21 @@ class SolutionCandidateGenerator:
   modeThorough   = 1
   modeFast       = 0
 
-  # mode selections
-  modeWorkGroups              = 0
+  # mode selections (fully exhaustive: ~10.7 Billion solutions; don't bother)
+  modeWorkGroups              = 0 # (e:1457, t:20, f:2) 
   modeMicroTiles              = 0
   modeUnrolls                 = 0
   modeLoads                   = 0
   modePreprocessorDefinitions = 0
 
   # thresholds
-  thresholdWorkGroups = 256
   thresholdMicroTiles = 8*8
   thresholdUnrolls    = 16
-  thresholdSkinny     = 128
+  thresholdSkinny     = 128 # if dim0 or dim1 < threshold, then problem is skinny
+  ratioWorkGroupSkinny    = 2
+  ratioMacroTileSkinny    = 4
+  ratioMacroTileThorough  = 2
+  ratioMacroTileSlow      = 2
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -109,6 +112,11 @@ class SolutionCandidateGenerator:
   def getSolutionCandidatesForProblem( self, inputProblem ):
     problem = copy.deepcopy(inputProblem)
     numCandidates = 0
+    fullyExhaustive = self.modeWorkGroups == self.modeExhaustive \
+        and self.modeMicroTiles == self.modeExhaustive \
+        and self.modeUnrolls == self.modeExhaustive \
+        and self.modeLoads == self.modeExhaustive \
+        and self.modePreprocessorDefinitions == self.modeExhaustive
     # optimize alpha and beta?
     if not self.optimizeAlpha and not problem.operation.useAlpha():
       problem.operation.alphaType = problem.tensorC.dataType
@@ -175,11 +183,11 @@ class SolutionCandidateGenerator:
 
     # work-groups
     universeWorkGroups = []
-    workGroupRatio = 4
+    thresholdWorkGroupSize = 256 # threads
     if self.modeWorkGroups == self.modeExhaustive:
-      for m in range(1, self.thresholdWorkGroups+1):
-        for n in range(1, self.thresholdWorkGroups+1):
-          if m/n < workGroupRatio and n/m < workGroupRatio:
+      for m in range(1, thresholdWorkGroupSize+1):
+        for n in range(1, thresholdWorkGroupSize+1):
+          if m*n < thresholdWorkGroupSize:
             universeWorkGroups.append( [m,n] )
     else: # fast or thorough; both will include skinnies where applicable
       if self.modeWorkGroups == self.modeThorough:
@@ -192,49 +200,51 @@ class SolutionCandidateGenerator:
         universeWorkGroups = [ [16,16], [8,8] ]
       if problemSizeDim0 < self.thresholdSkinny:
         print "SCG: adding skinny(dim0) work-groups"
-        for workGroupDim0 in range(1, self.thresholdWorkGroups+1):
+        for workGroupDim0 in range(thresholdWorkGroupSize, 1, -1):
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
-              workGroupDim1 = workGroupSize / problemSizeDim0
+              workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
               universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+            # break
       if problemSizeDim1 < self.thresholdSkinny:
         print "SCG: adding skinny(dim1) work-groups"
-        for workGroupDim1 in range(1, self.thresholdWorkGroups+1):
+        for workGroupDim1 in range(thresholdWorkGroupSize, 1, -1):
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
-              workGroupDim0 = workGroupSize / problemSizeDim1
+              workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
               universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+            # break
     print "SCG: WorkGroups(" + str(len(universeWorkGroups)) + "): " + str(universeWorkGroups)
 
     # micro-tiles
     if self.modeMicroTiles == self.modeExhaustive:
       microTileMin = 1
       microTileMax = int(self.thresholdMicroTiles**0.5)
-      microTileRatio = 16
+      # microTileRatio = microTileMax
     else:
       microTileMin = 2
       microTileMax = int(self.thresholdMicroTiles**0.5)
-      microTileRatio = 2
-    print "SCG: MicroTileRatio: " + str(microTileRatio)
+      # microTileRatio = 2
+    # print "SCG: MicroTileRatio: " + str(microTileRatio)
 
     # macro-tiles
     if self.modeWorkGroups == self.modeExhaustive or self.modeMicroTiles == self.modeExhaustive:
-      macroTileRatio = self.thresholdMicroTiles * self.thresholdWorkGroups
+      macroTileRatio = self.thresholdMicroTiles * self.thresholdWorkGroupSize
     elif self.modeWorkGroups == self.modeThorough or self.modeMicroTiles == self.modeThorough:
       if problemSkinnyDim0 or problemSkinnyDim1:
-        macroTileRatio = 16
+        macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = 2
+        macroTileRatio = self.ratioMacroTileSlow
       else:
         macroTileRatio = 1
     else: # fast
       if problemSkinnyDim0 or problemSkinnyDim1:
-        macroTileRatio = 16
+        macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = 2
+        macroTileRatio = self.ratioMacroTileSlow
       else:
         macroTileRatio = 1
-    print "SCG: MacroTileRatio: " + str(microTileRatio)
+    print "SCG: MacroTileRatio: " + str(macroTileRatio)
     
     # unrolls
     universeUnrolls = []
@@ -256,25 +266,28 @@ class SolutionCandidateGenerator:
     print "SCG: Unrolls(" + str(len(universeUnrolls)) + "): " + str(universeUnrolls)
 
     # preprocessor defines
+    requireOffsets = problem.operation.useOffsets
+    requireInitialStrides = problem.tensorC.dimensions[0].stride != 1 or problem.tensorA.dimensions[0].stride != 1 or problem.tensorB.dimensions[0].stride != 1
     universePreprocessorDefinitions = []
     if self.modePreprocessorDefinitions == self.modeExhaustive:
-      universePreprocessorDefinitions = [ \
-          [ 0, 0, 0], \
-          [ 1, 0, 0], \
-          [ 0, 1, 0], \
-          [ 1, 1, 0], \
-          [ 1, 1, 1] ]
+      universePreprocessorDefinitions = [ [ 0, 0, 0] ]
+      if not requireInitialStrides:
+        universePreprocessorDefinitions.append( [ 1, 0, 0] )
+      if not requireOffsets:
+        universePreprocessorDefinitions.append( [ 0, 1, 0] )
+      if not requireInitialStrides and not requireOffsets:
+        universePreprocessorDefinitions.append( [ 1, 1, 0] )
+        universePreprocessorDefinitions.append( [ 1, 1, 1] )
     elif self.modePreprocessorDefinitions == self.modeThorough:
-      universePreprocessorDefinitions = [ \
-          [ 1, 0, 0], \
-          [ 1, 1, 1] ]
+      universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
+      if not requireInitialStrides and not requireOffsets:
+        universePreprocessorDefinitions.append( [ 1, 1, 1] )
     else:
-      universePreprocessorDefinitions = [ \
-          [ 1, 0, 0] ]
+      universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
     print "SCG: PreprocessorDefinitions(" + str(len(universePreprocessorDefinitions)) + "): " + str(universePreprocessorDefinitions)
 
     
-    # kernel grid TODO move above loop
+    # kernel grid
     kernelGrid = [ 1, 1, 1 ]
     if not problemSkinnyDim0 and not problemSkinnyDim1 and \
         (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
@@ -308,6 +321,8 @@ class SolutionCandidateGenerator:
       # for work-groups
       for workGroup in universeWorkGroups:
         kernel.tile.workGroup = workGroup
+        if fullyExhaustive:
+          print "NumCandidates: " + str(numCandidates)
         
         ###################################
         # for all micro-tile dimensions
@@ -317,9 +332,9 @@ class SolutionCandidateGenerator:
             kernel.tile.microTile = microTile
 
             # micro-tile not too skinny
-            if float(microTile[1])/microTile[0] > microTileRatio or float(microTile[0])/microTile[1] > microTileRatio:
+            # if float(microTile[1])/microTile[0] > microTileRatio or float(microTile[0])/microTile[1] > microTileRatio:
               #print "micro tile too skinny %u %u %u %u" % (workGroup[0], workGroup[1], microTile[0], microTile[1])
-              continue
+              #continue
 
             # macro-tile not too skinny
             macroTileDim0 = workGroup[0] * microTile[0]
@@ -347,18 +362,26 @@ class SolutionCandidateGenerator:
               continue
 
             # load grid
+            totalNumLoadsA = max(1, (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1]) )
+            totalNumLoadsB = max(1, (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1]) )
             kernel.totalLoadSizeParaA = macroTileDim0 if kernel.unrollDimStrideGreaterThanTileDimStrideA else unroll[0]
             kernel.totalLoadSizePerpA = unroll[0] if kernel.unrollDimStrideGreaterThanTileDimStrideA else macroTileDim0
             kernel.totalLoadSizeParaB = macroTileDim1 if not kernel.unrollDimStrideLessThanTileDimStrideB else unroll[0]
             kernel.totalLoadSizePerpB = unroll[0] if not kernel.unrollDimStrideLessThanTileDimStrideB else macroTileDim1
-            totalNumLoadsA = max(1, (workGroup[0]*microTile[0]*unroll[0])/(workGroup[0]*workGroup[1]) )
-            totalNumLoadsB = max(1, (workGroup[1]*microTile[1]*unroll[0])/(workGroup[0]*workGroup[1]) )
             
+            
+            if fullyExhaustive:
+              numCandidates += totalNumLoadsA*totalNumLoadsB*len(universePreprocessorDefinitions)*2
+              continue
+
             # num loads parallel A
             universeNumLoadsParaA = []
             if self.modeLoads == self.modeExhaustive:
               for i in range(1, totalNumLoadsA+1):
                 universeNumLoadsParaA.append(i)
+            elif self.modeLoads == self.modeThorough:
+                universeNumLoadsParaA.append( totalNumLoadsA )
+                universeNumLoadsParaA.append( 1 )
             else:
               if not transA:
                 universeNumLoadsParaA.append( totalNumLoadsA )
@@ -371,6 +394,9 @@ class SolutionCandidateGenerator:
             if self.modeLoads == self.modeExhaustive:
               for i in range(1, totalNumLoadsB+1):
                 universeNumLoadsParaB.append(i)
+            elif self.modeLoads == self.modeThorough:
+                universeNumLoadsParaB.append( totalNumLoadsB )
+                universeNumLoadsParaB.append( 1 )
             else:
               if transB:
                 universeNumLoadsParaB.append( totalNumLoadsB )
@@ -381,13 +407,13 @@ class SolutionCandidateGenerator:
             ###################################
             # for num loads parallel A
             for numLoadsParaA in universeNumLoadsParaA:
-              if False: # TODO, need this for mode scheme? true means only try perfect tiles w/o branches
-                if totalNumLoadsA % numLoadsParaA > 0:
-                  continue
-                if totalLoadSizeParaA%numLoadsParaA>0:
-                  continue
-                if (workGroup[0]*workGroup[1])%(totalLoadSizeParaA/numLoadsParaA) > 0:
-                  continue
+              # if False: # TODO, need this for mode scheme? true means only try perfect tiles w/o branches
+              #   if totalNumLoadsA % numLoadsParaA > 0:
+              #     continue
+              #   if totalLoadSizeParaA%numLoadsParaA>0:
+              #     continue
+              #   if (workGroup[0]*workGroup[1])%(totalLoadSizeParaA/numLoadsParaA) > 0:
+              #     continue
               kernel.numLoadsParaA = numLoadsParaA
               kernel.loadSizeParaA = int(math.ceil(1.0*kernel.totalLoadSizeParaA / kernel.numLoadsParaA ) ) # round up
               kernel.loadSizePerpA = int( (workGroup[0]*workGroup[1])/kernel.loadSizeParaA ) # round down
@@ -401,13 +427,13 @@ class SolutionCandidateGenerator:
               ###################################
               # for num loads parallel B
               for numLoadsParaB in universeNumLoadsParaB:
-                if False: # true means only try perfect tiles w/o branches
-                  if totalNumLoadsB % numLoadsParaB > 0:
-                    continue
-                  if totalLoadSizeParaB%numLoadsParaB>0:
-                    continue
-                  if (workGroup[0]*workGroup[1])%(totalLoadSizeParaB/numLoadsParaB) > 0:
-                    continue
+                # if False: # true means only try perfect tiles w/o branches
+                #   if totalNumLoadsB % numLoadsParaB > 0:
+                #     continue
+                #   if totalLoadSizeParaB%numLoadsParaB>0:
+                #     continue
+                #   if (workGroup[0]*workGroup[1])%(totalLoadSizeParaB/numLoadsParaB) > 0:
+                #     continue
                 kernel.numLoadsParaB = numLoadsParaB
                 kernel.loadSizeParaB = int(math.ceil(1.0*kernel.totalLoadSizeParaB / kernel.numLoadsParaB )) # round up
                 kernel.loadSizePerpB = int((workGroup[0]*workGroup[1])/kernel.loadSizeParaB) # round down
@@ -425,19 +451,6 @@ class SolutionCandidateGenerator:
                   ppdLeadingStride = ppdOptimization[0]
                   ppdOffsets       = ppdOptimization[1]
                   ppdAll           = ppdOptimization[2]
-
-                  # if optimization level optimizes away offsets, but problem requires offsets, fix it
-                  if ppdOffsets and problem.operation.useOffsets:
-                    print "reverting ppdOffsets->False"
-                    ppdOffsets = False
-
-                  # if optimization level optimizes away initial strides, but problem uses non-zero initial strides, fix it
-                  if ppdLeadingStride and \
-                    (  problem.tensorC.dimensions[0].stride != 1 \
-                    or problem.tensorA.dimensions[0].stride != 1 \
-                    or problem.tensorB.dimensions[0].stride != 1):
-                    print "reverting ppdLeadingStride->False"
-                    ppdLeadingStride = False
                     
                   ###################################
                   # for branch types
@@ -523,19 +536,8 @@ class SolutionCandidateGenerator:
                     # kernels, grid, and branching specified, now add solution
                     # print solution
                     # print "  " + self.solutionWriter.getName(solution)
-                    if self.modeWorkGroups == self.modeExhaustive \
-                        and self.modeMicroTiles == self.modeExhaustive \
-                        and self.modeUnrolls == self.modeExhaustive \
-                        and self.modeLoads == self.modeExhaustive \
-                        and self.modePreprocessorDefinitions == self.modeExhaustive:
-                      numCandidates += 1
-                    else:
-                      solutionCandidates.append( copy.deepcopy(solution) )
-    if self.modeWorkGroups == self.modeExhaustive \
-        and self.modeMicroTiles == self.modeExhaustive \
-        and self.modeUnrolls == self.modeExhaustive \
-        and self.modeLoads == self.modeExhaustive \
-        and self.modePreprocessorDefinitions == self.modeExhaustive:
+                    solutionCandidates.append( copy.deepcopy(solution) )
+    if fullyExhaustive:
       print "NumCandidates: " + str(numCandidates)
     return solutionCandidates
 
