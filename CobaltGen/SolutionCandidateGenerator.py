@@ -70,7 +70,7 @@ class SolutionCandidateGenerator:
   modeThorough   = 1
   modeFast       = 0
 
-  # mode selections (fully exhaustive: ~10.7 Billion solutions; don't bother)
+  # mode selections (fully exhaustive: ~10s of Millions of solutions; don't bother)
   modeWorkGroups              = 0 # (e:1457, t:20, f:2) 
   modeMicroTiles              = 0
   modeUnrolls                 = 0
@@ -178,7 +178,7 @@ class SolutionCandidateGenerator:
 
 
     ###################################
-    # determine search universe
+    # Determine Search Universe
     ###################################
 
     # work-groups
@@ -200,7 +200,7 @@ class SolutionCandidateGenerator:
         universeWorkGroups = [ [16,16], [8,8] ]
       if problemSizeDim0 < self.thresholdSkinny:
         print "SCG: adding skinny(dim0) work-groups"
-        for workGroupDim0 in range(thresholdWorkGroupSize, 1, -1):
+        for workGroupDim0 in range(1, thresholdWorkGroupSize+1):
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
@@ -208,7 +208,7 @@ class SolutionCandidateGenerator:
             # break
       if problemSizeDim1 < self.thresholdSkinny:
         print "SCG: adding skinny(dim1) work-groups"
-        for workGroupDim1 in range(thresholdWorkGroupSize, 1, -1):
+        for workGroupDim1 in range(1, thresholdWorkGroupSize+1):
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
@@ -289,11 +289,14 @@ class SolutionCandidateGenerator:
     
     # kernel grid
     kernelGrid = [ 1, 1, 1 ]
+    """
+    # wait for 4096 problem to re-appear before re-enabling kernel grid
+    print kernel.unrollDimStride0, kernel.unrollDimStride1
     if not problemSkinnyDim0 and not problemSkinnyDim1 and \
         (kernel.unrollDimStride0 % 1024 == 0 or kernel.unrollDimStride1 % 1024 == 0):
-      kernelGrid[0] = kernel.unrollDimStride0 / 2048;
-      kernelGrid[1] = kernel.unrollDimStride1 / 2048;
-      kernelGrid[2] = kernel.unrollDimSize / 1024
+      kernelGrid[0] = problemSizeDim0 / 2048;
+      kernelGrid[1] = problemSizeDim1 / 2048;
+      kernelGrid[2] = problemSizeUnroll / 1024
       if kernelGrid[0] == 0:
         kernelGrid[0]=1
       if kernelGrid[1] == 0:
@@ -304,7 +307,7 @@ class SolutionCandidateGenerator:
           kernel.problem.operation.betaType = problem.tensorC.dataType
           print "forcing useBeta=True due to mod1024 kernel grid"
       # print "kernelGrid = {%u, %u, %u}" % ( kernelGrid[0], kernelGrid[1], kernelGrid[2])
-
+    """
     
     ###################################
     # begin solution universe
