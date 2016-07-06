@@ -1305,9 +1305,9 @@ class KernelWriter:
           kStr += " ? %s : " % zeroStringB
           kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
               % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
-        if condPara or condPerp:
-          kStr += " }"
-        kStr += self.endLine
+          if condPara or condPerp:
+            kStr += " }"
+          kStr += self.endLine
       if kernel.loadRequiresFewerThreadsB():
         indent = indent[2:]
         kStr += indent + "}" + self.endLine

@@ -777,8 +777,8 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
     1, kernel,
     NULL );
   CL_CHECK(err)
-	err = clReleaseProgram(clProgram);
-	CL_CHECK(err)
+  err = clReleaseProgram(clProgram);
+  CL_CHECK(err)
 
   // put kernel in map
   (*kernelMap)[key] = *kernel;

@@ -106,11 +106,11 @@ unsigned int addGEMMCombinatorics() {
   //sizes.push_back( {384, 384, 384 });
   //sizes.push_back( {384-1, 384-1, 384 });
   //sizes.push_back( {64, 64, 64});
-  sizes.push_back( {96*3  , 96*2  , 96*1  });
-  sizes.push_back( {96*3  , 96*2  , 96*1-1});
-  sizes.push_back( {96*3-1, 96*2-1, 96*1  });
-  sizes.push_back( {96*3-1, 96*2-1, 96*1-1});
-  //sizes.push_back( {28*28*100, 32, 75});
+  //sizes.push_back( {96*3  , 96*2  , 96*1  });
+  //sizes.push_back( {96*3  , 96*2  , 96*1-1});
+  //sizes.push_back( {96*3-1, 96*2-1, 96*1  });
+  //sizes.push_back( {96*3-1, 96*2-1, 96*1-1});
+  sizes.push_back( {28*28*100, 32, 75});
   //sizes.push_back( {4096, 4096, 4096});
 
   const size_t numStrides = 1;
