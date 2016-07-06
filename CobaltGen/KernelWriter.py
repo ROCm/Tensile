@@ -964,7 +964,7 @@ class KernelWriter:
             kStr += "a%s < %d" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
           if condPerp:
             if condPara:
-              kStr += " || "
+              kStr += " && "
             kStr += "a%s < %d" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
           kStr += " ) { "
 
@@ -1047,7 +1047,7 @@ class KernelWriter:
                 kStr += "b%s < %d" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
           if condPerp:
             if condPara:
-              kStr += " || "
+              kStr += " && "
             kStr += "b%s < %d" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
           kStr += " ) { "
 
@@ -1219,7 +1219,7 @@ class KernelWriter:
               kStr += "a%s < %d" % (unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizeParaA % kernel.loadSizeParaA )
             if condPerp:
               if condPara:
-                kStr += " || "
+                kStr += " && "
               kStr += "a%s < %d" % (unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
             kStr += " ) { "
           kStr += "lA[ %d*LS_PARA_A" % para
@@ -1275,7 +1275,7 @@ class KernelWriter:
                   kStr += "b%s < %d" % (unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizeParaB % kernel.loadSizeParaB )
             if condPerp:
               if condPara:
-                kStr += " || "
+                kStr += " && "
               kStr += "b%s < %d" % (unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
             kStr += " ) { "
 
