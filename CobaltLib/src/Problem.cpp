@@ -247,7 +247,7 @@ CobaltStatus Problem::validate( ) {
   //state += std::to_string(boundIndexSizes[0]);
   for (size_t i = 1; i < indicesSummation.size(); i++) {
     state += ",";
-    state += indexChars[tensorA.numDims()+i];
+    state += indexChars[tensorC.numDims()+i];
     state += ":";
     for (size_t j = 0; j < tensorA.numDims(); j++) {
       if (indicesA[j] == i+tensorC.numDims()) {

@@ -3188,20 +3188,20 @@ __kernel void gemm_kernel(
 const char * kernelSource_TN = R"(
 
 #define  M6x6 \
-            rA[0][0] = lA[offA + 0];				  \
-            rA[0][1] = lA[offA + 16];				  \
-            rA[0][2] = lA[offA + 32];				  \
-            rA[0][3] = lA[offA + 48];				  \
-            rA[0][4] = lA[offA + 64];				  \
-            rA[0][5] = lA[offA + 80];				  \
-            rB[0][0] = lB[offB + 0];				  \
-            rB[0][1] = lB[offB + 16];				  \
-            rB[0][2] = lB[offB + 32];				  \
-            rB[0][3] = lB[offB + 48];				  \
-            rB[0][4] = lB[offB + 64];				  \
-            rB[0][5] = lB[offB + 80];				  \
-            offA += 97;								  \
-            offB += 97;								  \
+            rA[0][0] = lA[offA + 0];  \
+            rA[0][1] = lA[offA + 16]; \
+            rA[0][2] = lA[offA + 32]; \
+            rA[0][3] = lA[offA + 48]; \
+            rA[0][4] = lA[offA + 64]; \
+            rA[0][5] = lA[offA + 80]; \
+            rB[0][0] = lB[offB + 0];  \
+            rB[0][1] = lB[offB + 16]; \
+            rB[0][2] = lB[offB + 32]; \
+            rB[0][3] = lB[offB + 48]; \
+            rB[0][4] = lB[offB + 64]; \
+            rB[0][5] = lB[offB + 80]; \
+            offA += 97; \
+            offB += 97; \
             rC[0][0]=mad(rA[0][0],rB[0][0],rC[0][0]); \
             rC[1][0]=mad(rA[0][1],rB[0][0],rC[1][0]); \
             rC[2][0]=mad(rA[0][2],rB[0][0],rC[2][0]); \
@@ -3238,7 +3238,7 @@ const char * kernelSource_TN = R"(
             rC[3][5]=mad(rA[0][3],rB[0][5],rC[3][5]); \
             rC[4][5]=mad(rA[0][4],rB[0][5],rC[4][5]); \
             rC[5][5]=mad(rA[0][5],rB[0][5],rC[5][5]); \
-			      mem_fence(CLK_LOCAL_MEM_FENCE);
+            mem_fence(CLK_LOCAL_MEM_FENCE);
 
   __attribute__((reqd_work_group_size(16,16,1)))
   __kernel void sgemm_Col_TN_B1_MX096_NX096_KX16 (
@@ -4178,20 +4178,20 @@ __kernel void gemm_kernel(
 const char * kernelSource_NN = R"(
 
 #define  M6x6 \
-            rA[0][0] = lA[offA + 0];				  \
-            rA[0][1] = lA[offA + 16];				  \
-            rA[0][2] = lA[offA + 32];				  \
-            rA[0][3] = lA[offA + 48];				  \
-            rA[0][4] = lA[offA + 64];				  \
-            rA[0][5] = lA[offA + 80];				  \
-            rB[0][0] = lB[offB + 0];				  \
-            rB[0][1] = lB[offB + 16];				  \
-            rB[0][2] = lB[offB + 32];				  \
-            rB[0][3] = lB[offB + 48];				  \
-            rB[0][4] = lB[offB + 64];				  \
-            rB[0][5] = lB[offB + 80];				  \
-            offA += 97;								  \
-            offB += 97;								  \
+            rA[0][0] = lA[offA + 0];          \
+            rA[0][1] = lA[offA + 16];          \
+            rA[0][2] = lA[offA + 32];          \
+            rA[0][3] = lA[offA + 48];          \
+            rA[0][4] = lA[offA + 64];          \
+            rA[0][5] = lA[offA + 80];          \
+            rB[0][0] = lB[offB + 0];          \
+            rB[0][1] = lB[offB + 16];          \
+            rB[0][2] = lB[offB + 32];          \
+            rB[0][3] = lB[offB + 48];          \
+            rB[0][4] = lB[offB + 64];          \
+            rB[0][5] = lB[offB + 80];          \
+            offA += 97;                  \
+            offB += 97;                  \
             rC[0][0]=mad(rA[0][0],rB[0][0],rC[0][0]); \
             rC[1][0]=mad(rA[0][1],rB[0][0],rC[1][0]); \
             rC[2][0]=mad(rA[0][2],rB[0][0],rC[2][0]); \
@@ -4228,7 +4228,7 @@ const char * kernelSource_NN = R"(
             rC[3][5]=mad(rA[0][3],rB[0][5],rC[3][5]); \
             rC[4][5]=mad(rA[0][4],rB[0][5],rC[4][5]); \
             rC[5][5]=mad(rA[0][5],rB[0][5],rC[5][5]); \
-			      mem_fence(CLK_LOCAL_MEM_FENCE);
+            mem_fence(CLK_LOCAL_MEM_FENCE);
 
   __attribute__((reqd_work_group_size(16,16,1)))
   __kernel void sgemm_Col_NN_B1_MX096_NX096_KX16 (

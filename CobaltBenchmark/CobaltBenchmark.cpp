@@ -45,6 +45,8 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
 size_t problemStartIdx = 0;
 size_t problemEndIdx = numProblems;
+unsigned int platformIdx = 0;
+unsigned int deviceIdx = 0;
 
 /*******************************************************************************
  * main
@@ -406,11 +408,16 @@ void initControls() {
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
   platforms = new cl_platform_id[numPlatforms];
   status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
-  platform = platforms[0];
+  platform = platforms[platformIdx];
   status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
   devices = new cl_device_id[numDevices];
   status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
-  device = devices[0];
+  device = devices[deviceIdx];
+  size_t nameLength;
+  status = clGetDeviceInfo( device, CL_DEVICE_NAME, 0, nullptr, &nameLength );
+  char *deviceName = new char[nameLength+1];
+  status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
+  printf("Device[%u/%u][%u/%u]: %s\n", platformIdx, numPlatforms, deviceIdx, numDevices, deviceName);
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
 
   // device control
@@ -473,6 +480,14 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     }
     if (std::strcmp(arg, "--end-problem") == 0) {
       problemEndIdx = atol(argv[argIdx+1]);
+      argIdx++;
+    }
+    if (std::strcmp(arg, "--device") == 0) {
+      deviceIdx = atol(argv[argIdx+1]);
+      argIdx++;
+    }
+    if (std::strcmp(arg, "--platform") == 0) {
+      platformIdx = atol(argv[argIdx+1]);
       argIdx++;
     }
   }

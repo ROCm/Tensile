@@ -21,6 +21,10 @@ template< typename T> T getOne(); // { return static_cast<T>(1); };
  ******************************************************************************/
 template< typename T> T getRandom(); // { return static_cast<T>(1); };
 
+/*******************************************************************************
+ * Integer Templates
+ ******************************************************************************/
+template< typename T> T getTypeForInt( size_t s );
 
 
 /*******************************************************************************
@@ -63,16 +67,6 @@ void complexConjugate(T&);
 template<typename Type>
 size_t sizeOfType();
 
-
-//template<typename Type>
-//size_t sizeOfType<Type>() {
-//  return sizeof(Type);
-//}
-//
-//template<>
-//size_t sizeOfType<void>() {
-//  return 0;
-//}
 
 } // end Cobalt namespace
 

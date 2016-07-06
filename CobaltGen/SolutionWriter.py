@@ -184,10 +184,10 @@ class SolutionWriter:
 
     # kernel arguments
     s += "  /* kernel arguments */\n"
-    #if self.backend.isOpenCL():
-    #  s += "  this->numKernelArgs = 0; // pointers and offsets\n"
-    #else:
-    s += "  this->numKernelArgs = 3; // pointers and offsets\n"
+    if solution.kernels[0].ppdOffsets:
+      s += "  this->numKernelArgs = 0; // pointers and offsets\n"
+    else:
+      s += "  this->numKernelArgs = 3; // pointers and offsets\n"
     s += "\n"
 
     s += "  /* preprocessor optimizations */\n"
@@ -368,8 +368,8 @@ class SolutionWriter:
         s += "  detail += \" mT1=\\\"" + str(kernel.tile.microTile[1]) + "\\\"\";\n"
         s += "  detail += \" b0=\\\"" + str(kernel.tile.branch[0].value) + "\\\"\";\n"
         s += "  detail += \" b1=\\\"" + str(kernel.tile.branch[1].value) + "\\\"\";\n"
-        s += "  detail += \" nlA=\\\"" + str(kernel.numLoadsA) + "\\\"\";\n"
-        s += "  detail += \" nlB=\\\"" + str(kernel.numLoadsB) + "\\\"\";\n"
+        s += "  detail += \" nlA=\\\"" + str(kernel.numLoadsParaA) + "\\\"\";\n"
+        s += "  detail += \" nlB=\\\"" + str(kernel.numLoadsParaB) + "\\\"\";\n"
         s += "  detail += \" u0=\\\"" + str(kernel.unrolls[0]) + "\\\"\";\n"
         if len(kernel.unrolls) > 1:
           s += "  detail += \" u1=\\\"" + str(kernel.unrolls[1]) + "\\\"\";\n"
@@ -402,7 +402,7 @@ class SolutionWriter:
         if kernel != None:
           s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
           s += "\n"
-          if True:
+          if False:
             s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
             s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
             s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"

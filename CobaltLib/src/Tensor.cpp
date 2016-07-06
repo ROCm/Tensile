@@ -17,14 +17,15 @@ Tensor::Tensor(CobaltTensor tensor)
     throw cobaltStatusTensorNumDimensionsInvalid;
   }
   for (size_t d = 0; d < numDims(); d++) {
-    if (d < numDims() - 1) {
-      if (dimensions[d].stride > dimensions[d + 1].stride) {
-        throw cobaltStatusTensorDimensionOrderInvalid;
-      }
-    }
-    if (dimensions[d].stride < 1) {
-      throw cobaltStatusTensorDimensionStrideInvalid;
-    }
+    // relax restrictions to support convolutions mapped to contractions
+    // if (d < numDims() - 1) {
+    //   if (dimensions[d].stride > dimensions[d + 1].stride) {
+    //     throw cobaltStatusTensorDimensionOrderInvalid;
+    //   }
+    // }
+    // if (dimensions[d].stride < 1) {
+    //   throw cobaltStatusTensorDimensionStrideInvalid;
+    // }
     if (dimensions[d].size < 1) {
       throw cobaltStatusTensorDimensionSizeInvalid;
     }
@@ -266,6 +267,9 @@ void Tensor::fillTemplate(
       case fillTypeRandom:
         static_cast<T*>(tensorData.data)[index] = Cobalt::getRandom<T>();
         break;
+      case fillTypeIndex:
+        static_cast<T*>(tensorData.data)[index] = Cobalt::getTypeForInt<T>(index);
+        break;
       case fillTypeCopy:
         static_cast<T*>(tensorData.data)[index] = src[srcIdx++];
         break;
@@ -324,7 +328,7 @@ bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
   Cobalt::Tensor tensor) {
-  unsigned int maxToPrint = 4;
+  unsigned int maxToPrint = 2*2;
   unsigned int printCount = 0;
   bool equal = true;
 
