@@ -184,7 +184,7 @@ CobaltStatus cobaltGetSolutionForProblem(
   // gpu device
   } else {
 #if Cobalt_SOLVER_ENABLED
-    //status = cobaltGetSolutionGenerated( problem, solution );
+    (*solution)->pimpl = getSolutionTop( *(problem->pimpl), &status );
 #else
     (*solution)->pimpl = new Cobalt::SolutionLogOnly<void,void,void,void,void>(*(problem->pimpl));
     status = cobaltStatusSuccess;

@@ -824,13 +824,13 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
       // alpha if required
       if (!std::is_void<TypeAlpha>::value) {
-      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
+        status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+            sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
       }
       // beta if required
       if (!std::is_void<TypeBeta>::value) {
-      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
+        status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+            sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
       }
 
       // uint args
@@ -1243,7 +1243,9 @@ template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,
 
 #include "SolutionTemplateInstantiations.inl"
 
+#if Cobalt_LOGGER_ENABLED
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+#endif
 
 #if Cobalt_BACKEND_OPENCL12
 #if defined( _WIN32 )

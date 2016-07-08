@@ -39,11 +39,11 @@ int main( int argc, char * argv[] ) {
   //logFilePath += "/GEMM_log.xml";
   cobaltSetup(logFilePath.c_str());
 
-  // unsigned int numGemmList = addGEMMList();
-  // printf("GEMM List: %u\n", numGemmList );
+  unsigned int numGemmList = addGEMMList();
+  printf("GEMM List: %u\n", numGemmList );
 
-  unsigned int numGemmCombinatorics = addGEMMCombinatorics();
-  printf("GEMM Comb: %u\n", numGemmCombinatorics );
+  //unsigned int numGemmCombinatorics = addGEMMCombinatorics();
+  //printf("GEMM Comb: %u\n", numGemmCombinatorics );
 
   cobaltTeardown();
 }
@@ -137,9 +137,9 @@ unsigned int addGEMMCombinatorics() {
   const bool alphas[] = { true, false };
   const size_t numBetas = 1;
   const bool betas[] = { true, false };
-  const size_t numTransA = 1;
+  const size_t numTransA = 2;
   const bool transAs[] = {false, true};
-  const size_t numTransB = 1;
+  const size_t numTransB = 2;
   const bool transBs[] = {true, false};
   const size_t numUseOffsets = 1;
   const bool useOffsets[] = {false, true};
