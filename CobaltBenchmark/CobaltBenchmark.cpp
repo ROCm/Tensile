@@ -107,9 +107,9 @@ int main( int argc, char *argv[] ) {
     void *initialDataA = isFloatA ? initialTensorDataFloatA.data : initialTensorDataDoubleA.data;
     void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
     CobaltScalarData alpha{ isFloatAlpha ? static_cast<void*>(alphaFloat)
-        : isDoubleAlpha ? static_cast<void*>(alphaDouble) : nullptr };
+        : isDoubleAlpha ? static_cast<void*>(alphaDouble) : static_cast<void*>(alphaFloat) };
     CobaltScalarData beta{ isFloatBeta ? static_cast<void*>(betaFloat)
-        : isDoubleBeta ? static_cast<void*>(betaDouble) : nullptr };
+        : isDoubleBeta ? static_cast<void*>(betaDouble) : static_cast<void*>(betaFloat) };
 
     // re-initialize device input buffers
 #if Cobalt_BACKEND_OPENCL12

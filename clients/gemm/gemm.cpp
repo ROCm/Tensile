@@ -39,11 +39,11 @@ int main( int argc, char * argv[] ) {
   //logFilePath += "/GEMM_log.xml";
   cobaltSetup(logFilePath.c_str());
 
-  // unsigned int numGemmList = addGEMMList();
-  // printf("GEMM List: %u\n", numGemmList );
+  unsigned int numGemmList = addGEMMList();
+  printf("GEMM List: %u\n", numGemmList );
 
-  unsigned int numGemmCombinatorics = addGEMMCombinatorics();
-  printf("GEMM Comb: %u\n", numGemmCombinatorics );
+  //unsigned int numGemmCombinatorics = addGEMMCombinatorics();
+  //printf("GEMM Comb: %u\n", numGemmCombinatorics );
 
   cobaltTeardown();
 }
@@ -51,7 +51,7 @@ int main( int argc, char * argv[] ) {
 // initially just for DNN, hence single precision
 unsigned int addGEMMList() {
 
-  for (unsigned int i = 129-9-6; i < num_gemm_params; i++) {
+  for (unsigned int i = 0; i < num_gemm_params; i++) {
     // get parameters from list
     size_t M = gemm_params[i][0];
     size_t N = gemm_params[i][1];

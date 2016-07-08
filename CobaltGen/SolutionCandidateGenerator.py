@@ -72,7 +72,7 @@ class SolutionCandidateGenerator:
 
   # mode selections (fully exhaustive: ~10s of Millions of solutions; don't bother)
   modeWorkGroups              = 0 # (e:1457, t:20, f:2) 
-  modeMicroTiles              = 0
+  modeMicroTiles              = 1
   modeUnrolls                 = 0
   modeLoads                   = 0
   modePreprocessorDefinitions = 0
@@ -88,7 +88,7 @@ class SolutionCandidateGenerator:
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
-  noMultipleKernels = True # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
+  noMultipleKernels = False # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
 
 
   
@@ -119,8 +119,10 @@ class SolutionCandidateGenerator:
         and self.modePreprocessorDefinitions == self.modeExhaustive
     # optimize alpha and beta?
     if not self.optimizeAlpha and not problem.operation.useAlpha():
+      print "SCG: reverting void alpha to typeC b/c not optimizing"
       problem.operation.alphaType = problem.tensorC.dataType
     if not self.optimizeBeta and not problem.operation.useBeta():
+      print "SCG: reverting void beta to typeC b/c not optimizing"
       problem.operation.betaType = problem.tensorC.dataType
 
     numIndicesC = len(problem.tensorC.dimensions)
@@ -217,7 +219,7 @@ class SolutionCandidateGenerator:
     print "SCG: WorkGroups(" + str(len(universeWorkGroups)) + "): " + str(universeWorkGroups)
 
     # micro-tiles
-    if self.modeMicroTiles == self.modeExhaustive:
+    if self.modeMicroTiles == self.modeExhaustive or self.modeMicroTiles == self.modeThorough:
       microTileMin = 1
       microTileMax = int(self.thresholdMicroTiles**0.5)
       # microTileRatio = microTileMax
