@@ -51,7 +51,7 @@ int main( int argc, char * argv[] ) {
 // initially just for DNN, hence single precision
 unsigned int addGEMMList() {
 
-  for (unsigned int i = 129-9-6; i < num_gemm_params; i++) {
+  for (unsigned int i = 0; i < num_gemm_params; i++) {
     // get parameters from list
     size_t M = gemm_params[i][0];
     size_t N = gemm_params[i][1];
@@ -102,7 +102,7 @@ unsigned int addGEMMCombinatorics() {
       sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
-  //sizes.push_back( {5760, 5760, 5760 });
+  sizes.push_back( {5760, 5760, 5760 });
   //sizes.push_back( {384, 384, 384 });
   //sizes.push_back( {384-1, 384-1, 384 });
   //sizes.push_back( {64, 64, 64});
@@ -110,7 +110,7 @@ unsigned int addGEMMCombinatorics() {
   //sizes.push_back( {96*3  , 96*2  , 96*1-1});
   //sizes.push_back( {96*3-1, 96*2-1, 96*1  });
   //sizes.push_back( {96*3-1, 96*2-1, 96*1-1});
-  sizes.push_back( {28*28*100, 32, 75});
+  //sizes.push_back( {28*28*100, 32, 75});
   //sizes.push_back( {4096, 4096, 4096});
 
   const size_t numStrides = 1;

@@ -36,7 +36,8 @@ Problem::Problem(
   useOffsets(inputUseOffsets),
   deviceProfile( inputDeviceProfile ),
   indicesA(inputIndexAssignmentsA, inputIndexAssignmentsA + inputTensorA.numDimensions),
-  indicesB(inputIndexAssignmentsB, inputIndexAssignmentsB + inputTensorB.numDimensions)
+  indicesB(inputIndexAssignmentsB, inputIndexAssignmentsB + inputTensorB.numDimensions),
+  numFlops(0)
 {
 
   // determine batch, free and summation indices
@@ -413,6 +414,22 @@ bool Problem::operator<(const Problem & other) const {
 
   // identical
   return false;
+}
+
+size_t Problem::getNumFlops() {
+  if (numFlops) {
+    return numFlops;
+  } else {
+    numFlops = 1;
+    numFlops *= flopsPerMadd( tensorC.getDataType() );
+    numFlops *= tensorC.numElements();
+    for (unsigned int i = 0; i < indicesA.size(); i++) {
+      if (indicesA[i] >= tensorC.numDims()) {
+        numFlops *= tensorA[i].size;
+      }
+    }
+    return numFlops;
+  }
 }
 
 } // namespace

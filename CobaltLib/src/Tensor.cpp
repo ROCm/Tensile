@@ -192,6 +192,7 @@ unsigned int Tensor::numDims() const {
 }
 
 size_t Tensor::numElements() const {
+  // TODO: this only applies to a packed tensor; it should be put directly into numBytes
   size_t size = 0;
   for (unsigned int i = 0; i < numDims(); i++) {
     size_t dimSize = dimensions[i].size * dimensions[i].stride;

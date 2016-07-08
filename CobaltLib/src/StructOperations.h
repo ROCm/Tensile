@@ -26,6 +26,8 @@ std::ostream& appendElement(std::ostream& os, const DataType& element);
 
 size_t sizeOf( CobaltDataType type );
 
+size_t flopsPerMadd( CobaltDataType type );
+
 } // namespace
 
 

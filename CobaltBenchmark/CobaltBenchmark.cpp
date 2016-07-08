@@ -45,6 +45,8 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
 size_t problemStartIdx = 0;
 size_t problemEndIdx = numProblems;
+size_t solutionStartIdxOverride = 0;
+size_t solutionEndIdxOverride = 0;
 unsigned int platformIdx = 0;
 unsigned int deviceIdx = 0;
 
@@ -154,12 +156,13 @@ int main( int argc, char *argv[] ) {
 
 
     size_t solutionStartIdx = 0;
+    if (solutionStartIdxOverride) {
+      solutionStartIdx = solutionStartIdxOverride;
+    }
     size_t solutionEndIdx = solutionCandidates.size();
-#ifdef MAX_SOLUTIONS_PER_PROBLEM
-      if (solutionEndIdx > MAX_SOLUTIONS_PER_PROBLEM) {
-        solutionEndIdx = MAX_SOLUTIONS_PER_PROBLEM;
-      }
-#endif
+    if (solutionEndIdxOverride) {
+      solutionEndIdx = solutionEndIdxOverride;
+    }
     for ( size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++ ) {
       printf("P[%llu/%llu] S[%llu/%llu] ", ULL problemIdx, ULL problemEndIdx, ULL solutionIdx, ULL solutionEndIdx);
@@ -480,6 +483,14 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     }
     if (std::strcmp(arg, "--end-problem") == 0) {
       problemEndIdx = atol(argv[argIdx+1]);
+      argIdx++;
+    }
+    if (std::strcmp(arg, "--start-solution") == 0) {
+      solutionStartIdxOverride = atol(argv[argIdx+1]);
+      argIdx++;
+    }
+    if (std::strcmp(arg, "--end-solution") == 0) {
+      solutionEndIdxOverride = atol(argv[argIdx+1]);
       argIdx++;
     }
     if (std::strcmp(arg, "--device") == 0) {

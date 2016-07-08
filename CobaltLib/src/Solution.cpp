@@ -159,7 +159,8 @@ CobaltStatus Solution::enqueueEntry(
     // stop timer
     double time = timer.elapsed_ms();
     time /= ctrl.benchmark;
-    printf(" t = %7.3f ms (avg of %u)", time, ctrl.benchmark);
+    double gFlops = ((double) problem.getNumFlops() / 1000000.f ) / time; // MFlops / ms
+    printf(" GFlop/s = %7.3f; t = %7.3f ms (avg of %u)", gFlops, time, ctrl.benchmark);
     entry.benchmarkTimes.push_back(time);
 
     if (!ctrl.validate) {

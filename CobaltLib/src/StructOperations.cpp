@@ -164,6 +164,25 @@ size_t sizeOf( CobaltDataType type ) {
   }
 }
 
+size_t flopsPerMadd( CobaltDataType type ) {
+  switch( type ) {
+  case cobaltDataTypeSingle:
+  case cobaltDataTypeDouble:
+    return 2;
+
+  case cobaltDataTypeComplexSingle:
+  case cobaltDataTypeComplexDouble:
+  case cobaltDataTypeComplexConjugateSingle:
+  case cobaltDataTypeComplexConjugateDouble:
+    return 8;
+
+  case cobaltDataTypeNone:
+    return 0;
+  default:
+    return -1;
+  }
+}
+
 
 
 
