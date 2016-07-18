@@ -830,16 +830,16 @@ class Kernel:
 
     # global->local load strategy
     self.numLoadsParaA = -1
-    self.numLoadsPerpA = -1
     self.loadSizeParaA = -1
-    self.loadSizePerpA = -1
-    self.numLoadsParaB = -1
-    self.numLoadsPerpB = -1
-    self.loadSizeParaB = -1
-    self.loadSizePerpB = -1
     self.totalLoadSizeParaA = -1
+    self.numLoadsPerpA = -1
+    self.loadSizePerpA = -1
     self.totalLoadSizePerpA = -1
+    self.numLoadsParaB = -1
+    self.loadSizeParaB = -1
     self.totalLoadSizeParaB = -1
+    self.numLoadsPerpB = -1
+    self.loadSizePerpB = -1
     self.totalLoadSizePerpB = -1
 
     # Pre-Processor definition optimizations

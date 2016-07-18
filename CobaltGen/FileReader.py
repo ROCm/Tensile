@@ -137,9 +137,19 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].tile.workGroup = [int(attributes["wG0"]), int(attributes["wG1"])]
       self.solution.kernels[i].tile.microTile = [int(attributes["mT0"]), int(attributes["mT1"])]
       self.solution.kernels[i].tile.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
-      self.solution.kernels[i].numLoadsParaA = int(attributes["nlA"])
-      self.solution.kernels[i].numLoadsParaB = int(attributes["nlB"])
-      # TODO need to encode numLoadsPerp, and load sizes
+      self.solution.kernels[i].numLoadsParaA        = int(attributes["nlpaA"])
+      self.solution.kernels[i].loadSizeParaA        = int(attributes["lspaA"])
+      self.solution.kernels[i].totalLoadSizeParaA   = int(attributes["tspaA"])
+      self.solution.kernels[i].numLoadsPerpA        = int(attributes["nlpeA"])
+      self.solution.kernels[i].loadSizePerpA        = int(attributes["lspeA"])
+      self.solution.kernels[i].totalLoadSizePerpA   = int(attributes["tspeA"])
+      self.solution.kernels[i].numLoadsParaB        = int(attributes["nlpaB"])
+      self.solution.kernels[i].loadSizeParaB        = int(attributes["lspaB"])
+      self.solution.kernels[i].totalLoadSizeParaB   = int(attributes["tspaB"])
+      self.solution.kernels[i].numLoadsPerpB        = int(attributes["nlpeB"])
+      self.solution.kernels[i].loadSizePerpB        = int(attributes["lspeB"])
+      self.solution.kernels[i].totalLoadSizePerpB   = int(attributes["tspeB"])
+
       self.solution.kernels[i].unrolls = [ int(attributes["u0"]) ]
       secondUnroll = int(attributes["u1"])
       if secondUnroll > 0:
