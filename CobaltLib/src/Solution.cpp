@@ -55,16 +55,18 @@ bool Solution::operator<( const Solution & other ) const {
  * enter enqueue process here; can do validation and benchmarking
  *****************************************************************************/
 CobaltStatus Solution::enqueueEntry(
-  CobaltTensorData tensorDataC,
-  CobaltTensorDataConst tensorDataA,
-  CobaltTensorDataConst tensorDataB,
-  CobaltScalarData alpha,
-  CobaltScalarData beta,
-  CobaltControl & ctrl) {
+	CobaltTensorData tensorDataC,
+	CobaltTensorDataConst tensorDataA,
+	CobaltTensorDataConst tensorDataB,
+	CobaltScalarData alpha,
+	CobaltScalarData beta,
+	CobaltControl & ctrl,
+	bool doPrint ) {
+
 #if Cobalt_BACKEND_OPENCL12
-      cl_int status;
+  cl_int status;
 #elif Cobalt_BACKEND_HIP
-      hipError_t status;
+  hipError_t status;
 #endif
 
   Logger::TraceEntry entry;
@@ -119,7 +121,7 @@ CobaltStatus Solution::enqueueEntry(
     // cleanup
     delete static_cast<float *>(gpuOnHostC.data);
   } else {
-    printf("%s;", toString(0).c_str());
+    if (doPrint) printf("%s;", toString(0).c_str());
   }
 
   // benchmarking
@@ -167,7 +169,7 @@ CobaltStatus Solution::enqueueEntry(
       entry.status = returnStatus;
     }
   }
-  printf("\n");
+  if (doPrint) printf("\n");
 
   // if we didn't do any of the previous, enqueue here
   if( !ctrl.validate && !ctrl.benchmark ) {

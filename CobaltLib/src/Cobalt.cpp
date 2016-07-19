@@ -232,13 +232,13 @@ CobaltStatus cobaltEnqueueSolution(
   // if cpu device, enqueue even if solver turned off
   if (solution->pimpl->getProblem().deviceIsReference()) {
       status = solution->pimpl->enqueueEntry( tensorDataC, tensorDataA, tensorDataB,
-          alpha, beta, *ctrl );
+          alpha, beta, *ctrl, false /*no print*/ );
 
   // gpu device, only enqueue if solver turned on
   } else {
 #if Cobalt_SOLVER_ENABLED
     status = solution->pimpl->enqueueEntry( tensorDataC, tensorDataA, tensorDataB,
-        alpha, beta, *ctrl );
+        alpha, beta, *ctrl, false /*no print*/ );
 #endif
   }
   return status;

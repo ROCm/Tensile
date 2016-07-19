@@ -215,7 +215,8 @@ int main( int argc, char *argv[] ) {
             constB,
             alpha,
             beta,
-            ctrl );
+            ctrl,
+			true /*do print*/ );
       }
       if (doValidation) {
         for (unsigned int i = 0; i < ctrl.numQueues; i++) {
