@@ -525,7 +525,9 @@ class FileWriter:
       sslHeaderFile.write(sslHeaderString)
       sslHeaderFile.close()
 
-      for exactMatch, problemSolutionPairs in exactMatches.iteritems():
+      for exactMatch, pspTypes in exactMatches.iteritems():
+        rangePSPs = pspTypes[0]
+        exactPSPs = pspTypes[1]
         # only support this exact match if some benchmark times existed
         # otherwise none of the other files for it will have been written
 
@@ -546,7 +548,7 @@ class FileWriter:
         sslSourceFile = open(sslSourcePath, "w")
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
-        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, problemSolutionPairs) # match size and mod
+        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
         sslSourceFile.write(sslSourceString)
         sslSourceFile.close()
         sslHeaderFile.write(sslHeaderString)

@@ -206,7 +206,8 @@ class SolutionCandidateGenerator:
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
-              universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+              if workGroupDim1 > 0:
+                universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
             # break
       if problemSizeDim1 < self.thresholdSkinny:
         print "SCG: adding skinny(dim1) work-groups"
@@ -214,7 +215,8 @@ class SolutionCandidateGenerator:
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
-              universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+              if workGroupDim0 > 0:
+                universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
             # break
     print "SCG: WorkGroups(" + str(len(universeWorkGroups)) + "): " + str(universeWorkGroups)
 
@@ -331,6 +333,7 @@ class SolutionCandidateGenerator:
         
         ###################################
         # for all micro-tile dimensions
+        print microTileMin, microTileMax, workGroup[0], workGroup[1]
         for microTileDim0 in range(microTileMin, microTileMax+1):
           for microTileDim1 in range(microTileMin, microTileMax+1):
             microTile = [ microTileDim0, microTileDim1 ]

@@ -8,20 +8,21 @@ import sys
 import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
+  print str(problem.getSizeType()) + " - " + str(problem)
   if exactMatch.deviceProfile not in psMap:
     #print "XML Parser: b.adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
     #print "XML Parser:   b.adding %s" % exactMatch.libString()
-    psMap[exactMatch.deviceProfile][exactMatch] = {}
-  if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    psMap[exactMatch.deviceProfile][exactMatch] = [{},{}]
+  if problem not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()]:
     #print "XML Parser:     b.adding %s" % str(problem)
-    psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
-  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem] = {}
+  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem]:
     #print "XML Parser:       b.adding %s" % str(solution)
-    psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution] = Structs.SolutionBenchmark()
   #print "XML Parser:       b.adding %f" % str(time)
-  psMap[exactMatch.deviceProfile][exactMatch][problem][solution].times.append(time)
+  psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].times.append(time)
 
 def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus ):
   if exactMatch.deviceProfile not in psMap:
@@ -29,17 +30,17 @@ def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus )
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
     #print "XML Parser:   v.adding %s" % exactMatch.libString()
-    psMap[exactMatch.deviceProfile][exactMatch] = {}
-  if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    psMap[exactMatch.deviceProfile][exactMatch] = [{},{}]
+  if problem not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()]:
     #print "XML Parser:     v.adding %s" % str(problem)
-    psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
-  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem] = {}
+  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem]:
     #print "XML Parser:       v.adding %s" % str(solution)
-    psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution] = Structs.SolutionBenchmark()
 
-  if psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus == 0:
-    psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus = validationStatus
-  elif psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus != validationStatus:
+  if psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus == 0:
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus = validationStatus
+  elif psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus != validationStatus:
     print "ERROR: conflicting validation reports"
 
 ################################################################################

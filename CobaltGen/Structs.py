@@ -587,6 +587,8 @@ class SolutionBenchmark:
 #   - Device - determined through benchmarking / file reading
 ################################################################################
 class Problem:
+  # sizeType=0 ranged
+  # sizeType=1 exact
   def __init__( self ):
     self.tensorC = Tensor()
     self.tensorA = Tensor()
@@ -594,6 +596,7 @@ class Problem:
     self.operation = Operation()
     self.deviceProfile = DeviceProfile()
     self.sizeFree = 0
+    self.sizeType = -1
 
   def getSizeFree(self):
     if self.sizeFree == 0:
@@ -601,6 +604,20 @@ class Problem:
       for dimension in self.tensorC.dimensions:
         self.sizeFree *= dimension.size
     return self.sizeFree
+
+  def getSizeType(self):
+    if self.sizeType < 0:
+      self.sizeType = 0
+      for dim in self.tensorC.dimensions:
+        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
+          self.sizeType = 1
+      for dim in self.tensorA.dimensions:
+        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
+          self.sizeType = 1
+      for dim in self.tensorB.dimensions:
+        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
+          self.sizeType = 1
+    return self.sizeType
 
 
   def __str__(self):

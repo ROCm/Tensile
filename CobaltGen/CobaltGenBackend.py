@@ -30,23 +30,32 @@ def GenBackendFromFiles( \
     psTimes[deviceProfile] = {}
     #print "DeviceProfile: " + str(deviceProfile)
     for exactMatch, problems in exactMatches.iteritems():
-      psTimes[deviceProfile][exactMatch] = []
+      rangeProblems = problems[0]
+      exactProblems = problems[1]
+      psTimes[deviceProfile][exactMatch] = [[],[]]
       #print "ExactMatch: " + str(exactMatch)
       #print len(problems)
-      for problem, solutionCandidates in problems.iteritems():
-        #print str(solutionCandidates)
-        #print len(solutionCandidates)
-        #print "Problem: " + str(problem)
-        # choose fastest solution
+      for rangeProblem, solutionCandidates in rangeProblems.iteritems():
         for solution, solutionBenchmark in solutionCandidates.iteritems():
           avgTime = 1e100
           if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
-            psTimes[deviceProfile][exactMatch].append([problem, solution, avgTime])
+            psTimes[deviceProfile][exactMatch].append([rangeProblem, solution, avgTime])
+            
+      for exactProblem, solutionCandidates in exactProblems.iteritems():
+        for solution, solutionBenchmark in solutionCandidates.iteritems():
+          avgTime = 1e100
+          if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
+            avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
+            psTimes[deviceProfile][exactMatch].append([exactProblem, solution, avgTime])
+
+
       # if this exact match didn't have any psps with times, remove
-      if len(psTimes[deviceProfile][exactMatch]) < 1:
+      if len(psTimes[deviceProfile][exactMatch][0]) < 1 and len(psTimes[deviceProfile][exactMatch][1]) < 1:
         print "CobaltGenBackend: ExactMatch %s has no benchmark times; removing." % str(exactMatch)
         psTimes[deviceProfile].pop(exactMatch, None)
+
+
     # if this device profile didn't have any exact matches with times, remove
     if len(psTimes[deviceProfile]) < 1:
       print "CobaltGenBackend: Device Profile %s has no benchmark times; removing." % str(deviceProfile)
