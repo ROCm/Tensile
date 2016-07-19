@@ -8,7 +8,7 @@ import sys
 import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
-  print str(problem.getSizeType()) + " - " + str(problem)
+  #print str(problem.getSizeType()) + " - " + str(problem)
   if exactMatch.deviceProfile not in psMap:
     #print "XML Parser: b.adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
@@ -23,6 +23,7 @@ def addTimeToMap( psMap, exactMatch, problem, solution, time ):
     psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution] = Structs.SolutionBenchmark()
   #print "XML Parser:       b.adding %f" % str(time)
   psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].times.append(time)
+  #print "size = ", len(psMap[exactMatch.deviceProfile][exactMatch][0]), len(psMap[exactMatch.deviceProfile][exactMatch][1])
 
 def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus ):
   if exactMatch.deviceProfile not in psMap:

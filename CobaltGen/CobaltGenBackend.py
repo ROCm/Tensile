@@ -32,6 +32,7 @@ def GenBackendFromFiles( \
     for exactMatch, problems in exactMatches.iteritems():
       rangeProblems = problems[0]
       exactProblems = problems[1]
+      #print len(rangeProblems), len(exactProblems)
       psTimes[deviceProfile][exactMatch] = [[],[]]
       #print "ExactMatch: " + str(exactMatch)
       #print len(problems)
@@ -40,14 +41,14 @@ def GenBackendFromFiles( \
           avgTime = 1e100
           if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
-            psTimes[deviceProfile][exactMatch].append([rangeProblem, solution, avgTime])
+            psTimes[deviceProfile][exactMatch][0].append([rangeProblem, solution, avgTime])
             
       for exactProblem, solutionCandidates in exactProblems.iteritems():
         for solution, solutionBenchmark in solutionCandidates.iteritems():
           avgTime = 1e100
           if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
-            psTimes[deviceProfile][exactMatch].append([exactProblem, solution, avgTime])
+            psTimes[deviceProfile][exactMatch][1].append([exactProblem, solution, avgTime])
 
 
       # if this exact match didn't have any psps with times, remove
