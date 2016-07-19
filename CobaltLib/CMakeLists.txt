@@ -100,8 +100,11 @@ add_custom_command(
   DEPENDS ${CobaltGen_SRC} ${Cobalt_XML_SOLUTIONS_FILE}
 )
 
-
-
+set( CobaltLib_SRC_GENERATED_DYNAMIC
+    ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC}
+    ${CobaltLib_KernelFiles_GENERATED_DYNAMIC}
+    ${CobaltLib_OtherFiles_GENERATED_DYNAMIC}
+)
 
 ############################################################
 # Cobalt include directories

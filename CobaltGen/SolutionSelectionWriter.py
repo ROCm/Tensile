@@ -731,7 +731,6 @@ class SolutionSelectionWriter:
       if newFallbackSolution.kernels[i] != None:
         newFallbackSolution.kernels[i].unrolls = [ 1 ]
     s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
-    
 
     s += indent + "}"
     return s
@@ -1051,7 +1050,7 @@ class SolutionSelectionWriter:
     s += "include( ${CobaltLib_KernelFiles_CMAKE_DYNAMIC} )\n"
     s += "include( ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
-    s += "set( CobaltLib_SRC_GENERATED_DYNAMIC\n"
+    s += "set( CobaltLib_OtherFiles_GENERATED_DYNAMIC\n"
     
     for deviceProfile, exactMatches in self.psMap.iteritems():
       #print str(deviceProfile), str(exactMatches)

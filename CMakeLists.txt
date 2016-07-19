@@ -159,10 +159,10 @@ endif()
 
 # Templates
 if( NOT EXISTS
-  ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+  ${CobaltLib_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
   #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for CobaltLib")
   file( WRITE
-    ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+    ${CobaltLib_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
     "" )
 endif()
 
@@ -182,9 +182,9 @@ include( ${CobaltLib_CMAKE_DYNAMIC} )
 
 
 if( NOT EXISTS
-    ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+    ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
   #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
-  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
     "" )
 endif()
 

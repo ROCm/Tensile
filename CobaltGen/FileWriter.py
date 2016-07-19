@@ -404,23 +404,7 @@ class FileWriter:
     benchmarkHeaderFile.write(h)
     benchmarkHeaderFile.close()
 
-    # explicit template instantiation
-    templateInstantiationsPath = self.outputPath + self.solutionSubdirectory \
-        + "SolutionTemplateInstantiations.inl"
-    templateInstantiationsFile = open(templateInstantiationsPath, "w")
-    templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
-    for templateInstantiationStr in templateInstantiationSet:
-      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
-          +templateInstantiationStr + ";\n")
-      if self.backend.isOpenCL():
-        templateInstantiationsFile.write(
-            "template class Cobalt::SolutionOpenCL" \
-            +templateInstantiationStr + ";\n")
-      else:
-        templateInstantiationsFile.write(
-            "template class Cobalt::SolutionHIP" \
-            +templateInstantiationStr + ";\n")
-
+    self.writeTemplateInstantiations(templateInstantiationSet)
 
     # write CobaltBenchmark.cmake
     benchmarkCMakePath = self.outputPath + self.otherSubdirectory \
@@ -525,6 +509,8 @@ class FileWriter:
     sslHeaderFile.write(sslHeaderString)
     sslHeaderFile.close()
 
+    templateInstantiationSet = set()
+
     for deviceProfile, exactMatches in psTimes.iteritems():
       # print str(deviceProfile), str(exactMatches)
       # (2) Write Device-Level Solution Selection files
@@ -571,6 +557,10 @@ class FileWriter:
     # (4) Write Kernel Files
     self.writeKernelFiles(sslw.getKernelSet())
 
+    # add solutions to template set
+    for solution in sslw.getSolutionSet():
+      templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
+
     # (5) Write Solution Files
     self.writeSolutionFiles(sslw.getSolutionSet())
 
@@ -580,3 +570,24 @@ class FileWriter:
     s = sslw.writeCobaltLibCMake(self.otherSubdirectory)
     backendCMakeFile.write(s)
     backendCMakeFile.close()
+    self.writeTemplateInstantiations(templateInstantiationSet)
+
+  def writeTemplateInstantiations( self, templateInstantiationSet ):
+    # explicit template instantiation
+    templateInstantiationsPath = self.outputPath + self.solutionSubdirectory \
+        + "SolutionTemplateInstantiations.inl"
+    templateInstantiationsFile = open(templateInstantiationsPath, "w")
+    templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
+    for templateInstantiationStr in templateInstantiationSet:
+      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
+          +templateInstantiationStr + ";\n")
+      if self.backend.isOpenCL():
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionOpenCL" \
+            +templateInstantiationStr + ";\n")
+      else:
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionHIP" \
+            +templateInstantiationStr + ";\n")
+    print "writing " + templateInstantiationsPath
+    templateInstantiationsFile.close()
