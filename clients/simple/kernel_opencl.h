@@ -4889,10 +4889,10 @@ const char * kernelSource_NT = R"(
 #define UT_1J   8
 #define MT_0I  128
 #define MT_1J  128
-#define MT_0I_2  256
-#define MT_1J_2  256
+#define MT_0I_2  128
+#define MT_1J_2  128
 #define UNROLL  8
-#define PAD     1
+#define PAD     0
 
 /* num loads parallel and perpendicular to coalesced dimension */
 #define NL_PARA_A 4
@@ -4968,6 +4968,8 @@ const char * kernelSource_NT = R"(
   rB_black[5] = localReadPtrB[offB + 5*WG_1J]; \
   rB_black[6] = localReadPtrB[offB + 6*WG_1J]; \
   rB_black[7] = localReadPtrB[offB + 7*WG_1J]; \
+  \
+  mem_fence(CLK_LOCAL_MEM_FENCE); \
   \
   offA += (MT_0I+PAD); \
   offB += (MT_1J+PAD); \
@@ -5063,6 +5065,8 @@ const char * kernelSource_NT = R"(
   rB_red[5] = localReadPtrB[offB + 5*WG_1J]; \
   rB_red[6] = localReadPtrB[offB + 6*WG_1J]; \
   rB_red[7] = localReadPtrB[offB + 7*WG_1J]; \
+  \
+  mem_fence(CLK_LOCAL_MEM_FENCE); \
   \
   offA += (MT_0I+PAD); \
   offB += (MT_1J+PAD); \

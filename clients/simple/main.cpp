@@ -165,7 +165,7 @@ int main( int argc, char *argv[] ) {
 
   // compile kernel
   printf("compiling opencl kernel\n");
-  const char *buildOptions = "-cl-std=CL1.2";
+  const char *buildOptions = "-cl-std=CL2.0";
   const char *kernelSource;
   if ( !transA && !transB ) {
     kernelSource = kernelSource_NN;
