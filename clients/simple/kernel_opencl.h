@@ -7,7 +7,7 @@
 TN - different load patterns
 
 */
-#if 1
+#if 0
 const char * kernelSource_TN = R"(
 
 /* tile parameters */
@@ -5145,6 +5145,184 @@ const char * kernelSource_NT = R"(
   \
   mem_fence(CLK_LOCAL_MEM_FENCE);
 
+#define MICRO_TILE_2_LAST \
+  /* prefetch black, compute red */ \
+  rA_black[0] = localReadPtrA[offA + 0*WG_0I]; \
+  rA_black[1] = localReadPtrA[offA + 1*WG_0I]; \
+  rA_black[2] = localReadPtrA[offA + 2*WG_0I]; \
+  rA_black[3] = localReadPtrA[offA + 3*WG_0I]; \
+  rA_black[4] = localReadPtrA[offA + 4*WG_0I]; \
+  rA_black[5] = localReadPtrA[offA + 5*WG_0I]; \
+  rA_black[6] = localReadPtrA[offA + 6*WG_0I]; \
+  rA_black[7] = localReadPtrA[offA + 7*WG_0I]; \
+  \
+  rB_black[0] = localReadPtrB[offB + 0*WG_1J]; \
+  rB_black[1] = localReadPtrB[offB + 1*WG_1J]; \
+  rB_black[2] = localReadPtrB[offB + 2*WG_1J]; \
+  rB_black[3] = localReadPtrB[offB + 3*WG_1J]; \
+  rB_black[4] = localReadPtrB[offB + 4*WG_1J]; \
+  rB_black[5] = localReadPtrB[offB + 5*WG_1J]; \
+  rB_black[6] = localReadPtrB[offB + 6*WG_1J]; \
+  rB_black[7] = localReadPtrB[offB + 7*WG_1J]; \
+  \
+  mem_fence(CLK_LOCAL_MEM_FENCE); \
+  \
+  offA += (MT_0I+PAD); \
+  offB += (MT_1J+PAD); \
+  \
+  TYPE_MAD( rA_red[0], rB_red[0], rC[0][0]); \
+  TYPE_MAD( rA_red[0], rB_red[1], rC[0][1]); \
+  TYPE_MAD( rA_red[0], rB_red[2], rC[0][2]); \
+  TYPE_MAD( rA_red[0], rB_red[3], rC[0][3]); \
+  TYPE_MAD( rA_red[0], rB_red[4], rC[0][4]); \
+  TYPE_MAD( rA_red[0], rB_red[5], rC[0][5]); \
+  TYPE_MAD( rA_red[0], rB_red[6], rC[0][6]); \
+  TYPE_MAD( rA_red[0], rB_red[7], rC[0][7]); \
+  \
+  TYPE_MAD( rA_red[1], rB_red[0], rC[1][0]); \
+  TYPE_MAD( rA_red[1], rB_red[1], rC[1][1]); \
+  TYPE_MAD( rA_red[1], rB_red[2], rC[1][2]); \
+  TYPE_MAD( rA_red[1], rB_red[3], rC[1][3]); \
+  TYPE_MAD( rA_red[1], rB_red[4], rC[1][4]); \
+  TYPE_MAD( rA_red[1], rB_red[5], rC[1][5]); \
+  TYPE_MAD( rA_red[1], rB_red[6], rC[1][6]); \
+  TYPE_MAD( rA_red[1], rB_red[7], rC[1][7]); \
+  \
+  TYPE_MAD( rA_red[2], rB_red[0], rC[2][0]); \
+  TYPE_MAD( rA_red[2], rB_red[1], rC[2][1]); \
+  TYPE_MAD( rA_red[2], rB_red[2], rC[2][2]); \
+  TYPE_MAD( rA_red[2], rB_red[3], rC[2][3]); \
+  TYPE_MAD( rA_red[2], rB_red[4], rC[2][4]); \
+  TYPE_MAD( rA_red[2], rB_red[5], rC[2][5]); \
+  TYPE_MAD( rA_red[2], rB_red[6], rC[2][6]); \
+  TYPE_MAD( rA_red[2], rB_red[7], rC[2][7]); \
+  \
+  TYPE_MAD( rA_red[3], rB_red[0], rC[3][0]); \
+  TYPE_MAD( rA_red[3], rB_red[1], rC[3][1]); \
+  TYPE_MAD( rA_red[3], rB_red[2], rC[3][2]); \
+  TYPE_MAD( rA_red[3], rB_red[3], rC[3][3]); \
+  TYPE_MAD( rA_red[3], rB_red[4], rC[3][4]); \
+  TYPE_MAD( rA_red[3], rB_red[5], rC[3][5]); \
+  TYPE_MAD( rA_red[3], rB_red[6], rC[3][6]); \
+  TYPE_MAD( rA_red[3], rB_red[7], rC[3][7]); \
+  \
+  TYPE_MAD( rA_red[4], rB_red[0], rC[4][0]); \
+  TYPE_MAD( rA_red[4], rB_red[1], rC[4][1]); \
+  TYPE_MAD( rA_red[4], rB_red[2], rC[4][2]); \
+  TYPE_MAD( rA_red[4], rB_red[3], rC[4][3]); \
+  TYPE_MAD( rA_red[4], rB_red[4], rC[4][4]); \
+  TYPE_MAD( rA_red[4], rB_red[5], rC[4][5]); \
+  TYPE_MAD( rA_red[4], rB_red[6], rC[4][6]); \
+  TYPE_MAD( rA_red[4], rB_red[7], rC[4][7]); \
+  \
+  TYPE_MAD( rA_red[5], rB_red[0], rC[5][0]); \
+  TYPE_MAD( rA_red[5], rB_red[1], rC[5][1]); \
+  TYPE_MAD( rA_red[5], rB_red[2], rC[5][2]); \
+  TYPE_MAD( rA_red[5], rB_red[3], rC[5][3]); \
+  TYPE_MAD( rA_red[5], rB_red[4], rC[5][4]); \
+  TYPE_MAD( rA_red[5], rB_red[5], rC[5][5]); \
+  TYPE_MAD( rA_red[5], rB_red[6], rC[5][6]); \
+  TYPE_MAD( rA_red[5], rB_red[7], rC[5][7]); \
+  \
+  TYPE_MAD( rA_red[6], rB_red[0], rC[6][0]); \
+  TYPE_MAD( rA_red[6], rB_red[1], rC[6][1]); \
+  TYPE_MAD( rA_red[6], rB_red[2], rC[6][2]); \
+  TYPE_MAD( rA_red[6], rB_red[3], rC[6][3]); \
+  TYPE_MAD( rA_red[6], rB_red[4], rC[6][4]); \
+  TYPE_MAD( rA_red[6], rB_red[5], rC[6][5]); \
+  TYPE_MAD( rA_red[6], rB_red[6], rC[6][6]); \
+  TYPE_MAD( rA_red[6], rB_red[7], rC[6][7]); \
+  \
+  TYPE_MAD( rA_red[7], rB_red[0], rC[7][0]); \
+  TYPE_MAD( rA_red[7], rB_red[1], rC[7][1]); \
+  TYPE_MAD( rA_red[7], rB_red[2], rC[7][2]); \
+  TYPE_MAD( rA_red[7], rB_red[3], rC[7][3]); \
+  TYPE_MAD( rA_red[7], rB_red[4], rC[7][4]); \
+  TYPE_MAD( rA_red[7], rB_red[5], rC[7][5]); \
+  TYPE_MAD( rA_red[7], rB_red[6], rC[7][6]); \
+  TYPE_MAD( rA_red[7], rB_red[7], rC[7][7]); \
+  \
+  mem_fence(CLK_LOCAL_MEM_FENCE); \
+  /* don't prefetch red, compute black */ \
+  \
+  offA += (MT_0I+PAD); \
+  offB += (MT_1J+PAD); \
+  \
+  TYPE_MAD( rA_black[0], rB_black[0], rC[0][0]); \
+  TYPE_MAD( rA_black[0], rB_black[1], rC[0][1]); \
+  TYPE_MAD( rA_black[0], rB_black[2], rC[0][2]); \
+  TYPE_MAD( rA_black[0], rB_black[3], rC[0][3]); \
+  TYPE_MAD( rA_black[0], rB_black[4], rC[0][4]); \
+  TYPE_MAD( rA_black[0], rB_black[5], rC[0][5]); \
+  TYPE_MAD( rA_black[0], rB_black[6], rC[0][6]); \
+  TYPE_MAD( rA_black[0], rB_black[7], rC[0][7]); \
+  \
+  TYPE_MAD( rA_black[1], rB_black[0], rC[1][0]); \
+  TYPE_MAD( rA_black[1], rB_black[1], rC[1][1]); \
+  TYPE_MAD( rA_black[1], rB_black[2], rC[1][2]); \
+  TYPE_MAD( rA_black[1], rB_black[3], rC[1][3]); \
+  TYPE_MAD( rA_black[1], rB_black[4], rC[1][4]); \
+  TYPE_MAD( rA_black[1], rB_black[5], rC[1][5]); \
+  TYPE_MAD( rA_black[1], rB_black[6], rC[1][6]); \
+  TYPE_MAD( rA_black[1], rB_black[7], rC[1][7]); \
+  \
+  TYPE_MAD( rA_black[2], rB_black[0], rC[2][0]); \
+  TYPE_MAD( rA_black[2], rB_black[1], rC[2][1]); \
+  TYPE_MAD( rA_black[2], rB_black[2], rC[2][2]); \
+  TYPE_MAD( rA_black[2], rB_black[3], rC[2][3]); \
+  TYPE_MAD( rA_black[2], rB_black[4], rC[2][4]); \
+  TYPE_MAD( rA_black[2], rB_black[5], rC[2][5]); \
+  TYPE_MAD( rA_black[2], rB_black[6], rC[2][6]); \
+  TYPE_MAD( rA_black[2], rB_black[7], rC[2][7]); \
+  \
+  TYPE_MAD( rA_black[3], rB_black[0], rC[3][0]); \
+  TYPE_MAD( rA_black[3], rB_black[1], rC[3][1]); \
+  TYPE_MAD( rA_black[3], rB_black[2], rC[3][2]); \
+  TYPE_MAD( rA_black[3], rB_black[3], rC[3][3]); \
+  TYPE_MAD( rA_black[3], rB_black[4], rC[3][4]); \
+  TYPE_MAD( rA_black[3], rB_black[5], rC[3][5]); \
+  TYPE_MAD( rA_black[3], rB_black[6], rC[3][6]); \
+  TYPE_MAD( rA_black[3], rB_black[7], rC[3][7]); \
+  \
+  TYPE_MAD( rA_black[4], rB_black[0], rC[4][0]); \
+  TYPE_MAD( rA_black[4], rB_black[1], rC[4][1]); \
+  TYPE_MAD( rA_black[4], rB_black[2], rC[4][2]); \
+  TYPE_MAD( rA_black[4], rB_black[3], rC[4][3]); \
+  TYPE_MAD( rA_black[4], rB_black[4], rC[4][4]); \
+  TYPE_MAD( rA_black[4], rB_black[5], rC[4][5]); \
+  TYPE_MAD( rA_black[4], rB_black[6], rC[4][6]); \
+  TYPE_MAD( rA_black[4], rB_black[7], rC[4][7]); \
+  \
+  TYPE_MAD( rA_black[5], rB_black[0], rC[5][0]); \
+  TYPE_MAD( rA_black[5], rB_black[1], rC[5][1]); \
+  TYPE_MAD( rA_black[5], rB_black[2], rC[5][2]); \
+  TYPE_MAD( rA_black[5], rB_black[3], rC[5][3]); \
+  TYPE_MAD( rA_black[5], rB_black[4], rC[5][4]); \
+  TYPE_MAD( rA_black[5], rB_black[5], rC[5][5]); \
+  TYPE_MAD( rA_black[5], rB_black[6], rC[5][6]); \
+  TYPE_MAD( rA_black[5], rB_black[7], rC[5][7]); \
+  \
+  TYPE_MAD( rA_black[6], rB_black[0], rC[6][0]); \
+  TYPE_MAD( rA_black[6], rB_black[1], rC[6][1]); \
+  TYPE_MAD( rA_black[6], rB_black[2], rC[6][2]); \
+  TYPE_MAD( rA_black[6], rB_black[3], rC[6][3]); \
+  TYPE_MAD( rA_black[6], rB_black[4], rC[6][4]); \
+  TYPE_MAD( rA_black[6], rB_black[5], rC[6][5]); \
+  TYPE_MAD( rA_black[6], rB_black[6], rC[6][6]); \
+  TYPE_MAD( rA_black[6], rB_black[7], rC[6][7]); \
+  \
+  TYPE_MAD( rA_black[7], rB_black[0], rC[7][0]); \
+  TYPE_MAD( rA_black[7], rB_black[1], rC[7][1]); \
+  TYPE_MAD( rA_black[7], rB_black[2], rC[7][2]); \
+  TYPE_MAD( rA_black[7], rB_black[3], rC[7][3]); \
+  TYPE_MAD( rA_black[7], rB_black[4], rC[7][4]); \
+  TYPE_MAD( rA_black[7], rB_black[5], rC[7][5]); \
+  TYPE_MAD( rA_black[7], rB_black[6], rC[7][6]); \
+  TYPE_MAD( rA_black[7], rB_black[7], rC[7][7]); \
+  \
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+
+
 /* preprocessor definitions of kernel arguments*/
 #define strideC0I 1
 #define strideA0I 1
@@ -5244,7 +5422,6 @@ __kernel void CT_SSSSS_Cij_Sk_Aik_Bjk_i16x8f_j16x8f_nl4x4_k8_O2(
     B += (long) strideBK*UNROLL;
 
     /* load A global -> local */
-    barrier(CLK_LOCAL_MEM_FENCE);
     localWritePtrA[ 0*LS_PARA_A + 0*LS_PERP_A*(MT_0I+PAD) ] = A[ 0*LS_PARA_A + 0*LS_PERP_A*strideAK];
     localWritePtrA[ 1*LS_PARA_A + 0*LS_PERP_A*(MT_0I+PAD) ] = A[ 1*LS_PARA_A + 0*LS_PERP_A*strideAK];
     localWritePtrA[ 2*LS_PARA_A + 0*LS_PERP_A*(MT_0I+PAD) ] = A[ 2*LS_PARA_A + 0*LS_PERP_A*strideAK];
@@ -5266,9 +5443,23 @@ __kernel void CT_SSSSS_Cij_Sk_Aik_Bjk_i16x8f_j16x8f_nl4x4_k8_O2(
     MICRO_TILE_2
     MICRO_TILE_2
     MICRO_TILE_2
-    MICRO_TILE_2
+    MICRO_TILE_2_LAST
 
-  } while (--sumIterK > 0);
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+  } while (--sumIterK > 1);
+
+  /* swap local read offset and update pointers */
+  localReadOffsetA ^= UNROLL*MT_0I_2;
+  localReadOffsetB ^= UNROLL*MT_1J_2;
+  localReadPtrA = localBasePtrA + localReadOffsetA;
+  localReadPtrB = localBasePtrB + localReadOffsetB;
+
+  MICRO_TILE_PREFETCH
+  MICRO_TILE_2
+  MICRO_TILE_2
+  MICRO_TILE_2
+  MICRO_TILE_2_LAST
 
   /* which global Cij index */
   unsigned int globalC1J = g1J*MT_1J + l1J;
