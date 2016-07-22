@@ -121,12 +121,12 @@ private:
 #define TYPE_C     float
 #define TYPE_ALPHA float
 #define TYPE_BETA  float
-#define WG_DIM_0I           16
-#define WG_DIM_1J           16
-#define MICRO_TILE_0I       8
-#define MICRO_TILE_1J       8
-#define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
-#define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
+#define WG_0I           16
+#define WG_1J           16
+#define UT_0I       8
+#define UT_1J       8
+#define MT_0I       (WG_0I*UT_0I)
+#define MT_1J       (WG_1J*UT_1J)
 #endif
 
 #if VALIDATE
@@ -259,7 +259,7 @@ int main( int argc, char *argv[] ) {
   dim3 workGroup( WG_0I, WG_1J, 1 );
   dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);  
 #else
-  size_t localSize[3] = { WG_DIM_0I, WG_DIM_1J, 1 };
+  size_t localSize[3] = { WG_0I, WG_1J, 1 };
   size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };  
 #endif
 
