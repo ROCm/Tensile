@@ -333,7 +333,7 @@ class SolutionCandidateGenerator:
         
         ###################################
         # for all micro-tile dimensions
-        print microTileMin, microTileMax, workGroup[0], workGroup[1]
+        # print microTileMin, microTileMax, workGroup[0], workGroup[1]
         for microTileDim0 in range(microTileMin, microTileMax+1):
           for microTileDim1 in range(microTileMin, microTileMax+1):
             microTile = [ microTileDim0, microTileDim1 ]

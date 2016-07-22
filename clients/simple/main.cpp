@@ -214,14 +214,14 @@ int main( int argc, char *argv[] ) {
   printf("initializing host buffers\n");
 #if VALIDATE
   for (unsigned int i = 0; i < numElementsC; i++) {
-    hC[i] = rand()%101;
-    hC_ref[i] = hC[i];
+    hC[i] = static_cast<float>(rand()%101);
+    hC_ref[i] = static_cast<float>(hC[i]);
   }
   for (unsigned int i = 0; i < numElementsA; i++) {
-    hA[i] = rand()%101;
+    hA[i] = static_cast<float>(rand()%101);
   }
   for (unsigned int i = 0; i < numElementsB; i++) {
-    hB[i] = rand()%101;
+    hB[i] = static_cast<float>(rand()%101);
   }
 #else
   for (unsigned int i = 0; i < numElementsC; i++) { hC[i] = 1; }
