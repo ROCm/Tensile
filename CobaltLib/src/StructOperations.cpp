@@ -11,8 +11,6 @@
 
 namespace Cobalt {
 
-
-
 #define COBALT_ENUM_TO_STRING_CASE(X) case X: return #X;
 std::string toString( CobaltStatus status ) {
   switch( status ) {
