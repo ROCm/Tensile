@@ -152,7 +152,8 @@ unsigned int addGEMMCombinatorics() {
 #endif
 
 #if 1
-  sizes.push_back( {5760, 5760, 5760 });
+  //sizes.push_back( {5760, 5760, 5760 });
+  sizes.push_back({ 96*3, 96*2, 96*1 });
 #endif
 
 #if 0
@@ -198,8 +199,8 @@ unsigned int addGEMMCombinatorics() {
   };
   const bool alphas[] = { true };
   const bool betas[] = { true, false };
-  const bool transAs[] = {false, true};
-  const bool transBs[] = {true, false};
+  const bool transAs[] = { false, true };
+  const bool transBs[] = { true, false };
 
   // create problem for each combination
   unsigned int numProblems = 0;

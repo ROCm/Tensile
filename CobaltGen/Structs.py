@@ -613,17 +613,6 @@ class Problem:
     return self.sizeFree
 
   def getSizeType(self):
-    if self.sizeType < 0:
-      self.sizeType = 0
-      for dim in self.tensorC.dimensions:
-        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
-          self.sizeType = 1
-      for dim in self.tensorA.dimensions:
-        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
-          self.sizeType = 1
-      for dim in self.tensorB.dimensions:
-        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
-          self.sizeType = 1
     return self.sizeType
 
 

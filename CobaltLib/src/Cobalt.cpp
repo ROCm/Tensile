@@ -93,6 +93,10 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
   static bool profilesEnumerated = false;
 
   if (!profilesEnumerated) {
+#if Cobalt_SOLVER_ENABLED
+    // TODO - enumerate devices supported by backend, rather than all devices on system
+#else
+
 #if Cobalt_BACKEND_OPENCL12
     //printf("cobaltEnumerateDeviceProfiles(OpenCL)\n");
     cl_int status;
@@ -120,6 +124,8 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     delete[] platforms;
 #else
     // TODO
+#endif
+
 #endif
     profilesEnumerated = true;
   }

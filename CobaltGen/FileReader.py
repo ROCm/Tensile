@@ -43,6 +43,17 @@ def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus )
     psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus = validationStatus
   elif psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus != validationStatus:
     print "ERROR: conflicting validation reports"
+  
+def addProblemToTree( tree, exactMatch, problem ):
+  if exactMatch.deviceProfile not in tree:
+    print "XML Parser: t.adding %s" % exactMatch.deviceProfile.libString()
+    tree[exactMatch.deviceProfile] = {}
+  if exactMatch not in tree[exactMatch.deviceProfile]:
+    print "XML Parser:   t.adding %s" % exactMatch.libString()
+    tree[exactMatch.deviceProfile][exactMatch] = set()
+  tree[exactMatch.deviceProfile][exactMatch].add(problem)
+
+
 
 ################################################################################
 # CobaltHandler
@@ -189,7 +200,13 @@ class CobaltHandler( xml.sax.ContentHandler ):
       print "XML Parser: endElement(%s)" % tag
     if tag == "P": # DONE
       if self.readProblems:
-        self.data.add(copy.deepcopy(self.problem))
+        # self.data.add(copy.deepcopy(self.problem))
+        exactMatch = Structs.ExactMatch()
+        self.assignExactMatch(exactMatch)
+        exactMatch.ppdOffsets = -1
+        exactMatch.ppdLeadingStride = -1
+        exactMatch.ppdAll = -1
+        addProblemToTree( self.data, exactMatch, copy.deepcopy(self.problem) )
         self.numProblemsAdded += 1
     elif tag == "T": # DONE
       pass
@@ -217,11 +234,11 @@ class CobaltHandler( xml.sax.ContentHandler ):
 ################################################################################
 # getProblemsFromXML
 ################################################################################
-def getProblemsFromXML( inputFile, problemSet ):
+def getProblemsFromXML( inputFile, problemTree ):
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = False
-  appProblemsHandler = CobaltHandler(problemSet, readSolutions)
+  appProblemsHandler = CobaltHandler(problemTree, readSolutions)
   parser.setContentHandler( appProblemsHandler )
   #try:
   parser.parse( inputFile )

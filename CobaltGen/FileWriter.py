@@ -166,12 +166,13 @@ class FileWriter:
   ##############################################################################
   # writeBenchmarkFiles
   ##############################################################################
-  def writeBenchmarkFiles( self, problemSolutionCandidates ):
+  def writeBenchmarkFiles( self, problemTree, problemSolutionCandidates ):
     print "status: writing benchmark files"
 
-    numProblems = len(problemSolutionCandidates);
     numSolutions = 0
-
+    benchmarkNumExactMatches = 0
+    benchmarkExactMatchNames = []
+    benchmarkExactMatchNumProblems = []
 
     templateInstantiationSet = set()
     solutionStartIdx = 0
@@ -180,167 +181,224 @@ class FileWriter:
     tensorSizeMaxB = 0
     solutionEndIdx = -1
 
-    # for problems
-    for problemIdx in range(0,numProblems):
-      problemSolutionPair = problemSolutionCandidates[problemIdx]
-      problem = problemSolutionPair[0]
-      solutionList = problemSolutionPair[1]
-      numSolutions = len(solutionList)
-      solutionEndIdx = numSolutions
+    for deviceProfile, exactMatches in problemTree.iteritems():
+      for exactMatch, problemSet in exactMatches.iteritems():
+        print "ExactMatch: " + str(exactMatch)
 
-      problemName = str(problem)
-      # open problem file
-      problemFileNameBase = "init_" + problemName + "_candidates"
-      problemSourcePath = self.outputPath + self.otherSubdirectory \
-          + problemFileNameBase + ".cpp"
-      problemSourceFile = open(problemSourcePath, "w")
-      problemHeaderPath = self.outputPath + self.otherSubdirectory \
-          + problemFileNameBase + ".h"
-      problemHeaderFile = open(problemHeaderPath, "w")
+        benchmarkExactMatchNames.append(str(exactMatch))
+        benchmarkExactMatchNumProblems.append(len(problemSet))
+        benchmarkNumExactMatches += 1
 
-      s = "" # source file string
-      s += "#include \"" + problemFileNameBase + ".h\"\n"
-      s += "\n"
-      s += "/* problem " + str(problemIdx) + "/" + str(numProblems) + ": " + problemName + " */\n"
-      s += "\n"
+        problemList = list(problemSet)
+        # initializeSolutionCandidates(&problem, &solutionCandidates, exactMatchIdx, problemIdx);
 
-      # initializeSolutionCandidates
-      s += "void init_" + problemName + "_candidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates) {\n"
+        exactMatchName = str(exactMatch)
+        exactMatchFileNameBase = "init_" + exactMatchName + "_candidates"
+        exactMatchSourcePath = self.outputPath + self.otherSubdirectory \
+            + exactMatchFileNameBase + ".cpp"
+        exactMatchSourceFile = open(exactMatchSourcePath, "w")
+        exactMatchHeaderPath = self.outputPath + self.otherSubdirectory \
+            + exactMatchFileNameBase + ".h"
+        exactMatchHeaderFile = open(exactMatchHeaderPath, "w")
 
-      # DeviceProfile
-      s += "\n"
-      s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
-      s += "  deviceProfile.numDevices = %u;\n" % len(problem.deviceProfile.devices)
-      for i in range(0,len(problem.deviceProfile.devices)):
-        s += "  sprintf(deviceProfile.devices[%u].name, \"%s\" );\n" % (i, problem.deviceProfile.devices[i].name)
-      s += "\n"
+        s = "" # source file string
+        s += "#include \"" + exactMatchFileNameBase + ".h\"\n"
+        s += "\n"
+        s += "/* ExactMatch: " + exactMatchName + " */\n"
+        s += "\n"
+
+        # initializeSolutionCandidates
+        s += "void init_" + exactMatchName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex) {\n"
+        s += "  switch( problemIndex ) {\n"
+        for problemIdx in range(0,len(problemList)):
+          problem = problemList[problemIdx]
+          problemName = str(problem)
+          s += "  case " + str(problemIdx) + ": init_" + problemName + "_candidates(deviceProfile, problem, solutionCandidates); break;\n"
+        s += "  default: printf(\"Oops: index too large.\\n\");\n"
+        s += "  }\n"
+        s += "}\n"
+        exactMatchSourceFile.write(s)
+        exactMatchSourceFile.close()
+        
+
+        h = "" # header file string
+        h += "#ifndef " + exactMatchFileNameBase.upper() + "_H\n"
+        h += "#define " + exactMatchFileNameBase.upper() + "_H\n"
+        h += "\n"
+        h += "#include \"Cobalt.h\"\n"
+        h += "#include \"Solution.h\"\n"
+        h += "#include <vector>\n"
+        h += "\n"
+        for i in range(0,len(problemList)):
+          problemFileNameBase = "init_" + str(problemList[i]) + "_candidates"
+          h += "#include \""+ problemFileNameBase + ".h\"\n"
+        h += "\n"
+        h += "void init_" + exactMatchName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
+        h += "\n"
+        h += "#endif\n"
+        exactMatchHeaderFile.write(h)
+        exactMatchHeaderFile.close()
+
+        # for problems belonging to exactMatch
+        for problemIdx in range(0,len(problemList)):
+          problem = problemList[problemIdx]
+
+          solutionList = problemSolutionCandidates[problem]
+
+          problemName = str(problem)
+          # open problem file
+          problemFileNameBase = "init_" + problemName + "_candidates"
+          problemSourcePath = self.outputPath + self.otherSubdirectory \
+              + problemFileNameBase + ".cpp"
+          problemSourceFile = open(problemSourcePath, "w")
+          problemHeaderPath = self.outputPath + self.otherSubdirectory \
+              + problemFileNameBase + ".h"
+          problemHeaderFile = open(problemHeaderPath, "w")
+
+          s = "" # source file string
+          s += "#include \"" + problemFileNameBase + ".h\"\n"
+          s += "\n"
+          s += "/* problem " + str(problemIdx) + "/" + str(len(problemList)) + ": " + problemName + " */\n"
+          s += "\n"
+
+          # initializeSolutionCandidates
+          s += "void init_" + problemName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates) {\n"
+
+          # CobaltDeviceProfile &
+          # s += "\n"
+          # s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
+          # s += "  deviceProfile.numDevices = %u;\n" % len(problem.deviceProfile.devices)
+          # for i in range(0,len(problem.deviceProfile.devices)):
+          #   s += "  sprintf(deviceProfile.devices[%u].name, \"%s\" );\n" % (i, problem.deviceProfile.devices[i].name)
+          # s += "\n"
 
 
-      # problem.tensorC
-      s += "\n  /* tensorC */\n"
-      s += "  CobaltTensor tensorC = cobaltCreateEmptyTensor();\n"
-      s += "  tensorC.dataType = " \
-          + problem.tensorC.dataType.getLibString() + ";\n"
-      tensorDimC = len(problem.tensorC.dimensions)
-      s += "  tensorC.numDimensions = " + str(tensorDimC) + ";\n"
-      for i in range(0,tensorDimC):
-        s += "  tensorC.dimensions[" + str(i) + "].stride = " \
-            + str(problem.tensorC.dimensions[i].stride) + ";\n"
-        s += "  tensorC.dimensions[" + str(i) + "].size = " \
-            + str(problem.tensorC.dimensions[i].size) + ";\n"
+          # problem.tensorC
+          s += "\n  /* tensorC */\n"
+          s += "  CobaltTensor tensorC = cobaltCreateEmptyTensor();\n"
+          s += "  tensorC.dataType = " \
+              + problem.tensorC.dataType.getLibString() + ";\n"
+          tensorDimC = len(problem.tensorC.dimensions)
+          s += "  tensorC.numDimensions = " + str(tensorDimC) + ";\n"
+          for i in range(0,tensorDimC):
+            s += "  tensorC.dimensions[" + str(i) + "].stride = " \
+                + str(problem.tensorC.dimensions[i].stride) + ";\n"
+            s += "  tensorC.dimensions[" + str(i) + "].size = " \
+                + str(problem.tensorC.dimensions[i].size) + ";\n"
 
-      # problem.tensorA
-      s += "\n  /* tensorA */\n"
-      s += "  CobaltTensor tensorA = cobaltCreateEmptyTensor();\n"
-      s += "  tensorA.dataType = " \
-          + problem.tensorA.dataType.getLibString() + ";\n"
-      tensorDimA = len(problem.tensorA.dimensions)
-      s += "  tensorA.numDimensions = " + str(tensorDimA) + ";\n"
-      for i in range(0,tensorDimA):
-        s += "  tensorA.dimensions[" + str(i) + "].stride = " \
-            + str(problem.tensorA.dimensions[i].stride) + ";\n"
-        s += "  tensorA.dimensions[" + str(i) + "].size = " \
-            + str(problem.tensorA.dimensions[i].size) + ";\n"
+          # problem.tensorA
+          s += "\n  /* tensorA */\n"
+          s += "  CobaltTensor tensorA = cobaltCreateEmptyTensor();\n"
+          s += "  tensorA.dataType = " \
+              + problem.tensorA.dataType.getLibString() + ";\n"
+          tensorDimA = len(problem.tensorA.dimensions)
+          s += "  tensorA.numDimensions = " + str(tensorDimA) + ";\n"
+          for i in range(0,tensorDimA):
+            s += "  tensorA.dimensions[" + str(i) + "].stride = " \
+                + str(problem.tensorA.dimensions[i].stride) + ";\n"
+            s += "  tensorA.dimensions[" + str(i) + "].size = " \
+                + str(problem.tensorA.dimensions[i].size) + ";\n"
 
-      # problem.tensorB
-      s += "\n  /* tensorB */\n"
-      s += "  CobaltTensor tensorB = cobaltCreateEmptyTensor();\n"
-      s += "  tensorB.dataType = " \
-          + problem.tensorB.dataType.getLibString() + ";\n"
-      tensorDimB = len(problem.tensorB.dimensions)
-      s += "  tensorB.numDimensions = " + str(tensorDimB) + ";\n"
-      for i in range(0,tensorDimB):
-        s += "  tensorB.dimensions[" + str(i) + "].stride = " \
-            + str(problem.tensorB.dimensions[i].stride) + ";\n"
-        s += "  tensorB.dimensions[" + str(i) + "].size = " \
-            + str(problem.tensorB.dimensions[i].size) + ";\n"
+          # problem.tensorB
+          s += "\n  /* tensorB */\n"
+          s += "  CobaltTensor tensorB = cobaltCreateEmptyTensor();\n"
+          s += "  tensorB.dataType = " \
+              + problem.tensorB.dataType.getLibString() + ";\n"
+          tensorDimB = len(problem.tensorB.dimensions)
+          s += "  tensorB.numDimensions = " + str(tensorDimB) + ";\n"
+          for i in range(0,tensorDimB):
+            s += "  tensorB.dimensions[" + str(i) + "].stride = " \
+                + str(problem.tensorB.dimensions[i].stride) + ";\n"
+            s += "  tensorB.dimensions[" + str(i) + "].size = " \
+                + str(problem.tensorB.dimensions[i].size) + ";\n"
 
 
 
-      # problem.operation
-      s += "\n  /* operation */\n"
-      s += "  CobaltOperationType operationType = " \
-          + problem.operation.type.getLibString() + ";\n"
-      s += "  CobaltDataType alphaType = " \
-          + problem.operation.alphaType.getLibString() + ";\n"
-      s += "  CobaltDataType betaType = " \
-          + problem.operation.betaType.getLibString() + ";\n"
-      s += "  bool useOffsets = " \
-          + ("true" if problem.operation.useOffsets else "false") + ";\n"
-      numIndicesA = len(problem.operation.indexAssignmentsA)
-      s += "  std::vector<unsigned int> indexAssignmentsA("+str(numIndicesA)+");\n"
-      for i in range(0,numIndicesA):
-        s += "  indexAssignmentsA[" + str(i) + "] = " \
-            + str(problem.operation.indexAssignmentsA[i]) + ";\n"
-      numIndicesB = len(problem.operation.indexAssignmentsB)
-      s += "  std::vector<unsigned int> indexAssignmentsB("+str(numIndicesB)+");\n"
-      for i in range(0,numIndicesB):
-        s += "  indexAssignmentsB[" + str(i) + "] = " \
-            + str(problem.operation.indexAssignmentsB[i]) + ";\n"
-      s += "\n"
-      # store problem
-      s += "  CobaltStatus status = cobaltCreateProblem(\n"
-      s += "      problem,\n"
-      s += "      tensorC,\n"
-      s += "      tensorA,\n"
-      s += "      tensorB,\n"
-      s += "      &indexAssignmentsA[0],\n"
-      s += "      &indexAssignmentsB[0],\n"
-      s += "      operationType,\n"
-      s += "      alphaType,\n"
-      s += "      betaType,\n"
-      s += "      useOffsets,\n"
-      s += "      deviceProfile);\n"
-      s += "\n"
+          # problem.operation
+          s += "\n  /* operation */\n"
+          s += "  CobaltOperationType operationType = " \
+              + problem.operation.type.getLibString() + ";\n"
+          s += "  CobaltDataType alphaType = " \
+              + problem.operation.alphaType.getLibString() + ";\n"
+          s += "  CobaltDataType betaType = " \
+              + problem.operation.betaType.getLibString() + ";\n"
+          s += "  bool useOffsets = " \
+              + ("true" if problem.operation.useOffsets else "false") + ";\n"
+          numIndicesA = len(problem.operation.indexAssignmentsA)
+          s += "  std::vector<unsigned int> indexAssignmentsA("+str(numIndicesA)+");\n"
+          for i in range(0,numIndicesA):
+            s += "  indexAssignmentsA[" + str(i) + "] = " \
+                + str(problem.operation.indexAssignmentsA[i]) + ";\n"
+          numIndicesB = len(problem.operation.indexAssignmentsB)
+          s += "  std::vector<unsigned int> indexAssignmentsB("+str(numIndicesB)+");\n"
+          for i in range(0,numIndicesB):
+            s += "  indexAssignmentsB[" + str(i) + "] = " \
+                + str(problem.operation.indexAssignmentsB[i]) + ";\n"
+          s += "\n"
+          # store problem
+          s += "  CobaltStatus status = cobaltCreateProblem(\n"
+          s += "      problem,\n"
+          s += "      tensorC,\n"
+          s += "      tensorA,\n"
+          s += "      tensorB,\n"
+          s += "      &indexAssignmentsA[0],\n"
+          s += "      &indexAssignmentsB[0],\n"
+          s += "      operationType,\n"
+          s += "      alphaType,\n"
+          s += "      betaType,\n"
+          s += "      useOffsets,\n"
+          s += "      deviceProfile);\n"
+          s += "\n"
 
-      for i in range(0,numSolutions):
-        s += "  solutionCandidates->push_back( new Cobalt::" \
-            + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( *((*problem)->pimpl) ) ); // " \
-            + str(i) + "/" + str(numSolutions) + "\n"
-        templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solutionList[i]))
-      s += "\n"
-      solutionStartIdx = solutionEndIdx
 
-      # max tensor size
-      for dimension in problem.tensorC.dimensions:
-        tensorSizeDimC = dimension.stride * dimension.size \
-            * problem.tensorC.dataType.numBytes()
-        if tensorSizeDimC > tensorSizeMaxC:
-          tensorSizeMaxC = tensorSizeDimC
-      for dimension in problem.tensorA.dimensions:
-        tensorSizeDimA = dimension.stride * dimension.size \
-            * problem.tensorA.dataType.numBytes()
-        if tensorSizeDimA > tensorSizeMaxA:
-          tensorSizeMaxA = tensorSizeDimA
-          #print "tensorSizeMaxA = " + str(tensorSizeMaxA)
-      for dimension in problem.tensorB.dimensions:
-        tensorSizeDimB = dimension.stride * dimension.size \
-            * problem.tensorB.dataType.numBytes()
-        if tensorSizeDimB > tensorSizeMaxB:
-          tensorSizeMaxB = tensorSizeDimB
-          #print "tensorSizeMaxB = " + str(tensorSizeMaxB)
+          for i in range(0,len(solutionList)):
+            s += "  solutionCandidates->push_back( new Cobalt::" \
+                + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( *((*problem)->pimpl) ) ); // " \
+                + str(i) + "/" + str(numSolutions) + "\n"
+            templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solutionList[i]))
+          s += "\n"
+          solutionStartIdx = solutionEndIdx
 
-      s += "}\n"
-      problemSourceFile.write(s)
-      problemSourceFile.close()
+          # max tensor size
+          for dimension in problem.tensorC.dimensions:
+            tensorSizeDimC = dimension.stride * dimension.size \
+                * problem.tensorC.dataType.numBytes()
+            if tensorSizeDimC > tensorSizeMaxC:
+              tensorSizeMaxC = tensorSizeDimC
+          for dimension in problem.tensorA.dimensions:
+            tensorSizeDimA = dimension.stride * dimension.size \
+                * problem.tensorA.dataType.numBytes()
+            if tensorSizeDimA > tensorSizeMaxA:
+              tensorSizeMaxA = tensorSizeDimA
+              #print "tensorSizeMaxA = " + str(tensorSizeMaxA)
+          for dimension in problem.tensorB.dimensions:
+            tensorSizeDimB = dimension.stride * dimension.size \
+                * problem.tensorB.dataType.numBytes()
+            if tensorSizeDimB > tensorSizeMaxB:
+              tensorSizeMaxB = tensorSizeDimB
+              #print "tensorSizeMaxB = " + str(tensorSizeMaxB)
 
-      # problem header
-      h = "" # header file string
-      h += "#ifndef " + problemFileNameBase.upper() + "_H\n"
-      h += "#define " + problemFileNameBase.upper() + "_H\n"
-      h += "\n"
-      h += "#include \"Cobalt.h\"\n"
-      h += "#include \"Solution.h\"\n"
-      h += "#include <vector>\n"
-      h += "\n"
-      for i in range(0,numSolutions):
-        h += "#include \""+ self.solutionWriter.getName(solutionList[i]) + ".h\"\n"
-      h += "\n"
-      h += "void init_" + problemName + "_candidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates);\n"
-      h += "\n"
-      h += "#endif\n"
-      problemHeaderFile.write(h)
-      problemHeaderFile.close()
+          s += "}\n"
+          problemSourceFile.write(s)
+          problemSourceFile.close()
+
+          # problem header
+          h = "" # header file string
+          h += "#ifndef " + problemFileNameBase.upper() + "_H\n"
+          h += "#define " + problemFileNameBase.upper() + "_H\n"
+          h += "\n"
+          h += "#include \"Cobalt.h\"\n"
+          h += "#include \"Solution.h\"\n"
+          h += "#include <vector>\n"
+          h += "\n"
+          for i in range(0,len(solutionList)):
+            h += "#include \""+ self.solutionWriter.getName(solutionList[i]) + ".h\"\n"
+          h += "\n"
+          h += "void init_" + problemName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates);\n"
+          h += "\n"
+          h += "#endif\n"
+          problemHeaderFile.write(h)
+          problemHeaderFile.close()
 
     ########################################
     # top level benchmark file
@@ -352,26 +410,23 @@ class FileWriter:
     s += "#include <cstdio>\n"
     s += "\n"
     # include candidates
-    for problemIdx in range(0,numProblems):
-      problemSolutionPair = problemSolutionCandidates[problemIdx]
-      problem = problemSolutionPair[0]
-      problemName = str(problem)
-      problemFileNameBase = "init_" + problemName + "_candidates"
-      s += "#include \"" + problemFileNameBase + ".h\"\n"
+    
+    for deviceProfile, exactMatches in problemTree.iteritems():
+      for exactMatch, problemSet in exactMatches.iteritems():
+        exactMatchName = str(exactMatch)
+        exactMatchFileNameBase = "init_" + exactMatchName + "_candidates"
+        s += "#include \"" + exactMatchFileNameBase + ".h\"\n"
     # init function
     s += "\n"
-    s += "void initializeSolutionCandidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex) {\n"
+    s += "void initializeSolutionCandidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex) {\n"
     s += "  switch( problemIndex ) {\n"
-    for problemIdx in range(0,numProblems):
-      problemSolutionPair = problemSolutionCandidates[problemIdx]
-      problem = problemSolutionPair[0]
-      problemName = str(problem)
-      s += "  case " + str(problemIdx) + ":\n"
-      s += "    init_" + problemName + "_candidates(problem, solutionCandidates);\n"
-      s += "    break;\n"
-
-    s += "  default:\n"
-    s += "    printf(\"Oops: index too large.\\n\");\n"
+    exactMatchIdx = 0
+    for deviceProfile, exactMatches in problemTree.iteritems():
+      for exactMatch, problemSet in exactMatches.iteritems():
+        exactMatchName = str(exactMatch)
+        s += "  case " + str(exactMatchIdx) + ": init_" + exactMatchName + "_candidates(deviceProfile, problem, solutionCandidates, problemIndex); break;\n"
+        exactMatchIdx += 1
+    s += "  default: printf(\"Oops: index too large.\\n\");\n"
     s += "  }\n"
     s += "}\n"
     benchmarkSourceFile.write(s)
@@ -392,13 +447,33 @@ class FileWriter:
     #  h += "#include \"CL/cl.h\"\n"
     
     h += "\n"
-    h += "static const size_t numProblems = " + str(numProblems) + ";\n"
     h += "static const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
     h += "static const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
     h += "static const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
+    h += "static const size_t benchmarkNumExactMatches = " + str(benchmarkNumExactMatches) + ";\n"
+    h += "static const char *benchmarkExactMatchNames[] = {\n"
+    h += "    \"" + benchmarkExactMatchNames[0] + "\""
+    for i in range(1, len(benchmarkExactMatchNames)):
+      h += ",\n    \"" + benchmarkExactMatchNames[i]
+    h += "\n    };\n"
+    
+    h += "static const size_t benchmarkExactMatchNumProblems[] = {\n"
+    h += "    " + str(benchmarkExactMatchNumProblems[0])
+    for i in range(1, len(benchmarkExactMatchNumProblems)):
+      h += ",\n    " + str(benchmarkExactMatchNumProblems[i])
+    h += "\n    };\n"
+
 
     # write device profile
-    dp = problemSolutionCandidates[0][0].deviceProfile
+    for deviceProfile, exactMatches in problemTree.iteritems():
+      for exactMatch, problemSet in exactMatches.iteritems():
+        for p in problemSet:
+          problem = p
+          break
+        break
+      break
+    problem = problemList[0]
+    dp = problem.deviceProfile
     h += "\n"
     h += "static const char *benchmarkDeviceName = \"" + dp.devices[0].name + "\";\n"
     h += "static const unsigned int benchmarkDeviceNumComputeUnits = " + str(dp.devices[0].numComputeUnits) + ";\n"
@@ -406,7 +481,7 @@ class FileWriter:
     h += "static const unsigned int benchmarkDeviceFlopsPerClock = " + str(dp.devices[0].flopsPerClock) + ";\n"
 
     h += "\n"
-    h += "void initializeSolutionCandidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
+    h += "void initializeSolutionCandidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex);\n"
     h += "\n"
     h += "#endif\n"
     h += "\n"
@@ -425,13 +500,17 @@ class FileWriter:
     s += "include( ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
     s += "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
-    for problemIdx in range(0,numProblems):
-      problemSolutionPair = problemSolutionCandidates[problemIdx]
-      problem = problemSolutionPair[0]
-      problemName = str(problem)
-      problemFileNameBase = "init_" + problemName + "_candidates"
-      s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".cpp\n"
-      s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".h\n"
+    for deviceProfile, exactMatches in problemTree.iteritems():
+      for exactMatch, problemSet in exactMatches.iteritems():
+        exactMatchName = str(exactMatch)
+        exactMatchFileNameBase = "init_" + exactMatchName + "_candidates"
+        s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + exactMatchFileNameBase + ".cpp\n"
+        s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + exactMatchFileNameBase + ".h\n"
+        for problem in problemSet:
+          problemName = str(problem)
+          problemFileNameBase = "init_" + problemName + "_candidates"
+          s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".cpp\n"
+          s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".h\n"
     s += ")\n"
     s += "\n"
     s += "source_group(CobaltGen\\\\Benchmark FILES\n"
