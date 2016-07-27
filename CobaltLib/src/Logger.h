@@ -63,6 +63,7 @@ public:
  ******************************************************************************/
   Logger();
   void init( std::string logFileName);
+  void close();
   
 /*******************************************************************************
  * open - initialize logger by opening file for writing

@@ -21,7 +21,8 @@ public:
       CobaltTensorDataConst tensorDataB,
       CobaltScalarData alpha,
       CobaltScalarData beta,
-      CobaltControl & ctrl);
+      CobaltControl & ctrl,
+	  bool doPrint );
   virtual CobaltStatus enqueue(
       CobaltTensorData tensorDataC,
       CobaltTensorDataConst tensorDataA,

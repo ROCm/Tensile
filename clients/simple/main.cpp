@@ -6,7 +6,7 @@
 #include <time.h>
 #endif
 
-#define VALIDATE 1
+#define VALIDATE 0
 #define SWITCH_AB 0
 
 
@@ -116,33 +116,33 @@ private:
 
 // these need to agree with kernel
 #if Cobalt_BACKEND_OPENCL12
-#define DATA_TYPE_STR_A     float
-#define DATA_TYPE_STR_B     float
-#define DATA_TYPE_STR_C     float
-#define DATA_TYPE_STR_ALPHA float
-#define DATA_TYPE_STR_BETA  float
-#define WG_DIM_0I           16
-#define WG_DIM_1J           16
-#define MICRO_TILE_0I       6
-#define MICRO_TILE_1J       6
-#define MACRO_TILE_0I       (WG_DIM_0I*MICRO_TILE_0I)
-#define MACRO_TILE_1J       (WG_DIM_1J*MICRO_TILE_1J)
+#define TYPE_A     float
+#define TYPE_B     float
+#define TYPE_C     float
+#define TYPE_ALPHA float
+#define TYPE_BETA  float
+#define WG_0I           16
+#define WG_1J           16
+#define UT_0I       8
+#define UT_1J       8
+#define MT_0I       (WG_0I*UT_0I)
+#define MT_1J       (WG_1J*UT_1J)
 #endif
 
 #if VALIDATE
-const unsigned int M = 4*96;
-const unsigned int N = 3*96;
-const unsigned int K = 2*96;
+const unsigned int M = 128;
+const unsigned int N = 128;
+const unsigned int K = 16;
 #else
 const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
 #endif
 const unsigned int numEnqueues = 1;
-DATA_TYPE_STR_ALPHA alpha = 1;
-DATA_TYPE_STR_BETA  beta  = 0;
-const unsigned int transA = 1;
-const unsigned int transB = 0;
+TYPE_ALPHA alpha = 1;
+TYPE_BETA  beta  = 0;
+const unsigned int transA = 0;
+const unsigned int transB = 1;
 
 /*******************************************************************************
  * main
@@ -199,29 +199,30 @@ int main( int argc, char *argv[] ) {
   const size_t numElementsC = size0C*size1C;
   const size_t numElementsA = size0A*size1A;
   const size_t numElementsB = size0B*size1B;
-  const size_t sizeC = numElementsC * sizeof(DATA_TYPE_STR_C);
-  const size_t sizeA = numElementsA * sizeof(DATA_TYPE_STR_A);
-  const size_t sizeB = numElementsB * sizeof(DATA_TYPE_STR_B);
+  const size_t sizeC = numElementsC * sizeof(TYPE_C);
+  const size_t sizeA = numElementsA * sizeof(TYPE_A);
+  const size_t sizeB = numElementsB * sizeof(TYPE_B);
+  printf("sizeC = %llu\n", sizeC);
 
   // allocate host buffers
   printf("allocating host buffers\n");
-  DATA_TYPE_STR_C *hC = new DATA_TYPE_STR_C[numElementsC];
-  DATA_TYPE_STR_C *hC_ref = new DATA_TYPE_STR_C[numElementsC];
-  DATA_TYPE_STR_A *hA = new DATA_TYPE_STR_A[numElementsA];
-  DATA_TYPE_STR_B *hB = new DATA_TYPE_STR_B[numElementsB];
+  TYPE_C *hC = new TYPE_C[numElementsC];
+  TYPE_C *hC_ref = new TYPE_C[numElementsC];
+  TYPE_A *hA = new TYPE_A[numElementsA];
+  TYPE_B *hB = new TYPE_B[numElementsB];
 
   // init host buffers
   printf("initializing host buffers\n");
 #if VALIDATE
   for (unsigned int i = 0; i < numElementsC; i++) {
-    hC[i] = rand()%101;
-    hC_ref[i] = hC[i];
+    hC[i] = static_cast<float>(rand()%101);
+    hC_ref[i] = static_cast<float>(hC[i]);
   }
   for (unsigned int i = 0; i < numElementsA; i++) {
-    hA[i] = rand()%101;
+    hA[i] = static_cast<float>(rand()%101);
   }
   for (unsigned int i = 0; i < numElementsB; i++) {
-    hB[i] = rand()%101;
+    hB[i] = static_cast<float>(rand()%101);
   }
 #else
   for (unsigned int i = 0; i < numElementsC; i++) { hC[i] = 1; }
@@ -232,9 +233,9 @@ int main( int argc, char *argv[] ) {
   // allocate device buffers
   printf("allocating device buffers\n");
 #if Cobalt_BACKEND_HIP
-  DATA_TYPE_STR_C *dC;
-  DATA_TYPE_STR_A *dA;
-  DATA_TYPE_STR_B *dB;
+  TYPE_C *dC;
+  TYPE_A *dA;
+  TYPE_B *dB;
   status = hipMalloc( &dC, sizeC); CHECK(status);
   status = hipMalloc( &dA, sizeA); CHECK(status);
   status = hipMalloc( &dB, sizeB); CHECK(status);
@@ -255,11 +256,11 @@ int main( int argc, char *argv[] ) {
 
   // dim
 #if Cobalt_BACKEND_HIP
-  dim3 workGroup( WG_DIM_0I, WG_DIM_1J, 1 );
-  dim3 blocks(size0C/MACRO_TILE_0I, size1C/MACRO_TILE_1J, 1);  
+  dim3 workGroup( WG_0I, WG_1J, 1 );
+  dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);  
 #else
-  size_t localSize[3] = { WG_DIM_0I, WG_DIM_1J, 1 };
-  size_t globalSize[3] = { ((size0C+MACRO_TILE_0I-1)/MACRO_TILE_0I)*WG_DIM_0I, ((size1C+MACRO_TILE_1J-1)/MACRO_TILE_1J)*WG_DIM_1J, 1 };  
+  size_t localSize[3] = { WG_0I, WG_1J, 1 };
+  size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };  
 #endif
 
 
@@ -280,9 +281,6 @@ int main( int argc, char *argv[] ) {
       dB,
       alpha,
       beta,
-      0, // offset C
-      0, // offset A
-      0, // offset B
       size0C, // stride1C,
       size0A, // stride1A,
       size0B, // stride1B,
@@ -297,38 +295,37 @@ int main( int argc, char *argv[] ) {
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dB ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
 #else
-    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
-    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dB ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dA ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(cl_mem), &dB ); )
 #endif
-  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(DATA_TYPE_STR_ALPHA), &alpha ); )
-  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(DATA_TYPE_STR_BETA), &beta ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(TYPE_ALPHA), &alpha ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(TYPE_BETA), &beta ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0C ); )
 #if SWITCH_AB
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0B ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
 #else
-    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
-    CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0B ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0A ); )
+  CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &size0B ); )
 #endif
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &M ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &N ); )
   CHECK( clSetKernelArg( kernel_opencl, argIdx++, sizeof(unsigned int), &K ); )
   for (unsigned int i = 0; i < numEnqueues; i++) {
-    clEnqueueNDRangeKernel(queue, kernel_opencl,
+    CHECK( clEnqueueNDRangeKernel(queue, kernel_opencl,
         2, // num dims
         nullptr, // global offset
         globalSize,
         localSize,
         0, // num input events
         nullptr, // input events
-        nullptr ); // output event
+        nullptr ); ) // output event
     }
 #endif
 
   // wait for kernel
   printf("synchronizing stream\n");
 #if Cobalt_BACKEND_HIP
-  printf("synchronizing stream\n");
   status = hipStreamSynchronize( nullptr );
   CHECK(status);
 #else
@@ -359,14 +356,16 @@ int main( int argc, char *argv[] ) {
     }
 
 #else
-  DATA_TYPE_STR_C answer = K*alpha + beta;
+  TYPE_C answer = K*alpha + beta;
   for (unsigned int i = 0; i < numElementsC; i++) {
     if (hC[i] != answer) {
       numInvalid++;
       if (numInvalid < 4*4) {
         printf("C[%u] = %f rather than %f\n", i, hC[i], answer);
       }
-    }
+    } /*else {
+      printf("C[%u] = %f == %f\n", i, hC[i], answer);
+    }*/
   }
 #endif
   if (numInvalid) {

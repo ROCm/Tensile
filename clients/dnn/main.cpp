@@ -40,6 +40,7 @@ CobaltProblem createProblemForConvolutionAsContraction();
 int main( int argc, char * argv[] ) {
 
   std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  logFilePath += "/cobalt_trace.xml";
   cobaltSetup(logFilePath.c_str());
   CobaltProblem problem;
   CobaltSolution solution;

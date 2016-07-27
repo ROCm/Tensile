@@ -25,6 +25,7 @@ protected:
   std::string name;
   unsigned int numComputeUnits;
   unsigned int clockFrequency;
+  unsigned int flopsPerClock;
 };
 
 

@@ -69,21 +69,32 @@ std::string Logger::toString( Logger::TraceEntryType type ) {
 Logger::Logger() {
 }
 
-void Logger::init( std::string logFilePath) {
-  std::string logName = "cobalt_trace.xml";
+void Logger::init( std::string inputLogFilePath) {
+  size_t slashIdx = inputLogFilePath.find_last_of('/');
+  size_t backslashIdx = inputLogFilePath.find_last_of('\\');
+  size_t splitIdx = min(slashIdx, backslashIdx);
+  splitIdx++;
+  std::string logFilePath = inputLogFilePath.substr(0, splitIdx);
+  std::string logFileName = inputLogFilePath.substr(splitIdx, inputLogFilePath.size() - splitIdx);
+
   // append log to list of xmls
-  std::string listFileName = logFilePath + "/list_of_xmls.txt";
+  std::string listFileName = logFilePath + "list_of_xmls.txt";
   std::ofstream listFile;
   listFile.open( listFileName, std::fstream::app );
-  listFile << logName << std::endl;
+  listFile << logFileName << std::endl;
   listFile.close();
 
   //printf("Logger::init(%s)\n", logFilePath.c_str() );
-  file.open( logFilePath+"/"+logName, std::fstream::out );
+  file.open( logFilePath+logFileName, std::fstream::out );
   file << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n";
   file << "<CobaltLog>\n\n";
   file << Logger::comment("Trace");
   //file << "<Trace>\n";
+}
+
+void Logger::close() {
+  file << "</CobaltLog>\n";
+  file.close();
 }
 
 
@@ -91,12 +102,9 @@ void Logger::init( std::string logFilePath) {
  * destructor
  ******************************************************************************/
 Logger::~Logger() {
-  printf("Logger::~Logger()\n");
 #if USE_QUEUE
   flush();
 #endif
-  file << "</CobaltLog>\n";
-  file.close();
 }
 
 

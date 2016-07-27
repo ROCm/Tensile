@@ -301,14 +301,18 @@ class Backend:
 # Device
 ################################################################################
 class Device:
-  def __init__(
-      self, \
-      name):
+  def __init__( self, name, numComputeUnits, clockFrequency, flopsPerClock):
     self.name = name
+    self.numComputeUnits = numComputeUnits
+    self.clockFrequency = clockFrequency
+    self.flopsPerClock = flopsPerClock
 
   def __str__(self):
     state = "[Device"
     state += "; " + self.name
+    state += "; " + self.numComputeUnits
+    state += "; " + self.clockFrequency
+    state += "; " + self.flopsPerClock
     state += "]"
     return self.name
 
@@ -318,6 +322,9 @@ class Device:
   def getAttributes(self):
     return ( \
         self.name, \
+        self.numComputeUnits, \
+        self.clockFrequency, \
+        self.flopsPerClock, \
         )
   def __hash__(self):
     return hash(self.getAttributes())
@@ -587,6 +594,8 @@ class SolutionBenchmark:
 #   - Device - determined through benchmarking / file reading
 ################################################################################
 class Problem:
+  # sizeType=0 ranged
+  # sizeType=1 exact
   def __init__( self ):
     self.tensorC = Tensor()
     self.tensorA = Tensor()
@@ -594,6 +603,7 @@ class Problem:
     self.operation = Operation()
     self.deviceProfile = DeviceProfile()
     self.sizeFree = 0
+    self.sizeType = -1
 
   def getSizeFree(self):
     if self.sizeFree == 0:
@@ -601,6 +611,20 @@ class Problem:
       for dimension in self.tensorC.dimensions:
         self.sizeFree *= dimension.size
     return self.sizeFree
+
+  def getSizeType(self):
+    if self.sizeType < 0:
+      self.sizeType = 0
+      for dim in self.tensorC.dimensions:
+        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
+          self.sizeType = 1
+      for dim in self.tensorA.dimensions:
+        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
+          self.sizeType = 1
+      for dim in self.tensorB.dimensions:
+        if dim.size%16 != 0 and (dim.size+1)%16 != 0:
+          self.sizeType = 1
+    return self.sizeType
 
 
   def __str__(self):
@@ -830,16 +854,16 @@ class Kernel:
 
     # global->local load strategy
     self.numLoadsParaA = -1
-    self.numLoadsPerpA = -1
     self.loadSizeParaA = -1
-    self.loadSizePerpA = -1
-    self.numLoadsParaB = -1
-    self.numLoadsPerpB = -1
-    self.loadSizeParaB = -1
-    self.loadSizePerpB = -1
     self.totalLoadSizeParaA = -1
+    self.numLoadsPerpA = -1
+    self.loadSizePerpA = -1
     self.totalLoadSizePerpA = -1
+    self.numLoadsParaB = -1
+    self.loadSizeParaB = -1
     self.totalLoadSizeParaB = -1
+    self.numLoadsPerpB = -1
+    self.loadSizePerpB = -1
     self.totalLoadSizePerpB = -1
 
     # Pre-Processor definition optimizations

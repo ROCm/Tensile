@@ -392,10 +392,19 @@ class FileWriter:
     #  h += "#include \"CL/cl.h\"\n"
     
     h += "\n"
-    h += "const size_t numProblems = " + str(numProblems) + ";\n"
-    h += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
-    h += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
-    h += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
+    h += "static const size_t numProblems = " + str(numProblems) + ";\n"
+    h += "static const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
+    h += "static const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
+    h += "static const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
+
+    # write device profile
+    dp = problemSolutionCandidates[0][0].deviceProfile
+    h += "\n"
+    h += "static const char *benchmarkDeviceName = \"" + dp.devices[0].name + "\";\n"
+    h += "static const unsigned int benchmarkDeviceNumComputeUnits = " + str(dp.devices[0].numComputeUnits) + ";\n"
+    h += "static const unsigned int benchmarkDeviceClockFrequency = " + str(dp.devices[0].clockFrequency) + ";\n"
+    h += "static const unsigned int benchmarkDeviceFlopsPerClock = " + str(dp.devices[0].flopsPerClock) + ";\n"
+
     h += "\n"
     h += "void initializeSolutionCandidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
     h += "\n"
@@ -404,23 +413,7 @@ class FileWriter:
     benchmarkHeaderFile.write(h)
     benchmarkHeaderFile.close()
 
-    # explicit template instantiation
-    templateInstantiationsPath = self.outputPath + self.solutionSubdirectory \
-        + "SolutionTemplateInstantiations.inl"
-    templateInstantiationsFile = open(templateInstantiationsPath, "w")
-    templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
-    for templateInstantiationStr in templateInstantiationSet:
-      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
-          +templateInstantiationStr + ";\n")
-      if self.backend.isOpenCL():
-        templateInstantiationsFile.write(
-            "template class Cobalt::SolutionOpenCL" \
-            +templateInstantiationStr + ";\n")
-      else:
-        templateInstantiationsFile.write(
-            "template class Cobalt::SolutionHIP" \
-            +templateInstantiationStr + ";\n")
-
+    self.writeTemplateInstantiations(templateInstantiationSet)
 
     # write CobaltBenchmark.cmake
     benchmarkCMakePath = self.outputPath + self.otherSubdirectory \
@@ -525,6 +518,8 @@ class FileWriter:
     sslHeaderFile.write(sslHeaderString)
     sslHeaderFile.close()
 
+    templateInstantiationSet = set()
+
     for deviceProfile, exactMatches in psTimes.iteritems():
       # print str(deviceProfile), str(exactMatches)
       # (2) Write Device-Level Solution Selection files
@@ -539,7 +534,9 @@ class FileWriter:
       sslHeaderFile.write(sslHeaderString)
       sslHeaderFile.close()
 
-      for exactMatch, problemSolutionPairs in exactMatches.iteritems():
+      for exactMatch, pspTypes in exactMatches.iteritems():
+        rangePSPs = pspTypes[0]
+        exactPSPs = pspTypes[1]
         # only support this exact match if some benchmark times existed
         # otherwise none of the other files for it will have been written
 
@@ -560,7 +557,7 @@ class FileWriter:
         sslSourceFile = open(sslSourcePath, "w")
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
-        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, problemSolutionPairs) # match size and mod
+        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
         sslSourceFile.write(sslSourceString)
         sslSourceFile.close()
         sslHeaderFile.write(sslHeaderString)
@@ -571,6 +568,10 @@ class FileWriter:
     # (4) Write Kernel Files
     self.writeKernelFiles(sslw.getKernelSet())
 
+    # add solutions to template set
+    for solution in sslw.getSolutionSet():
+      templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
+
     # (5) Write Solution Files
     self.writeSolutionFiles(sslw.getSolutionSet())
 
@@ -580,3 +581,24 @@ class FileWriter:
     s = sslw.writeCobaltLibCMake(self.otherSubdirectory)
     backendCMakeFile.write(s)
     backendCMakeFile.close()
+    self.writeTemplateInstantiations(templateInstantiationSet)
+
+  def writeTemplateInstantiations( self, templateInstantiationSet ):
+    # explicit template instantiation
+    templateInstantiationsPath = self.outputPath + self.solutionSubdirectory \
+        + "SolutionTemplateInstantiations.inl"
+    templateInstantiationsFile = open(templateInstantiationsPath, "w")
+    templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
+    for templateInstantiationStr in templateInstantiationSet:
+      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
+          +templateInstantiationStr + ";\n")
+      if self.backend.isOpenCL():
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionOpenCL" \
+            +templateInstantiationStr + ";\n")
+      else:
+        templateInstantiationsFile.write(
+            "template class Cobalt::SolutionHIP" \
+            +templateInstantiationStr + ";\n")
+    print "writing " + templateInstantiationsPath
+    templateInstantiationsFile.close()

@@ -8,20 +8,22 @@ import sys
 import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
+  #print str(problem.getSizeType()) + " - " + str(problem)
   if exactMatch.deviceProfile not in psMap:
     #print "XML Parser: b.adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
     #print "XML Parser:   b.adding %s" % exactMatch.libString()
-    psMap[exactMatch.deviceProfile][exactMatch] = {}
-  if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    psMap[exactMatch.deviceProfile][exactMatch] = [{},{}]
+  if problem not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()]:
     #print "XML Parser:     b.adding %s" % str(problem)
-    psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
-  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem] = {}
+  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem]:
     #print "XML Parser:       b.adding %s" % str(solution)
-    psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution] = Structs.SolutionBenchmark()
   #print "XML Parser:       b.adding %f" % str(time)
-  psMap[exactMatch.deviceProfile][exactMatch][problem][solution].times.append(time)
+  psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].times.append(time)
+  #print "size = ", len(psMap[exactMatch.deviceProfile][exactMatch][0]), len(psMap[exactMatch.deviceProfile][exactMatch][1])
 
 def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus ):
   if exactMatch.deviceProfile not in psMap:
@@ -29,17 +31,17 @@ def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus )
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
     #print "XML Parser:   v.adding %s" % exactMatch.libString()
-    psMap[exactMatch.deviceProfile][exactMatch] = {}
-  if problem not in psMap[exactMatch.deviceProfile][exactMatch]:
+    psMap[exactMatch.deviceProfile][exactMatch] = [{},{}]
+  if problem not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()]:
     #print "XML Parser:     v.adding %s" % str(problem)
-    psMap[exactMatch.deviceProfile][exactMatch][problem] = {}
-  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem]:
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem] = {}
+  if solution not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem]:
     #print "XML Parser:       v.adding %s" % str(solution)
-    psMap[exactMatch.deviceProfile][exactMatch][problem][solution] = Structs.SolutionBenchmark()
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution] = Structs.SolutionBenchmark()
 
-  if psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus == 0:
-    psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus = validationStatus
-  elif psMap[exactMatch.deviceProfile][exactMatch][problem][solution].validationStatus != validationStatus:
+  if psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus == 0:
+    psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus = validationStatus
+  elif psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()][problem][solution].validationStatus != validationStatus:
     print "ERROR: conflicting validation reports"
 
 ################################################################################
@@ -118,7 +120,10 @@ class CobaltHandler( xml.sax.ContentHandler ):
       n = int(attributes["n"])
       for i in range(0,n):
         name = attributes["d"+str(i)]
-        self.problem.deviceProfile.devices.append(Structs.Device( name ))
+        numComputeUnits = attributes["CU"+str(i)]
+        clockFrequency = attributes["MHz"+str(i)]
+        flopsPerClock = attributes["FPC"+str(i)]
+        self.problem.deviceProfile.devices.append(Structs.Device( name, numComputeUnits, clockFrequency, flopsPerClock ))
       pass
     elif tag == "ID":
       self.solution.kernels = []
@@ -137,8 +142,19 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].tile.workGroup = [int(attributes["wG0"]), int(attributes["wG1"])]
       self.solution.kernels[i].tile.microTile = [int(attributes["mT0"]), int(attributes["mT1"])]
       self.solution.kernels[i].tile.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
-      self.solution.kernels[i].numLoadsA = int(attributes["nlA"])
-      self.solution.kernels[i].numLoadsB = int(attributes["nlB"])
+      self.solution.kernels[i].numLoadsParaA        = int(attributes["nlpaA"])
+      self.solution.kernels[i].loadSizeParaA        = int(attributes["lspaA"])
+      self.solution.kernels[i].totalLoadSizeParaA   = int(attributes["tspaA"])
+      self.solution.kernels[i].numLoadsPerpA        = int(attributes["nlpeA"])
+      self.solution.kernels[i].loadSizePerpA        = int(attributes["lspeA"])
+      self.solution.kernels[i].totalLoadSizePerpA   = int(attributes["tspeA"])
+      self.solution.kernels[i].numLoadsParaB        = int(attributes["nlpaB"])
+      self.solution.kernels[i].loadSizeParaB        = int(attributes["lspaB"])
+      self.solution.kernels[i].totalLoadSizeParaB   = int(attributes["tspaB"])
+      self.solution.kernels[i].numLoadsPerpB        = int(attributes["nlpeB"])
+      self.solution.kernels[i].loadSizePerpB        = int(attributes["lspeB"])
+      self.solution.kernels[i].totalLoadSizePerpB   = int(attributes["tspeB"])
+
       self.solution.kernels[i].unrolls = [ int(attributes["u0"]) ]
       secondUnroll = int(attributes["u1"])
       if secondUnroll > 0:

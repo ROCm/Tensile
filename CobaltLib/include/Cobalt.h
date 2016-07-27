@@ -16,19 +16,16 @@
 
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
-typedef cl_float2 CobaltComplexFloat;
-typedef cl_double2 CobaltComplexDouble;
 #else
 #include <hip_runtime.h>
-typedef float_2 CobaltComplexFloat;
-typedef double_2 CobaltComplexDouble;
+#endif
 
 #if (defined( __GNUC__ ) || defined( __IBMC__ ))
     #define Cobalt_ALIGNED(_x) __attribute__ ((aligned(_x)))
 #else
     #define Cobalt_ALIGNED(_x)
 #endif
-#if 0
+
 typedef union {
    float  Cobalt_ALIGNED(8) s[2];
    struct{ float  x, y; };
@@ -40,8 +37,6 @@ typedef union {
    struct{ double  x, y; };
    struct{ double  s0, s1; };
 } CobaltComplexDouble;
-#endif
-#endif
 
 
 #ifdef __cplusplus
@@ -205,6 +200,9 @@ typedef struct CobaltScalarData_ {
 typedef struct CobaltDevice_ {
   enum { maxNameLength = 256 } maxNameLength_;
   char name[maxNameLength];
+  unsigned int numComputeUnits;
+  unsigned int clockFrequency;
+  static const unsigned int flopsPerClock = 2*64;
 } CobaltDevice;
 
 
@@ -218,11 +216,22 @@ typedef struct CobaltDeviceProfile_ {
   CobaltDevice devices[maxDevices];
 } CobaltDeviceProfile;
 
+
+/*******************************************************************************
+ * cobaltEnumerateDeviceProfiles
+ * list of available CobaltDeviceProfiles
+ * if size is non-null, it is set to size if string user needs to allocate
+ * if cstr is non-null, string is written to cstr buffer
+ ******************************************************************************/
+CobaltStatus cobaltEnumerateDeviceProfiles( CobaltDeviceProfile *profiles, unsigned int *size);
+
+
 /*******************************************************************************
 * cobaltCreateEmptyDeviceProfile
 * returns CobaltDeviceProfile initialized to zero
 ******************************************************************************/
 CobaltDeviceProfile cobaltCreateEmptyDeviceProfile();
+
 
 /*******************************************************************************
  * CobaltOperationType

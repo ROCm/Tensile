@@ -368,8 +368,20 @@ class SolutionWriter:
         s += "  detail += \" mT1=\\\"" + str(kernel.tile.microTile[1]) + "\\\"\";\n"
         s += "  detail += \" b0=\\\"" + str(kernel.tile.branch[0].value) + "\\\"\";\n"
         s += "  detail += \" b1=\\\"" + str(kernel.tile.branch[1].value) + "\\\"\";\n"
-        s += "  detail += \" nlA=\\\"" + str(kernel.numLoadsParaA) + "\\\"\";\n"
-        s += "  detail += \" nlB=\\\"" + str(kernel.numLoadsParaB) + "\\\"\";\n"
+
+        s += "  detail += \" nlpaA=\\\"" + str(kernel.numLoadsParaA     ) + "\\\"\";\n"
+        s += "  detail += \" lspaA=\\\"" + str(kernel.loadSizeParaA     ) + "\\\"\";\n"
+        s += "  detail += \" tspaA=\\\"" + str(kernel.totalLoadSizeParaA) + "\\\"\";\n"
+        s += "  detail += \" nlpeA=\\\"" + str(kernel.numLoadsPerpA     ) + "\\\"\";\n"
+        s += "  detail += \" lspeA=\\\"" + str(kernel.loadSizePerpA     ) + "\\\"\";\n"
+        s += "  detail += \" tspeA=\\\"" + str(kernel.totalLoadSizePerpA) + "\\\"\";\n"
+        s += "  detail += \" nlpaB=\\\"" + str(kernel.numLoadsParaB     ) + "\\\"\";\n"
+        s += "  detail += \" lspaB=\\\"" + str(kernel.loadSizeParaB     ) + "\\\"\";\n"
+        s += "  detail += \" tspaB=\\\"" + str(kernel.totalLoadSizeParaB) + "\\\"\";\n"
+        s += "  detail += \" nlpeB=\\\"" + str(kernel.numLoadsPerpB     ) + "\\\"\";\n"
+        s += "  detail += \" lspeB=\\\"" + str(kernel.loadSizePerpB     ) + "\\\"\";\n"
+        s += "  detail += \" tspeB=\\\"" + str(kernel.totalLoadSizePerpB) + "\\\"\";\n"
+
         s += "  detail += \" u0=\\\"" + str(kernel.unrolls[0]) + "\\\"\";\n"
         if len(kernel.unrolls) > 1:
           s += "  detail += \" u1=\\\"" + str(kernel.unrolls[1]) + "\\\"\";\n"

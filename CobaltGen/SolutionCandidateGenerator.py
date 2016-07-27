@@ -88,8 +88,8 @@ class SolutionCandidateGenerator:
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
-  noMultipleKernels = True # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
-
+  noMultipleKernels = False # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
+  printDetails = False
 
   
 
@@ -119,8 +119,10 @@ class SolutionCandidateGenerator:
         and self.modePreprocessorDefinitions == self.modeExhaustive
     # optimize alpha and beta?
     if not self.optimizeAlpha and not problem.operation.useAlpha():
+      if self.printDetails: print "SCG: reverting void alpha to typeC b/c not optimizing"
       problem.operation.alphaType = problem.tensorC.dataType
     if not self.optimizeBeta and not problem.operation.useBeta():
+      if self.printDetails: print "SCG: reverting void beta to typeC b/c not optimizing"
       problem.operation.betaType = problem.tensorC.dataType
 
     numIndicesC = len(problem.tensorC.dimensions)
@@ -180,6 +182,16 @@ class SolutionCandidateGenerator:
     ###################################
     # Determine Search Universe
     ###################################
+    problemIsRectangular = True
+    if not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0:
+      problemIsRectangular = False
+    if not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0:
+      problemIsRectangular = False
+    if not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0:
+      problemIsRectangular = False
+    if not problemIsRectangular:
+      print "WARNING: problem has unusual size; many candidates solutions will be generated."
+
 
     # work-groups
     universeWorkGroups = []
@@ -198,26 +210,28 @@ class SolutionCandidateGenerator:
             [4,64], [8,32], [16,16], [32,8],  [64,4] ]
       else: # fast
         universeWorkGroups = [ [16,16], [8,8] ]
-      if problemSizeDim0 < self.thresholdSkinny:
-        print "SCG: adding skinny(dim0) work-groups"
+      if not problemIsRectangular and problemSizeDim0 < self.thresholdSkinny:
+        if self.printDetails: print "SCG: adding skinny(dim0) work-groups"
         for workGroupDim0 in range(1, thresholdWorkGroupSize+1):
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
-              universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+              if workGroupDim1 > 0:
+                universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
             # break
-      if problemSizeDim1 < self.thresholdSkinny:
-        print "SCG: adding skinny(dim1) work-groups"
+      if not problemIsRectangular and problemSizeDim1 < self.thresholdSkinny:
+        if self.printDetails: print "SCG: adding skinny(dim1) work-groups"
         for workGroupDim1 in range(1, thresholdWorkGroupSize+1):
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
-              universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
+              if workGroupDim0 > 0:
+                universeWorkGroups.append( [workGroupDim0,workGroupDim1] )
             # break
-    print "SCG: WorkGroups(" + str(len(universeWorkGroups)) + "): " + str(universeWorkGroups)
+    if self.printDetails: print "SCG: WorkGroups(" + str(len(universeWorkGroups)) + "): " + str(universeWorkGroups)
 
     # micro-tiles
-    if self.modeMicroTiles == self.modeExhaustive:
+    if self.modeMicroTiles == self.modeExhaustive or self.modeMicroTiles == self.modeThorough:
       microTileMin = 1
       microTileMax = int(self.thresholdMicroTiles**0.5)
       # microTileRatio = microTileMax
@@ -244,7 +258,7 @@ class SolutionCandidateGenerator:
         macroTileRatio = self.ratioMacroTileSlow
       else:
         macroTileRatio = 1
-    print "SCG: MacroTileRatio: " + str(macroTileRatio)
+    if self.printDetails: print "SCG: MacroTileRatio: " + str(macroTileRatio)
     
     # unrolls
     universeUnrolls = []
@@ -263,7 +277,7 @@ class SolutionCandidateGenerator:
           universeUnrolls.append( [unroll, 1] )
       if problemSizeUnroll < self.thresholdUnrolls and not problemSizeUnroll in unrollFast:
         universeUnrolls.append( [problemSizeUnroll] )
-    print "SCG: Unrolls(" + str(len(universeUnrolls)) + "): " + str(universeUnrolls)
+    if self.printDetails: print "SCG: Unrolls(" + str(len(universeUnrolls)) + "): " + str(universeUnrolls)
 
     # preprocessor defines
     requireOffsets = problem.operation.useOffsets
@@ -284,7 +298,7 @@ class SolutionCandidateGenerator:
         universePreprocessorDefinitions.append( [ 1, 1, 1] )
     else:
       universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
-    print "SCG: PreprocessorDefinitions(" + str(len(universePreprocessorDefinitions)) + "): " + str(universePreprocessorDefinitions)
+    if self.printDetails: print "SCG: PreprocessorDefinitions(" + str(len(universePreprocessorDefinitions)) + "): " + str(universePreprocessorDefinitions)
 
     
     # kernel grid
@@ -329,6 +343,7 @@ class SolutionCandidateGenerator:
         
         ###################################
         # for all micro-tile dimensions
+        # print microTileMin, microTileMax, workGroup[0], workGroup[1]
         for microTileDim0 in range(microTileMin, microTileMax+1):
           for microTileDim1 in range(microTileMin, microTileMax+1):
             microTile = [ microTileDim0, microTileDim1 ]
@@ -345,6 +360,11 @@ class SolutionCandidateGenerator:
             if float(macroTileDim1)/macroTileDim0 > macroTileRatio or float(macroTileDim0)/macroTileDim1 > macroTileRatio:
               #print "macro tile too skinny %u %u %u %u" % (workGroup[0], workGroup[1], microTile[0], microTile[1])
               continue
+            
+            if self.modeMicroTiles == self.modeFast: # don't accept small work-groups with large micro-tiles; pruning options
+              if microTileDim0 > 0.5*workGroup[0] or microTileDim1 > 0.5*workGroup[1]:
+                #print "skipping small WG and large UT: %ux%u > .5*%ux%u" % (microTile[0], microTile[1], workGroup[0], workGroup[1] )
+                continue
 
             # macro-tile not too large
             numWorkItems = workGroup[0] * workGroup[1]

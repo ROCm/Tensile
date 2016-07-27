@@ -135,6 +135,6 @@ if __name__ == "__main__":
       inputFiles, \
       args.outputPath, \
       backend,
-      args.optimizeAlphaStr=="On",
-      args.optimizeBetaStr=="On" )
+      args.optimizeAlphaStr=="On" or args.optimizeAlphaStr=="ON",
+      args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
 

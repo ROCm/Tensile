@@ -100,8 +100,11 @@ add_custom_command(
   DEPENDS ${CobaltGen_SRC} ${Cobalt_XML_SOLUTIONS_FILE}
 )
 
-
-
+set( CobaltLib_SRC_GENERATED_DYNAMIC
+    ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC}
+    ${CobaltLib_KernelFiles_GENERATED_DYNAMIC}
+    ${CobaltLib_OtherFiles_GENERATED_DYNAMIC}
+)
 
 ############################################################
 # Cobalt include directories
@@ -140,7 +143,7 @@ if( ${Cobalt_ENABLE_LOGGER} )
     "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
 else()
   set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
-    "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
+    "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=0 -fPIC" )
 endif()
 
 source_group(CobaltGen\\Scripts FILES ${CobaltGen_SRC})

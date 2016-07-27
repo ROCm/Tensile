@@ -11,8 +11,6 @@
 
 namespace Cobalt {
 
-
-
 #define COBALT_ENUM_TO_STRING_CASE(X) case X: return #X;
 std::string toString( CobaltStatus status ) {
   switch( status ) {
@@ -157,6 +155,25 @@ size_t sizeOf( CobaltDataType type ) {
     return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexConjugateDouble:
     return sizeof(CobaltComplexDouble);
+  case cobaltDataTypeNone:
+    return 0;
+  default:
+    return -1;
+  }
+}
+
+size_t flopsPerMadd( CobaltDataType type ) {
+  switch( type ) {
+  case cobaltDataTypeSingle:
+  case cobaltDataTypeDouble:
+    return 2;
+
+  case cobaltDataTypeComplexSingle:
+  case cobaltDataTypeComplexDouble:
+  case cobaltDataTypeComplexConjugateSingle:
+  case cobaltDataTypeComplexConjugateDouble:
+    return 8;
+
   case cobaltDataTypeNone:
     return 0;
   default:

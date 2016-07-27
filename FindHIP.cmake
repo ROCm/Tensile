@@ -25,8 +25,9 @@ else()
       set (HIP_PATH /opt/rocm/hip)
       set( ENV{HIP_PATH} ${HIP_PATH})
     endif()
-    set(HIP_INCLUDE_DIRS ${HIP_PATH}/include)
+    set(HIP_INCLUDE_DIRS $ENV{HIP_PATH}/include)
 
+    message(STATUS "    HIP_PATH = ${HIP_PATH}")
     message(STATUS "ENV HIP_PATH = $ENV{HIP_PATH}")
     
     find_program(HIPCC

@@ -55,16 +55,18 @@ bool Solution::operator<( const Solution & other ) const {
  * enter enqueue process here; can do validation and benchmarking
  *****************************************************************************/
 CobaltStatus Solution::enqueueEntry(
-  CobaltTensorData tensorDataC,
-  CobaltTensorDataConst tensorDataA,
-  CobaltTensorDataConst tensorDataB,
-  CobaltScalarData alpha,
-  CobaltScalarData beta,
-  CobaltControl & ctrl) {
+	CobaltTensorData tensorDataC,
+	CobaltTensorDataConst tensorDataA,
+	CobaltTensorDataConst tensorDataB,
+	CobaltScalarData alpha,
+	CobaltScalarData beta,
+	CobaltControl & ctrl,
+	bool doPrint ) {
+
 #if Cobalt_BACKEND_OPENCL12
-      cl_int status;
+  cl_int status;
 #elif Cobalt_BACKEND_HIP
-      hipError_t status;
+  hipError_t status;
 #endif
 
   Logger::TraceEntry entry;
@@ -119,7 +121,7 @@ CobaltStatus Solution::enqueueEntry(
     // cleanup
     delete static_cast<float *>(gpuOnHostC.data);
   } else {
-    printf("%s;", toString(0).c_str());
+    if (doPrint) printf("%s;", toString(0).c_str());
   }
 
   // benchmarking
@@ -159,14 +161,15 @@ CobaltStatus Solution::enqueueEntry(
     // stop timer
     double time = timer.elapsed_ms();
     time /= ctrl.benchmark;
-    printf(" t = %7.3f ms (avg of %u)", time, ctrl.benchmark);
+    double gFlops = ((double) problem.getNumFlops() / 1000000.f ) / time; // MFlops / ms
+    printf(" GFlop/s = %7.3f; t = %7.3f ms (avg of %u)", gFlops, time, ctrl.benchmark);
     entry.benchmarkTimes.push_back(time);
 
     if (!ctrl.validate) {
       entry.status = returnStatus;
     }
   }
-  printf("\n");
+  if (doPrint) printf("\n");
 
   // if we didn't do any of the previous, enqueue here
   if( !ctrl.validate && !ctrl.benchmark ) {
@@ -823,13 +826,13 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
       // alpha if required
       if (!std::is_void<TypeAlpha>::value) {
-      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
+        status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+            sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
       }
       // beta if required
       if (!std::is_void<TypeBeta>::value) {
-      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
+        status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+            sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
       }
 
       // uint args
@@ -1242,7 +1245,9 @@ template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,
 
 #include "SolutionTemplateInstantiations.inl"
 
+#if Cobalt_LOGGER_ENABLED
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+#endif
 
 #if Cobalt_BACKEND_OPENCL12
 #if defined( _WIN32 )
