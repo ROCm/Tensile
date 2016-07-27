@@ -200,6 +200,9 @@ typedef struct CobaltScalarData_ {
 typedef struct CobaltDevice_ {
   enum { maxNameLength = 256 } maxNameLength_;
   char name[maxNameLength];
+  unsigned int numComputeUnits;
+  unsigned int clockFrequency;
+  static const unsigned int flopsPerClock = 2*64;
 } CobaltDevice;
 
 
@@ -213,11 +216,22 @@ typedef struct CobaltDeviceProfile_ {
   CobaltDevice devices[maxDevices];
 } CobaltDeviceProfile;
 
+
+/*******************************************************************************
+ * cobaltEnumerateDeviceProfiles
+ * list of available CobaltDeviceProfiles
+ * if size is non-null, it is set to size if string user needs to allocate
+ * if cstr is non-null, string is written to cstr buffer
+ ******************************************************************************/
+CobaltStatus cobaltEnumerateDeviceProfiles( CobaltDeviceProfile *profiles, unsigned int *size);
+
+
 /*******************************************************************************
 * cobaltCreateEmptyDeviceProfile
 * returns CobaltDeviceProfile initialized to zero
 ******************************************************************************/
 CobaltDeviceProfile cobaltCreateEmptyDeviceProfile();
+
 
 /*******************************************************************************
  * CobaltOperationType

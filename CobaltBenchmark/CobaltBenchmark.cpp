@@ -49,6 +49,7 @@ size_t solutionStartIdxOverride = 0;
 size_t solutionEndIdxOverride = 0;
 unsigned int platformIdx = 0;
 unsigned int deviceIdx = 0;
+bool deviceOverride = false;
 
 /*******************************************************************************
  * main
@@ -475,9 +476,6 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     if (std::strcmp(arg, "--validate") == 0) {
       doValidation = true;
     }
-    if (std::strcmp(arg, "--validate-kernels") == 0) {
-      doValidationKernels = true;
-    }
     if (std::strcmp(arg, "--start-problem") == 0) {
       problemStartIdx = atol(argv[argIdx+1]);
       argIdx++;
@@ -496,12 +494,74 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     }
     if (std::strcmp(arg, "--device") == 0) {
       deviceIdx = atol(argv[argIdx+1]);
+      deviceOverride = true;
       argIdx++;
     }
     if (std::strcmp(arg, "--platform") == 0) {
       platformIdx = atol(argv[argIdx+1]);
+      deviceOverride = true;
       argIdx++;
     }
+    if (std::strcmp(arg, "-h") == 0) {
+      printf("Usage: CobaltBenchmark [options]\n");
+      printf("Options:\n");
+      printf("  --validate         | validate results (very slow); default is off.\n");
+      printf("  --start-problem x  | start at problem idx (for continuing or debugging); default is 0.\n");
+      printf("  --end-problem x    | end at problem idx (for debugging); default is last.\n");
+      printf("  --start-solution x | start at solution idx (for debugging); default is 0.\n");
+      printf("  --end-solution x   | end at solution idx (for debugging); default is last.\n");
+      printf("  --platform x       | use platform idx (for OpenCL only); default specified by benchmark problem.\n");
+      printf("  --device x         | use device idx; default specified by benchmark problem.\n");
+      argIdx++;
+    }
+    
+  }
+
+  if (!deviceOverride) {
+    // select device based on CobaltProblem
+    cl_int status;
+    cl_uint numPlatforms;
+    status = clGetPlatformIDs(0, nullptr, &numPlatforms);
+    cl_platform_id *platforms = new cl_platform_id[numPlatforms];
+    status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
+    unsigned int numProfiles = 0;
+    for (unsigned int p = 0; p < numPlatforms; p++) {
+      cl_uint numDevices;
+      status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+      cl_device_id *devices = new cl_device_id[numDevices];
+      status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
+      for (unsigned int d = 0; d < numDevices; d++) {
+        CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+        profile.numDevices = 1;
+        status = clGetDeviceInfo(devices[d], CL_DEVICE_NAME, profile.devices[0].maxNameLength, profile.devices[0].name, 0);
+        status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(profile.devices[0].clockFrequency), &profile.devices[0].clockFrequency, 0);
+        status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(profile.devices[0].numComputeUnits), &profile.devices[0].numComputeUnits, 0);
+        if (strcmp(profile.devices[0].name, benchmarkDeviceName) == 0 && profile.devices[0].numComputeUnits == benchmarkDeviceNumComputeUnits && profile.devices[0].clockFrequency == benchmarkDeviceClockFrequency) {
+          platformIdx = p;
+          deviceIdx = d;
+          printf("Using benchmark-requested device: P[%u] D[%u]: %s %u CUs @ %u MHz (%.0f GFlop/s).\n", platformIdx, deviceIdx, profile.devices[0].name, profile.devices[0].numComputeUnits, profile.devices[0].clockFrequency, 1.0*profile.devices[0].numComputeUnits*profile.devices[0].clockFrequency*profile.devices[0].flopsPerClock / 1000.f);
+          break;
+        }
+      }
+      delete[] devices;
+    }
+    delete[] platforms;
+  } else {
+    cl_int status;
+    cl_uint numPlatforms;
+    status = clGetPlatformIDs(0, nullptr, &numPlatforms);
+    cl_platform_id *platforms = new cl_platform_id[numPlatforms];
+    status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
+    cl_uint numDevices;
+    status = clGetDeviceIDs(platforms[platformIdx], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+    cl_device_id *devices = new cl_device_id[numDevices];
+    status = clGetDeviceIDs(platforms[platformIdx], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
+    CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+    profile.numDevices = 1;
+    status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_NAME, profile.devices[0].maxNameLength, profile.devices[0].name, 0);
+    status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(profile.devices[0].clockFrequency), &profile.devices[0].clockFrequency, 0);
+    status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(profile.devices[0].numComputeUnits), &profile.devices[0].numComputeUnits, 0);
+    printf("Using user-overrided device: P[%u] D[%u]: %s %u CUs @ %u MHz (%.0f GFlop/s).\n", platformIdx, deviceIdx, profile.devices[0].name, profile.devices[0].numComputeUnits, profile.devices[0].clockFrequency, 1.0*profile.devices[0].numComputeUnits*profile.devices[0].clockFrequency*profile.devices[0].flopsPerClock / 1000.f);
   }
 }
 

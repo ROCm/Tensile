@@ -301,14 +301,18 @@ class Backend:
 # Device
 ################################################################################
 class Device:
-  def __init__(
-      self, \
-      name):
+  def __init__( self, name, numComputeUnits, clockFrequency, flopsPerClock):
     self.name = name
+    self.numComputeUnits = numComputeUnits
+    self.clockFrequency = clockFrequency
+    self.flopsPerClock = flopsPerClock
 
   def __str__(self):
     state = "[Device"
     state += "; " + self.name
+    state += "; " + self.numComputeUnits
+    state += "; " + self.clockFrequency
+    state += "; " + self.flopsPerClock
     state += "]"
     return self.name
 
@@ -318,6 +322,9 @@ class Device:
   def getAttributes(self):
     return ( \
         self.name, \
+        self.numComputeUnits, \
+        self.clockFrequency, \
+        self.flopsPerClock, \
         )
   def __hash__(self):
     return hash(self.getAttributes())

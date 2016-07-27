@@ -120,7 +120,10 @@ class CobaltHandler( xml.sax.ContentHandler ):
       n = int(attributes["n"])
       for i in range(0,n):
         name = attributes["d"+str(i)]
-        self.problem.deviceProfile.devices.append(Structs.Device( name ))
+        numComputeUnits = attributes["CU"+str(i)]
+        clockFrequency = attributes["MHz"+str(i)]
+        flopsPerClock = attributes["FPC"+str(i)]
+        self.problem.deviceProfile.devices.append(Structs.Device( name, numComputeUnits, clockFrequency, flopsPerClock ))
       pass
     elif tag == "ID":
       self.solution.kernels = []

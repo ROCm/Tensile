@@ -392,10 +392,19 @@ class FileWriter:
     #  h += "#include \"CL/cl.h\"\n"
     
     h += "\n"
-    h += "const size_t numProblems = " + str(numProblems) + ";\n"
-    h += "const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
-    h += "const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
-    h += "const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
+    h += "static const size_t numProblems = " + str(numProblems) + ";\n"
+    h += "static const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
+    h += "static const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
+    h += "static const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
+
+    # write device profile
+    dp = problemSolutionCandidates[0][0].deviceProfile
+    h += "\n"
+    h += "static const char *benchmarkDeviceName = \"" + dp.devices[0].name + "\";\n"
+    h += "static const unsigned int benchmarkDeviceNumComputeUnits = " + str(dp.devices[0].numComputeUnits) + ";\n"
+    h += "static const unsigned int benchmarkDeviceClockFrequency = " + str(dp.devices[0].clockFrequency) + ";\n"
+    h += "static const unsigned int benchmarkDeviceFlopsPerClock = " + str(dp.devices[0].flopsPerClock) + ";\n"
+
     h += "\n"
     h += "void initializeSolutionCandidates(CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
     h += "\n"

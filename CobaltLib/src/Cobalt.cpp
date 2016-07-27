@@ -45,7 +45,7 @@ CobaltStatus cobaltTeardown() {
     kernelMap = nullptr;
   }
 #endif
-
+  Cobalt::logger.close();
   return cobaltStatusSuccess;
 }
 
@@ -79,6 +79,70 @@ CobaltDeviceProfile cobaltCreateEmptyDeviceProfile() {
   return profile;
 }
 
+
+/*******************************************************************************
+ * cobaltCreateDeviceProfile
+ * returns CobaltDeviceProfile initialized to zero
+ ******************************************************************************/
+CobaltStatus cobaltEnumerateDeviceProfiles(
+    CobaltDeviceProfile *profiles,
+    unsigned int *size) {
+
+  // TODO - this will leak memory upon closing application
+  static std::vector<CobaltDeviceProfile> enumeratedProfiles;
+  static bool profilesEnumerated = false;
+
+  if (!profilesEnumerated) {
+#if Cobalt_BACKEND_OPENCL12
+    //printf("cobaltEnumerateDeviceProfiles(OpenCL)\n");
+    cl_int status;
+    cl_uint numPlatforms;
+    status = clGetPlatformIDs(0, nullptr, &numPlatforms);
+    cl_platform_id *platforms = new cl_platform_id[numPlatforms];
+    status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
+    unsigned int numProfiles = 0;
+    for (unsigned int p = 0; p < numPlatforms; p++) {
+      cl_uint numDevices;
+      status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+      cl_device_id *devices = new cl_device_id[numDevices];
+      status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
+      for (unsigned int d = 0; d < numDevices; d++) {
+        CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+        profile.numDevices = 1;
+        status = clGetDeviceInfo(devices[d], CL_DEVICE_NAME, profile.devices[0].maxNameLength, profile.devices[0].name, 0);
+        status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(profile.devices[0].clockFrequency), &profile.devices[0].clockFrequency, 0);
+        status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(profile.devices[0].numComputeUnits), &profile.devices[0].numComputeUnits, 0);
+        enumeratedProfiles.push_back(profile);
+        //printf("  Device[%u/%u][%u/%u]: %s %u CUs @ %u MHz (%.0f GFlop/s)\n", p, numPlatforms, d, numDevices, profile.devices[0].name, profile.devices[0].numComputeUnits, profile.devices[0].clockFrequency, 1.0*profile.devices[0].numComputeUnits*profile.devices[0].clockFrequency*profile.devices[0].flopsPerClock/1000.f);
+      }
+      delete[] devices;
+    }
+    delete[] platforms;
+#else
+    // TODO
+#endif
+    profilesEnumerated = true;
+  }
+
+  if (profiles) {
+    // do copy
+    if (size) { // copy up to size
+      size_t lengthToCopy = *size < enumeratedProfiles.size() ? *size : enumeratedProfiles.size();
+      std::memcpy(profiles, &enumeratedProfiles[0], lengthToCopy*sizeof(CobaltDeviceProfile));
+    } else { // copy all
+      std::memcpy(profiles, &enumeratedProfiles[0], enumeratedProfiles.size()*sizeof(CobaltDeviceProfile));
+    }
+  } else {
+    // just return size
+    if (size) {
+      *size = static_cast<unsigned int>(enumeratedProfiles.size());
+    } else {
+      // can't do anything
+      return cobaltStatusInvalidParameter;
+    }
+  }
+  return cobaltStatusSuccess;
+}
 
 /*******************************************************************************
 * cobaltCreateControl

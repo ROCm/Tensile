@@ -6,6 +6,18 @@
 #include <array>
 
 #define ULL (unsigned long long)
+void createAppXMLForExactMatch(
+    CobaltDataType typeC,
+    CobaltDataType typeA,
+    CobaltDataType typeB,
+    bool transA,
+    bool transB,
+    bool alpha,
+    bool beta,
+    size_t numBatches,
+    size_t initStride,
+    const std::vector<std::array<size_t, 3>> & sizes
+);
 CobaltTensor createTensorForMatrix(
     CobaltDataType dataType,
     size_t initialStride,
@@ -29,27 +41,61 @@ CobaltProblem createProblemGEMM(
   );
 unsigned int addGEMMCombinatorics();
 unsigned int addGEMMList();
+char cobaltDataTypeToChar(CobaltDataType t);
+size_t numProblems;
+
+// Device Profiles
+unsigned int numProfiles;
+unsigned int selectedProfile;
+CobaltDeviceProfile *profiles;
+
 
 /*******************************************************************************
  * main
  ******************************************************************************/
 int main( int argc, char * argv[] ) {
+  selectedProfile = 0;
+  if (argc > 1) {
+    selectedProfile = atol(argv[1]);
+  }
 
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
-  //logFilePath += "/GEMM_log.xml";
-  cobaltSetup(logFilePath.c_str());
 
-  //unsigned int numGemmList = addGEMMList();
-  //printf("GEMM List: %u\n", numGemmList );
+  cobaltEnumerateDeviceProfiles(nullptr, &numProfiles);
+  profiles = new CobaltDeviceProfile[numProfiles];
+  cobaltEnumerateDeviceProfiles(profiles, &numProfiles);
+  printf("CobaltDeviceProfiles:\n");
+  for (unsigned int i = 0; i < numProfiles; i++) {
+    printf("  (%2u) %11s: %3u CUs @ %5u MHz = %5.0f GFlop/s%s\n",
+      i,
+      profiles[i].devices[0].name,
+      profiles[i].devices[0].numComputeUnits,
+      profiles[i].devices[0].clockFrequency,
+      1.0*profiles[i].devices[0].numComputeUnits*profiles[i].devices[0].clockFrequency*profiles[i].devices[0].flopsPerClock / 1000.f,
+      (i==selectedProfile) ? " (selected)" : ""
+      );
+  }
+  if (selectedProfile >= numProfiles) {
+    printf("selectedProfile (%u) exceeds numProfiles (%u); aborting!", selectedProfile, numProfiles);
+    return 1;
+  }
 
-  unsigned int numGemmCombinatorics = addGEMMCombinatorics();
-  printf("GEMM Comb: %u\n", numGemmCombinatorics );
-
-  cobaltTeardown();
+#if 0
+  unsigned int numGemmList = addGEMMList();
+  printf("GEMM List: %u\n", numGemmList );
+#else
+  numProblems = 0;
+  addGEMMCombinatorics();
+  printf("Num GEMM Problems: %llu\n", numProblems);
+#endif
+  //cobaltTeardown();
 }
 
 // initially just for DNN, hence single precision
 unsigned int addGEMMList() {
+
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  //logFilePath += "/GEMM_log.xml";
+  cobaltSetup(logFilePath.c_str());
 
   for (unsigned int i = 0; i < num_gemm_params; i++) {
     // get parameters from list
@@ -84,8 +130,8 @@ unsigned int addGEMMList() {
     // send problem to logger
     CobaltSolution solution;
     CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
-    return 1;
   }
+  cobaltTeardown();
 
   return num_gemm_params;
 }
@@ -95,23 +141,19 @@ unsigned int addGEMMCombinatorics() {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
 #if 0
-  for (size_t i = 16; i <= 5760; i+= 16) {
+  size_t stride = 16;
+  size_t stride_incr = 16; // 0->1440, 16->108, 32->76
+  for (size_t i = 16; i <= 5760; i+= stride, stride += stride_incr) {
       sizes.push_back({ i, i, i }); // exact tile, exact unroll
       sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
       sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
       sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
   }
 #endif
+
+#if 1
   sizes.push_back( {5760, 5760, 5760 });
-  //sizes.push_back( {384, 384, 384 });
-  //sizes.push_back( {384-1, 384-1, 384 });
-  //sizes.push_back( {64, 64, 64});
-  //sizes.push_back( { 512  , 512  , 512 });
-  //sizes.push_back( { 512  , 512  , 512-1});
-  //sizes.push_back( { 512-1, 512-1, 512 });
-  //sizes.push_back( { 512-1, 512-1, 512-1});
-  //sizes.push_back( { 512+8, 512+8, 512+8});
-  //sizes.push_back( {4096, 4096, 4096});
+#endif
 
 #if 0
   // validation
@@ -125,11 +167,20 @@ unsigned int addGEMMCombinatorics() {
   sizes.push_back( { 96*3-1, 96*2-1, 96*1-1 });
 #endif
 
-  const size_t numStrides = 1;
+  // each api is own test
+
+  // how many problem options
+  const size_t numStrides     = 1; // 2
+  const size_t numBatchSizes  = 1; // 2
+  const size_t numDataTypes   = 1; // 10
+  const size_t numAlphas      = 1; // 1
+  const size_t numBetas       = 1; // 2
+  const size_t numTransA      = 1; // 2
+  const size_t numTransB      = 1; // 2
+
+  // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };
-  const size_t numBatchSizes = 1;
   size_t batches[] = { 1, 2 };
-  const size_t numDataTypes = 1;
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
     { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
@@ -145,72 +196,166 @@ unsigned int addGEMMCombinatorics() {
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
   };
-  const size_t numAlphas = 1;
-  const bool alphas[] = { true, false };
-  const size_t numBetas = 1;
+  const bool alphas[] = { true };
   const bool betas[] = { true, false };
-  const size_t numTransA = 1;
   const bool transAs[] = {false, true};
-  const size_t numTransB = 1;
   const bool transBs[] = {true, false};
-  const size_t numUseOffsets = 1;
-  const bool useOffsets[] = {false, true};
 
+  // create problem for each combination
   unsigned int numProblems = 0;
-  for (size_t transA = 0; transA < numTransA; transA++) {
-    for (size_t transB = 0; transB < numTransB; transB++) {
-      for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
-        for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
-          for (size_t dtIdx = 0; dtIdx < numDataTypes; dtIdx++) {
-            for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
-              for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
-                for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
-                  for (size_t offsetIdx = 0; offsetIdx < numUseOffsets; offsetIdx++) {
-                    size_t numBatches = batches[bIdx];
-                    size_t M = sizes[mIdx][0];
-                    size_t N = sizes[mIdx][1];
-                    size_t K = sizes[mIdx][2];
-                    //if (M != N || M != K || N != K) continue;
-                    size_t initStride = initialStrides[sIdx];
-                    bool alpha = alphas[alphaIdx];
-                    bool beta = betas[betaIdx];
-                    bool useOffset = useOffsets[offsetIdx];
-                    CobaltProblem problem = createProblemGEMM(
-                        transAs[transA],
-                        transBs[transB],
-                        M, N, K,
-                        initStride,
-                        numBatches,
-                        alpha,
-                        beta,
-                        useOffset,
-                        dataTypes[dtIdx][0],
-                        dataTypes[dtIdx][1],
-                        dataTypes[dtIdx][2]
-                      );
-                    //unsigned int nameSize;
-                    //cobaltProblemToString(problem, nullptr, &nameSize);
-                    //char *nameStr = new char[nameSize];
-                    //cobaltProblemToString(problem, nameStr, &nameSize);
-                    //delete[] nameStr;
-                    CobaltSolution solution;
-                    CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
+  for (size_t transAIdx = 0; transAIdx < numTransA; transAIdx++) {
+    for (size_t transBIdx = 0; transBIdx < numTransB; transBIdx++) {
+      for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
+        for (size_t dtIdx = 0; dtIdx < numDataTypes; dtIdx++) {
+          for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
+            for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
+              for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
+
+                createAppXMLForExactMatch(
+                    dataTypes[dtIdx][0],
+                    dataTypes[dtIdx][1],
+                    dataTypes[dtIdx][2],
+                    transAs[transAIdx],
+                    transBs[transBIdx],
+                    alphas[alphaIdx],
+                    betas[betaIdx],
+                    batches[bIdx],
+                    initialStrides[sIdx],
+                    sizes );
+#if 0
+                size_t numBatches = batches[bIdx];
+                size_t initStride = initialStrides[sIdx];
+                bool alpha = alphas[alphaIdx];
+                bool beta = betas[betaIdx];
+                bool useOffset = true;
+                std::string logFilePath = Cobalt_DIR_PROBLEMS;
+                std::string logFileName = "GEMM";
+                logFileName += "_";
+                logFileName += cobaltDataTypeToChar(dataTypes[dtIdx][0]);
+                logFileName += cobaltDataTypeToChar(dataTypes[dtIdx][1]);
+                logFileName += cobaltDataTypeToChar(dataTypes[dtIdx][2]);
+                logFileName += alpha ? cobaltDataTypeToChar(dataTypes[dtIdx][0]) : cobaltDataTypeToChar(cobaltDataTypeNone);
+                logFileName += beta  ? cobaltDataTypeToChar(dataTypes[dtIdx][0]) : cobaltDataTypeToChar(cobaltDataTypeNone);
+                logFileName += "_";
+                logFileName += transAs[transA] ? "T" : "N";
+                logFileName += transBs[transB] ? "T" : "N";
+                if (initStride > 1) {
+                  logFileName += "_strided";
+                }
+                if (numBatches > 1) {
+                  logFileName += "_batched";
+                }
+                logFileName += "_";
+                logFileName += std::to_string(sizes.size());
+                logFilePath += "/" + logFileName + ".xml";
+                printf("%s\n", logFileName.c_str());
+                cobaltSetup(logFilePath.c_str());
+
+                for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
+
+                  size_t M = sizes[mIdx][0];
+                  size_t N = sizes[mIdx][1];
+                  size_t K = sizes[mIdx][2];
+                  //if (M != N || M != K || N != K) continue;
+                  CobaltProblem problem = createProblemGEMM(
+                      transAs[transA],
+                      transBs[transB],
+                      M, N, K,
+                      initStride,
+                      numBatches,
+                      alpha,
+                      beta,
+                      useOffset,
+                      dataTypes[dtIdx][0],
+                      dataTypes[dtIdx][1],
+                      dataTypes[dtIdx][2]
+                    );
+                  //unsigned int nameSize;
+                  //cobaltProblemToString(problem, nullptr, &nameSize);
+                  //char *nameStr = new char[nameSize];
+                  //cobaltProblemToString(problem, nameStr, &nameSize);
+                  //delete[] nameStr;
+                  CobaltSolution solution;
+                  CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
 
 
-                    numProblems++;
-                  } // offsets
-                } // beta
-              } // alpha
-            } // batch
-          } // data type
-        } // stride
-      } // M
+                  numProblems++;
+                } // size
+
+                cobaltTeardown();
+#endif
+              } // beta
+            } // alpha
+          } // batch
+        } // data type
+      } // stride
     } // transB
   } // transA
 
   return numProblems;
 
 } // main
+
+
+void createAppXMLForExactMatch(
+    CobaltDataType typeC,
+    CobaltDataType typeA,
+    CobaltDataType typeB,
+    bool transA,
+    bool transB,
+    bool alpha,
+    bool beta,
+    size_t numBatches,
+    size_t initStride,
+    const std::vector<std::array<size_t, 3>> & sizes
+) {
+  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  std::string logFileName = "GEMM";
+  logFileName += "_";
+  logFileName += cobaltDataTypeToChar(typeC);
+  logFileName += cobaltDataTypeToChar(typeA);
+  logFileName += cobaltDataTypeToChar(typeB);
+  logFileName += alpha ? cobaltDataTypeToChar(typeC) : cobaltDataTypeToChar(cobaltDataTypeNone);
+  logFileName += beta ? cobaltDataTypeToChar(typeC) : cobaltDataTypeToChar(cobaltDataTypeNone);
+  logFileName += "_";
+  logFileName += transA ? "T" : "N";
+  logFileName += transB ? "T" : "N";
+  if (initStride > 1) {
+    logFileName += "_strided";
+  }
+  if (numBatches > 1) {
+    logFileName += "_batched";
+  }
+  logFileName += "_";
+  logFileName += std::to_string(sizes.size());
+  logFilePath += "/" + logFileName + ".xml";
+  printf("%s\n", logFileName.c_str());
+  cobaltSetup(logFilePath.c_str());
+  
+  for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
+  
+    size_t M = sizes[mIdx][0];
+    size_t N = sizes[mIdx][1];
+    size_t K = sizes[mIdx][2];
+    CobaltProblem problem = createProblemGEMM(
+        transA,
+        transB,
+        M, N, K,
+        initStride,
+        numBatches,
+        alpha,
+        beta,
+        true, // useOffset
+        typeC,
+        typeA,
+        typeB );
+    CobaltSolution solution;
+    CobaltStatus status = cobaltGetSolutionForProblem(&solution, problem);
+    numProblems++;
+  } // size
+  
+  cobaltTeardown();
+}
 
 
 /*******************************************************************************
@@ -284,13 +429,6 @@ CobaltProblem createProblemGEMM(
     indexAssignmentsB[0] = transB ? 1 : 2;
     indexAssignmentsB[1] = transB ? 2 : 1;
   }
-
-  // problem - device problem
-  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
-  deviceProfile.numDevices = 1;
-  sprintf(deviceProfile.devices[0].name, "Fiji" );
-
-
   
   CobaltProblem problem;
   CobaltStatus status = cobaltCreateProblem(
@@ -304,7 +442,7 @@ CobaltProblem createProblemGEMM(
       alphaType,
       betaType,
       useOffsets,
-      deviceProfile );
+      profiles[selectedProfile] );
   cobaltStatusCheck(status);
   unsigned int problemStringSize;
   cobaltProblemToString(problem, nullptr, &problemStringSize);
@@ -312,7 +450,6 @@ CobaltProblem createProblemGEMM(
   cobaltProblemToString(problem, problemString, &problemStringSize);
   printf("%4llux%4llux%4llu %s\n", ULL M, ULL N, ULL K, problemString);
   delete[] problemString;
-
 
   // problem - validate
   CobaltStatus validationStatus = cobaltValidateProblem( problem );
@@ -352,4 +489,19 @@ CobaltTensor createTensorForMatrix(
     tensor.dimensions[2].size = (unsigned int) dimBatch;
   }
   return tensor;
+}
+
+char cobaltDataTypeToChar(CobaltDataType t) {
+  switch (t) {
+  case cobaltDataTypeHalf:                    return 'H';
+  case cobaltDataTypeSingle:                  return 'S';
+  case cobaltDataTypeDouble:                  return 'D';
+  case cobaltDataTypeComplexHalf:             return 'Q';
+  case cobaltDataTypeComplexSingle:           return 'C';
+  case cobaltDataTypeComplexDouble:           return 'Z';
+  case cobaltDataTypeComplexConjugateHalf:    return 'W';
+  case cobaltDataTypeComplexConjugateSingle:  return 'X';
+  case cobaltDataTypeComplexConjugateDouble:  return 'Y';
+  default:                                    return '0';
+  }
 }
