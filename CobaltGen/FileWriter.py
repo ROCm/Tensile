@@ -600,7 +600,7 @@ class FileWriter:
     templateInstantiationSet = set()
 
     for deviceProfile, exactMatches in psTimes.iteritems():
-      # print str(deviceProfile), str(exactMatches)
+      print str(deviceProfile)
       # (2) Write Device-Level Solution Selection files
       baseName = "CobaltGetSolution_" + deviceProfile.libString()
       sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
@@ -614,6 +614,7 @@ class FileWriter:
       sslHeaderFile.close()
 
       for exactMatch, pspTypes in exactMatches.iteritems():
+        print exactMatch, len(pspTypes[0]), len(pspTypes[1])
         rangePSPs = pspTypes[0]
         exactPSPs = pspTypes[1]
         # only support this exact match if some benchmark times existed
@@ -636,6 +637,7 @@ class FileWriter:
         sslSourceFile = open(sslSourcePath, "w")
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
+        print "calling writeGetSolutionForExactMatch"
         sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
         sslSourceFile.write(sslSourceString)
         sslSourceFile.close()

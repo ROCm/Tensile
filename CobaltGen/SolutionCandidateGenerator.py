@@ -178,12 +178,12 @@ class SolutionCandidateGenerator:
         tensorStrideDim1 = problem.tensorA.dimensions[i].stride
         break
 
-    inputProblem.sizeType = 0
-    problem.sizeType = 0
-    problemIsRectangular = True
-    if (not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0) or (not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0) or (not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0):
-      inputProblem.sizeType = 1
-      problem.sizeType = 1
+    #inputProblem.sizeType = 0
+    #problem.sizeType = 0
+    #problemIsRectangular = True
+    #if (not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0) or (not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0) or (not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0):
+    #  inputProblem.sizeType = 1
+    #  problem.sizeType = 1
 
     ###################################
     # Determine Search Universe

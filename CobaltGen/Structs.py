@@ -1,3 +1,4 @@
+import SolutionCandidateGenerator
 
 ################################################################################
 # Status - Enum
@@ -619,6 +620,22 @@ class Problem:
     return self.sizeFree
 
   def getSizeType(self):
+    if self.sizeType < 0:
+      # make index assignments
+      kernel = Kernel()
+      SolutionCandidateGenerator.makeIndexAssignments(kernel, self)
+      # get key sizes
+      problemSizeDim0 = self.tensorC.dimensions[ kernel.indexAssignmentDim0].size
+      problemSizeDim1 = self.tensorC.dimensions[ kernel.indexAssignmentDim1].size
+      problemSizeUnroll = -1
+      for i in range(len(self.operation.indexAssignmentsA)):
+        if kernel.indexUnroll == self.operation.indexAssignmentsA[i]:
+          problemSizeUnroll = self.tensorA.dimensions[i].size
+          break
+      # if sizes are squarish, then type=0
+      self.sizeType = 0
+      if (not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0) or (not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0) or (not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0):
+        self.sizeType = 1
     return self.sizeType
 
 

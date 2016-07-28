@@ -142,9 +142,9 @@ class CobaltHandler( xml.sax.ContentHandler ):
         self.solution.kernels.append(None)
       self.solution.kernelGrid = [ int(attributes["kG0"]), int(attributes["kG1"]), int(attributes["kG2"]) ]
       self.solution.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
-      self.solution.ppdOffsets = attributes["ppdO"] == "True"
-      self.solution.ppdLeadingStride = attributes["ppdLS"] == "True"
-      self.solution.ppdAll = attributes["ppdAll"] == "True"
+      self.solution.ppdOffsets = int(attributes["ppdO"])
+      self.solution.ppdLeadingStride = int(attributes["ppdLS"])
+      self.solution.ppdAll = int(attributes["ppdAll"])
       pass
     elif tag == "K":
       # read data from xml
