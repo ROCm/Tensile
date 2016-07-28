@@ -171,7 +171,7 @@ class KernelWriter:
         kernelName += "_" + str(kernel.unrolls[i])
 
     # optimization level
-      ppdStr = ""
+    ppdStr = ""
     if kernel.ppdOffsets and not kernel.ppdLeadingStride:
       ppdStr = "O1"
     elif not kernel.ppdOffsets and kernel.ppdLeadingStride:

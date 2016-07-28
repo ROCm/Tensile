@@ -497,7 +497,7 @@ class SolutionCandidateGenerator:
                       if leadingStridesOne:
                         solution.ppdLeadingStride = ppdLeadingStride
                       solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
-                      solution.ppdAll = False # kernels 1-3 will need sizes
+                      solution.ppdAll = 0 # kernels 1-3 will need sizes
                       # add main kernel
                       kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
                       if leadingStridesOne:
@@ -510,23 +510,23 @@ class SolutionCandidateGenerator:
                       kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
                       if leadingStridesOne:
                         kernel.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdOffsets = False
-                      kernel.ppdAll = False
+                      kernel.ppdOffsets = 0
+                      kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add edge-1 kernel
                       solution.kernelGrid[1] += 1
                       kernel.tile.branch = [ Structs.BranchType(0), branchType ]
                       if leadingStridesOne:
                         kernel.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdOffsets = False
-                      kernel.ppdAll = False
+                      kernel.ppdOffsets = 0
+                      kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add corner-01 kernel
                       kernel.tile.branch = [ branchType, branchType ]
                       if leadingStridesOne:
                         kernel.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdOffsets = False
-                      kernel.ppdAll = False
+                      kernel.ppdOffsets = 0
+                      kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
 
                     # branch - 1 branched kernel

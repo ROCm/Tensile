@@ -203,9 +203,9 @@ class CobaltHandler( xml.sax.ContentHandler ):
         # self.data.add(copy.deepcopy(self.problem))
         exactMatch = Structs.ExactMatch()
         self.assignExactMatch(exactMatch)
-        exactMatch.ppdOffsets = -1
-        exactMatch.ppdLeadingStride = -1
-        exactMatch.ppdAll = -1
+        exactMatch.ppdOffsets = 0
+        exactMatch.ppdLeadingStride = 0
+        exactMatch.ppdAll = 0
         addProblemToTree( self.data, exactMatch, copy.deepcopy(self.problem) )
         self.numProblemsAdded += 1
     elif tag == "T": # DONE

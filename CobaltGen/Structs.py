@@ -500,9 +500,9 @@ class ExactMatch:
     self.numIndicesFree = -1
     self.indexAssignmentsA = []
     self.indexAssignmentsB = []
-    self.ppdOffsets = False # if true, solution must allow offset parameters; if false, enqueue must not use offsets
-    self.ppdLeadingStrides = False # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
-    # self.ppdAll = False # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
+    self.ppdOffsets = 0 # if true, solution must allow offset parameters; if false, enqueue must not use offsets
+    self.ppdLeadingStrides = 0 # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
+    self.ppdAll = 0 # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
 
   def __str__(self):
     return self.libString()
@@ -538,11 +538,17 @@ class ExactMatch:
       ppdStr = "O1"
     elif not self.ppdOffsets and self.ppdLeadingStride:
       ppdStr = "O2"
-    elif self.ppdOffsets and self.ppdLeadingStride:
+    elif self.ppdOffsets and self.ppdLeadingStride and not self.ppdAll:
       ppdStr = "O3"
+    elif self.ppdAll:
+      ppdStr = "04"
     else:
       ppdStr = "O0"
-    state += "_" + ppdStr
+    # state += "_" + ppdStr
+    # when selecting a kernel, the ppd must match so that kernel arguments are same, but
+    # since ExactMatch is only ever converted to string to describe a problem only and
+    # ppd is implementation detail, we can avoid attaching ppd to ExactMatch string
+    # resulting in a cleaner output
     return state
 
   def __repr__(self):
