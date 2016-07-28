@@ -3,7 +3,7 @@ const unsigned int num_gemm_params = 1;
 
 unsigned int gemm_params[][11] = {
 /*{     M,     N,     K,    tA,    tB,   lda,   ldb,   ldc, alpha,  beta, cnt },  network   */
-  {   384,   169,  2304,     0,     0,  2304,   169,   169,      1,    0,  32 }
+  {   384,   169,  2304,     0,     0,  2304,   169,   169,      1,    0,  0 }
 };
 
 

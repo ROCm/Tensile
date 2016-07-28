@@ -94,7 +94,7 @@ int main( int argc, char * argv[] ) {
 unsigned int addGEMMList() {
 
   std::string logFilePath = Cobalt_DIR_PROBLEMS;
-  //logFilePath += "/GEMM_log.xml";
+  logFilePath += "/GEMM.xml";
   cobaltSetup(logFilePath.c_str());
 
   for (unsigned int i = 0; i < num_gemm_params; i++) {
