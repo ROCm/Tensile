@@ -13,7 +13,7 @@ def addTimeToMap( psMap, exactMatch, problem, solution, time ):
     #print "XML Parser: b.adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
   if exactMatch not in psMap[exactMatch.deviceProfile]:
-    #print "XML Parser:   b.adding %s" % exactMatch.libString()
+    print "XML Parser:   b.adding %s" % exactMatch.libString()
     psMap[exactMatch.deviceProfile][exactMatch] = [{},{}]
   if problem not in psMap[exactMatch.deviceProfile][exactMatch][problem.getSizeType()]:
     #print "XML Parser:     b.adding %s" % str(problem)
@@ -174,6 +174,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].dataTypeC = self.problem.tensorC.dataType
       self.solution.kernels[i].dataTypeA = self.problem.tensorA.dataType
       self.solution.kernels[i].dataTypeB = self.problem.tensorB.dataType
+      self.solution.kernels[i].dataTypeAlpha = self.problem.operation.alphaType
+      self.solution.kernels[i].dataTypeBeta = self.problem.operation.betaType
       #kernel.operation = self.problem.operation
       self.solution.kernels[i].problem = self.problem
       self.solution.kernels[i].ppdOffsets = self.solution.ppdOffsets

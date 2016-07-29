@@ -821,6 +821,8 @@ class Kernel:
     self.dataTypeC = DataType(-1)
     self.dataTypeA = DataType(-1)
     self.dataTypeB = DataType(-1)
+    self.dataTypeAlpha = DataType(-1)
+    self.dataTypeBeta = DataType(-1)
     #self.operation = Operation()
     # Index Assignments
     self.indexOrderC = []
@@ -876,12 +878,19 @@ class Kernel:
   def lastLoadRequiresGuardPerpB(self):
     return self.totalLoadSizePerpB < self.numLoadsPerpB * self.loadSizePerpB
 
+  
+  def useAlpha(self):
+    return self.dataTypeAlpha.value != DataType.none
+  def useBeta(self):
+    return self.dataTypeBeta.value != DataType.none
 
   def __str__(self):
     state = "[Kernel; " + str(self.tile)
     state += "; " + str(self.dataTypeC)
     state += "; " + str(self.dataTypeA)
     state += "; " + str(self.dataTypeB)
+    state += "; " + str(self.dataTypeAlpha)
+    state += "; " + str(self.dataTypeBeta)
     state += "; " + str(self.indexOrderC)
     state += "; " + str(self.indexOrderSummation)
     state += "; " + str(self.indexAssignmentDim0)
@@ -901,6 +910,8 @@ class Kernel:
         self.dataTypeC, \
         self.dataTypeA, \
         self.dataTypeB, \
+        self.dataTypeAlpha, \
+        self.dataTypeBeta, \
         tuple(self.indexOrderC), \
         tuple(self.indexOrderSummation), \
         self.indexAssignmentDim0, \

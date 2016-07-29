@@ -74,13 +74,13 @@ class KernelWriter:
 
     # alpha
     # if kernel.problem.operation.useAlpha:
-    kernelName += kernel.problem.operation.alphaType.toChar().upper()
+    kernelName += kernel.dataTypeAlpha.toChar().upper()
     # else:
     #   kernelName += "0"
 
     # beta
     # if kernel.problem.operation.useBeta():
-    kernelName += kernel.problem.operation.betaType.toChar().upper()
+    kernelName += kernel.dataTypeBeta.toChar().upper()
     # else:
     #   kernelName += "0"
 
@@ -245,10 +245,10 @@ class KernelWriter:
         + " const * " + restrictStr + " B"
 
     # alpha & beta
-    if kernel.problem.operation.useAlpha():
+    if kernel.useAlpha():
       s += "," + self.endLine + "  " \
           + kernel.dataTypeC.toDevice(self.backend) + " const alpha"
-    if kernel.problem.operation.useBeta():
+    if kernel.useBeta():
       s += "," + self.endLine + "  " \
           + kernel.dataTypeC.toDevice(self.backend) + " const beta"
 
@@ -490,8 +490,8 @@ class KernelWriter:
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
           + "DST = MAD(MULA,MULB,DST);" + self.endLine
-      if kernel.problem.operation.useAlpha():
-        if kernel.problem.operation.useBeta():
+      if kernel.useAlpha():
+        if kernel.useBeta():
           # dst = alpha*reg + beta*dst
           kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) " \
               + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
@@ -500,7 +500,7 @@ class KernelWriter:
           kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG) " \
               + "DST = (ALPHA)*(REG);" + self.endLine
       else:
-        if kernel.problem.operation.useBeta():
+        if kernel.useBeta():
           # dst = reg + beta*dst
           kStr += "#define TYPE_MAD_WRITE(DST,REG,BETA) " \
               + "DST = (REG) + (BETA)*(DST);" + self.endLine
@@ -542,8 +542,8 @@ class KernelWriter:
           "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = MAD( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel.problem.operation.useAlpha():
-        if kernel.problem.operation.useBeta():
+      if kernel.useAlpha():
+        if kernel.useBeta():
           # dst = alpha*reg + beta*dst
           kStr += (
             "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
@@ -573,7 +573,7 @@ class KernelWriter:
             "  /* (3) */ " + self.endLinePP +
             "  DST = REG;" + self.endLine )
       else:
-        if kernel.problem.operation.useBeta():
+        if kernel.useBeta():
           # dst = reg + beta*dst
           kStr += (
             "#define TYPE_MAD_WRITE( DST, REG, BETA ) " + self.endLinePP +
@@ -1444,10 +1444,10 @@ class KernelWriter:
           if i < len(kernel.indexOrderC)-1:
             kStr += ","
         kStr += ") ]"
-        if kernel.problem.operation.useAlpha():
+        if kernel.useAlpha():
           kStr += ", alpha"
         kStr += ", rC[%d][%d]" % (a, b)
-        if kernel.problem.operation.useBeta():
+        if kernel.useBeta():
           kStr += ", beta"
         kStr += ")"
         # debug printf

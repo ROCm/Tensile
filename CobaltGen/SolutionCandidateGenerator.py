@@ -138,6 +138,8 @@ class SolutionCandidateGenerator:
     kernel.dataTypeC = problem.tensorC.dataType
     kernel.dataTypeA = problem.tensorA.dataType
     kernel.dataTypeB = problem.tensorB.dataType
+    kernel.dataTypeAlpha = problem.operation.alphaType
+    kernel.dataTypeBeta = problem.operation.betaType
     kernel.problem = problem
 
     # Index Assignments

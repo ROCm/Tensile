@@ -419,7 +419,7 @@ class FileWriter:
     # init function
     s += "\n"
     s += "void initializeSolutionCandidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex) {\n"
-    s += "  switch( problemIndex ) {\n"
+    s += "  switch( exactMatchIndex ) {\n"
     exactMatchIdx = 0
     for deviceProfile, exactMatches in problemTree.iteritems():
       for exactMatch, problemSet in exactMatches.iteritems():
