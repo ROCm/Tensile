@@ -452,10 +452,10 @@ class FileWriter:
     h += "static const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
     h += "static const size_t benchmarkNumExactMatches = " + str(benchmarkNumExactMatches) + ";\n"
     h += "static const char *benchmarkExactMatchNames[] = {\n"
-    h += "    \"" + benchmarkExactMatchNames[0] + "\""
+    h += "    \"" + benchmarkExactMatchNames[0]
     for i in range(1, len(benchmarkExactMatchNames)):
-      h += ",\n    \"" + benchmarkExactMatchNames[i]
-    h += "\n    };\n"
+      h += "\",\n    \"" + benchmarkExactMatchNames[i]
+    h += "\"\n    };\n"
     
     h += "static const size_t benchmarkExactMatchNumProblems[] = {\n"
     h += "    " + str(benchmarkExactMatchNumProblems[0])
