@@ -72,7 +72,7 @@ Logger::Logger() {
 void Logger::init( std::string inputLogFilePath) {
   size_t slashIdx = inputLogFilePath.find_last_of('/');
   size_t backslashIdx = inputLogFilePath.find_last_of('\\');
-  size_t splitIdx = min(slashIdx, backslashIdx);
+  size_t splitIdx = cobaltMin(slashIdx, backslashIdx);
   splitIdx++;
   std::string logFilePath = inputLogFilePath.substr(0, splitIdx);
   std::string logFileName = inputLogFilePath.substr(splitIdx, inputLogFilePath.size() - splitIdx);

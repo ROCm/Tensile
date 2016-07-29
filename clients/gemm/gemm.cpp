@@ -79,7 +79,7 @@ int main( int argc, char * argv[] ) {
     return 1;
   }
 
-#if 0
+#if 1
   unsigned int numGemmList = addGEMMList();
   printf("GEMM List: %u\n", numGemmList );
 #else

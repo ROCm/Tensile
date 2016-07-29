@@ -721,29 +721,6 @@ class Problem:
 
 
 ################################################################################
-# ProblemRange
-# - contiguous range of problems uniterrupted by any other ProblemRange
-# - after benchmarking, MAP[Solution]->ProblemList, ProblemList needs to be
-#   broken down into ProblemRanges such that:
-#   - if Problem is in ProblemRange, use associated Solution
-################################################################################
-class ProblemRange:
-  def __init__(self):
-    self.mins = []
-    self.maxs = []
-    self.mods = []
-    self.freeMin = -1
-    self.freeMax = -1
-    self.freeMod = -1
-    self.summationMin = -1
-    self.summationMax = -1
-    self.summationMod = -1
-# contains one set of SolutionCorrectnessParameters
-# work-item min, max (dimA*dimB outside of summation)
-# summation size, "k"
-
-
-################################################################################
 # BranchType - Enum
 ################################################################################
 class BranchType:
@@ -911,8 +888,8 @@ class Kernel:
     state += "; " + str(self.indexAssignmentDim1)
     state += "; " + str(self.tile)
     state += "; " + str(self.unrolls)
-    state += "; " + str(self.numLoadsA)
-    state += "; " + str(self.numLoadsB)
+    state += "; " + str(self.numLoadsParaA)
+    state += "; " + str(self.numLoadsParaB)
     state += "]"
     return state
 

@@ -749,17 +749,20 @@ class SolutionSelectionWriter:
           s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
           s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
-    fallbackPSP = rule[1]
-    fallbackSolution = fallbackPSP[1]
-    sizeUL = fallbackSolution.kernels[0].unrolls[0]
-    gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
-    s += indent + "  if ( sizeU >= %2u) { return new Cobalt::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
-    newFallbackSolution = copy.deepcopy( fallbackSolution )
-    for i in range( 0, 4):
-      if newFallbackSolution.kernels[i] != None:
-        newFallbackSolution.kernels[i].unrolls = [ 1 ]
-    s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
-
+    fallbackPSP = rule[1] # TODO handle None here
+    if fallbackPSP != None:
+      fallbackSolution = fallbackPSP[1]
+      sizeUL = fallbackSolution.kernels[0].unrolls[0]
+      gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
+      s += indent + "  if ( sizeU >= %2u) { return new Cobalt::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+      newFallbackSolution = copy.deepcopy( fallbackSolution )
+      for i in range( 0, 4):
+        if newFallbackSolution.kernels[i] != None:
+          newFallbackSolution.kernels[i].unrolls = [ 1 ]
+      s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
+    else:
+      s += indent + "  *status = cobaltStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
+      s += indent + "  return nullptr;\n"
     s += indent + "}"
     return s
 
@@ -804,13 +807,16 @@ class SolutionSelectionWriter:
     s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
     s += "  unsigned int size1 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim1)
-    dimU = kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
+    print "indexOrderSummation", kernel.indexOrderSummation
+    dimU = len(problem.tensorC.dimensions) + kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
+    print "dimU", dimU
     idxU = -1
+    print "indexAssignmentsA", problem.operation.indexAssignmentsA
     for i in range(0, len(problem.operation.indexAssignmentsA)):
       if problem.operation.indexAssignmentsA[i] == dimU:
         idxU = i
     s += "  unsigned int sizeU = problem.tensorA[%u].size;\n" % (idxU)
-    s += "  *status = cobaltStatusSuccess; // if you made it this far, you're guaranteed a correct solution\n"
+    s += "  *status = cobaltStatusSuccess; // if you made it this far, you're likely guaranteed a correct solution\n"
 
     firstSizeGroup = True
     lastSizeGroup = False
@@ -820,12 +826,12 @@ class SolutionSelectionWriter:
       lastSizeGroup = True
       # create single rule for size zero
       unorderedGroups = []
-      fallback = exactPSPs[0]
+      fallback = None # exactPSPs[0]
       ruleSizeThresholdUpperP = None
       fallbackLowerBoundP = exactPSPs[0][0]
       rule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, fallbackLowerBoundP]
-      ruleString = self.ruleToString(rule)
-      print "RULE: " + ruleString
+      #ruleString = self.ruleToString(rule)
+      #print "RULE: " + ruleString
       
       exactPSPsInRange = exactPSPs
       fastestExactPSPsInRange = []
@@ -862,12 +868,14 @@ class SolutionSelectionWriter:
         for slowPSP in slowPSPs:
           exactPSPsInRange.remove(slowPSP)
       for psp in fastestExactPSPsInRange:
+        print "adding " + str(psp[1])
         localSolutionSet.add( psp[1] )
+        self.addPSPToSets(psp)
 
       # finalRuleString = self.ruleToString(rule)
       # print "FINAL RULE: " + finalRuleString
       
-      self.addRuleToSets(rule)
+      # self.addRuleToSets(rule)
       s += self.ruleToLibString(rule, firstSizeGroup, lastSizeGroup, fastestExactPSPsInRange, "  ")
       #for ug in rule[0]: # exact tiles
       #  for psp in ug:
