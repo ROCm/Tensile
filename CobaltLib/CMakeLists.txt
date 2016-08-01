@@ -97,6 +97,8 @@ add_custom_command(
     --backend=${Cobalt_BACKEND}
     --input-path=${Cobalt_DIR_SOLUTIONS}
     --output-path=${CobaltLib_DIR_GENERATED}
+    --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
+    --optimize-beta=${Cobalt_OPTIMIZE_BETA}
   DEPENDS ${CobaltGen_SRC} ${Cobalt_XML_SOLUTIONS_FILE}
 )
 

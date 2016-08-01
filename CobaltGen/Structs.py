@@ -636,6 +636,8 @@ class Problem:
       self.sizeType = 0
       if (not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0) or (not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0) or (not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0):
         self.sizeType = 1
+      if abs(problemSizeDim0-problemSizeDim1) > 1 or abs(problemSizeDim0-problemSizeUnroll) > 1 or abs(problemSizeDim1-problemSizeUnroll) > 1:
+        self.sizeType = 1
     return self.sizeType
 
 

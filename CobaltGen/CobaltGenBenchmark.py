@@ -41,7 +41,7 @@ def GenBenchmarkFromFiles( \
   # for each input file, accumulate problems
   for inputFile in inputFiles:
     # print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
-    FileReader.getProblemsFromXML( inputFile, problemTree )
+    FileReader.getProblemsFromXML( inputFile, problemTree, optimizeAlpha, optimizeBeta )
   print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
   #for problem in problemSet:
   #  print str(problem)
