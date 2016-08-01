@@ -123,7 +123,19 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     }
     delete[] platforms;
 #else
-    // TODO
+    hipError_t status;
+    int numDevices;
+    status = hipGetDeviceCount( &numDevices );
+    for (int i = 0; i < numDevices; i++) {
+      hipDeviceProp_t deviceProperties;
+      hipGetDeviceProperties( &deviceProperties, i);
+      CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+      profile.numDevices = 1;
+      strcpy( profile.name, deviceProperties.name );
+      profile.numComputeUnits = deviceProperties.multiProcessorCount;
+      profile.clockFrequency = deviceProperties.clockRate;
+      enumeratedProfiles.push_back(profile);
+    }
 #endif
 
 #endif

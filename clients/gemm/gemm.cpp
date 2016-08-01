@@ -85,7 +85,7 @@ int main( int argc, char * argv[] ) {
 #else
   numProblems = 0;
   addGEMMCombinatorics();
-  printf("Num GEMM Problems: %llu\n", numProblems);
+  printf("Num GEMM Problems: %u\n", static_cast<unsigned int>(numProblems));
 #endif
   //cobaltTeardown();
 }
