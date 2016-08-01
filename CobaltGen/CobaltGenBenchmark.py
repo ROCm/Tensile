@@ -41,7 +41,7 @@ def GenBenchmarkFromFiles( \
   # for each input file, accumulate problems
   for inputFile in inputFiles:
     # print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
-    FileReader.getProblemsFromXML( inputFile, problemTree )
+    FileReader.getProblemsFromXML( inputFile, problemTree, optimizeAlpha, optimizeBeta )
   print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
   #for problem in problemSet:
   #  print str(problem)
@@ -79,10 +79,12 @@ def GenBenchmarkFromFiles( \
             #   print solution
           allSolutions.add( solution )
           # print len(allSolutions)
+          # print len(allSolutions)
         kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
         for kernel in kernelsInSolutionCandidates:
           if kernel != None:
             allKernels.add( kernel )
+            # print kernel
         print "Prob[" + str(problemIdx) + "] \"" + str(problem) + "\": " + str(len(solutionCandidates)) + "/" + str(len(allSolutions)) + " solutions"
         problemIdx += 1
   kernelWriter = KernelWriter.KernelWriter(backend)

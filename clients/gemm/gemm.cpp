@@ -171,13 +171,13 @@ unsigned int addGEMMCombinatorics() {
   // each api is own test
 
   // how many problem options
-  const size_t numStrides     = 2; // 2
-  const size_t numBatchSizes  = 2; // 2
-  const size_t numDataTypes   = 2; // 10
+  const size_t numStrides     = 1; // 2
+  const size_t numBatchSizes  = 1; // 2
+  const size_t numDataTypes   = 1; // 10
   const size_t numAlphas      = 1; // 1
-  const size_t numBetas       = 1; // 2
-  const size_t numTransA      = 2; // 2
-  const size_t numTransB      = 2; // 2
+  const size_t numBetas       = 2; // 2
+  const size_t numTransA      = 1; // 2
+  const size_t numTransB      = 1; // 2
 
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };

@@ -46,10 +46,10 @@ def addValidationToMap( psMap, exactMatch, problem, solution, validationStatus )
   
 def addProblemToTree( tree, exactMatch, problem ):
   if exactMatch.deviceProfile not in tree:
-    print "XML Parser: t.adding %s" % exactMatch.deviceProfile.libString()
+    #print "XML Parser: t.adding %s" % exactMatch.deviceProfile.libString()
     tree[exactMatch.deviceProfile] = {}
   if exactMatch not in tree[exactMatch.deviceProfile]:
-    print "XML Parser:   t.adding %s" % exactMatch.libString()
+    #print "XML Parser:   t.adding %s" % exactMatch.libString()
     tree[exactMatch.deviceProfile][exactMatch] = set()
   tree[exactMatch.deviceProfile][exactMatch].add(problem)
 
@@ -60,10 +60,12 @@ def addProblemToTree( tree, exactMatch, problem ):
 ################################################################################
 class CobaltHandler( xml.sax.ContentHandler ):
   dbgPrint = False
-  def __init__(self, data, readSolutions):
+  def __init__(self, data, readSolutions, optimizeAlpha, optimizeBeta):
     self.data = data
     self.readSolutions = readSolutions # read problems and solutions for GenBackend
     self.readProblems = not readSolutions # read problems only for GenBenchmark
+    self.optimizeAlpha = optimizeAlpha
+    self.optimizeBeta = optimizeBeta
 
     # for reading problems
     self.numProblemsAdded = 0
@@ -105,10 +107,14 @@ class CobaltHandler( xml.sax.ContentHandler ):
         self.problem.tensorB.dimensions.append(dim)
     elif tag == "O":
       self.problem.operation.type.value = int(attributes["t"])
-      #self.problem.operation.useAlpha = int(attributes["useAlpha"])
-      self.problem.operation.alphaType.value = int(attributes["a"])
-      #self.problem.operation.useBeta = int(attributes["useBeta"])
-      self.problem.operation.betaType.value = int(attributes["b"])
+      if self.optimizeAlpha:
+        self.problem.operation.alphaType.value = int(attributes["a"])
+      else:
+        self.problem.operation.alphaType.value = self.problem.tensorC.dataType.value
+      if self.optimizeBeta:
+        self.problem.operation.betaType.value = int(attributes["b"])
+      else:
+        self.problem.operation.betaType.value = self.problem.tensorC.dataType.value
       self.problem.operation.useOffsets = int(attributes["o"])
       self.problem.operation.numIndicesFree = \
           int(attributes["nF"])
@@ -174,6 +180,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].dataTypeC = self.problem.tensorC.dataType
       self.solution.kernels[i].dataTypeA = self.problem.tensorA.dataType
       self.solution.kernels[i].dataTypeB = self.problem.tensorB.dataType
+      self.solution.kernels[i].dataTypeAlpha = self.problem.operation.alphaType
+      self.solution.kernels[i].dataTypeBeta = self.problem.operation.betaType
       #kernel.operation = self.problem.operation
       self.solution.kernels[i].problem = self.problem
       self.solution.kernels[i].ppdOffsets = self.solution.ppdOffsets
@@ -234,11 +242,11 @@ class CobaltHandler( xml.sax.ContentHandler ):
 ################################################################################
 # getProblemsFromXML
 ################################################################################
-def getProblemsFromXML( inputFile, problemTree ):
+def getProblemsFromXML( inputFile, problemTree, optimizeAlpha, optimizeBeta ):
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = False
-  appProblemsHandler = CobaltHandler(problemTree, readSolutions)
+  appProblemsHandler = CobaltHandler(problemTree, readSolutions, optimizeAlpha, optimizeBeta)
   parser.setContentHandler( appProblemsHandler )
   #try:
   parser.parse( inputFile )
@@ -250,11 +258,11 @@ def getProblemsFromXML( inputFile, problemTree ):
 ################################################################################
 # getProblemsFromXML
 ################################################################################
-def getSolutionsFromXML( inputFile, psMap ):
+def getSolutionsFromXML( inputFile, psMap, optimizeAlpha, optimizeBeta ):
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = True
-  solutionsHandler = CobaltHandler(psMap, readSolutions)
+  solutionsHandler = CobaltHandler(psMap, readSolutions, optimizeAlpha, optimizeBeta)
   parser.setContentHandler( solutionsHandler )
   #try:
   #print "XML Parser: parsing %s" % str(inputFile)

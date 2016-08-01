@@ -673,10 +673,14 @@ class SolutionSelectionWriter:
     return
 
   def addPSPToSets( self, psp):
+    #startSolutionSetSize = len(self.solutionSet)
+    #startKernelSetSize = len(self.kernelSet)
     self.solutionSet.add( psp[1] )
+    #print "addPSPToSets() %i->%i add-s %s" % (startSolutionSetSize, len(self.solutionSet), str(psp[1]))
     for kernel in psp[1].kernels:
       if kernel != None:
         self.kernelSet.add( kernel )
+        #print "addPSPToSets() %i->%i add-k %s" % (startKernelSetSize, len(self.kernelSet), str(kernel))
 
   def addRuleToSets(self, rule):
     for ug in rule[0]: # exact tiles
@@ -773,17 +777,17 @@ class SolutionSelectionWriter:
   #############################################################################
   def writeGetSolutionForExactMatch(self, exactMatch, \
       inputRangePSPs, inputExactPSPs):
-
     s = ""
     h = ""
     if len(inputRangePSPs) < 1 and len(inputExactPSPs) < 1:
       return (s, h)
     exactOnly = len(inputRangePSPs)==0
+    print "writeGetSolutionForExactMatch(%s;%i;%i)" % (str(exactMatch), len(inputRangePSPs), len(inputExactPSPs))
 
-    print "Sorting %u rangePSPs, %u exactPSPs" % (len(inputRangePSPs), len(inputExactPSPs))
+    #print "Sorting %u rangePSPs, %u exactPSPs" % (len(inputRangePSPs), len(inputExactPSPs))
     rangePSPs = self.sortSizePSPs(inputRangePSPs)
     exactPSPs = self.sortSizePSPs(inputExactPSPs)
-    print "Sorting done."
+    #print "Sorting done."
     
     # index = 0
     # for psp in rangePSPs:
@@ -807,11 +811,11 @@ class SolutionSelectionWriter:
     s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
     s += "  unsigned int size1 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim1)
-    print "indexOrderSummation", kernel.indexOrderSummation
+    #print "indexOrderSummation", kernel.indexOrderSummation
     dimU = len(problem.tensorC.dimensions) + kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
-    print "dimU", dimU
+    #print "dimU", dimU
     idxU = -1
-    print "indexAssignmentsA", problem.operation.indexAssignmentsA
+    #print "indexAssignmentsA", problem.operation.indexAssignmentsA
     for i in range(0, len(problem.operation.indexAssignmentsA)):
       if problem.operation.indexAssignmentsA[i] == dimU:
         idxU = i
@@ -821,7 +825,7 @@ class SolutionSelectionWriter:
     firstSizeGroup = True
     lastSizeGroup = False
     if exactOnly:
-      print "SSL for Unique Problems only."
+      #print "SSL for Unique Problems only."
       firstSizeGroup = True
       lastSizeGroup = True
       # create single rule for size zero
@@ -868,8 +872,9 @@ class SolutionSelectionWriter:
         for slowPSP in slowPSPs:
           exactPSPsInRange.remove(slowPSP)
       for psp in fastestExactPSPsInRange:
-        print "adding " + str(psp[1])
+        #print "adding " + str(psp[1])
         localSolutionSet.add( psp[1] )
+        #print "writeGetSolutionForExactMatch(%s) adding %s" % (str(exactMatch), str(psp))
         self.addPSPToSets(psp)
 
       # finalRuleString = self.ruleToString(rule)
@@ -1011,7 +1016,7 @@ class SolutionSelectionWriter:
         
         size = fallbackLowerBoundP.getSizeFree()**0.5
         pspString = self.pspToString(fallback)
-        print "STATUS - fallback is fastest down to size %u*%u %s" % (size, size, pspString)
+        #print "STATUS - fallback is fastest down to size %u*%u %s" % (size, size, pspString)
         
         #########################################################################
         # (c) at the largest size make list of all psps which are faster
@@ -1035,7 +1040,7 @@ class SolutionSelectionWriter:
           unorderedGroups.append( unorderedGroup )
         rule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, fallbackLowerBoundP]
         ruleString = self.ruleToString(rule)
-        print "RULE: " + ruleString
+        #print "RULE: " + ruleString
 
         # if len(singletonsFasterThanFallback):
           # find size threshold of rule
@@ -1043,7 +1048,7 @@ class SolutionSelectionWriter:
         indexOfNextLargestSize = self.getIndexOfNextLargestSize(rangePSPs, fallback[0])
         if indexOfNextLargestSize < len(rangePSPs):
           nextLargestSizeP = rangePSPs[indexOfNextLargestSize][0]
-          print "%u >= %u" % (nextLargestSizeP.getSizeFree()**0.5, fallbackLowerBoundP.getSizeFree()**0.5)
+          #print "%u >= %u" % (nextLargestSizeP.getSizeFree()**0.5, fallbackLowerBoundP.getSizeFree()**0.5)
           while self.compareSize(nextLargestSizeP, fallbackLowerBoundP) >= 0:
             #print "checking size " + str(self.getSize(nextLargestSizeP)**(1.0/2.0))
             #print "singletonsForCurrentSize"
@@ -1063,14 +1068,14 @@ class SolutionSelectionWriter:
             #print "creating new rule"
             newRule = [unorderedGroups, fallback, ruleSizeThresholdUpperP, nextLargestSizeP]
             newRuleString = self.ruleToString(newRule)
-            print "NEXT RULE: " + newRuleString
+            #print "NEXT RULE: " + newRuleString
 
             if self.rulesConflict(rule, newRule):
-              print "STATUS - NEXT RULE REJECTED"
+              #print "STATUS - NEXT RULE REJECTED"
               # current rule is "the rule" with correct size threshold and correct
               break
             else:
-              print "STATUS - NEXT RULE ACCEPTED (MERGING)"
+              #print "STATUS - NEXT RULE ACCEPTED (MERGING)"
               # we can make new rule which is at smaller size then "the rule" and may add more tiles without losing performance
               self.mergeRules(rule, newRule)
               ruleString = self.ruleToString(rule)
@@ -1136,7 +1141,7 @@ class SolutionSelectionWriter:
           localSolutionSet.add( psp[1] )
 
         finalRuleString = self.ruleToString(rule)
-        print "FINAL RULE: " + finalRuleString
+        #print "FINAL RULE: " + finalRuleString
         self.addRuleToSets(rule)
         s += self.ruleToLibString(rule, firstSizeGroup, lastSizeGroup, fastestExactPSPsInRange, "  ")
         for ug in rule[0]: # exact tiles
@@ -1158,7 +1163,7 @@ class SolutionSelectionWriter:
         ruleSize = rule[3].getSizeFree()**0.5
         rangeSizeAfter = len(rangePSPs)
         exactSizeAfter = len(exactPSPs)
-        print "STATUS - # PSPs after removing >= %u*%u: range=%u->%u; exact=%u->%u" % (ruleSize, ruleSize, rangeSizeBefore, rangeSizeAfter, exactSizeBefore, exactSizeAfter)
+        #print "STATUS - # PSPs after removing >= %u*%u: range=%u->%u; exact=%u->%u" % (ruleSize, ruleSize, rangeSizeBefore, rangeSizeAfter, exactSizeBefore, exactSizeAfter)
 
         #print "Rule DONE"
         firstSizeGroup = False
@@ -1214,10 +1219,10 @@ class SolutionSelectionWriter:
       s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
       s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
 
-      for exactMatch, problems in exactMatches.iteritems():
+      for exactMatch, pspTypes in exactMatches.iteritems():
         baseName = "CobaltGetSolution_" + exactMatch.libString()
-      s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
-      s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
+        s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
+        s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
     s += ")\n"
     s += "\n"
     s += "source_group(CobaltGen\\\\Other FILES\n"

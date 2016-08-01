@@ -180,7 +180,7 @@ int main( int argc, char *argv[] ) {
       }
       for (size_t solutionIdx = solutionStartIdx; solutionIdx < solutionEndIdx;
         solutionIdx++) {
-        printf("P[%llu/%llu] S[%llu/%llu] ", ULL problemIdx, ULL problemEndIdx, ULL solutionIdx, ULL solutionEndIdx);
+        printf("G[%llu/%llu] P[%llu/%llu] S[%llu/%llu] ", ULL exactMatchIdx, ULL exactMatchEndIdx, ULL problemIdx, ULL problemEndIdx, ULL solutionIdx, ULL solutionEndIdx);
 
         // get solution candidate
         Cobalt::Solution *solution = solutionCandidates[solutionIdx];
