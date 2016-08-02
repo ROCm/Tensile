@@ -140,7 +140,7 @@ unsigned int addGEMMList() {
 unsigned int addGEMMCombinatorics() {
   // transA, transB, strideMultiple, M, N, K
   std::vector<std::array<size_t,3>> sizes;
-#if 1
+#if 0
   size_t stride = 16;
   size_t stride_incr = 16; // 0->1440, 16->108, 32->76
   for (size_t i = 16; i <= 5760; i+= stride, stride += stride_incr) {
@@ -151,9 +151,9 @@ unsigned int addGEMMCombinatorics() {
   }
 #endif
 
-#if 0
-  //sizes.push_back( {5760, 5760, 5760 });
-  sizes.push_back({ 96*3, 96*2, 96*1 });
+#if 1
+  sizes.push_back( {5760, 5760, 5760 });
+  //sizes.push_back({ 96*3, 96*2, 96*1 });
 #endif
 
 #if 0
@@ -175,9 +175,9 @@ unsigned int addGEMMCombinatorics() {
   const size_t numBatchSizes  = 1; // 2
   const size_t numDataTypes   = 1; // 10
   const size_t numAlphas      = 1; // 1
-  const size_t numBetas       = 2; // 2
-  const size_t numTransA      = 1; // 2
-  const size_t numTransB      = 1; // 2
+  const size_t numBetas       = 1; // 2
+  const size_t numTransA      = 2; // 2
+  const size_t numTransB      = 2; // 2
 
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };

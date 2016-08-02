@@ -131,9 +131,9 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
       hipGetDeviceProperties( &deviceProperties, i);
       CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
       profile.numDevices = 1;
-      strcpy( profile.name, deviceProperties.name );
-      profile.numComputeUnits = deviceProperties.multiProcessorCount;
-      profile.clockFrequency = deviceProperties.clockRate;
+      strcpy( profile.devices[0].name, deviceProperties.name );
+      profile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
+      profile.devices[0].clockFrequency = deviceProperties.clockRate;
       enumeratedProfiles.push_back(profile);
     }
 #endif
