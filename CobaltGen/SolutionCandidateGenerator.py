@@ -78,13 +78,14 @@ class SolutionCandidateGenerator:
   modePreprocessorDefinitions = 0
 
   # thresholds
-  thresholdMicroTiles = 8*8
-  thresholdUnrolls    = 16
-  thresholdSkinny     = 128 # if dim0 or dim1 < threshold, then problem is skinny
+  thresholdWorkGroupSize  = 256 # threads
+  thresholdMicroTiles     = 8*8
+  thresholdUnrolls        = 16
+  thresholdSkinny         = 128 # if dim0 or dim1 < threshold, then problem is skinny
   ratioWorkGroupSkinny    = 2
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
-  ratioMacroTileSlow      = 2
+  ratioMacroTileSS        = 2 # slow_slow
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -160,9 +161,6 @@ class SolutionCandidateGenerator:
     # Problem Characteristics affecting performance
     problemSizeDim0 = problem.tensorC.dimensions[ kernel.indexAssignmentDim0].size
     problemSizeDim1 = problem.tensorC.dimensions[ kernel.indexAssignmentDim1].size
-
-    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny
-    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny
     
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
@@ -193,15 +191,16 @@ class SolutionCandidateGenerator:
     problemIsRectangular = problem.getSizeType() == 0
     if not problemIsRectangular:
       print "WARNING: problem has unusual size; many candidates solutions will be generated."
-
+      
+    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny and not problemIsRectangular
+    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny and not problemIsRectangular
 
     # work-groups
     universeWorkGroups = []
-    thresholdWorkGroupSize = 256 # threads
     if self.modeWorkGroups == self.modeExhaustive:
-      for m in range(1, thresholdWorkGroupSize+1):
-        for n in range(1, thresholdWorkGroupSize+1):
-          if m*n < thresholdWorkGroupSize:
+      for m in range(1, self.thresholdWorkGroupSize+1):
+        for n in range(1, self.thresholdWorkGroupSize+1):
+          if m*n < self.thresholdWorkGroupSize:
             universeWorkGroups.append( [m,n] )
     else: # fast or thorough; both will include skinnies where applicable
       if self.modeWorkGroups == self.modeThorough:
@@ -214,7 +213,7 @@ class SolutionCandidateGenerator:
         universeWorkGroups = [ [16,16], [8,8] ]
       if not problemIsRectangular and problemSizeDim0 < self.thresholdSkinny:
         if self.printDetails: print "SCG: adding skinny(dim0) work-groups"
-        for workGroupDim0 in range(1, thresholdWorkGroupSize+1):
+        for workGroupDim0 in range(1, self.thresholdWorkGroupSize+1):
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
@@ -223,7 +222,7 @@ class SolutionCandidateGenerator:
             # break
       if not problemIsRectangular and problemSizeDim1 < self.thresholdSkinny:
         if self.printDetails: print "SCG: adding skinny(dim1) work-groups"
-        for workGroupDim1 in range(1, thresholdWorkGroupSize+1):
+        for workGroupDim1 in range(1, self.thresholdWorkGroupSize+1):
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
@@ -250,14 +249,14 @@ class SolutionCandidateGenerator:
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = self.ratioMacroTileSlow
+        macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     else: # fast
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = self.ratioMacroTileSlow
+        macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     if self.printDetails: print "SCG: MacroTileRatio: " + str(macroTileRatio)

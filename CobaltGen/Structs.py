@@ -638,6 +638,8 @@ class Problem:
         self.sizeType = 1
       if abs(problemSizeDim0-problemSizeDim1) > 1 or abs(problemSizeDim0-problemSizeUnroll) > 1 or abs(problemSizeDim1-problemSizeUnroll) > 1:
         self.sizeType = 1
+      if self.sizeType == 1:
+        print "UNUSUAL_PROB: %ux%ux%u %s" % (problemSizeDim0, problemSizeDim1, problemSizeUnroll, str(self))
     return self.sizeType
 
 
