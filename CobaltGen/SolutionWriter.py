@@ -199,7 +199,7 @@ class SolutionWriter:
     s += "    // cobaltGetSolution shouldn't have returned me\n"
     s += "    throw cobaltStatusInvalidParameter;\n"
     s += "  }\n"
-    s += "  if ( (!this->argLeadingStrides && inputProblem.tensorC[0].stride != 1) || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1 ) {\n"
+    s += "  if ( !this->argLeadingStrides && (inputProblem.tensorC[0].stride != 1 || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1) ) {\n"
     s += "    // problem uses leading strides but solution doesn't support offsets\n"
     s += "    // cobaltGetSolution shouldn't have returned me\n"
     s += "    throw cobaltStatusInvalidParameter;\n"

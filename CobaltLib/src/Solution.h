@@ -116,7 +116,7 @@ protected:
   size_t globalWorkSize[maxNumKernels][workDim]; // all enqueues of a kernels are currently restricted to have identical grid size
   size_t localWorkSize[workDim];
 
-  // kernel arguments
+  // kernel arguments; true if argument is argument, false if argument is pre-processor defined
   bool requireAlpha;
   bool requireBeta;
   bool argOffsets;
