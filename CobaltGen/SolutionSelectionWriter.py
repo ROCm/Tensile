@@ -561,16 +561,8 @@ class SolutionSelectionWriter:
     nugi = 0 # new unordered group idx
     #mugi = 0 # merged unordered group idx
 
-    numIter = 0
-    maxIter = 10
 
     while ugi < len(ugs) or nugi < len(nugs):
-      numIter += 1
-      if numIter > maxIter:
-        numIter = maxIter / 0
-        break
-      #print ugi, nugi
-      #print "getting psps valid"
       PSPsValid = []
       if ugi < len(ugs):
         for psp in ugs[ugi]:
