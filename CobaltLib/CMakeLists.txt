@@ -47,12 +47,8 @@ endif()
 add_library( ${CobaltLogger_NAME}
   ${CobaltLib_API}
   ${CobaltLib_SRC_STATIC}
-  #${CobaltLib_SRC_GENERATED_STATIC}
-  #${CobaltLib_SRC_GENERATED_DYNAMIC}
-  #${CobaltGen_SRC}
   )
 
-message( STATUS "HIP_INCLUDE_DIRS<<==>>${HIP_INCLUDE_DIRS}" )
 target_include_directories( ${CobaltLogger_NAME}
   PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
           $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>

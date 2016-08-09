@@ -90,7 +90,7 @@ class SolutionCandidateGenerator:
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
   noMultipleKernels = False # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
-  printDetails = True
+  printDetails = False
 
   
 
