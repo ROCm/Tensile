@@ -78,18 +78,19 @@ class SolutionCandidateGenerator:
   modePreprocessorDefinitions = 0
 
   # thresholds
-  thresholdMicroTiles = 8*8
-  thresholdUnrolls    = 16
-  thresholdSkinny     = 128 # if dim0 or dim1 < threshold, then problem is skinny
+  thresholdWorkGroupSize  = 256 # threads
+  thresholdMicroTiles     = 8*8
+  thresholdUnrolls        = 16
+  thresholdSkinny         = 128 # if dim0 or dim1 < threshold, then problem is skinny
   ratioWorkGroupSkinny    = 2
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
-  ratioMacroTileSlow      = 2
+  ratioMacroTileSS        = 2 # slow_slow
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
   noMultipleKernels = False # True means don't generate solution requiring multiple kernels, i.e., only single-kernel fastest or branched
-  printDetails = False
+  printDetails = True
 
   
 
@@ -160,9 +161,6 @@ class SolutionCandidateGenerator:
     # Problem Characteristics affecting performance
     problemSizeDim0 = problem.tensorC.dimensions[ kernel.indexAssignmentDim0].size
     problemSizeDim1 = problem.tensorC.dimensions[ kernel.indexAssignmentDim1].size
-
-    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny
-    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny
     
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
@@ -193,15 +191,16 @@ class SolutionCandidateGenerator:
     problemIsRectangular = problem.getSizeType() == 0
     if not problemIsRectangular:
       print "WARNING: problem has unusual size; many candidates solutions will be generated."
-
+      
+    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny and not problemIsRectangular
+    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny and not problemIsRectangular
 
     # work-groups
     universeWorkGroups = []
-    thresholdWorkGroupSize = 256 # threads
     if self.modeWorkGroups == self.modeExhaustive:
-      for m in range(1, thresholdWorkGroupSize+1):
-        for n in range(1, thresholdWorkGroupSize+1):
-          if m*n < thresholdWorkGroupSize:
+      for m in range(1, self.thresholdWorkGroupSize+1):
+        for n in range(1, self.thresholdWorkGroupSize+1):
+          if m*n < self.thresholdWorkGroupSize:
             universeWorkGroups.append( [m,n] )
     else: # fast or thorough; both will include skinnies where applicable
       if self.modeWorkGroups == self.modeThorough:
@@ -214,7 +213,7 @@ class SolutionCandidateGenerator:
         universeWorkGroups = [ [16,16], [8,8] ]
       if not problemIsRectangular and problemSizeDim0 < self.thresholdSkinny:
         if self.printDetails: print "SCG: adding skinny(dim0) work-groups"
-        for workGroupDim0 in range(1, thresholdWorkGroupSize+1):
+        for workGroupDim0 in range(1, self.thresholdWorkGroupSize+1):
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
@@ -223,7 +222,7 @@ class SolutionCandidateGenerator:
             # break
       if not problemIsRectangular and problemSizeDim1 < self.thresholdSkinny:
         if self.printDetails: print "SCG: adding skinny(dim1) work-groups"
-        for workGroupDim1 in range(1, thresholdWorkGroupSize+1):
+        for workGroupDim1 in range(1, self.thresholdWorkGroupSize+1):
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
@@ -250,14 +249,14 @@ class SolutionCandidateGenerator:
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = self.ratioMacroTileSlow
+        macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     else: # fast
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = self.ratioMacroTileSlow
+        macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     if self.printDetails: print "SCG: MacroTileRatio: " + str(macroTileRatio)
@@ -295,13 +294,13 @@ class SolutionCandidateGenerator:
         universePreprocessorDefinitions.append( [ 1, 1, 0] )
         universePreprocessorDefinitions.append( [ 1, 1, 1] )
     elif self.modePreprocessorDefinitions == self.modeThorough:
-      universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
+      universePreprocessorDefinitions = [ [ 0 if requireInitialStrides else 1, 1, 0] ]
       if not requireInitialStrides and not requireOffsets:
         universePreprocessorDefinitions.append( [ 1, 1, 1] )
     else:
-      universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
+      universePreprocessorDefinitions = [ [ 0 if requireInitialStrides else 1, 0 if requireOffsets else 1, 0] ]
     if self.printDetails: print "SCG: PreprocessorDefinitions(" + str(len(universePreprocessorDefinitions)) + "): " + str(universePreprocessorDefinitions)
-
+    # [ leadingStrides, offsets, everything ]
     
     # kernel grid
     kernelGrid = [ 1, 1, 1 ]
@@ -483,12 +482,7 @@ class SolutionCandidateGenerator:
                   for branchType in branchTypes:
                     solution.kernelGrid = copy.deepcopy(kernelGrid)
                     solution.kernels = []
-                    leadingStridesOne = False
-                    if problem.tensorC.dimensions[0].stride == 1 \
-                        and problem.tensorA.dimensions[0].stride == 1 \
-                        and problem.tensorB.dimensions[0].stride == 1:
-                      leadingStridesOne = True
-                    # branch - 2-4 kernels
+                    # skip if undesired
                     if branchType.isMultiple():
                       if self.noBranches or self.noMultipleKernels:
                         if problemSizeDim0 % macroTileDim0 != 0 \
@@ -496,37 +490,29 @@ class SolutionCandidateGenerator:
                           continue
 
                       solution.branch = [branchType, branchType]
-                      if leadingStridesOne:
-                        solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdLeadingStride = ppdLeadingStride
                       solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
                       solution.ppdAll = 0 # kernels 1-3 will need sizes
                       # add main kernel
                       kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
                       kernel.ppdOffsets = ppdOffsets
                       kernel.ppdAll = ppdAll
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add edge-0 kernel
                       solution.kernelGrid[0] += 1
                       kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
                       kernel.ppdOffsets = 0
                       kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add edge-1 kernel
                       solution.kernelGrid[1] += 1
                       kernel.tile.branch = [ Structs.BranchType(0), branchType ]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
                       kernel.ppdOffsets = 0
                       kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add corner-01 kernel
                       kernel.tile.branch = [ branchType, branchType ]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
                       kernel.ppdOffsets = 0
                       kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
@@ -541,8 +527,7 @@ class SolutionCandidateGenerator:
                       if self.noBranches:
                         continue
                       solution.branch = [branchType, branchType]
-                      if leadingStridesOne:
-                        solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdLeadingStride = ppdLeadingStride
                       solution.ppdOffsets = ppdOffsets
                       solution.ppdAll = ppdAll
                       kernel.tile.branch = [branchType, branchType ]
