@@ -12,6 +12,7 @@ class FileWriter:
   kernelSubdirectory = "/Kernels/"
   solutionSubdirectory = "/Solutions/"
   otherSubdirectory = "/Other/"
+  minimumXMLSubdirectory = "/MinimumXMLs/"
 
 
   ##############################################################################
@@ -36,6 +37,7 @@ class FileWriter:
     self.ensurePath( self.outputPath + self.kernelSubdirectory )
     self.ensurePath( self.outputPath + self.solutionSubdirectory )
     self.ensurePath( self.outputPath + self.otherSubdirectory )
+    self.ensurePath( self.outputPath + self.minimumXMLSubdirectory )
 
     self.forBenchmark = forBenchmark
     self.cobaltDirGenerated = "${CobaltLib_DIR_GENERATED}"
@@ -638,7 +640,8 @@ class FileWriter:
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
         #print "calling writeGetSolutionForExactMatch"
-        sslSourceString, sslHeaderString = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
+        sslSourceString, sslHeaderString, fastestPSPs = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
+        self.writeMinimumXML( exactMatch, fastestPSPs )
         sslSourceFile.write(sslSourceString)
         sslSourceFile.close()
         sslHeaderFile.write(sslHeaderString)
@@ -683,3 +686,119 @@ class FileWriter:
             +templateInstantiationStr + ";\n")
     print "writing " + templateInstantiationsPath
     templateInstantiationsFile.close()
+
+################################################################################
+# write the minimum set of xml entries requried to reproduce library backend
+################################################################################
+  def writeMinimumXML( self, exactMatch, fastestPSPs ):
+    print "writeMinimumXML( %s, %u )" % (str(exactMatch), len(fastestPSPs))
+    minXMLPath = self.outputPath + self.minimumXMLSubdirectory \
+        + str(exactMatch) + ".xml"
+    minXMLFile= open(minXMLPath, "w")
+
+    s = ""
+    s += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    s += "<CobaltLog>\n"
+
+    for psp in fastestPSPs:
+      problem = psp[0]
+      solution = psp[1]
+      time = psp[2]
+      s += " <TE>\n"
+      s += "  <S>\n"
+      s += "   <P>\n"
+      # tensorC
+      s += "    <TC t=\"%u\" n=\"%u\" " % (problem.tensorC.dataType.value, len(problem.tensorC.dimensions) )
+      for i in range(0, len(problem.tensorC.dimensions)):
+        dim = problem.tensorC.dimensions[i]
+        s += "st%u=\"%u\" sz%u=\"%u\" " % (i, dim.stride, i, dim.size)
+      s += "/>\n"
+      # tensorA
+      s += "    <TA t=\"%u\" n=\"%u\" " % (problem.tensorA.dataType.value, len(problem.tensorA.dimensions) )
+      for i in range(0, len(problem.tensorA.dimensions)):
+        dim = problem.tensorA.dimensions[i]
+        s += "st%u=\"%u\" sz%u=\"%u\" " % (i, dim.stride, i, dim.size)
+      s += "/>\n"
+      # tensorB
+      s += "    <TB t=\"%u\" n=\"%u\" " % (problem.tensorB.dataType.value, len(problem.tensorB.dimensions) )
+      for i in range(0, len(problem.tensorB.dimensions)):
+        dim = problem.tensorB.dimensions[i]
+        s += "st%u=\"%u\" sz%u=\"%u\" " % (i, dim.stride, i, dim.size)
+      s += "/>\n"
+      # operation
+      s += "    <O t=\"%u\" a=\"%u\" b=\"%u\" o=\"%u\" nF=\"%u\" nB=\"%u\" nS=\"%u\" >\n" % ( \
+          problem.operation.type.value, \
+          problem.operation.alphaType.value, \
+          problem.operation.betaType.value, \
+          problem.operation.useOffsets, \
+          problem.operation.numIndicesFree, \
+          problem.operation.numIndicesBatch, \
+          problem.operation.numIndicesSummation ) 
+      # indexAssignmentsA
+      s += "     <IA n=\"%u\" " % ( len(problem.operation.indexAssignmentsA) )
+      for i in range(0, len(problem.operation.indexAssignmentsA)):
+        ia = problem.operation.indexAssignmentsA[i]
+        s += "i%u=\"%u\" " % (i, ia)
+      s += "/>\n"
+      # indexAssignmentsB
+      s += "     <IB n=\"%u\" " % ( len(problem.operation.indexAssignmentsB) )
+      for i in range(0, len(problem.operation.indexAssignmentsB)):
+        ia = problem.operation.indexAssignmentsB[i]
+        s += "i%u=\"%u\" " % (i, ia)
+      s += "/>\n"
+      s += "    </O>\n"
+      # device profile
+      s += "    <DP n=\"%u\" " % ( len(problem.deviceProfile.devices) )
+      for i in range(0, len(problem.deviceProfile.devices)):
+        device = problem.deviceProfile.devices[i]
+        s += "d%u=\"%s\" CU%u=\"%u\" MHz%u=\"%u\" FPC%u=\"%u\" " % (\
+            i, device.name, \
+            i, device.numComputeUnits, \
+            i, device.clockFrequency, \
+            i, device.flopsPerClock )
+      s += "/>\n"
+      s += "   </P>\n"
+      # implementation details 
+      s += "   <ID kG0=\"%u\" kG1=\"%u\" kG2=\"%u\" b0=\"%u\" b1=\"%u\" ppdO=\"%u\" ppdLS=\"%u\" ppdAll=\"%u\" >\n" % ( \
+          solution.kernelGrid[0], \
+          solution.kernelGrid[1], \
+          solution.kernelGrid[2], \
+          solution.branch[0].value, \
+          solution.branch[1].value, \
+          solution.ppdOffsets, \
+          solution.ppdLeadingStride, \
+          solution.ppdAll )
+      for i in range(0, len(solution.kernels)):
+        kernel = solution.kernels[i]
+        if kernel == None:
+          continue
+        s += "    <K i=\"%u\" wG0=\"%u\" wG1=\"%u\" mT0=\"%u\" mT1=\"%u\" b0=\"%u\" b1=\"%u\" nlpaA=\"%u\" lspaA=\"%u\" tspaA=\"%u\" nlpeA=\"%u\" lspeA=\"%u\" tspeA=\"%u\" nlpaB=\"%u\" lspaB=\"%u\" tspaB=\"%u\" nlpeB=\"%u\" lspeB=\"%u\" tspeB=\"%u\" u0=\"%u\" u1=\"%u\" />\n" % ( \
+            i,
+            kernel.tile.workGroup[0], \
+            kernel.tile.workGroup[1], \
+            kernel.tile.microTile[0], \
+            kernel.tile.microTile[1], \
+            kernel.tile.branch[0].value, \
+            kernel.tile.branch[1].value, \
+            kernel.numLoadsParaA, \
+            kernel.loadSizeParaA, \
+            kernel.totalLoadSizeParaA, \
+            kernel.numLoadsPerpA, \
+            kernel.loadSizePerpA, \
+            kernel.totalLoadSizePerpA, \
+            kernel.numLoadsParaB, \
+            kernel.loadSizeParaB, \
+            kernel.totalLoadSizeParaB, \
+            kernel.numLoadsPerpB, \
+            kernel.loadSizePerpB, \
+            kernel.totalLoadSizePerpB, \
+            kernel.unrolls[0], \
+            0 if len(kernel.unrolls)<2 else kernel.unrolls[1] )
+      s += "   </ID>\n"
+      s += "  </S>\n"
+      s += "  <B t=\"%f\" u=\"ms\" />\n" % (time)
+      s += " </TE>\n"
+
+    s += "</CobaltLog>\n"
+    minXMLFile.write( s )
+    minXMLFile.close()
