@@ -957,9 +957,9 @@ class Solution:
     self.kernels = []
 
     # PreProcessor optimizations (#defining arguments)
-    self.ppdOffsets = False # offsets are #defined and not arguments
-    self.ppdLeadingStride = False #leading strides are #defined and not arguments
-    self.ppdAll = False #everything is #defined and not arguments
+    self.ppdOffsets = 0 # offsets are #defined and not arguments
+    self.ppdLeadingStride = 0 #leading strides are #defined and not arguments
+    self.ppdAll = 0 #everything is #defined and not arguments
 
   def __str__(self):
     state = "[Solution"
