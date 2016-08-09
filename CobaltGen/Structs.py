@@ -311,9 +311,9 @@ class Device:
   def __str__(self):
     state = "[Device"
     state += "; " + self.name
-    state += "; " + self.numComputeUnits
-    state += "; " + self.clockFrequency
-    state += "; " + self.flopsPerClock
+    state += "; " + str(self.numComputeUnits)
+    state += "; " + str(self.clockFrequency)
+    state += "; " + str(self.flopsPerClock)
     state += "]"
     return self.name
 
