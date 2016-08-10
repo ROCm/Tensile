@@ -88,7 +88,6 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     CobaltDeviceProfile *profiles,
     unsigned int *size) {
 
-  // TODO - this will leak memory upon closing application
   static std::vector<CobaltDeviceProfile> enumeratedProfiles;
   static bool profilesEnumerated = false;
 

@@ -746,7 +746,7 @@ class SolutionSelectionWriter:
           s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
           s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
-    fallbackPSP = rule[1] # TODO handle None here
+    fallbackPSP = rule[1]
     if fallbackPSP != None:
       fallbackSolution = fallbackPSP[1]
       sizeUL = fallbackSolution.kernels[0].unrolls[0]

@@ -5,12 +5,6 @@ import KernelWriter
 import SolutionWriter
 import argparse
 import math
-"""
-TODOs
- - move loads
- - debug ddp offsets
-"""
-
 
 """
 3 levels
@@ -49,8 +43,6 @@ preprocessor defines
  (t) [ 1, 0, 0], \
      [ 1, 1, 1], \
  (f) [ 1, 0, 0], \
-
-
 
 """
 
@@ -431,13 +423,6 @@ class SolutionCandidateGenerator:
             ###################################
             # for num loads parallel A
             for numLoadsParaA in universeNumLoadsParaA:
-              # if False: # TODO, need this for mode scheme? true means only try perfect tiles w/o branches
-              #   if totalNumLoadsA % numLoadsParaA > 0:
-              #     continue
-              #   if totalLoadSizeParaA%numLoadsParaA>0:
-              #     continue
-              #   if (workGroup[0]*workGroup[1])%(totalLoadSizeParaA/numLoadsParaA) > 0:
-              #     continue
               kernel.numLoadsParaA = numLoadsParaA
               kernel.loadSizeParaA = int(math.ceil(1.0*kernel.totalLoadSizeParaA / kernel.numLoadsParaA ) ) # round up
               kernel.loadSizePerpA = int( (workGroup[0]*workGroup[1])/kernel.loadSizeParaA ) # round down

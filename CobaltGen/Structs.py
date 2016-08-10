@@ -644,14 +644,6 @@ class Problem:
 
 
   def __str__(self):
-    #state = "[Problem"
-    #state += "; " + str(self.tensorC)
-    #state += "; " + str(self.tensorA)
-    #state += "; " + str(self.tensorB)
-    #state += "; " + str(self.operation)
-    #state += "; " + str(self.deviceProfile)
-    #state += "]"
-
     state = ""
     indexChars = "ijklmnopqrstuvwxyz"
 

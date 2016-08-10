@@ -433,31 +433,6 @@ class KernelWriter:
     kStr += self.endLine
 
     ####################################
-    # global non-tile indices being loaded (batch & outer summation)
-    # TODO - re-implement this for new loads
-    kStr += "/* global non-tile indices being loaded */" + self.endLine
-    # C free indices which don't belong to tile = g
-    # C batch = g
-    # for indexC in kernel.indexOrderC:
-    #   if indexC == kernel.indexAssignmentDim0 \
-    #       or indexC == kernel.indexAssignmentDim1:
-    #     continue
-    #   if indexC in kernel.problem.operation.indexAssignmentsA:
-    #     kStr += "#define globalA" + indexChars[indexC] \
-    #         + "(LID) g" + indexChars[indexC] + self.endLine
-    #   if indexC in kernel.problem.operation.indexAssignmentsB:
-    #     kStr += "#define globalB" + indexChars[indexC] \
-    #         + "(LID) g" + indexChars[indexC] + self.endLine
-    # # C outer summation indices which aren't unrolled = sumIdx
-    # for i in range(0,len(kernel.indexOrderSummation)-1):
-    #   index = i + len(kernel.indexOrderC)
-    #   kStr += "#define globalA" + indexChars[index] \
-    #         + "(LID) g" + indexChars[index] + self.endLine
-    #   kStr += "#define globalB" + indexChars[index] \
-    #         + "(LID) g" + indexChars[index] + self.endLine
-    # kStr += self.endLine
-
-    ####################################
     # data types
     kStr += self.endLine
     kStr += "/* data types */" + self.endLine
@@ -994,39 +969,6 @@ class KernelWriter:
       indent = indent[2:]
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
-
-
-    # debug printf - values loading into LDS
-    #
-    """
-      kStr += "    unsigned int tmpIdx = GLOBAL_A( "
-      kStr += "globalA" + indexChars[ \
-          kernel.problem.operation.indexAssignmentsA[0]]  \
-          + "(" + str(numALoads) + ")"
-      for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
-        kStr += ", globalA" + indexChars[ \
-            kernel.problem.operation.indexAssignmentsA[i]]  \
-            + "(" + str(numALoads) + ")"
-      kStr += " );" + self.endLine
-      kStr += "printf(\"T[%u,%u] localA[%u] = %f <- globalA[%u] = %f; %u"
-      for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
-        kStr += ", %u"
-
-      kStr += "\\n\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), GET_LOCAL_INDEX_A(localA" + tileCharA \
-          + ", localA" + unrollChar +"), "
-      kStr += " lA[0], tmpIdx, A[tmpIdx], "
-      #
-      #
-      kStr += "globalA" + indexChars[ \
-          kernel.problem.operation.indexAssignmentsA[0]]  \
-          + "(" + str(numALoads) + ")"
-      for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
-        kStr += ", globalA" + indexChars[ \
-            kernel.problem.operation.indexAssignmentsA[i]]  \
-            + "(" + str(numALoads) + ")"
-      kStr += ");" + self.endLine
-    """
-    # end debug printf
     
     ####################################
     # load B
@@ -1084,67 +1026,6 @@ class KernelWriter:
       indent + "unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine +
       indent + "unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine )
 
-    # debug printf - values loading into LDS
-
-    # kStr += "    unsigned int tmpIdxA = GLOBAL_A( "
-    # kStr += "globalA" + indexChars[ \
-    #     kernel.problem.operation.indexAssignmentsA[0]]  \
-    #     + "(0)"
-    # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
-    #   kStr += ", globalA" + indexChars[ \
-    #       kernel.problem.operation.indexAssignmentsA[i]]  \
-    #       + "(0)"
-    # kStr += " );" + self.endLine
-    #
-    #
-    # kStr += "    unsigned int tmpIdxB = GLOBAL_B( "
-    # kStr += "globalB" + indexChars[ \
-    #     kernel.problem.operation.indexAssignmentsB[0]]  \
-    #     + "(0)"
-    # for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
-    #   kStr += ", globalB" + indexChars[ \
-    #       kernel.problem.operation.indexAssignmentsB[i]]  \
-    #       + "(0)"
-    # kStr += " );" + self.endLine
-    #
-    #
-    # kStr += "printf(\\\"T[%u,%u]"
-    # kStr += " localA[%u] = %f <- gA[%u] = %f; %u"
-    # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
-    #   kStr += ", %u"
-    # kStr += "; "
-    # kStr += " localB[%u] = %f <- gB[%u] = %f; %u"
-    # for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
-    #   kStr += ", %u"
-    # kStr += "; "
-    #
-    # kStr += "\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), "
-    # kStr += "GET_LOCAL_INDEX_A(localA" + tileCharA \
-    #     + ", localA" + unrollChar +"), "
-    # kStr += " lA[0], tmpIdxA, A[tmpIdxA], "
-    # kStr += "globalA" + indexChars[ \
-    #     kernel.problem.operation.indexAssignmentsA[0]]  \
-    #     + "(0)"
-    # for i in range(1,len(kernel.problem.operation.indexAssignmentsA)):
-    #   kStr += ", globalA" + indexChars[ \
-    #       kernel.problem.operation.indexAssignmentsA[i]]  \
-    #       + "(0)"
-    # kStr += ", "
-    # kStr += "GET_LOCAL_INDEX_B(localB" + tileCharB \
-    #     + ", localB" + unrollChar +"), "
-    # kStr += " lB[0], tmpIdxB, B[tmpIdxB], "
-    # kStr += "globalB" + indexChars[ \
-    #     kernel.problem.operation.indexAssignmentsB[0]]  \
-    #     + "(0)"
-    # for i in range(1,len(kernel.problem.operation.indexAssignmentsB)):
-    #   kStr += ", globalB" + indexChars[ \
-    #       kernel.problem.operation.indexAssignmentsB[i]]  \
-    #       + "(0)"
-    #
-    #
-    # kStr += ");" + self.endLine
-    #
-    # end debug printf
 
     # # LDS state
     # kStr += indent + "/* print LDS state */" + self.endLine

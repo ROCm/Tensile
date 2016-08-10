@@ -26,7 +26,7 @@ set( CobaltLib_SRC_STATIC
   src/Tools.h
 )
 
-# TODO does this need to change to Windows vs Linux?
+# this may need to check Windows vs Linux rather than opencl vs hip
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions(-DCobaltLib_DIR_PROBLEMS="${CobaltLib_DIR_PROBLEMS}")
   add_definitions(-DCobaltLib_DIR_SOLUTIONS="${CobaltLib_DIR_SOLUTIONS}")
