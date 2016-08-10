@@ -189,8 +189,8 @@ class SolutionCandidateGenerator:
     # Determine Search Universe
     ###################################
     problemIsRectangular = problem.getSizeType() == 0
-    if not problemIsRectangular:
-      print "WARNING: problem has unusual size; many candidates solutions will be generated."
+    if not problemIsRectangular and self.printDetails:
+      print "SCG: Problem has unusual size; many candidates solutions will be generated."
       
     problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny and not problemIsRectangular
     problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny and not problemIsRectangular
@@ -711,33 +711,33 @@ def makeIndexAssignments(kernel, problem):
 ################################################################################
 # Main
 ################################################################################
-if __name__ == "__main__":
-
-  # arguments
-  ap = argparse.ArgumentParser(description="FileReader")
-  ap.add_argument("--input-file", dest="inputFiles", action="append" )
-  args = ap.parse_args()
-
-  # parse xml
-  for inputFile in args.inputFiles:
-    problemSet = set()
-    FileReader.getProblemsFromXML( inputFile, problemSet )
-
-  """print "numUnrolls = " + str(len(SolutionCandidates.universeUnroll))
-  print "numWorkGroups = " + str(len(SolutionCandidates.universeWorkGroupDim))
-  print "numMicroTiles = " + str(SolutionCandidates.maxMicroTileSize \
-      * SolutionCandidates.maxMicroTileSize)"""
-
-  solutionCandidates = SolutionCandidates()
-
-  for problem in problemSet:
-    solutionCandidatesForProblem = \
-        solutionCandidates.getSolutionCandidatesForProblem( problem )
-    print "\n"
-    print problem
-    print "\n\n"
-    print len(solutionCandidatesForProblem)
-    print solutionCandidatesForProblem
-    break
+#if __name__ == "__main__":
+#
+#  # arguments
+#  ap = argparse.ArgumentParser(description="FileReader")
+#  ap.add_argument("--input-file", dest="inputFiles", action="append" )
+#  args = ap.parse_args()
+#
+#  # parse xml
+#  for inputFile in args.inputFiles:
+#    problemSet = set()
+#    FileReader.getProblemsFromXML( inputFile, problemSet )
+#
+#  """print "numUnrolls = " + str(len(SolutionCandidates.universeUnroll))
+#  print "numWorkGroups = " + str(len(SolutionCandidates.universeWorkGroupDim))
+#  print "numMicroTiles = " + str(SolutionCandidates.maxMicroTileSize \
+#      * SolutionCandidates.maxMicroTileSize)"""
+#
+#  solutionCandidates = SolutionCandidates()
+#
+#  for problem in problemSet:
+#    solutionCandidatesForProblem = \
+#        solutionCandidates.getSolutionCandidatesForProblem( problem )
+#    print "\n"
+#    print problem
+#    print "\n\n"
+#    print len(solutionCandidatesForProblem)
+#    print solutionCandidatesForProblem
+#    break
 
 

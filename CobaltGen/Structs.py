@@ -309,13 +309,14 @@ class Device:
     self.flopsPerClock = flopsPerClock
 
   def __str__(self):
+    print "Device.str"
     state = "[Device"
     state += "; " + self.name
     state += "; " + str(self.numComputeUnits)
     state += "; " + str(self.clockFrequency)
     state += "; " + str(self.flopsPerClock)
     state += "]"
-    return self.name
+    return state
 
   def __repr__(self):
     return self.__str__()
@@ -352,6 +353,7 @@ class DeviceProfile:
     return s
 
   def __str__(self):
+    print "DeviceProfile.str"
     return str(self.devices)
 
   def __repr__(self):
@@ -638,8 +640,6 @@ class Problem:
         self.sizeType = 1
       if abs(problemSizeDim0-problemSizeDim1) > 1 or abs(problemSizeDim0-problemSizeUnroll) > 1 or abs(problemSizeDim1-problemSizeUnroll) > 1:
         self.sizeType = 1
-      if self.sizeType == 1:
-        print "UNUSUAL_PROB: %ux%ux%u %s" % (problemSizeDim0, problemSizeDim1, problemSizeUnroll, str(self))
     return self.sizeType
 
 

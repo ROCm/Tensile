@@ -8,7 +8,7 @@ import sys
 import os
 
 def addTimeToMap( psMap, exactMatch, problem, solution, time ):
-  #print str(problem.getSizeType()) + " - " + str(problem)
+  #print "prob" + str(problem.getSizeType()) + " - " + str(problem)
   if exactMatch.deviceProfile not in psMap:
     #print "XML Parser: b.adding %s" % exactMatch.deviceProfile.libString()
     psMap[exactMatch.deviceProfile] = {}
@@ -81,6 +81,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
       print "XML Parser: startElement(%s)" % tag
     if tag == "P": # DONE
       self.problem = Structs.Problem()
+
     elif tag == "TC": # DONE
       self.problem.tensorC.dataType.value = int(attributes["t"])
       n = int(attributes["n"])
@@ -89,6 +90,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
         dim.stride = int(attributes["st"+str(i)])
         dim.size = int(attributes["sz"+str(i)])
         self.problem.tensorC.dimensions.append(dim)
+
     elif tag == "TA": # DONE
       self.problem.tensorA.dataType.value = int(attributes["t"])
       n = int(attributes["n"])
@@ -97,6 +99,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
         dim.stride = int(attributes["st"+str(i)])
         dim.size = int(attributes["sz"+str(i)])
         self.problem.tensorA.dimensions.append(dim)
+
     elif tag == "TB": # DONE
       self.problem.tensorB.dataType.value = int(attributes["t"])
       n = int(attributes["n"])
@@ -105,6 +108,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
         dim.stride = int(attributes["st"+str(i)])
         dim.size = int(attributes["sz"+str(i)])
         self.problem.tensorB.dimensions.append(dim)
+
     elif tag == "O":
       self.problem.operation.type.value = int(attributes["t"])
       if self.optimizeAlpha:
@@ -116,23 +120,20 @@ class CobaltHandler( xml.sax.ContentHandler ):
       else:
         self.problem.operation.betaType.value = self.problem.tensorC.dataType.value
       self.problem.operation.useOffsets = int(attributes["o"])
-      self.problem.operation.numIndicesFree = \
-          int(attributes["nF"])
-      self.problem.operation.numIndicesBatch = \
-          int(attributes["nB"])
-      self.problem.operation.numIndicesSummation = \
-          int(attributes["nS"])
-      pass
+      self.problem.operation.numIndicesFree = int(attributes["nF"])
+      self.problem.operation.numIndicesBatch = int(attributes["nB"])
+      self.problem.operation.numIndicesSummation = int(attributes["nS"])
+      
     elif tag == "IA":
       n = int(attributes["n"])
       for i in range(0,n):
         self.problem.operation.indexAssignmentsA.append(int(attributes["i"+str(i)]))
-      pass
+      
     elif tag == "IB":
       n = int(attributes["n"])
       for i in range(0,n):
         self.problem.operation.indexAssignmentsB.append(int(attributes["i"+str(i)]))
-      pass
+      
     elif tag == "DP":
       n = int(attributes["n"])
       for i in range(0,n):
@@ -141,8 +142,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
         clockFrequency = int(attributes["MHz"+str(i)])
         flopsPerClock = int(attributes["FPC"+str(i)])
         self.problem.deviceProfile.devices.append(Structs.Device( name, numComputeUnits, clockFrequency, flopsPerClock ))
-      pass
-    elif tag == "ID":
+      
+    elif tag == "ID" and self.readSolutions:
       self.solution.kernels = []
       for i in range(0,4):
         self.solution.kernels.append(None)
@@ -151,8 +152,8 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.ppdOffsets = int(attributes["ppdO"])
       self.solution.ppdLeadingStride = int(attributes["ppdLS"])
       self.solution.ppdAll = int(attributes["ppdAll"])
-      pass
-    elif tag == "K":
+      
+    elif tag == "K" and self.readSolutions:
       # read data from xml
       i = int(attributes["i"])
       self.solution.kernels[i] = Structs.Kernel()
@@ -171,7 +172,6 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].numLoadsPerpB        = int(attributes["nlpeB"])
       self.solution.kernels[i].loadSizePerpB        = int(attributes["lspeB"])
       self.solution.kernels[i].totalLoadSizePerpB   = int(attributes["tspeB"])
-
       self.solution.kernels[i].unrolls = [ int(attributes["u0"]) ]
       secondUnroll = int(attributes["u1"])
       if secondUnroll > 0:
@@ -189,19 +189,19 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernels[i].ppdAll = self.solution.ppdAll
       # make index assignments (rather than storing in xml)
       SolutionCandidateGenerator.makeIndexAssignments(self.solution.kernels[i], self.problem)
-      pass
-    elif tag == "B":
+
+    elif tag == "B" and self.readSolutions:
       # basically end of TraceEntry
       time = float(attributes["t"])
       exactMatch = Structs.ExactMatch()
       self.assignExactMatch(exactMatch)
       addTimeToMap( self.data, exactMatch, copy.deepcopy(self.problem), copy.deepcopy(self.solution), time )
-    elif tag == "V":
+
+    elif tag == "V" and self.readSolutions:
       valid = 1 if attributes["s"] == "P" else -1
       exactMatch = Structs.ExactMatch()
       self.assignExactMatch(exactMatch)
       addValidationToMap( self.data, exactMatch, copy.deepcopy(self.problem), copy.deepcopy(self.solution), valid )
-
 
   def endElement(self, tag):
     if self.dbgPrint:
@@ -274,15 +274,15 @@ def getSolutionsFromXML( inputFile, psMap, optimizeAlpha, optimizeBeta ):
 ################################################################################
 # Main
 ################################################################################
-if __name__ == "__main__":
-
-  # arguments
-  ap = argparse.ArgumentParser(description="FileReader")
-  ap.add_argument("--input-file", dest="inputFiles", action="append" )
-  args = ap.parse_args()
-
-  # parse xml
-  for inputFile in args.inputFiles:
-    problemSet = set()
-    getProblemsFromXML( inputFile, problemSet )
-  print problemSet
+#if __name__ == "__main__":
+#
+#  # arguments
+#  ap = argparse.ArgumentParser(description="FileReader")
+#  ap.add_argument("--input-file", dest="inputFiles", action="append" )
+#  args = ap.parse_args()
+#
+#  # parse xml
+#  for inputFile in args.inputFiles:
+#    problemSet = set()
+#    getProblemsFromXML( inputFile, problemSet )
+#  print problemSet
