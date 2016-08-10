@@ -93,7 +93,7 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
 
   if (!profilesEnumerated) {
 #if Cobalt_SOLVER_ENABLED
-    // TODO - enumerate devices supported by backend, rather than all devices on system
+	enumerateDeviceProfilesSupported(enumeratedProfiles);
 #else
 
 #if Cobalt_BACKEND_OPENCL12
