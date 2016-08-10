@@ -41,4 +41,7 @@ bool factor( size_t input, unsigned int & a, unsigned int & b);
 
 } // namespace
 
+#define cobaltMin(a,b) (((a) < (b)) ? (a) : (b))
+#define cobaltMax(a,b) (((a) > (b)) ? (a) : (b))
+
 #endif

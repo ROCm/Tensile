@@ -63,15 +63,19 @@ CobaltStatus Solution::enqueueEntry(
 	CobaltControl & ctrl,
 	bool doPrint ) {
 
+  CobaltStatus returnStatus;
+
 #if Cobalt_BACKEND_OPENCL12
   cl_int status;
 #elif Cobalt_BACKEND_HIP
   hipError_t status;
 #endif
 
+#if Cobalt_LOGGER_ENABLED
   Logger::TraceEntry entry;
   entry.type = Logger::TraceEntryType::enqueueSolution;
   entry.solution = this;
+#endif
 
   // validation
   if (ctrl.validate) {
@@ -114,8 +118,10 @@ CobaltStatus Solution::enqueueEntry(
     CobaltTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
     bool equal = compareTensors(constGPU, constRef,
         Solution::problem.tensorC, ctrl);
+#if Cobalt_LOGGER_ENABLED
     entry.validationStatus = equal ? ValidationStatus::statusValid
         : ValidationStatus::statusInvalid;
+#endif
     printf("%s validation %s;", equal ? "PASSED" : "FAILED",
         toString(0).c_str() );
     // cleanup
@@ -127,14 +133,12 @@ CobaltStatus Solution::enqueueEntry(
   // benchmarking
   if (ctrl.benchmark) {
     Cobalt::Timer timer;
-    CobaltStatus returnStatus;
 
     // warmup (ensure kernels compiled)
-    returnStatus =
-        enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
+    returnStatus = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
-      clFinish(ctrl.queues[i]);
+      status = clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -163,25 +167,24 @@ CobaltStatus Solution::enqueueEntry(
     time /= ctrl.benchmark;
     double gFlops = ((double) problem.getNumFlops() / 1000000.f ) / time; // MFlops / ms
     printf(" GFlop/s = %7.3f; t = %7.3f ms (avg of %u)", gFlops, time, ctrl.benchmark);
+#if Cobalt_LOGGER_ENABLED
     entry.benchmarkTimes.push_back(time);
-
-    if (!ctrl.validate) {
-      entry.status = returnStatus;
-    }
+#endif
   }
   if (doPrint) printf("\n");
 
   // if we didn't do any of the previous, enqueue here
   if( !ctrl.validate && !ctrl.benchmark ) {
-    entry.status = enqueue(tensorDataC, tensorDataA, tensorDataB,
+    returnStatus = enqueue(tensorDataC, tensorDataA, tensorDataB,
         alpha, beta, ctrl);
   }
 
 #if Cobalt_LOGGER_ENABLED
+  entry.status = returnStatus;
   Cobalt::logger.log(entry);
 #endif
 
-  return entry.status;
+  return returnStatus;
 }
 
 
@@ -806,6 +809,14 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     if (kernelSources[i]) {
       makeKernel( &kernels[i], ctrl.queues[0], kernelSources[i], buildOptions );
     }
+  }
+
+  // data pointers not supplied, return error
+  if (tensorDataC.data == nullptr
+      || tensorDataA.data == nullptr
+      || tensorDataB.data == nullptr ) {
+    ctrl.numQueuesUsed = 0;
+    return cobaltStatusInvalidParameter;
   }
 
   size_t *globalWorkOffset = NULL;

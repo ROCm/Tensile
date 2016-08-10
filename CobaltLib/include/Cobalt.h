@@ -251,10 +251,10 @@ typedef struct CobaltControl_ {
   void *validate;
   unsigned int benchmark;
   enum { maxQueues = 16 } maxQueues_;
-  unsigned int numQueues;
-  unsigned int numQueuesUsed; // by library
-  unsigned int numInputEvents;
-  unsigned int numOutputEvents;
+  unsigned int numQueues;       // supplied by user
+  unsigned int numQueuesUsed;   // returned by library
+  unsigned int numInputEvents;  // supplied by user
+  unsigned int numOutputEvents; // returned by library
 #if Cobalt_BACKEND_OPENCL12
   cl_command_queue queues[maxQueues];
   cl_event *inputEvents;

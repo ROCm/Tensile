@@ -13,13 +13,15 @@ import Structs
 def GenBackendFromFiles( \
     inputFiles, \
     outputPath, \
-    backend ):
+    backend, \
+    optimizeAlpha, \
+    optimizeBeta ):
   
   # read raw solution times
   psTimesRaw = {}
   for inputFile in inputFiles:
-    print "status: reading problem/solutions from " + os.path.basename(inputFile) + "\n"
-    FileReader.getSolutionsFromXML( inputFile, psTimesRaw )
+    print "Reading problem/solutions from " + os.path.basename(inputFile)
+    FileReader.getSolutionsFromXML( inputFile, psTimesRaw, optimizeAlpha, optimizeBeta )
   # print "status: created dictionary - " + str(psTimes)
   
   # structures needed to write backend
@@ -90,9 +92,10 @@ if __name__ == "__main__":
   ap.add_argument("--output-path", dest="outputPath", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
-  # ap.add_argument("--enable-validation", dest="validate", action="store_true" )
-  # ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
-  # ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+  ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
+  ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+  ap.set_defaults(optimizeAlphaStr="Off")
+  ap.set_defaults(optimizeBetaStr="Off")
 
 
   # parse arguments
@@ -111,9 +114,14 @@ if __name__ == "__main__":
   print "  inputPath=" + args.inputPath
   print "  inputFiles=" + str(inputFiles)
 
+  #print args.optimizeAlphaStr
+  #print args.optimizeBetaStr
+
   # generate backend
   GenBackendFromFiles( \
       inputFiles, \
       args.outputPath, \
-      backend )
+      backend, \
+      args.optimizeAlphaStr=="On" or args.optimizeAlphaStr=="ON", \
+      args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
 

@@ -35,12 +35,14 @@ def GenBenchmarkFromFiles( \
 
   ##############################################################################
   # (1) accumulate set of problems
-  problemSet = set() # every problem we'll benchmark
+  #problemSet = set() # every problem we'll benchmark
+  problemTree = {}
+  #problemTree[deviceProfile][ExactMatch] = Set() of problems
   # for each input file, accumulate problems
   for inputFile in inputFiles:
     # print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
-    FileReader.getProblemsFromXML( inputFile, problemSet )
-  print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
+    FileReader.getProblemsFromXML( inputFile, problemTree, optimizeAlpha, optimizeBeta )
+  #print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
   #for problem in problemSet:
   #  print str(problem)
 
@@ -50,42 +52,41 @@ def GenBenchmarkFromFiles( \
       SolutionCandidateGenerator.SolutionCandidateGenerator(optimizeAlpha, optimizeBeta, backend )
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
-  benchmarkList = [] # problems and associated solution candidates
+  benchmarkList = {} # problems and associated solution candidates
   print "CobaltGenBenchmark: generating solution candidates for problems"
-  totalSolutions = 0
-  totalKernels = 0
   problemIdx = 0
-  for problem in problemSet:
-    solutionCandidates = \
-        solutionCandidateGenerator.getSolutionCandidatesForProblem( \
-        problem )
-    #if len(solutionCandidates) < 61:
-    #  print problem
-    #  for solution in solutionCandidates:
-    #    print solution
+  for deviceProfile, exactMatches in problemTree.iteritems():
+    print "DeviceProfile: " + str(deviceProfile)
+    for exactMatch, problemSet in exactMatches.iteritems():
+      print "ExactMatch: " + str(exactMatch)
 
-    benchmarkList.append( [problem, solutionCandidates] )
-    totalSolutions += len(solutionCandidates)
-    # print solutionCandidates
-    for solution in solutionCandidates:
-      # for s in allSolutions:
-        # if s == solution:
-        #   print "match"
-        #   print s
-        #   print solution
-      allSolutions.add( solution )
-      # print len(allSolutions)
-    kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
-    for kernel in kernelsInSolutionCandidates:
-      if kernel != None:
-        allKernels.add( kernel )
-        totalKernels+=1
-    print "Prob[" + str(problemIdx) + "] \"" + str(problem) + "\": " + str(len(solutionCandidates)) + "/" + str(len(allSolutions)) + " solutions"
-    problemIdx += 1
-  print "CobaltGenBenchmark:   " + str(len(allSolutions)) + " unique solutions"
-  print "CobaltGenBenchmark:   " + str(len(allKernels)) + " unique kernels"
-  print "CobaltGenBenchmark:   " + str(totalSolutions) + " total solutions will be enqueued"
-  print "CobaltGenBenchmark:   " + str(totalKernels) + " total kernels will be enqueued"
+      for problem in problemSet:
+        solutionCandidates = \
+            solutionCandidateGenerator.getSolutionCandidatesForProblem( \
+            problem )
+        #if len(solutionCandidates) < 61:
+        #  print problem
+        #  for solution in solutionCandidates:
+        #    print solution
+
+        benchmarkList[problem] = solutionCandidates
+        # print solutionCandidates
+        for solution in solutionCandidates:
+          # for s in allSolutions:
+            # if s == solution:
+            #   print "match"
+            #   print s
+            #   print solution
+          allSolutions.add( solution )
+          # print len(allSolutions)
+          # print len(allSolutions)
+        kernelsInSolutionCandidates = getKernelsFromSolutions(solutionCandidates)
+        for kernel in kernelsInSolutionCandidates:
+          if kernel != None:
+            allKernels.add( kernel )
+            # print kernel
+        print "Prob[" + str(problemIdx) + "] \"" + str(problem) + "\": " + str(len(solutionCandidates)) + "/" + str(len(allSolutions)) + " solutions"
+        problemIdx += 1
   kernelWriter = KernelWriter.KernelWriter(backend)
   #for kernel in allKernels:
   #  print kernelWriter.getName(kernel) + ":" + str(kernel) + ":" + str(hash(kernel))
@@ -95,7 +96,7 @@ def GenBenchmarkFromFiles( \
   fileWriter = FileWriter.FileWriter(outputPath, backend, True)
   fileWriter.writeKernelFiles( allKernels )
   fileWriter.writeSolutionFiles( allSolutions )
-  fileWriter.writeBenchmarkFiles( benchmarkList )
+  fileWriter.writeBenchmarkFiles( problemTree, benchmarkList )
 
 
 ################################################################################

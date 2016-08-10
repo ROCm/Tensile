@@ -15,9 +15,9 @@ set( CobaltBenchmark_SRC_STATIC
 set( CobaltBenchmark_SRC_GENERATED_STATIC
   ${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.h
   ${CobaltBenchmark_DIR_GENERATED}/Solutions/CobaltSolutions.h
+  ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
   ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.cpp
   ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.h
-  ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
 )
 
 #include( ${CobaltBenchmark_CMAKE_DYNAMIC} )

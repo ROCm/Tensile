@@ -5,12 +5,6 @@ import KernelWriter
 import SolutionWriter
 import argparse
 import math
-"""
-TODOs
- - move loads
- - debug ddp offsets
-"""
-
 
 """
 3 levels
@@ -50,8 +44,6 @@ preprocessor defines
      [ 1, 1, 1], \
  (f) [ 1, 0, 0], \
 
-
-
 """
 
 
@@ -78,13 +70,14 @@ class SolutionCandidateGenerator:
   modePreprocessorDefinitions = 0
 
   # thresholds
-  thresholdMicroTiles = 8*8
-  thresholdUnrolls    = 16
-  thresholdSkinny     = 128 # if dim0 or dim1 < threshold, then problem is skinny
+  thresholdWorkGroupSize  = 256 # threads
+  thresholdMicroTiles     = 8*8
+  thresholdUnrolls        = 16
+  thresholdSkinny         = 128 # if dim0 or dim1 < threshold, then problem is skinny
   ratioWorkGroupSkinny    = 2
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
-  ratioMacroTileSlow      = 2
+  ratioMacroTileSS        = 2 # slow_slow
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -138,6 +131,8 @@ class SolutionCandidateGenerator:
     kernel.dataTypeC = problem.tensorC.dataType
     kernel.dataTypeA = problem.tensorA.dataType
     kernel.dataTypeB = problem.tensorB.dataType
+    kernel.dataTypeAlpha = problem.operation.alphaType
+    kernel.dataTypeBeta = problem.operation.betaType
     kernel.problem = problem
 
     # Index Assignments
@@ -158,9 +153,6 @@ class SolutionCandidateGenerator:
     # Problem Characteristics affecting performance
     problemSizeDim0 = problem.tensorC.dimensions[ kernel.indexAssignmentDim0].size
     problemSizeDim1 = problem.tensorC.dimensions[ kernel.indexAssignmentDim1].size
-
-    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny
-    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny
     
     problemSizeUnroll = -1
     for i in range(len(problem.operation.indexAssignmentsA)):
@@ -178,28 +170,29 @@ class SolutionCandidateGenerator:
         tensorStrideDim1 = problem.tensorA.dimensions[i].stride
         break
 
+    #inputProblem.sizeType = 0
+    #problem.sizeType = 0
+    #problemIsRectangular = True
+    #if (not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0) or (not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0) or (not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0):
+    #  inputProblem.sizeType = 1
+    #  problem.sizeType = 1
 
     ###################################
     # Determine Search Universe
     ###################################
-    problemIsRectangular = True
-    if not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0:
-      problemIsRectangular = False
-    if not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0:
-      problemIsRectangular = False
-    if not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0:
-      problemIsRectangular = False
-    if not problemIsRectangular:
-      print "WARNING: problem has unusual size; many candidates solutions will be generated."
-
+    problemIsRectangular = problem.getSizeType() == 0
+    if not problemIsRectangular and self.printDetails:
+      print "SCG: Problem has unusual size; many candidates solutions will be generated."
+      
+    problemSkinnyDim0 = problemSizeDim0 < self.thresholdSkinny and not problemIsRectangular
+    problemSkinnyDim1 = problemSizeDim1 < self.thresholdSkinny and not problemIsRectangular
 
     # work-groups
     universeWorkGroups = []
-    thresholdWorkGroupSize = 256 # threads
     if self.modeWorkGroups == self.modeExhaustive:
-      for m in range(1, thresholdWorkGroupSize+1):
-        for n in range(1, thresholdWorkGroupSize+1):
-          if m*n < thresholdWorkGroupSize:
+      for m in range(1, self.thresholdWorkGroupSize+1):
+        for n in range(1, self.thresholdWorkGroupSize+1):
+          if m*n < self.thresholdWorkGroupSize:
             universeWorkGroups.append( [m,n] )
     else: # fast or thorough; both will include skinnies where applicable
       if self.modeWorkGroups == self.modeThorough:
@@ -212,7 +205,7 @@ class SolutionCandidateGenerator:
         universeWorkGroups = [ [16,16], [8,8] ]
       if not problemIsRectangular and problemSizeDim0 < self.thresholdSkinny:
         if self.printDetails: print "SCG: adding skinny(dim0) work-groups"
-        for workGroupDim0 in range(1, thresholdWorkGroupSize+1):
+        for workGroupDim0 in range(1, self.thresholdWorkGroupSize+1):
           if problemSizeDim0 % workGroupDim0 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim1 = workGroupSize / workGroupDim0 #problemSizeDim0
@@ -221,7 +214,7 @@ class SolutionCandidateGenerator:
             # break
       if not problemIsRectangular and problemSizeDim1 < self.thresholdSkinny:
         if self.printDetails: print "SCG: adding skinny(dim1) work-groups"
-        for workGroupDim1 in range(1, thresholdWorkGroupSize+1):
+        for workGroupDim1 in range(1, self.thresholdWorkGroupSize+1):
           if problemSizeDim1 % workGroupDim1 == 0:
             for workGroupSize in [256, 192, 128, 64]:
               workGroupDim0 = workGroupSize / workGroupDim1 #problemSizeDim1
@@ -248,14 +241,14 @@ class SolutionCandidateGenerator:
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = self.ratioMacroTileSlow
+        macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     else: # fast
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
       elif transA and not transB:
-        macroTileRatio = self.ratioMacroTileSlow
+        macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     if self.printDetails: print "SCG: MacroTileRatio: " + str(macroTileRatio)
@@ -293,13 +286,13 @@ class SolutionCandidateGenerator:
         universePreprocessorDefinitions.append( [ 1, 1, 0] )
         universePreprocessorDefinitions.append( [ 1, 1, 1] )
     elif self.modePreprocessorDefinitions == self.modeThorough:
-      universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
+      universePreprocessorDefinitions = [ [ 0 if requireInitialStrides else 1, 1, 0] ]
       if not requireInitialStrides and not requireOffsets:
         universePreprocessorDefinitions.append( [ 1, 1, 1] )
     else:
-      universePreprocessorDefinitions = [ [ 1, 1 if requireInitialStrides else 0, 0] ]
+      universePreprocessorDefinitions = [ [ 0 if requireInitialStrides else 1, 0 if requireOffsets else 1, 0] ]
     if self.printDetails: print "SCG: PreprocessorDefinitions(" + str(len(universePreprocessorDefinitions)) + "): " + str(universePreprocessorDefinitions)
-
+    # [ leadingStrides, offsets, everything ]
     
     # kernel grid
     kernelGrid = [ 1, 1, 1 ]
@@ -430,13 +423,6 @@ class SolutionCandidateGenerator:
             ###################################
             # for num loads parallel A
             for numLoadsParaA in universeNumLoadsParaA:
-              # if False: # TODO, need this for mode scheme? true means only try perfect tiles w/o branches
-              #   if totalNumLoadsA % numLoadsParaA > 0:
-              #     continue
-              #   if totalLoadSizeParaA%numLoadsParaA>0:
-              #     continue
-              #   if (workGroup[0]*workGroup[1])%(totalLoadSizeParaA/numLoadsParaA) > 0:
-              #     continue
               kernel.numLoadsParaA = numLoadsParaA
               kernel.loadSizeParaA = int(math.ceil(1.0*kernel.totalLoadSizeParaA / kernel.numLoadsParaA ) ) # round up
               kernel.loadSizePerpA = int( (workGroup[0]*workGroup[1])/kernel.loadSizeParaA ) # round down
@@ -481,12 +467,7 @@ class SolutionCandidateGenerator:
                   for branchType in branchTypes:
                     solution.kernelGrid = copy.deepcopy(kernelGrid)
                     solution.kernels = []
-                    leadingStridesOne = False
-                    if problem.tensorC.dimensions[0].stride == 1 \
-                        and problem.tensorA.dimensions[0].stride == 1 \
-                        and problem.tensorB.dimensions[0].stride == 1:
-                      leadingStridesOne = True
-                    # branch - 2-4 kernels
+                    # skip if undesired
                     if branchType.isMultiple():
                       if self.noBranches or self.noMultipleKernels:
                         if problemSizeDim0 % macroTileDim0 != 0 \
@@ -494,39 +475,31 @@ class SolutionCandidateGenerator:
                           continue
 
                       solution.branch = [branchType, branchType]
-                      if leadingStridesOne:
-                        solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdLeadingStride = ppdLeadingStride
                       solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
-                      solution.ppdAll = False # kernels 1-3 will need sizes
+                      solution.ppdAll = 0 # kernels 1-3 will need sizes
                       # add main kernel
                       kernel.tile.branch = [Structs.BranchType(0), Structs.BranchType(0)]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
                       kernel.ppdOffsets = ppdOffsets
                       kernel.ppdAll = ppdAll
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add edge-0 kernel
                       solution.kernelGrid[0] += 1
                       kernel.tile.branch = [ branchType, Structs.BranchType(0) ]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdOffsets = False
-                      kernel.ppdAll = False
+                      kernel.ppdOffsets = 0
+                      kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add edge-1 kernel
                       solution.kernelGrid[1] += 1
                       kernel.tile.branch = [ Structs.BranchType(0), branchType ]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdOffsets = False
-                      kernel.ppdAll = False
+                      kernel.ppdOffsets = 0
+                      kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
                       # add corner-01 kernel
                       kernel.tile.branch = [ branchType, branchType ]
-                      if leadingStridesOne:
-                        kernel.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdOffsets = False
-                      kernel.ppdAll = False
+                      kernel.ppdOffsets = 0
+                      kernel.ppdAll = 0
                       solution.kernels.append( copy.deepcopy(kernel) )
 
                     # branch - 1 branched kernel
@@ -539,8 +512,7 @@ class SolutionCandidateGenerator:
                       if self.noBranches:
                         continue
                       solution.branch = [branchType, branchType]
-                      if leadingStridesOne:
-                        solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdLeadingStride = ppdLeadingStride
                       solution.ppdOffsets = ppdOffsets
                       solution.ppdAll = ppdAll
                       kernel.tile.branch = [branchType, branchType ]
@@ -724,33 +696,33 @@ def makeIndexAssignments(kernel, problem):
 ################################################################################
 # Main
 ################################################################################
-if __name__ == "__main__":
-
-  # arguments
-  ap = argparse.ArgumentParser(description="FileReader")
-  ap.add_argument("--input-file", dest="inputFiles", action="append" )
-  args = ap.parse_args()
-
-  # parse xml
-  for inputFile in args.inputFiles:
-    problemSet = set()
-    FileReader.getProblemsFromXML( inputFile, problemSet )
-
-  """print "numUnrolls = " + str(len(SolutionCandidates.universeUnroll))
-  print "numWorkGroups = " + str(len(SolutionCandidates.universeWorkGroupDim))
-  print "numMicroTiles = " + str(SolutionCandidates.maxMicroTileSize \
-      * SolutionCandidates.maxMicroTileSize)"""
-
-  solutionCandidates = SolutionCandidates()
-
-  for problem in problemSet:
-    solutionCandidatesForProblem = \
-        solutionCandidates.getSolutionCandidatesForProblem( problem )
-    print "\n"
-    print problem
-    print "\n\n"
-    print len(solutionCandidatesForProblem)
-    print solutionCandidatesForProblem
-    break
+#if __name__ == "__main__":
+#
+#  # arguments
+#  ap = argparse.ArgumentParser(description="FileReader")
+#  ap.add_argument("--input-file", dest="inputFiles", action="append" )
+#  args = ap.parse_args()
+#
+#  # parse xml
+#  for inputFile in args.inputFiles:
+#    problemSet = set()
+#    FileReader.getProblemsFromXML( inputFile, problemSet )
+#
+#  """print "numUnrolls = " + str(len(SolutionCandidates.universeUnroll))
+#  print "numWorkGroups = " + str(len(SolutionCandidates.universeWorkGroupDim))
+#  print "numMicroTiles = " + str(SolutionCandidates.maxMicroTileSize \
+#      * SolutionCandidates.maxMicroTileSize)"""
+#
+#  solutionCandidates = SolutionCandidates()
+#
+#  for problem in problemSet:
+#    solutionCandidatesForProblem = \
+#        solutionCandidates.getSolutionCandidatesForProblem( problem )
+#    print "\n"
+#    print problem
+#    print "\n\n"
+#    print len(solutionCandidatesForProblem)
+#    print solutionCandidatesForProblem
+#    break
 
 

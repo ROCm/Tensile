@@ -85,7 +85,7 @@ int main( int argc, char * argv[] ) {
 #else
   numProblems = 0;
   addGEMMCombinatorics();
-  printf("Num GEMM Problems: %llu\n", numProblems);
+  printf("Num GEMM Problems: %u\n", static_cast<unsigned int>(numProblems));
 #endif
   //cobaltTeardown();
 }
@@ -94,7 +94,7 @@ int main( int argc, char * argv[] ) {
 unsigned int addGEMMList() {
 
   std::string logFilePath = Cobalt_DIR_PROBLEMS;
-  //logFilePath += "/GEMM_log.xml";
+  logFilePath += "/GEMM.xml";
   cobaltSetup(logFilePath.c_str());
 
   for (unsigned int i = 0; i < num_gemm_params; i++) {
@@ -139,20 +139,11 @@ unsigned int addGEMMList() {
 
 unsigned int addGEMMCombinatorics() {
   // transA, transB, strideMultiple, M, N, K
-  std::vector<std::array<size_t,3>> sizes;
-#if 0
-  size_t stride = 16;
-  size_t stride_incr = 16; // 0->1440, 16->108, 32->76
-  for (size_t i = 16; i <= 5760; i+= stride, stride += stride_incr) {
-      sizes.push_back({ i, i, i }); // exact tile, exact unroll
-      sizes.push_back({ i, i, i-1 }); // exact tile, fallback unroll
-      sizes.push_back({ i-1, i-1, i }); // fallback tile, exact unroll
-      sizes.push_back({ i-1, i-1, i-1 }); // fallback tile, fallback unroll
-  }
-#endif
 
-#if 1
+
+#if 0
   sizes.push_back( {5760, 5760, 5760 });
+  //sizes.push_back({ 96*3, 96*2, 96*1 });
 #endif
 
 #if 0
@@ -170,13 +161,13 @@ unsigned int addGEMMCombinatorics() {
   // each api is own test
 
   // how many problem options
-  const size_t numStrides     = 1; // 2
-  const size_t numBatchSizes  = 1; // 2
-  const size_t numDataTypes   = 1; // 10
+  const size_t numStrides     = 2; // 2
+  const size_t numBatchSizes  = 2; // 2
+  const size_t numDataTypes   = 2; // 10
   const size_t numAlphas      = 1; // 1
   const size_t numBetas       = 1; // 2
-  const size_t numTransA      = 1; // 2
-  const size_t numTransB      = 1; // 2
+  const size_t numTransA      = 2; // 2
+  const size_t numTransB      = 2; // 2
 
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -198,8 +189,8 @@ unsigned int addGEMMCombinatorics() {
   };
   const bool alphas[] = { true };
   const bool betas[] = { true, false };
-  const bool transAs[] = {false, true};
-  const bool transBs[] = {true, false};
+  const bool transAs[] = { false, true };
+  const bool transBs[] = { true, false };
 
   // create problem for each combination
   unsigned int numProblems = 0;
@@ -210,6 +201,21 @@ unsigned int addGEMMCombinatorics() {
           for (size_t bIdx = 0; bIdx < numBatchSizes; bIdx++) {
             for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
               for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
+
+#if 1
+				  std::vector<std::array<size_t, 3>> sizes;
+				  size_t stride = 16;
+				  size_t stride_incr = 16; // 0->1440, 16->108, 32->76
+				  size_t sizeMax = 5760 / batches[bIdx];
+				  for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
+					  sizes.push_back({ i, i, i }); // exact tile, exact unroll
+					  sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
+					  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
+					  sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
+				  }
+#endif
+
+
 
                 createAppXMLForExactMatch(
                     dataTypes[dtIdx][0],
@@ -222,68 +228,7 @@ unsigned int addGEMMCombinatorics() {
                     batches[bIdx],
                     initialStrides[sIdx],
                     sizes );
-#if 0
-                size_t numBatches = batches[bIdx];
-                size_t initStride = initialStrides[sIdx];
-                bool alpha = alphas[alphaIdx];
-                bool beta = betas[betaIdx];
-                bool useOffset = true;
-                std::string logFilePath = Cobalt_DIR_PROBLEMS;
-                std::string logFileName = "GEMM";
-                logFileName += "_";
-                logFileName += cobaltDataTypeToChar(dataTypes[dtIdx][0]);
-                logFileName += cobaltDataTypeToChar(dataTypes[dtIdx][1]);
-                logFileName += cobaltDataTypeToChar(dataTypes[dtIdx][2]);
-                logFileName += alpha ? cobaltDataTypeToChar(dataTypes[dtIdx][0]) : cobaltDataTypeToChar(cobaltDataTypeNone);
-                logFileName += beta  ? cobaltDataTypeToChar(dataTypes[dtIdx][0]) : cobaltDataTypeToChar(cobaltDataTypeNone);
-                logFileName += "_";
-                logFileName += transAs[transA] ? "T" : "N";
-                logFileName += transBs[transB] ? "T" : "N";
-                if (initStride > 1) {
-                  logFileName += "_strided";
-                }
-                if (numBatches > 1) {
-                  logFileName += "_batched";
-                }
-                logFileName += "_";
-                logFileName += std::to_string(sizes.size());
-                logFilePath += "/" + logFileName + ".xml";
-                printf("%s\n", logFileName.c_str());
-                cobaltSetup(logFilePath.c_str());
 
-                for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
-
-                  size_t M = sizes[mIdx][0];
-                  size_t N = sizes[mIdx][1];
-                  size_t K = sizes[mIdx][2];
-                  //if (M != N || M != K || N != K) continue;
-                  CobaltProblem problem = createProblemGEMM(
-                      transAs[transA],
-                      transBs[transB],
-                      M, N, K,
-                      initStride,
-                      numBatches,
-                      alpha,
-                      beta,
-                      useOffset,
-                      dataTypes[dtIdx][0],
-                      dataTypes[dtIdx][1],
-                      dataTypes[dtIdx][2]
-                    );
-                  //unsigned int nameSize;
-                  //cobaltProblemToString(problem, nullptr, &nameSize);
-                  //char *nameStr = new char[nameSize];
-                  //cobaltProblemToString(problem, nameStr, &nameSize);
-                  //delete[] nameStr;
-                  CobaltSolution solution;
-                  CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
-
-
-                  numProblems++;
-                } // size
-
-                cobaltTeardown();
-#endif
               } // beta
             } // alpha
           } // batch

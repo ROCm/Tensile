@@ -26,7 +26,7 @@ set( CobaltLib_SRC_STATIC
   src/Tools.h
 )
 
-# TODO does this need to change to Windows vs Linux?
+# this may need to check Windows vs Linux rather than opencl vs hip
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions(-DCobaltLib_DIR_PROBLEMS="${CobaltLib_DIR_PROBLEMS}")
   add_definitions(-DCobaltLib_DIR_SOLUTIONS="${CobaltLib_DIR_SOLUTIONS}")
@@ -47,12 +47,8 @@ endif()
 add_library( ${CobaltLogger_NAME}
   ${CobaltLib_API}
   ${CobaltLib_SRC_STATIC}
-  #${CobaltLib_SRC_GENERATED_STATIC}
-  #${CobaltLib_SRC_GENERATED_DYNAMIC}
-  #${CobaltGen_SRC}
   )
 
-message( STATUS "HIP_INCLUDE_DIRS<<==>>${HIP_INCLUDE_DIRS}" )
 target_include_directories( ${CobaltLogger_NAME}
   PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
           $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
@@ -97,6 +93,8 @@ add_custom_command(
     --backend=${Cobalt_BACKEND}
     --input-path=${Cobalt_DIR_SOLUTIONS}
     --output-path=${CobaltLib_DIR_GENERATED}
+    --optimize-alpha=${Cobalt_OPTIMIZE_ALPHA}
+    --optimize-beta=${Cobalt_OPTIMIZE_BETA}
   DEPENDS ${CobaltGen_SRC} ${Cobalt_XML_SOLUTIONS_FILE}
 )
 

@@ -88,11 +88,14 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     CobaltDeviceProfile *profiles,
     unsigned int *size) {
 
-  // TODO - this will leak memory upon closing application
   static std::vector<CobaltDeviceProfile> enumeratedProfiles;
   static bool profilesEnumerated = false;
 
   if (!profilesEnumerated) {
+#if Cobalt_SOLVER_ENABLED
+    // TODO - enumerate devices supported by backend, rather than all devices on system
+#else
+
 #if Cobalt_BACKEND_OPENCL12
     //printf("cobaltEnumerateDeviceProfiles(OpenCL)\n");
     cl_int status;
@@ -119,7 +122,21 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     }
     delete[] platforms;
 #else
-    // TODO
+    hipError_t status;
+    int numDevices;
+    status = hipGetDeviceCount( &numDevices );
+    for (int i = 0; i < numDevices; i++) {
+      hipDeviceProp_t deviceProperties;
+      hipGetDeviceProperties( &deviceProperties, i);
+      CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+      profile.numDevices = 1;
+      strcpy( profile.devices[0].name, deviceProperties.name );
+      profile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
+      profile.devices[0].clockFrequency = deviceProperties.clockRate;
+      enumeratedProfiles.push_back(profile);
+    }
+#endif
+
 #endif
     profilesEnumerated = true;
   }

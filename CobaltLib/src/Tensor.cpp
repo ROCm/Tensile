@@ -192,16 +192,19 @@ unsigned int Tensor::numDims() const {
 }
 
 size_t Tensor::numElements() const {
-  // TODO: this only applies to a packed tensor; it should be put directly into numBytes
-  size_t size = 0;
+  size_t numElements = 1;
   for (unsigned int i = 0; i < numDims(); i++) {
-    size_t dimSize = dimensions[i].size * dimensions[i].stride;
-    size = dimSize > size ? dimSize : size;
+	  numElements *= dimensions[i].size;
   }
-  return size;
+  return numElements;
 }
 size_t Tensor::numBytes() const {
-  return numElements() * sizeOf(dataType);
+  size_t size = 0;
+  for (unsigned int i = 0; i < numDims(); i++) {
+  	size_t dimSize = dimensions[i].size * dimensions[i].stride;
+  	size = dimSize > size ? dimSize : size;
+  }
+  return size * sizeOf(dataType);
 }
 
 CobaltDataType Tensor::getDataType() const { return dataType; }
