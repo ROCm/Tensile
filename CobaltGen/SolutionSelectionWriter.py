@@ -55,6 +55,17 @@ class SolutionSelectionWriter:
       s += "  return nullptr;\n"
     s += "}\n"
     s += "\n"
+    s += "void enumerateDeviceProfilesSupported( std::vector<CobaltDeviceProfile> & enumeratedProfiles ) {\n"
+    s += "  CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();\n"
+    s += "  profile.numDevices = 1;\n"
+    for deviceProfile, exactMatches in self.psMap.iteritems():
+      for device in deviceProfile.devices:
+        s += "  sprintf(profile.devices[0].name, \"%s\");\n" % device.name
+        s += "  profile.devices[0].numComputeUnits = %u;\n" % device.numComputeUnits
+        s += "  profile.devices[0].clockFrequency = %u;\n" % device.clockFrequency
+        s += "  enumeratedProfiles.push_back(profile);\n"
+    s += "}\n"
+    s += "\n"
 
     # header file
     h = ""
@@ -65,6 +76,8 @@ class SolutionSelectionWriter:
     h += "#include \"Solution.h\"\n"
     h += "\n"
     h += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status);\n"
+    h += "\n"
+    h += "void enumerateDeviceProfilesSupported( std::vector<CobaltDeviceProfile> & enumeratedProfiles );\n"
     h += "\n"
     h += "#endif\n"
     h += "\n"
