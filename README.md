@@ -1,146 +1,180 @@
 # Cobalt
 
-A core math library back end to domain-specific libraries for multi-dimensional convolutions, tensor contractions, matrix-matrix multiplication, higher-order inner-products and anything else that multiplies two objects together on a gpu using any desired language (OpenCL, HSA, C++ lambda functions).
+### Overview
 
-## Motivation:
-The following three multi-dimensional mathematical operations
+A tool for creating a library back end to domain-specific libraries for matrix-matrix multiplication, N-dimensional tensor contractions, and anything else that multiplies two multi-dimensional objects together on a GPU.
 
-1) Convolutions (1D, 2D, 3D)
-2) Inner-Products (including GEMM)
-3) Tensor contractions
+Cobalt automates the process of:
 
-not only share the same overall behavior of
+1) Enumerating what "problems" and application seeks to solve.
+2) Creating a list of "solution" candidates for each problem.
+3) Benchmarking all solutions to determine the fastest.
+4) Writing the customized library backend, consisting of:
+  1) GPU kernels, written in HIP or OpenCL.
+  2) Solution c++ classes, which enqueue 1 or more kernels.
+  3) A getSolutionForProblem() function which looks up the fastest solution for a problem.
 
-1) multiply groups of elements of A with corresponding groups of elements of B
-2) sum the group
-3) write group's sum to particular location in C
+## Usage
 
-but they all share the same core/inner-most-loop for achieving peak floating-point throughput on GPUs:
+The following are the steps for using Cobalt; they refer to the code example farther down.
 
-1)	load elements of A from global -> local memory
-2)	load elements of B from global -> local memory
-3)	load m elements of A into registers
-4)	load n elements of B into registers
-5)	do m\*n multiply-accumulate operations in registers
+### Usage-0: CMake
 
-Cobalt will be a single library back-end, similar to the successful AutoGemm, a "library behind the libraries", to flexibly generate gpu kernels (append domain-specific prefix and suffix to common inner-most-loop) and some necessary host-code to use in domain specific libraries.
+The Cobalt build process has been instrumented with CMake; it comes pre-setup to automate the process, however it also allows for users to override options, which will be explain below.
 
-## Development Timeline:
+"Unresolved External Symbol" - On several of the build steps, the first time your try and build a particular target (CobaltBenchmark or CobaltLib), the compiler will complain about an unresolved external symbols; the second time you try to build that target it will build fine. The reason is because for some of the build steps Cobalt's python code generate source files and generates cmake files specifying which generated source files need to be added to the target; this happens the first time you build the target. The second time your build the target, CMake loads in the generated cmake file, then it knows all the generated source files it needs to fully build the target.
 
-CobaltGenBenchmark
-  Reader
-    getProblemsFromXML - DONE
-  Engine
-    genSolutionSelectionLogic
-      selectSolutionSpecific - DONE
-    getSolutionsToProblem - DONE
-    getKernelsFromSolution - DONE
-  Writer
-    writeKernels
-      getBody(opencl) - DONE
-    writeSolutionClasses
-      header file - DONE
-      source file - DONE
-    writeBenchmarkHeaders
-      list of problems and every matching solution - DONE
-    writeSolutionSelectionLogic - DONE
+### Usage-1: Create Problem.xml
 
-CobaltGenBackend
-  Reader
-    getProblemSolutionMapFromXML - 2 weeks
-  Engine
-    simplifyProblemSolutionMap - 2 weeks
-  Writer
-    writeKernels (duplicate)
-    writeSolutionClasses (duplicate)
-    writeSolutionSelectionLogic
+The first step is to enumerate what problems you want Cobalt to solve, and write them to a file. The two ways of doing this are
+1) Use one of Cobalt clients or create your own dummy application/client whose sole purpose is to create problems.
+2) Incorporate Cobalt into your own application, link it with CobaltLogger, then run your application; Cobalt will log all the problems your application requested solutions to.
 
-CobaltLib
-  write validation - 2 week
-Apps
-  exhaustive gemms - 1 week
-  benchmarking architecture - DONE
+In either case, you'll need to create a CobaltProblem object. The following code snipet creates a CobaltProblem for sgemm\_NT for M=64, N=256, K=1024, looks up the solution and enqueues it.
 
-After writing this
-validate gemm solutions - 2 weeks
-validate solution selection logic - 1 week
-validate Cobalt architecture (multiple objects devices) - 2 weeks
-
-= 6 months for GEMM to work on OpenCL 1.2
-+ advanced tensors = 2 weeks
-+ other language = 4 weeks (mostly Solution.cpp "enqueueing")
-
-For what different devices do we need to pre-compile
-
-What can easily be allowed to differ between the kernels of a solution
-  workGroup
-  microTile
-  kernel signature
-NOT
-  index assignments?
-
-## CMaking Cobalt
-
-### Option 1
-from aBLAS:
-- aBLAS gets Cobalt repo via external project
-- aBLAS has its own backend option which also gets passed to Cobalt config
-- aBLAS has its own aBLASProbSolvMap.xml which gets passed to Cobalt config
-- aBLAS tells Cobalt to build itself
-  - CobaltGenBackend.py produces files.cpp and file.cmake
-  - Cobalt CMake has to reload file.cmake - configure\_file
-  - Cobalt build builds Cobalt.lib
-- aBLAS builds itself and links in Cobalt.lib
-
-from Cobalt:
-- build options: backend, directory of .xml files, output dir is own BINARY\_DIR
-
-need 2 build modes: Isolated and AsExternalProject
-Isolated - builds clients, does benchmarking
-AsExternalProject - skips to the end
-
-### Option 2
-from aBLAS:
-
-generated CMakeLists.txt
-https://cmake.org/pipermail/cmake/2011-November/047333.html
-- 
+#### Usage-1.1 Create CobaltProblem Object
 
 
-if Backend.cmake doesn't exist, create one for LOG\_ONLY\_MODE
+### Usage-Code Example
+```
+/*
+ * compiler has defined:
+ * Cobalt_BACKEND_OPENCL12=1
+ * Cobalt_BACKEND_HIP=0
+ */
 
-Backend.cmake
-regenerating Backend.cmake will spawn rebuilding CobaltLib
+#include "Cobalt.h"
 
-Target: CobaltLib w/ backend; depends on Backend.cmake
+  CobaltStatus status;
 
-EXTERNAL\_PROJECT Entry Point 1,2
+  /* setup */
+  std::string logFilePath = "/path/to/log/file.xml";
+  status = cobaltSetup( logFilePath.c_str() );
 
-DONE Target: AppALL.exe depends on Cobalt.lib Backend.cmake (
+  /* tensorC */
+  CobaltTensor tensorC = cobaltCreateEmptyTensor();
+  tensorC.dataType = cobaltDataTypeSingle;
+  tensorC.numDimensions = 2;
+  tensorC.dimensions[0].stride = 1;
+  tensorC.dimensions[0].size = 64;
+  tensorC.dimensions[1].stride = 64;
+  tensorC.dimensions[1].size = 256;
 
-DONE Target: AppProblems.xml generated by custom\_command AppALL.exe
+  /* tensorA */
+  CobaltTensor tensorA = cobaltCreateEmptyTensor();
+  tensorA.dataType = cobaltDataTypeSingle;
+  tensorA.numDimensions = 2;
+  tensorA.dimensions[0].stride = 1;
+  tensorA.dimensions[0].size = 64;
+  tensorA.dimensions[1].stride = 64;
+  tensorA.dimensions[1].size = 1024;
 
-DONE Target: SolutionCandidates.cpp and Benchmark.cmake generated by custom\_command CobaltGenBenchmark.py with input AppProblems.xml
+  /* tensorB */
+  CobaltTensor tensorB = cobaltCreateEmptyTensor();
+  tensorB.dataType = cobaltDataTypeSingle;
+  tensorB.numDimensions = 2;
+  tensorB.dimensions[0].stride = 1;
+  tensorB.dimensions[0].size = 256;
+  tensorB.dimensions[1].stride = 256;
+  tensorB.dimensions[1].size = 1024;
 
-DONE Target: Benchmark.exe depends on SolutionCandidates.cpp and Benchmark.cmake
+  /* operation sgemm_NT: C[i,j] = Sum(k) A[i,k] * B[j,k] */
+  CobaltOperationType operationType = cobaltOperationTypeContraction;
+  CobaltDataType alphaType = cobaltDataTypeSingle;
+  CobaltDataType betaType = cobaltDataTypeSingle;
+  bool useOffsets = true;
+  std::vector<unsigned int> indexAssignmentsA(2);
+  indexAssignmentsA[0] = 0;
+  indexAssignmentsA[1] = 2;
+  std::vector<unsigned int> indexAssignmentsB(2);
+  indexAssignmentsB[0] = 1;
+  indexAssignmentsB[1] = 2;
 
-DONE Target: ProbSolMap.xml generated from custom\_command Benchmark.exe which depends on compiling Benchmark.exe
+  /* device profile */
+  unsigned int numProfiles;
+  status = cobaltEnumerateDeviceProfiles(nullptr, &numProfiles);
+  CobaltDeviceProfile *deviceProfiles = new CobaltDeviceProfile[numProfiles];
+  cobaltEnumerateDeviceProfiles(deviceProfiles, &numProfiles);
+  CobaltDeviceProfile *deviceProfile = deviceProfiles[0];
 
-EXTERNAL\_PROJECT Entry Point 3
+  /* problem */
+  status = cobaltCreateProblem(
+      problem,
+      tensorC,
+      tensorA,
+      tensorB,
+      &indexAssignmentsA[0],
+      &indexAssignmentsB[0],
+      operationType,
+      alphaType,
+      betaType,
+      useOffsets,
+      deviceProfile);
 
-DONE Target: GetSolution.cpp generated from custom\_command CobaltGenBackend.py with input ProbSolMap.xml
+  /* solution */
+  CobaltSolution solution;
+  status = cobaltGetSolutionForProblem( &solution, problem );
 
-DONE Target: static CobaltLib generated files (GetSolution.cpp)
+  /* user data */
+  float alpha = 1.f;
+  float beta = 0.f;
+  cl_mem tensorOnDeviceC = nullptr; // user allocates
+  cl_mem tensorOnDeviceA = nullptr; // user allocates
+  cl_mem tensorOnDeviceB = nullptr; // user allocates
+  cl_command_queue queue0 = nullptr; // user allocates
+  cl_command_queue queue1 = nullptr; // user allocates
+  cl_command_queue queue2 = nullptr; // user allocates
+  cl_command_queue queue3 = nullptr; // user allocates
 
-Entry Point 1
-  Cobalt:AppALL wants the full build process
-Entry Point 2
-  aBLAS:AppALL:aBLASLib wants CobaltLibLogger
-  sends output path for AppProbs.xml
-  gets CobaltLib.lib (log)
-Entry Point 3
-  aBLAS:Lib wants CobaltLibFull Project without benchmarking
-  sends aBLAS\_ProbSolMap.xml
-  gets CobaltLib.lib (full)
+  /* user data -> cobalt data */
+  CobaltTensorData      tensorDataC{ tensorOnDeviceC, 0 };
+  CobaltTensorDataConst tensorDataA{ tensorOnDeviceA, 0 };
+  CobaltTensorDataConst tensorDataB{ tensorOnDeviceB, 0 };
+  CobaltScalarData alpha{ &alpha };
+  CobaltScalarData beta{ &beta };
+  CobaltControl control = cobaltCreateEmptyControl();
+  control.numQueues = 4;
+  control.queues[0] = queue0;
+  control.queues[1] = queue1;
+  control.queues[2] = queue2;
+  control.queues[3] = queue3;
+
+  /* enqueue */
+  status = cobaltEnqueueSolution(
+    solution,
+    tensorDataC,
+    tensorDataA,
+    tensorDataB,
+    alpha,
+    beta,
+    &control );
+
+  /* wait */
+  for (unsigned int i = 0; i < control.numQueuesUsed; i++) {
+    clFinish( control.queues[i] );
+  }
+
+  /* teardown */
+  status = cobaltTeardown();
+
+```
+
+## Included Clients
+
+The Cobalt repository includes clients for using and demonstrating Cobalt.
+
+GEMM - The GEMM client is used to generate Problem.xml files to help with building Cobalt for BLAS libraries. It is also able to generate batched GEMMs and GEMMs where the leading stride is greater than 1.
+
+DNN - The DNN client is used to generate Problem.xml files for doing convolutions. Cobalt's current support for convolutions isn't a straight forward convolution kernel, but rather a 7-dimensional tensor contraction mapped to a convolution. This client shows how to set that up that complicated problem.
+
+Simple - The Simple client is a sandbox for trying out new kernel ideas to include in Cobalt.
 
 
+## How many kernels?
+fast
+thorough
+exhaustive
+
+## Limitations
+memory
+write minimum xml
