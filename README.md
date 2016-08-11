@@ -36,7 +36,7 @@ In either case, you'll need to create a CobaltProblem object. The following code
 
 
 ### Usage-Code Example
-```
+```c++
 /*
  * compiler has defined:
  * Cobalt_BACKEND_OPENCL12=1
