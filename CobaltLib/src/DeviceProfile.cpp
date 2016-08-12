@@ -12,10 +12,14 @@ Device::Device( CobaltDevice device )
 Device::Device()
   : name("uninitialized"),
   numComputeUnits(0),
-  clockFrequency(0) { }
+  clockFrequency(0),
+  flopsPerClock(2*64) { }
 
 void Device::init( CobaltDevice device ) {
   name.assign(device.name);
+  numComputeUnits = device.numComputeUnits;
+  clockFrequency = device.clockFrequency;
+  flopsPerClock = device.flopsPerClock;
 }
 
 
@@ -63,6 +67,9 @@ std::string DeviceProfile::toStringXML( size_t indent ) const {
   state += " n=\"" + std::to_string(devices.size()) + "\"";
   for (size_t i = 0; i < devices.size(); i++) {
     state += " d" + std::to_string(i) + "=\"" + devices[i].name + "\"";
+    state += " CU" + std::to_string(i) + "=\"" + std::to_string(devices[i].numComputeUnits) + "\"";
+    state += " MHz" + std::to_string(i) + "=\"" + std::to_string(devices[i].clockFrequency) + "\"";
+    state += " FPC" + std::to_string(i) + "=\"" + std::to_string(devices[i].flopsPerClock) + "\"";
   }
   state += " />\n";
   return state;

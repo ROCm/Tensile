@@ -1,3 +1,4 @@
+import SolutionCandidateGenerator
 
 ################################################################################
 # Status - Enum
@@ -301,16 +302,21 @@ class Backend:
 # Device
 ################################################################################
 class Device:
-  def __init__(
-      self, \
-      name):
+  def __init__( self, name, numComputeUnits, clockFrequency, flopsPerClock):
     self.name = name
+    self.numComputeUnits = numComputeUnits
+    self.clockFrequency = clockFrequency
+    self.flopsPerClock = flopsPerClock
 
   def __str__(self):
+    print "Device.str"
     state = "[Device"
     state += "; " + self.name
+    state += "; " + str(self.numComputeUnits)
+    state += "; " + str(self.clockFrequency)
+    state += "; " + str(self.flopsPerClock)
     state += "]"
-    return self.name
+    return state
 
   def __repr__(self):
     return self.__str__()
@@ -318,6 +324,9 @@ class Device:
   def getAttributes(self):
     return ( \
         self.name, \
+        self.numComputeUnits, \
+        self.clockFrequency, \
+        self.flopsPerClock, \
         )
   def __hash__(self):
     return hash(self.getAttributes())
@@ -344,6 +353,7 @@ class DeviceProfile:
     return s
 
   def __str__(self):
+    print "DeviceProfile.str"
     return str(self.devices)
 
   def __repr__(self):
@@ -493,9 +503,9 @@ class ExactMatch:
     self.numIndicesFree = -1
     self.indexAssignmentsA = []
     self.indexAssignmentsB = []
-    self.ppdOffsets = False # if true, solution must allow offset parameters; if false, enqueue must not use offsets
-    self.ppdLeadingStrides = False # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
-    # self.ppdAll = False # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
+    self.ppdOffsets = 0 # if true, solution must allow offset parameters; if false, enqueue must not use offsets
+    self.ppdLeadingStrides = 0 # if true, solution must allow non-1 initial strides; if false, problem must have size=1 initial strides
+    self.ppdAll = 0 # to actually support all parameters being compiled into kernel, all tensor dimensions must become part of exact match
 
   def __str__(self):
     return self.libString()
@@ -531,11 +541,17 @@ class ExactMatch:
       ppdStr = "O1"
     elif not self.ppdOffsets and self.ppdLeadingStride:
       ppdStr = "O2"
-    elif self.ppdOffsets and self.ppdLeadingStride:
+    elif self.ppdOffsets and self.ppdLeadingStride and not self.ppdAll:
       ppdStr = "O3"
+    elif self.ppdAll:
+      ppdStr = "04"
     else:
       ppdStr = "O0"
-    state += "_" + ppdStr
+    # state += "_" + ppdStr
+    # when selecting a kernel, the ppd must match so that kernel arguments are same, but
+    # since ExactMatch is only ever converted to string to describe a problem only and
+    # ppd is implementation detail, we can avoid attaching ppd to ExactMatch string
+    # resulting in a cleaner output
     return state
 
   def __repr__(self):
@@ -587,6 +603,8 @@ class SolutionBenchmark:
 #   - Device - determined through benchmarking / file reading
 ################################################################################
 class Problem:
+  # sizeType=0 ranged
+  # sizeType=1 exact
   def __init__( self ):
     self.tensorC = Tensor()
     self.tensorA = Tensor()
@@ -594,6 +612,7 @@ class Problem:
     self.operation = Operation()
     self.deviceProfile = DeviceProfile()
     self.sizeFree = 0
+    self.sizeType = -1
 
   def getSizeFree(self):
     if self.sizeFree == 0:
@@ -602,16 +621,29 @@ class Problem:
         self.sizeFree *= dimension.size
     return self.sizeFree
 
+  def getSizeType(self):
+    if self.sizeType < 0:
+      # make index assignments
+      kernel = Kernel()
+      SolutionCandidateGenerator.makeIndexAssignments(kernel, self)
+      # get key sizes
+      problemSizeDim0 = self.tensorC.dimensions[ kernel.indexAssignmentDim0].size
+      problemSizeDim1 = self.tensorC.dimensions[ kernel.indexAssignmentDim1].size
+      problemSizeUnroll = -1
+      for i in range(len(self.operation.indexAssignmentsA)):
+        if kernel.indexUnroll == self.operation.indexAssignmentsA[i]:
+          problemSizeUnroll = self.tensorA.dimensions[i].size
+          break
+      # if sizes are squarish, then type=0
+      self.sizeType = 0
+      if (not problemSizeDim0 % 16 == 0 and not (problemSizeDim0+1) % 16 == 0) or (not problemSizeDim1 % 16 == 0 and not (problemSizeDim1+1) % 16 == 0) or (not problemSizeUnroll % 16 == 0 and not (problemSizeUnroll+1) % 16 == 0):
+        self.sizeType = 1
+      if abs(problemSizeDim0-problemSizeDim1) > 1 or abs(problemSizeDim0-problemSizeUnroll) > 1 or abs(problemSizeDim1-problemSizeUnroll) > 1:
+        self.sizeType = 1
+    return self.sizeType
+
 
   def __str__(self):
-    #state = "[Problem"
-    #state += "; " + str(self.tensorC)
-    #state += "; " + str(self.tensorA)
-    #state += "; " + str(self.tensorB)
-    #state += "; " + str(self.operation)
-    #state += "; " + str(self.deviceProfile)
-    #state += "]"
-
     state = ""
     indexChars = "ijklmnopqrstuvwxyz"
 
@@ -682,29 +714,6 @@ class Problem:
     if result is NotImplemented:
       return result
     return not result
-
-
-################################################################################
-# ProblemRange
-# - contiguous range of problems uniterrupted by any other ProblemRange
-# - after benchmarking, MAP[Solution]->ProblemList, ProblemList needs to be
-#   broken down into ProblemRanges such that:
-#   - if Problem is in ProblemRange, use associated Solution
-################################################################################
-class ProblemRange:
-  def __init__(self):
-    self.mins = []
-    self.maxs = []
-    self.mods = []
-    self.freeMin = -1
-    self.freeMax = -1
-    self.freeMod = -1
-    self.summationMin = -1
-    self.summationMax = -1
-    self.summationMod = -1
-# contains one set of SolutionCorrectnessParameters
-# work-item min, max (dimA*dimB outside of summation)
-# summation size, "k"
 
 
 ################################################################################
@@ -808,6 +817,8 @@ class Kernel:
     self.dataTypeC = DataType(-1)
     self.dataTypeA = DataType(-1)
     self.dataTypeB = DataType(-1)
+    self.dataTypeAlpha = DataType(-1)
+    self.dataTypeBeta = DataType(-1)
     #self.operation = Operation()
     # Index Assignments
     self.indexOrderC = []
@@ -830,16 +841,16 @@ class Kernel:
 
     # global->local load strategy
     self.numLoadsParaA = -1
-    self.numLoadsPerpA = -1
     self.loadSizeParaA = -1
-    self.loadSizePerpA = -1
-    self.numLoadsParaB = -1
-    self.numLoadsPerpB = -1
-    self.loadSizeParaB = -1
-    self.loadSizePerpB = -1
     self.totalLoadSizeParaA = -1
+    self.numLoadsPerpA = -1
+    self.loadSizePerpA = -1
     self.totalLoadSizePerpA = -1
+    self.numLoadsParaB = -1
+    self.loadSizeParaB = -1
     self.totalLoadSizeParaB = -1
+    self.numLoadsPerpB = -1
+    self.loadSizePerpB = -1
     self.totalLoadSizePerpB = -1
 
     # Pre-Processor definition optimizations
@@ -863,20 +874,27 @@ class Kernel:
   def lastLoadRequiresGuardPerpB(self):
     return self.totalLoadSizePerpB < self.numLoadsPerpB * self.loadSizePerpB
 
+  
+  def useAlpha(self):
+    return self.dataTypeAlpha.value != DataType.none
+  def useBeta(self):
+    return self.dataTypeBeta.value != DataType.none
 
   def __str__(self):
     state = "[Kernel; " + str(self.tile)
     state += "; " + str(self.dataTypeC)
     state += "; " + str(self.dataTypeA)
     state += "; " + str(self.dataTypeB)
+    state += "; " + str(self.dataTypeAlpha)
+    state += "; " + str(self.dataTypeBeta)
     state += "; " + str(self.indexOrderC)
     state += "; " + str(self.indexOrderSummation)
     state += "; " + str(self.indexAssignmentDim0)
     state += "; " + str(self.indexAssignmentDim1)
     state += "; " + str(self.tile)
     state += "; " + str(self.unrolls)
-    state += "; " + str(self.numLoadsA)
-    state += "; " + str(self.numLoadsB)
+    state += "; " + str(self.numLoadsParaA)
+    state += "; " + str(self.numLoadsParaB)
     state += "]"
     return state
 
@@ -888,6 +906,8 @@ class Kernel:
         self.dataTypeC, \
         self.dataTypeA, \
         self.dataTypeB, \
+        self.dataTypeAlpha, \
+        self.dataTypeBeta, \
         tuple(self.indexOrderC), \
         tuple(self.indexOrderSummation), \
         self.indexAssignmentDim0, \
@@ -931,9 +951,9 @@ class Solution:
     self.kernels = []
 
     # PreProcessor optimizations (#defining arguments)
-    self.ppdOffsets = False # offsets are #defined and not arguments
-    self.ppdLeadingStride = False #leading strides are #defined and not arguments
-    self.ppdAll = False #everything is #defined and not arguments
+    self.ppdOffsets = 0 # offsets are #defined and not arguments
+    self.ppdLeadingStride = 0 #leading strides are #defined and not arguments
+    self.ppdAll = 0 #everything is #defined and not arguments
 
   def __str__(self):
     state = "[Solution"

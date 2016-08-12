@@ -39,10 +39,9 @@ endif()
 add_definitions( "-std=c++11" )
 
 ############################################################
-# OPTION - Cobalt Build Mode
-# - LOGGER - Cobalt.lib in log-only mode
-# - BACKEND - Cobalt.lib in full-backend mode
-option( Cobalt_ENABLE_LOGGER "Enable logger in CobaltLib?" )
+# OPTION - CobaltLib Build Mode
+# note: logger is always enabled in CobaltLogger
+set( Cobalt_ENABLE_LOGGER Off CACHE BOOL "Enable logger in CobaltLib?" )
 
 
 ############################################################
@@ -73,9 +72,9 @@ endif()
 # OPTION - Cobalt Optimizations
 # - On - do write kernels specifically optimized for alpha=1, beta=0
 # - Off - don't write kernels specifically optimized for alpha=1, beta=0
-option( Cobalt_OPTIMIZE_ALPHA
+set( Cobalt_OPTIMIZE_ALPHA Off CACHE BOOL
   "Should Cobalt write optimized kernels for alpha=1?" )
-option( Cobalt_OPTIMIZE_BETA
+set( Cobalt_OPTIMIZE_BETA Off CACHE BOOL
   "Should Cobalt write optimized kernels for beta=0?" )
 
 
@@ -159,10 +158,10 @@ endif()
 
 # Templates
 if( NOT EXISTS
-  ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+  ${CobaltLib_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
   #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for CobaltLib")
   file( WRITE
-    ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+    ${CobaltLib_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
     "" )
 endif()
 
@@ -182,9 +181,9 @@ include( ${CobaltLib_CMAKE_DYNAMIC} )
 
 
 if( NOT EXISTS
-    ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
+    ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
   #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
-  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
+  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
     "" )
 endif()
 

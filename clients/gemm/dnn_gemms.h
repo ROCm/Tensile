@@ -1,10 +1,14 @@
-#if INCLUDE_GEMV
-const unsigned int num_gemm_params = 138;
-#else
-const unsigned int num_gemm_params = 138-4;
-#endif
+
+const unsigned int num_gemm_params = 2;
 
 unsigned int gemm_params[][11] = {
+/*{     M,     N,     K,    tA,    tB,   lda,   ldb,   ldc, alpha,  beta, cnt },  network   */
+  {  1024,    32,     1,     0,     0,  2304,   169,   169,      1,    0,   1 },
+  {  1024,    32,     1,     0,     0,  2304,   169,   169,      1,    1,   1 }
+};
+
+
+#if 0
 /*{     M,     N,     K,    tA,    tB,   lda,   ldb,   ldc, alpha,  beta, cnt },  network   */
   {  3456,   256,   169,     1,     0,   169,   169,  3456,     1,     1, 128 }, /* Alexnet */
   {  3025,    64,   363,     0,     0,  3025,   363,  3025,     1,     1, 128 }, /* Alexnet */
@@ -146,3 +150,5 @@ unsigned int gemm_params[][11] = {
   {   144,   512,     1,     1,     0,     1,     1,   144,     1,     0, 128 }, /* Overfeat */
   { 50176,    64,    27,     0,     0, 50176,    27, 50176,     1,     1,  64 }, /* Oxford */
   { 50176,    64,     1,     1,     0,     1,     1, 50176,     1,     0,  63 }};/* Oxford */
+
+#endif

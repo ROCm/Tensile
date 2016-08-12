@@ -43,6 +43,7 @@ public:
   bool operator<( const Problem & other ) const;
   bool sortIndicesC( unsigned int i, unsigned int j) const; // may need when matching index orders
   bool sortSummationIndexDescending( std::pair<unsigned int, unsigned int> i, std::pair<unsigned int, unsigned int> j) const; // may need for matching index orders
+  size_t getNumFlops();
 
 //protected: // leave public since Solution classes need to access them and friendship isn't inherited
   Tensor tensorC;
@@ -58,7 +59,7 @@ public:
   std::vector<std::pair<unsigned int,unsigned int>> indicesSummation;
   std::vector<unsigned int> indicesA;
   std::vector<unsigned int> indicesB;
-
+  size_t numFlops;
 };
 
 } // namespace

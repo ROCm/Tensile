@@ -55,21 +55,27 @@ bool Solution::operator<( const Solution & other ) const {
  * enter enqueue process here; can do validation and benchmarking
  *****************************************************************************/
 CobaltStatus Solution::enqueueEntry(
-  CobaltTensorData tensorDataC,
-  CobaltTensorDataConst tensorDataA,
-  CobaltTensorDataConst tensorDataB,
-  CobaltScalarData alpha,
-  CobaltScalarData beta,
-  CobaltControl & ctrl) {
+	CobaltTensorData tensorDataC,
+	CobaltTensorDataConst tensorDataA,
+	CobaltTensorDataConst tensorDataB,
+	CobaltScalarData alpha,
+	CobaltScalarData beta,
+	CobaltControl & ctrl,
+	bool doPrint ) {
+
+  CobaltStatus returnStatus;
+
 #if Cobalt_BACKEND_OPENCL12
-      cl_int status;
+  cl_int status;
 #elif Cobalt_BACKEND_HIP
-      hipError_t status;
+  hipError_t status;
 #endif
 
+#if Cobalt_LOGGER_ENABLED
   Logger::TraceEntry entry;
   entry.type = Logger::TraceEntryType::enqueueSolution;
   entry.solution = this;
+#endif
 
   // validation
   if (ctrl.validate) {
@@ -112,27 +118,27 @@ CobaltStatus Solution::enqueueEntry(
     CobaltTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
     bool equal = compareTensors(constGPU, constRef,
         Solution::problem.tensorC, ctrl);
+#if Cobalt_LOGGER_ENABLED
     entry.validationStatus = equal ? ValidationStatus::statusValid
         : ValidationStatus::statusInvalid;
+#endif
     printf("%s validation %s;", equal ? "PASSED" : "FAILED",
         toString(0).c_str() );
     // cleanup
     delete static_cast<float *>(gpuOnHostC.data);
   } else {
-    printf("%s;", toString(0).c_str());
+    if (doPrint) printf("%s;", toString(0).c_str());
   }
 
   // benchmarking
   if (ctrl.benchmark) {
     Cobalt::Timer timer;
-    CobaltStatus returnStatus;
 
     // warmup (ensure kernels compiled)
-    returnStatus =
-        enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
+    returnStatus = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
-      clFinish(ctrl.queues[i]);
+      status = clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -159,26 +165,26 @@ CobaltStatus Solution::enqueueEntry(
     // stop timer
     double time = timer.elapsed_ms();
     time /= ctrl.benchmark;
-    printf(" t = %7.3f ms (avg of %u)", time, ctrl.benchmark);
+    double gFlops = ((double) problem.getNumFlops() / 1000000.f ) / time; // MFlops / ms
+    printf(" GFlop/s = %7.3f; t = %7.3f ms (avg of %u)", gFlops, time, ctrl.benchmark);
+#if Cobalt_LOGGER_ENABLED
     entry.benchmarkTimes.push_back(time);
-
-    if (!ctrl.validate) {
-      entry.status = returnStatus;
-    }
+#endif
   }
-  printf("\n");
+  if (doPrint) printf("\n");
 
   // if we didn't do any of the previous, enqueue here
   if( !ctrl.validate && !ctrl.benchmark ) {
-    entry.status = enqueue(tensorDataC, tensorDataA, tensorDataB,
+    returnStatus = enqueue(tensorDataC, tensorDataA, tensorDataB,
         alpha, beta, ctrl);
   }
 
 #if Cobalt_LOGGER_ENABLED
+  entry.status = returnStatus;
   Cobalt::logger.log(entry);
 #endif
 
-  return entry.status;
+  return returnStatus;
 }
 
 
@@ -805,6 +811,14 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     }
   }
 
+  // data pointers not supplied, return error
+  if (tensorDataC.data == nullptr
+      || tensorDataA.data == nullptr
+      || tensorDataB.data == nullptr ) {
+    ctrl.numQueuesUsed = 0;
+    return cobaltStatusInvalidParameter;
+  }
+
   size_t *globalWorkOffset = NULL;
 
   unsigned int kernelSerialIdx = 0;
@@ -823,13 +837,13 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
       // alpha if required
       if (!std::is_void<TypeAlpha>::value) {
-      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
+        status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+            sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
       }
       // beta if required
       if (!std::is_void<TypeBeta>::value) {
-      status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
+        status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
+            sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
       }
 
       // uint args
@@ -1242,7 +1256,9 @@ template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,
 
 #include "SolutionTemplateInstantiations.inl"
 
+#if Cobalt_LOGGER_ENABLED
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+#endif
 
 #if Cobalt_BACKEND_OPENCL12
 #if defined( _WIN32 )

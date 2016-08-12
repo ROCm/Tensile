@@ -13,13 +13,15 @@ import Structs
 def GenBackendFromFiles( \
     inputFiles, \
     outputPath, \
-    backend ):
+    backend, \
+    optimizeAlpha, \
+    optimizeBeta ):
   
   # read raw solution times
   psTimesRaw = {}
   for inputFile in inputFiles:
-    print "status: reading problem/solutions from " + os.path.basename(inputFile) + "\n"
-    FileReader.getSolutionsFromXML( inputFile, psTimesRaw )
+    print "Reading problem/solutions from " + os.path.basename(inputFile)
+    FileReader.getSolutionsFromXML( inputFile, psTimesRaw, optimizeAlpha, optimizeBeta )
   # print "status: created dictionary - " + str(psTimes)
   
   # structures needed to write backend
@@ -30,23 +32,33 @@ def GenBackendFromFiles( \
     psTimes[deviceProfile] = {}
     #print "DeviceProfile: " + str(deviceProfile)
     for exactMatch, problems in exactMatches.iteritems():
-      psTimes[deviceProfile][exactMatch] = []
+      rangeProblems = problems[0]
+      exactProblems = problems[1]
+      #print len(rangeProblems), len(exactProblems)
+      psTimes[deviceProfile][exactMatch] = [[],[]]
       #print "ExactMatch: " + str(exactMatch)
       #print len(problems)
-      for problem, solutionCandidates in problems.iteritems():
-        #print str(solutionCandidates)
-        #print len(solutionCandidates)
-        #print "Problem: " + str(problem)
-        # choose fastest solution
+      for rangeProblem, solutionCandidates in rangeProblems.iteritems():
         for solution, solutionBenchmark in solutionCandidates.iteritems():
           avgTime = 1e100
           if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
             avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
-            psTimes[deviceProfile][exactMatch].append([problem, solution, avgTime])
+            psTimes[deviceProfile][exactMatch][0].append([rangeProblem, solution, avgTime])
+            
+      for exactProblem, solutionCandidates in exactProblems.iteritems():
+        for solution, solutionBenchmark in solutionCandidates.iteritems():
+          avgTime = 1e100
+          if len(solutionBenchmark.times) > 0 and solutionBenchmark.validationStatus != -1:
+            avgTime = sum(solutionBenchmark.times) / len(solutionBenchmark.times)
+            psTimes[deviceProfile][exactMatch][1].append([exactProblem, solution, avgTime])
+
+
       # if this exact match didn't have any psps with times, remove
-      if len(psTimes[deviceProfile][exactMatch]) < 1:
+      if len(psTimes[deviceProfile][exactMatch][0]) < 1 and len(psTimes[deviceProfile][exactMatch][1]) < 1:
         print "CobaltGenBackend: ExactMatch %s has no benchmark times; removing." % str(exactMatch)
         psTimes[deviceProfile].pop(exactMatch, None)
+
+
     # if this device profile didn't have any exact matches with times, remove
     if len(psTimes[deviceProfile]) < 1:
       print "CobaltGenBackend: Device Profile %s has no benchmark times; removing." % str(deviceProfile)
@@ -80,9 +92,10 @@ if __name__ == "__main__":
   ap.add_argument("--output-path", dest="outputPath", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
-  # ap.add_argument("--enable-validation", dest="validate", action="store_true" )
-  # ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
-  # ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+  ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
+  ap.add_argument("--optimize-beta", dest="optimizeBetaStr" )
+  ap.set_defaults(optimizeAlphaStr="Off")
+  ap.set_defaults(optimizeBetaStr="Off")
 
 
   # parse arguments
@@ -101,9 +114,14 @@ if __name__ == "__main__":
   print "  inputPath=" + args.inputPath
   print "  inputFiles=" + str(inputFiles)
 
+  #print args.optimizeAlphaStr
+  #print args.optimizeBetaStr
+
   # generate backend
   GenBackendFromFiles( \
       inputFiles, \
       args.outputPath, \
-      backend )
+      backend, \
+      args.optimizeAlphaStr=="On" or args.optimizeAlphaStr=="ON", \
+      args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
 
