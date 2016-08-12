@@ -29,6 +29,7 @@ The CMake setup for Cobalt includes the following options:
 ### Usage -2- Create Problem.xml
 
 The first step is to enumerate what problems you want Cobalt to solve, and write them to a file. The two ways of doing this are
+
 1. Use one of Cobalt clients or create your own dummy application/client whose sole purpose is to create problems.
 2. Incorporate Cobalt into your own application (see code example below), link it with CobaltLogger, then run your application; Cobalt will log all the problems your application requested solutions to.
 
@@ -353,7 +354,7 @@ The Cobalt backend can work in two ways for two categories of problems: normal a
 
 Normal: for a BLAS library we need to support every problem size conceivable, but we don't want to have to benchmark every problem size. Therefore, we benchmark a few standard problem sizes (multiples of 16 and M=N=K) and we have Cobalt's library backend create problem size ranges, i.e., if a problem's size (M\*N\*batch) falls withing this range, then its best solution is that.
 
-Unusual: for DNN libraries, there are many problem sizes which can be small or skinny or not a multiple of 16 (or prime numbers). For these "unusual" problem, the Cobalt backend creates a 1:1 mapping of problem -> solution.
+Unusual: for DNN libraries, there are many problem sizes which can be small or skinny or not a multiple of 16 (or prime numbers). For these "unusual" problem, the Cobalt backend creates a 1:1 mapping of problem -> solution since performance changes non-linearly with change in these problem sizes.
 
 Yes, Cobalt can contain both types in its backend.
 
