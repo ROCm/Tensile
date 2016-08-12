@@ -4,13 +4,13 @@ A tool for creating a library back end to domain-specific libraries for matrix-m
 
 Cobalt automates the process of:
 
-1) Enumerating what "problems" and application seeks to solve.
-2) Creating a list of "solution" candidates for each problem.
-3) Benchmarking all solutions to determine the fastest.
-4) Writing the customized library backend, consisting of:
-  1) GPU kernels, written in HIP or OpenCL.
-  2) Solution c++ classes, which enqueue 1 or more kernels.
-  3) A getSolutionForProblem() function which looks up the fastest solution for a problem.
+1. Enumerating what "problems" and application seeks to solve.
+2. Creating a list of "solution" candidates for each problem.
+3. Benchmarking all solutions to determine the fastest.
+4. Writing the customized library backend, consisting of:
+  1. GPU kernels, written in HIP or OpenCL.
+  2. Solution c++ classes, which enqueue 1 or more kernels.
+  3. A getSolutionForProblem() function which looks up the fastest solution for a problem.
 
 ### Usage -1- CMake
 
@@ -29,8 +29,8 @@ The CMake setup for Cobalt includes the following options:
 ### Usage -2- Create Problem.xml
 
 The first step is to enumerate what problems you want Cobalt to solve, and write them to a file. The two ways of doing this are
-1) Use one of Cobalt clients or create your own dummy application/client whose sole purpose is to create problems.
-2) Incorporate Cobalt into your own application (see code example below), link it with CobaltLogger, then run your application; Cobalt will log all the problems your application requested solutions to.
+1. Use one of Cobalt clients or create your own dummy application/client whose sole purpose is to create problems.
+2. Incorporate Cobalt into your own application (see code example below), link it with CobaltLogger, then run your application; Cobalt will log all the problems your application requested solutions to.
 
 In either case, you'll need to create a CobaltProblem object. The following code snipet creates a CobaltProblem for sgemm\_NT for M=64, N=256, K=1024, looks up the solution and enqueues it.
 
@@ -233,11 +233,6 @@ In either case, you'll need to create a CobaltProblem object. The following code
    * For the OpenCL backend, it calls clSetKernelArg() for each
    * kernel argument then clEnqueueNDRangeKernel(); that's it.
    * For the HIP backend, it just calls the enqueue command.
-   *
-   * Note: for OpenCL only, the kernels are compiled during the first call to
-   * enqueue; however, you can call enqueue with the tensorData pointers
-   * set to nullptr, and this api will compile the kernels and return, giving
-   * users the option to pre-compile kernels.
    */
   status = cobaltEnqueueSolution(
     solution,
@@ -276,30 +271,39 @@ In either case, you'll need to create a CobaltProblem object. The following code
 
 ```
 
-### Usage -3- Build & Run CobaltBenchmark
+A few notes on Cobalt's behavior during runtime:
+
+For OpenCL only, the kernels are compiled during the first call to cobaltEnqueueSolution(); however, you can call enqueue with the tensorData pointers set to nullptr, and Cobalt will compile the kernels then return, giving users the option to pre-compile kernels when they want.
+
+After a kernel has been compiled, it is stored in a thread-local map, so it never has to be compiled again. Its gets mapped using the key {cl_context, cl_device, \*kernelString}, so using the same solution for a different device or context will trigger having to re-compile the kernel.
+
+Cobalt is designed to be thread safe. Any bugs you may find to the contrary, please help us fix them.
+
+
+### Usage -4- Build & Run CobaltBenchmark
 
 After generating a Problems.xml file, build the target "CobaltBenchmark;" this will cause CobaltGenBenchmark.py to generate the benchmark as follows:
 
-1) CobaltGenBenchmark reads in all the "\*.xml" files in the target directory and reads in all the problems.
-2) For each problem, it generates all the solution candidates (using SolutionCandidateGenerator.py) which should be benchmarked; see the section on "how many kernels" to learn about how many will be generated.
-3) The script writes out all the kernel files, solution files, other benchmark files (which create problems and solutions for the benchmark) and a cmake file which tells the CobaltBenchmark executable which additional source files it needs.
-4) CMake will then build CobaltBenchmark (may have to build twice) with all the generated source files.
-5) You will have to run the CobaltBenchmark executable; as it runs, it will write multiple SolutionBenchmarkTime.xml files recording how fast each solution is for respective problems.
+1. CobaltGenBenchmark reads in all the "\*.xml" files in the target directory and reads in all the problems.
+2. For each problem, it generates all the solution candidates (using SolutionCandidateGenerator.py) which should be benchmarked; see the section on "how many kernels" to learn about how many will be generated.
+3. The script writes out all the kernel files, solution files, other benchmark files (which create problems and solutions for the benchmark) and a cmake file which tells the CobaltBenchmark executable which additional source files it needs.
+4. CMake will then build CobaltBenchmark (may have to build twice) with all the generated source files.
+5. You will have to run the CobaltBenchmark executable; as it runs, it will write multiple SolutionBenchmarkTime.xml files recording how fast each solution is for respective problems.
 
 Note - If you're benchmarking many problems (which we do have to do for generating a full BLAS backend), CobaltBenchmark may run out of memory; for this reason, you can run "CobaltBenchmark -h" to see commandline parameters which allow you to only run sub-portions of the benchmark at a time.
 
-### Usage -4- Build CobaltLib
+### Usage -5- Build CobaltLib
 
 Once you have run the benchmark, and have that performance data, you're ready to build the final target CobaltLib which will cause CMake to run CobaltGenBackend.py to generate the library as follows:
 
-1) CobaltGenBenchmark.py reads in all the "\*.xml" files in the target directory and reads in all the problem-solution-pairs (PSPs) which consist of a problem, solution and the benchmark time.
-2) The PSPs are stored into a heirarchal data structure to organize data by device, problem description and problem size.
-3) The script SolutionSelectionWriter.py writes a heirarchy of solution selection logic which looks like:
-  1) getSolution\_Top(problem) - match which device the problem targets
-  2) getSolution\_Device( problem ) - determine which ExactMatch (involves every part of a problem description except for the sizes of the tensor dimensions) the problem targets
-  3) getSolution\_Device\_ExactMatch( problem ) - determine which solution is best for the problem size.
-4) The scripts also write out the kernels and solutions which are actually used by the library backend, and a cmake script which specifies that the library has to be built with all these generated files.
-5) The build system builds CobaltLib.lib.
+1. CobaltGenBenchmark.py reads in all the "\*.xml" files in the target directory and reads in all the problem-solution-pairs (PSPs) which consist of a problem, solution and the benchmark time.
+2. The PSPs are stored into a heirarchal data structure to organize data by device, problem description and problem size.
+3. The script SolutionSelectionWriter.py writes a heirarchy of solution selection logic which looks like:
+  1. getSolution\_Top(problem) - match which device the problem targets
+  2. getSolution\_Device( problem ) - determine which ExactMatch (involves every part of a problem description except for the sizes of the tensor dimensions) the problem targets
+  3. getSolution\_Device\_ExactMatch( problem ) - determine which solution is best for the problem size.
+4. The scripts also write out the kernels and solutions which are actually used by the library backend, and a cmake script which specifies that the library has to be built with all these generated files.
+5. The build system builds CobaltLib.lib.
 
 
 ### Included Clients
@@ -314,10 +318,42 @@ Simple - The Simple client is a sandbox for trying out new kernel ideas to inclu
 
 
 ## How many kernels?
-fast
-thorough
-exhaustive
 
-## Limitations
-memory
-write minimum xml
+Cobalt has many different parameters which it can tweak when writing kernels, they are:
+- work-group dim0
+- work-group dim1
+- micro-tile dim0
+- micro-tile dim1 
+- branch type (branch in kernel or multiple kernels)
+- num loads parallel-to-coalesced for tensorA
+- load size parallel-to-coalesced for tensorA
+- num loads parallel-to-coalesced for tensorB
+- load size parallel-to-coalesced for tensorB
+- num loads perpendicular-to-coalesced for tensorA
+- load size perpendicular-to-coalesced for tensorA
+- num loads perpendicular-to-coalesced for tensorB
+- load size perpendicular-to-coalesced for tensorB
+- unroll of inner loop
+- second inner loop with unroll=1 or not
+- preprocessor define offsets
+- preprocessor define initial strides
+- preprocessor define all sizes and strides
+
+The combinatorics of all these options lead to huge number of kernels that Cobalt can generate. Cobalt therefore provides three levels of thoroughness in generating candidate kernels to benchmark: exhaustive, thorough, fast (few).
+
+Exhaustive: This mode won't bother generating kernels, it will just count them; it's just for fun. It can generate tens of millions of kernels per problem type. GEMM itself has many tens of problem types and beyond GEMM (higher dimensionality) there are many more problem types.
+
+Thorough: This mode is appropriate when working on a new problem type that you have no idea what will be the fastest and you want to be thorough in which kernels you explore. It will generate a few thousand kernels to test.
+
+Fast: Once we know what kernel should and should not be fast, we encode that into fast mode. The purpose of fast mode is to generate the fewest numbers of kernels which will definitely include the fastest. This will generate tens to a few hundred kernels for "normal" problem sizes, but more for "unusual" problem sizes.
+
+## Normal vs Unusual Problem Sizes
+
+The Cobalt backend can work in two ways for two categories of problems: normal and unusual.
+
+Normal: for a BLAS library we need to support every problem size conceivable, but we don't want to have to benchmark every problem size. Therefore, we benchmark a few standard problem sizes (multiples of 16 and M=N=K) and we have Cobalt's library backend create problem size ranges, i.e., if a problem's size (M\*N\*batch) falls withing this range, then its best solution is that.
+
+Unusual: for DNN libraries, there are many problem sizes which can be small or skinny or not a multiple of 16 (or prime numbers). For these "unusual" problem, the Cobalt backend creates a 1:1 mapping of problem -> solution.
+
+Yes, Cobalt can contain both types in its backend.
+
