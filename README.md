@@ -382,5 +382,6 @@ Yes, Cobalt can contain both types in its backend.
 
 ## Conributing Code
 
-See [Contributing][] document for requirements on contributing code to this open source project.
+See [CONTRIBUTING.md](CONTRIBUTING.md) document for requirements on contributing code to this open source project.
+<CONTRIBUTING.md>
 
