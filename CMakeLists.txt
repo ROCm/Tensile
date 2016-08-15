@@ -17,7 +17,7 @@ project( ${CobaltProj_NAME} C CXX )
 ############################################################
 # Cobalt Version
 set( ${CobaltProj_NAME}_VERSION_MAJOR 1 )
-set( ${CobaltProj_NAME}_VERSION_MINOR 0 )
+set( ${CobaltProj_NAME}_VERSION_MINOR 1 )
 set( ${CobaltProj_NAME}_VERSION_PATCH 0 )
 set( ${CobaltProj_NAME}_VERSION_TWEAK 0 )
 set( CobaltProj_VERSION "${${CobaltProj_NAME}_VERSION_MAJOR}.${${CobaltProj_NAME}_VERSION_MINOR}.${${CobaltProj_NAME}_VERSION_PATCH}.${${CobaltProj_NAME}_VERSION_TWEAK}")
