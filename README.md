@@ -1,4 +1,4 @@
-# Cobalt
+![Cobalt](https://raw.githubusercontent.com/wiki/guacamoleo/Cobalt/Images/CobaltLogo_040.png)
 
 A tool for creating a library back end to domain-specific libraries for matrix-matrix multiplication, N-dimensional tensor contractions, and anything else that multiplies two multi-dimensional objects together on a GPU.
 
@@ -380,7 +380,7 @@ Yes, Cobalt can contain both types in its backend.
 - For Cobalt\_BACKEND = HIP
   - HIP 1.1.2
 
-## Conributing Code
+## Contributing Code
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) document for requirements on contributing code to this open source project.
 <CONTRIBUTING.md>
