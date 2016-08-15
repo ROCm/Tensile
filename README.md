@@ -276,7 +276,7 @@ A few notes on Cobalt's behavior during runtime:
 
 For OpenCL only, the kernels are compiled during the first call to cobaltEnqueueSolution(); however, you can call enqueue with the tensorData pointers set to nullptr, and Cobalt will compile the kernels then return, giving users the option to pre-compile kernels when they want.
 
-After a kernel has been compiled, it is stored in a thread-local map, so it never has to be compiled again. Its gets mapped using the key {cl_context, cl_device, \*kernelString}, so using the same solution for a different device or context will trigger having to re-compile the kernel.
+After a kernel has been compiled, it is stored in a thread-local map, so it never has to be compiled again. Its gets mapped using the key {cl\_context, cl\_device, \*kernelString}, so using the same solution for a different device or context will trigger having to re-compile the kernel.
 
 Cobalt is designed to be thread safe. Any bugs you may find to the contrary, please help us fix them.
 
@@ -311,11 +311,11 @@ Once you have run the benchmark, and have that performance data, you're ready to
 
 The Cobalt repository includes clients for using and demonstrating Cobalt.
 
-GEMM - The GEMM client is used to generate Problem.xml files to help with building Cobalt for BLAS libraries. It is also able to generate batched GEMMs and GEMMs where the leading stride is greater than 1.
+**GEMM:** The GEMM client is used to generate Problem.xml files to help with building Cobalt for BLAS libraries. It is also able to generate batched GEMMs and GEMMs where the leading stride is greater than 1.
 
-DNN - The DNN client is used to generate Problem.xml files for doing convolutions. Cobalt's current support for convolutions isn't a straight forward convolution kernel, but rather a 7-dimensional tensor contraction mapped to a convolution. This client shows how to set that up that complicated problem.
+**DNN:** The DNN client is used to generate Problem.xml files for doing convolutions. Cobalt's current support for convolutions isn't a straight forward convolution kernel, but rather a 7-dimensional tensor contraction mapped to a convolution. This client shows how to set that up that complicated problem.
 
-Simple - The Simple client is a sandbox for trying out new kernel ideas to include in Cobalt.
+**Simple:** The Simple client is a sandbox for trying out new kernel ideas to include in Cobalt.
 
 
 ## How many kernels?
@@ -342,19 +342,41 @@ Cobalt has many different parameters which it can tweak when writing kernels, th
 
 The combinatorics of all these options lead to huge number of kernels that Cobalt can generate. Cobalt therefore provides three levels of thoroughness in generating candidate kernels to benchmark: exhaustive, thorough, fast (few).
 
-Exhaustive: This mode won't bother generating kernels, it will just count them; it's just for fun. It can generate tens of millions of kernels per problem type. GEMM itself has many tens of problem types and beyond GEMM (higher dimensionality) there are many more problem types.
+**Exhaustive:** This mode won't bother generating kernels, it will just count them; it's just for fun. It can generate tens of millions of kernels per problem type. GEMM itself has many tens of problem types and beyond GEMM (higher dimensionality) there are many more problem types.
 
-Thorough: This mode is appropriate when working on a new problem type that you have no idea what will be the fastest and you want to be thorough in which kernels you explore. It will generate a few thousand kernels to test.
+**Thorough:** This mode is appropriate when working on a new problem type that you have no idea what will be the fastest and you want to be thorough in which kernels you explore. It will generate a few thousand kernels to test.
 
-Fast: Once we know what kernel should and should not be fast, we encode that into fast mode. The purpose of fast mode is to generate the fewest numbers of kernels which will definitely include the fastest. This will generate tens to a few hundred kernels for "normal" problem sizes, but more for "unusual" problem sizes.
+**Fast:** Once we know what kernel should and should not be fast, we encode that into fast mode. The purpose of fast mode is to generate the fewest numbers of kernels which will definitely include the fastest. This will generate tens to a few hundred kernels for "normal" problem sizes, but more for "unusual" problem sizes.
 
 ## Normal vs Unusual Problem Sizes
 
 The Cobalt backend can work in two ways for two categories of problems: normal and unusual.
 
-Normal: for a BLAS library we need to support every problem size conceivable, but we don't want to have to benchmark every problem size. Therefore, we benchmark a few standard problem sizes (multiples of 16 and M=N=K) and we have Cobalt's library backend create problem size ranges, i.e., if a problem's size (M\*N\*batch) falls withing this range, then its best solution is that.
+**Normal:** for a BLAS library we need to support every problem size conceivable, but we don't want to have to benchmark every problem size. Therefore, we benchmark a few standard problem sizes (multiples of 16 and M=N=K) and we have Cobalt's library backend create problem size ranges, i.e., if a problem's size (M\*N\*batch) falls withing this range, then its best solution is that.
 
-Unusual: for DNN libraries, there are many problem sizes which can be small or skinny or not a multiple of 16 (or prime numbers). For these "unusual" problem, the Cobalt backend creates a 1:1 mapping of problem -> solution since performance changes non-linearly with change in these problem sizes.
+**Unusual:** for DNN libraries, there are many problem sizes which can be small or skinny or not a multiple of 16 (or prime numbers). For these "unusual" problem, the Cobalt backend creates a 1:1 mapping of problem -> solution since performance changes non-linearly with change in these problem sizes.
 
 Yes, Cobalt can contain both types in its backend.
+
+## Languages
+
+**API is C89.** The CobaltLIb API (CobaltLib/include/Cobalt.h) is written in C89 so that it will be usable with most software. All of the structs (Except for CobaltProlem and CobaltSolution which are pimpls) are completely allocated on the stack; they all include fixed length arrays for dimensions, devices, queues and so forth.
+
+**Backend is C++11.** The CobaltLib backend (behind the API) is written in C++11 to take full advantage of modern language features. When the createProblem API is called, the input parameters are used to construct a Cobalt::Problem object, whose pointer is stored in the CobaltProlem struct. When the getSolution API is called, the Cobalt::Problem object is passed into the constructor of a Cobal::Solution object, whose pointer is stored in the CobaltSolution struct.
+
+**Generator is Python.** The backend generator, CobaltGen, is a suite of python scripts used to generate part of the C++11 backend.
+
+## Minimum Required Software
+
+**CMake** - CMake 2.8
+
+**Python** - Python 2.7
+
+**Compilers**
+
+- For Cobalt\_BACKEND = OpenCL1.2
+  - Visual Studio 14 (2015)
+  - GCC 4.8
+- For Cobalt\_BACKEND = HIP
+  - HIP 1.1.2
 
