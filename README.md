@@ -1,4 +1,4 @@
-![Cobalt](https://raw.githubusercontent.com/wiki/guacamoleo/Cobalt/Images/CobaltLogo_040.png)
+![Cobalt](https://raw.githubusercontent.com/wiki/guacamoleo/Cobalt/Images/CobaltLogo_040.png?token=ACiWnj91Imfzr1iqFBgRsfeNCCIQ8awaks5Xuw8PwA%3D%3D)
 
 A tool for creating a library back end to domain-specific libraries for matrix-matrix multiplication, N-dimensional tensor contractions, and anything else that multiplies two multi-dimensional objects together on a GPU.
 
