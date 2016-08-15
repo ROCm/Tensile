@@ -307,7 +307,7 @@ Once you have run the benchmark, and have that performance data, you're ready to
 5. The build system builds CobaltLib.lib.
 
 
-### Included Clients
+## Included Clients
 
 The Cobalt repository includes clients for using and demonstrating Cobalt.
 
@@ -379,4 +379,8 @@ Yes, Cobalt can contain both types in its backend.
   - GCC 4.8
 - For Cobalt\_BACKEND = HIP
   - HIP 1.1.2
+
+## Conributing Code
+
+See [Contributing][] document for requirements on contributing code to this open source project.
 
