@@ -1,57 +1,45 @@
-
 # findHCC does not currently address versioning, i.e.
 # a rich directory structure where version number is a subdirectory under root
 # Also, supported only on UNIX 64 bit systems.
 
 if(UNIX)
-	if(CMAKE_SIZEOF_VOID_P EQUAL 8)  
-  
+	if( NOT DEFINED ENV{HSA_PATH} )
+		set( ENV{HSA_PATH} /opt/rocm/hsa)
+	endif()
+
+	if( NOT DEFINED  ENV{HCC_PATH} )
+		set( ENV{HCC_PATH} /opt/rocm/hcc)
+	endif()
+
+	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 		find_library(HSA_LIBRARY
 			NAMES  hsa-runtime64
 			PATHS
 			  ENV HSA_PATH
-			  /opt/rocm/hsa
+			  /opt/rocm
 			PATH_SUFFIXES
 			  lib)
-		
-		if( NOT DEFINED ENV{HSA_PATH} )
-			set( ENV{HSA_PATH} /opt/rocm/hsa)
-		endif()
-		
+
 		find_program(HCC
 			NAMES  hcc
 			PATHS
 				ENV HCC_PATH
-				/opt/rocm/hcc
+				/opt/rocm
 			PATH_SUFFIXES
 				/bin)
 
-		if( NOT DEFINED  ENV{HCC_PATH} )
-			set( ENV{HCC_PATH} /opt/rocm/hcc)
-		endif()
-		
-# this is now dynamic
-#		find_library(AMP_LIBRARY
-#			NAMES  mcwamp
-#			PATHS
-#				ENV NCC_PATH
-#				/opt/rocm/hcc
-#			PATH_SUFFIXES
-#				/lib)
-				
 		find_path(HCC_INCLUDE_DIR
 			NAMES
 				hc.hpp
 			PATHS
-				ENV NCC_PATH
-				/opt/rocm/hcc
+				ENV HCC_PATH
+				/opt/rocm
 			PATH_SUFFIXES
-				/include)				
-				
-			  
+				/include/hcc
+				/include
+			)
 
 		set(HSA_LIBRARIES ${HSA_LIBRARY})
-		#set(HCC_LIBRARIES ${AMP_LIBRARY})
 		set(HCC_INCLUDE_DIRS ${HCC_INCLUDE_DIR})
 
 		include(FindPackageHandleStandardArgs)
