@@ -57,7 +57,7 @@ typedef enum CobaltStatus_ {
   cobaltStatusTensorDimensionOrderInvalid,                // dimensions not in order smallest to largest stride
   cobaltStatusTensorDimensionStrideInvalid,               // stride is 0
   cobaltStatusTensorDimensionSizeInvalid,                 // size is 0
-
+  
   /* operation errors */
   cobaltStatusOperandNumDimensionsMismatch,               // tensor and indexAssignments num dimensions don't match
   cobaltStatusOperationOperandNumIndicesMismatch,         // tensor A,B don't have correct number of
@@ -158,8 +158,10 @@ typedef struct CobaltTensor_ {
 CobaltTensor cobaltCreateEmptyTensor();
 
 /*******************************************************************************
- * Tensor Data
+ * Tensor Data - OpenCL 1.2
  ******************************************************************************/
+#if Cobalt_BACKEND_OPENCL12
+#include "CL/cl.h"
 
 typedef struct CobaltTensorData_ {
   void *data;
@@ -169,6 +171,22 @@ typedef struct CobaltTensorDataConst_ {
   const void *data;
   unsigned int offset;
 } CobaltTensorDataConst;
+
+
+/*******************************************************************************
+ * Tensor Data - HIP
+ ******************************************************************************/
+#elif Cobalt_BACKEND_HIP
+typedef struct CobaltTensorData_ {
+  void *data;
+  unsigned int offset;
+} CobaltTensorData;
+typedef struct CobaltTensorDataConst_ {
+  const void *data;
+  unsigned int offset;
+} CobaltTensorDataConst;
+
+#endif
 
 typedef struct CobaltScalarData_ {
   const void *data;
@@ -241,7 +259,7 @@ typedef struct CobaltControl_ {
   cl_command_queue queues[maxQueues];
   cl_event *inputEvents;
   cl_event *outputEvents;
-#else
+#elif Cobalt_BACKEND_HIP
   hipStream_t queues[maxQueues];
   hipEvent_t *inputEvents;
   hipEvent_t *outputEvents;
@@ -351,3 +369,4 @@ CobaltStatus cobaltSolutionToString(
 #endif
 
 #endif // COBALT_H
+
