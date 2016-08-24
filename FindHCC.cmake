@@ -10,7 +10,7 @@ if(UNIX)
 			NAMES  hsa-runtime64
 			PATHS
 			  ENV HSA_PATH
-			  /opt/rocm/hsa
+			  /opt/rocm/
 			PATH_SUFFIXES
 			  lib)
 		
