@@ -369,3 +369,4 @@ CobaltStatus cobaltSolutionToString(
 #endif
 
 #endif // COBALT_H
+
