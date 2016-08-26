@@ -5,10 +5,10 @@
 #  )
 #endif()
 
-set( SAMPLE_GEMM_NAME gemm)
+set( SAMPLE_GEMM_NAME gemm )
 
 # gemm sample source files
-set( SAMPLE_GEMM_SRC gemm.cpp dnn_gemms.h)
+set( SAMPLE_GEMM_SRC gemm.cpp dnn_gemms.h )
 
 
 # gemm executable
@@ -16,29 +16,20 @@ add_executable( ${SAMPLE_GEMM_NAME} ${SAMPLE_GEMM_SRC} )
 #set_property(TARGET ${SAMPLE_GEMM_NAME} PROPERTY CXX_STANDARD 11 )
 
 # gemm links Cobalt
-target_link_libraries( ${SAMPLE_GEMM_NAME} ${CobaltLogger_NAME} )
+target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE ${CobaltLogger_NAME} )
 
 # include Cobalt headers
 include_directories(
   ${CobaltLib_DIRS_INCLUDE}
   )
 
-# Cobalt depends on OpenCL
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  include_directories( ${OPENCL_INCLUDE_DIRS} )
-  target_link_libraries( ${SAMPLE_GEMM_NAME} ${OPENCL_LIBRARY} )
-endif()
-
-
-if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  add_definitions(
-    -DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
-  include_directories( ${OPENCL_INCLUDE_DIRS} )
-  target_link_libraries( ${SAMPLE_GEMM_NAME} ${OPENCL_LIBRARIES} )
+  add_definitions( -DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
+  target_link_libraries( ${SAMPLE_GEMM_NAME} PUBLIC opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  add_definitions(
-    -DCobalt_DIR_PROBLEMS=\\\"${Cobalt_DIR_PROBLEMS}\\\")
+  add_definitions( -DCobalt_DIR_PROBLEMS=\\\"${Cobalt_DIR_PROBLEMS}\\\")
   include_directories( ${HCC_INCLUDE_DIRS} )
   target_link_libraries( ${SAMPLE_GEMM_NAME} ${HSA_LIBRARIES} )
 endif()
 
+set_property( TARGET ${SAMPLE_GEMM_NAME} PROPERTY FOLDER "Clients" )

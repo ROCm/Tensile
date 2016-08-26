@@ -51,15 +51,25 @@ add_library( ${CobaltLogger_NAME}
 
 target_include_directories( ${CobaltLogger_NAME}
   PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-          $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
           $<INSTALL_INTERFACE:include>
 )
+
+if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  target_link_libraries( ${CobaltLogger_NAME} PRIVATE opencl )
+  target_compile_definitions( ${CobaltLogger_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=1 -DCobalt_BACKEND_HIP=0 )
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  target_include_directories( ${CobaltLogger_NAME}
+    PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+  )
+  target_link_libraries( ${CobaltLogger_NAME} PRIVATE ${HSA_LIBRARIES} )
+  target_compile_definitions( ${CobaltLogger_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=0 -DCobalt_BACKEND_HIP=1 )
+endif()
+
+target_compile_definitions( ${CobaltLogger_NAME} PRIVATE -DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 )
 
 set_target_properties( ${CobaltLogger_NAME} PROPERTIES VERSION ${CobaltProj_VERSION} )
 set_target_properties( ${CobaltLogger_NAME} PROPERTIES DEBUG_POSTFIX "-d" )
 set_target_properties( ${CobaltLogger_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/staging" )
-set_target_properties( ${CobaltLogger_NAME} PROPERTIES COMPILE_FLAGS
-  "-DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
 
 ################################################################################
 # CobaltLib
@@ -127,7 +137,6 @@ add_library( ${CobaltLib_NAME}
 
 target_include_directories( ${CobaltLib_NAME}
   PUBLIC  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-          $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
           $<INSTALL_INTERFACE:include>
 )
 
@@ -137,11 +146,9 @@ set_target_properties( ${CobaltLib_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${
 
 #set_property(TARGET ${CobaltLib_NAME} PROPERTY CXX_STANDARD 11 )
 if( ${Cobalt_ENABLE_LOGGER} )
-  set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
-    "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=1 -fPIC" )
+  target_compile_definitions( ${CobaltLib_NAME} PRIVATE -DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=1 )
 else()
-  set_target_properties( ${CobaltLib_NAME} PROPERTIES COMPILE_FLAGS
-    "-DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=0 -fPIC" )
+  target_compile_definitions( ${CobaltLib_NAME} PRIVATE -DCobalt_SOLVER_ENABLED=1 -DCobalt_LOGGER_ENABLED=0 )
 endif()
 
 source_group(CobaltGen\\Scripts FILES ${CobaltGen_SRC})
@@ -153,11 +160,63 @@ source_group(CobaltGen\\Generated FILES
 ############################################################
 # Cobalt depends on OpenCL
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  message( STATUS "CobaltLib linking OpenCL: ${OPENCL_INCLUDE_DIRS}" )
-  include_directories( ${OPENCL_INCLUDE_DIRS} )
-  target_link_libraries( ${CobaltLib_NAME} ${OPENCL_LIBRARIES} )
+  target_link_libraries( ${CobaltLib_NAME} PRIVATE opencl )
+  target_compile_definitions( ${CobaltLib_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=1 -DCobalt_BACKEND_HIP=0 )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   message( STATUS "CobaltLib linking HIP: ${HCC_INCLUDE_DIRS}" )
-  include_directories( ${HCC_INCLUDE_DIRS} )
-  target_link_libraries( ${CobaltLib_NAME} ${HSA_LIBRARIES} )
+  target_include_directories( ${CobaltLib_NAME}
+    PRIVATE $<BUILD_INTERFACE:${HCC_INCLUDE_DIRS}>
+    PUBLIC  $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+  )
+  target_link_libraries( ${CobaltLib_NAME} PRIVATE ${HSA_LIBRARIES} )
+  target_compile_definitions( ${CobaltLib_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=0 -DCobalt_BACKEND_HIP=1 )
 endif()
+
+############################################################
+# Library install logic
+
+############################################################
+# The following is cmake code to generate a config file package for Cobalt
+# Documentation for how to use the following package:
+# https://cmake.org/cmake/help/v3.0/module/CMakePackageConfigHelpers.html
+include( CMakePackageConfigHelpers )
+
+set( LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR} )
+set( INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR} )
+set( config_package_location ${LIB_INSTALL_DIR}/cmake/cobalt )
+
+configure_package_config_file(
+  cobalt-config.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config.cmake
+  INSTALL_DESTINATION ${config_package_location}
+  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR
+)
+
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config-version.cmake
+  VERSION ${CobaltProj_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+install( TARGETS ${CobaltLib_NAME}
+  EXPORT cobalt-targets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install( EXPORT cobalt-targets
+  DESTINATION
+    ${config_package_location}
+)
+
+install( FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config-version.cmake
+  DESTINATION
+    ${config_package_location} )
+
+install( FILES
+    include/Cobalt.h
+  DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR} )
