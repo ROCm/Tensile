@@ -2,17 +2,24 @@
 ################################################################################
 # Global Options
 ################################################################################
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8.12)
 
 ############################################################
 # Cobalt project name
-set( CobaltProj_NAME Cobalt)
-set( CobaltLib_NAME CobaltLib )
+set( CobaltProj_NAME Cobalt )
+set( CobaltLib_NAME Cobalt )
 set( CobaltLogger_NAME CobaltLogger )
 set( CobaltBenchmark_NAME CobaltBenchmark )
 set( TARGET_PLATFORM "64" )
+
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
+
 project( ${CobaltProj_NAME} C CXX )
+
+# On windows, it's convenient to change the default install prefix such that it does NOT point to 'program files'
+if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
+	set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
+endif( )
 
 ############################################################
 # Cobalt Version
@@ -34,6 +41,7 @@ message( STATUS "CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}" )
 if(MSVC)
   # object-level build parallelism for VS, not just target-level
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
+  set_property( GLOBAL PROPERTY USE_FOLDERS TRUE )
 else()
 endif()
 add_definitions( "-std=c++11" )
@@ -43,30 +51,31 @@ add_definitions( "-std=c++11" )
 # note: logger is always enabled in CobaltLogger
 set( Cobalt_ENABLE_LOGGER Off CACHE BOOL "Enable logger in CobaltLib?" )
 
-
 ############################################################
 # OPTION - Cobalt Backend
 # - OpenCL 1.2
 # - HIP
 set( Cobalt_BACKEND "OpenCL_1.2" CACHE STRING
   "Which of Cobalt's backends to use?" )
-set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS
-  OpenCL_1.2 HIP )
+set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS OpenCL_1.2 HIP )
+
 # OpenCL 1.2
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  add_definitions( -DCobalt_BACKEND_OPENCL12=1 )
-  add_definitions( -DCobalt_BACKEND_HIP=0 )
-  find_package(OpenCL REQUIRED)
+  find_package(OpenCL "1.2" REQUIRED)
   message(STATUS "${Cobalt_BACKEND} backend selected." )
+  string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-ocl" )
+
 # HIP
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  add_definitions( -DCobalt_BACKEND_OPENCL12=0 )
-  add_definitions( -DCobalt_BACKEND_HIP=1 )
   find_package( HIP REQUIRED )
-  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
   message(STATUS "${Cobalt_BACKEND} backend selected." )
-endif()
-
+  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
+  if( ${HIP_PLATFORM} MATCHES "hcc" )
+    string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-hcc" )
+  else( )
+    string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-cuda" )
+  endif( )
+endif( )
 
 ############################################################
 # OPTION - Cobalt Optimizations
@@ -220,6 +229,10 @@ if( NOT EXISTS ${Cobalt_XML_SOLUTIONS_FILE})
 endif()
 
 
+################################################################################
+# Import standard install paths
+################################################################################
+include( GNUInstallDirs )
 
 ################################################################################
 # Cobalt Subprojects
