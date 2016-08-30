@@ -18,7 +18,7 @@ project( ${CobaltProj_NAME} C CXX )
 
 # On windows, it's convenient to change the default install prefix such that it does NOT point to 'program files'
 if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
-	set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
+  set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
 endif( )
 
 ############################################################
@@ -55,15 +55,20 @@ set( Cobalt_ENABLE_LOGGER Off CACHE BOOL "Enable logger in CobaltLib?" )
 # OPTION - Cobalt Backend
 # - OpenCL 1.2
 # - HIP
-set( Cobalt_BACKEND "OpenCL_1.2" CACHE STRING
-  "Which of Cobalt's backends to use?" )
+if( UNIX )
+  set( Cobalt_BACKEND "HIP" CACHE STRING "Which of Cobalt's backends to use?" )
+else()
+  set( Cobalt_BACKEND "OpenCL_1.2" CACHE STRING "Which of Cobalt's backends to use?" )
+endif()
+
 set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS OpenCL_1.2 HIP )
 
 # OpenCL 1.2
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   find_package(OpenCL "1.2" REQUIRED)
   message(STATUS "${Cobalt_BACKEND} backend selected." )
-  string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-ocl" )
+  set( CobaltLib_NAME "${CobaltLib_NAME}-ocl" )
+  set( CobaltLogger_NAME "${CobaltLogger_NAME}-ocl" )
 
 # HIP
 elseif( Cobalt_BACKEND MATCHES "HIP")
@@ -71,9 +76,11 @@ elseif( Cobalt_BACKEND MATCHES "HIP")
   message(STATUS "${Cobalt_BACKEND} backend selected." )
   message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
   if( ${HIP_PLATFORM} MATCHES "hcc" )
-    string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-hcc" )
+    set( CobaltLib_NAME "${CobaltLib_NAME}-hcc" )
+    set( CobaltLogger_NAME "${CobaltLogger_NAME}-hcc" )
   else( )
-    string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-cuda" )
+    set( CobaltLib_NAME "${CobaltLib_NAME}-cuda" )
+    set( CobaltLogger_NAME "${CobaltLogger_NAME}-cuda" )
   endif( )
 endif( )
 

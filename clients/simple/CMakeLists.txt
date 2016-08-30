@@ -6,7 +6,7 @@ add_executable( simple EXCLUDE_FROM_ALL
   )
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( simple PUBLIC opencl )
+  target_link_libraries( simple PRIVATE opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   include_directories( ${HIP_INCLUDE_DIRS} )
 endif()

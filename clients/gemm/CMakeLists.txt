@@ -25,11 +25,11 @@ include_directories(
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   add_definitions( -DCobalt_DIR_PROBLEMS="${Cobalt_DIR_PROBLEMS}")
-  target_link_libraries( ${SAMPLE_GEMM_NAME} PUBLIC opencl )
+  target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   add_definitions( -DCobalt_DIR_PROBLEMS=\\\"${Cobalt_DIR_PROBLEMS}\\\")
   include_directories( ${HCC_INCLUDE_DIRS} )
-  target_link_libraries( ${SAMPLE_GEMM_NAME} ${HSA_LIBRARIES} )
+  target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE ${HSA_LIBRARIES} )
 endif()
 
 set_property( TARGET ${SAMPLE_GEMM_NAME} PROPERTY FOLDER "Clients" )

@@ -93,6 +93,8 @@ set( CobaltLib_SRC_GENERATED_STATIC
 
 ############################################################
 # CobaltGenBackend.py - generates full library backend files
+find_package( PythonInterp REQUIRED )
+
 add_custom_command(
   OUTPUT
     ${CobaltLib_SRC_GENERATED_STATIC}
