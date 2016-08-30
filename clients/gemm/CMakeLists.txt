@@ -28,7 +28,9 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   add_definitions( -DCobalt_DIR_PROBLEMS=\\\"${Cobalt_DIR_PROBLEMS}\\\")
-  include_directories( ${HCC_INCLUDE_DIRS} )
+  target_include_directories( ${SAMPLE_GEMM_NAME}
+    PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+  )
   target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE ${HSA_LIBRARIES} )
 endif()
 

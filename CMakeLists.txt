@@ -10,7 +10,6 @@ set( CobaltProj_NAME Cobalt )
 set( CobaltLib_NAME Cobalt )
 set( CobaltLogger_NAME CobaltLogger )
 set( CobaltBenchmark_NAME CobaltBenchmark )
-set( TARGET_PLATFORM "64" )
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
@@ -20,6 +19,8 @@ project( ${CobaltProj_NAME} C CXX )
 if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
   set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
 endif( )
+
+list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
 ############################################################
 # Cobalt Version
