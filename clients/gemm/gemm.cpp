@@ -161,13 +161,13 @@ unsigned int addGEMMCombinatorics() {
   // each api is own test
 
   // how many problem options
-  const size_t numStrides     = 2; // 2
-  const size_t numBatchSizes  = 2; // 2
-  const size_t numDataTypes   = 2; // 10
+  const size_t numStrides     = 1; // 2
+  const size_t numBatchSizes  = 1; // 2
+  const size_t numDataTypes   = 1; // 10
   const size_t numAlphas      = 1; // 1
   const size_t numBetas       = 1; // 2
-  const size_t numTransA      = 2; // 2
-  const size_t numTransB      = 2; // 2
+  const size_t numTransA      = 1; // 2
+  const size_t numTransB      = 1; // 2
 
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -202,8 +202,8 @@ unsigned int addGEMMCombinatorics() {
             for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
               for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
 
-#if 1
 				  std::vector<std::array<size_t, 3>> sizes;
+#if 0
 				  size_t stride = 16;
 				  size_t stride_incr = 16; // 0->1440, 16->108, 32->76
 				  size_t sizeMax = 5760 / batches[bIdx];
@@ -213,6 +213,8 @@ unsigned int addGEMMCombinatorics() {
 					  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
 					  sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
 				  }
+#else
+				  sizes.push_back({ 5760, 5760, 5760 }); // fallback tile, fallback unroll
 #endif
 
 

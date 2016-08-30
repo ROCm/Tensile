@@ -193,7 +193,7 @@ class SolutionWriter:
     s += "  /* preprocessor optimizations */\n"
     s += "  this->argOffsets = %s;\n" % ("true" if not solution.kernels[0].ppdOffsets else "false")
     s += "  this->argSizes = %s;\n" % ("true" if not solution.kernels[0].ppdAll else "false")
-    s += "  this->argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStride else "false")
+    s += "  this->argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStrides else "false")
     s += "  if ( !this->argOffsets && inputProblem.useOffsets) {\n"
     s += "    // problem uses offsets but solution doesn't support offsets\n"
     s += "    // cobaltGetSolution shouldn't have returned me\n"
@@ -209,7 +209,7 @@ class SolutionWriter:
 
       # strides
       firstStride = 0
-      if solution.ppdLeadingStride:
+      if solution.ppdLeadingStrides:
         firstStride = 1
       lastStrideC = len(solution.kernels[0].indexOrderC)
       lastStrideA = len(solution.kernels[0].problem.operation.indexAssignmentsA)
@@ -354,7 +354,7 @@ class SolutionWriter:
     s += "  detail += \" b0=\\\"" + str(solution.branch[0].value) + "\\\"\";\n"
     s += "  detail += \" b1=\\\"" + str(solution.branch[1].value) + "\\\"\";\n"
     s += "  detail += \" ppdO=\\\"" + str(solution.ppdOffsets) + "\\\"\";\n"
-    s += "  detail += \" ppdLS=\\\"" + str(solution.ppdLeadingStride) + "\\\"\";\n"
+    s += "  detail += \" ppdLS=\\\"" + str(solution.ppdLeadingStrides) + "\\\"\";\n"
     s += "  detail += \" ppdAll=\\\"" + str(solution.ppdAll) + "\\\"\";\n"
     s += "  detail += \">\\n\";\n"
     for k in range(0, len(solution.kernels)):
@@ -458,7 +458,7 @@ class SolutionWriter:
           numStrides = len(solution.kernels[0].problem.tensorC.dimensions) \
               + len(solution.kernels[0].problem.tensorA.dimensions) \
               + len(solution.kernels[0].problem.tensorB.dimensions)
-          if solution.kernels[0].ppdLeadingStride:
+          if solution.kernels[0].ppdLeadingStrides:
             numStrides -= 3
           numSizes = len(solution.kernels[0].indexOrderC) + len(solution.kernels[0].indexOrderSummation)
           numKernelArgs = numStrides + numSizes

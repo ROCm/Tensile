@@ -98,12 +98,11 @@ class SolutionSelectionWriter:
       s += "#include \"CobaltGetSolution_" + exactMatch.libString() + ".h\"\n"
     s += "\n"
     s += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status ) {\n"
-    s += "  bool problemRequiresLeadingStrides;\n"
+    s += "  bool problemRequiresLeadingStrides = problem.tensorC[0].stride != 1 || problem.tensorA[0].stride != 1 || problem.tensorB[0].stride != 1;\n"
     s += "\n"
     
     for exactMatch, problems in exactMatches.iteritems():
       # if problem exactly matches EXACT_MATCH
-      s += "  problemRequiresLeadingStrides = problem.tensorC[0].stride != 1 || problem.tensorA[0].stride != 1 || problem.tensorB[0].stride != 1;\n"
       s += "  if ( problem.getDataTypeC() == " + exactMatch.typeC.getLibString() + "\n"
       s += "      && problem.getDataTypeA() == " + exactMatch.typeA.getLibString() + "\n"
       s += "      && problem.getDataTypeB() == " + exactMatch.typeB.getLibString() + "\n"
@@ -111,7 +110,7 @@ class SolutionSelectionWriter:
       s += "      && problem.getDataTypeBeta() == " + exactMatch.typeBeta.getLibString() + "\n"
       s += "      && problem.operationType == " + exactMatch.operationType.getLibString() + "\n"
       s += "      && (!problem.useOffsets || problem.useOffsets == " + ("false" if exactMatch.ppdOffsets else "true") + ")\n"
-      s += "      && (!problemRequiresLeadingStrides || problemRequiresLeadingStrides == " + ("false" if exactMatch.ppdLeadingStride else "true") + ")\n"
+      s += "      && (!problemRequiresLeadingStrides || problemRequiresLeadingStrides == " + ("false" if exactMatch.ppdLeadingStrides else "true") + ")\n"
       s += "      && problem.indicesFree.size() == " + str(exactMatch.numIndicesFree) + "\n"
       s += "      && problem.indicesA.size() == " + str(len(exactMatch.indexAssignmentsA)) + "\n"
       s += "      && problem.indicesB.size() == " + str(len(exactMatch.indexAssignmentsB)) + " ) {\n"

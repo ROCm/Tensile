@@ -537,17 +537,17 @@ class ExactMatch:
 
     # optimization level
     ppdStr = ""
-    if self.ppdOffsets and not self.ppdLeadingStride:
+    if self.ppdOffsets and not self.ppdLeadingStrides:
       ppdStr = "O1"
-    elif not self.ppdOffsets and self.ppdLeadingStride:
+    elif not self.ppdOffsets and self.ppdLeadingStrides:
       ppdStr = "O2"
-    elif self.ppdOffsets and self.ppdLeadingStride and not self.ppdAll:
+    elif self.ppdOffsets and self.ppdLeadingStrides and not self.ppdAll:
       ppdStr = "O3"
     elif self.ppdAll:
       ppdStr = "04"
     else:
       ppdStr = "O0"
-    # state += "_" + ppdStr
+    state += "_" + ppdStr
     # when selecting a kernel, the ppd must match so that kernel arguments are same, but
     # since ExactMatch is only ever converted to string to describe a problem only and
     # ppd is implementation detail, we can avoid attaching ppd to ExactMatch string
@@ -854,9 +854,9 @@ class Kernel:
     self.totalLoadSizePerpB = -1
 
     # Pre-Processor definition optimizations
-    self.ppdOffsets = False # offsets are #defined and not arguments
-    self.ppdLeadingStride = False #leading strides are #defined and not arguments
-    self.ppdAll = False #everything is #defined and not arguments
+    self.ppdOffsets = 0 # offsets are #defined and not arguments
+    self.ppdLeadingStrides = 0 #leading strides are #defined and not arguments
+    self.ppdAll = 0 #everything is #defined and not arguments
 
   # all loads using not all threads
   def loadRequiresFewerThreadsA(self):
@@ -917,7 +917,7 @@ class Kernel:
         self.tile, \
         tuple(self.unrolls), \
         self.ppdOffsets, \
-        self.ppdLeadingStride, \
+        self.ppdLeadingStrides, \
         self.ppdAll, \
         self.numLoadsParaA, \
         self.numLoadsPerpA, \
@@ -952,7 +952,7 @@ class Solution:
 
     # PreProcessor optimizations (#defining arguments)
     self.ppdOffsets = 0 # offsets are #defined and not arguments
-    self.ppdLeadingStride = 0 #leading strides are #defined and not arguments
+    self.ppdLeadingStrides = 0 #leading strides are #defined and not arguments
     self.ppdAll = 0 #everything is #defined and not arguments
 
   def __str__(self):
@@ -973,7 +973,7 @@ class Solution:
         self.branch[0], \
         self.branch[1], \
         self.ppdOffsets, \
-        self.ppdLeadingStride, \
+        self.ppdLeadingStrides, \
         self.ppdAll )
   def __hash__(self):
     return hash(self.getAttributes())
