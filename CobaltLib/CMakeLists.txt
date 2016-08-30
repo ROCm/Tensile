@@ -59,9 +59,10 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_compile_definitions( ${CobaltLogger_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=1 -DCobalt_BACKEND_HIP=0 )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   target_include_directories( ${CobaltLogger_NAME}
-    PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+    PUBLIC  $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
-  target_link_libraries( ${CobaltLogger_NAME} PRIVATE ${HSA_LIBRARIES} )
+#  target_link_libraries( ${CobaltLogger_NAME} PRIVATE ${HSA_LIBRARIES} )
+  target_link_libraries( ${CobaltLogger_NAME} PUBLIC $<BUILD_INTERFACE:${HSA_LIBRARIES}> )
   target_compile_definitions( ${CobaltLogger_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=0 -DCobalt_BACKEND_HIP=1 )
 endif()
 
@@ -93,6 +94,8 @@ set( CobaltLib_SRC_GENERATED_STATIC
 
 ############################################################
 # CobaltGenBackend.py - generates full library backend files
+find_package( PythonInterp REQUIRED )
+
 add_custom_command(
   OUTPUT
     ${CobaltLib_SRC_GENERATED_STATIC}
@@ -165,10 +168,9 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
 elseif( Cobalt_BACKEND MATCHES "HIP")
   message( STATUS "CobaltLib linking HIP: ${HCC_INCLUDE_DIRS}" )
   target_include_directories( ${CobaltLib_NAME}
-    PRIVATE $<BUILD_INTERFACE:${HCC_INCLUDE_DIRS}>
     PUBLIC  $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
-  target_link_libraries( ${CobaltLib_NAME} PRIVATE ${HSA_LIBRARIES} )
+  target_link_libraries( ${CobaltLib_NAME} PUBLIC $<BUILD_INTERFACE:${HSA_LIBRARIES}> )
   target_compile_definitions( ${CobaltLib_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=0 -DCobalt_BACKEND_HIP=1 )
 endif()
 
@@ -198,7 +200,7 @@ write_basic_package_version_file(
   COMPATIBILITY SameMajorVersion
 )
 
-install( TARGETS ${CobaltLib_NAME}
+install( TARGETS ${CobaltLib_NAME} ${CobaltLogger_NAME}
   EXPORT cobalt-targets
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

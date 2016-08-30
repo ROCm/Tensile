@@ -6,9 +6,13 @@ add_executable( simple EXCLUDE_FROM_ALL
   )
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( simple PUBLIC opencl )
+  target_link_libraries( simple PRIVATE opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  include_directories( ${HIP_INCLUDE_DIRS} )
+  target_include_directories( simple
+    PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+  )
+  target_link_libraries( simple PRIVATE ${HSA_LIBRARIES} )
+  target_compile_definitions( simple PRIVATE Cobalt_BACKEND_HIP )
 endif()
 
 set_property( TARGET simple PROPERTY FOLDER "Clients" )
