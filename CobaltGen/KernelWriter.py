@@ -172,11 +172,11 @@ class KernelWriter:
 
     # optimization level
     ppdStr = ""
-    if kernel.ppdOffsets and not kernel.ppdLeadingStride:
+    if kernel.ppdOffsets and not kernel.ppdLeadingStrides:
       ppdStr = "O1"
-    elif not kernel.ppdOffsets and kernel.ppdLeadingStride:
+    elif not kernel.ppdOffsets and kernel.ppdLeadingStrides:
       ppdStr = "O2"
-    elif kernel.ppdOffsets and kernel.ppdLeadingStride and not kernel.ppdAll:
+    elif kernel.ppdOffsets and kernel.ppdLeadingStrides and not kernel.ppdAll:
       ppdStr = "O3"
     elif kernel.ppdAll:
       ppdStr = "O4"
@@ -261,7 +261,7 @@ class KernelWriter:
 
     # strides
     firstStride = 0
-    if kernel.ppdLeadingStride:
+    if kernel.ppdLeadingStrides:
       firstStride = 1
     lastStrideC = len(kernel.indexOrderC)
     lastStrideA = len(kernel.problem.operation.indexAssignmentsA)
@@ -596,7 +596,7 @@ class KernelWriter:
     if kernel.ppdAll:
       #optimize all
       pass
-    elif kernel.ppdLeadingStride:
+    elif kernel.ppdLeadingStrides:
       # optimize leading stride
       lastStrideC = 1
       lastStrideA = 1
