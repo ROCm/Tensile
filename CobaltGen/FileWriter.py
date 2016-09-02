@@ -766,7 +766,7 @@ class FileWriter:
           solution.branch[0].value, \
           solution.branch[1].value, \
           solution.ppdOffsets, \
-          solution.ppdLeadingStride, \
+          solution.ppdLeadingStrides, \
           solution.ppdAll )
       for i in range(0, len(solution.kernels)):
         kernel = solution.kernels[i]

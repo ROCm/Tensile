@@ -471,7 +471,7 @@ class SolutionCandidateGenerator:
                 ###################################
                 # for preprocessor definitions
                 for ppdOptimization in universePreprocessorDefinitions:
-                  ppdLeadingStride = ppdOptimization[0]
+                  ppdLeadingStrides = ppdOptimization[0]
                   ppdOffsets       = ppdOptimization[1]
                   ppdAll           = ppdOptimization[2]
                     
@@ -489,8 +489,8 @@ class SolutionCandidateGenerator:
                           continue
 
                       solution.branch = [branchType, branchType]
-                      solution.ppdLeadingStride = ppdLeadingStride
-                      kernel.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdLeadingStrides = ppdLeadingStrides
+                      kernel.ppdLeadingStrides = ppdLeadingStrides
                       solution.ppdOffsets = ppdOffsets # kernel 0 need offsets?
                       solution.ppdAll = 0 # kernels 1-3 will need sizes
                       # add main kernel
@@ -526,11 +526,11 @@ class SolutionCandidateGenerator:
                       if self.noBranches:
                         continue
                       solution.branch = [branchType, branchType]
-                      solution.ppdLeadingStride = ppdLeadingStride
+                      solution.ppdLeadingStrides = ppdLeadingStrides
                       solution.ppdOffsets = ppdOffsets
                       solution.ppdAll = ppdAll
                       kernel.tile.branch = [branchType, branchType ]
-                      kernel.ppdLeadingStride = ppdLeadingStride
+                      kernel.ppdLeadingStrides = ppdLeadingStrides
                       kernel.ppdOffsets = ppdOffsets
                       kernel.ppdAll = ppdAll
                       solution.kernels.append( copy.deepcopy(kernel) )

@@ -150,7 +150,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
       self.solution.kernelGrid = [ int(attributes["kG0"]), int(attributes["kG1"]), int(attributes["kG2"]) ]
       self.solution.branch = [ Structs.BranchType(int(attributes["b0"])), Structs.BranchType(int(attributes["b1"])) ]
       self.solution.ppdOffsets = int(attributes["ppdO"])
-      self.solution.ppdLeadingStride = int(attributes["ppdLS"])
+      self.solution.ppdLeadingStrides = int(attributes["ppdLS"])
       self.solution.ppdAll = int(attributes["ppdAll"])
       
     elif tag == "K" and self.readSolutions:
@@ -185,7 +185,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
       #kernel.operation = self.problem.operation
       self.solution.kernels[i].problem = self.problem
       self.solution.kernels[i].ppdOffsets = self.solution.ppdOffsets
-      self.solution.kernels[i].ppdLeadingStride = self.solution.ppdLeadingStride
+      self.solution.kernels[i].ppdLeadingStrides = self.solution.ppdLeadingStrides
       self.solution.kernels[i].ppdAll = self.solution.ppdAll
       # make index assignments (rather than storing in xml)
       SolutionCandidateGenerator.makeIndexAssignments(self.solution.kernels[i], self.problem)
@@ -212,7 +212,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
         exactMatch = Structs.ExactMatch()
         self.assignExactMatch(exactMatch)
         exactMatch.ppdOffsets = 0
-        exactMatch.ppdLeadingStride = 0
+        exactMatch.ppdLeadingStrides = 0
         exactMatch.ppdAll = 0
         addProblemToTree( self.data, exactMatch, copy.deepcopy(self.problem) )
         self.numProblemsAdded += 1
@@ -229,7 +229,7 @@ class CobaltHandler( xml.sax.ContentHandler ):
     exactMatch.indexAssignmentsB = self.problem.operation.indexAssignmentsB
     exactMatch.operationType = self.problem.operation.type
     exactMatch.ppdOffsets = self.solution.ppdOffsets
-    exactMatch.ppdLeadingStride = self.solution.ppdLeadingStride
+    exactMatch.ppdLeadingStrides = self.solution.ppdLeadingStrides
     exactMatch.ppdAll = self.solution.ppdAll
     exactMatch.typeC = self.problem.tensorC.dataType
     exactMatch.typeA = self.problem.tensorA.dataType
