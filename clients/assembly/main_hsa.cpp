@@ -48,6 +48,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <iostream>
+#include <time.h>
 
 namespace amd {
 namespace dispatch {
@@ -90,6 +91,8 @@ private:
   size_t kernarg_offset;
   hsa_code_object_t code_object;
   hsa_executable_t executable;
+
+  timespec startTime;
 
   bool Init();
   bool InitDispatch();
@@ -267,12 +270,6 @@ bool Dispatch::InitDispatch()
 
 bool Dispatch::RunDispatch()
 {
-  std::cout << "wg=" << aql->workgroup_size_x << ", "
-                     << aql->workgroup_size_y << ", "
-                     << aql->workgroup_size_z << std::endl;
-  std::cout << "gr=" << aql->grid_size_x << ", "
-                     << aql->grid_size_y << ", "
-                     << aql->grid_size_z << std::endl;
   uint16_t header =
     (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
     (1 << HSA_PACKET_HEADER_BARRIER) |
@@ -287,6 +284,8 @@ bool Dispatch::RunDispatch()
   #endif
   // Ring door bell
   hsa_signal_store_relaxed(queue->doorbell_signal, packet_index);
+
+  clock_gettime( CLOCK_REALTIME, &startTime );
 
   return true;
 }
@@ -379,7 +378,7 @@ bool Dispatch::SetupExecutable()
 
   // Get symbol handle
   //status = hsa_executable_get_symbol(executable, NULL, "mad2d", agent, 0, &kernel_symbol);
-  status = hsa_executable_get_symbol(executable, NULL, "ZN12_GLOBAL__N_113mad2d_functor19__cxxamp_trampolineEiiiiiiPfPKfS3_ffi", agent, 0, &kernel_symbol);
+  status = hsa_executable_get_symbol(executable, NULL, "sgemm_NT", agent, 0, &kernel_symbol);
 
   if (status != HSA_STATUS_SUCCESS) { return HsaError("hsa_executable_get_symbol failed", status); }
 
@@ -410,6 +409,13 @@ bool Dispatch::Wait()
       return false;
     }
   } while (result != 0);
+  timespec currentTime;
+  clock_gettime( CLOCK_REALTIME, &currentTime );
+  double elapsed_us = (currentTime.tv_sec-startTime.tv_sec)*1000000.0
+      + (currentTime.tv_nsec - startTime.tv_nsec)/1000.0;
+  double elapsed_ms = elapsed_us / 1000.0;
+  std::cout << "t = " << elapsed_ms << " ms" << std::endl;
+  
   return true;
 }
 
@@ -547,7 +553,7 @@ private:
   Buffer* b;
   const unsigned int workGroup[2] = {16, 16};
   const unsigned int microTile[2] = {8, 8};
-  float vA, vB, vC;
+  float vC, vA, vB;
   float alpha;
   float beta;
   unsigned int M, N, K;
@@ -560,14 +566,20 @@ private:
 public:
   AsmKernelDispatch(int argc, const char **argv)
     : Dispatch(argc, argv),
+    vC(1),
     vA(1),
     vB(1),
-    vC(1),
     alpha(1),
-    beta(1),
+    beta(0),
+#if 0
     M(128),
     N(128),
     K(128),
+#else
+    M(5760),
+    N(5760),
+    K(5760),
+#endif
     numElementsC(M*N),
     numElementsA(M*K),
     numElementsB(N*K),
@@ -591,15 +603,15 @@ public:
   }
 
   bool Setup() override {
-    if (!AllocateKernarg(3*8 + 11*4 + 0)) { return false; }
+    if (!AllocateKernarg(1024)) { return false; }
 
 
     c = AllocateBuffer(sizeC);
     a = AllocateBuffer(sizeA);
     b = AllocateBuffer(sizeB);
-    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = vC*i;
-    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = vA*i;
-    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = vB*i;
+    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = vC;
+    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = vA;
+    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = vB;
     if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(b)) output << "Error: failed to copy to local" << std::endl;
@@ -630,8 +642,8 @@ public:
       return false;
     }
     bool valid = true;
-    for (unsigned int d1 = 0; d1 < size1J; d1++) {
-      for (unsigned int d0 = 0; d0 < size0I; d0++) {
+    for (unsigned int d1 = 0; d1 < 4+0*size1J; d1++) {
+      for (unsigned int d0 = 0; d0 < 4+0*size0I; d0++) {
         unsigned int index = d1*strideCJ + d0;
         float correctC = alpha*(vA*index)*(vB*index)+beta*(vC*index);
         bool equal = c->Data<float>(index) == correctC;

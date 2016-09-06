@@ -9,7 +9,7 @@ ${CLANG} -x assembler -target amdgcn--amdhsa -mcpu=fiji -c -o kernel.o ${KERNEL}
 
 # link
 echo "linking kernel"
-${CLANG} -target amdgcn--amdhsa kernel.o -o .co
+${CLANG} -target amdgcn--amdhsa kernel.o -o kernel.co
 
 # compile host
 echo "compiling host application"

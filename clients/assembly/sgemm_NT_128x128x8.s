@@ -168,21 +168,22 @@
 .hsa_code_object_isa 8, 0, 3, "AMD", "AMDGPU"
 .text
 .p2align 8
-.amdgpu_hsa_kernel sgemm_NT_128x128x8_prefetch
-sgemm_NT_128x128x8_prefetch:
+.amdgpu_hsa_kernel sgemm_NT
+sgemm_NT:
 .amd_kernel_code_t
   is_ptr64 = 1
-  enable_sgpr_kernarg_segment_ptr  =  1  // we do have kernel arguments
-  kernarg_segment_byte_size        = 32  // size (bytes) of kernel arguments
-  workitem_vgpr_count              = 128 // v127 is max idx
-  wavefront_sgpr_count             = 22  // s21 is max idx
-  compute_pgm_rsrc1_vgprs          = 31  // floor((128-1)/4)
-  compute_pgm_rsrc1_sgprs          = 2   // floor((22-1)/8)
-  compute_pgm_rsrc2_user_sgpr      = 2
-  compute_pgm_rsrc2_tidig_comp_cnt = 1 // 2D
-  compute_pgm_rsrc2_tgid_x_en      = 1 // preload workgroup.x into sgpr
-  compute_pgm_rsrc2_tgid_y_en      = 1
-  // todo lds size
+  enable_sgpr_kernarg_segment_ptr   =  1  // we do have kernel arguments
+  kernarg_segment_byte_size         = 68  // size (bytes) of kernel arguments
+  workitem_vgpr_count               = 128 // v127 is max idx
+  wavefront_sgpr_count              = 22  // s21 is max idx
+  compute_pgm_rsrc1_vgprs           = 31  // floor((128-1)/4)
+  compute_pgm_rsrc1_sgprs           = 2   // floor((22-1)/8)
+  compute_pgm_rsrc2_user_sgpr       = 2
+  compute_pgm_rsrc2_tidig_comp_cnt  = 1 // 2D
+  compute_pgm_rsrc2_tgid_x_en       = 1 // preload workgroup.x into sgpr
+  compute_pgm_rsrc2_tgid_y_en       = 1
+  workgroup_group_segment_byte_size = 32768
+  wavefront_size                    = 64
 .end_amd_kernel_code_t
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -221,9 +222,9 @@ v_add_i32 v8, vcc, s14, v7            // v8=offsetB+B_inc lo
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v9, vcc, 0, v7, vcc        // v9=offsetB+B_inc hi
 v_lshlrev_b64 v[8:9], 2, v[8:9]       // v[8:9]=(B_inc+offsetB)*4
-v_add_i32 v22, vcc, s8, v8            // v24=B* + (B_inc+offsetB)*4 lo
+v_add_i32 v24, vcc, s8, v8            // v24=B* + (B_inc+offsetB)*4 lo
 v_mov_b32 v6, s8                      // v6=B* hi
-v_addc_u32 v23, vcc, v9, v6, vcc      // v25=B* + (B_inc+offsetB)*4 hi
+v_addc_u32 v25, vcc, v9, v6, vcc      // v25=B* + (B_inc+offsetB)*4 hi
 // v[24:25] is global_readB_0:3
 
 // global_read_incr (use sgpr?)
@@ -243,12 +244,11 @@ v_mov_b32 v30, v0                     // v30=workitem_x=local_readA
 v_mov_b32 v31, v1                     // v31=workitem_y=local_readB
 
 // iter count
-s_lshr_b32 s20, s20, 3                // s20=sizeK/8
+s_lshr_b32 s20, s20, 4                // s20=sizeK/8
 s_sub_i32 s20, 0x0, s20               // s20 = -sizeK/8
 
-// Prefetch First Unroll
 GL_LOAD_G2R                           // load global -> register
-s_waitcnt vmcnt(0)                    // wait for global load
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for global load
 GL_LOAD_R2L                           // store register -> local
 v_xor_b32 v28, 0x4000, v28            // local_write_A red <-> black
 v_xor_b32 v29, 0x4000, v29            // local_write_B red <-> black
