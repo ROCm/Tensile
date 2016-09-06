@@ -7,6 +7,7 @@
 // VGPR Assignments
 // v0        workitem_x
 // v1        workitem_y
+// v[12:13]  C write addr
 // v[14:21]  G->L load regs   x8 Ax4 Bx4 no red/black
 // v[22:25]  Global_read_addr x4 Ax1 Bx1 each 8-byte
 // v[26:27]  Global_read_incr x2 incA incB
@@ -297,11 +298,30 @@ s_add_u32       s20, s20, 1           // incr iter counter
 s_cmp_eq_i32    s20, 0                // counter==0 ?
 s_cbranch_scc1  label_0001            // goto loop start
 s_branch        label_0000            // goto after loop
-label_0001:
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Final C=alpha*A*B+beta*C  //////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+label_0001:
+
+// dummy write
+s_mov_b64 v[12:13] s[4:5]
+flat_store_dwordx4 v[12:13] v[64:67]
+flat_store_dwordx4 v[12:13] v[68:71]
+flat_store_dwordx4 v[12:13] v[72:75]
+flat_store_dwordx4 v[12:13] v[76:79]
+flat_store_dwordx4 v[12:13] v[80:83]
+flat_store_dwordx4 v[12:13] v[84:87]
+flat_store_dwordx4 v[12:13] v[88:91]
+flat_store_dwordx4 v[12:13] v[92:95]
+flat_store_dwordx4 v[12:13] v[96:99]
+flat_store_dwordx4 v[12:13] v[100:103]
+flat_store_dwordx4 v[12:13] v[104:107]
+flat_store_dwordx4 v[12:13] v[108:111]
+flat_store_dwordx4 v[12:13] v[112:115]
+flat_store_dwordx4 v[12:13] v[116:119]
+flat_store_dwordx4 v[12:13] v[120:123]
+flat_store_dwordx4 v[12:13] v[124:127]
 
 
 s_endpgm
