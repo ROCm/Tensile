@@ -545,11 +545,17 @@ private:
   Buffer* c;
   Buffer* a;
   Buffer* b;
+  const unsigned int workGroup[2] = {16, 16};
+  const unsigned int microTile[2] = {8, 8};
   float vA, vB, vC;
   float alpha;
   float beta;
-  unsigned int width;
-  unsigned int height;
+  unsigned int M, N, K;
+  unsigned int numElementsC, numElementsA, numElementsB;
+  unsigned int sizeC, sizeA, sizeB;
+  unsigned int offsetC, offsetA, offsetB;
+  unsigned int strideCJ, strideAK, strideBK;
+  unsigned int size0I, size1J, sizeK;
 
 public:
   AsmKernelDispatch(int argc, const char **argv)
@@ -559,52 +565,62 @@ public:
     vC(1),
     alpha(1),
     beta(1),
-    width(8),
-    height(8)
+    M(128),
+    N(128),
+    K(128),
+    numElementsC(M*N),
+    numElementsA(M*K),
+    numElementsB(N*K),
+    sizeC(numElementsC*sizeof(float)),
+    sizeA(numElementsA*sizeof(float)),
+    sizeB(numElementsB*sizeof(float)),
+    offsetC(0),
+    offsetA(0),
+    offsetB(0),
+    strideCJ(N),
+    strideAK(K),
+    strideBK(K),
+    size0I(M),
+    size1J(N),
+    sizeK(K)
   {
   }
-
-  /* works:
-   * width=256
-   * height=1
-   * workgroup=256,1
-   */
 
   bool SetupCodeObject() override {
     return LoadCodeObjectFromFile("kernel.co");
   }
 
   bool Setup() override {
-    if (!AllocateKernarg(1024)) { return false; }
+    if (!AllocateKernarg(3*8 + 11*4 + 0)) { return false; }
 
-    a = AllocateBuffer(height*width*sizeof(float));
-    b = AllocateBuffer(height*width*sizeof(float));
-    c = AllocateBuffer(height*width*sizeof(float));
-    for (unsigned int i = 0; i < height*width; i++) a->Data<float>(i) = vA*i;
-    for (unsigned int i = 0; i < height*width; i++) b->Data<float>(i) = vB*i;
-    for (unsigned int i = 0; i < height*width; i++) c->Data<float>(i) = vC*i;
+
+    c = AllocateBuffer(sizeC);
+    a = AllocateBuffer(sizeA);
+    b = AllocateBuffer(sizeB);
+    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = vC*i;
+    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = vA*i;
+    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = vB*i;
+    if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(b)) output << "Error: failed to copy to local" << std::endl;
-    if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
-
-#if 0
-    Kernarg(&alpha);
-    Kernarg(&alpha);
-    Kernarg(&alpha);
-    Kernarg(&alpha);
-    Kernarg(&alpha);
-    Kernarg(&alpha);
-#endif
 
     Kernarg(c);
     Kernarg(a);
     Kernarg(b);
     Kernarg(&alpha);
     Kernarg(&beta);
-    Kernarg(&width);
+    Kernarg(&offsetC);
+    Kernarg(&offsetA);
+    Kernarg(&offsetB);
+    Kernarg(&strideCJ);
+    Kernarg(&strideAK);
+    Kernarg(&strideBK);
+    Kernarg(&size0I);
+    Kernarg(&size1J);
+    Kernarg(&sizeK);
 
-    SetGridSize(width,height);
-    SetWorkgroupSize(8,8);
+    SetGridSize(size0I/microTile[0],size1J/microTile[1]);
+    SetWorkgroupSize(workGroup[0], workGroup[1]);
     return true;
   }
 
@@ -614,12 +630,12 @@ public:
       return false;
     }
     bool valid = true;
-    for (unsigned int row = 0; row < height; row++) {
-      for (unsigned int col = 0; col < width; col++) {
-        unsigned int index = row*width + col;
+    for (unsigned int d1 = 0; d1 < size1J; d1++) {
+      for (unsigned int d0 = 0; d0 < size0I; d0++) {
+        unsigned int index = d1*strideCJ + d0;
         float correctC = alpha*(vA*index)*(vB*index)+beta*(vC*index);
         bool equal = c->Data<float>(index) == correctC;
-        output << "c[" << row << "," << col << "] = "
+        output << "c[" << d1 << "," << d0 << "] = "
             << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
         if (!equal) valid = false;
       }

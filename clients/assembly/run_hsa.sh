@@ -1,5 +1,5 @@
-SOURCE=main_asm
-KERNEL=kernel
+SOURCE=main_hsa
+KERNEL=sgemm_NT_128x128x8
 CLANG=/home/amd/llvm/bin/clang
 GCC=/usr/bin/c++
 
@@ -9,7 +9,7 @@ ${CLANG} -x assembler -target amdgcn--amdhsa -mcpu=fiji -c -o kernel.o ${KERNEL}
 
 # link
 echo "linking kernel"
-${CLANG} -target amdgcn--amdhsa kernel.o -o kernel.co
+${CLANG} -target amdgcn--amdhsa kernel.o -o .co
 
 # compile host
 echo "compiling host application"
@@ -17,4 +17,4 @@ ${GCC} -I/opt/rocm/hsa/include -Wall -std=c++11 ${SOURCE}.cpp -o ${SOURCE} -rdyn
 
 # run application
 echo "running host application"
-./main_asm
+./${SOURCE}
