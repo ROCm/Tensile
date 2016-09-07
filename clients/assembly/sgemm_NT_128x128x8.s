@@ -169,12 +169,11 @@
 // v[12:13] will have target address
 // target address = base + d0*128 + d1*128*strideC1J
 .set idx, 64+\d1*8+\d0
-.set wg_log2 4
 v_mov_b32 v12, s15                    // v12 = strideC1J
 v_mov_b32 v13, 0x0                    // v13 = 0
 v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1J*d1
 v_add_u32 v12, vcc, \d0, v12          // v12 = strideC1J*d1+d0
-v_lshlrev_b64 v[12:13], wg_log2, v[12:13] // v12 = 16*(strideC1J*d1+d0)
+v_lshlrev_b64 v[12:13], 6, v[12:13]   // v12 = 16*(strideC1J*d1+d0)*4
 v_add_u32 v12, vcc, v10, v12          // v12 = base + 16*(strideC1J*d1+d0)
 v_addc_u32 v13, vcc, v11, v13, vcc    // v13 = base + 16*(strideC1J*d1+d0)
 flat_load_dword v9, v[12:13]          // load C
@@ -182,6 +181,11 @@ s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
 v_mul_f32 v9, s11, v9                 // v9 = C*beta
 v_mul_f32 v[idx], s10, v[idx]         // v[i] *= alpha
 v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
+
+//v_mov_b32 v12, v10
+//v_mov_b32 v13, v11
+
+//v_lshlrev_b64 v[12:13], 2, v[12:13]   // index->byte
 
 // todo debug
 v_mov_b32 v[idx], 0
@@ -213,7 +217,7 @@ sgemm_NT:
   compute_pgm_rsrc2_tgid_x_en       = 1 // preload workgroup.x into sgpr
   compute_pgm_rsrc2_tgid_y_en       = 1
   workgroup_group_segment_byte_size = 32768
-  wavefront_size                    = 64
+  //wavefront_size                    = 64
 .end_amd_kernel_code_t
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -358,21 +362,26 @@ label_0001:
 // s[4:5] + ( s2*128 + s3*128*s15 ) + (v1*s15 + v0)
 // we can reuse s[16:21]
 
+s_lshl_b32 s12, s12, 2                // offsetC *= 4bytes
 s_add_u32 s4, s12, s4
 s_addc_u32 s5, 0x0, s5                // s[4:5] = C* + offset
-s_lshl_b32 s16, s2, 7                 // s16 = g0I*128
-s_lshl_b32 s17, s3, 7                 // s17 = g1J*128
-s_mul_i32 s17, s15, s17               // s17 = g1J*128*strideC1J
-v_mul_lo_i32 v3, v1, s15              // v3  = l1J*strideC1J
-s_add_u32 s4, s16, s4
-s_addc_u32 s5, 0x0, s5
-s_add_u32 s4, s17, s4
+s_lshl_b32 s16, s2, 9                 // s16 = g0I*128*4
+s_lshl_b32 s17, s3, 9                 // s17 = g1J*128*4
+s_mul_i32 s17, s15, s17               // s17 = g1J*128*4*strideC1J
+s_add_u32 s4, s16, s4                 // s4 = C*+offset+g0I*128
+s_addc_u32 s5, 0x0, s5                // s5 = hi
+s_add_u32 s4, s17, s4                 // s4 = C*+offset+g0I*128+g1J*128*strC1J
 s_addc_u32 s5, 0x0, s5                // s[4:5] = C* + offset + workgroup offset
-v_mov_b32 v10, s4
-v_mov_b32 v11, s5
-v_add_u32 v10, vcc, v3, v10
+
+v_mov_b32 v10, s4                     // v[10:11] = c*+offset+workgroup offset
+v_mov_b32 v11, s5                     // hi
+
+s_lshl_b32 s18, s15, 2                // strideC *= 4 bytes
+v_mul_lo_u32 v3, s18, v1              // v3  = l1J*strideC1J
+v_add_u32 v10, vcc, v3, v10           // v[10:11]=C*+off+wg_off+l1J*stride
 v_addc_u32 v11, vcc, 0x0, v11, vcc
-v_add_u32 v10, vcc, v0, v10
+v_lshlrev_b32 v0, 2, v0
+v_add_u32 v10, vcc, v0, v10           // v[10:11]=C*+off+wg_off+l1j*str+l0I
 v_addc_u32 v11, vcc, 0x0, v11, vcc
 
 FINAL_WRITE 0, 0

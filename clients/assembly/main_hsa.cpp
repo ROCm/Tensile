@@ -572,9 +572,9 @@ public:
     alpha(1),
     beta(0),
 #if 1
-    M(128),
-    N(128),
-    K(128),
+    M(256),
+    N(256),
+    K(256),
 #else
     M(5760),
     N(5760),
@@ -630,7 +630,8 @@ public:
     Kernarg(&size0I);
     Kernarg(&size1J);
     Kernarg(&sizeK);
-
+    output << "grid=" << size0I/microTile[0] << "x" << size1J/microTile[1] << std::endl;
+    output << "workgroup=" << workGroup[0] << "x" << workGroup[1] << std::endl;
     SetGridSize(size0I/microTile[0],size1J/microTile[1]);
     SetWorkgroupSize(workGroup[0], workGroup[1]);
     return true;
@@ -643,9 +644,9 @@ public:
     }
     unsigned int numValid = 0;
     unsigned int numInvalid = 0;
-    unsigned int maxPrint = 16;
-    for (unsigned int d1 = 0; d1 < size1J; d1++) {
-      for (unsigned int d0 = 0; d0 < size0I; d0++) {
+    //unsigned int maxPrint = 16;
+    for (unsigned int d1 = 0; d1 < size1J; d1++) { // row
+      for (unsigned int d0 = 0; d0 < size0I; d0++) { // col
         unsigned int index = d1*strideCJ + d0;
         float correctC = 0; // alpha*(vA*index)*(vB*index)+beta*(vC*index);
         bool equal = c->Data<float>(index) == correctC;
@@ -653,12 +654,14 @@ public:
           numValid++;
         } else {
           numInvalid++;
-          if (numInvalid < maxPrint) {
-            output << "c[" << d1 << "," << d0 << "] = "
-                << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
-          }
+          //if (numInvalid < maxPrint) {
+          //  output << "c[" << d1 << "," << d0 << "] = "
+          //      << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
+          //}
         }
+        output << equal;
       }
+      output << std::endl;
     }
     output << numValid << " P + " << numInvalid << " F" << std::endl;
     return numInvalid==0;
