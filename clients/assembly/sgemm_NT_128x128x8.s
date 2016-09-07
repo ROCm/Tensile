@@ -168,17 +168,17 @@
 // v[10:11] has base address
 // v[12:13] will have target address
 // target address = base + d0*128 + d1*128*strideC1J
-// multiply by different workgroup dims
 .set idx, 64+\d1*8+\d0
-v_mov_b32 v12, s15                    // v12 = strideC1j
+.set wg_log2 4
+v_mov_b32 v12, s15                    // v12 = strideC1J
 v_mov_b32 v13, 0x0                    // v13 = 0
-v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1j*d1
-v_add_u32 v12, vcc, \d0, v12          // v12 = stride
-v_lshlrev_b64 v[12:13], 7, v[12:13]
-v_add_u32 v12, vcc, v10, v12
-v_addc_u32 v13, vcc, v11, v13, vcc
-flat_load_dword v9, v[12:13]
-s_waitcnt vmcnt(0) & lgkmcnt(0)
+v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1J*d1
+v_add_u32 v12, vcc, \d0, v12          // v12 = strideC1J*d1+d0
+v_lshlrev_b64 v[12:13], wg_log2, v[12:13] // v12 = 16*(strideC1J*d1+d0)
+v_add_u32 v12, vcc, v10, v12          // v12 = base + 16*(strideC1J*d1+d0)
+v_addc_u32 v13, vcc, v11, v13, vcc    // v13 = base + 16*(strideC1J*d1+d0)
+flat_load_dword v9, v[12:13]          // load C
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
 v_mul_f32 v9, s11, v9                 // v9 = C*beta
 v_mul_f32 v[idx], s10, v[idx]         // v[i] *= alpha
 v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
@@ -186,8 +186,8 @@ v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
 // todo debug
 v_mov_b32 v[idx], 0
 
-flat_store_dword v[12:13], v[idx]
-s_waitcnt vmcnt(0) & lgkmcnt(0)
+flat_store_dword v[12:13], v[idx]     // store C
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
 .endm
 
 
