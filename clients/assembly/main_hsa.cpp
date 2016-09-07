@@ -571,7 +571,7 @@ public:
     vB(1),
     alpha(1),
     beta(0),
-#if 0
+#if 1
     M(128),
     N(128),
     K(128),
@@ -641,18 +641,27 @@ public:
       output << "Error: failed to copy from local" << std::endl;
       return false;
     }
-    bool valid = true;
-    for (unsigned int d1 = 0; d1 < 4+0*size1J; d1++) {
-      for (unsigned int d0 = 0; d0 < 4+0*size0I; d0++) {
+    unsigned int numValid = 0;
+    unsigned int numInvalid = 0;
+    unsigned int maxPrint = 16;
+    for (unsigned int d1 = 0; d1 < size1J; d1++) {
+      for (unsigned int d0 = 0; d0 < size0I; d0++) {
         unsigned int index = d1*strideCJ + d0;
-        float correctC = alpha*(vA*index)*(vB*index)+beta*(vC*index);
+        float correctC = 0; // alpha*(vA*index)*(vB*index)+beta*(vC*index);
         bool equal = c->Data<float>(index) == correctC;
-        output << "c[" << d1 << "," << d0 << "] = "
-            << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
-        if (!equal) valid = false;
+        if (equal) {
+          numValid++;
+        } else {
+          numInvalid++;
+          if (numInvalid < maxPrint) {
+            output << "c[" << d1 << "," << d0 << "] = "
+                << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
+          }
+        }
       }
     }
-    return valid;
+    output << numValid << " P + " << numInvalid << " F" << std::endl;
+    return numInvalid==0;
   }
 };
 

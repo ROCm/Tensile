@@ -5,9 +5,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // VGPR Assignments
-// v0        workitem_x
-// v1        workitem_y
-// v[12:13]  C write addr
+// v0        workitem_x = l0I
+// v1        workitem_y = l1J
+// v[10:11]  C write base addr
+// v[12:13]  C write current addr
 // v[14:21]  G->L load regs   x8 Ax4 Bx4 no red/black
 // v[22:25]  Global_read_addr x4 Ax1 Bx1 each 8-byte
 // v[26:27]  Global_read_incr x2 incA incB
@@ -39,8 +40,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Kernel Arguments
 // s[0:1] - kernelarg_segment
-// s2 - workgroup_x
-// s3 - workgroup_y
+// s2 - workgroup_x = g0I
+// s3 - workgroup_y = g1J
 //            0-based  24-based
 //  C         0x00= 0  0x18=24    s[4:5]
 //  A         0x08= 8  0x20=32    s[6:7]
@@ -160,6 +161,35 @@
   MAC_4X4 \gen, 1, 1
 .endm
 
+////////////////////////////////////////////////////////////////////////////////
+// Final Mul/Add/Write
+.macro FINAL_WRITE d0 d1
+
+// v[10:11] has base address
+// v[12:13] will have target address
+// target address = base + d0*128 + d1*128*strideC1J
+// multiply by different workgroup dims
+.set idx, 64+\d1*8+\d0
+v_mov_b32 v12, s15                    // v12 = strideC1j
+v_mov_b32 v13, 0x0                    // v13 = 0
+v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1j*d1
+v_add_u32 v12, vcc, \d0, v12          // v12 = stride
+v_lshlrev_b64 v[12:13], 7, v[12:13]
+v_add_u32 v12, vcc, v10, v12
+v_addc_u32 v13, vcc, v11, v13, vcc
+flat_load_dword v9, v[12:13]
+s_waitcnt vmcnt(0) & lgkmcnt(0)
+v_mul_f32 v9, s11, v9                 // v9 = C*beta
+v_mul_f32 v[idx], s10, v[idx]         // v[i] *= alpha
+v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
+
+// todo debug
+v_mov_b32 v[idx], 0
+
+flat_store_dword v[12:13], v[idx]
+s_waitcnt vmcnt(0) & lgkmcnt(0)
+.endm
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Kernel Descriptor  /////////////////////////////////////////////////////////
@@ -244,7 +274,7 @@ v_mov_b32 v30, v0                     // v30=workitem_x=local_readA
 v_mov_b32 v31, v1                     // v31=workitem_y=local_readB
 
 // iter count
-s_lshr_b32 s20, s20, 4                // s20=sizeK/8
+s_lshr_b32 s20, s20, 3                // s20=sizeK/8
 s_sub_i32 s20, 0x0, s20               // s20 = -sizeK/8
 
 GL_LOAD_G2R                           // load global -> register
@@ -320,24 +350,101 @@ s_branch        label_0000            // goto after loop
 ////////////////////////////////////////////////////////////////////////////////
 label_0001:
 
-// dummy write
-v_mov_b32 v12, s4
-v_mov_b32 v13, s5
-flat_store_dwordx4 v[12:13], v[64:67]
-flat_store_dwordx4 v[12:13], v[68:71]
-flat_store_dwordx4 v[12:13], v[72:75]
-flat_store_dwordx4 v[12:13], v[76:79]
-flat_store_dwordx4 v[12:13], v[80:83]
-flat_store_dwordx4 v[12:13], v[84:87]
-flat_store_dwordx4 v[12:13], v[88:91]
-flat_store_dwordx4 v[12:13], v[92:95]
-flat_store_dwordx4 v[12:13], v[96:99]
-flat_store_dwordx4 v[12:13], v[100:103]
-flat_store_dwordx4 v[12:13], v[104:107]
-flat_store_dwordx4 v[12:13], v[108:111]
-flat_store_dwordx4 v[12:13], v[112:115]
-flat_store_dwordx4 v[12:13], v[116:119]
-flat_store_dwordx4 v[12:13], v[120:123]
-flat_store_dwordx4 v[12:13], v[124:127]
+// write base idx = s[4:5] + GLOBAL( globalC0I, globalC1J)
+// s[4:5] + GLOBAL( (g0I*MT_0I + l0I), (g1J*MT_1J + l1J) ) 
+// s[4:5] + (g0I*MT_0I + l0I)*strideC0I + (g1J*MT_1J + l1J)*strideC1J
+// s[4:5] + (g0I*MT_0I + l0I) + (g1J*MT_1J + l1J)*strideC1J
+// s[4:5] + ( s2*  128 +  v0) + ( s3*  128 +  v1)*s15
+// s[4:5] + ( s2*128 + s3*128*s15 ) + (v1*s15 + v0)
+// we can reuse s[16:21]
+
+s_add_u32 s4, s12, s4
+s_addc_u32 s5, 0x0, s5                // s[4:5] = C* + offset
+s_lshl_b32 s16, s2, 7                 // s16 = g0I*128
+s_lshl_b32 s17, s3, 7                 // s17 = g1J*128
+s_mul_i32 s17, s15, s17               // s17 = g1J*128*strideC1J
+v_mul_lo_i32 v3, v1, s15              // v3  = l1J*strideC1J
+s_add_u32 s4, s16, s4
+s_addc_u32 s5, 0x0, s5
+s_add_u32 s4, s17, s4
+s_addc_u32 s5, 0x0, s5                // s[4:5] = C* + offset + workgroup offset
+v_mov_b32 v10, s4
+v_mov_b32 v11, s5
+v_add_u32 v10, vcc, v3, v10
+v_addc_u32 v11, vcc, 0x0, v11, vcc
+v_add_u32 v10, vcc, v0, v10
+v_addc_u32 v11, vcc, 0x0, v11, vcc
+
+FINAL_WRITE 0, 0
+FINAL_WRITE 0, 1
+FINAL_WRITE 0, 2
+FINAL_WRITE 0, 3
+FINAL_WRITE 0, 4
+FINAL_WRITE 0, 5
+FINAL_WRITE 0, 6
+FINAL_WRITE 0, 7
+
+FINAL_WRITE 1, 0
+FINAL_WRITE 1, 1
+FINAL_WRITE 1, 2
+FINAL_WRITE 1, 3
+FINAL_WRITE 1, 4
+FINAL_WRITE 1, 5
+FINAL_WRITE 1, 6
+FINAL_WRITE 1, 7
+
+FINAL_WRITE 2, 0
+FINAL_WRITE 2, 1
+FINAL_WRITE 2, 2
+FINAL_WRITE 2, 3
+FINAL_WRITE 2, 4
+FINAL_WRITE 2, 5
+FINAL_WRITE 2, 6
+FINAL_WRITE 2, 7
+
+FINAL_WRITE 3, 0
+FINAL_WRITE 3, 1
+FINAL_WRITE 3, 2
+FINAL_WRITE 3, 3
+FINAL_WRITE 3, 4
+FINAL_WRITE 3, 5
+FINAL_WRITE 3, 6
+FINAL_WRITE 3, 7
+
+FINAL_WRITE 4, 0
+FINAL_WRITE 4, 1
+FINAL_WRITE 4, 2
+FINAL_WRITE 4, 3
+FINAL_WRITE 4, 4
+FINAL_WRITE 4, 5
+FINAL_WRITE 4, 6
+FINAL_WRITE 4, 7
+
+FINAL_WRITE 5, 0
+FINAL_WRITE 5, 1
+FINAL_WRITE 5, 2
+FINAL_WRITE 5, 3
+FINAL_WRITE 5, 4
+FINAL_WRITE 5, 5
+FINAL_WRITE 5, 6
+FINAL_WRITE 5, 7
+
+FINAL_WRITE 6, 0
+FINAL_WRITE 6, 1
+FINAL_WRITE 6, 2
+FINAL_WRITE 6, 3
+FINAL_WRITE 6, 4
+FINAL_WRITE 6, 5
+FINAL_WRITE 6, 6
+FINAL_WRITE 6, 7
+
+FINAL_WRITE 7, 0
+FINAL_WRITE 7, 1
+FINAL_WRITE 7, 2
+FINAL_WRITE 7, 3
+FINAL_WRITE 7, 4
+FINAL_WRITE 7, 5
+FINAL_WRITE 7, 6
+FINAL_WRITE 7, 7
 
 s_endpgm
