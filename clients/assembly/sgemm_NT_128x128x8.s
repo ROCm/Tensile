@@ -171,10 +171,15 @@
   .endif
 
   // issue stores registers->local
-  ds_write2_b64 v[dst+0], v[a+0:a+1], v[a+2:a+3] offset1:2 // A[0:3]
-  ds_write2_b64 v[dst+1], v[b+0:b+1], v[b+2:b+3] offset1:2 // B[0:3]
-  //ds_write_b128 v[dst+0], v[a+0:a+3]            // A[0:3]
-  //ds_write_b128 v[dst+1], v[b+0:b+3]            // B[0:3]
+  ds_write_b32 v[dst+0], v[a+0] offset:32*0
+  ds_write_b32 v[dst+0], v[a+1] offset:32*1
+  ds_write_b32 v[dst+0], v[a+2] offset:32*2
+  ds_write_b32 v[dst+0], v[a+3] offset:32*3
+
+  ds_write_b32 v[dst+1], v[b+0] offset:32*0
+  ds_write_b32 v[dst+1], v[b+1] offset:32*1
+  ds_write_b32 v[dst+1], v[b+2] offset:32*2
+  ds_write_b32 v[dst+1], v[b+3] offset:32*3
 .endm
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -191,6 +196,14 @@
   .set inc0, (\gen*inc+ 0)
   // issue loads local -> registers
   // offset is 16 bits and gets multiplied by 4 bytes
+
+// TODO
+// resume debugging here
+// values getting written to 0->3737 and 8192->11928
+// are ptrs being swapped too early?
+flat_store_dword v[8:9], v[src+0]
+s_endpgm
+
   .if 1
   ds_read_b32 v[a+0], v[src+0] offset:\gen*inc+16*0 // A[0:1]
   ds_read_b32 v[a+1], v[src+0] offset:\gen*inc+16*1 // A[0:1]
@@ -417,14 +430,9 @@ v_lshlrev_b32 v27, 2, v27             // v27=global_read_incr_B
 // local_writeA,B ?
 v_mov_b32 v6, 0x81                    // v6=(128+1)
 v_mad_u32_u24 v28, v6, v3, v2         // v28=129*aK+a0I
-v_lshlrev_b32 v28, 2, v28             // v28=4*(129*aK+a0I)=local_writeA_red
+v_lshlrev_b32 v28, 2, v28             // v28=2*4*(129*aK+a0I)=local_writeA_red
 v_add_u32 v29, vcc, 0x2000, v28       // v29=v28+2048*4=local_writeB_red
 // v[28:29] is local_writeA,B
-
-flat_store_dword v[8:9], v29
-s_endpgm
-
-
 
 // local_readA,B
 v_lshlrev_b32 v30, 2, v0              // v30=l.x*4=local_readA
@@ -443,6 +451,7 @@ ZERO_REGISTERS
 GL_LOAD_G2R                           // load global -> register
 s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for global load
 GL_LOAD_R2L                           // store register -> local
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for global load
 v_xor_b32 v28, 0x4000, v28            // local_write_A red <-> black
 v_xor_b32 v29, 0x4000, v29            // local_write_B red <-> black
 

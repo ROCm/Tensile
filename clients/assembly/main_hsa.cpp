@@ -662,8 +662,15 @@ public:
         unsigned int threadDebugStartIdx = threadSerial * 1;
         std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
         //std::cout << std::setw(2) << debug->Data<unsigned int>(threadDebugStartIdx+1) << ", ";
+        if (col==15) {
+          std::cout << "  ";
+        }
+
       }
       std::cout << std::endl;
+      if (row==15) {
+        std::cout << std::endl;
+      }
     }
     std::cout << std::endl;
     std::cout << std::endl;
