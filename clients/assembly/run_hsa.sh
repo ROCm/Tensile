@@ -13,7 +13,7 @@ ${CLANG} -target amdgcn--amdhsa kernel.o -o kernel.co
 
 # compile host
 echo "compiling host application"
-${GCC} -I/opt/rocm/hsa/include -Wall -std=c++11 ${SOURCE}.cpp -o ${SOURCE} -rdynamic /opt/rocm/lib/libhsa-runtime64.so -Wl,-rpath,/opt/rocm/lib 
+${GCC} -I/opt/rocm/hsa/include -Wall -std=c++11 -g ${SOURCE}.cpp -o ${SOURCE} -rdynamic /opt/rocm/lib/libhsa-runtime64.so -Wl,-rpath,/opt/rocm/lib 
 
 # run application
 echo "running host application"

@@ -48,6 +48,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 #include <time.h>
 
 namespace amd {
@@ -551,6 +552,7 @@ private:
   Buffer* c;
   Buffer* a;
   Buffer* b;
+  Buffer* debug;
   const unsigned int workGroup[2] = {16, 16};
   const unsigned int microTile[2] = {8, 8};
   float vC, vA, vB;
@@ -576,9 +578,9 @@ public:
     N(256),
     K(256),
 #else
-    M(5760),
-    N(5760),
-    K(5760),
+    M(128),
+    N(128),
+    K(128),
 #endif
     numElementsC(M*N),
     numElementsA(M*K),
@@ -604,17 +606,21 @@ public:
 
   bool Setup() override {
     if (!AllocateKernarg(1024)) { return false; }
+    unsigned int numDebugElements = 16*(size0I*size1J)/(microTile[0]*microTile[1]); // 16 uints per thread
 
 
+    debug = AllocateBuffer(numDebugElements*sizeof(int));
     c = AllocateBuffer(sizeC);
     a = AllocateBuffer(sizeA);
     b = AllocateBuffer(sizeB);
     for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = vC;
     for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = vA;
     for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = vB;
+    for (unsigned int i = 0; i < numDebugElements; i++) debug->Data<unsigned int>(i) = 3;
     if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(b)) output << "Error: failed to copy to local" << std::endl;
+    if (!CopyTo(debug)) output << "Error: failed to copy debug to local" << std::endl;
 
     Kernarg(c);
     Kernarg(a);
@@ -627,8 +633,12 @@ public:
     Kernarg(&strideCJ);
     Kernarg(&strideAK);
     Kernarg(&strideBK);
+#if 0
     Kernarg(&size0I);
     Kernarg(&size1J);
+#else
+    Kernarg(debug);
+#endif
     Kernarg(&sizeK);
     output << "grid=" << size0I/microTile[0] << "x" << size1J/microTile[1] << std::endl;
     output << "workgroup=" << workGroup[0] << "x" << workGroup[1] << std::endl;
@@ -638,35 +648,59 @@ public:
   }
 
   bool Verify() override {
-    if (!CopyFrom(c)) {
-      output << "Error: failed to copy from local" << std::endl;
+    if (!CopyFrom(debug)) {
+      std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;
     }
+
+    // debug
+    unsigned int numThreadsD0 = size0I/microTile[0];
+    unsigned int numThreadsD1 = size1J/microTile[1];
+    for (unsigned int row = 0; row < numThreadsD1; row++) { // screen-row
+      for (unsigned int col = 0; col < numThreadsD0; col++) { // screen-col
+        unsigned int threadSerial = col*(strideCJ/microTile[1]) + row;
+        unsigned int threadDebugStartIdx = threadSerial * 1;
+        std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
+        //std::cout << std::setw(2) << debug->Data<unsigned int>(threadDebugStartIdx+1) << ", ";
+      }
+      std::cout << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+
+
+#if 1
     unsigned int numValid = 0;
     unsigned int numInvalid = 0;
-    //unsigned int maxPrint = 16;
+    // validation
+    if (!CopyFrom(c)) {
+      std::cout << "Error: failed to copy from local" << std::endl;
+      return false;
+    }
+    float correctC = alpha*(vA*vB*K)+beta*(vC);
     for (unsigned int d1 = 0; d1 < size1J; d1++) { // row
       for (unsigned int d0 = 0; d0 < size0I; d0++) { // col
         unsigned int index = d1*strideCJ + d0;
-        float correctC = 0; // alpha*(vA*index)*(vB*index)+beta*(vC*index);
         bool equal = c->Data<float>(index) == correctC;
         if (equal) {
           numValid++;
         } else {
           numInvalid++;
-          //if (numInvalid < maxPrint) {
-          //  output << "c[" << d1 << "," << d0 << "] = "
-          //      << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
-          //}
+          if (numInvalid < 4) {
+            std::cout << "c[" << d1 << "," << d0 << "] = "
+                << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
+          }
         }
-        output << equal;
+        //output << equal;
       }
-      output << std::endl;
+      //output << std::endl;
     }
     output << numValid << " P + " << numInvalid << " F" << std::endl;
+#endif
     return numInvalid==0;
   }
-};
+}; // end class
 
 int main(int argc, const char** argv)
 {
