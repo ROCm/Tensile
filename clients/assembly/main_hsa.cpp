@@ -51,6 +51,37 @@
 #include <iomanip>
 #include <time.h>
 
+
+void sgemm_cpu(
+    bool transA,
+    bool transB,
+    float  *C,
+    float  *A,
+    float  *B,
+    float const alpha,
+    float const beta,
+    unsigned int const ldc,
+    unsigned int const lda,
+    unsigned int const ldb,
+    unsigned int const M,
+    unsigned int const N,
+    unsigned int const K ) {
+
+  for (unsigned int i = 0; i < M; i++) {
+    for (unsigned int j = 0; j < N; j++) {
+      float c = 0.f;
+      for (unsigned int k = 0; k < K; k++) {
+        float a = transA ? A[k+i*lda] : A[i+k*lda];
+        float b = transB ? B[j+k*ldb] : B[k+j*ldb];
+        c += a*b;
+      }
+      size_t cIdx = i+j*ldc;
+      C[cIdx] = alpha*c + beta*C[cIdx];
+    }
+  }
+}
+
+
 namespace amd {
 namespace dispatch {
 
@@ -564,6 +595,7 @@ private:
   unsigned int offsetC, offsetA, offsetB;
   unsigned int strideCJ, strideAK, strideBK;
   unsigned int size0I, size1J, sizeK;
+  float *refC;
 
 public:
   AsmKernelDispatch(int argc, const char **argv)
@@ -596,7 +628,8 @@ public:
     strideBK(K),
     size0I(M),
     size1J(N),
-    sizeK(K)
+    sizeK(K),
+    refC(new float[numElementsC])
   {
   }
 
@@ -613,9 +646,10 @@ public:
     c = AllocateBuffer(sizeC);
     a = AllocateBuffer(sizeA);
     b = AllocateBuffer(sizeB);
-    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = vC;
-    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = vA;
-    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = vB;
+    for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = 1;//(i%M)*vC;
+    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = 1;//(i%M)*vC;
+    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = i;//(i%M)*vA;
+    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = i;//(i%M)*vB;
     for (unsigned int i = 0; i < numDebugElements; i++) debug->Data<unsigned int>(i) = 3;
     if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
@@ -689,21 +723,36 @@ public:
       std::cout << "Error: failed to copy from local" << std::endl;
       return false;
     }
-    float correctC = alpha*(vA*vB*K)+beta*(vC);
+
+    sgemm_cpu(
+        false, // N
+        true,  // T
+        refC,
+        a->Ptr<float>(),
+        b->Ptr<float>(),
+        alpha,
+        beta,
+        strideCJ,
+        strideAK,
+        strideBK,
+        M,
+        N,
+        K );
+
     for (unsigned int d1 = 0; d1 < size1J; d1++) { // row
       for (unsigned int d0 = 0; d0 < size0I; d0++) { // col
-        unsigned int index = d1*strideCJ + d0;
-        bool equal = c->Data<float>(index) == correctC;
+        unsigned int idxC = d1*strideCJ+d0;
+        bool equal = c->Data<float>(idxC) == refC[idxC];
         if (equal) {
           numValid++;
         } else {
           numInvalid++;
           if (numInvalid < 4) {
             std::cout << "c[" << d1 << "," << d0 << "] = "
-                << c->Data<float>(index) << (equal ? " == " : " != ") << correctC << std::endl;
+                << c->Data<float>(idxC) << (equal ? " == " : " != ") << refC[idxC] << std::endl;
           }
         }
-        //output << equal;
+        //output << (equal ? "#" : "~");
       }
       //output << std::endl;
     }

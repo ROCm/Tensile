@@ -149,9 +149,9 @@
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
 // debug
-//s_waitcnt vmcnt(0)
-//flat_store_dword v[8:9], v[b+0]
-//s_endpgm
+s_waitcnt vmcnt(0)
+flat_store_dword v[8:9], v[a+1]
+s_endpgm
 
 .endm
 
