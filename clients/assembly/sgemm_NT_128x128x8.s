@@ -147,6 +147,12 @@
   v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
   v_add_u32  v[src+2], vcc, v[src+2], v[inc+0] 
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
+
+// debug
+//s_waitcnt vmcnt(0)
+//flat_store_dword v[8:9], v[b+0]
+//s_endpgm
+
 .endm
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,7 +162,7 @@
   .set a, 14
   .set b, 18
 
-  .if 1
+  .if 0
   // load LDS with 1's
   v_mov_b32 v[a], 0
   v_add_f32 v[a], 1.0, v[a]
@@ -418,11 +424,13 @@ v_addc_u32 v9, vcc, s19, v3, vcc
 
 
 
-// global_readA ?
+// global_read
 v_lshlrev_b32 v7, 4, v1               // v7=lid.y*16
 v_add_i32 v7, vcc, v0, v7             // v7=lid.x+lid.y*16
 v_lshrrev_b32 v3, 5, v7               // v3=(lid.x+lid.y*16)/32 = aK, bK
 v_and_b32 v2, 31, v7                  // v2=(lid.x+lid.y*16)%32 = a0I, b1J
+
+// global_readA
 v_mul_lo_i32 v7, v3, s16              // v7=aK*strideAK
 s_lshl_b32 s21, s2, 7                 // s21 = g0I*128
 v_or_b32 v4, s21, v2                  // v4=g0I*128+a0I
@@ -430,11 +438,16 @@ v_add_i32 v7, vcc, v4, v7             // v7=g0I*128+a0I + aK*strideK = A_my
 v_add_i32 v4, vcc, s13, v7            // v4=A_my + offsetA
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v5, vcc, 0, v7, vcc        // v5=A_my + offsetA hi
+
+//flat_store_dword v[8:9], v5
+//s_endpgm
+
 v_lshlrev_b64 v[5:6], 2, v[4:5]       // v[5:6]=(A_my+offsetA)*4
 v_add_i32 v22, vcc, s6, v5            // v22=A* + (A_my+offsetA)*4 lo
 v_mov_b32 v7, s7                      // v7=A* hi
 v_addc_u32 v23, vcc, v6, v7, vcc      // v23=A* + (A_my+offsetA)*4 hi
 // v[22:23] is global_readA_0:3
+// reading 1's from global correctly
 
 // global_readB ?
 v_mul_lo_i32 v7, v3, s17              // v7=bK*strideBK
@@ -444,11 +457,16 @@ v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + g1J*128+b1J = B_my
 v_add_i32 v24, vcc, s14, v7           // v24=offsetB+B_my lo
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v25, vcc, 0, v7, vcc       // v25=offsetB+B_my hi
+
+//flat_store_dword v[8:9], v25
+//s_endpgm
+
 v_lshlrev_b64 v[24:25], 2, v[24:25]   // v[8:9]=(B_my+offsetB)*4
 v_add_i32 v24, vcc, s8, v24           // v24=B* + (B_my+offsetB)*4 lo
-v_mov_b32 v6, s8                      // v6=B* hi
+v_mov_b32 v6, s9                      // v6=B* hi
 v_addc_u32 v25, vcc, v25, v6, vcc     // v25=B* + (B_my+offsetB)*4 hi
 // v[24:25] is global_readB_0:3
+// NOT reading 1's from global correctly
 
 // global_read_incr ?
 v_mov_b32 v26, s16                    // strideAK
@@ -456,7 +474,7 @@ v_mov_b32 v27, s17                    // strideBK
 v_lshlrev_b32 v26, 2, v26             // v26=global_read_incr_A
 v_lshlrev_b32 v27, 2, v27             // v27=global_read_incr_B
 
-// local_writeA,B ?
+// local_writeA,B
 v_mov_b32 v6, 0x81                    // v6=(128+1)
 v_mad_u32_u24 v28, v6, v3, v2         // v28=129*aK+a0I
 v_lshlrev_b32 v28, 2, v28             // v28=2*4*(129*aK+a0I)=local_writeA_red
