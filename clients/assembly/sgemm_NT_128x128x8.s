@@ -149,9 +149,9 @@
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
 // debug
-s_waitcnt vmcnt(0)
-flat_store_dword v[8:9], v[a+1]
-s_endpgm
+//s_waitcnt vmcnt(0)
+//flat_store_dword v[8:9], v[src+0]
+//s_endpgm
 
 .endm
 
@@ -186,15 +186,17 @@ s_endpgm
 //v_mov_b32 v[dst], 128*4
 //v_mov_b32 v[a], 0xFFFFFFFF
 
-  ds_write_b32 v[dst+0], v[a+0] offset:32*4*0
-  ds_write_b32 v[dst+0], v[a+1] offset:32*4*1
-  ds_write_b32 v[dst+0], v[a+2] offset:32*4*2
-  ds_write_b32 v[dst+0], v[a+3] offset:32*4*3
+// write v[a+0:3] contiguously using ds_write_b128
 
-  ds_write_b32 v[dst+1], v[b+0] offset:32*4*0
-  ds_write_b32 v[dst+1], v[b+1] offset:32*4*1
-  ds_write_b32 v[dst+1], v[b+2] offset:32*4*2
-  ds_write_b32 v[dst+1], v[b+3] offset:32*4*3
+  ds_write_b32 v[dst+0], v[a+0] offset:0 //32*4*0
+  ds_write_b32 v[dst+0], v[a+1] offset:4 //32*4*1
+  ds_write_b32 v[dst+0], v[a+2] offset:8 //32*4*2
+  ds_write_b32 v[dst+0], v[a+3] offset:12 //32*4*3
+
+  ds_write_b32 v[dst+1], v[b+0] offset:0 //32*4*0
+  ds_write_b32 v[dst+1], v[b+1] offset:4 //32*4*1
+  ds_write_b32 v[dst+1], v[b+2] offset:8 //32*4*2
+  ds_write_b32 v[dst+1], v[b+3] offset:12 //32*4*3
 
 // debug
 //s_waitcnt lgkmcnt(0)
@@ -224,7 +226,7 @@ s_endpgm
   // offset is 16 bits and gets multiplied by 4 bytes
 
 // read addresses validated
-//flat_store_dword v[8:9], v[src+1]
+//flat_store_dword v[8:9], v[src+0]
 //s_endpgm
 
   .if 1
@@ -340,6 +342,10 @@ v_mov_b32 v13, 0x0                    // v13 = 0
 v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1J*d1
 v_add_u32 v12, vcc, \d0, v12          // v12 = strideC1J*d1+d0
 v_lshlrev_b64 v[12:13], 6, v[12:13]   // v12 = 16*(strideC1J*d1+d0)*4
+
+flat_store_dword v[8:9], v12
+s_endpgm
+
 v_add_u32 v12, vcc, v10, v12          // v12 = base + 16*(strideC1J*d1+d0)
 v_addc_u32 v13, vcc, v11, v13, vcc    // v13 = base + 16*(strideC1J*d1+d0)
 flat_load_dword v9, v[12:13]          // load C
@@ -434,14 +440,11 @@ v_and_b32 v2, 31, v7                  // v2=(lid.x+lid.y*16)%32 = a0I, b1J
 v_mul_lo_i32 v7, v3, s16              // v7=aK*strideAK
 s_lshl_b32 s21, s2, 7                 // s21 = g0I*128
 v_or_b32 v4, s21, v2                  // v4=g0I*128+a0I
-v_add_i32 v7, vcc, v4, v7             // v7=g0I*128+a0I + aK*strideK = A_my
+v_lshlrev_b32 v4, 2, v4               // v4=(g0I*128+a0I)*4
+v_add_i32 v7, vcc, v4, v7             // v7=(g0I*128+a0I)*4 + aK*strideK = A_my
 v_add_i32 v4, vcc, s13, v7            // v4=A_my + offsetA
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v5, vcc, 0, v7, vcc        // v5=A_my + offsetA hi
-
-//flat_store_dword v[8:9], v5
-//s_endpgm
-
 v_lshlrev_b64 v[5:6], 2, v[4:5]       // v[5:6]=(A_my+offsetA)*4
 v_add_i32 v22, vcc, s6, v5            // v22=A* + (A_my+offsetA)*4 lo
 v_mov_b32 v7, s7                      // v7=A* hi
@@ -453,14 +456,11 @@ v_addc_u32 v23, vcc, v6, v7, vcc      // v23=A* + (A_my+offsetA)*4 hi
 v_mul_lo_i32 v7, v3, s17              // v7=bK*strideBK
 s_lshl_b32 s21, s3, 7                 // s21=g1J*128
 v_or_b32 v6, s21, v2                  // v6=g1J*128+b1J (or same as plus here)
-v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + g1J*128+b1J = B_my
+v_lshlrev_b32 v6, 2, v6               // v6=(g1J*128+a1J)*4
+v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J)*4 = B_my
 v_add_i32 v24, vcc, s14, v7           // v24=offsetB+B_my lo
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v25, vcc, 0, v7, vcc       // v25=offsetB+B_my hi
-
-//flat_store_dword v[8:9], v25
-//s_endpgm
-
 v_lshlrev_b64 v[24:25], 2, v[24:25]   // v[8:9]=(B_my+offsetB)*4
 v_add_i32 v24, vcc, s8, v24           // v24=B* + (B_my+offsetB)*4 lo
 v_mov_b32 v6, s9                      // v6=B* hi
@@ -471,21 +471,28 @@ v_addc_u32 v25, vcc, v25, v6, vcc     // v25=B* + (B_my+offsetB)*4 hi
 // global_read_incr ?
 v_mov_b32 v26, s16                    // strideAK
 v_mov_b32 v27, s17                    // strideBK
-v_lshlrev_b32 v26, 2, v26             // v26=global_read_incr_A
-v_lshlrev_b32 v27, 2, v27             // v27=global_read_incr_B
+v_lshlrev_b32 v26, 5, v26             // v26=strideAK*UNROLL*4
+v_lshlrev_b32 v27, 5, v27             // v27=strideBK*UNROLL*4
 
 // local_writeA,B
 v_mov_b32 v6, 0x81                    // v6=(128+1)
-v_mad_u32_u24 v28, v6, v3, v2         // v28=129*aK+a0I
-v_lshlrev_b32 v28, 2, v28             // v28=2*4*(129*aK+a0I)=local_writeA_red
+v_lshlrev_b32 v28, 2, v2              // v28=a0I*4
+v_mad_u32_u24 v28, v6, v3, v28        // v28=129*aK+a0I*4
+v_lshlrev_b32 v28, 2, v28             // v28=4*(129*aK+a0I*4)=local_writeA_red
 v_add_u32 v29, vcc, 0x2000, v28       // v29=v28+2048*4=local_writeB_red
 // v[28:29] is local_writeA,B
+
+//flat_store_dword v[8:9], v28
+//s_endpgm
+
 
 // local_readA,B
 v_lshlrev_b32 v30, 2, v0              // v30=l.x*4=local_readA
 v_lshlrev_b32 v31, 2, v1              // v31=l.y*4=local_readB
 v_add_i32 v31, vcc, 0x2000, v31       // v31=l.y*4+2048*4 bytes
 // v[30:31] is local_readA,B
+//flat_store_dword v[8:9], v30
+//s_endpgm
 
 
 // iter count

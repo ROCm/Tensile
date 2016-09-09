@@ -74,6 +74,9 @@ void sgemm_cpu(
         float a = transA ? A[k+i*lda] : A[i+k*lda];
         float b = transB ? B[j+k*ldb] : B[k+j*ldb];
         c += a*b;
+        if (i==0 && j==0) {
+          std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
+        }
       }
       size_t cIdx = i+j*ldc;
       C[cIdx] = alpha*c + beta*C[cIdx];
@@ -623,9 +626,9 @@ public:
     offsetC(0),
     offsetA(0),
     offsetB(0),
-    strideCJ(N),
-    strideAK(K),
-    strideBK(K),
+    strideCJ(M),
+    strideAK(M),
+    strideBK(N),
     size0I(M),
     size1J(N),
     sizeK(K),
@@ -648,8 +651,8 @@ public:
     b = AllocateBuffer(sizeB);
     for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = 1;//(i%M)*vC;
     for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = 1;//(i%M)*vC;
-    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = i;//(i%M)*vA;
-    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = i;//(i%M)*vB;
+    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = 1;//(i%M)*vA;
+    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = 1;//(i%M)*vB;
     for (unsigned int i = 0; i < numDebugElements; i++) debug->Data<unsigned int>(i) = 3;
     if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
@@ -685,6 +688,8 @@ public:
     if (!CopyFrom(debug)) {
       std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;
+    } else {
+      std::cout << "Coppied back debug buffer" << std::endl;
     }
 
     // debug
@@ -694,7 +699,7 @@ public:
       for (unsigned int col = 0; col < numThreadsD0; col++) { // screen-col
         unsigned int threadSerial = col*(strideCJ/microTile[1]) + row;
         unsigned int threadDebugStartIdx = threadSerial * 1;
-#if 0
+#if 1
         std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
 #else
         std::cout << std::setw(5) << debug->Data<float>(threadDebugStartIdx) << ", ";
@@ -722,6 +727,8 @@ public:
     if (!CopyFrom(c)) {
       std::cout << "Error: failed to copy from local" << std::endl;
       return false;
+    } else {
+      std::cout << "Coppied back C buffer" << std::endl;
     }
 
     sgemm_cpu(
