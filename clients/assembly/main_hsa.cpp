@@ -264,7 +264,7 @@ bool Dispatch::InitDispatch()
   aql->grid_size_x = 1;
   aql->grid_size_y = 1;
   aql->grid_size_z = 1;
-  aql->group_segment_size = 0;
+  aql->group_segment_size = 32768;
   aql->private_segment_size = 0;
   return true;
 }
@@ -660,7 +660,11 @@ public:
       for (unsigned int col = 0; col < numThreadsD0; col++) { // screen-col
         unsigned int threadSerial = col*(strideCJ/microTile[1]) + row;
         unsigned int threadDebugStartIdx = threadSerial * 1;
+#if 0
         std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
+#else
+        std::cout << std::setw(5) << debug->Data<float>(threadDebugStartIdx) << ", ";
+#endif
         //std::cout << std::setw(2) << debug->Data<unsigned int>(threadDebugStartIdx+1) << ", ";
         if (col==15) {
           std::cout << "  ";

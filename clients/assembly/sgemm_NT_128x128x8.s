@@ -170,16 +170,36 @@
   v_mov_b32 v[b+3], v[a]
   .endif
 
-  // issue stores registers->local
-  ds_write_b32 v[dst+0], v[a+0] offset:32*0
-  ds_write_b32 v[dst+0], v[a+1] offset:32*1
-  ds_write_b32 v[dst+0], v[a+2] offset:32*2
-  ds_write_b32 v[dst+0], v[a+3] offset:32*3
+// load destinations validated
+//flat_store_dword v[8:9], v[dst]
+//s_endpgm
 
-  ds_write_b32 v[dst+1], v[b+0] offset:32*0
-  ds_write_b32 v[dst+1], v[b+1] offset:32*1
-  ds_write_b32 v[dst+1], v[b+2] offset:32*2
-  ds_write_b32 v[dst+1], v[b+3] offset:32*3
+  // issue stores registers->local
+  // 64 I can write/read
+  // 128 CANNOT write/read
+//v_mov_b32 v[dst], 128*4
+//v_mov_b32 v[a], 0xFFFFFFFF
+
+  ds_write_b32 v[dst+0], v[a+0] offset:32*4*0
+  ds_write_b32 v[dst+0], v[a+1] offset:32*4*1
+  ds_write_b32 v[dst+0], v[a+2] offset:32*4*2
+  ds_write_b32 v[dst+0], v[a+3] offset:32*4*3
+
+  ds_write_b32 v[dst+1], v[b+0] offset:32*4*0
+  ds_write_b32 v[dst+1], v[b+1] offset:32*4*1
+  ds_write_b32 v[dst+1], v[b+2] offset:32*4*2
+  ds_write_b32 v[dst+1], v[b+3] offset:32*4*3
+
+// debug
+//s_waitcnt lgkmcnt(0)
+//s_barrier
+//v_mov_b32 v[dst], 4
+//ds_read_b32 v32, v[dst] offset:32*4*0
+//s_waitcnt lgkmcnt(0)
+//s_barrier
+//flat_store_dword v[8:9], v32
+//s_endpgm
+
 .endm
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -197,32 +217,33 @@
   // issue loads local -> registers
   // offset is 16 bits and gets multiplied by 4 bytes
 
-// TODO
-// resume debugging here
-// values getting written to 0->3737 and 8192->11928
-// are ptrs being swapped too early?
-flat_store_dword v[8:9], v[src+0]
-s_endpgm
+// read addresses validated
+//flat_store_dword v[8:9], v[src+1]
+//s_endpgm
 
   .if 1
-  ds_read_b32 v[a+0], v[src+0] offset:\gen*inc+16*0 // A[0:1]
-  ds_read_b32 v[a+1], v[src+0] offset:\gen*inc+16*1 // A[0:1]
-  ds_read_b32 v[a+2], v[src+0] offset:\gen*inc+16*2 // A[2:3]
-  ds_read_b32 v[a+3], v[src+0] offset:\gen*inc+16*3 // A[2:3]
-  ds_read_b32 v[a+4], v[src+0] offset:\gen*inc+16*4 // A[4:5]
-  ds_read_b32 v[a+5], v[src+0] offset:\gen*inc+16*5 // A[4:5]
-  ds_read_b32 v[a+6], v[src+0] offset:\gen*inc+16*6 // A[6:7]
-  ds_read_b32 v[a+7], v[src+0] offset:\gen*inc+16*7 // A[6:7]
+  ds_read_b32 v[a+0], v[src+0] offset:\gen*inc*4+16*4*0 // A[0:1]
+  ds_read_b32 v[a+1], v[src+0] offset:\gen*inc*4+16*4*1 // A[0:1]
+  ds_read_b32 v[a+2], v[src+0] offset:\gen*inc*4+16*4*2 // A[2:3]
+  ds_read_b32 v[a+3], v[src+0] offset:\gen*inc*4+16*4*3 // A[2:3]
+  ds_read_b32 v[a+4], v[src+0] offset:\gen*inc*4+16*4*4 // A[4:5]
+  ds_read_b32 v[a+5], v[src+0] offset:\gen*inc*4+16*4*5 // A[4:5]
+  ds_read_b32 v[a+6], v[src+0] offset:\gen*inc*4+16*4*6 // A[6:7]
+  ds_read_b32 v[a+7], v[src+0] offset:\gen*inc*4+16*4*7 // A[6:7]
 
 
-  ds_read_b32 v[b+0], v[src+1] offset:\gen*inc+16*0 // B[0:1]
-  ds_read_b32 v[b+1], v[src+1] offset:\gen*inc+16*1 // B[0:1]
-  ds_read_b32 v[b+2], v[src+1] offset:\gen*inc+16*2 // B[2:3]
-  ds_read_b32 v[b+3], v[src+1] offset:\gen*inc+16*3 // B[2:3]
-  ds_read_b32 v[b+4], v[src+1] offset:\gen*inc+16*4 // B[4:5]
-  ds_read_b32 v[b+5], v[src+1] offset:\gen*inc+16*5 // B[4:5]
-  ds_read_b32 v[b+6], v[src+1] offset:\gen*inc+16*6 // B[6:7]
-  ds_read_b32 v[b+7], v[src+1] offset:\gen*inc+16*7 // B[6:7]
+  ds_read_b32 v[b+0], v[src+1] offset:\gen*inc*4+16*4*0 // B[0:1]
+  ds_read_b32 v[b+1], v[src+1] offset:\gen*inc*4+16*4*1 // B[0:1]
+  ds_read_b32 v[b+2], v[src+1] offset:\gen*inc*4+16*4*2 // B[2:3]
+  ds_read_b32 v[b+3], v[src+1] offset:\gen*inc*4+16*4*3 // B[2:3]
+  ds_read_b32 v[b+4], v[src+1] offset:\gen*inc*4+16*4*4 // B[4:5]
+  ds_read_b32 v[b+5], v[src+1] offset:\gen*inc*4+16*4*5 // B[4:5]
+  ds_read_b32 v[b+6], v[src+1] offset:\gen*inc*4+16*4*6 // B[6:7]
+  ds_read_b32 v[b+7], v[src+1] offset:\gen*inc*4+16*4*7 // B[6:7]
+
+//s_waitcnt lgkmcnt(0)
+//flat_store_dword v[8:9], v[a]
+//s_endpgm
 
   //ds_read_b128 v[a+0:a+3], v[src+0] offset0:(\gen*inc)    // A[0:3]
   //ds_read_b128 v[a+4:a+7], v[src+0] offset0:(\gen*inc+16) // A[4:7]
@@ -270,6 +291,9 @@ s_endpgm
     .set b, b+4   // next quadrant
     .set c, c+4   // next quadrant
   .endif
+
+//flat_store_dword v[8:9], v32
+//s_endpgm
 
   v_mac_f32 v[c+0*8+0], v[a+0], v[b+0]
   v_mac_f32 v[c+1*8+0], v[a+1], v[b+0] 
@@ -347,7 +371,12 @@ sgemm_NT:
   compute_pgm_rsrc2_tidig_comp_cnt  = 1 // 2D
   compute_pgm_rsrc2_tgid_x_en       = 1 // preload workgroup.x into sgpr
   compute_pgm_rsrc2_tgid_y_en       = 1
+  compute_pgm_rsrc2_lds_size        = 1
   workgroup_group_segment_byte_size = 32768
+  kernarg_segment_alignment = 4
+  group_segment_alignment = 4
+  private_segment_alignment = 4
+
   //wavefront_size                    = 64
 .end_amd_kernel_code_t
 
