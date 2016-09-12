@@ -145,7 +145,7 @@
   // increment global addresses for next GL Load
   v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
   v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
-  v_add_u32  v[src+2], vcc, v[src+2], v[inc+0] 
+  v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
 // debug
@@ -435,7 +435,7 @@ v_lshlrev_b32 v2, 4, v2               // v2=g0I*16
 v_lshlrev_b32 v3, 4, v3               // v3=g1J*16
 v_add_i32 v2, vcc, v2, v0             // v2=g0I*16+l0I
 v_add_i32 v3, vcc, v3, v1             // v3=g1J*16+l1J
-v_mul_lo_u32 v3, 32, v3               // v3=(g1J*16+l1J)*32
+v_mul_lo_u32 v3, 64, v3               // v3=(g1J*16+l1J)*32 // HARDCODED
 v_add_u32 v2, vcc, v3, v2             // v2=(g1J*16+l1J)*32 + g0I*16+l0I
 v_lshlrev_b32 v2, 2, v2               // v2 16*4
 v_mov_b32 v3, 0
@@ -498,6 +498,8 @@ v_mov_b32 v26, s16                    // strideAK
 v_mov_b32 v27, s17                    // strideBK
 v_lshlrev_b32 v26, 5, v26             // v26=strideAK*UNROLL*4
 v_lshlrev_b32 v27, 5, v27             // v27=strideBK*UNROLL*4
+//flat_store_dword v[8:9], v27
+//s_endpgm
 
 // local_writeA,B
 v_mov_b32 v6, 0x81                    // v6=(128+1)
@@ -518,11 +520,13 @@ v_add_i32 v31, vcc, 0x2000, v31       // v31=l.y*4+2048*4 bytes
 //flat_store_dword v[8:9], v30
 //s_endpgm
 
+.if 1
 
 // iter count
 s_lshr_b32 s20, s20, 3                // s20=sizeK/8
 s_sub_i32 s20, 0x0, s20               // s20 = -sizeK/8
-s_add_u32 s20, s20, 1                 // TODO extra iter w/o prefetch
+s_add_u32 s20, s20, 1                 // extra iter w/o prefetch
+
 
 ZERO_REGISTERS
 
@@ -543,6 +547,7 @@ s_barrier                             // barrier after store to local
 
 // Prefetch Next Unroll
 GL_LOAD_G2R                           // load global -> register
+.if 1
 //s_waitcnt vmcnt(0)                    // moved lower
 //GL_LOAD_R2L                           // store register -> local
 
@@ -590,6 +595,8 @@ v_xor_b32 v29, 0x4000, v29            // swap local_write_B red <-> black
 //  Iter 7
 s_waitcnt lgkmcnt(0)//2)                  // Wait Iter=7
 MAC_8X8 7                             // MAC  Iter=7
+
+.endif
 
 s_add_u32       s20, s20, 1           // incr iter counter
 s_cmp_eq_i32    s20, 0                // counter==0 ?
@@ -639,6 +646,7 @@ MAC_8X8 6                             // MAC  Iter=6
 s_waitcnt lgkmcnt(0)//2)                  // Wait Iter=7
 MAC_8X8 7                             // MAC  Iter=7
 
+.endif
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Final C=alpha*A*B+beta*C  //////////////////////////////////////////////////

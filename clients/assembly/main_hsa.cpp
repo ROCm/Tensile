@@ -66,6 +66,7 @@ void sgemm_cpu(
     unsigned int const M,
     unsigned int const N,
     unsigned int const K ) {
+  std::cout << "computing refC=A*B on host" << std::endl;
 
   for (unsigned int i = 0; i < M; i++) {
     for (unsigned int j = 0; j < N; j++) {
@@ -305,6 +306,7 @@ bool Dispatch::InitDispatch()
 
 bool Dispatch::RunDispatch()
 {
+  std::cout << "RunDispatch()" << std::endl;
   uint16_t header =
     (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
     (1 << HSA_PACKET_HEADER_BARRIER) |
@@ -433,6 +435,7 @@ uint64_t TIMEOUT = 120;
 
 bool Dispatch::Wait()
 {
+  std::cout << "Wait()" << std::endl;
   clock_t beg = clock();
   hsa_signal_value_t result;
   do {
@@ -609,7 +612,7 @@ public:
     alpha(1),
     beta(0),
 #if 1
-    M(256),
+    M(512),
     N(256),
     K(16),
 #else
@@ -649,8 +652,8 @@ public:
     c = AllocateBuffer(sizeC);
     a = AllocateBuffer(sizeA);
     b = AllocateBuffer(sizeB);
-    for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = 1;//(i%M)*vC;
-    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = 1;//(i%M)*vC;
+    for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = i;//(i%M)*vC;
+    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = i;//(i%M)*vC;
     for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = i;//(i%M)*vA;
     for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = i;//(i%M)*vB;
     for (unsigned int i = 0; i < numDebugElements; i++) debug->Data<unsigned int>(i) = 3;
@@ -677,14 +680,15 @@ public:
     Kernarg(debug);
 #endif
     Kernarg(&sizeK);
-    output << "grid=" << size0I/microTile[0] << "x" << size1J/microTile[1] << std::endl;
-    output << "workgroup=" << workGroup[0] << "x" << workGroup[1] << std::endl;
+    std::cout << "grid=" << size0I/microTile[0] << "x" << size1J/microTile[1] << std::endl;
+    std::cout << "workgroup=" << workGroup[0] << "x" << workGroup[1] << std::endl;
     SetGridSize(size0I/microTile[0],size1J/microTile[1]);
     SetWorkgroupSize(workGroup[0], workGroup[1]);
     return true;
   }
 
   bool Verify() override {
+    std::cout << "Verify()" << std::endl;
     if (!CopyFrom(debug)) {
       std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;
@@ -695,23 +699,23 @@ public:
     // debug
     unsigned int numThreadsD0 = size0I/microTile[0];
     unsigned int numThreadsD1 = size1J/microTile[1];
-    for (unsigned int row = 0; row < numThreadsD1; row++) { // screen-row
-      for (unsigned int col = 0; col < numThreadsD0; col++) { // screen-col
+    for (unsigned int row = 0; row < numThreadsD0; row++) { // screen-row
+      for (unsigned int col = 0; col < numThreadsD1; col++) { // screen-col
         unsigned int threadSerial = col*(strideCJ/microTile[1]) + row;
         unsigned int threadDebugStartIdx = threadSerial * 1;
-#if 0
+#if 1
         std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
 #else
         std::cout << std::setw(5) << debug->Data<float>(threadDebugStartIdx) << ", ";
 #endif
         //std::cout << std::setw(2) << debug->Data<unsigned int>(threadDebugStartIdx+1) << ", ";
-        if (col==15) {
+        if (col%16==15) {
           std::cout << "  ";
         }
 
       }
       std::cout << std::endl;
-      if (row==15) {
+      if (row%16==15) {
         std::cout << std::endl;
       }
     }
