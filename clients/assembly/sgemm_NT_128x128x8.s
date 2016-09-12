@@ -150,7 +150,7 @@
 
 // debug
 //s_waitcnt vmcnt(0)
-//flat_store_dword v[8:9], v[src+0]
+//flat_store_dword v[8:9], v[b+0]
 //s_endpgm
 
 .endm
@@ -343,8 +343,8 @@ v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1J*d1
 v_add_u32 v12, vcc, \d0, v12          // v12 = strideC1J*d1+d0
 v_lshlrev_b64 v[12:13], 6, v[12:13]   // v12 = 16*(strideC1J*d1+d0)*4
 
-flat_store_dword v[8:9], v12
-s_endpgm
+//flat_store_dword v[8:9], v12
+//s_endpgm
 
 v_add_u32 v12, vcc, v10, v12          // v12 = base + 16*(strideC1J*d1+d0)
 v_addc_u32 v13, vcc, v11, v13, vcc    // v13 = base + 16*(strideC1J*d1+d0)
@@ -355,7 +355,7 @@ v_mul_f32 v[idx], s10, v[idx]         // v[i] *= alpha
 v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
 
 // todo debug
-//v_mov_b32 v[idx], 1.0
+//v_mov_b32 v[idx], 256.0
 
 flat_store_dword v[12:13], v[idx]     // store C
 s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
@@ -439,10 +439,12 @@ v_and_b32 v2, 31, v7                  // v2=(lid.x+lid.y*16)%32 = a0I, b1J
 // global_readA
 v_mul_lo_i32 v7, v3, s16              // v7=aK*strideAK
 s_lshl_b32 s21, s2, 7                 // s21 = g0I*128
-v_or_b32 v4, s21, v2                  // v4=g0I*128+a0I
-v_lshlrev_b32 v4, 2, v4               // v4=(g0I*128+a0I)*4
-v_add_i32 v7, vcc, v4, v7             // v7=(g0I*128+a0I)*4 + aK*strideK = A_my
+v_lshlrev_b32 v4, 2, v2               // v4=a0I*4
+v_or_b32 v4, s21, v4                  // v4=g0I*128+a0I*4
+v_add_i32 v7, vcc, v4, v7             // v7=(g0I*128+a0I*4) + aK*strideK = A_my
 v_add_i32 v4, vcc, s13, v7            // v4=A_my + offsetA
+//flat_store_dword v[8:9], v4           // DEBUG
+//s_endpgm                              // DEBUG
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v5, vcc, 0, v7, vcc        // v5=A_my + offsetA hi
 v_lshlrev_b64 v[5:6], 2, v[4:5]       // v[5:6]=(A_my+offsetA)*4
@@ -455,10 +457,13 @@ v_addc_u32 v23, vcc, v6, v7, vcc      // v23=A* + (A_my+offsetA)*4 hi
 // global_readB ?
 v_mul_lo_i32 v7, v3, s17              // v7=bK*strideBK
 s_lshl_b32 s21, s3, 7                 // s21=g1J*128
-v_or_b32 v6, s21, v2                  // v6=g1J*128+b1J (or same as plus here)
-v_lshlrev_b32 v6, 2, v6               // v6=(g1J*128+a1J)*4
-v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J)*4 = B_my
+v_lshlrev_b32 v6, 2, v2               // v6=a1J*4
+
+v_or_b32 v6, s21, v6                  // v6=g1J*128+b1J*4 (or = plus)
+v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J*4) = B_my
 v_add_i32 v24, vcc, s14, v7           // v24=offsetB+B_my lo
+//flat_store_dword v[8:9], v24          // DEBUG
+//s_endpgm                              // DEBUG
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v25, vcc, 0, v7, vcc       // v25=offsetB+B_my hi
 v_lshlrev_b64 v[24:25], 2, v[24:25]   // v[8:9]=(B_my+offsetB)*4
@@ -481,7 +486,6 @@ v_mad_u32_u24 v28, v6, v3, v28        // v28=129*aK+a0I*4
 v_lshlrev_b32 v28, 2, v28             // v28=4*(129*aK+a0I*4)=local_writeA_red
 v_add_u32 v29, vcc, 0x2000, v28       // v29=v28+2048*4=local_writeB_red
 // v[28:29] is local_writeA,B
-
 //flat_store_dword v[8:9], v28
 //s_endpgm
 
@@ -498,6 +502,7 @@ v_add_i32 v31, vcc, 0x2000, v31       // v31=l.y*4+2048*4 bytes
 // iter count
 s_lshr_b32 s20, s20, 3                // s20=sizeK/8
 s_sub_i32 s20, 0x0, s20               // s20 = -sizeK/8
+s_add_u32 s20, s20, 1                 // TODO extra iter w/o prefetch
 
 ZERO_REGISTERS
 
@@ -572,17 +577,52 @@ s_cbranch_scc1  label_0001            // goto loop start
 s_branch        label_0000            // goto after loop
 
 ////////////////////////////////////////////////////////////////////////////////
-//  Final C=alpha*A*B+beta*C  //////////////////////////////////////////////////
+//  Last Iter W/O Prefetch
 ////////////////////////////////////////////////////////////////////////////////
 label_0001:
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for r->L
+s_barrier                             // barrier after store to local
 
-// write base idx = s[4:5] + GLOBAL( globalC0I, globalC1J)
-// s[4:5] + GLOBAL( (g0I*MT_0I + l0I), (g1J*MT_1J + l1J) ) 
-// s[4:5] + (g0I*MT_0I + l0I)*strideC0I + (g1J*MT_1J + l1J)*strideC1J
-// s[4:5] + (g0I*MT_0I + l0I) + (g1J*MT_1J + l1J)*strideC1J
-// s[4:5] + ( s2*  128 +  v0) + ( s3*  128 +  v1)*s15
-// s[4:5] + ( s2*128 + s3*128*s15 ) + (v1*s15 + v0)
-// we can reuse s[16:21]
+// Wait For MacroTile To Load
+s_waitcnt vmcnt(0)//4)                    // TODO wait for load 1 iter ago
+LR_LOAD 0                             // Load Iter=0
+
+//  Iter 0
+LR_LOAD 1                             // Load Iter=1
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=0
+MAC_8X8 0                             // MAC  Iter=0
+//  Iter 1
+LR_LOAD 2                             // Load Iter=2
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=1
+MAC_8X8 1                             // MAC  Iter=1
+//  Iter 2
+LR_LOAD 3                             // Load Iter=3
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=2
+MAC_8X8 2                             // MAC  Iter=2
+//  Iter 3
+LR_LOAD 4                             // Load Iter=4
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=3
+MAC_8X8 3                             // MAC  Iter=3
+//  Iter 4
+LR_LOAD 5                             // Load Iter=5
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=4
+MAC_8X8 4                             // MAC  Iter=4
+//  Iter 5
+LR_LOAD 6                             // Load Iter=6
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=5
+MAC_8X8 5                             // MAC  Iter=5
+//  Iter 6
+LR_LOAD 7                             // Load Iter=7
+s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=6
+MAC_8X8 6                             // MAC  Iter=6
+//  Iter 7
+s_waitcnt lgkmcnt(0)//2)                  // Wait Iter=7
+MAC_8X8 7                             // MAC  Iter=7
+
+
+////////////////////////////////////////////////////////////////////////////////
+//  Final C=alpha*A*B+beta*C  //////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 s_lshl_b32 s12, s12, 2                // offsetC *= 4bytes
 s_add_u32 s4, s12, s4

@@ -74,9 +74,9 @@ void sgemm_cpu(
         float a = transA ? A[k+i*lda] : A[i+k*lda];
         float b = transB ? B[j+k*ldb] : B[k+j*ldb];
         c += a*b;
-        if (i==0 && j==0) {
-          std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
-        }
+        //if (i==0 && j==0) {
+        //  std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
+        //}
       }
       size_t cIdx = i+j*ldc;
       C[cIdx] = alpha*c + beta*C[cIdx];
