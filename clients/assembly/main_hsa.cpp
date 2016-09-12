@@ -74,9 +74,9 @@ void sgemm_cpu(
         float a = transA ? A[k+i*lda] : A[i+k*lda];
         float b = transB ? B[j+k*ldb] : B[k+j*ldb];
         c += a*b;
-        //if (i==0 && j==0) {
-        //  std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
-        //}
+        if (i==17 && j==17) {
+          std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
+        }
       }
       size_t cIdx = i+j*ldc;
       C[cIdx] = alpha*c + beta*C[cIdx];
@@ -611,7 +611,7 @@ public:
 #if 1
     M(256),
     N(256),
-    K(256),
+    K(16),
 #else
     M(128),
     N(128),
@@ -651,8 +651,8 @@ public:
     b = AllocateBuffer(sizeB);
     for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = 1;//(i%M)*vC;
     for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = 1;//(i%M)*vC;
-    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = 1;//(i%M)*vA;
-    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = 1;//(i%M)*vB;
+    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = i;//(i%M)*vA;
+    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = i;//(i%M)*vB;
     for (unsigned int i = 0; i < numDebugElements; i++) debug->Data<unsigned int>(i) = 3;
     if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
@@ -699,7 +699,7 @@ public:
       for (unsigned int col = 0; col < numThreadsD0; col++) { // screen-col
         unsigned int threadSerial = col*(strideCJ/microTile[1]) + row;
         unsigned int threadDebugStartIdx = threadSerial * 1;
-#if 1
+#if 0
         std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
 #else
         std::cout << std::setw(5) << debug->Data<float>(threadDebugStartIdx) << ", ";
@@ -754,12 +754,13 @@ public:
           numValid++;
         } else {
           numInvalid++;
-          if (numInvalid < 4) {
-            std::cout << "c[" << d1 << "," << d0 << "] = "
-                << c->Data<float>(idxC) << (equal ? " == " : " != ") << refC[idxC] << std::endl;
+          if (numInvalid < 4 ) {
+            //std::cout << "c[" << d1 << "," << d0 << "] = "
+            //    << c->Data<float>(idxC) << (equal ? " == " : " != ") << refC[idxC] << std::endl;
           }
         }
         //output << (equal ? "#" : "~");
+        //output << std::setw(6) << c->Data<float>(idxC) << "=" << std::setw(6) << refC[idxC] << ", ";
       }
       //output << std::endl;
     }

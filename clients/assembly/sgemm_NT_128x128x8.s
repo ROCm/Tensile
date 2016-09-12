@@ -177,7 +177,7 @@
   .endif
 
 // load destinations validated
-//flat_store_dword v[8:9], v[dst]
+//flat_store_dword v[8:9], v[dst+1]
 //s_endpgm
 
   // issue stores registers->local
@@ -230,27 +230,27 @@
 //s_endpgm
 
   .if 1
-  ds_read_b32 v[a+0], v[src+0] offset:\gen*inc*4+16*4*0 // A[0:1]
-  ds_read_b32 v[a+1], v[src+0] offset:\gen*inc*4+16*4*1 // A[0:1]
-  ds_read_b32 v[a+2], v[src+0] offset:\gen*inc*4+16*4*2 // A[2:3]
-  ds_read_b32 v[a+3], v[src+0] offset:\gen*inc*4+16*4*3 // A[2:3]
-  ds_read_b32 v[a+4], v[src+0] offset:\gen*inc*4+16*4*4 // A[4:5]
-  ds_read_b32 v[a+5], v[src+0] offset:\gen*inc*4+16*4*5 // A[4:5]
-  ds_read_b32 v[a+6], v[src+0] offset:\gen*inc*4+16*4*6 // A[6:7]
-  ds_read_b32 v[a+7], v[src+0] offset:\gen*inc*4+16*4*7 // A[6:7]
+  ds_read_b32 v[a+0], v[src+0] offset:\gen*inc*4+16*4*0 // A[0]
+  ds_read_b32 v[a+1], v[src+0] offset:\gen*inc*4+16*4*1 // A[1]
+  ds_read_b32 v[a+2], v[src+0] offset:\gen*inc*4+16*4*2 // A[2]
+  ds_read_b32 v[a+3], v[src+0] offset:\gen*inc*4+16*4*3 // A[3]
+  ds_read_b32 v[a+4], v[src+0] offset:\gen*inc*4+16*4*4 // A[4]
+  ds_read_b32 v[a+5], v[src+0] offset:\gen*inc*4+16*4*5 // A[5]
+  ds_read_b32 v[a+6], v[src+0] offset:\gen*inc*4+16*4*6 // A[6]
+  ds_read_b32 v[a+7], v[src+0] offset:\gen*inc*4+16*4*7 // A[7]
 
 
-  ds_read_b32 v[b+0], v[src+1] offset:\gen*inc*4+16*4*0 // B[0:1]
-  ds_read_b32 v[b+1], v[src+1] offset:\gen*inc*4+16*4*1 // B[0:1]
-  ds_read_b32 v[b+2], v[src+1] offset:\gen*inc*4+16*4*2 // B[2:3]
-  ds_read_b32 v[b+3], v[src+1] offset:\gen*inc*4+16*4*3 // B[2:3]
-  ds_read_b32 v[b+4], v[src+1] offset:\gen*inc*4+16*4*4 // B[4:5]
-  ds_read_b32 v[b+5], v[src+1] offset:\gen*inc*4+16*4*5 // B[4:5]
-  ds_read_b32 v[b+6], v[src+1] offset:\gen*inc*4+16*4*6 // B[6:7]
-  ds_read_b32 v[b+7], v[src+1] offset:\gen*inc*4+16*4*7 // B[6:7]
+  ds_read_b32 v[b+0], v[src+1] offset:\gen*inc*4+16*4*0 // B[0]
+  ds_read_b32 v[b+1], v[src+1] offset:\gen*inc*4+16*4*1 // B[1]
+  ds_read_b32 v[b+2], v[src+1] offset:\gen*inc*4+16*4*2 // B[2]
+  ds_read_b32 v[b+3], v[src+1] offset:\gen*inc*4+16*4*3 // B[3]
+  ds_read_b32 v[b+4], v[src+1] offset:\gen*inc*4+16*4*4 // B[4]
+  ds_read_b32 v[b+5], v[src+1] offset:\gen*inc*4+16*4*5 // B[5]
+  ds_read_b32 v[b+6], v[src+1] offset:\gen*inc*4+16*4*6 // B[6]
+  ds_read_b32 v[b+7], v[src+1] offset:\gen*inc*4+16*4*7 // B[7]
 
 //s_waitcnt lgkmcnt(0)
-//flat_store_dword v[8:9], v[a]
+//flat_store_dword v[8:9], v[b+1]
 //s_endpgm
 
   //ds_read_b128 v[a+0:a+3], v[src+0] offset0:(\gen*inc)    // A[0:3]
@@ -293,16 +293,17 @@
   .endif
   .if \qA == 1
     .set a, a+4   // next quadrant
-    .set c, c+4*8 // next quadrant
+    .set c, c+4   // next quadrant
   .endif
   .if \qB == 1
     .set b, b+4   // next quadrant
-    .set c, c+4   // next quadrant
+    .set c, c+4*8 // next quadrant
   .endif
 
-//flat_store_dword v[8:9], v32
+//flat_store_dword v[8:9], v41
 //s_endpgm
 
+.if 0
   v_mac_f32 v[c+0*8+0], v[a+0], v[b+0]
   v_mac_f32 v[c+1*8+0], v[a+1], v[b+0] 
   v_mac_f32 v[c+2*8+0], v[a+2], v[b+0] 
@@ -319,6 +320,25 @@
   v_mac_f32 v[c+1*8+3], v[a+1], v[b+3] 
   v_mac_f32 v[c+2*8+3], v[a+2], v[b+3] 
   v_mac_f32 v[c+3*8+3], v[a+3], v[b+3] 
+.else
+  v_mac_f32 v[c+0+0*8], v[a+0], v[b+0]
+  v_mac_f32 v[c+1+0*8], v[a+1], v[b+0] 
+  v_mac_f32 v[c+2+0*8], v[a+2], v[b+0] 
+  v_mac_f32 v[c+3+0*8], v[a+3], v[b+0] 
+  v_mac_f32 v[c+0+1*8], v[a+0], v[b+1] 
+  v_mac_f32 v[c+1+1*8], v[a+1], v[b+1] 
+  v_mac_f32 v[c+2+1*8], v[a+2], v[b+1] 
+  v_mac_f32 v[c+3+1*8], v[a+3], v[b+1] 
+  v_mac_f32 v[c+0+2*8], v[a+0], v[b+2] 
+  v_mac_f32 v[c+1+2*8], v[a+1], v[b+2] 
+  v_mac_f32 v[c+2+2*8], v[a+2], v[b+2] 
+  v_mac_f32 v[c+3+2*8], v[a+3], v[b+2] 
+  v_mac_f32 v[c+0+3*8], v[a+0], v[b+3] 
+  v_mac_f32 v[c+1+3*8], v[a+1], v[b+3] 
+  v_mac_f32 v[c+2+3*8], v[a+2], v[b+3] 
+  v_mac_f32 v[c+3+3*8], v[a+3], v[b+3] 
+
+.endif
 .endm
 
 // 8x8 of MACs
