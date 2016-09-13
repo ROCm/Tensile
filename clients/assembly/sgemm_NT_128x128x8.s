@@ -2,12 +2,14 @@
 // sgemm NT 128x128x8 w/ full prefetching
 ////////////////////////////////////////////////////////////////////////////////
 
-// debugging
-// correct answer if LDS loaded with 1's and not from registers from global
+// performance
+// t = 1200ms but should be ~50ms
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // VGPR Assignments
+
+////  OLD  ////
 // v0        workitem_x = l0I
 // v1        workitem_y = l1J
 // v[8:9]    debug address (when enabled)
@@ -23,6 +25,30 @@
 // v[48:55]  A_black          x8
 // v[56:63]  B_black          x8
 // v[64:127] C_MAC            x64 c[a][b]=c[a*8+b] a is row, b is col
+
+////  NEW  ////
+// v0        workitem_x = l0I
+// v1        workitem_y = l1J
+// v[8:9]    debug address (when enabled)
+// v[10:11]  C write base addr
+// v[12:13]  C write current addr
+// v[14:15]  Global_read_incr x2 incA incB
+// v[16:17]  LDS_write_addr   x2 A B
+// v[18:19]  LDS_read_addr    x2 A[0:7] B[0:7]
+// v[20:23]  Global_read_addr x4 Ax1 Bx1 each 8-byte
+// v[24:31]  G->L load regs   x8 Ax4 Bx4 no red/black
+// v[32:39]  A_red            x8
+// v[40:47]  B_red            x8
+// v[48:55]  A_black          x8
+// v[56:63]  B_black          x8
+// v[64:127] C_MAC            x64 c[a][b]=c[a*8+b] a is row, b is col
+
+// old
+// v[14:21] -> v[24:31] G->L load regs   x8 Ax4 Bx4       DONE
+// v[22:25] -> v[20:23] Global_read_addr x4 Ax2 Bx2
+// v[26:27] -> v[14:15] Global_read_incr x2 incA incB
+// v[28:29] -> v[16:17] LDS_write_addr   x2 A B
+// v[30:31] -> v[18:19] LDS_read_addr    x2 A[0:7] B[0:7]
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -134,76 +160,116 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // GL Load G2R - 4 A's and 4 B's
+// vm_cnt   += 8
+// lgkm_cnt += 8
 .macro GL_LOAD_G2R
-  .set src, 22 // Global_read_addr_x4
-  .set inc, 26 // Global_read_incr_x2
-  .set a, 14
-  .set b, 18
+  .set src, 20 // Global_read_addr_x4
+  .set inc, 14 // Global_read_incr_x2
+  .set a, 24
+  .set b, 28
   // issue loads global -> registers
+.if 1
+  // takes 1100ms by itself
   flat_load_dwordx4 v[a+0:a+3], v[src+0:src+1] // A[0:3]
   flat_load_dwordx4 v[b+0:b+3], v[src+2:src+3] // B[0:3]
+.else
+  v_mov_b32 v6, v[src+0]
+  v_mov_b32 v7, v[src+1]
+  flat_load_dword v[a+0], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+  flat_load_dword v[a+1], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+  flat_load_dword v[a+2], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+  flat_load_dword v[a+3], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+
+  v_mov_b32 v6, v[src+2]
+  v_mov_b32 v7, v[src+3]
+  flat_load_dword v[b+0], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+  flat_load_dword v[b+1], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+  flat_load_dword v[b+2], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+  flat_load_dword v[b+3], v[6:7] // A[0:3]
+  v_add_u32  v6, vcc, v6, 0x4
+  v_addc_u32 v7, vcc, v7, 0x0, vcc
+
+.endif
+
+.if 0
+  v_mov_b32 v[a], 0
+  v_add_f32 v[a], 1.0, v[a]
+  v_mov_b32 v[a+1], v[a]
+  v_mov_b32 v[a+2], v[a]
+  v_mov_b32 v[a+3], v[a]
+  v_mov_b32 v[b+0], v[a]
+  v_mov_b32 v[b+1], v[a]
+  v_mov_b32 v[b+2], v[a]
+  v_mov_b32 v[b+3], v[a]
+.endif
+
   // increment global addresses for next GL Load
   v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
   v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
   v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
-// debug
-//s_waitcnt vmcnt(0)
-//flat_store_dword v[8:9], v[b+0]
-//s_endpgm
-
 .endm
 
 ////////////////////////////////////////////////////////////////////////////////
 // GL Load R2L - 4 A's and 4 B's
+// lgkm_cnt += 4
+
 .macro GL_LOAD_R2L
-  .set dst, 28 // LDS_write_addr_x2
-  .set a, 14
-  .set b, 18
+  .set dst, 16 // LDS_write_addr_x2
+  .set a, 24
+  .set b, 28
 
-  .if 0
-  // load LDS with 1's
-  v_mov_b32 v[a], 0
-  v_add_f32 v[a], 1.0, v[a]
-  v_mov_b32 v[a+1], v[a]
-  v_mov_b32 v[a+2], v[a]
-  v_mov_b32 v[a+3], v[a]
-
-  v_mov_b32 v[b+0], v[a]
-  v_mov_b32 v[b+1], v[a]
-  v_mov_b32 v[b+2], v[a]
-  v_mov_b32 v[b+3], v[a]
-  .endif
-
-// load destinations validated
-//flat_store_dword v[8:9], v[dst+1]
-//s_endpgm
-
-  // issue stores registers->local
-  // 64 I can write/read
-  // 128 CANNOT write/read
-//v_mov_b32 v[dst], 128*4
-//v_mov_b32 v[a], 0xFFFFFFFF
-
-// write v[a+0:3] contiguously using ds_write_b128
-
+.if 0
   ds_write_b32 v[dst+0], v[a+0] offset:0 //32*4*0
   ds_write_b32 v[dst+0], v[a+1] offset:4 //32*4*1
   ds_write_b32 v[dst+0], v[a+2] offset:8 //32*4*2
   ds_write_b32 v[dst+0], v[a+3] offset:12 //32*4*3
-
   ds_write_b32 v[dst+1], v[b+0] offset:0 //32*4*0
   ds_write_b32 v[dst+1], v[b+1] offset:4 //32*4*1
   ds_write_b32 v[dst+1], v[b+2] offset:8 //32*4*2
   ds_write_b32 v[dst+1], v[b+3] offset:12 //32*4*3
+.endif
+.if 1
+  ds_write2_b32 v[dst+0], v[a+0], v[a+1] offset0:0 offset1:1
+  ds_write2_b32 v[dst+0], v[a+2], v[a+3] offset0:2 offset1:3
+  ds_write2_b32 v[dst+1], v[b+0], v[b+1] offset0:0 offset1:1
+  ds_write2_b32 v[dst+1], v[b+2], v[b+3] offset0:2 offset1:3
+.endif
+.if 0
+  // gives wrong answer, values read from LDS are shifted by 1
+  // is there an alignment requirement for b64?, different offset?
+  // even when all waits are zero
+  ds_write_b64 v[dst+0], v[a+0:a+1] //offset:0 //32*4*0
+  ds_write_b64 v[dst+0], v[a+2:a+3] offset:8 //32*4*2
+  ds_write_b64 v[dst+1], v[b+0:b+1] //offset:0 //32*4*0
+  ds_write_b64 v[dst+1], v[b+2:b+3] offset:8 //32*4*2
+.endif
+.if 0
+  // unrecognized instruction mnemonic
+  ds_write_b128 v[dst+0], v[a+0:a+3]
+  ds_write_b128 v[dst+1], v[b+0:b+3]
+.endif
 
 // debug
-//s_waitcnt lgkmcnt(0)
+//s_waitcnt vmcnt(0) & lgkmcnt(0)
 //s_barrier
-//v_mov_b32 v[dst], 4
-//ds_read_b32 v32, v[dst] offset:32*4*0
-//s_waitcnt lgkmcnt(0)
+//ds_read_b32 v32, v[dst]
+//s_waitcnt vmcnt(0) & lgkmcnt(0)
 //s_barrier
 //flat_store_dword v[8:9], v32
 //s_endpgm
@@ -212,8 +278,9 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // LR Load L2R - 8 A's and 8 B's
+// lgkm_cnt += 16
 .macro LR_LOAD gen
-  .set src, 30 // LDS_read_addr_x2
+  .set src, 18 // LDS_read_addr_x2
   .set inc, (128+1)  // offset*=4 in instruction
   .set a, 32
   .set b, 40
@@ -221,15 +288,12 @@
     .set a, 48
     .set b, 56
   .endif
-  .set inc0, (\gen*inc+ 0)
   // issue loads local -> registers
   // offset is 16 bits and gets multiplied by 4 bytes
 
-// read addresses validated
-//flat_store_dword v[8:9], v[src+0]
-//s_endpgm
-
-  .if 1
+// can combine into read2_b32, but then would need to increment
+// todo, would it be faster to inverleave data when writing to lds then read block right here
+.if 1
   ds_read_b32 v[a+0], v[src+0] offset:\gen*inc*4+16*4*0 // A[0]
   ds_read_b32 v[a+1], v[src+0] offset:\gen*inc*4+16*4*1 // A[1]
   ds_read_b32 v[a+2], v[src+0] offset:\gen*inc*4+16*4*2 // A[2]
@@ -239,7 +303,6 @@
   ds_read_b32 v[a+6], v[src+0] offset:\gen*inc*4+16*4*6 // A[6]
   ds_read_b32 v[a+7], v[src+0] offset:\gen*inc*4+16*4*7 // A[7]
 
-
   ds_read_b32 v[b+0], v[src+1] offset:\gen*inc*4+16*4*0 // B[0]
   ds_read_b32 v[b+1], v[src+1] offset:\gen*inc*4+16*4*1 // B[1]
   ds_read_b32 v[b+2], v[src+1] offset:\gen*inc*4+16*4*2 // B[2]
@@ -248,16 +311,7 @@
   ds_read_b32 v[b+5], v[src+1] offset:\gen*inc*4+16*4*5 // B[5]
   ds_read_b32 v[b+6], v[src+1] offset:\gen*inc*4+16*4*6 // B[6]
   ds_read_b32 v[b+7], v[src+1] offset:\gen*inc*4+16*4*7 // B[7]
-
-//s_waitcnt lgkmcnt(0)
-//flat_store_dword v[8:9], v[b+1]
-//s_endpgm
-
-  //ds_read_b128 v[a+0:a+3], v[src+0] offset0:(\gen*inc)    // A[0:3]
-  //ds_read_b128 v[a+4:a+7], v[src+0] offset0:(\gen*inc+16) // A[4:7]
-  //ds_read_b128 v[b+0:b+3], v[src+1] offset0:(\gen*inc)    // B[0:3]
-  //ds_read_b128 v[b+4:b+7], v[src+1] offset0:(\gen*inc+16) // B[4:7]
-  .else
+.else
   v_mov_b32 v[a], 0
   v_add_f32 v[a], 1.0, v[a]
   v_mov_b32 v[a+1], v[a]
@@ -267,7 +321,6 @@
   v_mov_b32 v[a+5], v[a]
   v_mov_b32 v[a+6], v[a]
   v_mov_b32 v[a+7], v[a]
-
   v_mov_b32 v[b+0], v[a]
   v_mov_b32 v[b+1], v[a]
   v_mov_b32 v[b+2], v[a]
@@ -276,8 +329,7 @@
   v_mov_b32 v[b+5], v[a]
   v_mov_b32 v[b+6], v[a]
   v_mov_b32 v[b+7], v[a]
-    
-  .endif
+.endif
 
 .endm
 
@@ -300,27 +352,6 @@
     .set c, c+4*8 // next quadrant
   .endif
 
-//flat_store_dword v[8:9], v41
-//s_endpgm
-
-.if 0
-  v_mac_f32 v[c+0*8+0], v[a+0], v[b+0]
-  v_mac_f32 v[c+1*8+0], v[a+1], v[b+0] 
-  v_mac_f32 v[c+2*8+0], v[a+2], v[b+0] 
-  v_mac_f32 v[c+3*8+0], v[a+3], v[b+0] 
-  v_mac_f32 v[c+0*8+1], v[a+0], v[b+1] 
-  v_mac_f32 v[c+1*8+1], v[a+1], v[b+1] 
-  v_mac_f32 v[c+2*8+1], v[a+2], v[b+1] 
-  v_mac_f32 v[c+3*8+1], v[a+3], v[b+1] 
-  v_mac_f32 v[c+0*8+2], v[a+0], v[b+2] 
-  v_mac_f32 v[c+1*8+2], v[a+1], v[b+2] 
-  v_mac_f32 v[c+2*8+2], v[a+2], v[b+2] 
-  v_mac_f32 v[c+3*8+2], v[a+3], v[b+2] 
-  v_mac_f32 v[c+0*8+3], v[a+0], v[b+3] 
-  v_mac_f32 v[c+1*8+3], v[a+1], v[b+3] 
-  v_mac_f32 v[c+2*8+3], v[a+2], v[b+3] 
-  v_mac_f32 v[c+3*8+3], v[a+3], v[b+3] 
-.else
   v_mac_f32 v[c+0+0*8], v[a+0], v[b+0]
   v_mac_f32 v[c+1+0*8], v[a+1], v[b+0] 
   v_mac_f32 v[c+2+0*8], v[a+2], v[b+0] 
@@ -337,8 +368,6 @@
   v_mac_f32 v[c+1+3*8], v[a+1], v[b+3] 
   v_mac_f32 v[c+2+3*8], v[a+2], v[b+3] 
   v_mac_f32 v[c+3+3*8], v[a+3], v[b+3] 
-
-.endif
 .endm
 
 // 8x8 of MACs
@@ -378,7 +407,7 @@ v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
 //v_mov_b32 v[idx], 256.0
 
 flat_store_dword v[12:13], v[idx]     // store C
-s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
+//s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
 .endm
 
 
@@ -415,6 +444,10 @@ sgemm_NT:
 ////////////////////////////////////////////////////////////////////////////////
 //  Begin Kernel: Prepare for Summation Loop  //////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+.set wait_for_g2r, 0
+.set wait_for_r2l, 0
+.set wait_for_l2r, 0
 
 s_mov_b32 m0, 0xFFFFFFFF              // don't clamp LDS
 
@@ -468,10 +501,10 @@ v_add_i32 v4, vcc, s13, v7            // v4=A_my + offsetA
 v_mov_b32 v7, 0                       // v7=0
 v_addc_u32 v5, vcc, 0, v7, vcc        // v5=A_my + offsetA hi
 v_lshlrev_b64 v[5:6], 2, v[4:5]       // v[5:6]=(A_my+offsetA)*4
-v_add_i32 v22, vcc, s6, v5            // v22=A* + (A_my+offsetA)*4 lo
+v_add_i32 v20, vcc, s6, v5            // v20=A* + (A_my+offsetA)*4 lo
 v_mov_b32 v7, s7                      // v7=A* hi
-v_addc_u32 v23, vcc, v6, v7, vcc      // v23=A* + (A_my+offsetA)*4 hi
-// v[22:23] is global_readA_0:3
+v_addc_u32 v21, vcc, v6, v7, vcc      // v21=A* + (A_my+offsetA)*4 hi
+// v[20:21] is global_readA_0:3
 // reading 1's from global correctly
 
 // global_readB ?
@@ -481,46 +514,45 @@ v_lshlrev_b32 v6, 2, v2               // v6=a1J*4
 
 v_or_b32 v6, s21, v6                  // v6=g1J*128+b1J*4 (or = plus)
 v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J*4) = B_my
-v_add_i32 v24, vcc, s14, v7           // v24=offsetB+B_my lo
-//flat_store_dword v[8:9], v24          // DEBUG
+v_add_i32 v22, vcc, s14, v7           // v22=offsetB+B_my lo
+//flat_store_dword v[8:9], v22          // DEBUG
 //s_endpgm                              // DEBUG
 v_mov_b32 v7, 0                       // v7=0
-v_addc_u32 v25, vcc, 0, v7, vcc       // v25=offsetB+B_my hi
-v_lshlrev_b64 v[24:25], 2, v[24:25]   // v[8:9]=(B_my+offsetB)*4
-v_add_i32 v24, vcc, s8, v24           // v24=B* + (B_my+offsetB)*4 lo
+v_addc_u32 v23, vcc, 0, v7, vcc       // v23=offsetB+B_my hi
+v_lshlrev_b64 v[22:23], 2, v[22:23]   // v[22:23]=(B_my+offsetB)*4
+v_add_i32 v22, vcc, s8, v22           // v22=B* + (B_my+offsetB)*4 lo
 v_mov_b32 v6, s9                      // v6=B* hi
-v_addc_u32 v25, vcc, v25, v6, vcc     // v25=B* + (B_my+offsetB)*4 hi
-// v[24:25] is global_readB_0:3
+v_addc_u32 v23, vcc, v23, v6, vcc     // v23=B* + (B_my+offsetB)*4 hi
+// v[22:23] is global_readB_0:3
 // NOT reading 1's from global correctly
 
 // global_read_incr ?
-v_mov_b32 v26, s16                    // strideAK
-v_mov_b32 v27, s17                    // strideBK
-v_lshlrev_b32 v26, 5, v26             // v26=strideAK*UNROLL*4
-v_lshlrev_b32 v27, 5, v27             // v27=strideBK*UNROLL*4
-//flat_store_dword v[8:9], v27
+v_mov_b32 v14, s16                    // strideAK
+v_mov_b32 v15, s17                    // strideBK
+v_lshlrev_b32 v14, 5, v14             // v14=strideAK*UNROLL*4
+v_lshlrev_b32 v15, 5, v15             // v15=strideBK*UNROLL*4
+//flat_store_dword v[8:9], v15
 //s_endpgm
 
 // local_writeA,B
 v_mov_b32 v6, 0x81                    // v6=(128+1)
-v_lshlrev_b32 v28, 2, v2              // v28=a0I*4
-v_mad_u32_u24 v28, v6, v3, v28        // v28=129*aK+a0I*4
-v_lshlrev_b32 v28, 2, v28             // v28=4*(129*aK+a0I*4)=local_writeA_red
-v_add_u32 v29, vcc, 0x2000, v28       // v29=v28+2048*4=local_writeB_red
-// v[28:29] is local_writeA,B
-//flat_store_dword v[8:9], v28
+v_lshlrev_b32 v16, 2, v2              // v16=a0I*4
+v_mad_u32_u24 v16, v6, v3, v16        // v16=129*aK+a0I*4
+v_lshlrev_b32 v16, 2, v16             // v16=4*(129*aK+a0I*4)=local_writeA_red
+v_add_u32 v17, vcc, 0x2000, v16       // v17=v16+2048*4=local_writeB_red
+// v[16:17] is local_writeA,B
+//flat_store_dword v[8:9], v16
 //s_endpgm
 
 
 // local_readA,B
-v_lshlrev_b32 v30, 2, v0              // v30=l.x*4=local_readA
-v_lshlrev_b32 v31, 2, v1              // v31=l.y*4=local_readB
-v_add_i32 v31, vcc, 0x2000, v31       // v31=l.y*4+2048*4 bytes
-// v[30:31] is local_readA,B
-//flat_store_dword v[8:9], v30
+v_lshlrev_b32 v18, 2, v0              // v18=l.x*4=local_readA
+v_lshlrev_b32 v19, 2, v1              // v19=l.y*4=local_readB
+v_add_i32 v19, vcc, 0x2000, v19       // v19=l.y*4+2048*4 bytes
+// v[18:19] is local_readA,B
+//flat_store_dword v[8:9], v18
 //s_endpgm
 
-.if 1
 
 // iter count
 s_lshr_b32 s20, s20, 3                // s20=sizeK/8
@@ -531,122 +563,153 @@ s_add_u32 s20, s20, 1                 // extra iter w/o prefetch
 ZERO_REGISTERS
 
 // prefetch before loop
-GL_LOAD_G2R                           // load global -> register
-s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for global load
-GL_LOAD_R2L                           // store register -> local
-s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for global load
-v_xor_b32 v28, 0x4000, v28            // local_write_A red <-> black
-v_xor_b32 v29, 0x4000, v29            // local_write_B red <-> black
+GL_LOAD_G2R                           // Load (a) global->reg
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // Wait (a) global->reg
+GL_LOAD_R2L                           // Stor [b] reg->local
+s_waitcnt vmcnt(0) & lgkmcnt(0)       // Wait [b] reg->local
+v_xor_b32 v16, 0x4000, v16            // Swap     local_write_A
+v_xor_b32 v17, 0x4000, v17            // Swap     local_write_B
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Summation Loop  ////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 label_0000:                           // LOOP
-s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for r->L
-s_barrier                             // barrier after store to local
 
 // Prefetch Next Unroll
-GL_LOAD_G2R                           // load global -> register
-.if 1
-//s_waitcnt vmcnt(0)                    // moved lower
-//GL_LOAD_R2L                           // store register -> local
+GL_LOAD_G2R                           // Load (c) global->reg
 
 // Wait For MacroTile To Load
-s_waitcnt vmcnt(0)//4)                    // TODO wait for load 1 iter ago
-LR_LOAD 0                             // Load Iter=0
+.if wait_for_r2l
+  s_waitcnt vmcnt(4)                    // Wait [l]
+.endif
+s_barrier                             // barrier after store to local
+LR_LOAD 0                             // Load {d} Iter=0
 
 //  Iter 0
-LR_LOAD 1                             // Load Iter=1
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=0
-MAC_8X8 0                             // MAC  Iter=0
+LR_LOAD 1                             // Load {e} Iter=1
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait     Iter=0
+.endif
+MAC_8X8 0                             // MAC      Iter=0
 //  Iter 1
-LR_LOAD 2                             // Load Iter=2
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=1
-MAC_8X8 1                             // MAC  Iter=1
+LR_LOAD 2                             // Load {f} Iter=2
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait     Iter=1
+.endif
+MAC_8X8 1                             // MAC      Iter=1
 //  Iter 2
-LR_LOAD 3                             // Load Iter=3
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=2
-MAC_8X8 2                             // MAC  Iter=2
+LR_LOAD 3                             // Load {g} Iter=3
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait     Iter=2
+.endif
+MAC_8X8 2                             // MAC      Iter=2
 //  Iter 3
-LR_LOAD 4                             // Load Iter=4
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=3
-MAC_8X8 3                             // MAC  Iter=3
+LR_LOAD 4                             // Load {h} Iter=4
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait     Iter=3
+.endif
+MAC_8X8 3                             // MAC      Iter=3
 //  Iter 4
-LR_LOAD 5                             // Load Iter=5
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=4
-MAC_8X8 4                             // MAC  Iter=4
+LR_LOAD 5                             // Load {i} Iter=5
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait     Iter=4
+.endif
+MAC_8X8 4                             // MAC      Iter=4
 //  Iter 5
-LR_LOAD 6                             // Load Iter=6
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=5
-MAC_8X8 5                             // MAC  Iter=5
+LR_LOAD 6                             // Load {j} Iter=6
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait     Iter=5
+.endif
+MAC_8X8 5                             // MAC      Iter=5
 //  Iter 6
-LR_LOAD 7                             // Load Iter=7
-v_xor_b32 v30, 0x4000, v30            // swap local_read_A red <-> black
-v_xor_b32 v31, 0x4000, v31            // swap local_read_B red <-> black
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=6
-MAC_8X8 6                             // MAC  Iter=6
+LR_LOAD 7                             // Load {k} Iter=7
+v_xor_b32 v18, 0x4000, v18            // Swap     local_read_A
+v_xor_b32 v19, 0x4000, v19            // Swap     local_read_B
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait {j} Iter=6
+.endif
+MAC_8X8 6                             // MAC      Iter=6
 
 // wait for global to register load, issue register to local store
-s_waitcnt vmcnt(0)                    // move this lower?
-GL_LOAD_R2L                           // store register -> local
-v_xor_b32 v28, 0x4000, v28            // swap local_write_A red <-> black
-v_xor_b32 v29, 0x4000, v29            // swap local_write_B red <-> black
+.if wait_for_g2r
+s_waitcnt vmcnt(0)                    // Wait (c) global->reg
+.endif
+GL_LOAD_R2L                           // Stor [l] reg->local
+v_xor_b32 v16, 0x4000, v16            // Swap     local_write_A
+v_xor_b32 v17, 0x4000, v17            // Swap     local_write_B
 
 //  Iter 7
-s_waitcnt lgkmcnt(0)//2)                  // Wait Iter=7
-MAC_8X8 7                             // MAC  Iter=7
-
+.if wait_for_l2r
+s_waitcnt lgkmcnt(4)                  // Wait {k} Iter=7
 .endif
+MAC_8X8 7                             // MAC      Iter=7
 
-s_add_u32       s20, s20, 1           // incr iter counter
-s_cmp_eq_i32    s20, 0                // counter==0 ?
-s_cbranch_scc1  label_0001            // goto loop start
-s_branch        label_0000            // goto after loop
+
+s_add_u32       s20, s20, 1           // Incr     Counter
+s_cmp_eq_i32    s20, 0                // Comp     Counter==0
+s_cbranch_scc1  label_0001            // Goto     Loop start
+s_branch        label_0000            // Goto     After loop
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Last Iter W/O Prefetch
 ////////////////////////////////////////////////////////////////////////////////
 label_0001:
-s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait for r->L
-s_barrier                             // barrier after store to local
 
 // Wait For MacroTile To Load
-s_waitcnt vmcnt(0)//4)                    // TODO wait for load 1 iter ago
+.if wait_for_r2l
+s_waitcnt vmcnt(4)                    // TODO wait for load 1 iter ago
+.endif
+s_barrier                             // barrier after store to local
 LR_LOAD 0                             // Load Iter=0
 
 //  Iter 0
 LR_LOAD 1                             // Load Iter=1
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=0
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=0
+.endif
 MAC_8X8 0                             // MAC  Iter=0
 //  Iter 1
 LR_LOAD 2                             // Load Iter=2
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=1
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=1
+.endif
 MAC_8X8 1                             // MAC  Iter=1
 //  Iter 2
 LR_LOAD 3                             // Load Iter=3
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=2
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=2
+.endif
 MAC_8X8 2                             // MAC  Iter=2
 //  Iter 3
 LR_LOAD 4                             // Load Iter=4
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=3
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=3
+.endif
 MAC_8X8 3                             // MAC  Iter=3
 //  Iter 4
 LR_LOAD 5                             // Load Iter=5
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=4
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=4
+.endif
 MAC_8X8 4                             // MAC  Iter=4
 //  Iter 5
 LR_LOAD 6                             // Load Iter=6
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=5
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=5
+.endif
 MAC_8X8 5                             // MAC  Iter=5
 //  Iter 6
 LR_LOAD 7                             // Load Iter=7
-s_waitcnt lgkmcnt(0)//4)                  // Wait Iter=6
+.if wait_for_l2r
+s_waitcnt lgkmcnt(8)                  // Wait Iter=6
+.endif
 MAC_8X8 6                             // MAC  Iter=6
 //  Iter 7
-s_waitcnt lgkmcnt(0)//2)                  // Wait Iter=7
+.if wait_for_l2r
+s_waitcnt lgkmcnt(0)                  // Wait Iter=7
+.endif
 MAC_8X8 7                             // MAC  Iter=7
 
-.endif
 
 ////////////////////////////////////////////////////////////////////////////////
 //  Final C=alpha*A*B+beta*C  //////////////////////////////////////////////////

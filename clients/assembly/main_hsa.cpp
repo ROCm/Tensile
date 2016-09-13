@@ -51,6 +51,7 @@
 #include <iomanip>
 #include <time.h>
 
+#define FULL_VALIDATION 1
 
 void sgemm_cpu(
     bool transA,
@@ -75,9 +76,9 @@ void sgemm_cpu(
         float a = transA ? A[k+i*lda] : A[i+k*lda];
         float b = transB ? B[j+k*ldb] : B[k+j*ldb];
         c += a*b;
-        if (i==17 && j==17) {
-          std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
-        }
+        //if (i==17 && j==17) {
+        //  std::cout << c << " = " << a << " * " << b << " + " << (c-a*b) << std::endl;
+        //}
       }
       size_t cIdx = i+j*ldc;
       C[cIdx] = alpha*c + beta*C[cIdx];
@@ -435,7 +436,7 @@ uint64_t TIMEOUT = 120;
 
 bool Dispatch::Wait()
 {
-  std::cout << "Wait()" << std::endl;
+  //std::cout << "Wait()" << std::endl;
   clock_t beg = clock();
   hsa_signal_value_t result;
   do {
@@ -554,7 +555,7 @@ bool Dispatch::Run()
     Verify();
   std::string out = output.str();
   if (!out.empty()) {
-    std::cout << out << std::endl;
+    std::cout << out;
   }
   std::cout << (res ? "Success" : "Failed") << std::endl;
   return res;
@@ -611,14 +612,14 @@ public:
     vB(1),
     alpha(1),
     beta(0),
-#if 1
+#if FULL_VALIDATION
     M(512),
     N(256),
     K(16),
 #else
-    M(128),
-    N(128),
-    K(128),
+    M(5760),
+    N(5760),
+    K(5760),
 #endif
     numElementsC(M*N),
     numElementsA(M*K),
@@ -652,10 +653,17 @@ public:
     c = AllocateBuffer(sizeC);
     a = AllocateBuffer(sizeA);
     b = AllocateBuffer(sizeB);
+#if FULL_VALIDATION
     for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = i;//(i%M)*vC;
     for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = i;//(i%M)*vC;
     for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = i;//(i%M)*vA;
     for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = i;//(i%M)*vB;
+#else
+    for (unsigned int i = 0; i < numElementsC; i++)           refC[i] = 1;
+    for (unsigned int i = 0; i < numElementsC; i++) c->Data<float>(i) = 1;
+    for (unsigned int i = 0; i < numElementsA; i++) a->Data<float>(i) = 1;
+    for (unsigned int i = 0; i < numElementsB; i++) b->Data<float>(i) = 1;
+#endif
     for (unsigned int i = 0; i < numDebugElements; i++) debug->Data<unsigned int>(i) = 3;
     if (!CopyTo(c)) output << "Error: failed to copy to local" << std::endl;
     if (!CopyTo(a)) output << "Error: failed to copy to local" << std::endl;
@@ -689,6 +697,8 @@ public:
 
   bool Verify() override {
     std::cout << "Verify()" << std::endl;
+
+#if FULL_VALIDATION
     if (!CopyFrom(debug)) {
       std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;
@@ -703,7 +713,7 @@ public:
       for (unsigned int col = 0; col < numThreadsD1; col++) { // screen-col
         unsigned int threadSerial = col*(strideCJ/microTile[1]) + row;
         unsigned int threadDebugStartIdx = threadSerial * 1;
-#if 1
+#if 0
         std::cout << std::setw(5) << debug->Data<unsigned int>(threadDebugStartIdx) << ", ";
 #else
         std::cout << std::setw(5) << debug->Data<float>(threadDebugStartIdx) << ", ";
@@ -721,7 +731,7 @@ public:
     }
     std::cout << std::endl;
     std::cout << std::endl;
-
+#endif
 
 
 #if 1
@@ -735,6 +745,7 @@ public:
       std::cout << "Coppied back C buffer" << std::endl;
     }
 
+#if FULL_VALIDATION
     sgemm_cpu(
         false, // N
         true,  // T
@@ -749,11 +760,18 @@ public:
         M,
         N,
         K );
+#endif
 
     for (unsigned int d1 = 0; d1 < size1J; d1++) { // row
       for (unsigned int d0 = 0; d0 < size0I; d0++) { // col
         unsigned int idxC = d1*strideCJ+d0;
-        bool equal = c->Data<float>(idxC) == refC[idxC];
+        float correctC;
+#if FULL_VALIDATION
+        correctC = refC[idxC];
+#else
+        correctC = alpha*K*1+beta*1;
+#endif
+        bool equal = c->Data<float>(idxC) == correctC;
         if (equal) {
           numValid++;
         } else {
