@@ -619,7 +619,7 @@ public:
 #else
     M(5760),
     N(5760),
-    K(5760),
+    K(16),
 #endif
     numElementsC(M*N),
     numElementsA(M*K),
