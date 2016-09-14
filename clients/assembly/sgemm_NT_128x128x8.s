@@ -276,7 +276,7 @@ s_endpgm
 
 // can combine into read2_b32, but then would need to increment
 // todo, would it be faster to inverleave data when writing to lds then read block right here
-.if 1
+.if 0
   // this is the original working code
   // could change it to read2, but offsets have less bytes
   // and would need more address arithmetic
@@ -307,10 +307,10 @@ s_endpgm
   ds_read_b128 v[b+4:b+7], v[src+1] offset:\gen*inc*4+4*4 // B[4:7]
 .endif
 
-.if 0
+.if 1
   // new version fake, doesn't increment offset
-  ds_read2_b64 v[a+0:a+3], v[src+0]           offset1:1 // A[0:3]
   ds_read2_b64 v[a+4:a+7], v[src+0] offset0:2 offset1:3 // A[4:7]
+  ds_read2_b64 v[a+0:a+3], v[src+0]           offset1:1 // A[0:3]
   ds_read2_b64 v[b+0:b+3], v[src+1]           offset1:1 // B[0:3]
   ds_read2_b64 v[b+4:b+7], v[src+1] offset0:2 offset1:3 // B[4:7]
 .endif
@@ -349,7 +349,7 @@ s_endpgm
 
 ////////////////////////////////////////////////////////////////////////////////
 // DO 4X4 Quadrant of MACs
-.macro MAC_4X4 gen qA qB
+.macro MAC_8X8 gen
   .set a, 32 // A_red
   .set b, 40 // B_red
   .set c, 64 // C_MAC
@@ -357,40 +357,77 @@ s_endpgm
     .set a, 48 // A_black
     .set b, 56 // B_black
   .endif
-  .if \qA == 1
-    .set a, a+4   // next quadrant
-    .set c, c+4   // next quadrant
-  .endif
-  .if \qB == 1
-    .set b, b+4   // next quadrant
-    .set c, c+4*8 // next quadrant
-  .endif
 
   v_mac_f32 v[c+0+0*8], v[a+0], v[b+0]
   v_mac_f32 v[c+1+0*8], v[a+1], v[b+0] 
   v_mac_f32 v[c+2+0*8], v[a+2], v[b+0] 
   v_mac_f32 v[c+3+0*8], v[a+3], v[b+0] 
-  v_mac_f32 v[c+0+1*8], v[a+0], v[b+1] 
-  v_mac_f32 v[c+1+1*8], v[a+1], v[b+1] 
-  v_mac_f32 v[c+2+1*8], v[a+2], v[b+1] 
+  v_mac_f32 v[c+4+0*8], v[a+4], v[b+0] 
+  v_mac_f32 v[c+5+0*8], v[a+5], v[b+0] 
+  v_mac_f32 v[c+6+0*8], v[a+6], v[b+0] 
+  v_mac_f32 v[c+7+0*8], v[a+7], v[b+0] 
+  v_mac_f32 v[c+7+1*8], v[a+7], v[b+1] 
+  v_mac_f32 v[c+6+1*8], v[a+6], v[b+1] 
+  v_mac_f32 v[c+5+1*8], v[a+5], v[b+1] 
+  v_mac_f32 v[c+4+1*8], v[a+4], v[b+1] 
   v_mac_f32 v[c+3+1*8], v[a+3], v[b+1] 
-  v_mac_f32 v[c+0+2*8], v[a+0], v[b+2] 
+  v_mac_f32 v[c+2+1*8], v[a+2], v[b+1] 
+  v_mac_f32 v[c+1+1*8], v[a+1], v[b+1] 
+  v_mac_f32 v[c+0+1*8], v[a+0], v[b+1] 
+
+  v_mac_f32 v[c+0+2*8], v[a+0], v[b+2]
   v_mac_f32 v[c+1+2*8], v[a+1], v[b+2] 
   v_mac_f32 v[c+2+2*8], v[a+2], v[b+2] 
   v_mac_f32 v[c+3+2*8], v[a+3], v[b+2] 
-  v_mac_f32 v[c+0+3*8], v[a+0], v[b+3] 
-  v_mac_f32 v[c+1+3*8], v[a+1], v[b+3] 
-  v_mac_f32 v[c+2+3*8], v[a+2], v[b+3] 
+  v_mac_f32 v[c+4+2*8], v[a+4], v[b+2] 
+  v_mac_f32 v[c+5+2*8], v[a+5], v[b+2] 
+  v_mac_f32 v[c+6+2*8], v[a+6], v[b+2] 
+  v_mac_f32 v[c+7+2*8], v[a+7], v[b+2] 
+  v_mac_f32 v[c+7+3*8], v[a+7], v[b+3] 
+  v_mac_f32 v[c+6+3*8], v[a+6], v[b+3] 
+  v_mac_f32 v[c+5+3*8], v[a+5], v[b+3] 
+  v_mac_f32 v[c+4+3*8], v[a+4], v[b+3] 
   v_mac_f32 v[c+3+3*8], v[a+3], v[b+3] 
+  v_mac_f32 v[c+2+3*8], v[a+2], v[b+3] 
+  v_mac_f32 v[c+1+3*8], v[a+1], v[b+3] 
+  v_mac_f32 v[c+0+3*8], v[a+0], v[b+3] 
+
+  v_mac_f32 v[c+0+4*8], v[a+0], v[b+4]
+  v_mac_f32 v[c+1+4*8], v[a+1], v[b+4] 
+  v_mac_f32 v[c+2+4*8], v[a+2], v[b+4] 
+  v_mac_f32 v[c+3+4*8], v[a+3], v[b+4] 
+  v_mac_f32 v[c+4+4*8], v[a+4], v[b+4] 
+  v_mac_f32 v[c+5+4*8], v[a+5], v[b+4] 
+  v_mac_f32 v[c+6+4*8], v[a+6], v[b+4] 
+  v_mac_f32 v[c+7+4*8], v[a+7], v[b+4] 
+  v_mac_f32 v[c+7+5*8], v[a+7], v[b+5] 
+  v_mac_f32 v[c+6+5*8], v[a+6], v[b+5] 
+  v_mac_f32 v[c+5+5*8], v[a+5], v[b+5] 
+  v_mac_f32 v[c+4+5*8], v[a+4], v[b+5] 
+  v_mac_f32 v[c+3+5*8], v[a+3], v[b+5] 
+  v_mac_f32 v[c+2+5*8], v[a+2], v[b+5] 
+  v_mac_f32 v[c+1+5*8], v[a+1], v[b+5] 
+  v_mac_f32 v[c+0+5*8], v[a+0], v[b+5] 
+
+  v_mac_f32 v[c+0+6*8], v[a+0], v[b+6]
+  v_mac_f32 v[c+1+6*8], v[a+1], v[b+6] 
+  v_mac_f32 v[c+2+6*8], v[a+2], v[b+6] 
+  v_mac_f32 v[c+3+6*8], v[a+3], v[b+6] 
+  v_mac_f32 v[c+4+6*8], v[a+4], v[b+6] 
+  v_mac_f32 v[c+5+6*8], v[a+5], v[b+6] 
+  v_mac_f32 v[c+6+6*8], v[a+6], v[b+6] 
+  v_mac_f32 v[c+7+6*8], v[a+7], v[b+6] 
+  v_mac_f32 v[c+7+7*8], v[a+7], v[b+7] 
+  v_mac_f32 v[c+6+7*8], v[a+6], v[b+7] 
+  v_mac_f32 v[c+5+7*8], v[a+5], v[b+7] 
+  v_mac_f32 v[c+4+7*8], v[a+4], v[b+7] 
+  v_mac_f32 v[c+3+7*8], v[a+3], v[b+7] 
+  v_mac_f32 v[c+2+7*8], v[a+2], v[b+7] 
+  v_mac_f32 v[c+1+7*8], v[a+1], v[b+7] 
+  v_mac_f32 v[c+0+7*8], v[a+0], v[b+7] 
+
 .endm
 
-// 8x8 of MACs
-.macro MAC_8X8 gen
-  MAC_4X4 \gen, 0, 0
-  MAC_4X4 \gen, 0, 1
-  MAC_4X4 \gen, 1, 0
-  MAC_4X4 \gen, 1, 1
-.endm
 
 ////////////////////////////////////////////////////////////////////////////////
 // Final Mul/Add/Write
@@ -399,16 +436,13 @@ s_endpgm
 // v[10:11] has base address
 // v[12:13] will have target address
 // target address = base + d0*128 + d1*128*strideC1J
+.if 1
 .set idx, 64+\d1*8+\d0
 v_mov_b32 v12, s15                    // v12 = strideC1J
 v_mov_b32 v13, 0x0                    // v13 = 0
 v_mul_u32_u24 v12, \d1, v12           // v12 = strideC1J*d1
 v_add_u32 v12, vcc, \d0, v12          // v12 = strideC1J*d1+d0
 v_lshlrev_b64 v[12:13], 6, v[12:13]   // v12 = 16*(strideC1J*d1+d0)*4
-
-//flat_store_dword v[8:9], v12
-//s_endpgm
-
 v_add_u32 v12, vcc, v10, v12          // v12 = base + 16*(strideC1J*d1+d0)
 v_addc_u32 v13, vcc, v11, v13, vcc    // v13 = base + 16*(strideC1J*d1+d0)
 flat_load_dword v9, v[12:13]          // load C
@@ -416,12 +450,9 @@ s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
 v_mul_f32 v9, s11, v9                 // v9 = C*beta
 v_mul_f32 v[idx], s10, v[idx]         // v[i] *= alpha
 v_add_f32 v[idx], v9, v[idx]          // v[i] = sum*alpha + C*beta
-
-// todo debug
-//v_mov_b32 v[idx], 256.0
-
 flat_store_dword v[12:13], v[idx]     // store C
-//s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
+// s_waitcnt vmcnt(0) & lgkmcnt(0)       // wait C
+.endif
 .endm
 
 
@@ -581,7 +612,6 @@ ZERO_REGISTERS
 READ_GLOBAL                           // Load (a)                           2  2
 s_waitcnt vmcnt(0) & lgkmcnt(0)       // Wait (a)                           0  0
 WRITE_LOCAL                           // Stor [b]                           2  0
-//s_waitcnt lgkmcnt(0)       // Wait [b] reg->local
 v_xor_b32 v16, 0x4000, v16            // Swap     local_write_A
 v_xor_b32 v17, 0x4000, v17            // Swap     local_write_B
 
@@ -594,47 +624,47 @@ label_0000:                           // LOOP
 READ_GLOBAL                           // Load (c)                           4  2
 
 // Wait For MacroTile To Load
-s_waitcnt lgkmcnt(0+2)                // Wait [b,l]                         2  2
+s_waitcnt lgkmcnt(2+2) & vmcnt(2)     // Wait [b,l]                         2  2
 s_barrier                             // barrier after write local
 READ_LOCAL 0                          // Load {d}                       06|10  2
 
 //  Iter 0
 READ_LOCAL 1                          // Load {e}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {d}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {d}                        6|10  2
 MAC_8X8 0                             // MAC      
 
 //  Iter 1
 READ_LOCAL 2                          // Load {f}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {e}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {e}                        6|10  2
 MAC_8X8 1                             // MAC      
 
 //  Iter 2
 READ_LOCAL 3                          // Load {g}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {f}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {f}                        6|10  2
 MAC_8X8 2                             // MAC      
 
 //  Iter 3
 READ_LOCAL 4                          // Load {h}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {g}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {g}                        6|10  2
 MAC_8X8 3                             // MAC      
 
 //  Iter 4
 READ_LOCAL 5                          // Load {i}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {h}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {h}                        6|10  2
 MAC_8X8 4                             // MAC      
 
 //  Iter 5
 READ_LOCAL 6                          // Load {j}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {i}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {i}                        6|10  2
 MAC_8X8 5                             // MAC      
 
 //  Iter 6
 READ_LOCAL 7                          // Load {k}                       10|18  2
-s_waitcnt lgkmcnt(2+4)//2+8           // Wait {j}                        6|10  2
+s_waitcnt lgkmcnt(2+4) & vmcnt(2)     // Wait {j}                        6|10  2
 MAC_8X8 6                             // MAC      
 
 // wait for global to register load, issue register to local store
-s_waitcnt vmcnt(0) & lgkmcnt(4)//8    // Wait (c) not k                  4| 8  0
+s_waitcnt lgkmcnt(4) & vmcnt(0)       // Wait (c) not k                  4| 8  0
 WRITE_LOCAL                           // Write[l]                        6|10  0
 v_xor_b32 v16, 0x4000, v16            // Swap     local_write_A
 v_xor_b32 v17, 0x4000, v17            // Swap     local_write_B
@@ -642,7 +672,7 @@ v_xor_b32 v18, 0x4000, v18            // Swap     local_read_A
 v_xor_b32 v19, 0x4000, v19            // Swap     local_read_B
 
 //  Iter 7
-s_waitcnt lgkmcnt(2+0)                // Wait {k} not l                     2  0
+s_waitcnt lgkmcnt(2+0) & vmcnt(2)                // Wait {k} not l                     2  0
 MAC_8X8 7                             // MAC      Iter=7
 
 // here vm is 0 and lgkm=2->0 b/c of 
@@ -728,6 +758,7 @@ v_lshlrev_b32 v0, 2, v0
 v_add_u32 v10, vcc, v0, v10           // v[10:11]=C*+off+wg_off+l1j*str+l0I
 v_addc_u32 v11, vcc, 0x0, v11, vcc
 
+.if 0
 WRITE_GLOBAL 0, 0
 WRITE_GLOBAL 0, 1
 WRITE_GLOBAL 0, 2
@@ -799,5 +830,54 @@ WRITE_GLOBAL 7, 4
 WRITE_GLOBAL 7, 5
 WRITE_GLOBAL 7, 6
 WRITE_GLOBAL 7, 7
+.endif
 
 s_endpgm
+
+////////////////////////////////////////////////////////////////////////////////
+//
+sgemm NT 5760x5760x5760
+Fiji Nano 8192 GFlop/s
+none of these load from global memory (huge penalty)
+ 
+46.64 ms (101%)
+  - theoretical
+    
+47.2 (100%) clocks pinned <-- call this peak
+  - plain v_mac_f32 kernel achieves
+       
+48.0 (98.3%)
+  - gemm kernel
+  - prefix (calculate addresses)
+            
+48.16 (98%)
+  - prefix = 0.8 ms
+  - write LDS = 0.16 ms
+                 
+48.36 (97.6%)
+  - prefix
+  - write LDS & wait = 0.2 ms
+                      
+52.2 (90.4)
+  - prefix
+  - write LDS & wait
+  - read LDS x4 = 3.4 ms OUCH!
+                             
+51.8 (91.1%)
+  - prefix
+  - write LDS & wait
+  - read LDS x4 & wait = 3.4 ms
+                                    
+53.0 (89%)
+  - prefix
+  - store 1's rather than global load = 1.2ms FIX READ
+  - write LDS & wait
+  - read LDS x4 & wait
+                                             
+55.5 (85%)
+  - prefix
+  - store 1's
+  - write LDS & wait
+  - read LDS x4 & wait
+  - write global cumbersome = 2.5ms IMPROVE
+

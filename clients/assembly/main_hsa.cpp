@@ -51,7 +51,9 @@
 #include <iomanip>
 #include <time.h>
 
-#define FULL_VALIDATION 1
+#define FULL_VALIDATION 0
+
+double total_time_ms;
 
 void sgemm_cpu(
     bool transA,
@@ -269,7 +271,7 @@ bool Dispatch::Init()
   char agent_name[64];
   status = hsa_agent_get_info(agent, HSA_AGENT_INFO_NAME, agent_name);
   if (status != HSA_STATUS_SUCCESS) { return HsaError("hsa_agent_get_info(HSA_AGENT_INFO_NAME) failed", status); }
-  output << "Using agent: " << agent_name << std::endl;
+  //output << "Using agent: " << agent_name << std::endl;
 
   status = hsa_agent_get_info(agent, HSA_AGENT_INFO_QUEUE_MAX_SIZE, &queue_size);
   if (status != HSA_STATUS_SUCCESS) { return HsaError("hsa_agent_get_info(HSA_AGENT_INFO_QUEUE_MAX_SIZE) failed", status); }
@@ -300,14 +302,14 @@ bool Dispatch::InitDispatch()
   aql->grid_size_x = 1;
   aql->grid_size_y = 1;
   aql->grid_size_z = 1;
-  aql->group_segment_size = 32768;
+  aql->group_segment_size = 32256+0*512; // TODO
   aql->private_segment_size = 0;
   return true;
 }
 
 bool Dispatch::RunDispatch()
 {
-  std::cout << "RunDispatch()" << std::endl;
+  //std::cout << "RunDispatch()" << std::endl;
   uint16_t header =
     (HSA_PACKET_TYPE_KERNEL_DISPATCH << HSA_PACKET_HEADER_TYPE) |
     (1 << HSA_PACKET_HEADER_BARRIER) |
@@ -315,11 +317,7 @@ bool Dispatch::RunDispatch()
     (HSA_FENCE_SCOPE_SYSTEM << HSA_PACKET_HEADER_RELEASE_FENCE_SCOPE);
   uint16_t setup = 2 << HSA_KERNEL_DISPATCH_PACKET_SETUP_DIMENSIONS;
   uint32_t header32 = header | (setup << 16);
-  #if defined(_WIN32) || defined(_WIN64)  // Windows
-    _InterlockedExchange(aql, header32);
-  #else // Linux
     __atomic_store_n((uint32_t*)aql, header32, __ATOMIC_RELEASE);
-  #endif
   // Ring door bell
   hsa_signal_store_relaxed(queue->doorbell_signal, packet_index);
 
@@ -437,23 +435,20 @@ uint64_t TIMEOUT = 120;
 bool Dispatch::Wait()
 {
   //std::cout << "Wait()" << std::endl;
-  clock_t beg = clock();
   hsa_signal_value_t result;
   do {
     result = hsa_signal_wait_acquire(signal,
       HSA_SIGNAL_CONDITION_EQ, 0, ~0ULL, HSA_WAIT_STATE_ACTIVE);
-    clock_t clocks = clock() - beg;
-    if (clocks > (clock_t) TIMEOUT * CLOCKS_PER_SEC) {
-      output << "Kernel execution timed out, elapsed time: " << (long) clocks << std::endl;
-      return false;
-    }
   } while (result != 0);
   timespec currentTime;
   clock_gettime( CLOCK_REALTIME, &currentTime );
   double elapsed_us = (currentTime.tv_sec-startTime.tv_sec)*1000000.0
       + (currentTime.tv_nsec - startTime.tv_nsec)/1000.0;
   double elapsed_ms = elapsed_us / 1000.0;
+  total_time_ms += elapsed_ms;
   std::cout << "t = " << elapsed_ms << " ms" << std::endl;
+  double tflops = (2.0*5760*5760*5760/elapsed_ms/1000000000);
+  std::cout << tflops << " GFlop/s (" << (100*tflops/8.192) << " %-of-peak" << std::endl;
   
   return true;
 }
@@ -545,19 +540,19 @@ void Dispatch::Kernarg(Buffer* buffer)
 
 bool Dispatch::Run()
 {
-  bool res =
-    Init() &&
-    InitDispatch() &&
-    SetupExecutable() &&
-    Setup() &&
-    RunDispatch() &&
-    Wait() &&
-    Verify();
+    bool res = true;
+    res = res && Init();
+    res = res && InitDispatch();
+    res = res && SetupExecutable();
+    res = res && Setup();
+    res = res && RunDispatch();
+    res = res && Wait();
+    res = res && Verify();
   std::string out = output.str();
   if (!out.empty()) {
     std::cout << out;
   }
-  std::cout << (res ? "Success" : "Failed") << std::endl;
+  //std::cout << (res ? "Success" : "Failed") << std::endl;
   return res;
 }
 
@@ -619,7 +614,7 @@ public:
 #else
     M(5760),
     N(5760),
-    K(16),
+    K(5760),
 #endif
     numElementsC(M*N),
     numElementsA(M*K),
@@ -688,22 +683,22 @@ public:
     Kernarg(debug);
 #endif
     Kernarg(&sizeK);
-    std::cout << "grid=" << size0I/microTile[0] << "x" << size1J/microTile[1] << std::endl;
-    std::cout << "workgroup=" << workGroup[0] << "x" << workGroup[1] << std::endl;
+    //std::cout << "grid=" << size0I/microTile[0] << "x" << size1J/microTile[1] << std::endl;
+    //std::cout << "workgroup=" << workGroup[0] << "x" << workGroup[1] << std::endl;
     SetGridSize(size0I/microTile[0],size1J/microTile[1]);
     SetWorkgroupSize(workGroup[0], workGroup[1]);
     return true;
   }
 
   bool Verify() override {
-    std::cout << "Verify()" << std::endl;
+    //std::cout << "Verify()" << std::endl;
 
 #if FULL_VALIDATION
     if (!CopyFrom(debug)) {
       std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;
     } else {
-      std::cout << "Coppied back debug buffer" << std::endl;
+      //std::cout << "Coppied back debug buffer" << std::endl;
     }
 
     // debug
@@ -742,7 +737,7 @@ public:
       std::cout << "Error: failed to copy from local" << std::endl;
       return false;
     } else {
-      std::cout << "Coppied back C buffer" << std::endl;
+      //std::cout << "Copied back C buffer" << std::endl;
     }
 
 #if FULL_VALIDATION
@@ -794,5 +789,14 @@ public:
 
 int main(int argc, const char** argv)
 {
-  return AsmKernelDispatch(argc, argv).RunMain();
+  total_time_ms = 0;
+  unsigned int numSamples = 1;
+  for (unsigned int i = 0; i < numSamples; i++) {
+   AsmKernelDispatch(argc, argv).RunMain();
+  }
+  double avg_time = (total_time_ms/numSamples);
+  double tflops = (2.0*5760*5760*5760/avg_time/1000000000);
+  std::cout << "AvgTime: " << avg_time << " ms (" << numSamples << " samples)" << std::endl;
+  std::cout << "AvgPerf: " << tflops << " TFlop/s (" << (100*tflops/8.192) << " %-of-peak" << std::endl;
+  return 1;
 }
