@@ -51,7 +51,7 @@
 #include <iomanip>
 #include <time.h>
 
-#define FULL_VALIDATION 0
+#define FULL_VALIDATION 1
 
 double total_time_ms;
 
@@ -302,7 +302,7 @@ bool Dispatch::InitDispatch()
   aql->grid_size_x = 1;
   aql->grid_size_y = 1;
   aql->grid_size_z = 1;
-  aql->group_segment_size = 32256+0*512; // TODO
+  aql->group_segment_size = 65536/2 - 512; // TODO
   aql->private_segment_size = 0;
   return true;
 }
@@ -592,10 +592,10 @@ private:
   float alpha;
   float beta;
   unsigned int M, N, K;
+  unsigned int strideCJ, strideAK, strideBK;
   unsigned int numElementsC, numElementsA, numElementsB;
   unsigned int sizeC, sizeA, sizeB;
   unsigned int offsetC, offsetA, offsetB;
-  unsigned int strideCJ, strideAK, strideBK;
   unsigned int size0I, size1J, sizeK;
   float *refC;
 
@@ -615,19 +615,22 @@ public:
     M(5760),
     N(5760),
     K(5760),
+    //M(1024*4),
+    //N(1024*4),
+    //K(196608/16),
 #endif
-    numElementsC(M*N),
-    numElementsA(M*K),
-    numElementsB(N*K),
+    strideCJ(M+4),
+    strideAK(M+4),
+    strideBK(N+4),
+    numElementsC(strideCJ*N),
+    numElementsA(strideAK*K),
+    numElementsB(strideBK*K),
     sizeC(numElementsC*sizeof(float)),
     sizeA(numElementsA*sizeof(float)),
     sizeB(numElementsB*sizeof(float)),
     offsetC(0),
     offsetA(0),
     offsetB(0),
-    strideCJ(M),
-    strideAK(M),
-    strideBK(N),
     size0I(M),
     size1J(N),
     sizeK(K),
@@ -729,9 +732,9 @@ public:
 #endif
 
 
-#if 1
     unsigned int numValid = 0;
     unsigned int numInvalid = 0;
+#if 1
     // validation
     if (!CopyFrom(c)) {
       std::cout << "Error: failed to copy from local" << std::endl;
@@ -772,8 +775,8 @@ public:
         } else {
           numInvalid++;
           if (numInvalid < 4 ) {
-            //std::cout << "c[" << d1 << "," << d0 << "] = "
-            //    << c->Data<float>(idxC) << (equal ? " == " : " != ") << refC[idxC] << std::endl;
+            std::cout << "c[" << d1 << "," << d0 << "] = "
+                << c->Data<float>(idxC) << (equal ? " == " : " != ") << refC[idxC] << std::endl;
           }
         }
         //output << (equal ? "#" : "~");
