@@ -141,11 +141,18 @@
   .set a, 24
   .set b, 28
   // issue loads global -> registers
-.if 1
-  // takes 1100ms by itself
-  //flat_load_dwordx4 v[a+0:a+3], v[src+0:src+1] // A[0:3]
-  //flat_load_dwordx4 v[b+0:b+3], v[src+2:src+3] // B[0:3]
 
+.if 1
+  flat_load_dwordx4 v[a+0:a+3], v[src+0:src+1] // A[0:3]
+  flat_load_dwordx4 v[b+0:b+3], v[src+2:src+3] // B[0:3]
+  // increment global addresses for next GL Load
+  v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
+  v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
+  v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
+  v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
+.endif
+
+.if 0
   // +0
   flat_load_dword v[a+0], v[src+0:src+1] // A[0]
   flat_load_dword v[b+0], v[src+2:src+3] // B[0]
@@ -177,8 +184,9 @@
   v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
   v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
+.endif
 
-.else
+.if 0
   v_mov_b32 v[a], 0
   v_add_f32 v[a], 1.0, v[a]
   v_mov_b32 v[a+1], v[a]
@@ -190,11 +198,6 @@
   v_mov_b32 v[b+3], v[a]
 .endif
 
-  // increment global addresses for next GL Load
-  //v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
-  //v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
-  //v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
-  //v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
 .endm
 
@@ -207,7 +210,7 @@
   .set a, 24
   .set b, 28
 
-.if 0
+.if 1
   // this code did work
   ds_write2_b64 v[dst+0], v[a+0:a+1], v[a+2:a+3] offset1:1 //32*4*0
   ds_write2_b64 v[dst+1], v[b+0:b+1], v[b+2:b+3] offset1:1 //32*4*0
@@ -223,7 +226,7 @@
   ds_write_b32 v[dst+1], v[b+2] offset:8 //32*4*2
   ds_write_b32 v[dst+1], v[b+3] offset:12 //32*4*3
 .endif
-.if 1
+.if 0
   // this code works but is slow
   ds_write2st64_b32 v[dst+0], v[a+0], v[a+1] offset0:256*0/64*1 offset1:256*1/64*1
   ds_write2st64_b32 v[dst+0], v[a+2], v[a+3] offset0:256*2/64*1 offset1:256*3/64*1
@@ -271,7 +274,7 @@ s_endpgm
 // lgkm_cnt += 4or8
 .macro READ_LOCAL gen
   .set src, 18 // LDS_read_addr_x2
-  .set inc, (128+0)  // PAD - doesn't appear to impact performance
+  .set inc, (128+4)  // PAD - doesn't appear to impact performance
   .set a, 32
   .set b, 40
   .if \gen%2==1
@@ -283,7 +286,7 @@ s_endpgm
 
 // can combine into read2_b32, but then would need to increment
 // todo, would it be faster to inverleave data when writing to lds then read block right here
-.if 0
+.if 1
   // this is the original working code
   // could change it to read2, but offsets have less bytes
   // and would need more address arithmetic
@@ -321,7 +324,7 @@ s_endpgm
   ds_read2_b64 v[b+0:b+3], v[src+1]           offset1:1 // B[0:3]
   ds_read2_b64 v[b+4:b+7], v[src+1] offset0:2 offset1:3 // B[4:7]
 .endif
-.if 1
+.if 0
   // new version where each thread works on contiguous elements
   // this code works
   ds_read_b64 v[a+0:a+1], v[src+0] offset:\gen*inc*4+4*0 // A[0:1]
@@ -546,17 +549,18 @@ v_addc_u32 v9, vcc, s19, v3, vcc
 // global_read
 v_lshlrev_b32 v7, 4, v1               // v7=lid.y*16
 v_add_i32 v7, vcc, v0, v7             // v7=lid.x+lid.y*16
-v_and_b32 v2, 127, v7                 // v2=(lid.x+lid.y*16)%128 = a0I, b1J
-v_lshrrev_b32 v3, 7, v7               // v3=(lid.x+lid.y*16)/128 = aK, bK
+v_and_b32 v2, 31, v7                  // v2=(lid.x+lid.y*16)%32 = a0I, b1J
+v_lshrrev_b32 v3, 5, v7               // v3=(lid.x+lid.y*16)/32 = aK, bK
 //flat_store_dword v[8:9], v3
 //s_endpgm
 // these are correct
 
 // global_readA
 v_mul_lo_i32 v7, v3, s16              // v7=aK*strideAK
-s_lshl_b32 s21, s2, 7                 // s21 = g0I*128
-v_or_b32 v4, s21, v2                  // v4=g0I*128+a0I
-v_add_i32 v7, vcc, v4, v7             // v7=(g0I*128+a0I) + aK*strideK = A_my
+s_lshl_b32 s21, s2, 7                 // s21=g0I*128
+v_lshlrev_b32 v4, 2, v2               // v4=a0I*4
+v_or_b32 v4, s21, v4                  // v4=g0I*128+a0I*4
+v_add_i32 v7, vcc, v4, v7             // v7=(g0I*128+a0I*4) + aK*strideK = A_my
 v_add_i32 v4, vcc, s13, v7            // v4=A_my + offsetA
 //flat_store_dword v[8:9], v7           // DEBUG
 //s_endpgm                              // DEBUG
@@ -572,8 +576,9 @@ v_addc_u32 v21, vcc, v6, v7, vcc      // v21=A* + (A_my+offsetA)*4 hi
 // global_readB ?
 v_mul_lo_i32 v7, v3, s17              // v7=bK*strideBK
 s_lshl_b32 s21, s3, 7                 // s21=g1J*128
-v_or_b32 v6, s21, v2                  // v6=g1J*128+b1J (or = plus)
-v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J) = B_my
+v_lshlrev_b32 v6, 2, v2               // v6=a1J*4
+v_or_b32 v6, s21, v6                  // v6=g1J*128+b1J*4 (or = plus)
+v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J*4) = B_my
 v_add_i32 v22, vcc, s14, v7           // v22=offsetB+B_my lo
 //flat_store_dword v[8:9], v22          // DEBUG
 //s_endpgm                              // DEBUG
@@ -589,8 +594,8 @@ v_addc_u32 v23, vcc, v23, v6, vcc     // v23=B* + (B_my+offsetB)*4 hi
 // global_read_incr ?
 v_mov_b32 v14, s16                    // strideAK
 v_mov_b32 v15, s17                    // strideBK
-v_lshlrev_b32 v14, 3, v14             // v14=strideAK*2*4
-v_lshlrev_b32 v15, 3, v15             // v15=strideBK*2*4
+v_lshlrev_b32 v14, 5, v14             // v14=strideAK*UNROLL*4
+v_lshlrev_b32 v15, 5, v15             // v15=strideBK*UNROLL*4
 .if 0
 v_mov_b32 v14, 4*128
 v_mov_b32 v15, 4*128
@@ -600,31 +605,33 @@ v_mov_b32 v15, 4*128
 
 // local_writeA,B
 // v16 = ((a0I%16)*8 + a0I/16 + aK*129)*4
-v_and_b32 v16, 15, v2                 // v16 = a0I%16
-v_lshlrev_b32 v16, 3, v16             // v16 = (a0I%16)*8
-v_lshrrev_b32 v6, 4, v2               // v6  = a0I/16
-v_add_i32 v16, vcc, v6, v16           // v16 = (a0I%16)*8 + a0I/16
-v_mov_b32 v6, 0x80                    // v6  = (128+0) // PAD
-v_mad_u32_u24 v16, v3, v6, v16        // v16 = (a0I%16)*8 + a0I/16 + 129*aK
-v_lshlrev_b32 v16, 2, v16             // v16 = ((a0I%16)*8 + a0I/16 + 129*aK)*4
-v_add_u32 v17, vcc, 0x2000, v16       // v17=v16+2048*4=local_writeB_red
+//v_and_b32 v16, 15, v2                 // v16 = a0I%16
+//v_lshlrev_b32 v16, 3, v16             // v16 = (a0I%16)*8
+//v_lshrrev_b32 v6, 4, v2               // v6  = a0I/16
+//v_add_i32 v16, vcc, v6, v16           // v16 = (a0I%16)*8 + a0I/16
+//v_mov_b32 v6, 0x84                    // v6  = (128+4) // PAD
+//v_mad_u32_u24 v16, v3, v6, v16        // v16 = (a0I%16)*8 + a0I/16 + 129*aK
+//v_lshlrev_b32 v16, 2, v16             // v16 = ((a0I%16)*8 + a0I/16 + 129*aK)*4
+//v_add_u32 v17, vcc, 0x2000, v16       // v17=v16+2048*4=local_writeB_red
 //flat_store_dword v[8:9], v16
 //s_endpgm
 
 
 
-//v_mov_b32 v6, 0x84                    // v6=(128+1)=0x81 (128+4)=0x PAD
-//v_mad_u32_u24 v16, v6, v3, v16        // v16=129*aK+a0I
-//v_lshlrev_b32 v16, 2, v16             // v16=4*(129*aK+a0I)=local_writeA_red
-//v_add_u32 v17, vcc, 0x2000, v16       // v17=v16+2048*4=local_writeB_red
-// v[16:17] is local_writeA,B
+// local_writeA,B
+v_mov_b32 v6, 0x84                    // v6=(128+1)=0x81 (128+4)=0x PAD
+v_lshlrev_b32 v16, 2, v2              // v16=a0I*4
+v_mad_u32_u24 v16, v6, v3, v16        // v16=129*aK+a0I
+v_lshlrev_b32 v16, 2, v16             // v16=4*(129*aK+a0I)=local_writeA_red
+v_add_u32 v17, vcc, 0x2000, v16       // v17=v16+2048*4=local_writeB_red
+//v[16:17] is local_writeA,B
 //flat_store_dword v[8:9], v16
 //s_endpgm
 
 
 // local_readA,B
-v_lshlrev_b32 v18, 5, v0              // v18=l.x*8*4=local_readA
-v_lshlrev_b32 v19, 5, v1              // v19=l.y*8*4=local_readB
+v_lshlrev_b32 v18, 2, v0              // v18=l.x*4=local_readA
+v_lshlrev_b32 v19, 2, v1              // v19=l.y*4=local_readB
 v_add_i32 v19, vcc, 0x2000, v19       // v19=l.y*4+2048*4 bytes
 // v[18:19] is local_readA,B
 //flat_store_dword v[8:9], v18
