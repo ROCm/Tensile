@@ -51,7 +51,7 @@
 #include <iomanip>
 #include <time.h>
 
-#define FULL_VALIDATION 1
+#define FULL_VALIDATION 0
 
 double total_time_ms;
 
@@ -230,6 +230,7 @@ hsa_status_t FindRegions(hsa_region_t region, void* data)
 
   hsa_region_global_flag_t flags;
   hsa_region_get_info(region, HSA_REGION_INFO_GLOBAL_FLAGS, &flags);
+  //std::cout << "FindRegions: " << flags << std::endl;
 
   Dispatch* dispatch = static_cast<Dispatch*>(data);
 
@@ -238,6 +239,7 @@ hsa_status_t FindRegions(hsa_region_t region, void* data)
   }
 
   if (flags & HSA_REGION_GLOBAL_FLAG_COARSE_GRAINED) {
+    //std::cout << "  Coarse:" << flags << std::endl;
     dispatch->SetLocalRegion(region);
   }
 
@@ -352,7 +354,13 @@ void Dispatch::SetKernargRegion(hsa_region_t region)
 
 void Dispatch::SetLocalRegion(hsa_region_t region)
 {
+#if 1
+  // choose 1st region
+  if (local_region.handle == 0) { local_region = region; }
+#else
+  // choose 2nd region
   local_region = region;
+#endif
 }
 
 bool Dispatch::AllocateKernarg(uint32_t size)
@@ -612,16 +620,16 @@ public:
     N(256),
     K(16),
 #else
-    M(5760),
-    N(5760),
-    K(5760),
-    //M(1024*4),
-    //N(1024*4),
-    //K(196608/16),
+    //M(5760),
+    //N(5760),
+    //K(5760),
+    M(1024*4),
+    N(1024/2),
+    K(196608/2),
 #endif
-    strideCJ(M+4),
-    strideAK(M+4),
-    strideBK(N+4),
+    strideCJ(M+1),
+    strideAK(M+1),
+    strideBK(N+1),
     numElementsC(strideCJ*N),
     numElementsA(strideAK*K),
     numElementsB(strideBK*K),
@@ -696,7 +704,7 @@ public:
   bool Verify() override {
     //std::cout << "Verify()" << std::endl;
 
-#if FULL_VALIDATION
+#if 0 && FULL_VALIDATION
     if (!CopyFrom(debug)) {
       std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;

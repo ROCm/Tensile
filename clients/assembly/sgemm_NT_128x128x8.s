@@ -133,8 +133,8 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // GL Load G2R - 4 A's and 4 B's
-// vm_cnt   += 2
-// lgkm_cnt += 2
+// vm_cnt   += 8
+// lgkm_cnt += 8
 .macro READ_GLOBAL
   .set src, 20 // Global_read_addr_x4
   .set inc, 14 // Global_read_incr_x2
@@ -178,50 +178,7 @@
   v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
   v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
-// debug
-.if 0
-s_waitcnt vmcnt(0) & lgkmcnt(0)
-flat_store_dword v[8:9], v[a+1]
-s_endpgm
-.endif
-
-
-.endif
-.if 0
-  // also takes 1000ms
-  v_mov_b32 v6, v[src+0]
-  v_mov_b32 v7, v[src+1]
-  flat_load_dword v[a+0], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-  flat_load_dword v[a+1], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-  flat_load_dword v[a+2], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-  flat_load_dword v[a+3], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-
-  v_mov_b32 v6, v[src+2]
-  v_mov_b32 v7, v[src+3]
-  flat_load_dword v[b+0], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-  flat_load_dword v[b+1], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-  flat_load_dword v[b+2], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-  flat_load_dword v[b+3], v[6:7] // A[0:3]
-  //v_add_u32  v6, vcc, v6, 0x4
-  //v_addc_u32 v7, vcc, v7, 0x0, vcc
-
-.endif
-
-.if 0
+.else
   v_mov_b32 v[a], 0
   v_add_f32 v[a], 1.0, v[a]
   v_mov_b32 v[a+1], v[a]
@@ -251,12 +208,12 @@ s_endpgm
   .set b, 28
 
 .if 0
-  // this code works
+  // this code did work
   ds_write2_b64 v[dst+0], v[a+0:a+1], v[a+2:a+3] offset1:1 //32*4*0
   ds_write2_b64 v[dst+1], v[b+0:b+1], v[b+2:b+3] offset1:1 //32*4*0
 .endif
 .if 0
-  // this code works
+  // this code did work
   ds_write_b32 v[dst+0], v[a+0] offset:0 //32*4*0
   ds_write_b32 v[dst+0], v[a+1] offset:4 //32*4*1
   ds_write_b32 v[dst+0], v[a+2] offset:8 //32*4*2
@@ -267,7 +224,7 @@ s_endpgm
   ds_write_b32 v[dst+1], v[b+3] offset:12 //32*4*3
 .endif
 .if 1
-  // this code should work
+  // this code works but is slow
   ds_write2st64_b32 v[dst+0], v[a+0], v[a+1] offset0:256*0/64*1 offset1:256*1/64*1
   ds_write2st64_b32 v[dst+0], v[a+2], v[a+3] offset0:256*2/64*1 offset1:256*3/64*1
   ds_write2st64_b32 v[dst+1], v[b+0], v[b+1] offset0:256*0/64*1 offset1:256*1/64*1
@@ -283,7 +240,7 @@ s_endpgm
   //ds_write2_b32 v[dst+1], v[b+2], v[b+3] offset0:2 offset1:3
 .endif
 .if 0
-  // this code words
+  // this code did work
   ds_write_b64 v[dst+0], v[a+0:a+1] //offset:0 //32*4*0
   ds_write_b64 v[dst+0], v[a+2:a+3] offset:8 //32*4*2
   ds_write_b64 v[dst+1], v[b+0:b+1] //offset:0 //32*4*0
@@ -314,7 +271,7 @@ s_endpgm
 // lgkm_cnt += 4or8
 .macro READ_LOCAL gen
   .set src, 18 // LDS_read_addr_x2
-  .set inc, (128)  // PAD
+  .set inc, (128+0)  // PAD - doesn't appear to impact performance
   .set a, 32
   .set b, 40
   .if \gen%2==1
@@ -366,6 +323,7 @@ s_endpgm
 .endif
 .if 1
   // new version where each thread works on contiguous elements
+  // this code works
   ds_read_b64 v[a+0:a+1], v[src+0] offset:\gen*inc*4+4*0 // A[0:1]
   ds_read_b64 v[a+2:a+3], v[src+0] offset:\gen*inc*4+4*2 // A[2:3]
   ds_read_b64 v[a+4:a+5], v[src+0] offset:\gen*inc*4+4*4 // A[4:5]
@@ -597,7 +555,6 @@ v_lshrrev_b32 v3, 7, v7               // v3=(lid.x+lid.y*16)/128 = aK, bK
 // global_readA
 v_mul_lo_i32 v7, v3, s16              // v7=aK*strideAK
 s_lshl_b32 s21, s2, 7                 // s21 = g0I*128
-//v_lshlrev_b32 v4, 2, v2               // v4=a0I*4
 v_or_b32 v4, s21, v2                  // v4=g0I*128+a0I
 v_add_i32 v7, vcc, v4, v7             // v7=(g0I*128+a0I) + aK*strideK = A_my
 v_add_i32 v4, vcc, s13, v7            // v4=A_my + offsetA
@@ -615,8 +572,6 @@ v_addc_u32 v21, vcc, v6, v7, vcc      // v21=A* + (A_my+offsetA)*4 hi
 // global_readB ?
 v_mul_lo_i32 v7, v3, s17              // v7=bK*strideBK
 s_lshl_b32 s21, s3, 7                 // s21=g1J*128
-//v_lshlrev_b32 v6, 2, v2               // v6=a1J*4
-
 v_or_b32 v6, s21, v2                  // v6=g1J*128+b1J (or = plus)
 v_add_i32 v7, vcc, v6, v7             // v7=bK*strideBK + (g1J*128+b1J) = B_my
 v_add_i32 v22, vcc, s14, v7           // v22=offsetB+B_my lo
@@ -706,9 +661,12 @@ READ_GLOBAL                           // Load (c)                           4  2
 // Wait For MacroTile To Load
 s_waitcnt lgkmcnt(8)                  // Wait [b,l] write local             2  2
 s_barrier                             // barrier after write local
+
 READ_LOCAL 0                          // Load {d}                       06|10  2
 
 //  Iter 0
+s_waitcnt lgkmcnt(8) // wait for float_load from local to return fast
+//                     // so lgkmcnt doesn't overflow
 READ_LOCAL 1                          // Load {e}                       10|18  2
 s_waitcnt lgkmcnt(8)                  // Wait {d}                        6|10  2
 MAC_8X8 0                             // MAC      
@@ -752,7 +710,7 @@ v_xor_b32 v18, 0x4000, v18            // Swap     local_read_A
 v_xor_b32 v19, 0x4000, v19            // Swap     local_read_B
 
 //  Iter 7
-s_waitcnt lgkmcnt(2)                  // Wait {k} not l                     2  0
+s_waitcnt lgkmcnt(4)                  // Wait {k} not l                     2  0
 MAC_8X8 7                             // MAC      Iter=7
 
 // here vm is 0 and lgkm=2->0 b/c of 
@@ -774,37 +732,37 @@ READ_LOCAL 0                          // Load Iter=0
 
 //  Iter 0
 READ_LOCAL 1                          // Load Iter=1
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=0
+s_waitcnt lgkmcnt(8)                  // Wait Iter=0
 MAC_8X8 0                             // MAC  Iter=0
 
 //  Iter 1
 READ_LOCAL 2                          // Load Iter=2
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=1
+s_waitcnt lgkmcnt(8)                  // Wait Iter=1
 MAC_8X8 1                             // MAC  Iter=1
 
 //  Iter 2
 READ_LOCAL 3                          // Load Iter=3
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=2
+s_waitcnt lgkmcnt(8)                  // Wait Iter=2
 MAC_8X8 2                             // MAC  Iter=2
 
 //  Iter 3
 READ_LOCAL 4                          // Load Iter=4
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=3
+s_waitcnt lgkmcnt(8)                  // Wait Iter=3
 MAC_8X8 3                             // MAC  Iter=3
 
 //  Iter 4
 READ_LOCAL 5                          // Load Iter=5
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=4
+s_waitcnt lgkmcnt(8)                  // Wait Iter=4
 MAC_8X8 4                             // MAC  Iter=4
 
 //  Iter 5
 READ_LOCAL 6                          // Load Iter=6
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=5
+s_waitcnt lgkmcnt(8)                  // Wait Iter=5
 MAC_8X8 5                             // MAC  Iter=5
 
 //  Iter 6
 READ_LOCAL 7                          // Load Iter=7
-s_waitcnt lgkmcnt(8)//8               // Wait Iter=6
+s_waitcnt lgkmcnt(8)                  // Wait Iter=6
 MAC_8X8 6                             // MAC  Iter=6
 
 //  Iter 7
