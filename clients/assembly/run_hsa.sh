@@ -3,6 +3,7 @@
 #rocm-smi -a
 
 SOURCE=main_hsa
+#KERNEL=sgemm_NT_128x128x8_sideways
 KERNEL=sgemm_NT_128x128x8
 #KERNEL=fmac
 CLANG=/home/amd/llvm/bin/clang

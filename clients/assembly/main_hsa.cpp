@@ -51,7 +51,7 @@
 #include <iomanip>
 #include <time.h>
 
-#define FULL_VALIDATION 0
+#define FULL_VALIDATION 1
 
 double total_time_ms;
 
@@ -620,12 +620,12 @@ public:
     N(256),
     K(16),
 #else
-    //M(5760),
-    //N(5760),
-    //K(5760),
-    M(1024*4),
-    N(1024/2),
-    K(196608/2),
+    M(5760),
+    N(5760),
+    K(5760),
+    //M(1024*4),
+    //N(1024/2),
+    //K(196608/2),
 #endif
     strideCJ(M+1),
     strideAK(M+1),
@@ -801,7 +801,7 @@ public:
 int main(int argc, const char** argv)
 {
   total_time_ms = 0;
-  unsigned int numSamples = 1;
+  unsigned int numSamples = 4;
   for (unsigned int i = 0; i < numSamples; i++) {
    AsmKernelDispatch(argc, argv).RunMain();
   }
