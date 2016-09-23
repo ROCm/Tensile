@@ -51,7 +51,17 @@
 #include <iomanip>
 #include <time.h>
 
-#define FULL_VALIDATION 1
+#define FULL_VALIDATION 0
+
+#if FULL_VALIDATION
+#define PPDM 256
+#define PPDN 128
+#define PPDK 16
+#else
+#define PPDM 2048
+#define PPDN 1024
+#define PPDK 1048576/16
+#endif
 
 double total_time_ms;
 
@@ -615,18 +625,9 @@ public:
     vB(1),
     alpha(1),
     beta(0),
-#if FULL_VALIDATION
-    M(512),
-    N(256),
-    K(16),
-#else
-    M(5760),
-    N(5760),
-    K(5760),
-    //M(1024*4),
-    //N(1024/2),
-    //K(196608/2),
-#endif
+    M(PPDM),
+    N(PPDN),
+    K(PPDK),
     strideCJ(M+1),
     strideAK(M+1),
     strideBK(N+1),
@@ -704,7 +705,7 @@ public:
   bool Verify() override {
     //std::cout << "Verify()" << std::endl;
 
-#if 0 && FULL_VALIDATION
+#if FULL_VALIDATION
     if (!CopyFrom(debug)) {
       std::cout << "Error: failed to copy debug from local" << std::endl;
       return false;
@@ -784,7 +785,7 @@ public:
           numInvalid++;
           if (numInvalid < 4 ) {
             std::cout << "c[" << d1 << "," << d0 << "] = "
-                << c->Data<float>(idxC) << (equal ? " == " : " != ") << refC[idxC] << std::endl;
+                << c->Data<float>(idxC) << (equal ? " == " : " != ") << correctC << std::endl;
           }
         }
         //output << (equal ? "#" : "~");
@@ -802,11 +803,14 @@ int main(int argc, const char** argv)
 {
   total_time_ms = 0;
   unsigned int numSamples = 4;
+#if FULL_VALIDATION
+  numSamples = 1;
+#endif
   for (unsigned int i = 0; i < numSamples; i++) {
    AsmKernelDispatch(argc, argv).RunMain();
   }
   double avg_time = (total_time_ms/numSamples);
-  double tflops = (2.0*5760*5760*5760/avg_time/1000000000);
+  double tflops = (2.0*PPDM*PPDN*PPDK/avg_time/1000000000);
   std::cout << "AvgTime: " << avg_time << " ms (" << numSamples << " samples)" << std::endl;
   std::cout << "AvgPerf: " << tflops << " TFlop/s (" << (100*tflops/8.192) << " %-of-peak" << std::endl;
   return 1;
