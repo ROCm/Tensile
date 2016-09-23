@@ -113,7 +113,7 @@ flat_store_dword v[12:13], v[idx]     // store C
 
 ////////////////////////////////////////////////////////////////////////////////
 // iteration unrolled
-.macro ITERATION iter
+.macro ITERATION iter extra_waitcnt
 .set read_a, 32
 .set read_b, 40
 .set mac_a, 48
@@ -132,16 +132,18 @@ flat_store_dword v[12:13], v[idx]     // store C
 s_waitcnt lgkmcnt(8)
 ds_read_b32 v[read_a+0], v18 offset:\iter*128*4+16*4*0 // A[0]
 ds_read_b32 v[read_a+1], v18 offset:\iter*128*4+16*4*1 // A[1]
-ds_read_b32 v[read_a+2], v18 offset:\iter*128*4+16*4*2 // A[2]
-ds_read_b32 v[read_a+3], v18 offset:\iter*128*4+16*4*3 // A[3]
 ds_read_b32 v[read_b+0], v19 offset:\iter*128*4+16*4*0 // B[0]
 ds_read_b32 v[read_b+1], v19 offset:\iter*128*4+16*4*1 // B[1]
+ds_read_b32 v[read_a+2], v18 offset:\iter*128*4+16*4*2 // A[2]
+ds_read_b32 v[read_a+3], v18 offset:\iter*128*4+16*4*3 // A[3]
 ds_read_b32 v[read_b+2], v19 offset:\iter*128*4+16*4*2 // B[2]
 ds_read_b32 v[read_b+3], v19 offset:\iter*128*4+16*4*3 // B[3]
 v_mac_f32 v[c+0+0*8], v[mac_a+0], v[mac_b+0]
 v_mac_f32 v[c+1+0*8], v[mac_a+1], v[mac_b+0] 
 v_mac_f32 v[c+1+1*8], v[mac_a+1], v[mac_b+1] 
 v_mac_f32 v[c+0+1*8], v[mac_a+0], v[mac_b+1] 
+
+//s_waitcnt lgkmcnt(12)
 v_mac_f32 v[c+2+0*8], v[mac_a+2], v[mac_b+0] 
 v_mac_f32 v[c+3+0*8], v[mac_a+3], v[mac_b+0] 
 v_mac_f32 v[c+3+1*8], v[mac_a+3], v[mac_b+1] 
@@ -161,26 +163,18 @@ v_mac_f32 v[c+0+3*8], v[mac_a+0], v[mac_b+3]
 s_waitcnt lgkmcnt(8)
 ds_read_b32 v[read_a+4], v18 offset:\iter*128*4+16*4*4 // A[4]
 ds_read_b32 v[read_a+5], v18 offset:\iter*128*4+16*4*5 // A[5]
-ds_read_b32 v[read_a+6], v18 offset:\iter*128*4+16*4*6 // A[6]
-ds_read_b32 v[read_a+7], v18 offset:\iter*128*4+16*4*7 // A[7]
 ds_read_b32 v[read_b+4], v19 offset:\iter*128*4+16*4*4 // B[4]
 ds_read_b32 v[read_b+5], v19 offset:\iter*128*4+16*4*5 // B[5]
+ds_read_b32 v[read_a+6], v18 offset:\iter*128*4+16*4*6 // A[6]
+ds_read_b32 v[read_a+7], v18 offset:\iter*128*4+16*4*7 // A[7]
 ds_read_b32 v[read_b+6], v19 offset:\iter*128*4+16*4*6 // B[6]
 ds_read_b32 v[read_b+7], v19 offset:\iter*128*4+16*4*7 // B[7]
 v_mac_f32 v[c+4+0*8], v[mac_a+4], v[mac_b+0] 
 v_mac_f32 v[c+5+0*8], v[mac_a+5], v[mac_b+0] 
-v_mac_f32 v[c+6+0*8], v[mac_a+6], v[mac_b+0] 
-v_mac_f32 v[c+7+0*8], v[mac_a+7], v[mac_b+0] 
-v_mac_f32 v[c+7+1*8], v[mac_a+7], v[mac_b+1] 
-v_mac_f32 v[c+6+1*8], v[mac_a+6], v[mac_b+1] 
 v_mac_f32 v[c+5+1*8], v[mac_a+5], v[mac_b+1] 
 v_mac_f32 v[c+4+1*8], v[mac_a+4], v[mac_b+1] 
 v_mac_f32 v[c+4+2*8], v[mac_a+4], v[mac_b+2] 
 v_mac_f32 v[c+5+2*8], v[mac_a+5], v[mac_b+2] 
-v_mac_f32 v[c+6+2*8], v[mac_a+6], v[mac_b+2] 
-v_mac_f32 v[c+7+2*8], v[mac_a+7], v[mac_b+2] 
-v_mac_f32 v[c+7+3*8], v[mac_a+7], v[mac_b+3] 
-v_mac_f32 v[c+6+3*8], v[mac_a+6], v[mac_b+3] 
 v_mac_f32 v[c+5+3*8], v[mac_a+5], v[mac_b+3] 
 v_mac_f32 v[c+4+3*8], v[mac_a+4], v[mac_b+3] 
 v_mac_f32 v[c+0+4*8], v[mac_a+0], v[mac_b+4]
@@ -199,6 +193,16 @@ v_mac_f32 v[c+3+5*8], v[mac_a+3], v[mac_b+5]
 v_mac_f32 v[c+2+5*8], v[mac_a+2], v[mac_b+5] 
 v_mac_f32 v[c+1+5*8], v[mac_a+1], v[mac_b+5] 
 v_mac_f32 v[c+0+5*8], v[mac_a+0], v[mac_b+5] 
+
+//s_waitcnt lgkmcnt(12)
+v_mac_f32 v[c+6+0*8], v[mac_a+6], v[mac_b+0] 
+v_mac_f32 v[c+7+0*8], v[mac_a+7], v[mac_b+0] 
+v_mac_f32 v[c+7+1*8], v[mac_a+7], v[mac_b+1] 
+v_mac_f32 v[c+6+1*8], v[mac_a+6], v[mac_b+1] 
+v_mac_f32 v[c+6+2*8], v[mac_a+6], v[mac_b+2] 
+v_mac_f32 v[c+7+2*8], v[mac_a+7], v[mac_b+2] 
+v_mac_f32 v[c+7+3*8], v[mac_a+7], v[mac_b+3] 
+v_mac_f32 v[c+6+3*8], v[mac_a+6], v[mac_b+3] 
 v_mac_f32 v[c+0+6*8], v[mac_a+0], v[mac_b+6]
 v_mac_f32 v[c+1+6*8], v[mac_a+1], v[mac_b+6] 
 v_mac_f32 v[c+2+6*8], v[mac_a+2], v[mac_b+6] 
@@ -428,20 +432,22 @@ s_barrier
 .set read_b, 40
 ds_read_b32 v[read_a+0], v18 offset:0*128*4+16*4*0 // A[0]
 ds_read_b32 v[read_a+1], v18 offset:0*128*4+16*4*1 // A[1]
-ds_read_b32 v[read_a+2], v18 offset:0*128*4+16*4*2 // A[2]
-ds_read_b32 v[read_a+3], v18 offset:0*128*4+16*4*3 // A[3]
 ds_read_b32 v[read_b+0], v19 offset:0*128*4+16*4*0 // B[0]
 ds_read_b32 v[read_b+1], v19 offset:0*128*4+16*4*1 // B[1]
+
+ds_read_b32 v[read_a+2], v18 offset:0*128*4+16*4*2 // A[2]
+ds_read_b32 v[read_a+3], v18 offset:0*128*4+16*4*3 // A[3]
 ds_read_b32 v[read_b+2], v19 offset:0*128*4+16*4*2 // B[2]
 ds_read_b32 v[read_b+3], v19 offset:0*128*4+16*4*3 // B[3]
 
 // Load A[4:7],B[4:7]
 ds_read_b32 v[read_a+4], v18 offset:0*128*4+16*4*4 // A[4]
 ds_read_b32 v[read_a+5], v18 offset:0*128*4+16*4*5 // A[5]
-ds_read_b32 v[read_a+6], v18 offset:0*128*4+16*4*6 // A[6]
-ds_read_b32 v[read_a+7], v18 offset:0*128*4+16*4*7 // A[7]
 ds_read_b32 v[read_b+4], v19 offset:0*128*4+16*4*4 // B[4]
 ds_read_b32 v[read_b+5], v19 offset:0*128*4+16*4*5 // B[5]
+
+ds_read_b32 v[read_a+6], v18 offset:0*128*4+16*4*6 // A[6]
+ds_read_b32 v[read_a+7], v18 offset:0*128*4+16*4*7 // A[7]
 ds_read_b32 v[read_b+6], v19 offset:0*128*4+16*4*6 // B[6]
 ds_read_b32 v[read_b+7], v19 offset:0*128*4+16*4*7 // B[7]
 
@@ -460,12 +466,12 @@ s_waitcnt lgkmcnt(16-2) // ensure room in queue
 READ_GLOBAL
 
 // Iteration 1-6 ///////////////////////////////////////////////////////////////
-ITERATION 1
-ITERATION 2
-ITERATION 3
-ITERATION 4
-ITERATION 5
-ITERATION 6
+ITERATION 1 2
+ITERATION 2 0
+ITERATION 3 0
+ITERATION 4 0
+ITERATION 5 0
+ITERATION 6 0
 
 // wait for global load and space in lgkm queue
 s_waitcnt vmcnt(0) & lgkmcnt(16-2)
@@ -473,7 +479,8 @@ WRITE_LOCAL
 
 // Iteration 7 /////////////////////////////////////////////////////////////////
 // this iter needs special waits to cope with write above
-ITERATION 7
+ITERATION 7 2
+s_barrier
 
 // done with this iter's reads and writes
 v_xor_b32 v16, 0x4000, v16            // Swap     local_write_A
@@ -481,104 +488,8 @@ v_xor_b32 v17, 0x4000, v17            // Swap     local_write_B
 v_xor_b32 v18, 0x4000, v18            // Swap     local_read_A
 v_xor_b32 v19, 0x4000, v19            // Swap     local_read_B
 
-// Iteration 8 /////////////////////////////////////////////////////////////////
-
-// TODO fixing this to smooth around loop
-
-// Wait A[0:3],B[0:3]. A[4:7],B[4:7] outstanding.
-// Load A[0:3],B[0:3] next iter.
-// MACs A[0:3],B[0:3].
-s_waitcnt lgkmcnt(8)
-s_barrier
-.set read_a, 32
-.set read_b, 40
-ds_read_b32 v[read_a+0], v18 offset:0*128*4+16*4*0 // A[0]
-ds_read_b32 v[read_a+1], v18 offset:0*128*4+16*4*1 // A[1]
-ds_read_b32 v[read_a+2], v18 offset:0*128*4+16*4*2 // A[2]
-ds_read_b32 v[read_a+3], v18 offset:0*128*4+16*4*3 // A[3]
-ds_read_b32 v[read_b+0], v19 offset:0*128*4+16*4*0 // B[0]
-ds_read_b32 v[read_b+1], v19 offset:0*128*4+16*4*1 // B[1]
-ds_read_b32 v[read_b+2], v19 offset:0*128*4+16*4*2 // B[2]
-ds_read_b32 v[read_b+3], v19 offset:0*128*4+16*4*3 // B[3]
-.set mac_a, 48
-.set mac_b, 56
-v_mac_f32 v[c+0+0*8], v[mac_a+0], v[mac_b+0]
-v_mac_f32 v[c+1+0*8], v[mac_a+1], v[mac_b+0] 
-v_mac_f32 v[c+1+1*8], v[mac_a+1], v[mac_b+1] 
-v_mac_f32 v[c+0+1*8], v[mac_a+0], v[mac_b+1] 
-v_mac_f32 v[c+2+0*8], v[mac_a+2], v[mac_b+0] 
-v_mac_f32 v[c+3+0*8], v[mac_a+3], v[mac_b+0] 
-v_mac_f32 v[c+3+1*8], v[mac_a+3], v[mac_b+1] 
-v_mac_f32 v[c+2+1*8], v[mac_a+2], v[mac_b+1] 
-v_mac_f32 v[c+0+2*8], v[mac_a+0], v[mac_b+2]
-v_mac_f32 v[c+1+2*8], v[mac_a+1], v[mac_b+2] 
-v_mac_f32 v[c+2+2*8], v[mac_a+2], v[mac_b+2] 
-v_mac_f32 v[c+3+2*8], v[mac_a+3], v[mac_b+2] 
-v_mac_f32 v[c+3+3*8], v[mac_a+3], v[mac_b+3] 
-v_mac_f32 v[c+2+3*8], v[mac_a+2], v[mac_b+3] 
-v_mac_f32 v[c+1+3*8], v[mac_a+1], v[mac_b+3] 
-v_mac_f32 v[c+0+3*8], v[mac_a+0], v[mac_b+3] 
-
-// Wait A[4:7],B[4:7]. None outstanding.
-// Load A[4:7],B[4:7] next iter.
-// MACs A[4:7],B[4:7].
-s_waitcnt lgkmcnt(8)
-ds_read_b32 v[read_a+4], v18 offset:0*128*4+16*4*4 // A[4]
-ds_read_b32 v[read_a+5], v18 offset:0*128*4+16*4*5 // A[5]
-ds_read_b32 v[read_a+6], v18 offset:0*128*4+16*4*6 // A[6]
-ds_read_b32 v[read_a+7], v18 offset:0*128*4+16*4*7 // A[7]
-ds_read_b32 v[read_b+4], v19 offset:0*128*4+16*4*4 // B[4]
-ds_read_b32 v[read_b+5], v19 offset:0*128*4+16*4*5 // B[5]
-ds_read_b32 v[read_b+6], v19 offset:0*128*4+16*4*6 // B[6]
-ds_read_b32 v[read_b+7], v19 offset:0*128*4+16*4*7 // B[7]
-v_mac_f32 v[c+4+0*8], v[mac_a+4], v[mac_b+0] 
-v_mac_f32 v[c+5+0*8], v[mac_a+5], v[mac_b+0] 
-v_mac_f32 v[c+6+0*8], v[mac_a+6], v[mac_b+0] 
-v_mac_f32 v[c+7+0*8], v[mac_a+7], v[mac_b+0] 
-v_mac_f32 v[c+7+1*8], v[mac_a+7], v[mac_b+1] 
-v_mac_f32 v[c+6+1*8], v[mac_a+6], v[mac_b+1] 
-v_mac_f32 v[c+5+1*8], v[mac_a+5], v[mac_b+1] 
-v_mac_f32 v[c+4+1*8], v[mac_a+4], v[mac_b+1] 
-v_mac_f32 v[c+4+2*8], v[mac_a+4], v[mac_b+2] 
-v_mac_f32 v[c+5+2*8], v[mac_a+5], v[mac_b+2] 
-v_mac_f32 v[c+6+2*8], v[mac_a+6], v[mac_b+2] 
-v_mac_f32 v[c+7+2*8], v[mac_a+7], v[mac_b+2] 
-v_mac_f32 v[c+7+3*8], v[mac_a+7], v[mac_b+3] 
-v_mac_f32 v[c+6+3*8], v[mac_a+6], v[mac_b+3] 
-v_mac_f32 v[c+5+3*8], v[mac_a+5], v[mac_b+3] 
-v_mac_f32 v[c+4+3*8], v[mac_a+4], v[mac_b+3] 
-v_mac_f32 v[c+0+4*8], v[mac_a+0], v[mac_b+4]
-v_mac_f32 v[c+1+4*8], v[mac_a+1], v[mac_b+4] 
-v_mac_f32 v[c+2+4*8], v[mac_a+2], v[mac_b+4] 
-v_mac_f32 v[c+3+4*8], v[mac_a+3], v[mac_b+4] 
-v_mac_f32 v[c+4+4*8], v[mac_a+4], v[mac_b+4] 
-v_mac_f32 v[c+5+4*8], v[mac_a+5], v[mac_b+4] 
-v_mac_f32 v[c+6+4*8], v[mac_a+6], v[mac_b+4] 
-v_mac_f32 v[c+7+4*8], v[mac_a+7], v[mac_b+4] 
-v_mac_f32 v[c+7+5*8], v[mac_a+7], v[mac_b+5] 
-v_mac_f32 v[c+6+5*8], v[mac_a+6], v[mac_b+5] 
-v_mac_f32 v[c+5+5*8], v[mac_a+5], v[mac_b+5] 
-v_mac_f32 v[c+4+5*8], v[mac_a+4], v[mac_b+5] 
-v_mac_f32 v[c+3+5*8], v[mac_a+3], v[mac_b+5] 
-v_mac_f32 v[c+2+5*8], v[mac_a+2], v[mac_b+5] 
-v_mac_f32 v[c+1+5*8], v[mac_a+1], v[mac_b+5] 
-v_mac_f32 v[c+0+5*8], v[mac_a+0], v[mac_b+5] 
-v_mac_f32 v[c+0+6*8], v[mac_a+0], v[mac_b+6]
-v_mac_f32 v[c+1+6*8], v[mac_a+1], v[mac_b+6] 
-v_mac_f32 v[c+2+6*8], v[mac_a+2], v[mac_b+6] 
-v_mac_f32 v[c+3+6*8], v[mac_a+3], v[mac_b+6] 
-v_mac_f32 v[c+4+6*8], v[mac_a+4], v[mac_b+6] 
-v_mac_f32 v[c+5+6*8], v[mac_a+5], v[mac_b+6] 
-v_mac_f32 v[c+6+6*8], v[mac_a+6], v[mac_b+6] 
-v_mac_f32 v[c+7+6*8], v[mac_a+7], v[mac_b+6] 
-v_mac_f32 v[c+7+7*8], v[mac_a+7], v[mac_b+7] 
-v_mac_f32 v[c+6+7*8], v[mac_a+6], v[mac_b+7] 
-v_mac_f32 v[c+5+7*8], v[mac_a+5], v[mac_b+7] 
-v_mac_f32 v[c+4+7*8], v[mac_a+4], v[mac_b+7] 
-v_mac_f32 v[c+3+7*8], v[mac_a+3], v[mac_b+7] 
-v_mac_f32 v[c+2+7*8], v[mac_a+2], v[mac_b+7] 
-v_mac_f32 v[c+1+7*8], v[mac_a+1], v[mac_b+7] 
-v_mac_f32 v[c+0+7*8], v[mac_a+0], v[mac_b+7] 
+// Iteration 0 /////////////////////////////////////////////////////////////////
+ITERATION 0 0
 
 // loop back to beginning
 s_add_u32       s20, s20, 1           // Incr     Counter
@@ -600,13 +511,13 @@ label_0001:
 //s_barrier                             // barrier after store to local
 
 // Iteration 1-7 ///////////////////////////////////////////////////////////////
-ITERATION 1
-ITERATION 2
-ITERATION 3
-ITERATION 4
-ITERATION 5
-ITERATION 6
-ITERATION 7
+ITERATION 1 0
+ITERATION 2 0
+ITERATION 3 0
+ITERATION 4 0
+ITERATION 5 0
+ITERATION 6 0
+ITERATION 7 0
 
 // Iteration 8 /////////////////////////////////////////////////////////////////
 

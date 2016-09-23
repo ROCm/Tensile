@@ -54,13 +54,16 @@
 #define FULL_VALIDATION 0
 
 #if FULL_VALIDATION
-#define PPDM 256
-#define PPDN 128
-#define PPDK 16
+#define PPDM (2048)
+#define PPDN (1024)
+#define PPDK ( 16*8)
 #else
-#define PPDM 2048
-#define PPDN 1024
-#define PPDK 1048576/16
+//#define PPDM (2048*3)
+//#define PPDN (1024*3)
+//#define PPDK (4096*4)
+#define PPDM (5760)
+#define PPDN (5760)
+#define PPDK (5760)
 #endif
 
 double total_time_ms;
@@ -465,7 +468,7 @@ bool Dispatch::Wait()
   double elapsed_ms = elapsed_us / 1000.0;
   total_time_ms += elapsed_ms;
   std::cout << "t = " << elapsed_ms << " ms" << std::endl;
-  double tflops = (2.0*5760*5760*5760/elapsed_ms/1000000000);
+  double tflops = (2.0*PPDM*PPDN*PPDK/elapsed_ms/1000000000);
   std::cout << tflops << " GFlop/s (" << (100*tflops/8.192) << " %-of-peak" << std::endl;
   
   return true;
@@ -628,9 +631,9 @@ public:
     M(PPDM),
     N(PPDN),
     K(PPDK),
-    strideCJ(M+1),
-    strideAK(M+1),
-    strideBK(N+1),
+    strideCJ(M+0),
+    strideAK(M+0),
+    strideBK(N+0),
     numElementsC(strideCJ*N),
     numElementsA(strideAK*K),
     numElementsB(strideBK*K),
