@@ -38,8 +38,10 @@ std::string indent(size_t level);
 
 bool factor( size_t input, unsigned int & a, unsigned int & b);
 
+void makeFileNameSafe( char *str );
 
 } // namespace
+
 
 #define cobaltMin(a,b) (((a) < (b)) ? (a) : (b))
 #define cobaltMax(a,b) (((a) > (b)) ? (a) : (b))

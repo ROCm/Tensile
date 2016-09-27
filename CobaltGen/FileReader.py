@@ -138,6 +138,9 @@ class CobaltHandler( xml.sax.ContentHandler ):
       n = int(attributes["n"])
       for i in range(0,n):
         name = attributes["d"+str(i)]
+        for j in range(0,len(name)):
+          if not name[j].isalnum():
+            name = name[:j] + "_" + name[j+1:]
         numComputeUnits = int(attributes["CU"+str(i)])
         clockFrequency = int(attributes["MHz"+str(i)])
         flopsPerClock = int(attributes["FPC"+str(i)])

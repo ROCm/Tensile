@@ -214,7 +214,7 @@ unsigned int addGEMMCombinatorics() {
                   sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
                 }
 #else
-                sizes.push_back({ 5760, 5760, 5760 });
+                sizes.push_back({ 512, 512, 512 });
 #endif
 
 

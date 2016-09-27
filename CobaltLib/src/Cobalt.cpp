@@ -113,6 +113,7 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
         CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
         profile.numDevices = 1;
         status = clGetDeviceInfo(devices[d], CL_DEVICE_NAME, profile.devices[0].maxNameLength, profile.devices[0].name, 0);
+        Cobalt::makeFileNameSafe( profile.devices[0].name );
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(profile.devices[0].clockFrequency), &profile.devices[0].clockFrequency, 0);
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(profile.devices[0].numComputeUnits), &profile.devices[0].numComputeUnits, 0);
         enumeratedProfiles.push_back(profile);
@@ -131,6 +132,7 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
       CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
       profile.numDevices = 1;
       strcpy( profile.devices[0].name, deviceProperties.name );
+      Cobalt::makeFileNameSafe( profile.devices[0].name );
       profile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
       profile.devices[0].clockFrequency = deviceProperties.clockRate;
       enumeratedProfiles.push_back(profile);
