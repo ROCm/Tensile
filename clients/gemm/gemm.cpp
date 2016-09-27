@@ -202,19 +202,19 @@ unsigned int addGEMMCombinatorics() {
             for (size_t alphaIdx = 0; alphaIdx < numAlphas; alphaIdx++) {
               for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
 
-				  std::vector<std::array<size_t, 3>> sizes;
+                std::vector<std::array<size_t, 3>> sizes;
 #if 0
-				  size_t stride = 16;
-				  size_t stride_incr = 16; // 0->1440, 16->108, 32->76
-				  size_t sizeMax = 5760 / batches[bIdx];
-				  for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
-					  sizes.push_back({ i, i, i }); // exact tile, exact unroll
-					  sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
-					  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
-					  sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
-				  }
+                size_t stride = 16;
+                size_t stride_incr = 16; // 0->1440, 16->108, 32->76
+                size_t sizeMax = 5760 / batches[bIdx];
+                for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
+                  sizes.push_back({ i, i, i }); // exact tile, exact unroll
+                  sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
+                  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
+                  sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
+                }
 #else
-				  sizes.push_back({ 5760, 5760, 5760 }); // fallback tile, fallback unroll
+                sizes.push_back({ 512, 512, 512 });
 #endif
 
 

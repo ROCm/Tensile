@@ -339,6 +339,20 @@ class SolutionCandidateGenerator:
         # print microTileMin, microTileMax, workGroup[0], workGroup[1]
         for microTileDim0 in range(microTileMin, microTileMax+1):
           for microTileDim1 in range(microTileMin, microTileMax+1):
+
+            # filter out single solution
+            if False:
+              if microTileDim0 != 8:
+                continue
+              if microTileDim1 != 8:
+                continue
+              if workGroup[0] != 16:
+                continue
+              if workGroup[1] != 16:
+                continue
+              if unroll != [8]:
+                continue
+
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
 

@@ -1,6 +1,6 @@
 
 #include "Tools.h"
-
+#include <ctype.h>
 #include <cmath>
 
 namespace Cobalt {
@@ -76,5 +76,13 @@ bool factor(size_t input, unsigned int & a, unsigned int & b) {
   return false;
 }
 
+
+void makeFileNameSafe( char *str ) {
+  for ( ; *str != '\0'; str++ ) {
+    if ( !isalnum( *str ) ) {
+      *str = '_';
+    }
+  }
+}
 
 } // namespace
