@@ -7,9 +7,6 @@ cmake_minimum_required(VERSION 2.8.12)
 ############################################################
 # Cobalt project name
 set( CobaltProj_NAME Cobalt )
-set( CobaltLib_NAME Cobalt )
-set( CobaltLogger_NAME CobaltLogger )
-set( CobaltBenchmark_NAME CobaltBenchmark )
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
@@ -64,27 +61,6 @@ endif()
 
 set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS OpenCL_1.2 HIP )
 
-# OpenCL 1.2
-if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  find_package(OpenCL "1.2" REQUIRED)
-  message(STATUS "${Cobalt_BACKEND} backend selected." )
-  set( CobaltLib_NAME "${CobaltLib_NAME}-ocl" )
-  set( CobaltLogger_NAME "${CobaltLogger_NAME}-ocl" )
-
-# HIP
-elseif( Cobalt_BACKEND MATCHES "HIP")
-  find_package( HIP REQUIRED )
-  message(STATUS "${Cobalt_BACKEND} backend selected." )
-  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
-  if( ${HIP_PLATFORM} MATCHES "hcc" )
-    set( CobaltLib_NAME "${CobaltLib_NAME}-hcc" )
-    set( CobaltLogger_NAME "${CobaltLogger_NAME}-hcc" )
-  else( )
-    set( CobaltLib_NAME "${CobaltLib_NAME}-cuda" )
-    set( CobaltLogger_NAME "${CobaltLogger_NAME}-cuda" )
-  endif( )
-endif( )
-
 ############################################################
 # OPTION - Cobalt Optimizations
 # - On - do write kernels specifically optimized for alpha=1, beta=0
@@ -129,19 +105,9 @@ set( CobaltGen_SRC
   ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
 )
 
-############################################################
-# Dynamic CMake files - will be over-written later
-############################################################
-# Benchmark Kernels
-set( CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC
-    ${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
-if( NOT EXISTS ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC})
-file( WRITE ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC}
-    "set( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Kernels FILES "
-    "${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n"
-)
-endif()
+# ############################################################
+# # Dynamic CMake files - will be over-written later
+# ############################################################
 
 # Lib Kernels
 set( CobaltLib_KernelFiles_CMAKE_DYNAMIC
@@ -151,16 +117,6 @@ file( WRITE ${CobaltLib_KernelFiles_CMAKE_DYNAMIC}
     "set( CobaltLib_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
     "source_group(Kernels FILES ${CobaltLib_KernelFiles_GENERATED_DYNAMIC} )\n"
 )
-endif()
-
-# Benchmark Solutions
-set( CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC
-  ${CobaltBenchmark_DIR_GENERATED}/Solutions/CobaltSolutions.cmake )
-if( NOT EXISTS ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC}
-    "set( CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n"
-  )
 endif()
 
 # Lib Solutions
@@ -197,38 +153,10 @@ endif()
 include( ${CobaltLib_CMAKE_DYNAMIC} )
 
 
-if( NOT EXISTS
-    ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
-  #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
-  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
-    "" )
-endif()
-
-
-set( CobaltBenchmark_CMAKE_DYNAMIC
-  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake
-)
-if( NOT EXISTS ${CobaltBenchmark_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltBenchmark_CMAKE_DYNAMIC}
-    "include( \${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
-    "include( \${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
-    "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
-    "  \${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}\n"
-    "  \${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n" )
-endif()
-include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
-
-
 
 ################################################################################
 # XML Lists
 ################################################################################
-set( Cobalt_XML_PROBLEMS_FILE
-  ${Cobalt_DIR_PROBLEMS}/list_of_xmls.txt )
-if( NOT EXISTS ${Cobalt_XML_PROBLEMS_FILE})
-  file( WRITE ${Cobalt_XML_PROBLEMS_FILE}
-    "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBenchmark.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )
-endif()
 set( Cobalt_XML_SOLUTIONS_FILE
   ${Cobalt_DIR_SOLUTIONS}/list_of_xmls.txt )
 if( NOT EXISTS ${Cobalt_XML_SOLUTIONS_FILE})

@@ -2,6 +2,30 @@
 # CobaltLogger & CobaltLib
 ################################################################################
 
+set( CobaltLib_NAME Cobalt )
+set( CobaltLogger_NAME CobaltLogger )
+
+# OpenCL 1.2
+if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
+  find_package(OpenCL "1.2" REQUIRED)
+  message(STATUS "${Cobalt_BACKEND} backend selected." )
+  set( CobaltLib_NAME "${CobaltLib_NAME}-ocl" )
+  set( CobaltLogger_NAME "${CobaltLogger_NAME}-ocl" )
+
+# HIP
+elseif( Cobalt_BACKEND MATCHES "HIP")
+  find_package( HIP REQUIRED )
+  message(STATUS "${Cobalt_BACKEND} backend selected." )
+  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
+  if( ${HIP_PLATFORM} MATCHES "hcc" )
+    set( CobaltLib_NAME "${CobaltLib_NAME}-hcc" )
+    set( CobaltLogger_NAME "${CobaltLogger_NAME}-hcc" )
+  else( )
+    set( CobaltLib_NAME "${CobaltLib_NAME}-cuda" )
+    set( CobaltLogger_NAME "${CobaltLogger_NAME}-cuda" )
+  endif( )
+endif( )
+
 ############################################################
 # CobaltLib source files
 set( CobaltLib_SRC_STATIC
