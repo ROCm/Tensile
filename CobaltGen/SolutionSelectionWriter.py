@@ -14,6 +14,7 @@ class SolutionSelectionWriter:
     self.solutionSet = set()
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
     self.printLogic = False
+    self.fallbackPSPU1 = None
   
   def getKernelSet(self):
     return self.kernelSet
@@ -692,11 +693,11 @@ class SolutionSelectionWriter:
       for psp in ug:
         self.addPSPToSets(psp)
     self.addPSPToSets(rule[1]) # fallback
-    newFallbackPSP = copy.deepcopy( rule[1] )
-    for i in range( 0, 4):
-      if newFallbackPSP[1].kernels[i] != None:
-        newFallbackPSP[1].kernels[i].unrolls = [ 1 ]
-    self.addPSPToSets(newFallbackPSP)
+    #newFallbackPSP = copy.deepcopy( rule[1] )
+    #for i in range( 0, 4):
+    #  if newFallbackPSP[1].kernels[i] != None:
+    #    newFallbackPSP[1].kernels[i].unrolls = [ 1 ]
+    #self.addPSPToSets(newFallbackPSP)
 
 
   def ruleToLibString(self, rule, firstSizeGroup, lastSizeGroup, exactPSPsInRange, indent):
@@ -764,11 +765,11 @@ class SolutionSelectionWriter:
       sizeUL = fallbackSolution.kernels[0].unrolls[0]
       gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
       s += indent + "  if ( sizeU >= %2u) { return new Cobalt::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
-      newFallbackSolution = copy.deepcopy( fallbackSolution )
-      for i in range( 0, 4):
-        if newFallbackSolution.kernels[i] != None:
-          newFallbackSolution.kernels[i].unrolls = [ 1 ]
-      s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
+      #newFallbackSolution = copy.deepcopy( fallbackSolution )
+      #for i in range( 0, 4):
+      #  if newFallbackSolution.kernels[i] != None:
+      #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
+      #s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
     else:
       s += indent + "  *status = cobaltStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
       s += indent + "  return nullptr;\n"
@@ -885,32 +886,24 @@ class SolutionSelectionWriter:
         #print self.pspToString(fallback) + " - adding exacts only"
         fastestPSPs.add( tuple(copy.deepcopy(psp)) )
 
-      # finalRuleString = self.ruleToString(rule)
-      # print "FINAL RULE: " + finalRuleString
-      
       # self.addRuleToSets(rule)
       s += self.ruleToLibString(rule, firstSizeGroup, lastSizeGroup, fastestExactPSPsInRange, "  ")
-      #for ug in rule[0]: # exact tiles
-      #  for psp in ug:
-      #    localSolutionSet.add( psp[1] )
-      #localSolutionSet.add(rule[1][1])
-      #newFallbackSolution = copy.deepcopy( rule[1][1] )
-      #for i in range( 0, 4):
-      #  if newFallbackSolution.kernels[i] != None:
-      #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
-      #localSolutionSet.add(newFallbackSolution)
-
-
-
-
-
-
-
-
-
-
-      
+          
     else:
+      # determine fastest branched fallback to use for unroll=1
+      fastestIdxU1 = -1
+      fastestGFlopsU1 = -1
+      for i in range(0,len(rangePSPs)):
+        psp = rangePSPs[i]
+        if psp[1].branch[0].isBranched():
+          gflops = self.getGFlops(psp[0], psp[2])
+          if gflops > fastestGFlopsU1:
+            fastestIdxU1 = i
+            fastestGFlopsU1 = gflops
+      self.fallbackPSPU1 = copy.deepcopy(rangePSPs[fastestIdxU1])
+      self.fallbackPSPU1[1].kernels[0].unrolls = [ 1 ]
+      self.addPSPToSets(self.fallbackPSPU1)
+      localSolutionSet.add(self.fallbackPSPU1[1])
       while len(rangePSPs) > 0:
         if self.printLogic: print "STATUS - psps remaining = " + str(len(rangePSPs))
 
@@ -1174,10 +1167,10 @@ class SolutionSelectionWriter:
 
         localSolutionSet.add(rule[1][1])
         newFallbackSolution = copy.deepcopy( rule[1][1] )
-        for i in range( 0, 4):
-          if newFallbackSolution.kernels[i] != None:
-            newFallbackSolution.kernels[i].unrolls = [ 1 ]
-        localSolutionSet.add(newFallbackSolution)
+        #for i in range( 0, 4):
+        #  if newFallbackSolution.kernels[i] != None:
+        #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
+        #localSolutionSet.add(newFallbackSolution)
 
         # (h) remove psps which have size greater than rule-threshold
         rangeSizeBefore = len(rangePSPs)
@@ -1195,12 +1188,11 @@ class SolutionSelectionWriter:
         
         # END WHILE
 
-    #print "done with all psps"
-    # s += "  *status = cobaltStatusProblemNotSupported;\n"
-    # s += "  return nullptr;\n"
+    
 
-
-    s += "\n}\n"
+    s += "\n"
+    s += "  return new Cobalt::%s%s( problem ); // fallback for k < UNROLL\n" % (self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
+    s += "}\n"
 
     # prepend includes
     inc = "#include \"Problem.h\"\n"
@@ -1257,7 +1249,10 @@ class SolutionSelectionWriter:
 
 
 
-
+  
+  #############################################################################
+  # write the benchmark data from xml's to csv format
+  #############################################################################
   def writePSPsToCSV(self, exactMatch, inputPSPs):
     
     print "WritePSPtoCSV: sorting"
@@ -1347,3 +1342,65 @@ class SolutionSelectionWriter:
       s += "\r"
       prevSize = size
     return s
+
+  
+  #############################################################################
+  # reduce the number of solutions used by writeSolutionForExactMatch
+  #############################################################################
+  def pruneSolutions(self, exactMatch, rangePSPs, exactPSPs):
+    # print "pruneSolutions( " + str(exactMatch) + " ); numPSPs=" + str(len(rangePSPs))
+    # choose 1 unroll and wg/uT for each macro-tile/branch for rangePSPs
+    # create set of macro-tile sizes
+    uniqueSet = set() # only one solution per uniqueGroup will be kept
+    uniqueDictionary = {}
+    for psp in rangePSPs:
+      tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
+      tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
+      branchType = psp[1].branch[0].value
+      (size0, size1, sizeU) = psp[0].getSize01U()
+      if size0%tile0==0 and size1%tile1==0:
+        branchType = 0
+      groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
+      uniqueSet.add( groupTuple )
+      if groupTuple not in uniqueDictionary:
+        uniqueDictionary[groupTuple] = list()
+      uniqueDictionary[groupTuple].append( psp )
+    # for each macro-tile/branch combo
+    fastestSolutionForGroup = {}
+    for uniqueGroup, psps in uniqueDictionary.iteritems():
+      # print "  " + str(uniqueGroup) + ": " + str(len(psps))
+      solutionPerf = {}
+      for psp in psps:
+        problem = psp[0]
+        solution = psp[1]
+        time = psp[2]
+        if solution not in solutionPerf:
+          solutionPerf[solution] = 0
+        gFlops = (problem.getNumFlops()/1000000000.0) / (time/1000.0)
+        solutionPerf[solution] += gFlops
+      solutionPerfs = solutionPerf.items()
+      fastestIdx = 0
+      fastestPerf = -1
+      for i in range(0, len(solutionPerfs)):
+        (s,p) = solutionPerfs[i]
+        if p > fastestPerf:
+          fastestIdx = i
+          fastestPerf = p
+      (solution, perf) = solutionPerfs[fastestIdx]
+      fastestSolutionForGroup[uniqueGroup] = solution
+      #print "    fastest: " + str(solution)
+    for psp in list(rangePSPs): #iterate over copy and remove from original
+      tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
+      tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
+      branchType = psp[1].branch[0].value
+      (size0, size1, sizeU) = psp[0].getSize01U()
+      if size0%tile0==0 and size1%tile1==0:
+        branchType = 0
+      groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
+      if psp[1] != fastestSolutionForGroup[groupTuple]:
+        rangePSPs.remove(psp)
+    # print "finalPSPs=" + str(len(rangePSPs))
+
+
+
+    
