@@ -640,6 +640,7 @@ class FileWriter:
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
         #print "calling writeGetSolutionForExactMatch"
+        sslw.pruneSolutions(exactMatch, rangePSPs, exactPSPs)
         sslSourceString, sslHeaderString, fastestPSPs = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
         self.writeMinimumXML( exactMatch, fastestPSPs )
         sslSourceFile.write(sslSourceString)
