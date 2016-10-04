@@ -41,9 +41,9 @@ def mkdir(*ps):
 def benchmark(cargs):
     # arguments
     ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
-    ap.add_argument("--input-path", dest="inputPath", required=True)
-    ap.add_argument("--output-path", dest="outputPath", required=True)
-    ap.add_argument("--backend", dest="backend", required=True, choices=["OpenCL_1.2", "HIP"])
+    ap.add_argument("--input-path", "-i", dest="inputPath", required=True)
+    ap.add_argument("--output-path", "-o", dest="outputPath", required=True)
+    ap.add_argument("--backend", "-b", dest="backend", required=True)
     ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr")
     ap.add_argument("--optimize-beta", dest="optimizeBetaStr")
     ap.add_argument("--prefix", dest="prefixPath")
@@ -54,9 +54,9 @@ def benchmark(cargs):
     # parse arguments
     args = ap.parse_args(args=cargs)
     inputFiles = glob.glob(args.inputPath + "/*.xml")
-    backend = Structs.Backend();
-    if args.backend == "OpenCL_1.2": backend.value = 0
-    elif args.backend == "HIP": backend.value = 1
+    backend = Structs.Backend()
+    if args.backend.lower() in ["opencl_1.2", "opencl", "cl"]: backend.value = 0
+    elif args.backend.lower() == "hip": backend.value = 1
 
     # print settings
     print "\nGenBenchmarkFromFiles:"
@@ -76,7 +76,7 @@ def benchmark(cargs):
     # Build exe
     build_path = os.path.join(args.outputPath, 'build')
     mkdir(build_path)
-    cmake([BENCHMARK_PATH, '-DCMAKE_PREFIX_PATH=' + args.prefixPath, '-DCobalt_BACKEND='+args.backend, '-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath], cwd=build_path)
+    cmake([BENCHMARK_PATH, '-DCMAKE_PREFIX_PATH=' + args.prefixPath, '-DCobalt_BACKEND='+str(backend).replace(' ', '_'), '-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath], cwd=build_path)
     build_flags = ['--build', build_path, '--config', 'Release']
     if os.path.exists(os.path.join(build_path, 'Makefile')):
         build_flags.extend(['--', '-j', str(multiprocessing.cpu_count())])
