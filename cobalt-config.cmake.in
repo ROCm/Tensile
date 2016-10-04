@@ -29,8 +29,4 @@
 
 @PACKAGE_INIT@
 
-set_and_check( Cobalt_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@" )
-set_and_check( Cobalt_INCLUDE_DIRS "${Cobalt_INCLUDE_DIR}" )
-set_and_check( Cobalt_LIB_INSTALL_DIR "@PACKAGE_LIB_INSTALL_DIR@" )
-
-include( "${CMAKE_CURRENT_LIST_DIR}/cobalt-targets.cmake" )
+set_and_check( Cobalt_DIR "@PACKAGE_DATA_INSTALL_DIR@")

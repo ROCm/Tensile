@@ -498,8 +498,8 @@ class FileWriter:
     benchmarkCMakeFile = open(benchmarkCMakePath, "w")
     s = "# CobaltBenchmark.cmake\n"
     s += "\n"
-    s += "include( ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
-    s += "include( ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
+    # s += "include( ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
+    # s += "include( ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
     s += "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
     for deviceProfile, exactMatches in problemTree.iteritems():
