@@ -41,8 +41,8 @@ def mkdir(*ps):
 def benchmark(cargs):
     # arguments
     ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
-    ap.add_argument("--input-path", "-i", dest="inputPath", required=True)
-    ap.add_argument("--output-path", "-o", dest="outputPath", required=True)
+    ap.add_argument("--input-path", "-i", dest="inputPath", default=os.getcwd())
+    ap.add_argument("--output-path", "-o", dest="outputPath", default=os.getcwd())
     ap.add_argument("--backend", "-b", dest="backend", required=True)
     ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr")
     ap.add_argument("--optimize-beta", dest="optimizeBetaStr")
