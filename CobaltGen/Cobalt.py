@@ -46,10 +46,8 @@ def benchmark(cargs):
     ap.add_argument("--backend", "-b", dest="backend", required=True)
     ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr")
     ap.add_argument("--optimize-beta", dest="optimizeBetaStr")
-    ap.add_argument("--prefix", dest="prefixPath")
     ap.set_defaults(optimizeAlphaStr="Off")
     ap.set_defaults(optimizeBetaStr="Off")
-    ap.set_defaults(prefixPath="/usr")
 
     # parse arguments
     args = ap.parse_args(args=cargs)
@@ -76,7 +74,7 @@ def benchmark(cargs):
     # Build exe
     build_path = os.path.join(args.outputPath, 'build')
     mkdir(build_path)
-    cmake([BENCHMARK_PATH, '-DCMAKE_PREFIX_PATH=' + args.prefixPath, '-DCobalt_BACKEND='+str(backend).replace(' ', '_'), '-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath], cwd=build_path)
+    cmake([BENCHMARK_PATH, '-DCobalt_BACKEND='+str(backend).replace(' ', '_'), '-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath], cwd=build_path)
     build_flags = ['--build', build_path, '--config', 'Release']
     if os.path.exists(os.path.join(build_path, 'Makefile')):
         build_flags.extend(['--', '-j', str(multiprocessing.cpu_count())])

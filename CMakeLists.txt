@@ -55,7 +55,7 @@ write_basic_package_version_file(
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt "
 
 #!/bin/bash
-python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/CobaltGen/Cobalt.py \"$@\" --prefix \"@CMAKE_INSTALL_PREFIX@\"
+python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/CobaltGen/Cobalt.py \"$@\"
 
 ")
 

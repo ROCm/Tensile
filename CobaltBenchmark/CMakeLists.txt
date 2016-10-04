@@ -1,7 +1,7 @@
 
 set( CobaltBenchmark_NAME CobaltBenchmark )
 
-find_package(Cobalt)
+get_filename_component(Cobalt_DIR ${CMAKE_SOURCE_DIR} PATH)
 
 set( CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
