@@ -72,7 +72,7 @@ def benchmark(cargs):
         args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
 
     # Build exe
-    build_path = os.path.join(args.outputPath, 'build')
+    build_path = os.path.join(args.outputPath, '_cobalt_build')
     mkdir(build_path)
     cmake([BENCHMARK_PATH, '-DCobalt_BACKEND='+str(backend).replace(' ', '_'), '-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath], cwd=build_path)
     build_flags = ['--build', build_path, '--config', 'Release']
