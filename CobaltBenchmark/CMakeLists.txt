@@ -1,3 +1,7 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
+
 
 # static source files
 set( CobaltBenchmark_SRC_STATIC

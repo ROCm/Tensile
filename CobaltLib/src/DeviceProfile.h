@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ ******************************************************************************/
+
 #ifndef DEVICE_PROFILE_H
 #define DEVICE_PROFILE_H
 

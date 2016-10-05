@@ -1,3 +1,7 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
+
 import os
 import Structs
 import KernelWriter
@@ -14,6 +18,8 @@ class FileWriter:
   otherSubdirectory = "/Other/"
   minimumXMLSubdirectory = "/MinimumXMLs/"
 
+  cmakeHeader =  "################################################################################\n" + "# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\n" + "################################################################################\n\n"
+  cHeader = "/*******************************************************************************\n" + " * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\n" + " ******************************************************************************/\n\n"
 
   ##############################################################################
   # ensurePath
@@ -59,7 +65,9 @@ class FileWriter:
     allKernelsHeaderFilePath = self.outputPath + self.kernelSubdirectory \
         + "CobaltKernels.h"
     kernelsCMakeFile = open(kernelsCMakeFilePath, "w")
+    kernelsCMakeFile.write(self.cmakeHeader)
     allKernelsHeaderFile = open(allKernelsHeaderFilePath, "w")
+    allKernelsHeaderFile.write(self.cHeader)
 
     if self.forBenchmark:
       kernelsCMakeFile.write("\nset( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC\n")
@@ -77,7 +85,9 @@ class FileWriter:
       kernelHeaderFilePath = self.outputPath + self.kernelSubdirectory + \
           kernelHeaderFileName
       kernelSourceFile = open(kernelSourceFilePath, "w")
+      kernelSourceFile.write(self.cHeader)
       kernelHeaderFile = open(kernelHeaderFilePath, "w")
+      kernelHeaderFile.write(self.cHeader)
 
       # get kernel file string
       kernelSourceFileString = self.getKernelSourceFileString(kernel)
@@ -118,7 +128,9 @@ class FileWriter:
     allSolutionsHeaderFilePath = self.outputPath + self.solutionSubdirectory \
         + "CobaltSolutions.h"
     solutionsCMakeFile = open(solutionsCMakeFilePath, "w")
+    solutionsCMakeFile.write(self.cmakeHeader)
     allSolutionsHeaderFile = open(allSolutionsHeaderFilePath, "w")
+    allSolutionsHeaderFile.write(self.cHeader)
 
     if self.forBenchmark:
       solutionsCMakeFile.write("set( CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC\n")
@@ -135,7 +147,9 @@ class FileWriter:
       solutionHeaderFilePath = self.outputPath + self.solutionSubdirectory + \
           solutionHeaderFileName
       solutionSourceFile = open(solutionSourceFilePath, "w")
+      solutionSourceFile.write(self.cHeader)
       solutionHeaderFile = open(solutionHeaderFilePath, "w")
+      solutionHeaderFile.write(self.cHeader)
 
       # get solution file string
       solutionSourceFileString = self.solutionWriter.getSourceString( solution )
@@ -199,9 +213,11 @@ class FileWriter:
         exactMatchSourcePath = self.outputPath + self.otherSubdirectory \
             + exactMatchFileNameBase + ".cpp"
         exactMatchSourceFile = open(exactMatchSourcePath, "w")
+        exactMatchSourceFile.write(self.cHeader)
         exactMatchHeaderPath = self.outputPath + self.otherSubdirectory \
             + exactMatchFileNameBase + ".h"
         exactMatchHeaderFile = open(exactMatchHeaderPath, "w")
+        exactMatchHeaderFile.write(self.cHeader)
 
         s = "" # source file string
         s += "#include \"" + exactMatchFileNameBase + ".h\"\n"
@@ -221,7 +237,7 @@ class FileWriter:
         s += "}\n"
         exactMatchSourceFile.write(s)
         exactMatchSourceFile.close()
-        
+
 
         h = "" # header file string
         h += "#ifndef " + exactMatchFileNameBase.upper() + "_H\n"
@@ -253,9 +269,11 @@ class FileWriter:
           problemSourcePath = self.outputPath + self.otherSubdirectory \
               + problemFileNameBase + ".cpp"
           problemSourceFile = open(problemSourcePath, "w")
+          problemSourceFile.write(self.cHeader)
           problemHeaderPath = self.outputPath + self.otherSubdirectory \
               + problemFileNameBase + ".h"
           problemHeaderFile = open(problemHeaderPath, "w")
+          problemHeaderFile.write(self.cHeader)
 
           s = "" # source file string
           s += "#include \"" + problemFileNameBase + ".h\"\n"
@@ -407,12 +425,13 @@ class FileWriter:
     benchmarkSourcePath = self.outputPath + self.otherSubdirectory \
       + "CobaltSolutionCandidates.cpp"
     benchmarkSourceFile = open(benchmarkSourcePath, "w")
+    benchmarkSourceFile.write(self.cHeader)
     s = ""
     s += "#include \"CobaltSolutionCandidates.h\"\n"
     s += "#include <cstdio>\n"
     s += "\n"
     # include candidates
-    
+
     for deviceProfile, exactMatches in problemTree.iteritems():
       for exactMatch, problemSet in exactMatches.iteritems():
         exactMatchName = str(exactMatch)
@@ -439,6 +458,7 @@ class FileWriter:
     benchmarkHeaderPath = self.outputPath + self.otherSubdirectory \
         + "CobaltSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
+    benchmarkHeaderFile.write(self.cHeader)
     h = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#define COBALT_SOLUTION_CANDIDATES_H\n"
     h += "#include \"Cobalt.h\"\n"
@@ -447,7 +467,7 @@ class FileWriter:
     h += "#include <vector>\n"
     #if self.backend.isOpenCL():
     #  h += "#include \"CL/cl.h\"\n"
-    
+
     h += "\n"
     h += "static const size_t tensorSizeMaxC = " + str(tensorSizeMaxC) + ";\n"
     h += "static const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
@@ -458,7 +478,7 @@ class FileWriter:
     for i in range(1, len(benchmarkExactMatchNames)):
       h += "\",\n    \"" + benchmarkExactMatchNames[i]
     h += "\"\n    };\n"
-    
+
     h += "static const size_t benchmarkExactMatchNumProblems[] = {\n"
     h += "    " + str(benchmarkExactMatchNumProblems[0])
     for i in range(1, len(benchmarkExactMatchNumProblems)):
@@ -496,6 +516,7 @@ class FileWriter:
     benchmarkCMakePath = self.outputPath + self.otherSubdirectory \
         + "CobaltBenchmark.cmake"
     benchmarkCMakeFile = open(benchmarkCMakePath, "w")
+    benchmarkCMakeFile.write(self.cmakeHeader)
     s = "# CobaltBenchmark.cmake\n"
     s += "\n"
     s += "include( ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
@@ -591,8 +612,10 @@ class FileWriter:
     baseName = "CobaltGetSolution"
     sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
     sslSourceFile = open(sslSourcePath, "w")
+    sslSourceFile.write(self.cHeader)
     sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
     sslHeaderFile = open(sslHeaderPath, "w")
+    sslHeaderFile.write(self.cHeader)
     sslSourceString, sslHeaderString = sslw.writeGetSolutionTop() # match device
     sslSourceFile.write(sslSourceString)
     sslSourceFile.close()
@@ -607,8 +630,10 @@ class FileWriter:
       baseName = "CobaltGetSolution_" + deviceProfile.libString()
       sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
       sslSourceFile = open(sslSourcePath, "w")
+      sslSourceFile.write(self.cHeader)
       sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
       sslHeaderFile = open(sslHeaderPath, "w")
+      sslHeaderFile.write(self.cHeader)
       sslSourceString, sslHeaderString = sslw.writeGetSolutionForDevice(deviceProfile, exactMatches) # match exact
       sslSourceFile.write(sslSourceString)
       sslSourceFile.close()
@@ -637,8 +662,10 @@ class FileWriter:
         # (3) Write Exact-Match-Level Solution Selection files
         sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
         sslSourceFile = open(sslSourcePath, "w")
+        sslSourceFile.write(self.cHeader)
         sslHeaderPath = self.outputPath + self.otherSubdirectory + baseName + ".h"
         sslHeaderFile = open(sslHeaderPath, "w")
+        sslHeaderFile.write(self.cHeader)
         #print "calling writeGetSolutionForExactMatch"
         sslw.pruneSolutions(exactMatch, rangePSPs, exactPSPs)
         sslSourceString, sslHeaderString, fastestPSPs = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
@@ -663,6 +690,7 @@ class FileWriter:
     # (6) Write CMake File
     backendCMakePath = self.outputPath + self.otherSubdirectory + "CobaltLib.cmake"
     backendCMakeFile = open(backendCMakePath, "w")
+    backendCMakeFile.write(self.cmakeHeader)
     s = sslw.writeCobaltLibCMake(self.otherSubdirectory)
     backendCMakeFile.write(s)
     backendCMakeFile.close()
@@ -673,6 +701,7 @@ class FileWriter:
     templateInstantiationsPath = self.outputPath + self.solutionSubdirectory \
         + "SolutionTemplateInstantiations.inl"
     templateInstantiationsFile = open(templateInstantiationsPath, "w")
+    templateInstantiationsFile.write(self.cHeader)
     templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
     for templateInstantiationStr in templateInstantiationSet:
       templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
@@ -734,7 +763,7 @@ class FileWriter:
           problem.operation.useOffsets, \
           problem.operation.numIndicesFree, \
           problem.operation.numIndicesBatch, \
-          problem.operation.numIndicesSummation ) 
+          problem.operation.numIndicesSummation )
       # indexAssignmentsA
       s += "     <IA n=\"%u\" " % ( len(problem.operation.indexAssignmentsA) )
       for i in range(0, len(problem.operation.indexAssignmentsA)):
@@ -759,7 +788,7 @@ class FileWriter:
             i, device.flopsPerClock )
       s += "/>\n"
       s += "   </P>\n"
-      # implementation details 
+      # implementation details
       s += "   <ID kG0=\"%u\" kG1=\"%u\" kG2=\"%u\" b0=\"%u\" b1=\"%u\" ppdO=\"%u\" ppdLS=\"%u\" ppdAll=\"%u\" >\n" % ( \
           solution.kernelGrid[0], \
           solution.kernelGrid[1], \
