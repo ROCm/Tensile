@@ -1,6 +1,4 @@
 
-# python ./CobaltGen/Cobalt.py benchmark --backend OpenCL_1.2 --input-path `pwd`/work --output-path `pwd`/work
-
 import argparse
 import os
 import sys
@@ -13,9 +11,6 @@ import multiprocessing
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 COBALT_PATH = os.path.dirname(SCRIPT_PATH)
 BENCHMARK_PATH = os.path.join(COBALT_PATH, 'CobaltBenchmark')
-
-def run_script(script, args):
-    subprocess.check_call([sys.executable, os.path.join(SCRIPT_PATH, script)] + args, env=os.environ)
 
 def which(p, paths=None):
     exes = [p+x for x in ['', '.exe', '.bat']]
