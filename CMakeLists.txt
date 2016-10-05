@@ -73,6 +73,10 @@ install( FILES
   DESTINATION
     ${config_package_location} )
 
+install( FILES
+  CobaltLib/include/Cobalt.h
+  DESTINATION include)
+
 install(DIRECTORY 
   CobaltLib
   CobaltGen
