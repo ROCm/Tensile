@@ -30,16 +30,25 @@ endif( )
 
 
 # source files
-file(GLOB CobaltBenchmark_SRC
-    ${CobaltBenchmark_DIR_GENERATED}/Kernels/*.cpp
-    ${CobaltBenchmark_DIR_GENERATED}/Solutions/*.cpp
-    ${CobaltBenchmark_DIR_GENERATED}/Other/*.cpp
+# Sets CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC
+include(${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.cmake)
+# Sets CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC
+include(${CobaltBenchmark_DIR_GENERATED}/Solutions/CobaltSolutions.cmake)
+# Sets CobaltBenchmark_SRC_GENERATED_DYNAMIC
+include(${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake)
+
+# Glob CobaltLib source files
+file(GLOB CobaltLib_SRC
     ${Cobalt_DIR}/CobaltLib/src/*.cpp
 )
 # benchmark executable
 add_executable( ${CobaltBenchmark_NAME}
     CobaltBenchmark.cpp
-    ${CobaltBenchmark_SRC}
+    ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.cpp
+    ${CobaltLib_SRC}
+    ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}
+    ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC}
+    ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
 )
 
 ##################################################
@@ -78,4 +87,4 @@ endif()
 
 target_compile_definitions( ${CobaltBenchmark_NAME} PRIVATE -DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 )
 
-target_compile_definitions( ${CobaltBenchmark_NAME} PRIVATE -DCobalt_DIR_SOLUTIONS="${Cobalt_DIR_SOLUTIONS}" )
+target_compile_definitions( ${CobaltBenchmark_NAME} PRIVATE -DCobalt_DIR_SOLUTIONS="${CobaltBenchmark_DIR_GENERATED}" )
