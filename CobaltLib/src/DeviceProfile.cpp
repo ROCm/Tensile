@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ ******************************************************************************/
+
 #include "DeviceProfile.h"
 #include "StructOperations.h"
 #include <sstream>
