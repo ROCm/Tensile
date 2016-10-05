@@ -41,6 +41,7 @@ def mkdir(*ps):
 def benchmark(cargs):
     # arguments
     ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
+    ap.add_argument('-D', '--define', nargs='+', default=[])
     ap.add_argument("--input-path", "-i", dest="inputPath", default=os.getcwd())
     ap.add_argument("--output-path", "-o", dest="outputPath", default=os.getcwd())
     ap.add_argument("--backend", "-b", dest="backend", required=True)
@@ -74,11 +75,18 @@ def benchmark(cargs):
     # Build exe
     build_path = os.path.join(args.outputPath, '_cobalt_build')
     mkdir(build_path)
-    cmake([BENCHMARK_PATH, '-DCobalt_BACKEND='+str(backend).replace(' ', '_'), '-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath], cwd=build_path)
-    build_flags = ['--build', build_path, '--config', 'Release']
+    cmake_args = [BENCHMARK_PATH]
+    cmake_args.append('-DCobalt_BACKEND='+str(backend).replace(' ', '_'))
+    cmake_args.append('-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath)
+
+    for d in args.define:
+        cmake_args.append('-D{0}'.format(d))
+    cmake(cmake_args, cwd=build_path)
+
+    build_args = ['--build', build_path, '--config', 'Release']
     if os.path.exists(os.path.join(build_path, 'Makefile')):
-        build_flags.extend(['--', '-j', str(multiprocessing.cpu_count())])
-    cmake(build_flags)
+        build_args.extend(['--', '-j', str(multiprocessing.cpu_count())])
+    cmake(build_args)
 
     cmd([os.path.join(build_path, 'CobaltBenchmark')])
 
