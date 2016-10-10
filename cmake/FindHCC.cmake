@@ -1,3 +1,7 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
+
 # findHCC does not currently address versioning, i.e.
 # a rich directory structure where version number is a subdirectory under root
 # Also, supported only on UNIX 64 bit systems.

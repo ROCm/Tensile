@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ ******************************************************************************/
+
 #ifndef REFERENCE_TENSOR_CONTRACTION_H
 #define REFERENCE_TENSOR_CONTRACTION_H
 #include "Cobalt.h"

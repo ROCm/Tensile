@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ ******************************************************************************/
+
 #ifndef MATH_TEMPLATES_H
 #define MATH_TEMPLATES_H
 #include <cmath>
