@@ -125,7 +125,7 @@ class SolutionCandidateGenerator:
     # create solution object
     kernel = Structs.Kernel()
     solution = Structs.Solution()
-    solutionCandidates = []
+    solutionCandidates = set()
 
     # Solution Correctness Parameters
     kernel.dataTypeC = problem.tensorC.dataType
@@ -342,16 +342,16 @@ class SolutionCandidateGenerator:
 
             # filter out single solution
             if False:
-              if microTileDim0 != 8:
+              if microTileDim0 != 6:
                 continue
-              if microTileDim1 != 8:
+              if microTileDim1 != 6:
                 continue
               if workGroup[0] != 16:
                 continue
               if workGroup[1] != 16:
                 continue
-              if unroll != [8]:
-                continue
+              #if unroll != [16]:
+                #continue
 
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
@@ -545,7 +545,7 @@ class SolutionCandidateGenerator:
                     # kernels, grid, and branching specified, now add solution
                     # print solution
                     # print "  " + self.solutionWriter.getName(solution)
-                    solutionCandidates.append( copy.deepcopy(solution) )
+                    solutionCandidates.add( copy.deepcopy(solution) )
     if fullyExhaustive:
       print "NumCandidates: " + str(numCandidates)
     return solutionCandidates
