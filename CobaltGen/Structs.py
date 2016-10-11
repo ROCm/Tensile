@@ -1,3 +1,7 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
+
 import SolutionCandidateGenerator
 
 ################################################################################
@@ -613,6 +617,10 @@ class Problem:
     self.deviceProfile = DeviceProfile()
     self.sizeFree = 0
     self.sizeType = -1
+    self.totalFlops = -1
+    self.size0 = -1
+    self.size1 = -1
+    self.sizeU = -1
 
   def getSizeFree(self):
     if self.sizeFree == 0:
@@ -620,6 +628,19 @@ class Problem:
       for dimension in self.tensorC.dimensions:
         self.sizeFree *= dimension.size
     return self.sizeFree
+
+  def getSize01U(self):
+    if self.size0 < 0:
+      kernel = Kernel()
+      SolutionCandidateGenerator.makeIndexAssignments(kernel, self)
+      self.size0 = self.tensorC.dimensions[ kernel.indexAssignmentDim0].size
+      self.size1 = self.tensorC.dimensions[ kernel.indexAssignmentDim1].size
+      self.sizeU = -1
+      for i in range(len(self.operation.indexAssignmentsA)):
+        if kernel.indexUnroll == self.operation.indexAssignmentsA[i]:
+          self.sizeU = self.tensorA.dimensions[i].size
+          break
+    return (self.size0, self.size1, self.sizeU)
 
   def getSizeType(self):
     if self.sizeType < 0:
@@ -642,6 +663,20 @@ class Problem:
         self.sizeType = 1
     return self.sizeType
 
+  def getNumFlops(self):
+    if self.totalFlops < 0:
+      self.totalFlops = self.getSizeFree()
+      if self.tensorA.dataType.isReal():
+        self.totalFlops *= 2
+      else:
+        self.totalFlops *= 8
+      for i in range(0, len(self.operation.indexAssignmentsA)):
+        index = self.operation.indexAssignmentsA[i]
+        inC = index < len(self.tensorC.dimensions)
+        inB = index in self.operation.indexAssignmentsB
+        if inB and not inC: # is summation dimension
+          self.totalFlops *= self.tensorA.dimensions[i].size
+    return self.totalFlops
 
   def __str__(self):
     state = ""

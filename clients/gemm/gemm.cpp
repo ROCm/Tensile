@@ -1,3 +1,7 @@
+/*******************************************************************************
+ * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+ ******************************************************************************/
+
 #include "Cobalt.h"
 #include "dnn_gemms.h"
 #include <cstdio>

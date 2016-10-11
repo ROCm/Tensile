@@ -1,3 +1,7 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
+
 #if( NOT EXISTS ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl)
 #  MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for client")
 #  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl
