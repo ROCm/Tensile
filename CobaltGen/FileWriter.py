@@ -261,7 +261,7 @@ class FileWriter:
         for problemIdx in range(0,len(problemList)):
           problem = problemList[problemIdx]
 
-          solutionList = problemSolutionCandidates[problem]
+          solutionSet = problemSolutionCandidates[problem]
 
           problemName = str(problem)
           # open problem file
@@ -370,12 +370,14 @@ class FileWriter:
           s += "      deviceProfile);\n"
           s += "\n"
 
-
-          for i in range(0,len(solutionList)):
+          idx = 0
+          numSolutions = len(solutionSet)
+          for solution in solutionSet:
             s += "  solutionCandidates->push_back( new Cobalt::" \
-                + self.solutionWriter.getName(solutionList[i])+self.solutionWriter.getTemplateArgList(solutionList[i])+"( *((*problem)->pimpl) ) ); // " \
-                + str(i) + "/" + str(numSolutions) + "\n"
-            templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solutionList[i]))
+                + self.solutionWriter.getName(solution)+self.solutionWriter.getTemplateArgList(solution)+"( *((*problem)->pimpl) ) ); // " \
+                + str(idx) + "/" + str(numSolutions) + "\n"
+            templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
+            idx += 1
           s += "\n"
           solutionStartIdx = solutionEndIdx
 
@@ -411,8 +413,8 @@ class FileWriter:
           h += "#include \"Solution.h\"\n"
           h += "#include <vector>\n"
           h += "\n"
-          for i in range(0,len(solutionList)):
-            h += "#include \""+ self.solutionWriter.getName(solutionList[i]) + ".h\"\n"
+          for solution in solutionSet:
+            h += "#include \""+ self.solutionWriter.getName(solution) + ".h\"\n"
           h += "\n"
           h += "void init_" + problemName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates);\n"
           h += "\n"
