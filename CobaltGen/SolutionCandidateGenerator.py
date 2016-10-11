@@ -82,6 +82,7 @@ class SolutionCandidateGenerator:
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
   ratioMacroTileSS        = 2 # slow_slow
+  microTileIncr           = 2 # 2 means even micro tile only
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -341,8 +342,8 @@ class SolutionCandidateGenerator:
         ###################################
         # for all micro-tile dimensions
         # print microTileMin, microTileMax, workGroup[0], workGroup[1]
-        for microTileDim0 in range(microTileMin, microTileMax+1):
-          for microTileDim1 in range(microTileMin, microTileMax+1):
+        for microTileDim0 in range(microTileMin, microTileMax+1, self.microTileIncr):
+          for microTileDim1 in range(microTileMin, microTileMax+1, self.microTileIncr):
 
             # filter out single solution
             if False:
