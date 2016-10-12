@@ -187,6 +187,21 @@ class SolutionSelectionWriter:
         return False
     return True
 
+    # single-kernel problem/solution pair = "b" solution or "m" solution which launched only one kernel
+  def isExactTile(self, problem, solution):
+    if solution.branch[0].isBranched() or solution.branch[1].isBranched():
+      return False
+    if solution.branch[0].isMultiple():
+      problemSize0 = problem.tensorC.dimensions[solution.kernels[0].indexAssignmentDim0].size
+      tileSize0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
+      if problemSize0 % tileSize0 > 0:
+        return False
+    if solution.branch[1].isMultiple():
+      problemSize1 = problem.tensorC.dimensions[solution.kernels[0].indexAssignmentDim1].size
+      tileSize1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
+      if problemSize1 % tileSize1 > 0:
+        return False
+    return True
   
   # size of free indices, i.e., how many threads
   # def getSize(self, problem):
@@ -257,6 +272,15 @@ class SolutionSelectionWriter:
       if self.isSingleton(problem, solution):
         singles.append( psps[i] )
     return singles
+
+  def getExactTiles(self, psps):
+    exacts = []
+    for i in range(0, len(psps)):
+      problem = psps[i][0]
+      solution = psps[i][1]
+      if self.isExactTile(problem, solution):
+        exacts.append( psps[i] )
+    return exacts
 
   def getIndexOfFastest( self, psps ):
     fastestIndex = 0
@@ -1220,6 +1244,26 @@ class SolutionSelectionWriter:
 
 
     return (s, h, fastestPSPs)
+  
+
+  #############################################################################
+  # sort range PSPs into size groups
+  #############################################################################
+  def bucketSortRangePSPs(self, psps):
+
+    sortedPSPs = []
+
+    while len(psps) > 0:
+      largestSizeP = self.getLargestSize(psps)
+      size = largestSizeP.getSizeFree()**0.5
+      pspsForLargestSize = self.getPSPsForSize(psps, largestSizeP)
+      exactPSPs = self.getExactTiles(pspsForLargestSize)
+      fallbackPSPs = self.getFallbacks(pspsForLargestSize)
+      print "bucketSort size=%u: %u exacts, %u fallbacks" % (size, len(exactPSPs), len(fallbackPSPs) )
+      sortedPSPs.append( [exactPSPs, fallbackPSPs] )
+      self.removePSPsLargerOrEqual(psps, largestSizeP)
+
+    return sortedPSPs
 
   
   #############################################################################
@@ -1357,18 +1401,33 @@ class SolutionSelectionWriter:
     # create set of macro-tile sizes
     uniqueSet = set() # only one solution per uniqueGroup will be kept
     uniqueDictionary = {}
-    for psp in rangePSPs:
-      tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
-      tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
-      branchType = psp[1].branch[0].value
-      (size0, size1, sizeU) = psp[0].getSize01U()
-      if size0%tile0==0 and size1%tile1==0:
+    for sizeGroup in rangePSPs:
+      exactPSPs = sizeGroup[0]
+      fallbackPSPs = sizeGroup[1]
+      for psp in exactPSPs:
+        tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
+        tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
+        # branchType = psp[1].branch[0].value
+        # (size0, size1, sizeU) = psp[0].getSize01U()
+        # if size0%tile0==0 and size1%tile1==0:
         branchType = 0
-      groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
-      uniqueSet.add( groupTuple )
-      if groupTuple not in uniqueDictionary:
-        uniqueDictionary[groupTuple] = list()
-      uniqueDictionary[groupTuple].append( psp )
+        groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
+        uniqueSet.add( groupTuple )
+        if groupTuple not in uniqueDictionary:
+          uniqueDictionary[groupTuple] = list()
+        uniqueDictionary[groupTuple].append( psp )
+      for psp in fallbackPSPs:
+        tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
+        tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
+        branchType = psp[1].branch[0].value
+        # (size0, size1, sizeU) = psp[0].getSize01U()
+        # if size0%tile0==0 and size1%tile1==0:
+        # branchType = 0
+        groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
+        uniqueSet.add( groupTuple )
+        if groupTuple not in uniqueDictionary:
+          uniqueDictionary[groupTuple] = list()
+        uniqueDictionary[groupTuple].append( psp )
     # for each macro-tile/branch combo
     fastestSolutionForGroup = {}
     for uniqueGroup, psps in uniqueDictionary.iteritems():
@@ -1393,16 +1452,22 @@ class SolutionSelectionWriter:
       (solution, perf) = solutionPerfs[fastestIdx]
       fastestSolutionForGroup[uniqueGroup] = solution
       #print "    fastest: " + str(solution)
-    for psp in list(rangePSPs): #iterate over copy and remove from original
-      tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
-      tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
-      branchType = psp[1].branch[0].value
-      (size0, size1, sizeU) = psp[0].getSize01U()
-      if size0%tile0==0 and size1%tile1==0:
-        branchType = 0
-      groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
-      if psp[1] != fastestSolutionForGroup[groupTuple]:
-        rangePSPs.remove(psp)
+    for sizeGroupIdx in range(0, len(rangePSPs)):
+      for groupTypeIdx in range(0, 2):
+        for psp in list(rangePSPs[sizeGroupIdx][groupTypeIdx]): #iterate over copy and remove from original
+          tile0 = psp[1].kernels[0].tile.workGroup[0]*psp[1].kernels[0].tile.microTile[0]
+          tile1 = psp[1].kernels[0].tile.workGroup[1]*psp[1].kernels[0].tile.microTile[1]
+          branchType = psp[1].branch[0].value
+          (size0, size1, sizeU) = psp[0].getSize01U()
+          if size0%tile0==0 and size1%tile1==0:
+            branchType = 0
+          groupTuple = ( tile0, tile1, branchType, len( psp[1].kernels[0].unrolls) )
+          if psp[1] != fastestSolutionForGroup[groupTuple]:
+            rangePSPs[sizeGroupIdx][groupTypeIdx].remove(psp)
+    
+    for sizeGroup in rangePSPs:
+      size = sizeGroup[0][0][0].getSizeFree()**0.5
+      print "prune size=%u: %u exacts, %u fallbacks" % (size, len(sizeGroup[0]), len(sizeGroup[1]))
     # print "finalPSPs=" + str(len(rangePSPs))
 
 

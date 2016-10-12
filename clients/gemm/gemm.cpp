@@ -214,7 +214,6 @@ unsigned int addGEMMCombinatorics() {
                 for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
                   sizes.push_back({ i, i, i }); // exact tile, exact unroll
                   sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
-                  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
                   sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
                 }
 #else

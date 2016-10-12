@@ -646,6 +646,8 @@ class FileWriter:
         #print exactMatch, len(pspTypes[0]), len(pspTypes[1])
         rangePSPs = pspTypes[0]
         exactPSPs = pspTypes[1]
+
+        rangePSPs = sslw.bucketSortRangePSPs( rangePSPs ) # sort into size groups
         # only support this exact match if some benchmark times existed
         # otherwise none of the other files for it will have been written
 
