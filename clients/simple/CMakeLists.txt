@@ -9,6 +9,14 @@ add_executable( simple EXCLUDE_FROM_ALL
   kernel_hip.h
   )
 
+add_cobalt_lib(simple_cobalt EXCLUDE_FROM_ALL
+    PROBLEMS ${Cobalt_DIR_PROBLEMS}
+    BACKEND ${Cobalt_BACKEND}
+    ENABLE_LOGGER
+)
+
+target_link_libraries( simple PRIVATE simple_cobalt )
+
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( simple PRIVATE opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")

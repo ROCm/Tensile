@@ -91,3 +91,7 @@ install(DIRECTORY
   DESTINATION ${DATA_INSTALL_DIR}
 )
 
+############################################################
+# Clients
+set(Cobalt_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+add_subdirectory(clients)
