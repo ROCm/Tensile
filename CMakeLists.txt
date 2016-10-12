@@ -57,20 +57,28 @@ write_basic_package_version_file(
 )
 
 # Build entry point
+if(WIN32)
+set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt.bat)
+file(WRITE ${Cobalt_ENTRY_POINT} "
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt "
+python @CMAKE_INSTALL_PREFIX@\\@DATA_INSTALL_DIR@\\CobaltGen\\Cobalt.py %*
+
+")
+else()
+set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt)
+file(WRITE ${Cobalt_ENTRY_POINT} "
 
 #!/bin/bash
 python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/CobaltGen/Cobalt.py \"$@\"
 
 ")
-
+endif()
 
 ############################################################
 # Library install logic
 
 install(PROGRAMS 
-  ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt 
+  ${Cobalt_ENTRY_POINT} 
   DESTINATION bin)
 
 install( FILES
