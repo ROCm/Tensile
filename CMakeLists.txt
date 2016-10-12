@@ -10,6 +10,8 @@ cmake_minimum_required(VERSION 2.8.12)
 # be necessary, but is a warning in CMake 3.6
 cmake_policy(SET CMP0053 OLD)
 
+set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
+
 project( Cobalt )
 
 # On windows, it's convenient to change the default install prefix such that it does NOT point to 'program files'
@@ -77,8 +79,8 @@ endif()
 ############################################################
 # Library install logic
 
-install(PROGRAMS 
-  ${Cobalt_ENTRY_POINT} 
+install(PROGRAMS
+  ${Cobalt_ENTRY_POINT}
   DESTINATION bin)
 
 install( FILES
@@ -91,10 +93,10 @@ install( FILES
   CobaltLib/include/Cobalt.h
   DESTINATION include)
 
-install(DIRECTORY 
+install(DIRECTORY
   CobaltLib
   CobaltGen
-  CobaltBenchmark 
+  CobaltBenchmark
   cmake
   DESTINATION ${DATA_INSTALL_DIR}
 )

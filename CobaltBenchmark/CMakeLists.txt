@@ -2,6 +2,7 @@
 # Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 ################################################################################
 
+set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
 set( CobaltBenchmark_NAME CobaltBenchmark )
 
@@ -45,14 +46,28 @@ include(${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake)
 file(GLOB CobaltLib_SRC
     ${Cobalt_DIR}/CobaltLib/src/*.cpp
 )
+
+function( convert_to_linux_path return_list_of_files )
+  set(new_list)
+  foreach( file ${ARGN} )
+    file(TO_CMAKE_PATH ${file} result)
+    list(APPEND new_list ${result})
+  endforeach( )
+  set( ${return_list_of_files} ${new_list} PARENT_SCOPE )
+endfunction( )
+
+convert_to_linux_path(CobaltBenchmark_SRC
+  ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}
+  ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC}
+  ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
+  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.cpp
+)
+
 # benchmark executable
 add_executable( ${CobaltBenchmark_NAME}
     CobaltBenchmark.cpp
-    ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltSolutionCandidates.cpp
     ${CobaltLib_SRC}
-    ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}
-    ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC}
-    ${CobaltBenchmark_SRC_GENERATED_DYNAMIC}
+    ${CobaltBenchmark_SRC}
 )
 
 ##################################################

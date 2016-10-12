@@ -21,12 +21,12 @@ add_cobalt_lib(dnn_cobalt EXCLUDE_FROM_ALL
 target_link_libraries( ${SAMPLE_DNN_NAME} PRIVATE dnn_cobalt )
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( ${SAMPLE_DNN_NAME} PRIVATE opencl )
+  target_link_libraries( dnn_cobalt PUBLIC opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  target_include_directories( ${SAMPLE_DNN_NAME}
+  target_include_directories( dnn_cobalt
     PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
-  target_link_libraries( ${SAMPLE_DNN_NAME} PRIVATE ${HSA_LIBRARIES} )
+  target_link_libraries( dnn_cobalt PRIVATE ${HSA_LIBRARIES} )
 endif()
 
 set_property( TARGET ${SAMPLE_DNN_NAME} PROPERTY FOLDER "Clients" )

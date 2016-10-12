@@ -5148,7 +5148,8 @@ const char * kernelSource_NT = R"(
   TYPE_MAD( rA_black[7], rB_black[7], rC[7][7]); \
   \
   mem_fence(CLK_LOCAL_MEM_FENCE);
-
+)"
+R"(
 #define UT2_LAST \
   /* prefetch black, compute red */ \
   rA_black[0] = localReadPtrA[offA + 0*WG_0I]; \
