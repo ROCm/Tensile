@@ -684,7 +684,7 @@ class FileWriter:
     # (4) Write Kernel Files
     self.writeKernelFiles(sslw.getKernelSet())
 
-    # add solutions to template set
+    # add solutions to template
     for solution in sslw.getSolutionSet():
       templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
 
