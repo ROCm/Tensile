@@ -646,6 +646,8 @@ class FileWriter:
         #print exactMatch, len(pspTypes[0]), len(pspTypes[1])
         rangePSPs = pspTypes[0]
         exactPSPs = pspTypes[1]
+
+        rangePSPs = sslw.bucketSortRangePSPs( rangePSPs ) # sort into size groups
         # only support this exact match if some benchmark times existed
         # otherwise none of the other files for it will have been written
 
@@ -682,7 +684,7 @@ class FileWriter:
     # (4) Write Kernel Files
     self.writeKernelFiles(sslw.getKernelSet())
 
-    # add solutions to template set
+    # add solutions to template
     for solution in sslw.getSolutionSet():
       templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
 

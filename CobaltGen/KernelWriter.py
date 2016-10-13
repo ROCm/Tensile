@@ -1007,7 +1007,6 @@ class KernelWriter:
         #   kStr += "*(MT_%s+PAD)" % tileCharA
         # kStr += " ] = "
         kStr += "a_" + str(para) + "_" + str(perp) + " = "
-        
         if not kernel.tile.branch[0].isNone():
           kStr += "( condA_%s_%s )" %( str(para), str(perp) )
           kStr += " ? %s : " %( zeroStringA )
@@ -1053,7 +1052,6 @@ class KernelWriter:
         #   kStr += "*(MT_%s+PAD)" % tileCharB
         # kStr += " ] = "
         kStr += "b_" + str(para) + "_" + str(perp) + " = "
-
         if not kernel.tile.branch[1].isNone():
           kStr += "( condB_%s_%s )" % ( str(para), str(perp) )
           kStr += " ? %s : " % ( zeroStringB )

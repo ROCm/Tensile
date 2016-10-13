@@ -223,7 +223,7 @@ unsigned int addGEMMCombinatorics() {
                 size_t stride_incr = 0; // 0->1440, 16->108, 32->76
                 size_t sizeMax = 5760 / batches[bIdx];
                 for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
-				          bool sizeValid = false;
+				  bool sizeValid = false;
                   for (unsigned int s = 0; s < numSizeLimits; s++) {
                     if (i % sizeLimits[s][0] == 0 && i <= sizeLimits[s][1]) {
                       sizeValid = true;
@@ -239,7 +239,6 @@ unsigned int addGEMMCombinatorics() {
 #else
                 sizes.push_back({ 5760, 5760, 5760 });
 #endif
-
 
 
                 createAppXMLForExactMatch(
