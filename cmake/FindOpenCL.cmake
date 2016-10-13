@@ -100,11 +100,12 @@ endif( )
 
 cmake_pop_check_state( )
 
-# Search for 64bit libs if FIND_LIBRARY_USE_LIB64_PATHS is set to true in the global environment, 32bit libs else
-get_property( LIB64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS )
-if( LIB64 )
+# Search for 64bit/32bit libs
+if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
+  set(LIB64 ON)
   message( STATUS "FindOpenCL searching for 64-bit libraries" )
 else( )
+  set(LIB64 OFF)
   message( STATUS "FindOpenCL searching for 32-bit libraries" )
 endif( )
 
