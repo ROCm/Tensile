@@ -82,7 +82,7 @@ class SolutionCandidateGenerator:
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
   ratioMacroTileSS        = 2 # slow_slow
-  microTileIncr           = 2 # 2 means even micro tile only
+  microTileIncr           = 1 # 2 means even micro tile only
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest

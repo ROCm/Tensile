@@ -17,7 +17,7 @@ class SolutionSelectionWriter:
     self.kernelSet = set()
     self.solutionSet = set()
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
-    self.printLogic = True
+    self.printLogic = False
     self.fallbackPSPU1 = None
   
   def getKernelSet(self):
@@ -157,9 +157,9 @@ class SolutionSelectionWriter:
   
   # fallback problem/solution pair = "b" solution or "m" solution which launched multiple kernels
   def isFallback(self, problem, solution):
-    if solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1] > 1:
-      return False
-    if solution.branch[0].isBranched() and solution.branch[1].isBranched():
+    #if solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1] > 1:
+    #  return False
+    if solution.branch[0].isBranched() or solution.branch[1].isBranched():
       return True
     if solution.branch[0].isMultiple():
       problemSize0 = problem.tensorC.dimensions[solution.kernels[0].indexAssignmentDim0].size
@@ -494,6 +494,12 @@ class SolutionSelectionWriter:
     #    print "NOT removing %u b/c size %u*%u - %s" % (index, pspSize, pspSize, pspName)
     #  index += 1
 
+  # return size (M,N,K) of size group
+  def getSizeGroupSize(self, sizeGroup):
+    for group in sizeGroup:
+      if len(group) > 0:
+        return group[0][0].getSizeFree()**0.5
+    return 0
 
   # are the dims covered by s1 already covered by s0
   def coversSameDim01( self, s0, s1 ):
@@ -834,7 +840,11 @@ class SolutionSelectionWriter:
     if exactOnly:
       problem = exactPSPs[0][0]
     else:
-      problem = rangePSPs[0][1][0][0]
+      if len(rangePSPs[0][1]) > 0:
+        problem = rangePSPs[0][1][0][0]
+      else:
+        problem = rangePSPs[0][0][0][0]
+
     SolutionCandidateGenerator.makeIndexAssignments(kernel, problem)
     # sort psps by descending size
     functionName = "getSolution_" + exactMatch.libString()
@@ -918,18 +928,26 @@ class SolutionSelectionWriter:
       fastestIdxU1 = -1
       fastestSizeGroupIdxU1 = -1
       fastestGFlopsU1 = -1
-      for sizeGroupIdx in range(0, len(rangePSPs)):
-        fallbacks = rangePSPs[sizeGroupIdx][1]
-        for i in range(0,len(fallbacks)):
-          psp = fallbacks[i]
-          if psp[1].branch[0].isBranched():
-            gflops = self.getGFlops(psp[0], psp[2])
-            if gflops > fastestGFlopsU1:
-              fastestSizeGroupIdxU1 = sizeGroupIdx
-              fastestIdxU1 = i
-              fastestGFlopsU1 = gflops
-      self.fallbackPSPU1 = copy.deepcopy(rangePSPs[fastestSizeGroupIdxU1][1][fastestIdxU1])
-      self.fallbackPSPU1[1].kernels[0].unrolls = [ 1 ]
+      fastestSizeGroupTypeIdxU1 = -1
+      for branchTypeValue in [2, 1]: # prefer single branched kernel
+        for groupTypeIdx in [1, 0]: # prefer already fallback
+          for sizeGroupIdx in range(0, len(rangePSPs)):
+            fallbacks = rangePSPs[sizeGroupIdx][groupTypeIdx]
+            for i in range(0,len(fallbacks)):
+              psp = fallbacks[i]
+              if psp[1].branch[0].value == branchTypeValue:
+                gflops = self.getGFlops(psp[0], psp[2])
+                if gflops > fastestGFlopsU1:
+                  fastestSizeGroupIdxU1 = sizeGroupIdx
+                  fastestIdxU1 = i
+                  fastestGFlopsU1 = gflops
+                  fastestSizeGroupTypeIdxU1 = groupTypeIdx
+          if fastestIdxU1 > -1:
+            break
+      self.fallbackPSPU1 = copy.deepcopy(rangePSPs[fastestSizeGroupIdxU1][fastestSizeGroupTypeIdxU1][fastestIdxU1])
+      for i in range(len(self.fallbackPSPU1[1].kernels)):
+        if self.fallbackPSPU1[1].kernels[i] != None:
+          self.fallbackPSPU1[1].kernels[i].unrolls = [ 1 ]
       self.addPSPToSets(self.fallbackPSPU1)
       localSolutionSet.add(self.fallbackPSPU1[1])
 
@@ -944,7 +962,7 @@ class SolutionSelectionWriter:
         # tmpSize = tmpProblem.getSizeFree()
         # print str(fallbacksForLargestSize)
         # print str(fallbacksForLargestSize[0])
-        sizeGroupSize = fallbacksForLargestSize[0][0].getSizeFree()**0.5
+        sizeGroupSize = self.getSizeGroupSize(sizeGroup)
         if self.printLogic: print "\nSTATUS - Beginning Rule For sizeGroup[%u]: %u " % (sizeGroupIdx, sizeGroupSize)
 
         #########################################################################
@@ -1498,12 +1516,13 @@ class SolutionSelectionWriter:
           if psp[1] != fastestSolutionForGroup[groupTuple]:
             rangePSPs[sizeGroupIdx][groupTypeIdx].remove(psp)
     
-    for sizeGroup in rangePSPs:
-      size = sizeGroup[0][0][0].getSizeFree()**0.5
-      print "prune size=%u: %u exacts, %u fallbacks" % (size, len(sizeGroup[0]), len(sizeGroup[1]))
-      # for psp in sizeGroup[0]:
-      #   print str(psp[1].kernels[0])
-    # print "finalPSPs=" + str(len(rangePSPs))
+    if self.printLogic:
+      for sizeGroup in rangePSPs:
+        size = self.getSizeGroupSize(sizeGroup)
+        print "prune size=%u: %u exacts, %u fallbacks" % (size, len(sizeGroup[0]), len(sizeGroup[1]))
+        # for psp in sizeGroup[0]:
+        #   print str(psp[1].kernels[0])
+      # print "finalPSPs=" + str(len(rangePSPs))
 
 
 
