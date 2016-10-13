@@ -1,5 +1,4 @@
 include(CMakeParseArguments)
-include(CMakeFindDependencyMacro)
 
 function(add_cobalt_lib NAME)
     set(options OPTIMIZE_ALPHA OPTIMIZE_BETA ENABLE_LOGGER EXCLUDE_FROM_ALL)
