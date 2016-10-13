@@ -37,6 +37,7 @@ def benchmark(cargs):
     # arguments
     ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
     ap.add_argument('-D', '--define', nargs='+', default=[])
+    ap.add_argument('-G', '--generator', default=None)
     ap.add_argument("--input-path", "-i", dest="inputPath", default=os.getcwd())
     ap.add_argument("--output-path", "-o", dest="outputPath", default=os.getcwd())
     ap.add_argument("--backend", "-b", dest="backend", required=True)
@@ -71,6 +72,7 @@ def benchmark(cargs):
     build_path = os.path.join(args.outputPath, '_cobalt_build')
     mkdir(build_path)
     cmake_args = [BENCHMARK_PATH]
+    if args.generator: cmake_args.append('-G ' + args.generator)
     cmake_args.append('-DCobalt_BACKEND='+str(backend).replace(' ', '_'))
     cmake_args.append('-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath)
 
