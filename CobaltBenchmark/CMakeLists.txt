@@ -69,6 +69,10 @@ add_executable( ${CobaltBenchmark_NAME}
     ${CobaltLib_SRC}
     ${CobaltBenchmark_SRC}
 )
+set_target_properties( ${CobaltBenchmark_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" 
+    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PROJECT_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${PROJECT_BINARY_DIR}/bin" )
 
 ##################################################
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
