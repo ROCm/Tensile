@@ -38,4 +38,4 @@ elseif( Cobalt_BACKEND MATCHES "HIP")
   target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE ${HSA_LIBRARIES} )
 endif()
 
-set_property( TARGET ${SAMPLE_GEMM_NAME} PROPERTY FOLDER "Clients" )
+set_property( TARGET ${SAMPLE_GEMM_NAME} PROPERTY FOLDER "clients" )

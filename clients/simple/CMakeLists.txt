@@ -19,4 +19,4 @@ elseif( Cobalt_BACKEND MATCHES "HIP")
   target_compile_definitions( simple PRIVATE Cobalt_BACKEND_HIP )
 endif()
 
-set_property( TARGET simple PROPERTY FOLDER "Clients" )
+set_property( TARGET simple PROPERTY FOLDER "clients" )
