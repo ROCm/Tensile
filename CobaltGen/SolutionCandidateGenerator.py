@@ -82,7 +82,7 @@ class SolutionCandidateGenerator:
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
   ratioMacroTileSS        = 2 # slow_slow
-  microTileIncr           = 2 # 2 means even micro tile only
+  microTileIncr           = 1 # 2 means even micro tile only
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -267,7 +267,7 @@ class SolutionCandidateGenerator:
         elif unroll < problemSizeUnroll: # needs trailing loop
           universeUnrolls.append( [unroll, 1] )
     else: # thorough or fast
-      unrollFast = [16, 8, 4]
+      unrollFast = [16, 8]
       for unroll in unrollFast:
         if unroll <= problemSizeUnroll and problemSizeUnroll % unroll == 0: # exact multiple
           universeUnrolls.append( [unroll] )

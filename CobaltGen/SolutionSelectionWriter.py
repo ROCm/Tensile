@@ -17,7 +17,7 @@ class SolutionSelectionWriter:
     self.kernelSet = set()
     self.solutionSet = set()
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
-    self.printLogic = False
+    self.printLogic = True
     self.fallbackPSPU1 = None
   
   def getKernelSet(self):
@@ -395,9 +395,9 @@ class SolutionSelectionWriter:
       if self.getGFlops(psp[0], psp[2]) > fastGFlops:
         # make sure it isn't a duplicate
         s.append(psp)
-        #print "%s faster than %s" % (self.pspToString(psp), self.pspToString(fasterThan))
-      #else:
-        #print "%s slower than %s" % (self.pspToString(psp), self.pspToString(fasterThan))
+        print "%s faster than %s" % (self.pspToString(psp), self.pspToString(fasterThan))
+      else:
+        print "%s slower than %s" % (self.pspToString(psp), self.pspToString(fasterThan))
     return s
 
   def removeTileDuplicates(self, psps):
