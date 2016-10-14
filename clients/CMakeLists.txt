@@ -3,6 +3,7 @@
 ################################################################################
 
 include(AddCobaltLib)
+include(EnableWarnings)
 set(Cobalt_DIR_PROBLEMS ${PROJECT_BINARY_DIR}/problems CACHE PATH "path to problems used by clients")
 # OpenCL 1.2
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")

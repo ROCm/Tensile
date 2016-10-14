@@ -22,6 +22,8 @@ else()
 endif()
 add_definitions( "-std=c++11" )
 
+include(EnableWarnings)
+
 # OpenCL 1.2
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   find_package(OpenCL "1.2" REQUIRED)
