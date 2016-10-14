@@ -85,9 +85,9 @@ def benchmark(cargs):
         build_args.extend(['--', '-j', str(multiprocessing.cpu_count())])
     cmake(build_args)
 
-    cmd([os.path.join(build_path, 'CobaltBenchmark')])
+    cmd([os.path.join(build_path, 'bin', 'CobaltBenchmark')])
 
-    
+
 
 
 ################################################################################
@@ -101,6 +101,3 @@ if __name__ == "__main__":
         benchmark(sys.argv[2:])
     else:
         print "Unknown command"
-
-
-
