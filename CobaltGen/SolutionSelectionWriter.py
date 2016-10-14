@@ -804,9 +804,9 @@ class SolutionSelectionWriter:
       #  if newFallbackSolution.kernels[i] != None:
       #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
       #s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
-    else:
-      s += indent + "  *status = cobaltStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
-      s += indent + "  return nullptr;\n"
+    # else:
+    #   s += indent + "  *status = cobaltStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
+    #   s += indent + "  return nullptr;\n"
     s += indent + "}"
     return s
 
@@ -870,13 +870,32 @@ class SolutionSelectionWriter:
     firstSizeGroup = True
     lastSizeGroup = False
     if exactOnly:
+      
+      # todo, choose fastest no just idx=0
+      
+      fastestFallbackPSP = None
+      fastestFallbackGFlops = -1
+      for psp in exactPSPs:
+        gflops = self.getGFlops(psp[0], psp[2])
+        if gflops > fastestFallbackGFlops:
+          fastestFallbackPSP = psp
+          fastestFallbackGFlops = gflops
+
+
+      self.fallbackPSPU1 = copy.deepcopy(fastestFallbackPSP)
+      for i in range(len(self.fallbackPSPU1[1].kernels)):
+        if self.fallbackPSPU1[1].kernels[i] != None:
+          self.fallbackPSPU1[1].kernels[i].unrolls = [ 1 ]
+      self.addPSPToSets(self.fallbackPSPU1)
+      localSolutionSet.add(self.fallbackPSPU1[1])
+
       #print "SSL for Unique Problems only."
       firstSizeGroup = True
       lastSizeGroup = True
       # create single rule for size zero
       unorderedGroups = []
       fallback = None # exactPSPs[0]
-      rule = [unorderedGroups, fallback, None, exactPSPs[0][0]]
+      rule = [unorderedGroups, fastestFallbackPSP, None, exactPSPs[0][0]]
       #ruleString = self.ruleToString(rule)
       #print "RULE: " + ruleString
       
@@ -1355,8 +1374,11 @@ class SolutionSelectionWriter:
   # write the benchmark data from xml's to csv format
   #############################################################################
   def writePSPsToCSV(self, exactMatch, rangePSPs, exactPSPs):
-    
-    print "WritePSPtoCSV: sorting"
+    print "WritePSPtoCSV"
+
+    ##########################
+    # RangePSPs
+    ##########################
 
     # get set of solutions
     localSolutionSet = [set(), set()]
@@ -1408,6 +1430,63 @@ class SolutionSelectionWriter:
             s += "%9s, " % ("")
         s += "<-- Tiles -- Fallbacks -->, "
       s += "\r"
+    s += "\r"
+    s += "\r"
+
+    ##########################
+    # ExactPSPs
+    ##########################
+
+    # get set of solutions
+    localProblemSet = set()
+    localSolutionSet = set()
+    for psp in exactPSPs:
+      localProblemSet.add(psp[0])
+      localSolutionSet.add(psp[1])
+    problemList = sorted(list(localProblemSet))
+    solutionList = sorted(list(localSolutionSet))
+
+    pspMap = {}
+    for solution in solutionList:
+      pspMap[solution] = []
+      pspMap[solution][:] = [psp for psp in exactPSPs if psp[1] == solution]
+
+    s = ""
+    # write row header
+    s += "problem, "
+
+    # write column headers
+    for solution in solutionList:
+      s += self.solutionWriter.getName(solution) + ", "
+    s += "\r"
+    s += " , "
+    for solution in solutionList:
+        MT0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
+        MT1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
+        unrollStr = str(solution.kernels[0].unrolls[0])
+        if len(solution.kernels[0].unrolls) > 1:
+          unrollStr += "/1"
+        s += "%ux%ux%s, " % (MT0, MT1, unrollStr)
+    s += "\r"
+
+    prevSize = 0
+    for problem in problemList:
+      print str(problem)
+      s += "%s, " % (str(problem))
+      problemPSPs = []
+      problemPSPs[:] = [psp for psp in exactPSPs if psp[0] == problem]
+      for solution in solutionList:
+        time = -1
+        for psp in problemPSPs:
+          if solution == psp[1]:
+            time = psp[2]
+            break
+        if time >= 0:
+          s += "%5.0f, " % ( self.getGFlops(psp[0], time) )
+        else:
+          s += "%9s, " % ("")
+      s += "\r"
+
     return s
 
   

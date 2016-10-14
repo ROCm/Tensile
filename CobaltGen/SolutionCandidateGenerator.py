@@ -82,7 +82,9 @@ class SolutionCandidateGenerator:
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
   ratioMacroTileSS        = 2 # slow_slow
+  ratioMacroTileExact     = True # true means tile is 1x1, 1x2, 1x4...
   microTileIncr           = 1 # 2 means even micro tile only
+
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -376,6 +378,17 @@ class SolutionCandidateGenerator:
             if self.modeMicroTiles == self.modeFast: # don't accept small work-groups with large micro-tiles; pruning options
               if microTileDim0 > 0.5*workGroup[0] or microTileDim1 > 0.5*workGroup[1]:
                 #print "skipping small WG and large UT: %ux%u > .5*%ux%u" % (microTile[0], microTile[1], workGroup[0], workGroup[1] )
+                continue
+              
+            if self.ratioMacroTileExact:
+              if 1.0*macroTileDim0/macroTileDim1 not in [1, 2, 4, 8] \
+                and 1.0*macroTileDim1/macroTileDim0 not in [1, 2, 4, 8]:
+                continue
+              if 1.0*microTile[0]/microTile[1] not in [1, 2, 4, 8] \
+                and 1.0*microTile[1]/microTile[0] not in [1, 2, 4, 8]:
+                continue
+              if 1.0*workGroup[0]/workGroup[1] not in [1, 2, 4, 8] \
+                and 1.0*workGroup[1]/workGroup[0] not in [1, 2, 4, 8]:
                 continue
 
             # macro-tile not too large
