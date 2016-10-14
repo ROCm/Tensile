@@ -498,7 +498,9 @@ class SolutionSelectionWriter:
   def getSizeGroupSize(self, sizeGroup):
     for group in sizeGroup:
       if len(group) > 0:
-        return group[0][0].getSizeFree()**0.5
+        size = int(group[0][0].getSizeFree()**0.5 + 0.5)
+        size = 16*(size/16) # round up slightly to multiple of 16
+        return size
     return 0
 
   # are the dims covered by s1 already covered by s0
@@ -1352,94 +1354,60 @@ class SolutionSelectionWriter:
   #############################################################################
   # write the benchmark data from xml's to csv format
   #############################################################################
-  def writePSPsToCSV(self, exactMatch, inputPSPs):
+  def writePSPsToCSV(self, exactMatch, rangePSPs, exactPSPs):
     
     print "WritePSPtoCSV: sorting"
-    pspsUnsorted = inputPSPs # copy.deepcopy(inputPSPs)
-    psps = self.sortSizePSPs(pspsUnsorted)
-    print "WritePSPtoCSV: done sorting"
 
-
-    # in this routine, size is sqrted
-    # set of all solutions "sorted" smallest to largest
-    localSolutionSet = set()
-    for psp in psps:
-      localSolutionSet.add(psp[1])
-    solutionList = list(localSolutionSet)
-    solutionList = sorted(solutionList)
-    
-    pspMap = {}
-    index = 0
-    for solution in solutionList:
-      pspMap[solution] = []
-      pspMap[solution][:] = [psp  for psp in psps if psp[1] == solution]
-      #print "pspMap[%u] size = %u" % (index, len(pspMap[solution]))
-      index += 1
+    # get set of solutions
+    localSolutionSet = [set(), set()]
+    for sizeGroup in rangePSPs:
+      for sizeGroupTypeIdx in range(0,2):
+        for psp in sizeGroup[sizeGroupTypeIdx]:
+          localSolutionSet[sizeGroupTypeIdx].add(psp[1])
+    solutionList = [sorted(list(localSolutionSet[0])), sorted(list(localSolutionSet[1]))]
 
     s = ""
     # write row header
     s += "size, "
 
     # write column headers
-    for solution in solutionList:
-      s += self.solutionWriter.getName(solution) + ", "
-    s += " <-- Fallbacks -- Tiles -->, "
-    for solution in solutionList:
-      s += self.solutionWriter.getName(solution) + ", "
+    for sizeGroupTypeIdx in range(0, 2):
+      for solution in solutionList[sizeGroupTypeIdx]:
+        s += self.solutionWriter.getName(solution) + ", "
+      s += "<-- Tiles -- Fallbacks -->, "
+    s += "\r"
+    for sizeGroupTypeIdx in range(0, 2):
+      for solution in solutionList[sizeGroupTypeIdx]:
+        MT0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
+        MT1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
+        unrollStr = str(solution.kernels[0].unrolls[0])
+        if len(solution.kernels[0].unrolls) > 1:
+          unrollStr += "/1"
+        s += "%ux%ux%s, " % (MT0, MT1, unrollStr)
+      s += "<-- Tiles -- Fallbacks -->, "
     s += "\r"
 
-
     prevSize = 0
-    while True:
-      #print "prevSize = %u" % prevSize
-      size = 1e6 # 1M*1M
-      # get next larger size = smallest size that is still 2 larger than prev size
-      for i in range( len(psps)-1, 0, -1):
-        psp = psps[i]
-        currentSize = psp[0].getSizeFree()**0.5
-        if currentSize < size and currentSize > prevSize+2:
-          size = currentSize
-          #print "next size %u found at index %u" % (size, len(psps)-i)
-          break
-        psps.remove(psp)
-      if size == 1e6:
-        break
-      # size should be mod16-1
-      print "size = %u" % size
-      # write row size
-      s += str(size+1) + ", "
-      # write solution speeds for fallbacks
-      for solution in solutionList:
-        pspFound = False
-        for i in range(len(pspMap[solution])-1, 0, -1):
-          #print i
-          psp = pspMap[solution][i]
-          if psp[1] == solution and int(psp[0].getSizeFree()**0.5) == size:
-            pspFound = True
-            s += str(self.getGFlops(psp[0], psp[2])) + ", "
-            pspMap[solution].remove(psp) # after writing it, its no longer needed
-            break
-          # else:
-          #   print "%f != %u" % (int(self.getSize(psp[0])**0.5), size)
-        if not pspFound:
-          s += " , "
-      # write solution speeds for exact tiles
-      size += 1
-      s += " <-- Fallbacks -- Tiles -->, "
-      for solution in solutionList:
-        pspFound = False
-        for i in range(len(pspMap[solution])-1, 0, -1):
-          #print i
-          psp = pspMap[solution][i]
-          if psp[1] == solution and int(psp[0].getSizeFree()**0.5) == size:
-            pspFound = True
-            s += str(self.getGFlops(psp[0], psp[2])) + ", "
-            pspMap[solution].remove(psp) # after writing it, its no longer needed
-            break
-        if not pspFound:
-          s += " , "
+    for sizeGroupIdx in range(0, len(rangePSPs)):
+      sizeGroup = rangePSPs[sizeGroupIdx]
+      sizeGroupSize = self.getSizeGroupSize(sizeGroup)
+      print "  %ux%ux%u" % (sizeGroupSize, sizeGroupSize, sizeGroupSize)
+      s += "%6u, " % (sizeGroupSize)
+      for sizeGroupTypeIdx in range(0, 2):
+        group = sizeGroup[sizeGroupTypeIdx]
+        solutionsForType = solutionList[sizeGroupTypeIdx]
+        for solution in solutionsForType:
+          time = -1
+          for psp in group:
+            if solution == psp[1]:
+              time = psp[2]
+              break
+          if time >= 0:
+            s += "%5.0f, " % ( self.getGFlops(psp[0], time) )
+          else:
+            s += "%9s, " % ("")
+        s += "<-- Tiles -- Fallbacks -->, "
       s += "\r"
-      prevSize = size
     return s
 
   
