@@ -109,9 +109,9 @@ unsigned int addGEMMList() {
     bool transA = gemm_params[i][3] == 1;
     bool transB = gemm_params[i][4] == 1;
     size_t initialStride = 1;
-    size_t numBatches = gemm_params[i][10];
-    bool alpha = gemm_params[i][8] == 1;
-    bool beta = gemm_params[i][9] == 1;
+    size_t numBatches = gemm_params[i][5];
+    bool alpha = true;
+    bool beta = true;
     bool useOffsets = true;
     CobaltDataType dataTypeC = cobaltDataTypeSingle;
     CobaltDataType dataTypeA = cobaltDataTypeSingle;
@@ -163,6 +163,17 @@ unsigned int addGEMMCombinatorics() {
 #endif
 
   // each api is own test
+  const unsigned int numSizeLimits = 8;
+  const size_t sizeLimits[][2] = {
+      {  16, 1024 },
+      {  32, 1536 },
+      {  48, 3360 },
+      {  64, 5760 },
+      {  80, 5760 },
+      {  96, 5760 },
+      { 112, 5760 },
+      { 128, 5760 }
+  };
 
   // how many problem options
   const size_t numStrides     = 1; // 2
@@ -178,7 +189,7 @@ unsigned int addGEMMCombinatorics() {
   size_t batches[] = { 1, 2 };
   const CobaltDataType dataTypes[][3] = {
     { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
-    { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
+	{ cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
     
     { cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle },
     { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble },
@@ -209,18 +220,26 @@ unsigned int addGEMMCombinatorics() {
                 std::vector<std::array<size_t, 3>> sizes;
 #if 0
                 size_t stride = 16;
-                size_t stride_incr = 16; // 0->1440, 16->108, 32->76
+                size_t stride_incr = 0; // 0->1440, 16->108, 32->76
                 size_t sizeMax = 5760 / batches[bIdx];
                 for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
-                  sizes.push_back({ i, i, i }); // exact tile, exact unroll
-                  sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
-                  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
-                  sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
+				  bool sizeValid = false;
+                  for (unsigned int s = 0; s < numSizeLimits; s++) {
+                    if (i % sizeLimits[s][0] == 0 && i <= sizeLimits[s][1]) {
+                      sizeValid = true;
+                      break;
+                    }
+                  }
+                  if (sizeValid) {
+                    sizes.push_back({ i, i, i }); // exact tile, exact unroll
+                    sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
+                    sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
+                  }
                 }
 #else
-                sizes.push_back({ 512, 512, 512 });
+                sizes.push_back({ 5760, 5760, 5760 });
+                //sizes.push_back({ 5760 - 1, 5760 - 1, 5760 });
 #endif
-
 
 
                 createAppXMLForExactMatch(

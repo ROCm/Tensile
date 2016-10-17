@@ -25,4 +25,4 @@ elseif( Cobalt_BACKEND MATCHES "HIP")
   target_link_libraries( ${SAMPLE_DNN_NAME} PRIVATE ${HSA_LIBRARIES} )
 endif()
 
-set_property( TARGET ${SAMPLE_DNN_NAME} PROPERTY FOLDER "Clients" )
+set_property( TARGET ${SAMPLE_DNN_NAME} PROPERTY FOLDER "clients" )

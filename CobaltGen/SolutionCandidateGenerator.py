@@ -77,11 +77,15 @@ class SolutionCandidateGenerator:
   thresholdWorkGroupSize  = 256 # threads
   thresholdMicroTiles     = 8*8
   thresholdUnrolls        = 16
+  unrollFast              = [16, 8]
   thresholdSkinny         = 128 # if dim0 or dim1 < threshold, then problem is skinny
   ratioWorkGroupSkinny    = 2
   ratioMacroTileSkinny    = 4
   ratioMacroTileThorough  = 2
   ratioMacroTileSS        = 2 # slow_slow
+  ratioMacroTileExact     = True # true means tile is 1x1, 1x2, 1x4...
+  microTileIncr           = 1 # 2 means even micro tile only
+
 
   # Research Options
   noBranches = False # True means don't generate any solution requiring branches, i.e., only generate fastest
@@ -129,7 +133,7 @@ class SolutionCandidateGenerator:
     # create solution object
     kernel = Structs.Kernel()
     solution = Structs.Solution()
-    solutionCandidates = []
+    solutionCandidates = set()
 
     # Solution Correctness Parameters
     kernel.dataTypeC = problem.tensorC.dataType
@@ -244,14 +248,14 @@ class SolutionCandidateGenerator:
     elif self.modeWorkGroups == self.modeThorough or self.modeMicroTiles == self.modeThorough:
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
-      elif transA and not transB:
+      elif transA: # and not transB:
         macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     else: # fast
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
-      elif transA and not transB:
+      elif transA: # and not transB:
         macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
@@ -266,13 +270,12 @@ class SolutionCandidateGenerator:
         elif unroll < problemSizeUnroll: # needs trailing loop
           universeUnrolls.append( [unroll, 1] )
     else: # thorough or fast
-      unrollFast = [16, 8, 4]
-      for unroll in unrollFast:
+      for unroll in self.unrollFast:
         if unroll <= problemSizeUnroll and problemSizeUnroll % unroll == 0: # exact multiple
           universeUnrolls.append( [unroll] )
         elif unroll < problemSizeUnroll: # needs trailing loop
           universeUnrolls.append( [unroll, 1] )
-      if problemSizeUnroll < self.thresholdUnrolls and not problemSizeUnroll in unrollFast:
+      if problemSizeUnroll < self.thresholdUnrolls and not problemSizeUnroll in self.unrollFast:
         universeUnrolls.append( [problemSizeUnroll] )
     if self.printDetails: print "SCG: Unrolls(" + str(len(universeUnrolls)) + "): " + str(universeUnrolls)
 
@@ -341,21 +344,21 @@ class SolutionCandidateGenerator:
         ###################################
         # for all micro-tile dimensions
         # print microTileMin, microTileMax, workGroup[0], workGroup[1]
-        for microTileDim0 in range(microTileMin, microTileMax+1):
-          for microTileDim1 in range(microTileMin, microTileMax+1):
+        for microTileDim0 in range(microTileMin, microTileMax+1, self.microTileIncr):
+          for microTileDim1 in range(microTileMin, microTileMax+1, self.microTileIncr):
 
             # filter out single solution
             if False:
-              if microTileDim0 != 8:
+              if microTileDim0 != 6:
                 continue
-              if microTileDim1 != 8:
+              if microTileDim1 != 6:
                 continue
               if workGroup[0] != 16:
                 continue
               if workGroup[1] != 16:
                 continue
-              if unroll != [8]:
-                continue
+              #if unroll != [16]:
+                #continue
 
             microTile = [ microTileDim0, microTileDim1 ]
             kernel.tile.microTile = microTile
@@ -375,6 +378,17 @@ class SolutionCandidateGenerator:
             if self.modeMicroTiles == self.modeFast: # don't accept small work-groups with large micro-tiles; pruning options
               if microTileDim0 > 0.5*workGroup[0] or microTileDim1 > 0.5*workGroup[1]:
                 #print "skipping small WG and large UT: %ux%u > .5*%ux%u" % (microTile[0], microTile[1], workGroup[0], workGroup[1] )
+                continue
+              
+            if self.ratioMacroTileExact:
+              if 1.0*macroTileDim0/macroTileDim1 not in [1, 2, 4, 8] \
+                and 1.0*macroTileDim1/macroTileDim0 not in [1, 2, 4, 8]:
+                continue
+              if 1.0*microTile[0]/microTile[1] not in [1, 2, 4, 8] \
+                and 1.0*microTile[1]/microTile[0] not in [1, 2, 4, 8]:
+                continue
+              if 1.0*workGroup[0]/workGroup[1] not in [1, 2, 4, 8] \
+                and 1.0*workGroup[1]/workGroup[0] not in [1, 2, 4, 8]:
                 continue
 
             # macro-tile not too large
@@ -549,7 +563,7 @@ class SolutionCandidateGenerator:
                     # kernels, grid, and branching specified, now add solution
                     # print solution
                     # print "  " + self.solutionWriter.getName(solution)
-                    solutionCandidates.append( copy.deepcopy(solution) )
+                    solutionCandidates.add( copy.deepcopy(solution) )
     if fullyExhaustive:
       print "NumCandidates: " + str(numCandidates)
     return solutionCandidates

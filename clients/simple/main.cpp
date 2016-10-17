@@ -13,6 +13,7 @@
 #define VALIDATE 0
 #define SWITCH_AB 0
 
+#define Cobalt_BACKEND_OPENCL12 1
 
 #if Cobalt_BACKEND_HIP
 /*******************************************************************************
@@ -127,8 +128,8 @@ private:
 #define TYPE_BETA  float
 #define WG_0I           16
 #define WG_1J           16
-#define UT_0I       8
-#define UT_1J       8
+#define UT_0I       4
+#define UT_1J       4
 #define MT_0I       (WG_0I*UT_0I)
 #define MT_1J       (WG_1J*UT_1J)
 #endif
