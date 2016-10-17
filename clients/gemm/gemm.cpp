@@ -83,7 +83,7 @@ int main( int argc, char * argv[] ) {
     return 1;
   }
 
-#if 1
+#if 0
   unsigned int numGemmList = addGEMMList();
   printf("GEMM List: %u\n", numGemmList );
 #else
@@ -218,7 +218,7 @@ unsigned int addGEMMCombinatorics() {
               for (size_t betaIdx = 0; betaIdx < numBetas; betaIdx++) {
 
                 std::vector<std::array<size_t, 3>> sizes;
-#if 1
+#if 0
                 size_t stride = 16;
                 size_t stride_incr = 0; // 0->1440, 16->108, 32->76
                 size_t sizeMax = 5760 / batches[bIdx];
@@ -238,6 +238,7 @@ unsigned int addGEMMCombinatorics() {
                 }
 #else
                 sizes.push_back({ 5760, 5760, 5760 });
+                //sizes.push_back({ 5760 - 1, 5760 - 1, 5760 });
 #endif
 
 

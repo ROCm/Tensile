@@ -77,6 +77,7 @@ class SolutionCandidateGenerator:
   thresholdWorkGroupSize  = 256 # threads
   thresholdMicroTiles     = 8*8
   thresholdUnrolls        = 16
+  unrollFast              = [16, 8]
   thresholdSkinny         = 128 # if dim0 or dim1 < threshold, then problem is skinny
   ratioWorkGroupSkinny    = 2
   ratioMacroTileSkinny    = 4
@@ -247,14 +248,14 @@ class SolutionCandidateGenerator:
     elif self.modeWorkGroups == self.modeThorough or self.modeMicroTiles == self.modeThorough:
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
-      elif transA and not transB:
+      elif transA: # and not transB:
         macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
     else: # fast
       if problemSkinnyDim0 or problemSkinnyDim1:
         macroTileRatio = self.ratioMacroTileSkinny
-      elif transA and not transB:
+      elif transA: # and not transB:
         macroTileRatio = self.ratioMacroTileSS
       else:
         macroTileRatio = 1
@@ -269,13 +270,12 @@ class SolutionCandidateGenerator:
         elif unroll < problemSizeUnroll: # needs trailing loop
           universeUnrolls.append( [unroll, 1] )
     else: # thorough or fast
-      unrollFast = [16, 8]
-      for unroll in unrollFast:
+      for unroll in self.unrollFast:
         if unroll <= problemSizeUnroll and problemSizeUnroll % unroll == 0: # exact multiple
           universeUnrolls.append( [unroll] )
         elif unroll < problemSizeUnroll: # needs trailing loop
           universeUnrolls.append( [unroll, 1] )
-      if problemSizeUnroll < self.thresholdUnrolls and not problemSizeUnroll in unrollFast:
+      if problemSizeUnroll < self.thresholdUnrolls and not problemSizeUnroll in self.unrollFast:
         universeUnrolls.append( [problemSizeUnroll] )
     if self.printDetails: print "SCG: Unrolls(" + str(len(universeUnrolls)) + "): " + str(universeUnrolls)
 

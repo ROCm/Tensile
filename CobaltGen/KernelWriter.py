@@ -43,6 +43,8 @@ class KernelWriter:
       self.fenceStr = "mem_fence(CLK_LOCAL_MEM_FENCE);"
       self.fmaFStr = "mad"
       self.fmaDStr = "mad"
+      self.int64Str = "long"
+      self.uint64Str = "unsigned long"
     else:
       self.getGroupIdStr = "hc_get_group_id"
       self.getNumGroupsStr = "hc_get_num_groups"
@@ -54,6 +56,8 @@ class KernelWriter:
       self.fenceStr = self.syncStr
       self.fmaFStr = "fmaf"
       self.fmaDStr = "fma"
+      self.int64Str = "int64_t"
+      self.uint64Str = "uint64_t"
 
     self.returnOnly = False
 
@@ -790,7 +794,7 @@ class KernelWriter:
     # offset global pointers
     ####################################
     kStr += "  /* where will this thread read from global memory */" + self.endLine
-    kStr += "  A += GLOBAL_A( "
+    kStr += "  A += GLOBAL_A( (" + self.uint64Str + ")"
     for i in range(0, len(kernel.problem.operation.indexAssignmentsA)):
       index = kernel.problem.operation.indexAssignmentsA[i]
       if index < len(kernel.indexOrderC): # c index
@@ -801,10 +805,10 @@ class KernelWriter:
       else: # summation index
         kStr += "a" + indexChars[index]
       if i < len(kernel.problem.operation.indexAssignmentsA)-1:
-        kStr += ", "
+        kStr += ", (" + self.uint64Str + ")"
     kStr += " );" + self.endLine
 
-    kStr += "  B += GLOBAL_B( "
+    kStr += "  B += GLOBAL_B( (" + self.uint64Str + ")"
     for i in range(0, len(kernel.problem.operation.indexAssignmentsB)):
       index = kernel.problem.operation.indexAssignmentsB[i]
       if index < len(kernel.indexOrderC): # c index
@@ -815,7 +819,7 @@ class KernelWriter:
       else: # summation index
         kStr += "b" + indexChars[index]
       if i < len(kernel.problem.operation.indexAssignmentsB)-1:
-        kStr += ", "
+        kStr += ", (" + self.uint64Str + ")"
     kStr += " );" + self.endLine
     kStr += self.endLine
 
@@ -1135,8 +1139,8 @@ class KernelWriter:
       loopChar = indexChars[kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1] \
           + len(kernel.indexOrderC)]
       # advance A, B along summation dimension
-      kStr += indent + "A += strideA" + loopChar + "*UNROLL;" + self.endLine
-      kStr += indent + "B += strideB" + loopChar + "*UNROLL;" + self.endLine
+      kStr += indent + "A += (" + self.uint64Str + ")strideA" + loopChar + "*UNROLL;" + self.endLine
+      kStr += indent + "B += (" + self.uint64Str + ")strideB" + loopChar + "*UNROLL;" + self.endLine
       indent = indent[2:]
       # close do-while loop
       kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
@@ -1297,7 +1301,7 @@ class KernelWriter:
       loopChar = indexChars[kernel.indexOrderSummation[i] \
           + len(kernel.indexOrderC)]
       # advance A, B along summation dimension
-      kStr += indent + "A += (long) strideA" + loopChar
+      kStr += indent + "A += (" + self.int64Str + ") strideA" + loopChar
       if i==len(kernel.indexOrderSummation)-1:
         kStr += "*UNROLL"
       else:
@@ -1307,7 +1311,7 @@ class KernelWriter:
           kStr += " - strideA" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
 
-      kStr += indent + "B += (long) strideB" + loopChar
+      kStr += indent + "B += (" + self.int64Str + ") strideB" + loopChar
       if i==len(kernel.indexOrderSummation)-1:
         kStr += "*UNROLL"
       else:
@@ -1385,7 +1389,7 @@ class KernelWriter:
               + tileChar1 + ") {"
           numEdges += 1
 
-        kStr += "  TYPE_MAD_WRITE( C[ GLOBAL_C("
+        kStr += "  TYPE_MAD_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
         for i in range(0, len(kernel.indexOrderC)):
           kStr += " globalC" + indexChars[i]
           if i == kernel.indexAssignmentDim0:
@@ -1393,7 +1397,7 @@ class KernelWriter:
           if i == kernel.indexAssignmentDim1:
             kStr += " + " + str(b) + "*WG_" + tileChar1
           if i < len(kernel.indexOrderC)-1:
-            kStr += ","
+            kStr += ", (" + self.uint64Str + ")"
         kStr += ") ]"
         if kernel.useAlpha():
           kStr += ", alpha"
