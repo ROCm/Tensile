@@ -18,15 +18,15 @@ add_cobalt_lib(gemm_cobalt EXCLUDE_FROM_ALL
 )
 
 # gemm links Cobalt
-target_link_libraries( ${SAMPLE_GEMM_NAME} PRIVATE gemm_cobalt )
+target_link_libraries( ${SAMPLE_GEMM_NAME} PUBLIC gemm_cobalt )
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( gemm_cobalt PUBLIC opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   target_include_directories( gemm_cobalt
-    PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+    PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
-  target_link_libraries( gemm_cobalt PRIVATE ${HSA_LIBRARIES} )
+  target_link_libraries( gemm_cobalt PUBLIC ${HSA_LIBRARIES} )
 endif()
 
 set_property( TARGET ${SAMPLE_GEMM_NAME} PROPERTY FOLDER "Clients" )

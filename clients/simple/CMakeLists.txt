@@ -15,16 +15,16 @@ add_cobalt_lib(simple_cobalt EXCLUDE_FROM_ALL
     ENABLE_LOGGER
 )
 
-target_link_libraries( simple PRIVATE simple_cobalt )
+target_link_libraries( simple PUBLIC simple_cobalt )
 
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( simple_cobalt PUBLIC opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   target_include_directories( simple_cobalt
-    PRIVATE $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+    PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
-  target_link_libraries( simple_cobalt PRIVATE ${HSA_LIBRARIES} )
-  target_compile_definitions( simple_cobalt PRIVATE Cobalt_BACKEND_HIP )
+  target_link_libraries( simple_cobalt PUBLIC ${HSA_LIBRARIES} )
+  target_compile_definitions( simple_cobalt PUBLIC Cobalt_BACKEND_HIP )
 endif()
 
 set_property( TARGET simple PROPERTY FOLDER "Clients" )
