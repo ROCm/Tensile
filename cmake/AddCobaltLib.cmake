@@ -73,7 +73,12 @@ function(add_cobalt_lib NAME)
     )
 
     if(PARSE_PROBLEMS)
-        target_compile_definitions(${NAME} PUBLIC -DCobalt_DIR_PROBLEMS="${PARSE_PROBLEMS}")
+        if (CMAKE_CXX_COMPILER MATCHES ".*hipcc")
+            # hipcc is a pearl script, so it requires a lot of extra escaping
+            target_compile_definitions(${NAME} PUBLIC -DCobalt_DIR_PROBLEMS=\\\"${PARSE_PROBLEMS}\\\")
+        else()
+            target_compile_definitions(${NAME} PUBLIC -DCobalt_DIR_PROBLEMS="${PARSE_PROBLEMS}")
+        endif()
     endif()
 
 endfunction()
