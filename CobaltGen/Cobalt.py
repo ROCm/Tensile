@@ -83,6 +83,7 @@ def benchmark(cargs):
     build_args = ['--build', build_path, '--config', 'Release']
     if os.path.exists(os.path.join(build_path, 'Makefile')):
         build_args.extend(['--', '-j', str(multiprocessing.cpu_count())])
+        # build_args.extend(['VERBOSE=1'])
     cmake(build_args)
 
     cmd([os.path.join(build_path, 'bin', 'CobaltBenchmark')])

@@ -20,7 +20,7 @@ target_link_libraries( simple PUBLIC simple_cobalt )
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( simple_cobalt PUBLIC opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  target_include_directories( simple_cobalt
+  target_include_directories( simple_cobalt SYSTEM
     PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
   target_link_libraries( simple_cobalt PUBLIC ${HSA_LIBRARIES} )

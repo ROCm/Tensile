@@ -23,7 +23,7 @@ target_link_libraries( ${SAMPLE_DNN_NAME} PUBLIC dnn_cobalt )
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( dnn_cobalt PUBLIC opencl )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  target_include_directories( dnn_cobalt
+  target_include_directories( dnn_cobalt SYSTEM
     PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
   target_link_libraries( dnn_cobalt PUBLIC ${HSA_LIBRARIES} )

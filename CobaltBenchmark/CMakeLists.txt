@@ -82,7 +82,7 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_link_libraries( ${CobaltBenchmark_NAME} PRIVATE opencl )
   target_compile_definitions( ${CobaltBenchmark_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=1 -DCobalt_BACKEND_HIP=0 )
 elseif( Cobalt_BACKEND MATCHES "HIP")
-  target_include_directories( ${CobaltBenchmark_NAME}
+  target_include_directories( ${CobaltBenchmark_NAME} SYSTEM
     PUBLIC  $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
 #  target_link_libraries( ${CobaltBenchmark_NAME} PRIVATE ${HSA_LIBRARIES} )
@@ -112,5 +112,13 @@ endif()
 # CobaltBenchmark - generates ProblemSolutionMap.xml
 
 target_compile_definitions( ${CobaltBenchmark_NAME} PRIVATE -DCobalt_SOLVER_ENABLED=0 -DCobalt_LOGGER_ENABLED=1 )
-
-target_compile_definitions( ${CobaltBenchmark_NAME} PRIVATE -DCobalt_DIR_SOLUTIONS="${CobaltBenchmark_DIR_GENERATED}" )
+if (CMAKE_CXX_COMPILER MATCHES ".*hipcc")
+    # hipcc is a pearl script, so it requires a lot of extra escaping
+    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_PROBLEMS=\\\"${CobaltBenchmark_DIR_GENERATED}\\\")
+    # This does not need to be defined but will fail to compile when not
+    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_SOLUTIONS=\\\"${CobaltBenchmark_DIR_GENERATED}\\\")
+else()
+    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_PROBLEMS="${CobaltBenchmark_DIR_GENERATED}")
+    # This does not need to be defined but will fail to compile when not
+    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_SOLUTIONS="${CobaltBenchmark_DIR_GENERATED}")
+endif()
