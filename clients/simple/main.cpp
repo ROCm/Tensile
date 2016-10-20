@@ -128,15 +128,15 @@ private:
 #define TYPE_BETA  float
 #define WG_0I           16
 #define WG_1J           16
-#define UT_0I       4
-#define UT_1J       4
+#define UT_0I       6
+#define UT_1J       6
 #define MT_0I       (WG_0I*UT_0I)
 #define MT_1J       (WG_1J*UT_1J)
 #endif
 
 #if VALIDATE
-const unsigned int M = 128;
-const unsigned int N = 128;
+const unsigned int M = MT_0I*2-1;
+const unsigned int N = MT_1J*2-1;
 const unsigned int K = 16;
 #else
 const unsigned int M = 5760;
@@ -170,7 +170,7 @@ int main( int argc, char *argv[] ) {
 
   // compile kernel
   printf("compiling opencl kernel\n");
-  const char *buildOptions = "-cl-std=CL2.0";
+  const char *buildOptions = nullptr; // "-cl-std=CL2.0";
   const char *kernelSource;
   if ( !transA && !transB ) {
     kernelSource = kernelSource_NN;
@@ -218,7 +218,7 @@ int main( int argc, char *argv[] ) {
 
   // init host buffers
   printf("initializing host buffers\n");
-#if VALIDATE
+#if VALIDATE & 0
   for (unsigned int i = 0; i < numElementsC; i++) {
     hC[i] = static_cast<float>(rand()%101);
     hC_ref[i] = static_cast<float>(hC[i]);
