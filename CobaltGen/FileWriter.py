@@ -592,7 +592,7 @@ class FileWriter:
     fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
     fileString += "\n"
     if self.backend.isHIP():
-      fileString += "#include <hip_runtime.h>\n"
+      fileString += "#include <hip/hip_runtime.h>\n"
       fileString += "\n"
     if self.backend.isOpenCL():
       fileString += "extern const char * const %s_src;\n" % kernelName

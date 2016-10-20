@@ -11,7 +11,7 @@
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 #elif Cobalt_BACKEND_HIP
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #endif
 
 namespace Cobalt {
@@ -913,7 +913,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           this->enqueueArgs[kernelIdx][enqueueIdx][19],
           this->enqueueArgs[kernelIdx][enqueueIdx][20],
           this->enqueueArgs[kernelIdx][enqueueIdx][21],
-          this->enqueueArgs[kernelIdx][enqueueIdx][22] ); 
+          this->enqueueArgs[kernelIdx][enqueueIdx][22] );
 #endif
 
 #endif

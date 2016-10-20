@@ -2,7 +2,7 @@
  * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
  ******************************************************************************/
 
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 
 #if 0
 
@@ -313,7 +313,7 @@ __global__ void kernel_hip(
   offA += (MT_0I+PAD); \
   offB += (MT_1J+PAD); \
   /* mem_fence(CLK_LOCAL_MEM_FENCE); */
-  
+
 
 #define MICRO_TILE_2 \
   /* prefetch black, compute red */ \
