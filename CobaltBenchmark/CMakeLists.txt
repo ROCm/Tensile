@@ -31,6 +31,7 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
 # HIP
 elseif( Cobalt_BACKEND MATCHES "HIP")
   find_package( HIP REQUIRED )
+  set (CMAKE_CXX_COMPILER ${HIPCC})
   message(STATUS "${Cobalt_BACKEND} backend selected." )
   message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
 endif( )

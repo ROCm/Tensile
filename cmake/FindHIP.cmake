@@ -60,7 +60,7 @@ else()
             set( HIP_PLATFORM "hcc" )
 			#export the environment variable, so that HIPCC can find it.
             set(ENV{HIP_PLATFORM} "hcc")
-			set (CMAKE_CXX_COMPILER ${HIPCC})
+			# set (CMAKE_CXX_COMPILER ${HIPCC})
 
 		else()
 			message(SEND_ERROR "Did not find HIPCC")
