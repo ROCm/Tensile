@@ -28,10 +28,9 @@ else()
     if (NOT DEFINED HIP_PATH)
       find_path( HIP_INCLUDE_DIR
         NAMES
-          hip_runtime.h
+          hip/hip_runtime.h
         PATHS
           ENV HIP_PATH
-          /opt/rocm/hip
           /opt/rocm
         PATH_SUFFIXES
           /include/hip
