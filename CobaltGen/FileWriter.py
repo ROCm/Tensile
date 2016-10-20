@@ -56,7 +56,7 @@ class FileWriter:
   # writeKernelFiles
   ##############################################################################
   def writeKernelFiles( self, kernelSet ):
-    print "status: writing kernel files"
+    print "CobaltGen: Writing kernel files."
 
     # main kernel .cpp,.h files
     kernelFilePath = self.cobaltDirGenerated + self.kernelSubdirectory
@@ -119,7 +119,7 @@ class FileWriter:
   # writeSolutionFiles
   ##############################################################################
   def writeSolutionFiles( self, solutionSet ):
-    print "status: writing solution files"
+    print "CobaltGen: Writing solution files."
 
     # main solution .cpp,.h files
     solutionFilePath = self.cobaltDirGenerated + self.solutionSubdirectory
@@ -183,7 +183,7 @@ class FileWriter:
   # writeBenchmarkFiles
   ##############################################################################
   def writeBenchmarkFiles( self, problemTree, problemSolutionCandidates ):
-    print "status: writing benchmark files"
+    print "CobaltGen: Writing benchmark files."
 
     numSolutions = 0
     benchmarkNumExactMatches = 0
@@ -643,18 +643,24 @@ class FileWriter:
       sslHeaderFile.close()
 
       for exactMatch, pspTypes in exactMatches.iteritems():
-        #print exactMatch, len(pspTypes[0]), len(pspTypes[1])
         rangePSPs = pspTypes[0]
         exactPSPs = pspTypes[1]
 
         rangePSPs = sslw.bucketSortRangePSPs( rangePSPs ) # sort into size groups
+
+        numExactTiles = 0
+        numFallbacks = 0
+        for sizeGroup in rangePSPs:
+          numExactTiles += len(sizeGroup[0])
+          numFallbacks += len(sizeGroup[1])
+        print "CobaltGen: Writing backend for %s(%u,%u,%u)." % (str(exactMatch), numExactTiles, numFallbacks, len(exactPSPs))
         # only support this exact match if some benchmark times existed
         # otherwise none of the other files for it will have been written
 
         baseName = "CobaltGetSolution_" + exactMatch.libString()
 
         # (7) Write CSV for verification
-        print "Writing CSV for %s" % baseName
+        if sslw.printStatus: print "%s::writeCSV(%s)" % (str(exactMatch), baseName)
         csvPath = self.outputPath + self.otherSubdirectory + baseName + "_perf.csv"
         csvFile = open(csvPath, "w")
         s = sslw.writePSPsToCSV(exactMatch, rangePSPs, exactPSPs)
@@ -673,6 +679,7 @@ class FileWriter:
         #print "calling writeGetSolutionForExactMatch"
         sslw.pruneSolutions(exactMatch, rangePSPs, exactPSPs)
         sslSourceString, sslHeaderString, fastestPSPs = sslw.writeGetSolutionForExactMatch(exactMatch, rangePSPs, exactPSPs) # match size and mod
+        if sslw.printStatus: print "%s::writeMinimumXML()" % str(exactMatch)
         self.writeMinimumXML( exactMatch, fastestPSPs )
         sslSourceFile.write(sslSourceString)
         sslSourceFile.close()
@@ -718,14 +725,13 @@ class FileWriter:
         templateInstantiationsFile.write(
             "template class Cobalt::SolutionHIP" \
             +templateInstantiationStr + ";\n")
-    print "writing " + templateInstantiationsPath
+    print "CobaltGen: Writing explicit template instantiations."
     templateInstantiationsFile.close()
 
 ################################################################################
 # write the minimum set of xml entries requried to reproduce library backend
 ################################################################################
   def writeMinimumXML( self, exactMatch, fastestPSPs ):
-    print "writeMinimumXML( %s, %u )" % (str(exactMatch), len(fastestPSPs))
     minXMLPath = self.outputPath + self.minimumXMLSubdirectory \
         + str(exactMatch) + ".xml"
     minXMLFile= open(minXMLPath, "w")
