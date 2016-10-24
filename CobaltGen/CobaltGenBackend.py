@@ -24,7 +24,7 @@ def GenBackendFromFiles( \
   # read raw solution times
   psTimesRaw = {}
   for inputFile in inputFiles:
-    print "Reading problem/solutions from " + os.path.basename(inputFile)
+    print "CobaltGen: Reading " + os.path.basename(inputFile)
     FileReader.getSolutionsFromXML( inputFile, psTimesRaw, optimizeAlpha, optimizeBeta )
   # print "status: created dictionary - " + str(psTimes)
   
@@ -112,11 +112,9 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "\nCobaltGenBackend:"
-  print "  backend=" + str(backend)
-  print "  outputPath=" + args.outputPath
-  print "  inputPath=" + args.inputPath
-  print "  inputFiles=" + str(inputFiles)
+  print "CobaltGen: backend=%s, numInputFiles=%u" %( str(backend), len(inputFiles) )
+  print "  InputPath=" + args.inputPath
+  print "  OutputPath=" + args.outputPath
 
   #print args.optimizeAlphaStr
   #print args.optimizeBetaStr
@@ -128,4 +126,5 @@ if __name__ == "__main__":
       backend, \
       args.optimizeAlphaStr=="On" or args.optimizeAlphaStr=="ON", \
       args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
+  print "CobaltGen: DONE."
 

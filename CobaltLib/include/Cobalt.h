@@ -21,7 +21,7 @@
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 #else
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #endif
 
 #if (defined( __GNUC__ ) || defined( __IBMC__ ))
@@ -61,7 +61,7 @@ typedef enum CobaltStatus_ {
   cobaltStatusTensorDimensionOrderInvalid,                // dimensions not in order smallest to largest stride
   cobaltStatusTensorDimensionStrideInvalid,               // stride is 0
   cobaltStatusTensorDimensionSizeInvalid,                 // size is 0
-  
+
   /* operation errors */
   cobaltStatusOperandNumDimensionsMismatch,               // tensor and indexAssignments num dimensions don't match
   cobaltStatusOperationOperandNumIndicesMismatch,         // tensor A,B don't have correct number of
