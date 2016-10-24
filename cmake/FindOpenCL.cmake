@@ -140,11 +140,6 @@ else( )
 endif( )
 mark_as_advanced( OPENCL_LIBRARIES )
 
-# message( STATUS "OpenCL_FIND_VERSION: ${OpenCL_FIND_VERSION}" )
-if( OpenCL_VERSION VERSION_LESS OpenCL_FIND_VERSION )
-    message( FATAL_ERROR "Requested OpenCL version: ${OpenCL_FIND_VERSION}, Found OpenCL version: ${OpenCL_VERSION}" )
-endif( )
-
 # If we asked for OpenCL 1.2, and we found a version installed greater than that, pass the 'use deprecated' flag
 if( (OpenCL_FIND_VERSION VERSION_LESS "2.0") AND (OpenCL_VERSION VERSION_GREATER OpenCL_FIND_VERSION) )
     add_definitions( -DCL_USE_DEPRECATED_OPENCL_2_0_APIS )
