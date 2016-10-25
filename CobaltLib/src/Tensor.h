@@ -75,3 +75,4 @@ void printMatch(size_t index, DataType gpuData, DataType cpuData);
 } // namespace
 
 #endif
+

@@ -180,3 +180,4 @@ template<> size_t sizeOfType<CobaltComplexDouble>(){ return sizeof(CobaltComplex
 template<> size_t sizeOfType<void>() { return 0; }
 
 } // end namespace Cobalt
+

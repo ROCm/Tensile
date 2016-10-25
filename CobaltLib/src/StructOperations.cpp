@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <limits>
 
 namespace Cobalt {
 
@@ -52,9 +53,10 @@ std::string toString( CobaltStatus status ) {
   COBALT_ENUM_TO_STRING_CASE( cobaltStatusInvalidParameter )
 
 
-  default:
-    return "Error in toString(CobaltStatus): no switch case for: "
-        + std::to_string(status);
+  // causes clang warning
+  //default:
+  //  return "Error in toString(CobaltStatus): no switch case for: "
+  //      + std::to_string(status);
   };
 }
 
@@ -70,9 +72,10 @@ std::string toString( CobaltDataType dataType ) {
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateSingle)
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateDouble)
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeNone )
-  default:
-    return "Error in toString(CobaltDataType): no switch case for: "
-        + std::to_string(dataType);
+    COBALT_ENUM_TO_STRING_CASE( cobaltNumDataTypes )
+  //default:
+  //  return "Error in toString(CobaltDataType): no switch case for: "
+  //      + std::to_string(dataType);
   };
 }
 
@@ -80,9 +83,9 @@ std::string toString( CobaltOperationType type ) {
   switch( type ) {
     COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeContraction )
     COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeConvolution )
-  default:
-    return "Error in toString(CobaltDataType): no switch case for: "
-        + std::to_string(type);
+  //default:
+  //  return "Error in toString(CobaltDataType): no switch case for: "
+  //      + std::to_string(type);
   };
 }
 
@@ -143,14 +146,17 @@ std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) 
   return solution->toString(indentLevel);
 }
 
-
 // get size of CobaltDataType
 size_t sizeOf( CobaltDataType type ) {
   switch( type ) {
+  case cobaltDataTypeHalf:
+    return sizeof(CobaltHalf);
   case cobaltDataTypeSingle:
     return sizeof(float);
   case cobaltDataTypeDouble:
     return sizeof(double);
+  case cobaltDataTypeComplexHalf:
+    return sizeof(CobaltComplexHalf);
   case cobaltDataTypeComplexSingle:
     return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexDouble:
@@ -159,10 +165,12 @@ size_t sizeOf( CobaltDataType type ) {
     return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexConjugateDouble:
     return sizeof(CobaltComplexDouble);
+  case cobaltNumDataTypes:
+    return 0;
   case cobaltDataTypeNone:
     return 0;
-  default:
-    return -1;
+  //default:
+  //  return -1;
   }
 }
 
@@ -243,8 +251,11 @@ bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
 }
 
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
-  return l.x == r.x && l.y == r.y;
+  return std::abs(l.x - r.x) < std::numeric_limits<float>::epsilon()
+      && std::abs(l.y - r.y) < std::numeric_limits<float>::epsilon();
 }
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
-  return l.x == r.x && l.y == r.y;
+  return std::abs(l.x - r.x) < std::numeric_limits<double>::epsilon()
+      && std::abs(l.y - r.y) < std::numeric_limits<double>::epsilon();
 }
+

@@ -1271,3 +1271,4 @@ __declspec(thread) KernelMap *kernelMap = 0;
 __thread KernelMap *kernelMap = 0;
 #endif
 #endif
+

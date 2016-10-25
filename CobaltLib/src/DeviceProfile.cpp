@@ -109,3 +109,4 @@ size_t DeviceProfile::numDevices() const {
 }
 
 } // namespace
+

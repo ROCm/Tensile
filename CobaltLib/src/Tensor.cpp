@@ -438,3 +438,4 @@ void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, 
 }
 
 } // namespace
+
