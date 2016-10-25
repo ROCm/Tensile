@@ -62,17 +62,19 @@ std::string toString( CobaltStatus status ) {
 
 std::string toString( CobaltDataType dataType ) {
   switch( dataType ) {
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeHalf )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingle )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDouble )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexHalf )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexSingle )
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexDouble )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateHalf)
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateSingle)
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateDouble)
     COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeNone )
     COBALT_ENUM_TO_STRING_CASE( cobaltNumDataTypes )
+#ifdef Cobalt_ENABLE_FP16
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeHalf )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexHalf )
+    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateHalf)
+#endif
   //default:
   //  return "Error in toString(CobaltDataType): no switch case for: "
   //      + std::to_string(dataType);
@@ -149,14 +151,10 @@ std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) 
 // get size of CobaltDataType
 size_t sizeOf( CobaltDataType type ) {
   switch( type ) {
-  case cobaltDataTypeHalf:
-    return sizeof(CobaltHalf);
   case cobaltDataTypeSingle:
     return sizeof(float);
   case cobaltDataTypeDouble:
     return sizeof(double);
-  case cobaltDataTypeComplexHalf:
-    return sizeof(CobaltComplexHalf);
   case cobaltDataTypeComplexSingle:
     return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexDouble:
@@ -165,6 +163,14 @@ size_t sizeOf( CobaltDataType type ) {
     return sizeof(CobaltComplexFloat);
   case cobaltDataTypeComplexConjugateDouble:
     return sizeof(CobaltComplexDouble);
+#ifdef Cobalt_ENABLE_FP16
+  case cobaltDataTypeHalf:
+    return 2;
+  case cobaltDataTypeComplexHalf:
+    return 4;
+  case cobaltDataTypeComplexConjugateHalf:
+    return 4;
+#endif
   case cobaltNumDataTypes:
     return 0;
   case cobaltDataTypeNone:

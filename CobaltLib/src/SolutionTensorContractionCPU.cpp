@@ -33,6 +33,9 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
 
+  ctrl.numQueuesUsed = 0;
+  ctrl.numOutputEvents = 0;
+
   // pointers to data
   TypeC *dataC = (TypeC *)tensorDataC.data;
   dataC += tensorDataC.offset;
@@ -45,7 +48,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
   // index sizes
   unsigned int numIndicesFreeC = Solution::problem.tensorC.numDims();
   unsigned int numIndicesSummation = static_cast<unsigned int>(Solution::problem.indicesSummation.size());
-  unsigned int numIndicesFreeAB = Solution::problem.tensorA.numDims() - numIndicesSummation;
+  // unsigned int numIndicesFreeAB = Solution::problem.tensorA.numDims() - numIndicesSummation;
 
   // allocate coords and sizes
   std::vector<unsigned int> freeCoord(numIndicesFreeC);
@@ -95,10 +98,17 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       
       size_t serialIdxA = Solution::problem.tensorA.getIndex(coordsA);
       TypeA valueA = dataA[serialIdxA];
-      if ( std::is_same<TypeA, CobaltComplexFloat>::value
+      if (
+#ifdef Cobalt_Enable_FP16_HOST
+           std::is_same<TypeA, CobaltComplexHalf>::value ||
+#endif
+           std::is_same<TypeA, CobaltComplexFloat>::value
         || std::is_same<TypeA, CobaltComplexDouble>::value) {
-        if ( Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf
-          || Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
+        if (
+#ifdef Cobalt_Enable_FP16_HOST
+             Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf ||
+#endif
+             Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
           || Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateDouble) {
           complexConjugate<TypeA>( valueA );
         }
@@ -106,10 +116,17 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
       size_t serialIdxB = Solution::problem.tensorB.getIndex(coordsB);
       TypeB valueB = dataB[serialIdxB];
-      if (std::is_same<TypeB, CobaltComplexFloat>::value
+      if (
+#ifdef Cobalt_Enable_FP16_HOST
+           std::is_same<TypeB, CobaltComplexHalf>::value ||
+#endif
+           std::is_same<TypeB, CobaltComplexFloat>::value
         || std::is_same<TypeB, CobaltComplexDouble>::value) {
-        if ( Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf
-          || Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateSingle
+        if (
+#ifdef Cobalt_Enable_FP16_HOST
+             Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf ||
+#endif
+             Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateSingle
           || Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateDouble) {
           complexConjugate<TypeB>( valueB );
         }
@@ -171,7 +188,10 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
-  return "CobaltSolutionTensorContractionCPU";
+  std::string state;
+  for (size_t i = 0; i < indentLevel; i++) state += " ";
+  state += "CobaltSolutionTensorContractionCPU";
+  return state;
 }
 
 
@@ -209,12 +229,26 @@ std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Problem & problem) {
     case cobaltDataTypeDouble:
       return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<double,double,double,double,double>( problem ), cobaltStatusSuccess );
     case cobaltDataTypeComplexSingle:
+    case cobaltDataTypeComplexConjugateSingle:
       return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>( problem ), cobaltStatusSuccess );
     case cobaltDataTypeComplexDouble:
+    case cobaltDataTypeComplexConjugateDouble:
       return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem ), cobaltStatusSuccess );
-    default:
+
+#ifdef Cobalt_ENABLE_FP16_HOST
+    case cobaltDataTypeHalf:
+      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltHalf,CobaltHalf,CobaltHalf,CobaltHalf,CobaltHalf>( problem ), cobaltStatusSuccess );
+    case cobaltDataTypeComplexHalf:
+    case cobaltDataTypeComplexConjugateHalf:
+      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexHalf,CobaltComplexHalf,CobaltComplexHalf,CobaltComplexHalf,CobaltComplexHalf>( problem ), cobaltStatusSuccess );
+#endif
+    case cobaltNumDataTypes:
+    case cobaltDataTypeNone:
       return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
     }
+    //default:
+    //  return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
+    //}
   } else {
       return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
   }

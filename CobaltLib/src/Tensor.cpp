@@ -60,19 +60,30 @@ std::string Tensor::toStringXML( size_t indent, std::string which ) const {
 }
 
 std::string Tensor::toString( CobaltTensorDataConst tensorData ) const {
+
   switch(dataType) {
   case cobaltDataTypeSingle:
     return toStringTemplate<float>(tensorData);
   case cobaltDataTypeDouble:
     return toStringTemplate<double>(tensorData);
   case cobaltDataTypeComplexSingle:
+  case cobaltDataTypeComplexConjugateSingle:
     return toStringTemplate<CobaltComplexFloat>(tensorData);
   case cobaltDataTypeComplexDouble:
+  case cobaltDataTypeComplexConjugateDouble:
     return toStringTemplate<CobaltComplexDouble>(tensorData);
+#ifdef Cobalt_ENABLE_FP16_HOST
+  case cobaltDataTypeHalf:
+    return toStringTemplate<CobaltHalf>(tensorData);
+  case cobaltDataTypeComplexHalf:
+  case cobaltDataTypeComplexConjugateHalf:
+    return toStringTemplate<CobaltComplexHalf>(tensorData);
+#endif
+  case cobaltNumDataTypes:
   case cobaltDataTypeNone:
     return "";
-  default:
-    return "ERROR";
+  //default:
+  //  return "ERROR";
   }
 }
 
@@ -236,13 +247,23 @@ void Tensor::fill(
   case cobaltDataTypeDouble:
     return fillTemplate<double>(tensorData, fillType, src);
   case cobaltDataTypeComplexSingle:
+  case cobaltDataTypeComplexConjugateSingle:
     return fillTemplate<CobaltComplexFloat>(tensorData, fillType, src);
   case cobaltDataTypeComplexDouble:
+  case cobaltDataTypeComplexConjugateDouble:
     return fillTemplate<CobaltComplexDouble>(tensorData, fillType, src);
+#ifdef Cobalt_ENABLE_FP16_HOST
+  case cobaltDataTypeHalf:
+    return fillTemplate<CobaltHalf>(tensorData, fillType, src);
+  case cobaltDataTypeComplexHalf:
+  case cobaltDataTypeComplexConjugateHalf:
+    return fillTemplate<CobaltComplexHalf>(tensorData, fillType, src);
+#endif
+  case cobaltNumDataTypes:
   case cobaltDataTypeNone:
     return;
-  default:
-    return;
+  //default:
+  //  return;
   }
 }
 
@@ -314,8 +335,7 @@ void Tensor::fillTemplate(
 bool compareTensors(
   CobaltTensorDataConst gpu,
   CobaltTensorDataConst cpu,
-  Cobalt::Tensor tensor,
-  CobaltControl ctrl) {
+  Cobalt::Tensor tensor ) {
 
   switch (tensor.getDataType()) {
   case cobaltDataTypeSingle:
@@ -323,9 +343,18 @@ bool compareTensors(
   case cobaltDataTypeDouble:
     return compareTensorsTemplate<double>((double *)gpu.data, (double *)cpu.data, tensor);
   case cobaltDataTypeComplexSingle:
+  case cobaltDataTypeComplexConjugateSingle:
     return compareTensorsTemplate<CobaltComplexFloat>((CobaltComplexFloat *)gpu.data, (CobaltComplexFloat *)cpu.data, tensor);
   case cobaltDataTypeComplexDouble:
+  case cobaltDataTypeComplexConjugateDouble:
     return compareTensorsTemplate<CobaltComplexDouble>((CobaltComplexDouble *)gpu.data, (CobaltComplexDouble *)cpu.data, tensor);
+#ifdef Cobalt_ENABLE_FP16_HOST
+  case cobaltDataTypeHalf:
+    return compareTensorsTemplate<CobaltHalf>((CobaltHalf *)gpu.data, (CobaltHalf *)cpu.data, tensor);
+  case cobaltDataTypeComplexHalf:
+  case cobaltDataTypeComplexConjugateHalf:
+    return compareTensorsTemplate<CobaltComplexHalf>((CobaltComplexHalf *)gpu.data, (CobaltComplexHalf *)cpu.data, tensor);
+#endif
   default:
     printf("ERROR\n");
     return false;

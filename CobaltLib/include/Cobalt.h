@@ -18,6 +18,9 @@
 #include <crtdbg.h>
 #endif
 
+#undef Cobalt_ENABLE_FP16
+#undef Cobalt_ENABLE_FP16_HOST
+
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 #else
@@ -30,6 +33,7 @@
     #define Cobalt_ALIGNED(_x)
 #endif
 
+#ifdef Cobalt_ENABLE_FP16
 #if Cobalt_BACKEND_OPENCL12
 typedef half CobaltHalf;
 #else
@@ -41,6 +45,7 @@ typedef union {
    struct{ CobaltHalf x, y; };
    struct{ CobaltHalf s0, s1; };
 } CobaltComplexHalf;
+#endif
 
 typedef union {
    float  Cobalt_ALIGNED(8) s[2];
@@ -134,15 +139,17 @@ CobaltStatus cobaltTeardown();
  * CobaltDataType
  ******************************************************************************/
 typedef enum CobaltDataType_ {
-  cobaltDataTypeHalf,                   // 0
   cobaltDataTypeSingle,                 // 1
   cobaltDataTypeDouble,                 // 2
-  cobaltDataTypeComplexHalf,            // 3
   cobaltDataTypeComplexSingle,          // 4
   cobaltDataTypeComplexDouble,          // 5
-  cobaltDataTypeComplexConjugateHalf,   // 6
   cobaltDataTypeComplexConjugateSingle, // 7
   cobaltDataTypeComplexConjugateDouble, // 8
+#ifdef Cobalt_ENABLE_FP16
+  cobaltDataTypeHalf,                   // 0
+  cobaltDataTypeComplexHalf,            // 3
+  cobaltDataTypeComplexConjugateHalf,   // 6
+#endif
   cobaltNumDataTypes,                   // 9
   cobaltDataTypeNone,                   // 10
 } CobaltDataType;

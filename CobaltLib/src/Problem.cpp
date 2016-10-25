@@ -166,7 +166,7 @@ CobaltStatus Problem::validate( ) {
     } else { // match B
       // find this index in B
       bool indexFound = false;
-      unsigned int indexB;
+      unsigned int indexB = -1;
       for (unsigned int j = 0; j < tensorB.numDims(); j++) {
         if (indicesB[j] == indexAssignment) {
           indexFound = true;
@@ -195,7 +195,7 @@ CobaltStatus Problem::validate( ) {
     } else { // match A
       // find this index in A
       bool indexFound = false;
-      unsigned int indexA;
+      unsigned int indexA = -1;
       for (unsigned int j = 0; j < tensorA.numDims(); j++) {
         if (indicesA[j] == indexAssignment) {
           indexFound = true;

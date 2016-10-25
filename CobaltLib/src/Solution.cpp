@@ -67,7 +67,7 @@ CobaltStatus Solution::enqueueEntry(
 	CobaltControl & ctrl,
 	bool doPrint ) {
 
-  CobaltStatus returnStatus;
+  CobaltStatus returnStatus = cobaltStatusSuccess;
 
 #if Cobalt_BACKEND_OPENCL12
   cl_int status;
@@ -121,7 +121,7 @@ CobaltStatus Solution::enqueueEntry(
     CobaltTensorDataConst constRef{ ref->data, ref->offset};
     CobaltTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
     bool equal = compareTensors(constGPU, constRef,
-        Solution::problem.tensorC, ctrl);
+        Solution::problem.tensorC);
 #if Cobalt_LOGGER_ENABLED
     entry.validationStatus = equal ? ValidationStatus::statusValid
         : ValidationStatus::statusInvalid;
@@ -708,7 +708,6 @@ assignWorkSizes() {
 }
 #endif
 
-#define TIME_KERNEL_COMPILATION 1
 
 
 
