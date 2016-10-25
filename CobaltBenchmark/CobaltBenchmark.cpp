@@ -591,16 +591,18 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     hipError_t status;
     int numDevices;
     status = hipGetDeviceCount( &numDevices );
+    printf("%i HIP devices\n", numDevices);
     for (int i = 0; i < numDevices; i++) {
       hipDeviceProp_t deviceProperties;
       hipGetDeviceProperties( &deviceProperties, i);
-      CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
       deviceProfile.numDevices = 1;
       strcpy( deviceProfile.devices[0].name, deviceProperties.name );
       Cobalt::makeFileNameSafe( deviceProfile.devices[0].name );
       deviceProfile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
-      deviceProfile.devices[0].clockFrequency = deviceProperties.clockRate;
-      if (strcmp(deviceProfile.devices[0].name, benchmarkDeviceName) == 0 && deviceProfile.devices[0].numComputeUnits == benchmarkDeviceNumComputeUnits && deviceProfile.devices[0].clockFrequency == benchmarkDeviceClockFrequency) {
+      deviceProfile.devices[0].clockFrequency = deviceProperties.clockRate / 1000; // kHz -> MHz
+      if (strcmp(deviceProfile.devices[0].name, benchmarkDeviceName) == 0
+          && deviceProfile.devices[0].numComputeUnits == benchmarkDeviceNumComputeUnits
+          && deviceProfile.devices[0].clockFrequency == benchmarkDeviceClockFrequency) {
         platformIdx = 0;
         deviceIdx = i;
         printf("Using benchmark-requested device: D[%u]: %s %u CUs @ %u MHz (%.0f GFlop/s).\n",
@@ -609,6 +611,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
             deviceProfile.devices[0].numComputeUnits,
             deviceProfile.devices[0].clockFrequency,
             1.0*deviceProfile.devices[0].numComputeUnits*deviceProfile.devices[0].clockFrequency*deviceProfile.devices[0].flopsPerClock / 1000.f);
+        break;
       }
     }
     
@@ -639,11 +642,11 @@ void parseCommandLineOptions(int argc, char *argv[]) {
 #else
     hipDeviceProp_t deviceProperties;
     hipGetDeviceProperties( &deviceProperties, deviceIdx);
-    CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();
+    deviceProfile.numDevices = 1;
     strcpy( deviceProfile.devices[0].name, deviceProperties.name );
     Cobalt::makeFileNameSafe( deviceProfile.devices[0].name );
     deviceProfile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
-    deviceProfile.devices[0].clockFrequency = deviceProperties.clockRate;
+    deviceProfile.devices[0].clockFrequency = deviceProperties.clockRate/1000; // kHz -> MHz
     printf("Using user-overrided device: D[%u]: %s %u CUs @ %u MHz (%.0f GFlop/s).\n",
         deviceIdx,
         deviceProfile.devices[0].name,

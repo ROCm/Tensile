@@ -138,7 +138,7 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
       strcpy( profile.devices[0].name, deviceProperties.name );
       Cobalt::makeFileNameSafe( profile.devices[0].name );
       profile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
-      profile.devices[0].clockFrequency = deviceProperties.clockRate;
+      profile.devices[0].clockFrequency = deviceProperties.clockRate/1000; // kHz -> MHz
       enumeratedProfiles.push_back(profile);
     }
 #endif
