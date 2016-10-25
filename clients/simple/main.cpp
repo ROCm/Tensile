@@ -139,11 +139,11 @@ const unsigned int M = MT_0I*2-1;
 const unsigned int N = MT_1J*2-1;
 const unsigned int K = 16;
 #else
-const unsigned int M = 5760;
-const unsigned int N = 5760;
+const unsigned int M = 5759;
+const unsigned int N = 5759;
 const unsigned int K = 5760;
 #endif
-const unsigned int numEnqueues = 1;
+const unsigned int numEnqueues = 3;
 TYPE_ALPHA alpha = 1;
 TYPE_BETA  beta  = 0;
 const unsigned int transA = 0;
@@ -170,7 +170,7 @@ int main( int argc, char *argv[] ) {
 
   // compile kernel
   printf("compiling opencl kernel\n");
-  const char *buildOptions = nullptr; // "-cl-std=CL2.0";
+  const char *buildOptions = "-cl-std=CL2.0";
   const char *kernelSource;
   if ( !transA && !transB ) {
     kernelSource = kernelSource_NN;
@@ -218,7 +218,7 @@ int main( int argc, char *argv[] ) {
 
   // init host buffers
   printf("initializing host buffers\n");
-#if VALIDATE & 0
+#if VALIDATE
   for (unsigned int i = 0; i < numElementsC; i++) {
     hC[i] = static_cast<float>(rand()%101);
     hC_ref[i] = static_cast<float>(hC[i]);
