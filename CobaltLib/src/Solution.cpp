@@ -11,7 +11,7 @@
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 #elif Cobalt_BACKEND_HIP
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #endif
 
 namespace Cobalt {
@@ -67,7 +67,7 @@ CobaltStatus Solution::enqueueEntry(
 	CobaltControl & ctrl,
 	bool doPrint ) {
 
-  CobaltStatus returnStatus;
+  CobaltStatus returnStatus = cobaltStatusSuccess;
 
 #if Cobalt_BACKEND_OPENCL12
   cl_int status;
@@ -101,7 +101,7 @@ CobaltStatus Solution::enqueueEntry(
     //printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
-      clFinish(ctrl.queues[i]);
+      status = clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -109,7 +109,7 @@ CobaltStatus Solution::enqueueEntry(
     // copy results back
     //printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
 #if Cobalt_BACKEND_OPENCL12
-    clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
+    status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
         0, nullptr, nullptr);
 #elif Cobalt_BACKEND_HIP
@@ -121,7 +121,7 @@ CobaltStatus Solution::enqueueEntry(
     CobaltTensorDataConst constRef{ ref->data, ref->offset};
     CobaltTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
     bool equal = compareTensors(constGPU, constRef,
-        Solution::problem.tensorC, ctrl);
+        Solution::problem.tensorC);
 #if Cobalt_LOGGER_ENABLED
     entry.validationStatus = equal ? ValidationStatus::statusValid
         : ValidationStatus::statusInvalid;
@@ -708,7 +708,6 @@ assignWorkSizes() {
 }
 #endif
 
-#define TIME_KERNEL_COMPILATION 1
 
 
 
@@ -913,7 +912,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           this->enqueueArgs[kernelIdx][enqueueIdx][19],
           this->enqueueArgs[kernelIdx][enqueueIdx][20],
           this->enqueueArgs[kernelIdx][enqueueIdx][21],
-          this->enqueueArgs[kernelIdx][enqueueIdx][22] ); 
+          this->enqueueArgs[kernelIdx][enqueueIdx][22] );
 #endif
 
 #endif
@@ -1271,3 +1270,4 @@ __declspec(thread) KernelMap *kernelMap = 0;
 __thread KernelMap *kernelMap = 0;
 #endif
 #endif
+

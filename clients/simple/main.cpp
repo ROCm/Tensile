@@ -19,7 +19,7 @@
 /*******************************************************************************
  * HIP stuff
  ******************************************************************************/
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #include "kernel_hip.h"
 
 hipError_t status;
@@ -110,7 +110,7 @@ public:
 private:
 #ifdef WIN32
   LARGE_INTEGER startTime;
-  LARGE_INTEGER frequency; 
+  LARGE_INTEGER frequency;
 #else
   timespec startTime;
 #endif
@@ -170,7 +170,7 @@ int main( int argc, char *argv[] ) {
 
   // compile kernel
   printf("compiling opencl kernel\n");
-  const char *buildOptions = "-cl-std=CL2.0";
+  const char *buildOptions = nullptr; // "-cl-std=CL2.0";
   const char *kernelSource;
   if ( !transA && !transB ) {
     kernelSource = kernelSource_NN;
@@ -218,7 +218,7 @@ int main( int argc, char *argv[] ) {
 
   // init host buffers
   printf("initializing host buffers\n");
-#if VALIDATE
+#if VALIDATE & 0
   for (unsigned int i = 0; i < numElementsC; i++) {
     hC[i] = static_cast<float>(rand()%101);
     hC_ref[i] = static_cast<float>(hC[i]);
@@ -255,17 +255,17 @@ int main( int argc, char *argv[] ) {
   clEnqueueWriteBuffer(queue, dA, CL_TRUE, 0, sizeA, hA, 0, nullptr, nullptr );
   clEnqueueWriteBuffer(queue, dB, CL_TRUE, 0, sizeB, hB, 0, nullptr, nullptr );
 #endif
-  
+
   // init device buffers
   printf("initializing device buffers\n");
 
   // dim
 #if Cobalt_BACKEND_HIP
   dim3 workGroup( WG_0I, WG_1J, 1 );
-  dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);  
+  dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);
 #else
   size_t localSize[3] = { WG_0I, WG_1J, 1 };
-  size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };  
+  size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };
 #endif
 
 
@@ -465,4 +465,3 @@ void sgemm_NT(
     }
   }
 }
-

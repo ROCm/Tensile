@@ -78,19 +78,19 @@ class SolutionWriter:
 
     # solution properties (common to all kernels)
     s += "  /* solution properties */\n"
-    s += "  size_t indexOrderC[" + str(len(solution.kernels[0].indexOrderC)) \
+    s += "  // size_t indexOrderC[" + str(len(solution.kernels[0].indexOrderC)) \
         + "] = { " + str(solution.kernels[0].indexOrderC[0])
     for i in range(1, len(solution.kernels[0].indexOrderC)):
       s += ", " + str(solution.kernels[0].indexOrderC[i])
     s += " };\n"
 
-    s += "  size_t indexOrderSummation[" \
+    s += "  // size_t indexOrderSummation[" \
         + str(len(solution.kernels[0].indexOrderSummation)) + "] = { " \
         + str(solution.kernels[0].indexOrderSummation[0])
     for i in range(1, len(solution.kernels[0].indexOrderSummation)):
       s += ", " + str(solution.kernels[0].indexOrderSummation[i])
     s += " };\n"
-    s += "  size_t indexAssignmentDim[3] = { " \
+    s += "  // size_t indexAssignmentDim[3] = { " \
         + str(solution.kernels[0].indexAssignmentDim0) + ", " \
         + str(solution.kernels[0].indexAssignmentDim1) + ", " \
         + str(len(solution.kernels[0].indexOrderC) \
@@ -153,7 +153,7 @@ class SolutionWriter:
     s += "  this->microTile[1] = " \
         + str(solution.kernels[0].tile.microTile[1]) + ";\n"
     s += "  this->microTile[2] = 1;\n"
-    s += "  size_t numUnrolls[" + str(len(solution.kernels[0].unrolls)) \
+    s += "  // size_t numUnrolls[" + str(len(solution.kernels[0].unrolls)) \
         + "] = { " + str(solution.kernels[0].unrolls[0])
     for i in range(1,len(solution.kernels[0].unrolls)):
       s += ", " + str(solution.kernels[0].unrolls[i])

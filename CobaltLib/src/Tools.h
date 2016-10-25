@@ -51,3 +51,4 @@ void makeFileNameSafe( char *str );
 #define cobaltMax(a,b) (((a) > (b)) ? (a) : (b))
 
 #endif
+

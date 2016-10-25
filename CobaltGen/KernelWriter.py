@@ -1018,10 +1018,14 @@ class KernelWriter:
         kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];" \
             % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
         if condPara or condPerp:
-          kStr += " }"
+          kStr += " } else { a_" + str(para) + "_" + str(perp) + " = " + zeroStringA + "; }" + self.endLine
         kStr += self.endLine
     if kernel.loadRequiresFewerThreadsA():
       indent = indent[2:]
+      kStr += indent + "} else {" + self.endLine
+      for perp in range(0, kernel.numLoadsPerpA):
+        for para in range(0, kernel.numLoadsParaA):
+          kStr += indent + "  a_" + str(para) + "_" + str(perp) + " = " + zeroStringA + ";" + self.endLine
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
     
@@ -1063,12 +1067,18 @@ class KernelWriter:
         kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
             % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
         if condPara or condPerp:
-          kStr += " }"
+          kStr += " } else { b_" + str(para) + "_" + str(perp) + " = " + zeroStringB + "; }" + self.endLine
         kStr += self.endLine
     if kernel.loadRequiresFewerThreadsB():
       indent = indent[2:]
+      kStr += indent + "} else {" + self.endLine
+      for perp in range(0, kernel.numLoadsPerpB):
+        for para in range(0, kernel.numLoadsParaB):
+          kStr += indent + "  b_" + str(para) + "_" + str(perp) + " = " + zeroStringB + ";" + self.endLine
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
+
+
 
     # store registers in lds
     for perp in range(0, kernel.numLoadsPerpA):
@@ -1203,10 +1213,14 @@ class KernelWriter:
           kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];" \
               % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
           if condPara or condPerp:
-            kStr += " }"
+            kStr += " } else { a_" + str(para) + "_" + str(perp) + " = " + zeroStringA + "; }" + self.endLine
           kStr += self.endLine
       if kernel.loadRequiresFewerThreadsA():
         indent = indent[2:]
+        kStr += indent + "} else {" + self.endLine
+        for perp in range(0, kernel.numLoadsPerpA):
+          for para in range(0, kernel.numLoadsParaA):
+            kStr += indent + "  a_" + str(para) + "_" + str(perp) + " = " + zeroStringA + ";" + self.endLine
         kStr += indent + "}" + self.endLine
       kStr += self.endLine
 
@@ -1261,10 +1275,14 @@ class KernelWriter:
           kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
               % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
           if condPara or condPerp:
-            kStr += " }"
+            kStr += " } else { b_" + str(para) + "_" + str(perp) + " = " + zeroStringB + "; }" + self.endLine
           kStr += self.endLine
       if kernel.loadRequiresFewerThreadsB():
         indent = indent[2:]
+        kStr += indent + "} else {" + self.endLine
+        for perp in range(0, kernel.numLoadsPerpB):
+          for para in range(0, kernel.numLoadsParaB):
+            kStr += indent + "  b_" + str(para) + "_" + str(perp) + " = " + zeroStringB + ";" + self.endLine
         kStr += indent + "}" + self.endLine
       kStr += self.endLine
       kStr += indent + self.syncStr + self.endLine

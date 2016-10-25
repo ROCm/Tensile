@@ -75,3 +75,4 @@ size_t sizeOfType();
 } // end Cobalt namespace
 
 #endif
+

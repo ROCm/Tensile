@@ -18,10 +18,13 @@
 #include <crtdbg.h>
 #endif
 
+#undef Cobalt_ENABLE_FP16
+#undef Cobalt_ENABLE_FP16_HOST
+
 #if Cobalt_BACKEND_OPENCL12
 #include "CL/cl.h"
 #else
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #endif
 
 #if (defined( __GNUC__ ) || defined( __IBMC__ ))
@@ -30,16 +33,30 @@
     #define Cobalt_ALIGNED(_x)
 #endif
 
+#ifdef Cobalt_ENABLE_FP16
+#if Cobalt_BACKEND_OPENCL12
+typedef half CobaltHalf;
+#else
+typedef __fp16 CobaltHalf;
+#endif
+
+typedef union {
+   CobaltHalf  Cobalt_ALIGNED(8) s[2];
+   struct{ CobaltHalf x, y; };
+   struct{ CobaltHalf s0, s1; };
+} CobaltComplexHalf;
+#endif
+
 typedef union {
    float  Cobalt_ALIGNED(8) s[2];
-   struct{ float  x, y; };
-   struct{ float  s0, s1; };
+   struct{ float x, y; };
+   struct{ float s0, s1; };
 } CobaltComplexFloat;
 
 typedef union {
    double  Cobalt_ALIGNED(8) s[2];
-   struct{ double  x, y; };
-   struct{ double  s0, s1; };
+   struct{ double x, y; };
+   struct{ double s0, s1; };
 } CobaltComplexDouble;
 
 
@@ -61,7 +78,7 @@ typedef enum CobaltStatus_ {
   cobaltStatusTensorDimensionOrderInvalid,                // dimensions not in order smallest to largest stride
   cobaltStatusTensorDimensionStrideInvalid,               // stride is 0
   cobaltStatusTensorDimensionSizeInvalid,                 // size is 0
-  
+
   /* operation errors */
   cobaltStatusOperandNumDimensionsMismatch,               // tensor and indexAssignments num dimensions don't match
   cobaltStatusOperationOperandNumIndicesMismatch,         // tensor A,B don't have correct number of
@@ -122,15 +139,17 @@ CobaltStatus cobaltTeardown();
  * CobaltDataType
  ******************************************************************************/
 typedef enum CobaltDataType_ {
-  cobaltDataTypeHalf,                   // 0
   cobaltDataTypeSingle,                 // 1
   cobaltDataTypeDouble,                 // 2
-  cobaltDataTypeComplexHalf,            // 3
   cobaltDataTypeComplexSingle,          // 4
   cobaltDataTypeComplexDouble,          // 5
-  cobaltDataTypeComplexConjugateHalf,   // 6
   cobaltDataTypeComplexConjugateSingle, // 7
   cobaltDataTypeComplexConjugateDouble, // 8
+#ifdef Cobalt_ENABLE_FP16
+  cobaltDataTypeHalf,                   // 0
+  cobaltDataTypeComplexHalf,            // 3
+  cobaltDataTypeComplexConjugateHalf,   // 6
+#endif
   cobaltNumDataTypes,                   // 9
   cobaltDataTypeNone,                   // 10
 } CobaltDataType;
