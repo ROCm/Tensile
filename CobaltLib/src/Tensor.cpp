@@ -207,11 +207,11 @@ unsigned int Tensor::numDims() const {
 }
 
 size_t Tensor::numElements() const {
-  size_t numElements = 1;
+  size_t returnNumElements = 1;
   for (unsigned int i = 0; i < numDims(); i++) {
-	  numElements *= dimensions[i].size;
+	  returnNumElements *= dimensions[i].size;
   }
-  return numElements;
+  return returnNumElements;
 }
 size_t Tensor::numBytes() const {
   size_t size = 0;
@@ -310,9 +310,7 @@ void Tensor::fillTemplate(
       done = true;
       break;
     } else { // 2+ dimensions
-      bool dimIncremented = false; // for printing extra line
-                                   // increment coord
-      coords[1]++;
+      coords[1]++; // increment coord
       for (unsigned int d = 1; d < numDims(); d++) {
         if (coords[d] >= dimensions[d].size) {
           if (d == numDims() - 1) {
@@ -320,7 +318,6 @@ void Tensor::fillTemplate(
             done = true;
             break;
           }
-          dimIncremented = true;
           coords[d] = 0;
           coords[d + 1]++;
         }
@@ -408,9 +405,7 @@ bool compareTensorsTemplate(
       break;
     }
     else { // 2+ dimensions
-      bool dimIncremented = false; // for printing extra line
-                                   // increment coord
-      coords[1]++;
+      coords[1]++; // increment coord
       for (unsigned int d = 1; d < tensor.numDims(); d++) {
         if (coords[d] >= tensor[d].size) {
           if (d == tensor.numDims() - 1) {
@@ -418,7 +413,6 @@ bool compareTensorsTemplate(
             done = true;
             break;
           }
-          dimIncremented = true;
           coords[d] = 0;
           coords[d + 1]++;
         }

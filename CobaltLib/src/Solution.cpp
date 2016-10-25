@@ -101,7 +101,7 @@ CobaltStatus Solution::enqueueEntry(
     //printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Cobalt_BACKEND_OPENCL12
-      clFinish(ctrl.queues[i]);
+      status = clFinish(ctrl.queues[i]);
 #elif Cobalt_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -109,7 +109,7 @@ CobaltStatus Solution::enqueueEntry(
     // copy results back
     //printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
 #if Cobalt_BACKEND_OPENCL12
-    clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
+    status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
         0, nullptr, nullptr);
 #elif Cobalt_BACKEND_HIP

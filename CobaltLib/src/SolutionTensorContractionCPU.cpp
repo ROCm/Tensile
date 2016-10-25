@@ -188,8 +188,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
-  std::string state;
-  for (size_t i = 0; i < indentLevel; i++) state += " ";
+  std::string state = Cobalt::indent(indentLevel);
   state += "CobaltSolutionTensorContractionCPU";
   return state;
 }
@@ -234,7 +233,6 @@ std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Problem & problem) {
     case cobaltDataTypeComplexDouble:
     case cobaltDataTypeComplexConjugateDouble:
       return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem ), cobaltStatusSuccess );
-
 #ifdef Cobalt_ENABLE_FP16_HOST
     case cobaltDataTypeHalf:
       return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltHalf,CobaltHalf,CobaltHalf,CobaltHalf,CobaltHalf>( problem ), cobaltStatusSuccess );
