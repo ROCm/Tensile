@@ -46,3 +46,4 @@ bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r);
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r);
 
 #endif
+

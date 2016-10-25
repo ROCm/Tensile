@@ -253,7 +253,7 @@ class FileWriter:
         h += "\n"
         h += "void init_" + exactMatchName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
         h += "\n"
-        h += "#endif\n"
+        h += "#endif\n\n"
         exactMatchHeaderFile.write(h)
         exactMatchHeaderFile.close()
 
@@ -418,7 +418,7 @@ class FileWriter:
           h += "\n"
           h += "void init_" + problemName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates);\n"
           h += "\n"
-          h += "#endif\n"
+          h += "#endif\n\n"
           problemHeaderFile.write(h)
           problemHeaderFile.close()
 
@@ -577,7 +577,7 @@ class FileWriter:
     fileString += "#else\n"
     fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
         % kernelName
-    fileString += "#endif\n"
+    fileString += "#endif\n\n"
     return fileString
 
 
@@ -600,7 +600,7 @@ class FileWriter:
       fileString += self.kernelWriter.getSignature(kernel)
       fileString += ";\n"
 
-    fileString += "#endif\n"
+    fileString += "#endif\n\n"
     return fileString
 
 

@@ -62,8 +62,7 @@ bool compareTensorsTemplate(
 bool compareTensors(
   CobaltTensorDataConst gpu,
   CobaltTensorDataConst cpu,
-  Cobalt::Tensor tensor,
-  CobaltControl ctrl);
+  Cobalt::Tensor tensor );
 
 
 template<typename DataType>
@@ -75,3 +74,4 @@ void printMatch(size_t index, DataType gpuData, DataType cpuData);
 } // namespace
 
 #endif
+

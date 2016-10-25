@@ -12,14 +12,17 @@ namespace Cobalt {
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
+#ifdef Cobalt_Enable_FP16_HOST
+template<> CobaltHalf getZero<CobaltHalf>() { return 0.; }
+#endif
 template<> float getZero<float>() { return 0.f; }
 template<> double getZero<double>() { return 0.0; }
 template<> CobaltComplexFloat getZero<CobaltComplexFloat>() {
-  CobaltComplexFloat zero = {0.f, 0.f};
+  CobaltComplexFloat zero = {{0.f, 0.f}};
   return zero;
 }
 template<> CobaltComplexDouble getZero<CobaltComplexDouble>() {
-  CobaltComplexDouble zero = {0.0, 0.0};
+  CobaltComplexDouble zero = {{0.0, 0.0}};
   return zero;
 }
 
@@ -27,14 +30,17 @@ template<> CobaltComplexDouble getZero<CobaltComplexDouble>() {
 /*******************************************************************************
  * One Templates
  ******************************************************************************/
+#ifdef Cobalt_Enable_FP16_HOST
+template<> CobaltHalf getOne<CobaltHalf>() { return 1.; }
+#endif
 template<> float getOne<float>() { return 1.f; }
 template<> double getOne<double>() { return 1.0; }
 template<> CobaltComplexFloat getOne<CobaltComplexFloat>() {
-  CobaltComplexFloat zero = {1.f, 0.f};
+  CobaltComplexFloat zero = {{1.f, 0.f}};
   return zero;
 }
 template<> CobaltComplexDouble getOne<CobaltComplexDouble>() {
-  CobaltComplexDouble zero = {1.0, 0.0};
+  CobaltComplexDouble zero = {{1.0, 0.0}};
   return zero;
 }
 
@@ -42,26 +48,36 @@ template<> CobaltComplexDouble getOne<CobaltComplexDouble>() {
 /*******************************************************************************
 * Random Templates
 ******************************************************************************/
+#ifdef Cobalt_Enable_FP16_HOST
+template<> CobaltHalf getRandom<CobaltHalf>() { return static_cast<CobaltHalf>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
+#endif
 template<> float getRandom<float>() { return static_cast<float>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
 template<> double getRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
 template<> CobaltComplexFloat getRandom<CobaltComplexFloat>() {
   //CobaltComplexFloat r = { 1.f, 0.f };
-  return { getRandom<float>(), getRandom<float>() };
+  return {{ getRandom<float>(), getRandom<float>() }};
 }
 template<> CobaltComplexDouble getRandom<CobaltComplexDouble>() {
   //CobaltComplexDouble r = { 1.0, 0.0 };
-  return { getRandom<double>(), getRandom<double>()};
+  return {{ getRandom<double>(), getRandom<double>() }};
 }
 
 template<> float getTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
 template<> double getTypeForInt<double>( size_t s ) { return static_cast<double>(s); }
-template<> CobaltComplexFloat getTypeForInt<CobaltComplexFloat>( size_t s ) { return {static_cast<float>(s), static_cast<float>(s)}; }
-template<> CobaltComplexDouble getTypeForInt<CobaltComplexDouble>( size_t s ) { return {static_cast<double>(s), static_cast<double>(s)}; }
+template<> CobaltComplexFloat getTypeForInt<CobaltComplexFloat>( size_t s ) { return {{ static_cast<float>(s), static_cast<float>(s) }}; }
+template<> CobaltComplexDouble getTypeForInt<CobaltComplexDouble>( size_t s ) { return {{ static_cast<double>(s), static_cast<double>(s) }}; }
 
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
 
+// half
+#ifdef Cobalt_Enable_FP16_HOST
+template< >
+CobaltHalf multiply( CobaltHalf a, CobaltHalf b ) {
+  return a*b;
+}
+#endif
 // single
 template< >
 float multiply( float a, float b ) {
@@ -94,7 +110,14 @@ CobaltComplexDouble multiply( CobaltComplexDouble a, CobaltComplexDouble b ) {
  * Add Templates
  ******************************************************************************/
 
- // single
+// half
+#ifdef Cobalt_Enable_FP16_HOST
+template< >
+CobaltHalf add( CobaltHalf a, CobaltHalf b ) {
+  return a+b;
+}
+#endif
+// single
 template< >
 float add( float a, float b ) {
   return a+b;
@@ -124,21 +147,15 @@ CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
 /*******************************************************************************
 * Floating-Point Equals
 ******************************************************************************/
+#ifdef Cobalt_Enable_FP16_HOST
+template< >
+bool almostEqual(CobaltHalf a, CobaltHalf b) {
+  return std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.01; // ?
+}
+#endif
 template< >
 bool almostEqual(float a, float b) {
-  bool equal = std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.0001; // 7 digits of precision - 2
-#if 0
-  if (!equal) {
-    printf("a=%.7e, b=%.7e, a-b=%.7e, denom=%.7e, frac=%.7e\n",
-      a,
-      b,
-      std::fabs(a - b),
-      (std::fabs(a) + std::fabs(b) + 1),
-      std::fabs(a - b) / (std::fabs(a) + std::fabs(b) + 1)
-      );
-  }
-#endif
-  return equal;
+  return std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.0001; // 7 digits of precision - 2
 }
 template< >
 bool almostEqual(double a, double b) {
@@ -156,6 +173,10 @@ bool almostEqual(CobaltComplexDouble a, CobaltComplexDouble b) {
 /*******************************************************************************
 * Complex Conjugate
 ******************************************************************************/
+#ifdef Cobalt_Enable_FP16_HOST
+template< >
+void complexConjugate(CobaltHalf & v) {}
+#endif
 template< >
 void complexConjugate(float & v) {}
 template< >
@@ -173,6 +194,9 @@ void complexConjugate(CobaltComplexDouble & v) {
 /*******************************************************************************
  * sizeOf Type
  ******************************************************************************/
+#ifdef Cobalt_Enable_FP16_HOST
+template<> size_t sizeOfType<CobaltHalf>(){ return sizeof(CobaltHalf); }
+#endif
 template<> size_t sizeOfType<float>(){ return sizeof(float); }
 template<> size_t sizeOfType<double>(){ return sizeof(double); }
 template<> size_t sizeOfType<CobaltComplexFloat>(){ return sizeof(CobaltComplexFloat); }
@@ -180,3 +204,4 @@ template<> size_t sizeOfType<CobaltComplexDouble>(){ return sizeof(CobaltComplex
 template<> size_t sizeOfType<void>() { return 0; }
 
 } // end namespace Cobalt
+
