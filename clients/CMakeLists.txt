@@ -8,9 +8,11 @@ set(Cobalt_DIR_PROBLEMS ${PROJECT_BINARY_DIR}/problems CACHE PATH "path to probl
 
 find_package(OpenCL "1.2")
 find_package(HIP)
+if(NOT MSVC)
+    add_definitions(-std=c++11)
+endif()
 
 set(Cobalt_BACKENDS NONE)
-
 if( HIP_FOUND )
   set( Cobalt_BACKEND "HIP" CACHE STRING "Which of Cobalt's backends to use?" )
   list(APPEND Cobalt_BACKENDS HIP)
