@@ -204,8 +204,8 @@ unsigned int addGEMMCombinatorics() {
   };
   const bool alphas[] = { true };
   const bool betas[] = { true, false };
-  const bool transAs[] = { false, true };
-  const bool transBs[] = { true, false };
+  const bool transAs[] = { true, true };
+  const bool transBs[] = { false, false };
 
   // create problem for each combination
   unsigned int numProblems = 0;
@@ -463,15 +463,17 @@ CobaltTensor createTensorForMatrix(
 
 char cobaltDataTypeToChar(CobaltDataType t) {
   switch (t) {
-  case cobaltDataTypeHalf:                    return 'H';
   case cobaltDataTypeSingle:                  return 'S';
   case cobaltDataTypeDouble:                  return 'D';
-  case cobaltDataTypeComplexHalf:             return 'Q';
   case cobaltDataTypeComplexSingle:           return 'C';
   case cobaltDataTypeComplexDouble:           return 'Z';
-  case cobaltDataTypeComplexConjugateHalf:    return 'W';
   case cobaltDataTypeComplexConjugateSingle:  return 'X';
   case cobaltDataTypeComplexConjugateDouble:  return 'Y';
+#ifdef Cobalt_ENABLE_FP16
+  case cobaltDataTypeHalf:                    return 'H';
+  case cobaltDataTypeComplexHalf:             return 'Q';
+  case cobaltDataTypeComplexConjugateHalf:    return 'W';
+#endif
   default:                                    return '0';
   }
 }
