@@ -40,7 +40,7 @@ if (NOT _CMakeFindDependencyMacro_FOUND)
   endmacro()
 endif()
 
-find_dependency(CUDA QUIET)
+find_package(CUDA QUIET)
 
 if( CUDA_INCLUDE_DIRS AND CUDA_VERSION AND CUDA_NVCC_EXECUTABLE)
     message(STATUS "CUDA_VERSION = ${CUDA_VERSION}")

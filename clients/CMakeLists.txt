@@ -21,7 +21,10 @@ if( OPENCL_FOUND )
   list(APPEND Cobalt_BACKENDS OpenCL_1.2)
 endif()
 message(STATUS "Cobalt_BACKENDS: ${Cobalt_BACKENDS}")
-set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS ${Cobalt_BACKENDS})
+
+if(DEFINED Cobalt_BACKEND)
+    set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS ${Cobalt_BACKENDS})
+endif()
 
 # OpenCL 1.2
 if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
