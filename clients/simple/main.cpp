@@ -121,15 +121,15 @@ private:
 
 // these need to agree with kernel
 #if Cobalt_BACKEND_OPENCL12
-#define TYPE_A     float
-#define TYPE_B     float
-#define TYPE_C     float
-#define TYPE_ALPHA float
-#define TYPE_BETA  float
-#define WG_0I           16
-#define WG_1J           16
-#define UT_0I       6
-#define UT_1J       6
+#define TYPE_A      float
+#define TYPE_B      float
+#define TYPE_C      float
+#define TYPE_ALPHA  float
+#define TYPE_BETA   float
+#define WG_0I       16
+#define WG_1J       16
+#define UT_0I        2
+#define UT_1J        2
 #define MT_0I       (WG_0I*UT_0I)
 #define MT_1J       (WG_1J*UT_1J)
 #endif
@@ -139,9 +139,12 @@ const unsigned int M = MT_0I*2-1;
 const unsigned int N = MT_1J*2-1;
 const unsigned int K = 16;
 #else
-const unsigned int M = 5759;
-const unsigned int N = 5759;
-const unsigned int K = 5760;
+//const unsigned int M = 5760;
+//const unsigned int N = 5760;
+//const unsigned int K = 5760;
+const unsigned int M = 1024;
+const unsigned int N = 1024;
+const unsigned int K = 1024;
 #endif
 const unsigned int numEnqueues = 3;
 TYPE_ALPHA alpha = 1;
@@ -264,8 +267,10 @@ int main( int argc, char *argv[] ) {
   dim3 workGroup( WG_0I, WG_1J, 1 );
   dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);
 #else
-  size_t localSize[3] = { WG_0I, WG_1J, 1 };
-  size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };
+  size_t localSize[3] = { WG_0I*WG_1J, 1, 1 };
+  size_t globalSize[3] = { ((size0C + MT_0I - 1) / MT_0I)*localSize[0], ((size1C + MT_1J - 1) / MT_1J)*localSize[1], 1 };
+  //size_t localSize[3] = { WG_0I, WG_1J, 1 };
+  //size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };
 #endif
 
 

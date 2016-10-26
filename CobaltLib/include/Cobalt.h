@@ -139,16 +139,16 @@ CobaltStatus cobaltTeardown();
  * CobaltDataType
  ******************************************************************************/
 typedef enum CobaltDataType_ {
-  cobaltDataTypeSingle,                 // 1
-  cobaltDataTypeDouble,                 // 2
-  cobaltDataTypeComplexSingle,          // 4
-  cobaltDataTypeComplexDouble,          // 5
-  cobaltDataTypeComplexConjugateSingle, // 7
-  cobaltDataTypeComplexConjugateDouble, // 8
+  cobaltDataTypeSingle,                 // 0
+  cobaltDataTypeDouble,                 // 1
+  cobaltDataTypeComplexSingle,          // 2
+  cobaltDataTypeComplexDouble,          // 3
+  cobaltDataTypeComplexConjugateSingle, // 4
+  cobaltDataTypeComplexConjugateDouble, // 5
 #ifdef Cobalt_ENABLE_FP16
-  cobaltDataTypeHalf,                   // 0
-  cobaltDataTypeComplexHalf,            // 3
-  cobaltDataTypeComplexConjugateHalf,   // 6
+  cobaltDataTypeHalf,                   // 6
+  cobaltDataTypeComplexHalf,            // 7
+  cobaltDataTypeComplexConjugateHalf,   // 8
 #endif
   cobaltNumDataTypes,                   // 9
   cobaltDataTypeNone,                   // 10

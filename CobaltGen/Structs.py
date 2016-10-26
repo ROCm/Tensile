@@ -14,15 +14,17 @@ class Status:
 # Data Type - Enum
 ################################################################################
 class DataType:
-  half          = 0
-  single        = 1
-  double        = 2
-  complexHalf   = 3
-  complexSingle = 4
-  complexDouble = 5
-  complexConjugateHalf    = 6
-  complexConjugateSingle  = 7
-  complexConjugateDouble    = 8
+  single        = 0
+  double        = 1
+  complexSingle = 2
+  complexDouble = 3
+  complexConjugateSingle = 4
+  complexConjugateDouble = 5
+  
+  half          = 6
+  complexHalf   = 7
+  complexConjugateHalf   = 8
+
   # num         = 9
   none          = 10
 
