@@ -6,6 +6,7 @@ include(AddCobaltLib)
 include(EnableWarnings)
 set(Cobalt_DIR_PROBLEMS ${PROJECT_BINARY_DIR}/problems CACHE PATH "path to problems used by clients")
 
+find_package(PythonInterp)
 find_package(OpenCL "1.2")
 find_package(HIP)
 if(NOT MSVC)

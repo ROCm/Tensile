@@ -9,18 +9,37 @@ function(add_cobalt_lib NAME)
 
     set(CobaltLib_DIR_GENERATED "${PROJECT_BINARY_DIR}/cobalt/${NAME}")
 
+    if(PARSE_OPTIMIZE_ALPHA)
+        set(CobaltGen_OPTIMIZE_ALPHA "ON")
+    else()
+        set(CobaltGen_OPTIMIZE_ALPHA "OFF")
+    endif()
+
+    if(PARSE_OPTIMIZE_BETA)
+        set(CobaltGen_OPTIMIZE_BETA "ON")
+    else()
+        set(CobaltGen_OPTIMIZE_BETA "OFF")
+    endif()
+
     if(PARSE_SOLUTIONS)
 
         set(CobaltLib_ENABLE_SOLVER 1)
-        execute_process(
-            COMMAND
-            ${PYTHON_EXECUTABLE} ${Cobalt_DIR}/CobaltGen/CobaltGenBackend.py
+        set(CobaltGen_COMMAND ${PYTHON_EXECUTABLE} ${Cobalt_DIR}/CobaltGen/CobaltGenBackend.py
             --backend=${PARSE_BACKEND}
             --input-path=${PARSE_SOLUTIONS}
             --output-path=${CobaltLib_DIR_GENERATED}
-            --optimize-alpha=${PARSE_OPTIMIZE_ALPHA}
-            --optimize-beta=${PARSE_OPTIMIZE_BETA}
+            --optimize-alpha=${CobaltGen_OPTIMIZE_ALPHA}
+            --optimize-beta=${CobaltGen_OPTIMIZE_BETA}
         )
+        string (REPLACE ";" " " CobaltGen_COMMAND_STR "${CobaltGen_COMMAND}")
+        message(STATUS "Generate kernels: ${CobaltGen_COMMAND_STR}")
+        execute_process(
+            COMMAND ${CobaltGen_COMMAND}
+            RESULT_VARIABLE CobaltGen_RESULT
+        )
+        if(CobaltGen_RESULT)
+            message(SEND_ERROR "Error generating kernels")
+        endif()
         # Glob CobaltLib source files
         file(GLOB CobaltLib_SRC
             ${Cobalt_DIR}/CobaltLib/src/*.cpp
