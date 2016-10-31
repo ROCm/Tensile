@@ -100,11 +100,12 @@ endif( )
 
 cmake_pop_check_state( )
 
-# Search for 64bit libs if FIND_LIBRARY_USE_LIB64_PATHS is set to true in the global environment, 32bit libs else
-get_property( LIB64 GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS )
-if( LIB64 )
+# Search for 64bit/32bit libs
+if( CMAKE_SIZEOF_VOID_P EQUAL 8 )
+  set(LIB64 ON)
   message( STATUS "FindOpenCL searching for 64-bit libraries" )
 else( )
+  set(LIB64 OFF)
   message( STATUS "FindOpenCL searching for 32-bit libraries" )
 endif( )
 
@@ -138,11 +139,6 @@ else( )
   )
 endif( )
 mark_as_advanced( OPENCL_LIBRARIES )
-
-# message( STATUS "OpenCL_FIND_VERSION: ${OpenCL_FIND_VERSION}" )
-if( OpenCL_VERSION VERSION_LESS OpenCL_FIND_VERSION )
-    message( FATAL_ERROR "Requested OpenCL version: ${OpenCL_FIND_VERSION}, Found OpenCL version: ${OpenCL_VERSION}" )
-endif( )
 
 # If we asked for OpenCL 1.2, and we found a version installed greater than that, pass the 'use deprecated' flag
 if( (OpenCL_FIND_VERSION VERSION_LESS "2.0") AND (OpenCL_VERSION VERSION_GREATER OpenCL_FIND_VERSION) )
