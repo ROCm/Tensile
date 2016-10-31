@@ -1,0 +1,74 @@
+# ########################################################################
+# Copyright 2016 Advanced Micro Devices, Inc.
+# ########################################################################
+
+# Configure the rocblas package to be used in another cmake project.
+#
+# Defines the following variables:
+#
+#  Cobalt_INCLUDE_DIRS - include directories for rocblas
+#
+# Also defines the library variables below as normal
+# variables.  These contain debug/optimized keywords when
+# a debugging library is found.
+#
+# Accepts the following variables as input:
+#
+#-----------------------
+# Example Usage:
+#
+# find_package( cobalt REQUIRED CONFIG
+#     HINTS <Cobalt_ROOT>/package )
+#
+#    add_executable( foo foo.cc )
+
+#    # uses imported targets from package, including setting header paths
+#    target_link_libraries( foo cobalt )
+#
+#-----------------------
+
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro OPTIONAL RESULT_VARIABLE _CMakeFindDependencyMacro_FOUND)
+if (NOT _CMakeFindDependencyMacro_FOUND)
+  macro(find_dependency dep)
+    if (NOT ${dep}_FOUND)
+      set(cmake_fd_version)
+      if (${ARGC} GREATER 1)
+        set(cmake_fd_version ${ARGV1})
+      endif()
+      set(cmake_fd_exact_arg)
+      if(${CMAKE_FIND_PACKAGE_NAME}_FIND_VERSION_EXACT)
+        set(cmake_fd_exact_arg EXACT)
+      endif()
+      set(cmake_fd_quiet_arg)
+      if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
+        set(cmake_fd_quiet_arg QUIET)
+      endif()
+      set(cmake_fd_required_arg)
+      if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
+        set(cmake_fd_required_arg REQUIRED)
+      endif()
+      find_package(${dep} ${cmake_fd_version}
+          ${cmake_fd_exact_arg}
+          ${cmake_fd_quiet_arg}
+          ${cmake_fd_required_arg}
+      )
+      if (NOT ${dep}_FOUND)
+        set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE "${CMAKE_FIND_PACKAGE_NAME} could not be found because dependency ${dep} could not be found.")
+        set(${CMAKE_FIND_PACKAGE_NAME}_FOUND False)
+        return()
+      endif()
+      set(cmake_fd_version)
+      set(cmake_fd_required_arg)
+      set(cmake_fd_quiet_arg)
+      set(cmake_fd_exact_arg)
+    endif()
+  endmacro()
+endif()
+
+find_dependency(PythonInterp REQUIRED)
+
+set_and_check( Cobalt_DIR "@PACKAGE_DATA_INSTALL_DIR@")
+
+include(${Cobalt_DIR}/cmake/AddCobaltLib.cmake)
