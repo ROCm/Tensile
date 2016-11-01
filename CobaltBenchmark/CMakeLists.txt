@@ -83,10 +83,10 @@ if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
   target_compile_definitions( ${CobaltBenchmark_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=1 -DCobalt_BACKEND_HIP=0 )
 elseif( Cobalt_BACKEND MATCHES "HIP")
   target_include_directories( ${CobaltBenchmark_NAME} SYSTEM
-    PUBLIC  $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+    PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS}
   )
 #  target_link_libraries( ${CobaltBenchmark_NAME} PRIVATE ${HSA_LIBRARIES} )
-  target_link_libraries( ${CobaltBenchmark_NAME} PUBLIC $<BUILD_INTERFACE:${HSA_LIBRARIES}> )
+  target_link_libraries( ${CobaltBenchmark_NAME} PUBLIC ${HSA_LIBRARIES} )
   target_compile_definitions( ${CobaltBenchmark_NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=0 -DCobalt_BACKEND_HIP=1 )
 endif()
 
@@ -99,14 +99,6 @@ target_include_directories( ${CobaltBenchmark_NAME}
           $<BUILD_INTERFACE:${CobaltBenchmark_DIR_GENERATED}/Solutions>
           $<BUILD_INTERFACE:${CobaltBenchmark_DIR_GENERATED}/Other>
 )
-
-# Cobalt depends on OpenCL
-if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( ${CobaltBenchmark_NAME} PRIVATE opencl )
-elseif( Cobalt_BACKEND MATCHES "HIP")
-  message( STATUS "CobaltBenchmark linking HIP: ${HIP_INCLUDE_DIRS}" )
-  include_directories( ${HIP_INCLUDE_DIRS} )
-endif()
 
 ############################################################
 # CobaltBenchmark - generates ProblemSolutionMap.xml
