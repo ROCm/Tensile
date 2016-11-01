@@ -68,9 +68,7 @@ python @CMAKE_INSTALL_PREFIX@\\@DATA_INSTALL_DIR@\\CobaltGen\\Cobalt.py %*
 ")
 else()
 set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt)
-file(WRITE ${Cobalt_ENTRY_POINT} "
-
-#!/bin/bash
+file(WRITE ${Cobalt_ENTRY_POINT} "#!/bin/bash
 python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/CobaltGen/Cobalt.py \"$@\"
 
 ")

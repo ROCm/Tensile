@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <vector>
 #include <limits>
+#include <cmath>
 
 namespace Cobalt {
 
@@ -257,11 +258,11 @@ bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
 }
 
 bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
-  return std::abs(l.x - r.x) < std::numeric_limits<float>::epsilon()
-      && std::abs(l.y - r.y) < std::numeric_limits<float>::epsilon();
+  return std::fabs(l.x - r.x) < std::numeric_limits<float>::epsilon()
+      && std::fabs(l.y - r.y) < std::numeric_limits<float>::epsilon();
 }
 bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
-  return std::abs(l.x - r.x) < std::numeric_limits<double>::epsilon()
-      && std::abs(l.y - r.y) < std::numeric_limits<double>::epsilon();
+  return std::fabs(l.x - r.x) < std::numeric_limits<double>::epsilon()
+      && std::fabs(l.y - r.y) < std::numeric_limits<double>::epsilon();
 }
 
