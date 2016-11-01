@@ -69,6 +69,10 @@ if __name__ == "__main__":
     ap.add_argument("--backend", "-b", dest="backend", required=True)
 
     args = ap.parse_args(args=sys.argv[1:])
+    
+    backend = None
+    if args.backend.lower() in ["opencl_1.2", "opencl", "cl"]: backend = 'OpenCL_1.2'
+    elif args.backend.lower() == "hip": backend = 'HIP'
 
     with tempdir() as d:
         build_path = os.path.join(d, '_cobalt_build')
@@ -78,7 +82,8 @@ if __name__ == "__main__":
         #install cobalt
         build(COBALT_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
         # Run benchmark
-        cmd([os.path.join(install_path, 'bin', 'cobalt'), 'benchmark', '-b', args.backend, '-i', PROBLEMS_PATH, '-o', solutions_path])
+        cmd([os.path.join(install_path, 'bin', 'cobalt'), 'benchmark', '-b', backend, '-i', PROBLEMS_PATH, '-o', solutions_path])
         # Build library
-        build(SIMPLE_PATH, generator=args.generator, prefix=install_path, defines=args.define+['Cobalt_SOLUTIONS='+solutions_path])
+        library_args = ['Cobalt_SOLUTIONS='+solutions_path, 'Cobalt_BACKEND='+backend]
+        build(SIMPLE_PATH, generator=args.generator, prefix=install_path, defines=args.define+library_args)
 
