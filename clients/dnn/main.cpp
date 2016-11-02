@@ -55,7 +55,11 @@ int main( int argc, char * argv[] ) {
   // device profile
   deviceProfile = cobaltCreateEmptyDeviceProfile();
   deviceProfile.numDevices = 1;
+#ifdef WIN32
+  sprintf_s(deviceProfile.devices[0].name, deviceProfile.devices[0].maxNameLength, "Fiji");
+#else
   sprintf(deviceProfile.devices[0].name, "Fiji" );
+#endif
 
   /* Caffe Layer 1 */
   H = 32+5;

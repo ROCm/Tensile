@@ -36,6 +36,7 @@ def GenBenchmarkFromFiles( \
     backend, \
     optimizeAlpha, \
     optimizeBeta):
+  print "GenBenchmarkFromFiles: %s, %s, %s, %s, %s" % (inputFiles, outputPath, backend, optimizeAlpha, optimizeBeta)
 
   ##############################################################################
   # (1) accumulate set of problems

@@ -17,6 +17,14 @@ if (MSVC)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
     endif ()
 
+    # 4201 - nameless struct/union: used for complex.y, complex.y
+    # 4100 - unused formal parameter: overriding functions don't have to use all parameters
+    # 4715 - not all controll paths return a value: switch with returns where all enums handled
+    # 4127 - conditional is constant: cpu algorithm uses if template for complex conjugate
+    set (WARNINGS_TO_IGNORE "/wd4201 /wd4100 /wd4715 /wd4127")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNINGS_TO_IGNORE}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WARNINGS_TO_IGNORE}")
+
 else()
     foreach(COMPILER C CXX)
         set(CMAKE_COMPILER_WARNINGS)
