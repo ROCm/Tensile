@@ -107,7 +107,6 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
     cl_platform_id *platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
-    unsigned int numProfiles = 0;
     for (unsigned int p = 0; p < numPlatforms; p++) {
       cl_uint numDevices;
       status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);

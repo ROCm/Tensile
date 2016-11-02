@@ -210,12 +210,14 @@ int main( int argc, char *argv[] ) {
   const size_t sizeC = numElementsC * sizeof(TYPE_C);
   const size_t sizeA = numElementsA * sizeof(TYPE_A);
   const size_t sizeB = numElementsB * sizeof(TYPE_B);
-  printf("sizeC = %llu\n", sizeC);
+  printf("sizeC = %llu\n", static_cast<unsigned __int64>(sizeC));
 
   // allocate host buffers
   printf("allocating host buffers\n");
   TYPE_C *hC = new TYPE_C[numElementsC];
+#if VALIDATE
   TYPE_C *hC_ref = new TYPE_C[numElementsC];
+#endif
   TYPE_A *hA = new TYPE_A[numElementsA];
   TYPE_B *hB = new TYPE_B[numElementsB];
 
@@ -443,30 +445,30 @@ void makeKernel(
 
 
 void sgemm_NT(
-  bool transA,
-  bool transB,
+  bool ltransA,
+  bool ltransB,
   float  *C,
   float  *A,
   float  *B,
-  float const alpha,
-  float const beta,
+  float const lalpha,
+  float const lbeta,
   unsigned int const ldc,
   unsigned int const lda,
   unsigned int const ldb,
-  unsigned int const M,
-  unsigned int const N,
-  unsigned int const K ) {
+  unsigned int const lM,
+  unsigned int const lN,
+  unsigned int const lK ) {
 
-  for (unsigned int i = 0; i < M; i++) {
-    for (unsigned int j = 0; j < N; j++) {
+  for (unsigned int i = 0; i < lM; i++) {
+    for (unsigned int j = 0; j < lN; j++) {
       float c = 0.f;
-      for (unsigned int k = 0; k < K; k++) {
-        float a = transA ? A[k+i*lda] : A[i+k*lda];
-        float b = transB ? B[j+k*ldb] : B[k+j*ldb];
+      for (unsigned int k = 0; k < lK; k++) {
+        float a = ltransA ? A[k+i*lda] : A[i+k*lda];
+        float b = ltransB ? B[j+k*ldb] : B[k+j*ldb];
         c += a*b;
       }
       size_t cIdx = i+j*ldc;
-      C[cIdx] = alpha*c + beta*C[cIdx];
+      C[cIdx] = lalpha*c + lbeta*C[cIdx];
     }
   }
 }

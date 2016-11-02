@@ -49,14 +49,14 @@ typedef union {
 
 typedef union {
    float  Cobalt_ALIGNED(8) s[2];
-   struct{ float x, y; };
-   struct{ float s0, s1; };
+   struct { float x, y; };
+   struct { float s0, s1; };
 } CobaltComplexFloat;
 
 typedef union {
    double  Cobalt_ALIGNED(8) s[2];
-   struct{ double x, y; };
-   struct{ double s0, s1; };
+   struct { double x, y; };
+   struct { double s0, s1; };
 } CobaltComplexDouble;
 
 

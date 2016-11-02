@@ -63,7 +63,7 @@ if(WIN32)
 set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt.bat)
 file(WRITE ${Cobalt_ENTRY_POINT} "
 
-python @CMAKE_INSTALL_PREFIX@\\@DATA_INSTALL_DIR@\\CobaltGen\\Cobalt.py %*
+python \"@CMAKE_INSTALL_PREFIX@\\@DATA_INSTALL_DIR@\\CobaltGen\\Cobalt.py\" %*
 
 ")
 else()

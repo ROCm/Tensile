@@ -25,7 +25,9 @@ class FileWriter:
   # ensurePath
   ##############################################################################
   def ensurePath( self, path ):
+    print "ensurePath(%s)" % path
     dirname = os.path.dirname(path)
+    print dirname
     if not os.path.exists(dirname):
       os.makedirs(dirname)
 
@@ -34,6 +36,7 @@ class FileWriter:
   # constructor
   ##############################################################################
   def __init__( self, outputPath, backend, forBenchmark ):
+    print "FileWriter(%s, %s, %s)" % (outputPath, backend, forBenchmark)
     self.outputPath = outputPath
     self.backend = backend
     self.kernelWriter = KernelWriter.KernelWriter(backend)
@@ -368,6 +371,7 @@ class FileWriter:
           s += "      betaType,\n"
           s += "      useOffsets,\n"
           s += "      deviceProfile);\n"
+	  s += "  cobaltStatusCheck(status);\n"
           s += "\n"
 
           idx = 0

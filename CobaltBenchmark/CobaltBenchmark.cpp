@@ -275,7 +275,7 @@ int main( int argc, char *argv[] ) {
   destroyTensorData();
   destroyControls();
 #ifdef _CRTDBG_MAP_ALLOC
-  int leaks = _CrtDumpMemoryLeaks();
+  _CrtDumpMemoryLeaks();
 #endif
   return 0;
 } // end main
@@ -285,9 +285,9 @@ void initTensorData() {
   // dummy tensors for filling initial data
 
 
-  bool factoredC = Cobalt::factor(tensorSizeMaxC, tensorSizeMaxC_0, tensorSizeMaxC_1);
-  bool factoredA = Cobalt::factor(tensorSizeMaxA, tensorSizeMaxA_0, tensorSizeMaxA_1);
-  bool factoredB = Cobalt::factor(tensorSizeMaxB, tensorSizeMaxB_0, tensorSizeMaxB_1);
+  Cobalt::factor(tensorSizeMaxC, tensorSizeMaxC_0, tensorSizeMaxC_1);
+  Cobalt::factor(tensorSizeMaxA, tensorSizeMaxA_0, tensorSizeMaxA_1);
+  Cobalt::factor(tensorSizeMaxB, tensorSizeMaxB_0, tensorSizeMaxB_1);
 
   //printf("maxC: %llu %s %u * %u\n", tensorSizeMaxC, factoredC ? "==" : "!=", tensorSizeMaxC_0, tensorSizeMaxC_1);
   //printf("maxA: %llu %s %u * %u\n", tensorSizeMaxA, factoredA ? "==" : "!=", tensorSizeMaxA_0, tensorSizeMaxA_1);
@@ -469,7 +469,11 @@ void initControls() {
 
   // reference device
   deviceProfileReference.numDevices = 1;
-  std::sprintf(deviceProfileReference.devices[0].name, "cpu");
+#ifdef WIN32
+  sprintf_s(deviceProfile.devices[0].name, deviceProfile.devices[0].maxNameLength, "cpu");
+#else
+  std::sprintf(deviceProfile.devices[0].name, "cpu" );
+#endif
 }
 
 void destroyControls() {
@@ -554,16 +558,12 @@ void parseCommandLineOptions(int argc, char *argv[]) {
   if (!deviceOverride) {
     // select device based on CobaltProblem
 #if Cobalt_BACKEND_OPENCL12
-    cl_int status;
-    cl_uint numPlatforms;
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
-    cl_platform_id *platforms = new cl_platform_id[numPlatforms];
+    platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
-    unsigned int numProfiles = 0;
     for (unsigned int p = 0; p < numPlatforms; p++) {
-      cl_uint numDevices;
       status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
-      cl_device_id *devices = new cl_device_id[numDevices];
+      devices = new cl_device_id[numDevices];
       status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
       for (unsigned int d = 0; d < numDevices; d++) {
         deviceProfile.numDevices = 1;
@@ -618,14 +618,11 @@ void parseCommandLineOptions(int argc, char *argv[]) {
 #endif
   } else {
 #if Cobalt_BACKEND_OPENCL12
-    cl_int status;
-    cl_uint numPlatforms;
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
-    cl_platform_id *platforms = new cl_platform_id[numPlatforms];
+    platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
-    cl_uint numDevices;
     status = clGetDeviceIDs(platforms[platformIdx], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
-    cl_device_id *devices = new cl_device_id[numDevices];
+    devices = new cl_device_id[numDevices];
     status = clGetDeviceIDs(platforms[platformIdx], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
     deviceProfile.numDevices = 1;
     status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_NAME, deviceProfile.devices[0].maxNameLength, deviceProfile.devices[0].name, 0);

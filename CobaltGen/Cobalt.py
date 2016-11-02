@@ -50,7 +50,7 @@ def benchmark(cargs):
     args = ap.parse_args(args=cargs)
     inputFiles = glob.glob(args.inputPath + "/*.xml")
     backend = Structs.Backend()
-    if args.backend.lower() in ["opencl_1.2", "opencl", "cl"]: backend.value = 0
+    if args.backend.lower() in ["opencl_1.2", "opencl", "ocl", "cl"]: backend.value = 0
     elif args.backend.lower() == "hip": backend.value = 1
 
     # print settings
@@ -101,4 +101,4 @@ if __name__ == "__main__":
     if command == 'benchmark':
         benchmark(sys.argv[2:])
     else:
-        print "Unknown command"
+        print "Usage: cobalt benchmark [args]"

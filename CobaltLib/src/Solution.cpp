@@ -244,6 +244,8 @@ CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     CobaltScalarData alpha,
     CobaltScalarData beta,
     CobaltControl & ctrl ) {
+  ctrl.numOutputEvents = 0;
+  ctrl.numQueuesUsed = 0;
   printf("ERROR - CobaltSolutionLogOnly::enqueue() should never be called.\n");
   return cobaltStatusSuccess;
 }

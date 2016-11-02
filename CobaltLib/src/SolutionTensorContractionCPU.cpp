@@ -100,10 +100,10 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       TypeA valueA = dataA[serialIdxA];
       if (
 #ifdef Cobalt_Enable_FP16_HOST
-           std::is_same<TypeA, CobaltComplexHalf>::value ||
+           std::is_same<TypeA, CobaltComplexHalf>() ||
 #endif
-           std::is_same<TypeA, CobaltComplexFloat>::value
-        || std::is_same<TypeA, CobaltComplexDouble>::value) {
+           std::is_same<TypeA, CobaltComplexFloat>()
+        || std::is_same<TypeA, CobaltComplexDouble>() ) {
         if (
 #ifdef Cobalt_Enable_FP16_HOST
              Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf ||
@@ -118,10 +118,10 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       TypeB valueB = dataB[serialIdxB];
       if (
 #ifdef Cobalt_Enable_FP16_HOST
-           std::is_same<TypeB, CobaltComplexHalf>::value ||
+           std::is_same<TypeB, CobaltComplexHalf>() ||
 #endif
-           std::is_same<TypeB, CobaltComplexFloat>::value
-        || std::is_same<TypeB, CobaltComplexDouble>::value) {
+		  std::is_same<TypeB, CobaltComplexFloat>()
+        || std::is_same<TypeB, CobaltComplexDouble>() ) {
         if (
 #ifdef Cobalt_Enable_FP16_HOST
              Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf ||

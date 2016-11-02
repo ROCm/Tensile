@@ -134,6 +134,7 @@ unsigned int addGEMMList() {
     // send problem to logger
     CobaltSolution solution;
     CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
+	cobaltStatusCheck(status);
   }
   cobaltTeardown();
 
@@ -208,7 +209,7 @@ unsigned int addGEMMCombinatorics() {
   const bool transBs[] = { false, false };
 
   // create problem for each combination
-  unsigned int numProblems = 0;
+  numProblems = 0;
   for (size_t transAIdx = 0; transAIdx < numTransA; transAIdx++) {
     for (size_t transBIdx = 0; transBIdx < numTransB; transBIdx++) {
       for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
@@ -321,6 +322,7 @@ void createAppXMLForExactMatch(
         typeB );
     CobaltSolution solution;
     CobaltStatus status = cobaltGetSolutionForProblem(&solution, problem);
+	cobaltStatusCheck(status);
     numProblems++;
   } // size
   
@@ -367,12 +369,12 @@ CobaltProblem createProblemGEMM(
     transB ? K : N,
     numBatches );
 
-  size_t sizeC = numBatches>1 ? tensorC.dimensions[2].size*tensorC.dimensions[2].stride
-                              : tensorC.dimensions[1].size*tensorC.dimensions[1].stride;
-  size_t sizeA = numBatches>1 ? tensorA.dimensions[2].size*tensorA.dimensions[2].stride
-                              : tensorA.dimensions[1].size*tensorA.dimensions[1].stride;
-  size_t sizeB = numBatches>1 ? tensorB.dimensions[2].size*tensorB.dimensions[2].stride
-                              : tensorB.dimensions[1].size*tensorB.dimensions[1].stride;
+  //size_t sizeC = numBatches>1 ? tensorC.dimensions[2].size*tensorC.dimensions[2].stride
+  //                            : tensorC.dimensions[1].size*tensorC.dimensions[1].stride;
+  //size_t sizeA = numBatches>1 ? tensorA.dimensions[2].size*tensorA.dimensions[2].stride
+  //                            : tensorA.dimensions[1].size*tensorA.dimensions[1].stride;
+  //size_t sizeB = numBatches>1 ? tensorB.dimensions[2].size*tensorB.dimensions[2].stride
+  //                            : tensorB.dimensions[1].size*tensorB.dimensions[1].stride;
 
   //printf("sizeTotal = %.1f MB\n", (sizeC+sizeA+sizeB)/1024.0/1024.0);
   //printf("    sizeC = %.1f MB\n", sizeC/1024.0/1024.0);
