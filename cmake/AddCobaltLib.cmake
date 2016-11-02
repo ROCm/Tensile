@@ -32,7 +32,7 @@ function(add_cobalt_lib NAME)
             --optimize-beta=${CobaltGen_OPTIMIZE_BETA}
         )
         string (REPLACE ";" " " CobaltGen_COMMAND_STR "${CobaltGen_COMMAND}")
-        message(STATUS "Generate kernels: ${CobaltGen_COMMAND_STR}")
+        message(STATUS "Generate kernels for ${NAME}: ${CobaltGen_COMMAND_STR}")
         execute_process(
             COMMAND ${CobaltGen_COMMAND}
             RESULT_VARIABLE CobaltGen_RESULT
@@ -49,6 +49,7 @@ function(add_cobalt_lib NAME)
         )
 
     else()
+        message(STATUS "No solutions for ${NAME}")
         file( WRITE ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl "")
         # Glob CobaltLib source files
         file(GLOB CobaltLib_SRC
