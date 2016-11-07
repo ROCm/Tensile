@@ -177,13 +177,13 @@ unsigned int addGEMMCombinatorics() {
   };
 
   // how many problem options
-  const size_t numStrides     = 1; // 2
-  const size_t numBatchSizes  = 1; // 2
-  const size_t numDataTypes   = 1; // 10
+  const size_t numStrides     = 2; // 2
+  const size_t numBatchSizes  = 2; // 2
+  const size_t numDataTypes   = 2; // 10
   const size_t numAlphas      = 1; // 1
-  const size_t numBetas       = 1; // 2
-  const size_t numTransA      = 1; // 2
-  const size_t numTransB      = 1; // 2
+  const size_t numBetas       = 2; // 2
+  const size_t numTransA      = 2; // 2
+  const size_t numTransB      = 2; // 2
 
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };
@@ -205,8 +205,8 @@ unsigned int addGEMMCombinatorics() {
   };
   const bool alphas[] = { true };
   const bool betas[] = { true, false };
-  const bool transAs[] = { true, true };
-  const bool transBs[] = { false, false };
+  const bool transAs[] = { false, true };
+  const bool transBs[] = { true, false };
 
   // create problem for each combination
   numProblems = 0;
@@ -238,8 +238,9 @@ unsigned int addGEMMCombinatorics() {
                   }
                 }
 #else
-                sizes.push_back({ 5760, 5760, 5760 });
-                //sizes.push_back({ 5760 - 1, 5760 - 1, 5760 });
+                //sizes.push_back({ 5760, 5760, 5760 });
+				sizes.push_back({ 128, 128, 128 }); // all good sizes and square
+                sizes.push_back({ 131, 257, 37 }); // all bad sizes and non-square
 #endif
 
 
