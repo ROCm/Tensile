@@ -888,10 +888,23 @@ class KernelWriter:
           kStr += " >= size%s);%s" % (tileCharB, self.endLine )
       kStr += self.endLine
 
-
-
-
-
+    kStr += "  /* registers used for global -> local loads */" + self.endLine
+    kStr += "  TYPE_A "
+    for perp in range(0, kernel.numLoadsPerpA):
+      for para in range(0, kernel.numLoadsParaA):
+        kStr += "a_" + str(para) + "_" + str(perp)
+        if para == kernel.numLoadsParaA-1 and perp == kernel.numLoadsPerpA-1:
+          kStr += ";" + self.endLine
+        else:
+          kStr += ", "
+    kStr += "  TYPE_B "
+    for perp in range(0, kernel.numLoadsPerpB):
+      for para in range(0, kernel.numLoadsParaB):
+        kStr += "b_" + str(para) + "_" + str(perp)
+        if para == kernel.numLoadsParaB-1 and perp == kernel.numLoadsPerpB-1:
+          kStr += ";" + self.endLine
+        else:
+          kStr += ", "
 
 
     ####################################
@@ -967,22 +980,6 @@ class KernelWriter:
     # load A
     ####################################
     kStr += indent + "/* load A global -> local */" + self.endLine
-    kStr += indent + "TYPE_A "
-    for perp in range(0, kernel.numLoadsPerpA):
-      for para in range(0, kernel.numLoadsParaA):
-        kStr += "a_" + str(para) + "_" + str(perp)
-        if para == kernel.numLoadsParaA-1 and perp == kernel.numLoadsPerpA-1:
-          kStr += ";" + self.endLine
-        else:
-          kStr += ", "
-    kStr += indent + "TYPE_B "
-    for perp in range(0, kernel.numLoadsPerpB):
-      for para in range(0, kernel.numLoadsParaB):
-        kStr += "b_" + str(para) + "_" + str(perp)
-        if para == kernel.numLoadsParaB-1 and perp == kernel.numLoadsPerpB-1:
-          kStr += ";" + self.endLine
-        else:
-          kStr += ", "
 
     if kernel.loadRequiresFewerThreadsA():
       kStr += indent + "if ( loadSerial < %d ) {%s" \
