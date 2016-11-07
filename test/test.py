@@ -67,15 +67,14 @@ if __name__ == "__main__":
     ap.add_argument('-D', '--define', nargs='+', default=[])
     ap.add_argument('-G', '--generator', default=None)
     ap.add_argument("--backend", "-b", dest="backend", required=True)
-    ap.add_argument("--validate", dest="validate", action="store_true")
     ap.add_argument("--no-validate", dest="validate", action="store_false")
     ap.add_argument("--problem-set", dest="problemSet", choices=["quick", "full"], default="full" )
     ap.aset_defaults(validate=True)
 
     args = ap.parse_args(args=sys.argv[1:])
-    validateArgStr = ""
+    validateArgs = []
     if ap.validate:
-      validateArgStr = "--validate"
+      validateArgs = ["--validate"]
     
     backend = None
     if args.backend.lower() in ["opencl_1.2", "opencl", "cl"]: backend = 'OpenCL_1.2'
@@ -90,7 +89,7 @@ if __name__ == "__main__":
         #install cobalt
         build(COBALT_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
         # Run benchmark
-        cmd([os.path.join(install_path, 'bin', 'cobalt'), 'benchmark', '-b', backend, '-i', PROBLEMS_PATH, '-o', solutions_path, validateArgStr])
+        cmd([os.path.join(install_path, 'bin', 'cobalt'), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
         # Build library
         library_args = ['Cobalt_SOLUTIONS='+solutions_path, 'Cobalt_BACKEND='+backend]
         build(SIMPLE_PATH, generator=args.generator, prefix=install_path, defines=args.define+library_args)
