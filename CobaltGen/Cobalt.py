@@ -43,8 +43,10 @@ def benchmark(cargs):
     ap.add_argument("--backend", "-b", dest="backend", required=True)
     ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr")
     ap.add_argument("--optimize-beta", dest="optimizeBetaStr")
+    ap.add_argument("--validate", dest="validate", action="store_true")
     ap.set_defaults(optimizeAlphaStr="Off")
     ap.set_defaults(optimizeBetaStr="Off")
+    ap.set_defaults(validate=False)
 
     # parse arguments
     args = ap.parse_args(args=cargs)
@@ -86,7 +88,12 @@ def benchmark(cargs):
         # build_args.extend(['VERBOSE=1'])
     cmake(build_args)
 
-    cmd([os.path.join(build_path, 'bin', 'CobaltBenchmark')])
+    validateArgs = []
+    if args.validate:
+      validateArgs = ["--validate"]
+
+
+    cmd([os.path.join(build_path, 'bin', 'CobaltBenchmark')]+validateArgs)
 
 
 

@@ -128,8 +128,8 @@ private:
 #define TYPE_BETA   float
 #define WG_0I       16
 #define WG_1J       16
-#define UT_0I        2
-#define UT_1J        2
+#define UT_0I        4
+#define UT_1J        4
 #define MT_0I       (WG_0I*UT_0I)
 #define MT_1J       (WG_1J*UT_1J)
 #endif
@@ -139,18 +139,18 @@ const unsigned int M = MT_0I*2-1;
 const unsigned int N = MT_1J*2-1;
 const unsigned int K = 16;
 #else
-//const unsigned int M = 5760;
-//const unsigned int N = 5760;
-//const unsigned int K = 5760;
-const unsigned int M = 1024;
-const unsigned int N = 1024;
-const unsigned int K = 1024;
+const unsigned int M = 5760;
+const unsigned int N = 5760;
+const unsigned int K = 5760;
+//const unsigned int M = 4096/2;
+//const unsigned int N = 64;
+//const unsigned int K = 4096;
 #endif
-const unsigned int numEnqueues = 3;
+const unsigned int numEnqueues = 1;
 TYPE_ALPHA alpha = 1;
 TYPE_BETA  beta  = 0;
-const unsigned int transA = 0;
-const unsigned int transB = 1;
+const unsigned int transA = 1;
+const unsigned int transB = 0;
 
 /*******************************************************************************
  * main
