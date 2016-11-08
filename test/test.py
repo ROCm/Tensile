@@ -69,11 +69,11 @@ if __name__ == "__main__":
     ap.add_argument("--backend", "-b", dest="backend", required=True)
     ap.add_argument("--no-validate", dest="validate", action="store_false")
     ap.add_argument("--problem-set", dest="problemSet", choices=["quick", "full"], default="full" )
-    ap.aset_defaults(validate=True)
+    ap.set_defaults(validate=True)
 
     args = ap.parse_args(args=sys.argv[1:])
     validateArgs = []
-    if ap.validate:
+    if args.validate:
       validateArgs = ["--validate"]
     
     backend = None
@@ -89,7 +89,10 @@ if __name__ == "__main__":
         #install cobalt
         build(COBALT_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
         # Run benchmark
-        cmd([os.path.join(install_path, 'bin', 'cobalt'), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
+	cobaltExe = 'cobalt.bat'
+	if os.name == "posix":
+          cobaltExe = 'cobalt'
+        cmd([os.path.join(install_path, 'bin', cobaltExe), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
         # Build library
         library_args = ['Cobalt_SOLUTIONS='+solutions_path, 'Cobalt_BACKEND='+backend]
         build(SIMPLE_PATH, generator=args.generator, prefix=install_path, defines=args.define+library_args)

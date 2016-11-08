@@ -110,7 +110,9 @@ if (CMAKE_CXX_COMPILER MATCHES ".*hipcc")
     # This does not need to be defined but will fail to compile when not
     target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_SOLUTIONS=\\\"${CobaltBenchmark_DIR_GENERATED}\\\")
 else()
-    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_PROBLEMS="${CobaltBenchmark_DIR_GENERATED}")
+    file( TO_CMAKE_PATH ${CobaltBenchmark_DIR_GENERATED} CBDG_PATH)
+    message(STATUS "CobaltBenchmark output dir: ${CBDG_PATH}")
+    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_PROBLEMS="${CBDG_PATH}")
     # This does not need to be defined but will fail to compile when not
-    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_SOLUTIONS="${CobaltBenchmark_DIR_GENERATED}")
+    target_compile_definitions(${CobaltBenchmark_NAME} PUBLIC -DCobalt_DIR_SOLUTIONS="${CBDG_PATH}")
 endif()

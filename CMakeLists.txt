@@ -61,9 +61,10 @@ write_basic_package_version_file(
 # Build entry point
 if(WIN32)
 set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt.bat)
+file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/CobaltGen/Cobalt.py" COBALT_PY)
 file(WRITE ${Cobalt_ENTRY_POINT} "
 
-python \"@CMAKE_INSTALL_PREFIX@\\@DATA_INSTALL_DIR@\\CobaltGen\\Cobalt.py\" %*
+python @COBALT_PY@ %*
 
 ")
 else()
@@ -97,6 +98,12 @@ install(DIRECTORY
   CobaltBenchmark
   cmake
   DESTINATION ${DATA_INSTALL_DIR}
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.cpp"
+  PATTERN "*.py"
+  PATTERN "*.txt"
+  PATTERN "*.cmake"
 )
 
 ############################################################
