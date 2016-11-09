@@ -83,7 +83,9 @@ static void fillTensor(CobaltTensor, CobaltTensorData, Cobalt::Tensor::FillType,
 static void initControls();
 static void destroyControls();
 
+#ifdef Cobalt_ENABLE_FP16
 static bool cobaltDataTypeIsHalf( CobaltDataType dataType );
+#endif
 static bool cobaltDataTypeIsFloat( CobaltDataType dataType );
 static bool cobaltDataTypeIsDouble( CobaltDataType dataType );
 

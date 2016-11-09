@@ -652,19 +652,15 @@ void parseCommandLineOptions(int argc, char *argv[]) {
   }
 }
 
+#ifdef Cobalt_ENABLE_FP16
 bool cobaltDataTypeIsHalf(CobaltDataType
-#ifdef Cobalt_ENABLE_FP16
 dataType
-#endif
   ) {
-#ifdef Cobalt_ENABLE_FP16
   return dataType == cobaltDataTypeHalf
       || dataType == cobaltDataTypeComplexHalf
       || dataType == cobaltDataTypeComplexConjugateHalf;
-#else
-  return false;
-#endif
 }
+#endif
 bool cobaltDataTypeIsFloat(CobaltDataType dataType) {
   return dataType == cobaltDataTypeSingle
     || dataType == cobaltDataTypeComplexSingle
