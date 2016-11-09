@@ -646,6 +646,7 @@ class KernelWriter:
     ####################################
     kStr += "/* kernel */" + self.endLine
     if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wunused-parameter\"" + self.endLine
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
@@ -893,8 +894,6 @@ class KernelWriter:
       kStr += self.endLine
 
     kStr += "  /* registers used for global -> local loads */" + self.endLine
-    if self.backend.isHIP():
-      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     kStr += "  TYPE_A "
     for perp in range(0, kernel.numLoadsPerpA):
       for para in range(0, kernel.numLoadsParaA):
@@ -1066,6 +1065,9 @@ class KernelWriter:
     ########################################
     # store registers in lds
     ########################################
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic push" + self.endLine
+      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     # if num threads
     if kernel.loadRequiresFewerThreadsA():
       kStr += indent + "if ( loadSerial < %d ) {%s" \
