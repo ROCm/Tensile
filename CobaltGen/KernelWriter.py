@@ -1007,8 +1007,8 @@ class KernelWriter:
           kStr += "( condA_%s_%s )" %( str(para), str(perp) )
           kStr += " ? %s : " %( zeroStringA )
 
-        kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];" \
-            % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
+        kStr += "A[ %d*LS_PARA_A*strideA%s + %d*LS_PERP_A*strideA%s];" \
+            % (para, unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
         if condPara or condPerp:
           kStr += " }" + self.endLine
         kStr += self.endLine
@@ -1046,8 +1046,8 @@ class KernelWriter:
           kStr += "( condB_%s_%s )" % ( str(para), str(perp) )
           kStr += " ? %s : " % ( zeroStringB )
         
-        kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
-            % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
+        kStr += "B[ %d*LS_PARA_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
+            % (para, unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
         if condPara or condPerp:
           kStr += " }" + self.endLine
         kStr += self.endLine
@@ -1241,8 +1241,8 @@ class KernelWriter:
               kStr += "%d*LS_PARA_A" % (para)
             kStr += " >= size%s)" %( tileCharA )
           kStr += " ? %s : " % zeroStringA
-          kStr += "A[ %d*LS_PARA_A + %d*LS_PERP_A*strideA%s];" \
-              % (para, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
+          kStr += "A[ %d*LS_PARA_A*strideA%s + %d*LS_PERP_A*strideA%s];" \
+              % (para, unrollChar if not kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA, perp, unrollChar if kernel.unrollDimStrideGreaterThanTileDimStrideA else tileCharA)
           if condPara or condPerp:
             kStr += " }" + self.endLine
           kStr += self.endLine
@@ -1299,8 +1299,8 @@ class KernelWriter:
             kStr += " >= size%s) " % (tileCharB )
          
           kStr += " ? %s : " % zeroStringB
-          kStr += "B[ %d*LS_PARA_B + %d*LS_PERP_B*strideB%s];" \
-              % (para, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
+          kStr += "B[ %d*LS_PARA_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
+              % (para, unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
           if condPara or condPerp:
             kStr += " }" + self.endLine
           kStr += self.endLine
