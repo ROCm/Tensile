@@ -470,9 +470,9 @@ void initControls() {
   // reference device
   deviceProfileReference.numDevices = 1;
 #ifdef WIN32
-  sprintf_s(deviceProfile.devices[0].name, deviceProfile.devices[0].maxNameLength, "cpu");
+  sprintf_s(deviceProfileReference.devices[0].name, deviceProfileReference.devices[0].maxNameLength, "cpu");
 #else
-  std::sprintf(deviceProfile.devices[0].name, "cpu" );
+  std::sprintf(deviceProfileReference.devices[0].name, "cpu" );
 #endif
 }
 
