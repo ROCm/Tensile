@@ -196,8 +196,6 @@ size_t flopsPerMadd( CobaltDataType type ) {
   case cobaltDataTypeNone:
   case cobaltNumDataTypes:
     return 0;
-  default:
-    return static_cast<size_t>(-1);
   }
 }
 

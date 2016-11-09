@@ -354,7 +354,6 @@ bool compareTensors(
 #endif
   case cobaltDataTypeNone:
   case cobaltNumDataTypes:
-  default:
     printf("ERROR\n");
     return false;
   }
