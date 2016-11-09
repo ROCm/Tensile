@@ -175,12 +175,12 @@ bool almostEqual(CobaltComplexDouble a, CobaltComplexDouble b) {
 ******************************************************************************/
 #ifdef Cobalt_Enable_FP16_HOST
 template< >
-void complexConjugate(CobaltHalf & v) {}
+void complexConjugate(CobaltHalf &) {}
 #endif
 template< >
-void complexConjugate(float & v) {}
+void complexConjugate(float &) {}
 template< >
-void complexConjugate(double & v) {}
+void complexConjugate(double &) {}
 template< >
 void complexConjugate( CobaltComplexFloat & v) {
   v.y = -v.y;

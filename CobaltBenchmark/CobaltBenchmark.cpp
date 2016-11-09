@@ -37,9 +37,9 @@ _CrtMemState s3;
 
 #define ULL (unsigned long long)
 
-Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
-Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
+static Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
+static Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
+static Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 
 //#define MAX_PROBLEMS 1
 //#define MAX_SOLUTIONS_PER_PROBLEM 1
@@ -47,16 +47,16 @@ Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
 #define ALPHA 1
 #define BETA  0
 
-size_t overrideExactMatchStartIdx = 0;
-size_t overrideExactMatchEndIdx = 0;
-size_t overrideProblemStartIdx = 0;
-size_t overrideProblemEndIdx = 0;
-size_t overrideSolutionStartIdx = 0;
-size_t overrideSolutionEndIdx = 0;
-unsigned int platformIdx = 0;
-unsigned int deviceIdx = 0;
-bool deviceOverride = false;
-CobaltDeviceProfile deviceProfile;
+static size_t overrideExactMatchStartIdx = 0;
+static size_t overrideExactMatchEndIdx = 0;
+static size_t overrideProblemStartIdx = 0;
+static size_t overrideProblemEndIdx = 0;
+static size_t overrideSolutionStartIdx = 0;
+static size_t overrideSolutionEndIdx = 0;
+static unsigned int platformIdx = 0;
+static unsigned int deviceIdx = 0;
+static bool deviceOverride = false;
+static CobaltDeviceProfile deviceProfile;
 
 /*******************************************************************************
  * main
@@ -588,8 +588,6 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     }
     delete[] platforms;
 #else
-    hipError_t status;
-    int numDevices;
     status = hipGetDeviceCount( &numDevices );
     printf("%i HIP devices\n", numDevices);
     for (int i = 0; i < numDevices; i++) {
@@ -654,7 +652,11 @@ void parseCommandLineOptions(int argc, char *argv[]) {
   }
 }
 
-bool cobaltDataTypeIsHalf(CobaltDataType dataType) {
+bool cobaltDataTypeIsHalf(CobaltDataType
+#ifdef Cobalt_ENABLE_FP16
+dataType
+#endif
+  ) {
 #ifdef Cobalt_ENABLE_FP16
   return dataType == cobaltDataTypeHalf
       || dataType == cobaltDataTypeComplexHalf

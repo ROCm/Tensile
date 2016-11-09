@@ -18,79 +18,78 @@
 
 // commandline options
 
-bool doValidation;
-bool doValidationKernels;
-void parseCommandLineOptions(int argc, char *argv[]);
+static bool doValidation;
+static bool doValidationKernels;
+static void parseCommandLineOptions(int argc, char *argv[]);
 
  // dummy/max sized just for filling initial data
-CobaltTensor initialTensorFloatC;
-CobaltTensor initialTensorFloatA;
-CobaltTensor initialTensorFloatB;
-CobaltTensor initialTensorDoubleC;
-CobaltTensor initialTensorDoubleA;
-CobaltTensor initialTensorDoubleB;
+static CobaltTensor initialTensorFloatC;
+static CobaltTensor initialTensorFloatA;
+static CobaltTensor initialTensorFloatB;
+static CobaltTensor initialTensorDoubleC;
+static CobaltTensor initialTensorDoubleA;
+static CobaltTensor initialTensorDoubleB;
 
 // buffers to hold initial data
-CobaltTensorData initialTensorDataFloatC;
-CobaltTensorData initialTensorDataFloatA;
-CobaltTensorData initialTensorDataFloatB;
-CobaltTensorData initialTensorDataDoubleC;
-CobaltTensorData initialTensorDataDoubleA;
-CobaltTensorData initialTensorDataDoubleB;
+static CobaltTensorData initialTensorDataFloatC;
+static CobaltTensorData initialTensorDataFloatA;
+static CobaltTensorData initialTensorDataFloatB;
+static CobaltTensorData initialTensorDataDoubleC;
+static CobaltTensorData initialTensorDataDoubleA;
+static CobaltTensorData initialTensorDataDoubleB;
 
 // scalar data
-float *alphaFloat;
-float *betaFloat;
-double *alphaDouble;
-double *betaDouble;
+static float *alphaFloat;
+static float *betaFloat;
+static double *alphaDouble;
+static double *betaDouble;
 
 // device tensor data; max sized; initial data get clWriteBuffer each time
-CobaltTensorData deviceTensorDataC; // input and result buffer
-CobaltTensorData deviceTensorDataA;
-CobaltTensorData deviceTensorDataB;
-CobaltTensorData deviceTensorDataOnHostC; // result buffer coppied back to host for comparison
-CobaltTensorData deviceTensorDataOnHostA; // result buffer coppied back to host for comparison
-CobaltTensorData deviceTensorDataOnHostB; // result buffer coppied back to host for comparison
+static CobaltTensorData deviceTensorDataC; // input and result buffer
+static CobaltTensorData deviceTensorDataA;
+static CobaltTensorData deviceTensorDataB;
+static CobaltTensorData deviceTensorDataOnHostC; // result buffer coppied back to host for comparison
+static CobaltTensorData deviceTensorDataOnHostA; // result buffer coppied back to host for comparison
+static CobaltTensorData deviceTensorDataOnHostB; // result buffer coppied back to host for comparison
 
 // reference tensor data
-CobaltTensorData referenceTensorDataC; // input and result buffer on host
+static CobaltTensorData referenceTensorDataC; // input and result buffer on host
 
 // setup opencl
-unsigned int numPlatforms;
+static unsigned int numPlatforms;
 #if Cobalt_BACKEND_OPENCL12
-unsigned int numDevices;
-cl_int status;
-cl_platform_id *platforms;
-cl_platform_id platform;
-cl_device_id *devices;
-cl_device_id device;
-cl_context context;
+static unsigned int numDevices;
+static cl_int status;
+static cl_platform_id *platforms;
+static cl_platform_id platform;
+static cl_device_id *devices;
+static cl_device_id device;
+static cl_context context;
 #elif Cobalt_BACKEND_HIP
-hipError_t status;
-int numDevices;
-int device;
+static hipError_t status;
+static int numDevices;
+static int device;
 #endif
 
 // controls
-CobaltDeviceProfile deviceProfileReference;
-CobaltStatus cobaltStatus;
-CobaltControl ctrl;
-CobaltControl ctrlValidation;
+static CobaltDeviceProfile deviceProfileReference;
+static CobaltStatus cobaltStatus;
+static CobaltControl ctrl;
+static CobaltControl ctrlValidation;
 
-void initTensorData();
-void destroyTensorData();
-void fillTensor(CobaltTensor, CobaltTensorData, Cobalt::Tensor::FillType, void *src);
-void initControls();
-void destroyControls();
+static void initTensorData();
+static void destroyTensorData();
+static void fillTensor(CobaltTensor, CobaltTensorData, Cobalt::Tensor::FillType, void *src);
+static void initControls();
+static void destroyControls();
 
-bool cobaltDataTypeIsHalf( CobaltDataType dataType );
-bool cobaltDataTypeIsFloat( CobaltDataType dataType );
-bool cobaltDataTypeIsDouble( CobaltDataType dataType );
+static bool cobaltDataTypeIsHalf( CobaltDataType dataType );
+static bool cobaltDataTypeIsFloat( CobaltDataType dataType );
+static bool cobaltDataTypeIsDouble( CobaltDataType dataType );
 
-
-unsigned int tensorSizeMaxC_0;
-unsigned int tensorSizeMaxC_1;
-unsigned int tensorSizeMaxA_0;
-unsigned int tensorSizeMaxA_1;
-unsigned int tensorSizeMaxB_0;
-unsigned int tensorSizeMaxB_1;
+static unsigned int tensorSizeMaxC_0;
+static unsigned int tensorSizeMaxC_1;
+static unsigned int tensorSizeMaxA_0;
+static unsigned int tensorSizeMaxA_1;
+static unsigned int tensorSizeMaxB_0;
+static unsigned int tensorSizeMaxB_1;

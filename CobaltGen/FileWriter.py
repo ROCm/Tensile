@@ -558,8 +558,8 @@ class FileWriter:
     kernelName = self.kernelWriter.getName(kernel)
     fileString = ""
     #fileString += Common.getFileHeader()
-    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_CPP\n"
-    fileString += "#define KERNEL_" + kernelName.upper() + "_CPP\n"
+    #fileString += "#ifndef KERNEL_" + kernelName.upper() + "_CPP\n"
+    #fileString += "#define KERNEL_" + kernelName.upper() + "_CPP\n"
     fileString += "\n"
     fileString += "#include \"" + kernelName + ".h\"\n"
     fileString += "\n"
@@ -578,10 +578,10 @@ class FileWriter:
       fileString += "\";\n"
 
     fileString += "\n"
-    fileString += "#else\n"
-    fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
-        % kernelName
-    fileString += "#endif\n\n"
+    #fileString += "#else\n"
+    #fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
+    #    % kernelName
+    #fileString += "#endif\n\n"
     return fileString
 
 
