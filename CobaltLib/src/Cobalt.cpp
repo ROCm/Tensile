@@ -317,8 +317,8 @@ CobaltStatus cobaltEnqueueSolution(
   CobaltStatus status = cobaltStatusSuccess;
   // if cpu device, enqueue even if solver turned off
   if (solution->pimpl->getProblem().deviceIsReference()) {
-      status = solution->pimpl->enqueueEntry( tensorDataC, tensorDataA, tensorDataB,
-          alpha, beta, *ctrl, false /*no print*/ );
+      status = solution->pimpl->enqueue( tensorDataC, tensorDataA, tensorDataB,
+          alpha, beta, *ctrl );
 
   // gpu device, only enqueue if solver turned on
   } else {

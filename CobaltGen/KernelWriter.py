@@ -715,8 +715,8 @@ class KernelWriter:
 
     if kernel.transposeWorkGroupOrder:
       # swap order in which work-groups cover C
-      kStr += "  unsigned int groupSerial = %s(0) * %s(1) + %s(1);%s" \
-        % (self.getGroupIdStr, self.getNumGroupsStr, self.getGroupIdStr, self.endLine)
+      kStr += "  %s groupSerial = %s(0) * %s(1) + %s(1);%s" \
+        % (self.uint64Str, self.getGroupIdStr, self.getNumGroupsStr, self.getGroupIdStr, self.endLine)
       kStr += "  unsigned int g%s = groupSerial %% %s(0);%s" % (tileChar0, self.getNumGroupsStr, self.endLine)
       kStr += "  unsigned int g%s = groupSerial / %s(0);%s" % (tileChar1, self.getNumGroupsStr, self.endLine)
     else:
