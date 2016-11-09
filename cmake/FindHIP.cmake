@@ -91,6 +91,8 @@ else()
     #export the environment variable, so that HIPCC can find it.
           set(ENV{HIP_PLATFORM} "hcc")
       # set (CMAKE_CXX_COMPILER ${HIPCC})
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS } -Wno-unused-command-line-argument")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS } -Wno-unused-command-line-argument")
 
   endif()
 
