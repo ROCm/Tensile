@@ -893,6 +893,8 @@ class KernelWriter:
       kStr += self.endLine
 
     kStr += "  /* registers used for global -> local loads */" + self.endLine
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     kStr += "  TYPE_A "
     for perp in range(0, kernel.numLoadsPerpA):
       for para in range(0, kernel.numLoadsParaA):
@@ -1138,6 +1140,8 @@ class KernelWriter:
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
     # end store in lds
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic pop" + self.endLine
 
     # 2nd barrier
     kStr += (
