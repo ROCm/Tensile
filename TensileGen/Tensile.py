@@ -55,6 +55,7 @@ def benchmark(cargs):
     backend = Structs.Backend()
     generatedPath = os.path.join(args.buildPath, "Generated")
     mkdir(args.buildPath)
+    mkdir(args.solutionsPath)
     mkdir(generatedPath)
     if args.backend.lower() in ["opencl_1.2", "opencl", "ocl", "cl"]: backend.value = 0
     elif args.backend.lower() == "hip": backend.value = 1
