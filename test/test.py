@@ -84,13 +84,13 @@ if __name__ == "__main__":
         build_path = os.path.join(d, '_tensile_build')
         solutions_path = os.path.join(d, 'solutions')
         install_path = os.path.join(d, 'usr')
-	problems_path = os.path.join(PROBLEMS_PATH,args.problemSet)
+        problems_path = os.path.join(PROBLEMS_PATH,args.problemSet)
 
         #install tensile
         build(TENTILE_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
         # Run benchmark
-	tensileExe = 'tensile.bat'
-	if os.name == "posix":
+        tensileExe = 'tensile.bat'
+        if os.name == "posix":
           tensileExe = 'tensile'
         cmd([os.path.join(install_path, 'bin', tensileExe), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
         # Build library

@@ -120,7 +120,7 @@ TensileStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>
 #ifdef Tensile_Enable_FP16_HOST
            std::is_same<TypeB, TensileComplexHalf>() ||
 #endif
-		  std::is_same<TypeB, TensileComplexFloat>()
+           std::is_same<TypeB, TensileComplexFloat>()
         || std::is_same<TypeB, TensileComplexDouble>() ) {
         if (
 #ifdef Tensile_Enable_FP16_HOST

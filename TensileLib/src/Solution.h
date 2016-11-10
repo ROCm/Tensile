@@ -26,7 +26,7 @@ public:
       TensileScalarData alpha,
       TensileScalarData beta,
       TensileControl & ctrl,
-	  bool doPrint );
+      bool doPrint );
   virtual TensileStatus enqueue(
       TensileTensorData tensorDataC,
       TensileTensorDataConst tensorDataA,

@@ -209,15 +209,15 @@ unsigned int Tensor::numDims() const {
 size_t Tensor::numElements() const {
   size_t returnNumElements = 1;
   for (unsigned int i = 0; i < numDims(); i++) {
-	  returnNumElements *= dimensions[i].size;
+    returnNumElements *= dimensions[i].size;
   }
   return returnNumElements;
 }
 size_t Tensor::numBytes() const {
   size_t size = 0;
   for (unsigned int i = 0; i < numDims(); i++) {
-  	size_t dimSize = dimensions[i].size * dimensions[i].stride;
-  	size = dimSize > size ? dimSize : size;
+    size_t dimSize = dimensions[i].size * dimensions[i].stride;
+    size = dimSize > size ? dimSize : size;
   }
   return size * sizeOf(dataType);
 }

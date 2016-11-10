@@ -59,13 +59,13 @@ bool Solution::operator<( const Solution & other ) const {
  * enter enqueue process here; can do validation and benchmarking
  *****************************************************************************/
 TensileStatus Solution::enqueueEntry(
-	TensileTensorData tensorDataC,
-	TensileTensorDataConst tensorDataA,
-	TensileTensorDataConst tensorDataB,
-	TensileScalarData alpha,
-	TensileScalarData beta,
-	TensileControl & ctrl,
-	bool doPrint ) {
+  TensileTensorData tensorDataC,
+  TensileTensorDataConst tensorDataA,
+  TensileTensorDataConst tensorDataB,
+  TensileScalarData alpha,
+  TensileScalarData beta,
+  TensileControl & ctrl,
+  bool doPrint ) {
 
   TensileStatus returnStatus = tensileStatusSuccess;
 

@@ -371,7 +371,7 @@ class FileWriter:
           s += "      betaType,\n"
           s += "      useOffsets,\n"
           s += "      deviceProfile);\n"
-	  s += "  tensileStatusCheck(status);\n"
+          s += "  tensileStatusCheck(status);\n"
           s += "\n"
 
           idx = 0
