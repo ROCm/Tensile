@@ -1,6 +1,7 @@
 ################################################################################
 # Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 ################################################################################
+cmake_minimum_required(VERSION 2.8.12)
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 

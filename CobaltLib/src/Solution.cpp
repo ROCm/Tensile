@@ -1249,25 +1249,33 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
  * Explicit Template Instantiation
  ******************************************************************************/
 // used for cpu classes
+#ifndef WIN32
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template class Cobalt::SolutionTemplate<float,float,float,float,float>;
 template class Cobalt::SolutionTemplate<double,double,double,double,double>;
 template class Cobalt::SolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
 template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
+#ifndef WIN32
 #pragma clang diagnostic pop
+#endif
 
 #include "SolutionTemplateInstantiations.inl"
 
 #if Cobalt_LOGGER_ENABLED
+#ifndef WIN32
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+#ifndef WIN32
 #pragma clang diagnostic pop
+#endif
 #endif
 
 #if Cobalt_BACKEND_OPENCL12
-#if defined( _WIN32 )
+#ifdef WIN32
 __declspec(thread) KernelMap *kernelMap = 0;
 #else
 __thread KernelMap *kernelMap = 0;

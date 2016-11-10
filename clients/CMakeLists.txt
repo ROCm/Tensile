@@ -1,10 +1,12 @@
 ################################################################################
 # Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 ################################################################################
+cmake_minimum_required(VERSION 2.8.12)
 
 include(AddCobaltLib)
 include(EnableWarnings)
 set(Cobalt_DIR_PROBLEMS ${PROJECT_BINARY_DIR}/problems CACHE PATH "path to problems used by clients")
+file(MAKE_DIRECTORY ${Cobalt_DIR_PROBLEMS})
 
 find_package(PythonInterp)
 find_package(OpenCL "1.2")
