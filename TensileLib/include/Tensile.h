@@ -7,8 +7,8 @@
  * Tensile.h
  * - public API
  ******************************************************************************/
-#ifndef TENTILE_H
-#define TENTILE_H
+#ifndef TENSILE_H
+#define TENSILE_H
 
 #ifdef WIN32
 #define _CRTDBG_MAP_ALLOC
@@ -391,4 +391,4 @@ TensileStatus tensileSolutionToString(
 } // extern "C"
 #endif
 
-#endif // TENTILE_H
+#endif // TENSILE_H

@@ -32,11 +32,16 @@ def getKernelsFromSolutions( solutionSet ):
 ################################################################################
 def GenBenchmarkFromFiles( \
     inputFiles, \
-    outputPath, \
+    solutionsPath, \
+    generatedPath, \
     backend, \
     optimizeAlpha, \
     optimizeBeta):
-  print "GenBenchmarkFromFiles: %s, %s, %s, %s, %s" % (inputFiles, outputPath, backend, optimizeAlpha, optimizeBeta)
+  print "\nGenBenchmarkFromFiles:"
+  print "  problemFiles=" + str(inputFiles)
+  print "  solutionsPath=" + str(solutionsPath)
+  print "  generatedPath=" + str(generatedPath)
+  print "  backend=" + str(backend)
 
   ##############################################################################
   # (1) accumulate set of problems
@@ -98,7 +103,7 @@ def GenBenchmarkFromFiles( \
 
   ##############################################################################
   # (3) write benchmark files
-  fileWriter = FileWriter.FileWriter(outputPath, backend, True)
+  fileWriter = FileWriter.FileWriter(generatedPath, backend, True)
   fileWriter.writeKernelFiles( allKernels )
   fileWriter.writeSolutionFiles( allSolutions )
   fileWriter.writeBenchmarkFiles( problemTree, benchmarkList )
@@ -112,7 +117,7 @@ if __name__ == "__main__":
   # arguments
   ap = argparse.ArgumentParser(description="TensileGenBenchmark")
   ap.add_argument("--input-path", dest="inputPath", required=True )
-  ap.add_argument("--output-path", dest="outputPath", required=True )
+  ap.add_argument("--output-path", dest="buildPath", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
       choices=["OpenCL_1.2", "HIP"] )
   ap.add_argument("--optimize-alpha", dest="optimizeAlphaStr" )
@@ -132,14 +137,14 @@ if __name__ == "__main__":
   # print settings
   print "\nTensileGenBenchmark:"
   print "  backend=" + str(backend)
-  print "  outputPath=" + args.outputPath
+  print "  buildPath=" + args.buildPath
   print "  inputPath=" + args.inputPath
   print "  inputFiles=" + str(inputFiles)
 
   # generate benchmark
   GenBenchmarkFromFiles( \
       inputFiles, \
-      args.outputPath, \
+      args.buildPath, \
       backend,
       args.optimizeAlphaStr=="On" or args.optimizeAlphaStr=="ON",
       args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
