@@ -12,7 +12,7 @@ cmake_policy(SET CMP0053 OLD)
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
-project( Cobalt )
+project( Tensile )
 
 # On windows, it's convenient to change the default install prefix such that it does NOT point to 'program files'
 if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
@@ -22,12 +22,12 @@ endif( )
 list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
 ############################################################
-# Cobalt Version
-set( ${CobaltProj_NAME}_VERSION_MAJOR 1 )
-set( ${CobaltProj_NAME}_VERSION_MINOR 1 )
-set( ${CobaltProj_NAME}_VERSION_PATCH 0 )
-set( ${CobaltProj_NAME}_VERSION_TWEAK 0 )
-set( CobaltProj_VERSION "${${CobaltProj_NAME}_VERSION_MAJOR}.${${CobaltProj_NAME}_VERSION_MINOR}.${${CobaltProj_NAME}_VERSION_PATCH}.${${CobaltProj_NAME}_VERSION_TWEAK}")
+# Tensile Version
+set( ${TensileProj_NAME}_VERSION_MAJOR 1 )
+set( ${TensileProj_NAME}_VERSION_MINOR 1 )
+set( ${TensileProj_NAME}_VERSION_PATCH 0 )
+set( ${TensileProj_NAME}_VERSION_TWEAK 0 )
+set( TensileProj_VERSION "${${TensileProj_NAME}_VERSION_MAJOR}.${${TensileProj_NAME}_VERSION_MINOR}.${${TensileProj_NAME}_VERSION_PATCH}.${${TensileProj_NAME}_VERSION_TWEAK}")
 
 
 ################################################################################
@@ -36,41 +36,41 @@ set( CobaltProj_VERSION "${${CobaltProj_NAME}_VERSION_MAJOR}.${${CobaltProj_NAME
 include( GNUInstallDirs )
 
 ############################################################
-# The following is cmake code to generate a config file package for Cobalt
+# The following is cmake code to generate a config file package for Tensile
 # Documentation for how to use the following package:
 # https://cmake.org/cmake/help/v3.0/module/CMakePackageConfigHelpers.html
 include( CMakePackageConfigHelpers )
 
 set( LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR} )
-set( DATA_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/cobalt )
-set( config_package_location ${LIB_INSTALL_DIR}/cmake/cobalt )
+set( DATA_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/tensile )
+set( config_package_location ${LIB_INSTALL_DIR}/cmake/tensile )
 
 configure_package_config_file(
-  cobalt-config.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config.cmake
+  TensileConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig.cmake
   INSTALL_DESTINATION ${config_package_location}
   PATH_VARS LIB_INSTALL_DIR DATA_INSTALL_DIR
 )
 
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config-version.cmake
-  VERSION ${CobaltProj_VERSION}
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig-version.cmake
+  VERSION ${TensileProj_VERSION}
   COMPATIBILITY SameMajorVersion
 )
 
 # Build entry point
 if(WIN32)
-set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt.bat)
-file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/CobaltGen/Cobalt.py" COBALT_PY)
-file(WRITE ${Cobalt_ENTRY_POINT} "
+set(Tensile_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/tensile.bat)
+file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/TensileGen/Tensile.py" TENTILE_PY)
+file(WRITE ${Tensile_ENTRY_POINT} "
 
-python @COBALT_PY@ %*
+python @TENTILE_PY@ %*
 
 ")
 else()
-set(Cobalt_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/cobalt)
-file(WRITE ${Cobalt_ENTRY_POINT} "#!/bin/bash
-python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/CobaltGen/Cobalt.py \"$@\"
+set(Tensile_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/tensile)
+file(WRITE ${Tensile_ENTRY_POINT} "#!/bin/bash
+python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/TensileGen/Tensile.py \"$@\"
 
 ")
 endif()
@@ -79,23 +79,23 @@ endif()
 # Library install logic
 
 install(PROGRAMS
-  ${Cobalt_ENTRY_POINT}
+  ${Tensile_ENTRY_POINT}
   DESTINATION bin)
 
 install( FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/cobalt-config-version.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig-version.cmake
   DESTINATION
     ${config_package_location} )
 
 install( FILES
-  CobaltLib/include/Cobalt.h
+  TensileLib/include/Tensile.h
   DESTINATION include)
 
 install(DIRECTORY
-  CobaltLib
-  CobaltGen
-  CobaltBenchmark
+  TensileLib
+  TensileGen
+  TensileBenchmark
   cmake
   DESTINATION ${DATA_INSTALL_DIR}
   FILES_MATCHING
@@ -108,5 +108,5 @@ install(DIRECTORY
 
 ############################################################
 # Clients
-set(Cobalt_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(Tensile_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(clients)

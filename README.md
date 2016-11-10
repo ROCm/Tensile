@@ -1,1 +1,1 @@
-See [Cobalt Wiki](https://github.com/clMathLibraries/Cobalt/wiki) for documentation.
+See [Tensile Wiki](https://github.com/clMathLibraries/Tensile/wiki) for documentation.

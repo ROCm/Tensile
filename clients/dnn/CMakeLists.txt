@@ -11,22 +11,22 @@ set( SAMPLE_DNN_SRC main.cpp )
 # gemm executable
 add_executable( ${SAMPLE_DNN_NAME} EXCLUDE_FROM_ALL ${SAMPLE_DNN_SRC} )
 
-add_cobalt_lib(dnn_cobalt EXCLUDE_FROM_ALL
-    PROBLEMS ${Cobalt_DIR_PROBLEMS}
-    BACKEND ${Cobalt_BACKEND}
+add_tensile_lib(dnn_tensile EXCLUDE_FROM_ALL
+    PROBLEMS ${Tensile_DIR_PROBLEMS}
+    BACKEND ${Tensile_BACKEND}
     ENABLE_LOGGER
 )
 
-# gemm links Cobalt
-target_link_libraries( ${SAMPLE_DNN_NAME} PUBLIC dnn_cobalt )
+# gemm links Tensile
+target_link_libraries( ${SAMPLE_DNN_NAME} PUBLIC dnn_tensile )
 
-if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( dnn_cobalt PUBLIC opencl )
-elseif( Cobalt_BACKEND MATCHES "HIP")
-  target_include_directories( dnn_cobalt SYSTEM
+if( Tensile_BACKEND MATCHES "OpenCL_1.2")
+  target_link_libraries( dnn_tensile PUBLIC opencl )
+elseif( Tensile_BACKEND MATCHES "HIP")
+  target_include_directories( dnn_tensile SYSTEM
     PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
   )
-  target_link_libraries( dnn_cobalt PUBLIC ${HSA_LIBRARIES} )
+  target_link_libraries( dnn_tensile PUBLIC ${HSA_LIBRARIES} )
 endif()
 
 set_property( TARGET ${SAMPLE_DNN_NAME} PROPERTY FOLDER "clients" )
