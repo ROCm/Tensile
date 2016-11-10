@@ -46,14 +46,14 @@ set( DATA_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/tensile )
 set( config_package_location ${LIB_INSTALL_DIR}/cmake/tensile )
 
 configure_package_config_file(
-  tensile-config.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/tensile-config.cmake
+  TensileConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig.cmake
   INSTALL_DESTINATION ${config_package_location}
   PATH_VARS LIB_INSTALL_DIR DATA_INSTALL_DIR
 )
 
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/tensile-config-version.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig-version.cmake
   VERSION ${TensileProj_VERSION}
   COMPATIBILITY SameMajorVersion
 )
@@ -83,8 +83,8 @@ install(PROGRAMS
   DESTINATION bin)
 
 install( FILES
-  ${CMAKE_CURRENT_BINARY_DIR}/tensile-config.cmake
-  ${CMAKE_CURRENT_BINARY_DIR}/tensile-config-version.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig-version.cmake
   DESTINATION
     ${config_package_location} )
 
