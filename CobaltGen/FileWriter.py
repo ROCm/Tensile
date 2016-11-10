@@ -718,6 +718,8 @@ class FileWriter:
     templateInstantiationsFile = open(templateInstantiationsPath, "w")
     templateInstantiationsFile.write(self.cHeader)
     templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
+    templateInstantiationsFile.write("#pragma clang diagnostic push\n")
+    templateInstantiationsFile.write("#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n")
     for templateInstantiationStr in templateInstantiationSet:
       templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
           +templateInstantiationStr + ";\n")
@@ -729,6 +731,7 @@ class FileWriter:
         templateInstantiationsFile.write(
             "template class Cobalt::SolutionHIP" \
             +templateInstantiationStr + ";\n")
+    templateInstantiationsFile.write("#pragma clang diagnostic pop\n")
     print "CobaltGen: Writing explicit template instantiations."
     templateInstantiationsFile.close()
 

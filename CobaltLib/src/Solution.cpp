@@ -1249,20 +1249,21 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
  * Explicit Template Instantiation
  ******************************************************************************/
 // used for cpu classes
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
 template class Cobalt::SolutionTemplate<float,float,float,float,float>;
 template class Cobalt::SolutionTemplate<double,double,double,double,double>;
 template class Cobalt::SolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
 template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
-// used for gpu classes
-//template class CobaltSolutionOpenCL<float,float,float,void,void>;
-//template class CobaltSolutionOpenCL<double,double,double,void,void>;
-//template class CobaltSolutionOpenCL<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,void,void>;
-//template class CobaltSolutionOpenCL<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,void,void>;
+#pragma clang diagnostic pop
 
 #include "SolutionTemplateInstantiations.inl"
 
 #if Cobalt_LOGGER_ENABLED
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+#pragma clang diagnostic pop
 #endif
 
 #if Cobalt_BACKEND_OPENCL12
