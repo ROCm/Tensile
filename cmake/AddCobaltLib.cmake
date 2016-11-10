@@ -1,61 +1,61 @@
 include(CMakeParseArguments)
 
-function(add_cobalt_lib NAME)
+function(add_tensile_lib NAME)
     set(options OPTIMIZE_ALPHA OPTIMIZE_BETA ENABLE_LOGGER EXCLUDE_FROM_ALL)
     set(oneValueArgs SOLUTIONS PROBLEMS BACKEND)
     set(multiValueArgs)
 
     cmake_parse_arguments(PARSE "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-    set(CobaltLib_DIR_GENERATED "${PROJECT_BINARY_DIR}/cobalt/${NAME}")
+    set(TensileLib_DIR_GENERATED "${PROJECT_BINARY_DIR}/tensile/${NAME}")
 
     if(PARSE_OPTIMIZE_ALPHA)
-        set(CobaltGen_OPTIMIZE_ALPHA "ON")
+        set(TensileGen_OPTIMIZE_ALPHA "ON")
     else()
-        set(CobaltGen_OPTIMIZE_ALPHA "OFF")
+        set(TensileGen_OPTIMIZE_ALPHA "OFF")
     endif()
 
     if(PARSE_OPTIMIZE_BETA)
-        set(CobaltGen_OPTIMIZE_BETA "ON")
+        set(TensileGen_OPTIMIZE_BETA "ON")
     else()
-        set(CobaltGen_OPTIMIZE_BETA "OFF")
+        set(TensileGen_OPTIMIZE_BETA "OFF")
     endif()
 
     if(PARSE_SOLUTIONS)
 
-        set(CobaltLib_ENABLE_SOLVER 1)
-        set(CobaltGen_COMMAND ${PYTHON_EXECUTABLE} ${Cobalt_DIR}/CobaltGen/CobaltGenBackend.py
+        set(TensileLib_ENABLE_SOLVER 1)
+        set(TensileGen_COMMAND ${PYTHON_EXECUTABLE} ${Tensile_DIR}/TensileGen/TensileGenBackend.py
             --backend=${PARSE_BACKEND}
             --input-path=${PARSE_SOLUTIONS}
-            --output-path=${CobaltLib_DIR_GENERATED}
-            --optimize-alpha=${CobaltGen_OPTIMIZE_ALPHA}
-            --optimize-beta=${CobaltGen_OPTIMIZE_BETA}
+            --output-path=${TensileLib_DIR_GENERATED}
+            --optimize-alpha=${TensileGen_OPTIMIZE_ALPHA}
+            --optimize-beta=${TensileGen_OPTIMIZE_BETA}
         )
-        string (REPLACE ";" " " CobaltGen_COMMAND_STR "${CobaltGen_COMMAND}")
-        message(STATUS "Generate kernels for ${NAME}: ${CobaltGen_COMMAND_STR}")
+        string (REPLACE ";" " " TensileGen_COMMAND_STR "${TensileGen_COMMAND}")
+        message(STATUS "Generate kernels for ${NAME}: ${TensileGen_COMMAND_STR}")
         execute_process(
-            COMMAND ${CobaltGen_COMMAND}
-            RESULT_VARIABLE CobaltGen_RESULT
+            COMMAND ${TensileGen_COMMAND}
+            RESULT_VARIABLE TensileGen_RESULT
         )
-        if(CobaltGen_RESULT)
+        if(TensileGen_RESULT)
             message(SEND_ERROR "Error generating kernels")
         endif()
-        # Glob CobaltLib source files
-        file(GLOB CobaltLib_SRC
-            ${Cobalt_DIR}/CobaltLib/src/*.cpp
-            ${CobaltLib_DIR_GENERATED}/Kernels/*.cpp
-            ${CobaltLib_DIR_GENERATED}/Solutions/*.cpp
-            ${CobaltLib_DIR_GENERATED}/Other/*.cpp
+        # Glob TensileLib source files
+        file(GLOB TensileLib_SRC
+            ${Tensile_DIR}/TensileLib/src/*.cpp
+            ${TensileLib_DIR_GENERATED}/Kernels/*.cpp
+            ${TensileLib_DIR_GENERATED}/Solutions/*.cpp
+            ${TensileLib_DIR_GENERATED}/Other/*.cpp
         )
 
     else()
         message(STATUS "No solutions for ${NAME}")
-        file( WRITE ${CobaltLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl "")
-        # Glob CobaltLib source files
-        file(GLOB CobaltLib_SRC
-            ${Cobalt_DIR}/CobaltLib/src/*.cpp
+        file( WRITE ${TensileLib_DIR_GENERATED}/Other/SolutionTemplateInstantiations.inl "")
+        # Glob TensileLib source files
+        file(GLOB TensileLib_SRC
+            ${Tensile_DIR}/TensileLib/src/*.cpp
         )
-        set(CobaltLib_ENABLE_SOLVER 0)
+        set(TensileLib_ENABLE_SOLVER 0)
 
     endif()
 
@@ -63,41 +63,41 @@ function(add_cobalt_lib NAME)
     if(PARSE_EXCLUDE_FROM_ALL)
         list(APPEND options EXCLUDE_FROM_ALL)
     endif()
-    add_library(${NAME} ${options} ${CobaltLib_SRC})
+    add_library(${NAME} ${options} ${TensileLib_SRC})
 
     target_include_directories(${NAME}
-        PUBLIC  $<BUILD_INTERFACE:${Cobalt_DIR}/CobaltLib/include>
-                $<BUILD_INTERFACE:${Cobalt_DIR}/CobaltLib/src>
-                $<BUILD_INTERFACE:${CobaltLib_DIR_GENERATED}>
-                $<BUILD_INTERFACE:${CobaltLib_DIR_GENERATED}/Kernels>
-                $<BUILD_INTERFACE:${CobaltLib_DIR_GENERATED}/Solutions>
-                $<BUILD_INTERFACE:${CobaltLib_DIR_GENERATED}/Other>
+        PUBLIC  $<BUILD_INTERFACE:${Tensile_DIR}/TensileLib/include>
+                $<BUILD_INTERFACE:${Tensile_DIR}/TensileLib/src>
+                $<BUILD_INTERFACE:${TensileLib_DIR_GENERATED}>
+                $<BUILD_INTERFACE:${TensileLib_DIR_GENERATED}/Kernels>
+                $<BUILD_INTERFACE:${TensileLib_DIR_GENERATED}/Solutions>
+                $<BUILD_INTERFACE:${TensileLib_DIR_GENERATED}/Other>
                 $<INSTALL_INTERFACE:include>
     )
 
     if( PARSE_BACKEND MATCHES "OpenCL_1.2")
-        target_compile_definitions( ${NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=1 -DCobalt_BACKEND_HIP=0 )
+        target_compile_definitions( ${NAME} PUBLIC -DTensile_BACKEND_OPENCL12=1 -DTensile_BACKEND_HIP=0 )
     elseif( PARSE_BACKEND MATCHES "HIP")
-        target_compile_definitions( ${NAME} PUBLIC -DCobalt_BACKEND_OPENCL12=0 -DCobalt_BACKEND_HIP=1 )
+        target_compile_definitions( ${NAME} PUBLIC -DTensile_BACKEND_OPENCL12=0 -DTensile_BACKEND_HIP=1 )
     endif()
 
     if( ${PARSE_ENABLE_LOGGER} )
-        set(CobaltLib_ENABLE_LOGGER 1)
+        set(TensileLib_ENABLE_LOGGER 1)
     else()
-        set(CobaltLib_ENABLE_LOGGER 0)
+        set(TensileLib_ENABLE_LOGGER 0)
     endif()
 
     target_compile_definitions( ${NAME} PRIVATE 
-        -DCobalt_SOLVER_ENABLED=${CobaltLib_ENABLE_SOLVER} 
-        -DCobalt_LOGGER_ENABLED=${CobaltLib_ENABLE_LOGGER}
+        -DTensile_SOLVER_ENABLED=${TensileLib_ENABLE_SOLVER} 
+        -DTensile_LOGGER_ENABLED=${TensileLib_ENABLE_LOGGER}
     )
 
     if(PARSE_PROBLEMS)
         if (CMAKE_CXX_COMPILER MATCHES ".*hipcc")
             # hipcc is a pearl script, so it requires a lot of extra escaping
-            target_compile_definitions(${NAME} PUBLIC -DCobalt_DIR_PROBLEMS=\\\"${PARSE_PROBLEMS}\\\")
+            target_compile_definitions(${NAME} PUBLIC -DTensile_DIR_PROBLEMS=\\\"${PARSE_PROBLEMS}\\\")
         else()
-            target_compile_definitions(${NAME} PUBLIC -DCobalt_DIR_PROBLEMS="${PARSE_PROBLEMS}")
+            target_compile_definitions(${NAME} PUBLIC -DTensile_DIR_PROBLEMS="${PARSE_PROBLEMS}")
         endif()
     endif()
 

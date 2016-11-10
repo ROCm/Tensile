@@ -10,8 +10,8 @@ import contextlib
 import shutil
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-COBALT_PATH = os.path.dirname(SCRIPT_PATH)
-TEST_PATH = os.path.join(COBALT_PATH, 'test')
+TENTILE_PATH = os.path.dirname(SCRIPT_PATH)
+TEST_PATH = os.path.join(TENTILE_PATH, 'test')
 PROBLEMS_PATH = os.path.join(TEST_PATH, 'problems')
 SIMPLE_PATH = os.path.join(TEST_PATH, 'simple')
 
@@ -63,7 +63,7 @@ def tempdir():
 
 if __name__ == "__main__":
     # arguments
-    ap = argparse.ArgumentParser(description="CobaltTest")
+    ap = argparse.ArgumentParser(description="TensileTest")
     ap.add_argument('-D', '--define', nargs='+', default=[])
     ap.add_argument('-G', '--generator', default=None)
     ap.add_argument("--backend", "-b", dest="backend", required=True)
@@ -81,19 +81,19 @@ if __name__ == "__main__":
     elif args.backend.lower() == "hip": backend = 'HIP'
 
     with tempdir() as d:
-        build_path = os.path.join(d, '_cobalt_build')
+        build_path = os.path.join(d, '_tensile_build')
         solutions_path = os.path.join(d, 'solutions')
         install_path = os.path.join(d, 'usr')
 	problems_path = os.path.join(PROBLEMS_PATH,args.problemSet)
 
-        #install cobalt
-        build(COBALT_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
+        #install tensile
+        build(TENTILE_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
         # Run benchmark
-	cobaltExe = 'cobalt.bat'
+	tensileExe = 'tensile.bat'
 	if os.name == "posix":
-          cobaltExe = 'cobalt'
-        cmd([os.path.join(install_path, 'bin', cobaltExe), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
+          tensileExe = 'tensile'
+        cmd([os.path.join(install_path, 'bin', tensileExe), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
         # Build library
-        library_args = ['Cobalt_SOLUTIONS='+solutions_path, 'Cobalt_BACKEND='+backend]
+        library_args = ['Tensile_SOLUTIONS='+solutions_path, 'Tensile_BACKEND='+backend]
         build(SIMPLE_PATH, generator=args.generator, prefix=install_path, defines=args.define+library_args)
 

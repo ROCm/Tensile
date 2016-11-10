@@ -8,13 +8,13 @@
 #include "StructOperations.h"
 #include "MathTemplates.h"
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #include "CL/cl.h"
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
 #include <hip/hip_runtime.h>
 #endif
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  *******************************************************************************
@@ -35,10 +35,10 @@ Solution::Solution( const Problem & inputProblem)
  * toStringXML
  ******************************************************************************/
 std::string Solution::toStringXML( size_t indentLevel ) const {
-  std::string state = Cobalt::indent(indentLevel) + "<S>\n";
+  std::string state = Tensile::indent(indentLevel) + "<S>\n";
   state += problem.toStringXML(indentLevel+1);
   state += toStringDetailXML(indentLevel+1);
-  state += Cobalt::indent(indentLevel) + "</S>\n";
+  state += Tensile::indent(indentLevel) + "</S>\n";
   return state;
 }
 
@@ -58,24 +58,24 @@ bool Solution::operator<( const Solution & other ) const {
  * enqueueEntry
  * enter enqueue process here; can do validation and benchmarking
  *****************************************************************************/
-CobaltStatus Solution::enqueueEntry(
-	CobaltTensorData tensorDataC,
-	CobaltTensorDataConst tensorDataA,
-	CobaltTensorDataConst tensorDataB,
-	CobaltScalarData alpha,
-	CobaltScalarData beta,
-	CobaltControl & ctrl,
+TensileStatus Solution::enqueueEntry(
+	TensileTensorData tensorDataC,
+	TensileTensorDataConst tensorDataA,
+	TensileTensorDataConst tensorDataB,
+	TensileScalarData alpha,
+	TensileScalarData beta,
+	TensileControl & ctrl,
 	bool doPrint ) {
 
-  CobaltStatus returnStatus = cobaltStatusSuccess;
+  TensileStatus returnStatus = tensileStatusSuccess;
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   cl_int status;
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
   hipError_t status;
 #endif
 
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
   Logger::TraceEntry entry;
   entry.type = Logger::TraceEntryType::enqueueSolution;
   entry.solution = this;
@@ -86,43 +86,43 @@ CobaltStatus Solution::enqueueEntry(
     // enqueue gpu solution
     enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueues; i++) {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
       clFlush(ctrl.queues[i]);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
       // automatically flushed?
 #endif
     }
     // allocate memory for gpu result on host
     size_t sizeC = Solution::problem.tensorC.numBytes();
-    CobaltTensorData gpuOnHostC;
+    TensileTensorData gpuOnHostC;
     gpuOnHostC.offset = 0;
     gpuOnHostC.data = malloc(sizeC);
     // wait for gpu solution
     //printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
       status = clFinish(ctrl.queues[i]);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
     // copy results back
     //printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
     status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
         0, nullptr, nullptr);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
     status = hipMemcpy(gpuOnHostC.data, tensorDataC.data, sizeC, hipMemcpyDeviceToHost);
     status = hipStreamSynchronize(nullptr);
 #endif
     // compare results
-    CobaltTensorData *ref = static_cast<CobaltTensorData *>(ctrl.validate);
-    CobaltTensorDataConst constRef{ ref->data, ref->offset};
-    CobaltTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
+    TensileTensorData *ref = static_cast<TensileTensorData *>(ctrl.validate);
+    TensileTensorDataConst constRef{ ref->data, ref->offset};
+    TensileTensorDataConst constGPU{ gpuOnHostC.data, gpuOnHostC.offset};
     bool equal = compareTensors(constGPU, constRef,
         Solution::problem.tensorC);
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
     entry.validationStatus = equal ? ValidationStatus::statusValid
         : ValidationStatus::statusInvalid;
 #endif
@@ -136,14 +136,14 @@ CobaltStatus Solution::enqueueEntry(
 
   // benchmarking
   if (ctrl.benchmark) {
-    Cobalt::Timer timer;
+    Tensile::Timer timer;
 
     // warmup (ensure kernels compiled)
     returnStatus = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
       status = clFinish(ctrl.queues[i]);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
@@ -160,9 +160,9 @@ CobaltStatus Solution::enqueueEntry(
     } // samples
     // wait for queues
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
       status = clFinish(ctrl.queues[i]);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
     }
@@ -171,7 +171,7 @@ CobaltStatus Solution::enqueueEntry(
     time /= ctrl.benchmark;
     double gFlops = ((double) problem.getNumFlops() / 1000000.f ) / time; // MFlops / ms
     printf(" GFlop/s = %7.3f; t = %7.3f ms (avg of %u)", gFlops, time, ctrl.benchmark);
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
     entry.benchmarkTimes.push_back(time);
 #endif
   }
@@ -183,9 +183,9 @@ CobaltStatus Solution::enqueueEntry(
         alpha, beta, ctrl);
   }
 
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
   entry.status = returnStatus;
-  Cobalt::logger.log(entry);
+  Tensile::logger.log(entry);
 #endif
 
   return returnStatus;
@@ -200,7 +200,7 @@ CobaltStatus Solution::enqueueEntry(
  **
  *******************************************************************************
  ******************************************************************************/
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
 /*******************************************************************************
  * LogSolution:: constructor
  ******************************************************************************/
@@ -237,17 +237,17 @@ std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetai
  * LogSolution:: enqueue
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
-    CobaltTensorData,
-    CobaltTensorDataConst,
-    CobaltTensorDataConst,
-    CobaltScalarData,
-    CobaltScalarData,
-    CobaltControl & ctrl ) {
+TensileStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+    TensileTensorData,
+    TensileTensorDataConst,
+    TensileTensorDataConst,
+    TensileScalarData,
+    TensileScalarData,
+    TensileControl & ctrl ) {
   ctrl.numOutputEvents = 0;
   ctrl.numQueuesUsed = 0;
-  printf("ERROR - CobaltSolutionLogOnly::enqueue() should never be called.\n");
-  return cobaltStatusSuccess;
+  printf("ERROR - TensileSolutionLogOnly::enqueue() should never be called.\n");
+  return tensileStatusSuccess;
 }
 #endif
 
@@ -261,7 +261,7 @@ CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
  ******************************************************************************/
 
 /*******************************************************************************
- * CobaltSolutionTemplate constructor
+ * TensileSolutionTemplate constructor
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTemplate( const Problem & inputProblem)
@@ -550,9 +550,9 @@ assignKernelArgs() {
  ******************************************************************************/
 
 /*******************************************************************************
- * CobaltSolutionOpenCL constructor
+ * TensileSolutionOpenCL constructor
  ******************************************************************************/
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 template<
     typename TypeC,
     typename TypeA,
@@ -576,7 +576,7 @@ template<
     typename TypeBeta>
 SolutionOpenCL<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::
 ~SolutionOpenCL() {
-  // opencl kernels released in cobaltTeardown()
+  // opencl kernels released in tensileTeardown()
 }
 
 #if 0
@@ -800,13 +800,13 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
  * enqueue
  *****************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
-    CobaltTensorData tensorDataC,
-    CobaltTensorDataConst tensorDataA,
-    CobaltTensorDataConst tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
-    CobaltControl & ctrl ) {
+TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+    TensileTensorData tensorDataC,
+    TensileTensorDataConst tensorDataA,
+    TensileTensorDataConst tensorDataB,
+    TensileScalarData alpha,
+    TensileScalarData beta,
+    TensileControl & ctrl ) {
 
   // compile kernels
   const char *buildOptions = "-cl-std=CL2.0";
@@ -821,7 +821,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
       || tensorDataA.data == nullptr
       || tensorDataB.data == nullptr ) {
     ctrl.numQueuesUsed = 0;
-    return cobaltStatusInvalidParameter;
+    return tensileStatusInvalidParameter;
   }
 
   size_t *globalWorkOffset = NULL;
@@ -941,7 +941,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
     ctrl.numQueuesUsed = kernelSerialIdx;
   }
 
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 
 
 #if 0
@@ -952,16 +952,16 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   size_t sizeOfAlpha = Solution::problem.alphaSize(); // sizeof(TypeAlpha);
   size_t sizeOfBeta = Solution::problem.betaSize(); // sizeof(TypeBeta);
   if (!alpha.data && requireAlpha) {
-    fallbackAlpha = Cobalt::getOne<TypeC>();
+    fallbackAlpha = Tensile::getOne<TypeC>();
     alpha.data = &fallbackAlpha;
     sizeOfAlpha = sizeof(TypeC);
   }
   if (!beta.data && requireBeta) {
-    fallbackBeta = Cobalt::getZero<TypeC>();
+    fallbackBeta = Tensile::getZero<TypeC>();
     beta.data = &fallbackBeta;
     sizeOfBeta = sizeof(TypeC);
   }
-  TypeC betaOne = Cobalt::getOne<TypeC>(); // if summation unrolled
+  TypeC betaOne = Tensile::getOne<TypeC>(); // if summation unrolled
 
   if (argOffsets && !Solution::problem.useOffsets) {
     printf("SolutionOpenCL::enqueue() solution requires offsets but problem specifies not to use them; write code to provide dummyOffsets=0 for this scenario.\n");
@@ -1129,7 +1129,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
   }
 
   //ctrl.numOutputEvents = kernelSerialIdx;;
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 #endif
 } // enqueue
 #endif
@@ -1141,7 +1141,7 @@ CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
  **
  *******************************************************************************
  ******************************************************************************/
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
 /******************************************************************************
  * constructor
  *****************************************************************************/
@@ -1178,14 +1178,14 @@ template<
     typename TypeB,
     typename TypeAlpha,
     typename TypeBeta>
-CobaltStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
+TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
 enqueue(
-    CobaltTensorData tensorDataC,
-    CobaltTensorDataConst tensorDataA,
-    CobaltTensorDataConst tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
-    CobaltControl & ctrl ) {
+    TensileTensorData tensorDataC,
+    TensileTensorDataConst tensorDataA,
+    TensileTensorDataConst tensorDataB,
+    TensileScalarData alpha,
+    TensileScalarData beta,
+    TensileControl & ctrl ) {
 
   for (unsigned int i = 0; i < numEnqueues; i++) {
 
@@ -1207,7 +1207,7 @@ enqueue(
         );
   } // for enqueues
 
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 } // enqueue
 */
 
@@ -1220,7 +1220,7 @@ enqueue(
 
 } // namespace
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
 
   if (l.kernelSource < r.kernelSource) {
@@ -1253,28 +1253,28 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
 #endif
-template class Cobalt::SolutionTemplate<float,float,float,float,float>;
-template class Cobalt::SolutionTemplate<double,double,double,double,double>;
-template class Cobalt::SolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
-template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
+template class Tensile::SolutionTemplate<float,float,float,float,float>;
+template class Tensile::SolutionTemplate<double,double,double,double,double>;
+template class Tensile::SolutionTemplate<TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat>;
+template class Tensile::SolutionTemplate<TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble>;
 #ifndef WIN32
 #pragma clang diagnostic pop
 #endif
 
 #include "SolutionTemplateInstantiations.inl"
 
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
 #ifndef WIN32
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
 #endif
-template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+template class Tensile::SolutionLogOnly<void,void,void,void,void>;
 #ifndef WIN32
 #pragma clang diagnostic pop
 #endif
 #endif
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #ifdef WIN32
 __declspec(thread) KernelMap *kernelMap = 0;
 #else

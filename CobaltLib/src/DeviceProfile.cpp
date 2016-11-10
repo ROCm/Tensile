@@ -5,12 +5,12 @@
 #include "DeviceProfile.h"
 #include "StructOperations.h"
 #include <sstream>
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Device - constructors
  ******************************************************************************/
-Device::Device( CobaltDevice device )
+Device::Device( TensileDevice device )
   : name(device.name) { }
 
 Device::Device()
@@ -19,7 +19,7 @@ Device::Device()
   clockFrequency(0),
   flopsPerClock(2*64) { }
 
-void Device::init( CobaltDevice device ) {
+void Device::init( TensileDevice device ) {
   name.assign(device.name);
   numComputeUnits = device.numComputeUnits;
   clockFrequency = device.clockFrequency;
@@ -55,7 +55,7 @@ bool Device::operator< ( const Device & other ) const {
 /*******************************************************************************
  * DeviceProfile - constructor
  ******************************************************************************/
-DeviceProfile::DeviceProfile( CobaltDeviceProfile profile)
+DeviceProfile::DeviceProfile( TensileDeviceProfile profile)
   : devices(profile.numDevices) {
   for (unsigned int i = 0; i < profile.numDevices; i++) {
     devices[i].init(profile.devices[i]);
@@ -66,7 +66,7 @@ DeviceProfile::DeviceProfile( CobaltDeviceProfile profile)
  * DeviceProfile - toString
  ******************************************************************************/
 std::string DeviceProfile::toStringXML( size_t indent ) const {
-  std::string state = Cobalt::indent(indent);
+  std::string state = Tensile::indent(indent);
   state += "<DP";
   state += " n=\"" + std::to_string(devices.size()) + "\"";
   for (size_t i = 0; i < devices.size(); i++) {

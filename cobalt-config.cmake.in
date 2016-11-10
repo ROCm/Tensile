@@ -6,7 +6,7 @@
 #
 # Defines the following variables:
 #
-#  Cobalt_INCLUDE_DIRS - include directories for rocblas
+#  Tensile_INCLUDE_DIRS - include directories for rocblas
 #
 # Also defines the library variables below as normal
 # variables.  These contain debug/optimized keywords when
@@ -17,13 +17,13 @@
 #-----------------------
 # Example Usage:
 #
-# find_package( cobalt REQUIRED CONFIG
-#     HINTS <Cobalt_ROOT>/package )
+# find_package( tensile REQUIRED CONFIG
+#     HINTS <Tensile_ROOT>/package )
 #
 #    add_executable( foo foo.cc )
 
 #    # uses imported targets from package, including setting header paths
-#    target_link_libraries( foo cobalt )
+#    target_link_libraries( foo tensile )
 #
 #-----------------------
 
@@ -69,6 +69,6 @@ endif()
 
 find_dependency(PythonInterp REQUIRED)
 
-set_and_check( Cobalt_DIR "@PACKAGE_DATA_INSTALL_DIR@")
+set_and_check( Tensile_DIR "@PACKAGE_DATA_INSTALL_DIR@")
 
-include(${Cobalt_DIR}/cmake/AddCobaltLib.cmake)
+include(${Tensile_DIR}/cmake/AddTensileLib.cmake)

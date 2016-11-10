@@ -2,27 +2,27 @@
  * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
  ******************************************************************************/
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "MathTemplates.h"
 #include <cstdio>
 #include <cstdlib>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
-#ifdef Cobalt_Enable_FP16_HOST
-template<> CobaltHalf getZero<CobaltHalf>() { return 0.; }
+#ifdef Tensile_Enable_FP16_HOST
+template<> TensileHalf getZero<TensileHalf>() { return 0.; }
 #endif
 template<> float getZero<float>() { return 0.f; }
 template<> double getZero<double>() { return 0.0; }
-template<> CobaltComplexFloat getZero<CobaltComplexFloat>() {
-  CobaltComplexFloat zero = {{0.f, 0.f}};
+template<> TensileComplexFloat getZero<TensileComplexFloat>() {
+  TensileComplexFloat zero = {{0.f, 0.f}};
   return zero;
 }
-template<> CobaltComplexDouble getZero<CobaltComplexDouble>() {
-  CobaltComplexDouble zero = {{0.0, 0.0}};
+template<> TensileComplexDouble getZero<TensileComplexDouble>() {
+  TensileComplexDouble zero = {{0.0, 0.0}};
   return zero;
 }
 
@@ -30,17 +30,17 @@ template<> CobaltComplexDouble getZero<CobaltComplexDouble>() {
 /*******************************************************************************
  * One Templates
  ******************************************************************************/
-#ifdef Cobalt_Enable_FP16_HOST
-template<> CobaltHalf getOne<CobaltHalf>() { return 1.; }
+#ifdef Tensile_Enable_FP16_HOST
+template<> TensileHalf getOne<TensileHalf>() { return 1.; }
 #endif
 template<> float getOne<float>() { return 1.f; }
 template<> double getOne<double>() { return 1.0; }
-template<> CobaltComplexFloat getOne<CobaltComplexFloat>() {
-  CobaltComplexFloat zero = {{1.f, 0.f}};
+template<> TensileComplexFloat getOne<TensileComplexFloat>() {
+  TensileComplexFloat zero = {{1.f, 0.f}};
   return zero;
 }
-template<> CobaltComplexDouble getOne<CobaltComplexDouble>() {
-  CobaltComplexDouble zero = {{1.0, 0.0}};
+template<> TensileComplexDouble getOne<TensileComplexDouble>() {
+  TensileComplexDouble zero = {{1.0, 0.0}};
   return zero;
 }
 
@@ -48,33 +48,33 @@ template<> CobaltComplexDouble getOne<CobaltComplexDouble>() {
 /*******************************************************************************
 * Random Templates
 ******************************************************************************/
-#ifdef Cobalt_Enable_FP16_HOST
-template<> CobaltHalf getRandom<CobaltHalf>() { return static_cast<CobaltHalf>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
+#ifdef Tensile_Enable_FP16_HOST
+template<> TensileHalf getRandom<TensileHalf>() { return static_cast<TensileHalf>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
 #endif
 template<> float getRandom<float>() { return static_cast<float>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
 template<> double getRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
-template<> CobaltComplexFloat getRandom<CobaltComplexFloat>() {
-  //CobaltComplexFloat r = { 1.f, 0.f };
+template<> TensileComplexFloat getRandom<TensileComplexFloat>() {
+  //TensileComplexFloat r = { 1.f, 0.f };
   return {{ getRandom<float>(), getRandom<float>() }};
 }
-template<> CobaltComplexDouble getRandom<CobaltComplexDouble>() {
-  //CobaltComplexDouble r = { 1.0, 0.0 };
+template<> TensileComplexDouble getRandom<TensileComplexDouble>() {
+  //TensileComplexDouble r = { 1.0, 0.0 };
   return {{ getRandom<double>(), getRandom<double>() }};
 }
 
 template<> float getTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
 template<> double getTypeForInt<double>( size_t s ) { return static_cast<double>(s); }
-template<> CobaltComplexFloat getTypeForInt<CobaltComplexFloat>( size_t s ) { return {{ static_cast<float>(s), static_cast<float>(s) }}; }
-template<> CobaltComplexDouble getTypeForInt<CobaltComplexDouble>( size_t s ) { return {{ static_cast<double>(s), static_cast<double>(s) }}; }
+template<> TensileComplexFloat getTypeForInt<TensileComplexFloat>( size_t s ) { return {{ static_cast<float>(s), static_cast<float>(s) }}; }
+template<> TensileComplexDouble getTypeForInt<TensileComplexDouble>( size_t s ) { return {{ static_cast<double>(s), static_cast<double>(s) }}; }
 
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
 
 // half
-#ifdef Cobalt_Enable_FP16_HOST
+#ifdef Tensile_Enable_FP16_HOST
 template< >
-CobaltHalf multiply( CobaltHalf a, CobaltHalf b ) {
+TensileHalf multiply( TensileHalf a, TensileHalf b ) {
   return a*b;
 }
 #endif
@@ -90,16 +90,16 @@ double multiply( double a, double b ) {
 }
 // complex single
 template< >
-CobaltComplexFloat multiply( CobaltComplexFloat a, CobaltComplexFloat b ) {
-  CobaltComplexFloat c;
+TensileComplexFloat multiply( TensileComplexFloat a, TensileComplexFloat b ) {
+  TensileComplexFloat c;
   c.x = a.x*b.x - a.y*b.y;
   c.y = a.x*b.y + a.y*b.x;
   return c;
 }
 // complex double
 template< >
-CobaltComplexDouble multiply( CobaltComplexDouble a, CobaltComplexDouble b ) {
-  CobaltComplexDouble c;
+TensileComplexDouble multiply( TensileComplexDouble a, TensileComplexDouble b ) {
+  TensileComplexDouble c;
   c.x = a.x*b.x - a.y*b.y;
   c.y = a.x*b.y + a.y*b.x;
   return c;
@@ -111,9 +111,9 @@ CobaltComplexDouble multiply( CobaltComplexDouble a, CobaltComplexDouble b ) {
  ******************************************************************************/
 
 // half
-#ifdef Cobalt_Enable_FP16_HOST
+#ifdef Tensile_Enable_FP16_HOST
 template< >
-CobaltHalf add( CobaltHalf a, CobaltHalf b ) {
+TensileHalf add( TensileHalf a, TensileHalf b ) {
   return a+b;
 }
 #endif
@@ -129,16 +129,16 @@ double add( double a, double b ) {
 }
 // complex single
 template< >
-CobaltComplexFloat add( CobaltComplexFloat a, CobaltComplexFloat b ) {
-  CobaltComplexFloat c;
+TensileComplexFloat add( TensileComplexFloat a, TensileComplexFloat b ) {
+  TensileComplexFloat c;
   c.x = a.x+b.x;
   c.y = a.y+b.y;
   return c;
 }
 // complex double
 template< >
-CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
-  CobaltComplexDouble c;
+TensileComplexDouble add( TensileComplexDouble a, TensileComplexDouble b ) {
+  TensileComplexDouble c;
   c.x = a.x+b.x;
   c.y = a.y+b.y;
   return c;
@@ -147,9 +147,9 @@ CobaltComplexDouble add( CobaltComplexDouble a, CobaltComplexDouble b ) {
 /*******************************************************************************
 * Floating-Point Equals
 ******************************************************************************/
-#ifdef Cobalt_Enable_FP16_HOST
+#ifdef Tensile_Enable_FP16_HOST
 template< >
-bool almostEqual(CobaltHalf a, CobaltHalf b) {
+bool almostEqual(TensileHalf a, TensileHalf b) {
   return std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.01; // ?
 }
 #endif
@@ -162,31 +162,31 @@ bool almostEqual(double a, double b) {
   return std::fabs(a - b) / ( std::fabs(a) + std::fabs(b)+1 ) < 0.000000000001; // 15 digits of precision - 2
 }
 template< >
-bool almostEqual( CobaltComplexFloat a, CobaltComplexFloat b) {
+bool almostEqual( TensileComplexFloat a, TensileComplexFloat b) {
   return almostEqual(a.x, b.x) && almostEqual(a.y, b.y);
 }
 template< >
-bool almostEqual(CobaltComplexDouble a, CobaltComplexDouble b) {
+bool almostEqual(TensileComplexDouble a, TensileComplexDouble b) {
   return almostEqual(a.x, b.x) && almostEqual(a.y, b.y);
 }
 
 /*******************************************************************************
 * Complex Conjugate
 ******************************************************************************/
-#ifdef Cobalt_Enable_FP16_HOST
+#ifdef Tensile_Enable_FP16_HOST
 template< >
-void complexConjugate(CobaltHalf &) {}
+void complexConjugate(TensileHalf &) {}
 #endif
 template< >
 void complexConjugate(float &) {}
 template< >
 void complexConjugate(double &) {}
 template< >
-void complexConjugate( CobaltComplexFloat & v) {
+void complexConjugate( TensileComplexFloat & v) {
   v.y = -v.y;
 }
 template< >
-void complexConjugate(CobaltComplexDouble & v) {
+void complexConjugate(TensileComplexDouble & v) {
   v.y = -v.y;
 }
 
@@ -194,14 +194,14 @@ void complexConjugate(CobaltComplexDouble & v) {
 /*******************************************************************************
  * sizeOf Type
  ******************************************************************************/
-#ifdef Cobalt_Enable_FP16_HOST
-template<> size_t sizeOfType<CobaltHalf>(){ return sizeof(CobaltHalf); }
+#ifdef Tensile_Enable_FP16_HOST
+template<> size_t sizeOfType<TensileHalf>(){ return sizeof(TensileHalf); }
 #endif
 template<> size_t sizeOfType<float>(){ return sizeof(float); }
 template<> size_t sizeOfType<double>(){ return sizeof(double); }
-template<> size_t sizeOfType<CobaltComplexFloat>(){ return sizeof(CobaltComplexFloat); }
-template<> size_t sizeOfType<CobaltComplexDouble>(){ return sizeof(CobaltComplexDouble); }
+template<> size_t sizeOfType<TensileComplexFloat>(){ return sizeof(TensileComplexFloat); }
+template<> size_t sizeOfType<TensileComplexDouble>(){ return sizeof(TensileComplexDouble); }
 template<> size_t sizeOfType<void>() { return 0; }
 
-} // end namespace Cobalt
+} // end namespace Tensile
 

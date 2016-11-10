@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <algorithm>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * constructor
@@ -25,13 +25,13 @@ SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTens
  * enqueue
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
-    CobaltTensorData tensorDataC,
-    CobaltTensorDataConst tensorDataA,
-    CobaltTensorDataConst tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
-    CobaltControl & ctrl ) {
+TensileStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
+    TensileTensorData tensorDataC,
+    TensileTensorDataConst tensorDataA,
+    TensileTensorDataConst tensorDataB,
+    TensileScalarData alpha,
+    TensileScalarData beta,
+    TensileControl & ctrl ) {
 
   ctrl.numQueuesUsed = 0;
   ctrl.numOutputEvents = 0;
@@ -99,17 +99,17 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       size_t serialIdxA = Solution::problem.tensorA.getIndex(coordsA);
       TypeA valueA = dataA[serialIdxA];
       if (
-#ifdef Cobalt_Enable_FP16_HOST
-           std::is_same<TypeA, CobaltComplexHalf>() ||
+#ifdef Tensile_Enable_FP16_HOST
+           std::is_same<TypeA, TensileComplexHalf>() ||
 #endif
-           std::is_same<TypeA, CobaltComplexFloat>()
-        || std::is_same<TypeA, CobaltComplexDouble>() ) {
+           std::is_same<TypeA, TensileComplexFloat>()
+        || std::is_same<TypeA, TensileComplexDouble>() ) {
         if (
-#ifdef Cobalt_Enable_FP16_HOST
-             Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateHalf ||
+#ifdef Tensile_Enable_FP16_HOST
+             Solution::problem.tensorA.getDataType() == tensileDataTypeComplexConjugateHalf ||
 #endif
-             Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateSingle
-          || Solution::problem.tensorA.getDataType() == cobaltDataTypeComplexConjugateDouble) {
+             Solution::problem.tensorA.getDataType() == tensileDataTypeComplexConjugateSingle
+          || Solution::problem.tensorA.getDataType() == tensileDataTypeComplexConjugateDouble) {
           complexConjugate<TypeA>( valueA );
         }
       }
@@ -117,17 +117,17 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
       size_t serialIdxB = Solution::problem.tensorB.getIndex(coordsB);
       TypeB valueB = dataB[serialIdxB];
       if (
-#ifdef Cobalt_Enable_FP16_HOST
-           std::is_same<TypeB, CobaltComplexHalf>() ||
+#ifdef Tensile_Enable_FP16_HOST
+           std::is_same<TypeB, TensileComplexHalf>() ||
 #endif
-		  std::is_same<TypeB, CobaltComplexFloat>()
-        || std::is_same<TypeB, CobaltComplexDouble>() ) {
+		  std::is_same<TypeB, TensileComplexFloat>()
+        || std::is_same<TypeB, TensileComplexDouble>() ) {
         if (
-#ifdef Cobalt_Enable_FP16_HOST
-             Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateHalf ||
+#ifdef Tensile_Enable_FP16_HOST
+             Solution::problem.tensorB.getDataType() == tensileDataTypeComplexConjugateHalf ||
 #endif
-             Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateSingle
-          || Solution::problem.tensorB.getDataType() == cobaltDataTypeComplexConjugateDouble) {
+             Solution::problem.tensorB.getDataType() == tensileDataTypeComplexConjugateSingle
+          || Solution::problem.tensorB.getDataType() == tensileDataTypeComplexConjugateDouble) {
           complexConjugate<TypeB>( valueB );
         }
       }
@@ -179,7 +179,7 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
 
   } // free range
 
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 } // referenceTensorContraction
 
 
@@ -188,8 +188,8 @@ CobaltStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>:
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
-  std::string state = Cobalt::indent(indentLevel);
-  state += "CobaltSolutionTensorContractionCPU";
+  std::string state = Tensile::indent(indentLevel);
+  state += "TensileSolutionTensorContractionCPU";
   return state;
 }
 
@@ -199,13 +199,13 @@ std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::
 ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel ) const {
-  std::string detail = Cobalt::indent(indentLevel);
+  std::string detail = Tensile::indent(indentLevel);
   detail += "<ImplementationDetails/>\n";
   return detail;
 }
 
 
-size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
+size_t coordsToSerial( TensileTensor tensor, size_t *coords ) {
   size_t serial = 0;
   for (size_t i = 0; i < tensor.numDimensions; i++) {
     serial += coords[i] * tensor.dimensions[i].stride;
@@ -214,41 +214,41 @@ size_t coordsToSerial( CobaltTensor tensor, size_t *coords ) {
 }
 
 /*******************************************************************************
- * cobaltGetSolution
+ * tensileGetSolution
  * need to list all wanted template variants for compiler in this file
  ******************************************************************************/
-std::tuple<Solution *,CobaltStatus> getSolutionCPU( const Problem & problem) {
+std::tuple<Solution *,TensileStatus> getSolutionCPU( const Problem & problem) {
 
   bool problemIsTensorContraction = true;
 
   if (problemIsTensorContraction) {
     switch(problem.getDataTypeC()) {
-    case cobaltDataTypeSingle:
-      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<float,float,float,float,float>( problem ), cobaltStatusSuccess );
-    case cobaltDataTypeDouble:
-      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<double,double,double,double,double>( problem ), cobaltStatusSuccess );
-    case cobaltDataTypeComplexSingle:
-    case cobaltDataTypeComplexConjugateSingle:
-      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>( problem ), cobaltStatusSuccess );
-    case cobaltDataTypeComplexDouble:
-    case cobaltDataTypeComplexConjugateDouble:
-      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>( problem ), cobaltStatusSuccess );
-#ifdef Cobalt_ENABLE_FP16_HOST
-    case cobaltDataTypeHalf:
-      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltHalf,CobaltHalf,CobaltHalf,CobaltHalf,CobaltHalf>( problem ), cobaltStatusSuccess );
-    case cobaltDataTypeComplexHalf:
-    case cobaltDataTypeComplexConjugateHalf:
-      return std::make_tuple(new Cobalt::SolutionTensorContractionCPU<CobaltComplexHalf,CobaltComplexHalf,CobaltComplexHalf,CobaltComplexHalf,CobaltComplexHalf>( problem ), cobaltStatusSuccess );
+    case tensileDataTypeSingle:
+      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<float,float,float,float,float>( problem ), tensileStatusSuccess );
+    case tensileDataTypeDouble:
+      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<double,double,double,double,double>( problem ), tensileStatusSuccess );
+    case tensileDataTypeComplexSingle:
+    case tensileDataTypeComplexConjugateSingle:
+      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat>( problem ), tensileStatusSuccess );
+    case tensileDataTypeComplexDouble:
+    case tensileDataTypeComplexConjugateDouble:
+      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble>( problem ), tensileStatusSuccess );
+#ifdef Tensile_ENABLE_FP16_HOST
+    case tensileDataTypeHalf:
+      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileHalf,TensileHalf,TensileHalf,TensileHalf,TensileHalf>( problem ), tensileStatusSuccess );
+    case tensileDataTypeComplexHalf:
+    case tensileDataTypeComplexConjugateHalf:
+      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileComplexHalf,TensileComplexHalf,TensileComplexHalf,TensileComplexHalf,TensileComplexHalf>( problem ), tensileStatusSuccess );
 #endif
-    case cobaltNumDataTypes:
-    case cobaltDataTypeNone:
-      return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
+    case tensileNumDataTypes:
+    case tensileDataTypeNone:
+      return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
     }
     //default:
-    //  return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
+    //  return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
     //}
   } else {
-      return std::make_tuple(nullptr, cobaltStatusProblemNotSupported);
+      return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
   }
 }
 

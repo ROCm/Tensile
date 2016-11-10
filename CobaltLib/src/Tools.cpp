@@ -7,7 +7,7 @@
 #include <ctype.h>
 #include <cmath>
 
-namespace Cobalt {
+namespace Tensile {
 
 Timer::Timer() {
 #ifdef WIN32

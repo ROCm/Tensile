@@ -45,9 +45,9 @@ def GenBenchmarkFromFiles( \
   #problemTree[deviceProfile][ExactMatch] = Set() of problems
   # for each input file, accumulate problems
   for inputFile in inputFiles:
-    # print "CobaltGenBenchmark: reading problems from " + os.path.basename(inputFile)
+    # print "TensileGenBenchmark: reading problems from " + os.path.basename(inputFile)
     FileReader.getProblemsFromXML( inputFile, problemTree, optimizeAlpha, optimizeBeta )
-  #print "CobaltGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
+  #print "TensileGenBenchmark: " + str(len(problemSet)) + " unique problem(s) found"
   #for problem in problemSet:
   #  print str(problem)
 
@@ -58,7 +58,7 @@ def GenBenchmarkFromFiles( \
   allSolutions = set() # all solutions to be written
   allKernels = set() # all gpu kernels to be written
   benchmarkList = {} # problems and associated solution candidates
-  print "CobaltGenBenchmark: generating solution candidates for problems"
+  print "TensileGenBenchmark: generating solution candidates for problems"
   problemIdx = 0
   for deviceProfile, exactMatches in problemTree.iteritems():
     print "DeviceProfile: " + str(deviceProfile)
@@ -105,12 +105,12 @@ def GenBenchmarkFromFiles( \
 
 
 ################################################################################
-# CobaltGenBenchmark - Main
+# TensileGenBenchmark - Main
 ################################################################################
 if __name__ == "__main__":
 
   # arguments
-  ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
+  ap = argparse.ArgumentParser(description="TensileGenBenchmark")
   ap.add_argument("--input-path", dest="inputPath", required=True )
   ap.add_argument("--output-path", dest="outputPath", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "\nCobaltGenBenchmark:"
+  print "\nTensileGenBenchmark:"
   print "  backend=" + str(backend)
   print "  outputPath=" + args.outputPath
   print "  inputPath=" + args.inputPath

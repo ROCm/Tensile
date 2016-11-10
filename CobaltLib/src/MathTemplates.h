@@ -7,7 +7,7 @@
 #include <cmath>
 #include <limits>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Zero Templates
@@ -72,7 +72,7 @@ template<typename Type>
 size_t sizeOfType();
 
 
-} // end Cobalt namespace
+} // end Tensile namespace
 
 #endif
 

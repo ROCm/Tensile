@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<CobaltLog>
+<TensileLog>
 
 <!-- ~~~~~~~~~~~~~~~~ Trace ~~~~~~~~~~~~~~~~ -->
  <TE>
@@ -31,4 +31,4 @@
    </P>
   </S>
  </TE>
-</CobaltLog>
+</TensileLog>

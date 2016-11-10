@@ -2,7 +2,7 @@
  * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
  ******************************************************************************/
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Problem.h"
 #include "Solution.h"
 #include "Logger.h"
@@ -14,29 +14,29 @@
 #include <cstring>
 #include <algorithm>
 
-#if Cobalt_SOLVER_ENABLED
-#include "CobaltGetSolution.h"
+#if Tensile_SOLVER_ENABLED
+#include "TensileGetSolution.h"
 #endif
 
 // global logger object
-Cobalt::Logger Cobalt::logger;
+Tensile::Logger Tensile::logger;
 
 
 /*******************************************************************************
- * cobaltSetup()
+ * tensileSetup()
  ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFilePath ) {
-  Cobalt::logger.init(logFilePath);
-  return cobaltStatusSuccess;
+TensileStatus tensileSetup( const char *logFilePath ) {
+  Tensile::logger.init(logFilePath);
+  return tensileStatusSuccess;
 }
 
 
 /*******************************************************************************
- * cobaltTeardown
+ * tensileTeardown
  ******************************************************************************/
-CobaltStatus cobaltTeardown() {
+TensileStatus tensileTeardown() {
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   // delete kernels
   if (kernelMap) {
     unsigned int index = 0;
@@ -49,20 +49,20 @@ CobaltStatus cobaltTeardown() {
     kernelMap = nullptr;
   }
 #endif
-  Cobalt::logger.close();
-  return cobaltStatusSuccess;
+  Tensile::logger.close();
+  return tensileStatusSuccess;
 }
 
 
 /*******************************************************************************
-* cobaltCreateEmptyTensor
-* - returns CobaltTensor initialized to zero
+* tensileCreateEmptyTensor
+* - returns TensileTensor initialized to zero
 ******************************************************************************/
-CobaltTensor cobaltCreateEmptyTensor() {
-  CobaltTensor tensor;
-  tensor.dataType = cobaltDataTypeNone;
+TensileTensor tensileCreateEmptyTensor() {
+  TensileTensor tensor;
+  tensor.dataType = tensileDataTypeNone;
   tensor.numDimensions = 0;
-  for (int i = 0; i < CobaltTensor::maxDimensions; i++) {
+  for (int i = 0; i < TensileTensor::maxDimensions; i++) {
     tensor.dimensions[i].size = 0;
     tensor.dimensions[i].stride = 0;
   }
@@ -71,13 +71,13 @@ CobaltTensor cobaltCreateEmptyTensor() {
 
 
 /*******************************************************************************
-* cobaltCreateDeviceProfile
-* returns CobaltDeviceProfile initialized to zero
+* tensileCreateDeviceProfile
+* returns TensileDeviceProfile initialized to zero
 ******************************************************************************/
-CobaltDeviceProfile cobaltCreateEmptyDeviceProfile() {
-  CobaltDeviceProfile profile;
+TensileDeviceProfile tensileCreateEmptyDeviceProfile() {
+  TensileDeviceProfile profile;
   profile.numDevices = 0;
-  for (int i = 0; i < CobaltDeviceProfile::maxDevices; i++) {
+  for (int i = 0; i < TensileDeviceProfile::maxDevices; i++) {
     profile.devices[i].name[0] = '\0';
   }
   return profile;
@@ -85,23 +85,23 @@ CobaltDeviceProfile cobaltCreateEmptyDeviceProfile() {
 
 
 /*******************************************************************************
- * cobaltCreateDeviceProfile
- * returns CobaltDeviceProfile initialized to zero
+ * tensileCreateDeviceProfile
+ * returns TensileDeviceProfile initialized to zero
  ******************************************************************************/
-CobaltStatus cobaltEnumerateDeviceProfiles(
-    CobaltDeviceProfile *profiles,
+TensileStatus tensileEnumerateDeviceProfiles(
+    TensileDeviceProfile *profiles,
     unsigned int *size) {
 
-  static std::vector<CobaltDeviceProfile> enumeratedProfiles;
+  static std::vector<TensileDeviceProfile> enumeratedProfiles;
   static bool profilesEnumerated = false;
 
   if (!profilesEnumerated) {
-#if Cobalt_SOLVER_ENABLED
+#if Tensile_SOLVER_ENABLED
 	enumerateDeviceProfilesSupported(enumeratedProfiles);
 #else
 
-#if Cobalt_BACKEND_OPENCL12
-    //printf("cobaltEnumerateDeviceProfiles(OpenCL)\n");
+#if Tensile_BACKEND_OPENCL12
+    //printf("tensileEnumerateDeviceProfiles(OpenCL)\n");
     cl_int status;
     cl_uint numPlatforms;
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
@@ -113,10 +113,10 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
       cl_device_id *devices = new cl_device_id[numDevices];
       status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
       for (unsigned int d = 0; d < numDevices; d++) {
-        CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+        TensileDeviceProfile profile = tensileCreateEmptyDeviceProfile();
         profile.numDevices = 1;
         status = clGetDeviceInfo(devices[d], CL_DEVICE_NAME, profile.devices[0].maxNameLength, profile.devices[0].name, 0);
-        Cobalt::makeFileNameSafe( profile.devices[0].name );
+        Tensile::makeFileNameSafe( profile.devices[0].name );
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(profile.devices[0].clockFrequency), &profile.devices[0].clockFrequency, 0);
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(profile.devices[0].numComputeUnits), &profile.devices[0].numComputeUnits, 0);
         enumeratedProfiles.push_back(profile);
@@ -132,10 +132,10 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     for (int i = 0; i < numDevices; i++) {
       hipDeviceProp_t deviceProperties;
       hipGetDeviceProperties( &deviceProperties, i);
-      CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();
+      TensileDeviceProfile profile = tensileCreateEmptyDeviceProfile();
       profile.numDevices = 1;
       strcpy( profile.devices[0].name, deviceProperties.name );
-      Cobalt::makeFileNameSafe( profile.devices[0].name );
+      Tensile::makeFileNameSafe( profile.devices[0].name );
       profile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
       profile.devices[0].clockFrequency = deviceProperties.clockRate/1000; // kHz -> MHz
       enumeratedProfiles.push_back(profile);
@@ -150,9 +150,9 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
     // do copy
     if (size) { // copy up to size
       size_t lengthToCopy = *size < enumeratedProfiles.size() ? *size : enumeratedProfiles.size();
-      std::memcpy(profiles, &enumeratedProfiles[0], lengthToCopy*sizeof(CobaltDeviceProfile));
+      std::memcpy(profiles, &enumeratedProfiles[0], lengthToCopy*sizeof(TensileDeviceProfile));
     } else { // copy all
-      std::memcpy(profiles, &enumeratedProfiles[0], enumeratedProfiles.size()*sizeof(CobaltDeviceProfile));
+      std::memcpy(profiles, &enumeratedProfiles[0], enumeratedProfiles.size()*sizeof(TensileDeviceProfile));
     }
   } else {
     // just return size
@@ -160,28 +160,28 @@ CobaltStatus cobaltEnumerateDeviceProfiles(
       *size = static_cast<unsigned int>(enumeratedProfiles.size());
     } else {
       // can't do anything
-      return cobaltStatusInvalidParameter;
+      return tensileStatusInvalidParameter;
     }
   }
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 }
 
 /*******************************************************************************
-* cobaltCreateControl
-* returns CobaltControl initialized to zero
+* tensileCreateControl
+* returns TensileControl initialized to zero
 ******************************************************************************/
-CobaltControl cobaltCreateEmptyControl() {
-  CobaltControl control;
+TensileControl tensileCreateEmptyControl() {
+  TensileControl control;
   control.validate = nullptr;
   control.benchmark = 0;
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   control.numQueues = 0;
   control.numQueuesUsed = 0;
   control.numInputEvents = 0;
   control.numOutputEvents = 0;
   control.inputEvents = nullptr;
   control.outputEvents = nullptr;
-  for (int i = 0; i < CobaltControl::maxQueues; i++) {
+  for (int i = 0; i < TensileControl::maxQueues; i++) {
     control.queues[i] = nullptr;
   }
 #endif
@@ -190,23 +190,23 @@ CobaltControl cobaltCreateEmptyControl() {
 
 
 /*******************************************************************************
- * cobaltCreateProblem
+ * tensileCreateProblem
  ******************************************************************************/
-CobaltStatus cobaltCreateProblem(
-    CobaltProblem *problem,
-    CobaltTensor tensorC,
-    CobaltTensor tensorA,
-    CobaltTensor tensorB,
+TensileStatus tensileCreateProblem(
+    TensileProblem *problem,
+    TensileTensor tensorC,
+    TensileTensor tensorA,
+    TensileTensor tensorB,
     unsigned int *indexAssignmentsA,
     unsigned int *indexAssignmentsB,
-    CobaltOperationType operationType,
-    CobaltDataType alphaType,
-    CobaltDataType betaType,
+    TensileOperationType operationType,
+    TensileDataType alphaType,
+    TensileDataType betaType,
     bool useOffsets,
-    CobaltDeviceProfile deviceProfile ) {
+    TensileDeviceProfile deviceProfile ) {
 
   try {
-    Cobalt::Problem *problemPtr = new Cobalt::Problem(
+    Tensile::Problem *problemPtr = new Tensile::Problem(
         tensorC,
         tensorA,
         tensorB,
@@ -217,34 +217,34 @@ CobaltStatus cobaltCreateProblem(
         betaType,
         useOffsets,
         deviceProfile );
-    (*problem) = new _CobaltProblem();
+    (*problem) = new _TensileProblem();
     (*problem)->pimpl = problemPtr;
-    return cobaltStatusSuccess;
-  } catch ( CobaltStatus errorStatus ) {
+    return tensileStatusSuccess;
+  } catch ( TensileStatus errorStatus ) {
     (*problem) = nullptr;
     return errorStatus;
   }
 
 };
 
-CobaltStatus cobaltDestroyProblem( CobaltProblem problem ) {
+TensileStatus tensileDestroyProblem( TensileProblem problem ) {
   if (problem) {
-    //printf("cobaltDestroyProblem:: problem=%p\n", problem);
+    //printf("tensileDestroyProblem:: problem=%p\n", problem);
     if (problem->pimpl) {
-      //printf("cobaltDestroyProblem:: problem->pimpl=%p\n", problem->pimpl);
+      //printf("tensileDestroyProblem:: problem->pimpl=%p\n", problem->pimpl);
       delete problem->pimpl;
       delete problem;
       problem = nullptr;
-      return cobaltStatusSuccess;
+      return tensileStatusSuccess;
     }
   }
-  return cobaltStatusInvalidParameter;
+  return tensileStatusInvalidParameter;
 }
 
 
-CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
+TensileStatus tensileValidateProblem( TensileProblem problem ) {
   if (problem == nullptr) {
-    return cobaltStatusInvalidParameter;
+    return tensileStatusInvalidParameter;
   } else {
     return problem->pimpl->validate();
   }
@@ -252,69 +252,69 @@ CobaltStatus cobaltValidateProblem( CobaltProblem problem ) {
 
 
 /*******************************************************************************
- * cobaltGetSolutionForProblem
+ * tensileGetSolutionForProblem
  ******************************************************************************/
-CobaltStatus cobaltGetSolutionForProblem(
-    CobaltSolution *solution,
-    CobaltProblem problem ) {
+TensileStatus tensileGetSolutionForProblem(
+    TensileSolution *solution,
+    TensileProblem problem ) {
 
-  CobaltStatus status;
+  TensileStatus status;
 
-  Cobalt::Logger::TraceEntry entry;
-  entry.type = Cobalt::Logger::TraceEntryType::getSolution;
-  (*solution) = new _CobaltSolution();
+  Tensile::Logger::TraceEntry entry;
+  entry.type = Tensile::Logger::TraceEntryType::getSolution;
+  (*solution) = new _TensileSolution();
   // cpu device
   if ( problem->pimpl->deviceIsReference() ) {
-    std::tie((*solution)->pimpl, status) = Cobalt::getSolutionCPU( *(problem->pimpl) );
+    std::tie((*solution)->pimpl, status) = Tensile::getSolutionCPU( *(problem->pimpl) );
 
   // gpu device
   } else {
-#if Cobalt_SOLVER_ENABLED
+#if Tensile_SOLVER_ENABLED
     (*solution)->pimpl = getSolutionTop( *(problem->pimpl), &status );
 #else
-    (*solution)->pimpl = new Cobalt::SolutionLogOnly<void,void,void,void,void>(*(problem->pimpl));
-    status = cobaltStatusSuccess;
+    (*solution)->pimpl = new Tensile::SolutionLogOnly<void,void,void,void,void>(*(problem->pimpl));
+    status = tensileStatusSuccess;
 #endif
   }
 
   entry.solution = (*solution)->pimpl;
   entry.status = status;
 
-#if Cobalt_LOGGER_ENABLED
-  Cobalt::logger.log(entry);
+#if Tensile_LOGGER_ENABLED
+  Tensile::logger.log(entry);
 #endif
 
   return status;
 }
 
-CobaltStatus cobaltDestroySolution(CobaltSolution solution) {
+TensileStatus tensileDestroySolution(TensileSolution solution) {
   if (solution) {
     if (solution->pimpl) {
       delete solution->pimpl;
       delete solution;
       solution = nullptr;
-      return cobaltStatusSuccess;
+      return tensileStatusSuccess;
     } else {
-      return cobaltStatusInvalidParameter;
+      return tensileStatusInvalidParameter;
     }
   }
   else {
-    return cobaltStatusInvalidParameter;
+    return tensileStatusInvalidParameter;
   }
 }
 
 /*******************************************************************************
- * cobaltEnqueueSolution
+ * tensileEnqueueSolution
  ******************************************************************************/
-CobaltStatus cobaltEnqueueSolution(
-    CobaltSolution solution,
-    CobaltTensorData tensorDataC,
-    CobaltTensorDataConst tensorDataA,
-    CobaltTensorDataConst tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
-    CobaltControl *ctrl ) {
-  CobaltStatus status = cobaltStatusSuccess;
+TensileStatus tensileEnqueueSolution(
+    TensileSolution solution,
+    TensileTensorData tensorDataC,
+    TensileTensorDataConst tensorDataA,
+    TensileTensorDataConst tensorDataB,
+    TensileScalarData alpha,
+    TensileScalarData beta,
+    TensileControl *ctrl ) {
+  TensileStatus status = tensileStatusSuccess;
   // if cpu device, enqueue even if solver turned off
   if (solution->pimpl->getProblem().deviceIsReference()) {
       status = solution->pimpl->enqueue( tensorDataC, tensorDataA, tensorDataB,
@@ -322,7 +322,7 @@ CobaltStatus cobaltEnqueueSolution(
 
   // gpu device, only enqueue if solver turned on
   } else {
-#if Cobalt_SOLVER_ENABLED
+#if Tensile_SOLVER_ENABLED
     status = solution->pimpl->enqueueEntry( tensorDataC, tensorDataA, tensorDataB,
         alpha, beta, *ctrl, false /*no print*/ );
 #endif
@@ -334,7 +334,7 @@ CobaltStatus cobaltEnqueueSolution(
 /*******************************************************************************
  * toStrings
  ******************************************************************************/
-CobaltStatus cppStringToCString(
+TensileStatus cppStringToCString(
   std::string state, char *cstr, unsigned int *size ) {
   if (cstr) {
     // do copy
@@ -355,25 +355,25 @@ CobaltStatus cppStringToCString(
       *size = (unsigned int) (state.size()+1); // include space for null char
     } else {
       // can't do anything
-      return cobaltStatusInvalidParameter;
+      return tensileStatusInvalidParameter;
     }
   }
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 }
 
-CobaltStatus cobaltStatusToString( CobaltStatus code, char *cstr, unsigned int *size ) {
-  std::string state = Cobalt::toString(code);
+TensileStatus tensileStatusToString( TensileStatus code, char *cstr, unsigned int *size ) {
+  std::string state = Tensile::toString(code);
   return cppStringToCString( state, cstr, size);
 }
 
-CobaltStatus cobaltProblemToString(
-    CobaltProblem problem, char *cstr, unsigned int *size ) {
+TensileStatus tensileProblemToString(
+    TensileProblem problem, char *cstr, unsigned int *size ) {
   std::string state = problem->pimpl->toString();
   return cppStringToCString( state, cstr, size );
 }
 
-CobaltStatus cobaltSolutionToString(
-    CobaltSolution solution, char *cstr, unsigned int *size ) {
+TensileStatus tensileSolutionToString(
+    TensileSolution solution, char *cstr, unsigned int *size ) {
   std::string state = solution->pimpl->toString(0);
   return cppStringToCString( state, cstr, size );
 }

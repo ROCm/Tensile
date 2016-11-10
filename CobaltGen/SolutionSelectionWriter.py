@@ -36,11 +36,11 @@ class SolutionSelectionWriter:
     # source file
     s = ""
     s += "#include \"Problem.h\"\n"
-    s += "#include \"CobaltGetSolution.h\"\n"
+    s += "#include \"TensileGetSolution.h\"\n"
     for deviceProfile, exactMatches in self.psMap.iteritems():
-      s += "#include \"CobaltGetSolution_" + deviceProfile.libString() + ".h\"\n"
+      s += "#include \"TensileGetSolution_" + deviceProfile.libString() + ".h\"\n"
     s += "\n"
-    s += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status ) {\n"
+    s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
     # if match device
     for deviceProfile, exactMatches in self.psMap.iteritems():
       s += "  if ( problem.deviceProfile.numDevices() == " + str(len(deviceProfile.devices)) + " ) {\n"
@@ -57,12 +57,12 @@ class SolutionSelectionWriter:
       s += "  return getSolution_" + deviceProfile.libString() + "(problem, status);\n"
       break
     if len(self.psMap) < 1:
-      s += "  *status = cobaltStatusProblemNotSupported;\n"
+      s += "  *status = tensileStatusProblemNotSupported;\n"
       s += "  return nullptr;\n"
     s += "}\n"
     s += "\n"
-    s += "void enumerateDeviceProfilesSupported( std::vector<CobaltDeviceProfile> & enumeratedProfiles ) {\n"
-    s += "  CobaltDeviceProfile profile = cobaltCreateEmptyDeviceProfile();\n"
+    s += "void enumerateDeviceProfilesSupported( std::vector<TensileDeviceProfile> & enumeratedProfiles ) {\n"
+    s += "  TensileDeviceProfile profile = tensileCreateEmptyDeviceProfile();\n"
     s += "  profile.numDevices = 1;\n"
     for deviceProfile, exactMatches in self.psMap.iteritems():
       for device in deviceProfile.devices:
@@ -79,15 +79,15 @@ class SolutionSelectionWriter:
 
     # header file
     h = ""
-    h += "#ifndef COBALT_GETSOLUTION_H\n"
-    h += "#define COBALT_GETSOLUTION_H\n"
+    h += "#ifndef TENTILE_GETSOLUTION_H\n"
+    h += "#define TENTILE_GETSOLUTION_H\n"
     h += "\n"
-    h += "#include \"Cobalt.h\"\n"
+    h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
     h += "\n"
-    h += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status);\n"
+    h += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status);\n"
     h += "\n"
-    h += "void enumerateDeviceProfilesSupported( std::vector<CobaltDeviceProfile> & enumeratedProfiles );\n"
+    h += "void enumerateDeviceProfilesSupported( std::vector<TensileDeviceProfile> & enumeratedProfiles );\n"
     h += "\n"
     h += "#endif\n"
     h += "\n"
@@ -103,11 +103,11 @@ class SolutionSelectionWriter:
     functionName = "getSolution_" + deviceProfile.libString()
     s = ""
     s += "#include \"Problem.h\"\n"
-    s += "#include \"CobaltGetSolution_" + deviceProfile.libString() + ".h\"\n"
+    s += "#include \"TensileGetSolution_" + deviceProfile.libString() + ".h\"\n"
     for exactMatch, problems in exactMatches.iteritems():
-      s += "#include \"CobaltGetSolution_" + exactMatch.libString() + ".h\"\n"
+      s += "#include \"TensileGetSolution_" + exactMatch.libString() + ".h\"\n"
     s += "\n"
-    s += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status ) {\n"
+    s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
     s += "  bool problemRequiresLeadingStrides = problem.tensorC[0].stride != 1 || problem.tensorA[0].stride != 1 || problem.tensorB[0].stride != 1;\n"
     s += "\n"
     
@@ -141,20 +141,20 @@ class SolutionSelectionWriter:
       s += "    }\n"
       s += "  }\n"
     
-    s += "  *status = cobaltStatusProblemNotSupported;\n"
+    s += "  *status = tensileStatusProblemNotSupported;\n"
     s += "  return nullptr;\n"
     s += "}\n"
     s += "\n"
     
     # header file
     h = ""
-    h += "#ifndef COBALT_" + functionName.upper() + "_H\n"
-    h += "#define COBALT_" + functionName.upper() + "_H\n"
+    h += "#ifndef TENTILE_" + functionName.upper() + "_H\n"
+    h += "#define TENTILE_" + functionName.upper() + "_H\n"
     h += "\n"
-    h += "#include \"Cobalt.h\"\n"
+    h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
     h += "\n"
-    h += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status);\n"
+    h += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status);\n"
     h += "\n"
     h += "#endif\n"
     h += "\n"
@@ -718,7 +718,7 @@ class SolutionSelectionWriter:
           sizeU = problem.tensorA.dimensions[i].size
       gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
       s += indent + "  if ( size0 == %3u && size1 == %3u && sizeU == %2u ) {" % (size0, size1, sizeU)
-      s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
+      s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           
 
     # select range-size-problems based on multiples
@@ -739,21 +739,21 @@ class SolutionSelectionWriter:
             sizeUL += unroll
           gflops = self.getGFlopsString(modPSP[0], modPSP[2])
           s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
-          s += " return new Cobalt::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
+          s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
     fallbackPSP = rule[1]
     if fallbackPSP != None:
       fallbackSolution = fallbackPSP[1]
       sizeUL = fallbackSolution.kernels[0].unrolls[0]
       gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
-      s += indent + "  if ( sizeU >= %2u) { return new Cobalt::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+      s += indent + "  if ( sizeU >= %2u) { return new Tensile::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
       #newFallbackSolution = copy.deepcopy( fallbackSolution )
       #for i in range( 0, 4):
       #  if newFallbackSolution.kernels[i] != None:
       #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
-      #s += indent + "  return new Cobalt::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
+      #s += indent + "  return new Tensile::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
     # else:
-    #   s += indent + "  *status = cobaltStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
+    #   s += indent + "  *status = tensileStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
     #   s += indent + "  return nullptr;\n"
     s += indent + "}"
     return s
@@ -797,7 +797,7 @@ class SolutionSelectionWriter:
     functionName = "getSolution_" + exactMatch.libString()
 
 
-    s += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status ) {\n"
+    s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
     s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
     s += "  unsigned int size1 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim1)
@@ -807,7 +807,7 @@ class SolutionSelectionWriter:
       if problem.operation.indexAssignmentsA[i] == dimU:
         idxU = i
     s += "  unsigned int sizeU = problem.tensorA[%u].size;\n" % (idxU)
-    s += "  *status = cobaltStatusSuccess; // if you made it this far, you're likely guaranteed a correct solution\n"
+    s += "  *status = tensileStatusSuccess; // if you made it this far, you're likely guaranteed a correct solution\n"
 
     firstSizeGroup = True
     lastSizeGroup = False
@@ -1162,25 +1162,25 @@ class SolutionSelectionWriter:
     
 
     s += "\n"
-    s += "  return new Cobalt::%s%s( problem ); // fallback for k < UNROLL\n" % (self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
+    s += "  return new Tensile::%s%s( problem ); // fallback for k < UNROLL\n" % (self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
     s += "}\n"
 
     # prepend includes
     inc = "#include \"Problem.h\"\n"
-    inc += "#include \"CobaltGetSolution_" + exactMatch.libString() + ".h\"\n"
+    inc += "#include \"TensileGetSolution_" + exactMatch.libString() + ".h\"\n"
     for solution in localSolutionSet:
       inc += "#include \"" + self.solutionWriter.getName(solution) + ".h\"\n"
     inc += "\n"
     s = inc + s
 
     # header file
-    h += "#ifndef COBALT_" + functionName.upper() + "_H\n"
-    h += "#define COBALT_" + functionName.upper() + "_H\n"
+    h += "#ifndef TENTILE_" + functionName.upper() + "_H\n"
+    h += "#define TENTILE_" + functionName.upper() + "_H\n"
     h += "\n"
-    h += "#include \"Cobalt.h\"\n"
+    h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
     h += "\n"
-    h += "Cobalt::Solution* " + functionName + "( const Cobalt::Problem & problem, CobaltStatus *status);\n"
+    h += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status);\n"
     h += "\n"
     h += "#endif\n"
     h += "\n"
@@ -1210,30 +1210,30 @@ class SolutionSelectionWriter:
 
   
   #############################################################################
-  # write cmake file for CobaltLib solution selection
+  # write cmake file for TensileLib solution selection
   #############################################################################
-  def writeCobaltLibCMake(self, subdirectory):
-    s = "# CobaltLib.cmake\n"
+  def writeTensileLibCMake(self, subdirectory):
+    s = "# TensileLib.cmake\n"
     s += "\n"
-    s += "include( ${CobaltLib_KernelFiles_CMAKE_DYNAMIC} )\n"
-    s += "include( ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC} )\n"
+    s += "include( ${TensileLib_KernelFiles_CMAKE_DYNAMIC} )\n"
+    s += "include( ${TensileLib_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
-    s += "set( CobaltLib_OtherFiles_GENERATED_DYNAMIC\n"
+    s += "set( TensileLib_OtherFiles_GENERATED_DYNAMIC\n"
     
     for deviceProfile, exactMatches in self.psMap.iteritems():
       # (2) Write Device-Level Solution Selection files
-      baseName = "CobaltGetSolution_" + deviceProfile.libString()
-      s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
-      s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
+      baseName = "TensileGetSolution_" + deviceProfile.libString()
+      s += "  ${TensileLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
+      s += "  ${TensileLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
 
       for exactMatch, pspTypes in exactMatches.iteritems():
-        baseName = "CobaltGetSolution_" + exactMatch.libString()
-        s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
-        s += "  ${CobaltLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
+        baseName = "TensileGetSolution_" + exactMatch.libString()
+        s += "  ${TensileLib_DIR_GENERATED}" + subdirectory + baseName + ".cpp\n"
+        s += "  ${TensileLib_DIR_GENERATED}" + subdirectory + baseName + ".h\n"
     s += ")\n"
     s += "\n"
-    s += "source_group(CobaltGen\\\\Other FILES\n"
-    s += "  ${CobaltLib_OtherFiles_GENERATED_DYNAMIC} )\n"
+    s += "source_group(TensileGen\\\\Other FILES\n"
+    s += "  ${TensileLib_OtherFiles_GENERATED_DYNAMIC} )\n"
     s += "\n"
     return s
 

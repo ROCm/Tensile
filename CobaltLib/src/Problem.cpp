@@ -12,7 +12,7 @@
 #include <string>
 #include <cstring>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * constructor
@@ -20,16 +20,16 @@ namespace Cobalt {
  * which map to same solution appear as same problem (object state)
  ******************************************************************************/
 Problem::Problem(
-    CobaltTensor inputTensorC,
-    CobaltTensor inputTensorA,
-    CobaltTensor inputTensorB,
+    TensileTensor inputTensorC,
+    TensileTensor inputTensorA,
+    TensileTensor inputTensorB,
     unsigned int *inputIndexAssignmentsA,
     unsigned int *inputIndexAssignmentsB,
-    CobaltOperationType inputOperationType,
-    CobaltDataType inputAlphaType,
-    CobaltDataType inputBetaType,
+    TensileOperationType inputOperationType,
+    TensileDataType inputAlphaType,
+    TensileDataType inputBetaType,
     bool inputUseOffsets,
-    CobaltDeviceProfile inputDeviceProfile ) :
+    TensileDeviceProfile inputDeviceProfile ) :
   /* member initialization list */
   tensorC( inputTensorC ),
   tensorA( inputTensorA ),
@@ -63,7 +63,7 @@ Problem::Problem(
 
       // ERROR - unused free index
     } else if (inC && !inA && !inB) {
-      throw cobaltStatusOperationIndexUnassigned;
+      throw tensileStatusOperationIndexUnassigned;
 
       // summation index
     } else if (!inC && inA && inB) {
@@ -71,15 +71,15 @@ Problem::Problem(
 
       // ERROR - index mismatch
     } else if (!inC && (inA || inB)) {
-      throw cobaltStatusOperationSummationIndexAssignmentsInvalid;
+      throw tensileStatusOperationSummationIndexAssignmentsInvalid;
 
       // this is okay, we just iterated over too many indices
     } else if (!inC && !inA && !inB) {
 
       // are there any other ERRORS I haven't thought of?
     } else {
-      printf("Cobalt::Problem::constructor() - Error; mismatch I hadn't thought of.\n");
-      throw cobaltStatusProblemNotSupported;
+      printf("Tensile::Problem::constructor() - Error; mismatch I hadn't thought of.\n");
+      throw tensileStatusProblemNotSupported;
     }
   }
   //printf("%s\n", toStringXML(2).c_str());
@@ -99,12 +99,12 @@ bool Problem::sortSummationIndexDescending( std::pair<unsigned int, unsigned int
 /*******************************************************************************
  * validate
  ******************************************************************************/
-CobaltStatus Problem::validate( ) {
+TensileStatus Problem::validate( ) {
 
   /* tensorA,B */
   if (tensorA.numDims() != tensorB.numDims()) {
     assert(false);
-    return cobaltStatusOperandNumDimensionsMismatch;
+    return tensileStatusOperandNumDimensionsMismatch;
   }
 
 
@@ -114,42 +114,42 @@ CobaltStatus Problem::validate( ) {
   if (indicesFree.size()%2 != 0
       || indicesFree.size() < 2) {
     assert(false);
-    return cobaltStatusOperationNumFreeIndicesInvalid;
+    return tensileStatusOperationNumFreeIndicesInvalid;
   }
   if (indicesFree.size()/2
       + indicesBatch.size()
       + indicesSummation.size()
       != tensorA.numDims() ) {
     assert(false);
-    return cobaltStatusOperationOperandNumIndicesMismatch;
+    return tensileStatusOperationOperandNumIndicesMismatch;
   }
   if (indicesFree.size() + indicesBatch.size()
       != tensorC.numDims() ) {
     assert(false);
-    return cobaltStatusOperationNumFreeIndicesInvalid;
+    return tensileStatusOperationNumFreeIndicesInvalid;
   }
   if (indicesSummation.size() < 1 ) {
     assert(false);
-    return cobaltStatusOperationNumSummationIndicesInvalid;
+    return tensileStatusOperationNumSummationIndicesInvalid;
   }
   size_t maxAssignmentIndex = indicesFree.size() + indicesBatch.size() + indicesSummation.size() - 1;
   for (size_t i = 0; i < tensorA.numDims(); i++) {
     if (indicesA[i] > maxAssignmentIndex) {
       assert(false);
-      return cobaltStatusOperationIndexAssignmentInvalidA;
+      return tensileStatusOperationIndexAssignmentInvalidA;
     }
     if (indicesB[i] > maxAssignmentIndex) {
       assert(false);
-      return cobaltStatusOperationIndexAssignmentInvalidB;
+      return tensileStatusOperationIndexAssignmentInvalidB;
     }
     for (size_t j = i+1; j < tensorA.numDims(); j++) {
       if ( indicesA[i] == indicesA[j] ) {
         assert(false);
-        return cobaltStatusOperationIndexAssignmentDuplicateA;
+        return tensileStatusOperationIndexAssignmentDuplicateA;
       }
       if ( indicesB[i] == indicesB[j] ) {
         assert(false);
-        return cobaltStatusOperationIndexAssignmentDuplicateB;
+        return tensileStatusOperationIndexAssignmentDuplicateB;
       }
     }
   }
@@ -161,7 +161,7 @@ CobaltStatus Problem::validate( ) {
     if (indexAssignment < tensorC.numDims()) { // match C
       if (tensorC[indexAssignment].size != tensorA[i].size) {
         assert(false);
-        return cobaltStatusOperationIndexAssignmentInvalidA;
+        return tensileStatusOperationIndexAssignmentInvalidA;
       }
     } else { // match B
       // find this index in B
@@ -177,11 +177,11 @@ CobaltStatus Problem::validate( ) {
       if (indexFound) {
         if (tensorB[indexB].size != tensorA[i].size) {
           assert(false);
-          return cobaltStatusOperationIndexAssignmentInvalidA;
+          return tensileStatusOperationIndexAssignmentInvalidA;
         }
       } else {
         assert(false);
-        return cobaltStatusOperationIndexUnassigned;
+        return tensileStatusOperationIndexUnassigned;
       }
     }
   }
@@ -190,7 +190,7 @@ CobaltStatus Problem::validate( ) {
     if (indexAssignment < tensorC.numDims()) { // match C
       if (tensorC[indexAssignment].size != tensorB[i].size) {
         assert(false);
-        return cobaltStatusOperationIndexAssignmentInvalidB;
+        return tensileStatusOperationIndexAssignmentInvalidB;
       }
     } else { // match A
       // find this index in A
@@ -206,20 +206,20 @@ CobaltStatus Problem::validate( ) {
       if (indexFound) {
         if (tensorA[indexA].size != tensorB[i].size) {
           assert(false);
-          return cobaltStatusOperationIndexAssignmentInvalidB;
+          return tensileStatusOperationIndexAssignmentInvalidB;
         }
       } else {
         assert(false);
-        return cobaltStatusOperationIndexUnassigned;
+        return tensileStatusOperationIndexUnassigned;
       }
     }
   }
 
-  if (deviceProfile.numDevices() < 1 || deviceProfile.numDevices() > CobaltDeviceProfile::maxDevices) {
-    return cobaltStatusDeviceProfileNumDevicesInvalid;
+  if (deviceProfile.numDevices() < 1 || deviceProfile.numDevices() > TensileDeviceProfile::maxDevices) {
+    return tensileStatusDeviceProfileNumDevicesInvalid;
   }
 
-  return cobaltStatusSuccess;
+  return tensileStatusSuccess;
 }
 
 
@@ -282,19 +282,19 @@ CobaltStatus Problem::validate( ) {
  * toStringXML
  ******************************************************************************/
 std::string Problem::toStringXML( size_t indentLevel ) const {
-  std::string state = Cobalt::indent(indentLevel);
+  std::string state = Tensile::indent(indentLevel);
   state += "<P>\n";
   state += tensorC.toStringXML( indentLevel+1, "C");
   state += tensorA.toStringXML( indentLevel+1, "A");
   state += tensorB.toStringXML( indentLevel+1, "B");
   state += toStringOperationXML( indentLevel+1);
   state += deviceProfile.toStringXML( indentLevel+1);
-  state += Cobalt::indent(indentLevel) + "</P>\n";
+  state += Tensile::indent(indentLevel) + "</P>\n";
   return state;
 }
 
 std::string Problem::toStringOperationXML( size_t indentLevel ) const {
-  std::string state = Cobalt::indent(indentLevel);
+  std::string state = Tensile::indent(indentLevel);
   state += "<O";
   state += " t=\"" + std::to_string(operationType) + "\"";
   state += " a=\""+std::to_string(alphaType)+"\"";
@@ -306,34 +306,34 @@ std::string Problem::toStringOperationXML( size_t indentLevel ) const {
   state += " >\n";
   // type
   // index assignments A
-  state += Cobalt::indent(indentLevel+1) + "<IA";
+  state += Tensile::indent(indentLevel+1) + "<IA";
   state += " n=\"" + std::to_string(indicesA.size()) + "\"";
   for (size_t i = 0; i < indicesA.size(); i++) {
     state += " i" + std::to_string(i) + "=\"" + std::to_string(indicesA[i]) + "\"";
   }
   state += " />\n";
   // index assignments B
-  state += Cobalt::indent(indentLevel+1) + "<IB";
+  state += Tensile::indent(indentLevel+1) + "<IB";
   state += " n=\"" + std::to_string(indicesB.size()) + "\"";
   for (size_t i = 0; i < indicesB.size(); i++) {
     state += " i" + std::to_string(i) + "=\"" + std::to_string(indicesB[i]) + "\"";
   }
   state += " />\n";
 
-  state += Cobalt::indent(indentLevel) + "</O>\n";
+  state += Tensile::indent(indentLevel) + "</O>\n";
   return state;
 }
 
 /*******************************************************************************
  * accessors
  ******************************************************************************/
-CobaltDataType Problem::getDataTypeC() const { return tensorC.dataType; }
-CobaltDataType Problem::getDataTypeA() const { return tensorA.dataType; }
-CobaltDataType Problem::getDataTypeB() const { return tensorB.dataType; }
-CobaltDataType Problem::getDataTypeAlpha() const { return alphaType; }
-CobaltDataType Problem::getDataTypeBeta() const { return betaType; }
-bool Problem::useAlpha() const { return alphaType != cobaltDataTypeNone; }
-bool Problem::useBeta() const { return betaType != cobaltDataTypeNone; }
+TensileDataType Problem::getDataTypeC() const { return tensorC.dataType; }
+TensileDataType Problem::getDataTypeA() const { return tensorA.dataType; }
+TensileDataType Problem::getDataTypeB() const { return tensorB.dataType; }
+TensileDataType Problem::getDataTypeAlpha() const { return alphaType; }
+TensileDataType Problem::getDataTypeBeta() const { return betaType; }
+bool Problem::useAlpha() const { return alphaType != tensileDataTypeNone; }
+bool Problem::useBeta() const { return betaType != tensileDataTypeNone; }
 size_t Problem::alphaSize() const { return sizeOf(alphaType); }
 size_t Problem::betaSize() const { return sizeOf(betaType); }
 bool Problem::deviceIsReference() const {

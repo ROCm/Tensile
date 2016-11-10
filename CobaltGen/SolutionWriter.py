@@ -64,7 +64,7 @@ class SolutionWriter:
     s += "\n"
 
     # contructor signature
-    s += "namespace Cobalt {\n"
+    s += "namespace Tensile {\n"
     s += "\n"
     s += "/* solution constructor */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
@@ -200,13 +200,13 @@ class SolutionWriter:
     s += "  this->argLeadingStrides = %s;\n" % ("true" if not solution.kernels[0].ppdLeadingStrides else "false")
     s += "  if ( !this->argOffsets && inputProblem.useOffsets) {\n"
     s += "    // problem uses offsets but solution doesn't support offsets\n"
-    s += "    // cobaltGetSolution shouldn't have returned me\n"
-    s += "    throw cobaltStatusInvalidParameter;\n"
+    s += "    // tensileGetSolution shouldn't have returned me\n"
+    s += "    throw tensileStatusInvalidParameter;\n"
     s += "  }\n"
     s += "  if ( !this->argLeadingStrides && (inputProblem.tensorC[0].stride != 1 || inputProblem.tensorA[0].stride != 1 ||  inputProblem.tensorB[0].stride != 1) ) {\n"
     s += "    // problem uses leading strides but solution doesn't support offsets\n"
-    s += "    // cobaltGetSolution shouldn't have returned me\n"
-    s += "    throw cobaltStatusInvalidParameter;\n"
+    s += "    // tensileGetSolution shouldn't have returned me\n"
+    s += "    throw tensileStatusInvalidParameter;\n"
     s += "  }\n"
     s += "\n"
     if not solution.ppdAll:
@@ -349,7 +349,7 @@ class SolutionWriter:
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += "std::string " + solutionName \
         + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel) const {\n"
-    s += "  std::string indent = Cobalt::indent(indentLevel);\n"
+    s += "  std::string indent = Tensile::indent(indentLevel);\n"
     s += "  std::string detail = \"\";\n"
     s += "  detail += indent + \"<ID\";\n"
     s += "  detail += \" kG0=\\\"" + str(solution.kernelGrid[0]) + "\\\"\";\n"
@@ -401,14 +401,14 @@ class SolutionWriter:
     # enqueue
     if self.backend.isHIP():
       s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
-      s += "CobaltStatus " + solutionName \
+      s += "TensileStatus " + solutionName \
           + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(\n"
-      s += "      CobaltTensorData tensorDataC,\n"
-      s += "      CobaltTensorDataConst tensorDataA,\n"
-      s += "      CobaltTensorDataConst tensorDataB,\n"
-      s += "      CobaltScalarData alpha,\n"
-      s += "      CobaltScalarData beta,\n"
-      s += "      CobaltControl & ctrl ) {\n"
+      s += "      TensileTensorData tensorDataC,\n"
+      s += "      TensileTensorDataConst tensorDataA,\n"
+      s += "      TensileTensorDataConst tensorDataB,\n"
+      s += "      TensileScalarData alpha,\n"
+      s += "      TensileScalarData beta,\n"
+      s += "      TensileControl & ctrl ) {\n"
       s += "\n"
       s += "  unsigned int kernelIdx = 0;\n"
       s += "  unsigned int enqueueIdx = 0;\n"
@@ -480,7 +480,7 @@ class SolutionWriter:
       s += "  } else {\n"
       s += "    ctrl.numQueuesUsed = enqueueIdx;\n"
       s += "  }\n"
-      s += "  return cobaltStatusSuccess;\n"
+      s += "  return tensileStatusSuccess;\n"
       s += "}\n"
       s += "\n"
 
@@ -523,7 +523,7 @@ class SolutionWriter:
 
     # class declaration
     s += "\n"
-    s += "namespace Cobalt {\n"
+    s += "namespace Tensile {\n"
     s += "\n"
     s += "/* solution class */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
@@ -540,13 +540,13 @@ class SolutionWriter:
     s += "  std::string toString( size_t indentLevel) const;\n"
     s += "  std::string toStringDetailXML( size_t indentLevel) const;\n"
     if self.backend.isHIP():
-      s += "  CobaltStatus enqueue(\n"
-      s += "      CobaltTensorData tensorDataC,\n"
-      s += "      CobaltTensorDataConst tensorDataA,\n"
-      s += "      CobaltTensorDataConst tensorDataB,\n"
-      s += "      CobaltScalarData alpha,\n"
-      s += "      CobaltScalarData beta,\n"
-      s += "      CobaltControl & ctrl );\n"
+      s += "  TensileStatus enqueue(\n"
+      s += "      TensileTensorData tensorDataC,\n"
+      s += "      TensileTensorDataConst tensorDataA,\n"
+      s += "      TensileTensorDataConst tensorDataB,\n"
+      s += "      TensileScalarData alpha,\n"
+      s += "      TensileScalarData beta,\n"
+      s += "      TensileControl & ctrl );\n"
     s += "\n"
     s += "}; // class\n"
     s += "\n"

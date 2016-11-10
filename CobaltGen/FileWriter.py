@@ -49,9 +49,9 @@ class FileWriter:
     self.ensurePath( self.outputPath + self.minimumXMLSubdirectory )
 
     self.forBenchmark = forBenchmark
-    self.cobaltDirGenerated = "${CobaltLib_DIR_GENERATED}"
+    self.tensileDirGenerated = "${TensileLib_DIR_GENERATED}"
     if self.forBenchmark:
-      self.cobaltDirGenerated = "${CobaltBenchmark_DIR_GENERATED}"
+      self.tensileDirGenerated = "${TensileBenchmark_DIR_GENERATED}"
 
 
 
@@ -59,23 +59,23 @@ class FileWriter:
   # writeKernelFiles
   ##############################################################################
   def writeKernelFiles( self, kernelSet ):
-    print "CobaltGen: Writing kernel files."
+    print "TensileGen: Writing kernel files."
 
     # main kernel .cpp,.h files
-    kernelFilePath = self.cobaltDirGenerated + self.kernelSubdirectory
+    kernelFilePath = self.tensileDirGenerated + self.kernelSubdirectory
     kernelsCMakeFilePath = self.outputPath + self.kernelSubdirectory \
-        + "CobaltKernels.cmake"
+        + "TensileKernels.cmake"
     allKernelsHeaderFilePath = self.outputPath + self.kernelSubdirectory \
-        + "CobaltKernels.h"
+        + "TensileKernels.h"
     kernelsCMakeFile = open(kernelsCMakeFilePath, "w")
     kernelsCMakeFile.write(self.cmakeHeader)
     allKernelsHeaderFile = open(allKernelsHeaderFilePath, "w")
     allKernelsHeaderFile.write(self.cHeader)
 
     if self.forBenchmark:
-      kernelsCMakeFile.write("\nset( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC\n")
+      kernelsCMakeFile.write("\nset( TensileBenchmark_KernelFiles_GENERATED_DYNAMIC\n")
     else:
-      kernelsCMakeFile.write("\nset( CobaltLib_KernelFiles_GENERATED_DYNAMIC\n")
+      kernelsCMakeFile.write("\nset( TensileLib_KernelFiles_GENERATED_DYNAMIC\n")
 
 
     for kernel in kernelSet:
@@ -102,7 +102,7 @@ class FileWriter:
       kernelSourceFile.close()
       kernelHeaderFile.close()
 
-      # write the main CobaltKernels.h,cpp file which #includes these
+      # write the main TensileKernels.h,cpp file which #includes these
       kernelsCMakeFile.write( "  " + kernelFilePath \
           + kernelSourceFileName + "\n")
       kernelsCMakeFile.write( "  " + kernelFilePath \
@@ -111,9 +111,9 @@ class FileWriter:
 
     kernelsCMakeFile.write(")\n")
     if self.forBenchmark:
-      kernelsCMakeFile.write("source_group(CobaltGen\\\\Kernels FILES ${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n")
+      kernelsCMakeFile.write("source_group(TensileGen\\\\Kernels FILES ${TensileBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n")
     else:
-      kernelsCMakeFile.write("source_group(CobaltGen\\\\Kernels FILES ${CobaltLib_KernelFiles_GENERATED_DYNAMIC} )\n")
+      kernelsCMakeFile.write("source_group(TensileGen\\\\Kernels FILES ${TensileLib_KernelFiles_GENERATED_DYNAMIC} )\n")
     kernelsCMakeFile.close()
     allKernelsHeaderFile.close()
 
@@ -122,23 +122,23 @@ class FileWriter:
   # writeSolutionFiles
   ##############################################################################
   def writeSolutionFiles( self, solutionSet ):
-    print "CobaltGen: Writing solution files."
+    print "TensileGen: Writing solution files."
 
     # main solution .cpp,.h files
-    solutionFilePath = self.cobaltDirGenerated + self.solutionSubdirectory
+    solutionFilePath = self.tensileDirGenerated + self.solutionSubdirectory
     solutionsCMakeFilePath = self.outputPath + self.solutionSubdirectory \
-        + "CobaltSolutions.cmake"
+        + "TensileSolutions.cmake"
     allSolutionsHeaderFilePath = self.outputPath + self.solutionSubdirectory \
-        + "CobaltSolutions.h"
+        + "TensileSolutions.h"
     solutionsCMakeFile = open(solutionsCMakeFilePath, "w")
     solutionsCMakeFile.write(self.cmakeHeader)
     allSolutionsHeaderFile = open(allSolutionsHeaderFilePath, "w")
     allSolutionsHeaderFile.write(self.cHeader)
 
     if self.forBenchmark:
-      solutionsCMakeFile.write("set( CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC\n")
+      solutionsCMakeFile.write("set( TensileBenchmark_SolutionFiles_GENERATED_DYNAMIC\n")
     else:
-      solutionsCMakeFile.write("set( CobaltLib_SolutionFiles_GENERATED_DYNAMIC\n")
+      solutionsCMakeFile.write("set( TensileLib_SolutionFiles_GENERATED_DYNAMIC\n")
 
     for solution in solutionSet:
       # open file
@@ -165,7 +165,7 @@ class FileWriter:
       solutionHeaderFile.close()
       # print "Wrote: " + solutionName
 
-      # write the main CobaltSolutions.h,cpp file which #includes these
+      # write the main TensileSolutions.h,cpp file which #includes these
       solutionsCMakeFile.write( "  " + solutionFilePath \
           + solutionHeaderFileName + "\n")
       solutionsCMakeFile.write( "  " + solutionFilePath \
@@ -175,9 +175,9 @@ class FileWriter:
 
     solutionsCMakeFile.write(")\n")
     if self.forBenchmark:
-      solutionsCMakeFile.write("source_group(CobaltGen\\\\Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n")
+      solutionsCMakeFile.write("source_group(TensileGen\\\\Solutions FILES ${TensileBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n")
     else:
-      solutionsCMakeFile.write("source_group(CobaltGen\\\\Solutions FILES ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n")
+      solutionsCMakeFile.write("source_group(TensileGen\\\\Solutions FILES ${TensileLib_SolutionFiles_GENERATED_DYNAMIC} )\n")
     solutionsCMakeFile.close()
     allSolutionsHeaderFile.close()
 
@@ -186,7 +186,7 @@ class FileWriter:
   # writeBenchmarkFiles
   ##############################################################################
   def writeBenchmarkFiles( self, problemTree, problemSolutionCandidates ):
-    print "CobaltGen: Writing benchmark files."
+    print "TensileGen: Writing benchmark files."
 
     numSolutions = 0
     benchmarkNumExactMatches = 0
@@ -229,7 +229,7 @@ class FileWriter:
         s += "\n"
 
         # initializeSolutionCandidates
-        s += "void init_" + exactMatchName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex) {\n"
+        s += "void init_" + exactMatchName + "_candidates(TensileDeviceProfile & deviceProfile, TensileProblem * problem, std::vector<Tensile::Solution *> *solutionCandidates, size_t problemIndex) {\n"
         s += "  switch( problemIndex ) {\n"
         for problemIdx in range(0,len(problemList)):
           problem = problemList[problemIdx]
@@ -246,7 +246,7 @@ class FileWriter:
         h += "#ifndef " + exactMatchFileNameBase.upper() + "_H\n"
         h += "#define " + exactMatchFileNameBase.upper() + "_H\n"
         h += "\n"
-        h += "#include \"Cobalt.h\"\n"
+        h += "#include \"Tensile.h\"\n"
         h += "#include \"Solution.h\"\n"
         h += "#include <vector>\n"
         h += "\n"
@@ -254,7 +254,7 @@ class FileWriter:
           problemFileNameBase = "init_" + str(problemList[i]) + "_candidates"
           h += "#include \""+ problemFileNameBase + ".h\"\n"
         h += "\n"
-        h += "void init_" + exactMatchName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t problemIndex);\n"
+        h += "void init_" + exactMatchName + "_candidates(TensileDeviceProfile & deviceProfile, TensileProblem * problem, std::vector<Tensile::Solution *> *solutionCandidates, size_t problemIndex);\n"
         h += "\n"
         h += "#endif\n\n"
         exactMatchHeaderFile.write(h)
@@ -285,11 +285,11 @@ class FileWriter:
           s += "\n"
 
           # initializeSolutionCandidates
-          s += "void init_" + problemName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates) {\n"
+          s += "void init_" + problemName + "_candidates(TensileDeviceProfile & deviceProfile, TensileProblem * problem, std::vector<Tensile::Solution *> *solutionCandidates) {\n"
 
-          # CobaltDeviceProfile &
+          # TensileDeviceProfile &
           # s += "\n"
-          # s += "  CobaltDeviceProfile deviceProfile = cobaltCreateEmptyDeviceProfile();\n"
+          # s += "  TensileDeviceProfile deviceProfile = tensileCreateEmptyDeviceProfile();\n"
           # s += "  deviceProfile.numDevices = %u;\n" % len(problem.deviceProfile.devices)
           # for i in range(0,len(problem.deviceProfile.devices)):
           #   s += "  sprintf(deviceProfile.devices[%u].name, \"%s\" );\n" % (i, problem.deviceProfile.devices[i].name)
@@ -298,7 +298,7 @@ class FileWriter:
 
           # problem.tensorC
           s += "\n  /* tensorC */\n"
-          s += "  CobaltTensor tensorC = cobaltCreateEmptyTensor();\n"
+          s += "  TensileTensor tensorC = tensileCreateEmptyTensor();\n"
           s += "  tensorC.dataType = " \
               + problem.tensorC.dataType.getLibString() + ";\n"
           tensorDimC = len(problem.tensorC.dimensions)
@@ -311,7 +311,7 @@ class FileWriter:
 
           # problem.tensorA
           s += "\n  /* tensorA */\n"
-          s += "  CobaltTensor tensorA = cobaltCreateEmptyTensor();\n"
+          s += "  TensileTensor tensorA = tensileCreateEmptyTensor();\n"
           s += "  tensorA.dataType = " \
               + problem.tensorA.dataType.getLibString() + ";\n"
           tensorDimA = len(problem.tensorA.dimensions)
@@ -324,7 +324,7 @@ class FileWriter:
 
           # problem.tensorB
           s += "\n  /* tensorB */\n"
-          s += "  CobaltTensor tensorB = cobaltCreateEmptyTensor();\n"
+          s += "  TensileTensor tensorB = tensileCreateEmptyTensor();\n"
           s += "  tensorB.dataType = " \
               + problem.tensorB.dataType.getLibString() + ";\n"
           tensorDimB = len(problem.tensorB.dimensions)
@@ -339,11 +339,11 @@ class FileWriter:
 
           # problem.operation
           s += "\n  /* operation */\n"
-          s += "  CobaltOperationType operationType = " \
+          s += "  TensileOperationType operationType = " \
               + problem.operation.type.getLibString() + ";\n"
-          s += "  CobaltDataType alphaType = " \
+          s += "  TensileDataType alphaType = " \
               + problem.operation.alphaType.getLibString() + ";\n"
-          s += "  CobaltDataType betaType = " \
+          s += "  TensileDataType betaType = " \
               + problem.operation.betaType.getLibString() + ";\n"
           s += "  bool useOffsets = " \
               + ("true" if problem.operation.useOffsets else "false") + ";\n"
@@ -359,7 +359,7 @@ class FileWriter:
                 + str(problem.operation.indexAssignmentsB[i]) + ";\n"
           s += "\n"
           # store problem
-          s += "  CobaltStatus status = cobaltCreateProblem(\n"
+          s += "  TensileStatus status = tensileCreateProblem(\n"
           s += "      problem,\n"
           s += "      tensorC,\n"
           s += "      tensorA,\n"
@@ -371,13 +371,13 @@ class FileWriter:
           s += "      betaType,\n"
           s += "      useOffsets,\n"
           s += "      deviceProfile);\n"
-	  s += "  cobaltStatusCheck(status);\n"
+	  s += "  tensileStatusCheck(status);\n"
           s += "\n"
 
           idx = 0
           numSolutions = len(solutionSet)
           for solution in solutionSet:
-            s += "  solutionCandidates->push_back( new Cobalt::" \
+            s += "  solutionCandidates->push_back( new Tensile::" \
                 + self.solutionWriter.getName(solution)+self.solutionWriter.getTemplateArgList(solution)+"( *((*problem)->pimpl) ) ); // " \
                 + str(idx) + "/" + str(numSolutions) + "\n"
             templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
@@ -413,14 +413,14 @@ class FileWriter:
           h += "#ifndef " + problemFileNameBase.upper() + "_H\n"
           h += "#define " + problemFileNameBase.upper() + "_H\n"
           h += "\n"
-          h += "#include \"Cobalt.h\"\n"
+          h += "#include \"Tensile.h\"\n"
           h += "#include \"Solution.h\"\n"
           h += "#include <vector>\n"
           h += "\n"
           for solution in solutionSet:
             h += "#include \""+ self.solutionWriter.getName(solution) + ".h\"\n"
           h += "\n"
-          h += "void init_" + problemName + "_candidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates);\n"
+          h += "void init_" + problemName + "_candidates(TensileDeviceProfile & deviceProfile, TensileProblem * problem, std::vector<Tensile::Solution *> *solutionCandidates);\n"
           h += "\n"
           h += "#endif\n\n"
           problemHeaderFile.write(h)
@@ -429,11 +429,11 @@ class FileWriter:
     ########################################
     # top level benchmark file
     benchmarkSourcePath = self.outputPath + self.otherSubdirectory \
-      + "CobaltSolutionCandidates.cpp"
+      + "TensileSolutionCandidates.cpp"
     benchmarkSourceFile = open(benchmarkSourcePath, "w")
     benchmarkSourceFile.write(self.cHeader)
     s = ""
-    s += "#include \"CobaltSolutionCandidates.h\"\n"
+    s += "#include \"TensileSolutionCandidates.h\"\n"
     s += "#include <cstdio>\n"
     s += "\n"
     # include candidates
@@ -445,7 +445,7 @@ class FileWriter:
         s += "#include \"" + exactMatchFileNameBase + ".h\"\n"
     # init function
     s += "\n"
-    s += "void initializeSolutionCandidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex) {\n"
+    s += "void initializeSolutionCandidates(TensileDeviceProfile & deviceProfile, TensileProblem * problem, std::vector<Tensile::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex) {\n"
     s += "  switch( exactMatchIndex ) {\n"
     exactMatchIdx = 0
     for deviceProfile, exactMatches in problemTree.iteritems():
@@ -462,14 +462,14 @@ class FileWriter:
     ###########################################
     # top level benchmark header file
     benchmarkHeaderPath = self.outputPath + self.otherSubdirectory \
-        + "CobaltSolutionCandidates.h"
+        + "TensileSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
     benchmarkHeaderFile.write(self.cHeader)
-    h = "#ifndef COBALT_SOLUTION_CANDIDATES_H\n"
-    h += "#define COBALT_SOLUTION_CANDIDATES_H\n"
-    h += "#include \"Cobalt.h\"\n"
+    h = "#ifndef TENTILE_SOLUTION_CANDIDATES_H\n"
+    h += "#define TENTILE_SOLUTION_CANDIDATES_H\n"
+    h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
-    h += "#include \"CobaltSolutions.h\"\n"
+    h += "#include \"TensileSolutions.h\"\n"
     h += "#include <vector>\n"
     #if self.backend.isOpenCL():
     #  h += "#include \"CL/cl.h\"\n"
@@ -509,7 +509,7 @@ class FileWriter:
     h += "static const unsigned int benchmarkDeviceFlopsPerClock = " + str(dp.devices[0].flopsPerClock) + ";\n"
 
     h += "\n"
-    h += "void initializeSolutionCandidates(CobaltDeviceProfile & deviceProfile, CobaltProblem * problem, std::vector<Cobalt::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex);\n"
+    h += "void initializeSolutionCandidates(TensileDeviceProfile & deviceProfile, TensileProblem * problem, std::vector<Tensile::Solution *> *solutionCandidates, size_t exactMatchIndex, size_t problemIndex);\n"
     h += "\n"
     h += "#endif\n"
     h += "\n"
@@ -518,33 +518,33 @@ class FileWriter:
 
     self.writeTemplateInstantiations(templateInstantiationSet)
 
-    # write CobaltBenchmark.cmake
+    # write TensileBenchmark.cmake
     benchmarkCMakePath = self.outputPath + self.otherSubdirectory \
-        + "CobaltBenchmark.cmake"
+        + "TensileBenchmark.cmake"
     benchmarkCMakeFile = open(benchmarkCMakePath, "w")
     benchmarkCMakeFile.write(self.cmakeHeader)
-    s = "# CobaltBenchmark.cmake\n"
+    s = "# TensileBenchmark.cmake\n"
     s += "\n"
-    # s += "include( ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
-    # s += "include( ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
+    # s += "include( ${TensileBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
+    # s += "include( ${TensileBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
     s += "\n"
-    s += "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
+    s += "set( TensileBenchmark_SRC_GENERATED_DYNAMIC\n"
     for deviceProfile, exactMatches in problemTree.iteritems():
       for exactMatch, problemSet in exactMatches.iteritems():
         exactMatchName = str(exactMatch)
         exactMatchFileNameBase = "init_" + exactMatchName + "_candidates"
-        s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + exactMatchFileNameBase + ".cpp\n"
-        s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + exactMatchFileNameBase + ".h\n"
+        s += "  ${TensileBenchmark_DIR_GENERATED}" + self.otherSubdirectory + exactMatchFileNameBase + ".cpp\n"
+        s += "  ${TensileBenchmark_DIR_GENERATED}" + self.otherSubdirectory + exactMatchFileNameBase + ".h\n"
         for problem in problemSet:
           problemName = str(problem)
           problemFileNameBase = "init_" + problemName + "_candidates"
-          s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".cpp\n"
-          s += "  ${CobaltBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".h\n"
+          s += "  ${TensileBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".cpp\n"
+          s += "  ${TensileBenchmark_DIR_GENERATED}" + self.otherSubdirectory + problemFileNameBase + ".h\n"
     s += ")\n"
     s += "\n"
-    s += "source_group(CobaltGen\\\\Benchmark FILES\n"
-    s += "  ${CobaltBenchmark_SRC_GENERATED_STATIC}\n"
-    s += "  ${CobaltBenchmark_SRC_GENERATED_DYNAMIC} )\n"
+    s += "source_group(TensileGen\\\\Benchmark FILES\n"
+    s += "  ${TensileBenchmark_SRC_GENERATED_STATIC}\n"
+    s += "  ${TensileBenchmark_SRC_GENERATED_DYNAMIC} )\n"
     s += "\n"
     benchmarkCMakeFile.write(s)
     benchmarkCMakeFile.close()
@@ -615,7 +615,7 @@ class FileWriter:
     #print "status: writing backend files"
      # (1) Write Top-Level Solution Selection files
     sslw = SolutionSelectionWriter.SolutionSelectionWriter(psTimes, self.backend)
-    baseName = "CobaltGetSolution"
+    baseName = "TensileGetSolution"
     sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
     sslSourceFile = open(sslSourcePath, "w")
     sslSourceFile.write(self.cHeader)
@@ -633,7 +633,7 @@ class FileWriter:
     for deviceProfile, exactMatches in psTimes.iteritems():
       #print str(deviceProfile)
       # (2) Write Device-Level Solution Selection files
-      baseName = "CobaltGetSolution_" + deviceProfile.libString()
+      baseName = "TensileGetSolution_" + deviceProfile.libString()
       sslSourcePath = self.outputPath + self.otherSubdirectory + baseName + ".cpp"
       sslSourceFile = open(sslSourcePath, "w")
       sslSourceFile.write(self.cHeader)
@@ -657,11 +657,11 @@ class FileWriter:
         for sizeGroup in rangePSPs:
           numExactTiles += len(sizeGroup[0])
           numFallbacks += len(sizeGroup[1])
-        print "CobaltGen: Writing backend for %s(%u,%u,%u)." % (str(exactMatch), numExactTiles, numFallbacks, len(exactPSPs))
+        print "TensileGen: Writing backend for %s(%u,%u,%u)." % (str(exactMatch), numExactTiles, numFallbacks, len(exactPSPs))
         # only support this exact match if some benchmark times existed
         # otherwise none of the other files for it will have been written
 
-        baseName = "CobaltGetSolution_" + exactMatch.libString()
+        baseName = "TensileGetSolution_" + exactMatch.libString()
 
         # (7) Write CSV for verification
         if sslw.printStatus: print "%s::writeCSV(%s)" % (str(exactMatch), baseName)
@@ -703,10 +703,10 @@ class FileWriter:
     self.writeSolutionFiles(sslw.getSolutionSet())
 
     # (6) Write CMake File
-    backendCMakePath = self.outputPath + self.otherSubdirectory + "CobaltLib.cmake"
+    backendCMakePath = self.outputPath + self.otherSubdirectory + "TensileLib.cmake"
     backendCMakeFile = open(backendCMakePath, "w")
     backendCMakeFile.write(self.cmakeHeader)
-    s = sslw.writeCobaltLibCMake(self.otherSubdirectory)
+    s = sslw.writeTensileLibCMake(self.otherSubdirectory)
     backendCMakeFile.write(s)
     backendCMakeFile.close()
     self.writeTemplateInstantiations(templateInstantiationSet)
@@ -722,19 +722,19 @@ class FileWriter:
       templateInstantiationsFile.write("#pragma clang diagnostic push\n")
       templateInstantiationsFile.write("#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n")
     for templateInstantiationStr in templateInstantiationSet:
-      templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
+      templateInstantiationsFile.write("template class Tensile::SolutionGPU" \
           +templateInstantiationStr + ";\n")
       if self.backend.isOpenCL():
         templateInstantiationsFile.write(
-            "template class Cobalt::SolutionOpenCL" \
+            "template class Tensile::SolutionOpenCL" \
             +templateInstantiationStr + ";\n")
       else:
         templateInstantiationsFile.write(
-            "template class Cobalt::SolutionHIP" \
+            "template class Tensile::SolutionHIP" \
             +templateInstantiationStr + ";\n")
     if self.backend.isHIP():
       templateInstantiationsFile.write("#pragma clang diagnostic pop\n")
-    print "CobaltGen: Writing explicit template instantiations."
+    print "TensileGen: Writing explicit template instantiations."
     templateInstantiationsFile.close()
 
 ################################################################################
@@ -747,7 +747,7 @@ class FileWriter:
 
     s = ""
     s += "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-    s += "<CobaltLog>\n"
+    s += "<TensileLog>\n"
 
     for psp in fastestPSPs:
       problem = psp[0]
@@ -848,6 +848,6 @@ class FileWriter:
       s += "  <B t=\"%f\" u=\"ms\" />\n" % (time)
       s += " </TE>\n"
 
-    s += "</CobaltLog>\n"
+    s += "</TensileLog>\n"
     minXMLFile.write( s )
     minXMLFile.close()

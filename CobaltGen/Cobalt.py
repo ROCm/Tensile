@@ -3,14 +3,14 @@ import argparse
 import os
 import sys
 import subprocess
-import CobaltGenBenchmark
+import TensileGenBenchmark
 import Structs
 import glob
 import multiprocessing
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-COBALT_PATH = os.path.dirname(SCRIPT_PATH)
-BENCHMARK_PATH = os.path.join(COBALT_PATH, 'CobaltBenchmark')
+TENTILE_PATH = os.path.dirname(SCRIPT_PATH)
+BENCHMARK_PATH = os.path.join(TENTILE_PATH, 'TensileBenchmark')
 
 def which(p, paths=None):
     exes = [p+x for x in ['', '.exe', '.bat']]
@@ -35,7 +35,7 @@ def mkdir(*ps):
 
 def benchmark(cargs):
     # arguments
-    ap = argparse.ArgumentParser(description="CobaltGenBenchmark")
+    ap = argparse.ArgumentParser(description="TensileGenBenchmark")
     ap.add_argument('-D', '--define', nargs='+', default=[])
     ap.add_argument('-G', '--generator', default=None)
     ap.add_argument("--input-path", "-i", dest="inputPath", default=os.getcwd())
@@ -63,7 +63,7 @@ def benchmark(cargs):
     print "  inputFiles=" + str(inputFiles)
 
     # generate benchmark
-    CobaltGenBenchmark.GenBenchmarkFromFiles( \
+    TensileGenBenchmark.GenBenchmarkFromFiles( \
         inputFiles, \
         args.outputPath, \
         backend,
@@ -71,12 +71,12 @@ def benchmark(cargs):
         args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
 
     # Build exe
-    build_path = os.path.join(args.outputPath, '_cobalt_build')
+    build_path = os.path.join(args.outputPath, '_tensile_build')
     mkdir(build_path)
     cmake_args = [BENCHMARK_PATH]
     if args.generator: cmake_args.append('-G ' + args.generator)
-    cmake_args.append('-DCobalt_BACKEND='+str(backend).replace(' ', '_'))
-    cmake_args.append('-DCobaltBenchmark_DIR_GENERATED=' + args.outputPath)
+    cmake_args.append('-DTensile_BACKEND='+str(backend).replace(' ', '_'))
+    cmake_args.append('-DTensileBenchmark_DIR_GENERATED=' + args.outputPath)
 
     for d in args.define:
         cmake_args.append('-D{0}'.format(d))
@@ -93,13 +93,13 @@ def benchmark(cargs):
       validateArgs = ["--validate"]
 
 
-    cmd([os.path.join(build_path, 'bin', 'CobaltBenchmark')]+validateArgs)
+    cmd([os.path.join(build_path, 'bin', 'TensileBenchmark')]+validateArgs)
 
 
 
 
 ################################################################################
-# CobaltDriver - Main
+# TensileDriver - Main
 ################################################################################
 if __name__ == "__main__":
 
@@ -108,4 +108,4 @@ if __name__ == "__main__":
     if command == 'benchmark':
         benchmark(sys.argv[2:])
     else:
-        print "Usage: cobalt benchmark [args]"
+        print "Usage: tensile benchmark [args]"

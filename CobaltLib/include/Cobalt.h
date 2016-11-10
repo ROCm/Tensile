@@ -4,11 +4,11 @@
 
 
 /*******************************************************************************
- * Cobalt.h
+ * Tensile.h
  * - public API
  ******************************************************************************/
-#ifndef COBALT_H
-#define COBALT_H
+#ifndef TENTILE_H
+#define TENTILE_H
 
 #ifdef WIN32
 #define _CRTDBG_MAP_ALLOC
@@ -18,46 +18,46 @@
 #include <crtdbg.h>
 #endif
 
-#undef Cobalt_ENABLE_FP16
-#undef Cobalt_ENABLE_FP16_HOST
+#undef Tensile_ENABLE_FP16
+#undef Tensile_ENABLE_FP16_HOST
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #include "CL/cl.h"
 #else
 #include <hip/hip_runtime.h>
 #endif
 
 #if (defined( __GNUC__ ) || defined( __IBMC__ ))
-    #define Cobalt_ALIGNED(_x) __attribute__ ((aligned(_x)))
+    #define Tensile_ALIGNED(_x) __attribute__ ((aligned(_x)))
 #else
-    #define Cobalt_ALIGNED(_x)
+    #define Tensile_ALIGNED(_x)
 #endif
 
-#ifdef Cobalt_ENABLE_FP16
-#if Cobalt_BACKEND_OPENCL12
-typedef half CobaltHalf;
+#ifdef Tensile_ENABLE_FP16
+#if Tensile_BACKEND_OPENCL12
+typedef half TensileHalf;
 #else
-typedef __fp16 CobaltHalf;
+typedef __fp16 TensileHalf;
 #endif
 
 typedef union {
-   CobaltHalf  Cobalt_ALIGNED(8) s[2];
-   struct{ CobaltHalf x, y; };
-   struct{ CobaltHalf s0, s1; };
-} CobaltComplexHalf;
+   TensileHalf  Tensile_ALIGNED(8) s[2];
+   struct{ TensileHalf x, y; };
+   struct{ TensileHalf s0, s1; };
+} TensileComplexHalf;
 #endif
 
 typedef union {
-   float  Cobalt_ALIGNED(8) s[2];
+   float  Tensile_ALIGNED(8) s[2];
    struct { float x, y; };
    struct { float s0, s1; };
-} CobaltComplexFloat;
+} TensileComplexFloat;
 
 typedef union {
-   double  Cobalt_ALIGNED(8) s[2];
+   double  Tensile_ALIGNED(8) s[2];
    struct { double x, y; };
    struct { double s0, s1; };
-} CobaltComplexDouble;
+} TensileComplexDouble;
 
 
 #ifdef __cplusplus
@@ -66,211 +66,211 @@ extern "C" {
 
 
 /*******************************************************************************
- * CobaltStatus
+ * TensileStatus
  ******************************************************************************/
-typedef enum CobaltStatus_ {
+typedef enum TensileStatus_ {
 
   /* success */
-  cobaltStatusSuccess = 0,                                // success
+  tensileStatusSuccess = 0,                                // success
 
   /* tensor errors */
-  cobaltStatusTensorNumDimensionsInvalid,                 // num dimensions isn't between 1 and max
-  cobaltStatusTensorDimensionOrderInvalid,                // dimensions not in order smallest to largest stride
-  cobaltStatusTensorDimensionStrideInvalid,               // stride is 0
-  cobaltStatusTensorDimensionSizeInvalid,                 // size is 0
+  tensileStatusTensorNumDimensionsInvalid,                 // num dimensions isn't between 1 and max
+  tensileStatusTensorDimensionOrderInvalid,                // dimensions not in order smallest to largest stride
+  tensileStatusTensorDimensionStrideInvalid,               // stride is 0
+  tensileStatusTensorDimensionSizeInvalid,                 // size is 0
 
   /* operation errors */
-  cobaltStatusOperandNumDimensionsMismatch,               // tensor and indexAssignments num dimensions don't match
-  cobaltStatusOperationOperandNumIndicesMismatch,         // tensor A,B don't have correct number of
+  tensileStatusOperandNumDimensionsMismatch,               // tensor and indexAssignments num dimensions don't match
+  tensileStatusOperationOperandNumIndicesMismatch,         // tensor A,B don't have correct number of
                                                           // free, summation and batch indices
-  cobaltStatusOperationIndexAssignmentInvalidA,           // indexAssignmentsA invalid
-  cobaltStatusOperationIndexAssignmentInvalidB,           // indexAssignmentsA invalid
-  cobaltStatusOperationIndexAssignmentDuplicateA,         // indexAssignmentsA contains duplicate assignments
-  cobaltStatusOperationIndexAssignmentDuplicateB,         // indexAssignmentsA contains duplicate assignments
-  cobaltStatusOperationNumFreeIndicesInvalid,             // tensorC doesn't have at least 2 free indices,
+  tensileStatusOperationIndexAssignmentInvalidA,           // indexAssignmentsA invalid
+  tensileStatusOperationIndexAssignmentInvalidB,           // indexAssignmentsA invalid
+  tensileStatusOperationIndexAssignmentDuplicateA,         // indexAssignmentsA contains duplicate assignments
+  tensileStatusOperationIndexAssignmentDuplicateB,         // indexAssignmentsA contains duplicate assignments
+  tensileStatusOperationNumFreeIndicesInvalid,             // tensorC doesn't have at least 2 free indices,
                                                           // or it has a odd number of free indices
                                                           // or num total - num batch != num free indices
-  cobaltStatusOperationNumSummationIndicesInvalid,        // indexAssignments don't contain at least 1 summation index
-  cobaltStatusOperationIndexUnassigned,                   // indexAssignments missing an assignment
-  cobaltStatusOperationSummationIndexAssignmentsInvalid,  // indexAssignment in C and either A or B but not both,
+  tensileStatusOperationNumSummationIndicesInvalid,        // indexAssignments don't contain at least 1 summation index
+  tensileStatusOperationIndexUnassigned,                   // indexAssignments missing an assignment
+  tensileStatusOperationSummationIndexAssignmentsInvalid,  // indexAssignment in C and either A or B but not both,
                                                           // so assignment isn't free, summation or batch
 
-  /* cobaltGetSolution() */
-  cobaltStatusDeviceProfileNumDevicesInvalid,             // num devices isn't between 1 and max
-  cobaltStatusDeviceProfileNotSupported,                  // CobaltLib not configured for device profile
-  cobaltStatusProblemNotSupported,                        // CobaltLib doesn't have solution for problem
+  /* tensileGetSolution() */
+  tensileStatusDeviceProfileNumDevicesInvalid,             // num devices isn't between 1 and max
+  tensileStatusDeviceProfileNotSupported,                  // TensileLib not configured for device profile
+  tensileStatusProblemNotSupported,                        // TensileLib doesn't have solution for problem
 
   /* control errors */
-  cobaltStatusControlInvalid,                             // enqueueSolution given invalid control object
+  tensileStatusControlInvalid,                             // enqueueSolution given invalid control object
 
   /* misc */
-  cobaltStatusInvalidParameter,                           // function passed invalid parameter
+  tensileStatusInvalidParameter,                           // function passed invalid parameter
 
-} CobaltStatus;
+} TensileStatus;
 
 
 /*******************************************************************************
- * cobaltStatusCheck
+ * tensileStatusCheck
  * prints whether status is error, warning or success and status string
  ******************************************************************************/
-#define cobaltStatusCheck(status) \
-  if (status != cobaltStatusSuccess) { \
-    unsigned int _cobaltStatusStringSize; \
-    cobaltStatusToString( status, nullptr, &_cobaltStatusStringSize); \
-    char *_cobaltStatusString = new char[_cobaltStatusStringSize]; \
-    cobaltStatusToString(status, _cobaltStatusString, &_cobaltStatusStringSize); \
-    printf("CobaltStatus::%s on line %u of %s\n", \
-      _cobaltStatusString, \
+#define tensileStatusCheck(status) \
+  if (status != tensileStatusSuccess) { \
+    unsigned int _tensileStatusStringSize; \
+    tensileStatusToString( status, nullptr, &_tensileStatusStringSize); \
+    char *_tensileStatusString = new char[_tensileStatusStringSize]; \
+    tensileStatusToString(status, _tensileStatusString, &_tensileStatusStringSize); \
+    printf("TensileStatus::%s on line %u of %s\n", \
+      _tensileStatusString, \
       __LINE__, \
       __FILE__); \
-    delete[] _cobaltStatusString; \
+    delete[] _tensileStatusString; \
   }
 
 
 /*******************************************************************************
- * cobaltSetup & cobaltTeardown
+ * tensileSetup & tensileTeardown
  * logFileName is c-string of where to write log file
  ******************************************************************************/
-CobaltStatus cobaltSetup( const char *logFilePath );
-CobaltStatus cobaltTeardown();
+TensileStatus tensileSetup( const char *logFilePath );
+TensileStatus tensileTeardown();
 
 
 /*******************************************************************************
- * CobaltDataType
+ * TensileDataType
  ******************************************************************************/
-typedef enum CobaltDataType_ {
-  cobaltDataTypeSingle,                 // 0
-  cobaltDataTypeDouble,                 // 1
-  cobaltDataTypeComplexSingle,          // 2
-  cobaltDataTypeComplexDouble,          // 3
-  cobaltDataTypeComplexConjugateSingle, // 4
-  cobaltDataTypeComplexConjugateDouble, // 5
-#ifdef Cobalt_ENABLE_FP16
-  cobaltDataTypeHalf,                   // 6
-  cobaltDataTypeComplexHalf,            // 7
-  cobaltDataTypeComplexConjugateHalf,   // 8
+typedef enum TensileDataType_ {
+  tensileDataTypeSingle,                 // 0
+  tensileDataTypeDouble,                 // 1
+  tensileDataTypeComplexSingle,          // 2
+  tensileDataTypeComplexDouble,          // 3
+  tensileDataTypeComplexConjugateSingle, // 4
+  tensileDataTypeComplexConjugateDouble, // 5
+#ifdef Tensile_ENABLE_FP16
+  tensileDataTypeHalf,                   // 6
+  tensileDataTypeComplexHalf,            // 7
+  tensileDataTypeComplexConjugateHalf,   // 8
 #endif
-  cobaltNumDataTypes,                   // 9
-  cobaltDataTypeNone,                   // 10
-} CobaltDataType;
+  tensileNumDataTypes,                   // 9
+  tensileDataTypeNone,                   // 10
+} TensileDataType;
 
 
 /*******************************************************************************
- * CobaltDimension
+ * TensileDimension
  ******************************************************************************/
-typedef struct CobaltDimension_ {
+typedef struct TensileDimension_ {
   unsigned int stride;
   unsigned int size;
-} CobaltDimension;
+} TensileDimension;
 
 
 /*******************************************************************************
- * CobaltTensor
+ * TensileTensor
  ******************************************************************************/
-typedef struct CobaltTensor_ {
-  CobaltDataType dataType;
+typedef struct TensileTensor_ {
+  TensileDataType dataType;
   enum { maxDimensions = 16 } maxDimensions_;
   unsigned int numDimensions;
-  CobaltDimension dimensions[maxDimensions];
-} CobaltTensor;
+  TensileDimension dimensions[maxDimensions];
+} TensileTensor;
 
 /*******************************************************************************
-* cobaltCreateEmptyTensor
-* - returns CobaltTensor initialized to zero
+* tensileCreateEmptyTensor
+* - returns TensileTensor initialized to zero
 ******************************************************************************/
-CobaltTensor cobaltCreateEmptyTensor();
+TensileTensor tensileCreateEmptyTensor();
 
 /*******************************************************************************
  * Tensor Data - OpenCL 1.2
  ******************************************************************************/
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #include "CL/cl.h"
 
-typedef struct CobaltTensorData_ {
+typedef struct TensileTensorData_ {
   void *data;
   unsigned int offset;
-} CobaltTensorData;
-typedef struct CobaltTensorDataConst_ {
+} TensileTensorData;
+typedef struct TensileTensorDataConst_ {
   const void *data;
   unsigned int offset;
-} CobaltTensorDataConst;
+} TensileTensorDataConst;
 
 
 /*******************************************************************************
  * Tensor Data - HIP
  ******************************************************************************/
-#elif Cobalt_BACKEND_HIP
-typedef struct CobaltTensorData_ {
+#elif Tensile_BACKEND_HIP
+typedef struct TensileTensorData_ {
   void *data;
   unsigned int offset;
-} CobaltTensorData;
-typedef struct CobaltTensorDataConst_ {
+} TensileTensorData;
+typedef struct TensileTensorDataConst_ {
   const void *data;
   unsigned int offset;
-} CobaltTensorDataConst;
+} TensileTensorDataConst;
 
 #endif
 
-typedef struct CobaltScalarData_ {
+typedef struct TensileScalarData_ {
   const void *data;
-} CobaltScalarData;
+} TensileScalarData;
 
 
 /*******************************************************************************
  * Device
  * the device on which the problem is to be computed
  ******************************************************************************/
-typedef struct CobaltDevice_ {
+typedef struct TensileDevice_ {
   enum { maxNameLength = 256 } maxNameLength_;
   char name[maxNameLength];
   unsigned int numComputeUnits;
   unsigned int clockFrequency;
   static const unsigned int flopsPerClock = 2*64;
-} CobaltDevice;
+} TensileDevice;
 
 
 /*******************************************************************************
- * CobaltDeviceProfile
+ * TensileDeviceProfile
  * describes the device(s) on which the problem is to be computed
  ******************************************************************************/
-typedef struct CobaltDeviceProfile_ {
+typedef struct TensileDeviceProfile_ {
   enum { maxDevices = 1 } maxDevices_;
   unsigned int numDevices;
-  CobaltDevice devices[maxDevices];
-} CobaltDeviceProfile;
+  TensileDevice devices[maxDevices];
+} TensileDeviceProfile;
 
 
 /*******************************************************************************
- * cobaltEnumerateDeviceProfiles
- * list of available CobaltDeviceProfiles
+ * tensileEnumerateDeviceProfiles
+ * list of available TensileDeviceProfiles
  * if size is non-null, it is set to size if string user needs to allocate
  * if cstr is non-null, string is written to cstr buffer
  ******************************************************************************/
-CobaltStatus cobaltEnumerateDeviceProfiles( CobaltDeviceProfile *profiles, unsigned int *size);
+TensileStatus tensileEnumerateDeviceProfiles( TensileDeviceProfile *profiles, unsigned int *size);
 
 
 /*******************************************************************************
-* cobaltCreateEmptyDeviceProfile
-* returns CobaltDeviceProfile initialized to zero
+* tensileCreateEmptyDeviceProfile
+* returns TensileDeviceProfile initialized to zero
 ******************************************************************************/
-CobaltDeviceProfile cobaltCreateEmptyDeviceProfile();
+TensileDeviceProfile tensileCreateEmptyDeviceProfile();
 
 
 /*******************************************************************************
- * CobaltOperationType
+ * TensileOperationType
  ******************************************************************************/
-typedef enum CobaltOperationType_ {
-  cobaltOperationTypeContraction,
-  cobaltOperationTypeConvolution
-  //cobaltOperationTypeCorrelation
-} CobaltOperationType;
+typedef enum TensileOperationType_ {
+  tensileOperationTypeContraction,
+  tensileOperationTypeConvolution
+  //tensileOperationTypeCorrelation
+} TensileOperationType;
 
 
 /*******************************************************************************
- * CobaltControl
+ * TensileControl
  * controls the execution of the solution (queue, dependencies, dependents)
  ******************************************************************************/
-typedef struct CobaltControl_ {
+typedef struct TensileControl_ {
   void *validate;
   unsigned int benchmark;
   enum { maxQueues = 16 } maxQueues_;
@@ -278,65 +278,65 @@ typedef struct CobaltControl_ {
   unsigned int numQueuesUsed;   // returned by library
   unsigned int numInputEvents;  // supplied by user
   unsigned int numOutputEvents; // returned by library
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   cl_command_queue queues[maxQueues];
   cl_event *inputEvents;
   cl_event *outputEvents;
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
   hipStream_t queues[maxQueues];
   hipEvent_t *inputEvents;
   hipEvent_t *outputEvents;
 #endif
-} CobaltControl;
+} TensileControl;
 
 
 
 /*******************************************************************************
-* cobaltCreateEmptyControl
-* returns CobaltControl initialized to zero
+* tensileCreateEmptyControl
+* returns TensileControl initialized to zero
 ******************************************************************************/
-CobaltControl cobaltCreateEmptyControl();
+TensileControl tensileCreateEmptyControl();
 
 
 /*******************************************************************************
- * CobaltProblem
+ * TensileProblem
  * problem describes the computation to be performed
  ******************************************************************************/
-typedef struct _CobaltProblem * CobaltProblem;
+typedef struct _TensileProblem * TensileProblem;
 
 
 /*******************************************************************************
-* CobaltSolution
+* TensileSolution
 * solution describes how problem will be computed
 *   kernels to be enqueued
 *   kernel parameters
 *   kernel thread range
 ******************************************************************************/
-typedef struct _CobaltSolution * CobaltSolution;
+typedef struct _TensileSolution * TensileSolution;
 
 
 /*******************************************************************************
- * cobaltCreateProblem
- * creates CobaltProblem object
+ * tensileCreateProblem
+ * creates TensileProblem object
  * buffer pointers are not specified here
  ******************************************************************************/
-CobaltStatus cobaltCreateProblem(
-    CobaltProblem *problem,
-    CobaltTensor tensorC,
-    CobaltTensor tensorA,
-    CobaltTensor tensorB,
+TensileStatus tensileCreateProblem(
+    TensileProblem *problem,
+    TensileTensor tensorC,
+    TensileTensor tensorA,
+    TensileTensor tensorB,
     unsigned int *indexAssignmentsA,
     unsigned int *indexAssignmentsB,
-    CobaltOperationType operationType,
-    CobaltDataType alphaType,
-    CobaltDataType betaType,
+    TensileOperationType operationType,
+    TensileDataType alphaType,
+    TensileDataType betaType,
     bool useOffsets,
-    CobaltDeviceProfile deviceProfile );
-CobaltStatus cobaltDestroyProblem( CobaltProblem problem );
+    TensileDeviceProfile deviceProfile );
+TensileStatus tensileDestroyProblem( TensileProblem problem );
 
 
 /*******************************************************************************
- * cobaltValidateProblem
+ * tensileValidateProblem
  * checks that problem is self consistent
  *   number of tensor dimensions
  *   free indices
@@ -344,46 +344,46 @@ CobaltStatus cobaltDestroyProblem( CobaltProblem problem );
  *   summation indices
  *   indexAssignments
  ******************************************************************************/
-CobaltStatus cobaltValidateProblem( CobaltProblem problem );
+TensileStatus tensileValidateProblem( TensileProblem problem );
 
 
 /*******************************************************************************
- * cobaltGetSolutionForProblem
+ * tensileGetSolutionForProblem
  * returns optimal solution for input problem according to prior benchmarking
  ******************************************************************************/
-CobaltStatus cobaltGetSolutionForProblem(
-    CobaltSolution *solution,
-    const CobaltProblem problem );
-CobaltStatus cobaltDestroySolution( CobaltSolution solution );
+TensileStatus tensileGetSolutionForProblem(
+    TensileSolution *solution,
+    const TensileProblem problem );
+TensileStatus tensileDestroySolution( TensileSolution solution );
 
 
 /*******************************************************************************
- * cobaltEnqueueSolution
+ * tensileEnqueueSolution
  *   enqueues solution
  *   buffer pointers are specified here
  ******************************************************************************/
-CobaltStatus cobaltEnqueueSolution(
-    CobaltSolution solution,
-    CobaltTensorData tensorDataC,
-    CobaltTensorDataConst tensorDataA,
-    CobaltTensorDataConst tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
-    CobaltControl *control );
+TensileStatus tensileEnqueueSolution(
+    TensileSolution solution,
+    TensileTensorData tensorDataC,
+    TensileTensorDataConst tensorDataA,
+    TensileTensorDataConst tensorDataB,
+    TensileScalarData alpha,
+    TensileScalarData beta,
+    TensileControl *control );
 
 
 /*******************************************************************************
- * cobalt*ToString
+ * tensile*ToString
  * get c-string representation of objects
  * if size is non-null, it is set to size if string user needs to allocate
  * if cstr is non-null, string is written to cstr buffer
  ******************************************************************************/
-CobaltStatus cobaltStatusToString(
-    CobaltStatus status, char *cstr, unsigned int *size );
-CobaltStatus cobaltProblemToString(
-    CobaltProblem problem, char *cstr, unsigned int *size );
-CobaltStatus cobaltSolutionToString(
-    CobaltSolution solution, char *cstr, unsigned int *size );
+TensileStatus tensileStatusToString(
+    TensileStatus status, char *cstr, unsigned int *size );
+TensileStatus tensileProblemToString(
+    TensileProblem problem, char *cstr, unsigned int *size );
+TensileStatus tensileSolutionToString(
+    TensileSolution solution, char *cstr, unsigned int *size );
 
 
 
@@ -391,4 +391,4 @@ CobaltStatus cobaltSolutionToString(
 } // extern "C"
 #endif
 
-#endif // COBALT_H
+#endif // TENTILE_H

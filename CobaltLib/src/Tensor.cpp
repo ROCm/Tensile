@@ -9,29 +9,29 @@
 #include <sstream>
 #include <algorithm>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Constructor
  ******************************************************************************/
-Tensor::Tensor(CobaltTensor tensor)
+Tensor::Tensor(TensileTensor tensor)
   : dataType(tensor.dataType),
   dimensions(tensor.dimensions, tensor.dimensions+tensor.numDimensions) {
-  if (numDims() < 1 || numDims() > CobaltTensor::maxDimensions) {
-    throw cobaltStatusTensorNumDimensionsInvalid;
+  if (numDims() < 1 || numDims() > TensileTensor::maxDimensions) {
+    throw tensileStatusTensorNumDimensionsInvalid;
   }
   for (size_t d = 0; d < numDims(); d++) {
     // relax restrictions to support convolutions mapped to contractions
     // if (d < numDims() - 1) {
     //   if (dimensions[d].stride > dimensions[d + 1].stride) {
-    //     throw cobaltStatusTensorDimensionOrderInvalid;
+    //     throw tensileStatusTensorDimensionOrderInvalid;
     //   }
     // }
     // if (dimensions[d].stride < 1) {
-    //   throw cobaltStatusTensorDimensionStrideInvalid;
+    //   throw tensileStatusTensorDimensionStrideInvalid;
     // }
     if (dimensions[d].size < 1) {
-      throw cobaltStatusTensorDimensionSizeInvalid;
+      throw tensileStatusTensorDimensionSizeInvalid;
     }
   }
 }
@@ -45,7 +45,7 @@ std::string Tensor::toString() const {
 }
 
 std::string Tensor::toStringXML( size_t indent, std::string which ) const {
-  std::string state = Cobalt::indent(indent);
+  std::string state = Tensile::indent(indent);
   state += "<T" + which;
   state += " t=\"" + std::to_string( dataType ) + "\"";
   state += " n=\"" + std::to_string(dimensions.size()) + "\"";
@@ -59,28 +59,28 @@ std::string Tensor::toStringXML( size_t indent, std::string which ) const {
   return state;
 }
 
-std::string Tensor::toString( CobaltTensorDataConst tensorData ) const {
+std::string Tensor::toString( TensileTensorDataConst tensorData ) const {
 
   switch(dataType) {
-  case cobaltDataTypeSingle:
+  case tensileDataTypeSingle:
     return toStringTemplate<float>(tensorData);
-  case cobaltDataTypeDouble:
+  case tensileDataTypeDouble:
     return toStringTemplate<double>(tensorData);
-  case cobaltDataTypeComplexSingle:
-  case cobaltDataTypeComplexConjugateSingle:
-    return toStringTemplate<CobaltComplexFloat>(tensorData);
-  case cobaltDataTypeComplexDouble:
-  case cobaltDataTypeComplexConjugateDouble:
-    return toStringTemplate<CobaltComplexDouble>(tensorData);
-#ifdef Cobalt_ENABLE_FP16_HOST
-  case cobaltDataTypeHalf:
-    return toStringTemplate<CobaltHalf>(tensorData);
-  case cobaltDataTypeComplexHalf:
-  case cobaltDataTypeComplexConjugateHalf:
-    return toStringTemplate<CobaltComplexHalf>(tensorData);
+  case tensileDataTypeComplexSingle:
+  case tensileDataTypeComplexConjugateSingle:
+    return toStringTemplate<TensileComplexFloat>(tensorData);
+  case tensileDataTypeComplexDouble:
+  case tensileDataTypeComplexConjugateDouble:
+    return toStringTemplate<TensileComplexDouble>(tensorData);
+#ifdef Tensile_ENABLE_FP16_HOST
+  case tensileDataTypeHalf:
+    return toStringTemplate<TensileHalf>(tensorData);
+  case tensileDataTypeComplexHalf:
+  case tensileDataTypeComplexConjugateHalf:
+    return toStringTemplate<TensileComplexHalf>(tensorData);
 #endif
-  case cobaltNumDataTypes:
-  case cobaltDataTypeNone:
+  case tensileNumDataTypes:
+  case tensileDataTypeNone:
     return "";
   //default:
   //  return "ERROR";
@@ -88,7 +88,7 @@ std::string Tensor::toString( CobaltTensorDataConst tensorData ) const {
 }
 
 template<typename T>
-std::string Tensor::toStringTemplate( CobaltTensorDataConst tensorData ) const {
+std::string Tensor::toStringTemplate( TensileTensorDataConst tensorData ) const {
   std::ostringstream stream;
   std::vector<unsigned int> coords(numDims());
   for (unsigned int i = 0; i < numDims(); i++) {
@@ -198,7 +198,7 @@ size_t Tensor::getIndex( std::vector<unsigned int> coords ) const {
   return serial;
 }
 
-const CobaltDimension & Tensor::operator[]( size_t index ) const {
+const TensileDimension & Tensor::operator[]( size_t index ) const {
   return dimensions[index];
 }
 
@@ -222,11 +222,11 @@ size_t Tensor::numBytes() const {
   return size * sizeOf(dataType);
 }
 
-CobaltDataType Tensor::getDataType() const { return dataType; }
+TensileDataType Tensor::getDataType() const { return dataType; }
 
 
-CobaltTensor Tensor::getTensorStruct() const {
-  CobaltTensor simple;
+TensileTensor Tensor::getTensorStruct() const {
+  TensileTensor simple;
   simple.dataType = dataType;
   simple.numDimensions = static_cast<unsigned int>(numDims());
   for (unsigned int d = 0; d < numDims(); d++) {
@@ -238,29 +238,29 @@ CobaltTensor Tensor::getTensorStruct() const {
 
 /* Fill TensorData with values*/
 void Tensor::fill(
-  CobaltTensorData tensorData,
+  TensileTensorData tensorData,
   FillType fillType,
   void *src) const {
   switch (dataType) {
-  case cobaltDataTypeSingle:
+  case tensileDataTypeSingle:
     return fillTemplate<float>(tensorData, fillType, src);
-  case cobaltDataTypeDouble:
+  case tensileDataTypeDouble:
     return fillTemplate<double>(tensorData, fillType, src);
-  case cobaltDataTypeComplexSingle:
-  case cobaltDataTypeComplexConjugateSingle:
-    return fillTemplate<CobaltComplexFloat>(tensorData, fillType, src);
-  case cobaltDataTypeComplexDouble:
-  case cobaltDataTypeComplexConjugateDouble:
-    return fillTemplate<CobaltComplexDouble>(tensorData, fillType, src);
-#ifdef Cobalt_ENABLE_FP16_HOST
-  case cobaltDataTypeHalf:
-    return fillTemplate<CobaltHalf>(tensorData, fillType, src);
-  case cobaltDataTypeComplexHalf:
-  case cobaltDataTypeComplexConjugateHalf:
-    return fillTemplate<CobaltComplexHalf>(tensorData, fillType, src);
+  case tensileDataTypeComplexSingle:
+  case tensileDataTypeComplexConjugateSingle:
+    return fillTemplate<TensileComplexFloat>(tensorData, fillType, src);
+  case tensileDataTypeComplexDouble:
+  case tensileDataTypeComplexConjugateDouble:
+    return fillTemplate<TensileComplexDouble>(tensorData, fillType, src);
+#ifdef Tensile_ENABLE_FP16_HOST
+  case tensileDataTypeHalf:
+    return fillTemplate<TensileHalf>(tensorData, fillType, src);
+  case tensileDataTypeComplexHalf:
+  case tensileDataTypeComplexConjugateHalf:
+    return fillTemplate<TensileComplexHalf>(tensorData, fillType, src);
 #endif
-  case cobaltNumDataTypes:
-  case cobaltDataTypeNone:
+  case tensileNumDataTypes:
+  case tensileDataTypeNone:
     return;
   //default:
   //  return;
@@ -269,7 +269,7 @@ void Tensor::fill(
 
 template<typename T>
 void Tensor::fillTemplate(
-    CobaltTensorData tensorData,
+    TensileTensorData tensorData,
     FillType fillType,
     void *srcVoid) const {
 
@@ -288,16 +288,16 @@ void Tensor::fillTemplate(
       size_t index = getIndex(coords);
       switch(fillType) {
       case fillTypeZero:
-        static_cast<T*>(tensorData.data)[index] = Cobalt::getZero<T>();
+        static_cast<T*>(tensorData.data)[index] = Tensile::getZero<T>();
         break;
       case fillTypeOne:
-        static_cast<T*>(tensorData.data)[index] = Cobalt::getOne<T>();
+        static_cast<T*>(tensorData.data)[index] = Tensile::getOne<T>();
         break;
       case fillTypeRandom:
-        static_cast<T*>(tensorData.data)[index] = Cobalt::getRandom<T>();
+        static_cast<T*>(tensorData.data)[index] = Tensile::getRandom<T>();
         break;
       case fillTypeIndex:
-        static_cast<T*>(tensorData.data)[index] = Cobalt::getTypeForInt<T>(index);
+        static_cast<T*>(tensorData.data)[index] = Tensile::getTypeForInt<T>(index);
         break;
       case fillTypeCopy:
         static_cast<T*>(tensorData.data)[index] = src[srcIdx++];
@@ -330,30 +330,30 @@ void Tensor::fillTemplate(
 * Compare Tensors
 ******************************************************************************/
 bool compareTensors(
-  CobaltTensorDataConst gpu,
-  CobaltTensorDataConst cpu,
-  Cobalt::Tensor tensor ) {
+  TensileTensorDataConst gpu,
+  TensileTensorDataConst cpu,
+  Tensile::Tensor tensor ) {
 
   switch (tensor.getDataType()) {
-  case cobaltDataTypeSingle:
+  case tensileDataTypeSingle:
     return compareTensorsTemplate<float>((float *)gpu.data, (float *)cpu.data, tensor);
-  case cobaltDataTypeDouble:
+  case tensileDataTypeDouble:
     return compareTensorsTemplate<double>((double *)gpu.data, (double *)cpu.data, tensor);
-  case cobaltDataTypeComplexSingle:
-  case cobaltDataTypeComplexConjugateSingle:
-    return compareTensorsTemplate<CobaltComplexFloat>((CobaltComplexFloat *)gpu.data, (CobaltComplexFloat *)cpu.data, tensor);
-  case cobaltDataTypeComplexDouble:
-  case cobaltDataTypeComplexConjugateDouble:
-    return compareTensorsTemplate<CobaltComplexDouble>((CobaltComplexDouble *)gpu.data, (CobaltComplexDouble *)cpu.data, tensor);
-#ifdef Cobalt_ENABLE_FP16_HOST
-  case cobaltDataTypeHalf:
-    return compareTensorsTemplate<CobaltHalf>((CobaltHalf *)gpu.data, (CobaltHalf *)cpu.data, tensor);
-  case cobaltDataTypeComplexHalf:
-  case cobaltDataTypeComplexConjugateHalf:
-    return compareTensorsTemplate<CobaltComplexHalf>((CobaltComplexHalf *)gpu.data, (CobaltComplexHalf *)cpu.data, tensor);
+  case tensileDataTypeComplexSingle:
+  case tensileDataTypeComplexConjugateSingle:
+    return compareTensorsTemplate<TensileComplexFloat>((TensileComplexFloat *)gpu.data, (TensileComplexFloat *)cpu.data, tensor);
+  case tensileDataTypeComplexDouble:
+  case tensileDataTypeComplexConjugateDouble:
+    return compareTensorsTemplate<TensileComplexDouble>((TensileComplexDouble *)gpu.data, (TensileComplexDouble *)cpu.data, tensor);
+#ifdef Tensile_ENABLE_FP16_HOST
+  case tensileDataTypeHalf:
+    return compareTensorsTemplate<TensileHalf>((TensileHalf *)gpu.data, (TensileHalf *)cpu.data, tensor);
+  case tensileDataTypeComplexHalf:
+  case tensileDataTypeComplexConjugateHalf:
+    return compareTensorsTemplate<TensileComplexHalf>((TensileComplexHalf *)gpu.data, (TensileComplexHalf *)cpu.data, tensor);
 #endif
-  case cobaltDataTypeNone:
-  case cobaltNumDataTypes:
+  case tensileDataTypeNone:
+  case tensileNumDataTypes:
     printf("ERROR\n");
     return false;
   }
@@ -362,7 +362,7 @@ template<typename DataType>
 bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
-  Cobalt::Tensor tensor) {
+  Tensile::Tensor tensor) {
   unsigned int maxToPrint = 2*2;
   unsigned int printCount = 0;
   bool equal = true;
@@ -377,7 +377,7 @@ bool compareTensorsTemplate(
 
     for (coords[0] = 0; coords[0] < tensor[0].size; coords[0]++) {
       size_t index = tensor.getIndex(coords);
-      if (!(Cobalt::almostEqual(cpuData[index], gpuData[index]))) {
+      if (!(Tensile::almostEqual(cpuData[index], gpuData[index]))) {
         equal = false;
         if (printCount < maxToPrint) {
           printMismatch<DataType>(index, gpuData[index], cpuData[index]);
@@ -437,11 +437,11 @@ void printMismatch<double>(size_t index, double gpuData, double cpuData) {
   printf("%6llu: %.6f != %.6f\n", (unsigned long long)index, gpuData, cpuData);
 }
 template<>
-void printMismatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
+void printMismatch<TensileComplexFloat>(size_t index, TensileComplexFloat gpuData, TensileComplexFloat cpuData) {
   printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 template<>
-void printMismatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
+void printMismatch<TensileComplexDouble>(size_t index, TensileComplexDouble gpuData, TensileComplexDouble cpuData) {
   printf("%6llu: %.6f, %.6f != %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 template<>
@@ -453,11 +453,11 @@ void printMatch<double>(size_t index, double gpuData, double cpuData) {
   printf("%6llu: %.6f == %.6f\n", (unsigned long long)index, gpuData, cpuData);
 }
 template<>
-void printMatch<CobaltComplexFloat>(size_t index, CobaltComplexFloat gpuData, CobaltComplexFloat cpuData) {
+void printMatch<TensileComplexFloat>(size_t index, TensileComplexFloat gpuData, TensileComplexFloat cpuData) {
   printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 template<>
-void printMatch<CobaltComplexDouble>(size_t index, CobaltComplexDouble gpuData, CobaltComplexDouble cpuData) {
+void printMatch<TensileComplexDouble>(size_t index, TensileComplexDouble gpuData, TensileComplexDouble cpuData) {
   printf("%6llu: %.6f, %.6f == %.6f, %.6f\n", (unsigned long long)index, gpuData.x, gpuData.y, cpuData.x, cpuData.y);
 }
 

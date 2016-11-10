@@ -12,7 +12,7 @@
 #include <time.h>
 #endif
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Timer
@@ -47,8 +47,8 @@ void makeFileNameSafe( char *str );
 } // namespace
 
 
-#define cobaltMin(a,b) (((a) < (b)) ? (a) : (b))
-#define cobaltMax(a,b) (((a) > (b)) ? (a) : (b))
+#define tensileMin(a,b) (((a) < (b)) ? (a) : (b))
+#define tensileMax(a,b) (((a) > (b)) ? (a) : (b))
 
 #endif
 

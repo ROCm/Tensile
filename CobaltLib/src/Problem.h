@@ -5,13 +5,13 @@
 #ifndef PROBLEM_H
 #define PROBLEM_H
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Tensor.h"
 #include "DeviceProfile.h"
 
 #include <vector>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Problem
@@ -20,28 +20,28 @@ class Problem {
   friend class Solution;
 public:
   Problem(
-    CobaltTensor tensorC,
-    CobaltTensor tensorA,
-    CobaltTensor tensorB,
+    TensileTensor tensorC,
+    TensileTensor tensorA,
+    TensileTensor tensorB,
     unsigned int *indexAssignmentsA,
     unsigned int *indexAssignmentsB,
-    CobaltOperationType operationType,
-    CobaltDataType alphaType,
-    CobaltDataType betaType,
+    TensileOperationType operationType,
+    TensileDataType alphaType,
+    TensileDataType betaType,
     bool useOffsets,
-    CobaltDeviceProfile deviceProfile );
+    TensileDeviceProfile deviceProfile );
   bool useAlpha() const;
   bool useBeta() const;
   bool deviceIsReference() const;
-  CobaltStatus validate();
+  TensileStatus validate();
   std::string toString() const;
   std::string toStringXML( size_t indentLevel ) const;
   std::string toStringOperationXML( size_t indentLevel ) const;
-  CobaltDataType getDataTypeC() const;
-  CobaltDataType getDataTypeA() const;
-  CobaltDataType getDataTypeB() const;
-  CobaltDataType getDataTypeAlpha() const;
-  CobaltDataType getDataTypeBeta() const;
+  TensileDataType getDataTypeC() const;
+  TensileDataType getDataTypeA() const;
+  TensileDataType getDataTypeB() const;
+  TensileDataType getDataTypeAlpha() const;
+  TensileDataType getDataTypeBeta() const;
   size_t alphaSize() const;
   size_t betaSize() const;
   bool operator<( const Problem & other ) const;
@@ -53,9 +53,9 @@ public:
   Tensor tensorC;
   Tensor tensorA;
   Tensor tensorB;
-  CobaltOperationType operationType;
-  CobaltDataType alphaType;
-  CobaltDataType betaType;
+  TensileOperationType operationType;
+  TensileDataType alphaType;
+  TensileDataType betaType;
   bool useOffsets;
   DeviceProfile deviceProfile;
   std::vector<unsigned int> indicesFree;
@@ -70,10 +70,10 @@ public:
 
 
 /*******************************************************************************
- * CobaltProblem - public pimpl
+ * TensileProblem - public pimpl
  ******************************************************************************/
-struct _CobaltProblem {
-  Cobalt::Problem *pimpl;
+struct _TensileProblem {
+  Tensile::Problem *pimpl;
 };
 
 #endif

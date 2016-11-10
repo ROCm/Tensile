@@ -5,12 +5,12 @@
 #ifndef SOLUTION_H
 #define SOLUTION_H
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Problem.h"
 #include <map>
 #include <string>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Solution - base abstract class without templates
@@ -19,21 +19,21 @@ class Solution {
 public:
   Solution( const Problem & inputProblem );
   virtual ~Solution() { /*nothing*/ };
-  CobaltStatus enqueueEntry(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl,
+  TensileStatus enqueueEntry(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl,
 	  bool doPrint );
-  virtual CobaltStatus enqueue(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl ) = 0;
+  virtual TensileStatus enqueue(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl ) = 0;
   virtual std::string toString( size_t indentLevel ) const = 0;
   std::string toStringXML( size_t indentLevel ) const;
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
@@ -43,7 +43,7 @@ protected:
   Problem problem;
 };
 
-struct CobaltSolutionPtrComparator
+struct TensileSolutionPtrComparator
     : std::binary_function<const Solution *,
     const Solution *, bool> {
   bool  operator() (const Solution *l, const Solution *r) const {
@@ -60,13 +60,13 @@ class SolutionTemplate : public Solution {
 public:
   SolutionTemplate( const Problem & inputProblem );
   virtual ~SolutionTemplate() { /*nothing*/ };
-  virtual CobaltStatus enqueue(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl ) = 0;
+  virtual TensileStatus enqueue(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl ) = 0;
   virtual std::string toString( size_t indentLevel ) const = 0;
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
 };
@@ -88,13 +88,13 @@ public:
   SolutionGPU( const Problem & inputProblem );
   ~SolutionGPU();
 
-  virtual CobaltStatus enqueue(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl ) = 0;
+  virtual TensileStatus enqueue(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
@@ -106,7 +106,7 @@ protected:
   static const unsigned int workDim = 3;
   static const unsigned int maxNumKernels = 4;
   static const unsigned int maxNumEnqueues = 4*4;
-  const static unsigned int maxNumKernelArgs = 3+4*CobaltTensor::maxDimensions;
+  const static unsigned int maxNumKernelArgs = 3+4*TensileTensor::maxDimensions;
   unsigned int numKernels;
   unsigned int numEnqueues[maxNumKernels];
   unsigned int numKernelArgs; // integers only
@@ -147,9 +147,9 @@ protected:
 
 
 /*******************************************************************************
- * CobaltSolutionOpenCL - parent class for OpenCL solutions
+ * TensileSolutionOpenCL - parent class for OpenCL solutions
  ******************************************************************************/
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #include "CL/cl.h"
 template<
     typename TypeC,
@@ -169,13 +169,13 @@ public:
   const char *kernelSource,
   const char *sourceBuildOptions);
   
-  CobaltStatus enqueue(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl );
+  TensileStatus enqueue(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl );
 
   virtual std::string toString( size_t indentLevel ) const = 0;
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
@@ -209,26 +209,26 @@ protected:
 #endif
 
 /*******************************************************************************
- * CobaltSolutionHIP - parent class for HIP solutions
+ * TensileSolutionHIP - parent class for HIP solutions
  * for HIP kernels:
  *    - all kernels will accept offsets, to simplify calling
  *    - all kernels will accept alpha/beta, to simplify calling
  *    - leading strides are optional
  ******************************************************************************/
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 class SolutionHIP : public SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   SolutionHIP( const Problem & inputProblem );
   ~SolutionHIP();
 
-  virtual CobaltStatus enqueue(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl ) = 0;
+  virtual TensileStatus enqueue(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl ) = 0;
 
   virtual std::string toString( size_t indentLevel ) const = 0;
   virtual std::string toStringDetailXML( size_t indentLevel ) const = 0;
@@ -244,22 +244,22 @@ protected:
 
 
 /*******************************************************************************
- * CobaltSolutionLogOnly - used in LOG_ONLY mode
+ * TensileSolutionLogOnly - used in LOG_ONLY mode
  ******************************************************************************/
-#if Cobalt_LOGGER_ENABLED
+#if Tensile_LOGGER_ENABLED
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
 class SolutionLogOnly : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
   SolutionLogOnly( const Problem & inputProblem );
   ~SolutionLogOnly();
 
-  CobaltStatus enqueue(
-      CobaltTensorData tensorDataC,
-      CobaltTensorDataConst tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl );
+  TensileStatus enqueue(
+      TensileTensorData tensorDataC,
+      TensileTensorDataConst tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl );
 
   std::string toString( size_t indentLevel ) const;
   std::string toStringDetailXML( size_t indentLevel ) const;
@@ -276,7 +276,7 @@ public:
 
 
 // cache kernels so they only get compiled once
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 typedef struct KernelMapKey_ {
   cl_context context; // address of context
   cl_device_id device; // address of device
@@ -291,20 +291,20 @@ __declspec(thread) extern KernelMap *kernelMap;
 extern __thread KernelMap *kernelMap;
 #endif
 
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
 // not needed; pre-compiled
 #endif
 
 
 
 #include <assert.h>
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #define CL_CHECK(RET) \
   if(RET != CL_SUCCESS) { \
     printf("OpenCL Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
     /*assert(false);*/ \
     }
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
 #define CL_CHECK(RET) \
   if(RET != hipSuccess) { \
     printf("HIP Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
@@ -316,10 +316,10 @@ extern __thread KernelMap *kernelMap;
 
 
 /*******************************************************************************
- * CobaltSolution - public pimpl
+ * TensileSolution - public pimpl
  ******************************************************************************/
-struct _CobaltSolution {
-  Cobalt::Solution *pimpl;
+struct _TensileSolution {
+  Tensile::Solution *pimpl;
 };
 
 

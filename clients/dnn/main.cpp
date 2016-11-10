@@ -2,7 +2,7 @@
  * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
  ******************************************************************************/
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -21,15 +21,15 @@ unsigned int P; // padding
 unsigned int OH; // output height
 unsigned int OW; // output width
 
-CobaltTensor image;
-CobaltTensor filter;
-CobaltTensor output;
+TensileTensor image;
+TensileTensor filter;
+TensileTensor output;
 
-CobaltDeviceProfile deviceProfile;
+TensileDeviceProfile deviceProfile;
 
-CobaltProblem createProblemFor_NCHW_ConvolutionAsContraction();
-CobaltProblem createProblemFor_NHWC_ConvolutionAsContraction();
-CobaltProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction();
+TensileProblem createProblemFor_NCHW_ConvolutionAsContraction();
+TensileProblem createProblemFor_NHWC_ConvolutionAsContraction();
+TensileProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction();
 
 /*
   tensor dimension order
@@ -45,15 +45,15 @@ CobaltProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction();
  ******************************************************************************/
 int main( int argc, char * argv[] ) {
 
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
-  logFilePath += "/cobalt_trace.xml";
-  cobaltSetup(logFilePath.c_str());
-  CobaltProblem problem;
-  CobaltSolution solution;
-  CobaltStatus status;
+  std::string logFilePath = Tensile_DIR_PROBLEMS;
+  logFilePath += "/tensile_trace.xml";
+  tensileSetup(logFilePath.c_str());
+  TensileProblem problem;
+  TensileSolution solution;
+  TensileStatus status;
 
   // device profile
-  deviceProfile = cobaltCreateEmptyDeviceProfile();
+  deviceProfile = tensileCreateEmptyDeviceProfile();
   deviceProfile.numDevices = 1;
 #ifdef WIN32
   sprintf_s(deviceProfile.devices[0].name, deviceProfile.devices[0].maxNameLength, "Fiji");
@@ -79,8 +79,8 @@ int main( int argc, char * argv[] ) {
   //problem = createProblemFor_NHWC_ConvolutionAsContraction();
   problem = createProblemFor_NHWC_Fused_ConvolutionAsContraction();
 
-  status = cobaltGetSolutionForProblem( &solution, problem );
-  cobaltStatusCheck(status);
+  status = tensileGetSolutionForProblem( &solution, problem );
+  tensileStatusCheck(status);
   /* C[i:28,j:28,k:32,l:100] = Sum(m:3,n:5,o:5) A[o,n,i,j,m,l] * B[o,n,j,m,k,l] */
 
 #if 0
@@ -98,8 +98,8 @@ int main( int argc, char * argv[] ) {
   OH = (H-S+2*P)/U + 1;
   OW = (W-S+2*P)/V + 1;
   problem = createProblemForConvolutionAsContraction();
-  status = cobaltGetSolutionForProblem( &solution, problem );
-  cobaltStatusCheck(status);
+  status = tensileGetSolutionForProblem( &solution, problem );
+  tensileStatusCheck(status);
 
   /* Caffe Layer 3 */
   H = 8;
@@ -115,23 +115,23 @@ int main( int argc, char * argv[] ) {
   OH = (H-S+2*P)/U + 1;
   OW = (W-S+2*P)/V + 1;
   problem = createProblemForConvolutionAsContraction();
-  status = cobaltGetSolutionForProblem( &solution, problem );
-  cobaltStatusCheck(status);
+  status = tensileGetSolutionForProblem( &solution, problem );
+  tensileStatusCheck(status);
 #endif
-  cobaltTeardown();
+  tensileTeardown();
 }
 
-CobaltProblem createProblemFor_NCHW_ConvolutionAsContraction() {
+TensileProblem createProblemFor_NCHW_ConvolutionAsContraction() {
 
   // reset tensors
-  image = cobaltCreateEmptyTensor();
-  filter = cobaltCreateEmptyTensor();
-  output = cobaltCreateEmptyTensor();
+  image = tensileCreateEmptyTensor();
+  filter = tensileCreateEmptyTensor();
+  output = tensileCreateEmptyTensor();
 
   // data types
-  image.dataType = cobaltDataTypeSingle;
-  filter.dataType = cobaltDataTypeSingle;
-  output.dataType = cobaltDataTypeSingle;
+  image.dataType = tensileDataTypeSingle;
+  filter.dataType = tensileDataTypeSingle;
+  output.dataType = tensileDataTypeSingle;
 
 
   /* image tensor (row major) */
@@ -216,34 +216,34 @@ CobaltProblem createProblemFor_NCHW_ConvolutionAsContraction() {
 
 
   // create problem
-  CobaltProblem problem;
-  CobaltStatus status = cobaltCreateProblem(
+  TensileProblem problem;
+  TensileStatus status = tensileCreateProblem(
     &problem,
     output,
     image,
     filter,
     imageIndexAssignments,
     filterIndexAssignments,
-    cobaltOperationTypeContraction,
-    cobaltDataTypeSingle, // alpha
-    cobaltDataTypeSingle, // beta
+    tensileOperationTypeContraction,
+    tensileDataTypeSingle, // alpha
+    tensileDataTypeSingle, // beta
     true, // use offsets?
     deviceProfile );
-  cobaltStatusCheck(status);
+  tensileStatusCheck(status);
 
 
   // validate problem
-  CobaltStatus validationStatus = cobaltValidateProblem( problem );
-  cobaltStatusCheck(validationStatus);
-  if (validationStatus != cobaltStatusSuccess) {
-    cobaltValidateProblem( problem );
+  TensileStatus validationStatus = tensileValidateProblem( problem );
+  tensileStatusCheck(validationStatus);
+  if (validationStatus != tensileStatusSuccess) {
+    tensileValidateProblem( problem );
   }
 
   // print problem
   unsigned int problemStringSize;
-  cobaltProblemToString(problem, nullptr, &problemStringSize);
+  tensileProblemToString(problem, nullptr, &problemStringSize);
   char *problemString = new char[problemStringSize];
-  cobaltProblemToString(problem, problemString, &problemStringSize);
+  tensileProblemToString(problem, problemString, &problemStringSize);
   printf("%s\n", problemString);
   delete[] problemString;
   return problem;
@@ -251,17 +251,17 @@ CobaltProblem createProblemFor_NCHW_ConvolutionAsContraction() {
 
 
 // TODO debug me
-CobaltProblem createProblemFor_NHWC_ConvolutionAsContraction() {
+TensileProblem createProblemFor_NHWC_ConvolutionAsContraction() {
 
 	// reset tensors
-	image = cobaltCreateEmptyTensor();
-	filter = cobaltCreateEmptyTensor();
-	output = cobaltCreateEmptyTensor();
+	image = tensileCreateEmptyTensor();
+	filter = tensileCreateEmptyTensor();
+	output = tensileCreateEmptyTensor();
 
 	// data types
-	image.dataType = cobaltDataTypeSingle;
-	filter.dataType = cobaltDataTypeSingle;
-	output.dataType = cobaltDataTypeSingle;
+	image.dataType = tensileDataTypeSingle;
+	filter.dataType = tensileDataTypeSingle;
+	output.dataType = tensileDataTypeSingle;
 
 
 	/* image tensor (row major) */
@@ -350,51 +350,51 @@ CobaltProblem createProblemFor_NHWC_ConvolutionAsContraction() {
 
 
 	// create problem
-	CobaltProblem problem;
-	CobaltStatus status = cobaltCreateProblem(
+	TensileProblem problem;
+	TensileStatus status = tensileCreateProblem(
 		&problem,
 		output,
 		image,
 		filter,
 		imageIndexAssignments,
 		filterIndexAssignments,
-		cobaltOperationTypeContraction,
-		cobaltDataTypeSingle, // alpha
-		cobaltDataTypeSingle, // beta
+		tensileOperationTypeContraction,
+		tensileDataTypeSingle, // alpha
+		tensileDataTypeSingle, // beta
 		true, // use offsets?
 		deviceProfile);
-	cobaltStatusCheck(status);
+	tensileStatusCheck(status);
 
 
 	// validate problem
-	CobaltStatus validationStatus = cobaltValidateProblem(problem);
-	cobaltStatusCheck(validationStatus);
-	if (validationStatus != cobaltStatusSuccess) {
-		cobaltValidateProblem(problem);
+	TensileStatus validationStatus = tensileValidateProblem(problem);
+	tensileStatusCheck(validationStatus);
+	if (validationStatus != tensileStatusSuccess) {
+		tensileValidateProblem(problem);
 	}
 
 	// print problem
 	unsigned int problemStringSize;
-	cobaltProblemToString(problem, nullptr, &problemStringSize);
+	tensileProblemToString(problem, nullptr, &problemStringSize);
 	char *problemString = new char[problemStringSize];
-	cobaltProblemToString(problem, problemString, &problemStringSize);
+	tensileProblemToString(problem, problemString, &problemStringSize);
 	printf("%s\n", problemString);
 	delete[] problemString;
 	return problem;
 }
 
 
-CobaltProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction() {
+TensileProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction() {
 
 	// reset tensors
-	image = cobaltCreateEmptyTensor();
-	filter = cobaltCreateEmptyTensor();
-	output = cobaltCreateEmptyTensor();
+	image = tensileCreateEmptyTensor();
+	filter = tensileCreateEmptyTensor();
+	output = tensileCreateEmptyTensor();
 
 	// data types
-	image.dataType = cobaltDataTypeSingle;
-	filter.dataType = cobaltDataTypeSingle;
-	output.dataType = cobaltDataTypeSingle;
+	image.dataType = tensileDataTypeSingle;
+	filter.dataType = tensileDataTypeSingle;
+	output.dataType = tensileDataTypeSingle;
 
 
 	/* image tensor (row major) */
@@ -483,34 +483,34 @@ CobaltProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction() {
 
 
 	// create problem
-	CobaltProblem problem;
-	CobaltStatus status = cobaltCreateProblem(
+	TensileProblem problem;
+	TensileStatus status = tensileCreateProblem(
 		&problem,
 		output,
 		image,
 		filter,
 		imageIndexAssignments,
 		filterIndexAssignments,
-		cobaltOperationTypeContraction,
-		cobaltDataTypeSingle, // alpha
-		cobaltDataTypeSingle, // beta
+		tensileOperationTypeContraction,
+		tensileDataTypeSingle, // alpha
+		tensileDataTypeSingle, // beta
 		true, // use offsets?
 		deviceProfile);
-	cobaltStatusCheck(status);
+	tensileStatusCheck(status);
 
 
 	// validate problem
-	CobaltStatus validationStatus = cobaltValidateProblem(problem);
-	cobaltStatusCheck(validationStatus);
-	if (validationStatus != cobaltStatusSuccess) {
-		cobaltValidateProblem(problem);
+	TensileStatus validationStatus = tensileValidateProblem(problem);
+	tensileStatusCheck(validationStatus);
+	if (validationStatus != tensileStatusSuccess) {
+		tensileValidateProblem(problem);
 	}
 
 	// print problem
 	unsigned int problemStringSize;
-	cobaltProblemToString(problem, nullptr, &problemStringSize);
+	tensileProblemToString(problem, nullptr, &problemStringSize);
 	char *problemString = new char[problemStringSize];
-	cobaltProblemToString(problem, problemString, &problemStringSize);
+	tensileProblemToString(problem, problemString, &problemStringSize);
 	printf("%s\n", problemString);
 	delete[] problemString;
 	return problem;

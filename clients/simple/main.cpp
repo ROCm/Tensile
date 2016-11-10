@@ -13,9 +13,9 @@
 #define VALIDATE 0
 #define SWITCH_AB 0
 
-#define Cobalt_BACKEND_OPENCL12 1
+#define Tensile_BACKEND_OPENCL12 1
 
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
 /*******************************************************************************
  * HIP stuff
  ******************************************************************************/
@@ -120,7 +120,7 @@ private:
 
 
 // these need to agree with kernel
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 #define TYPE_A      float
 #define TYPE_B      float
 #define TYPE_C      float
@@ -158,7 +158,7 @@ const unsigned int transB = 0;
 int main( int argc, char *argv[] ) {
 
   // init runtime
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   printf("allocating opencl queue\n");
   cl_platform_id platform;
   cl_device_id device;
@@ -242,7 +242,7 @@ int main( int argc, char *argv[] ) {
 
   // allocate device buffers
   printf("allocating device buffers\n");
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   TYPE_C *dC;
   TYPE_A *dA;
   TYPE_B *dB;
@@ -265,7 +265,7 @@ int main( int argc, char *argv[] ) {
   printf("initializing device buffers\n");
 
   // dim
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   dim3 workGroup( WG_0I, WG_1J, 1 );
   dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);
 #else
@@ -280,7 +280,7 @@ int main( int argc, char *argv[] ) {
   timer.start();
 
   // enqueue kernel
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   printf("enqueueing hip kernel block=%ux%u, work-group=%ux%u\n",blocks.x, blocks.y, workGroup.x, workGroup.y);
   hipLaunchKernel(
       HIP_KERNEL_NAME(kernel_hip),
@@ -337,7 +337,7 @@ int main( int argc, char *argv[] ) {
 
   // wait for kernel
   printf("synchronizing stream\n");
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   status = hipStreamSynchronize( nullptr );
   CHECK(status);
 #else
@@ -346,7 +346,7 @@ int main( int argc, char *argv[] ) {
   double time_ms = timer.elapsed_ms() / numEnqueues;
   // copy result back to host
   printf("copying device results back to host\n");
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   status = hipMemcpy( hC, dC, sizeC, hipMemcpyDeviceToHost ); CHECK(status);
 #else
   CHECK( clEnqueueReadBuffer(queue, dC, CL_TRUE, 0, sizeC, hC, 0, nullptr, nullptr ); )
@@ -389,7 +389,7 @@ int main( int argc, char *argv[] ) {
 
 }
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 void makeKernel(
     cl_kernel *kernel,
     cl_command_queue queue,

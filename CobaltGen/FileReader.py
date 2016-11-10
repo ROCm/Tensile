@@ -60,9 +60,9 @@ def addProblemToTree( tree, exactMatch, problem ):
 
 
 ################################################################################
-# CobaltHandler
+# TensileHandler
 ################################################################################
-class CobaltHandler( xml.sax.ContentHandler ):
+class TensileHandler( xml.sax.ContentHandler ):
   dbgPrint = False
   def __init__(self, data, readSolutions, optimizeAlpha, optimizeBeta):
     self.data = data
@@ -253,7 +253,7 @@ def getProblemsFromXML( inputFile, problemTree, optimizeAlpha, optimizeBeta ):
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = False
-  appProblemsHandler = CobaltHandler(problemTree, readSolutions, optimizeAlpha, optimizeBeta)
+  appProblemsHandler = TensileHandler(problemTree, readSolutions, optimizeAlpha, optimizeBeta)
   parser.setContentHandler( appProblemsHandler )
   #try:
   parser.parse( inputFile )
@@ -269,7 +269,7 @@ def getSolutionsFromXML( inputFile, psMap, optimizeAlpha, optimizeBeta ):
   parser = xml.sax.make_parser()
   parser.setFeature(xml.sax.handler.feature_namespaces, 0)
   readSolutions = True
-  solutionsHandler = CobaltHandler(psMap, readSolutions, optimizeAlpha, optimizeBeta)
+  solutionsHandler = TensileHandler(psMap, readSolutions, optimizeAlpha, optimizeBeta)
   parser.setContentHandler( solutionsHandler )
   #try:
   #print "XML Parser: parsing %s" % str(inputFile)

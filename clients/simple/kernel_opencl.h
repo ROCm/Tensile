@@ -343,7 +343,7 @@ __kernel void gemm_kernel(
 
 #endif
 
-// cobalt 32x32x8 TN
+// tensile 32x32x8 TN
 #if 0
 const char * const kernelSource_TN = "\n"
 "/* CT_SSSSS_Cij_Sk_Aki_Bkj_i16x2s_j16x2s_nl1x1_k8_O2 */\n"
@@ -507,7 +507,7 @@ const char * const kernelSource_TN = "\n"
 "";
 #endif
 
-// cobalt 64x64x8 TN
+// tensile 64x64x8 TN
 #if 0
 
 const char * kernelSource_TN = "\n"
@@ -706,7 +706,7 @@ const char * kernelSource_TN = "\n"
 
 #endif
 
-// cobalt 64x64x16 TN
+// tensile 64x64x16 TN
 #if 0
 
 const char * kernelSource_TN = "\n"
@@ -6475,7 +6475,7 @@ __kernel void gemm_kernel(
 
 
 #if 0
-// Cobalt sgemm_NT_128x128x8_prefetch
+// Tensile sgemm_NT_128x128x8_prefetch
 
 
 const char * kernelSource_NT = R"(
@@ -9949,13 +9949,13 @@ __kernel void gemm_kernel(
 
 // NT original 0
 // unroll 16
-// both Cobalt & original validate
+// both Tensile & original validate
 #if 0
 
 
 const char * kernelSource_NT = R"(
 
-#define COBALT_PATH 0
+#define TENTILE_PATH 0
 
 /* CT_SSSSS_Cij_Sk_Aik_Bjk_i16x6f_j16x6f_k16_O2 */
 
@@ -10097,7 +10097,7 @@ __kernel void gemm_kernel(
   unsigned int localIdx1J = get_local_id(1); // d1
   unsigned int localSerial = localIdx0I + localIdx1J*WG_0I;
 
-#if COBALT_PATH
+#if TENTILE_PATH
 #else
   A +=  groupIdx0I*96 + localIdx0I + localIdx1J*strideAK;
   B +=  groupIdx1J*96 + localIdx0I + localIdx1J*strideBK;
@@ -10110,7 +10110,7 @@ __kernel void gemm_kernel(
   /* iterate over all summation indices */
   unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
   do {
-#if COBALT_PATH
+#if TENTILE_PATH
     __local DATA_TYPE_STR_A *lA = localA + GET_LOCAL_INDEX_A(localA0I, localAK);
     __local DATA_TYPE_STR_B *lB = localB + GET_LOCAL_INDEX_B(localB1J, localBK);
 #else
@@ -10121,7 +10121,7 @@ __kernel void gemm_kernel(
 
 
     /* load global -> local */
-#if COBALT_PATH
+#if TENTILE_PATH
     lA[ 0*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(0), globalIdxAK(0) ) ];
     lA[ 1*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(1), globalIdxAK(1) ) ];
     lA[ 2*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(2), globalIdxAK(2) ) ];
@@ -10223,7 +10223,7 @@ __kernel void gemm_kernel(
 
 #endif
 
-// NT Cobalt branched kernel
+// NT Tensile branched kernel
 #if 0
 const char * kernelSource_NT = "\n"
 "/* CT_SSSSS_Cij_Sk_Aik_Bjk_i16b6f_j16b6f_k8_O2 */\n"

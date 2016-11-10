@@ -6,20 +6,20 @@
 #ifndef STRUCT_OPERATIONS_H
 #define STRUCT_OPERATIONS_H
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Tools.h"
 //#include "Solution.h"
 #include <string>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * enum toString
  ******************************************************************************/
-std::string toString( CobaltStatus code );
-std::string toString( CobaltDataType dataType );
-std::string toString( CobaltOperationType type );
-std::string toString( CobaltProblem problem );
+std::string toString( TensileStatus code );
+std::string toString( TensileDataType dataType );
+std::string toString( TensileOperationType type );
+std::string toString( TensileProblem problem );
 
 template<typename T>
 std::string tensorElementToString( T element );
@@ -28,9 +28,9 @@ std::string tensorElementToString( T element );
 template<typename DataType>
 std::ostream& appendElement(std::ostream& os, const DataType& element);
 
-size_t sizeOf( CobaltDataType type );
+size_t sizeOf( TensileDataType type );
 
-size_t flopsPerMadd( CobaltDataType type );
+size_t flopsPerMadd( TensileDataType type );
 
 } // namespace
 
@@ -38,12 +38,12 @@ size_t flopsPerMadd( CobaltDataType type );
 /*******************************************************************************
  * comparators for STL
  ******************************************************************************/
-bool operator<(const CobaltDimension & l, const CobaltDimension & r);
-bool operator<(const CobaltControl & l, const CobaltControl & r);
+bool operator<(const TensileDimension & l, const TensileDimension & r);
+bool operator<(const TensileControl & l, const TensileControl & r);
 
-bool operator==(const CobaltDimension & l, const CobaltDimension & r);
-bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r);
-bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r);
+bool operator==(const TensileDimension & l, const TensileDimension & r);
+bool operator==(const TensileComplexFloat & l, const TensileComplexFloat & r);
+bool operator==(const TensileComplexDouble & l, const TensileComplexDouble & r);
 
 #endif
 

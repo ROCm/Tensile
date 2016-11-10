@@ -7,7 +7,7 @@
 
 #define USE_QUEUE 0
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Problem.h"
 #include "Solution.h"
 #include "StructOperations.h"
@@ -18,7 +18,7 @@
 #include <iostream>
 #include <fstream>
 
-namespace Cobalt {
+namespace Tensile {
 
   typedef enum ValidationStatus_ {
     statusValid,
@@ -53,8 +53,8 @@ public:
   class TraceEntry {
   public:
     TraceEntryType type;
-    const Cobalt::Solution *solution;
-    CobaltStatus status;
+    const Tensile::Solution *solution;
+    TensileStatus status;
     ValidationStatus validationStatus;
     std::vector<double> benchmarkTimes;
     TraceEntry();
@@ -82,20 +82,20 @@ public:
   
 /*******************************************************************************
  * logGetSolution
- * - record a cobaltGetSolution() call
+ * - record a tensileGetSolution() call
  ******************************************************************************/
  // void logGetSolution(
- //     const Cobalt::Solution *solution,
- //     CobaltStatus status );
+ //     const Tensile::Solution *solution,
+ //     TensileStatus status );
 
 /*******************************************************************************
  * logEnqueueSolution
  * - record a Problem.enqueueSolution() call
  ******************************************************************************/
  // void logEnqueueSolution(
- //     const Cobalt::Solution *solution,
- //     CobaltStatus status,
- //     const CobaltControl *ctrl );
+ //     const Tensile::Solution *solution,
+ //     TensileStatus status,
+ //     const TensileControl *ctrl );
   void log(const TraceEntry & entry);
 
 /*******************************************************************************
@@ -112,10 +112,10 @@ private:
 #if USE_QUEUE
   std::queue<TraceEntry> trace;
 #endif
-  //std::map<const Cobalt::Solution*, unsigned long long,
-  //    CobaltSolutionPtrComparator> getSummary;
-  //std::map<const Cobalt::Solution*, unsigned long long,
-  //    CobaltSolutionPtrComparator> enqueueSummary;
+  //std::map<const Tensile::Solution*, unsigned long long,
+  //    TensileSolutionPtrComparator> getSummary;
+  //std::map<const Tensile::Solution*, unsigned long long,
+  //    TensileSolutionPtrComparator> enqueueSummary;
 
 /*******************************************************************************
  * xml file
@@ -144,7 +144,7 @@ private:
  ******************************************************************************/
 extern Logger logger;
 
-} // namespace Cobalt
+} // namespace Tensile
 
 
 #endif

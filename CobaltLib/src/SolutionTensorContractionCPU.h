@@ -4,15 +4,15 @@
 
 #ifndef REFERENCE_TENSOR_CONTRACTION_H
 #define REFERENCE_TENSOR_CONTRACTION_H
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Solution.h"
 #include <assert.h>
 #include <tuple>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
- * CobaltSolutionTensorContractionCPU
+ * TensileSolutionTensorContractionCPU
  * - compute tensor contraction on cpu using simple/slow loops
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
@@ -20,13 +20,13 @@ class SolutionTensorContractionCPU : public SolutionTemplate<TypeC,TypeA,TypeB,T
 public:
   SolutionTensorContractionCPU( const Problem & inputProblem );
 
-  CobaltStatus enqueue(
-      CobaltTensorData tensorDataA,
-      CobaltTensorDataConst tensorDataB,
-      CobaltTensorDataConst tensorDataC,
-      CobaltScalarData alpha,
-      CobaltScalarData beta,
-      CobaltControl & ctrl );
+  TensileStatus enqueue(
+      TensileTensorData tensorDataA,
+      TensileTensorDataConst tensorDataB,
+      TensileTensorDataConst tensorDataC,
+      TensileScalarData alpha,
+      TensileScalarData beta,
+      TensileControl & ctrl );
   
   std::string toString( size_t indentLevel ) const;
   std::string toStringDetailXML( size_t indentLevel ) const;
@@ -34,10 +34,10 @@ public:
 
 
 /*******************************************************************************
- * cobaltGetSolution
+ * tensileGetSolution
  ******************************************************************************/
-std::tuple<Cobalt::Solution *, CobaltStatus> getSolutionCPU(
-    const Cobalt::Problem & problem );
+std::tuple<Tensile::Solution *, TensileStatus> getSolutionCPU(
+    const Tensile::Problem & problem );
 
 } // namespace
 

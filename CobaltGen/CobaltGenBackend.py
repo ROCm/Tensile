@@ -24,7 +24,7 @@ def GenBackendFromFiles( \
   # read raw solution times
   psTimesRaw = {}
   for inputFile in inputFiles:
-    print "CobaltGen: Reading " + os.path.basename(inputFile)
+    print "TensileGen: Reading " + os.path.basename(inputFile)
     FileReader.getSolutionsFromXML( inputFile, psTimesRaw, optimizeAlpha, optimizeBeta )
   # print "status: created dictionary - " + str(psTimes)
   
@@ -59,13 +59,13 @@ def GenBackendFromFiles( \
 
       # if this exact match didn't have any psps with times, remove
       if len(psTimes[deviceProfile][exactMatch][0]) < 1 and len(psTimes[deviceProfile][exactMatch][1]) < 1:
-        print "CobaltGenBackend: ExactMatch %s has no benchmark times; removing." % str(exactMatch)
+        print "TensileGenBackend: ExactMatch %s has no benchmark times; removing." % str(exactMatch)
         psTimes[deviceProfile].pop(exactMatch, None)
 
 
     # if this device profile didn't have any exact matches with times, remove
     if len(psTimes[deviceProfile]) < 1:
-      print "CobaltGenBackend: Device Profile %s has no benchmark times; removing." % str(deviceProfile)
+      print "TensileGenBackend: Device Profile %s has no benchmark times; removing." % str(deviceProfile)
       psTimes.pop(deviceProfile, None)
 
 
@@ -91,7 +91,7 @@ def GenBackendFromFiles( \
 if __name__ == "__main__":
 
   # arguments
-  ap = argparse.ArgumentParser(description="CobaltGenBackend")
+  ap = argparse.ArgumentParser(description="TensileGenBackend")
   ap.add_argument("--input-path", dest="inputPath", required=True )
   ap.add_argument("--output-path", dest="outputPath", required=True )
   ap.add_argument("--backend", dest="backend", required=True, \
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     backend.value = 1
 
   # print settings
-  print "CobaltGen: backend=%s, numInputFiles=%u" %( str(backend), len(inputFiles) )
+  print "TensileGen: backend=%s, numInputFiles=%u" %( str(backend), len(inputFiles) )
   print "  InputPath=" + args.inputPath
   print "  OutputPath=" + args.outputPath
 
@@ -126,5 +126,5 @@ if __name__ == "__main__":
       backend, \
       args.optimizeAlphaStr=="On" or args.optimizeAlphaStr=="ON", \
       args.optimizeBetaStr=="On" or args.optimizeBetaStr=="ON" )
-  print "CobaltGen: DONE."
+  print "TensileGen: DONE."
 

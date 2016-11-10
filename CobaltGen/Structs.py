@@ -91,9 +91,9 @@ class DataType:
     elif self.value == self.double:
       return "double"
     elif self.value == self.complexSingle or self.value == self.complexConjugateSingle:
-      return "CobaltComplexFloat"
+      return "TensileComplexFloat"
     elif self.value == self.complexDouble or self.value == self.complexConjugateDouble:
-      return "CobaltComplexDouble"
+      return "TensileComplexDouble"
     elif self.value == self.none:
       return "void"
     else:
@@ -101,25 +101,25 @@ class DataType:
 
   def getLibString(self):
     if self.value == self.half:
-      return "cobaltDataTypeHalf"
+      return "tensileDataTypeHalf"
     if self.value == self.single:
-      return "cobaltDataTypeSingle"
+      return "tensileDataTypeSingle"
     elif self.value == self.double:
-      return "cobaltDataTypeDouble"
+      return "tensileDataTypeDouble"
     elif self.value == self.complexHalf:
-      return "cobaltDataTypeComplexHalf"
+      return "tensileDataTypeComplexHalf"
     elif self.value == self.complexSingle:
-      return "cobaltDataTypeComplexSingle"
+      return "tensileDataTypeComplexSingle"
     elif self.value == self.complexDouble:
-      return "cobaltDataTypeComplexDouble"
+      return "tensileDataTypeComplexDouble"
     elif self.value == self.complexConjugateHalf:
-      return "cobaltDataTypeComplexConjugateHalf"
+      return "tensileDataTypeComplexConjugateHalf"
     elif self.value == self.complexConjugateSingle:
-      return "cobaltDataTypeComplexConjugateSingle"
+      return "tensileDataTypeComplexConjugateSingle"
     elif self.value == self.complexConjugateDouble:
-      return "cobaltDataTypeComplexConjugateDouble"
+      return "tensileDataTypeComplexConjugateDouble"
     elif self.value == self.none:
-      return "cobaltDataTypeNone"
+      return "tensileDataTypeNone"
     else:
       return "ERROR(" + str(self.value) + ")"
 
@@ -404,11 +404,11 @@ class OperationType:
 
   def getLibString(self):
     if self.value == self.contraction:
-      return "cobaltOperationTypeContraction"
+      return "tensileOperationTypeContraction"
     elif self.value == self.convolution:
-      return "cobaltOperationTypeConvolution"
+      return "tensileOperationTypeConvolution"
     elif self.value == self.correlation:
-      return "cobaltOperationTypeCorrelation"
+      return "tensileOperationTypeCorrelation"
     else:
       return "ERROR"
 

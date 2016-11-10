@@ -5,11 +5,11 @@
 #ifndef TENSOR_H
 #define TENSOR_H
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include <string>
 #include <vector>
 
-namespace Cobalt {
+namespace Tensile {
 
 /*******************************************************************************
  * Tensor
@@ -18,7 +18,7 @@ class Tensor {
   friend class Problem;
 public:
   typedef enum { fillTypeZero, fillTypeOne, fillTypeRandom, fillTypeIndex, fillTypeCopy } FillType;
-  Tensor( CobaltTensor tensor );
+  Tensor( TensileTensor tensor );
   unsigned int numDims() const;
   std::string toString() const;
   std::string toStringXML(size_t indent, std::string which) const;
@@ -26,28 +26,28 @@ public:
   size_t getIndex( std::vector<unsigned int> coords ) const;
   size_t numElements() const;
   size_t numBytes() const;
-  CobaltDataType getDataType() const;
-  const CobaltDimension & operator[]( size_t index ) const;
+  TensileDataType getDataType() const;
+  const TensileDimension & operator[]( size_t index ) const;
   //std::vector<unsigned int> sortDimensions();
-  CobaltTensor getTensorStruct() const;
+  TensileTensor getTensorStruct() const;
   void fill(
-    CobaltTensorData tensorData,
+    TensileTensorData tensorData,
     FillType type,
     void *src) const;
   template<typename T>
   void fillTemplate(
-      CobaltTensorData tensorData,
+      TensileTensorData tensorData,
       FillType type,
       void *src) const;
 
   template<typename T>
-  std::string toStringTemplate( CobaltTensorDataConst tensorData ) const;
+  std::string toStringTemplate( TensileTensorDataConst tensorData ) const;
 
-  std::string toString( CobaltTensorDataConst tensorData ) const;
+  std::string toString( TensileTensorDataConst tensorData ) const;
 
 protected:
-  CobaltDataType dataType;
-  std::vector<CobaltDimension> dimensions;
+  TensileDataType dataType;
+  std::vector<TensileDimension> dimensions;
 
 };
 
@@ -56,13 +56,13 @@ template<typename DataType>
 bool compareTensorsTemplate(
   DataType *gpuData,
   DataType *cpuData,
-  Cobalt::Tensor tensor);
+  Tensile::Tensor tensor);
 
 
 bool compareTensors(
-  CobaltTensorDataConst gpu,
-  CobaltTensorDataConst cpu,
-  Cobalt::Tensor tensor );
+  TensileTensorDataConst gpu,
+  TensileTensorDataConst cpu,
+  Tensile::Tensor tensor );
 
 
 template<typename DataType>

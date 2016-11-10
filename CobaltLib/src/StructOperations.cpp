@@ -15,79 +15,79 @@
 #include <limits>
 #include <cmath>
 
-namespace Cobalt {
+namespace Tensile {
 
-#define COBALT_ENUM_TO_STRING_CASE(X) case X: return #X;
-std::string toString( CobaltStatus status ) {
+#define TENTILE_ENUM_TO_STRING_CASE(X) case X: return #X;
+std::string toString( TensileStatus status ) {
   switch( status ) {
 
     // success
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusSuccess )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusSuccess )
   
   // tensor errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorNumDimensionsInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionOrderInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionStrideInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusTensorDimensionSizeInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorNumDimensionsInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionOrderInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionStrideInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionSizeInvalid )
   
   // operation errors
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperandNumDimensionsMismatch )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationOperandNumIndicesMismatch )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentInvalidB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateA )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexAssignmentDuplicateB )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumFreeIndicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationNumSummationIndicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationIndexUnassigned )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusOperationSummationIndexAssignmentsInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperandNumDimensionsMismatch )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationOperandNumIndicesMismatch )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentInvalidA )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentInvalidB )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentDuplicateA )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentDuplicateB )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationNumFreeIndicesInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationNumSummationIndicesInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexUnassigned )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationSummationIndexAssignmentsInvalid )
 
-  /* cobaltGetSolution() */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNumDevicesInvalid )
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusDeviceProfileNotSupported)
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusProblemNotSupported )
+  /* tensileGetSolution() */
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusDeviceProfileNumDevicesInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusDeviceProfileNotSupported)
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusProblemNotSupported )
 
   /* control errors */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusControlInvalid )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusControlInvalid )
 
   /* misc */
-  COBALT_ENUM_TO_STRING_CASE( cobaltStatusInvalidParameter )
+  TENTILE_ENUM_TO_STRING_CASE( tensileStatusInvalidParameter )
 
 
   // causes clang warning
   //default:
-  //  return "Error in toString(CobaltStatus): no switch case for: "
+  //  return "Error in toString(TensileStatus): no switch case for: "
   //      + std::to_string(status);
   };
 }
 
-std::string toString( CobaltDataType dataType ) {
+std::string toString( TensileDataType dataType ) {
   switch( dataType ) {
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeSingle )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeDouble )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexSingle )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexDouble )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateSingle)
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateDouble)
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeNone )
-    COBALT_ENUM_TO_STRING_CASE( cobaltNumDataTypes )
-#ifdef Cobalt_ENABLE_FP16
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeHalf )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexHalf )
-    COBALT_ENUM_TO_STRING_CASE( cobaltDataTypeComplexConjugateHalf)
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeSingle )
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeDouble )
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexSingle )
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexDouble )
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateSingle)
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateDouble)
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeNone )
+    TENTILE_ENUM_TO_STRING_CASE( tensileNumDataTypes )
+#ifdef Tensile_ENABLE_FP16
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeHalf )
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexHalf )
+    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateHalf)
 #endif
   //default:
-  //  return "Error in toString(CobaltDataType): no switch case for: "
+  //  return "Error in toString(TensileDataType): no switch case for: "
   //      + std::to_string(dataType);
   };
 }
 
-std::string toString( CobaltOperationType type ) {
+std::string toString( TensileOperationType type ) {
   switch( type ) {
-    COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeContraction )
-    COBALT_ENUM_TO_STRING_CASE( cobaltOperationTypeConvolution )
+    TENTILE_ENUM_TO_STRING_CASE( tensileOperationTypeContraction )
+    TENTILE_ENUM_TO_STRING_CASE( tensileOperationTypeConvolution )
   //default:
-  //  return "Error in toString(CobaltDataType): no switch case for: "
+  //  return "Error in toString(TensileDataType): no switch case for: "
   //      + std::to_string(type);
   };
 }
@@ -108,14 +108,14 @@ std::string tensorElementToString<double> ( double element ) {
   return state.str();
 }
 template<>
-std::string tensorElementToString<CobaltComplexFloat> ( CobaltComplexFloat element ) {
+std::string tensorElementToString<TensileComplexFloat> ( TensileComplexFloat element ) {
   std::ostringstream state;
   state.precision(3);
   state << std::scientific << element.x << ", " << element.y;
   return state.str();
 }
 template<>
-std::string tensorElementToString<CobaltComplexDouble> ( CobaltComplexDouble element ) {
+std::string tensorElementToString<TensileComplexDouble> ( TensileComplexDouble element ) {
   std::ostringstream state;
   state.precision(3);
   state << std::scientific << element.x << ", " << element.y;
@@ -134,67 +134,67 @@ std::ostream& appendElement<double>(std::ostream& os, const double& element) {
   return os;
 }
 template<>
-std::ostream& appendElement<CobaltComplexFloat>(std::ostream& os, const CobaltComplexFloat& element) {
+std::ostream& appendElement<TensileComplexFloat>(std::ostream& os, const TensileComplexFloat& element) {
   os << element.x << "," << element.y;
   return os;
 }
 template<>
-std::ostream& appendElement<CobaltComplexDouble>(std::ostream& os, const CobaltComplexDouble& element) {
+std::ostream& appendElement<TensileComplexDouble>(std::ostream& os, const TensileComplexDouble& element) {
   os << element.x << "," << element.y;
   return os;
 }
 
 
-std::string toStringXML( const Cobalt::Solution *solution, size_t indentLevel ) {
+std::string toStringXML( const Tensile::Solution *solution, size_t indentLevel ) {
   return solution->toString(indentLevel);
 }
 
-// get size of CobaltDataType
-size_t sizeOf( CobaltDataType type ) {
+// get size of TensileDataType
+size_t sizeOf( TensileDataType type ) {
   switch( type ) {
-  case cobaltDataTypeSingle:
+  case tensileDataTypeSingle:
     return sizeof(float);
-  case cobaltDataTypeDouble:
+  case tensileDataTypeDouble:
     return sizeof(double);
-  case cobaltDataTypeComplexSingle:
-    return sizeof(CobaltComplexFloat);
-  case cobaltDataTypeComplexDouble:
-    return sizeof(CobaltComplexDouble);
-  case cobaltDataTypeComplexConjugateSingle:
-    return sizeof(CobaltComplexFloat);
-  case cobaltDataTypeComplexConjugateDouble:
-    return sizeof(CobaltComplexDouble);
-#ifdef Cobalt_ENABLE_FP16
-  case cobaltDataTypeHalf:
+  case tensileDataTypeComplexSingle:
+    return sizeof(TensileComplexFloat);
+  case tensileDataTypeComplexDouble:
+    return sizeof(TensileComplexDouble);
+  case tensileDataTypeComplexConjugateSingle:
+    return sizeof(TensileComplexFloat);
+  case tensileDataTypeComplexConjugateDouble:
+    return sizeof(TensileComplexDouble);
+#ifdef Tensile_ENABLE_FP16
+  case tensileDataTypeHalf:
     return 2;
-  case cobaltDataTypeComplexHalf:
+  case tensileDataTypeComplexHalf:
     return 4;
-  case cobaltDataTypeComplexConjugateHalf:
+  case tensileDataTypeComplexConjugateHalf:
     return 4;
 #endif
-  case cobaltNumDataTypes:
+  case tensileNumDataTypes:
     return 0;
-  case cobaltDataTypeNone:
+  case tensileDataTypeNone:
     return 0;
   //default:
   //  return -1;
   }
 }
 
-size_t flopsPerMadd( CobaltDataType type ) {
+size_t flopsPerMadd( TensileDataType type ) {
   switch( type ) {
-  case cobaltDataTypeSingle:
-  case cobaltDataTypeDouble:
+  case tensileDataTypeSingle:
+  case tensileDataTypeDouble:
     return 2;
 
-  case cobaltDataTypeComplexSingle:
-  case cobaltDataTypeComplexDouble:
-  case cobaltDataTypeComplexConjugateSingle:
-  case cobaltDataTypeComplexConjugateDouble:
+  case tensileDataTypeComplexSingle:
+  case tensileDataTypeComplexDouble:
+  case tensileDataTypeComplexConjugateSingle:
+  case tensileDataTypeComplexConjugateDouble:
     return 8;
 
-  case cobaltDataTypeNone:
-  case cobaltNumDataTypes:
+  case tensileDataTypeNone:
+  case tensileNumDataTypes:
     return 0;
   }
 }
@@ -205,8 +205,8 @@ size_t flopsPerMadd( CobaltDataType type ) {
 
 } // namespace
 
-  // CobaltDimension
-bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
+  // TensileDimension
+bool operator<(const TensileDimension & l, const TensileDimension & r) {
 
   if (l.stride > r.stride) {
     return true;
@@ -222,8 +222,8 @@ bool operator<(const CobaltDimension & l, const CobaltDimension & r) {
   return false;
 }
 
-// CobaltControl
-bool operator< (const CobaltControl & l, const CobaltControl & r) {
+// TensileControl
+bool operator< (const TensileControl & l, const TensileControl & r) {
   if (l.validate < r.validate) {
     return true;
   } else if (r.validate < l.validate) {
@@ -234,7 +234,7 @@ bool operator< (const CobaltControl & l, const CobaltControl & r) {
   } else if (r.benchmark < l.benchmark) {
     return false;
   }
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   if (l.numQueues < r.numQueues) {
     return true;
   } else if (r.numQueues < l.numQueues) {
@@ -252,15 +252,15 @@ bool operator< (const CobaltControl & l, const CobaltControl & r) {
   return false;
 }
 
-bool operator==(const CobaltDimension & l, const CobaltDimension & r) {
+bool operator==(const TensileDimension & l, const TensileDimension & r) {
   return l.size == r.size && l.stride == r.stride;
 }
 
-bool operator==(const CobaltComplexFloat & l, const CobaltComplexFloat & r) {
+bool operator==(const TensileComplexFloat & l, const TensileComplexFloat & r) {
   return std::fabs(l.x - r.x) < std::numeric_limits<float>::epsilon()
       && std::fabs(l.y - r.y) < std::numeric_limits<float>::epsilon();
 }
-bool operator==(const CobaltComplexDouble & l, const CobaltComplexDouble & r) {
+bool operator==(const TensileComplexDouble & l, const TensileComplexDouble & r) {
   return std::fabs(l.x - r.x) < std::numeric_limits<double>::epsilon()
       && std::fabs(l.y - r.y) < std::numeric_limits<double>::epsilon();
 }

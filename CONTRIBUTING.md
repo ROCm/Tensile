@@ -1,1 +1,1 @@
-Read [contributing guidelines](https://github.com/clMathLibraries/Cobalt/wiki/Contributing) before trying to contribute code.
+Read [contributing guidelines](https://github.com/clMathLibraries/Tensile/wiki/Contributing) before trying to contribute code.

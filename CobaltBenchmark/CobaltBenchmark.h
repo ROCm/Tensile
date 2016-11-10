@@ -3,13 +3,13 @@
  ******************************************************************************/
 
 /*******************************************************************************
- * Cobalt Benchmark
+ * Tensile Benchmark
  ******************************************************************************/
 
-#include "Cobalt.h"
+#include "Tensile.h"
 #include "Tools.h"
 #include "Solution.h"
-#include "CobaltSolutionCandidates.h"
+#include "TensileSolutionCandidates.h"
 #include "SolutionTensorContractionCPU.h"
 #include "StructOperations.h"
 #include "MathTemplates.h"
@@ -23,20 +23,20 @@ static bool doValidationKernels;
 static void parseCommandLineOptions(int argc, char *argv[]);
 
  // dummy/max sized just for filling initial data
-static CobaltTensor initialTensorFloatC;
-static CobaltTensor initialTensorFloatA;
-static CobaltTensor initialTensorFloatB;
-static CobaltTensor initialTensorDoubleC;
-static CobaltTensor initialTensorDoubleA;
-static CobaltTensor initialTensorDoubleB;
+static TensileTensor initialTensorFloatC;
+static TensileTensor initialTensorFloatA;
+static TensileTensor initialTensorFloatB;
+static TensileTensor initialTensorDoubleC;
+static TensileTensor initialTensorDoubleA;
+static TensileTensor initialTensorDoubleB;
 
 // buffers to hold initial data
-static CobaltTensorData initialTensorDataFloatC;
-static CobaltTensorData initialTensorDataFloatA;
-static CobaltTensorData initialTensorDataFloatB;
-static CobaltTensorData initialTensorDataDoubleC;
-static CobaltTensorData initialTensorDataDoubleA;
-static CobaltTensorData initialTensorDataDoubleB;
+static TensileTensorData initialTensorDataFloatC;
+static TensileTensorData initialTensorDataFloatA;
+static TensileTensorData initialTensorDataFloatB;
+static TensileTensorData initialTensorDataDoubleC;
+static TensileTensorData initialTensorDataDoubleA;
+static TensileTensorData initialTensorDataDoubleB;
 
 // scalar data
 static float *alphaFloat;
@@ -45,19 +45,19 @@ static double *alphaDouble;
 static double *betaDouble;
 
 // device tensor data; max sized; initial data get clWriteBuffer each time
-static CobaltTensorData deviceTensorDataC; // input and result buffer
-static CobaltTensorData deviceTensorDataA;
-static CobaltTensorData deviceTensorDataB;
-static CobaltTensorData deviceTensorDataOnHostC; // result buffer coppied back to host for comparison
-static CobaltTensorData deviceTensorDataOnHostA; // result buffer coppied back to host for comparison
-static CobaltTensorData deviceTensorDataOnHostB; // result buffer coppied back to host for comparison
+static TensileTensorData deviceTensorDataC; // input and result buffer
+static TensileTensorData deviceTensorDataA;
+static TensileTensorData deviceTensorDataB;
+static TensileTensorData deviceTensorDataOnHostC; // result buffer coppied back to host for comparison
+static TensileTensorData deviceTensorDataOnHostA; // result buffer coppied back to host for comparison
+static TensileTensorData deviceTensorDataOnHostB; // result buffer coppied back to host for comparison
 
 // reference tensor data
-static CobaltTensorData referenceTensorDataC; // input and result buffer on host
+static TensileTensorData referenceTensorDataC; // input and result buffer on host
 
 // setup opencl
 static unsigned int numPlatforms;
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 static unsigned int numDevices;
 static cl_int status;
 static cl_platform_id *platforms;
@@ -65,29 +65,29 @@ static cl_platform_id platform;
 static cl_device_id *devices;
 static cl_device_id device;
 static cl_context context;
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
 static hipError_t status;
 static int numDevices;
 static int device;
 #endif
 
 // controls
-static CobaltDeviceProfile deviceProfileReference;
-static CobaltStatus cobaltStatus;
-static CobaltControl ctrl;
-static CobaltControl ctrlValidation;
+static TensileDeviceProfile deviceProfileReference;
+static TensileStatus tensileStatus;
+static TensileControl ctrl;
+static TensileControl ctrlValidation;
 
 static void initTensorData();
 static void destroyTensorData();
-static void fillTensor(CobaltTensor, CobaltTensorData, Cobalt::Tensor::FillType, void *src);
+static void fillTensor(TensileTensor, TensileTensorData, Tensile::Tensor::FillType, void *src);
 static void initControls();
 static void destroyControls();
 
-#ifdef Cobalt_ENABLE_FP16
-static bool cobaltDataTypeIsHalf( CobaltDataType dataType );
+#ifdef Tensile_ENABLE_FP16
+static bool tensileDataTypeIsHalf( TensileDataType dataType );
 #endif
-static bool cobaltDataTypeIsFloat( CobaltDataType dataType );
-static bool cobaltDataTypeIsDouble( CobaltDataType dataType );
+static bool tensileDataTypeIsFloat( TensileDataType dataType );
+static bool tensileDataTypeIsDouble( TensileDataType dataType );
 
 static unsigned int tensorSizeMaxC_0;
 static unsigned int tensorSizeMaxC_1;

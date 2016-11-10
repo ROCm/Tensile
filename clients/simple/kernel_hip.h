@@ -243,7 +243,7 @@ __global__ void kernel_hip(
 
 #else
 
-// Cobalt sgemm_NT_128x128x8_prefetch
+// Tensile sgemm_NT_128x128x8_prefetch
 
 
 /* CT_SSSSS_Cij_Sk_Aik_Bjk_i16x8f_j16x8f_nl4x4_k8_O2 */

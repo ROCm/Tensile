@@ -3,7 +3,7 @@
  ******************************************************************************/
 
 /*******************************************************************************
- * Cobalt Benchmark
+ * Tensile Benchmark
  ******************************************************************************/
 #ifdef WIN32
 #define _CRTDBG_MAP_ALLOC
@@ -21,11 +21,11 @@ _CrtMemState s2;
 _CrtMemState s3;
 #endif
 
-#include "CobaltBenchmark.h"
-#include "Cobalt.h"
+#include "TensileBenchmark.h"
+#include "Tensile.h"
 #include "Tools.h"
 #include "Solution.h"
-#include "CobaltSolutionCandidates.h"
+#include "TensileSolutionCandidates.h"
 #include "SolutionTensorContractionCPU.h"
 #include "StructOperations.h"
 #include "MathTemplates.h"
@@ -37,9 +37,9 @@ _CrtMemState s3;
 
 #define ULL (unsigned long long)
 
-static Cobalt::Tensor::FillType tensorFillTypeC = Cobalt::Tensor::fillTypeRandom;
-static Cobalt::Tensor::FillType tensorFillTypeA = Cobalt::Tensor::fillTypeRandom;
-static Cobalt::Tensor::FillType tensorFillTypeB = Cobalt::Tensor::fillTypeRandom;
+static Tensile::Tensor::FillType tensorFillTypeC = Tensile::Tensor::fillTypeRandom;
+static Tensile::Tensor::FillType tensorFillTypeA = Tensile::Tensor::fillTypeRandom;
+static Tensile::Tensor::FillType tensorFillTypeB = Tensile::Tensor::fillTypeRandom;
 
 //#define MAX_PROBLEMS 1
 //#define MAX_SOLUTIONS_PER_PROBLEM 1
@@ -56,7 +56,7 @@ static size_t overrideSolutionEndIdx = 0;
 static unsigned int platformIdx = 0;
 static unsigned int deviceIdx = 0;
 static bool deviceOverride = false;
-static CobaltDeviceProfile deviceProfile;
+static TensileDeviceProfile deviceProfile;
 
 /*******************************************************************************
  * main
@@ -70,7 +70,7 @@ int main( int argc, char *argv[] ) {
   parseCommandLineOptions(argc, argv);
 
 
-  // create CobaltControl
+  // create TensileControl
   initControls();
 
   // initialize initial buffer values for validation
@@ -90,12 +90,12 @@ int main( int argc, char *argv[] ) {
     size_t problemStartIdx = overrideProblemStartIdx ? overrideProblemStartIdx : 0;
     size_t problemEndIdx = overrideProblemEndIdx ? overrideProblemEndIdx : benchmarkExactMatchNumProblems[exactMatchIdx];
 
-    // setup CobaltLib
-    std::string logFilePath = Cobalt_DIR_SOLUTIONS;
+    // setup TensileLib
+    std::string logFilePath = Tensile_DIR_SOLUTIONS;
     logFilePath += "/";
     logFilePath += exactMatchName;
     logFilePath += ".xml";
-    cobaltSetup(logFilePath.c_str());
+    tensileSetup(logFilePath.c_str());
 
 
     for (size_t problemIdx = problemStartIdx; problemIdx < problemEndIdx; problemIdx++) {
@@ -111,32 +111,32 @@ int main( int argc, char *argv[] ) {
 #endif
 
       // info about problem
-      CobaltProblem problem;
-      std::vector<Cobalt::Solution *> solutionCandidates;
+      TensileProblem problem;
+      std::vector<Tensile::Solution *> solutionCandidates;
       initializeSolutionCandidates(deviceProfile, &problem, &solutionCandidates, exactMatchIdx, problemIdx);
-      bool isFloatC = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeC());
-      bool isFloatA = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeA());
-      bool isFloatB = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeB());
-      bool isFloatAlpha = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeAlpha());
-      bool isDoubleAlpha = cobaltDataTypeIsDouble(problem->pimpl->getDataTypeAlpha());
-      bool isFloatBeta = cobaltDataTypeIsFloat(problem->pimpl->getDataTypeBeta());
-      bool isDoubleBeta = cobaltDataTypeIsDouble(problem->pimpl->getDataTypeBeta());
+      bool isFloatC = tensileDataTypeIsFloat(problem->pimpl->getDataTypeC());
+      bool isFloatA = tensileDataTypeIsFloat(problem->pimpl->getDataTypeA());
+      bool isFloatB = tensileDataTypeIsFloat(problem->pimpl->getDataTypeB());
+      bool isFloatAlpha = tensileDataTypeIsFloat(problem->pimpl->getDataTypeAlpha());
+      bool isDoubleAlpha = tensileDataTypeIsDouble(problem->pimpl->getDataTypeAlpha());
+      bool isFloatBeta = tensileDataTypeIsFloat(problem->pimpl->getDataTypeBeta());
+      bool isDoubleBeta = tensileDataTypeIsDouble(problem->pimpl->getDataTypeBeta());
       size_t sizeC = problem->pimpl->tensorC.numBytes();
       size_t sizeA = problem->pimpl->tensorA.numBytes();
       size_t sizeB = problem->pimpl->tensorB.numBytes();
       void *initialDataC = isFloatC ? initialTensorDataFloatC.data : initialTensorDataDoubleC.data;
       void *initialDataA = isFloatA ? initialTensorDataFloatA.data : initialTensorDataDoubleA.data;
       void *initialDataB = isFloatB ? initialTensorDataFloatB.data : initialTensorDataDoubleB.data;
-      CobaltScalarData alpha{ isFloatAlpha ? static_cast<void*>(alphaFloat)
+      TensileScalarData alpha{ isFloatAlpha ? static_cast<void*>(alphaFloat)
           : isDoubleAlpha ? static_cast<void*>(alphaDouble) : static_cast<void*>(alphaFloat) };
-      CobaltScalarData beta{ isFloatBeta ? static_cast<void*>(betaFloat)
+      TensileScalarData beta{ isFloatBeta ? static_cast<void*>(betaFloat)
           : isDoubleBeta ? static_cast<void*>(betaDouble) : static_cast<void*>(betaFloat) };
 
       // re-initialize device input buffers
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
       clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
       clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
       status = hipMemcpy(deviceTensorDataA.data, initialDataA,
         sizeA, hipMemcpyHostToDevice);
       status = hipMemcpy(deviceTensorDataB.data, initialDataB,
@@ -148,14 +148,14 @@ int main( int argc, char *argv[] ) {
       if (doValidation) {
 
         // get reference solution
-        Cobalt::Solution *solutionReference;
+        Tensile::Solution *solutionReference;
         problem->pimpl->deviceProfile = deviceProfileReference;
-        std::tie(solutionReference, cobaltStatus) = getSolutionCPU(*(problem->pimpl));
+        std::tie(solutionReference, tensileStatus) = getSolutionCPU(*(problem->pimpl));
 
         // re-initialize reference buffers
         memcpy(referenceTensorDataC.data, initialDataC, sizeC);
-        CobaltTensorDataConst referenceTensorDataA{ initialDataA, 0 };
-        CobaltTensorDataConst referenceTensorDataB{ initialDataB, 0 };
+        TensileTensorDataConst referenceTensorDataA{ initialDataA, 0 };
+        TensileTensorDataConst referenceTensorDataB{ initialDataB, 0 };
 
         // enqueue reference solution
         printf("Status: Enqueueing reference for %s ...", problem->pimpl->toString().c_str());
@@ -187,12 +187,12 @@ int main( int argc, char *argv[] ) {
         printf("G[%llu/%llu] P[%llu/%llu] S[%llu/%llu] ", ULL exactMatchIdx, ULL exactMatchEndIdx, ULL problemIdx, ULL problemEndIdx, ULL solutionIdx, ULL solutionEndIdx);
 
         // get solution candidate
-        Cobalt::Solution *solution = solutionCandidates[solutionIdx];
+        Tensile::Solution *solution = solutionCandidates[solutionIdx];
 
         //for (unsigned int j = 0; j < 4; j++) {
         if (doValidation) {
           // re-initialize device buffers
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
           clEnqueueWriteBuffer(ctrl.queues[0],
             static_cast<cl_mem>(deviceTensorDataC.data),
             CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC,
@@ -206,7 +206,7 @@ int main( int argc, char *argv[] ) {
             CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB,
             0, nullptr, nullptr);
           clFinish(ctrl.queues[0]);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
           status = hipMemcpy(deviceTensorDataC.data, initialDataC,
             sizeC, hipMemcpyHostToDevice);
           status = hipMemcpy(deviceTensorDataA.data, initialDataA,
@@ -223,9 +223,9 @@ int main( int argc, char *argv[] ) {
           //ctrl.benchmark = 0;
           numSamples = 1;
         }
-        CobaltTensorDataConst constA{ deviceTensorDataA.data,
+        TensileTensorDataConst constA{ deviceTensorDataA.data,
             deviceTensorDataA.offset };
-        CobaltTensorDataConst constB{ deviceTensorDataB.data,
+        TensileTensorDataConst constB{ deviceTensorDataB.data,
             deviceTensorDataB.offset };
         for (unsigned int s = 0; s < numSamples; s++) {
           solution->enqueueEntry(
@@ -239,9 +239,9 @@ int main( int argc, char *argv[] ) {
         }
         if (doValidation) {
           for (unsigned int i = 0; i < ctrl.numQueues; i++) {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
             status = clFinish(ctrl.queues[i]);
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
             status = hipStreamSynchronize(ctrl.queues[i]);
 #endif
             CL_CHECK(status)
@@ -263,12 +263,12 @@ int main( int argc, char *argv[] ) {
         delete solution;
         solutionCandidates[solutionIdx] = nullptr;
       } // solution loop
-      cobaltDestroyProblem(problem);
+      tensileDestroyProblem(problem);
 
     } // problem loop
 
     // write exactMatch XML to file
-    cobaltTeardown();
+    tensileTeardown();
 
   } // exact match index
 
@@ -285,47 +285,47 @@ void initTensorData() {
   // dummy tensors for filling initial data
 
 
-  Cobalt::factor(tensorSizeMaxC, tensorSizeMaxC_0, tensorSizeMaxC_1);
-  Cobalt::factor(tensorSizeMaxA, tensorSizeMaxA_0, tensorSizeMaxA_1);
-  Cobalt::factor(tensorSizeMaxB, tensorSizeMaxB_0, tensorSizeMaxB_1);
+  Tensile::factor(tensorSizeMaxC, tensorSizeMaxC_0, tensorSizeMaxC_1);
+  Tensile::factor(tensorSizeMaxA, tensorSizeMaxA_0, tensorSizeMaxA_1);
+  Tensile::factor(tensorSizeMaxB, tensorSizeMaxB_0, tensorSizeMaxB_1);
 
   //printf("maxC: %llu %s %u * %u\n", tensorSizeMaxC, factoredC ? "==" : "!=", tensorSizeMaxC_0, tensorSizeMaxC_1);
   //printf("maxA: %llu %s %u * %u\n", tensorSizeMaxA, factoredA ? "==" : "!=", tensorSizeMaxA_0, tensorSizeMaxA_1);
   //printf("maxB: %llu %s %u * %u\n", tensorSizeMaxB, factoredB ? "==" : "!=", tensorSizeMaxB_0, tensorSizeMaxB_1);
 
 
-  initialTensorFloatC.dataType = cobaltDataTypeSingle;
+  initialTensorFloatC.dataType = tensileDataTypeSingle;
   initialTensorFloatC.numDimensions = 2;
   initialTensorFloatC.dimensions[0].stride = 1;
   initialTensorFloatC.dimensions[0].size = tensorSizeMaxC_0 / 4 /*bytes per float*/;
   initialTensorFloatC.dimensions[1].stride = initialTensorFloatC.dimensions[0].size;
   initialTensorFloatC.dimensions[1].size = tensorSizeMaxC_1;
-  initialTensorFloatA.dataType = cobaltDataTypeSingle;
+  initialTensorFloatA.dataType = tensileDataTypeSingle;
   initialTensorFloatA.numDimensions = 2;
   initialTensorFloatA.dimensions[0].stride = 1;
   initialTensorFloatA.dimensions[0].size = tensorSizeMaxA_0 / 4 /*bytes per float*/;
   initialTensorFloatA.dimensions[1].stride = initialTensorFloatA.dimensions[0].size;
   initialTensorFloatA.dimensions[1].size = tensorSizeMaxA_1;
-  initialTensorFloatB.dataType = cobaltDataTypeSingle;
+  initialTensorFloatB.dataType = tensileDataTypeSingle;
   initialTensorFloatB.numDimensions = 2;
   initialTensorFloatB.dimensions[0].stride = 1;
   initialTensorFloatB.dimensions[0].size = tensorSizeMaxB_0 / 4 /*bytes per float*/;
   initialTensorFloatB.dimensions[1].stride = initialTensorFloatB.dimensions[0].size;
   initialTensorFloatB.dimensions[1].size = tensorSizeMaxB_1;
 
-  initialTensorDoubleC.dataType = cobaltDataTypeDouble;
+  initialTensorDoubleC.dataType = tensileDataTypeDouble;
   initialTensorDoubleC.numDimensions = 1;
   initialTensorDoubleC.dimensions[0].stride = 1;
   initialTensorDoubleC.dimensions[0].size = tensorSizeMaxC_0 / 8 /*bytes per double*/;
   initialTensorDoubleC.dimensions[1].stride = initialTensorDoubleC.dimensions[0].size;
   initialTensorDoubleC.dimensions[1].size = tensorSizeMaxC_1;
-  initialTensorDoubleA.dataType = cobaltDataTypeDouble;
+  initialTensorDoubleA.dataType = tensileDataTypeDouble;
   initialTensorDoubleA.numDimensions = 1;
   initialTensorDoubleA.dimensions[0].stride = 1;
   initialTensorDoubleA.dimensions[0].size = tensorSizeMaxA_0 / 8 /*bytes per double*/;
   initialTensorDoubleA.dimensions[1].stride = initialTensorDoubleA.dimensions[0].size;
   initialTensorDoubleA.dimensions[1].size = tensorSizeMaxA_1;
-  initialTensorDoubleB.dataType = cobaltDataTypeDouble;
+  initialTensorDoubleB.dataType = tensileDataTypeDouble;
   initialTensorDoubleB.numDimensions = 1;
   initialTensorDoubleB.dimensions[0].stride = 1;
   initialTensorDoubleB.dimensions[0].size = tensorSizeMaxB_0 / 8 /*bytes per double*/;
@@ -354,11 +354,11 @@ void initTensorData() {
   printf("."); fillTensor( initialTensorDoubleB, initialTensorDataDoubleB, tensorFillTypeB, nullptr);
   printf("."); 
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   deviceTensorDataC.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status));
   deviceTensorDataA.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxA, nullptr, &status));
   deviceTensorDataB.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxB, nullptr, &status));
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
   status = hipMalloc( &deviceTensorDataC.data, tensorSizeMaxC );
   status = hipMalloc( &deviceTensorDataA.data, tensorSizeMaxA );
   status = hipMalloc( &deviceTensorDataB.data, tensorSizeMaxB );
@@ -413,11 +413,11 @@ void destroyTensorData() {
   delete[] alphaDouble;
   delete[] betaDouble;
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataC.data));
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataA.data));
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataB.data));
-#elif Cobalt_BACKEND_OPENCL12
+#elif Tensile_BACKEND_OPENCL12
   hipFree(deviceTensorDataC.data);
   hipFree(deviceTensorDataA.data);
   hipFree(deviceTensorDataB.data);
@@ -425,13 +425,13 @@ void destroyTensorData() {
 
 }
 
-void fillTensor(CobaltTensor inputTensor, CobaltTensorData tensorData, Cobalt::Tensor::FillType fillType, void *src) {
-  Cobalt::Tensor tensor(inputTensor);
+void fillTensor(TensileTensor inputTensor, TensileTensorData tensorData, Tensile::Tensor::FillType fillType, void *src) {
+  Tensile::Tensor tensor(inputTensor);
   tensor.fill(tensorData, fillType, src);
 }
 
 void initControls() {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   // setup opencl objects
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
   platforms = new cl_platform_id[numPlatforms];
@@ -445,27 +445,27 @@ void initControls() {
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, 0, nullptr, &nameLength );
   char *deviceName = new char[nameLength+1];
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
-  Cobalt::makeFileNameSafe( deviceName );
+  Tensile::makeFileNameSafe( deviceName );
   printf("Device[%u/%u][%u/%u]: %s\n", platformIdx, numPlatforms, deviceIdx, numDevices, deviceName);
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
 
   // device control
-  ctrl = cobaltCreateEmptyControl();
+  ctrl = tensileCreateEmptyControl();
   for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
     ctrl.queues[ctrl.numQueues] = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   }
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
   status = hipGetDeviceCount( &numDevices );
   device = 0;
   status = hipSetDevice( device );
-  ctrl = cobaltCreateEmptyControl();
+  ctrl = tensileCreateEmptyControl();
   for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
     status = hipStreamCreate( &ctrl.queues[ctrl.numQueues] );
   }
 #endif
 
   // host control
-  ctrlValidation = cobaltCreateEmptyControl();
+  ctrlValidation = tensileCreateEmptyControl();
 
   // reference device
   deviceProfileReference.numDevices = 1;
@@ -478,7 +478,7 @@ void initControls() {
 
 void destroyControls() {
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   for (unsigned int i = 0; i < ctrl.numQueues; i++) {
     clReleaseCommandQueue(ctrl.queues[i]);
   }
@@ -488,7 +488,7 @@ void destroyControls() {
   }
   delete[] devices;
   delete[] platforms;
-#elif Cobalt_BACKEND_HIP
+#elif Tensile_BACKEND_HIP
   for (unsigned int i = 0; i < ctrl.numQueues; i++) {
     hipStreamDestroy(ctrl.queues[i]);
   }
@@ -539,7 +539,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
       argIdx++;
     }
     if (std::strcmp(arg, "-h") == 0) {
-      printf("Usage: CobaltBenchmark [options]\n");
+      printf("Usage: TensileBenchmark [options]\n");
       printf("Options:\n");
       printf("  --validate         | validate results (very slow); default is off.\n");
       printf("  --start-group x    | start at problem-group idx (for continuing or debugging); default is 0.\n");
@@ -556,8 +556,8 @@ void parseCommandLineOptions(int argc, char *argv[]) {
   }
 
   if (!deviceOverride) {
-    // select device based on CobaltProblem
-#if Cobalt_BACKEND_OPENCL12
+    // select device based on TensileProblem
+#if Tensile_BACKEND_OPENCL12
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
     platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
@@ -568,7 +568,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
       for (unsigned int d = 0; d < numDevices; d++) {
         deviceProfile.numDevices = 1;
         status = clGetDeviceInfo(devices[d], CL_DEVICE_NAME, deviceProfile.devices[0].maxNameLength, deviceProfile.devices[0].name, 0);
-        Cobalt::makeFileNameSafe( deviceProfile.devices[0].name );
+        Tensile::makeFileNameSafe( deviceProfile.devices[0].name );
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(deviceProfile.devices[0].clockFrequency), &deviceProfile.devices[0].clockFrequency, 0);
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(deviceProfile.devices[0].numComputeUnits), &deviceProfile.devices[0].numComputeUnits, 0);
         if (strcmp(deviceProfile.devices[0].name, benchmarkDeviceName) == 0 && deviceProfile.devices[0].numComputeUnits == benchmarkDeviceNumComputeUnits && deviceProfile.devices[0].clockFrequency == benchmarkDeviceClockFrequency) {
@@ -595,7 +595,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
       hipGetDeviceProperties( &deviceProperties, i);
       deviceProfile.numDevices = 1;
       strcpy( deviceProfile.devices[0].name, deviceProperties.name );
-      Cobalt::makeFileNameSafe( deviceProfile.devices[0].name );
+      Tensile::makeFileNameSafe( deviceProfile.devices[0].name );
       deviceProfile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
       deviceProfile.devices[0].clockFrequency = deviceProperties.clockRate / 1000; // kHz -> MHz
       if (strcmp(deviceProfile.devices[0].name, benchmarkDeviceName) == 0
@@ -615,7 +615,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     
 #endif
   } else {
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
     platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
@@ -624,7 +624,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     status = clGetDeviceIDs(platforms[platformIdx], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
     deviceProfile.numDevices = 1;
     status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_NAME, deviceProfile.devices[0].maxNameLength, deviceProfile.devices[0].name, 0);
-    Cobalt::makeFileNameSafe( deviceProfile.devices[0].name );
+    Tensile::makeFileNameSafe( deviceProfile.devices[0].name );
     status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(deviceProfile.devices[0].clockFrequency), &deviceProfile.devices[0].clockFrequency, 0);
     status = clGetDeviceInfo(devices[deviceIdx], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(deviceProfile.devices[0].numComputeUnits), &deviceProfile.devices[0].numComputeUnits, 0);
     printf("Using user-overrided device: P[%u] D[%u]: %s %u CUs @ %u MHz (%.0f GFlop/s).\n",
@@ -639,7 +639,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     hipGetDeviceProperties( &deviceProperties, deviceIdx);
     deviceProfile.numDevices = 1;
     strcpy( deviceProfile.devices[0].name, deviceProperties.name );
-    Cobalt::makeFileNameSafe( deviceProfile.devices[0].name );
+    Tensile::makeFileNameSafe( deviceProfile.devices[0].name );
     deviceProfile.devices[0].numComputeUnits = deviceProperties.multiProcessorCount;
     deviceProfile.devices[0].clockFrequency = deviceProperties.clockRate/1000; // kHz -> MHz
     printf("Using user-overrided device: D[%u]: %s %u CUs @ %u MHz (%.0f GFlop/s).\n",
@@ -652,22 +652,22 @@ void parseCommandLineOptions(int argc, char *argv[]) {
   }
 }
 
-#ifdef Cobalt_ENABLE_FP16
-bool cobaltDataTypeIsHalf(CobaltDataType
+#ifdef Tensile_ENABLE_FP16
+bool tensileDataTypeIsHalf(TensileDataType
 dataType
   ) {
-  return dataType == cobaltDataTypeHalf
-      || dataType == cobaltDataTypeComplexHalf
-      || dataType == cobaltDataTypeComplexConjugateHalf;
+  return dataType == tensileDataTypeHalf
+      || dataType == tensileDataTypeComplexHalf
+      || dataType == tensileDataTypeComplexConjugateHalf;
 }
 #endif
-bool cobaltDataTypeIsFloat(CobaltDataType dataType) {
-  return dataType == cobaltDataTypeSingle
-    || dataType == cobaltDataTypeComplexSingle
-    || dataType == cobaltDataTypeComplexConjugateSingle;
+bool tensileDataTypeIsFloat(TensileDataType dataType) {
+  return dataType == tensileDataTypeSingle
+    || dataType == tensileDataTypeComplexSingle
+    || dataType == tensileDataTypeComplexConjugateSingle;
 }
-bool cobaltDataTypeIsDouble(CobaltDataType dataType) {
-  return dataType == cobaltDataTypeDouble
-    || dataType == cobaltDataTypeComplexDouble
-    || dataType == cobaltDataTypeComplexConjugateDouble;
+bool tensileDataTypeIsDouble(TensileDataType dataType) {
+  return dataType == tensileDataTypeDouble
+    || dataType == tensileDataTypeComplexDouble
+    || dataType == tensileDataTypeComplexConjugateDouble;
 }
