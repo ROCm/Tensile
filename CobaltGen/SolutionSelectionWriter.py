@@ -66,7 +66,11 @@ class SolutionSelectionWriter:
     s += "  profile.numDevices = 1;\n"
     for deviceProfile, exactMatches in self.psMap.iteritems():
       for device in deviceProfile.devices:
+        s += "#ifdef WIN32\n"
+        s += "  sprintf_s(profile.devices[0].name, profile.devices[0].maxNameLength, \"%s\");\n" % device.name
+        s += "#else\n"
         s += "  sprintf(profile.devices[0].name, \"%s\");\n" % device.name
+        s += "#endif\n"
         s += "  profile.devices[0].numComputeUnits = %u;\n" % device.numComputeUnits
         s += "  profile.devices[0].clockFrequency = %u;\n" % device.clockFrequency
         s += "  enumeratedProfiles.push_back(profile);\n"

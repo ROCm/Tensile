@@ -221,7 +221,7 @@ SolutionLogOnly<TypeC, TypeA, TypeB, TypeAlpha, TypeBeta>::~SolutionLogOnly() {
  * LogSolution:: toString
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
+std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t ) const {
   return Solution::toStringXML(0);
 }
 
@@ -229,7 +229,7 @@ std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( siz
 * LogSolution:: toStringDetailXML
 ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel ) const {
+std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t ) const {
   return "";
 }
 
@@ -238,11 +238,11 @@ std::string SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetai
  ******************************************************************************/
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 CobaltStatus SolutionLogOnly<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
-    CobaltTensorData tensorDataC,
-    CobaltTensorDataConst tensorDataA,
-    CobaltTensorDataConst tensorDataB,
-    CobaltScalarData alpha,
-    CobaltScalarData beta,
+    CobaltTensorData,
+    CobaltTensorDataConst,
+    CobaltTensorDataConst,
+    CobaltScalarData,
+    CobaltScalarData,
     CobaltControl & ctrl ) {
   ctrl.numOutputEvents = 0;
   ctrl.numQueuesUsed = 0;
@@ -1249,24 +1249,33 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
  * Explicit Template Instantiation
  ******************************************************************************/
 // used for cpu classes
+#ifndef WIN32
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template class Cobalt::SolutionTemplate<float,float,float,float,float>;
 template class Cobalt::SolutionTemplate<double,double,double,double,double>;
 template class Cobalt::SolutionTemplate<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat>;
 template class Cobalt::SolutionTemplate<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble>;
-// used for gpu classes
-//template class CobaltSolutionOpenCL<float,float,float,void,void>;
-//template class CobaltSolutionOpenCL<double,double,double,void,void>;
-//template class CobaltSolutionOpenCL<CobaltComplexFloat,CobaltComplexFloat,CobaltComplexFloat,void,void>;
-//template class CobaltSolutionOpenCL<CobaltComplexDouble,CobaltComplexDouble,CobaltComplexDouble,void,void>;
+#ifndef WIN32
+#pragma clang diagnostic pop
+#endif
 
 #include "SolutionTemplateInstantiations.inl"
 
 #if Cobalt_LOGGER_ENABLED
+#ifndef WIN32
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wweak-template-vtables"
+#endif
 template class Cobalt::SolutionLogOnly<void,void,void,void,void>;
+#ifndef WIN32
+#pragma clang diagnostic pop
+#endif
 #endif
 
 #if Cobalt_BACKEND_OPENCL12
-#if defined( _WIN32 )
+#ifdef WIN32
 __declspec(thread) KernelMap *kernelMap = 0;
 #else
 __thread KernelMap *kernelMap = 0;

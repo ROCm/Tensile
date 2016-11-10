@@ -340,7 +340,7 @@ class SolutionWriter:
     s += "/* toString */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += "std::string " + solutionName \
-        + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel) const {\n"
+        + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t ) const {\n"
     s += "  return \"" + solutionName + "\";\n"
     s += "} // toString\n"
     s += "\n"
@@ -487,10 +487,13 @@ class SolutionWriter:
 
     # explicit template instantiation
     s += "/* explicit template instantiation */\n"
-    #s += "template class SolutionOpenCL" \
-    #    + self.getTemplateArgList(solution) + ";\n"
+    if self.backend.isHIP():
+      s += "#pragma clang diagnostic push\n"
+      s += "#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n"
     s += "template class " + solutionName \
         + self.getTemplateArgList(solution) + ";\n"
+    if self.backend.isHIP():
+      s += "#pragma clang diagnostic pop\n"
 
     s += "\n"
     s += "} // namespace\n"

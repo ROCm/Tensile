@@ -352,7 +352,8 @@ bool compareTensors(
   case cobaltDataTypeComplexConjugateHalf:
     return compareTensorsTemplate<CobaltComplexHalf>((CobaltComplexHalf *)gpu.data, (CobaltComplexHalf *)cpu.data, tensor);
 #endif
-  default:
+  case cobaltDataTypeNone:
+  case cobaltNumDataTypes:
     printf("ERROR\n");
     return false;
   }

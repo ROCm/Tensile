@@ -558,8 +558,8 @@ class FileWriter:
     kernelName = self.kernelWriter.getName(kernel)
     fileString = ""
     #fileString += Common.getFileHeader()
-    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_CPP\n"
-    fileString += "#define KERNEL_" + kernelName.upper() + "_CPP\n"
+    #fileString += "#ifndef KERNEL_" + kernelName.upper() + "_CPP\n"
+    #fileString += "#define KERNEL_" + kernelName.upper() + "_CPP\n"
     fileString += "\n"
     fileString += "#include \"" + kernelName + ".h\"\n"
     fileString += "\n"
@@ -578,10 +578,10 @@ class FileWriter:
       fileString += "\";\n"
 
     fileString += "\n"
-    fileString += "#else\n"
-    fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
-        % kernelName
-    fileString += "#endif\n\n"
+    #fileString += "#else\n"
+    #fileString += "#pragma message(\"%s was overriden by user kernel.\")\n" \
+    #    % kernelName
+    #fileString += "#endif\n\n"
     return fileString
 
 
@@ -718,6 +718,9 @@ class FileWriter:
     templateInstantiationsFile = open(templateInstantiationsPath, "w")
     templateInstantiationsFile.write(self.cHeader)
     templateInstantiationsFile.write("/* explicit template instantiations for base classes of generated solutions */\n\n")
+    if self.backend.isHIP():
+      templateInstantiationsFile.write("#pragma clang diagnostic push\n")
+      templateInstantiationsFile.write("#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n")
     for templateInstantiationStr in templateInstantiationSet:
       templateInstantiationsFile.write("template class Cobalt::SolutionGPU" \
           +templateInstantiationStr + ";\n")
@@ -729,6 +732,8 @@ class FileWriter:
         templateInstantiationsFile.write(
             "template class Cobalt::SolutionHIP" \
             +templateInstantiationStr + ";\n")
+    if self.backend.isHIP():
+      templateInstantiationsFile.write("#pragma clang diagnostic pop\n")
     print "CobaltGen: Writing explicit template instantiations."
     templateInstantiationsFile.close()
 

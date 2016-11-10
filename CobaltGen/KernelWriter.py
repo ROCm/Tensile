@@ -367,10 +367,10 @@ class KernelWriter:
     
     # num loads
     kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
-    kStr += "#define NL_PARA_A %d%s" % (kernel.numLoadsParaA, self.endLine )
-    kStr += "#define NL_PARA_B %d%s" % (kernel.numLoadsParaB, self.endLine )
-    kStr += "#define NL_PERP_A %d%s" % (kernel.numLoadsPerpA, self.endLine )
-    kStr += "#define NL_PERP_B %d%s" % (kernel.numLoadsPerpB, self.endLine )
+    kStr += "//#define NL_PARA_A %d%s" % (kernel.numLoadsParaA, self.endLine )
+    kStr += "//#define NL_PARA_B %d%s" % (kernel.numLoadsParaB, self.endLine )
+    kStr += "//#define NL_PERP_A %d%s" % (kernel.numLoadsPerpA, self.endLine )
+    kStr += "//#define NL_PERP_B %d%s" % (kernel.numLoadsPerpB, self.endLine )
     kStr += self.endLine
 
     if False:
@@ -450,9 +450,9 @@ class KernelWriter:
         % (kernel.dataTypeB.toDevice(self.backend), self.endLine)
     kStr += "#define TYPE_C     %s%s" \
         % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
-    kStr += "#define TYPE_ALPHA %s%s" \
+    kStr += "//#define TYPE_ALPHA %s%s" \
         % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
-    kStr += "#define TYPE_BETA  %s%s" \
+    kStr += "//#define TYPE_BETA  %s%s" \
         % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
 
     if self.backend.isOpenCL():
@@ -461,7 +461,7 @@ class KernelWriter:
       kStr += "#define MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
 
-    if self.backend.isHIP():
+    if self.backend.isHIP() and kernel.dataTypeC.isComplex():
       kStr += "#define s0 x" + self.endLine
       kStr += "#define s1 y" + self.endLine
     kStr += self.endLine
@@ -645,8 +645,13 @@ class KernelWriter:
     # function signature
     ####################################
     kStr += "/* kernel */" + self.endLine
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic push" + self.endLine
+      kStr += "#pragma clang diagnostic ignored \"-Wunused-parameter\"" + self.endLine
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic pop" + self.endLine
 
 
     # debug printf - kernel args
@@ -1060,6 +1065,9 @@ class KernelWriter:
     ########################################
     # store registers in lds
     ########################################
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic push" + self.endLine
+      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     # if num threads
     if kernel.loadRequiresFewerThreadsA():
       kStr += indent + "if ( loadSerial < %d ) {%s" \
@@ -1134,6 +1142,8 @@ class KernelWriter:
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
     # end store in lds
+    if self.backend.isHIP():
+      kStr += "#pragma clang diagnostic pop" + self.endLine
 
     # 2nd barrier
     kStr += (
