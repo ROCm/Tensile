@@ -92,7 +92,7 @@ if __name__ == "__main__":
         tensileExe = 'tensile.bat'
         if os.name == "posix":
           tensileExe = 'tensile'
-        cmd([os.path.join(install_path, 'bin', tensileExe), 'benchmark', '-b', backend, '-i', problems_path, '-o', solutions_path]+validateArgs)
+        cmd([os.path.join(install_path, 'bin', tensileExe), 'benchmark', '-b', backend, '-p', problems_path, '-s', solutions_path, "-B", build_path]+validateArgs)
         # Build library
         library_args = ['Tensile_SOLUTIONS='+solutions_path, 'Tensile_BACKEND='+backend]
         build(SIMPLE_PATH, generator=args.generator, prefix=install_path, defines=args.define+library_args)

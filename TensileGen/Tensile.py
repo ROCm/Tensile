@@ -91,7 +91,7 @@ def benchmark(cargs):
     build_args = ['--build', args.buildPath, '--config', 'Release']
     if os.path.exists(os.path.join(args.buildPath, 'Makefile')):
         build_args.extend(['--', '-j', str(multiprocessing.cpu_count())])
-        build_args.extend(['VERBOSE=1'])
+        #build_args.extend(['VERBOSE=1'])
     cmake(build_args)
 
     validateArgs = []
