@@ -134,7 +134,7 @@ unsigned int addGEMMList() {
     // send problem to logger
     TensileSolution solution;
     TensileStatus status = tensileGetSolutionForProblem( &solution, problem );
-	tensileStatusCheck(status);
+    tensileStatusCheck(status);
   }
   tensileTeardown();
 
@@ -177,20 +177,20 @@ unsigned int addGEMMCombinatorics() {
   };
 
   // how many problem options
-  const size_t numStrides     = 2; // 2
-  const size_t numBatchSizes  = 2; // 2
-  const size_t numDataTypes   = 2; // 10
+  const size_t numStrides     = 1; // 2
+  const size_t numBatchSizes  = 1; // 2
+  const size_t numDataTypes   = 1; // 10
   const size_t numAlphas      = 1; // 1
-  const size_t numBetas       = 2; // 2
-  const size_t numTransA      = 2; // 2
-  const size_t numTransB      = 2; // 2
+  const size_t numBetas       = 1; // 2
+  const size_t numTransA      = 1; // 2
+  const size_t numTransB      = 1; // 2
 
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   size_t batches[] = { 1, 2 };
   const TensileDataType dataTypes[][3] = {
     { tensileDataTypeSingle, tensileDataTypeSingle, tensileDataTypeSingle },
-	{ tensileDataTypeDouble, tensileDataTypeDouble, tensileDataTypeDouble },
+    { tensileDataTypeDouble, tensileDataTypeDouble, tensileDataTypeDouble },
     
     { tensileDataTypeComplexSingle, tensileDataTypeComplexSingle, tensileDataTypeComplexSingle },
     { tensileDataTypeComplexDouble, tensileDataTypeComplexDouble, tensileDataTypeComplexDouble },
@@ -224,7 +224,7 @@ unsigned int addGEMMCombinatorics() {
                 size_t stride_incr = 0; // 0->1440, 16->108, 32->76
                 size_t sizeMax = 5760 / batches[bIdx];
                 for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
-				  bool sizeValid = false;
+                  bool sizeValid = false;
                   for (unsigned int s = 0; s < numSizeLimits; s++) {
                     if (i % sizeLimits[s][0] == 0 && i <= sizeLimits[s][1]) {
                       sizeValid = true;
@@ -239,8 +239,8 @@ unsigned int addGEMMCombinatorics() {
                 }
 #else
                 //sizes.push_back({ 5760, 5760, 5760 });
-				sizes.push_back({ 128, 128, 128 }); // all good sizes and square
-                sizes.push_back({ 131, 257, 37 }); // all bad sizes and non-square
+                sizes.push_back({ 128, 128, 128 }); // all good sizes and square
+                //sizes.push_back({ 131, 257, 37 }); // all bad sizes and non-square
 #endif
 
 
@@ -323,7 +323,7 @@ void createAppXMLForExactMatch(
         typeB );
     TensileSolution solution;
     TensileStatus status = tensileGetSolutionForProblem(&solution, problem);
-	tensileStatusCheck(status);
+    tensileStatusCheck(status);
     numProblems++;
   } // size
   

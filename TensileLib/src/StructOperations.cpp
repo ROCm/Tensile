@@ -17,41 +17,41 @@
 
 namespace Tensile {
 
-#define TENTILE_ENUM_TO_STRING_CASE(X) case X: return #X;
+#define TENSILE_ENUM_TO_STRING_CASE(X) case X: return #X;
 std::string toString( TensileStatus status ) {
   switch( status ) {
 
     // success
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusSuccess )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusSuccess )
   
   // tensor errors
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorNumDimensionsInvalid )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionOrderInvalid )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionStrideInvalid )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionSizeInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusTensorNumDimensionsInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionOrderInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionStrideInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusTensorDimensionSizeInvalid )
   
   // operation errors
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperandNumDimensionsMismatch )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationOperandNumIndicesMismatch )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentInvalidA )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentInvalidB )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentDuplicateA )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentDuplicateB )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationNumFreeIndicesInvalid )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationNumSummationIndicesInvalid )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexUnassigned )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusOperationSummationIndexAssignmentsInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperandNumDimensionsMismatch )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationOperandNumIndicesMismatch )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentInvalidA )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentInvalidB )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentDuplicateA )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexAssignmentDuplicateB )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationNumFreeIndicesInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationNumSummationIndicesInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationIndexUnassigned )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusOperationSummationIndexAssignmentsInvalid )
 
   /* tensileGetSolution() */
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusDeviceProfileNumDevicesInvalid )
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusDeviceProfileNotSupported)
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusProblemNotSupported )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusDeviceProfileNumDevicesInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusDeviceProfileNotSupported)
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusProblemNotSupported )
 
   /* control errors */
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusControlInvalid )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusControlInvalid )
 
   /* misc */
-  TENTILE_ENUM_TO_STRING_CASE( tensileStatusInvalidParameter )
+  TENSILE_ENUM_TO_STRING_CASE( tensileStatusInvalidParameter )
 
 
   // causes clang warning
@@ -63,18 +63,18 @@ std::string toString( TensileStatus status ) {
 
 std::string toString( TensileDataType dataType ) {
   switch( dataType ) {
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeSingle )
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeDouble )
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexSingle )
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexDouble )
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateSingle)
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateDouble)
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeNone )
-    TENTILE_ENUM_TO_STRING_CASE( tensileNumDataTypes )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeSingle )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeDouble )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexSingle )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexDouble )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateSingle)
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateDouble)
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeNone )
+    TENSILE_ENUM_TO_STRING_CASE( tensileNumDataTypes )
 #ifdef Tensile_ENABLE_FP16
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeHalf )
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexHalf )
-    TENTILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateHalf)
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeHalf )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexHalf )
+    TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateHalf)
 #endif
   //default:
   //  return "Error in toString(TensileDataType): no switch case for: "
@@ -84,8 +84,8 @@ std::string toString( TensileDataType dataType ) {
 
 std::string toString( TensileOperationType type ) {
   switch( type ) {
-    TENTILE_ENUM_TO_STRING_CASE( tensileOperationTypeContraction )
-    TENTILE_ENUM_TO_STRING_CASE( tensileOperationTypeConvolution )
+    TENSILE_ENUM_TO_STRING_CASE( tensileOperationTypeContraction )
+    TENSILE_ENUM_TO_STRING_CASE( tensileOperationTypeConvolution )
   //default:
   //  return "Error in toString(TensileDataType): no switch case for: "
   //      + std::to_string(type);

@@ -9955,7 +9955,7 @@ __kernel void gemm_kernel(
 
 const char * kernelSource_NT = R"(
 
-#define TENTILE_PATH 0
+#define TENSILE_PATH 0
 
 /* CT_SSSSS_Cij_Sk_Aik_Bjk_i16x6f_j16x6f_k16_O2 */
 
@@ -10097,7 +10097,7 @@ __kernel void gemm_kernel(
   unsigned int localIdx1J = get_local_id(1); // d1
   unsigned int localSerial = localIdx0I + localIdx1J*WG_0I;
 
-#if TENTILE_PATH
+#if TENSILE_PATH
 #else
   A +=  groupIdx0I*96 + localIdx0I + localIdx1J*strideAK;
   B +=  groupIdx1J*96 + localIdx0I + localIdx1J*strideBK;
@@ -10110,7 +10110,7 @@ __kernel void gemm_kernel(
   /* iterate over all summation indices */
   unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
   do {
-#if TENTILE_PATH
+#if TENSILE_PATH
     __local DATA_TYPE_STR_A *lA = localA + GET_LOCAL_INDEX_A(localA0I, localAK);
     __local DATA_TYPE_STR_B *lB = localB + GET_LOCAL_INDEX_B(localB1J, localBK);
 #else
@@ -10121,7 +10121,7 @@ __kernel void gemm_kernel(
 
 
     /* load global -> local */
-#if TENTILE_PATH
+#if TENSILE_PATH
     lA[ 0*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(0), globalIdxAK(0) ) ];
     lA[ 1*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(1), globalIdxAK(1) ) ];
     lA[ 2*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(2), globalIdxAK(2) ) ];

@@ -5,7 +5,8 @@ cmake_minimum_required(VERSION 2.8.12)
 
 include(AddTensileLib)
 include(EnableWarnings)
-set(Tensile_DIR_PROBLEMS ${PROJECT_BINARY_DIR}/problems CACHE PATH "path to problems used by clients")
+set(Tensile_DIR_PROBLEMS ${PROJECT_BINARY_DIR}/ProblemXMLs CACHE PATH "path to problems used by clients")
+
 file(MAKE_DIRECTORY ${Tensile_DIR_PROBLEMS})
 
 find_package(PythonInterp)

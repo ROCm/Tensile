@@ -42,8 +42,8 @@ include( GNUInstallDirs )
 include( CMakePackageConfigHelpers )
 
 set( LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR} )
-set( DATA_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/tensile )
-set( config_package_location ${LIB_INSTALL_DIR}/cmake/tensile )
+set( DATA_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/TensileLib )
+set( config_package_location ${LIB_INSTALL_DIR}/cmake/TensileLib )
 
 configure_package_config_file(
   TensileConfig.cmake.in
@@ -61,10 +61,10 @@ write_basic_package_version_file(
 # Build entry point
 if(WIN32)
 set(Tensile_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/tensile.bat)
-file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/TensileGen/Tensile.py" TENTILE_PY)
+file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/TensileGen/Tensile.py" TENSILE_PY)
 file(WRITE ${Tensile_ENTRY_POINT} "
 
-python @TENTILE_PY@ %*
+python @TENSILE_PY@ %*
 
 ")
 else()

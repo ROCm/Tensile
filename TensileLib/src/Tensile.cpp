@@ -97,7 +97,7 @@ TensileStatus tensileEnumerateDeviceProfiles(
 
   if (!profilesEnumerated) {
 #if Tensile_SOLVER_ENABLED
-	enumerateDeviceProfilesSupported(enumeratedProfiles);
+    enumerateDeviceProfilesSupported(enumeratedProfiles);
 #else
 
 #if Tensile_BACKEND_OPENCL12

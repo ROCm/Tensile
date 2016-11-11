@@ -95,10 +95,10 @@ endif()
 target_include_directories( ${TensileBenchmark_NAME}
   PUBLIC  $<BUILD_INTERFACE:${Tensile_DIR}/TensileLib/include>
           $<BUILD_INTERFACE:${Tensile_DIR}/TensileLib/src>
-          $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}>
-          $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Kernels>
-          $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Solutions>
-          $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Other>
+	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}>
+	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Kernels>
+	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Solutions>
+	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Other>
 )
 
 ############################################################
@@ -107,13 +107,13 @@ target_include_directories( ${TensileBenchmark_NAME}
 target_compile_definitions( ${TensileBenchmark_NAME} PRIVATE -DTensile_SOLVER_ENABLED=0 -DTensile_LOGGER_ENABLED=1 )
 if (CMAKE_CXX_COMPILER MATCHES ".*hipcc")
     # hipcc is a pearl script, so it requires a lot of extra escaping
-    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_PROBLEMS=\\\"${TensileBenchmark_DIR_GENERATED}\\\")
+    #target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_PROBLEMS=\\\"${TensileBenchmark_DIR_GENERATED}\\\")
     # This does not need to be defined but will fail to compile when not
-    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_SOLUTIONS=\\\"${TensileBenchmark_DIR_GENERATED}\\\")
+    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_SOLUTIONS=\\\"${TensileBenchmark_DIR_SOLUTIONS}\\\")
 else()
-    file( TO_CMAKE_PATH ${TensileBenchmark_DIR_GENERATED} CBDG_PATH)
-    message(STATUS "TensileBenchmark output dir: ${CBDG_PATH}")
-    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_PROBLEMS="${CBDG_PATH}")
+    file( TO_CMAKE_PATH ${TensileBenchmark_DIR_SOLUTIONS} CBDS_PATH)
+    message(STATUS "TensileBenchmark output dir: ${CBDS_PATH}")
+    #target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_PROBLEMS="${CBDS_PATH}")
     # This does not need to be defined but will fail to compile when not
-    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_SOLUTIONS="${CBDG_PATH}")
+    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_SOLUTIONS="${CBDS_PATH}")
 endif()

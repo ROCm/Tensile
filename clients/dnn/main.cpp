@@ -253,265 +253,265 @@ TensileProblem createProblemFor_NCHW_ConvolutionAsContraction() {
 // TODO debug me
 TensileProblem createProblemFor_NHWC_ConvolutionAsContraction() {
 
-	// reset tensors
-	image = tensileCreateEmptyTensor();
-	filter = tensileCreateEmptyTensor();
-	output = tensileCreateEmptyTensor();
+  // reset tensors
+  image = tensileCreateEmptyTensor();
+  filter = tensileCreateEmptyTensor();
+  output = tensileCreateEmptyTensor();
 
-	// data types
-	image.dataType = tensileDataTypeSingle;
-	filter.dataType = tensileDataTypeSingle;
-	output.dataType = tensileDataTypeSingle;
-
-
-	/* image tensor (row major) */
-	image.numDimensions = 6;
-
-	// dim0: channel
-	image.dimensions[0].stride = 1;
-	image.dimensions[0].size = C;
-
-	// dim1: sub-image col
-	image.dimensions[1].stride = C;
-	image.dimensions[1].size = S;
-	// dim2: sub-image row
-	image.dimensions[2].stride = C*W;
-	image.dimensions[2].size = R;
-
-	// dim3: sub-image col idx
-	image.dimensions[3].stride = C*V * 1;
-	image.dimensions[3].size = OW;
-	// dim4: sub-image row idx
-	image.dimensions[4].stride = C*U*W;
-	image.dimensions[4].size = OH;
-
-	// dim4: filter idx (free index of filter)
-	// image.dimensions[4].stride = 0;
-	// image.dimensions[4].size   = K;
-	// dim5: minibatch
-	image.dimensions[5].stride = H*W*C;
-	image.dimensions[5].size = N;
+  // data types
+  image.dataType = tensileDataTypeSingle;
+  filter.dataType = tensileDataTypeSingle;
+  output.dataType = tensileDataTypeSingle;
 
 
-	/* filter tensor (row major) */
-	filter.numDimensions = 6;
+  /* image tensor (row major) */
+  image.numDimensions = 6;
 
-	// dim0: channel
-	filter.dimensions[0].stride = 1;
-	filter.dimensions[0].size = C;
+  // dim0: channel
+  image.dimensions[0].stride = 1;
+  image.dimensions[0].size = C;
 
-	// dim1: filter col
-	filter.dimensions[1].stride = C;
-	filter.dimensions[1].size = S;
-	// dim2: filter row
-	filter.dimensions[2].stride = C*S;
-	filter.dimensions[2].size = R;
+  // dim1: sub-image col
+  image.dimensions[1].stride = C;
+  image.dimensions[1].size = S;
+  // dim2: sub-image row
+  image.dimensions[2].stride = C*W;
+  image.dimensions[2].size = R;
 
-	// dim3: sub-image col idx (free index of image)
-	// filter.dimensions[3].stride = 0;
-	// filter.dimensions[3].size   = OW;
-	// dim4: sub-image row idx (dummy)
-	filter.dimensions[3].stride = 0;
-	filter.dimensions[3].size = OH;
+  // dim3: sub-image col idx
+  image.dimensions[3].stride = C*V * 1;
+  image.dimensions[3].size = OW;
+  // dim4: sub-image row idx
+  image.dimensions[4].stride = C*U*W;
+  image.dimensions[4].size = OH;
 
-	// dim5: filter idx
-	filter.dimensions[4].stride = R*S*C;
-	filter.dimensions[4].size = K;
-	// dim6: minibatch (dummy)
-	filter.dimensions[5].stride = 0;
-	filter.dimensions[5].size = N;
-
-
-	/* output tensor (row major) */
-	output.numDimensions = 4;
-
-	// dim0: filter idx (free index of filter)
-	output.dimensions[0].stride = 1;
-	output.dimensions[0].size = K;
-	// dim1: output col (free index of image)
-	output.dimensions[1].stride = K;
-	output.dimensions[1].size = OW;
-	// dim2: output row
-	output.dimensions[2].stride = K*OW;
-	output.dimensions[2].size = OH;
-	// dim3: minibatch
-	output.dimensions[3].stride = OH*OW*K;
-	output.dimensions[3].size = N;
-
-	/* O[i,j,k,n] = Sum[c,r,s] I[s,r,i,j,c,n] * F[s,r,j,c,k,n] OLD */
-	/*   0 1 2 3        4 5 6    6 5 0 1 4 3      6 5 1 4 2 3  */
-
-	/* O[k,i,j,n] = Sum[r,s,c] I[c,s,r,i,j,n] * F[c,s,r,j,k,n] NEW */
-	/*   0 1 2 3        4 5 6    6 5 4 1 2 3      6 5 4 2 0 3  */
-
-	/* index assignments */
-	unsigned int  imageIndexAssignments[6] = { 6, 5, 4, 1, 2, 3 };
-	unsigned int filterIndexAssignments[6] = { 6, 5, 4, 2, 0, 3 };
+  // dim4: filter idx (free index of filter)
+  // image.dimensions[4].stride = 0;
+  // image.dimensions[4].size   = K;
+  // dim5: minibatch
+  image.dimensions[5].stride = H*W*C;
+  image.dimensions[5].size = N;
 
 
-	// create problem
-	TensileProblem problem;
-	TensileStatus status = tensileCreateProblem(
-		&problem,
-		output,
-		image,
-		filter,
-		imageIndexAssignments,
-		filterIndexAssignments,
-		tensileOperationTypeContraction,
-		tensileDataTypeSingle, // alpha
-		tensileDataTypeSingle, // beta
-		true, // use offsets?
-		deviceProfile);
-	tensileStatusCheck(status);
+  /* filter tensor (row major) */
+  filter.numDimensions = 6;
+
+  // dim0: channel
+  filter.dimensions[0].stride = 1;
+  filter.dimensions[0].size = C;
+
+  // dim1: filter col
+  filter.dimensions[1].stride = C;
+  filter.dimensions[1].size = S;
+  // dim2: filter row
+  filter.dimensions[2].stride = C*S;
+  filter.dimensions[2].size = R;
+
+  // dim3: sub-image col idx (free index of image)
+  // filter.dimensions[3].stride = 0;
+  // filter.dimensions[3].size   = OW;
+  // dim4: sub-image row idx (dummy)
+  filter.dimensions[3].stride = 0;
+  filter.dimensions[3].size = OH;
+
+  // dim5: filter idx
+  filter.dimensions[4].stride = R*S*C;
+  filter.dimensions[4].size = K;
+  // dim6: minibatch (dummy)
+  filter.dimensions[5].stride = 0;
+  filter.dimensions[5].size = N;
 
 
-	// validate problem
-	TensileStatus validationStatus = tensileValidateProblem(problem);
-	tensileStatusCheck(validationStatus);
-	if (validationStatus != tensileStatusSuccess) {
-		tensileValidateProblem(problem);
-	}
+  /* output tensor (row major) */
+  output.numDimensions = 4;
 
-	// print problem
-	unsigned int problemStringSize;
-	tensileProblemToString(problem, nullptr, &problemStringSize);
-	char *problemString = new char[problemStringSize];
-	tensileProblemToString(problem, problemString, &problemStringSize);
-	printf("%s\n", problemString);
-	delete[] problemString;
-	return problem;
+  // dim0: filter idx (free index of filter)
+  output.dimensions[0].stride = 1;
+  output.dimensions[0].size = K;
+  // dim1: output col (free index of image)
+  output.dimensions[1].stride = K;
+  output.dimensions[1].size = OW;
+  // dim2: output row
+  output.dimensions[2].stride = K*OW;
+  output.dimensions[2].size = OH;
+  // dim3: minibatch
+  output.dimensions[3].stride = OH*OW*K;
+  output.dimensions[3].size = N;
+
+  /* O[i,j,k,n] = Sum[c,r,s] I[s,r,i,j,c,n] * F[s,r,j,c,k,n] OLD */
+  /*   0 1 2 3        4 5 6    6 5 0 1 4 3      6 5 1 4 2 3  */
+
+  /* O[k,i,j,n] = Sum[r,s,c] I[c,s,r,i,j,n] * F[c,s,r,j,k,n] NEW */
+  /*   0 1 2 3        4 5 6    6 5 4 1 2 3      6 5 4 2 0 3  */
+
+  /* index assignments */
+  unsigned int  imageIndexAssignments[6] = { 6, 5, 4, 1, 2, 3 };
+  unsigned int filterIndexAssignments[6] = { 6, 5, 4, 2, 0, 3 };
+
+
+  // create problem
+  TensileProblem problem;
+  TensileStatus status = tensileCreateProblem(
+    &problem,
+    output,
+    image,
+    filter,
+    imageIndexAssignments,
+    filterIndexAssignments,
+    tensileOperationTypeContraction,
+    tensileDataTypeSingle, // alpha
+    tensileDataTypeSingle, // beta
+    true, // use offsets?
+    deviceProfile);
+  tensileStatusCheck(status);
+
+
+  // validate problem
+  TensileStatus validationStatus = tensileValidateProblem(problem);
+  tensileStatusCheck(validationStatus);
+  if (validationStatus != tensileStatusSuccess) {
+    tensileValidateProblem(problem);
+  }
+
+  // print problem
+  unsigned int problemStringSize;
+  tensileProblemToString(problem, nullptr, &problemStringSize);
+  char *problemString = new char[problemStringSize];
+  tensileProblemToString(problem, problemString, &problemStringSize);
+  printf("%s\n", problemString);
+  delete[] problemString;
+  return problem;
 }
 
 
 TensileProblem createProblemFor_NHWC_Fused_ConvolutionAsContraction() {
 
-	// reset tensors
-	image = tensileCreateEmptyTensor();
-	filter = tensileCreateEmptyTensor();
-	output = tensileCreateEmptyTensor();
+  // reset tensors
+  image = tensileCreateEmptyTensor();
+  filter = tensileCreateEmptyTensor();
+  output = tensileCreateEmptyTensor();
 
-	// data types
-	image.dataType = tensileDataTypeSingle;
-	filter.dataType = tensileDataTypeSingle;
-	output.dataType = tensileDataTypeSingle;
-
-
-	/* image tensor (row major) */
-	image.numDimensions = 5;
-
-	// dim0: channel
-	//image.dimensions[0].stride = 1;
-	//image.dimensions[0].size = C;
-
-	// dim1: sub-image col * chan
-	image.dimensions[0].stride = 1;
-	image.dimensions[0].size = S*C;
-	// dim2: sub-image row
-	image.dimensions[1].stride = C*W;
-	image.dimensions[1].size = R;
-
-	// dim3: sub-image col idx
-	image.dimensions[2].stride = C*V * 1;
-	image.dimensions[2].size = OW;
-	// dim4: sub-image row idx
-	image.dimensions[3].stride = C*U*W;
-	image.dimensions[3].size = OH;
-
-	// dim4: filter idx (free index of filter)
-	// image.dimensions[4].stride = 0;
-	// image.dimensions[4].size   = K;
-	// dim5: minibatch
-	image.dimensions[4].stride = H*W*C;
-	image.dimensions[4].size = N;
+  // data types
+  image.dataType = tensileDataTypeSingle;
+  filter.dataType = tensileDataTypeSingle;
+  output.dataType = tensileDataTypeSingle;
 
 
-	/* filter tensor (row major) */
-	filter.numDimensions = 5;
+  /* image tensor (row major) */
+  image.numDimensions = 5;
 
-	// dim0: channel
-	//filter.dimensions[0].stride = 1;
-	//filter.dimensions[0].size = C;
+  // dim0: channel
+  //image.dimensions[0].stride = 1;
+  //image.dimensions[0].size = C;
 
-	// dim1: filter col * channel
-	filter.dimensions[0].stride = 1;
-	filter.dimensions[0].size = S*C;
-	// dim2: filter row
-	filter.dimensions[1].stride = C*S;
-	filter.dimensions[1].size = R;
+  // dim1: sub-image col * chan
+  image.dimensions[0].stride = 1;
+  image.dimensions[0].size = S*C;
+  // dim2: sub-image row
+  image.dimensions[1].stride = C*W;
+  image.dimensions[1].size = R;
 
-	// dim3: sub-image col idx (free index of image)
-	// filter.dimensions[3].stride = 0;
-	// filter.dimensions[3].size   = OW;
-	// dim4: sub-image row idx (dummy)
-	filter.dimensions[2].stride = 0;
-	filter.dimensions[2].size = OH;
+  // dim3: sub-image col idx
+  image.dimensions[2].stride = C*V * 1;
+  image.dimensions[2].size = OW;
+  // dim4: sub-image row idx
+  image.dimensions[3].stride = C*U*W;
+  image.dimensions[3].size = OH;
 
-	// dim5: filter idx
-	filter.dimensions[3].stride = R*S*C;
-	filter.dimensions[3].size = K;
-	// dim6: minibatch (dummy)
-	filter.dimensions[4].stride = 0;
-	filter.dimensions[4].size = N;
-
-
-	/* output tensor (row major) */
-	output.numDimensions = 4;
-
-	// dim0: filter idx (free index of filter)
-	output.dimensions[0].stride = 1;
-	output.dimensions[0].size = K;
-	// dim1: output col (free index of image)
-	output.dimensions[1].stride = K;
-	output.dimensions[1].size = OW;
-	// dim2: output row
-	output.dimensions[2].stride = K*OW;
-	output.dimensions[2].size = OH;
-	// dim3: minibatch
-	output.dimensions[3].stride = OH*OW*K;
-	output.dimensions[3].size = N;
-
-	/* O[i,j,k,n] = Sum[c,r,s] I[s,r,i,j,c,n] * F[s,r,j,c,k,n] OLD */
-	/*   0 1 2 3        4 5 6    6 5 0 1 4 3      6 5 1 4 2 3  */
-
-	/* O[k,i,j,n] = Sum[r,s*c] I[c*s,r,i,j,n] * F[c*s,r,j,k,n] NEW */
-	/*   0 1 2 3        4 5        5 4 1 2 3        5 4 2 0 3  */
-
-	/* index assignments */
-	unsigned int  imageIndexAssignments[6] = { 5, 4, 1, 2, 3 };
-	unsigned int filterIndexAssignments[6] = { 5, 4, 2, 0, 3 };
+  // dim4: filter idx (free index of filter)
+  // image.dimensions[4].stride = 0;
+  // image.dimensions[4].size   = K;
+  // dim5: minibatch
+  image.dimensions[4].stride = H*W*C;
+  image.dimensions[4].size = N;
 
 
-	// create problem
-	TensileProblem problem;
-	TensileStatus status = tensileCreateProblem(
-		&problem,
-		output,
-		image,
-		filter,
-		imageIndexAssignments,
-		filterIndexAssignments,
-		tensileOperationTypeContraction,
-		tensileDataTypeSingle, // alpha
-		tensileDataTypeSingle, // beta
-		true, // use offsets?
-		deviceProfile);
-	tensileStatusCheck(status);
+  /* filter tensor (row major) */
+  filter.numDimensions = 5;
+
+  // dim0: channel
+  //filter.dimensions[0].stride = 1;
+  //filter.dimensions[0].size = C;
+
+  // dim1: filter col * channel
+  filter.dimensions[0].stride = 1;
+  filter.dimensions[0].size = S*C;
+  // dim2: filter row
+  filter.dimensions[1].stride = C*S;
+  filter.dimensions[1].size = R;
+
+  // dim3: sub-image col idx (free index of image)
+  // filter.dimensions[3].stride = 0;
+  // filter.dimensions[3].size   = OW;
+  // dim4: sub-image row idx (dummy)
+  filter.dimensions[2].stride = 0;
+  filter.dimensions[2].size = OH;
+
+  // dim5: filter idx
+  filter.dimensions[3].stride = R*S*C;
+  filter.dimensions[3].size = K;
+  // dim6: minibatch (dummy)
+  filter.dimensions[4].stride = 0;
+  filter.dimensions[4].size = N;
 
 
-	// validate problem
-	TensileStatus validationStatus = tensileValidateProblem(problem);
-	tensileStatusCheck(validationStatus);
-	if (validationStatus != tensileStatusSuccess) {
-		tensileValidateProblem(problem);
-	}
+  /* output tensor (row major) */
+  output.numDimensions = 4;
 
-	// print problem
-	unsigned int problemStringSize;
-	tensileProblemToString(problem, nullptr, &problemStringSize);
-	char *problemString = new char[problemStringSize];
-	tensileProblemToString(problem, problemString, &problemStringSize);
-	printf("%s\n", problemString);
-	delete[] problemString;
-	return problem;
+  // dim0: filter idx (free index of filter)
+  output.dimensions[0].stride = 1;
+  output.dimensions[0].size = K;
+  // dim1: output col (free index of image)
+  output.dimensions[1].stride = K;
+  output.dimensions[1].size = OW;
+  // dim2: output row
+  output.dimensions[2].stride = K*OW;
+  output.dimensions[2].size = OH;
+  // dim3: minibatch
+  output.dimensions[3].stride = OH*OW*K;
+  output.dimensions[3].size = N;
+
+  /* O[i,j,k,n] = Sum[c,r,s] I[s,r,i,j,c,n] * F[s,r,j,c,k,n] OLD */
+  /*   0 1 2 3        4 5 6    6 5 0 1 4 3      6 5 1 4 2 3  */
+
+  /* O[k,i,j,n] = Sum[r,s*c] I[c*s,r,i,j,n] * F[c*s,r,j,k,n] NEW */
+  /*   0 1 2 3        4 5        5 4 1 2 3        5 4 2 0 3  */
+
+  /* index assignments */
+  unsigned int  imageIndexAssignments[6] = { 5, 4, 1, 2, 3 };
+  unsigned int filterIndexAssignments[6] = { 5, 4, 2, 0, 3 };
+
+
+  // create problem
+  TensileProblem problem;
+  TensileStatus status = tensileCreateProblem(
+    &problem,
+    output,
+    image,
+    filter,
+    imageIndexAssignments,
+    filterIndexAssignments,
+    tensileOperationTypeContraction,
+    tensileDataTypeSingle, // alpha
+    tensileDataTypeSingle, // beta
+    true, // use offsets?
+    deviceProfile);
+  tensileStatusCheck(status);
+
+
+  // validate problem
+  TensileStatus validationStatus = tensileValidateProblem(problem);
+  tensileStatusCheck(validationStatus);
+  if (validationStatus != tensileStatusSuccess) {
+    tensileValidateProblem(problem);
+  }
+
+  // print problem
+  unsigned int problemStringSize;
+  tensileProblemToString(problem, nullptr, &problemStringSize);
+  char *problemString = new char[problemStringSize];
+  tensileProblemToString(problem, problemString, &problemStringSize);
+  printf("%s\n", problemString);
+  delete[] problemString;
+  return problem;
 }
