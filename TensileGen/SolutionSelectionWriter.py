@@ -96,8 +96,8 @@ class SolutionSelectionWriter:
 
     # header file
     h = ""
-    h += "#ifndef TENTILE_GETSOLUTION_H\n"
-    h += "#define TENTILE_GETSOLUTION_H\n"
+    h += "#ifndef TENSILE_GETSOLUTION_H\n"
+    h += "#define TENSILE_GETSOLUTION_H\n"
     h += "\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
@@ -165,8 +165,8 @@ class SolutionSelectionWriter:
     
     # header file
     h = ""
-    h += "#ifndef TENTILE_" + functionName.upper() + "_H\n"
-    h += "#define TENTILE_" + functionName.upper() + "_H\n"
+    h += "#ifndef TENSILE_" + functionName.upper() + "_H\n"
+    h += "#define TENSILE_" + functionName.upper() + "_H\n"
     h += "\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
@@ -1141,6 +1141,7 @@ class SolutionSelectionWriter:
             exactPSPsInRange.remove(slowPSP)
         for psp in fastestExactPSPsInRange:
           localSolutionSet.add( psp[1] )
+          fastestPSPs.add( tuple(copy.deepcopy(psp)) )
 
         finalRuleString = self.ruleToString(rule)
         if self.printLogic: print "FINAL RULE: " + finalRuleString
@@ -1151,7 +1152,9 @@ class SolutionSelectionWriter:
             localSolutionSet.add( psp[1] )
             fastestPSPs.add( tuple(copy.deepcopy(psp)) )
         for psp in fastestExactPSPsInRange:
+          print "adding exact " + str(psp[1])
           fastestPSPs.add( tuple(copy.deepcopy(psp)) )
+          self.addPSPToSets(psp)
         fastestPSPs.add( tuple(copy.deepcopy(rule[1])) )
 
         localSolutionSet.add(rule[1][1])
@@ -1191,8 +1194,8 @@ class SolutionSelectionWriter:
     s = inc + s
 
     # header file
-    h += "#ifndef TENTILE_" + functionName.upper() + "_H\n"
-    h += "#define TENTILE_" + functionName.upper() + "_H\n"
+    h += "#ifndef TENSILE_" + functionName.upper() + "_H\n"
+    h += "#define TENSILE_" + functionName.upper() + "_H\n"
     h += "\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"

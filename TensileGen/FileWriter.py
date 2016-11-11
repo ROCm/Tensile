@@ -35,8 +35,7 @@ class FileWriter:
   otherSubdirectory = "/Other/"
   minimumXMLSubdirectory = "/MinimumXMLs/"
 
-  cmakeHeader = """
-################################################################################
+  cmakeHeader = """################################################################################
 # Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -56,12 +55,12 @@ class FileWriter:
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+
 """
 
 
 
-  cHeader = """
-/*******************************************************************************
+  cHeader = """/*******************************************************************************
 * Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -81,6 +80,7 @@ class FileWriter:
 * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
+
 """
 
 
@@ -528,8 +528,8 @@ class FileWriter:
         + "TensileSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
     benchmarkHeaderFile.write(self.cHeader)
-    h = "#ifndef TENTILE_SOLUTION_CANDIDATES_H\n"
-    h += "#define TENTILE_SOLUTION_CANDIDATES_H\n"
+    h = "#ifndef TENSILE_SOLUTION_CANDIDATES_H\n"
+    h += "#define TENSILE_SOLUTION_CANDIDATES_H\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
     h += "#include \"TensileSolutions.h\"\n"
