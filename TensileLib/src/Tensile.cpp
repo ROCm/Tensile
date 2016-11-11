@@ -58,7 +58,7 @@ TensileStatus tensileTeardown() {
   if (kernelMap) {
     unsigned int index = 0;
     for ( KernelMap::iterator i = kernelMap->begin(); i != kernelMap->end(); i++) {
-      printf("releasing kernel %u\n", index);
+      // printf("releasing kernel %u\n", index);
       clReleaseKernel(i->second);
       index++;
     }

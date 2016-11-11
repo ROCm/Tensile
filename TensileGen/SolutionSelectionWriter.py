@@ -1141,6 +1141,7 @@ class SolutionSelectionWriter:
             exactPSPsInRange.remove(slowPSP)
         for psp in fastestExactPSPsInRange:
           localSolutionSet.add( psp[1] )
+          fastestPSPs.add( tuple(copy.deepcopy(psp)) )
 
         finalRuleString = self.ruleToString(rule)
         if self.printLogic: print "FINAL RULE: " + finalRuleString
@@ -1151,7 +1152,9 @@ class SolutionSelectionWriter:
             localSolutionSet.add( psp[1] )
             fastestPSPs.add( tuple(copy.deepcopy(psp)) )
         for psp in fastestExactPSPsInRange:
+          print "adding exact " + str(psp[1])
           fastestPSPs.add( tuple(copy.deepcopy(psp)) )
+          self.addPSPToSets(psp)
         fastestPSPs.add( tuple(copy.deepcopy(rule[1])) )
 
         localSolutionSet.add(rule[1][1])
