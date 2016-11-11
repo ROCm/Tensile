@@ -1,4 +1,6 @@
-
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
 import argparse
 import os
 import sys

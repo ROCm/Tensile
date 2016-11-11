@@ -1,3 +1,6 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+################################################################################
 include(CMakeParseArguments)
 
 function(add_tensile_lib NAME)
