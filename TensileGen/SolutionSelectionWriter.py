@@ -96,8 +96,8 @@ class SolutionSelectionWriter:
 
     # header file
     h = ""
-    h += "#ifndef TENTILE_GETSOLUTION_H\n"
-    h += "#define TENTILE_GETSOLUTION_H\n"
+    h += "#ifndef TENSILE_GETSOLUTION_H\n"
+    h += "#define TENSILE_GETSOLUTION_H\n"
     h += "\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
@@ -165,8 +165,8 @@ class SolutionSelectionWriter:
     
     # header file
     h = ""
-    h += "#ifndef TENTILE_" + functionName.upper() + "_H\n"
-    h += "#define TENTILE_" + functionName.upper() + "_H\n"
+    h += "#ifndef TENSILE_" + functionName.upper() + "_H\n"
+    h += "#define TENSILE_" + functionName.upper() + "_H\n"
     h += "\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
@@ -1191,8 +1191,8 @@ class SolutionSelectionWriter:
     s = inc + s
 
     # header file
-    h += "#ifndef TENTILE_" + functionName.upper() + "_H\n"
-    h += "#define TENTILE_" + functionName.upper() + "_H\n"
+    h += "#ifndef TENSILE_" + functionName.upper() + "_H\n"
+    h += "#define TENSILE_" + functionName.upper() + "_H\n"
     h += "\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"

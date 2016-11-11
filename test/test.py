@@ -30,8 +30,8 @@ import contextlib
 import shutil
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
-TENTILE_PATH = os.path.dirname(SCRIPT_PATH)
-TEST_PATH = os.path.join(TENTILE_PATH, 'test')
+TENSILE_PATH = os.path.dirname(SCRIPT_PATH)
+TEST_PATH = os.path.join(TENSILE_PATH, 'test')
 PROBLEMS_PATH = os.path.join(TEST_PATH, 'problems')
 SIMPLE_PATH = os.path.join(TEST_PATH, 'simple')
 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
         problems_path = os.path.join(PROBLEMS_PATH,args.problemSet)
 
         #install tensile
-        build(TENTILE_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
+        build(TENSILE_PATH, generator=args.generator, prefix=install_path, defines=args.define, target='install')
         # Run benchmark
         tensileExe = 'tensile.bat'
         if os.name == "posix":

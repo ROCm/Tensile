@@ -526,8 +526,8 @@ class FileWriter:
         + "TensileSolutionCandidates.h"
     benchmarkHeaderFile = open(benchmarkHeaderPath, "w")
     benchmarkHeaderFile.write(self.cHeader)
-    h = "#ifndef TENTILE_SOLUTION_CANDIDATES_H\n"
-    h += "#define TENTILE_SOLUTION_CANDIDATES_H\n"
+    h = "#ifndef TENSILE_SOLUTION_CANDIDATES_H\n"
+    h += "#define TENSILE_SOLUTION_CANDIDATES_H\n"
     h += "#include \"Tensile.h\"\n"
     h += "#include \"Solution.h\"\n"
     h += "#include \"TensileSolutions.h\"\n"
