@@ -1,1 +1,1 @@
-See [Tensile Wiki](https://github.com/clMathLibraries/Tensile/wiki) for documentation.
+See [Tensile Wiki](https://github.com/RadeonOpenCompute/Tensile/wiki) for documentation.
