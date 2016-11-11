@@ -54,9 +54,15 @@ _CrtMemState s3;
 
 #define ULL (unsigned long long)
 
+#if 1
 static Tensile::Tensor::FillType tensorFillTypeC = Tensile::Tensor::fillTypeRandom;
 static Tensile::Tensor::FillType tensorFillTypeA = Tensile::Tensor::fillTypeRandom;
 static Tensile::Tensor::FillType tensorFillTypeB = Tensile::Tensor::fillTypeRandom;
+#else
+static Tensile::Tensor::FillType tensorFillTypeC = Tensile::Tensor::fillTypeIndex;
+static Tensile::Tensor::FillType tensorFillTypeA = Tensile::Tensor::fillTypeIndex;
+static Tensile::Tensor::FillType tensorFillTypeB = Tensile::Tensor::fillTypeIndex;
+#endif
 
 //#define MAX_PROBLEMS 1
 //#define MAX_SOLUTIONS_PER_PROBLEM 1
@@ -314,38 +320,38 @@ void initTensorData() {
   initialTensorFloatC.dataType = tensileDataTypeSingle;
   initialTensorFloatC.numDimensions = 2;
   initialTensorFloatC.dimensions[0].stride = 1;
-  initialTensorFloatC.dimensions[0].size = tensorSizeMaxC_0 / 4 /*bytes per float*/;
+  initialTensorFloatC.dimensions[0].size = tensileMax(1, tensorSizeMaxC_0 / 4) /*bytes per float*/;
   initialTensorFloatC.dimensions[1].stride = initialTensorFloatC.dimensions[0].size;
   initialTensorFloatC.dimensions[1].size = tensorSizeMaxC_1;
   initialTensorFloatA.dataType = tensileDataTypeSingle;
   initialTensorFloatA.numDimensions = 2;
   initialTensorFloatA.dimensions[0].stride = 1;
-  initialTensorFloatA.dimensions[0].size = tensorSizeMaxA_0 / 4 /*bytes per float*/;
+  initialTensorFloatA.dimensions[0].size = tensileMax(1, tensorSizeMaxA_0 / 4) /*bytes per float*/;
   initialTensorFloatA.dimensions[1].stride = initialTensorFloatA.dimensions[0].size;
   initialTensorFloatA.dimensions[1].size = tensorSizeMaxA_1;
   initialTensorFloatB.dataType = tensileDataTypeSingle;
   initialTensorFloatB.numDimensions = 2;
   initialTensorFloatB.dimensions[0].stride = 1;
-  initialTensorFloatB.dimensions[0].size = tensorSizeMaxB_0 / 4 /*bytes per float*/;
+  initialTensorFloatB.dimensions[0].size = tensileMax(1, tensorSizeMaxB_0 / 4) /*bytes per float*/;
   initialTensorFloatB.dimensions[1].stride = initialTensorFloatB.dimensions[0].size;
   initialTensorFloatB.dimensions[1].size = tensorSizeMaxB_1;
 
   initialTensorDoubleC.dataType = tensileDataTypeDouble;
   initialTensorDoubleC.numDimensions = 1;
   initialTensorDoubleC.dimensions[0].stride = 1;
-  initialTensorDoubleC.dimensions[0].size = tensorSizeMaxC_0 / 8 /*bytes per double*/;
+  initialTensorDoubleC.dimensions[0].size = tensileMax(1, tensorSizeMaxC_0 / 8) /*bytes per double*/;
   initialTensorDoubleC.dimensions[1].stride = initialTensorDoubleC.dimensions[0].size;
   initialTensorDoubleC.dimensions[1].size = tensorSizeMaxC_1;
   initialTensorDoubleA.dataType = tensileDataTypeDouble;
   initialTensorDoubleA.numDimensions = 1;
   initialTensorDoubleA.dimensions[0].stride = 1;
-  initialTensorDoubleA.dimensions[0].size = tensorSizeMaxA_0 / 8 /*bytes per double*/;
+  initialTensorDoubleA.dimensions[0].size = tensileMax(1, tensorSizeMaxA_0 / 8) /*bytes per double*/;
   initialTensorDoubleA.dimensions[1].stride = initialTensorDoubleA.dimensions[0].size;
   initialTensorDoubleA.dimensions[1].size = tensorSizeMaxA_1;
   initialTensorDoubleB.dataType = tensileDataTypeDouble;
   initialTensorDoubleB.numDimensions = 1;
   initialTensorDoubleB.dimensions[0].stride = 1;
-  initialTensorDoubleB.dimensions[0].size = tensorSizeMaxB_0 / 8 /*bytes per double*/;
+  initialTensorDoubleB.dimensions[0].size = tensileMax(1, tensorSizeMaxB_0 / 8) /*bytes per double*/;
   initialTensorDoubleB.dimensions[1].stride = initialTensorDoubleB.dimensions[0].size;
   initialTensorDoubleB.dimensions[1].size = tensorSizeMaxB_1;
 

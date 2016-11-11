@@ -399,8 +399,7 @@ bool compareTensorsTemplate(
         if (printCount < maxToPrint) {
           printMismatch<DataType>(index, gpuData[index], cpuData[index]);
           printCount++;
-        }
-        else {
+        } else {
           done = true;
           break;
         }
