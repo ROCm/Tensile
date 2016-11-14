@@ -1,232 +1,50 @@
+################################################################################
+# Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+# ies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+################################################################################
 
 ################################################################################
 # Global Options
 ################################################################################
 cmake_minimum_required(VERSION 2.8.12)
-
-############################################################
-# Cobalt project name
-set( CobaltProj_NAME Cobalt )
-set( CobaltLib_NAME Cobalt )
-set( CobaltLogger_NAME CobaltLogger )
-set( CobaltBenchmark_NAME CobaltBenchmark )
-set( TARGET_PLATFORM "64" )
+# Use legacy variable reference and escape sequence evaluation. This might not
+# be necessary, but is a warning in CMake 3.6
+cmake_policy(SET CMP0053 OLD)
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
-project( ${CobaltProj_NAME} C CXX )
+project( Tensile )
 
 # On windows, it's convenient to change the default install prefix such that it does NOT point to 'program files'
 if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
-	set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
+  set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
 endif( )
 
-############################################################
-# Cobalt Version
-set( ${CobaltProj_NAME}_VERSION_MAJOR 1 )
-set( ${CobaltProj_NAME}_VERSION_MINOR 1 )
-set( ${CobaltProj_NAME}_VERSION_PATCH 0 )
-set( ${CobaltProj_NAME}_VERSION_TWEAK 0 )
-set( CobaltProj_VERSION "${${CobaltProj_NAME}_VERSION_MAJOR}.${${CobaltProj_NAME}_VERSION_MINOR}.${${CobaltProj_NAME}_VERSION_PATCH}.${${CobaltProj_NAME}_VERSION_TWEAK}")
+list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
 ############################################################
-# FindOpenCL.cmake
-set( CMAKE_MODULE_PATH
-  ${CMAKE_MODULE_PATH}
-  ${PROJECT_SOURCE_DIR} )
-message( STATUS "CMAKE_MODULE_PATH=${CMAKE_MODULE_PATH}" )
-
-############################################################
-# require C++11
-if(MSVC)
-  # object-level build parallelism for VS, not just target-level
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
-  set_property( GLOBAL PROPERTY USE_FOLDERS TRUE )
-else()
-endif()
-add_definitions( "-std=c++11" )
-
-############################################################
-# OPTION - CobaltLib Build Mode
-# note: logger is always enabled in CobaltLogger
-set( Cobalt_ENABLE_LOGGER Off CACHE BOOL "Enable logger in CobaltLib?" )
-
-############################################################
-# OPTION - Cobalt Backend
-# - OpenCL 1.2
-# - HIP
-set( Cobalt_BACKEND "OpenCL_1.2" CACHE STRING
-  "Which of Cobalt's backends to use?" )
-set_property( CACHE Cobalt_BACKEND PROPERTY STRINGS OpenCL_1.2 HIP )
-
-# OpenCL 1.2
-if( Cobalt_BACKEND MATCHES "OpenCL_1.2")
-  find_package(OpenCL "1.2" REQUIRED)
-  message(STATUS "${Cobalt_BACKEND} backend selected." )
-  string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-ocl" )
-
-# HIP
-elseif( Cobalt_BACKEND MATCHES "HIP")
-  find_package( HIP REQUIRED )
-  message(STATUS "${Cobalt_BACKEND} backend selected." )
-  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
-  if( ${HIP_PLATFORM} MATCHES "hcc" )
-    string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-hcc" )
-  else( )
-    string( CONCAT CobaltLib_NAME ${CobaltLib_NAME} "-cuda" )
-  endif( )
-endif( )
-
-############################################################
-# OPTION - Cobalt Optimizations
-# - On - do write kernels specifically optimized for alpha=1, beta=0
-# - Off - don't write kernels specifically optimized for alpha=1, beta=0
-set( Cobalt_OPTIMIZE_ALPHA Off CACHE BOOL
-  "Should Cobalt write optimized kernels for alpha=1?" )
-set( Cobalt_OPTIMIZE_BETA Off CACHE BOOL
-  "Should Cobalt write optimized kernels for beta=0?" )
-
-
-############################################################
-# Cobalt Headers needed for all subprojects
-set( CobaltLib_DIRS_INCLUDE
-  ${CMAKE_SOURCE_DIR}/CobaltLib/include
-  ${CMAKE_SOURCE_DIR}/CobaltLib/src)
-set( CobaltLib_API ${CMAKE_SOURCE_DIR}/CobaltLib/include/Cobalt.h )
-source_group(include FILES ${CobaltLib_API} )
-
-############################################################
-# Directories
-set( CobaltBenchmark_DIR_GENERATED ${CMAKE_BINARY_DIR}/CobaltGenerated/CobaltBenchmark )
-set( CobaltLib_DIR_GENERATED   ${CMAKE_BINARY_DIR}/CobaltGenerated/CobaltLib )
-set( Cobalt_DIR_PROBLEMS  ${CobaltBenchmark_DIR_GENERATED}/XML_ApplicationProblemTraces CACHE STRING "Directory from which to read application problem trace xml files")
-set( Cobalt_DIR_SOLUTIONS ${CobaltBenchmark_DIR_GENERATED}/XML_BenchmarkSolutionTimes CACHE STRING "Directory from which to read benchmark solution times xml files")
-
-file( MAKE_DIRECTORY ${CobaltBenchmark_DIR_GENERATED} )
-file( MAKE_DIRECTORY ${CobaltLib_DIR_GENERATED} )
-file( MAKE_DIRECTORY ${Cobalt_DIR_PROBLEMS} )
-file( MAKE_DIRECTORY ${Cobalt_DIR_SOLUTIONS} )
-
-############################################################
-# CobaltGen Files
-set( CobaltGen_SRC
-  ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBackend.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/CobaltGenBenchmark.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/FileReader.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/FileWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/KernelWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionCandidateGenerator.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/SolutionSelectionWriter.py
-  ${CMAKE_SOURCE_DIR}/CobaltGen/Structs.py
-)
-
-############################################################
-# Dynamic CMake files - will be over-written later
-############################################################
-# Benchmark Kernels
-set( CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC
-    ${CobaltBenchmark_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
-if( NOT EXISTS ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC})
-file( WRITE ${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC}
-    "set( CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Kernels FILES "
-    "${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC} )\n"
-)
-endif()
-
-# Lib Kernels
-set( CobaltLib_KernelFiles_CMAKE_DYNAMIC
-  ${CobaltLib_DIR_GENERATED}/Kernels/CobaltKernels.cmake )
-if( NOT EXISTS ${CobaltLib_KernelFiles_CMAKE_DYNAMIC})
-file( WRITE ${CobaltLib_KernelFiles_CMAKE_DYNAMIC}
-    "set( CobaltLib_KernelFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Kernels FILES ${CobaltLib_KernelFiles_GENERATED_DYNAMIC} )\n"
-)
-endif()
-
-# Benchmark Solutions
-set( CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC
-  ${CobaltBenchmark_DIR_GENERATED}/Solutions/CobaltSolutions.cmake )
-if( NOT EXISTS ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC}
-    "set( CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Solutions FILES ${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n"
-  )
-endif()
-
-# Lib Solutions
-set( CobaltLib_SolutionFiles_CMAKE_DYNAMIC
-  ${CobaltLib_DIR_GENERATED}/Solutions/CobaltSolutions.cmake )
-if( NOT EXISTS ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltLib_SolutionFiles_CMAKE_DYNAMIC}
-    "set( CobaltLib_SolutionFiles_GENERATED_DYNAMIC \"\" )\n"
-    "source_group(Solutions FILES ${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n"
-  )
-endif()
-
-# Templates
-if( NOT EXISTS
-  ${CobaltLib_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
-  #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for CobaltLib")
-  file( WRITE
-    ${CobaltLib_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
-    "" )
-endif()
-
-# CobaltLib
-set( CobaltLib_CMAKE_DYNAMIC
-  ${CobaltLib_DIR_GENERATED}/Other/CobaltLib.cmake )
-if( NOT EXISTS ${CobaltLib_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltLib_CMAKE_DYNAMIC}
-  "include( \${CobaltLib_KernelFiles_CMAKE_DYNAMIC} )\n"
-  "include( \${CobaltLib_SolutionFiles_CMAKE_DYNAMIC} )\n"
-  "set( CobaltLib_SRC_GENERATED_DYNAMIC\n"
-  "  \${CobaltLib_KernelFiles_GENERATED_DYNAMIC}\n"
-  "  \${CobaltLib_SolutionFiles_GENERATED_DYNAMIC} )\n"
-  )
-endif()
-include( ${CobaltLib_CMAKE_DYNAMIC} )
-
-
-if( NOT EXISTS
-    ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl)
-  #MESSAGE( "Creating dummy SolutionTemplateInstantiations.inl for benchmark")
-  file( WRITE ${CobaltBenchmark_DIR_GENERATED}/Solutions/SolutionTemplateInstantiations.inl
-    "" )
-endif()
-
-
-set( CobaltBenchmark_CMAKE_DYNAMIC
-  ${CobaltBenchmark_DIR_GENERATED}/Other/CobaltBenchmark.cmake
-)
-if( NOT EXISTS ${CobaltBenchmark_CMAKE_DYNAMIC})
-  file( WRITE ${CobaltBenchmark_CMAKE_DYNAMIC}
-    "include( \${CobaltBenchmark_KernelFiles_CMAKE_DYNAMIC} )\n"
-    "include( \${CobaltBenchmark_SolutionFiles_CMAKE_DYNAMIC} )\n"
-    "set( CobaltBenchmark_SRC_GENERATED_DYNAMIC\n"
-    "  \${CobaltBenchmark_KernelFiles_GENERATED_DYNAMIC}\n"
-    "  \${CobaltBenchmark_SolutionFiles_GENERATED_DYNAMIC} )\n" )
-endif()
-include( ${CobaltBenchmark_CMAKE_DYNAMIC} )
-
-
-
-################################################################################
-# XML Lists
-################################################################################
-set( Cobalt_XML_PROBLEMS_FILE
-  ${Cobalt_DIR_PROBLEMS}/list_of_xmls.txt )
-if( NOT EXISTS ${Cobalt_XML_PROBLEMS_FILE})
-  file( WRITE ${Cobalt_XML_PROBLEMS_FILE}
-    "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBenchmark.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )
-endif()
-set( Cobalt_XML_SOLUTIONS_FILE
-  ${Cobalt_DIR_SOLUTIONS}/list_of_xmls.txt )
-if( NOT EXISTS ${Cobalt_XML_SOLUTIONS_FILE})
-  file( WRITE ${Cobalt_XML_SOLUTIONS_FILE}
-    "The contents of this file isn't read; it only exists for CMake to check the timestamp for rebuilding target CobaltGenBackend.py. CobaltGenBackend.py will use all XMLs in this directory.\n" )
-endif()
+# Tensile Version
+set( ${TensileProj_NAME}_VERSION_MAJOR 1 )
+set( ${TensileProj_NAME}_VERSION_MINOR 1 )
+set( ${TensileProj_NAME}_VERSION_PATCH 0 )
+set( ${TensileProj_NAME}_VERSION_TWEAK 0 )
+set( TensileProj_VERSION "${${TensileProj_NAME}_VERSION_MAJOR}.${${TensileProj_NAME}_VERSION_MINOR}.${${TensileProj_NAME}_VERSION_PATCH}.${${TensileProj_NAME}_VERSION_TWEAK}")
 
 
 ################################################################################
@@ -234,9 +52,78 @@ endif()
 ################################################################################
 include( GNUInstallDirs )
 
-################################################################################
-# Cobalt Subprojects
-################################################################################
-add_subdirectory(CobaltLib)
-add_subdirectory(CobaltBenchmark)
+############################################################
+# The following is cmake code to generate a config file package for Tensile
+# Documentation for how to use the following package:
+# https://cmake.org/cmake/help/v3.0/module/CMakePackageConfigHelpers.html
+include( CMakePackageConfigHelpers )
+
+set( LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR} )
+set( DATA_INSTALL_DIR ${CMAKE_INSTALL_DATADIR}/TensileLib )
+set( config_package_location ${LIB_INSTALL_DIR}/cmake/TensileLib )
+
+configure_package_config_file(
+  TensileConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig.cmake
+  INSTALL_DESTINATION ${config_package_location}
+  PATH_VARS LIB_INSTALL_DIR DATA_INSTALL_DIR
+)
+
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig-version.cmake
+  VERSION ${TensileProj_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+# Build entry point
+if(WIN32)
+set(Tensile_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/tensile.bat)
+file(TO_NATIVE_PATH "${CMAKE_INSTALL_PREFIX}/${DATA_INSTALL_DIR}/TensileGen/Tensile.py" TENSILE_PY)
+file(WRITE ${Tensile_ENTRY_POINT} "
+
+python @TENSILE_PY@ %*
+
+")
+else()
+set(Tensile_ENTRY_POINT ${CMAKE_CURRENT_BINARY_DIR}/bin/tensile)
+file(WRITE ${Tensile_ENTRY_POINT} "#!/bin/bash
+python @CMAKE_INSTALL_PREFIX@/@DATA_INSTALL_DIR@/TensileGen/Tensile.py \"$@\"
+
+")
+endif()
+
+############################################################
+# Library install logic
+
+install(PROGRAMS
+  ${Tensile_ENTRY_POINT}
+  DESTINATION bin)
+
+install( FILES
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/TensileConfig-version.cmake
+  DESTINATION
+    ${config_package_location} )
+
+install( FILES
+  TensileLib/include/Tensile.h
+  DESTINATION include)
+
+install(DIRECTORY
+  TensileLib
+  TensileGen
+  TensileBenchmark
+  cmake
+  DESTINATION ${DATA_INSTALL_DIR}
+  FILES_MATCHING
+  PATTERN "*.h"
+  PATTERN "*.cpp"
+  PATTERN "*.py"
+  PATTERN "*.txt"
+  PATTERN "*.cmake"
+)
+
+############################################################
+# Clients
+set(Tensile_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(clients)

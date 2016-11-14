@@ -19,31 +19,55 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-cmake_minimum_required(VERSION 2.8.12)
+# findHCC does not currently address versioning, i.e.
+# a rich directory structure where version number is a subdirectory under root
+# Also, supported only on UNIX 64 bit systems.
 
-# The contains strings to big to compile on MSVC; exclude from default build
-add_executable( simple EXCLUDE_FROM_ALL
-  main.cpp
-  kernel_opencl.h
-  kernel_hip.h
-  )
-
-add_tensile_lib(simple_tensile EXCLUDE_FROM_ALL
-    PROBLEMS ${Tensile_DIR_PROBLEMS}
-    BACKEND ${Tensile_BACKEND}
-    ENABLE_LOGGER
-)
-
-target_link_libraries( simple PUBLIC simple_tensile )
-
-if( Tensile_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( simple_tensile PUBLIC opencl )
-elseif( Tensile_BACKEND MATCHES "HIP")
-  target_include_directories( simple_tensile SYSTEM
-    PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
-  )
-  target_link_libraries( simple_tensile PUBLIC ${HSA_LIBRARIES} )
-  target_compile_definitions( simple_tensile PUBLIC Tensile_BACKEND_HIP )
+if( NOT DEFINED ENV{HSA_PATH} )
+    set( ENV{HSA_PATH} /opt/rocm/hsa)
 endif()
 
-set_property( TARGET simple PROPERTY FOLDER "clients" )
+if( NOT DEFINED  ENV{HCC_PATH} )
+    set( ENV{HCC_PATH} /opt/rocm/hcc)
+endif()
+
+find_library(HSA_LIBRARY
+    NAMES  hsa-runtime64
+    PATHS
+      ENV HSA_PATH
+      /opt/rocm
+    PATH_SUFFIXES
+      lib)
+
+find_program(HCC
+    NAMES  hcc
+    PATHS
+        ENV HCC_PATH
+        /opt/rocm
+    PATH_SUFFIXES
+        /bin)
+
+find_path(HCC_INCLUDE_DIR
+    NAMES
+        hc.hpp
+    PATHS
+        ENV HCC_PATH
+        /opt/rocm
+    PATH_SUFFIXES
+        /include/hcc
+        /include
+    )
+
+set(HSA_LIBRARIES ${HSA_LIBRARY})
+set(HCC_INCLUDE_DIRS ${HCC_INCLUDE_DIR})
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(
+  HCC
+  FOUND_VAR HCC_FOUND
+  REQUIRED_VARS HSA_LIBRARIES HCC_INCLUDE_DIRS HCC)
+
+mark_as_advanced(
+  HSA_LIBRARIES
+  HCC_INCLUDE_DIRS
+)

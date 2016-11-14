@@ -1,4 +1,25 @@
-#include <hip_runtime.h>
+/*******************************************************************************
+* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+* ies of the Software, and to permit persons to whom the Software is furnished
+* to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*******************************************************************************/
+
+#include <hip/hip_runtime.h>
 
 #if 0
 
@@ -239,7 +260,7 @@ __global__ void kernel_hip(
 
 #else
 
-// Cobalt sgemm_NT_128x128x8_prefetch
+// Tensile sgemm_NT_128x128x8_prefetch
 
 
 /* CT_SSSSS_Cij_Sk_Aik_Bjk_i16x8f_j16x8f_nl4x4_k8_O2 */
@@ -309,7 +330,7 @@ __global__ void kernel_hip(
   offA += (MT_0I+PAD); \
   offB += (MT_1J+PAD); \
   /* mem_fence(CLK_LOCAL_MEM_FENCE); */
-  
+
 
 #define MICRO_TILE_2 \
   /* prefetch black, compute red */ \

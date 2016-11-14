@@ -1,4 +1,25 @@
-#include "Cobalt.h"
+/*******************************************************************************
+* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+* ies of the Software, and to permit persons to whom the Software is furnished
+* to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*******************************************************************************/
+
+#include "Tensile.h"
 #include "dnn_gemms.h"
 #include <cstdio>
 #include <string>
@@ -7,9 +28,9 @@
 
 #define ULL (unsigned long long)
 void createAppXMLForExactMatch(
-    CobaltDataType typeC,
-    CobaltDataType typeA,
-    CobaltDataType typeB,
+    TensileDataType typeC,
+    TensileDataType typeA,
+    TensileDataType typeB,
     bool transA,
     bool transB,
     bool alpha,
@@ -18,13 +39,13 @@ void createAppXMLForExactMatch(
     size_t initStride,
     const std::vector<std::array<size_t, 3>> & sizes
 );
-CobaltTensor createTensorForMatrix(
-    CobaltDataType dataType,
+TensileTensor createTensorForMatrix(
+    TensileDataType dataType,
     size_t initialStride,
     size_t dim0,
     size_t dim1,
     size_t dimBatch );
-CobaltProblem createProblemGEMM(
+TensileProblem createProblemGEMM(
     bool transA,
     bool transB,
     size_t M,
@@ -35,19 +56,19 @@ CobaltProblem createProblemGEMM(
     bool alpha,
     bool beta,
     bool useOffsets,
-    CobaltDataType dataTypeC,
-    CobaltDataType dataTypeA,
-    CobaltDataType dataTypeB
+    TensileDataType dataTypeC,
+    TensileDataType dataTypeA,
+    TensileDataType dataTypeB
   );
 unsigned int addGEMMCombinatorics();
 unsigned int addGEMMList();
-char cobaltDataTypeToChar(CobaltDataType t);
+char tensileDataTypeToChar(TensileDataType t);
 size_t numProblems;
 
 // Device Profiles
 unsigned int numProfiles;
 unsigned int selectedProfile;
-CobaltDeviceProfile *profiles;
+TensileDeviceProfile *profiles;
 
 
 /*******************************************************************************
@@ -60,10 +81,10 @@ int main( int argc, char * argv[] ) {
   }
 
 
-  cobaltEnumerateDeviceProfiles(nullptr, &numProfiles);
-  profiles = new CobaltDeviceProfile[numProfiles];
-  cobaltEnumerateDeviceProfiles(profiles, &numProfiles);
-  printf("CobaltDeviceProfiles:\n");
+  tensileEnumerateDeviceProfiles(nullptr, &numProfiles);
+  profiles = new TensileDeviceProfile[numProfiles];
+  tensileEnumerateDeviceProfiles(profiles, &numProfiles);
+  printf("TensileDeviceProfiles:\n");
   for (unsigned int i = 0; i < numProfiles; i++) {
     printf("  (%2u) %11s: %3u CUs @ %5u MHz = %5.0f GFlop/s%s\n",
       i,
@@ -87,15 +108,15 @@ int main( int argc, char * argv[] ) {
   addGEMMCombinatorics();
   printf("Num GEMM Problems: %u\n", static_cast<unsigned int>(numProblems));
 #endif
-  //cobaltTeardown();
+  //tensileTeardown();
 }
 
 // initially just for DNN, hence single precision
 unsigned int addGEMMList() {
 
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  std::string logFilePath = Tensile_DIR_PROBLEMS;
   logFilePath += "/GEMM.xml";
-  cobaltSetup(logFilePath.c_str());
+  tensileSetup(logFilePath.c_str());
 
   for (unsigned int i = 0; i < num_gemm_params; i++) {
     // get parameters from list
@@ -105,16 +126,16 @@ unsigned int addGEMMList() {
     bool transA = gemm_params[i][3] == 1;
     bool transB = gemm_params[i][4] == 1;
     size_t initialStride = 1;
-    size_t numBatches = gemm_params[i][10];
-    bool alpha = gemm_params[i][8] == 1;
-    bool beta = gemm_params[i][9] == 1;
+    size_t numBatches = gemm_params[i][5];
+    bool alpha = true;
+    bool beta = true;
     bool useOffsets = true;
-    CobaltDataType dataTypeC = cobaltDataTypeSingle;
-    CobaltDataType dataTypeA = cobaltDataTypeSingle;
-    CobaltDataType dataTypeB = cobaltDataTypeSingle;
+    TensileDataType dataTypeC = tensileDataTypeSingle;
+    TensileDataType dataTypeA = tensileDataTypeSingle;
+    TensileDataType dataTypeB = tensileDataTypeSingle;
     
     // create problem from parameters
-    CobaltProblem problem = createProblemGEMM(
+    TensileProblem problem = createProblemGEMM(
       transA,
       transB,
       M, N, K,
@@ -128,10 +149,11 @@ unsigned int addGEMMList() {
       dataTypeB );
 
     // send problem to logger
-    CobaltSolution solution;
-    CobaltStatus status = cobaltGetSolutionForProblem( &solution, problem );
+    TensileSolution solution;
+    TensileStatus status = tensileGetSolutionForProblem( &solution, problem );
+    tensileStatusCheck(status);
   }
-  cobaltTeardown();
+  tensileTeardown();
 
   return num_gemm_params;
 }
@@ -159,6 +181,17 @@ unsigned int addGEMMCombinatorics() {
 #endif
 
   // each api is own test
+  const unsigned int numSizeLimits = 8;
+  const size_t sizeLimits[][2] = {
+      {  16, 1024 },
+      {  32, 1536 },
+      {  48, 3360 },
+      {  64, 5760 },
+      {  80, 5760 },
+      {  96, 5760 },
+      { 112, 5760 },
+      { 128, 5760 }
+  };
 
   // how many problem options
   const size_t numStrides     = 1; // 2
@@ -172,20 +205,20 @@ unsigned int addGEMMCombinatorics() {
   // problem options
   size_t initialStrides[] = { 1, 2 }; // , 64 };
   size_t batches[] = { 1, 2 };
-  const CobaltDataType dataTypes[][3] = {
-    { cobaltDataTypeSingle, cobaltDataTypeSingle, cobaltDataTypeSingle },
-    { cobaltDataTypeDouble, cobaltDataTypeDouble, cobaltDataTypeDouble },
+  const TensileDataType dataTypes[][3] = {
+    { tensileDataTypeSingle, tensileDataTypeSingle, tensileDataTypeSingle },
+    { tensileDataTypeDouble, tensileDataTypeDouble, tensileDataTypeDouble },
     
-    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle },
-    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble },
+    { tensileDataTypeComplexSingle, tensileDataTypeComplexSingle, tensileDataTypeComplexSingle },
+    { tensileDataTypeComplexDouble, tensileDataTypeComplexDouble, tensileDataTypeComplexDouble },
 
-    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexConjugateSingle, cobaltDataTypeComplexSingle },
-    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexSingle, cobaltDataTypeComplexConjugateSingle },
-    { cobaltDataTypeComplexSingle, cobaltDataTypeComplexConjugateSingle, cobaltDataTypeComplexConjugateSingle },
+    { tensileDataTypeComplexSingle, tensileDataTypeComplexConjugateSingle, tensileDataTypeComplexSingle },
+    { tensileDataTypeComplexSingle, tensileDataTypeComplexSingle, tensileDataTypeComplexConjugateSingle },
+    { tensileDataTypeComplexSingle, tensileDataTypeComplexConjugateSingle, tensileDataTypeComplexConjugateSingle },
 
-    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexDouble },
-    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble },
-    { cobaltDataTypeComplexDouble, cobaltDataTypeComplexConjugateDouble, cobaltDataTypeComplexConjugateDouble }
+    { tensileDataTypeComplexDouble, tensileDataTypeComplexConjugateDouble, tensileDataTypeComplexDouble },
+    { tensileDataTypeComplexDouble, tensileDataTypeComplexDouble, tensileDataTypeComplexConjugateDouble },
+    { tensileDataTypeComplexDouble, tensileDataTypeComplexConjugateDouble, tensileDataTypeComplexConjugateDouble }
   };
   const bool alphas[] = { true };
   const bool betas[] = { true, false };
@@ -193,7 +226,7 @@ unsigned int addGEMMCombinatorics() {
   const bool transBs[] = { true, false };
 
   // create problem for each combination
-  unsigned int numProblems = 0;
+  numProblems = 0;
   for (size_t transAIdx = 0; transAIdx < numTransA; transAIdx++) {
     for (size_t transBIdx = 0; transBIdx < numTransB; transBIdx++) {
       for (size_t sIdx = 0; sIdx < numStrides; sIdx++) {
@@ -205,18 +238,27 @@ unsigned int addGEMMCombinatorics() {
                 std::vector<std::array<size_t, 3>> sizes;
 #if 0
                 size_t stride = 16;
-                size_t stride_incr = 16; // 0->1440, 16->108, 32->76
+                size_t stride_incr = 0; // 0->1440, 16->108, 32->76
                 size_t sizeMax = 5760 / batches[bIdx];
                 for (size_t i = stride; i <= sizeMax; i += stride, stride += stride_incr) {
-                  sizes.push_back({ i, i, i }); // exact tile, exact unroll
-                  sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
-                  sizes.push_back({ i - 1, i - 1, i }); // fallback tile, exact unroll
-                  sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
+                  bool sizeValid = false;
+                  for (unsigned int s = 0; s < numSizeLimits; s++) {
+                    if (i % sizeLimits[s][0] == 0 && i <= sizeLimits[s][1]) {
+                      sizeValid = true;
+                      break;
+                    }
+                  }
+                  if (sizeValid) {
+                    sizes.push_back({ i, i, i }); // exact tile, exact unroll
+                    sizes.push_back({ i, i, i - 1 }); // exact tile, fallback unroll
+                    sizes.push_back({ i - 1, i - 1, i - 1 }); // fallback tile, fallback unroll
+                  }
                 }
 #else
-                sizes.push_back({ 5760, 5760, 5760 });
+                //sizes.push_back({ 5760, 5760, 5760 });
+                sizes.push_back({ 128, 128, 128 }); // all good sizes and square
+                //sizes.push_back({ 131, 257, 37 }); // all bad sizes and non-square
 #endif
-
 
 
                 createAppXMLForExactMatch(
@@ -245,9 +287,9 @@ unsigned int addGEMMCombinatorics() {
 
 
 void createAppXMLForExactMatch(
-    CobaltDataType typeC,
-    CobaltDataType typeA,
-    CobaltDataType typeB,
+    TensileDataType typeC,
+    TensileDataType typeA,
+    TensileDataType typeB,
     bool transA,
     bool transB,
     bool alpha,
@@ -256,14 +298,14 @@ void createAppXMLForExactMatch(
     size_t initStride,
     const std::vector<std::array<size_t, 3>> & sizes
 ) {
-  std::string logFilePath = Cobalt_DIR_PROBLEMS;
+  std::string logFilePath = Tensile_DIR_PROBLEMS;
   std::string logFileName = "GEMM";
   logFileName += "_";
-  logFileName += cobaltDataTypeToChar(typeC);
-  logFileName += cobaltDataTypeToChar(typeA);
-  logFileName += cobaltDataTypeToChar(typeB);
-  logFileName += alpha ? cobaltDataTypeToChar(typeC) : cobaltDataTypeToChar(cobaltDataTypeNone);
-  logFileName += beta ? cobaltDataTypeToChar(typeC) : cobaltDataTypeToChar(cobaltDataTypeNone);
+  logFileName += tensileDataTypeToChar(typeC);
+  logFileName += tensileDataTypeToChar(typeA);
+  logFileName += tensileDataTypeToChar(typeB);
+  logFileName += alpha ? tensileDataTypeToChar(typeC) : tensileDataTypeToChar(tensileDataTypeNone);
+  logFileName += beta ? tensileDataTypeToChar(typeC) : tensileDataTypeToChar(tensileDataTypeNone);
   logFileName += "_";
   logFileName += transA ? "T" : "N";
   logFileName += transB ? "T" : "N";
@@ -277,14 +319,14 @@ void createAppXMLForExactMatch(
   logFileName += std::to_string(sizes.size());
   logFilePath += "/" + logFileName + ".xml";
   printf("%s\n", logFileName.c_str());
-  cobaltSetup(logFilePath.c_str());
+  tensileSetup(logFilePath.c_str());
   
   for (size_t mIdx = 0; mIdx < sizes.size(); mIdx++) {
   
     size_t M = sizes[mIdx][0];
     size_t N = sizes[mIdx][1];
     size_t K = sizes[mIdx][2];
-    CobaltProblem problem = createProblemGEMM(
+    TensileProblem problem = createProblemGEMM(
         transA,
         transB,
         M, N, K,
@@ -296,19 +338,20 @@ void createAppXMLForExactMatch(
         typeC,
         typeA,
         typeB );
-    CobaltSolution solution;
-    CobaltStatus status = cobaltGetSolutionForProblem(&solution, problem);
+    TensileSolution solution;
+    TensileStatus status = tensileGetSolutionForProblem(&solution, problem);
+    tensileStatusCheck(status);
     numProblems++;
   } // size
   
-  cobaltTeardown();
+  tensileTeardown();
 }
 
 
 /*******************************************************************************
  * createProblemGEMM
  ******************************************************************************/
-CobaltProblem createProblemGEMM(
+TensileProblem createProblemGEMM(
     bool transA,
     bool transB,
     size_t M,
@@ -319,37 +362,37 @@ CobaltProblem createProblemGEMM(
     bool alpha,
     bool beta,
     bool useOffsets,
-    CobaltDataType dataTypeC,
-    CobaltDataType dataTypeA,
-    CobaltDataType dataTypeB
+    TensileDataType dataTypeC,
+    TensileDataType dataTypeA,
+    TensileDataType dataTypeB
   ) {
 
   // problem - tensor
-  CobaltTensor tensorC = createTensorForMatrix(
+  TensileTensor tensorC = createTensorForMatrix(
     dataTypeC,
     initialStride,
     M,
     N,
     numBatches);
-  CobaltTensor tensorA = createTensorForMatrix(
+  TensileTensor tensorA = createTensorForMatrix(
     dataTypeA,
     initialStride,
     transA ? K : M,
     transA ? M : K,
     numBatches );
-  CobaltTensor tensorB = createTensorForMatrix(
+  TensileTensor tensorB = createTensorForMatrix(
     dataTypeB,
     initialStride,
     transB ? N : K,
     transB ? K : N,
     numBatches );
 
-  size_t sizeC = numBatches>1 ? tensorC.dimensions[2].size*tensorC.dimensions[2].stride
-                              : tensorC.dimensions[1].size*tensorC.dimensions[1].stride;
-  size_t sizeA = numBatches>1 ? tensorA.dimensions[2].size*tensorA.dimensions[2].stride
-                              : tensorA.dimensions[1].size*tensorA.dimensions[1].stride;
-  size_t sizeB = numBatches>1 ? tensorB.dimensions[2].size*tensorB.dimensions[2].stride
-                              : tensorB.dimensions[1].size*tensorB.dimensions[1].stride;
+  //size_t sizeC = numBatches>1 ? tensorC.dimensions[2].size*tensorC.dimensions[2].stride
+  //                            : tensorC.dimensions[1].size*tensorC.dimensions[1].stride;
+  //size_t sizeA = numBatches>1 ? tensorA.dimensions[2].size*tensorA.dimensions[2].stride
+  //                            : tensorA.dimensions[1].size*tensorA.dimensions[1].stride;
+  //size_t sizeB = numBatches>1 ? tensorB.dimensions[2].size*tensorB.dimensions[2].stride
+  //                            : tensorB.dimensions[1].size*tensorB.dimensions[1].stride;
 
   //printf("sizeTotal = %.1f MB\n", (sizeC+sizeA+sizeB)/1024.0/1024.0);
   //printf("    sizeC = %.1f MB\n", sizeC/1024.0/1024.0);
@@ -358,11 +401,11 @@ CobaltProblem createProblemGEMM(
   //printf("\n");
 
   // operation
-  CobaltOperationType operationType = cobaltOperationTypeContraction;
-  CobaltDataType alphaType = alpha ? dataTypeC : cobaltDataTypeNone;
-  CobaltDataType betaType = beta ? dataTypeC : cobaltDataTypeNone;
-  unsigned int indexAssignmentsA[CobaltTensor::maxDimensions];
-  unsigned int indexAssignmentsB[CobaltTensor::maxDimensions];
+  TensileOperationType operationType = tensileOperationTypeContraction;
+  TensileDataType alphaType = alpha ? dataTypeC : tensileDataTypeNone;
+  TensileDataType betaType = beta ? dataTypeC : tensileDataTypeNone;
+  unsigned int indexAssignmentsA[TensileTensor::maxDimensions];
+  unsigned int indexAssignmentsB[TensileTensor::maxDimensions];
   if (numBatches > 1) {
     indexAssignmentsA[0] = transA ? 3 : 0;
     indexAssignmentsA[1] = transA ? 0 : 3;
@@ -377,8 +420,8 @@ CobaltProblem createProblemGEMM(
     indexAssignmentsB[1] = transB ? 2 : 1;
   }
   
-  CobaltProblem problem;
-  CobaltStatus status = cobaltCreateProblem(
+  TensileProblem problem;
+  TensileStatus status = tensileCreateProblem(
       &problem,
       tensorC,
       tensorA,
@@ -390,39 +433,39 @@ CobaltProblem createProblemGEMM(
       betaType,
       useOffsets,
       profiles[selectedProfile] );
-  cobaltStatusCheck(status);
+  tensileStatusCheck(status);
   unsigned int problemStringSize;
-  cobaltProblemToString(problem, nullptr, &problemStringSize);
+  tensileProblemToString(problem, nullptr, &problemStringSize);
   char *problemString = new char[problemStringSize];
-  cobaltProblemToString(problem, problemString, &problemStringSize);
+  tensileProblemToString(problem, problemString, &problemStringSize);
   printf("%4llux%4llux%4llu %s\n", ULL M, ULL N, ULL K, problemString);
   delete[] problemString;
 
   // problem - validate
-  CobaltStatus validationStatus = cobaltValidateProblem( problem );
-  cobaltStatusCheck(validationStatus);
+  TensileStatus validationStatus = tensileValidateProblem( problem );
+  tensileStatusCheck(validationStatus);
   //unsigned int strLength;
-  //cobaltStatusToString(validationStatus, nullptr, &strLength);
+  //tensileStatusToString(validationStatus, nullptr, &strLength);
   //char *statusStr = new char[strLength];
-  //cobaltStatusToString(validationStatus, statusStr, &strLength);
+  //tensileStatusToString(validationStatus, statusStr, &strLength);
   //printf("%s\n", statusStr );
   //delete[] statusStr;
-  if (validationStatus != cobaltStatusSuccess) {
-    cobaltValidateProblem( problem );
+  if (validationStatus != tensileStatusSuccess) {
+    tensileValidateProblem( problem );
   }
 
   return problem;
 }
 
 
-CobaltTensor createTensorForMatrix(
-    CobaltDataType dataType,
+TensileTensor createTensorForMatrix(
+    TensileDataType dataType,
     size_t initialStride,
     size_t dim0,
     size_t dim1,
     size_t dimBatch
     ) {
-  CobaltTensor tensor = cobaltCreateEmptyTensor();
+  TensileTensor tensor = tensileCreateEmptyTensor();
   tensor.dataType = dataType;
   tensor.numDimensions = 2;
   tensor.dimensions[0].stride = (unsigned int)initialStride;
@@ -438,17 +481,19 @@ CobaltTensor createTensorForMatrix(
   return tensor;
 }
 
-char cobaltDataTypeToChar(CobaltDataType t) {
+char tensileDataTypeToChar(TensileDataType t) {
   switch (t) {
-  case cobaltDataTypeHalf:                    return 'H';
-  case cobaltDataTypeSingle:                  return 'S';
-  case cobaltDataTypeDouble:                  return 'D';
-  case cobaltDataTypeComplexHalf:             return 'Q';
-  case cobaltDataTypeComplexSingle:           return 'C';
-  case cobaltDataTypeComplexDouble:           return 'Z';
-  case cobaltDataTypeComplexConjugateHalf:    return 'W';
-  case cobaltDataTypeComplexConjugateSingle:  return 'X';
-  case cobaltDataTypeComplexConjugateDouble:  return 'Y';
+  case tensileDataTypeSingle:                  return 'S';
+  case tensileDataTypeDouble:                  return 'D';
+  case tensileDataTypeComplexSingle:           return 'C';
+  case tensileDataTypeComplexDouble:           return 'Z';
+  case tensileDataTypeComplexConjugateSingle:  return 'X';
+  case tensileDataTypeComplexConjugateDouble:  return 'Y';
+#ifdef Tensile_ENABLE_FP16
+  case tensileDataTypeHalf:                    return 'H';
+  case tensileDataTypeComplexHalf:             return 'Q';
+  case tensileDataTypeComplexConjugateHalf:    return 'W';
+#endif
   default:                                    return '0';
   }
 }

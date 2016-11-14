@@ -1,3 +1,1672 @@
+/*******************************************************************************
+* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+* ies of the Software, and to permit persons to whom the Software is furnished
+* to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*******************************************************************************/
+
+// split-k TN
+#if 1
+
+const char * kernelSource_TN = R"(
+ /* tile parameters */
+#define NUM_THREADS   256
+#define NUM_SUBGROUPS  4
+#define SG0            8
+#define SG1            8
+#define UT0            4
+#define UT1            4
+#define UNROLL         8
+#define PAD            4
+#define VECTOR_WIDTH   1
+#define LOAD_SIZE_COALESCED (NUM_SUBGROUPS*UNROLL)
+
+#define MT0I   (SG0*UT0)
+#define MT1J   (SG1*UT1)
+
+ /* global memory indices NT */
+// #define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*1 + (IDX1J)*strideC1J )
+// #define GET_GLOBAL_INDEX_A(IDX0I, IDXK)  ( (IDX0I)*1 + (IDXK) *strideAK )
+// #define GET_GLOBAL_INDEX_B(IDX1J, IDXK)  ( (IDX1J)*1 + (IDXK) *strideBK )
+
+/* global memory indices TN */
+#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )
+#define GET_GLOBAL_INDEX_A( IDXK, IDX0I) ( (IDXK) *strideA0I + (IDX0I)*strideAK  )
+#define GET_GLOBAL_INDEX_B( IDXK, IDX1J) ( (IDXK) *strideB1J + (IDX1J)*strideBK )
+
+ /* local memory indices */
+#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MT0I+PAD) )
+#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MT1J+PAD) )
+
+ /* data types */
+#define DATA_TYPE_STR_A float
+#define DATA_TYPE_STR_B float
+#define DATA_TYPE_STR_C float
+#define DATA_TYPE_STR_ALPHA float
+#define DATA_TYPE_STR_BETA float
+#define FMA(A,B,DST) mad(A,B,DST)
+#define TYPE_MAD(MULA,MULB,DST) DST = FMA(MULA,MULB,DST);
+#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);
+
+ /* 6x6 micro-tile */
+#define MICRO_TILE \
+  rA[0] = readLocalA[offA+0]; \
+  rA[1] = readLocalA[offA+1]; \
+  rA[2] = readLocalA[offA+2]; \
+  rA[3] = readLocalA[offA+3]; \
+  rB[0] = readLocalB[offB+0]; \
+  rB[1] = readLocalB[offB+1]; \
+  rB[2] = readLocalB[offB+2]; \
+  rB[3] = readLocalB[offB+3]; \
+  offA += NUM_SUBGROUPS*(MT0I+PAD); \
+  offB += NUM_SUBGROUPS*(MT1J+PAD); \
+  TYPE_MAD(rA[0],rB[0],rC[0][0]); \
+  TYPE_MAD(rA[0],rB[1],rC[0][1]); \
+  TYPE_MAD(rA[0],rB[2],rC[0][2]); \
+  TYPE_MAD(rA[0],rB[3],rC[0][3]); \
+  TYPE_MAD(rA[1],rB[0],rC[1][0]); \
+  TYPE_MAD(rA[1],rB[1],rC[1][1]); \
+  TYPE_MAD(rA[1],rB[2],rC[1][2]); \
+  TYPE_MAD(rA[1],rB[3],rC[1][3]); \
+  TYPE_MAD(rA[2],rB[0],rC[2][0]); \
+  TYPE_MAD(rA[2],rB[1],rC[2][1]); \
+  TYPE_MAD(rA[2],rB[2],rC[2][2]); \
+  TYPE_MAD(rA[2],rB[3],rC[2][3]); \
+  TYPE_MAD(rA[3],rB[0],rC[3][0]); \
+  TYPE_MAD(rA[3],rB[1],rC[3][1]); \
+  TYPE_MAD(rA[3],rB[2],rC[3][2]); \
+  TYPE_MAD(rA[3],rB[3],rC[3][3]); \
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+
+ /* preprocessor definitions of kernel arguments*/
+#define strideC0I 1
+#define strideAK 1
+#define strideBK 1
+
+__attribute__((reqd_work_group_size(NUM_THREADS, 1, 1)))
+__kernel void gemm_kernel(
+  __global float       *          C,
+  __global float const * restrict A,
+  __global float const * restrict B,
+  float const alpha,
+  float const beta,
+  unsigned int const strideC1J,
+  unsigned int const strideA0I,
+  unsigned int const strideB1J,
+  unsigned int const size0I,
+  unsigned int const size1J,
+  unsigned int const sizeK) {
+
+  /* allocate registers */
+  float rC[UT0][UT1] = {{ 0 }};
+  float rA[UT0];
+  float rB[UT1];
+
+  /* allocate local memory */
+  __local float localA[UNROLL*(NUM_SUBGROUPS*MT0I + PAD)];
+  __local float localB[UNROLL*(NUM_SUBGROUPS*MT1J + PAD)];
+
+  /* indices */
+  unsigned int serial = get_local_id(0);
+  unsigned int tidS = serial % NUM_SUBGROUPS;
+  unsigned int tid0 = (serial / NUM_SUBGROUPS) % SG0;
+  unsigned int tid1 = (serial / NUM_SUBGROUPS) / SG0;
+  unsigned int groupIdx0I = get_group_id(0);
+  unsigned int groupIdx1J = get_group_id(1);
+
+  /* read global */
+#if 0
+  // read transposed
+  unsigned int readSize0 = NUM_THREADS / LOAD_SIZE_COALESCED; // how many elements perp to coalesced = 8
+  unsigned int readSize1 = NUM_THREADS / LOAD_SIZE_COALESCED; // how many elements perp to coalesced
+  unsigned int readGlobalS =  serial % NUM_SUBGROUPS;
+  unsigned int readGlobal0 = (serial / NUM_SUBGROUPS) % readSize0; // forA
+  unsigned int readGlobal1 = (serial / NUM_SUBGROUPS) % readSize1; // forB
+  unsigned int readGlobalK = serial / (NUM_SUBGROUPS*readSize0);
+  unsigned int readGlobalOffsetA = (readGlobalS + readGlobalK*NUM_SUBGROUPS)*strideAK + (groupIdx0I*MT0I + readGlobal0)*strideA0I;
+  unsigned int readGlobalOffsetB = (readGlobalS + readGlobalK*NUM_SUBGROUPS)*strideBK + (groupIdx1J*MT1J + readGlobal1)*strideB1J;
+  /* write lds ? */
+  unsigned int writeLocalS = readGlobalS;
+  unsigned int writeLocal0 = readGlobal0;
+  unsigned int writeLocal1 = readGlobal1;
+  unsigned int writeLocalK = readGlobalK;
+  unsigned int writeLocalOffsetA = (writeLocalS +writeLocalK*(NUM_SUBGROUPS*MT0I+PAD) ) + writeLocal0 * NUM_SUBGROUPS;
+  unsigned int writeLocalOffsetB = (writeLocalS +writeLocalK*(NUM_SUBGROUPS*MT1J+PAD) ) + writeLocal1 * NUM_SUBGROUPS;
+  unsigned int writeLocalStrideA = NUM_SUBGROUPS*readSize0;
+  unsigned int writeLocalStrideB = NUM_SUBGROUPS*readSize1;
+  __local float *writeLocalA = localA + writeLocalOffsetA;
+  __local float *writeLocalB = localB + writeLocalOffsetB;
+
+#else
+  // read coalesced in K dimension
+  unsigned int readSizeAK = UNROLL*NUM_SUBGROUPS;
+  unsigned int readSizeA0 = MT0I;
+  unsigned int numReadsA = readSizeA0 * readSizeAK / NUM_THREADS;
+  unsigned int numReadsAK = 1; // user specifiable {1, 2, 3, 4}
+  unsigned int numReadsA0 = numReadsA / numReadsAK;
+  unsigned int readMicroTileSizeAK = 4; // user specifiable
+  unsigned int readMicroTileSizeA0 = 8; // user specifiable
+  unsigned int numMicroTilesAK = readSizeAK / readMicroTileSizeAK;
+  unsigned int numMicroTilesA0 = readSizeA0 / readMicroTileSizeA0;
+
+  unsigned int readMicroTileIdxAK = serial % readMicroTileSizeAK;
+  unsigned int readMicroTileIdxA0 = (serial / readMicroTileSizeAK) % readMicroTileSizeA0;
+  unsigned int readMacroTileIdxAK = (serial / readMicroTileSizeAK / readMicroTileSizeA0) % numMicroTilesAK;
+  unsigned int readMacroTileIdxA0 = (serial / readMicroTileSizeAK / readMicroTileSizeA0) / numMicroTilesAK;
+
+  unsigned int readMicroTileIdxBK = readMicroTileIdxAK;
+  unsigned int readMicroTileIdxB1 = readMicroTileIdxA0;
+  unsigned int readMacroTileIdxBK = readMacroTileIdxAK;
+  unsigned int readMacroTileIdxB1 = readMacroTileIdxA0;
+
+  // read offsets from workgroup id
+  unsigned int readGlobalAK = 0;
+  unsigned int readGlobalA0 = groupIdx0I*MT0I;
+  unsigned int readGlobalBK = 0;
+  unsigned int readGlobalB1 = groupIdx1J*MT1J;
+
+  // read offsets from thread id
+  readGlobalAK += readMicroTileIdxAK + readMacroTileIdxAK*readMicroTileSizeAK;
+  readGlobalA0 += (readMicroTileIdxA0 + readMacroTileIdxA0*readMicroTileSizeA0);
+  readGlobalBK += readMicroTileIdxBK + readMacroTileIdxBK*readMicroTileSizeAK;
+  readGlobalB1 += (readMicroTileIdxB1 + readMacroTileIdxB1*readMicroTileSizeA0);
+
+  unsigned int readGlobalOffsetA = readGlobalAK*strideAK + readGlobalA0*strideA0I;
+  unsigned int readGlobalOffsetB = readGlobalBK*strideBK + readGlobalB1*strideB1J;
+
+  /* write lds ? */
+  unsigned int writeLocalStrideA = NUM_THREADS;
+  unsigned int writeLocalStrideB = NUM_THREADS;
+  __local float *writeLocalA = localA + serial;
+  __local float *writeLocalB = localB + serial;
+#endif
+  unsigned int readGlobalStrideA = (readSizeAK/numReadsAK) + (readSizeA0/numReadsA0)*strideA0I;
+  unsigned int readGlobalStrideB = readGlobalStrideA;
+  __global float const * readGlobalA = A + readGlobalOffsetA;
+  __global float const * readGlobalB = B + readGlobalOffsetB;
+  //if (groupIdx0I==0 && groupIdx1J==0) printf("offsetA[%3u] = %u\n", serial, readGlobalOffsetA);
+  //if (groupIdx0I==0 && groupIdx1J==0) printf("offsetA = %06u for serial %u\n", readGlobalOffsetA, serial);
+
+  
+  /* read lds */
+  unsigned int readLocalOffsetA = tidS + tid0*UT0;
+  unsigned int readLocalOffsetB = tidS + tid1*UT1;
+  __local float *readLocalA = localA + readLocalOffsetA;
+  __local float *readLocalB = localB + readLocalOffsetB;
+
+  /* iterate over all summation indices */
+  unsigned int sumIterK = sizeK / (NUM_SUBGROUPS*UNROLL);
+  do {
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    /* load global -> registers */
+	float tmpA0 = readGlobalA[0 * readGlobalStrideA];
+	float tmpA1 = readGlobalA[1 * readGlobalStrideA];
+	float tmpA2 = readGlobalA[2 * readGlobalStrideA];
+	float tmpA3 = readGlobalA[3 * readGlobalStrideA];
+	//float tmpA4 = readGlobalA[4 * readGlobalStrideA];
+	//float tmpA5 = readGlobalA[5 * readGlobalStrideA];
+	//float tmpA6 = readGlobalA[6 * readGlobalStrideA];
+	//float tmpA7 = readGlobalA[7 * readGlobalStrideA];
+
+	float tmpB0 = readGlobalB[0 * readGlobalStrideB];
+	float tmpB1 = readGlobalB[1 * readGlobalStrideB];
+	float tmpB2 = readGlobalB[2 * readGlobalStrideB];
+	float tmpB3 = readGlobalB[3 * readGlobalStrideB];
+	//float tmpB4 = readGlobalB[4 * readGlobalStrideB];
+	//float tmpB5 = readGlobalB[5 * readGlobalStrideB];
+	//float tmpB6 = readGlobalB[6 * readGlobalStrideB];
+	//float tmpB7 = readGlobalB[7 * readGlobalStrideB];
+
+	/* store registers -> local */
+    writeLocalA[0*writeLocalStrideA] = tmpA0;
+	writeLocalA[1*writeLocalStrideA] = tmpA1;
+	writeLocalA[2*writeLocalStrideA] = tmpA2;
+	writeLocalA[3*writeLocalStrideA] = tmpA3;
+    //writeLocalA[4*writeLocalStrideA] = tmpA4;
+	//writeLocalA[5*writeLocalStrideA] = tmpA5;
+	//writeLocalA[6*writeLocalStrideA] = tmpA6;
+	//writeLocalA[7*writeLocalStrideA] = tmpA7;
+
+    writeLocalB[0*writeLocalStrideB] = tmpB0;
+	writeLocalB[1*writeLocalStrideB] = tmpB1;
+	writeLocalB[2*writeLocalStrideB] = tmpB2;
+	writeLocalB[3*writeLocalStrideB] = tmpB3;
+    //writeLocalB[4*writeLocalStrideB] = tmpB4;
+	//writeLocalB[5*writeLocalStrideB] = tmpB5;
+	//writeLocalB[6*writeLocalStrideB] = tmpB6;
+	//writeLocalB[7*writeLocalStrideB] = tmpB7;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    unsigned int offA = 0;
+    unsigned int offB = 0;
+
+    /* do mads */
+    MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+    //MICRO_TILE
+
+    readGlobalA += strideAK*(NUM_SUBGROUPS*UNROLL);
+    readGlobalB += strideBK*(NUM_SUBGROUPS*UNROLL);
+  } while (--sumIterK > 0);
+
+  /* reduction in LDS */
+#if 0
+  __local float localC[MT0I][MT1J];
+
+  if (tidS == 0) {
+    localC[tid0*4+0][tid1*4+0] = rC[0][0];
+    localC[tid0*4+0][tid1*4+1] = rC[0][1];
+    localC[tid0*4+0][tid1*4+2] = rC[0][2];
+    localC[tid0*4+0][tid1*4+3] = rC[0][3];
+	localC[tid0*4+1][tid1*4+0] = rC[1][0];
+	localC[tid0*4+1][tid1*4+1] = rC[1][1];
+	localC[tid0*4+1][tid1*4+2] = rC[1][2];
+	localC[tid0*4+1][tid1*4+3] = rC[1][3];
+	localC[tid0*4+2][tid1*4+0] = rC[2][0];
+	localC[tid0*4+2][tid1*4+1] = rC[2][1];
+	localC[tid0*4+2][tid1*4+2] = rC[2][2];
+	localC[tid0*4+2][tid1*4+3] = rC[2][3];
+	localC[tid0*4+3][tid1*4+0] = rC[3][0];
+	localC[tid0*4+3][tid1*4+1] = rC[3][1];
+	localC[tid0*4+3][tid1*4+2] = rC[3][2];
+	localC[tid0*4+3][tid1*4+3] = rC[3][3];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+
+  for (unsigned int s = 1; s < NUM_SUBGROUPS; s++) {
+    if (tidS == s) {
+		localC[tid0 * 4 + 0][tid1 * 4 + 0] += rC[0][0];
+		localC[tid0 * 4 + 0][tid1 * 4 + 1] += rC[0][1];
+		localC[tid0 * 4 + 0][tid1 * 4 + 2] += rC[0][2];
+		localC[tid0 * 4 + 0][tid1 * 4 + 3] += rC[0][3];
+		localC[tid0 * 4 + 1][tid1 * 4 + 0] += rC[1][0];
+		localC[tid0 * 4 + 1][tid1 * 4 + 1] += rC[1][1];
+		localC[tid0 * 4 + 1][tid1 * 4 + 2] += rC[1][2];
+		localC[tid0 * 4 + 1][tid1 * 4 + 3] += rC[1][3];
+		localC[tid0 * 4 + 2][tid1 * 4 + 0] += rC[2][0];
+		localC[tid0 * 4 + 2][tid1 * 4 + 1] += rC[2][1];
+		localC[tid0 * 4 + 2][tid1 * 4 + 2] += rC[2][2];
+		localC[tid0 * 4 + 2][tid1 * 4 + 3] += rC[2][3];
+		localC[tid0 * 4 + 3][tid1 * 4 + 0] += rC[3][0];
+		localC[tid0 * 4 + 3][tid1 * 4 + 1] += rC[3][1];
+		localC[tid0 * 4 + 3][tid1 * 4 + 2] += rC[3][2];
+		localC[tid0 * 4 + 3][tid1 * 4 + 3] += rC[3][3];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+  }
+
+  // all subgroups have same
+  tid0 = serial%16;
+  tid1 = serial/16;
+  rC[0][0] = localC[tid0+16*0][tid1+16*0];
+  rC[0][1] = localC[tid0+16*0][tid1+16*1];
+  rC[1][0] = localC[tid0+16*1][tid1+16*0];
+  rC[1][1] = localC[tid0+16*1][tid1+16*1];
+#endif
+  rC[0][0] += rC[0][2];
+  rC[0][0] += rC[0][3];
+  rC[0][0] += rC[1][2];
+  rC[0][0] += rC[1][3];
+  rC[0][0] += rC[2][0];
+  rC[0][0] += rC[2][1];
+  rC[0][0] += rC[2][2];
+  rC[0][0] += rC[2][3];
+  rC[0][0] += rC[3][0];
+  rC[0][0] += rC[3][1];
+  rC[0][0] += rC[3][2];
+  rC[0][0] += rC[3][3];
+
+  /* which global Cij index */
+  unsigned int writeGlobalC0I = groupIdx0I*MT0I + tid0;
+  unsigned int writeGlobalC1J = groupIdx1J*MT1J + tid1;
+
+  TYPE_MAD_WRITE(C[GET_GLOBAL_INDEX_C(writeGlobalC0I + 0 * 16, writeGlobalC1J + 0 * 16)], alpha, rC[0][0], beta)
+  TYPE_MAD_WRITE(C[GET_GLOBAL_INDEX_C(writeGlobalC0I + 0 * 16, writeGlobalC1J + 1 * 16)], alpha, rC[0][1], beta)
+  TYPE_MAD_WRITE(C[GET_GLOBAL_INDEX_C(writeGlobalC0I + 1 * 16, writeGlobalC1J + 0 * 16)], alpha, rC[1][0], beta)
+  TYPE_MAD_WRITE(C[GET_GLOBAL_INDEX_C(writeGlobalC0I + 1 * 16, writeGlobalC1J + 1 * 16)], alpha, rC[1][1], beta)
+
+};
+
+)";
+
+#endif
+
+// tensile 32x32x8 TN
+#if 0
+const char * const kernelSource_TN = "\n"
+"/* CT_SSSSS_Cij_Sk_Aki_Bkj_i16x2s_j16x2s_nl1x1_k8_O2 */\n"
+"\n"
+"/* tile parameters */\n"
+"#define WG_0I  16\n"
+"#define WG_1J  16\n"
+"#define UT_0I   2\n"
+"#define UT_1J   2\n"
+"#define MT_0I  32\n"
+"#define MT_1J  32\n"
+"#define UNROLL  8\n"
+"#define PAD     1\n"
+"\n"
+"/* num loads parallel and perpendicular to coalesced dimension */\n"
+"#define NL_PARA_A 1\n"
+"#define NL_PARA_B 1\n"
+"#define NL_PERP_A 1\n"
+"#define NL_PERP_B 1\n"
+"\n"
+"/* load size parallel and perpendicular to coalesced dimension */\n"
+"#define LS_PARA_A 8\n"
+"#define LS_PERP_A 32\n"
+"#define LS_PARA_B 8\n"
+"#define LS_PERP_B 32\n"
+"\n"
+"/* global memory indices */\n"
+"#define GLOBAL_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )\n"
+"#define GLOBAL_A(IDXK, IDX0I) ( (IDXK)*strideAK + (IDX0I)*strideA0I )\n"
+"#define GLOBAL_B(IDXK, IDX1J) ( (IDXK)*strideBK + (IDX1J)*strideB1J )\n"
+"\n"
+"\n"
+"/* data types */\n"
+"#define TYPE_A     float\n"
+"#define TYPE_B     float\n"
+"#define TYPE_C     float\n"
+"#define TYPE_ALPHA float\n"
+"#define TYPE_BETA  float\n"
+"#define MAD(A,B,DST) mad(A,B,DST)\n"
+"\n"
+"/* MADs */\n"
+"#define TYPE_MAD(MULA,MULB,DST) DST = MAD(MULA,MULB,DST);\n"
+"#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);\n"
+"\n"
+"/* 2x2 micro-tile */\n"
+"#define MICRO_TILE \\\n"
+"  rA[0] = localA[offA + 0*WG_0I]; \\\n"
+"  rA[1] = localA[offA + 1*WG_0I]; \\\n"
+"  rB[0] = localB[offB + 0*WG_1J]; \\\n"
+"  rB[1] = localB[offB + 1*WG_1J]; \\\n"
+"  offA += (MT_0I+PAD); \\\n"
+"  offB += (MT_1J+PAD); \\\n"
+"  TYPE_MAD(rA[0],rB[0],rC[0][0]); \\\n"
+"  TYPE_MAD(rA[0],rB[1],rC[0][1]); \\\n"
+"  TYPE_MAD(rA[1],rB[0],rC[1][0]); \\\n"
+"  TYPE_MAD(rA[1],rB[1],rC[1][1]); \\\n"
+"  mem_fence(CLK_LOCAL_MEM_FENCE);\n"
+"\n"
+"/* preprocessor definitions of kernel arguments*/\n"
+"#define strideC0I 1\n"
+"#define strideAK 1\n"
+"#define strideBK 1\n"
+"\n"
+"\n"
+"/* kernel */\n"
+"__attribute__((reqd_work_group_size(WG_0I,WG_1J,1)))\n"
+"__kernel void CT_SSSSS_Cij_Sk_Aki_Bkj_i16x2s_j16x2s_nl1x1_k8_O2(\n"
+"  __global float       *          C,\n"
+"  __global float const * restrict A,\n"
+"  __global float const * restrict B,\n"
+"  float const alpha,\n"
+"  float const beta,\n"
+"  unsigned int const strideC1J,\n"
+"  unsigned int const strideA0I,\n"
+"  unsigned int const strideB1J,\n"
+"  unsigned int const size0I,\n"
+"  unsigned int const size1J,\n"
+"  unsigned int const sizeK ) {\n"
+"\n"
+"\n"
+"  /* allocate registers */\n"
+"  TYPE_C rC[UT_0I][UT_1J] = {{0}};\n"
+"  TYPE_A rA[UT_0I];\n"
+"  TYPE_B rB[UT_1J];\n"
+"\n"
+"  /* allocate local memory */\n"
+"  __local TYPE_A localA[UNROLL*(MT_0I+PAD)];\n"
+"  __local TYPE_B localB[UNROLL*(MT_1J+PAD)];\n"
+"\n"
+"  /* c indices (group) */\n"
+"  unsigned int g0I = get_group_id(0); // d0, tensorA\n"
+"  unsigned int g1J = get_group_id(1); // d1, tensorB\n"
+"\n"
+"  /* c indices (local) */\n"
+"  unsigned int l0I = get_local_id(0); // d0\n"
+"  unsigned int l1J = get_local_id(1); // d1\n"
+"  unsigned int loadSerial = l0I + l1J*WG_0I;\n"
+"  unsigned int a0I = loadSerial/LS_PARA_A;\n"
+"  unsigned int b1J = loadSerial/LS_PARA_B;\n"
+"\n"
+"  /* unrolled summation index */\n"
+"  unsigned int aK = loadSerial%LS_PARA_A;\n"
+"  unsigned int bK = loadSerial%LS_PARA_B;\n"
+"\n"
+"  /* other non-unrolled summation indices (all start at zero) */\n"
+"\n"
+"  /* where will this thread read from global memory */\n"
+"  A += GLOBAL_A( (unsigned long)aK, (unsigned long)a0I+g0I*MT_0I );\n"
+"  B += GLOBAL_B( (unsigned long)bK, (unsigned long)b1J+g1J*MT_1J );\n"
+"\n"
+"  /* where will this thread write to local memory */\n"
+"  __local TYPE_A *lA = localA + a0I + aK*(MT_0I+PAD);\n"
+"  __local TYPE_B *lB = localB + b1J + bK*(MT_1J+PAD);\n"
+"\n"
+"  /* iterate over summation indice(s) */\n"
+"  unsigned int sumIterK = sizeK / UNROLL;\n"
+"  do {\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    /* load A global -> local */\n"
+"    TYPE_A a_0_0;\n"
+"    TYPE_B b_0_0;\n"
+"    a_0_0 = A[ 0*LS_PARA_A + 0*LS_PERP_A*strideA0I];\n"
+"\n"
+"    /* load B global -> local */\n"
+"    b_0_0 = B[ 0*LS_PARA_B + 0*LS_PERP_B*strideB1J];\n"
+"\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 0*LS_PERP_A ] = a_0_0;\n"
+"\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 0*LS_PERP_B ] = b_0_0;\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    unsigned int offA = l0I; // d0\n"
+"    unsigned int offB = l1J; // d1\n"
+"\n"
+"    /* do fmas */\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"\n"
+"    A += (long) strideAK*UNROLL;\n"
+"    B += (long) strideBK*UNROLL;\n"
+"  } while (--sumIterK > 0);\n"
+"\n"
+"  /* which global Cij index */\n"
+"  unsigned int globalC1J = g1J*MT_1J + l1J;\n"
+"  unsigned int globalC0I = g0I*MT_0I + l0I;\n"
+"\n"
+"  /* write global C */\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[0][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[0][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[1][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[1][1], beta)\n"
+"\n"
+"}\n"
+"";
+#endif
+
+// tensile 64x64x8 TN
+#if 0
+
+const char * kernelSource_TN = "\n"
+"/* CT_SSSSS_Cij_Sk_Aki_Bkj_i16x4s_j16x4s_nl1x1_k8_O2 */\n"
+"\n"
+"/* tile parameters */\n"
+"#define WG_0I  16\n"
+"#define WG_1J  16\n"
+"#define UT_0I   4\n"
+"#define UT_1J   4\n"
+"#define MT_0I  64\n"
+"#define MT_1J  64\n"
+"#define UNROLL  8\n"
+"#define PAD     1\n"
+"\n"
+"/* num loads parallel and perpendicular to coalesced dimension */\n"
+"#define NL_PARA_A 1\n"
+"#define NL_PARA_B 1\n"
+"#define NL_PERP_A 2\n"
+"#define NL_PERP_B 2\n"
+"\n"
+"/* load size parallel and perpendicular to coalesced dimension */\n"
+"#define LS_PARA_A 8\n"
+"#define LS_PERP_A 32\n"
+"#define LS_PARA_B 8\n"
+"#define LS_PERP_B 32\n"
+"\n"
+"/* global memory indices */\n"
+"#define GLOBAL_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )\n"
+"#define GLOBAL_A(IDXK, IDX0I) ( (IDXK)*strideAK + (IDX0I)*strideA0I )\n"
+"#define GLOBAL_B(IDXK, IDX1J) ( (IDXK)*strideBK + (IDX1J)*strideB1J )\n"
+"\n"
+"\n"
+"/* data types */\n"
+"#define TYPE_A     float\n"
+"#define TYPE_B     float\n"
+"#define TYPE_C     float\n"
+"#define TYPE_ALPHA float\n"
+"#define TYPE_BETA  float\n"
+"#define MAD(A,B,DST) mad(A,B,DST)\n"
+"\n"
+"/* MADs */\n"
+"#define TYPE_MAD(MULA,MULB,DST) DST = MAD(MULA,MULB,DST);\n"
+"#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);\n"
+"\n"
+"/* 4x4 micro-tile */\n"
+"#define MICRO_TILE \\\n"
+"  rA[0] = localA[offA + 0*WG_0I]; \\\n"
+"  rA[1] = localA[offA + 1*WG_0I]; \\\n"
+"  rA[2] = localA[offA + 2*WG_0I]; \\\n"
+"  rA[3] = localA[offA + 3*WG_0I]; \\\n"
+"  rB[0] = localB[offB + 0*WG_1J]; \\\n"
+"  rB[1] = localB[offB + 1*WG_1J]; \\\n"
+"  rB[2] = localB[offB + 2*WG_1J]; \\\n"
+"  rB[3] = localB[offB + 3*WG_1J]; \\\n"
+"  offA += (MT_0I+PAD); \\\n"
+"  offB += (MT_1J+PAD); \\\n"
+"  TYPE_MAD(rA[0],rB[0],rC[0][0]); \\\n"
+"  TYPE_MAD(rA[0],rB[1],rC[0][1]); \\\n"
+"  TYPE_MAD(rA[0],rB[2],rC[0][2]); \\\n"
+"  TYPE_MAD(rA[0],rB[3],rC[0][3]); \\\n"
+"  TYPE_MAD(rA[1],rB[0],rC[1][0]); \\\n"
+"  TYPE_MAD(rA[1],rB[1],rC[1][1]); \\\n"
+"  TYPE_MAD(rA[1],rB[2],rC[1][2]); \\\n"
+"  TYPE_MAD(rA[1],rB[3],rC[1][3]); \\\n"
+"  TYPE_MAD(rA[2],rB[0],rC[2][0]); \\\n"
+"  TYPE_MAD(rA[2],rB[1],rC[2][1]); \\\n"
+"  TYPE_MAD(rA[2],rB[2],rC[2][2]); \\\n"
+"  TYPE_MAD(rA[2],rB[3],rC[2][3]); \\\n"
+"  TYPE_MAD(rA[3],rB[0],rC[3][0]); \\\n"
+"  TYPE_MAD(rA[3],rB[1],rC[3][1]); \\\n"
+"  TYPE_MAD(rA[3],rB[2],rC[3][2]); \\\n"
+"  TYPE_MAD(rA[3],rB[3],rC[3][3]); \\\n"
+"  mem_fence(CLK_LOCAL_MEM_FENCE);\n"
+"\n"
+"/* preprocessor definitions of kernel arguments*/\n"
+"#define strideC0I 1\n"
+"#define strideAK 1\n"
+"#define strideBK 1\n"
+"\n"
+"\n"
+"/* kernel */\n"
+"__attribute__((reqd_work_group_size(WG_0I,WG_1J,1)))\n"
+"__kernel void CT_SSSSS_Cij_Sk_Aki_Bkj_i16x4s_j16x4s_nl1x1_k8_O2(\n"
+"  __global float       *          C,\n"
+"  __global float const * restrict A,\n"
+"  __global float const * restrict B,\n"
+"  float const alpha,\n"
+"  float const beta,\n"
+"  unsigned int const strideC1J,\n"
+"  unsigned int const strideA0I,\n"
+"  unsigned int const strideB1J,\n"
+"  unsigned int const size0I,\n"
+"  unsigned int const size1J,\n"
+"  unsigned int const sizeK ) {\n"
+"\n"
+"\n"
+"  /* allocate registers */\n"
+"  TYPE_C rC[UT_0I][UT_1J] = {{0}};\n"
+"  TYPE_A rA[UT_0I];\n"
+"  TYPE_B rB[UT_1J];\n"
+"\n"
+"  /* allocate local memory */\n"
+"  __local TYPE_A localA[UNROLL*(MT_0I+PAD)];\n"
+"  __local TYPE_B localB[UNROLL*(MT_1J+PAD)];\n"
+"\n"
+"  /* c indices (group) */\n"
+"  unsigned int g0I = get_group_id(0); // d0, tensorA\n"
+"  unsigned int g1J = get_group_id(1); // d1, tensorB\n"
+"\n"
+"  /* c indices (local) */\n"
+"  unsigned int l0I = get_local_id(0); // d0\n"
+"  unsigned int l1J = get_local_id(1); // d1\n"
+"  unsigned int loadSerial = l0I + l1J*WG_0I;\n"
+"  unsigned int a0I = loadSerial/LS_PARA_A;\n"
+"  unsigned int b1J = loadSerial/LS_PARA_B;\n"
+"\n"
+"  /* unrolled summation index */\n"
+"  unsigned int aK = loadSerial%LS_PARA_A;\n"
+"  unsigned int bK = loadSerial%LS_PARA_B;\n"
+"\n"
+"  /* other non-unrolled summation indices (all start at zero) */\n"
+"\n"
+"  /* where will this thread read from global memory */\n"
+"  A += GLOBAL_A( (unsigned long)aK, (unsigned long)a0I+g0I*MT_0I );\n"
+"  B += GLOBAL_B( (unsigned long)bK, (unsigned long)b1J+g1J*MT_1J );\n"
+"\n"
+"  /* where will this thread write to local memory */\n"
+"  __local TYPE_A *lA = localA + a0I + aK*(MT_0I+PAD);\n"
+"  __local TYPE_B *lB = localB + b1J + bK*(MT_1J+PAD);\n"
+"\n"
+"  /* iterate over summation indice(s) */\n"
+"  unsigned int sumIterK = sizeK / UNROLL;\n"
+"  do {\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    /* load A global -> local */\n"
+"    TYPE_A a_0_0, a_0_1;\n"
+"    TYPE_B b_0_0, b_0_1;\n"
+"    a_0_0 = A[ 0*LS_PARA_A + 0*LS_PERP_A*strideA0I];\n"
+"    a_0_1 = A[ 0*LS_PARA_A + 1*LS_PERP_A*strideA0I];\n"
+"\n"
+"    /* load B global -> local */\n"
+"    b_0_0 = B[ 0*LS_PARA_B + 0*LS_PERP_B*strideB1J];\n"
+"    b_0_1 = B[ 0*LS_PARA_B + 1*LS_PERP_B*strideB1J];\n"
+"\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 0*LS_PERP_A ] = a_0_0;\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 1*LS_PERP_A ] = a_0_1;\n"
+"\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 0*LS_PERP_B ] = b_0_0;\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 1*LS_PERP_B ] = b_0_1;\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    unsigned int offA = l0I; // d0\n"
+"    unsigned int offB = l1J; // d1\n"
+"\n"
+"    /* do fmas */\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"\n"
+"    A += (long) strideAK*UNROLL;\n"
+"    B += (long) strideBK*UNROLL;\n"
+"  } while (--sumIterK > 0);\n"
+"\n"
+"  /* which global Cij index */\n"
+"  unsigned int globalC1J = g1J*MT_1J + l1J;\n"
+"  unsigned int globalC0I = g0I*MT_0I + l0I;\n"
+"\n"
+"  /* write global C */\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[0][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[0][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[0][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[0][3], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[1][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[1][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[1][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[1][3], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[2][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[2][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[2][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[2][3], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[3][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[3][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[3][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[3][3], beta)\n"
+"\n"
+"}\n"
+"";
+
+
+#endif
+
+// tensile 64x64x16 TN
+#if 0
+
+const char * kernelSource_TN = "\n"
+"/* CT_SSSSS_Cij_Sk_Aki_Bkj_i16x4s_j16x4s_nl1x1_k16_O2 */\n"
+"\n"
+"/* tile parameters */\n"
+"#define WG_0I  16\n"
+"#define WG_1J  16\n"
+"#define UT_0I   4\n"
+"#define UT_1J   4\n"
+"#define MT_0I  64\n"
+"#define MT_1J  64\n"
+"#define UNROLL 16\n"
+"#define PAD     1\n"
+"\n"
+"/* num loads parallel and perpendicular to coalesced dimension */\n"
+"#define NL_PARA_A 1\n"
+"#define NL_PARA_B 1\n"
+"#define NL_PERP_A 4\n"
+"#define NL_PERP_B 4\n"
+"\n"
+"/* load size parallel and perpendicular to coalesced dimension */\n"
+"#define LS_PARA_A 16\n"
+"#define LS_PERP_A 16\n"
+"#define LS_PARA_B 16\n"
+"#define LS_PERP_B 16\n"
+"\n"
+"/* global memory indices */\n"
+"#define GLOBAL_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )\n"
+"#define GLOBAL_A(IDXK, IDX0I) ( (IDXK)*strideAK + (IDX0I)*strideA0I )\n"
+"#define GLOBAL_B(IDXK, IDX1J) ( (IDXK)*strideBK + (IDX1J)*strideB1J )\n"
+"\n"
+"\n"
+"/* data types */\n"
+"#define TYPE_A     float\n"
+"#define TYPE_B     float\n"
+"#define TYPE_C     float\n"
+"#define TYPE_ALPHA float\n"
+"#define TYPE_BETA  float\n"
+"#define MAD(A,B,DST) mad(A,B,DST)\n"
+"\n"
+"/* MADs */\n"
+"#define TYPE_MAD(MULA,MULB,DST) DST = MAD(MULA,MULB,DST);\n"
+"#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);\n"
+"\n"
+"/* 4x4 micro-tile */\n"
+"#define MICRO_TILE \\\n"
+"  rA[0] = localA[offA + 0*WG_0I]; \\\n"
+"  rA[1] = localA[offA + 1*WG_0I]; \\\n"
+"  rA[2] = localA[offA + 2*WG_0I]; \\\n"
+"  rA[3] = localA[offA + 3*WG_0I]; \\\n"
+"  rB[0] = localB[offB + 0*WG_1J]; \\\n"
+"  rB[1] = localB[offB + 1*WG_1J]; \\\n"
+"  rB[2] = localB[offB + 2*WG_1J]; \\\n"
+"  rB[3] = localB[offB + 3*WG_1J]; \\\n"
+"  offA += (MT_0I+PAD); \\\n"
+"  offB += (MT_1J+PAD); \\\n"
+"  TYPE_MAD(rA[0],rB[0],rC[0][0]); \\\n"
+"  TYPE_MAD(rA[0],rB[1],rC[0][1]); \\\n"
+"  TYPE_MAD(rA[0],rB[2],rC[0][2]); \\\n"
+"  TYPE_MAD(rA[0],rB[3],rC[0][3]); \\\n"
+"  TYPE_MAD(rA[1],rB[0],rC[1][0]); \\\n"
+"  TYPE_MAD(rA[1],rB[1],rC[1][1]); \\\n"
+"  TYPE_MAD(rA[1],rB[2],rC[1][2]); \\\n"
+"  TYPE_MAD(rA[1],rB[3],rC[1][3]); \\\n"
+"  TYPE_MAD(rA[2],rB[0],rC[2][0]); \\\n"
+"  TYPE_MAD(rA[2],rB[1],rC[2][1]); \\\n"
+"  TYPE_MAD(rA[2],rB[2],rC[2][2]); \\\n"
+"  TYPE_MAD(rA[2],rB[3],rC[2][3]); \\\n"
+"  TYPE_MAD(rA[3],rB[0],rC[3][0]); \\\n"
+"  TYPE_MAD(rA[3],rB[1],rC[3][1]); \\\n"
+"  TYPE_MAD(rA[3],rB[2],rC[3][2]); \\\n"
+"  TYPE_MAD(rA[3],rB[3],rC[3][3]); \\\n"
+"  mem_fence(CLK_LOCAL_MEM_FENCE);\n"
+"\n"
+"/* preprocessor definitions of kernel arguments*/\n"
+"#define strideC0I 1\n"
+"#define strideAK 1\n"
+"#define strideBK 1\n"
+"\n"
+"\n"
+"/* kernel */\n"
+"__attribute__((reqd_work_group_size(WG_0I,WG_1J,1)))\n"
+"__kernel void CT_SSSSS_Cij_Sk_Aki_Bkj_i16x4s_j16x4s_nl1x1_k16_O2(\n"
+"  __global float       *          C,\n"
+"  __global float const * restrict A,\n"
+"  __global float const * restrict B,\n"
+"  float const alpha,\n"
+"  float const beta,\n"
+"  unsigned int const strideC1J,\n"
+"  unsigned int const strideA0I,\n"
+"  unsigned int const strideB1J,\n"
+"  unsigned int const size0I,\n"
+"  unsigned int const size1J,\n"
+"  unsigned int const sizeK ) {\n"
+"\n"
+"\n"
+"  /* allocate registers */\n"
+"  TYPE_C rC[UT_0I][UT_1J] = {{0}};\n"
+"  TYPE_A rA[UT_0I];\n"
+"  TYPE_B rB[UT_1J];\n"
+"\n"
+"  /* allocate local memory */\n"
+"  __local TYPE_A localA[UNROLL*(MT_0I+PAD)];\n"
+"  __local TYPE_B localB[UNROLL*(MT_1J+PAD)];\n"
+"\n"
+"  /* c indices (group) */\n"
+"  unsigned int g0I = get_group_id(0); // d0, tensorA\n"
+"  unsigned int g1J = get_group_id(1); // d1, tensorB\n"
+"\n"
+"  /* c indices (local) */\n"
+"  unsigned int l0I = get_local_id(0); // d0\n"
+"  unsigned int l1J = get_local_id(1); // d1\n"
+"  unsigned int loadSerial = l0I + l1J*WG_0I;\n"
+"  unsigned int a0I = loadSerial/LS_PARA_A;\n"
+"  unsigned int b1J = loadSerial/LS_PARA_B;\n"
+"\n"
+"  /* unrolled summation index */\n"
+"  unsigned int aK = loadSerial%LS_PARA_A;\n"
+"  unsigned int bK = loadSerial%LS_PARA_B;\n"
+"\n"
+"  /* other non-unrolled summation indices (all start at zero) */\n"
+"\n"
+"  /* where will this thread read from global memory */\n"
+"  A += GLOBAL_A( (unsigned long)aK, (unsigned long)a0I+g0I*MT_0I );\n"
+"  B += GLOBAL_B( (unsigned long)bK, (unsigned long)b1J+g1J*MT_1J );\n"
+"\n"
+"  /* where will this thread write to local memory */\n"
+"  __local TYPE_A *lA = localA + a0I + aK*(MT_0I+PAD);\n"
+"  __local TYPE_B *lB = localB + b1J + bK*(MT_1J+PAD);\n"
+"\n"
+"  /* iterate over summation indice(s) */\n"
+"  unsigned int sumIterK = sizeK / UNROLL;\n"
+"  do {\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    /* load A global -> local */\n"
+"    TYPE_A a_0_0, a_0_1, a_0_2, a_0_3;\n"
+"    TYPE_B b_0_0, b_0_1, b_0_2, b_0_3;\n"
+"    a_0_0 = A[ 0*LS_PARA_A + 0*LS_PERP_A*strideA0I];\n"
+"    a_0_1 = A[ 0*LS_PARA_A + 1*LS_PERP_A*strideA0I];\n"
+"    a_0_2 = A[ 0*LS_PARA_A + 2*LS_PERP_A*strideA0I];\n"
+"    a_0_3 = A[ 0*LS_PARA_A + 3*LS_PERP_A*strideA0I];\n"
+"\n"
+"    /* load B global -> local */\n"
+"    b_0_0 = B[ 0*LS_PARA_B + 0*LS_PERP_B*strideB1J];\n"
+"    b_0_1 = B[ 0*LS_PARA_B + 1*LS_PERP_B*strideB1J];\n"
+"    b_0_2 = B[ 0*LS_PARA_B + 2*LS_PERP_B*strideB1J];\n"
+"    b_0_3 = B[ 0*LS_PARA_B + 3*LS_PERP_B*strideB1J];\n"
+"\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 0*LS_PERP_A ] = a_0_0;\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 1*LS_PERP_A ] = a_0_1;\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 2*LS_PERP_A ] = a_0_2;\n"
+"    lA[ 0*LS_PARA_A*(MT_0I+PAD) + 3*LS_PERP_A ] = a_0_3;\n"
+"\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 0*LS_PERP_B ] = b_0_0;\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 1*LS_PERP_B ] = b_0_1;\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 2*LS_PERP_B ] = b_0_2;\n"
+"    lB[ 0*LS_PARA_B*(MT_1J+PAD) + 3*LS_PERP_B ] = b_0_3;\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    unsigned int offA = l0I; // d0\n"
+"    unsigned int offB = l1J; // d1\n"
+"\n"
+"    /* do fmas */\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"\n"
+"    A += (long) strideAK*UNROLL;\n"
+"    B += (long) strideBK*UNROLL;\n"
+"  } while (--sumIterK > 0);\n"
+"\n"
+"  /* which global Cij index */\n"
+"  unsigned int globalC1J = g1J*MT_1J + l1J;\n"
+"  unsigned int globalC0I = g0I*MT_0I + l0I;\n"
+"\n"
+"  /* write global C */\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[0][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[0][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[0][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 0*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[0][3], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[1][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[1][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[1][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 1*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[1][3], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[2][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[2][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[2][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 2*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[2][3], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 0*WG_1J) ], alpha, rC[3][0], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 1*WG_1J) ], alpha, rC[3][1], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 2*WG_1J) ], alpha, rC[3][2], beta)\n"
+"  TYPE_MAD_WRITE( C[ GLOBAL_C( (unsigned long) globalC0I + 3*WG_0I, (unsigned long) globalC1J + 3*WG_1J) ], alpha, rC[3][3], beta)\n"
+"\n"
+"}\n"
+"";
+
+#endif
+
+
+ /*
+ NT - no branches
+ */
+#if 0
+const char * kernelSource_NT = R"(
+
+/* tile parameters */
+#define WG_0I         16
+#define WG_1J         16
+#define UT0I     6
+#define UT1J     6
+#define MT0I     96
+#define MT1J     96
+#define NUM_UNROLL_ITER   8
+#define PAD               1
+#define TPI (WG_0I*WG_1J/NUM_UNROLL_ITER)
+
+/* global memory indices */
+#define GET_GLOBAL_INDEX_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )
+#define GET_GLOBAL_INDEX_A(IDX0I, IDXK) ( (IDX0I)*strideA0I + (IDXK)*strideAK )
+#define GET_GLOBAL_INDEX_B(IDX1J, IDXK) ( (IDX1J)*strideB1J + (IDXK)*strideBK )
+
+/* local memory indices */
+#define GET_LOCAL_INDEX_A(DIM0,DIM1) ((DIM0) + (DIM1)*(MT0I+PAD) )
+#define GET_LOCAL_INDEX_B(DIM0,DIM1) ((DIM1) + (DIM0)*(MT1J+PAD) )
+
+/* data types */
+#define DATA_TYPE_STR_A float
+#define DATA_TYPE_STR_B float
+#define DATA_TYPE_STR_C float
+#define DATA_TYPE_STR_ALPHA float
+#define DATA_TYPE_STR_BETA float
+#define FMA(A,B,DST) mad(A,B,DST)
+#define TYPE_MAD(MULA,MULB,DST) DST = FMA(MULA,MULB,DST);
+#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);
+
+/* 6x6 micro-tile */
+#define MICRO_TILE \
+  rA[0] = localA[offA + 0*WG_0I]; \
+  rA[1] = localA[offA + 1*WG_0I]; \
+  rA[2] = localA[offA + 2*WG_0I]; \
+  rA[3] = localA[offA + 3*WG_0I]; \
+  rA[4] = localA[offA + 4*WG_0I]; \
+  rA[5] = localA[offA + 5*WG_0I]; \
+  rB[0] = localB[offB + 0*WG_1J]; \
+  rB[1] = localB[offB + 1*WG_1J]; \
+  rB[2] = localB[offB + 2*WG_1J]; \
+  rB[3] = localB[offB + 3*WG_1J]; \
+  rB[4] = localB[offB + 4*WG_1J]; \
+  rB[5] = localB[offB + 5*WG_1J]; \
+  offA += (MT0I+PAD); \
+  offB += (MT1J+PAD); \
+  TYPE_MAD(rA[0],rB[0],rC[0][0]); \
+  TYPE_MAD(rA[0],rB[1],rC[0][1]); \
+  TYPE_MAD(rA[0],rB[2],rC[0][2]); \
+  TYPE_MAD(rA[0],rB[3],rC[0][3]); \
+  TYPE_MAD(rA[0],rB[4],rC[0][4]); \
+  TYPE_MAD(rA[0],rB[5],rC[0][5]); \
+  TYPE_MAD(rA[1],rB[0],rC[1][0]); \
+  TYPE_MAD(rA[1],rB[1],rC[1][1]); \
+  TYPE_MAD(rA[1],rB[2],rC[1][2]); \
+  TYPE_MAD(rA[1],rB[3],rC[1][3]); \
+  TYPE_MAD(rA[1],rB[4],rC[1][4]); \
+  TYPE_MAD(rA[1],rB[5],rC[1][5]); \
+  TYPE_MAD(rA[2],rB[0],rC[2][0]); \
+  TYPE_MAD(rA[2],rB[1],rC[2][1]); \
+  TYPE_MAD(rA[2],rB[2],rC[2][2]); \
+  TYPE_MAD(rA[2],rB[3],rC[2][3]); \
+  TYPE_MAD(rA[2],rB[4],rC[2][4]); \
+  TYPE_MAD(rA[2],rB[5],rC[2][5]); \
+  TYPE_MAD(rA[3],rB[0],rC[3][0]); \
+  TYPE_MAD(rA[3],rB[1],rC[3][1]); \
+  TYPE_MAD(rA[3],rB[2],rC[3][2]); \
+  TYPE_MAD(rA[3],rB[3],rC[3][3]); \
+  TYPE_MAD(rA[3],rB[4],rC[3][4]); \
+  TYPE_MAD(rA[3],rB[5],rC[3][5]); \
+  TYPE_MAD(rA[4],rB[0],rC[4][0]); \
+  TYPE_MAD(rA[4],rB[1],rC[4][1]); \
+  TYPE_MAD(rA[4],rB[2],rC[4][2]); \
+  TYPE_MAD(rA[4],rB[3],rC[4][3]); \
+  TYPE_MAD(rA[4],rB[4],rC[4][4]); \
+  TYPE_MAD(rA[4],rB[5],rC[4][5]); \
+  TYPE_MAD(rA[5],rB[0],rC[5][0]); \
+  TYPE_MAD(rA[5],rB[1],rC[5][1]); \
+  TYPE_MAD(rA[5],rB[2],rC[5][2]); \
+  TYPE_MAD(rA[5],rB[3],rC[5][3]); \
+  TYPE_MAD(rA[5],rB[4],rC[5][4]); \
+  TYPE_MAD(rA[5],rB[5],rC[5][5]); \
+  mem_fence(CLK_LOCAL_MEM_FENCE);
+
+/* preprocessor definitions of kernel arguments*/
+#define strideC0I 1
+#define strideA0I 1
+#define strideB1J 1
+
+
+__attribute__((reqd_work_group_size(WG_0I,WG_1J,1)))
+__kernel void gemm_kernel(
+  __global float       *          C,
+  __global float const * restrict A,
+  __global float const * restrict B,
+  float const alpha,
+  float const beta,
+  unsigned int const strideC1J,
+  unsigned int const strideAK,
+  unsigned int const strideBK,
+  unsigned int const size0I,
+  unsigned int const size1J,
+  unsigned int const sizeK ) {
+
+  /* allocate registers */
+  float rC[UT0I][UT1J] = {{0}};
+  float rA[UT0I];
+  float rB[UT1J];
+
+  /* allocate local memory */
+  __local float localA[NUM_UNROLL_ITER*(MT0I+PAD)];
+  __local float localB[NUM_UNROLL_ITER*(MT1J+PAD)];
+
+  /* c indices */
+#if 1
+  unsigned int groupIdx0I = get_group_id(0); // d0, tensorA
+  unsigned int groupIdx1J = get_group_id(1); // d1, tensorB
+#else
+  unsigned int groupSerial = get_group_id(0)*get_num_groups(1) + get_group_id(1);
+  unsigned int groupIdx0I = groupSerial % get_num_groups(0);
+  unsigned int groupIdx1J = groupSerial / get_num_groups(0);
+#endif
+
+
+
+  unsigned int localIdx0I = get_local_id(0); // d0
+  unsigned int localIdx1J = get_local_id(1); // d1
+  unsigned int localSerial = localIdx0I + localIdx1J*WG_0I;
+
+  unsigned int aI = localSerial%TPI;
+  unsigned int aK = localSerial/TPI;
+  unsigned int bJ = aI; // only for NT
+  unsigned int bK = aK;
+
+  A +=  GET_GLOBAL_INDEX_A(aI+groupIdx0I*MT0I, aK);
+  B +=  GET_GLOBAL_INDEX_B(bJ+groupIdx1J*MT1J, bK);
+
+  unsigned int nonMultipleSize0 = size0I % MT0I;
+  unsigned int nonMultipleSize1 = size1J % MT1J;
+  //if (localSerial==0) printf("wg[%u][%u] nm=%u,%u\n", groupIdx0I, groupIdx1J, nonMultipleSize0, nonMultipleSize1);
+  bool lastGroup0 = groupIdx0I == get_num_groups(0)-1;
+  bool lastGroup1 = groupIdx1J == get_num_groups(1)-1;
+  //if (localSerial==0) printf("wg[%u][%u] last=%u,%u\n", groupIdx0I, groupIdx1J, lastGroup0, lastGroup1);
+  unsigned int groupShift0 = lastGroup0 && nonMultipleSize0 ? MT0I-nonMultipleSize0 : 0;
+  unsigned int groupShift1 = lastGroup1 && nonMultipleSize1 ? MT1J-nonMultipleSize1 : 0;
+  //if (localSerial==0) printf("wg[%u][%u] last=%u,%u\n", groupIdx0I, groupIdx1J, groupShift0, lastGroup1);
+  unsigned int shiftA = GET_GLOBAL_INDEX_A(groupShift0, 0);
+  unsigned int shiftB = GET_GLOBAL_INDEX_B(groupShift1, 0);
+  //if (localSerial==0) printf("wg[%u][%u] shift=%u,%u\n", groupIdx0I, groupIdx1J, shiftA, shiftB);
+  A -= shiftA;
+  B -= shiftB;
+
+  __local float *lA = localA + GET_LOCAL_INDEX_A(aI, aK);
+  __local float *lB = localB + GET_LOCAL_INDEX_B(bK, bJ);
+
+  /* iterate over all summation indices */
+  unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
+  do {
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    /* load global -> local */
+    lA[0*TPI] = A[0*TPI+0*strideAK];
+    lA[1*TPI] = A[1*TPI+0*strideAK];
+    lA[2*TPI] = A[2*TPI+0*strideAK];
+
+    lB[0*TPI] = B[0*TPI+0*strideBK];
+    lB[1*TPI] = B[1*TPI+0*strideBK];
+    lB[2*TPI] = B[2*TPI+0*strideBK];
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+    unsigned int offA = localIdx0I; // d0
+    unsigned int offB = localIdx1J; // d1
+
+    /* do mads */
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+    MICRO_TILE
+
+    A += strideAK*NUM_UNROLL_ITER;
+    B += strideBK*NUM_UNROLL_ITER;
+  } while (--sumIterK > 0);
+
+  /* which global Cij index */
+  unsigned int globalIdxC1J = groupIdx1J*MT1J + localIdx1J;
+  unsigned int globalIdxC0I = groupIdx0I*MT0I + localIdx0I;
+
+#if 0
+  /* write global C */
+  unsigned int iStart = 0;
+  unsigned int jStart = 0;
+  if (lastGroup0 && nonMultipleSize0) {
+    globalIdxC0I -= MT0I-nonMultipleSize0;
+    iStart = 6-1-nonMultipleSize0/16;
+    if ( localIdx0I < 6 - nonMultipleSize0%6 ) {
+      iStart++;
+    }
+  }
+  if (lastGroup1 && nonMultipleSize1) {
+    globalIdxC1J -= MT1J - nonMultipleSize1;
+    jStart = 6-1-nonMultipleSize1/16;
+    if ( localIdx1J < 6 - nonMultipleSize1%6 ) {
+      jStart++;
+    }
+  }
+  //if (groupIdx0I==1 && groupIdx1J==0) printf("t[%u][%u] starts %u, %u @ %u, %u\n", localIdx0I, localIdx1J, iStart, jStart, globalIdxC0I, globalIdxC1J);
+  //if (groupIdx0I==1 && groupIdx1J==1) printf("t[%u][%u] starts %u, %u\n", localIdx0I, localIdx1J, iStart, jStart);
+
+
+  /* write global C */
+  unsigned int i = iStart;
+  do {
+    unsigned int j = jStart;
+    do {
+      TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + i*WG_0I, globalIdxC1J + j*WG_1J) ], alpha, rC[i][j], beta)
+    } while (++j < 6);
+  } while (++i < 6);
+
+
+  //for (unsigned int i = iStart; i < 6; i++) {
+  //  for (unsigned int j = jStart; j < 6; j++) {
+  //    //unsigned int idx = GET_GLOBAL_INDEX_C( globalIdxC0I + i*WG_0I, globalIdxC1J + j*WG_1J);
+  //    //if (groupIdx0I==1 && groupIdx1J==0 && i==0 && j==0) printf("t[%u][%u] i%u,j%u writing %f to %u\n", localIdx0I, localIdx1J, i, j, rC[i][j], idx);
+  //    TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + i*WG_0I, globalIdxC1J + j*WG_1J) ], alpha, rC[i][j], beta)
+  //  }
+  //}
+#else
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_0I, globalIdxC1J + 0*WG_1J) ], alpha, rC[0][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_0I, globalIdxC1J + 1*WG_1J) ], alpha, rC[0][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_0I, globalIdxC1J + 2*WG_1J) ], alpha, rC[0][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_0I, globalIdxC1J + 3*WG_1J) ], alpha, rC[0][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_0I, globalIdxC1J + 4*WG_1J) ], alpha, rC[0][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 0*WG_0I, globalIdxC1J + 5*WG_1J) ], alpha, rC[0][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_0I, globalIdxC1J + 0*WG_1J) ], alpha, rC[1][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_0I, globalIdxC1J + 1*WG_1J) ], alpha, rC[1][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_0I, globalIdxC1J + 2*WG_1J) ], alpha, rC[1][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_0I, globalIdxC1J + 3*WG_1J) ], alpha, rC[1][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_0I, globalIdxC1J + 4*WG_1J) ], alpha, rC[1][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 1*WG_0I, globalIdxC1J + 5*WG_1J) ], alpha, rC[1][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_0I, globalIdxC1J + 0*WG_1J) ], alpha, rC[2][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_0I, globalIdxC1J + 1*WG_1J) ], alpha, rC[2][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_0I, globalIdxC1J + 2*WG_1J) ], alpha, rC[2][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_0I, globalIdxC1J + 3*WG_1J) ], alpha, rC[2][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_0I, globalIdxC1J + 4*WG_1J) ], alpha, rC[2][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 2*WG_0I, globalIdxC1J + 5*WG_1J) ], alpha, rC[2][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_0I, globalIdxC1J + 0*WG_1J) ], alpha, rC[3][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_0I, globalIdxC1J + 1*WG_1J) ], alpha, rC[3][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_0I, globalIdxC1J + 2*WG_1J) ], alpha, rC[3][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_0I, globalIdxC1J + 3*WG_1J) ], alpha, rC[3][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_0I, globalIdxC1J + 4*WG_1J) ], alpha, rC[3][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 3*WG_0I, globalIdxC1J + 5*WG_1J) ], alpha, rC[3][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_0I, globalIdxC1J + 0*WG_1J) ], alpha, rC[4][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_0I, globalIdxC1J + 1*WG_1J) ], alpha, rC[4][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_0I, globalIdxC1J + 2*WG_1J) ], alpha, rC[4][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_0I, globalIdxC1J + 3*WG_1J) ], alpha, rC[4][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_0I, globalIdxC1J + 4*WG_1J) ], alpha, rC[4][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 4*WG_0I, globalIdxC1J + 5*WG_1J) ], alpha, rC[4][5], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_0I, globalIdxC1J + 0*WG_1J) ], alpha, rC[5][0], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_0I, globalIdxC1J + 1*WG_1J) ], alpha, rC[5][1], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_0I, globalIdxC1J + 2*WG_1J) ], alpha, rC[5][2], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_0I, globalIdxC1J + 3*WG_1J) ], alpha, rC[5][3], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_0I, globalIdxC1J + 4*WG_1J) ], alpha, rC[5][4], beta)
+  TYPE_MAD_WRITE( C[ GET_GLOBAL_INDEX_C( globalIdxC0I + 5*WG_0I, globalIdxC1J + 5*WG_1J) ], alpha, rC[5][5], beta)
+#endif
+};
+)";
+#endif
+
+
+ 
+ 
+ 
+ /*
+
+NT w/ fast branches
+*/
+/* CT_SSSSS_Cij_Sk_Aik_Bjk_i16b4f_j16b4f_nl1x1_k16_O2 */
+#if 0
+const char * kernelSource_NT = "\n"
+"\n"
+"/* tile parameters */\n"
+"#define WG_0I  16\n"
+"#define WG_1J  16\n"
+"#define UT_0I   4\n"
+"#define UT_1J   4\n"
+"#define MT_0I  64\n"
+"#define MT_1J  64\n"
+"#define UNROLL 16\n"
+"#define PAD     0\n"
+"\n"
+"/* num loads parallel and perpendicular to coalesced dimension */\n"
+"#define NL_PARA_A 1\n"
+"#define NL_PARA_B 1\n"
+"#define NL_PERP_A 4\n"
+"#define NL_PERP_B 4\n"
+"\n"
+"/* load size parallel and perpendicular to coalesced dimension */\n"
+"#define LS_PARA_A 64\n"
+"#define LS_PERP_A 4\n"
+"#define LS_PARA_B 64\n"
+"#define LS_PERP_B 4\n"
+"\n"
+"/* global memory indices */\n"
+"#define GLOBAL_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )\n"
+"#define GLOBAL_A(IDX0I, IDXK) ( (IDX0I)*strideA0I + (IDXK)*strideAK )\n"
+"#define GLOBAL_B(IDX1J, IDXK) ( (IDX1J)*strideB1J + (IDXK)*strideBK )\n"
+"\n"
+"\n"
+"/* data types */\n"
+"#define TYPE_A     float\n"
+"#define TYPE_B     float\n"
+"#define TYPE_C     float\n"
+"#define TYPE_ALPHA float\n"
+"#define TYPE_BETA  float\n"
+"#define MAD(A,B,DST) mad(A,B,DST)\n"
+"\n"
+"/* MADs */\n"
+"#define TYPE_MAD(MULA,MULB,DST) DST = MAD(MULA,MULB,DST);\n"
+"#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);\n"
+"\n"
+"/* 4x4 micro-tile */\n"
+"#define MICRO_TILE \\\n"
+"  rA[0] = localA[offA + 0*WG_0I]; \\\n"
+"  rA[1] = localA[offA + 1*WG_0I]; \\\n"
+"  rA[2] = localA[offA + 2*WG_0I]; \\\n"
+"  rA[3] = localA[offA + 3*WG_0I]; \\\n"
+"  rB[0] = localB[offB + 0*WG_1J]; \\\n"
+"  rB[1] = localB[offB + 1*WG_1J]; \\\n"
+"  rB[2] = localB[offB + 2*WG_1J]; \\\n"
+"  rB[3] = localB[offB + 3*WG_1J]; \\\n"
+"  offA += (MT_0I+PAD); \\\n"
+"  offB += (MT_1J+PAD); \\\n"
+"  TYPE_MAD(rA[0],rB[0],rC[0][0]); \\\n"
+"  TYPE_MAD(rA[0],rB[1],rC[0][1]); \\\n"
+"  TYPE_MAD(rA[0],rB[2],rC[0][2]); \\\n"
+"  TYPE_MAD(rA[0],rB[3],rC[0][3]); \\\n"
+"  TYPE_MAD(rA[1],rB[0],rC[1][0]); \\\n"
+"  TYPE_MAD(rA[1],rB[1],rC[1][1]); \\\n"
+"  TYPE_MAD(rA[1],rB[2],rC[1][2]); \\\n"
+"  TYPE_MAD(rA[1],rB[3],rC[1][3]); \\\n"
+"  TYPE_MAD(rA[2],rB[0],rC[2][0]); \\\n"
+"  TYPE_MAD(rA[2],rB[1],rC[2][1]); \\\n"
+"  TYPE_MAD(rA[2],rB[2],rC[2][2]); \\\n"
+"  TYPE_MAD(rA[2],rB[3],rC[2][3]); \\\n"
+"  TYPE_MAD(rA[3],rB[0],rC[3][0]); \\\n"
+"  TYPE_MAD(rA[3],rB[1],rC[3][1]); \\\n"
+"  TYPE_MAD(rA[3],rB[2],rC[3][2]); \\\n"
+"  TYPE_MAD(rA[3],rB[3],rC[3][3]); \\\n"
+"  mem_fence(CLK_LOCAL_MEM_FENCE);\n"
+"\n"
+"/* preprocessor definitions of kernel arguments*/\n"
+"#define strideC0I 1\n"
+"#define strideA0I 1\n"
+"#define strideB1J 1\n"
+"\n"
+"\n"
+"/* kernel */\n"
+"__attribute__((reqd_work_group_size(WG_0I,WG_1J,1)))\n"
+"__kernel void CT_SSSSS_Cij_Sk_Aik_Bjk_i16b4f_j16b4f_nl1x1_k16_O2(\n"
+"  __global float       *          C,\n"
+"  __global float const * restrict A,\n"
+"  __global float const * restrict B,\n"
+"  float const alpha,\n"
+"  float const beta,\n"
+"  unsigned int const strideC1J,\n"
+"  unsigned int const strideAK,\n"
+"  unsigned int const strideBK,\n"
+"  unsigned int const size0I,\n"
+"  unsigned int const size1J,\n"
+"  unsigned int const sizeK ) {\n"
+"\n"
+"  /* allocate registers */\n"
+"  TYPE_C rC[UT_0I][UT_1J] = {{0}};\n"
+"  TYPE_A rA[UT_0I];\n"
+"  TYPE_B rB[UT_1J];\n"
+"\n"
+"  /* allocate local memory */\n"
+"  __local TYPE_A localA[UNROLL*(MT_0I+PAD)];\n"
+"  __local TYPE_B localB[UNROLL*(MT_1J+PAD)];\n"
+"\n"
+"  /* c indices (group) */\n"
+"  unsigned int g0I = get_group_id(0); // d0, tensorA\n"
+"  unsigned int g1J = get_group_id(1); // d1, tensorB\n"
+"\n"
+"  /* c indices (local) */\n"
+"  unsigned int l0I = get_local_id(0); // d0\n"
+"  unsigned int l1J = get_local_id(1); // d1\n"
+"  unsigned int loadSerial = l0I + l1J*WG_0I;\n"
+"  unsigned int a0I = loadSerial%LS_PARA_A;\n"
+"  unsigned int b1J = loadSerial%LS_PARA_B;\n"
+"\n"
+"  /* unrolled summation index */\n"
+"  unsigned int aK = loadSerial/LS_PARA_A;\n"
+"  unsigned int bK = loadSerial/LS_PARA_B;\n"
+"\n"
+"  /* other non-unrolled summation indices (all start at zero) */\n"
+"\n"
+"  /* where will this thread read from global memory */\n"
+"  A += GLOBAL_A( a0I+g0I*MT_0I, aK );\n"
+"  B += GLOBAL_B( b1J+g1J*MT_1J, bK );\n"
+"\n"
+"  /* where will this thread write to local memory */\n"
+"  __local TYPE_A *lA = localA + a0I + aK*(MT_0I+PAD);\n"
+"  __local TYPE_B *lB = localB + b1J + bK*(MT_1J+PAD);\n"
+"\n"
+"  /* iterate over summation indice(s) */\n"
+"  unsigned int sumIterK = sizeK / UNROLL;\n"
+"  do {\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    /* load A global -> local */\n"
+"    float a0, a1, a2, a3, b0, b1, b2, b3;\n"
+"    if ( a0I+g0I*MT_0I+0*LS_PARA_A < size0I) {\n"
+"     a0 = A[ 0*LS_PARA_A + 0*LS_PERP_A*strideAK];\n"
+"     a1 = A[ 0*LS_PARA_A + 1*LS_PERP_A*strideAK];\n"
+"     a2 = A[ 0*LS_PARA_A + 2*LS_PERP_A*strideAK];\n"
+"     a3 = A[ 0*LS_PARA_A + 3*LS_PERP_A*strideAK];\n"
+"    } else {"
+"      a0 = 0;\n"
+"      a1 = 0;\n"
+"      a2 = 0;\n"
+"      a3 = 0;\n"
+"    }"
+"   lA[ 0*LS_PARA_A + 0*LS_PERP_A*(MT_0I+PAD) ] = a0;\n"
+"   lA[ 0*LS_PARA_A + 1*LS_PERP_A*(MT_0I+PAD) ] = a1;\n"
+"   lA[ 0*LS_PARA_A + 2*LS_PERP_A*(MT_0I+PAD) ] = a2;\n"
+"   lA[ 0*LS_PARA_A + 3*LS_PERP_A*(MT_0I+PAD) ] = a3;\n"
+"\n"
+"    /* load B global -> local */\n"
+"    if ( b1J+g1J*MT_1J+0*LS_PARA_B < size1J) {\n"
+"      b0 = B[ 0*LS_PARA_B + 0*LS_PERP_B*strideBK];\n"
+"      b1 = B[ 0*LS_PARA_B + 1*LS_PERP_B*strideBK];\n"
+"      b2 = B[ 0*LS_PARA_B + 2*LS_PERP_B*strideBK];\n"
+"      b3 = B[ 0*LS_PARA_B + 3*LS_PERP_B*strideBK];\n"
+"    } else {"
+"      b0 = 0;\n"
+"      b1 = 0;\n"
+"      b2 = 0;\n"
+"      b3 = 0;\n"
+"    }"
+"    lB[ 0*LS_PARA_B + 0*LS_PERP_B*(MT_1J+PAD) ] = b0;\n"
+"    lB[ 0*LS_PARA_B + 1*LS_PERP_B*(MT_1J+PAD) ] = b1;\n"
+"    lB[ 0*LS_PARA_B + 2*LS_PERP_B*(MT_1J+PAD) ] = b2;\n"
+"    lB[ 0*LS_PARA_B + 3*LS_PERP_B*(MT_1J+PAD) ] = b3;\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    unsigned int offA = l0I; // d0\n"
+"    unsigned int offB = l1J; // d1\n"
+"\n"
+"    /* do fmas */\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"\n"
+"    A += (long) strideAK*UNROLL;\n"
+"    B += (long) strideBK*UNROLL;\n"
+"  } while (--sumIterK > 0);\n"
+"\n"
+"  /* which global Cij index */\n"
+"  unsigned int globalC1J = g1J*MT_1J + l1J;\n"
+"  unsigned int globalC0I = g0I*MT_0I + l0I;\n"
+"\n"
+"  /* write global C */\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[0][0], beta) } }\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[0][1], beta) } }\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[0][2], beta) } }\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[0][3], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[1][0], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[1][1], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[1][2], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[1][3], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[2][0], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[2][1], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[2][2], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[2][3], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[3][0], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[3][1], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[3][2], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[3][3], beta) } }\n"
+"\n"
+"}\n";
+#endif
+
+/*
+
+NT w/ fast branches
+*/
+/* CT_SSSSS_Cij_Sk_Aik_Bjk_i16b4f_j16b4f_nl1x1_k16_O2 */
+#if 0
+const char * kernelSource_NT = "\n"
+"\n"
+"/* tile parameters */\n"
+"#define WG_0I  16\n"
+"#define WG_1J  16\n"
+"#define UT_0I   4\n"
+"#define UT_1J   4\n"
+"#define MT_0I  64\n"
+"#define MT_1J  64\n"
+"#define UNROLL 16\n"
+"#define PAD     0\n"
+"\n"
+"/* num loads parallel and perpendicular to coalesced dimension */\n"
+"#define NL_PARA_A 1\n"
+"#define NL_PARA_B 1\n"
+"#define NL_PERP_A 4\n"
+"#define NL_PERP_B 4\n"
+"\n"
+"/* load size parallel and perpendicular to coalesced dimension */\n"
+"#define LS_PARA_A 64\n"
+"#define LS_PERP_A 4\n"
+"#define LS_PARA_B 64\n"
+"#define LS_PERP_B 4\n"
+"\n"
+"/* global memory indices */\n"
+"#define GLOBAL_C(IDX0I, IDX1J) ( (IDX0I)*strideC0I + (IDX1J)*strideC1J )\n"
+"#define GLOBAL_A(IDX0I, IDXK) ( (IDX0I)*strideA0I + (IDXK)*strideAK )\n"
+"#define GLOBAL_B(IDX1J, IDXK) ( (IDX1J)*strideB1J + (IDXK)*strideBK )\n"
+"\n"
+"\n"
+"/* data types */\n"
+"#define TYPE_A     float\n"
+"#define TYPE_B     float\n"
+"#define TYPE_C     float\n"
+"#define TYPE_ALPHA float\n"
+"#define TYPE_BETA  float\n"
+"#define MAD(A,B,DST) mad(A,B,DST)\n"
+"\n"
+"/* MADs */\n"
+"#define TYPE_MAD(MULA,MULB,DST) DST = MAD(MULA,MULB,DST);\n"
+"#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) DST = (ALPHA)*(REG) + (BETA)*(DST);\n"
+"\n"
+"/* 4x4 micro-tile */\n"
+"#define MICRO_TILE \\\n"
+"  rA[0] = localA[offA + 0*WG_0I]; \\\n"
+"  rA[1] = localA[offA + 1*WG_0I]; \\\n"
+"  rA[2] = localA[offA + 2*WG_0I]; \\\n"
+"  rA[3] = localA[offA + 3*WG_0I]; \\\n"
+"  rB[0] = localB[offB + 0*WG_1J]; \\\n"
+"  rB[1] = localB[offB + 1*WG_1J]; \\\n"
+"  rB[2] = localB[offB + 2*WG_1J]; \\\n"
+"  rB[3] = localB[offB + 3*WG_1J]; \\\n"
+"  offA += (MT_0I+PAD); \\\n"
+"  offB += (MT_1J+PAD); \\\n"
+"  TYPE_MAD(rA[0],rB[0],rC[0][0]); \\\n"
+"  TYPE_MAD(rA[0],rB[1],rC[0][1]); \\\n"
+"  TYPE_MAD(rA[0],rB[2],rC[0][2]); \\\n"
+"  TYPE_MAD(rA[0],rB[3],rC[0][3]); \\\n"
+"  TYPE_MAD(rA[1],rB[0],rC[1][0]); \\\n"
+"  TYPE_MAD(rA[1],rB[1],rC[1][1]); \\\n"
+"  TYPE_MAD(rA[1],rB[2],rC[1][2]); \\\n"
+"  TYPE_MAD(rA[1],rB[3],rC[1][3]); \\\n"
+"  TYPE_MAD(rA[2],rB[0],rC[2][0]); \\\n"
+"  TYPE_MAD(rA[2],rB[1],rC[2][1]); \\\n"
+"  TYPE_MAD(rA[2],rB[2],rC[2][2]); \\\n"
+"  TYPE_MAD(rA[2],rB[3],rC[2][3]); \\\n"
+"  TYPE_MAD(rA[3],rB[0],rC[3][0]); \\\n"
+"  TYPE_MAD(rA[3],rB[1],rC[3][1]); \\\n"
+"  TYPE_MAD(rA[3],rB[2],rC[3][2]); \\\n"
+"  TYPE_MAD(rA[3],rB[3],rC[3][3]); \\\n"
+"  mem_fence(CLK_LOCAL_MEM_FENCE);\n"
+"\n"
+"/* preprocessor definitions of kernel arguments*/\n"
+"#define strideC0I 1\n"
+"#define strideA0I 1\n"
+"#define strideB1J 1\n"
+"\n"
+"\n"
+"/* kernel */\n"
+"__attribute__((reqd_work_group_size(WG_0I,WG_1J,1)))\n"
+"__kernel void CT_SSSSS_Cij_Sk_Aik_Bjk_i16b4f_j16b4f_nl1x1_k16_O2(\n"
+"  __global float       *          C,\n"
+"  __global float const * restrict A,\n"
+"  __global float const * restrict B,\n"
+"  float const alpha,\n"
+"  float const beta,\n"
+"  unsigned int const strideC1J,\n"
+"  unsigned int const strideAK,\n"
+"  unsigned int const strideBK,\n"
+"  unsigned int const size0I,\n"
+"  unsigned int const size1J,\n"
+"  unsigned int const sizeK ) {\n"
+"\n"
+"  /* allocate registers */\n"
+"  TYPE_C rC[UT_0I][UT_1J] = {{0}};\n"
+"  TYPE_A rA[UT_0I];\n"
+"  TYPE_B rB[UT_1J];\n"
+"\n"
+"  /* allocate local memory */\n"
+"  __local TYPE_A localA[UNROLL*(MT_0I+PAD)];\n"
+"  __local TYPE_B localB[UNROLL*(MT_1J+PAD)];\n"
+"\n"
+"  /* c indices (group) */\n"
+"  unsigned int g0I = get_group_id(0); // d0, tensorA\n"
+"  unsigned int g1J = get_group_id(1); // d1, tensorB\n"
+"\n"
+"  /* c indices (local) */\n"
+"  unsigned int l0I = get_local_id(0); // d0\n"
+"  unsigned int l1J = get_local_id(1); // d1\n"
+"  unsigned int loadSerial = l0I + l1J*WG_0I;\n"
+"  unsigned int a0I = loadSerial%LS_PARA_A;\n"
+"  unsigned int b1J = loadSerial%LS_PARA_B;\n"
+"\n"
+"  /* unrolled summation index */\n"
+"  unsigned int aK = loadSerial/LS_PARA_A;\n"
+"  unsigned int bK = loadSerial/LS_PARA_B;\n"
+"\n"
+"  /* other non-unrolled summation indices (all start at zero) */\n"
+"\n"
+"  /* where will this thread read from global memory */\n"
+"  A += GLOBAL_A( a0I+g0I*MT_0I, aK );\n"
+"  B += GLOBAL_B( b1J+g1J*MT_1J, bK );\n"
+"\n"
+"  /* where will this thread write to local memory */\n"
+"  __local TYPE_A *lA = localA + a0I + aK*(MT_0I+PAD);\n"
+"  __local TYPE_B *lB = localB + b1J + bK*(MT_1J+PAD);\n"
+"\n"
+"  /* iterate over summation indice(s) */\n"
+"  unsigned int sumIterK = sizeK / UNROLL;\n"
+"  do {\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    /* load A global -> local */\n"
+"    float a0, a1, a2, a3, b0, b1, b2, b3;\n"
+"    if ( a0I+g0I*MT_0I+0*LS_PARA_A < size0I) {\n"
+"     a0 = A[ 0*LS_PARA_A + 0*LS_PERP_A*strideAK];\n"
+"     a1 = A[ 0*LS_PARA_A + 1*LS_PERP_A*strideAK];\n"
+"     a2 = A[ 0*LS_PARA_A + 2*LS_PERP_A*strideAK];\n"
+"     a3 = A[ 0*LS_PARA_A + 3*LS_PERP_A*strideAK];\n"
+"    } else {"
+"      a0 = 0;\n"
+"      a1 = 0;\n"
+"      a2 = 0;\n"
+"      a3 = 0;\n"
+"    }"
+"   lA[ 0*LS_PARA_A + 0*LS_PERP_A*(MT_0I+PAD) ] = a0;\n"
+"   lA[ 0*LS_PARA_A + 1*LS_PERP_A*(MT_0I+PAD) ] = a1;\n"
+"   lA[ 0*LS_PARA_A + 2*LS_PERP_A*(MT_0I+PAD) ] = a2;\n"
+"   lA[ 0*LS_PARA_A + 3*LS_PERP_A*(MT_0I+PAD) ] = a3;\n"
+"\n"
+"    /* load B global -> local */\n"
+"    if ( b1J+g1J*MT_1J+0*LS_PARA_B < size1J) {\n"
+"      b0 = B[ 0*LS_PARA_B + 0*LS_PERP_B*strideBK];\n"
+"      b1 = B[ 0*LS_PARA_B + 1*LS_PERP_B*strideBK];\n"
+"      b2 = B[ 0*LS_PARA_B + 2*LS_PERP_B*strideBK];\n"
+"      b3 = B[ 0*LS_PARA_B + 3*LS_PERP_B*strideBK];\n"
+"    } else {"
+"      b0 = 0;\n"
+"      b1 = 0;\n"
+"      b2 = 0;\n"
+"      b3 = 0;\n"
+"    }"
+"    lB[ 0*LS_PARA_B + 0*LS_PERP_B*(MT_1J+PAD) ] = b0;\n"
+"    lB[ 0*LS_PARA_B + 1*LS_PERP_B*(MT_1J+PAD) ] = b1;\n"
+"    lB[ 0*LS_PARA_B + 2*LS_PERP_B*(MT_1J+PAD) ] = b2;\n"
+"    lB[ 0*LS_PARA_B + 3*LS_PERP_B*(MT_1J+PAD) ] = b3;\n"
+"\n"
+"    barrier(CLK_LOCAL_MEM_FENCE);\n"
+"    unsigned int offA = l0I; // d0\n"
+"    unsigned int offB = l1J; // d1\n"
+"\n"
+"    /* do fmas */\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"    MICRO_TILE\n"
+"\n"
+"    A += (long) strideAK*UNROLL;\n"
+"    B += (long) strideBK*UNROLL;\n"
+"  } while (--sumIterK > 0);\n"
+"\n"
+"  /* which global Cij index */\n"
+"  unsigned int globalC1J = g1J*MT_1J + l1J;\n"
+"  unsigned int globalC0I = g0I*MT_0I + l0I;\n"
+"\n"
+"  /* write global C */\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[0][0], beta) } }\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[0][1], beta) } }\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[0][2], beta) } }\n"
+"  if (globalC0I + 0*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 0*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[0][3], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[1][0], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[1][1], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[1][2], beta) } }\n"
+"  if (globalC0I + 1*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 1*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[1][3], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[2][0], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[2][1], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[2][2], beta) } }\n"
+"  if (globalC0I + 2*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 2*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[2][3], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 0*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 0*WG_1J) ], alpha, rC[3][0], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 1*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 1*WG_1J) ], alpha, rC[3][1], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 2*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 2*WG_1J) ], alpha, rC[3][2], beta) } }\n"
+"  if (globalC0I + 3*WG_0I < size0I) {  if (globalC1J + 3*WG_1J < size1J) {  TYPE_MAD_WRITE( C[ GLOBAL_C( globalC0I + 3*WG_0I, globalC1J + 3*WG_1J) ], alpha, rC[3][3], beta) } }\n"
+"\n"
+"}\n";
+#endif
 
 /******************************************************************************
   Configurable Load Kernels
@@ -7,7 +1676,7 @@
 TN - different load patterns
 
 */
-#if 1
+#if 0
 const char * kernelSource_TN = R"(
 
 /* tile parameters */
@@ -412,7 +2081,7 @@ __kernel void gemm_kernel(
 NT - different load patterns
 
 */
-#if 0
+#if 1
 const char * kernelSource_NT = R"(
 
 /* tile parameters */
@@ -1768,7 +3437,9 @@ __kernel void gemm_kernel(
 
   /* iterate over all summation indices */
   unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
+  if (sumIterK) {
   do {
+  //for (unsigned int sumIterK = sizeK / NUM_UNROLL_ITER; sumIterK > 0; --sumIterK ) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     /* load global -> local */
@@ -1779,32 +3450,6 @@ __kernel void gemm_kernel(
     lB[0*TPI] = B[0*TPI+0*strideBK];
     lB[1*TPI] = B[1*TPI+0*strideBK];
     lB[2*TPI] = B[2*TPI+0*strideBK];
-
-#if NUM_UNROLL_ITER>8
-    lA[3*TPI] = A[3*TPI+0*strideAK];
-    lA[4*TPI] = A[4*TPI+0*strideAK];
-    lA[5*TPI] = A[5*TPI+0*strideAK];
-
-    lB[3*TPI] = B[3*TPI+0*strideBK];
-    lB[4*TPI] = B[4*TPI+0*strideBK];
-    lB[5*TPI] = B[5*TPI+0*strideBK];
-#endif
-
-#if NUM_UNROLL_ITER>16
-    lA[6*TPI] = A[6*TPI+0*strideAK];
-    lA[7*TPI] = A[7*TPI+0*strideAK];
-    lA[8*TPI] = A[8*TPI+0*strideAK];
-    lA[9*TPI] = A[9*TPI+0*strideAK];
-    lA[10*TPI] = A[10*TPI+0*strideAK];
-    lA[11*TPI] = A[11*TPI+0*strideAK];
-
-    lB[6*TPI] = B[6*TPI+0*strideBK];
-    lB[7*TPI] = B[7*TPI+0*strideBK];
-    lB[8*TPI] = B[8*TPI+0*strideBK];
-    lB[9*TPI] = B[9*TPI+0*strideBK];
-    lB[10*TPI] = B[10*TPI+0*strideBK];
-    lB[11*TPI] = B[11*TPI+0*strideBK];
-#endif
 
     barrier(CLK_LOCAL_MEM_FENCE);
     unsigned int offA = localIdx0I; // d0
@@ -1819,39 +3464,11 @@ __kernel void gemm_kernel(
     MICRO_TILE
     MICRO_TILE
     MICRO_TILE
-#if NUM_UNROLL_ITER>8
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-#endif
-#if NUM_UNROLL_ITER>16
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-    MICRO_TILE
-#endif
 
     A += strideAK*NUM_UNROLL_ITER;
     B += strideBK*NUM_UNROLL_ITER;
   } while (--sumIterK > 0);
-
+  }
   //printf("%f, %f, %f, %f, %f, %f\n", rC[0][0], rC[1][1], rC[2][2], rC[3][3], rC[4][4], rC[5][5] );
 
   /* which global Cij index */
@@ -4874,8 +6491,8 @@ __kernel void gemm_kernel(
 
 
 
-#if 1
-// Cobalt sgemm_NT_128x128x8_prefetch
+#if 0
+// Tensile sgemm_NT_128x128x8_prefetch
 
 
 const char * kernelSource_NT = R"(
@@ -5144,7 +6761,8 @@ const char * kernelSource_NT = R"(
   TYPE_MAD( rA_black[7], rB_black[7], rC[7][7]); \
   \
   mem_fence(CLK_LOCAL_MEM_FENCE);
-
+)"
+R"(
 #define UT2_LAST \
   /* prefetch black, compute red */ \
   rA_black[0] = localReadPtrA[offA + 0*WG_0I]; \
@@ -8348,13 +9966,13 @@ __kernel void gemm_kernel(
 
 // NT original 0
 // unroll 16
-// both Cobalt & original validate
+// both Tensile & original validate
 #if 0
 
 
 const char * kernelSource_NT = R"(
 
-#define COBALT_PATH 0
+#define TENSILE_PATH 0
 
 /* CT_SSSSS_Cij_Sk_Aik_Bjk_i16x6f_j16x6f_k16_O2 */
 
@@ -8496,7 +10114,7 @@ __kernel void gemm_kernel(
   unsigned int localIdx1J = get_local_id(1); // d1
   unsigned int localSerial = localIdx0I + localIdx1J*WG_0I;
 
-#if COBALT_PATH
+#if TENSILE_PATH
 #else
   A +=  groupIdx0I*96 + localIdx0I + localIdx1J*strideAK;
   B +=  groupIdx1J*96 + localIdx0I + localIdx1J*strideBK;
@@ -8509,7 +10127,7 @@ __kernel void gemm_kernel(
   /* iterate over all summation indices */
   unsigned int sumIterK = sizeK / NUM_UNROLL_ITER;
   do {
-#if COBALT_PATH
+#if TENSILE_PATH
     __local DATA_TYPE_STR_A *lA = localA + GET_LOCAL_INDEX_A(localA0I, localAK);
     __local DATA_TYPE_STR_B *lB = localB + GET_LOCAL_INDEX_B(localB1J, localBK);
 #else
@@ -8520,7 +10138,7 @@ __kernel void gemm_kernel(
 
 
     /* load global -> local */
-#if COBALT_PATH
+#if TENSILE_PATH
     lA[ 0*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(0), globalIdxAK(0) ) ];
     lA[ 1*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(1), globalIdxAK(1) ) ];
     lA[ 2*localAStride ] = A[ GET_GLOBAL_INDEX_A( globalIdxA0I(2), globalIdxAK(2) ) ];
@@ -8622,7 +10240,7 @@ __kernel void gemm_kernel(
 
 #endif
 
-// NT Cobalt branched kernel
+// NT Tensile branched kernel
 #if 0
 const char * kernelSource_NT = "\n"
 "/* CT_SSSSS_Cij_Sk_Aik_Bjk_i16b6f_j16b6f_k8_O2 */\n"

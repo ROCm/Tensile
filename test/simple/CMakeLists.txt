@@ -18,32 +18,40 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-
 cmake_minimum_required(VERSION 2.8.12)
 
-# The contains strings to big to compile on MSVC; exclude from default build
-add_executable( simple EXCLUDE_FROM_ALL
-  main.cpp
-  kernel_opencl.h
-  kernel_hip.h
-  )
+find_package(Tensile CONFIG)
 
-add_tensile_lib(simple_tensile EXCLUDE_FROM_ALL
-    PROBLEMS ${Tensile_DIR_PROBLEMS}
-    BACKEND ${Tensile_BACKEND}
-    ENABLE_LOGGER
-)
-
-target_link_libraries( simple PUBLIC simple_tensile )
+list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../cmake )
 
 if( Tensile_BACKEND MATCHES "OpenCL_1.2")
-  target_link_libraries( simple_tensile PUBLIC opencl )
+  find_package(OpenCL "1.2" REQUIRED)
+  message(STATUS "${Tensile_BACKEND} backend selected." )
+# HIP
 elseif( Tensile_BACKEND MATCHES "HIP")
-  target_include_directories( simple_tensile SYSTEM
-    PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
-  )
-  target_link_libraries( simple_tensile PUBLIC ${HSA_LIBRARIES} )
-  target_compile_definitions( simple_tensile PUBLIC Tensile_BACKEND_HIP )
+  find_package( HIP REQUIRED )
+  set (CMAKE_CXX_COMPILER ${HIPCC})
+  message(STATUS "${Tensile_BACKEND} backend selected." )
+  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
+endif( )
+if(NOT MSVC)
+    add_definitions(-std=c++11)
 endif()
 
-set_property( TARGET simple PROPERTY FOLDER "clients" )
+add_tensile_lib(SimpleTensileLib
+    SOLUTIONS ${Tensile_SOLUTIONS}
+    BACKEND ${Tensile_BACKEND}
+    
+)
+if( Tensile_BACKEND MATCHES "OpenCL_1.2")
+  target_link_libraries( SimpleTensileLib PUBLIC opencl )
+elseif( Tensile_BACKEND MATCHES "HIP")
+  target_include_directories( SimpleTensileLib SYSTEM
+    PUBLIC $<BUILD_INTERFACE:${HIP_INCLUDE_DIRS}>
+  )
+  target_link_libraries( SimpleTensileLib PUBLIC ${HSA_LIBRARIES} )
+  target_compile_definitions( SimpleTensileLib PUBLIC Tensile_BACKEND_HIP )
+endif()
+
+add_executable(main main.cpp)
+target_link_libraries(main SimpleTensileLib)

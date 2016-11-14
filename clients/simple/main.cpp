@@ -1,3 +1,24 @@
+/*******************************************************************************
+* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
+*
+* Permission is hereby granted, free of charge, to any person obtaining a copy
+* of this software and associated documentation files (the "Software"), to deal
+* in the Software without restriction, including without limitation the rights
+* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+* ies of the Software, and to permit persons to whom the Software is furnished
+* to do so, subject to the following conditions:
+*
+* The above copyright notice and this permission notice shall be included in all
+* copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*******************************************************************************/
+
 #include <cstdio>
 #include <random>
 #ifdef WIN32
@@ -9,12 +30,13 @@
 #define VALIDATE 0
 #define SWITCH_AB 0
 
+#define Tensile_BACKEND_OPENCL12 1
 
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
 /*******************************************************************************
  * HIP stuff
  ******************************************************************************/
-#include <hip_runtime.h>
+#include <hip/hip_runtime.h>
 #include "kernel_hip.h"
 
 hipError_t status;
@@ -105,7 +127,7 @@ public:
 private:
 #ifdef WIN32
   LARGE_INTEGER startTime;
-  LARGE_INTEGER frequency; 
+  LARGE_INTEGER frequency;
 #else
   timespec startTime;
 #endif
@@ -115,34 +137,37 @@ private:
 
 
 // these need to agree with kernel
-#if Cobalt_BACKEND_OPENCL12
-#define TYPE_A     float
-#define TYPE_B     float
-#define TYPE_C     float
-#define TYPE_ALPHA float
-#define TYPE_BETA  float
-#define WG_0I           16
-#define WG_1J           16
-#define UT_0I       8
-#define UT_1J       8
+#if Tensile_BACKEND_OPENCL12
+#define TYPE_A      float
+#define TYPE_B      float
+#define TYPE_C      float
+#define TYPE_ALPHA  float
+#define TYPE_BETA   float
+#define WG_0I       16
+#define WG_1J       16
+#define UT_0I        4
+#define UT_1J        4
 #define MT_0I       (WG_0I*UT_0I)
 #define MT_1J       (WG_1J*UT_1J)
 #endif
 
 #if VALIDATE
-const unsigned int M = 128;
-const unsigned int N = 128;
+const unsigned int M = MT_0I*2-1;
+const unsigned int N = MT_1J*2-1;
 const unsigned int K = 16;
 #else
 const unsigned int M = 5760;
 const unsigned int N = 5760;
 const unsigned int K = 5760;
+//const unsigned int M = 4096/2;
+//const unsigned int N = 64;
+//const unsigned int K = 4096;
 #endif
 const unsigned int numEnqueues = 1;
 TYPE_ALPHA alpha = 1;
 TYPE_BETA  beta  = 0;
-const unsigned int transA = 0;
-const unsigned int transB = 1;
+const unsigned int transA = 1;
+const unsigned int transB = 0;
 
 /*******************************************************************************
  * main
@@ -150,7 +175,7 @@ const unsigned int transB = 1;
 int main( int argc, char *argv[] ) {
 
   // init runtime
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
   printf("allocating opencl queue\n");
   cl_platform_id platform;
   cl_device_id device;
@@ -165,7 +190,7 @@ int main( int argc, char *argv[] ) {
 
   // compile kernel
   printf("compiling opencl kernel\n");
-  const char *buildOptions = "-cl-std=CL2.0";
+  const char *buildOptions = nullptr; // "-cl-std=CL2.0";
   const char *kernelSource;
   if ( !transA && !transB ) {
     kernelSource = kernelSource_NN;
@@ -202,18 +227,20 @@ int main( int argc, char *argv[] ) {
   const size_t sizeC = numElementsC * sizeof(TYPE_C);
   const size_t sizeA = numElementsA * sizeof(TYPE_A);
   const size_t sizeB = numElementsB * sizeof(TYPE_B);
-  printf("sizeC = %llu\n", sizeC);
+  printf("sizeC = %llu\n", static_cast<unsigned __int64>(sizeC));
 
   // allocate host buffers
   printf("allocating host buffers\n");
   TYPE_C *hC = new TYPE_C[numElementsC];
+#if VALIDATE
   TYPE_C *hC_ref = new TYPE_C[numElementsC];
+#endif
   TYPE_A *hA = new TYPE_A[numElementsA];
   TYPE_B *hB = new TYPE_B[numElementsB];
 
   // init host buffers
   printf("initializing host buffers\n");
-#if VALIDATE
+#if VALIDATE & 0
   for (unsigned int i = 0; i < numElementsC; i++) {
     hC[i] = static_cast<float>(rand()%101);
     hC_ref[i] = static_cast<float>(hC[i]);
@@ -232,7 +259,7 @@ int main( int argc, char *argv[] ) {
 
   // allocate device buffers
   printf("allocating device buffers\n");
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   TYPE_C *dC;
   TYPE_A *dA;
   TYPE_B *dB;
@@ -250,17 +277,19 @@ int main( int argc, char *argv[] ) {
   clEnqueueWriteBuffer(queue, dA, CL_TRUE, 0, sizeA, hA, 0, nullptr, nullptr );
   clEnqueueWriteBuffer(queue, dB, CL_TRUE, 0, sizeB, hB, 0, nullptr, nullptr );
 #endif
-  
+
   // init device buffers
   printf("initializing device buffers\n");
 
   // dim
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   dim3 workGroup( WG_0I, WG_1J, 1 );
-  dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);  
+  dim3 blocks(size0C/MT_0I, size1C/MT_1J, 1);
 #else
-  size_t localSize[3] = { WG_0I, WG_1J, 1 };
-  size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };  
+  size_t localSize[3] = { WG_0I*WG_1J, 1, 1 };
+  size_t globalSize[3] = { ((size0C + MT_0I - 1) / MT_0I)*localSize[0], ((size1C + MT_1J - 1) / MT_1J)*localSize[1], 1 };
+  //size_t localSize[3] = { WG_0I, WG_1J, 1 };
+  //size_t globalSize[3] = { ((size0C+MT_0I-1)/MT_0I)*WG_0I, ((size1C+MT_1J-1)/MT_1J)*WG_1J, 1 };
 #endif
 
 
@@ -268,7 +297,7 @@ int main( int argc, char *argv[] ) {
   timer.start();
 
   // enqueue kernel
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   printf("enqueueing hip kernel block=%ux%u, work-group=%ux%u\n",blocks.x, blocks.y, workGroup.x, workGroup.y);
   hipLaunchKernel(
       HIP_KERNEL_NAME(kernel_hip),
@@ -325,7 +354,7 @@ int main( int argc, char *argv[] ) {
 
   // wait for kernel
   printf("synchronizing stream\n");
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   status = hipStreamSynchronize( nullptr );
   CHECK(status);
 #else
@@ -334,7 +363,7 @@ int main( int argc, char *argv[] ) {
   double time_ms = timer.elapsed_ms() / numEnqueues;
   // copy result back to host
   printf("copying device results back to host\n");
-#if Cobalt_BACKEND_HIP
+#if Tensile_BACKEND_HIP
   status = hipMemcpy( hC, dC, sizeC, hipMemcpyDeviceToHost ); CHECK(status);
 #else
   CHECK( clEnqueueReadBuffer(queue, dC, CL_TRUE, 0, sizeC, hC, 0, nullptr, nullptr ); )
@@ -377,7 +406,7 @@ int main( int argc, char *argv[] ) {
 
 }
 
-#if Cobalt_BACKEND_OPENCL12
+#if Tensile_BACKEND_OPENCL12
 void makeKernel(
     cl_kernel *kernel,
     cl_command_queue queue,
@@ -433,31 +462,30 @@ void makeKernel(
 
 
 void sgemm_NT(
-  bool transA,
-  bool transB,
+  bool ltransA,
+  bool ltransB,
   float  *C,
   float  *A,
   float  *B,
-  float const alpha,
-  float const beta,
+  float const lalpha,
+  float const lbeta,
   unsigned int const ldc,
   unsigned int const lda,
   unsigned int const ldb,
-  unsigned int const M,
-  unsigned int const N,
-  unsigned int const K ) {
+  unsigned int const lM,
+  unsigned int const lN,
+  unsigned int const lK ) {
 
-  for (unsigned int i = 0; i < M; i++) {
-    for (unsigned int j = 0; j < N; j++) {
+  for (unsigned int i = 0; i < lM; i++) {
+    for (unsigned int j = 0; j < lN; j++) {
       float c = 0.f;
-      for (unsigned int k = 0; k < K; k++) {
-        float a = transA ? A[k+i*lda] : A[i+k*lda];
-        float b = transB ? B[j+k*ldb] : B[k+j*ldb];
+      for (unsigned int k = 0; k < lK; k++) {
+        float a = ltransA ? A[k+i*lda] : A[i+k*lda];
+        float b = ltransB ? B[j+k*ldb] : B[k+j*ldb];
         c += a*b;
       }
       size_t cIdx = i+j*ldc;
-      C[cIdx] = alpha*c + beta*C[cIdx];
+      C[cIdx] = lalpha*c + lbeta*C[cIdx];
     }
   }
 }
-
