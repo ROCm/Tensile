@@ -58,6 +58,7 @@ class SolutionSelectionWriter:
       s += "#include \"TensileGetSolution_" + deviceProfile.libString() + ".h\"\n"
     s += "\n"
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
+    s += "  printf(\"Tensile::" + functionName + "()\\n\");" # rocBLAS
     # if match device
     for deviceProfile, exactMatches in self.psMap.iteritems():
       s += "  if ( problem.deviceProfile.numDevices() == " + str(len(deviceProfile.devices)) + " ) {\n"
@@ -125,6 +126,7 @@ class SolutionSelectionWriter:
       s += "#include \"TensileGetSolution_" + exactMatch.libString() + ".h\"\n"
     s += "\n"
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
+    s += "  printf(\"Tensile::" + functionName + "()\\n\");"
     s += "  bool problemRequiresLeadingStrides = problem.tensorC[0].stride != 1 || problem.tensorA[0].stride != 1 || problem.tensorB[0].stride != 1;\n"
     s += "\n"
     
@@ -735,6 +737,7 @@ class SolutionSelectionWriter:
           sizeU = problem.tensorA.dimensions[i].size
       gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
       s += indent + "  if ( size0 == %3u && size1 == %3u && sizeU == %2u ) {" % (size0, size1, sizeU)
+      s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
       s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           
 
@@ -756,6 +759,7 @@ class SolutionSelectionWriter:
             sizeUL += unroll
           gflops = self.getGFlopsString(modPSP[0], modPSP[2])
           s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
+          s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
           s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
     fallbackPSP = rule[1]
@@ -763,7 +767,9 @@ class SolutionSelectionWriter:
       fallbackSolution = fallbackPSP[1]
       sizeUL = fallbackSolution.kernels[0].unrolls[0]
       gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
-      s += indent + "  if ( sizeU >= %2u) { return new Tensile::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+      s += indent + "  if ( sizeU >= %2u) {"
+      s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution))
+      s += "return new Tensile::%s%s( problem ); } // %s\n" % (sizeUL, self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
       #newFallbackSolution = copy.deepcopy( fallbackSolution )
       #for i in range( 0, 4):
       #  if newFallbackSolution.kernels[i] != None:
@@ -815,6 +821,7 @@ class SolutionSelectionWriter:
 
 
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
+    s += "  printf(\"Tensile::" + functionName + "()\\n\");"
     s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
     s += "  unsigned int size1 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim1)
@@ -1182,6 +1189,7 @@ class SolutionSelectionWriter:
     
 
     s += "\n"
+    s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
     s += "  return new Tensile::%s%s( problem ); // fallback for k < UNROLL\n" % (self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
     s += "}\n"
 

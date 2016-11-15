@@ -454,6 +454,7 @@ void fillTensor(TensileTensor inputTensor, TensileTensorData tensorData, Tensile
 }
 
 void initControls() {
+  printf("Status: initControls()\n");
 #if Tensile_BACKEND_OPENCL12
   // setup opencl objects
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
@@ -478,16 +479,21 @@ void initControls() {
     ctrl.queues[ctrl.numQueues] = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   }
 #elif Tensile_BACKEND_HIP
+  printf("Status: calling hipGetDeviceCount()\n");
   status = hipGetDeviceCount( &numDevices );
   device = 0;
+  printf("Status: calling hipSetDevice()\n");
   status = hipSetDevice( device );
+  printf("Status: calling tensileCreateEmptyControl()\n");
   ctrl = tensileCreateEmptyControl();
-  for (ctrl.numQueues = 0; ctrl.numQueues < ctrl.maxQueues; ctrl.numQueues++) {
+  for (ctrl.numQueues = 0; ctrl.numQueues < 4 /*ctrl.maxQueues*/; ctrl.numQueues++) {
+    printf("Status: calling hipStreamCreate()\n");
     status = hipStreamCreate( &ctrl.queues[ctrl.numQueues] );
   }
 #endif
 
   // host control
+  printf("Status: tensileCreateEmptyControl()\n");
   ctrlValidation = tensileCreateEmptyControl();
 
   // reference device
@@ -497,6 +503,7 @@ void initControls() {
 #else
   std::sprintf(deviceProfileReference.devices[0].name, "cpu" );
 #endif
+  printf("Status: initControls() - DONE\n");
 }
 
 void destroyControls() {
