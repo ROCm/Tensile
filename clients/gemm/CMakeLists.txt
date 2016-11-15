@@ -31,8 +31,8 @@ set( SAMPLE_GEMM_SRC gemm.cpp dnn_gemms.h )
 add_executable( ${SAMPLE_GEMM_NAME} EXCLUDE_FROM_ALL ${SAMPLE_GEMM_SRC} )
 
 add_tensile_lib(TensileLib_GEMM EXCLUDE_FROM_ALL
-    PROBLEMS ${Tensile_DIR_PROBLEMS}
-    #SOLUTIONS ${Tensile_DIR_SOLUTIONS}
+  #PROBLEMS ${Tensile_DIR_PROBLEMS}
+    SOLUTIONS ${Tensile_DIR_PROBLEMS}/../SolutionXMLs
     BACKEND ${Tensile_BACKEND}
     ENABLE_LOGGER
 )
