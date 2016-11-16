@@ -59,7 +59,7 @@ class SolutionSelectionWriter:
     s += "\n"
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
     s += "  printf(\"Tensile::" + functionName + "()\\n\");\n" # rocBLAS
-    s += "  printf(\"%s\\n\", problem.toString() );\n" # rocBLAS
+    s += "  printf(\"%s\\n\", problem.toString().to_cstr() );\n" # rocBLAS
     # if match device
     for deviceProfile, exactMatches in self.psMap.iteritems():
       s += "  if ( problem.deviceProfile.numDevices() == " + str(len(deviceProfile.devices)) + " ) {\n"
