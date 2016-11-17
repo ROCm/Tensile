@@ -34,8 +34,8 @@ class SolutionSelectionWriter:
     self.kernelSet = set()
     self.solutionSet = set()
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
-    self.printLogic = False
-    self.printStatus = False
+    self.printLogic = True
+    self.printStatus = True
     self.printDebugLib = True
     self.fallbackPSPU1 = None
   
