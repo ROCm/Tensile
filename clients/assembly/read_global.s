@@ -84,7 +84,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // write to local memory; lgkm_cnt += 2
 .macro WRITE_LOCAL
-.if 1
+.if 0
   .set dst, 16
   .set a, 24
   .set b, 28
@@ -96,7 +96,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // write to global
 .macro WRITE_GLOBAL d0 d1
-.if 1
+.if 0
 .set idx, 64+\d1*8+\d0
 v_mov_b32 v12, s15                    // v12 = strideC1J
 v_mov_b32 v13, 0x0                    // v13 = 0
@@ -132,15 +132,15 @@ flat_store_dword v[12:13], v[idx]     // store C
 // Wait A[0:3],B[0:3]. A[4:7],B[4:7] outstanding.
 // Load A[0:3],B[0:3]-next.
 // MACs A[0:3],B[0:3].
-s_waitcnt lgkmcnt(8)
-ds_read_b32 v[read_a+0], v18 offset:\iter*128*4+16*4*0 // A[0]
-ds_read_b32 v[read_a+1], v18 offset:\iter*128*4+16*4*1 // A[1]
-ds_read_b32 v[read_b+0], v19 offset:\iter*128*4+16*4*0 // B[0]
-ds_read_b32 v[read_b+1], v19 offset:\iter*128*4+16*4*1 // B[1]
-ds_read_b32 v[read_a+2], v18 offset:\iter*128*4+16*4*2 // A[2]
-ds_read_b32 v[read_a+3], v18 offset:\iter*128*4+16*4*3 // A[3]
-ds_read_b32 v[read_b+2], v19 offset:\iter*128*4+16*4*2 // B[2]
-ds_read_b32 v[read_b+3], v19 offset:\iter*128*4+16*4*3 // B[3]
+//s_waitcnt lgkmcnt(8)
+//ds_read_b32 v[read_a+0], v18 offset:\iter*128*4+16*4*0 // A[0]
+//ds_read_b32 v[read_a+1], v18 offset:\iter*128*4+16*4*1 // A[1]
+//ds_read_b32 v[read_b+0], v19 offset:\iter*128*4+16*4*0 // B[0]
+//ds_read_b32 v[read_b+1], v19 offset:\iter*128*4+16*4*1 // B[1]
+//ds_read_b32 v[read_a+2], v18 offset:\iter*128*4+16*4*2 // A[2]
+//ds_read_b32 v[read_a+3], v18 offset:\iter*128*4+16*4*3 // A[3]
+//ds_read_b32 v[read_b+2], v19 offset:\iter*128*4+16*4*2 // B[2]
+//ds_read_b32 v[read_b+3], v19 offset:\iter*128*4+16*4*3 // B[3]
 v_mac_f32 v[c+0+0*8], v[mac_a+0], v[mac_b+0]
 v_mac_f32 v[c+1+0*8], v[mac_a+1], v[mac_b+0] 
 v_mac_f32 v[c+1+1*8], v[mac_a+1], v[mac_b+1] 
@@ -163,15 +163,15 @@ v_mac_f32 v[c+0+3*8], v[mac_a+0], v[mac_b+3]
 // Wait A[4:7],B[4:7]. A[0:3],B[0:3]-next outstanding.
 // Load A[4:7],B[4:7]-next.
 // MACs A[4:7],B[4:7].
-s_waitcnt lgkmcnt(8)
-ds_read_b32 v[read_a+4], v18 offset:\iter*128*4+16*4*4 // A[4]
-ds_read_b32 v[read_a+5], v18 offset:\iter*128*4+16*4*5 // A[5]
-ds_read_b32 v[read_b+4], v19 offset:\iter*128*4+16*4*4 // B[4]
-ds_read_b32 v[read_b+5], v19 offset:\iter*128*4+16*4*5 // B[5]
-ds_read_b32 v[read_a+6], v18 offset:\iter*128*4+16*4*6 // A[6]
-ds_read_b32 v[read_a+7], v18 offset:\iter*128*4+16*4*7 // A[7]
-ds_read_b32 v[read_b+6], v19 offset:\iter*128*4+16*4*6 // B[6]
-ds_read_b32 v[read_b+7], v19 offset:\iter*128*4+16*4*7 // B[7]
+//s_waitcnt lgkmcnt(8)
+//ds_read_b32 v[read_a+4], v18 offset:\iter*128*4+16*4*4 // A[4]
+//ds_read_b32 v[read_a+5], v18 offset:\iter*128*4+16*4*5 // A[5]
+//ds_read_b32 v[read_b+4], v19 offset:\iter*128*4+16*4*4 // B[4]
+//ds_read_b32 v[read_b+5], v19 offset:\iter*128*4+16*4*5 // B[5]
+//ds_read_b32 v[read_a+6], v18 offset:\iter*128*4+16*4*6 // A[6]
+//ds_read_b32 v[read_a+7], v18 offset:\iter*128*4+16*4*7 // A[7]
+//ds_read_b32 v[read_b+6], v19 offset:\iter*128*4+16*4*6 // B[6]
+//ds_read_b32 v[read_b+7], v19 offset:\iter*128*4+16*4*7 // B[7]
 v_mac_f32 v[c+4+0*8], v[mac_a+4], v[mac_b+0] 
 v_mac_f32 v[c+5+0*8], v[mac_a+5], v[mac_b+0] 
 v_mac_f32 v[c+5+1*8], v[mac_a+5], v[mac_b+1] 
@@ -250,7 +250,7 @@ sgemm_NT:
   compute_pgm_rsrc2_tgid_x_en       = 1   // preload workgroup.x into sgpr
   compute_pgm_rsrc2_tgid_y_en       = 1   // preload workgroup.y into sgpr
   compute_pgm_rsrc2_lds_size        = 1   // ?
-  workgroup_group_segment_byte_size = 32768 // overriden by runtime
+  workgroup_group_segment_byte_size = 32256 // overriden by runtime
   kernarg_segment_alignment = 4
   group_segment_alignment = 4
   private_segment_alignment = 4
@@ -430,29 +430,6 @@ v_xor_b32 v17, 0x4000, v17            // Swap     local_write_B
 s_waitcnt lgkmcnt(0)                  // Wait [b]                           0  0
 s_barrier
 
-// Load A[0:3],B[0:3]
-.set read_a, 32
-.set read_b, 40
-ds_read_b32 v[read_a+0], v18 offset:0*128*4+16*4*0 // A[0]
-ds_read_b32 v[read_a+1], v18 offset:0*128*4+16*4*1 // A[1]
-ds_read_b32 v[read_b+0], v19 offset:0*128*4+16*4*0 // B[0]
-ds_read_b32 v[read_b+1], v19 offset:0*128*4+16*4*1 // B[1]
-
-ds_read_b32 v[read_a+2], v18 offset:0*128*4+16*4*2 // A[2]
-ds_read_b32 v[read_a+3], v18 offset:0*128*4+16*4*3 // A[3]
-ds_read_b32 v[read_b+2], v19 offset:0*128*4+16*4*2 // B[2]
-ds_read_b32 v[read_b+3], v19 offset:0*128*4+16*4*3 // B[3]
-
-// Load A[4:7],B[4:7]
-ds_read_b32 v[read_a+4], v18 offset:0*128*4+16*4*4 // A[4]
-ds_read_b32 v[read_a+5], v18 offset:0*128*4+16*4*5 // A[5]
-ds_read_b32 v[read_b+4], v19 offset:0*128*4+16*4*4 // B[4]
-ds_read_b32 v[read_b+5], v19 offset:0*128*4+16*4*5 // B[5]
-
-ds_read_b32 v[read_a+6], v18 offset:0*128*4+16*4*6 // A[6]
-ds_read_b32 v[read_a+7], v18 offset:0*128*4+16*4*7 // A[7]
-ds_read_b32 v[read_b+6], v19 offset:0*128*4+16*4*6 // B[6]
-ds_read_b32 v[read_b+7], v19 offset:0*128*4+16*4*7 // B[7]
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -465,7 +442,7 @@ ds_read_b32 v[read_b+7], v19 offset:0*128*4+16*4*7 // B[7]
 label_0000:
 .set c, 64
 
-s_waitcnt lgkmcnt(16-2) // ensure room in queue
+//s_waitcnt lgkmcnt(16-2) // ensure room in queue
 READ_GLOBAL
 
 // Iteration 1-6 ///////////////////////////////////////////////////////////////
@@ -477,7 +454,7 @@ ITERATION 5 0
 ITERATION 6 0
 
 // wait for global load and space in lgkm queue
-s_waitcnt vmcnt(0) & lgkmcnt(16-2)
+s_waitcnt vmcnt(0)
 WRITE_LOCAL
 
 // Iteration 7 /////////////////////////////////////////////////////////////////
@@ -607,7 +584,7 @@ v_mac_f32 v[c+0+7*8], v[mac_a+0], v[mac_b+7]
 ////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-.if 1
+.if 0
 s_lshl_b32 s12, s12, 2                // offsetC *= 4bytes
 s_add_u32 s4, s12, s4
 s_addc_u32 s5, 0x0, s5                // s[4:5] = C* + offset

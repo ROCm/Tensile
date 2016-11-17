@@ -1,10 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////
-// sgemm NT 128x128x8 w/ full prefetching
-// read global: flat_load_dwordx4 x2
-// write local: ds_write2_b64     x2
-// read local : ds_read_b32       x16
-// perf: 84.4% (inner loop)
+// sgemm NT 128x128x8 w/ branching
 ////////////////////////////////////////////////////////////////////////////////
+
+.if 0
+v_cmp_lt_u32 s[24:25], v4, s8
+s_and_saveexec_b64 s[26:27], s[24:25] // dst = EXEC; EXEC = src & EXEC
+s_cbranch_execz label_B
+label_A:
+load from global
+write to local
+label_B:
+write 0 to local
+regular code
+
+s_andn2_b64 exec, s[26:27], exec // dst = EXEC, EXEC = src & ~EXEC (negates each bit)
+.endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // VGPR Assignments
@@ -72,8 +82,10 @@
   .set a, 24
   .set b, 28
 
+s_cbranch_execz label_1000
   flat_load_dwordx4 v[a+0:a+3], v[src+0:src+1] // A[0:3]
   flat_load_dwordx4 v[b+0:b+3], v[src+2:src+3] // B[0:3]
+label_1000:
   v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
   v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
   v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
@@ -420,9 +432,63 @@ v_mov_b32 v[c+61], 0
 v_mov_b32 v[c+62], 0
 v_mov_b32 v[c+63], 0
 
+// load from global memory values
+v_mov_b32 v32, 0
+v_mov_b32 v33, 0
+v_mov_b32 v34, 0
+v_mov_b32 v35, 0
+v_mov_b32 v36, 0
+v_mov_b32 v37, 0
+v_mov_b32 v38, 0
+v_mov_b32 v39, 0
+v_mov_b32 v40, 0
+v_mov_b32 v41, 0
+v_mov_b32 v42, 0
+v_mov_b32 v43, 0
+v_mov_b32 v44, 0
+v_mov_b32 v45, 0
+v_mov_b32 v46, 0
+v_mov_b32 v47, 0
+v_mov_b32 v48, 0
+v_mov_b32 v49, 0
+v_mov_b32 v50, 0
+v_mov_b32 v51, 0
+v_mov_b32 v52, 0
+v_mov_b32 v53, 0
+v_mov_b32 v54, 0
+v_mov_b32 v55, 0
+v_mov_b32 v56, 0
+v_mov_b32 v57, 0
+v_mov_b32 v58, 0
+v_mov_b32 v59, 0
+v_mov_b32 v60, 0
+v_mov_b32 v61, 0
+v_mov_b32 v62, 0
+v_mov_b32 v63, 0
+
+
+v_cmp_lt_u32 s[16:17], v0, 16
+s_and_saveexec_b64 s[16:17], s[16:17] // dst = EXEC; EXEC = src & EXEC
+
 
 // prefetch before loop
-READ_GLOBAL                           // Load (a)                           2  2
+//READ_GLOBAL                           // Load (a)                           2  2
+.set src, 20
+.set inc, 14
+.set a, 24
+.set b, 28
+s_cbranch_execz label_0010
+flat_load_dwordx4 v[a+0:a+3], v[src+0:src+1] // A[0:3]
+flat_load_dwordx4 v[b+0:b+3], v[src+2:src+3] // B[0:3]
+label_0010:
+v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
+v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
+v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
+v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
+
+
+
+
 s_waitcnt vmcnt(0) & lgkmcnt(0)       // Wait (a)                           0  0
 WRITE_LOCAL                           // Stor [b]                           2  0
 v_xor_b32 v16, 0x4000, v16            // Swap     local_write_A
@@ -466,7 +532,24 @@ label_0000:
 .set c, 64
 
 s_waitcnt lgkmcnt(16-2) // ensure room in queue
-READ_GLOBAL
+//READ_GLOBAL
+
+v_cmp_lt_u32 s[16:17], v0, 16
+s_and_saveexec_b64 s[16:17], s[16:17] // dst = EXEC; EXEC = src & EXEC
+s_cbranch_execz label_0011
+flat_load_dwordx4 v[a+0:a+3], v[src+0:src+1] // A[0:3]
+
+label_0011:
+v_cmp_lt_u32 s[16:17], v1, 16
+s_and_saveexec_b64 s[16:17], s[16:17] // dst = EXEC; EXEC = src & EXEC
+s_cbranch_execz label_0012
+flat_load_dwordx4 v[b+0:b+3], v[src+2:src+3] // B[0:3]
+
+label_0012:
+  v_add_u32  v[src+0], vcc, v[src+0], v[inc+0] 
+  v_addc_u32 v[src+1], vcc, v[src+1], 0x0, vcc
+  v_add_u32  v[src+2], vcc, v[src+2], v[inc+1] 
+  v_addc_u32 v[src+3], vcc, v[src+3], 0x0, vcc
 
 // Iteration 1-6 ///////////////////////////////////////////////////////////////
 ITERATION 1 2

@@ -289,7 +289,7 @@ typedef enum TensileOperationType_ {
 typedef struct TensileControl_ {
   void *validate;
   unsigned int benchmark;
-  enum { maxQueues = 16 } maxQueues_;
+  enum { maxQueues = 4 } maxQueues_;
   unsigned int numQueues;       // supplied by user
   unsigned int numQueuesUsed;   // returned by library
   unsigned int numInputEvents;  // supplied by user

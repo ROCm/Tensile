@@ -1,0 +1,60 @@
+loop with barrier last instruction
+no global memory read or write
+no local memory write
+
+97.9 - local read none
+94.6 - ds_read2_b64 x1 at begin; no wait
+97.5 - ds_read2_b64 x1 at begin; wait(0) before
+94.5 - ds_read2_b64 x1 at begin; wait(1) after
+94.6 - ds_read2_b64 x1 at end;   no wait
+94.6 - ds_read2_b64 x1 at end;   wait(0) before
+94.5 - ds_read2_b64 x1 at end;   wait(1) after
+
+94.4 - ds_read2_b64 x2 2:64; no wait
+94.2 - ds_read2_b64 x2 2:64; wait(0) before
+94.4 - ds_read2_b64 x2 2:64; wait(2) after
+
+94.3 - ds_read2_b64 wait(0),1,32,1,32
+93.9 - ds_read2_b64 1,wait(2),32,1,wait(2), 32
+94.3 - ds_read2_b64 wait(0),1,32,wait(0),1,32
+93.9 - ds_read2_b64 1,wait(1),32,1,wait(1), 32
+
+
+
+512 v_mac's (w/ barrier, xor)
+1:64
+97.9% - 0 ds_read2_b64
+97.8% - 1 ds_read2_b64
+97.8% - 2 ds_read2_b64
+97.7% - 3 ds_read2_b64
+97.7% - 4 ds_read2_b64
+97.7% - 5 ds_read2_b64
+97.7% - 6 ds_read2_b64
+97.5% - 7 ds_read2_b64
+94.6% - 8 ds_read2_b64 spaced out
+94-97 - 8 ds_read2_b64 spaced out w/o final wait
+
+2:64
+97.8% - 2 ds_read2_b64
+97.7% - 4 ds_read2_b64
+97.6% - 6 ds_read2_b64
+97.6% - 8 ds_read2_b64
+94.4% - 9 ds_read2_b64
+94.4% - 10 ds_read2_b64
+
+4:64
+97.7% - 4 ds_read2_b64
+97.5% - 8 ds_read2_b64
+97.5% - 9 ds_read2_b64
+94-97 - 10 ds_read2_b64
+97.5% - 12 ds_read2_b64
+
+
+
+256 v_mac's
+1:64
+96.9% - 0 ds_read2_b64
+96.8% - 1 ds_read2_b64
+93.7% - 2 ds_read2_b64 w/ wait
+96.5% - 2 ds_read2_b64 w/o wait
+96.6% - 1 ds_read2_b64 w/ 2nd wait

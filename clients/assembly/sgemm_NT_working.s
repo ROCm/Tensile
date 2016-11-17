@@ -250,7 +250,7 @@ sgemm_NT:
   compute_pgm_rsrc2_tgid_x_en       = 1   // preload workgroup.x into sgpr
   compute_pgm_rsrc2_tgid_y_en       = 1   // preload workgroup.y into sgpr
   compute_pgm_rsrc2_lds_size        = 1   // ?
-  workgroup_group_segment_byte_size = 32768 // overriden by runtime
+  workgroup_group_segment_byte_size = 32256 // overriden by runtime
   kernarg_segment_alignment = 4
   group_segment_alignment = 4
   private_segment_alignment = 4
