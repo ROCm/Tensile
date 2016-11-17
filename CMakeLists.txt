@@ -36,6 +36,8 @@ if( WIN32 AND CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT )
   set( CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/package" CACHE PATH "Install path prefix, prepended onto install directories" FORCE )
 endif( )
 
+option( Tensile_BUILD_CLIENTS "Build Tensile clients" ON)
+
 list( APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
 ############################################################
@@ -126,4 +128,9 @@ install(DIRECTORY
 ############################################################
 # Clients
 set(Tensile_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-add_subdirectory(clients)
+if (${Tensile_BUILD_CLIENTS})
+  MESSAGE( STATUS "Building clients.")
+  add_subdirectory(clients)
+else()
+  MESSAGE( STATUS "NOT building clients.")
+endif()
