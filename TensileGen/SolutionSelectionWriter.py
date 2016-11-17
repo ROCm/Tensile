@@ -36,6 +36,7 @@ class SolutionSelectionWriter:
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
     self.printLogic = False
     self.printStatus = False
+    self.printDebugLib = True
     self.fallbackPSPU1 = None
   
   def getKernelSet(self):
@@ -58,8 +59,8 @@ class SolutionSelectionWriter:
       s += "#include \"TensileGetSolution_" + deviceProfile.libString() + ".h\"\n"
     s += "\n"
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
-    s += "  printf(\"Tensile::" + functionName + "()\\n\");\n" # rocBLAS
-    s += "  printf(\"problem.toString();\\n\");\n" # rocBLAS
+    if self.printDebugLib: s += "  printf(\"Tensile::" + functionName + "()\\n\");\n"
+    if self.printDebugLib: s += "  printf(\"%s\\n\", problem.toString().c_str() );\n"
     # if match device
     for deviceProfile, exactMatches in self.psMap.iteritems():
       s += "  if ( problem.deviceProfile.numDevices() == " + str(len(deviceProfile.devices)) + " ) {\n"
@@ -127,7 +128,7 @@ class SolutionSelectionWriter:
       s += "#include \"TensileGetSolution_" + exactMatch.libString() + ".h\"\n"
     s += "\n"
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
-    s += "  printf(\"Tensile::" + functionName + "()\\n\");"
+    if self.printDebugLib: s += "  printf(\"Tensile::" + functionName + "()\\n\");"
     s += "  bool problemRequiresLeadingStrides = problem.tensorC[0].stride != 1 || problem.tensorA[0].stride != 1 || problem.tensorB[0].stride != 1;\n"
     s += "\n"
     
@@ -182,8 +183,8 @@ class SolutionSelectionWriter:
   
   # fallback problem/solution pair = "b" solution or "m" solution which launched multiple kernels
   def isFallback(self, problem, solution):
-    #if solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1] > 1:
-    #  return False
+    if solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1] > 1:
+      return False
     if solution.branch[0].isBranched() or solution.branch[1].isBranched():
       return True
     if solution.branch[0].isMultiple():
@@ -682,6 +683,12 @@ class SolutionSelectionWriter:
 
     return
 
+  def addSolutionToSets( self, solution):
+    self.solutionSet.add( solution )
+    for kernel in solution.kernels:
+      if kernel != None:
+        self.kernelSet.add( kernel )
+
   def addPSPToSets( self, psp):
     #startSolutionSetSize = len(self.solutionSet)
     #startKernelSetSize = len(self.kernelSet)
@@ -738,7 +745,7 @@ class SolutionSelectionWriter:
           sizeU = problem.tensorA.dimensions[i].size
       gflops = self.getGFlopsString(exactPSP[0], exactPSP[2])
       s += indent + "  if ( size0 == %3u && size1 == %3u && sizeU == %2u ) {" % (size0, size1, sizeU)
-      s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
+      if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
       s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           
 
@@ -760,16 +767,21 @@ class SolutionSelectionWriter:
             sizeUL += unroll
           gflops = self.getGFlopsString(modPSP[0], modPSP[2])
           s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
-          s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
+          if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
           s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
     fallbackPSP = rule[1]
     if fallbackPSP != None:
       fallbackSolution = fallbackPSP[1]
-      sizeUL = fallbackSolution.kernels[0].unrolls[0]
+      #for i in range( 0, 4):
+      #  if fallbackSolution.kernels[i] != None:
+      #    if len(fallbackSolution.kernels[i].unrolls) == 1 and fallbackSolution.kernels[i].unrolls[0] > 1:
+      #      fallbackSolution.kernels[i].unrolls.append(1)
+      #self.addSolutionToSets(fallbackSolution)
+      sizeUL = fallbackSolution.kernels[0].unrolls[0] + 1
       gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
       s += indent + "  if ( sizeU >= %2u) {" % sizeUL
-      s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution))
+      if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution))
       s += "return new Tensile::%s%s( problem ); } // %s\n" % (self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
       #newFallbackSolution = copy.deepcopy( fallbackSolution )
       #for i in range( 0, 4):
@@ -822,7 +834,7 @@ class SolutionSelectionWriter:
 
 
     s += "Tensile::Solution* " + functionName + "( const Tensile::Problem & problem, TensileStatus *status ) {\n"
-    s += "  printf(\"Tensile::" + functionName + "()\\n\");"
+    if self.printDebugLib: s += "  printf(\"Tensile::" + functionName + "()\\n\");"
     s += "  size_t sizeFree = problem.tensorC.numElements(); // size0*size1*size of other free indices\n"
     s += "  unsigned int size0 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim0)
     s += "  unsigned int size1 = problem.tensorC[%u].size;\n" % (kernel.indexAssignmentDim1)
@@ -1172,6 +1184,12 @@ class SolutionSelectionWriter:
         for psp in fastestExactPSPsInRange:
           localSolutionSet.add( psp[1] )
           fastestPSPs.add( tuple(copy.deepcopy(psp)) )
+        # ensure fallback in rule uses k%1
+        for i in range( 0, 4):
+          if rule[1][1].kernels[i] != None:
+            if len(rule[1][1].kernels[i].unrolls) == 1 and rule[1][1].kernels[i].unrolls[0] > 1:
+              if self.printLogic: print "WARNING - fallback didn't have unroll=n,1; fixing."
+              rule[1][1].kernels[i].unrolls.append(1)
 
         finalRuleString = self.ruleToString(rule)
         if self.printLogic: print "FINAL RULE: " + finalRuleString
@@ -1213,7 +1231,7 @@ class SolutionSelectionWriter:
     
 
     s += "\n"
-    s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
+    if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
     s += "  return new Tensile::%s%s( problem ); // fallback for k < UNROLL\n" % (self.solutionWriter.getName(self.fallbackPSPU1[1]), self.solutionWriter.getTemplateArgList(self.fallbackPSPU1[1]))
     s += "}\n"
 
