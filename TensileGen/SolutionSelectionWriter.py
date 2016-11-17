@@ -1052,11 +1052,11 @@ class SolutionSelectionWriter:
         nextSizeGroupNewFallbackProblem = None
         size = 0
         if nextSizeGroupNewFallbackIdx < len(rangePSPs):
-          nextSizeGroupNewFallbackProblem = rangePSPs[nextSizeGroupNewFallbackIdx][1][0][0]
-          size = nextSizeGroupNewFallbackProblem.getSizeFree()**0.5
-        else:
-          nextSizeGroupNewFallbackProblem = None
-          size = 0
+          pspg = rangePSPs[nextSizeGroupNewFallbackIdx][1]
+          if len(pspg) > 0:
+            psp = pspg[0]
+            nextSizeGroupNewFallbackProblem = psp[0]
+            size = nextSizeGroupNewFallbackProblem.getSizeFree()**0.5
         pspString = self.pspToString(fallbackPSP)
         if self.printLogic: print "STATUS - fallback is fastest down to RuleGroup[%u] %u; %s" % (nextSizeGroupNewFallbackIdx, size, pspString)
         

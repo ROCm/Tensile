@@ -22,6 +22,7 @@
 import glob
 import argparse
 import os
+import sys
 
 import FileReader
 import FileWriter
@@ -122,6 +123,8 @@ if __name__ == "__main__":
   # parse arguments
   args = ap.parse_args()
   inputFiles = glob.glob( args.inputPath+"/*.xml" )
+  if len(inputFiles) < 1:
+    sys.exit("%s has no xml files" % args.inputPath);
   backend = Structs.Backend();
   if args.backend == "OpenCL_1.2":
     backend.value = 0
