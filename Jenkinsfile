@@ -96,17 +96,17 @@ parallel rocm_fiji: {
     }
   }
 }, catalyst: {
-  node ('fglrx1'){
-    env.CXXFLAGS = "-Werror"
-    stage 'Checkout' {
+  node ('opencl && hawaii'){
+    stage('Checkout') {
+      env.CXXFLAGS = "-Werror"
       checkout scm
     }
-    stage 'Clang' {
+    stage('Clang') {
       sh '''
           CXX='clang++-3.8' python test/test.py -b cl --no-validate --problem-set full
       '''
     }
-    stage 'GCC' {
+    stage('GCC') {
       sh '''
           CXX='g++-4.8' python test/test.py -b cl --no-validate --problem-set full 
       '''
