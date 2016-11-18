@@ -663,12 +663,16 @@ class KernelWriter:
     ####################################
     kStr += "/* kernel */" + self.endLine
     if self.backend.isHIP():
+      kStr += "#ifdef __clang__" + self.endLine
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wunused-parameter\"" + self.endLine
+      kStr += "#endif" + self.endLine
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
     if self.backend.isHIP():
+      kStr += "#ifdef __clang__" + self.endLine
       kStr += "#pragma clang diagnostic pop" + self.endLine
+      kStr += "#endif" + self.endLine
 
 
     # debug printf - kernel args
@@ -1083,8 +1087,10 @@ class KernelWriter:
     # store registers in lds
     ########################################
     if self.backend.isHIP():
+      kStr += "#ifdef __clang__" + self.endLine
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
+      kStr += "#endif" + self.endLine
     # if num threads
     if kernel.loadRequiresFewerThreadsA():
       kStr += indent + "if ( loadSerial < %d ) {%s" \
@@ -1160,7 +1166,9 @@ class KernelWriter:
     kStr += self.endLine
     # end store in lds
     if self.backend.isHIP():
+      kStr += "#ifdef __clang__" + self.endLine
       kStr += "#pragma clang diagnostic pop" + self.endLine
+      kStr += "#endif" + self.endLine
 
     # 2nd barrier
     kStr += (

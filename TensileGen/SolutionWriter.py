@@ -504,13 +504,15 @@ class SolutionWriter:
 
     # explicit template instantiation
     s += "/* explicit template instantiation */\n"
-    if self.backend.isHIP():
-      s += "#pragma clang diagnostic push\n"
-      s += "#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n"
+    s += "#ifdef __clang__\n"
+    s += "#pragma clang diagnostic push\n"
+    s += "#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n"
+    S += "#endif"
     s += "template class " + solutionName \
         + self.getTemplateArgList(solution) + ";\n"
-    if self.backend.isHIP():
-      s += "#pragma clang diagnostic pop\n"
+    s += "#ifdef __clang__\n"
+    s += "#pragma clang diagnostic pop\n"
+    S += "#endif"
 
     s += "\n"
     s += "} // namespace\n"
