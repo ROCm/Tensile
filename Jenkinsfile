@@ -21,7 +21,7 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-parallel rocm-fiji: {
+parallel rocm_fiji: {
 
   currentBuild.result = "SUCCESS"
   node('rocm-1.3 && fiji')
