@@ -68,13 +68,9 @@ std::string toString( TensileStatus status ) {
 
   /* misc */
   TENSILE_ENUM_TO_STRING_CASE( tensileStatusInvalidParameter )
-
-
-  // causes clang warning
-  //default:
-  //  return "Error in toString(TensileStatus): no switch case for: "
-  //      + std::to_string(status);
   };
+  printf("Invalid TensileStatus\n");
+  std::abort();
 }
 
 std::string toString( TensileDataType dataType ) {
@@ -92,20 +88,18 @@ std::string toString( TensileDataType dataType ) {
     TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexHalf )
     TENSILE_ENUM_TO_STRING_CASE( tensileDataTypeComplexConjugateHalf)
 #endif
-  //default:
-  //  return "Error in toString(TensileDataType): no switch case for: "
-  //      + std::to_string(dataType);
   };
+  printf("Invalid TensileDataType\n");
+  std::abort();
 }
 
 std::string toString( TensileOperationType type ) {
   switch( type ) {
     TENSILE_ENUM_TO_STRING_CASE( tensileOperationTypeContraction )
     TENSILE_ENUM_TO_STRING_CASE( tensileOperationTypeConvolution )
-  //default:
-  //  return "Error in toString(TensileDataType): no switch case for: "
-  //      + std::to_string(type);
   };
+  printf("Invalid TensileOperationType\n");
+  std::abort();
 }
 
 
@@ -192,9 +186,9 @@ size_t sizeOf( TensileDataType type ) {
     return 0;
   case tensileDataTypeNone:
     return 0;
-  //default:
-  //  return -1;
   }
+  printf("Invalid TensileDataType\n");
+  std::abort();
 }
 
 size_t flopsPerMadd( TensileDataType type ) {
@@ -213,6 +207,8 @@ size_t flopsPerMadd( TensileDataType type ) {
   case tensileNumDataTypes:
     return 0;
   }
+  printf("Invalid TensileDataType\n");
+  std::abort();
 }
 
 

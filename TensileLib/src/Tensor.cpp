@@ -99,9 +99,9 @@ std::string Tensor::toString( TensileTensorDataConst tensorData ) const {
   case tensileNumDataTypes:
   case tensileDataTypeNone:
     return "";
-  //default:
-  //  return "ERROR";
   }
+  printf("Invalid TensileDataType\n");
+  std::abort();
 }
 
 template<typename T>
@@ -279,9 +279,9 @@ void Tensor::fill(
   case tensileNumDataTypes:
   case tensileDataTypeNone:
     return;
-  //default:
-  //  return;
   }
+  printf("Invalid TensileDataType\n");
+  std::abort();
 }
 
 template<typename T>
@@ -374,6 +374,8 @@ bool compareTensors(
     printf("ERROR\n");
     return false;
   }
+  printf("Invalid TensileDataType\n");
+  std::abort();
 }
 template<typename DataType>
 bool compareTensorsTemplate(
