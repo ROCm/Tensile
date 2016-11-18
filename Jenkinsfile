@@ -112,4 +112,4 @@ parallel rocm_fiji: {
       '''
     }
   }
-}
+}, fastFail: true
