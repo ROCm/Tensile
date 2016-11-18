@@ -507,12 +507,12 @@ class SolutionWriter:
     s += "#ifdef __clang__\n"
     s += "#pragma clang diagnostic push\n"
     s += "#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n"
-    S += "#endif"
+    s += "#endif"
     s += "template class " + solutionName \
         + self.getTemplateArgList(solution) + ";\n"
     s += "#ifdef __clang__\n"
     s += "#pragma clang diagnostic pop\n"
-    S += "#endif"
+    s += "#endif"
 
     s += "\n"
     s += "} // namespace\n"
