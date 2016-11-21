@@ -25,7 +25,9 @@
 cmake_minimum_required(VERSION 2.8.12)
 # Use legacy variable reference and escape sequence evaluation. This might not
 # be necessary, but is a warning in CMake 3.6
-cmake_policy(SET CMP0053 OLD)
+if(POLICY CMP0053)
+  cmake_policy(SET CMP0053 OLD)
+endif()
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
