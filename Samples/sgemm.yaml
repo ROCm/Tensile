@@ -1,0 +1,59 @@
+Parameters:
+  Name: GEMM_Catalyst_15.201
+  Backend: OpenCL
+  Device: Fiji
+  PrintDebug: 2
+
+BenchmarkProblems:
+  - ProblemType:
+      OperationType: GEMM
+      Precision: s
+      Transpose: [ False, True ]
+      Beta: False
+    Common:
+      - ProblemSizes:
+        - [128,128,128 ]
+        - [5760,5760,5760]
+      - MultiDevice: [ False ]
+      - KernelGrid: [ [0, 0, 0], [2048, 2048, 1024] ]
+      - EdgeType: [ 'Shift', 'Branch', 'MultiShift', 'MultiBranch', 'Exact' ]
+      - Interleaving: [ [4, 8], [1, 1] ]
+      - VectorWidth: [4, 2, 1]
+      - - GlobalReadCoalescedA: [ True, False ]
+        - GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
+      - WorkGroupOrdering: [ [0], [0, 4], [1, 8] ] # 0 means native dim0 first, option width
+    Fork:
+      - - WorkGroup: [4,3]
+        - MicroTile: [3,3]
+      - ProblemSizes:
+        - [128,128,128 ]
+        - [5760,5760,5760]
+      - PreFetch: [ True, False ]
+      - LoopType: [ 'For', 'DoWhile' ]
+    Final:
+      - [ MacroTile, SplitUnroll ]
+      - ProblemSizes: # one set of problems, or one set per winner
+      - - Unroll: [4,8] # increase the number of winners, different problems?
+        - SplitK: [1, 2, 4, 8 ]
+      - ProblemSizes: # final exhaustive benchmarking with left over fork
+
+
+# final create problem-range -> solution mapping and encode to .yaml
+Analyze:
+  # parameters determining what solutions to keep, and how backend should be written
+
+# build the actual library
+Library:
+  PrintDebug: 2
+  # input, output
+  # toolchain?, Debug/Release
+  # defines
+
+# builds a benchmarking / validation client
+Client:
+  builds from same library info
+
+BenchmarkClient: # runs the benchmark client a bunch of times to produce plot data
+  ProblemSizes: {1, 2, 4, 8, ...}
+
+
