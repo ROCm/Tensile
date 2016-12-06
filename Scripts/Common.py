@@ -12,6 +12,8 @@ globalParameters["DebugPrintLevel"] = 1
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["indexChars"] = "ijklmnopqrstuvwxyz"
+globalParameters["Redo"] = "Changed" # Force None
+
 
 def printDebug( level, message):
   if globalParameters["DebugPrintLevel"] >= level:
