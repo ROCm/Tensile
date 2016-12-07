@@ -48,19 +48,21 @@ BenchmarkProblems:
       - - GlobalReadCoalescedA: [ True, False ]
         - GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
       - WorkGroupOrdering: [ [0], [0, 4], [1, 8] ] # 0 means native dim0 first, option width
-    BenchmarkForkedParameters:
-      - - WorkGroup: [4,3]
-        - MicroTile: [3,3]
+    ForkParameters:
+      - WorkGroup: [4,3]
+      - MicroTile: [3,3]
+    BenchmarkForkParameters:
       - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
       - PreFetch: [ True, False ]
       - LoopType: [ 'For', 'DoWhile' ]
-    BenchmarkJoinedParameters:
-      - [MacroTile, SplitUnroll]
-      - ProblemSizes: # one set of problems, or one set per winner
+    JoinParameters:
+      - MacroTile
+      - SplitUnroll
+    BenchmarkJoinParameters:
+      - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
       - - Unroll: [4,8] # increase the number of winners, different problems?
         - SplitK: [1, 2, 4, 8 ]
-    BenchmarkFinal: # final exhaustive benchmarking with left over fork
-      ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
+    BenchmarkFinal: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
 
 
   - ProblemType:

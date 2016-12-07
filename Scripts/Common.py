@@ -1,12 +1,16 @@
 import os.path
+import sys
 import inspect
 
 from collections import OrderedDict
+from sets import Set
 
 # debug print level
 # 0 - user wants no printing
 # 1 - user wants basic status
 # 2 - user wants debugging
+indexChars = "ijklmnopqrstuvwxyz"
+
 globalParameters = OrderedDict()
 globalParameters["Name"] = "Tensile"
 globalParameters["Backend"] = "OCL" # OCL, HIP, ASM
@@ -15,37 +19,72 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["Redo"] = "Changed" # Force None
 
-indexChars = "ijklmnopqrstuvwxyz"
+def keyInListOfDictionaries(param, dictionaries):
+  for dictionary in dictionaries:
+    if param in dictionary:
+      return True
+  return False
+def keyInListOfListOfDictionaries(param, dictionaries):
+  for dictionaryList in dictionaries:
+    if keyInListOfDictionaries(param, dictionaryList):
+      return True
+  return False
 
-solutionDefaults = {
-    # solution parameters
-    "KernelGrid0":              1,
-    "KernelGrid1":              1,
-    "KernelGridU":              1,
-    "KernelsSerial":            True,
-    # kernel parameters
-    "WorkGroupOrder":           1,
-    "MicroTileEdge":            4,
-    "MicroTileShape":           0,
-    "WorkGroupEdge":            16,
-    "WorkGroupShape":           0,
-    "LoopFor":                  True,
-    "LoopUnroll":               16,
-    "LoopTail":                 True,
-    "NumLoadsParaA":            1,
-    "NumLoadsParaB":            1,
-    "GlobalLoadVectorWidth":    4,
-    "LocalStoreVectorWidth":    4,
-    "LocalLoadVectorWidth":     4,
-    "GlobalStoreVectorWidth":   4,
-    "LoadMacInterleave":        4,
-    "SplitK":                   1,
-    "Prefetch":                 True,
-    "AtomicAccumulate":         False,
-    "EdgeType":                 "Shift",
-    }
 
-problemTypeDefaults = {
+
+# same parameter for all solution b/c depends only on compiler
+defaultBenchmarkCommonParameters = [
+    ["ProblemSizes",            [ [5760], 0, 0 ] ],
+    ["KernelGrid",              [ [1, 1, 1] ] ],
+    ["KernelSerial",            [ True, False ] ],
+    ["LoopFor",                 [ True, False ] ],
+    ["LoopTail",                [ True ] ],
+    ["LoadMacInterleave",       [ 4, 8, 16 ] ],
+    ["AtomicAccumulate",        [ False ] ],
+    ["EdgeType",                [ "Shift", "Branch", "None", "MultiShift", "MultiBranch" ] ],
+    ]
+# benchmark these solution independently
+defaultForkParameters = [
+    ["WorkGroupEdge",           [ 16, 8 ] ],
+    ["WorkGroupShape",          [ 0, -1, 1 ] ],
+    ["ThreadTileEdge",          [ 1, 2, 4, 6, 8 ] ],
+    ["ThreadTileShape",         [ 0, -1, 1 ] ],
+    ["SplitK",                  [ 1, 4, 16, 64 ] ],
+    ["Prefetch",                [ True, False ] ],
+    ]
+# keep one winner per solution and it affects which will win
+defaultBenchmarkForkParameters = [
+    ["WorkGroupOrder",          [ 1, -1, 4, -4, 8, -8 ] ],
+    ["LoopUnroll",              [ 16, 8, 4, 32 ] ],
+    ]
+# final list of solutions
+defaultJoinParameters = [
+    "MacroTile",
+    "SplitUnroll"
+    ]
+# keep one winner per solution and it would affect which solutions fastest
+defaultBenchmarkJoinParameters = [
+    ["NumLoadsParaA",           [ 1, 2, 3, 4, 6, 8 ] ],
+    ["NumLoadsParaB",           [ 1, 2, 3, 4, 6, 8 ] ],
+    ["GlobalLoadVectorWidth",   [ 4, 2, 1 ] ],
+    ["LocalStoreVectorWidth",   [ 4, 2, 1 ] ],
+    ["LocalLoadVectorWidth",    [ 4, 2, 1 ] ],
+    ["GlobalStoreVectorWidth",  [ 4, 2, 1 ] ],
+    ]
+
+# dictionary of defaults comprised for 1st option for each parameter
+defaultSolution = {}
+for parameter in defaultBenchmarkCommonParameters:
+  defaultSolution[parameter[0]] = parameter[1][0]
+for parameter in defaultForkParameters:
+  defaultSolution[parameter[0]] = parameter[1][0]
+for parameter in defaultBenchmarkForkParameters:
+  defaultSolution[parameter[0]] = parameter[1][0]
+for parameter in defaultBenchmarkJoinParameters:
+  defaultSolution[parameter[0]] = parameter[1][0]
+
+# default problem
+defaultProblemType = {
     "OperationType":            "GEMM",
     "UseBeta":                  True,
     "UseOffsets":               True,
@@ -61,27 +100,23 @@ problemTypeDefaults = {
 
     }
 
+# printing for status and debugging
 def printStatus( message): # 0
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - %s" % (filebase, f.co_name, message)
-
-
 def printExtra( message): # 1
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - %s" % (filebase, f.co_name, message)
-
 def printDebug( message): # 2
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - %s" % (filebase, f.co_name, message)
-
 def printWarning( message): # 1
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
-
 def printExit( message): # 2
   sys.exit(message)
 

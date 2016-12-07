@@ -37,25 +37,128 @@ class BenchmarkStep:
 ################################################################################
 class BenchmarkProcess:
 
-  def __init__(self, config, initialSolutionParameters):
+  def __init__(self, config):
+    printStatus("Beginning")
 
-    """
-- into common we put in all default-common parameters that don't show up in config's common/forked/joined followed by config's common
-- into forked we put in all default-forked parameters that don't show up above or in config's forked/joined followed by config's forked parameters
-- into joined we put in all default-joined parameters that don't show up above or in config's joined followed by config's joined parameters
-    """
-    # benchmark common steps
-    # benchmark fork steps
-    # benchmark join steps
-    # benchmark final
-    # if "BenchmarkFinal" not in
-    pass
+    # read problem type
+    if "ProblemType" in config:
+      problemTypeConfig = config["ProblemType"]
+    else:
+      problemTypeConfig = {}
+      printWarning("No ProblemType in config: %s; using defaults." % str(config) )
+    problemType = Structs.ProblemType(problemTypeConfig)
+    printStatus("Beginning %s" % str(problemType))
+
+    # read initial solution parameters
+    solutionConfig = { "ProblemType": problemTypeConfig }
+    if "InitialSolutionParameters" not in config:
+      printWarning("No InitialSolutionParameters; using defaults.")
+    else:
+      solutionConfig.update(config["InitialSolutionParameters"])
+    initialSolutionParameters = Structs.Solution(solutionConfig)
+    printExtra("InitialSolutionParameters: %s" % str(initialSolutionParameters))
+
+    # get benchmark steps from config
+    configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] if "BenchmarkCommonParameters" in config else []
+    configForkParameters = config["ForkParameters"] if "ForkParameters" in config else []
+    configBenchmarkForkParameters = config["BenchmarkForkParameters"] if "BenchmarkForkParameters" in config else []
+    configJoinParameters = config["JoinParameters"] if "JoinParameters" in config else []
+    configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] if "BenchmarkJoinParameters" in config else []
+
+# TODO - how to insert and override problem sizes?
+
+    # (1) into common we put in all Dcommon that
+    # don't show up in Ccommon/Cfork/CBfork/Cjoin/CBjoin
+    # followed by Ccommon
+    benchmarkCommonParameters = []
+    for param in defaultBenchmarkCommonParameters:
+      paramName = param[0]
+      if not keyInListOfListOfDictionaries(paramName, [configBenchmarkCommonParameters, configForkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
+        benchmarkCommonParameters.append(param)
+    for param in configBenchmarkCommonParameters:
+      benchmarkCommonParameters.append(param)
+
+    # (2) into fork we put in all Dfork that
+    # don't show up in Bcommon/Cfork/CBfork/Cjoin/CBjoin
+    # followed by Cfork
+    forkParameters = []
+    for param in defaultForkParameters:
+      paramName = param[0]
+      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, configForkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
+        forkParameters.append(param)
+    for param in configForkParameters:
+      forkParameters.append(param)
+
+    # (3) into Bfork we put in all DBfork that
+    # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
+    # followed by CBforked
+    benchmarkForkParameters = []
+    for param in defaultBenchmarkForkParameters:
+      paramName = param[0]
+      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, forkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
+        benchmarkForkParameters.append(param)
+    for param in configBenchmarkForkParameters:
+      benchmarkForkParameters.append(param)
+
+    # (4) into join we put in all Djoin that
+    # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
+    # followed by CBforked
+    joinParameters = []
+    for param in defaultJoinParameters:
+      paramName = param[0]
+      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, forkParameters, benchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
+        joinParameters.append(param)
+    for param in configJoinParameters:
+      joinParameters.append(param)
+
+    # (5) into Bjoin we put in all DBjoin that
+    # don't show up in Bcommon/Bfork/BBfork/Bjoin/CBjoin
+    # followed by CBjoin
+    benchmarkJoinParameters = []
+    for param in defaultBenchmarkJoinParameters:
+      paramName = param[0]
+      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, forkParameters, benchmarkForkParameters, joinParameters, configBenchmarkJoinParameters]):
+        benchmarkJoinParameters.append(param)
+    for param in configBenchmarkJoinParameters:
+      benchmarkJoinParameters.append(param)
+
+
+    # benchmarkCommonParameters
+    printExtra("benchmarkCommonParameters")
+    for step in benchmarkCommonParameters:
+      print step
+    # forkParameters
+    printExtra("forkParameters")
+    for param in forkParameters:
+      print param
+    # benchmarkForkParameters
+    printExtra("benchmarkForkParameters")
+    for step in benchmarkForkParameters:
+      print step
+    # joinParameters
+    printExtra("joinParameters")
+    for param in joinParameters:
+      print param
+    # benchmarkJoinParameters
+    printExtra("benchmarkJoinParameters")
+    for step in benchmarkJoinParameters:
+      print step
+
+    # Final Benchmark
+    # if "BenchmarkFinal" in config:
+    printStatus("DONE.")
+
+
+
+
+
 
 
 
 ################################################################################
 def benchmarkProblemType( config ):
 
+  """
   # read problem type
   if "ProblemType" in config:
     problemTypeConfig = config["ProblemType"]
@@ -73,10 +176,11 @@ def benchmarkProblemType( config ):
     solutionConfig.update(config["InitialSolutionParameters"])
   initialSolutionParameters = Structs.Solution(solutionConfig)
   printExtra("InitialSolutionParameters: %s" % str(initialSolutionParameters))
+  """
 
-  if "BenchmarkCommonSolutionParameters" not in config:
-    pass
+
   # object for default benchmarking
+  benchmarkProcess = BenchmarkProcess(config)
   # default order of parameters
   # default of which values to benchmark
   # default fork

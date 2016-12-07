@@ -187,8 +187,8 @@ class ProblemType:
 
   ########################################
   def __init__(self, config):
-    for key in problemTypeDefaults:
-      self.assignWithDefault(key, problemTypeDefaults[key], config)
+    for key in defaultProblemType:
+      self.assignWithDefault(key, defaultProblemType[key], config)
 
     if "DataType" in config:
       self["DataType"] = DataType(config["DataType"])
@@ -293,11 +293,11 @@ class ProblemBenchmarkSizeRange:
   def __init__(self, problemType, config):
     totalDimensions = max(problemType[IndexAssignmentsA])
     if len(config) < self.totalDimensions:
-      sys.exit("Tensile::%s::%s: ERROR - SizeRange config (%s) has %u < %u elements required by ProblemType ()"
-          % ( __file__, __line__, str(config), len(config), self.totalDimensions, problemType ))
+      printExit("SizeRange config (%s) has %u < %u elements required by ProblemType (%s)"
+          % ( str(config), len(config), self.totalDimensions, problemType ))
     if len(config) < self.totalDimensions:
-      sys.exit("Tensile::%s::%s: WARNING - SizeRange config (%s) has %u > %u elements than are required by ProblemType ()"
-          % ( __file__, __line__, str(config), len(config), self.totalDimensions, problemType ))
+      printWarning("SizeRange config (%s) has %u > %u elements than are required by ProblemType (%s)"
+          % ( str(config), len(config), self.totalDimensions, problemType ))
     for dim in self.dimensionSizes:
       if len(dim) == 1:
         self.dimensionSizes.append([dim[0], 16, 0, dim[0]])
@@ -337,11 +337,11 @@ class Solution:
     if "ProblemType" in config:
       self["ProblemType"] = ProblemType(config["ProblemType"])
     else:
-      self["ProblemType"] = ProblemType(problemTypeDefaults)
+      self["ProblemType"] = ProblemType(defaultProblemType)
       #sys.exit("Tensile::%s::%s: ERROR - No ProblemType in config: %s" % ( __file__, __line__, str(config) ))
 
-    for key in solutionDefaults:
-      self.assignWithDefault(key, solutionDefaults[key], config)
+    for key in defaultSolution:
+      self.assignWithDefault(key, defaultSolution[key], config)
 
 
   ########################################
@@ -369,11 +369,15 @@ class Solution:
   ########################################
   def getNameMin(self, requiredParameters):
     name = ""
+    first = True
     for key in self.state:
       if requiredParameters[key]:
+        if not first:
+          name += "_"
+        else:
+          first = False
         name += self.getParameterNameAbbreviation(key)
         name += self.getParameterValueAbbreviation(self[key])
-        name += "_"
     return name
 
   ########################################
@@ -392,8 +396,16 @@ class Solution:
       return str(value)
     elif isinstance(value, ProblemType):
       return str(value)
+    elif isinstance(value, list):
+      abbrev = ""
+      for i in range(0, len(value)):
+        element = value[i]
+        abbrev += Solution.getParameterValueAbbreviation(element)
+        if i < len(value)-1:
+          abbrev += "_"
+      return abbrev
     else:
-      sys.exit("Tensile::Solution::abbrev WARNING - parameter \"%s\" is new object type" % parameter)
+      printExit("Parameter \"%s\" is new object type" % value)
       return str(value)
 
   def assignWithDefault(self, parameter, default, config):
