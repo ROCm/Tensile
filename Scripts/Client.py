@@ -1,6 +1,6 @@
 import Common
-from Common import printDebug
+from Common import *
 
 def main(  config ):
-  printDebug(1,"Client::main")
-  pass
+  printStatus("Beginning")
+  printStatus("DONE.")

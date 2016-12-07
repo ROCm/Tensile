@@ -23,7 +23,7 @@ import os
 import sys
 
 import Common
-from Common import printDebug
+from Common import *
 import ReadYAML
 import BenchmarkProblems
 import Analyze
@@ -63,16 +63,12 @@ def executeStepsInConfig( config ):
 ################################################################################
 # Tensile - Main
 ################################################################################
-if __name__ == "__main__":
-
-  if len(sys.argv) < 2:
-    print "Tensile::main Usage: python Tensile.py config.yaml"
-    sys.exit(1)
-  else:
-    configPath = os.path.realpath( sys.argv[1] )
-    print "Tensile::main ConfigFile: %s" % ( configPath )
-    config = ReadYAML.readConfig( configPath )
-    print ""
-    executeStepsInConfig( config )
-    sys.exit(0)
+if len(sys.argv) < 2:
+  printExit("Usage: python Tensile.py config.yaml")
+else:
+  configPath = os.path.realpath( sys.argv[1] )
+  print("Tensile::Main ConfigFile: %s" % (configPath) )
+  config = ReadYAML.readConfig( configPath )
+  executeStepsInConfig( config )
+  sys.exit(0)
 

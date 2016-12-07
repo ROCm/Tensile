@@ -21,7 +21,7 @@
 
 import sys
 
-import Common
+from Common import *
 
 ################################################################################
 # Data Type
@@ -32,7 +32,6 @@ class DataType:
   complexSingle = 2
   complexDouble = 3
   half          = 4
-
   num           = 5
   none          = 6
 
@@ -52,6 +51,7 @@ class DataType:
       [ "H", 0.5, "ERROR",   "fp16",     "TensileHalf",          "tensileDataTypeHalf"          ]
   ]
 
+  ########################################
   def __init__( self, value ):
     if isinstance(value, int):
       self.value = value
@@ -63,27 +63,24 @@ class DataType:
             return
 
 
+  ########################################
   def toChar(self):
     return self.properties[self.value][self.idxChar]
-
   def toOpenCL(self):
     return self.properties[self.value][self.idxOpenCL]
-
   def toHIP(self):
     return self.properties[self.value][self.idxOpenCL]
-
   def toDevice(self, backend):
     if backend.isOpenCL():
       return self.toOpenCL()
     else:
       return self.toHIP()
-
   def toCpp(self):
     return self.properties[self.value][self.idxLibType]
-
   def getLibString(self):
     return self.properties[self.value][self.idxLibEnum]
 
+  ########################################
   def zeroString(self, backend):
     zeroString = "("
     zeroString += self.toDevice(backend)
@@ -95,24 +92,23 @@ class DataType:
     zeroString += ")"
     return zeroString
 
+  ########################################
   def isReal(self):
     if self.value == self.half or self.value == self.single or self.value == self.double:
       return True
     else:
       return False
-
   def isComplex(self):
     return not self.isReal()
-
   def isDouble(self):
     if self.value == self.double or self.value == self.complexDouble:
       return True
     else:
       return False
 
+  ########################################
   def numRegisters( self ):
     return properties[self.value][self.toLibEnum]
-
   def numBytes( self ):
     return self.numRegisters() * 4
 
@@ -135,120 +131,21 @@ class DataType:
     return not result
 
 
-################################################################################
-# Dimension
-################################################################################
-class Dimension:
-  def __init__( self ):
-    self.stride = 0
-    self.size = 0
-
-  def __str__(self):
-    return "["+str(self.stride)+","+str(self.size)+"]"
-
-  def __repr__(self):
-    return self.__str__()
-
-  def getAttributes(self):
-    return ( self.stride, self.size )
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, Dimension) and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
-
-
-################################################################################
-# Tensor
-################################################################################
-class Tensor:
-  def __init__( self ):
-    self.dataType = DataType(-1)
-    self.dimensions = []
-
-  def __str__(self):
-    name = "[Tensor"
-    name += "; " + self.dataType.toChar()
-    name += "; " + str(self.dimensions)
-    name += "]"
-    return name
-
-  def __repr__(self):
-    return self.__str__()
-
-  def getAttributes(self):
-    return ( self.dataType, tuple(self.dimensions))
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, Tensor) \
-        and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
-
-
-################################################################################
-# Backend
-################################################################################
-class Backend:
-  ocl = 0
-  hip = 1
-  asm = 2
-
-  # property indices
-  idxName = 0
-  properties = [
-      ["OCL"],
-      ["HIP"],
-      ["ASM"]
-      ]
-  def __init__( self ):
-    self.value = 0
-
-  def __str__(self):
-    return self.properties[self.value][idxName]
-
-  def isHIP(self):
-    return self.value == self.hip
-
-  def isOpenCL(self):
-    return self.value == self.ocl
-
-  def __repr__(self):
-    return self.__str__()
-
-  def getAttributes(self):
-    return ( self.value )
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, Backend) and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
-
 
 ################################################################################
 # Device
 ################################################################################
 class Device:
+
+  ########################################
   def __init__( self, name, numComputeUnits, clockFrequency, flopsPerClock):
     self.name = name
     self.numComputeUnits = numComputeUnits
     self.clockFrequency = clockFrequency
     self.flopsPerClock = flopsPerClock
 
+  ########################################
   def __str__(self):
-    print "Device.str"
     state = "[Device"
     state += "; " + self.name
     state += "; " + str(self.numComputeUnits)
@@ -288,17 +185,10 @@ class ProblemType:
   operationTypes = ["GEMM", "TensorContraction"]
   state = {}
 
-  def __getitem__(self, key):
-    return self.state[key]
-  def __setitem__(self, key, value):
-    self.state[key] = value
-
+  ########################################
   def __init__(self, config):
-    self.assignWithDefault("OperationType", "GEMM", config)
-    self.assignWithDefault("HighPrecisionAccumulate", False, config)
-    self.assignWithDefault("UseBeta", True, config)
-    self.assignWithDefault("UseOffsets", True, config)
-    self.assignWithDefault("UseInitialStrides", False, config)
+    for key in problemTypeDefaults:
+      self.assignWithDefault(key, problemTypeDefaults[key], config)
 
     if "DataType" in config:
       self["DataType"] = DataType(config["DataType"])
@@ -310,22 +200,9 @@ class ProblemType:
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(config)
 
-  def assignWithDefault(self, parameter, default, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      self[parameter] = default
 
-  def assign(self, parameter, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      sys.exit("Tensile::ProblemType::init ERROR - parameter \"%s\" must be defined" % parameter)
-
+  ########################################
   def initGEMM(self, config):
-    self.assignWithDefault("TransposeA", False, config)
-    self.assignWithDefault("TransposeB", True, config)
-    self.assignWithDefault("Batched", False, config)
     sumIdx = 3 if self["Batched"] else 2
     self["IndexAssignmentsA"] = [0, sumIdx] # N
     self["IndexAssignmentsB"] = [sumIdx, 1] # N
@@ -336,35 +213,29 @@ class ProblemType:
     if self["Batched"]:
       self["IndexAssignmentsA"].append(2)
       self["IndexAssignmentsB"].append(2)
-      self["NumFreeIndices"] = 3
+      self["NumDimensionsC"] = 3
     else:
-      self["NumFreeIndices"] = 2
+      self["NumDimensionsC"] = 2
 
+  ########################################
   def initTensorContraction(self, config):
-    self.assign("NumFreeIndices", config)
+    self.assign("NumDimensionsC", config)
     self.assign("IndexAssignmentsA", config)
     self.assign("IndexAssignmentsB", config)
 
+  ########################################
   def isGEMM(self):
     return self.operationType == 0
 
+  ########################################
   def isTensorContraction(self):
     return self.operationType == 1
 
-
+  ########################################
   def __str__(self):
-    indexChars = Common.globalParameters["indexChars"]
-    """
-    S - single precision
-    B - beta
-    A - high precision accumulate
-    O - offsets
-    I - initial stride
-    Cij_Aik_Bjk_SBAOI
-    """
     # C dimensions
     name = "C"
-    name += indexChars[:self["NumFreeIndices"]].lower()
+    name += indexChars[:self["NumDimensionsC"]].lower()
     # A dimensions
     name += "_A"
     for i in self["IndexAssignmentsA"]:
@@ -383,9 +254,22 @@ class ProblemType:
     if self["UseInitialStrides"]: name += "I"
     return name
 
+  def assignWithDefault(self, parameter, default, config):
+    if parameter in config:
+      self[parameter] = config[parameter]
+    else:
+      self[parameter] = default
+  def assign(self, parameter, config):
+    if parameter in config:
+      self[parameter] = config[parameter]
+    else:
+      sys.exit("Tensile::ProblemType::init ERROR - parameter \"%s\" must be defined" % parameter)
+  def __getitem__(self, key):
+    return self.state[key]
+  def __setitem__(self, key, value):
+    self.state[key] = value
   def __repr__(self):
     return self.__str__()
-
   def getAttributes(self):
     return self.state
   def __hash__(self):
@@ -399,7 +283,46 @@ class ProblemType:
     return not result
 
 
+################################################################################
+# ProblemBenchmarkSizes
+################################################################################
+class ProblemBenchmarkSizeRange:
+  dimensionSizes = []
 
+  ########################################
+  def __init__(self, problemType, config):
+    totalDimensions = max(problemType[IndexAssignmentsA])
+    if len(config) < self.totalDimensions:
+      sys.exit("Tensile::%s::%s: ERROR - SizeRange config (%s) has %u < %u elements required by ProblemType ()"
+          % ( __file__, __line__, str(config), len(config), self.totalDimensions, problemType ))
+    if len(config) < self.totalDimensions:
+      sys.exit("Tensile::%s::%s: WARNING - SizeRange config (%s) has %u > %u elements than are required by ProblemType ()"
+          % ( __file__, __line__, str(config), len(config), self.totalDimensions, problemType ))
+    for dim in self.dimensionSizes:
+      if len(dim) == 1:
+        self.dimensionSizes.append([dim[0], 16, 0, dim[0]])
+      elif len(dim) == 2:
+        self.dimensionSizes.append([dim[0], 16, 0, dim[1]])
+      elif len(dim) == 3:
+        self.dimensionSizes.append([dim[0], dim[1], 0, dim[2]])
+      elif len(dim) == 4:
+        self.dimensionSizes.append([dim[0], dim[1], dim[2], dim[3]])
+      else:
+        sys.exit("Tensile::%s::%s: ERROR - ProblemBenchmarkSizeRange(%s) has %u descriptors rather than 1-4."
+          % ( __file__, __line__, dim, len(dim) ))
+
+  ########################################
+  def maxNumElements(self):
+    return [ 1, 1, 1 ] # TODO [maxC, maxA, maxB]
+
+  def __str__(self):
+    return str(self.dimensionSizes)
+
+
+
+
+# this will have a list of index size assignments
+#order of assignments: i, j, k, l, m, ...
 
 
 ################################################################################
@@ -408,61 +331,20 @@ class ProblemType:
 class Solution:
   state = {}
 
+  ########################################
   def __init__(self, config):
     # problem type
     if "ProblemType" in config:
       self["ProblemType"] = ProblemType(config["ProblemType"])
     else:
-      sys.exit("Tensile::%s::%s: ERROR - No ProblemType in config: %s" % ( __file__, __line__, str(config) ))
+      self["ProblemType"] = ProblemType(problemTypeDefaults)
+      #sys.exit("Tensile::%s::%s: ERROR - No ProblemType in config: %s" % ( __file__, __line__, str(config) ))
 
-    # solution parameters
-    self.assignWithDefault("KernelGrid0", 1, config)
-    self.assignWithDefault("KernelGrid1", 1, config)
-    self.assignWithDefault("KernelGridU", 1, config)
-    self.assignWithDefault("KernelsSerial", True, config)
-    # kernel parameters
-    self.assignWithDefault("WorkGroupOrder", 1, config)
-    self.assignWithDefault("MicroTileEdge", 4, config)
-    self.assignWithDefault("MicroTileShape", 0, config)
-    self.assignWithDefault("WorkGroupEdge", 16, config)
-    self.assignWithDefault("WorkGroupShape", 0, config)
-    self.assignWithDefault("LoopFor", True, config)
-    self.assignWithDefault("LoopUnroll", 16, config)
-    self.assignWithDefault("LoopTail", True, config)
-    self.assignWithDefault("NumLoadsParaA", 1, config)
-    self.assignWithDefault("NumLoadsParaB", 1, config)
-    self.assignWithDefault("GlobalLoadVectorWidth", 4, config)
-    self.assignWithDefault("LocalStoreVectorWidth", 4, config)
-    self.assignWithDefault("LocalLoadVectorWidth", 4, config)
-    self.assignWithDefault("GlobalStoreVectorWidth", 4, config)
-    self.assignWithDefault("LoadMacInterleave", 4, config)
-    self.assignWithDefault("SplitK", 1, config)
-    self.assignWithDefault("Prefetch", True, config)
-    self.assignWithDefault("AtomicAccumulate", False, config)
-    self.assignWithDefault("EdgeType", "Shift", config) # None, Shift, Branch, MultiShift, MultiBranch
-    # need problem sizes to assign - TODO ? reasonable default for Tensors?
-    self.assignWithDefault("IndexAssignmentDim0", 0, config)
-    self.assignWithDefault("IndexAssignmentDim1", 1, config)
-    self.assignWithDefault("TileDimCoalescedA", True, config)
-    self.assignWithDefault("TileDimCoalescedB", True, config)
+    for key in solutionDefaults:
+      self.assignWithDefault(key, solutionDefaults[key], config)
 
-  def assignWithDefault(self, parameter, default, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      self[parameter] = default
 
-  def assign(self, parameter, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      sys.exit("Tensile::Solution::init: ERROR - parameter \"%s\" must be defined" % parameter)
-
-  def __getitem__(self, key):
-    return self.state[key]
-  def __setitem__(self, key, value):
-    self.state[key] = value
-
+  ########################################
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
   def getMinNaming(kernels):
@@ -477,12 +359,14 @@ class Solution:
         requiredParameters[key] = True
     return requiredParameters
 
+  ########################################
   def getNameFull(self):
     requiredParameters = {}
     for key in self.state:
       requiredParameters[key] = True
     return self.getNameMin(requiredParameters)
 
+  ########################################
   def getNameMin(self, requiredParameters):
     name = ""
     for key in self.state:
@@ -492,10 +376,12 @@ class Solution:
         name += "_"
     return name
 
+  ########################################
   @ staticmethod
   def getParameterNameAbbreviation( name ):
     return ''.join([c for c in name if c.isupper()])
 
+  ########################################
   @ staticmethod
   def getParameterValueAbbreviation( value ):
     if isinstance(value, str):
@@ -507,22 +393,29 @@ class Solution:
     elif isinstance(value, ProblemType):
       return str(value)
     else:
-      sys.exit("Tensile::Solution::abbrev WARNING - parameter \"%s\" is new object type." % value)
+      sys.exit("Tensile::Solution::abbrev WARNING - parameter \"%s\" is new object type" % parameter)
       return str(value)
 
+  def assignWithDefault(self, parameter, default, config):
+    if parameter in config:
+      self[parameter] = config[parameter]
+    else:
+      self[parameter] = default
+  def assign(self, parameter, config):
+    if parameter in config:
+      self[parameter] = config[parameter]
+    else:
+      sys.exit("Tensile::Solution::init: ERROR - parameter \"%s\" must be defined" % parameter)
+  def __getitem__(self, key):
+    return self.state[key]
+  def __setitem__(self, key, value):
+    self.state[key] = value
   def __str__(self):
     return self.getNameFull()
-
   def __repr__(self):
     return self.__str__()
-
   def getAttributes(self):
-    return ( \
-        tuple(self.kernels), \
-        self.kernelGrid0, \
-        self.kernelGrid1, \
-        self.kernelGrid2, \
-        )
+    return state
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
