@@ -15,8 +15,8 @@ BenchmarkProblems:
 
     InitialSolutionParameters:
       WorkGroupOrder:         -4
-      MicroTileEdge:          4
-      MicroTileShape:         0
+      ThreadTileEdge:          4
+      ThreadTileShape:         0
       WorkGroupEdge:          16
       WorkGroupShape:         0
       LoopFor:                True
@@ -30,7 +30,7 @@ BenchmarkProblems:
       LocalLoadVectorWidth:   4
       GlobalStoreVectorWidth: 4
       LoadMacInterleave:      4
-      SplitK:                 2
+      SplitU:                 2
       Prefetch:               True
       AtomicAccumulate:       False
       KernelGrid:             [ 1, 1, 1 ]
@@ -43,36 +43,36 @@ BenchmarkProblems:
       - KernelGrid: [ [0, 0, 0], [2048, 2048, 1024] ]
       - EdgeType: [ 'Shift', 'Branch', 'MultiShift', 'MultiBranch', 'Exact' ]
       - Interleaving: [ [4, 8], [1, 1] ]
-      - ProblemSizes: [128,128,128 ]
+      - ProblemSizes: [ [128] ]
       - VectorWidth: [4, 2, 1]
-      - - GlobalReadCoalescedA: [ True, False ]
-        - GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
+      - GlobalReadCoalescedA: [ True, False ]
+        GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
       - WorkGroupOrdering: [ [0], [0, 4], [1, 8] ] # 0 means native dim0 first, option width
     ForkParameters:
-      - WorkGroup: [4,3]
-      - MicroTile: [3,3]
+      - WorkGroupEdge: [4,3]
+      - ThreadTileEdge: [5,3]
     BenchmarkForkParameters:
       - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
       - PreFetch: [ True, False ]
       - LoopType: [ 'For', 'DoWhile' ]
     JoinParameters:
       - MacroTile
-      - SplitUnroll
+      - DepthU
     BenchmarkJoinParameters:
       - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
-      - - Unroll: [4,8] # increase the number of winners, different problems?
-        - SplitK: [1, 2, 4, 8 ]
+      - Unroll: [4,8] # increase the number of winners, different problems?
+        SplitU: [1, 2, 4, 8 ]
     BenchmarkFinal: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
 
 
-  - ProblemType:
-      OperationType: TensorContraction
-      NumDimensionsC: 3
-      IndexAssignmentsA: [ 0, 2, 3]
-      IndexAssignmentsB: [ 1, 2, 3]
-      DataType: d
+  #- ProblemType:
+  #    OperationType: TensorContraction
+  #    NumDimensionsC: 3
+  #    IndexAssignmentsA: [ 0, 2, 3]
+  #    IndexAssignmentsB: [ 1, 2, 3]
+  #    DataType: d
 
-  - 
+  #- 
 
 
 # final create problem-range -> solution mapping and encode to .yaml

@@ -1,19 +1,19 @@
-import Common
-import Structs
-
 import sys
+from copy import *
 
 from Common import *
+from Structs import *
 
 ################################################################################
 # Benchmark Step
-# - check if this step needs to be performed
+# - check if this step needs to be performed based on redo
 # - which problem sizes will be benchmarked
 # - which solutions will be benchmarked
 #   - know prior step to read results from
 #   - simple algorithm to choose winner, and record it
 # - Write
 #   - solution files
+#   - solution iteration file
 #   - problem iteration file
 #   - CMakeLists.txt
 # - Copy static files to build directory
@@ -22,12 +22,37 @@ from Common import *
 ################################################################################
 class BenchmarkStep:
 
-  def __init__(self, config):
-    pass
-    # what parameters were determined already
-    # what parameters do I need to read from previous step
+  def __init__(self, hardcodedParameters, readParameters, benchmarkParameters, initialSolutionParameters, problemSizes, idx):
+    # what is my step Idx
+    self.stepIdx = idx
+
+    # what parameters don't need to be benchmarked because hard-coded or forked
+    self.hardcodedParameters = deepcopy(hardcodedParameters)
+
+    # what parameters do I need to read from prior steps
+    self.readParameters = deepcopy(readParameters)
+
     # what parameters will I benchmark
+    self.benchmarkParameters = deepcopy(benchmarkParameters)
+
+    # what solution parameters do I use for what hasn't been benchmarked
+    self.initialSolutionParameters = initialSolutionParameters
+
+    # what problem sizes do I benchmark
+    self.problemSizes = deepcopy(problemSizes)
+
     # what winners will I parse from my data
+
+  def __str__(self):
+    string = "  BenchmarkStep %u\n" % self.stepIdx
+    string += "    HardCoded: %s\n" % self.hardcodedParameters
+    string += "    Read: %s\n" % self.readParameters
+    string += "    Benchmark: %s\n" % self.benchmarkParameters
+    string += "    ProblemSizes: %s\n" % self.problemSizes
+    return string
+  def __repr__():
+    return self.__str__()
+
 
 
 ################################################################################
@@ -37,17 +62,19 @@ class BenchmarkStep:
 ################################################################################
 class BenchmarkProcess:
 
+
+
+  ##############################################################################
   def __init__(self, config):
     printStatus("Beginning")
-
     # read problem type
     if "ProblemType" in config:
       problemTypeConfig = config["ProblemType"]
     else:
       problemTypeConfig = {}
       printWarning("No ProblemType in config: %s; using defaults." % str(config) )
-    problemType = Structs.ProblemType(problemTypeConfig)
-    printStatus("Beginning %s" % str(problemType))
+    self.problemType = ProblemType(problemTypeConfig)
+    printStatus("Beginning %s" % str(self.problemType))
 
     # read initial solution parameters
     solutionConfig = { "ProblemType": problemTypeConfig }
@@ -55,100 +82,276 @@ class BenchmarkProcess:
       printWarning("No InitialSolutionParameters; using defaults.")
     else:
       solutionConfig.update(config["InitialSolutionParameters"])
-    initialSolutionParameters = Structs.Solution(solutionConfig)
-    printExtra("InitialSolutionParameters: %s" % str(initialSolutionParameters))
+    self.initialSolutionParameters = Solution(solutionConfig)
+    printExtra("InitialSolutionParameters: %s" % str(self.initialSolutionParameters))
+
+    # fill in missing steps using defaults
+    self.benchmarkCommonParameters = []
+    self.forkParameters = []
+    self.benchmarkForkParameters = []
+    self.joinParameters = []
+    self.benchmarkJoinParameters = []
+    self.benchmarkSteps = []
+    self.fillInMissingStepsWithDefaults(config)
+
+    # convert list of parameters to list of steps
+    self.readParameters = []
+    self.currentProblemSizes = []
+    self.hardcodedParameters = []
+    self.benchmarkStepIdx = 0
+    self.convertParametersToSteps()
+
+
+  ##############################################################################
+  # convert lists of parameters to benchmark steps
+  def convertParametersToSteps(self):
+
+    # (1) benchmark common parameters
+    self.addStepsForParameters( self.benchmarkCommonParameters  )
+
+    # (2) fork parameters
+    # calculate permutations of
+    totalPermutations = 1
+    for param in self.forkParameters:
+      for name in param: # only 1
+        values = param[name]
+        totalPermutations *= len(values)
+    permutations = []
+    for i in range(0, totalPermutations):
+      permutations.append([])
+      pIdx = i
+      for param in self.forkParameters:
+        for name in param:
+          values = param[name]
+          valueIdx = pIdx % len(values)
+          permutation = [name, values[valueIdx]]
+          permutations[i].append(permutation)
+          pIdx /= len(values)
+      print permutations[i]
+    self.hardcodedParameters.append(permutations)
+
+    # (3) benchmark common parameters
+    self.addStepsForParameters( self.benchmarkForkParameters  )
+
+    # (4) join parameters
+    # answer should go in hard-coded parameters
+    # does it remove the prior forks? Yes.
+    macroTileJoinSet = set()
+    depthUJoinSet = set()
+    totalPermutations = 1
+    for joinName in self.joinParameters:
+      # find in hardcoded; that's where forked will be
+      if inListOfDictionaries(joinName, self.forkParameters):
+        for param in self.forkParameters:
+          for name in param: # only 1
+            values = param[name]
+            totalPermutations += len(values)
+            print "JoinParameter %s has %u possibilities" % (joinName, len(values))
+      elif joinName == "MacroTile":
+        print "JoinParam: MacroTile"
+        # get possible WorkGroupEdges from forked
+        workGroupValues = []
+        if "WorkGroupEdge" in self.forkParameters:
+          workGroupValues = self.forkParameters["WorkGroupEdge"]
+
+        # get possible WorkGroupShape from forked
+        # get possible ThreadTileEdge from forked
+        # get possible ThreadTileShape from forked
+        # add macrotile to set
+      elif joinName == "DepthU":
+        print "JoinParam: DepthU"
+        # get possible splitU
+        # get possible unroll
+        # add splitU*unroll to set
+        pass
+      else:
+        validJoinNames = ["MacroTile", "DepthU"]
+        for validParam in self.forkParameters:
+          for validName in validParam: # only 1
+            validJoinNames.append(validName)
+        printExit("JoinParameter \"%s\" not in %s" % (joinName, validJoinNames) )
+
+
+
+
+
+    # (5) benchmark common parameters
+    self.addStepsForParameters( self.benchmarkJoinParameters  )
+    """
+    self.benchmarkForkParameters = []
+    self.joinParameters = []
+    self.benchmarkJoinParameters = []
+    """
+
+  ##############################################################################
+  # for list of config parameters convert to steps and append to steps list
+  def addStepsForParameters(self, configParameterList):
+    for paramConfig in configParameterList:
+      if isinstance(paramConfig, dict):
+        if "ProblemSizes" in paramConfig:
+          self.currentProblemSizes = ProblemSizes(self.problemType, paramConfig["ProblemSizes"])
+          continue
+      currentBenchmarkParameters = []
+      for paramName in paramConfig:
+        paramValues = paramConfig[paramName]
+        if len(paramValues) == 1:
+          self.hardcodedParameters.append([paramName, paramValues[0]])
+        else:
+          currentBenchmarkParameters.append([paramName, paramValues])
+      if len(currentBenchmarkParameters) > 0:
+        benchmarkStep = BenchmarkStep(
+            self.hardcodedParameters,
+            self.readParameters,
+            currentBenchmarkParameters,
+            self.initialSolutionParameters,
+            self.currentProblemSizes,
+            self.benchmarkStepIdx )
+        self.benchmarkSteps.append(benchmarkStep)
+        self.readParameters.append(currentBenchmarkParameters)
+        self.benchmarkStepIdx+=1
+
+
+  ##############################################################################
+  # create thorough lists of parameters, filling in missing info from defaults
+  def fillInMissingStepsWithDefaults(self, config):
 
     # get benchmark steps from config
-    configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] if "BenchmarkCommonParameters" in config else []
-    configForkParameters = config["ForkParameters"] if "ForkParameters" in config else []
-    configBenchmarkForkParameters = config["BenchmarkForkParameters"] if "BenchmarkForkParameters" in config else []
-    configJoinParameters = config["JoinParameters"] if "JoinParameters" in config else []
-    configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] if "BenchmarkJoinParameters" in config else []
+    configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
+        if "BenchmarkCommonParameters" in config else [{"ProblemSizes": defaultProblemSizes}]
+    configForkParameters = config["ForkParameters"] \
+        if "ForkParameters" in config else []
+    configBenchmarkForkParameters = config["BenchmarkForkParameters"] \
+        if "BenchmarkForkParameters" in config else [{"ProblemSizes": defaultProblemSizes}]
+    configJoinParameters = config["JoinParameters"] \
+        if "JoinParameters" in config else []
+    configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] \
+        if "BenchmarkJoinParameters" in config else [{"ProblemSizes": defaultProblemSizes}]
 
-# TODO - how to insert and override problem sizes?
-
+    ########################################
+    # (1) get current problem sizes
+    if "ProblemSizes" in configBenchmarkCommonParameters[0]:
+      # user specified one, so use it, remove it from config and insert later
+      currentProblemSizes = configBenchmarkCommonParameters[0]["ProblemSizes"]
+      del configBenchmarkCommonParameters[0]
+    else:
+      currentProblemSizes = defaultProblemSizes
     # (1) into common we put in all Dcommon that
     # don't show up in Ccommon/Cfork/CBfork/Cjoin/CBjoin
     # followed by Ccommon
-    benchmarkCommonParameters = []
+    self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
     for param in defaultBenchmarkCommonParameters:
       paramName = param[0]
-      if not keyInListOfListOfDictionaries(paramName, [configBenchmarkCommonParameters, configForkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
-        benchmarkCommonParameters.append(param)
+      if not inListOfListOfDictionaries( paramName, [
+          configBenchmarkCommonParameters, configForkParameters, configBenchmarkForkParameters,
+          configJoinParameters, configBenchmarkJoinParameters]) \
+          or paramName == "ProblemSizes":
+        self.benchmarkCommonParameters.append({param[0]: param[1]})
     for param in configBenchmarkCommonParameters:
-      benchmarkCommonParameters.append(param)
+      self.benchmarkCommonParameters.append(param)
 
+    ########################################
     # (2) into fork we put in all Dfork that
     # don't show up in Bcommon/Cfork/CBfork/Cjoin/CBjoin
     # followed by Cfork
-    forkParameters = []
+    self.forkParameters = []
     for param in defaultForkParameters:
       paramName = param[0]
-      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, configForkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
-        forkParameters.append(param)
+      if not inListOfListOfDictionaries( paramName, [
+          self.benchmarkCommonParameters,
+          configForkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]) \
+          or paramName == "ProblemSizes":
+        self.forkParameters.append({param[0]: param[1]})
     for param in configForkParameters:
-      forkParameters.append(param)
+      self.forkParameters.append(param)
 
+    ########################################
+    # (3) get current problem sizes
+    if "ProblemSizes" in configBenchmarkForkParameters[0]:
+      # user specified one, so use it, remove it from config and insert later
+      currentProblemSizes = configBenchmarkForkParameters[0]["ProblemSizes"]
+      del configBenchmarkForkParameters[0]
     # (3) into Bfork we put in all DBfork that
     # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
     # followed by CBforked
-    benchmarkForkParameters = []
+    self.benchmarkForkParameters = [{"ProblemSizes": currentProblemSizes}]
     for param in defaultBenchmarkForkParameters:
       paramName = param[0]
-      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, forkParameters, configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
-        benchmarkForkParameters.append(param)
+      if not inListOfListOfDictionaries( paramName, [
+          self.benchmarkCommonParameters, self.forkParameters,
+          configBenchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]) \
+          or paramName == "ProblemSizes":
+        self.benchmarkForkParameters.append({param[0]: param[1]})
     for param in configBenchmarkForkParameters:
-      benchmarkForkParameters.append(param)
+      self.benchmarkForkParameters.append(param)
 
+    ########################################
     # (4) into join we put in all Djoin that
     # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
     # followed by CBforked
-    joinParameters = []
+    self.joinParameters = []
     for param in defaultJoinParameters:
       paramName = param[0]
-      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, forkParameters, benchmarkForkParameters, configJoinParameters, configBenchmarkJoinParameters]):
-        joinParameters.append(param)
+      if not inListOfListOfDictionaries( paramName, [
+          self.benchmarkCommonParameters, self.forkParameters, self.benchmarkForkParameters,
+          configJoinParameters, configBenchmarkJoinParameters]) \
+          or paramName == "ProblemSizes":
+        self.joinParameters.append(param)
     for param in configJoinParameters:
-      joinParameters.append(param)
+      self.joinParameters.append(param)
 
+    ########################################
+    # (5) get current problem sizes
+    if "ProblemSizes" in configBenchmarkJoinParameters[0]:
+      # user specified one, so use it, remove it from config and insert later
+      currentProblemSizes = configBenchmarkJoinParameters[0]["ProblemSizes"]
+      del configBenchmarkJoinParameters[0]
     # (5) into Bjoin we put in all DBjoin that
     # don't show up in Bcommon/Bfork/BBfork/Bjoin/CBjoin
     # followed by CBjoin
-    benchmarkJoinParameters = []
+    self.benchmarkJoinParameters = [{"ProblemSizes": currentProblemSizes}]
     for param in defaultBenchmarkJoinParameters:
       paramName = param[0]
-      if not keyInListOfListOfDictionaries(paramName, [benchmarkCommonParameters, forkParameters, benchmarkForkParameters, joinParameters, configBenchmarkJoinParameters]):
-        benchmarkJoinParameters.append(param)
+      if not inListOfListOfDictionaries( paramName, [
+          self.benchmarkCommonParameters, self.forkParameters, self.benchmarkForkParameters, self.joinParameters,
+          configBenchmarkJoinParameters]) \
+          or paramName == "ProblemSizes":
+        self.benchmarkJoinParameters.append({param[0]: param[1]})
     for param in configBenchmarkJoinParameters:
-      benchmarkJoinParameters.append(param)
+      self.benchmarkJoinParameters.append(param)
 
 
     # benchmarkCommonParameters
     printExtra("benchmarkCommonParameters")
-    for step in benchmarkCommonParameters:
-      print step
+    for step in self.benchmarkCommonParameters:
+      print "    %s" % step
     # forkParameters
     printExtra("forkParameters")
-    for param in forkParameters:
-      print param
+    for param in self.forkParameters:
+      print "    %s" % param
     # benchmarkForkParameters
     printExtra("benchmarkForkParameters")
-    for step in benchmarkForkParameters:
-      print step
+    for step in self.benchmarkForkParameters:
+      print "    %s" % step
     # joinParameters
     printExtra("joinParameters")
-    for param in joinParameters:
-      print param
+    for param in self.joinParameters:
+      print "    %s" % param
     # benchmarkJoinParameters
     printExtra("benchmarkJoinParameters")
-    for step in benchmarkJoinParameters:
-      print step
+    for step in self.benchmarkJoinParameters:
+      print "    %s" % step
 
     # Final Benchmark
     # if "BenchmarkFinal" in config:
     printStatus("DONE.")
 
-
+  def __str__(self):
+    string = "BenchmarkProcess:\n"
+    for step in self.benchmarkSteps:
+      string += str(step)
+    return string
+  def __repr__(self):
+    return self.__str__()
 
 
 
@@ -158,29 +361,13 @@ class BenchmarkProcess:
 ################################################################################
 def benchmarkProblemType( config ):
 
-  """
-  # read problem type
-  if "ProblemType" in config:
-    problemTypeConfig = config["ProblemType"]
-  else:
-    problemTypeConfig = {}
-    printWarning("No ProblemType in config: %s; using defaults." % str(config) )
-  problemType = Structs.ProblemType(problemTypeConfig)
-  printStatus("Beginning %s" % str(problemType))
-
-  # read initial solution parameters
-  solutionConfig = { "ProblemType": problemTypeConfig }
-  if "InitialSolutionParameters" not in config:
-    printWarning("No InitialSolutionParameters; using defaults.")
-  else:
-    solutionConfig.update(config["InitialSolutionParameters"])
-  initialSolutionParameters = Structs.Solution(solutionConfig)
-  printExtra("InitialSolutionParameters: %s" % str(initialSolutionParameters))
-  """
 
 
-  # object for default benchmarking
+  # convert cnofig to full benchmark process (resolves defaults)
   benchmarkProcess = BenchmarkProcess(config)
+  # for step in benchmarkProcess:
+
+
   # default order of parameters
   # default of which values to benchmark
   # default fork
@@ -229,7 +416,6 @@ def benchmarkProblemType( config ):
 #     Cij_Aik_Bjk_SBOI.yaml
 #     Cij_Aik_Bjk_SBOI.yaml
 #     LibName.yaml
-  printStatus("%s DONE." % str(problemType))
 
 def main(  config ):
   printStatus("Beginning")

@@ -19,22 +19,27 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["Redo"] = "Changed" # Force None
 
-def keyInListOfDictionaries(param, dictionaries):
+def inListOfDictionaries(param, dictionaries):
   for dictionary in dictionaries:
     if param in dictionary:
       return True
   return False
-def keyInListOfListOfDictionaries(param, dictionaries):
+def inListOfListOfDictionaries(param, dictionaries):
   for dictionaryList in dictionaries:
-    if keyInListOfDictionaries(param, dictionaryList):
+    if inListOfDictionaries(param, dictionaryList):
+      return True
+  return False
+def inListOfLists(param, lists):
+  for l in lists:
+    if param in l:
       return True
   return False
 
 
+defaultProblemSizes = [ [5760], 0, 0 ]
 
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
-    ["ProblemSizes",            [ [5760], 0, 0 ] ],
     ["KernelGrid",              [ [1, 1, 1] ] ],
     ["KernelSerial",            [ True, False ] ],
     ["LoopFor",                 [ True, False ] ],
@@ -49,7 +54,7 @@ defaultForkParameters = [
     ["WorkGroupShape",          [ 0, -1, 1 ] ],
     ["ThreadTileEdge",          [ 1, 2, 4, 6, 8 ] ],
     ["ThreadTileShape",         [ 0, -1, 1 ] ],
-    ["SplitK",                  [ 1, 4, 16, 64 ] ],
+    ["SplitU",                  [ 1, 4, 16, 64 ] ],
     ["Prefetch",                [ True, False ] ],
     ]
 # keep one winner per solution and it affects which will win
@@ -60,7 +65,7 @@ defaultBenchmarkForkParameters = [
 # final list of solutions
 defaultJoinParameters = [
     "MacroTile",
-    "SplitUnroll"
+    "DepthU"
     ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [

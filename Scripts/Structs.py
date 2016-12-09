@@ -284,32 +284,38 @@ class ProblemType:
 
 
 ################################################################################
-# ProblemBenchmarkSizes
+# ProblemSizes
 ################################################################################
-class ProblemBenchmarkSizeRange:
-  dimensionSizes = []
+class ProblemSizes:
 
   ########################################
   def __init__(self, problemType, config):
-    totalDimensions = max(problemType[IndexAssignmentsA])
+    self.totalDimensions = 1+max(problemType["IndexAssignmentsA"])
     if len(config) < self.totalDimensions:
-      printExit("SizeRange config (%s) has %u < %u elements required by ProblemType (%s)"
+      printWarning("SizeRange config (%s) has too few elements (%u < %u) than required by ProblemType (%s); appending defaults."
           % ( str(config), len(config), self.totalDimensions, problemType ))
+      for i in range(len(config), self.totalDimensions):
+        config.append(0)
     if len(config) < self.totalDimensions:
-      printWarning("SizeRange config (%s) has %u > %u elements than are required by ProblemType (%s)"
+      printWarning("SizeRange config (%s) has too many elements (%u > %u) than required by ProblemType (%s); ignoring remainder."
           % ( str(config), len(config), self.totalDimensions, problemType ))
-    for dim in self.dimensionSizes:
-      if len(dim) == 1:
-        self.dimensionSizes.append([dim[0], 16, 0, dim[0]])
-      elif len(dim) == 2:
-        self.dimensionSizes.append([dim[0], 16, 0, dim[1]])
-      elif len(dim) == 3:
-        self.dimensionSizes.append([dim[0], dim[1], 0, dim[2]])
-      elif len(dim) == 4:
-        self.dimensionSizes.append([dim[0], dim[1], dim[2], dim[3]])
-      else:
-        sys.exit("Tensile::%s::%s: ERROR - ProblemBenchmarkSizeRange(%s) has %u descriptors rather than 1-4."
-          % ( __file__, __line__, dim, len(dim) ))
+    self.dimensionSizes = []
+    for i in range(0, self.totalDimensions):
+      dim = config[i]
+      if isinstance(dim, list):
+        if len(dim) == 1:
+          self.dimensionSizes.append([dim[0], 16, 0, dim[0]])
+        elif len(dim) == 2:
+          self.dimensionSizes.append([dim[0], 16, 0, dim[1]])
+        elif len(dim) == 3:
+          self.dimensionSizes.append([dim[0], dim[1], 0, dim[2]])
+        elif len(dim) == 4:
+          self.dimensionSizes.append([dim[0], dim[1], dim[2], dim[3]])
+        else:
+          printExit("dimension[%u] config (%s) has %u descriptors rather than 1-4."
+              % ( i, dim, len(dim) ))
+      elif isinstance(dim, int):
+        self.dimensionSizes.append(dim)
 
   ########################################
   def maxNumElements(self):
