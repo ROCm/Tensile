@@ -165,7 +165,7 @@ class BenchmarkProcess:
           if inListOfDictionaries("ThreadTileShape", paramList):
             threadTileShapeValues = getValuesInListOfDictionaries("ThreadTileShape", paramList)
         totalPermutations = len(workGroupEdgeValues)*len(workGroupShapeValues)*len(threadTileEdgeValues)*len(threadTileShapeValues)
-        printStatus("TotalJoinPermutations: %u" % totalPermutations)
+        printStatus("Total JoinMacroTile Permutations: %u" % totalPermutations)
 
         for i in range(0, totalPermutations):
           pIdx = i
@@ -176,7 +176,6 @@ class BenchmarkProcess:
           threadTileEdgeIdx = pIdx % len(threadTileEdgeValues)
           pIdx /= len(threadTileEdgeValues)
           threadTileShapeIdx = pIdx % len(threadTileShapeValues)
-          pIdx /= len(threadTileShapeValues)
           macroTileDim0 = workGroupEdgeValues[workGroupEdgeIdx]*threadTileEdgeValues[threadTileEdgeIdx]
           macroTileDim1 = macroTileDim0
           if workGroupShapeValues[workGroupShapeIdx] < 0:
@@ -189,18 +188,29 @@ class BenchmarkProcess:
             macroTileDim1 *= 2
           if macroTileDim0/macroTileDim1 <= self.initialSolutionParameters["MacroTileMaxRatio"] and macroTileDim1/macroTileDim0 <= self.initialSolutionParameters["MacroTileMaxRatio"]:
             macroTileJoinSet.add((macroTileDim0, macroTileDim1))
-        printStatus("JoinSetSize: %u" % len(macroTileJoinSet) )
-        print macroTileJoinSet
+        printStatus("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
 
-
-
-        # add macrotile to set
+      # Join DepthU
       elif joinName == "DepthU":
-        print "JoinParam: DepthU"
-        # get possible splitU
-        # get possible unroll
-        # add splitU*unroll to set
-        pass
+        unrollValues = []
+        splitUValues = []
+        for paramList in [self.benchmarkCommonParameters, self.forkParameters, self.benchmarkForkParameters, self.benchmarkJoinParameters]:
+          if inListOfDictionaries("Unroll", paramList):
+            unrollValues = getValuesInListOfDictionaries("Unroll", paramList)
+          if inListOfDictionaries("SplitU", paramList):
+            splitUValues = getValuesInListOfDictionaries("SplitU", paramList)
+        totalPermutations = len(unrollValues)*len(splitUValues)
+        printStatus("Total JoinDepthU Permutations: %u" % totalPermutations)
+        for i in range(0, totalPermutations):
+          pIdx = i
+          unrollIdx = pIdx % len(unrollValues)
+          pIdx /= len(unrollValues)
+          splitUIdx = pIdx % len(splitUValues)
+          depthU = unrollValues[unrollIdx]*splitUValues[splitUIdx]
+          depthUJoinSet.add(depthU)
+        printStatus("JoinSplitUSet(%u): %s" % (len(depthUJoinSet), depthUJoinSet) )
+
+      # Join DepthU
       else:
         validJoinNames = ["MacroTile", "DepthU"]
         for validParam in self.forkParameters:
