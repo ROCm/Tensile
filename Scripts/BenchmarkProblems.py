@@ -150,13 +150,50 @@ class BenchmarkProcess:
       elif joinName == "MacroTile":
         print "JoinParam: MacroTile"
         # get possible WorkGroupEdges from forked
-        workGroupValues = []
-        if "WorkGroupEdge" in self.forkParameters:
-          workGroupValues = self.forkParameters["WorkGroupEdge"]
+        print self.forkParameters
+        workGroupEdgeValues = []
+        workGroupShapeValues = []
+        threadTileEdgeValues = []
+        threadTileShapeValues = []
+        for paramList in [self.benchmarkCommonParameters, self.forkParameters, self.benchmarkForkParameters, self.benchmarkJoinParameters]:
+          if inListOfDictionaries("WorkGroupEdge", paramList):
+            workGroupEdgeValues = getValuesInListOfDictionaries("WorkGroupEdge", paramList)
+          if inListOfDictionaries("WorkGroupShape", paramList):
+            workGroupShapeValues = getValuesInListOfDictionaries("WorkGroupShape", paramList)
+          if inListOfDictionaries("ThreadTileEdge", paramList):
+            threadTileEdgeValues = getValuesInListOfDictionaries("ThreadTileEdge", paramList)
+          if inListOfDictionaries("ThreadTileShape", paramList):
+            threadTileShapeValues = getValuesInListOfDictionaries("ThreadTileShape", paramList)
+        totalPermutations = len(workGroupEdgeValues)*len(workGroupShapeValues)*len(threadTileEdgeValues)*len(threadTileShapeValues)
+        printStatus("TotalJoinPermutations: %u" % totalPermutations)
 
-        # get possible WorkGroupShape from forked
-        # get possible ThreadTileEdge from forked
-        # get possible ThreadTileShape from forked
+        for i in range(0, totalPermutations):
+          pIdx = i
+          workGroupEdgeIdx = pIdx % len(workGroupEdgeValues)
+          pIdx /= len(workGroupEdgeValues)
+          workGroupShapeIdx = pIdx % len(workGroupShapeValues)
+          pIdx /= len(workGroupShapeValues)
+          threadTileEdgeIdx = pIdx % len(threadTileEdgeValues)
+          pIdx /= len(threadTileEdgeValues)
+          threadTileShapeIdx = pIdx % len(threadTileShapeValues)
+          pIdx /= len(threadTileShapeValues)
+          macroTileDim0 = workGroupEdgeValues[workGroupEdgeIdx]*threadTileEdgeValues[threadTileEdgeIdx]
+          macroTileDim1 = macroTileDim0
+          if workGroupShapeValues[workGroupShapeIdx] < 0:
+            macroTileDim1 /= 2
+          elif workGroupShapeValues[workGroupShapeIdx] > 0:
+            macroTileDim1 *= 2
+          if threadTileShapeValues[threadTileShapeIdx] < 0:
+            macroTileDim1 /= 2
+          elif threadTileShapeValues[threadTileShapeIdx] > 0:
+            macroTileDim1 *= 2
+          if macroTileDim0/macroTileDim1 <= self.initialSolutionParameters["MacroTileMaxRatio"] and macroTileDim1/macroTileDim0 <= self.initialSolutionParameters["MacroTileMaxRatio"]:
+            macroTileJoinSet.add((macroTileDim0, macroTileDim1))
+        printStatus("JoinSetSize: %u" % len(macroTileJoinSet) )
+        print macroTileJoinSet
+
+
+
         # add macrotile to set
       elif joinName == "DepthU":
         print "JoinParam: DepthU"

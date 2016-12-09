@@ -15,10 +15,11 @@ BenchmarkProblems:
 
     InitialSolutionParameters:
       WorkGroupOrder:         -4
-      ThreadTileEdge:          4
-      ThreadTileShape:         0
+      ThreadTileEdge:         4
+      ThreadTileShape:        0
       WorkGroupEdge:          16
       WorkGroupShape:         0
+      MacroTileMaxRatio:      2
       LoopFor:                True
       LoopUnroll:             16
       LoopTail:               True
@@ -49,8 +50,8 @@ BenchmarkProblems:
         GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
       - WorkGroupOrdering: [ [0], [0, 4], [1, 8] ] # 0 means native dim0 first, option width
     ForkParameters:
-      - WorkGroupEdge: [4,3]
-      - ThreadTileEdge: [5,3]
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 6, 8]
     BenchmarkForkParameters:
       - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
       - PreFetch: [ True, False ]

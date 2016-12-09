@@ -19,6 +19,7 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["Redo"] = "Changed" # Force None
 
+# param name in structures?
 def inListOfDictionaries(param, dictionaries):
   for dictionary in dictionaries:
     if param in dictionary:
@@ -34,6 +35,23 @@ def inListOfLists(param, lists):
     if param in l:
       return True
   return False
+
+# get param values from structures.
+def getValuesInListOfDictionaries(param, dictionaries):
+  for dictionary in dictionaries:
+    if param in dictionary:
+      return dictionary[param]
+  return None
+def getValuesInListOfListOfDictionaries(param, dictionaries):
+  for dictionaryList in dictionaries:
+    if inListOfDictionaries(param, dictionaryList):
+      return getValuesInListOfDictionaries(param, dictionaryList)
+  return None
+def getValuesInListOfLists(param, lists):
+  for l in lists:
+    if param in l:
+      return l[1]
+  return None
 
 
 defaultProblemSizes = [ [5760], 0, 0 ]
@@ -87,6 +105,8 @@ for parameter in defaultBenchmarkForkParameters:
   defaultSolution[parameter[0]] = parameter[1][0]
 for parameter in defaultBenchmarkJoinParameters:
   defaultSolution[parameter[0]] = parameter[1][0]
+# other non-benchmark options for solutions
+defaultSolution["MacroTileMaxRatio"] = 2
 
 # default problem
 defaultProblemType = {
