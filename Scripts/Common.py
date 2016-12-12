@@ -65,7 +65,6 @@ def getParamValues( name, structure ):
     printExit("structure %s is not list or dict" % structure)
 
 
-defaultProblemSizes = [ [5760], 0, 0 ]
 
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
@@ -104,6 +103,11 @@ defaultBenchmarkJoinParameters = [
     {"LocalLoadVectorWidth":    [ 4, 2, 1 ] },
     {"GlobalStoreVectorWidth":  [ 4, 2, 1 ] },
     ]
+defaultBenchmarkFinalProblemSizes = [
+    [16, 16, 16, 5760],
+    [16, 16, 16, 5760],
+    [16, 16, 16, 5760] ]
+defaultProblemSizes = [ [5760], 0, 0 ]
 
 # dictionary of defaults comprised for 1st option for each parameter
 defaultSolution = {}

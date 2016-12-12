@@ -5,58 +5,6 @@ from Common import *
 from Structs import *
 
 ################################################################################
-# Benchmark Step
-# - check if this step needs to be performed based on redo
-# - which problem sizes will be benchmarked
-# - which solutions will be benchmarked
-#   - know prior step to read results from
-#   - simple algorithm to choose winner, and record it
-# - Write
-#   - solution files
-#   - solution iteration file
-#   - problem iteration file
-#   - CMakeLists.txt
-# - Copy static files to build directory
-# - compile and run executable
-# - read in csv data and write winner.yaml
-################################################################################
-class BenchmarkStep:
-
-  def __init__(self, hardcodedParameters, readParameters, benchmarkParameters, initialSolutionParameters, problemSizes, idx):
-    printExtra("BenchmarkStep beginning")
-    # what is my step Idx
-    self.stepIdx = idx
-
-    # what parameters don't need to be benchmarked because hard-coded or forked
-    self.hardcodedParameters = deepcopy(hardcodedParameters)
-
-    # what parameters do I need to read from prior steps
-    self.readParameters = deepcopy(readParameters)
-
-    # what parameters will I benchmark
-    self.benchmarkParameters = deepcopy(benchmarkParameters)
-
-    # what solution parameters do I use for what hasn't been benchmarked
-    self.initialSolutionParameters = initialSolutionParameters
-
-    # what problem sizes do I benchmark
-    self.problemSizes = deepcopy(problemSizes)
-
-    # what winners will I parse from my data
-
-  def __str__(self):
-    string = "  BenchmarkStep %u\n" % self.stepIdx
-    string += "    HardCoded: %s\n" % self.hardcodedParameters
-    string += "    Read: %s\n" % self.readParameters
-    string += "    Benchmark: %s\n" % self.benchmarkParameters
-    string += "    ProblemSizes: %s\n" % self.problemSizes
-    return string
-  def __repr__():
-    return self.__str__()
-
-
-
-################################################################################
 # Benchmark Process
 # steps in config need to be expanded and
 # missing elements need to be assigned a default
@@ -89,6 +37,7 @@ class BenchmarkProcess:
     self.benchmarkForkParameters = []
     self.joinParameters = []
     self.benchmarkJoinParameters = []
+    self.benchmarkFinalParameters = []
     self.benchmarkSteps = []
     self.fillInMissingStepsWithDefaults(config)
 
@@ -250,9 +199,22 @@ class BenchmarkProcess:
     self.hardcodedParameters.append(joinPermutations)
 
 
-    # (5) benchmark common parameters
+    # (5) benchmark join parameters
     printExtra("5")
     self.addStepsForParameters( self.benchmarkJoinParameters  )
+
+    # (6) benchmark final
+    printExtra("6")
+    self.currentProblemSizes = ProblemSizes(self.problemType, \
+        self.benchmarkFinalParameters["ProblemSizes"])
+    currentBenchmarkParameters = []
+    benchmarkStep = BenchmarkStep(
+        self.hardcodedParameters,
+        self.readParameters,
+        currentBenchmarkParameters,
+        self.initialSolutionParameters,
+        self.currentProblemSizes,
+        self.benchmarkStepIdx )
 
   ##############################################################################
   # for list of config parameters convert to steps and append to steps list
@@ -288,15 +250,21 @@ class BenchmarkProcess:
 
     # get benchmark steps from config
     configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
-        if "BenchmarkCommonParameters" in config else [{"ProblemSizes": defaultProblemSizes}]
+        if "BenchmarkCommonParameters" in config \
+        else [{"ProblemSizes": defaultProblemSizes}]
     configForkParameters = config["ForkParameters"] \
         if "ForkParameters" in config else []
     configBenchmarkForkParameters = config["BenchmarkForkParameters"] \
-        if "BenchmarkForkParameters" in config else [{"ProblemSizes": defaultProblemSizes}]
+        if "BenchmarkForkParameters" in config \
+        else [{"ProblemSizes": defaultProblemSizes}]
     configJoinParameters = config["JoinParameters"] \
         if "JoinParameters" in config else []
     configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] \
-        if "BenchmarkJoinParameters" in config else [{"ProblemSizes": defaultProblemSizes}]
+        if "BenchmarkJoinParameters" in config \
+        else [{"ProblemSizes": defaultProblemSizes}]
+    configBenchmarkFinalParameters = config["BenchmarkFinalParameters"] \
+        if "BenchmarkFinalParameters" in config \
+        else {"ProblemSizes": defaultBenchmarkFinalProblemSizes}
 
     ########################################
     # (1) get current problem sizes
@@ -389,6 +357,11 @@ class BenchmarkProcess:
     for paramDict in configBenchmarkJoinParameters:
       self.benchmarkJoinParameters.append(paramDict)
 
+    ########################################
+    # (6) get current problem sizes
+    self.benchmarkFinalParameters = configBenchmarkFinalParameters
+    # no other parameters besides problem sizes
+
 
     # benchmarkCommonParameters
     printExtra("benchmarkCommonParameters")
@@ -415,6 +388,11 @@ class BenchmarkProcess:
     # if "BenchmarkFinal" in config:
     printStatus("DONE.")
 
+  def __len__(self):
+    return len(self.benchmarkSteps)
+  def __getitem__(self, key):
+    return self.benchmarkSteps[key]
+
   def __str__(self):
     string = "BenchmarkProcess:\n"
     for step in self.benchmarkSteps:
@@ -422,4 +400,56 @@ class BenchmarkProcess:
     return string
   def __repr__(self):
     return self.__str__()
+
+
+################################################################################
+# Benchmark Step
+# - check if this step needs to be performed based on redo
+# - which problem sizes will be benchmarked
+# - which solutions will be benchmarked
+#   - know prior step to read results from
+#   - simple algorithm to choose winner, and record it
+# - Write
+#   - solution files
+#   - solution iteration file
+#   - problem iteration file
+#   - CMakeLists.txt
+# - Copy static files to build directory
+# - compile and run executable
+# - read in csv data and write winner.yaml
+################################################################################
+class BenchmarkStep:
+
+  def __init__(self, hardcodedParameters, readParameters, benchmarkParameters, initialSolutionParameters, problemSizes, idx):
+    # what is my step Idx
+    self.stepIdx = idx
+
+    # what parameters don't need to be benchmarked because hard-coded or forked
+    self.hardcodedParameters = deepcopy(hardcodedParameters)
+
+    # what parameters do I need to read from prior steps
+    self.readParameters = deepcopy(readParameters)
+
+    # what parameters will I benchmark
+    self.benchmarkParameters = deepcopy(benchmarkParameters)
+
+    # what solution parameters do I use for what hasn't been benchmarked
+    self.initialSolutionParameters = initialSolutionParameters
+
+    # what problem sizes do I benchmark
+    self.problemSizes = deepcopy(problemSizes)
+
+    # what winners will I parse from my data
+
+  def __str__(self):
+    string = "  BenchmarkStep %u\n" % self.stepIdx
+    string += "    HardCoded: %s\n" % self.hardcodedParameters
+    string += "    Read: %s\n" % self.readParameters
+    string += "    Benchmark: %s\n" % self.benchmarkParameters
+    string += "    ProblemSizes: %s\n" % self.problemSizes
+    return string
+  def __repr__():
+    return self.__str__()
+
+
 

@@ -13,15 +13,11 @@ def benchmarkProblemType( config ):
 
   # convert cnofig to full benchmark process (resolves defaults)
   benchmarkProcess = BenchmarkProcess(config)
-  print benchmarkProcess
+  totalBenchmarkSteps = len(benchmarkProcess)
+  for benchmarkStepIdx in range(0, totalBenchmarkSteps):
+    benchmarkStep = benchmarkProcess[benchmarkStepIdx]
+    print benchmarkStepIdx
   # for step in benchmarkProcess:
-
-
-  # default order of parameters
-  # default of which values to benchmark
-  # default fork
-  # default join
-  # parameters not mentioned anywhere are moved to before first fork
 
 
     # if Fork

@@ -63,7 +63,8 @@ BenchmarkProblems:
       - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
       - Unroll: [4,8] # increase the number of winners, different problems?
         SplitU: [1, 2, 4, 8 ]
-    BenchmarkFinal: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
+    BenchmarkFinalParameters:
+      ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
 
 
   #- ProblemType:
