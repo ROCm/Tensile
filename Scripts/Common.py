@@ -183,4 +183,18 @@ def assignGlobalParameters( config ):
     else:
       printExtra(" %16s: %8s" % (key, value) )
 
+########################################
+# if path doesn't exist, create it
+def pushWorkingPath( foldername ):
+  globalParameters["WorkingPath"] = \
+      os.path.join(globalParameters["WorkingPath"], foldername )
+  print globalParameters["WorkingPath"]
+  ensurePath( globalParameters["WorkingPath"] )
+def popWorkingPath():
+  globalParameters["WorkingPath"] = \
+      os.path.split(globalParameters["WorkingPath"])[0]
 
+
+def ensurePath( path ):
+  if not os.path.exists(path):
+    os.makedirs(path)

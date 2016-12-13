@@ -10,15 +10,24 @@ from Structs import *
 def benchmarkProblemType( config ):
 
 
-
   # convert cnofig to full benchmark process (resolves defaults)
   benchmarkProcess = BenchmarkProcess(config)
+  problemTypeName = str(benchmarkProcess.problemType)
+  pushWorkingPath(problemTypeName)
+  ensurePath(os.path.join(globalParameters["WorkingPath"],"Data"))
+
   totalBenchmarkSteps = len(benchmarkProcess)
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
     print benchmarkStepIdx
-  # for step in benchmarkProcess:
+    stepName = str(benchmarkStep)
+    pushWorkingPath(stepName)
 
+    popWorkingPath()
+
+  popWorkingPath()
+
+    #TODO - resume here creating benchmark
 
     # if Fork
       # expand winners
@@ -46,14 +55,14 @@ def benchmarkProblemType( config ):
 # build/
 #   BenchmarkProblemTypes
 #     Cij_Aik_Bjk_SBOI
-#       Step1
-#       Step2
-#       Final
-#       Data
+#       1_ParamName
+#       2_ParamName
+#       3_Fork
+#       4_Join
+#       5_Final
+#       0_Data
 #         step1.csv
-#         step1.yaml
 #         step2.csv
-#         step2.yaml
 #         final.csv
 #     Cij_Aik_Bkj_SBOI
 #       ...
@@ -64,6 +73,7 @@ def benchmarkProblemType( config ):
 
 def main(  config ):
   printStatus("Beginning")
+  pushWorkingPath("1_BenchmarkProblemTypes")
   for problemType in config:
     if problemType is None:
       benchmarkProblemType({})
@@ -73,3 +83,4 @@ def main(  config ):
       print ""
 
   printStatus("DONE.")
+  popWorkingPath()

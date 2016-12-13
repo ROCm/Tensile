@@ -207,7 +207,7 @@ class BenchmarkProcess:
     printExtra("6")
     self.currentProblemSizes = ProblemSizes(self.problemType, \
         self.benchmarkFinalParameters["ProblemSizes"])
-    currentBenchmarkParameters = []
+    currentBenchmarkParameters = {}
     benchmarkStep = BenchmarkStep(
         self.hardcodedParameters,
         self.readParameters,
@@ -224,13 +224,13 @@ class BenchmarkProcess:
         if "ProblemSizes" in paramConfig:
           self.currentProblemSizes = ProblemSizes(self.problemType, paramConfig["ProblemSizes"])
           continue
-      currentBenchmarkParameters = []
+      currentBenchmarkParameters = {}
       for paramName in paramConfig:
         paramValues = paramConfig[paramName]
         if len(paramValues) == 1:
           self.hardcodedParameters.append({paramName: paramValues[0]})
         else:
-          currentBenchmarkParameters.append({paramName: paramValues})
+          currentBenchmarkParameters[paramName] = paramValues
       if len(currentBenchmarkParameters) > 0:
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
@@ -247,6 +247,9 @@ class BenchmarkProcess:
   ##############################################################################
   # create thorough lists of parameters, filling in missing info from defaults
   def fillInMissingStepsWithDefaults(self, config):
+
+    # TODO - print warning when config contains a parameter
+    # that doesn't have a default; that means they probably spelled it wrong
 
     # get benchmark steps from config
     configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
@@ -285,7 +288,7 @@ class BenchmarkProcess:
             configJoinParameters, configBenchmarkJoinParameters]) \
             or paramName == "ProblemSizes":
           self.benchmarkCommonParameters.append(paramDict)
-    for paramDict in defaultBenchmarkCommonParameters:
+    for paramDict in configBenchmarkCommonParameters:
       self.benchmarkCommonParameters.append(paramDict)
 
     ########################################
@@ -420,7 +423,8 @@ class BenchmarkProcess:
 ################################################################################
 class BenchmarkStep:
 
-  def __init__(self, hardcodedParameters, readParameters, benchmarkParameters, initialSolutionParameters, problemSizes, idx):
+  def __init__(self, hardcodedParameters, readParameters, \
+      benchmarkParameters, initialSolutionParameters, problemSizes, idx):
     # what is my step Idx
     self.stepIdx = idx
 
@@ -442,11 +446,9 @@ class BenchmarkStep:
     # what winners will I parse from my data
 
   def __str__(self):
-    string = "  BenchmarkStep %u\n" % self.stepIdx
-    string += "    HardCoded: %s\n" % self.hardcodedParameters
-    string += "    Read: %s\n" % self.readParameters
-    string += "    Benchmark: %s\n" % self.benchmarkParameters
-    string += "    ProblemSizes: %s\n" % self.problemSizes
+    string = "%02u" % self.stepIdx
+    for param in self.benchmarkParameters:
+      string += "_%s" % str(param)
     return string
   def __repr__():
     return self.__str__()

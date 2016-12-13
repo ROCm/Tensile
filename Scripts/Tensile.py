@@ -22,7 +22,6 @@
 import os
 import sys
 
-import Common
 from Common import *
 import ReadYAML
 import BenchmarkProblems
@@ -32,9 +31,12 @@ import Client
 import BenchmarkClient
 
 def executeStepsInConfig( config ):
+  # ensure working directory exists
+  ensurePath(globalParameters["WorkingPath"])
+
 
   if "Parameters" in config:
-    Common.assignGlobalParameters( config["Parameters"] )
+    assignGlobalParameters( config["Parameters"] )
     print ""
 
   if "BenchmarkProblems" in config:
