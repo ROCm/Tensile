@@ -194,8 +194,11 @@ def pushWorkingPath( foldername ):
 def popWorkingPath():
   globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
-
-
 def ensurePath( path ):
   if not os.path.exists(path):
     os.makedirs(path)
+
+
+# TODO
+globalParameters["CMakeHeader"] = "# Header"
+globalParameters["CHeader"] = "// Header"

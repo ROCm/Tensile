@@ -354,6 +354,26 @@ class Solution:
     for key in defaultSolution:
       self.assignWithDefault(key, defaultSolution[key], config)
 
+  ########################################
+  # get a list of kernel parameters for this solution
+  # kernels have edge0,1=T/F
+  def getKernels(self):
+    kernels = []
+    if self.state["EdgeType"] == "MultiBranch" or self.state["EdgeType"] == "MultiShift":
+      kernel00 = copy.deepcopy(state)
+      kernel00.update({"Edge0": False, "Edge1": False})
+      kernel10 = copy.deepcopy(state)
+      kernel10.update({"Edge0": True, "Edge1": False})
+      kernel01 = copy.deepcopy(state)
+      kernel01.update({"Edge0": False, "Edge1": True})
+      kernels.append(kernel00)
+      kernels.append(kernel10)
+      kernels.append(kernel01)
+    kernel11 = copy.deepcopy(state)
+    kernel11.update({"Edge0": True, "Edge1": True})
+    kernels.append(kernel11)
+    return kernels
+
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
@@ -373,24 +393,26 @@ class Solution:
     return requiredParameters
 
   ########################################
-  def getNameFull(self):
+  @ staticmethod
+  def getNameFull(state):
     requiredParameters = {}
-    for key in self.state:
+    for key in state:
       requiredParameters[key] = True
-    return self.getNameMin(requiredParameters)
+    return Solution.getNameMin(state, requiredParameters)
 
   ########################################
-  def getNameMin(self, requiredParameters):
+  @ staticmethod
+  def getNameMin(state, requiredParameters):
     name = ""
     first = True
-    for key in self.state:
+    for key in state:
       if requiredParameters[key]:
         if not first:
           name += "_"
         else:
           first = False
-        name += self.getParameterNameAbbreviation(key)
-        name += self.getParameterValueAbbreviation(self[key])
+        name += Solution.getParameterNameAbbreviation(key)
+        name += Solution.getParameterValueAbbreviation(self[key])
     return name
 
   ########################################

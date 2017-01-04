@@ -484,11 +484,11 @@ class SolutionWriter:
           numSizes = len(solution.kernels[0].indexOrderC) + len(solution.kernels[0].indexOrderSummation)
           numKernelArgs = numStrides + numSizes
           for i in range(0, numKernelArgs):
-            s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3) 
+            s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3)
           s += ");\n"
           s += "hipStreamSynchronize( ctrl.queues[enqueueIdx%ctrl.numQueues] );\n"
-        
-          s += "    enqueueIdx++;\n"  
+
+          s += "    enqueueIdx++;\n"
           s += "  }\n"
           s += "  kernelIdx++;\n"
       s += "\n"
@@ -573,4 +573,16 @@ class SolutionWriter:
     s += "\n"
     return s
 
+  ########################################
+  # get full source code
+  # called from BenchmarkProblems
+  def getSourceFileString(self, solution):
+    # TODO append copyright
+    return self.getSourceString()
 
+  ########################################
+  # get full header code
+  # called from BenchmarkProblems
+  def getHeaderFileString(self, solution):
+    # TODO append copyright
+    return self.getHeaderString()
