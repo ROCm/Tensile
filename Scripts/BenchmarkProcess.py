@@ -42,9 +42,9 @@ class BenchmarkProcess:
     self.fillInMissingStepsWithDefaults(config)
 
     # convert list of parameters to list of steps
-    self.readParameters = []
+    self.prevParameters = []
     self.currentProblemSizes = []
-    self.hardcodedParameters = []
+    self.hardcodedParameters = [{}]
     self.benchmarkStepIdx = 0
     self.convertParametersToSteps()
 
@@ -77,7 +77,8 @@ class BenchmarkProcess:
           forkPermutations[i][name] = values[valueIdx]
           pIdx /= len(values)
       #print forkPermutations[i]
-    self.hardcodedParameters.append(forkPermutations)
+    #self.hardcodedParameters.append(forkPermutations)
+    self.forkHardcodedParameters(forkPermutations)
 
     # (3) benchmark common parameters
     printExtra("3")
@@ -196,7 +197,8 @@ class BenchmarkProcess:
           valueIdx = pIdx % len(depthUs)
           joinPermutations[i][joinName] = depthUs[valueIdx]
       #print joinPermutations[i]
-    self.hardcodedParameters.append(joinPermutations)
+    #self.hardcodedParameters.append(joinPermutations)
+    self.joinHardcodedParameters(joinPermutations)
 
 
     # (5) benchmark join parameters
@@ -210,9 +212,9 @@ class BenchmarkProcess:
     currentBenchmarkParameters = {}
     benchmarkStep = BenchmarkStep(
         self.hardcodedParameters,
-        self.readParameters,
+        self.prevParameters,
         currentBenchmarkParameters,
-        self.initialSolutionParameters,
+        self.initialSolutionParameters.state,
         self.currentProblemSizes,
         self.benchmarkStepIdx )
 
@@ -228,19 +230,20 @@ class BenchmarkProcess:
       for paramName in paramConfig:
         paramValues = paramConfig[paramName]
         if len(paramValues) == 1:
-          self.hardcodedParameters.append({paramName: paramValues[0]})
+          #self.hardcodedParameters.append([{paramName: paramValues[0]}])
+          self.forkHardcodedParameters([{paramName: paramValues[0]}])
         else:
           currentBenchmarkParameters[paramName] = paramValues
       if len(currentBenchmarkParameters) > 0:
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
-            self.readParameters,
+            self.prevParameters,
             currentBenchmarkParameters,
-            self.initialSolutionParameters,
+            self.initialSolutionParameters.state,
             self.currentProblemSizes,
             self.benchmarkStepIdx )
         self.benchmarkSteps.append(benchmarkStep)
-        self.readParameters.append(currentBenchmarkParameters)
+        self.prevParameters.append(currentBenchmarkParameters)
         self.benchmarkStepIdx+=1
 
 
@@ -391,6 +394,67 @@ class BenchmarkProcess:
     # if "BenchmarkFinal" in config:
     printStatus("DONE.")
 
+  ##############################################################################
+  # add new permutations of hardcoded parameters to old permutations of params
+  def forkHardcodedParameters( self, update ):
+    #printStatus("\nold = %u:%s\nnew = %u:%s" % ( len(self.hardcodedParameters), self.hardcodedParameters, len(update), update))
+    #printStatus("update = %s" % str(update))
+    updatedHardcodedParameters = []
+      #print "oldPermutation = %s" % str(oldPermutation)
+    for oldPermutation in self.hardcodedParameters:
+      for newPermutation in update:
+        permutation = {}
+        permutation.update(oldPermutation)
+        permutation.update(newPermutation)
+        #print "  joinedPermutation = %s" % str(permutation)
+        updatedHardcodedParameters.append(permutation)
+    self.hardcodedParameters = updatedHardcodedParameters
+    #print("  updated = %u" % ( len(self.hardcodedParameters)))
+
+  ##############################################################################
+  # contract old permutations of hardcoded parameters based on new
+  def joinHardcodedParameters( self, update ):
+    #printStatus("\n  old = %u:%s\n  new = %u:%s" % ( len(self.hardcodedParameters), self.hardcodedParameters, len(update), update))
+    #printStatus("update = %s" % str(update))
+      #print "oldPermutation = %s" % str(oldPermutation)
+    newHasMacroTile = False
+    for newPermutation in update:
+      if "MacroTile" in newPermutation:
+        newHasMacroTile = True
+        break
+    newHasDepthU = False
+    for newPermutation in update:
+      if "DepthU" in newPermutation:
+        newHasDepthU = True
+        break
+
+    if newHasMacroTile:
+      for oldPermutation in self.hardcodedParameters:
+        oldPermutation.pop("WorkGroupEdge", None )
+        oldPermutation.pop("WorkGroupShape", None )
+        oldPermutation.pop("ThreadTileEdge", None )
+        oldPermutation.pop("ThreadTileShape", None )
+    if newHasDepthU:
+      for oldPermutation in self.hardcodedParameters:
+        oldPermutation.pop("LoopUnroll", None )
+        oldPermutation.pop("SplitU", None )
+
+    updatedHardcodedParameters = []
+    for newPermutation in update:
+      # if its a hybrid param, delete primitives from hard-coded;
+      # primitives will be recorded as "determined" later
+      for oldPermutation in self.hardcodedParameters:
+        permutation = {}
+        permutation.update(oldPermutation)
+        permutation.update(newPermutation)
+        if permutation not in updatedHardcodedParameters: # "set"
+          updatedHardcodedParameters.append(permutation)
+    # convert to set and back to list to remove duplicates
+    self.hardcodedParameters = updatedHardcodedParameters
+
+
+
+
   def __len__(self):
     return len(self.benchmarkSteps)
   def __getitem__(self, key):
@@ -423,16 +487,17 @@ class BenchmarkProcess:
 ################################################################################
 class BenchmarkStep:
 
-  def __init__(self, hardcodedParameters, readParameters, \
+  def __init__(self, hardcodedParameters, prevParameters, \
       benchmarkParameters, initialSolutionParameters, problemSizes, idx):
     # what is my step Idx
     self.stepIdx = idx
 
     # what parameters don't need to be benchmarked because hard-coded or forked
+    # it's a list of dictionaries, each element a permutation
     self.hardcodedParameters = deepcopy(hardcodedParameters)
 
-    # what parameters do I need to read from prior steps
-    self.readParameters = deepcopy(readParameters)
+    # what parameters have been previously determined
+    self.prevParameters = deepcopy(prevParameters)
 
     # what parameters will I benchmark
     self.benchmarkParameters = deepcopy(benchmarkParameters)

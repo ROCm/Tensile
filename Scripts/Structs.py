@@ -55,12 +55,17 @@ class DataType:
   def __init__( self, value ):
     if isinstance(value, int):
       self.value = value
-    if isinstance(value, str):
+    elif isinstance(value, basestring):
       for propertiesIdx in range(0,6):
         for dataTypeIdx in range(0,self.num):
+          print self.properties[dataTypeIdx][propertiesIdx]
           if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
             self.value = dataTypeIdx
             return
+    elif isinstance(value, DataType):
+      self.value = value.value
+    else:
+      printExit("initializing DataType to %s %s" % (str(type(value)), str(value)) )
 
 
   ########################################
@@ -275,7 +280,7 @@ class ProblemType:
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):
-    return isinstance(other, ExactMatch) and self.getAttributes() == other.getAttributes()
+    return isinstance(other, ProblemType) and self.getAttributes() == other.getAttributes()
   def __ne__(self, other):
     result = self.__eq__(other)
     if result is NotImplemented:
@@ -353,16 +358,18 @@ class Solution:
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
-  def getMinNaming(kernels):
+  def getMinNaming(solutions):
     requiredParameters = {}
-    for key in kernels[0]:
+    for key in solutions[0].state:
       required = False
-      for i in range(1, len(kernels)):
-        if kernels[0][key] != kernels[i][key]:
+      for i in range(1, len(solutions)):
+        if solutions[0].state[key] != solutions[i].state[key]:
           required = True
           break
       if required:
         requiredParameters[key] = True
+      else:
+        requiredParameters[key] = False
     return requiredParameters
 
   ########################################

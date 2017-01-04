@@ -16,6 +16,7 @@ globalParameters["Name"] = "Tensile"
 globalParameters["Backend"] = "OCL" # OCL, HIP, ASM
 globalParameters["DebugPrintLevel"] = 1
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
+globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["Redo"] = "Changed" # Force None
 

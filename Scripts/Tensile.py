@@ -66,8 +66,11 @@ def executeStepsInConfig( config ):
 # Tensile - Main
 ################################################################################
 if len(sys.argv) < 2:
-  printExit("Usage: python Tensile.py config.yaml")
+  print("Usage: python Tensile.py config.yaml output_path")
+  sys.exit(1)
 else:
+  if len(sys.argv) == 3:
+    globalParameters["WorkingPath"] = os.path.abspath(sys.argv[2])
   configPath = os.path.realpath( sys.argv[1] )
   print("Tensile::Main ConfigFile: %s" % (configPath) )
   config = ReadYAML.readConfig( configPath )
