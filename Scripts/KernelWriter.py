@@ -38,10 +38,11 @@ class KernelWriter:
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, backend ):
+  def __init__( self, backend, solutionMinNaming ):
     self.backend = backend
+    self.solutionMinNaming = solutionMinNaming
 
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       # everything escaped extra b/c string
       self.endLine = "\\n\"\n\""
       self.endLinePP = "\\\\" + self.endLine
@@ -49,7 +50,7 @@ class KernelWriter:
       self.endLine = "\n"
       self.endLinePP =  "\\" + self.endLine
 
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       self.getGroupIdStr = "get_group_id"
       self.getNumGroupsStr = "get_num_groups"
       self.getLocalIdStr = "get_local_id"
@@ -242,7 +243,7 @@ class KernelWriter:
 
     s = ""
     # kernel name
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       s += "__attribute__((reqd_work_group_size(WG_" \
           + tileChar0 + ",WG_" + tileChar1 + ",1)))"
       s += self.endLine
@@ -381,7 +382,7 @@ class KernelWriter:
     # kStr += "#define NL_B ((MT_%s*UNROLL)/(WG_%s*WG_%s))%s" \
     #     % (tileCharB, tileChar0, tileChar1, self.endLine)
     # kStr += self.endLine
-    
+
     # num loads
     kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
     kStr += "//#define NL_PARA_A %d%s" % (kernel.numLoadsParaA, self.endLine )
@@ -472,7 +473,7 @@ class KernelWriter:
     kStr += "//#define TYPE_BETA  %s%s" \
         % (kernel.dataTypeC.toDevice(self.backend), self.endLine)
 
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       kStr += "#define MAD(A,B,DST) mad(A,B,DST)"
     else:
       kStr += "#define MAD(A,B,DST) DST += A*B"
@@ -761,7 +762,7 @@ class KernelWriter:
         index2 = nonTileFreeIndices[j]
         kStr += " / size" + indexChars[index2]
       kStr += " ) % size" + indexChars[index] + ";" + self.endLine
-    
+
     ####################################
     # local indices
     ####################################
@@ -880,7 +881,7 @@ class KernelWriter:
     kStr += "  %s TYPE_B *lB = localB + b%s + b%s*(MT_%s+PAD);%s" \
         % (self.sharedPtrStr, tileCharB, unrollChar, tileCharB, self.endLine)
     kStr += self.endLine
-    
+
     ####################################
     # global -> register branches
     ####################################
@@ -896,7 +897,7 @@ class KernelWriter:
             kStr += "%d*LS_PARA_A" % (para)
           kStr += " >= size%s);%s" %( tileCharA, self.endLine )
       kStr += self.endLine
-    
+
     if not kernel.tile.branch[1].isNone():
       kStr += "  /* conditionals to guard against loading B out-of-bounds */" + self.endLine
       for perp in range(0, kernel.numLoadsPerpB):
@@ -985,12 +986,12 @@ class KernelWriter:
       kStr += indent + "do {" + self.endLine
       indent += "  "
     kStr += self.endLine
-    
+
     # 1st barrier
     kStr += indent + self.syncStr + self.endLine
 
     # zeroString for real and complex
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       zeroStringC = kernel.dataTypeC.zeroStringOpenCL()
       zeroStringA = kernel.dataTypeA.zeroStringOpenCL()
       zeroStringB = kernel.dataTypeB.zeroStringOpenCL()
@@ -998,7 +999,7 @@ class KernelWriter:
       zeroStringC = kernel.dataTypeC.zeroStringHIP()
       zeroStringA = kernel.dataTypeA.zeroStringHIP()
       zeroStringB = kernel.dataTypeB.zeroStringHIP()
-    
+
     ####################################
     # load A
     ####################################
@@ -1038,7 +1039,7 @@ class KernelWriter:
       indent = indent[2:]
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
-    
+
     ####################################
     # load B
     ####################################
@@ -1067,7 +1068,7 @@ class KernelWriter:
         if not kernel.tile.branch[1].isNone():
           kStr += "( condB_%s_%s )" % ( str(para), str(perp) )
           kStr += " ? %s : " % ( zeroStringB )
-        
+
         kStr += "B[ %d*LS_PARA_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
             % (para, unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
         if condPara or condPerp:
@@ -1181,7 +1182,7 @@ class KernelWriter:
     # kStr += indent + "  }" + self.endLine
     # kStr += indent + "}" + self.endLine
     # # [work-group id] idx=%i a=%f; b=%f
-   
+
 
     ####################################
     # do fmas
@@ -1195,7 +1196,7 @@ class KernelWriter:
     # kStr += "  if (validC) printf(\\\"T[%u,%u] rC = %f g=%u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[0][0], GLOBAL_C(globalC0I, globalC1J) );" + self.endLine
     # end debug printf
     # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0 ) printf(\\\"[%u,%u,%u,%u] m=%u, n=%u, o=%u, r[0][0]=%.0f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, rC[0][0] );" + self.endLine
-    
+
 
     ########################################################################
     # BEGIN UNROLL=1 LOOP
@@ -1324,7 +1325,7 @@ class KernelWriter:
             else:
               kStr += "%d*LS_PARA_B" % (para)
             kStr += " >= size%s) " % (tileCharB )
-         
+
           kStr += " ? %s : " % zeroStringB
           kStr += "B[ %d*LS_PARA_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
               % (para, unrollChar if kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB, perp, unrollChar if not kernel.unrollDimStrideLessThanTileDimStrideB else tileCharB)
@@ -1415,7 +1416,7 @@ class KernelWriter:
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
     # end debug
     # kStr += "  rC[0][0] = TYPE_C(1.23456789, -1.23456789);" + self.endLine
-    
+
     # kStr += indent + "/* print LDS state */" + self.endLine
     # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && loadSerial == 0) {" + self.endLine
     # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
@@ -1427,7 +1428,7 @@ class KernelWriter:
     # kStr += indent + "  }" + self.endLine
     # kStr += indent + "}" + self.endLine
 
-   
+
     # kStr += indent + "  for (unsigned int i = 0; i < 8; i++) {" + self.endLine
     # kStr += indent + "    for (unsigned int j = 0; j < 8; j++) {" + self.endLine
     # kStr += indent + "      rC[i][j] = 75.0;" + self.endLine

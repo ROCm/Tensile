@@ -19,8 +19,8 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import Structs
-import KernelWriter
+from Structs import *
+from KernelWriter import *
 
 ################################################################################
 # SolutionWriter
@@ -33,46 +33,16 @@ class SolutionWriter:
   ##############################################################################
   # SolutionWriter
   ##############################################################################
-  def __init__(self, backend):
+  def __init__(self, backend, solutionMinNaming):
     self.backend = backend
-    self.kernelWriter = KernelWriter.KernelWriter(self.backend)
-
-  ##############################################################################
-  # getName
-  ##############################################################################
-  def getName(self, solution):
-    solutionName = self.kernelWriter.getName( \
-        solution.kernels[0])
-    solutionName += "_G"
-    solutionName += str(solution.kernelGrid[0])
-    solutionName += solution.branch[0].getChar()
-    solutionName += str(solution.kernelGrid[1])
-    return solutionName
-
-  ##############################################################################
-  # getTemplateArgList
-  ##############################################################################
-  def getTemplateArgList(self, solution):
-    templateArgList = "<"
-    templateArgList += solution.kernels[0].dataTypeC.toCpp() + ","
-    templateArgList += solution.kernels[0].dataTypeA.toCpp() + ","
-    templateArgList += solution.kernels[0].dataTypeB.toCpp() + ","
-    if solution.kernels[0].problem.operation.useAlpha():
-      templateArgList += solution.kernels[0].problem.operation.alphaType.toCpp() + ","
-    else:
-      templateArgList += "void,"
-    if solution.kernels[0].problem.operation.useBeta():
-      templateArgList += solution.kernels[0].problem.operation.betaType.toCpp() + ">"
-    else:
-      templateArgList += "void>"
-    return templateArgList
-
+    self.kernelWriter = KernelWriter(self.backend, solutionMinNaming)
+    self.solutionMinNaming = solutionMinNaming
 
   ##############################################################################
   # getSourceString
   ##############################################################################
   def getSourceString(self, solution):
-    solutionName = self.getName(solution)
+    solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
     s = ""
     # includes
     s += "#include \""
@@ -87,7 +57,7 @@ class SolutionWriter:
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += solutionName + "<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::" + solutionName
     s += "( const Problem & inputProblem )\n"
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       s += "    : SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
     else:
       s += "    : SolutionHIP<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>( inputProblem ) {\n"
@@ -183,13 +153,13 @@ class SolutionWriter:
     s += "  this->kernelGrid[1] = " + str(solution.kernelGrid[1]) + ";\n"
     s += "  this->kernelGrid[2] = " + str(solution.kernelGrid[2]) + ";\n"
     numKernels = 0
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       for i in range(0, len(solution.kernels)):
         if solution.kernels[i] == None:
           s += "  this->kernelSources[" + str(i) + "] = nullptr;\n"
           #s += "  this->kernels[" + str(i) + "] = nullptr;\n"
         else:
-          name = self.kernelWriter.getName(solution.kernels[i])
+          name = Solution.getName(solution.kernels[i], self.solutionMinNaming)
           srcName = name + "_src"
           kernelName = name + "_kernel"
           s += "  this->kernelSources[" + str(i) + "] = " + srcName + ";\n"
@@ -243,7 +213,7 @@ class SolutionWriter:
       for i in range(firstStride,lastStrideC):
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].stride; // strideC" + self.indexChars[i] + "\n"
-        #if self.backend.isOpenCL():
+        #if self.backend == "OCL":
         #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
         #      + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
@@ -254,7 +224,7 @@ class SolutionWriter:
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(i) + "].stride; // strideA" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsA[i]] + "\n"
-        #if self.backend.isOpenCL():
+        #if self.backend == "OCL":
         #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
         #      + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
@@ -265,7 +235,7 @@ class SolutionWriter:
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorB[" \
             + str(i) + "].stride; // strideB" + self.indexChars[ \
             solution.kernels[0].problem.operation.indexAssignmentsB[i]] + "\n"
-        #if self.backend.isOpenCL():
+        #if self.backend == "OCL":
         #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorB" \
         #      + "[" + str(i) + "].stride);\n"
         s += "  this->numKernelArgs++;\n"
@@ -282,7 +252,7 @@ class SolutionWriter:
           s += "  this->kernelArgIdxDim1 = this->numKernelArgs;\n"
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorC[" \
             + str(i) + "].size; // size" + self.indexChars[i] + "\n"
-        #if self.backend.isOpenCL():
+        #if self.backend == "OCL":
         #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorC" \
         #      + "[" + str(i) + "].size);\n"
         s += "  this->numKernelArgs++;\n"
@@ -307,7 +277,7 @@ class SolutionWriter:
           s += "  this->kernelArgIdxSummation = this->numKernelArgs;\n"
         s += "  this->kernelArgs[this->numKernelArgs] = &inputProblem.tensorA[" \
             + str(idx) + "].size; // size" + self.indexChars[i] + "\n"
-        #if self.backend.isOpenCL():
+        #if self.backend == "OCL":
         #  s += "  this->kernelArgSizes[this->numKernelArgs] = sizeof(inputProblem.tensorA" \
         #      + "[" + str(idx) + "].size);\n"
         s += "  this->numKernelArgs++;\n"
@@ -327,7 +297,7 @@ class SolutionWriter:
     s += "\n"
 
     # compile kernels
-    #if self.backend.isOpenCL():
+    #if self.backend == "OCL":
       #s += "  // compile kernels\n"
       #s += "  const char *buildOptions = \"-cl-std=CL2.0\";\n"
       #s += "  for (size_t i = 0; i < this->numKernels; i++) {\n"
@@ -340,7 +310,7 @@ class SolutionWriter:
 
 
     # opencl global size *= local size
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       s += "\n"
       s += "  for (unsigned int kernelIdx = 0; kernelIdx < this->maxNumKernels; kernelIdx++) {\n"
       s += "    for (unsigned int i = 0; i < this->workDim; i++) {\n"
@@ -437,7 +407,7 @@ class SolutionWriter:
           s += "\n"
           if False:
             s += "printf(\"hipKernelLaunch(%s):\\n    g{%u,%u,%u};\\n    l{%u,%u,%u};\\n    p{%p,%p,%p};\\n    ab{%f,%f};\\n    o{%u,%u,%u};\\n    s{%u,%u,%u,%u,%u,%u}\\n\""
-            s += ",\n        \"" + self.kernelWriter.getName(kernel) + "\""
+            s += ",\n        \"" + Solution.getNameMin(kernel, self.solutionMinNaming) + "\""
             s += ",\n        (unsigned int)this->globalWorkSize[kernelIdx][0], (unsigned int)this->globalWorkSize[kernelIdx][1], (unsigned int)this->globalWorkSize[kernelIdx][2]"
             s += ",\n        (unsigned int)this->localWorkSize[0], (unsigned int)this->localWorkSize[1], (unsigned int)this->localWorkSize[2]"
             s += ",\n        static_cast<TypeC*>(tensorDataC.data), static_cast<const TypeA*>(tensorDataA.data), static_cast<const TypeB*>(tensorDataB.data)"
@@ -457,7 +427,7 @@ class SolutionWriter:
             s += "\n"
           s += "    hipLaunchKernel(\n"
           s += "        HIP_KERNEL_NAME(%s),\n" \
-              % self.kernelWriter.getName(kernel)
+              % Solution.getNameMin(kernel, self.solutionMinNaming)
           s += "        dim3(\n"
           s += "            this->globalWorkSize[kernelIdx][0],\n"
           s += "            this->globalWorkSize[kernelIdx][1],\n"
@@ -507,8 +477,7 @@ class SolutionWriter:
     if self.backend.isHIP():
       s += "#pragma clang diagnostic push\n"
       s += "#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n"
-    s += "template class " + solutionName \
-        + self.getTemplateArgList(solution) + ";\n"
+    s += "class " + solutionName + ";\n"
     if self.backend.isHIP():
       s += "#pragma clang diagnostic pop\n"
 
@@ -523,7 +492,7 @@ class SolutionWriter:
   # getHeaderString
   ##############################################################################
   def getHeaderString(self, solution):
-    solutionName = self.getName(solution)
+    solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
     s = ""
     s += "#ifndef " + solutionName.upper() + "_H\n"
     s += "#define " + solutionName.upper() + "_H\n\n"
@@ -535,7 +504,7 @@ class SolutionWriter:
     # include kernels
     for kernel in solution.kernels:
       if kernel != None:
-        s += "#include \"" + self.kernelWriter.getName(kernel) + ".h\"\n"
+        s += "#include \"" + Solution.getNameMin(kernel, self.solutionMinNaming) + ".h\"\n"
     s += "\n"
 
     # class declaration
@@ -545,7 +514,7 @@ class SolutionWriter:
     s += "/* solution class */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
     s += "class " + solutionName
-    if self.backend.isOpenCL():
+    if self.backend == "OCL":
       s += " : public SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
     else:
       s += " : public SolutionHIP<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {\n"
@@ -578,11 +547,11 @@ class SolutionWriter:
   # called from BenchmarkProblems
   def getSourceFileString(self, solution):
     # TODO append copyright
-    return self.getSourceString()
+    return self.getSourceString(solution)
 
   ########################################
   # get full header code
   # called from BenchmarkProblems
   def getHeaderFileString(self, solution):
     # TODO append copyright
-    return self.getHeaderString()
+    return self.getHeaderString(solution)

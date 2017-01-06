@@ -58,7 +58,6 @@ class DataType:
     elif isinstance(value, basestring):
       for propertiesIdx in range(0,6):
         for dataTypeIdx in range(0,self.num):
-          print self.properties[dataTypeIdx][propertiesIdx]
           if value.lower() == self.properties[dataTypeIdx][propertiesIdx].lower():
             self.value = dataTypeIdx
             return
@@ -205,6 +204,8 @@ class ProblemType:
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(config)
 
+    self.assignIndices()
+
 
   ########################################
   def initGEMM(self, config):
@@ -218,13 +219,13 @@ class ProblemType:
     if self["Batched"]:
       self["IndexAssignmentsA"].append(2)
       self["IndexAssignmentsB"].append(2)
-      self["NumDimensionsC"] = 3
+      self["NumIndicesC"] = 3
     else:
-      self["NumDimensionsC"] = 2
+      self["NumIndicesC"] = 2
 
   ########################################
   def initTensorContraction(self, config):
-    self.assign("NumDimensionsC", config)
+    self.assign("NumIndicesC", config)
     self.assign("IndexAssignmentsA", config)
     self.assign("IndexAssignmentsB", config)
 
@@ -237,10 +238,118 @@ class ProblemType:
     return self.operationType == 1
 
   ########################################
+  # determine d0, d1, dU
+  def assignIndices(self):
+    self["TotalIndices"] = max(max(self["IndexAssignmentsA"])+1, max(self["IndexAssignmentsB"])+1)
+
+    # determine num free, batch
+    self["IndicesFree"] = []
+    self["IndicesBatch"] = []
+    self["IndicesSummation"] = []
+
+    for i in range(0, self["NumIndicesC"]):
+      inA = i in self["IndexAssignmentsA"]
+      inB = i in self["IndexAssignmentsB"]
+      if inA and inB:
+        #self["NumIndicesBatch"] = (i+1)-self["NumIndicesFree"]
+        self["IndicesBatch"].append(i)
+
+      elif inA or inB:
+        #self["NumIndicesFree"] = (i+1)
+        self["IndicesFree"].append(i)
+      else:
+        printExit("invalid index %u" % i)
+
+    # determine num summation
+    for i in range(self["NumIndicesC"], self["TotalIndices"]):
+      inA = i in self["IndexAssignmentsA"]
+      inB = i in self["IndexAssignmentsB"]
+      if inA and inB:
+        #self["NumIndicesSummation"] = (i+1)-self["NumIndicesC"]
+        self["IndicesSummation"].append(i)
+      else:
+        printExit("invalid index %u" % i)
+
+    self["NumIndicesFree"] = len(self["IndicesFree"])
+    self["NumIndicesBatch"] = len(self["IndicesBatch"])
+    self["NumIndicesSummation"] = len(self["IndicesSummation"])
+    print self["IndicesFree"]
+    print self["IndicesBatch"]
+    print self["IndicesSummation"]
+
+    # assign d0, d1
+    self["Index01A"] = -1
+    self["Index01B"] = -1
+    for i in self["IndexAssignmentsA"]:
+      if i < self["NumIndicesC"]:
+        self["Index01A"] = i
+        break
+    for i in self["IndexAssignmentsB"]:
+      if i < self["NumIndicesC"]:
+        self["Index01B"] = i
+        break
+    # whichever has lower stride in C (lower value), is 0, other is 1
+    if index01A < index01B:
+      self["Index0"]  = index01A
+      self["Index1"]  = index01B
+      self["Tensor0"] = 0
+      self["Tensor1"] = 1
+      self["TensorA"] = 0
+      self["TensorB"] = 1
+    else:
+      self["Index0"]  = index01B
+      self["Index1"]  = index01A
+      self["Tensor0"] = 1
+      self["Tensor1"] = 0
+      self["TensorA"] = 1
+      self["TensorB"] = 0
+
+    self["IndexUnroll"] = self["TotalIndices"] - 1
+
+    strideIdxA = self["IndexAssignmentsA"].index(self["Index01A"])
+    strideIdxB = self["IndexAssignmentsB"].index(self["Index01B"])
+    unrollIdxA = self["IndexAssignmentsA"].index(self["IndexUnroll"])
+    unrollIdxB = self["IndexAssignmentsB"].index(self["IndexUnroll"])
+    self["TLUA"] = strideIdxA < unrollIdxA
+    self["TLUB"] = strideIdxB < unrollIdxB
+
+    unrollDimStrideGreaterThanTileDimStrideA = TLUA
+    unrollDimStrideLessThanTileDimStrideB    = !TLUB
+
+
+# DONE indexOrderC = native order
+# DONE indexOrderSummation = native order
+# DONE indexUnroll = indexOrderSummation[0]
+# DONE indexAssignmentDim0
+# DONE indexAssignmentDim1
+# DONE tensorAssignedDim0
+# DONE tensorAssignedDim1
+
+
+
+    """
+    if kernel.tensorAssignedDim0 == 0: # A assigned dim0
+    kernel.unrollDimStrideGreaterThanTileDimStrideA = \
+      unrollDimStrideA > strideD0
+    kernel.unrollDimStrideLessThanTileDimStrideB = \
+      unrollDimStrideB < strideD1
+    kernel.unrollDimStride0 = unrollDimStrideA
+    kernel.unrollDimStride1 = unrollDimStrideB
+  else:
+    kernel.unrollDimStrideGreaterThanTileDimStrideA = \
+      unrollDimStrideA > strideD1
+    kernel.unrollDimStrideLessThanTileDimStrideB = \
+      unrollDimStrideB < strideD0
+    kernel.unrollDimStride0 = unrollDimStrideB
+    kernel.unrollDimStride1 = unrollDimStrideA
+    """
+
+
+  ########################################
   def __str__(self):
     # C dimensions
     name = "C"
-    name += indexChars[:self["NumDimensionsC"]].lower()
+    name += indexChars[:self["NumIndicesC"]].lower()
     # A dimensions
     name += "_A"
     for i in self["IndexAssignmentsA"]:
@@ -295,17 +404,17 @@ class ProblemSizes:
 
   ########################################
   def __init__(self, problemType, config):
-    self.totalDimensions = 1+max(problemType["IndexAssignmentsA"])
-    if len(config) < self.totalDimensions:
+    self.totalIndices = 1+max(problemType["IndexAssignmentsA"])
+    if len(config) < self.totalIndices:
       printWarning("SizeRange config (%s) has too few elements (%u < %u) than required by ProblemType (%s); appending defaults."
-          % ( str(config), len(config), self.totalDimensions, problemType ))
-      for i in range(len(config), self.totalDimensions):
+          % ( str(config), len(config), self.totalIndices, problemType ))
+      for i in range(len(config), self.totalIndices):
         config.append(0)
-    if len(config) < self.totalDimensions:
+    if len(config) < self.totalIndices:
       printWarning("SizeRange config (%s) has too many elements (%u > %u) than required by ProblemType (%s); ignoring remainder."
-          % ( str(config), len(config), self.totalDimensions, problemType ))
+          % ( str(config), len(config), self.totalIndices, problemType ))
     self.dimensionSizes = []
-    for i in range(0, self.totalDimensions):
+    for i in range(0, self.totalIndices):
       dim = config[i]
       if isinstance(dim, list):
         if len(dim) == 1:
@@ -412,7 +521,7 @@ class Solution:
         else:
           first = False
         name += Solution.getParameterNameAbbreviation(key)
-        name += Solution.getParameterValueAbbreviation(self[key])
+        name += Solution.getParameterValueAbbreviation(state[key])
     return name
 
   ########################################
@@ -458,7 +567,7 @@ class Solution:
   def __setitem__(self, key, value):
     self.state[key] = value
   def __str__(self):
-    return self.getNameFull()
+    return Solution.getNameFull(self.state)
   def __repr__(self):
     return self.__str__()
   def getAttributes(self):

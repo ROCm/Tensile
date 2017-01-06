@@ -71,6 +71,9 @@ if len(sys.argv) < 2:
 else:
   if len(sys.argv) == 3:
     globalParameters["WorkingPath"] = os.path.abspath(sys.argv[2])
+  else:
+    globalParameters["WorkingPath"] = os.getcwd()
+
   configPath = os.path.realpath( sys.argv[1] )
   print("Tensile::Main ConfigFile: %s" % (configPath) )
   config = ReadYAML.readConfig( configPath )

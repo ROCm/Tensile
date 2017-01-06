@@ -5,6 +5,8 @@ from shutil import copy as shutil_copy
 from BenchmarkProcess import *
 from Common import *
 from Structs import *
+from SolutionWriter import *
+from KernelWriter import *
 
 
 ################################################################################
@@ -112,29 +114,34 @@ def benchmarkProblemType( config ):
 
 def writeBenchmarkFiles(solutions, problemSizes):
   printStatus("Beginning")
+  ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
+  ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
 
   solutionNames = []
   kernelNames = []
   kernels = set()
 
-  solutionWriter = SolutionWriter.SolutionWriter(globalParameters["Backend"])
-  kernelWriter = KernelWriter.KernelWriter(globalParameters["Backend"])
   solutionMinNaming = Solution.getMinNaming(solutions)
+  solutionWriter = SolutionWriter(globalParameters["Backend"], \
+      solutionMinNaming)
+  kernelWriter = KernelWriter(globalParameters["Backend"], solutionMinNaming)
   for solution in solutions:
     # get solution name
-    solutionName = Solution.getNameMin(solution, solutionMinNaming)
+    solutionName = Solution.getNameMin(solution.state, solutionMinNaming)
     solutionNames.append(solutionName)
 
     # write solution.cpp
     solutionSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
         "Solutions", solutionName+".cpp"), "w")
-    solutionSourceFile.write( solutionWriter.getSourceFileString(solution))
+    solutionSourceFile.write( \
+        solutionWriter.getSourceFileString(solution))
     solutionSourceFile.close()
 
     # write solution.h
     solutionHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
         "Solutions", solutionName+".h"), "w")
-    solutionHeaderFile.write( solutionWriter.getHeaderFileString(solution))
+    solutionHeaderFile.write( \
+        solutionWriter.getHeaderFileString(solution))
     solutionHeaderFile.close()
 
     # append kernels to set
@@ -160,12 +167,12 @@ def writeBenchmarkFiles(solutions, problemSizes):
 
   # open solutions.cmake
   solutionsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \
-      "BenchmarkSolutions.cmake"), "w")
+      "GeneratedSolutions.cmake"), "w")
   solutionsCMakeFile.write(globalParameter["CMakeHeader"])
   solutionsCMakeFile.write("set( SolutionFiles\n")
   # open solutions.h
   allSolutionsHeaderFile = open(os.path.join(globalParameters["WorkingPath"],\
-      "BenchmarkSolutions.h"), "w")
+      "GeneratedSolutions.h"), "w")
   allSolutionsHeaderFile.write(globalParameters["CHeader"])
   # write solution names
   for solutionName in solutionNames:
@@ -179,7 +186,7 @@ def writeBenchmarkFiles(solutions, problemSizes):
 
   # open kernels.cmake
   kernelsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \
-      "BenchmarkKernels.cmake"), "w")
+      "GeneratedKernels.cmake"), "w")
   kernelsCMakeFile.write(globalParameter["CMakeHeader"])
   kernelsCMakeFile.write("set( KernelFiles\n")
   # write kernel names
@@ -191,43 +198,36 @@ def writeBenchmarkFiles(solutions, problemSizes):
   kernelsCMakeFile.close()
 
 
+  # generated benchmark parameters
+  benchmarkParametersFile = open(os.path.join(globalParameters["WorkingPath"], \
+      "GeneratedBenchmarkParameters.h"), "w")
+  benchmarkParametersFile.write(globalParameters["CHeader"])
 
-    # ProblemSizeRange (numDims, array of stride/incr/min/max
+  h = ""
+  h += "static const unsigned int numDimensions = %u;\n" \
+      % (problemSizes.totalDimensions)
+  h += "/* min, stride, stride_incr, max */\n"
+  h += "static const unsigned int sizeParameters[numDimensions][4] = {\n"
+  for i in range(0, len(problemSizes)):
+    r = problemSizes.dimensionSizes[i]
+    h += "  { %u, %u, %u, %u }" % (r[0], r[1], r[2], r[3])
+    if i < len(problemSizes)-1:
+      h += ","
+    h += "\n"
+  h += "  };\n"
+  h += "static const unsigned int bytesPerElements = %u;\n" \
+      % (solutions[0]["DataType"].numBytes())
 
-    #
-    # FileWriter:
-    #   WriteBenchmarkFiles
-    #     initSolutionForProblem rewrite
-    #     max tensor size
-    #     include solutions
-    #
-    #   WriteBackendFiles
-    #     SolutionSelection
-    #   writeKernelFiles(kernelSet)
-    #   writeSolutionFiles(solutionSet)
-    #   getKernelSourceFileString
-    #   getKernelHeaderFileString
-    #
-
-# benchmarking directory structure
-# build/
-#   1_BenchmarkProblemTypes
-#     Cij_Aik_Bjk_SBOI
-#       1_ParamName
-#       2_ParamName
-#       3_Fork
-#       4_Join
-#       5_Final
-#       0_Data
-#         step1.csv
-#         step2.csv
-#         final.csv
-#     Cij_Aik_Bkj_SBOI
-#       ...
-#   2_Analysis
-#     Cij_Aik_Bjk_SBOI.yaml
-#     Cij_Aik_Bjk_SBOI.yaml
-#     LibName.yaml
+  h += "typedef void( *SolutionFunctionPointer)();\n"
+  h += "static const SolutionFunctionPointer solutions[%u] = {\n" \
+      % (len(solutions))
+  for i in range(0, len(solutionNames)):
+    solutionName = solutionNames[i]
+    h += "  %s" % solutionName
+    if i < len(solutionNames-1):
+      h += ","
+    h += "\n"
+  h += "};\n"
 
 def main( config ):
   printStatus("Beginning")
