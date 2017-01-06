@@ -75,7 +75,8 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                [ True ] },
     {"LoadMacInterleave":       [ 4, 8, 16 ] },
     {"AtomicAccumulate":        [ False ] },
-    {"EdgeType":                [ "Shift", "Branch", "None", "MultiShift", "MultiBranch" ] },
+    {"EdgeType":                [ "Shift", "Branch", "None" ] },
+    {"EdgeMultiKernel":         [ True, False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
@@ -124,7 +125,6 @@ defaultSolution["MacroTileMaxRatio"] = 2
 defaultProblemType = {
     "OperationType":            "GEMM",
     "UseBeta":                  True,
-    "UseOffsets":               True,
     "UseInitialStrides":        False,
     "HighPrecisionAccumulate":  False,
     "TransposeA":               False,

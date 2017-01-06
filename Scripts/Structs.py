@@ -20,6 +20,7 @@
 ################################################################################
 
 import sys
+import copy
 
 from Common import *
 
@@ -269,13 +270,22 @@ class ProblemType:
         self["IndicesSummation"].append(i)
       else:
         printExit("invalid index %u" % i)
-
     self["NumIndicesFree"] = len(self["IndicesFree"])
     self["NumIndicesBatch"] = len(self["IndicesBatch"])
     self["NumIndicesSummation"] = len(self["IndicesSummation"])
-    print self["IndicesFree"]
-    print self["IndicesBatch"]
-    print self["IndicesSummation"]
+
+
+    # by default, unroll index will be the first summation index
+    # TODO sort summation indices by "stride"
+    self["IndexUnroll"] = self["IndicesSummation"][0]
+    for i in range(0, len(self["IndexAssignmentsA"])):
+      if self["IndexAssignmentsA"][i] == self["IndexUnroll"]:
+        self["IndexUnrollA"] = i
+        break
+    for i in range(0, len(self["IndexAssignmentsB"])):
+      if self["IndexAssignmentsB"][i] == self["IndexUnroll"]:
+        self["IndexUnrollB"] = i
+        break
 
     # assign d0, d1
     self["Index01A"] = -1
@@ -289,23 +299,22 @@ class ProblemType:
         self["Index01B"] = i
         break
     # whichever has lower stride in C (lower value), is 0, other is 1
-    if index01A < index01B:
-      self["Index0"]  = index01A
-      self["Index1"]  = index01B
+    if self["Index01A"] < self["Index01B"]:
+      self["Index0"]  = self["Index01A"]
+      self["Index1"]  = self["Index01B"]
       self["Tensor0"] = 0
       self["Tensor1"] = 1
-      self["TensorA"] = 0
-      self["TensorB"] = 1
+      self["TileA"] = 0
+      self["TileB"] = 1
     else:
-      self["Index0"]  = index01B
-      self["Index1"]  = index01A
+      self["Index0"]  = self["Index01B"]
+      self["Index1"]  = self["Index01A"]
       self["Tensor0"] = 1
       self["Tensor1"] = 0
-      self["TensorA"] = 1
-      self["TensorB"] = 0
+      self["TileA"] = 1
+      self["TileB"] = 0
 
-    self["IndexUnroll"] = self["TotalIndices"] - 1
-
+    # generalize transpose
     strideIdxA = self["IndexAssignmentsA"].index(self["Index01A"])
     strideIdxB = self["IndexAssignmentsB"].index(self["Index01B"])
     unrollIdxA = self["IndexAssignmentsA"].index(self["IndexUnroll"])
@@ -313,36 +322,9 @@ class ProblemType:
     self["TLUA"] = strideIdxA < unrollIdxA
     self["TLUB"] = strideIdxB < unrollIdxB
 
-    unrollDimStrideGreaterThanTileDimStrideA = TLUA
-    unrollDimStrideLessThanTileDimStrideB    = !TLUB
+    #unrollDimStrideGreaterThanTileDimStrideA = TLUA
+    #unrollDimStrideLessThanTileDimStrideB    = !TLUB
 
-
-# DONE indexOrderC = native order
-# DONE indexOrderSummation = native order
-# DONE indexUnroll = indexOrderSummation[0]
-# DONE indexAssignmentDim0
-# DONE indexAssignmentDim1
-# DONE tensorAssignedDim0
-# DONE tensorAssignedDim1
-
-
-
-    """
-    if kernel.tensorAssignedDim0 == 0: # A assigned dim0
-    kernel.unrollDimStrideGreaterThanTileDimStrideA = \
-      unrollDimStrideA > strideD0
-    kernel.unrollDimStrideLessThanTileDimStrideB = \
-      unrollDimStrideB < strideD1
-    kernel.unrollDimStride0 = unrollDimStrideA
-    kernel.unrollDimStride1 = unrollDimStrideB
-  else:
-    kernel.unrollDimStrideGreaterThanTileDimStrideA = \
-      unrollDimStrideA > strideD1
-    kernel.unrollDimStrideLessThanTileDimStrideB = \
-      unrollDimStrideB < strideD0
-    kernel.unrollDimStride0 = unrollDimStrideB
-    kernel.unrollDimStride1 = unrollDimStrideA
-    """
 
 
   ########################################
@@ -364,7 +346,6 @@ class ProblemType:
     name += self["DataType"].toChar()
     if self["HighPrecisionAccumulate"]: name += "A"
     if self["UseBeta"]: name += "B"
-    if self["UseOffsets"]: name += "O"
     if self["UseInitialStrides"]: name += "I"
     return name
 
@@ -463,22 +444,42 @@ class Solution:
     for key in defaultSolution:
       self.assignWithDefault(key, defaultSolution[key], config)
 
+    # workgroup sizes
+    self["WorkGroup0"] = self["WorkGroupEdge"]
+    self["WorkGroup1"] = self["WorkGroupEdge"]
+    if self["WorkGroupShape"] == 1:
+      self["WorkGroup1"] *= 2
+    if self["WorkGroupShape"] == -1:
+      self["WorkGroup0"] *= 2
+
+    # thread tile sizes
+    self["ThreadTile0"] = self["ThreadTileEdge"]
+    self["ThreadTile1"] = self["ThreadTileEdge"]
+    if self["ThreadTileShape"] == 1:
+      self["ThreadTile1"] *= 2
+    if self["ThreadTileShape"] == -1:
+      self["ThreadTile0"] *= 2
+
+    # macro tile sizes
+    self["MacroTile0"] = self["WorkGroup0"]*self["ThreadTile0"]
+    self["MacroTile1"] = self["WorkGroup1"]*self["ThreadTile1"]
+
   ########################################
   # get a list of kernel parameters for this solution
   # kernels have edge0,1=T/F
   def getKernels(self):
     kernels = []
     if self.state["EdgeType"] == "MultiBranch" or self.state["EdgeType"] == "MultiShift":
-      kernel00 = copy.deepcopy(state)
+      kernel00 = copy.deepcopy(self.state)
       kernel00.update({"Edge0": False, "Edge1": False})
-      kernel10 = copy.deepcopy(state)
+      kernel10 = copy.deepcopy(self.state)
       kernel10.update({"Edge0": True, "Edge1": False})
-      kernel01 = copy.deepcopy(state)
+      kernel01 = copy.deepcopy(self.state)
       kernel01.update({"Edge0": False, "Edge1": True})
       kernels.append(kernel00)
       kernels.append(kernel10)
       kernels.append(kernel01)
-    kernel11 = copy.deepcopy(state)
+    kernel11 = copy.deepcopy(self.state)
     kernel11.update({"Edge0": True, "Edge1": True})
     kernels.append(kernel11)
     return kernels
@@ -487,18 +488,26 @@ class Solution:
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
-  def getMinNaming(solutions):
+  def getMinNaming(objs):
     requiredParameters = {}
-    for key in solutions[0].state:
+    if isinstance(objs[0], Solution):
+      keys = list(objs[0].state.keys())
+    else:
+      keys = list(objs[0].keys())
+    for key in keys:
       required = False
-      for i in range(1, len(solutions)):
-        if solutions[0].state[key] != solutions[i].state[key]:
+      for i in range(1, len(objs)):
+        if objs[0][key] != objs[i][key]:
           required = True
           break
       if required:
         requiredParameters[key] = True
       else:
         requiredParameters[key] = False
+    # TODO do I always need edges?
+    # no, in
+    #requiredParameters["Edge0"] = True
+    #requiredParameters["Edge1"] = True
     return requiredParameters
 
   ########################################

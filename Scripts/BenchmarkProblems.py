@@ -94,6 +94,7 @@ def benchmarkProblemType( config ):
             fullSolution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(fullSolution)
+        print solutionObject.state
         printStatus("appending solution %s" % str(solutionObject))
         solutions.append(solutionObject)
       #print ""
@@ -119,12 +120,20 @@ def writeBenchmarkFiles(solutions, problemSizes):
 
   solutionNames = []
   kernelNames = []
-  kernels = set()
+  kernels = []
+
+  # get all unique kernels for solutions
+  for solution in solutions:
+    solutionKernels = solution.getKernels()
+    for kernel in solutionKernels:
+      if kernel not in kernels:
+        kernels.append(kernel)
 
   solutionMinNaming = Solution.getMinNaming(solutions)
+  kernelMinNaming = Solution.getMinNaming(kernels)
   solutionWriter = SolutionWriter(globalParameters["Backend"], \
-      solutionMinNaming)
-  kernelWriter = KernelWriter(globalParameters["Backend"], solutionMinNaming)
+      solutionMinNaming, kernelMinNaming)
+  kernelWriter = KernelWriter(globalParameters["Backend"], kernelMinNaming)
   for solution in solutions:
     # get solution name
     solutionName = Solution.getNameMin(solution.state, solutionMinNaming)
@@ -144,26 +153,22 @@ def writeBenchmarkFiles(solutions, problemSizes):
         solutionWriter.getHeaderFileString(solution))
     solutionHeaderFile.close()
 
-    # append kernels to set
-    solutionKernels = solution.getKernels()
-    for kernel in solutionKernels:
-      if kernel not in kernels:
-        # get kernel name
-        kernels.add(kernel)
-        kernelName = Solution.getNameMin(kernel, solutionMinNaming)
-        kernelNames.append(kernelName)
+    for kernel in kernels:
+      # get kernel name
+      kernelName = Solution.getNameMin(kernel, kernelMinNaming)
+      kernelNames.append(kernelName)
 
-        # write kernel.cpp
-        kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
-            "Kernels", kernelName+".cpp"), "w")
-        kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
-        kernelSourceFile.close()
+      # write kernel.cpp
+      kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
+          "Kernels", kernelName+".cpp"), "w")
+      kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
+      kernelSourceFile.close()
 
-        # write kernel.h
-        kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
-            "Kernels", kernelName+".h"), "w")
-        kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
-        kernelHeaderFile.close()
+      # write kernel.h
+      kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
+          "Kernels", kernelName+".h"), "w")
+      kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
+      kernelHeaderFile.close()
 
   # open solutions.cmake
   solutionsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \

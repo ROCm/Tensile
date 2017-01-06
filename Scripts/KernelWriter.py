@@ -24,7 +24,7 @@ import sys
 import argparse
 import copy
 
-import Structs
+from Structs import *
 
 
 ################################################################################
@@ -38,9 +38,9 @@ class KernelWriter:
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, backend, solutionMinNaming ):
+  def __init__( self, backend, kernelMinNaming ):
     self.backend = backend
-    self.solutionMinNaming = solutionMinNaming
+    self.kernelMinNaming = kernelMinNaming
 
     if self.backend == "OCL":
       # everything escaped extra b/c string
@@ -80,166 +80,27 @@ class KernelWriter:
     self.returnOnly = False
 
 
-    pass
-
-
-  ##############################################################################
-  # get kernel name from operation
-  ##############################################################################
-  def getNameOperation(self, kernel):
-    kernelName = ""
-
-    # operation type
-    kernelName += str(kernel.problem.operation.type)
-    kernelName += "_"
-
-    # data dataTypes
-    kernelName += kernel.dataTypeC.toChar().upper()
-    kernelName += kernel.dataTypeA.toChar().upper()
-    kernelName += kernel.dataTypeB.toChar().upper()
-
-    # alpha
-    # if kernel.problem.operation.useAlpha:
-    kernelName += kernel.dataTypeAlpha.toChar().upper()
-    # else:
-    #   kernelName += "0"
-
-    # beta
-    # if kernel.problem.operation.useBeta():
-    kernelName += kernel.dataTypeBeta.toChar().upper()
-    # else:
-    #   kernelName += "0"
-
-    kernelName += "_"
-
-    # C dimensions
-    kernelName += "C"
-    for i in range(0, len(kernel.indexOrderC)):
-      #kernelName += self.indexChars[kernel.indexOrderC[i]].lower()
-      kernelName += self.indexChars[i].lower()
-
-    # summation indices
-    kernelName += "_S"
-    for i in range(0,len(kernel.indexOrderSummation)):
-      kernelName += self.indexChars[len(kernel.indexOrderC) + kernel.indexOrderSummation[i]].lower()
-
-    # A dimensions
-    kernelName += "_A"
-    for i in range(0, len(kernel.problem.operation.indexAssignmentsA)):
-      kernelName += self.indexChars[kernel.problem.operation.indexAssignmentsA[i]].lower()
-
-    # B dimensions
-    kernelName += "_B"
-    for i in range(0,len(kernel.problem.operation.indexAssignmentsB)):
-      kernelName += self.indexChars[kernel.problem.operation.indexAssignmentsB[i]].lower()
-
-
-    return kernelName
-
-  ##############################################################################
-  # get kernel name from tile
-  ##############################################################################
-  def getNameTile(self, kernel):
-    kernelName = ""
-    # tile dim A
-    if kernel.tensorAssignedDim0 == 0: #A assigned d0
-      #print "tensorA has d0"
-      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
-      kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
-      kernelName += str(kernel.tile.workGroup[0])
-      kernelName += kernel.tile.branch[0].getChar()
-      kernelName += str(kernel.tile.microTile[0])
-    else:
-      #print "tensorA has d1"
-      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
-      kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
-      kernelName += str(kernel.tile.workGroup[1])
-      kernelName += kernel.tile.branch[1].getChar()
-      kernelName += str(kernel.tile.microTile[1])
-    if kernel.unrollDimStrideGreaterThanTileDimStrideA:
-      kernelName += "f"
-    else:
-      kernelName += "s"
-    kernelName += "_"
-
-    # tile dim B
-    if kernel.tensorAssignedDim0 == 1: #B assigned d0
-      #print "tensorB has d0"
-      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
-      kernelName += self.indexChars[kernel.indexAssignmentDim0].lower()
-      kernelName += str(kernel.tile.workGroup[0])
-      kernelName += kernel.tile.branch[0].getChar()
-      kernelName += str(kernel.tile.microTile[0])
-    else:
-      #print "tensorB has d1"
-      #print "d0=" + str(kernel.indexAssignmentDim0) + ", d1=" + str(kernel.indexAssignmentDim1)
-      kernelName += self.indexChars[kernel.indexAssignmentDim1].lower()
-      kernelName += str(kernel.tile.workGroup[1])
-      kernelName += kernel.tile.branch[1].getChar()
-      kernelName += str(kernel.tile.microTile[1])
-    # "f"ast or "s"low
-    if kernel.unrollDimStrideLessThanTileDimStrideB:
-      kernelName += "s"
-    else:
-      kernelName += "f"
-    kernelName += "_"
-
-    # load pattern
-    kernelName += "nl" + str(kernel.numLoadsParaA)
-    kernelName += "x" + str(kernel.numLoadsParaB)
-    kernelName += "_"
-
-    # unroll
-    kernelName += self.indexChars[len(kernel.indexOrderC)+len(kernel.indexOrderSummation)-1].lower()
-    if len(kernel.unrolls)>0:
-      kernelName += str(kernel.unrolls[0])
-      for i in range(1,len(kernel.unrolls)):
-        kernelName += "_" + str(kernel.unrolls[i])
-
-    # optimization level
-    ppdStr = ""
-    if kernel.ppdOffsets and not kernel.ppdLeadingStrides:
-      ppdStr = "O1"
-    elif not kernel.ppdOffsets and kernel.ppdLeadingStrides:
-      ppdStr = "O2"
-    elif kernel.ppdOffsets and kernel.ppdLeadingStrides and not kernel.ppdAll:
-      ppdStr = "O3"
-    elif kernel.ppdAll:
-      ppdStr = "O4"
-    else:
-      ppdStr = "O0"
-    kernelName += "_" + ppdStr
-
-    #print kernelName
-    return kernelName
-
-
-  ##############################################################################
-  # get kernel name - DONE
-  ##############################################################################
-  def getName(self, kernel):
-    return self.getNameOperation(kernel) + "_" + self.getNameTile(kernel)
-
 
   ##############################################################################
   # get kernel signature - DONE
   ##############################################################################
   def getSignature(self, kernel ):
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
 
     # determine chars for fast access
     indexChars = copy.deepcopy(self.indexChars)
-    indexChars[kernel.indexAssignmentDim0] \
-        = "0" + indexChars[kernel.indexAssignmentDim0]
-    indexChars[kernel.indexAssignmentDim1] \
-        = "1" + indexChars[kernel.indexAssignmentDim1]
-    unrollChar = indexChars[kernel.indexOrderSummation[ \
-        len(kernel.indexOrderSummation)-1] + len(kernel.indexOrderC)]
-    tileChar0 = indexChars[kernel.indexAssignmentDim0]
-    tileChar1 = indexChars[kernel.indexAssignmentDim1]
-    tileCharA = tileChar0 if (kernel.tensorAssignedDim0==0) else tileChar1
-    tileCharB = tileChar0 if (kernel.tensorAssignedDim0==1) else tileChar1
-    tensorChar0 = "A" if (kernel.tensorAssignedDim0==0) else "B"
-    tensorChar1 = "A" if (kernel.tensorAssignedDim1==0) else "B"
+    indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + indexChars[kernel["ProblemType"]["Index0"]]
+    indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + indexChars[kernel["ProblemType"]["Index1"]]
+    unrollChar = indexChars[kernel["ProblemType"]["IndicesSummation"][ \
+        kernel["ProblemType"]["NumIndicesSummation"]-1] + kernel["ProblemType"]["NumIndicesC"]]
+    tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
+    tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
+    tileCharA = tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) else tileChar1
+    tileCharB = tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) else tileChar1
+    tensorChar0 = "A" if (kernel["ProblemType"]["Tensor0"]==0) else "B"
+    tensorChar1 = "A" if (kernel["ProblemType"]["Tensor1"]==0) else "B"
 
     s = ""
     # kernel name
@@ -251,15 +112,15 @@ class KernelWriter:
     else:
       s += "extern \"C\"\n"
       s += "__global__ "
-    s += "void %s" % ( self.getName(kernel) )
+    s += "void %s" % ( kernelName )
     s += "(" + self.endLine
     # pointers
     globalStr = "__global "
-    if self.backend.isHIP():
+    if self.backend == "HIP":
       s += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
     restrictStr = "restrict"
-    if self.backend.isHIP():
+    if self.backend == "HIP":
       restrictStr = "__restrict__"
     s += "  " + globalStr + kernel.dataTypeC.toDevice(self.backend) \
         + "       *          C,"
@@ -271,10 +132,9 @@ class KernelWriter:
         + " const * " + restrictStr + " B"
 
     # alpha & beta
-    if kernel.useAlpha():
-      s += "," + self.endLine + "  " \
-          + kernel.dataTypeC.toDevice(self.backend) + " const alpha"
-    if kernel.useBeta():
+    s += "," + self.endLine + "  " \
+        + kernel.dataTypeC.toDevice(self.backend) + " const alpha"
+    if kernel["ProblemType"]["UseBeta"]:
       s += "," + self.endLine + "  " \
           + kernel.dataTypeC.toDevice(self.backend) + " const beta"
 
@@ -289,7 +149,7 @@ class KernelWriter:
     firstStride = 0
     if kernel.ppdLeadingStrides:
       firstStride = 1
-    lastStrideC = len(kernel.indexOrderC)
+    lastStrideC = kernel["ProblemType"]["NumIndicesC"]
     lastStrideA = len(kernel.problem.operation.indexAssignmentsA)
     lastStrideB = len(kernel.problem.operation.indexAssignmentsB)
     if kernel.ppdAll:
@@ -307,7 +167,7 @@ class KernelWriter:
 
     # sizes
     if not kernel.ppdAll:
-      for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
+      for i in range(0, kernel["ProblemType"]["NumIndicesC"]+kernel["ProblemType"]["NumIndicesSummation"]):
         s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
 
     s += " )"
@@ -319,29 +179,30 @@ class KernelWriter:
   # make kernel body
   ##############################################################################
   def getBody( self, kernel ):
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
 
     # determine chars for fast access
     indexChars = copy.deepcopy(self.indexChars)
-    indexChars[kernel.indexAssignmentDim0] \
-        = "0" + indexChars[kernel.indexAssignmentDim0]
-    indexChars[kernel.indexAssignmentDim1] \
-        = "1" + indexChars[kernel.indexAssignmentDim1]
+    indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + indexChars[kernel["ProblemType"]["Index0"]]
+    indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + indexChars[kernel["ProblemType"]["Index1"]]
 
     # determine indices
-    unrollChar = indexChars[kernel.indexOrderSummation[ \
-        len(kernel.indexOrderSummation)-1] + len(kernel.indexOrderC)]
-    tileChar0 = indexChars[kernel.indexAssignmentDim0]
-    tileChar1 = indexChars[kernel.indexAssignmentDim1]
-    tileCharA = tileChar0 if (kernel.tensorAssignedDim0==0) else tileChar1
-    tileCharB = tileChar0 if (kernel.tensorAssignedDim0==1) else tileChar1
-    tensorChar0 = "A" if (kernel.tensorAssignedDim0==0) else "B"
-    tensorChar1 = "A" if (kernel.tensorAssignedDim1==0) else "B"
+    unrollChar = indexChars[kernel["ProblemType"]["IndicesSummation"][ \
+        kernel["ProblemType"]["NumIndicesSummation"]-1] + kernel["ProblemType"]["NumIndicesC"]]
+    tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
+    tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
+    tileCharA = tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) else tileChar1
+    tileCharB = tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) else tileChar1
+    tensorChar0 = "A" if (kernel["ProblemType"]["Tensor0"]==0) else "B"
+    tensorChar1 = "A" if (kernel["ProblemType"]["Tensor1"]==0) else "B"
 
     ####################################
     # initializations
     kStr = ""
     kStr += self.endLine
-    kStr += "/* %s */" % self.getName(kernel)
+    kStr += "/* %s */" % kernelName
     kStr += self.endLine
 
     ####################################
@@ -349,28 +210,28 @@ class KernelWriter:
     kStr += self.endLine
     kStr += "/* tile parameters */" + self.endLine
     kStr += "#define WG_%s  %2d%s" \
-        % (tileChar0, kernel.tile.workGroup[0], self.endLine )
+        % (tileChar0, kernel["WorkGroup0"], self.endLine )
     kStr += "#define WG_%s  %2d%s" \
-        % (tileChar1, kernel.tile.workGroup[1], self.endLine )
+        % (tileChar1, kernel["WorkGroup1"], self.endLine )
     kStr += "#define UT_" + tileChar0 + "  %2d%s" \
-        % (kernel.tile.microTile[0], self.endLine )
+        % (kernel["ThreadTile0"], self.endLine )
     kStr += "#define UT_" + tileChar1 + "  %2d%s" \
-        % (kernel.tile.microTile[1], self.endLine )
+        % (kernel["ThreadTile1"], self.endLine )
     kStr += "#define MT_" + tileChar0 + "  %2d%s" \
-        % ((kernel.tile.workGroup[0] * kernel.tile.microTile[0]), self.endLine )
+        % ((kernel["WorkGroup0"] * kernel["ThreadTile0"]), self.endLine )
     kStr += "#define MT_" + tileChar1 + "  %2d%s" \
-        % ((kernel.tile.workGroup[1] * kernel.tile.microTile[1]), self.endLine )
+        % ((kernel["WorkGroup1"] * kernel["ThreadTile1"]), self.endLine )
     kStr += "#define UNROLL %2d%s" \
-        % (kernel.unrolls[0], self.endLine )
+        % (kernel["LoopUnroll"], self.endLine )
     kStr += "#define PAD     1" + self.endLine
     kStr += self.endLine
 
     ####################################
     # load grid
-    # totalLoadsA  = (kernel.tile.workGroup[0]*kernel.tile.microTile[0]*kernel.unrolls[0]) \
-    #     / (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
-    # totalLoadsB  = (kernel.tile.workGroup[1]*kernel.tile.microTile[1]*kernel.unrolls[0]) \
-    #     / (kernel.tile.workGroup[0]*kernel.tile.workGroup[1])
+    # totalLoadsA  = (kernel["WorkGroup0"]*kernel["ThreadTile0"]*kernel["LoopUnroll"]) \
+    #     / (kernel["WorkGroup0"]*kernel["WorkGroup1"])
+    # totalLoadsB  = (kernel["WorkGroup1"]*kernel["ThreadTile1"]*kernel["LoopUnroll"]) \
+    #     / (kernel["WorkGroup0"]*kernel["WorkGroup1"])
     # numLoadsParaA = kernel.numLoadsA
     # numLoadsParaB = kernel.numLoadsB
     # numLoadsPerpA = totalLoadsA / numLoadsParaA
@@ -385,8 +246,8 @@ class KernelWriter:
 
     # num loads
     kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
-    kStr += "//#define NL_PARA_A %d%s" % (kernel.numLoadsParaA, self.endLine )
-    kStr += "//#define NL_PARA_B %d%s" % (kernel.numLoadsParaB, self.endLine )
+    kStr += "//#define NL_PARA_A %d%s" % (kernel["NumLoadsParaA"], self.endLine )
+    kStr += "//#define NL_PARA_B %d%s" % (kernel["NumLoadsParaB"], self.endLine )
     kStr += "//#define NL_PERP_A %d%s" % (kernel.numLoadsPerpA, self.endLine )
     kStr += "//#define NL_PERP_B %d%s" % (kernel.numLoadsPerpB, self.endLine )
     kStr += self.endLine
@@ -426,11 +287,11 @@ class KernelWriter:
     # C
     kStr += "#define GLOBAL_C(IDX" \
         + indexChars[0]
-    for i in range(1, len(kernel.indexOrderC)):
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       kStr += ", IDX" + indexChars[i]
     indexChar = indexChars[0]
     kStr += ") ( (IDX" + indexChar + ")*strideC" + indexChar
-    for i in range(1, len(kernel.indexOrderC)):
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       indexChar = indexChars[i]
       kStr += " + (IDX" + indexChar + ")*strideC" + indexChar
     kStr += " )" + self.endLine
@@ -479,7 +340,7 @@ class KernelWriter:
       kStr += "#define MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
 
-    if self.backend.isHIP() and kernel.dataTypeC.isComplex():
+    if self.backend == "HIP" and kernel.dataTypeC.isComplex():
       kStr += "#define s0 x" + self.endLine
       kStr += "#define s1 y" + self.endLine
     kStr += self.endLine
@@ -491,24 +352,14 @@ class KernelWriter:
       # real data
       kStr += "#define TYPE_MAD(MULA,MULB,DST) " \
           + "DST = MAD(MULA,MULB,DST);" + self.endLine
-      if kernel.useAlpha():
-        if kernel.useBeta():
-          # dst = alpha*reg + beta*dst
-          kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) " \
-              + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
-        else:
-          # dst = alpha*reg
-          kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG) " \
-              + "DST = (ALPHA)*(REG);" + self.endLine
+      if kernel["ProblemType"]["UseBeta"]:
+        # dst = alpha*reg + beta*dst
+        kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG,BETA) " \
+            + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
       else:
-        if kernel.useBeta():
-          # dst = reg + beta*dst
-          kStr += "#define TYPE_MAD_WRITE(DST,REG,BETA) " \
-              + "DST = (REG) + (BETA)*(DST);" + self.endLine
-        else:
-          # dst = reg
-          kStr += "#define TYPE_MAD_WRITE(DST,REG) " \
-              + "DST = (REG);" + self.endLine
+        # dst = alpha*reg
+        kStr += "#define TYPE_MAD_WRITE(DST,ALPHA,REG) " \
+            + "DST = (ALPHA)*(REG);" + self.endLine
     else:
       # complex data
       if not kernel.dataTypeA.isConjugate() and not kernel.dataTypeB.isConjugate():
@@ -543,71 +394,52 @@ class KernelWriter:
           "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = MAD( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel.useAlpha():
-        if kernel.useBeta():
-          # dst = alpha*reg + beta*dst
-          kStr += (
-            "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
-            "  /* (1) */ " + self.endLinePP +
-            "  type_fma_tmp = REG.s0; " + self.endLinePP +
-            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s1 = MAD(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
-            "  /* (2) */ " + self.endLinePP +
-            "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-            "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-            "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
-            "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
-            "  /* (3) */ " + self.endLinePP +
-            "  DST = REG;" + self.endLine )
-        else:
-          # dst = alpha*reg
-          kStr += (
-            "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
-            "  /* (1) */ " + self.endLinePP +
-            "  type_fma_tmp = REG.s0; " + self.endLinePP +
-            "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-            "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-            "  REG.s1 = MAD(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
-            "  /* (3) */ " + self.endLinePP +
-            "  DST = REG;" + self.endLine )
+      if kernel["ProblemType"]["UseBeta"]:
+        # dst = alpha*reg + beta*dst
+        kStr += (
+          "#define TYPE_MAD_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
+          "  /* (1) */ " + self.endLinePP +
+          "  type_fma_tmp = REG.s0; " + self.endLinePP +
+          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+          "  REG.s1 = MAD(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
+          "  /* (2) */ " + self.endLinePP +
+          "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+          "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+          "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+          "  /* (3) */ " + self.endLinePP +
+          "  DST = REG;" + self.endLine )
       else:
-        if kernel.useBeta():
-          # dst = reg + beta*dst
-          kStr += (
-            "#define TYPE_MAD_WRITE( DST, REG, BETA ) " + self.endLinePP +
-            "  /* (2) */ " + self.endLinePP +
-            "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-            "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-            "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
-            "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
-            "  /* (3) */ " + self.endLinePP +
-            "  DST = REG;" + self.endLine )
-        else:
-          # dst = reg
-          kStr += (
-            "#define TYPE_MAD_WRITE( DST, REG ) " + self.endLinePP +
-            "  /* (3) */ " + self.endLinePP +
-            "  DST = REG;" + self.endLine )
+        # dst = alpha*reg
+        kStr += (
+          "#define TYPE_MAD_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
+          "  /* (1) */ " + self.endLinePP +
+          "  type_fma_tmp = REG.s0; " + self.endLinePP +
+          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
+          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
+          "  REG.s1 = MAD(  ALPHA.s1, type_fma_tmp, REG.s1 ); "+self.endLinePP+
+          "  /* (3) */ " + self.endLinePP +
+          "  DST = REG;" + self.endLine )
 
     ####################################
     # micro-tile
     kStr += self.endLine
-    kStr += "/* %dx%d micro-tile */%s" % (kernel.tile.microTile[0], kernel.tile.microTile[1], self.endLine)
+    kStr += "/* %dx%d micro-tile */%s" % (kernel["ThreadTile0"], kernel["ThreadTile1"], self.endLine)
 
     kStr += "#define MICRO_TILE " + self.endLinePP
-    for a in range(0, kernel.tile.microTile[0]):
+    for a in range(0, kernel["ThreadTile0"]):
       kStr += "  rA[%d] = localA[offA + %d*WG_%s]; %s" \
           % (a, a, tileChar0, self.endLinePP)
-    for b in range(0, kernel.tile.microTile[1]):
+    for b in range(0, kernel["ThreadTile1"]):
       kStr += "  rB[%d] = localB[offB + %d*WG_%s]; %s" \
           % (b, b, tileChar1, self.endLinePP)
     kStr += "  offA += (MT_" + tileChar0 + "+PAD); " + self.endLinePP
     kStr += "  offB += (MT_" + tileChar1 + "+PAD); " + self.endLinePP
-    for a in range(0, kernel.tile.microTile[0]):
-      for b in range(0, kernel.tile.microTile[1]):
+    for a in range(0, kernel["ThreadTile0"]):
+      for b in range(0, kernel["ThreadTile1"]):
         kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); %s" % (a, b, a, b, self.endLinePP)
     kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
@@ -616,7 +448,7 @@ class KernelWriter:
     # preprocessor definitions of kernel arguments
     kStr += "/* preprocessor definitions of kernel arguments*/" + self.endLine
     firstStride = 0
-    lastStrideC = len(kernel.indexOrderC)
+    lastStrideC = kernel["ProblemType"]["NumIndicesC"]
     lastStrideA = len(kernel.problem.operation.indexAssignmentsA)
     lastStrideB = len(kernel.problem.operation.indexAssignmentsB)
     if kernel.ppdAll:
@@ -642,7 +474,7 @@ class KernelWriter:
 
     # sizes
     if kernel.ppdAll:
-      for i in range(0, len(kernel.indexOrderC)+len(kernel.indexOrderSummation)):
+      for i in range(0, kernel["ProblemType"]["NumIndicesC"]+kernel["ProblemType"]["NumIndicesSummation"]):
         kStr += "#define size" + indexChars[i] + " "
         # which index of tensorA or B is assigned to that index; use its size
         size = -1
@@ -663,12 +495,12 @@ class KernelWriter:
     # function signature
     ####################################
     kStr += "/* kernel */" + self.endLine
-    if self.backend.isHIP():
+    if self.backend == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wunused-parameter\"" + self.endLine
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
-    if self.backend.isHIP():
+    if self.backend == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
 
 
@@ -725,7 +557,7 @@ class KernelWriter:
     # c indices
     ####################################
     # kernel.indexOrderC - performance defined
-    # kernel.indexOrderSummation - performance defined
+    # kernel["ProblemType"]["IndicesSummation"] - performance defined
     # kernel.indexAssignmentsA - user defined
     # kernel.indexAssignmentsB - user defined
     # convert self.getGroupIdStr(0) to however many c indices there are
@@ -752,8 +584,8 @@ class KernelWriter:
 
     # other free indices
     nonTileFreeIndices = copy.deepcopy(kernel.indexOrderC)
-    nonTileFreeIndices.remove(kernel.indexAssignmentDim0)
-    nonTileFreeIndices.remove(kernel.indexAssignmentDim1)
+    nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
+    nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
     for i in range(0, len(nonTileFreeIndices)):
       index = nonTileFreeIndices[i]
       kStr += "  unsigned int g" + indexChars[index] \
@@ -805,8 +637,8 @@ class KernelWriter:
 
     # other non-unrolled summation indices
     kStr += "  /* other non-unrolled summation indices (all start at zero) */" + self.endLine
-    for i in range(0,len(kernel.indexOrderSummation)-1):
-      index = i + len(kernel.indexOrderC)
+    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
+      index = i + kernel["ProblemType"]["NumIndicesC"]
       kStr += "#define a" + indexChars[index] + " 0" + self.endLine
       kStr += "#define b" + indexChars[index] + " 0" + self.endLine
     kStr += self.endLine
@@ -820,7 +652,7 @@ class KernelWriter:
     kStr += "  A += GLOBAL_A( (" + self.uint64Str + ")"
     for i in range(0, len(kernel.problem.operation.indexAssignmentsA)):
       index = kernel.problem.operation.indexAssignmentsA[i]
-      if index < len(kernel.indexOrderC): # c index
+      if index < kernel["ProblemType"]["NumIndicesC"]: # c index
         if index == kernel.indexAssignmentTileA[1]: # this index is A's tile index
           kStr += "a%s+g%s*MT_%s" % (tileCharA, tileCharA, tileCharA)
         else: # just a group index
@@ -834,7 +666,7 @@ class KernelWriter:
     kStr += "  B += GLOBAL_B( (" + self.uint64Str + ")"
     for i in range(0, len(kernel.problem.operation.indexAssignmentsB)):
       index = kernel.problem.operation.indexAssignmentsB[i]
-      if index < len(kernel.indexOrderC): # c index
+      if index < kernel["ProblemType"]["NumIndicesC"]: # c index
         if index == kernel.indexAssignmentTileB[1]: # this index is B's tile index
           kStr += "b%s+g%s*MT_%s" % (tileCharB, tileCharB, tileCharB)
         else: # just a group index
@@ -888,7 +720,7 @@ class KernelWriter:
     if not kernel.tile.branch[0].isNone():
       kStr += "  /* conditionals to guard against loading A out-of-bounds */" + self.endLine
       for perp in range(0, kernel.numLoadsPerpA):
-        for para in range(0, kernel.numLoadsParaA):
+        for para in range(0, kernel["NumLoadsParaA"]):
           kStr += "  bool condA_" + str(para) + "_" + str(perp) + " = "
           kStr += "( a%s+g%s*MT_%s+" % ( tileCharA, tileCharA, tileCharA)
           if not kernel.unrollDimStrideGreaterThanTileDimStrideA:
@@ -901,7 +733,7 @@ class KernelWriter:
     if not kernel.tile.branch[1].isNone():
       kStr += "  /* conditionals to guard against loading B out-of-bounds */" + self.endLine
       for perp in range(0, kernel.numLoadsPerpB):
-        for para in range(0, kernel.numLoadsParaB):
+        for para in range(0, kernel["NumLoadsParaB"]):
           kStr += "  bool condB_" + str(para) + "_" + str(perp) + " = "
           kStr += "( b%s+g%s*MT_%s+" % ( tileCharB, tileCharB, tileCharB)
           if kernel.unrollDimStrideLessThanTileDimStrideB:
@@ -914,17 +746,17 @@ class KernelWriter:
     kStr += "  /* registers used for global -> local loads */" + self.endLine
     kStr += "  TYPE_A "
     for perp in range(0, kernel.numLoadsPerpA):
-      for para in range(0, kernel.numLoadsParaA):
+      for para in range(0, kernel["NumLoadsParaA"]):
         kStr += "a_" + str(para) + "_" + str(perp)
-        if para == kernel.numLoadsParaA-1 and perp == kernel.numLoadsPerpA-1:
+        if para == kernel["NumLoadsParaA"]-1 and perp == kernel.numLoadsPerpA-1:
           kStr += ";" + self.endLine
         else:
           kStr += ", "
     kStr += "  TYPE_B "
     for perp in range(0, kernel.numLoadsPerpB):
-      for para in range(0, kernel.numLoadsParaB):
+      for para in range(0, kernel["NumLoadsParaB"]):
         kStr += "b_" + str(para) + "_" + str(perp)
-        if para == kernel.numLoadsParaB-1 and perp == kernel.numLoadsPerpB-1:
+        if para == kernel["NumLoadsParaB"]-1 and perp == kernel.numLoadsPerpB-1:
           kStr += ";" + self.endLine
         else:
           kStr += ", "
@@ -942,13 +774,13 @@ class KernelWriter:
 
     # multidim if (kernel.order=="clblasColumnMajor")==(kernel.transA=="N"):
     #tensorAssignedToTileDim = []
-    #if kernel.tensorAssignedDim0:
+    #if kernel["ProblemType"]["Tensor0"]:
     #  tensorAssignedToTileDim.append(kernel.problem.operation.
     #unrollStrideGreaterThanTileA
-    #kernel.unrollDimStrideGreaterThanTileDimStrideA = kernel.indexAssignmentDim0 \
-     #   > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
-    #kernel.unrollDimStrideLessThanTileDimStrideB = kernel.indexAssignmentDim1 \
-    #    > kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1]
+    #kernel.unrollDimStrideGreaterThanTileDimStrideA = kernel["ProblemType"]["Index0"] \
+     #   > kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1]
+    #kernel.unrollDimStrideLessThanTileDimStrideB = kernel["ProblemType"]["Index1"] \
+    #    > kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1]
 
 
     # kStr += "  bool validC ="
@@ -975,12 +807,12 @@ class KernelWriter:
     ####################################
     indent = "  "
     kStr += indent + "/* iterate over summation indice(s) */" + self.endLine
-    for i in range(0,len(kernel.indexOrderSummation)):
-      indexChar = indexChars[kernel.indexOrderSummation[i] \
-          + len(kernel.indexOrderC)]
+    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      indexChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i] \
+          + kernel["ProblemType"]["NumIndicesC"]]
       kStr += indent + "unsigned int sumIter" + indexChar \
           + " = size" + indexChar
-      if i == len(kernel.indexOrderSummation)-1:
+      if i == kernel["ProblemType"]["NumIndicesSummation"]-1:
         kStr += " / UNROLL"
       kStr += ";" + self.endLine
       kStr += indent + "do {" + self.endLine
@@ -1010,9 +842,9 @@ class KernelWriter:
           % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
       indent += "  "
     for perp in range(0, kernel.numLoadsPerpA):
-      for para in range(0, kernel.numLoadsParaA):
+      for para in range(0, kernel["NumLoadsParaA"]):
         kStr += indent
-        condPara = (para==kernel.numLoadsParaA-1 and kernel.lastLoadRequiresGuardParaA())
+        condPara = (para==kernel["NumLoadsParaA"]-1 and kernel.lastLoadRequiresGuardParaA())
         condPerp = (perp==kernel.numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
         if condPara or condPerp:
           kStr += "if ( "
@@ -1049,9 +881,9 @@ class KernelWriter:
           % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
       indent += "  "
     for perp in range(0, kernel.numLoadsPerpB):
-      for para in range(0, kernel.numLoadsParaB):
+      for para in range(0, kernel["NumLoadsParaB"]):
         kStr += indent
-        condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
+        condPara = (para==kernel["NumLoadsParaB"]-1 and kernel.lastLoadRequiresGuardParaB())
         condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
         if condPara or condPerp:
           kStr += "if ( "
@@ -1083,7 +915,7 @@ class KernelWriter:
     ########################################
     # store registers in lds
     ########################################
-    if self.backend.isHIP():
+    if self.backend == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     # if num threads
@@ -1092,10 +924,10 @@ class KernelWriter:
           % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
       indent += "  "
     for perp in range(0, kernel.numLoadsPerpA):
-      for para in range(0, kernel.numLoadsParaA):
+      for para in range(0, kernel["NumLoadsParaA"]):
         kStr += indent
         # if thread should be storing
-        condPara = (para==kernel.numLoadsParaA-1 and kernel.lastLoadRequiresGuardParaA())
+        condPara = (para==kernel["NumLoadsParaA"]-1 and kernel.lastLoadRequiresGuardParaA())
         condPerp = (perp==kernel.numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
         if condPara or condPerp:
           kStr += "if ( "
@@ -1129,10 +961,10 @@ class KernelWriter:
           % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
       indent += "  "
     for perp in range(0, kernel.numLoadsPerpB):
-      for para in range(0, kernel.numLoadsParaB):
+      for para in range(0, kernel["NumLoadsParaB"]):
         kStr += indent
         # if thread should store
-        condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
+        condPara = (para==kernel["NumLoadsParaB"]-1 and kernel.lastLoadRequiresGuardParaB())
         condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
         if condPara or condPerp:
           kStr += "if ( "
@@ -1160,7 +992,7 @@ class KernelWriter:
       kStr += indent + "}" + self.endLine
     kStr += self.endLine
     # end store in lds
-    if self.backend.isHIP():
+    if self.backend == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
 
     # 2nd barrier
@@ -1188,7 +1020,7 @@ class KernelWriter:
     # do fmas
     kStr += self.endLine
     kStr += indent + "/* do fmas */" + self.endLine
-    for u in range(0, kernel.unrolls[0]):
+    for u in range(0, kernel["LoopUnroll"]):
       kStr += indent + "MICRO_TILE" + self.endLine
     kStr += self.endLine
 
@@ -1205,8 +1037,8 @@ class KernelWriter:
 
     # if another loop, close current unrolled loops
     if len(kernel.unrolls) > 1:
-      loopChar = indexChars[kernel.indexOrderSummation[len(kernel.indexOrderSummation)-1] \
-          + len(kernel.indexOrderC)]
+      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1] \
+          + kernel["ProblemType"]["NumIndicesC"]]
       # advance A, B along summation dimension
       kStr += indent + "A += (" + self.uint64Str + ")strideA" + loopChar + "*UNROLL;" + self.endLine
       kStr += indent + "B += (" + self.uint64Str + ")strideB" + loopChar + "*UNROLL;" + self.endLine
@@ -1233,9 +1065,9 @@ class KernelWriter:
             % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
         indent += "  "
       for perp in range(0, kernel.numLoadsPerpA):
-        for para in range(0, kernel.numLoadsParaA):
+        for para in range(0, kernel["NumLoadsParaA"]):
           kStr += indent
-          condPara = (para==kernel.numLoadsParaA-1 and kernel.lastLoadRequiresGuardParaA())
+          condPara = (para==kernel["NumLoadsParaA"]-1 and kernel.lastLoadRequiresGuardParaA())
           condPerp = (perp==kernel.numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
           if condPara or condPerp:
             kStr += "if ( "
@@ -1289,9 +1121,9 @@ class KernelWriter:
             % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
         indent += "  "
       for perp in range(0, kernel.numLoadsPerpB):
-        for para in range(0, kernel.numLoadsParaB):
+        for para in range(0, kernel["NumLoadsParaB"]):
           kStr += indent
-          condPara = (para==kernel.numLoadsParaB-1 and kernel.lastLoadRequiresGuardParaB())
+          condPara = (para==kernel["NumLoadsParaB"]-1 and kernel.lastLoadRequiresGuardParaB())
           condPerp = (perp==kernel.numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
           if condPara or condPerp:
             kStr += "if ( "
@@ -1367,27 +1199,27 @@ class KernelWriter:
 
     ####################################
     # end loop
-    for i in reversed(range(0,len(kernel.indexOrderSummation))):
-      loopChar = indexChars[kernel.indexOrderSummation[i] \
-          + len(kernel.indexOrderC)]
+    for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
+      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i] \
+          + kernel["ProblemType"]["NumIndicesC"]]
       # advance A, B along summation dimension
       kStr += indent + "A += (" + self.int64Str + ") strideA" + loopChar
-      if i==len(kernel.indexOrderSummation)-1:
+      if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
         kStr += "*UNROLL"
       else:
-        for j in range(i+1,min(i+2, len(kernel.indexOrderSummation)) ):
-          tmpChar = indexChars[kernel.indexOrderSummation[j] \
-              + len(kernel.indexOrderC)]
+        for j in range(i+1,min(i+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
+          tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j] \
+              + kernel["ProblemType"]["NumIndicesC"]]
           kStr += " - strideA" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
 
       kStr += indent + "B += (" + self.int64Str + ") strideB" + loopChar
-      if i==len(kernel.indexOrderSummation)-1:
+      if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
         kStr += "*UNROLL"
       else:
-        for j in range(i+1,min(i+2,len(kernel.indexOrderSummation)) ):
-          tmpChar = indexChars[kernel.indexOrderSummation[j] \
-              + len(kernel.indexOrderC)]
+        for j in range(i+1,min(i+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
+          tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j] \
+              + kernel["ProblemType"]["NumIndicesC"]]
           kStr += " - strideB" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
       indent = indent[2:]
@@ -1399,13 +1231,13 @@ class KernelWriter:
     ####################################
     # which global Cij index
     kStr += "  /* which global Cij index */" + self.endLine
-    for i in range(0, len(kernel.indexOrderC)):
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       index = kernel.indexOrderC[i]
       kStr += "  unsigned int globalC" + indexChars[index] \
           + " = g" + indexChars[index]
-      if index == kernel.indexAssignmentDim0:
+      if index == kernel["ProblemType"]["Index0"]:
         kStr += "*MT_" + tileChar0 + " + l" + tileChar0
-      if index == kernel.indexAssignmentDim1:
+      if index == kernel["ProblemType"]["Index1"]:
         kStr += "*MT_" + tileChar1 + " + l" + tileChar1
       kStr += ";" + self.endLine
     kStr += self.endLine
@@ -1437,15 +1269,15 @@ class KernelWriter:
     # kStr += self.endLine
 
     kStr += "  /* write global C */" + self.endLine
-    if kernel.dataTypeC.value == Structs.DataType.complexSingle or kernel.dataTypeC.value == Structs.DataType.complexConjugateSingle:
+    if kernel.dataTypeC.value == DataType.complexSingle or kernel.dataTypeC.value == DataType.complexConjugateSingle:
       kStr += "  float type_fma_tmp;" + self.endLine
-    if kernel.dataTypeC.value == Structs.DataType.complexDouble or kernel.dataTypeC.value == Structs.DataType.complexConjugateDouble:
+    if kernel.dataTypeC.value == DataType.complexDouble or kernel.dataTypeC.value == DataType.complexConjugateDouble:
       kStr += "  double type_fma_tmp;" + self.endLine
 
-    for a in range(0, kernel.tile.microTile[0]):
-      for b in range(0, kernel.tile.microTile[1]):
+    for a in range(0, kernel["ThreadTile0"]):
+      for b in range(0, kernel["ThreadTile1"]):
         numEdges = 0
-        #for i in range(0, len(kernel.indexOrderC)):
+        #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         if not kernel.tile.branch[0].isNone():
           kStr += "  if (globalC" \
               + tileChar0 + " + " \
@@ -1460,19 +1292,18 @@ class KernelWriter:
           numEdges += 1
 
         kStr += "  TYPE_MAD_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
-        for i in range(0, len(kernel.indexOrderC)):
+        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           kStr += " globalC" + indexChars[i]
-          if i == kernel.indexAssignmentDim0:
+          if i == kernel["ProblemType"]["Index0"]:
             kStr += " + " + str(a) + "*WG_" + tileChar0
-          if i == kernel.indexAssignmentDim1:
+          if i == kernel["ProblemType"]["Index1"]:
             kStr += " + " + str(b) + "*WG_" + tileChar1
-          if i < len(kernel.indexOrderC)-1:
+          if i < kernel["ProblemType"]["NumIndicesC"]-1:
             kStr += ", (" + self.uint64Str + ")"
         kStr += ") ]"
-        if kernel.useAlpha():
-          kStr += ", alpha"
+        kStr += ", alpha"
         kStr += ", rC[%d][%d]" % (a, b)
-        if kernel.useBeta():
+        if kernel["ProblemType"]["UseBeta"]:
           kStr += ", beta"
         kStr += ")"
         # debug printf
@@ -1495,6 +1326,53 @@ class KernelWriter:
     kStr += "}" + self.endLine
 
     return kStr
+
+  ##############################################################################
+  # source file string
+  ##############################################################################
+  def getSourceFileString(self, kernel):
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    fileString = ""
+    fileString += "\n"
+    fileString += "#include \"" + kernelName + ".h\"\n"
+    fileString += "\n"
+
+    # backend pre
+    fileString += "\n"
+    if self.backend == "OCL":
+      fileString += "const char * const %s_src =\"" % (kernelName)
+
+    # write kernel body
+    fileString += self.getBody( kernel )
+
+    # backend post
+    if self.backend == "OCL":
+      fileString += "\";\n"
+
+    fileString += "\n"
+    return fileString
+
+
+  ##############################################################################
+  # header file string
+  ##############################################################################
+  def getHeaderFileString(self, kernel):
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    fileString = ""
+    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
+    fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
+    fileString += "\n"
+    if self.backend == "HIP":
+      fileString += "#include <hip/hip_runtime.h>\n"
+      fileString += "\n"
+    if self.backend == "OCL":
+      fileString += "extern const char * const %s_src;\n" % kernelName
+    else:
+      fileString += self.getSignature(kernel)
+      fileString += ";\n"
+
+    fileString += "#endif\n\n"
+
 
 
 
