@@ -129,6 +129,8 @@ defaultProblemType = {
     "HighPrecisionAccumulate":  False,
     "TransposeA":               False,
     "TransposeB":               True,
+    "ConjugateA":               False,
+    "ConjugateB":               False,
     "Batched":                  False,
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],

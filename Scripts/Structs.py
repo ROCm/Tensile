@@ -76,7 +76,7 @@ class DataType:
   def toHIP(self):
     return self.properties[self.value][self.idxOpenCL]
   def toDevice(self, backend):
-    if backend.isOpenCL():
+    if backend == "OCL":
       return self.toOpenCL()
     else:
       return self.toHIP()
