@@ -28,7 +28,7 @@ class BenchmarkProcess:
       printWarning("No InitialSolutionParameters; using defaults.")
     else:
       solutionConfig.update(config["InitialSolutionParameters"])
-    self.initialSolutionParameters = Solution(solutionConfig)
+    self.initialSolutionParameters = Solution(solutionConfig, [])
     printExtra("InitialSolutionParameters: %s" % str(self.initialSolutionParameters))
 
     # fill in missing steps using defaults

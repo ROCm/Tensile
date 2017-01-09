@@ -66,7 +66,7 @@ class SolutionWriter:
 
     # solution properties (common to all kernels)
     s += "  /* solution properties */\n"
-    print solution.state
+    #print solution.state
     s += "  // size_t indexAssignmentDim[3] = { " \
         + str(solution["ProblemType"]["Index0"]) + ", " \
         + str(solution["ProblemType"]["Index1"]) + ", " \

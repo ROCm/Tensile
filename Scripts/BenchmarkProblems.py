@@ -63,7 +63,7 @@ def benchmarkProblemType( config ):
       for prevParamName in prevParamDict:
         if prevParamName in determinedParameters:
           paramValue = determinedParameters[prevParamName]
-          currentSolution[prevParamName] = paramValue
+          currentSolution[prevParamName] = deepcopy(paramValue)
         else:
           printWarning("Parameter %s should have been determined, but wasn't" % prevParamName)
     # multiplicity of benchmark params
@@ -74,18 +74,26 @@ def benchmarkProblemType( config ):
         (totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters), \
         len(benchmarkStep.hardcodedParameters), totalBenchmarkPermutations)
     for i in range(0, totalBenchmarkPermutations):
+      #print "0-solutionList=%s" % str(solutions)
       pIdx = i
       for benchmarkParamName in benchmarkStep.benchmarkParameters:
-        benchmarkParamValues = benchmarkStep.benchmarkParameters[benchmarkParamName]
+        #print "1-solutionList=%s" % str(solutions)
+        benchmarkParamValues = deepcopy(benchmarkStep.benchmarkParameters[benchmarkParamName])
         valueIdx = pIdx % len(benchmarkParamValues)
-        currentSolution[benchmarkParamName] = benchmarkParamValues[valueIdx]
+        currentSolution[benchmarkParamName] = deepcopy(benchmarkParamValues[valueIdx])
         pIdx /= len(benchmarkParamValues)
+      #print "CurrentSolution (before hardcoding)"
+      #print currentSolution
 
       # multiplicity of hardcoded params
       for hardcodedParamDict in benchmarkStep.hardcodedParameters:
-        fullSolution = deepcopy(currentSolution)
-        # TODO dict is showing up as list of dicts sometimes
-        currentSolution.update(hardcodedParamDict)
+        #print "2-solutionList=%s" % str(solutions)
+        fullSolution = {}
+        fullSolution.update(currentSolution)
+        #print "fullSolution %s" % str(fullSolution)
+        #print "3-solutionList=%s" % str(solutions)
+        fullSolution.update(hardcodedParamDict)
+        #print "fullSolution %s" % str(fullSolution)
 
         # append default parameters where necessary
         #print benchmarkStep.initialSolutionParameters
@@ -93,10 +101,13 @@ def benchmarkProblemType( config ):
           if initialSolutionParameterName not in fullSolution:
             fullSolution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
-        solutionObject = Solution(fullSolution)
-        print solutionObject.state
+        #print "4-solutionList=%s" % str(solutions)
+        solutionObject = Solution(fullSolution, solutions)
+        #print "5-solutionList=%s" % str(solutions)
+        #print solutionObject.state
         printStatus("appending solution %s" % str(solutionObject))
         solutions.append(solutionObject)
+        #print "6-solutionList=%s" % str(solutions)
       #print ""
 
     # write benchmarkFiles
@@ -138,6 +149,7 @@ def writeBenchmarkFiles(solutions, problemSizes):
     # get solution name
     solutionName = Solution.getNameMin(solution.state, solutionMinNaming)
     solutionNames.append(solutionName)
+    printStatus("Writing files for solution %s" % solutionName )
 
     # write solution.cpp
     solutionSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
@@ -153,6 +165,7 @@ def writeBenchmarkFiles(solutions, problemSizes):
         solutionWriter.getHeaderFileString(solution))
     solutionHeaderFile.close()
 
+    """
     for kernel in kernels:
       # get kernel name
       kernelName = Solution.getNameMin(kernel, kernelMinNaming)
@@ -169,11 +182,12 @@ def writeBenchmarkFiles(solutions, problemSizes):
           "Kernels", kernelName+".h"), "w")
       kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
       kernelHeaderFile.close()
+    """
 
   # open solutions.cmake
   solutionsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \
       "GeneratedSolutions.cmake"), "w")
-  solutionsCMakeFile.write(globalParameter["CMakeHeader"])
+  solutionsCMakeFile.write(globalParameters["CMakeHeader"])
   solutionsCMakeFile.write("set( SolutionFiles\n")
   # open solutions.h
   allSolutionsHeaderFile = open(os.path.join(globalParameters["WorkingPath"],\
@@ -181,8 +195,8 @@ def writeBenchmarkFiles(solutions, problemSizes):
   allSolutionsHeaderFile.write(globalParameters["CHeader"])
   # write solution names
   for solutionName in solutionNames:
-    solutionHeaderFilePath = open(os.path.join( \
-        globalParameters["WorkingPath"], "Solutions", solutionName+".h"), "w")
+    solutionHeaderFilePath = os.path.join( \
+        globalParameters["WorkingPath"], "Solutions", solutionName+".h")
     solutionsCMakeFile.write("  " + solutionHeaderFilePath + "\n" )
     allSolutionsHeaderFile.write("#include \"" + solutionName + ".h\"\n")
   # close solutions
@@ -192,12 +206,12 @@ def writeBenchmarkFiles(solutions, problemSizes):
   # open kernels.cmake
   kernelsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \
       "GeneratedKernels.cmake"), "w")
-  kernelsCMakeFile.write(globalParameter["CMakeHeader"])
+  kernelsCMakeFile.write(globalParameters["CMakeHeader"])
   kernelsCMakeFile.write("set( KernelFiles\n")
   # write kernel names
   for kernelName in kernelNames:
-    kernelHeaderFilePath = open(os.path.join( \
-        globalParameters["WorkingPath"], "Kernels", kernelName+".h"), "w")
+    kernelHeaderFilePath = os.path.join( \
+        globalParameters["WorkingPath"], "Kernels", kernelName+".h")
     kernelsCMakeFile.write("  " + kernelHeaderFilePath + "\n" )
   # close kernels
   kernelsCMakeFile.close()
@@ -209,19 +223,44 @@ def writeBenchmarkFiles(solutions, problemSizes):
   benchmarkParametersFile.write(globalParameters["CHeader"])
 
   h = ""
-  h += "static const unsigned int numDimensions = %u;\n" \
-      % (problemSizes.totalDimensions)
+
+  h += "/* does this index have independent size range or map to same value as another index */\n"
+  h += "static const unsigned int totalIndices = %u;\n" \
+      % (problemSizes.totalIndices)
+  h += "static const bool indexIsSized[totalIndices] = {\n"
+  for i in range(0, problemSizes.totalIndices):
+    h += "  %s" % ("true" if problemSizes.indexIsSized[i] else "false")
+    if i < problemSizes.totalIndices-1:
+      h += ","
+    h += "\n"
+  h += "  };\n\n"
+
+
   h += "/* min, stride, stride_incr, max */\n"
-  h += "static const unsigned int sizeParameters[numDimensions][4] = {\n"
-  for i in range(0, len(problemSizes)):
-    r = problemSizes.dimensionSizes[i]
+  h += "static const unsigned int numIndicesSized = %u;\n" \
+      % len(problemSizes.indicesSized)
+  h += "static const unsigned int indicesSized[numIndicesSized][4] = {\n"
+  for i in range(0, len(problemSizes.indicesSized)):
+    r = problemSizes.indicesSized[i]
     h += "  { %u, %u, %u, %u }" % (r[0], r[1], r[2], r[3])
-    if i < len(problemSizes)-1:
+    if i < len(problemSizes.indicesSized)-1:
+      h += ","
+    h += "\n"
+  h += "  };\n\n"
+
+  h += "/* which other index does this index map (for its size) */\n"
+  h += "static const unsigned int numIndicesMapped = %u;\n" \
+      % len(problemSizes.indicesMapped)
+  h += "static const unsigned int indicesMapped[numIndicesMapped][4] = {\n"
+  for i in range(0, len(problemSizes.indicesMapped)):
+    h += "  %u" % problemSizes.indicesMapped[i]
+    if i < len(problemSizes.indicesMapped)-1:
       h += ","
     h += "\n"
   h += "  };\n"
+
   h += "static const unsigned int bytesPerElements = %u;\n" \
-      % (solutions[0]["DataType"].numBytes())
+      % (solutions[0]["ProblemType"]["DataType"].numBytes())
 
   h += "typedef void( *SolutionFunctionPointer)();\n"
   h += "static const SolutionFunctionPointer solutions[%u] = {\n" \
@@ -229,7 +268,7 @@ def writeBenchmarkFiles(solutions, problemSizes):
   for i in range(0, len(solutionNames)):
     solutionName = solutionNames[i]
     h += "  %s" % solutionName
-    if i < len(solutionNames-1):
+    if i < len(solutionNames)-1:
       h += ","
     h += "\n"
   h += "};\n"

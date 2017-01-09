@@ -20,7 +20,7 @@
 ################################################################################
 
 import sys
-import copy
+from copy import deepcopy
 
 from Common import *
 
@@ -113,7 +113,7 @@ class DataType:
 
   ########################################
   def numRegisters( self ):
-    return properties[self.value][self.toLibEnum]
+    return self.properties[self.value][self.idxReg]
   def numBytes( self ):
     return self.numRegisters() * 4
 
@@ -188,10 +188,10 @@ class Device:
 # ProblemType
 class ProblemType:
   operationTypes = ["GEMM", "TensorContraction"]
-  state = {}
 
   ########################################
   def __init__(self, config):
+    self.state = {}
     for key in defaultProblemType:
       self.assignWithDefault(key, defaultProblemType[key], config)
 
@@ -267,7 +267,7 @@ class ProblemType:
       inB = i in self["IndexAssignmentsB"]
       if inA and inB:
         #self["NumIndicesSummation"] = (i+1)-self["NumIndicesC"]
-        self["IndicesSummation"].append(i)
+        self.state["IndicesSummation"].append(i)
       else:
         printExit("invalid index %u" % i)
     self["NumIndicesFree"] = len(self["IndicesFree"])
@@ -394,30 +394,43 @@ class ProblemSizes:
     if len(config) < self.totalIndices:
       printWarning("SizeRange config (%s) has too many elements (%u > %u) than required by ProblemType (%s); ignoring remainder."
           % ( str(config), len(config), self.totalIndices, problemType ))
-    self.dimensionSizes = []
+    self.indexMax = []
+    self.indexIsSized = []
+    self.indicesSized = []
+    self.indicesMapped = []
     for i in range(0, self.totalIndices):
-      dim = config[i]
+      dim = deepcopy(config[i])
       if isinstance(dim, list):
         if len(dim) == 1:
-          self.dimensionSizes.append([dim[0], 16, 0, dim[0]])
+          self.indicesSized.append([dim[0], 16, 0, dim[0]])
         elif len(dim) == 2:
-          self.dimensionSizes.append([dim[0], 16, 0, dim[1]])
+          self.indicesSized.append([dim[0], 16, 0, dim[1]])
         elif len(dim) == 3:
-          self.dimensionSizes.append([dim[0], dim[1], 0, dim[2]])
+          self.indicesSized.append([dim[0], dim[1], 0, dim[2]])
         elif len(dim) == 4:
-          self.dimensionSizes.append([dim[0], dim[1], dim[2], dim[3]])
+          self.indicesSized.append([dim[0], dim[1], dim[2], dim[3]])
         else:
           printExit("dimension[%u] config (%s) has %u descriptors rather than 1-4."
               % ( i, dim, len(dim) ))
-      elif isinstance(dim, int):
-        self.dimensionSizes.append(dim)
+        self.indexIsSized.append(True)
+        self.indexMax.append(self.indicesSized[len(self.indicesSized)-1][3])
 
-  ########################################
-  def maxNumElements(self):
-    return [ 1, 1, 1 ] # TODO [maxC, maxA, maxB]
+      elif isinstance(dim, int):
+        self.indicesMapped.append(dim)
+        self.indexIsSized.append(False)
+        self.indexMax.append(self.indicesSized[self.indicesMapped[len(self.indicesMapped)-1]][3])
+
+    # max num elements in each tensor
+    self.maxNumElements = [ 1, 1, 1 ]
+    for i in range(0, problemType["NumIndicesC"]):
+      self.maxNumElements[0] *= self.indexMax[i]
+    for i in problemType["IndexAssignmentsA"]:
+      self.maxNumElements[1] *= self.indexMax[i]
+    for i in problemType["IndexAssignmentsB"]:
+      self.maxNumElements[2] *= self.indexMax[i]
 
   def __str__(self):
-    return str(self.dimensionSizes)
+    return str(self.indexSizes)
 
 
 
@@ -430,10 +443,10 @@ class ProblemSizes:
 # Solution
 ################################################################################
 class Solution:
-  state = {}
 
   ########################################
-  def __init__(self, config):
+  def __init__(self, config, solutions):
+    self.state = {}
     # problem type
     if "ProblemType" in config:
       self["ProblemType"] = ProblemType(config["ProblemType"])
@@ -470,16 +483,16 @@ class Solution:
   def getKernels(self):
     kernels = []
     if self.state["EdgeType"] == "MultiBranch" or self.state["EdgeType"] == "MultiShift":
-      kernel00 = copy.deepcopy(self.state)
+      kernel00 = deepcopy(self.state)
       kernel00.update({"Edge0": False, "Edge1": False})
-      kernel10 = copy.deepcopy(self.state)
+      kernel10 = deepcopy(self.state)
       kernel10.update({"Edge0": True, "Edge1": False})
-      kernel01 = copy.deepcopy(self.state)
+      kernel01 = deepcopy(self.state)
       kernel01.update({"Edge0": False, "Edge1": True})
       kernels.append(kernel00)
       kernels.append(kernel10)
       kernels.append(kernel01)
-    kernel11 = copy.deepcopy(self.state)
+    kernel11 = deepcopy(self.state)
     kernel11.update({"Edge0": True, "Edge1": True})
     kernels.append(kernel11)
     return kernels
@@ -552,8 +565,7 @@ class Solution:
     elif isinstance(value, list):
       abbrev = ""
       for i in range(0, len(value)):
-        element = value[i]
-        abbrev += Solution.getParameterValueAbbreviation(element)
+        abbrev += Solution.getParameterValueAbbreviation(value[i])
         if i < len(value)-1:
           abbrev += "_"
       return abbrev

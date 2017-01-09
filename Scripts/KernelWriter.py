@@ -1331,6 +1331,7 @@ class KernelWriter:
       fileString += ";\n"
 
     fileString += "#endif\n\n"
+    return fileString
 
 
 
