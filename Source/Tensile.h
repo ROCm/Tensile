@@ -314,12 +314,33 @@ typedef struct TensileControl_ {
 TensileControl tensileCreateEmptyControl();
 
 
+
 /*******************************************************************************
  * TensileProblem
  * problem describes the computation to be performed
  ******************************************************************************/
-typedef struct _TensileProblem * TensileProblem;
+//typedef struct _TensileProblem * TensileProblem;
 
+/*******************************************************************************
+ * TensileSolution
+ * solution describes how problem will be computed
+ *   kernels to be enqueued
+ *   kernel parameters
+ *   kernel thread range
+ ******************************************************************************/
+/*TensileStatus tensileEnqueue(
+    TensileTensor tensorC,
+    TensileTensor tensorA,
+    TensileTensor tensorB,
+    unsigned int *indexAssignmentsA,
+    unsigned int *indexAssignmentsB,
+    TensileOperationType operationType,
+    TensileDataType alphaType,
+    TensileDataType betaType,
+    bool useOffsets,
+    TensileDeviceProfile deviceProfile );
+TensileStatus tensileDestroyProblem( TensileProblem problem );
+*/
 
 /*******************************************************************************
 * TensileSolution
@@ -328,7 +349,7 @@ typedef struct _TensileProblem * TensileProblem;
 *   kernel parameters
 *   kernel thread range
 ******************************************************************************/
-typedef struct _TensileSolution * TensileSolution;
+//typedef struct _TensileSolution * TensileSolution;
 
 
 /*******************************************************************************
@@ -336,7 +357,7 @@ typedef struct _TensileSolution * TensileSolution;
  * creates TensileProblem object
  * buffer pointers are not specified here
  ******************************************************************************/
-TensileStatus tensileCreateProblem(
+/*TensileStatus tensileCreateProblem(
     TensileProblem *problem,
     TensileTensor tensorC,
     TensileTensor tensorA,
@@ -349,7 +370,7 @@ TensileStatus tensileCreateProblem(
     bool useOffsets,
     TensileDeviceProfile deviceProfile );
 TensileStatus tensileDestroyProblem( TensileProblem problem );
-
+*/
 
 /*******************************************************************************
  * tensileValidateProblem
@@ -360,25 +381,24 @@ TensileStatus tensileDestroyProblem( TensileProblem problem );
  *   summation indices
  *   indexAssignments
  ******************************************************************************/
-TensileStatus tensileValidateProblem( TensileProblem problem );
 
 
 /*******************************************************************************
  * tensileGetSolutionForProblem
  * returns optimal solution for input problem according to prior benchmarking
  ******************************************************************************/
-TensileStatus tensileGetSolutionForProblem(
+/*TensileStatus tensileGetSolutionForProblem(
     TensileSolution *solution,
     const TensileProblem problem );
 TensileStatus tensileDestroySolution( TensileSolution solution );
-
+*/
 
 /*******************************************************************************
  * tensileEnqueueSolution
  *   enqueues solution
  *   buffer pointers are specified here
  ******************************************************************************/
-TensileStatus tensileEnqueueSolution(
+/*TensileStatus tensileEnqueueSolution(
     TensileSolution solution,
     TensileTensorData tensorDataC,
     TensileTensorDataConst tensorDataA,
@@ -386,7 +406,7 @@ TensileStatus tensileEnqueueSolution(
     TensileScalarData alpha,
     TensileScalarData beta,
     TensileControl *control );
-
+*/
 
 /*******************************************************************************
  * tensile*ToString

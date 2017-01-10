@@ -44,15 +44,206 @@ class SolutionWriter:
   ##############################################################################
   def getSourceString(self, solution):
     solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
+    kernels = solution.getKernels()
     s = ""
     # includes
-    s += "#include \""
-    s += solutionName
-    s += ".h\"\n"
+    s += "#include \"%s.h\"\n" % solutionName
     s += "\n"
 
+    s += "TensileStatus %s_enqueue(\n" % solutionName
+    s += "    TensileTensor tensorC,\n"
+    s += "    TensileTensor tensorA,\n"
+    s += "    TensileTensor tensorB,\n"
+    s += "    TensileTensorData      tensorDataC,\n"
+    s += "    TensileTensorDataConst tensorDataA,\n"
+    s += "    TensileTensorDataConst tensorDataB,\n"
+    s += "    TensileScalarData alpha,\n"
+    s += "    TensileScalarData beta,\n"
+    s += "    TensileControl & ctrl ) {\n"
+
+    # index assignments
+    s += "\n  /* index assignments */\n"
+    s += "  const unsigned int indexD0 = %u;\n" \
+        % solution["ProblemType"]["Index0"]
+    s += "  const unsigned int indexD1 = %u\n" \
+        % solution["ProblemType"]["Index1"]
+    s += "  const unsigned int indexDU = %u\n" \
+        % solution["ProblemType"]["IndexUnroll"]
+
+    # num kernels
+    s += "\n  /* num kernels */\n"
+    s += "  const unsigned int kernelGrid = { %u, %u, %u };\n" \
+        % (solution["KernelGrid"][0], solution["KernelGrid"][1], \
+        solution["KernelGrid"][0] )
+    s += "  const unsigned int numKernels = %u;\n" % len(kernels)
+    s += "  unsigned int numEnqueues[numKernels] = { 1"
+    for i in range(1, len(kernels)):
+      s += ", 1"
+    s += " };\n"
+
+    # grid size
+    s += "\n  /* grid sizes */\n"
+    s += "  const unsigned int workDim = 3;\n"
+    s += "  const unsigned int threadTile = { %u, %u };\n" \
+        % (solution["ThreadTile0"], solution["ThreadTile1"])
+    if self.backend == "HIP":
+      s += "  dim3 localWorkSize = { %u, %u, 1 };\n" \
+          % (solution["WorkGroup0"], solution["WorkGroup1"])
+      s += "  dim3 globalWorkSize[numKernels];\n"
+    # grid size [2]
+    s += "  globalWorkSize[0][2] = 1;\n"
+    for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+      if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
+        s += "  globalWorkSize[0][2] *= tensorC[%u].size;\n" % i
+
+    # TODO only handling kernelGrid = 1,1,1 and single kernel
+
+    # grid size [0,1]
+    s += "  unsigned int sizeOfC0 = tensorC[indexD0].size;\n"
+    s += "  unsigned int sizeOfC1 = tensorC[indexD1].size;\n"
+    s += "  unsigned int macroTile0 = localWorkSize[0] * threadTile[0];\n"
+    s += "  unsigned int macroTile1 = localWorkSize[1] * threadTile[1];\n"
+    s += "  unsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n"
+    s += "  unsigned int totalWorkGroups1 = sizeOfC1 / macroTile1;\n"
+
+    if solution["EdgeMultiKernel"]:
+      s += "  // b/c multi kernel, don't add extra work-group here\n"
+    else:
+      s += "  // b/c single kernel, add extra work-group here if edge needed\n"
+      s += "  if (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n"
+      s += "  if (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n"
+    s += "  globalWorkSize[0][0] = totalWorkGroups0 / kernelGrid[0];\n"
+    s += "  globalWorkSize[0][1] = totalWorkGroups1 / kernelGrid[1];\n"
+
+
+    # offsets
+    s += "\n  /* offsets */\n"
+    s += "  unsigned int offsets[numKernels][maxEnqueues][3];\n"
+    for kernelIdx in range(0, len(kernels)):
+      s += "  offsets[%u][0][0] = 1; // tensorC\n" % kernelIdx
+      s += "  offsets[%u][0][1] = 1; // tensorA\n" % kernelIdx
+      s += "  offsets[%u][0][2] = 1; // tensorB\n" % kernelIdx
+
+    # index sizes
+    s += "\n  /* index sizes */\n"
+    s += "  unsigned int sizes[numKernels][maxEnqueues][%u];\n" \
+        % solution["ProblemType"]["TotalIndices"]
+    for kernelIdx in range(0, len(kernels)):
+      kernel = kernels[kernelIdx]
+      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+      # free index sizes
+      for i in range(0,solution["ProblemType"]["NumIndicesFree"] \
+          + solution["ProblemType"]["NumIndicesBatch"] ):
+        s += "  sizes[%u][0][%u] = tensorC[%u].size; // size%s\n" \
+            % ( kernelIdx, i, i, self.indexChars[i])
+      # summation index sizes
+      for i in range(solution["ProblemType"]["NumIndicesC"], \
+              solution["ProblemType"]["TotalIndices"] ):
+        # which index of A sums this
+        idx = -1
+        for j in range(0,len(solution["ProblemType"]["IndexAssignmentsA"])):
+          if solution["ProblemType"]["IndexAssignmentsA"][j] == i:
+            idx = j
+            break
+        lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+        s += "  sizes[%u][1][%u] = tensorA[%u].size; // size%s\n" \
+            % ( kernelIdx, i, idx, self.indexChars[i])
+
+    s += "  unsigned int totalEnqueueIdx = 0;\n"
+    #enqueue the kernels
+    for kernelIdx in range(0, len(kernels)):
+      kernel = kernels[kernelIdx]
+      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+      s += "\n  /* kernel %u: %s */\n" % (kernelIdx, kernelName)
+      s += "  unsigned int kernelIdx = %u;\n" % kernelIdx
+      typeName = solution["ProblemType"]["DataType"].toCpp()
+      s += "  for (unsigned int enqueueIdx = 0; enqueueIdx < numEnqueues[%u]; enqueueIdx++) {\n" % kernelIdx
+      if self.backend == "HIP":
+        s += "    hipLaunchKernel(\n"
+        s += "        HIP_KERNEL_NAME(%s),\n" % kernelName
+        s += "        globalWorkSize,\n"
+        s += "        localWorkSize,\n"
+        s += "        0, // groupMemBytes\n"
+        s += "        ctrl.queues[totalEnqueueIdx++%ctrl.numQueues],\n"
+        s += "        static_cast<%s*>(tensorDataC.data),\n" % typeName
+        s += "        static_cast<const %s*>(tensorDataA.data),\n" % typeName
+        s += "        static_cast<const %s*>(tensorDataB.data),\n" % typeName
+        s += "        *static_cast<const %s*>(alpha.data),\n" % typeName
+        s += "        *static_cast<const %s*>(beta.data),\n" % typeName
+        s += "        offsets[kernelIdx][enqueueIdx][0] + tensorDataC.offset,\n"
+        s += "        offsets[kernelIdx][enqueueIdx][1] + tensorDataA.offset,\n"
+        s += "        offsets[kernelIdx][enqueueIdx][2] + tensorDataB.offset,\n"
+        # strides
+        firstStride = 0
+        if solution["ProblemType"]["UseInitialStrides"]:
+          firstStride = 1
+        lastStrideC = solution["ProblemType"]["NumIndicesC"]
+        lastStrideA = len(solution["ProblemType"]["IndexAssignmentsA"])
+        lastStrideB = len(solution["ProblemType"]["IndexAssignmentsB"])
+        # c strides
+        for i in range(firstStride,lastStrideC):
+          s += "        tensorC[%u].stride, // strideC%s\n" \
+              % (i, self.indexChars[i])
+        # a strides
+        for i in range(firstStride,lastStrideA):
+          s += "        tensorA[%u].stride, // strideA%s\n" \
+              % ( i, self.indexChars[ \
+              solution["ProblemType"]["IndexAssignmentsA"][i]] )
+        # b strides
+        for i in range(firstStride,lastStrideB):
+          s += "        tensorB[%u].stride, // strideB%s\n" \
+              % ( i, self.indexChars[ \
+              solution["ProblemType"]["IndexAssignmentsB"][i]] )
+        for i in range(0, solution["ProblemType"]["TotalIndices"]):
+          lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+          s += "        sizes[kernelIdx][enqueueIdx][%u]%s\n" \
+              % (i, "" if lastParam else "," )
+        s += "    );\n"
+        s += "  }\n"
+    s += "\n"
+    s += "  ctrl.numQueuesUsed = (totalEnqueueIdx >= ctrl.numQueues) ? ctrl.numQueues : totalEnqueueIdx;\n"
+    s += "  return tensileStatusSuccess;\n"
+    s += "} // end solution_enqueue()\n"
+    s += "\n"
+
+
+
+
+
+
+
+
+
+
+
+    """
+      numStrides = kernel["ProblemType"]["NumIndicesC"] \
+          + len(kernel["ProblemType"]["IndexAssignmentsA"]) \
+          + len(kernel["ProblemType"]["IndexAssignmentsB"])
+      if not kernel["ProblemType"]["UseInitialStrides"]:
+        numStrides -= 3
+      numSizes = solution["ProblemType"]["NumIndicesC"] \
+          + solution["ProblemType"]["NumIndicesSummation"]
+      numKernelArgs = numStrides + numSizes
+      for i in range(0, numKernelArgs):
+        s += ",\n        this->enqueueArgs[kernelIdx][i][%u]" % (i+3)
+      s += ");\n"
+      s += "//hipStreamSynchronize( ctrl.queues[enqueueIdx%ctrl.numQueues] );\n"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     # contructor signature
-    s += "namespace Tensile {\n"
     s += "\n"
     s += "/* solution constructor */\n"
     s += "template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >\n"
@@ -289,8 +480,9 @@ class SolutionWriter:
       s += "  unsigned int kernelIdx = 0;\n"
       s += "  unsigned int enqueueIdx = 0;\n"
       s += "\n"
-      for k in range(0, len(solution.kernels)):
-        kernel = solution.kernels[k]
+      kernels = solution.getKernels()
+      for k in range(0, len(kernels)):
+        kernel = kernels[k]
         if kernel != None:
           s += "  for (unsigned int i = 0; i < this->numEnqueues[kernelIdx]; i++) {\n"
           s += "\n"
@@ -316,7 +508,7 @@ class SolutionWriter:
             s += "\n"
           s += "    hipLaunchKernel(\n"
           s += "        HIP_KERNEL_NAME(%s),\n" \
-              % Solution.getNameMin(kernel, self.solutionMinNaming)
+              % Solution.getNameMin(kernel, self.kernelMinNaming)
           s += "        dim3(\n"
           s += "            this->globalWorkSize[kernelIdx][0],\n"
           s += "            this->globalWorkSize[kernelIdx][1],\n"
@@ -335,10 +527,10 @@ class SolutionWriter:
           s += "        this->enqueueArgs[kernelIdx][i][0]+tensorDataC.offset,\n"
           s += "        this->enqueueArgs[kernelIdx][i][1]+tensorDataA.offset,\n"
           s += "        this->enqueueArgs[kernelIdx][i][2]+tensorDataB.offset"
-          numStrides = len(solution.kernels[0].problem.tensorC.dimensions) \
-              + len(solution.kernels[0].problem.tensorA.dimensions) \
-              + len(solution.kernels[0].problem.tensorB.dimensions)
-          if solution.kernels[0].ppdLeadingStrides:
+          numStrides = kernels[0]["ProblemType"]["NumIndicesC"] \
+              + len(kernels[0]["ProblemType"]["IndexAssignmentsA"]) \
+              + len(kernels[0]["ProblemType"]["IndexAssignmentsB"])
+          if not kernels[0]["ProblemType"]["UseInitialStrides"]:
             numStrides -= 3
           numSizes = solution["ProblemType"]["NumIndicesC"] + solution["ProblemType"]["NumIndicesSummation"]
           numKernelArgs = numStrides + numSizes
@@ -347,31 +539,21 @@ class SolutionWriter:
           s += ");\n"
           s += "hipStreamSynchronize( ctrl.queues[enqueueIdx%ctrl.numQueues] );\n"
 
-          s += "    enqueueIdx++;\n"
-          s += "  }\n"
-          s += "  kernelIdx++;\n"
-      s += "\n"
-      s += "  if (enqueueIdx > ctrl.numQueues) {\n"
-      s += "    ctrl.numQueuesUsed = ctrl.numQueues;\n"
-      s += "  } else {\n"
-      s += "    ctrl.numQueuesUsed = enqueueIdx;\n"
-      s += "  }\n"
-      s += "  return tensileStatusSuccess;\n"
-      s += "}\n"
-      s += "\n"
-
-
-    # explicit template instantiation
-    s += "/* explicit template instantiation */\n"
-    if self.backend == "HIP":
-      s += "#pragma clang diagnostic push\n"
-      s += "#pragma clang diagnostic ignored \"-Wweak-template-vtables\"\n"
-    s += "class " + solutionName + ";\n"
-    if self.backend == "HIP":
-      s += "#pragma clang diagnostic pop\n"
+    #      s += "    enqueueIdx++;\n"
+    #      s += "  }\n"
+    #      s += "  kernelIdx++;\n"
+    s += "\n"
+    s += "  if (enqueueIdx > ctrl.numQueues) {\n"
+    s += "    ctrl.numQueuesUsed = ctrl.numQueues;\n"
+    s += "  } else {\n"
+    s += "    ctrl.numQueuesUsed = enqueueIdx;\n"
+    s += "  }\n"
+    s += "  return tensileStatusSuccess;\n"
+    s += "} // end solution_enqueue()\n"
+    s += "\n"
+    """
 
     s += "\n"
-    s += "} // namespace\n"
     s += "\n"
 
     return s

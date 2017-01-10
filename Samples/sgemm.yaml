@@ -1,6 +1,6 @@
 Parameters:
   Name: GEMM_Catalyst_15.201
-  Backend: OpenCL
+  Backend: HIP
   Device: Fiji
   PrintDebug: 2
   Redo: Changed # Force None
@@ -39,10 +39,11 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
+      - EdgeMultiKernel: [ False ] # hardcoded
       - ProblemSizes: [ [5760], 0, 0 ]
       - MultiDevice: [ False ]
-      - KernelGrid: [ [0, 0, 0], [2048, 2048, 1024] ]
-      - EdgeType: [ 'Shift', 'Branch', 'MultiShift', 'MultiBranch', 'Exact' ]
+      - KernelGrid: [ [1, 1, 1] ]
+      - EdgeType: [ 'Shift', 'Branch', 'None' ]
       - Interleaving: [ [4, 8], [1, 1] ]
       - ProblemSizes: [ [128] ]
       - VectorWidth: [4, 2, 1]
