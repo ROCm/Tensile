@@ -186,6 +186,7 @@ class Device:
 
 ################################################################################
 # ProblemType
+# name of solution should begin with name of problemType, and arguments can be listed out explicitly
 class ProblemType:
   operationTypes = ["GEMM", "TensorContraction"]
 
@@ -344,8 +345,8 @@ class ProblemType:
     # precision and other
     name += "_"
     name += self["DataType"].toChar()
-    if self["HighPrecisionAccumulate"]: name += "A"
     if self["UseBeta"]: name += "B"
+    if self["HighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStrides"]: name += "I"
     return name
 
@@ -517,10 +518,10 @@ class Solution:
         requiredParameters[key] = True
       else:
         requiredParameters[key] = False
-    # TODO do I always need edges?
-    # no, in
-    #requiredParameters["Edge0"] = True
-    #requiredParameters["Edge1"] = True
+    requiredParameters["ProblemType"] = False # always prepended anyways
+    # kernels need edge name to distinguish from solution name
+    requiredParameters["Edge0"] = True
+    requiredParameters["Edge1"] = True
     return requiredParameters
 
   ########################################
@@ -536,6 +537,8 @@ class Solution:
   def getNameMin(state, requiredParameters):
     name = ""
     first = True
+    # put problem first
+    name += str(state["ProblemType"]) + "_"
     for key in state:
       if requiredParameters[key]:
         if not first:
@@ -548,8 +551,19 @@ class Solution:
 
   ########################################
   @ staticmethod
+  def getParametersIndented(state, indent):
+    s = ""
+    first = True
+    # put problem first
+    s += "%sProblemType: %s\n" % (indent, str(state["ProblemType"]))
+    for key in state:
+      s += "%s%s: %s\n" % (indent, str(key), str(state[key]))
+    return s
+
+  ########################################
+  @ staticmethod
   def getParameterNameAbbreviation( name ):
-    return ''.join([c for c in name if c.isupper()])
+    return ''.join([c for c in name if not c.islower()])
 
   ########################################
   @ staticmethod

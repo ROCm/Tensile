@@ -1308,6 +1308,13 @@ class KernelWriter:
     if self.backend == "OCL":
       fileString += "\";\n"
 
+    fileString  += "\n"
+    fileString  += "\n"
+    fileString  += "/* Kernel Parameters\n"
+    fileString  += Solution.getParametersIndented(kernel, "  ")
+    fileString  += "*/\n"
+    fileString  += "\n"
+
     fileString += "\n"
     return fileString
 

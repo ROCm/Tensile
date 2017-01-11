@@ -202,5 +202,5 @@ def ensurePath( path ):
 
 
 # TODO
-globalParameters["CMakeHeader"] = "# Header"
-globalParameters["CHeader"] = "// Header"
+globalParameters["CMakeHeader"] = "# Header\n\n"
+globalParameters["CHeader"] = "// Header\n\n"

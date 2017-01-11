@@ -1,4 +1,5 @@
 import sys
+import os
 from copy import deepcopy
 from shutil import copy as shutil_copy
 
@@ -51,7 +52,7 @@ def benchmarkProblemType( config ):
           globalParameters["WorkingPath"] )
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "TensileBenchmark_CMakeLists.txt"),
-        os.path.join(globalParameters["WorkingPath"], "CmakeLists.txt" ) )
+        os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
     #print "hardcodedParameters = %s" % str(benchmarkStep.hardcodedParameters)
 
     # (1) create list of solutions
@@ -111,11 +112,20 @@ def benchmarkProblemType( config ):
       #print ""
 
     # write benchmarkFiles
-    writeBenchmarkFiles(solutions, benchmarkStep.problemSizes)
+    writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, stepName, filesToCopy)
 
     popWorkingPath() # source
     pushWorkingPath("build")
     # create run.bat or run.sh which builds and runs
+    runScriptName = os.path.join(globalParameters["WorkingPath"], \
+      "run.%s" % "bat" if os.name == "nt" else "sh")
+    runScriptFile = open(runScriptName, "w")
+    runScriptFile.write("cmake ../source\n")
+    runScriptFile.write("cmake --build .\n")
+    runScriptFile.write("dir\n")
+    runScriptFile.close()
+    printExit("CMAKE WRITTEN")
+
     # build benchmark
     # execute benchmark
     popWorkingPath() # build
@@ -124,7 +134,7 @@ def benchmarkProblemType( config ):
 
   popWorkingPath()
 
-def writeBenchmarkFiles(solutions, problemSizes):
+def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   printStatus("Beginning")
   ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
   ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -165,56 +175,67 @@ def writeBenchmarkFiles(solutions, problemSizes):
         solutionWriter.getHeaderFileString(solution))
     solutionHeaderFile.close()
 
-    """
-    for kernel in kernels:
-      # get kernel name
-      kernelName = Solution.getNameMin(kernel, kernelMinNaming)
-      kernelNames.append(kernelName)
+  for kernel in kernels:
+    # get kernel name
+    kernelName = Solution.getNameMin(kernel, kernelMinNaming)
+    kernelNames.append(kernelName)
 
-      # write kernel.cpp
-      kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
-          "Kernels", kernelName+".cpp"), "w")
-      kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
-      kernelSourceFile.close()
+    # write kernel.cpp
+    kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
+        "Kernels", kernelName+".cpp"), "w")
+    kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
+    kernelSourceFile.close()
 
-      # write kernel.h
-      kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
-          "Kernels", kernelName+".h"), "w")
-      kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
-      kernelHeaderFile.close()
-    """
+    # write kernel.h
+    kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
+        "Kernels", kernelName+".h"), "w")
+    kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
+    kernelHeaderFile.close()
 
-  # open solutions.cmake
-  solutionsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \
-      "GeneratedSolutions.cmake"), "w")
-  solutionsCMakeFile.write(globalParameters["CMakeHeader"])
-  solutionsCMakeFile.write("set( SolutionFiles\n")
+  # open generated.cmake
+  generatedFile = open(os.path.join(globalParameters["WorkingPath"], \
+      "Generated.cmake"), "w")
+  generatedFile.write(globalParameters["CMakeHeader"])
+  generatedFile.write("set( TensileBenchmark_Solutions\n")
   # open solutions.h
   allSolutionsHeaderFile = open(os.path.join(globalParameters["WorkingPath"],\
       "GeneratedSolutions.h"), "w")
   allSolutionsHeaderFile.write(globalParameters["CHeader"])
   # write solution names
   for solutionName in solutionNames:
-    solutionHeaderFilePath = os.path.join( \
-        globalParameters["WorkingPath"], "Solutions", solutionName+".h")
-    solutionsCMakeFile.write("  " + solutionHeaderFilePath + "\n" )
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
+        % (solutionName) )
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
+        % (solutionName) )
     allSolutionsHeaderFile.write("#include \"" + solutionName + ".h\"\n")
-  # close solutions
-  solutionsCMakeFile.close()
+  generatedFile.write("  )\n")
+  # close solutions header
   allSolutionsHeaderFile.close()
 
   # open kernels.cmake
-  kernelsCMakeFile = open(os.path.join(globalParameters["WorkingPath"], \
-      "GeneratedKernels.cmake"), "w")
-  kernelsCMakeFile.write(globalParameters["CMakeHeader"])
-  kernelsCMakeFile.write("set( KernelFiles\n")
+  generatedFile.write("set( TensileBenchmark_Kernels\n")
   # write kernel names
   for kernelName in kernelNames:
-    kernelHeaderFilePath = os.path.join( \
-        globalParameters["WorkingPath"], "Kernels", kernelName+".h")
-    kernelsCMakeFile.write("  " + kernelHeaderFilePath + "\n" )
-  # close kernels
-  kernelsCMakeFile.close()
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
+  generatedFile.write("  )\n")
+
+  generatedFile.write("set( TensileBenchmark_Source\n")
+  for fileName in filesToCopy:
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
+  generatedFile.write("  )\n\n")
+
+
+
+  # benchmark parameters
+  generatedFile.write("set( TensileBenchmark_NAME Project_%s)\n" \
+      % (stepName) )
+  generatedFile.write("set( TensileBenchmark_BACKEND %s)\n" \
+      % (globalParameters["Backend"]) )
+
+
+  # close generated cmake
+  generatedFile.close()
 
 
   # generated benchmark parameters
