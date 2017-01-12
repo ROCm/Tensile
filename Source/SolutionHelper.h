@@ -166,7 +166,7 @@ protected:
 /*******************************************************************************
  * TensileSolutionOpenCL - parent class for OpenCL solutions
  ******************************************************************************/
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 #include "CL/cl.h"
 template<
     typename TypeC,
@@ -293,7 +293,7 @@ public:
 
 
 // cache kernels so they only get compiled once
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 typedef struct KernelMapKey_ {
   cl_context context; // address of context
   cl_device_id device; // address of device
@@ -315,7 +315,7 @@ extern __thread KernelMap *kernelMap;
 
 
 #include <assert.h>
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 #define CL_CHECK(RET) \
   if(RET != CL_SUCCESS) { \
     printf("OpenCL Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \

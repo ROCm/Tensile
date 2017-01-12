@@ -8,6 +8,7 @@ from Common import *
 from Structs import *
 from SolutionWriter import *
 from KernelWriter import *
+from subprocess import Popen
 
 
 ################################################################################
@@ -34,12 +35,8 @@ def benchmarkProblemType( config ):
         "TensileBenchmark_Main.h",
         "MathTemplates.cpp",
         "MathTemplates.h",
-        "StructOperations.cpp",
-        "StructOperations.h",
         "Tensile.cpp",
         "Tensile.h",
-        "Solution.cpp",
-        "Solution.h",
         "SolutionTensorContractionCPU.cpp",
         "SolutionTensorContractionCPU.h",
         "Tools.cpp",
@@ -124,7 +121,14 @@ def benchmarkProblemType( config ):
     runScriptFile.write("cmake --build .\n")
     runScriptFile.write("dir\n")
     runScriptFile.close()
-    printExit("CMAKE WRITTEN")
+    print "\n\n\n"
+    print "################################################################################"
+    print "# Executing Benchmark Step: %s" % stepName
+    print "################################################################################"
+    process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
+    status = process.wait()
+
+    printExit("%s returned %u" % (runScriptName, status) )
 
     # build benchmark
     # execute benchmark
@@ -230,7 +234,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   # benchmark parameters
   generatedFile.write("set( TensileBenchmark_NAME Project_%s)\n" \
       % (stepName) )
-  generatedFile.write("set( TensileBenchmark_BACKEND %s)\n" \
+  generatedFile.write("set( TensileBenchmark_BACKEND \"%s\")\n" \
       % (globalParameters["Backend"]) )
 
 

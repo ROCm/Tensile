@@ -156,7 +156,7 @@ int main( int argc, char *argv[] ) {
           : isDoubleBeta ? static_cast<void*>(betaDouble) : static_cast<void*>(betaFloat) };
 
       // re-initialize device input buffers
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
       clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataA.data), CL_FALSE, deviceTensorDataA.offset, sizeA, initialDataA, 0, nullptr, nullptr);
       clEnqueueWriteBuffer(ctrl.queues[0], static_cast<cl_mem>(deviceTensorDataB.data), CL_FALSE, deviceTensorDataB.offset, sizeB, initialDataB, 0, nullptr, nullptr);
 #elif Tensile_BACKEND_HIP
@@ -215,7 +215,7 @@ int main( int argc, char *argv[] ) {
         //for (unsigned int j = 0; j < 4; j++) {
         if (doValidation) {
           // re-initialize device buffers
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
           clEnqueueWriteBuffer(ctrl.queues[0],
             static_cast<cl_mem>(deviceTensorDataC.data),
             CL_FALSE, deviceTensorDataC.offset, sizeC, initialDataC,
@@ -262,7 +262,7 @@ int main( int argc, char *argv[] ) {
         }
         if (doValidation) {
           for (unsigned int i = 0; i < ctrl.numQueues; i++) {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
             status = clFinish(ctrl.queues[i]);
 #elif Tensile_BACKEND_HIP
             status = hipStreamSynchronize(ctrl.queues[i]);
@@ -377,7 +377,7 @@ void initTensorData() {
   printf("."); fillTensor( initialTensorDoubleB, initialTensorDataDoubleB, tensorFillTypeB, nullptr);
   printf("."); 
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
   deviceTensorDataC.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_WRITE, tensorSizeMaxC, nullptr, &status));
   deviceTensorDataA.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxA, nullptr, &status));
   deviceTensorDataB.data = static_cast<void *>(clCreateBuffer(context, CL_MEM_READ_ONLY, tensorSizeMaxB, nullptr, &status));
@@ -436,11 +436,11 @@ void destroyTensorData() {
   delete[] alphaDouble;
   delete[] betaDouble;
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataC.data));
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataA.data));
   clReleaseMemObject(static_cast<cl_mem>(deviceTensorDataB.data));
-#elif Tensile_BACKEND_OPENCL12
+#elif Tensile_BACKEND_OCL
   hipFree(deviceTensorDataC.data);
   hipFree(deviceTensorDataA.data);
   hipFree(deviceTensorDataB.data);
@@ -454,7 +454,7 @@ void fillTensor(TensileTensor inputTensor, TensileTensorData tensorData, Tensile
 }
 
 void initControls() {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
   // setup opencl objects
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
   platforms = new cl_platform_id[numPlatforms];
@@ -501,7 +501,7 @@ void initControls() {
 
 void destroyControls() {
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
   for (unsigned int i = 0; i < ctrl.numQueues; i++) {
     clReleaseCommandQueue(ctrl.queues[i]);
   }
@@ -580,7 +580,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
 
   if (!deviceOverride) {
     // select device based on TensileProblem
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
     platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
@@ -638,7 +638,7 @@ void parseCommandLineOptions(int argc, char *argv[]) {
     
 #endif
   } else {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
     platforms = new cl_platform_id[numPlatforms];
     status = clGetPlatformIDs(numPlatforms, platforms, nullptr);

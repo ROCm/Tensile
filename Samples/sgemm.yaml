@@ -1,6 +1,6 @@
 Parameters:
   Name: GEMM_Catalyst_15.201
-  Backend: HIP
+  Backend: OCL
   Device: Fiji
   PrintDebug: 2
   Redo: Changed # Force None

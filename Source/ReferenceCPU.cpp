@@ -19,49 +19,29 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#include "Problem.h"
 #include "SolutionTensorContractionCPU.h"
-#include "StructOperations.h"
 #include "MathTemplates.h"
 
 #include <assert.h>
 #include <algorithm>
-
-namespace Tensile {
-
-/*******************************************************************************
- * constructor
- ******************************************************************************/
-template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::SolutionTensorContractionCPU( const Problem & inputProblem )
-  : SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>(inputProblem) {
-}
 
 
 /*******************************************************************************
  * enqueue
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-TensileStatus SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
-    TensileTensorData tensorDataC,
-    TensileTensorDataConst tensorDataA,
-    TensileTensorDataConst tensorDataB,
-    TensileScalarData alpha,
-    TensileScalarData beta,
-    TensileControl & ctrl ) {
+int SolutionTensorContractionCPU<Type>(
+    Type *dataC,
+    Type *dataA,
+    Type *dataB,
+    Type alpha,
+    Type beta,
+    unsigned int numIndicesC,
+    unsigned int numIndicesAB,
+    unsigned int *indexAssignmentsA,
+    unsigned int *indexAssignmentsB
+    ) {
 
-  ctrl.numQueuesUsed = 0;
-  ctrl.numOutputEvents = 0;
-
-  // pointers to data
-  TypeC *dataC = (TypeC *)tensorDataC.data;
-  dataC += tensorDataC.offset;
-  TypeA *dataA = (TypeA *)tensorDataA.data;
-  dataA += tensorDataA.offset;
-  TypeB *dataB = (TypeB *)tensorDataB.data;
-  dataB += tensorDataB.offset;
-
-  
   // index sizes
   unsigned int numIndicesFreeC = Solution::problem.tensorC.numDims();
   unsigned int numIndicesSummation = static_cast<unsigned int>(Solution::problem.indicesSummation.size());
@@ -268,6 +248,4 @@ std::tuple<Solution *,TensileStatus> getSolutionCPU( const Problem & problem) {
       return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
   }
 }
-
-} // namespace
 

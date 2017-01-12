@@ -24,7 +24,7 @@
 #include "StructOperations.h"
 #include "MathTemplates.h"
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 #include "CL/cl.h"
 #elif Tensile_BACKEND_HIP
 #include <hip/hip_runtime.h>
@@ -85,7 +85,7 @@ TensileStatus Solution::enqueueEntry(
 
   TensileStatus returnStatus = tensileStatusSuccess;
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
   cl_int status;
 #elif Tensile_BACKEND_HIP
   hipError_t status;
@@ -102,7 +102,7 @@ TensileStatus Solution::enqueueEntry(
     // enqueue gpu solution
     enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueues; i++) {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
       clFlush(ctrl.queues[i]);
 #elif Tensile_BACKEND_HIP
       // automatically flushed?
@@ -116,7 +116,7 @@ TensileStatus Solution::enqueueEntry(
     // wait for gpu solution
     //printf("Validation: syncing %u queues\n", ctrl.numQueuesUsed);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
       status = clFinish(ctrl.queues[i]);
 #elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
@@ -124,7 +124,7 @@ TensileStatus Solution::enqueueEntry(
     }
     // copy results back
     //printf("Validation: reading %u bytes\n", (unsigned int)sizeC);
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
     status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
         0, nullptr, nullptr);
@@ -157,7 +157,7 @@ TensileStatus Solution::enqueueEntry(
     // warmup (ensure kernels compiled)
     returnStatus = enqueue(tensorDataC, tensorDataA, tensorDataB, alpha, beta, ctrl);
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
       status = clFinish(ctrl.queues[i]);
 #elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
@@ -176,7 +176,7 @@ TensileStatus Solution::enqueueEntry(
     } // samples
     // wait for queues
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
       status = clFinish(ctrl.queues[i]);
 #elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
@@ -568,7 +568,7 @@ assignKernelArgs() {
 /*******************************************************************************
  * TensileSolutionOpenCL constructor
  ******************************************************************************/
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 template<
     typename TypeC,
     typename TypeA,
@@ -1236,7 +1236,7 @@ enqueue(
 
 } // namespace
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
 
   if (l.kernelSource < r.kernelSource) {
@@ -1290,7 +1290,7 @@ template class Tensile::SolutionLogOnly<void,void,void,void,void>;
 #endif
 #endif
 
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 #ifdef WIN32
 __declspec(thread) KernelMap *kernelMap = 0;
 #else

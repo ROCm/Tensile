@@ -74,7 +74,7 @@ static TensileTensorData referenceTensorDataC; // input and result buffer on hos
 
 // setup opencl
 static unsigned int numPlatforms;
-#if Tensile_BACKEND_OPENCL12
+#if Tensile_BACKEND_OCL
 static unsigned int numDevices;
 static cl_int status;
 static cl_platform_id *platforms;
