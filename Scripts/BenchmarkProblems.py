@@ -37,11 +37,12 @@ def benchmarkProblemType( config ):
         "MathTemplates.h",
         "Tensile.cpp",
         "Tensile.h",
-        "SolutionTensorContractionCPU.cpp",
-        "SolutionTensorContractionCPU.h",
+        "ReferenceCPU.cpp",
+        "ReferenceCPU.h",
+        "SolutionHelper.cpp",
+        "SolutionHelper.h",
         "Tools.cpp",
         "Tools.h",
-
         ]
     for f in filesToCopy:
       shutil_copy(
@@ -50,6 +51,18 @@ def benchmarkProblemType( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "TensileBenchmark_CMakeLists.txt"),
         os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
+    if globalParameters["Backend"] == "OCL":
+      shutil_copy(
+          os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
+          globalParameters["WorkingPath"] )
+    else:
+      shutil_copy(
+          os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
+          globalParameters["WorkingPath"] )
+      shutil_copy(
+          os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
+          globalParameters["WorkingPath"] )
+
     #print "hardcodedParameters = %s" % str(benchmarkStep.hardcodedParameters)
 
     # (1) create list of solutions
@@ -229,14 +242,11 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
   generatedFile.write("  )\n\n")
 
-
-
   # benchmark parameters
   generatedFile.write("set( TensileBenchmark_NAME Project_%s)\n" \
       % (stepName) )
   generatedFile.write("set( TensileBenchmark_BACKEND \"%s\")\n" \
       % (globalParameters["Backend"]) )
-
 
   # close generated cmake
   generatedFile.close()
@@ -284,6 +294,8 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     h += "\n"
   h += "  };\n"
 
+  h += "unsigned int problemSize[totalIndices];\n"
+
   h += "static const unsigned int bytesPerElements = %u;\n" \
       % (solutions[0]["ProblemType"]["DataType"].numBytes())
 
@@ -297,6 +309,48 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       h += ","
     h += "\n"
   h += "};\n"
+  h += "\n"
+  sizeC = 1
+  sizeA = 1
+  sizeB = 1
+  for idx in range(0, solution["ProblemType"]["NumIndicesC"]):
+    sizeC *= problemSizes.indexMax[idx]
+  for idx in solution["ProblemType"]["IndexAssignmentsA"]:
+    sizeA *= problemSizes.indexMax[idx]
+  for idx in solution["ProblemType"]["IndexAssignmentsB"]:
+    sizeB *= problemSizes.indexMax[idx]
+  typeName = solution["ProblemType"]["DataType"].toCpp()
+  h += "typedef DataType %s;\n" % (typeName)
+  h += "size_t maxSizeC = %u;\n" % (sizeC)
+  h += "DataTye *initialC;;\n"
+  h += "DataType *referenceC;\n"
+  h += "size_t maxSizeA = %u;\n" % (sizeA)
+  h += "DataType *initialA;\n"
+  h += "size_t maxSizeB = %u;\n" % (sizeB)
+  h += "DataType *initialB;\n"
+  h += "DataType alpha;\n"
+  h += "DataType beta;\n"
+  h += "TensileStatus status;\n"
+  if globalParameters["Backend"] == "OCL":
+    h += "unsigned int platformIdx = %u;\n" \
+        % (globalParameters["PlatformIdx"])
+    h += "unsigned int deviceIdx;\n" \
+        % (globalParameters["DeviceIdx"])
+    h += "cl_platform_id platform;\n"
+    h += "cl_device_id device;\n"
+    h += "cl_context context;\n"
+    h += "cl_command_queue stream;\n"
+    h += "cl_mem deviceC;\n"
+    h += "cl_mem deviceA;\n"
+    h += "cl_mem deviceB;\n"
+  else:
+    h += "%s *deviceC;\n" % (typeName, typeName)
+    h += "static hipError_t status;\n"
+    h += "static int deviceIdx = %u;\n" \
+        % (globalParameters["DeviceIdx"])
+
+  benchmarkParametersFile.write(h)
+  benchmarkParametersFile.close()
 
 def main( config ):
   printStatus("Beginning")

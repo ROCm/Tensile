@@ -19,6 +19,8 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["Redo"] = "Changed" # Force None
+globalParameters["PlatformIdx"] = 0
+globalParameters["DeviceIdx"] = 0
 
 # param name in structures?
 def inListOfDictionaries(param, dictionaries):
@@ -69,14 +71,14 @@ def getParamValues( name, structure ):
 
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
-    {"KernelGrid":              [ [1, 1, 1] ] },
+    {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
     {"KernelSerial":            [ True, False ] },
     {"LoopFor":                 [ True, False ] },
     {"LoopTail":                [ True ] },
     {"LoadMacInterleave":       [ 4, 8, 16 ] },
     {"AtomicAccumulate":        [ False ] },
     {"EdgeType":                [ "Shift", "Branch", "None" ] },
-    {"EdgeMultiKernel":         [ True, False ] },
+    {"EdgeMultiKernel":         [ False, True ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [

@@ -1,9 +1,10 @@
 Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
-  Device: Fiji
   PrintDebug: 2
   Redo: Changed # Force None
+  PlatformIdx: 0
+  DeviceIdx: 0
 
 BenchmarkProblems:
   - ProblemType:

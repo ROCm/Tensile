@@ -20,25 +20,18 @@
 *******************************************************************************/
 
 #include "Tensile.h"
-#include "SolutionTensorContractionCPU.h"
+#include "SolutionHelper.h"
 
-#include <assert.h>
 #include <cstdio>
 #include <string>
 #include <cstring>
 #include <algorithm>
 
-#if Tensile_SOLVER_ENABLED
-#include "TensileGetSolution.h"
-#endif
-
-
 /*******************************************************************************
  * tensileSetup()
  ******************************************************************************/
-TensileStatus tensileSetup( const char *logFilePath ) {
-  Tensile::logger.init(logFilePath);
-  return tensileStatusSuccess;
+TensileStatus tensileSetup() {
+  return 0;
 }
 
 
@@ -60,8 +53,7 @@ TensileStatus tensileTeardown() {
     kernelMap = nullptr;
   }
 #endif
-  Tensile::logger.close();
-  return tensileStatusSuccess;
+  return 0;
 }
 
 

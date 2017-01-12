@@ -19,45 +19,23 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#ifndef REFERENCE_TENSOR_CONTRACTION_H
-#define REFERENCE_TENSOR_CONTRACTION_H
+#ifndef REFERENCE_CPU_H
+#define REFERENCE_CPU_H
 #include "Tensile.h"
-#include "Solution.h"
-#include <assert.h>
 #include <tuple>
 
-namespace Tensile {
-
-/*******************************************************************************
- * TensileSolutionTensorContractionCPU
- * - compute tensor contraction on cpu using simple/slow loops
- ******************************************************************************/
-template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-class SolutionTensorContractionCPU : public SolutionTemplate<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
-public:
-  SolutionTensorContractionCPU( const Problem & inputProblem );
-
-  TensileStatus enqueue(
-      TensileTensorData tensorDataA,
-      TensileTensorDataConst tensorDataB,
-      TensileTensorDataConst tensorDataC,
-      TensileScalarData alpha,
-      TensileScalarData beta,
-      TensileControl & ctrl );
-  
-  std::string toString( size_t indentLevel ) const;
-  std::string toStringDetailXML( size_t indentLevel ) const;
-};
-
-
-/*******************************************************************************
- * tensileGetSolution
- ******************************************************************************/
-std::tuple<Tensile::Solution *, TensileStatus> getSolutionCPU(
-    const Tensile::Problem & problem );
-
-} // namespace
-
+template< typename Type >
+TensileStatus tensileReferenceCPU(
+    Type *dataC,
+    Type *dataA,
+    Type *dataB,
+    Type alpha,
+    Type beta,
+    unsigned int numIndicesC,
+    unsigned int numIndicesAB,
+    unsigned int *indexAssignmentsA,
+    unsigned int *indexAssignmentsB
+    );
 
 #endif
 

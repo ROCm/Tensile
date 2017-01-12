@@ -24,6 +24,16 @@
 #include <cmath>
 #include <limits>
 
+#if   Tensile_BACKEND_OCL
+#include "CL/cl.h"
+typedef cl_float2 TensileComplexFloat;
+typedef cl_double2 TensileComplexDouble;
+#define TENSILEREAL(X) X.s[0]
+#define TENSILECOMP(X) X.s[1]
+#else
+#include <hip/hip_runtime.h>
+#endif
+
 namespace Tensile {
 
 /*******************************************************************************

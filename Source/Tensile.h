@@ -22,17 +22,23 @@
 #ifndef TENSILE_H
 #define TENSILE_H
 
+// OpenCL
 #if   Tensile_BACKEND_OCL
 #include "CL/cl.h"
-#elif Tensile_BACKEND_HIP
-#include <hip/hip_runtime.h>
-#elif Tensile_BACKEND_ASM
-#include <hip/hip_runtime.h>
+#define TensileStatus cl_int
+#define tensileStatusSuccess CL_SUCCESS
+#define tensileStatusFailure -1
+
+// HIP
 #else
-#error "ERROR - No backend selected."
+#include <hip/hip_runtime.h>
+#define TensileStatus hipError_t
+#define tensileStatusSuccess 0
+#define tensileStatusFailure -1
+
 #endif
 
-int tensileSetup();
-int tensileTeardown();
+TensileStatus tensileSetup();
+TensileStatus tensileTeardown();
 
 #endif

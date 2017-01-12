@@ -19,19 +19,73 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#ifndef SOLUTION_H
-#define SOLUTION_H
+#ifndef SOLUTION_HELPER_H
+#define SOLUTION_HELPER_H
 
 #include "Tensile.h"
-#include "Problem.h"
 #include <map>
 #include <string>
 
-namespace Tensile {
+/*******************************************************************************
+ * OpenCL Kernel Cache
+ ******************************************************************************/
+#if Tensile_BACKEND_OCL
+typedef struct KernelMapKey_ {
+  cl_context context; // address of context
+  cl_device_id device; // address of device
+  const char *kernelSource; // address of kernel source
+} KernelMapKey;
+
+typedef std::map<KernelMapKey, cl_kernel> KernelMap;
+bool operator<(const KernelMapKey & l, const KernelMapKey & r);
+
+#ifdef WIN32
+__declspec(thread) extern KernelMap *kernelMap;
+#else
+extern __thread KernelMap *kernelMap;
+#endif
+
+#elif Tensile_BACKEND_HIP
+// HIP doesn't need kernel cache
+#endif
+
 
 /*******************************************************************************
- * Solution - base abstract class without templates
+ * OpenCL and HIP status checkers
  ******************************************************************************/
+//#include <assert.h>
+#if Tensile_BACKEND_OCL
+#define tensileCheck(RET) \
+  if(RET != CL_SUCCESS) { \
+    printf("OpenCL Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
+    /*assert(false);*/ \
+    }
+#elif Tensile_BACKEND_HIP
+#define tensileCheck(RET) \
+  if(RET != hipSuccess) { \
+    printf("HIP Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
+    /*assert(false);*/ \
+    }
+#endif
+
+
+/*******************************************************************************
+ * Compile OpenCL kernels
+ ******************************************************************************/
+void tensileGetCompiledOpenCLKernel(
+  cl_kernel *kernel,
+  const char *kernelSource,
+  cl_command_queue queue,
+  const char *sourceBuildOptions);
+
+/*******************************************************************************
+ * Calculate sizes for multi kernel
+ ******************************************************************************/
+void tensileCalculateSizesForEdgeMultiKernel();
+void tensileCalculateSizesForKernelMaxSizes();
+
+#if 0
+
 class Solution {
 public:
   Solution( const Problem & inputProblem );
@@ -180,11 +234,6 @@ public:
   SolutionOpenCL( const Problem & inputProblem );
   ~SolutionOpenCL();
 
-  void makeKernel(
-  cl_kernel *kernel,
-  cl_command_queue queue,
-  const char *kernelSource,
-  const char *sourceBuildOptions);
   
   TensileStatus enqueue(
       TensileTensorData tensorDataC,
@@ -289,45 +338,9 @@ public:
 
 
 
-} // end namespace
-
-
-// cache kernels so they only get compiled once
-#if Tensile_BACKEND_OCL
-typedef struct KernelMapKey_ {
-  cl_context context; // address of context
-  cl_device_id device; // address of device
-  const char *kernelSource; // address of kernel source
-} KernelMapKey;
-typedef std::map<KernelMapKey, cl_kernel> KernelMap;
-bool operator<(const KernelMapKey & l, const KernelMapKey & r);
-
-#ifdef WIN32
-__declspec(thread) extern KernelMap *kernelMap;
-#else
-extern __thread KernelMap *kernelMap;
-#endif
-
-#elif Tensile_BACKEND_HIP
-// not needed; pre-compiled
-#endif
 
 
 
-#include <assert.h>
-#if Tensile_BACKEND_OCL
-#define CL_CHECK(RET) \
-  if(RET != CL_SUCCESS) { \
-    printf("OpenCL Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
-    /*assert(false);*/ \
-    }
-#elif Tensile_BACKEND_HIP
-#define CL_CHECK(RET) \
-  if(RET != hipSuccess) { \
-    printf("HIP Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
-    /*assert(false);*/ \
-    }
-#endif
 
 
 
@@ -342,3 +355,8 @@ struct _TensileSolution {
 
 #endif
 
+
+
+
+// 0 to comment everything out
+#endif

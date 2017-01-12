@@ -109,16 +109,16 @@ double multiply( double a, double b ) {
 template< >
 TensileComplexFloat multiply( TensileComplexFloat a, TensileComplexFloat b ) {
   TensileComplexFloat c;
-  c.x = a.x*b.x - a.y*b.y;
-  c.y = a.x*b.y + a.y*b.x;
+  TENSILEREAL(c) = TENSILEREAL(a)*TENSILEREAL(b) - TENSILECOMP(a)*TENSILECOMP(b);
+  TENSILECOMP(c) = TENSILEREAL(a)*TENSILECOMP(b) + TENSILECOMP(a)*TENSILEREAL(b);
   return c;
 }
 // complex double
 template< >
 TensileComplexDouble multiply( TensileComplexDouble a, TensileComplexDouble b ) {
   TensileComplexDouble c;
-  c.x = a.x*b.x - a.y*b.y;
-  c.y = a.x*b.y + a.y*b.x;
+  TENSILEREAL(c) = TENSILEREAL(a)*TENSILEREAL(b) - TENSILECOMP(a)*TENSILECOMP(b);
+  TENSILECOMP(c) = TENSILEREAL(a)*TENSILECOMP(b) + TENSILECOMP(a)*TENSILEREAL(b);
   return c;
 }
 
@@ -148,16 +148,16 @@ double add( double a, double b ) {
 template< >
 TensileComplexFloat add( TensileComplexFloat a, TensileComplexFloat b ) {
   TensileComplexFloat c;
-  c.x = a.x+b.x;
-  c.y = a.y+b.y;
+  TENSILEREAL(c) = TENSILEREAL(a)+TENSILEREAL(b);
+  TENSILECOMP(c) = TENSILECOMP(a)+TENSILECOMP(b);
   return c;
 }
 // complex double
 template< >
 TensileComplexDouble add( TensileComplexDouble a, TensileComplexDouble b ) {
   TensileComplexDouble c;
-  c.x = a.x+b.x;
-  c.y = a.y+b.y;
+  TENSILEREAL(c) = TENSILEREAL(a)+TENSILEREAL(b);
+  TENSILECOMP(c) = TENSILECOMP(a)+TENSILECOMP(b);
   return c;
 }
 
@@ -180,11 +180,11 @@ bool almostEqual(double a, double b) {
 }
 template< >
 bool almostEqual( TensileComplexFloat a, TensileComplexFloat b) {
-  return almostEqual(a.x, b.x) && almostEqual(a.y, b.y);
+  return almostEqual(TENSILEREAL(a), TENSILEREAL(b)) && almostEqual(TENSILECOMP(a), TENSILECOMP(b));
 }
 template< >
 bool almostEqual(TensileComplexDouble a, TensileComplexDouble b) {
-  return almostEqual(a.x, b.x) && almostEqual(a.y, b.y);
+  return almostEqual(TENSILEREAL(a), TENSILEREAL(b)) && almostEqual(TENSILECOMP(a), TENSILECOMP(b));
 }
 
 /*******************************************************************************
@@ -200,11 +200,11 @@ template< >
 void complexConjugate(double &) {}
 template< >
 void complexConjugate( TensileComplexFloat & v) {
-  v.y = -v.y;
+  TENSILECOMP(v) = -TENSILECOMP(v);
 }
 template< >
 void complexConjugate(TensileComplexDouble & v) {
-  v.y = -v.y;
+  TENSILECOMP(v) = -TENSILECOMP(v);
 }
 
 

@@ -19,18 +19,17 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#include "SolutionTensorContractionCPU.h"
+#include "ReferenceCPU.h"
 #include "MathTemplates.h"
 
-#include <assert.h>
 #include <algorithm>
 
 
 /*******************************************************************************
  * enqueue
  ******************************************************************************/
-template< typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta >
-int SolutionTensorContractionCPU<Type>(
+template< typename Type >
+TensileStatus tensileReferenceCPU(
     Type *dataC,
     Type *dataA,
     Type *dataB,
@@ -180,40 +179,14 @@ int SolutionTensorContractionCPU<Type>(
 } // referenceTensorContraction
 
 
-/*******************************************************************************
- * toString
- ******************************************************************************/
-template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toString( size_t indentLevel ) const {
-  std::string state = Tensile::indent(indentLevel);
-  state += "TensileSolutionTensorContractionCPU";
-  return state;
-}
 
 
-/*******************************************************************************
-* toString
-******************************************************************************/
-template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
-std::string SolutionTensorContractionCPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::toStringDetailXML( size_t indentLevel ) const {
-  std::string detail = Tensile::indent(indentLevel);
-  detail += "<ImplementationDetails/>\n";
-  return detail;
-}
-
-
-size_t coordsToSerial( TensileTensor tensor, size_t *coords ) {
-  size_t serial = 0;
-  for (size_t i = 0; i < tensor.numDimensions; i++) {
-    serial += coords[i] * tensor.dimensions[i].stride;
-  }
-  return serial;
-}
 
 /*******************************************************************************
  * tensileGetSolution
  * need to list all wanted template variants for compiler in this file
  ******************************************************************************/
+/*
 std::tuple<Solution *,TensileStatus> getSolutionCPU( const Problem & problem) {
 
   bool problemIsTensorContraction = true;
@@ -239,13 +212,14 @@ std::tuple<Solution *,TensileStatus> getSolutionCPU( const Problem & problem) {
 #endif
     case tensileNumDataTypes:
     case tensileDataTypeNone:
-      return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
+      return std::make_tuple(nullptr, tensileStatusFailure);
     }
     //default:
     //  return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
     //}
   } else {
-      return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
+      return std::make_tuple(nullptr, tensileStatusFailure);
   }
 }
+*/
 

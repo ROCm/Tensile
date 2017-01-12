@@ -23,91 +23,47 @@ cmake_minimum_required(VERSION 2.8.12)
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
 
-set( CMAKE_MODULE_PATH
-  ${CMAKE_MODULE_PATH}
-  ${CMAKE_SOURCE_DIR} )
 
-############################################################
 # require C++11
-if(MSVC)
+#if(MSVC)
   # object-level build parallelism for VS, not just target-level
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
-  set_property( GLOBAL PROPERTY USE_FOLDERS TRUE )
-else()
-  add_definitions( "-std=c++11" )
-endif()
+  #  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
+  #set_property( GLOBAL PROPERTY USE_FOLDERS TRUE )
+  #else()
+  #add_definitions( "-std=c++11" )
+  #endif()
 
-# include Tensile-generated parameters
+# include generated parameters
+set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 include(${CMAKE_SOURCE_DIR}/Generated.cmake)
+include_directories( . Kernels Solutions )
 
-# OpenCL 1.2
-if( TensileBenchmark_BACKEND MATCHES "OCL")
-  find_package(OpenCL "1.2" REQUIRED)
-  message(STATUS "${TensileBenchmark_BACKEND} backend selected." )
-# HIP
-elseif( TensileBenchmark_BACKEND MATCHES "HIP")
-  find_package( HIP REQUIRED )
-  set (CMAKE_CXX_COMPILER ${HIPCC})
-  message(STATUS "${TensileBenchmark_BACKEND} backend selected." )
-  message(STATUS "HIP_PLATFORM = ${HIP_PLATFORM}")
-else()
-  message(STATUS "No backend selected in Generated.cmake." )
-endif( )
-
-
-
-# benchmark executable
+# executable
 add_executable( ${TensileBenchmark_NAME}
   ${TensileBenchmark_Source}
   ${TensileBenchmark_Solutions}
   ${TensileBenchmark_Kernels}
 )
 
-#set_target_properties( ${TensileBenchmark_NAME} PROPERTIES
-#    RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" 
-#    RUNTIME_OUTPUT_DIRECTORY_RELEASE "${PROJECT_BINARY_DIR}/bin"
-#    RUNTIME_OUTPUT_DIRECTORY_DEBUG "${PROJECT_BINARY_DIR}/bin" )
-
-##################################################
-if( TensileBenchmark_BACKEND MATCHES "OpenCL_1.2")
+###############################################################################
+# Backend dependent parameters
+if( TensileBenchmark_BACKEND MATCHES "OCL")
+  find_package(OpenCL "1.2" REQUIRED)
   target_link_libraries( ${TensileBenchmark_NAME} PRIVATE opencl )
   target_compile_definitions( ${TensileBenchmark_NAME} PUBLIC 
-    -DTensileBenchmark_BACKEND_OCL=1
-    -DTensileBenchmark_BACKEND_HIP=0 )
-elseif( TensileBenchmark_BACKEND MATCHES "HIP")
+    -DTensile_BACKEND_OCL=1
+    -DTensile_BACKEND_HIP=0 )
   target_include_directories( ${TensileBenchmark_NAME} SYSTEM
-    PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS}
-  )
-#  target_link_libraries( ${TensileBenchmark_NAME} PRIVATE ${HSA_LIBRARIES} )
+    PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
+elseif( TensileBenchmark_BACKEND MATCHES "HIP")
+  find_package( HIP REQUIRED )
+  set (CMAKE_CXX_COMPILER ${HIPCC})
+  target_include_directories( ${TensileBenchmark_NAME} SYSTEM
+    PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
   target_link_libraries( ${TensileBenchmark_NAME} PUBLIC ${HSA_LIBRARIES} )
   target_compile_definitions( ${TensileBenchmark_NAME} PUBLIC 
-    -DTensileBenchmark_BACKEND_OCL=0
-    -DTensileBenchmark_BACKEND_HIP=1 )
+    -DTensile_BACKEND_OCL=0
+    -DTensile_BACKEND_HIP=1 )
+else()
+  message(STATUS "No backend selected in Generated.cmake." )
 endif()
-
-# include Tensile headers
-#target_include_directories( ${TensileBenchmark_NAME}
-#  PUBLIC  $<BUILD_INTERFACE:${Tensile_DIR}/TensileLib/include>
-#          $<BUILD_INTERFACE:${Tensile_DIR}/TensileLib/src>
-#	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}>
-#	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Kernels>
-#	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Solutions>
-#	  $<BUILD_INTERFACE:${TensileBenchmark_DIR_GENERATED}/Other>
-#)
-
-############################################################
-# TensileBenchmark - generates ProblemSolutionMap.xml
-
-#target_compile_definitions( ${TensileBenchmark_NAME} PRIVATE -DTensile_SOLVER_ENABLED=0 -DTensile_LOGGER_ENABLED=1 )
-#if (CMAKE_CXX_COMPILER MATCHES ".*hipcc")
-    # hipcc is a pearl script, so it requires a lot of extra escaping
-    #target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_PROBLEMS=\\\"${TensileBenchmark_DIR_GENERATED}\\\")
-    # This does not need to be defined but will fail to compile when not
-    #    target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_SOLUTIONS=\\\"${TensileBenchmark_DIR_SOLUTIONS}\\\")
-    #else()
-    #file( TO_CMAKE_PATH ${TensileBenchmark_DIR_SOLUTIONS} CBDS_PATH)
-    #message(STATUS "TensileBenchmark output dir: ${CBDS_PATH}")
-    #target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_PROBLEMS="${CBDS_PATH}")
-    # This does not need to be defined but will fail to compile when not
-    #target_compile_definitions(${TensileBenchmark_NAME} PUBLIC -DTensile_DIR_SOLUTIONS="${CBDS_PATH}")
-    #endif()

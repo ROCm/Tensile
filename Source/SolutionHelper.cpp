@@ -19,26 +19,112 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#include "Solution.h"
-#include "Logger.h"
-#include "StructOperations.h"
-#include "MathTemplates.h"
+#include "SolutionHelper.h"
 
 #if Tensile_BACKEND_OCL
-#include "CL/cl.h"
-#elif Tensile_BACKEND_HIP
-#include <hip/hip_runtime.h>
+#ifdef WIN32
+__declspec(thread) KernelMap *kernelMap = 0;
+#else
+__thread KernelMap *kernelMap = 0;
+#endif
+bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
+  if (l.kernelSource < r.kernelSource) { return true; }
+  else if (r.kernelSource < l.kernelSource) { return false; }
+  if (l.context < r.context) { return true; }
+  else if (r.context < l.context) { return false; }
+  if (l.device < r.device) { return true; }
+  else if (r.device < l.device) { return false; }
+  return false;
+}
 #endif
 
-namespace Tensile {
+/*******************************************************************************
+ * Compile OpenCL kernels
+ ******************************************************************************/
+void tensileGetCompiledOpenCLKernel(
+  cl_kernel *kernel,
+  const char *kernelSource,
+  cl_command_queue queue,
+  const char *sourceBuildOptions) {
+  // initialize kernel map
+  if (!kernelMap) {
+    kernelMap = new KernelMap();
+  }
+
+  // get context and device from queue
+  cl_int err;
+  cl_context clContext;
+  cl_device_id clDevice;
+  err = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT,
+      sizeof(clContext), &clContext, NULL);
+  tensileCheck(err)
+    err = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE,
+        sizeof(clDevice), &clDevice, NULL);
+  tensileCheck(err)
+
+  // is kernel already compiled?
+  KernelMapKey key;
+  key.kernelSource = kernelSource;
+  key.context = clContext;
+  key.device = clDevice;
+  KernelMap::iterator idx = kernelMap->find(key);
+  if (idx != kernelMap->end()) {
+    *kernel = idx->second;
+    printf("kernel already compiled %p %p\n", kernel, *kernel);
+    return;
+  }
+
+  printf("building kernel\n");
+  cl_program clProgram;
+  clProgram = clCreateProgramWithSource(
+    clContext,
+    1, &kernelSource,
+    NULL, &err );
+  tensileCheck(err)
+  err = clBuildProgram(
+    clProgram,
+    1, &clDevice,
+    sourceBuildOptions, NULL, NULL );
+  tensileCheck(err)
+
+  // print build failure
+  if (err != CL_SUCCESS) {
+    printf("clBuildProgram Failed; Error = %d\n", err);
+    printf("\nKernel Source:\n\n");
+    printf("%s\n", kernelSource);
+
+    size_t len = 0;
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+    char* buildLog = new char[len];
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len*sizeof(char), buildLog, 0);
+    printf("\n\n\nBuild Log:\n\n");
+    printf("%s\n", buildLog);
+    printf("\n");
+    delete[] buildLog;
+  }
+  err = clCreateKernelsInProgram(
+    clProgram,
+    1, kernel,
+    NULL );
+  tensileCheck(err)
+  err = clReleaseProgram(clProgram);
+  tensileCheck(err)
+
+  // put kernel in map
+  (*kernelMap)[key] = *kernel;
+}
+
 
 /*******************************************************************************
- *******************************************************************************
- **
- **   Solution
- **
- *******************************************************************************
+ * Calculate sizes for multi kernel
  ******************************************************************************/
+void tensileCalculateSizesForEdgeMultiKernel(){
+}
+void tensileCalculateSizesForKernelMaxSizes(){
+}
+
+
+#if 0
 
 /*******************************************************************************
  * Solution constructor
@@ -754,9 +840,9 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
   cl_context clContext;
   cl_device_id clDevice;
   err = clGetCommandQueueInfo(queue, CL_QUEUE_CONTEXT, sizeof(clContext), &clContext, NULL);
-  CL_CHECK(err)
+  tensileCheck(err)
     err = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(clDevice), &clDevice, NULL);
-  CL_CHECK(err)
+  tensileCheck(err)
 
   // is kernel already compiled?
   KernelMapKey key;
@@ -776,13 +862,13 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
     clContext,
     1, &kernelSource,
     NULL, &err );
-  CL_CHECK(err)
+  tensileCheck(err)
   // driver leaks ~200kB at this call
   err = clBuildProgram(
     clProgram,
     1, &clDevice,
     sourceBuildOptions, NULL, NULL );
-  CL_CHECK(err)
+  tensileCheck(err)
 
   // print build failure
   if (err != CL_SUCCESS) {
@@ -803,9 +889,9 @@ void SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::makeKernel(
     clProgram,
     1, kernel,
     NULL );
-  CL_CHECK(err)
+  tensileCheck(err)
   err = clReleaseProgram(clProgram);
-  CL_CHECK(err)
+  tensileCheck(err)
 
   // put kernel in map
   (*kernelMap)[key] = *kernel;
@@ -851,26 +937,26 @@ TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
       unsigned int dataArgIdx = 0;
       // data pointers
       status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeof(cl_mem), &tensorDataC.data ); CL_CHECK(status)
+          sizeof(cl_mem), &tensorDataC.data ); tensileCheck(status)
       status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeof(cl_mem), &tensorDataA.data ); CL_CHECK(status)
+          sizeof(cl_mem), &tensorDataA.data ); tensileCheck(status)
       status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-          sizeof(cl_mem), &tensorDataB.data ); CL_CHECK(status)
+          sizeof(cl_mem), &tensorDataB.data ); tensileCheck(status)
       // alpha if required
       if (!std::is_void<TypeAlpha>::value) {
         status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-            sizeOfType<TypeAlpha>(), alpha.data ); CL_CHECK(status)
+            sizeOfType<TypeAlpha>(), alpha.data ); tensileCheck(status)
       }
       // beta if required
       if (!std::is_void<TypeBeta>::value) {
         status = clSetKernelArg( kernels[kernelIdx], dataArgIdx++,
-            sizeOfType<TypeBeta>(), beta.data ); CL_CHECK(status)
+            sizeOfType<TypeBeta>(), beta.data ); tensileCheck(status)
       }
 
       // uint args
       for (unsigned int i = 0; i < this->numKernelArgs; i++) {
         status = clSetKernelArg( kernels[kernelIdx], i+dataArgIdx, sizeof(unsigned int),
-            &this->enqueueArgs[kernelIdx][enqueueIdx][i] ); CL_CHECK(status)
+            &this->enqueueArgs[kernelIdx][enqueueIdx][i] ); tensileCheck(status)
       }
 
       // out cl_event
@@ -945,7 +1031,7 @@ TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           ctrl.numInputEvents,
           ctrl.inputEvents,
           outEvent );
-      CL_CHECK(status)
+      tensileCheck(status)
       //clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]); // only for debugging
       kernelSerialIdx++;
     }
@@ -1031,11 +1117,11 @@ TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
         // data pointers
         status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(cl_mem), &tensorDataC.data );
-        CL_CHECK(status)
+        tensileCheck(status)
         status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(cl_mem), &tensorDataA.data );
-        CL_CHECK(status)
+        tensileCheck(status)
         status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(cl_mem), &tensorDataB.data );
-        CL_CHECK(status)
+        tensileCheck(status)
 
         if (argOffsets || kernelIdx > 0) {
           // tensorC offsets
@@ -1061,11 +1147,11 @@ TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
 
 
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetC );
-          CL_CHECK(status)
+          tensileCheck(status)
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetA );
-          CL_CHECK(status)
+          tensileCheck(status)
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeof(unsigned int), &tensorOffsetB );
-          CL_CHECK(status)
+          tensileCheck(status)
         }
 
         if (argSizes || kernelIdx > 0) {
@@ -1076,29 +1162,29 @@ TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           //}
           for ( unsigned int i = 0; i < numKernelArgs; i++) {
             status = clSetKernelArg( kernels[kernelIdx], argIdx+i, kernelArgSizes[i], kernelArgs[i] );
-            CL_CHECK(status)
+            tensileCheck(status)
           }
 
           // size overrides
           status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim0+readShift, kernelArgSizes[kernelArgIdxDim0], &kernelNumElementsDim0[kernelIdx] );
-          CL_CHECK(status)
+          tensileCheck(status)
           status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxDim1+readShift, kernelArgSizes[kernelArgIdxDim1], &kernelNumElementsDim1[kernelIdx] );
-          CL_CHECK(status)
+          tensileCheck(status)
           status = clSetKernelArg( kernels[kernelIdx], kernelArgIdxSummation+readShift, kernelArgSizes[kernelArgIdxSummation], &kernelNumElementsDimU[kernelIdx] );
-          CL_CHECK(status)
+          tensileCheck(status)
           argIdx += numKernelArgs;
         }
 
         // alpha
         if (requireAlpha) {
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeOfAlpha, alpha.data );
-          CL_CHECK(status)
+          tensileCheck(status)
         }
 
         // beta
         if (requireBeta) {
           status = clSetKernelArg( kernels[kernelIdx], argIdx++, sizeOfBeta, (dU>0) ? static_cast<void *>(&betaOne) : beta.data );
-          CL_CHECK(status)
+          tensileCheck(status)
         }
 
         // enqueue
@@ -1131,9 +1217,9 @@ TensileStatus SolutionOpenCL<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta>::enqueue(
           ctrl.inputEvents,
           outEvent );
 #endif
-        CL_CHECK(status)
+        tensileCheck(status)
         //status = clFinish(ctrl.queues[kernelSerialIdx%ctrl.numQueues]);
-        //CL_CHECK(status)
+        //tensileCheck(status)
         kernelSerialIdx++;
       }
     }
@@ -1234,7 +1320,6 @@ enqueue(
 
 
 
-} // namespace
 
 #if Tensile_BACKEND_OCL
 bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
@@ -1290,11 +1375,5 @@ template class Tensile::SolutionLogOnly<void,void,void,void,void>;
 #endif
 #endif
 
-#if Tensile_BACKEND_OCL
-#ifdef WIN32
-__declspec(thread) KernelMap *kernelMap = 0;
-#else
-__thread KernelMap *kernelMap = 0;
-#endif
-#endif
 
+#endif
