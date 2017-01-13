@@ -17,6 +17,7 @@ from subprocess import Popen
 ################################################################################
 def benchmarkProblemType( config ):
 
+  hr = "#######################################################################"
 
   # convert config to full benchmark process (resolves defaults)
   benchmarkProcess = BenchmarkProcess(config)
@@ -27,13 +28,12 @@ def benchmarkProblemType( config ):
   totalBenchmarkSteps = len(benchmarkProcess)
   determinedParameters = [{}] # winner chosen from benchmark
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
+    benchmarkStep = benchmarkProcess[benchmarkStepIdx]
+    stepName = str(benchmarkStep)
     print "\n\n"
     print hr
     print "# Performing Benchmark Step %u: %s" % (benchmarkStepIdx, stepName)
     print hr
-    benchmarkStep = benchmarkProcess[benchmarkStepIdx]
-    print "BenchmarkStepIdx: %u" % benchmarkStepIdx
-    stepName = str(benchmarkStep)
     pushWorkingPath(stepName)
     # copy files to benchmark source directory
     pushWorkingPath("source")
@@ -133,7 +133,6 @@ def benchmarkProblemType( config ):
     if not os.path.exists(resultsFileName):
       pushWorkingPath("build")
       # create run.bat or run.sh which builds and runs
-      hr = "###################################################################"
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
         "run.%s" % "bat" if os.name == "nt" else "sh")
       runScriptFile = open(runScriptName, "w")
