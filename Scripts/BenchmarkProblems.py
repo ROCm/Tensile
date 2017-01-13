@@ -2,6 +2,7 @@ import sys
 import os
 from copy import deepcopy
 from shutil import copy as shutil_copy
+import csv
 
 from BenchmarkProcess import *
 from Common import *
@@ -11,6 +12,8 @@ from KernelWriter import *
 from subprocess import Popen
 
 
+################################################################################
+# Benchmark Problem Type
 ################################################################################
 def benchmarkProblemType( config ):
 
@@ -22,8 +25,12 @@ def benchmarkProblemType( config ):
   ensurePath(os.path.join(globalParameters["WorkingPath"],"Data"))
 
   totalBenchmarkSteps = len(benchmarkProcess)
-  determinedParameters = {} # winner chosen from benchmark
+  determinedParameters = [{}] # winner chosen from benchmark
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
+    print "\n\n"
+    print hr
+    print "# Performing Benchmark Step %u: %s" % (benchmarkStepIdx, stepName)
+    print hr
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
     print "BenchmarkStepIdx: %u" % benchmarkStepIdx
     stepName = str(benchmarkStep)
@@ -68,83 +75,118 @@ def benchmarkProblemType( config ):
     currentSolution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state) }
     print "prevParameters = %s" % str(benchmarkStep.prevParameters)
     # append previously determined values
-    for prevParamDict in benchmarkStep.prevParameters:
-      for prevParamName in prevParamDict:
-        if prevParamName in determinedParameters:
-          paramValue = determinedParameters[prevParamName]
-          currentSolution[prevParamName] = deepcopy(paramValue)
-        else:
-          printWarning("Parameter %s should have been determined, but wasn't" % prevParamName)
-    # multiplicity of benchmark params
+    #for prevParamDict in benchmarkStep.prevParameters:
+    #  for prevParamName in prevParamDict:
+    #    if prevParamName in determinedParameters:
+    #      paramValue = determinedParameters[prevParamName]
+    #      currentSolution[prevParamName] = deepcopy(paramValue)
+    #    else:
+    #      printWarning("Parameter %s should have been determined, but wasn't" % prevParamName)
+    # count multiplicity of benchmark params
     totalBenchmarkPermutations = 1
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
     print "totalSolutions = %u = %u (hardcoded) * %u (benchmark)" % \
         (totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters), \
         len(benchmarkStep.hardcodedParameters), totalBenchmarkPermutations)
+
+    # list benchmark permutations
+    benchmarkPermutations = []
     for i in range(0, totalBenchmarkPermutations):
+      permutation = {}
       pIdx = i
       for benchmarkParamName in benchmarkStep.benchmarkParameters:
         benchmarkParamValues = deepcopy(benchmarkStep.benchmarkParameters[benchmarkParamName])
         valueIdx = pIdx % len(benchmarkParamValues)
-        currentSolution[benchmarkParamName] = deepcopy(benchmarkParamValues[valueIdx])
+        permutation[benchmarkParamName] = benchmarkParamValues[valueIdx]
         pIdx /= len(benchmarkParamValues)
+      benchmarkPermutations.append(permutation)
 
-      # multiplicity of hardcoded params
-      for hardcodedParamDict in benchmarkStep.hardcodedParameters:
-        fullSolution = {}
-        fullSolution.update(currentSolution)
-        fullSolution.update(hardcodedParamDict)
+
+    # multiplicity of hardcoded params
+    for hardcodedParamDict in benchmarkStep.hardcodedParameters:
+      # determinedParameters is a list of dictionaries, 1 per hpd
+      determinedParameterIdx = 0
+      for benchmarkPermutation in benchmarkPermutations:
+        solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
+        solution.update(benchmarkPermutation)
+        solution.update(hardcodedParamDict)
+        # Round robin assign determinedParameters to these solutions
+        solution.update(determinedParameters[determinedParameterIdx])
+        determinedParameterIdx = (determinedParameterIdx+1) \
+            % len(determinedParameters)
+        print solution
 
         # append default parameters where necessary
         for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
-          if initialSolutionParameterName not in fullSolution:
-            fullSolution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
+          if initialSolutionParameterName not in solution:
+            solution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
-        solutionObject = Solution(fullSolution, solutions)
+        solutionObject = Solution(solution, solutions)
         printStatus("appending solution %s" % str(solutionObject))
         solutions.append(solutionObject)
-
     # write benchmarkFiles
     writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, stepName, filesToCopy)
-
     popWorkingPath() # source
-    pushWorkingPath("build")
-    # create run.bat or run.sh which builds and runs
-    hr = "#####################################################################"
-    runScriptName = os.path.join(globalParameters["WorkingPath"], \
-      "run.%s" % "bat" if os.name == "nt" else "sh")
-    runScriptFile = open(runScriptName, "w")
-    runScriptFile.write("@echo. & echo %s & echo # Configuring CMake & echo %s\n" \
-        % (hr, hr))
-    runScriptFile.write("cmake ../source\n")
-    runScriptFile.write("@echo. & echo %s & echo # Building TensileBenchmark & echo %s\n" \
-        % (hr, hr))
-    runScriptFile.write("cmake --build . --config %s\n" \
-        % globalParameters["CMakeBuildType"] )
-    runScriptFile.write("@echo. & echo %s & echo # Running TensileBenchmark & echo %s\n" \
-        % (hr, hr))
-    runScriptFile.write(os.path.join("Release","TensileBenchmark_%s%s") \
-        % (stepName, ".exe" if os.name == "nt" else "") )
-    runScriptFile.close()
-    print "\n\n"
-    print "####################################################################"
-    print "# Executing Benchmark Step %u: %s" % (benchmarkStepIdx, stepName)
-    print "####################################################################"
-    print "\n\n"
-    process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-    status = process.wait()
 
-    printExit("%s returned %u" % (runScriptName, status) )
+    resultsFileName = os.path.join(globalParameters["WorkingPath"],"../Data","%s.csv" % stepName)
+    if not os.path.exists(resultsFileName):
+      pushWorkingPath("build")
+      # create run.bat or run.sh which builds and runs
+      hr = "###################################################################"
+      runScriptName = os.path.join(globalParameters["WorkingPath"], \
+        "run.%s" % "bat" if os.name == "nt" else "sh")
+      runScriptFile = open(runScriptName, "w")
+      runScriptFile.write("@echo. & echo %s & echo # Configuring CMake & echo %s\n" \
+          % (hr, hr))
+      runScriptFile.write("cmake ../source\n")
+      runScriptFile.write("@echo. & echo %s & echo # Building TensileBenchmark & echo %s\n" \
+          % (hr, hr))
+      runScriptFile.write("cmake --build . --config %s\n" \
+          % globalParameters["CMakeBuildType"] )
+      runScriptFile.write("@echo. & echo %s & echo # Running TensileBenchmark & echo %s\n" \
+          % (hr, hr))
+      runScriptFile.write(os.path.join("Release","TensileBenchmark_%s%s") \
+          % (stepName, ".exe" if os.name == "nt" else "") )
+      runScriptFile.close()
+      process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
+      status = process.wait()
+      popWorkingPath() # build
 
-    # build benchmark
-    # execute benchmark
-    popWorkingPath() # build
 
-    popWorkingPath() # benchmark
+    # read data from csv
+    try:
+      resultsFile = open(resultsFileName, "r")
+    except IOError:
+      printExit("Can't open \"%s\" after BenchmarkStep %u: %s" \
+          % (resultsFileName, benchmarkStepIdx, stepName) )
+    winners = determineWinnersFromResults(resultsFile, solutions, \
+        benchmarkStep.hardcodedParameters)
+    oldDeterminedParameters = []
+    for hardcodedParameterIdx in range(0, len(winners)):
+      hardcodedParameters = \
+          benchmarkStep.hardcodedParameters[hardcodedParameterIdx]
+      benchmarkParameters = \
+          benchmarkPermutations[winners[hardcodedParameterIdx]]
+
+      print "Winner[%u:%s] is %u:%s" % (hardcodedParameterIdx, \
+          str(hardcodedParameters), winners[hardcodedParameterIdx], \
+          str(benchmarkParameters) )
+      winningParameters = {}
+      winningParameters.update(hardcodedParameters)
+      winningParameters.update(benchmarkParameters)
+      determinedParameters.append(winningParameters)
+
+
+    popWorkingPath() # stepName
+    print "%s\n# END BENCHMARK STEP%s\n" % (hr, hr)
+    #printExit("ON PURPOSE")
 
   popWorkingPath()
 
+################################################################################
+# Write Benchmark Files
+################################################################################
 def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   printStatus("Beginning")
   ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
@@ -403,7 +445,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "};\n"
 
   # output filename
-  resultsFileName = os.path.join(globalParameters["WorkingPath"],"..","%s.csv" % stepName)
+  resultsFileName = os.path.join(globalParameters["WorkingPath"],"../../Data","%s.csv" % stepName)
   resultsFileName = resultsFileName.replace("\\", "\\\\")
 
   h += "const char *resultsFileName = \"%s\";\n" % resultsFileName
@@ -411,6 +453,69 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   benchmarkParametersFile.write(h)
   benchmarkParametersFile.close()
 
+################################################################################
+# Determine Winners From Results
+################################################################################
+def determineWinnersFromResults(resultsFile, solutions, hardcodedParameters):
+  numHardcodedParameters = len(hardcodedParameters)
+  totalSolutions = len(solutions)
+  numSolutionsPerHardcodedParameter = totalSolutions / numHardcodedParameters
+  print "%u solutions for each of %u hardcoded parameters\n" \
+      % (numSolutionsPerHardcodedParameter, numHardcodedParameters)
+
+  # setup data structures
+  times = []
+  numWins = []
+  for i in range(0, numHardcodedParameters):
+    times.append([])
+    numWins.append([])
+    for j in range(0, numSolutionsPerHardcodedParameter):
+      times[i].append([])
+      numWins[i].append(0)
+
+  # read times
+  csvFile = csv.reader(resultsFile)
+  startIdx = solutions[0]["ProblemType"]["TotalIndices"] + 2
+  rowIdx = 0
+  for row in csvFile:
+    if rowIdx == 0:
+      rowIdx+=1
+      continue
+    else:
+      for i in range(0, numHardcodedParameters):
+        for j in range(0, numSolutionsPerHardcodedParameter):
+          times[i][j].append(float(row[startIdx+j \
+              + i*numSolutionsPerHardcodedParameter]))
+
+  # count wins for each problem size
+  for r in range(0, rowIdx):
+    for i in range(0, numHardcodedParameters):
+      winnerIdx = -1
+      winnerTime = 1e100
+      for j in range(0, numSolutionsPerHardcodedParameter):
+        solutionTime = times[i][j][r]
+        if solutionTime < winnerTime:
+          winnerIdx = j
+          winnerTime = solutionTime
+      numWins[i][winnerIdx] += 1
+
+  # determine winners
+  winners = []
+  for i in range(0, numHardcodedParameters):
+    winnerIdx = -1
+    winnerNumWins = 0
+    for j in range(0, numSolutionsPerHardcodedParameter):
+      if numWins[i][j] > winnerNumWins:
+        winnerIdx = j
+        winnerNumWins = numWins[i][j]
+    winners.append(winnerIdx)
+  return winners
+
+
+
+################################################################################
+# Main
+################################################################################
 def main( config ):
   printStatus("Beginning")
   pushWorkingPath("1_BenchmarkProblemTypes")

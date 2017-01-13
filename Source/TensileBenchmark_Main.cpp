@@ -13,16 +13,19 @@ int main( int argc, char *argv[] ) {
 
   initControls();
 
+  printf("Initializing data");
   initData();
+  printf("\n");
 
-  printf("Writing results to %s\n", resultsFileName);
+  printf("ResultsFileName: %s\n", resultsFileName);
   file.open(resultsFileName);
   // write column headers
-  file << "Idx, TotalSize";
+  file << "Idx ";
   char *indexChars = "IJKLMNOPQRSTUVWXYZ";
   for ( unsigned int i = 0; i < totalIndices; i++) {
     file << ", Size" << indexChars[i];
   }
+  file << ", TotalSize";
   for ( unsigned int s = 0; s < numSolutions; s++) {
     file << ", " << solutionNames[s];
   }
@@ -54,17 +57,15 @@ int main( int argc, char *argv[] ) {
     }
 #if 1
     // print size
-    printf("size={ %u", fullSizes[0]);
+    printf("Problem[%2u]: %u", problemIdx, fullSizes[0]);
     for (unsigned int i = 1; i < totalIndices; i++) {
       printf(", %u", fullSizes[1]);
     }
-    printf("}\n");
+    printf("\n");
 #endif
 
     // benchmark all solutions for this problem size
-    for (unsigned int s = 0; s < numSolutions; s++) {
-      benchmarkAllSolutionsForSize( problemIdx, fullSizes );
-    }
+    benchmarkAllSolutionsForSize( problemIdx, fullSizes );
 
     // increment sizes for next benchmark
     currentSizedIndexSizes[0] += currentSizedIndexIncrements[0];
@@ -76,7 +77,7 @@ int main( int argc, char *argv[] ) {
         currentSizedIndexSizes[i-1] = indicesSized[i-1][0];
         currentSizedIndexIncrements[i-1] += indicesSized[i-1][1];
         // increment next index
-        if ( i == numIndicesSized) {
+        if ( i >= numIndicesSized) {
           moreProblemSizes = false;
         } else {
           currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
@@ -112,14 +113,13 @@ void benchmarkAllSolutionsForSize(
     currentSizeC *= sizes[i];
   }
 
-  size_t totalSize = 1;
-  for (unsigned int i = 0; i < totalIndices; i++) {
-    totalSize *= sizes[i];
-  }
-  file << problemIdx << ", " << totalSize << ", " << sizes[0];
+  file << problemIdx << ", " << sizes[0];
   for (unsigned int i = 1; i < totalIndices; i++) {
     file << ", " << sizes[i];
   }
+  size_t totalSize = 1;
+  for (unsigned int i = 0; i < totalIndices; i++) { totalSize *= sizes[i]; }
+  file << ", " << totalSize;
 
   // pre-compute referenceCPU if validating
   if (doValidation) {
@@ -243,6 +243,7 @@ void destroyControls() {
  * initialize data
  ******************************************************************************/
 void initData() {
+    printf(".");
   // initial and reference buffers
   referenceC = new DataType[maxSizeC];
 #if Tensile_BACKEND_OCL
@@ -254,38 +255,48 @@ void initData() {
   status = hipMalloc( &initialA, sizeMaxA );
   status = hipMalloc( &initialB, sizeMaxB );
 #endif
+    printf(".");
 
   // initialize buffers
   if (dataInitType == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = static_cast<DataType>(rand() % 10);
     }
+    printf(".");
     for (size_t i = 0; i < maxSizeA; i++) {
       initialA[i] = static_cast<DataType>(rand() % 10);
     }
+    printf(".");
     for (size_t i = 0; i < maxSizeB; i++) {
       initialB[i] = static_cast<DataType>(rand() % 10);
     }
+    printf(".");
   } else if (dataInitType == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = tensileGetOne<DataType>();
     }
+    printf(".");
     for (size_t i = 0; i < maxSizeA; i++) {
       initialA[i] = tensileGetOne<DataType>();
     }
+    printf(".");
     for (size_t i = 0; i < maxSizeB; i++) {
       initialB[i] = tensileGetOne<DataType>();
     }
+    printf(".");
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = static_cast<DataType>(i);
     }
+    printf(".");
     for (size_t i = 0; i < maxSizeA; i++) {
       initialA[i] = static_cast<DataType>(i);
     }
+    printf(".");
     for (size_t i = 0; i < maxSizeB; i++) {
       initialB[i] = static_cast<DataType>(i);
     }
+    printf(".");
   }
 #if Tensile_BACKEND_OCL
   deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE, maxSizeC, NULL, &status);
