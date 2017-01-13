@@ -63,8 +63,6 @@ def benchmarkProblemType( config ):
           os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
           globalParameters["WorkingPath"] )
 
-    #print "hardcodedParameters = %s" % str(benchmarkStep.hardcodedParameters)
-
     # (1) create list of solutions
     solutions = []
     currentSolution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state) }
@@ -85,41 +83,27 @@ def benchmarkProblemType( config ):
         (totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters), \
         len(benchmarkStep.hardcodedParameters), totalBenchmarkPermutations)
     for i in range(0, totalBenchmarkPermutations):
-      #print "0-solutionList=%s" % str(solutions)
       pIdx = i
       for benchmarkParamName in benchmarkStep.benchmarkParameters:
-        #print "1-solutionList=%s" % str(solutions)
         benchmarkParamValues = deepcopy(benchmarkStep.benchmarkParameters[benchmarkParamName])
         valueIdx = pIdx % len(benchmarkParamValues)
         currentSolution[benchmarkParamName] = deepcopy(benchmarkParamValues[valueIdx])
         pIdx /= len(benchmarkParamValues)
-      #print "CurrentSolution (before hardcoding)"
-      #print currentSolution
 
       # multiplicity of hardcoded params
       for hardcodedParamDict in benchmarkStep.hardcodedParameters:
-        #print "2-solutionList=%s" % str(solutions)
         fullSolution = {}
         fullSolution.update(currentSolution)
-        #print "fullSolution %s" % str(fullSolution)
-        #print "3-solutionList=%s" % str(solutions)
         fullSolution.update(hardcodedParamDict)
-        #print "fullSolution %s" % str(fullSolution)
 
         # append default parameters where necessary
-        #print benchmarkStep.initialSolutionParameters
         for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
           if initialSolutionParameterName not in fullSolution:
             fullSolution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
-        #print "4-solutionList=%s" % str(solutions)
         solutionObject = Solution(fullSolution, solutions)
-        #print "5-solutionList=%s" % str(solutions)
-        #print solutionObject.state
         printStatus("appending solution %s" % str(solutionObject))
         solutions.append(solutionObject)
-        #print "6-solutionList=%s" % str(solutions)
-      #print ""
 
     # write benchmarkFiles
     writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, stepName, filesToCopy)
@@ -127,17 +111,27 @@ def benchmarkProblemType( config ):
     popWorkingPath() # source
     pushWorkingPath("build")
     # create run.bat or run.sh which builds and runs
+    hr = "#####################################################################"
     runScriptName = os.path.join(globalParameters["WorkingPath"], \
       "run.%s" % "bat" if os.name == "nt" else "sh")
     runScriptFile = open(runScriptName, "w")
+    runScriptFile.write("@echo. & echo %s & echo # Configuring CMake & echo %s\n" \
+        % (hr, hr))
     runScriptFile.write("cmake ../source\n")
-    runScriptFile.write("cmake --build .\n")
-    runScriptFile.write("dir\n")
+    runScriptFile.write("@echo. & echo %s & echo # Building TensileBenchmark & echo %s\n" \
+        % (hr, hr))
+    runScriptFile.write("cmake --build . --config %s\n" \
+        % globalParameters["CMakeBuildType"] )
+    runScriptFile.write("@echo. & echo %s & echo # Running TensileBenchmark & echo %s\n" \
+        % (hr, hr))
+    runScriptFile.write(os.path.join("Release","TensileBenchmark_%s%s") \
+        % (stepName, ".exe" if os.name == "nt" else "") )
     runScriptFile.close()
-    print "\n\n\n"
-    print "################################################################################"
-    print "# Executing Benchmark Step: %s" % stepName
-    print "################################################################################"
+    print "\n\n"
+    print "####################################################################"
+    print "# Executing Benchmark Step %u: %s" % (benchmarkStepIdx, stepName)
+    print "####################################################################"
+    print "\n\n"
     process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
     status = process.wait()
 
@@ -215,19 +209,19 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   generatedFile.write(globalParameters["CMakeHeader"])
   generatedFile.write("set( TensileBenchmark_Solutions\n")
   # open solutions.h
-  allSolutionsHeaderFile = open(os.path.join(globalParameters["WorkingPath"],\
-      "GeneratedSolutions.h"), "w")
-  allSolutionsHeaderFile.write(globalParameters["CHeader"])
+  #allSolutionsHeaderFile = open(os.path.join(globalParameters["WorkingPath"],\
+  #    "GeneratedSolutions.h"), "w")
+  #allSolutionsHeaderFile.write(globalParameters["CHeader"])
   # write solution names
   for solutionName in solutionNames:
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
         % (solutionName) )
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
         % (solutionName) )
-    allSolutionsHeaderFile.write("#include \"" + solutionName + ".h\"\n")
+    #allSolutionsHeaderFile.write("#include \"" + solutionName + ".h\"\n")
   generatedFile.write("  )\n")
   # close solutions header
-  allSolutionsHeaderFile.close()
+  #allSolutionsHeaderFile.close()
 
   # open kernels.cmake
   generatedFile.write("set( TensileBenchmark_Kernels\n")
@@ -243,10 +237,14 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   generatedFile.write("  )\n\n")
 
   # benchmark parameters
-  generatedFile.write("set( TensileBenchmark_NAME Project_%s)\n" \
+  generatedFile.write("set( TensileBenchmark_NAME TensileBenchmark_%s)\n" \
       % (stepName) )
   generatedFile.write("set( TensileBenchmark_BACKEND \"%s\")\n" \
       % (globalParameters["Backend"]) )
+
+  # build parameters
+  generatedFile.write("set( CMAKE_BUILD_TYPE \"%s\")\n" \
+      % (globalParameters["CMakeBuildType"]) )
 
   # close generated cmake
   generatedFile.close()
@@ -258,6 +256,10 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   benchmarkParametersFile.write(globalParameters["CHeader"])
 
   h = ""
+  for solutionName in solutionNames:
+    h += "#include \"" + solutionName + ".h\"\n"
+
+  h += "\n"
 
   h += "/* does this index have independent size range or map to same value as another index */\n"
   h += "static const unsigned int totalIndices = %u;\n" \
@@ -286,7 +288,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "/* which other index does this index map (for its size) */\n"
   h += "static const unsigned int numIndicesMapped = %u;\n" \
       % len(problemSizes.indicesMapped)
-  h += "static const unsigned int indicesMapped[numIndicesMapped][4] = {\n"
+  h += "static const unsigned int indicesMapped[numIndicesMapped] = {\n"
   for i in range(0, len(problemSizes.indicesMapped)):
     h += "  %u" % problemSizes.indicesMapped[i]
     if i < len(problemSizes.indicesMapped)-1:
@@ -299,7 +301,11 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "static const unsigned int bytesPerElements = %u;\n" \
       % (solutions[0]["ProblemType"]["DataType"].numBytes())
 
-  h += "typedef void( *SolutionFunctionPointer)();\n"
+  h += "unsigned int numSolutions = %u;\n" % len(solutions)
+  h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
+  argList = solutionWriter.getArgList(solutions[0])
+  for i in range(0, len(argList)):
+    h += "  %s%s" % (argList[i], ",\n" if i < len(argList)-1 else ");\n\n")
   h += "static const SolutionFunctionPointer solutions[%u] = {\n" \
       % (len(solutions))
   for i in range(0, len(solutionNames)):
@@ -310,6 +316,20 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     h += "\n"
   h += "};\n"
   h += "\n"
+  h += "const char *solutionNames[%u] = {\n" \
+      % (len(solutions))
+  for i in range(0, len(solutionNames)):
+    solutionName = solutionNames[i]
+    h += "  \"%s\"" % solutionName
+    if i < len(solutionNames)-1:
+      h += ","
+    h += "\n"
+  h += "};\n"
+  h += "\n"
+  h += "unsigned int numProblems = %u;\n" % problemSizes.totalProblemSizes
+  h += "float solutionTimes[%u][%u];\n" \
+      % (problemSizes.totalProblemSizes, len(solutions))
+
   sizeC = 1
   sizeA = 1
   sizeB = 1
@@ -320,10 +340,11 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   for idx in solution["ProblemType"]["IndexAssignmentsB"]:
     sizeB *= problemSizes.indexMax[idx]
   typeName = solution["ProblemType"]["DataType"].toCpp()
-  h += "typedef DataType %s;\n" % (typeName)
+  h += "typedef %s DataType;\n" % (typeName)
   h += "size_t maxSizeC = %u;\n" % (sizeC)
-  h += "DataTye *initialC;;\n"
+  h += "DataType *initialC;\n"
   h += "DataType *referenceC;\n"
+  h += "DataType *deviceOnHostC;\n"
   h += "size_t maxSizeA = %u;\n" % (sizeA)
   h += "DataType *initialA;\n"
   h += "size_t maxSizeB = %u;\n" % (sizeB)
@@ -334,7 +355,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   if globalParameters["Backend"] == "OCL":
     h += "unsigned int platformIdx = %u;\n" \
         % (globalParameters["PlatformIdx"])
-    h += "unsigned int deviceIdx;\n" \
+    h += "unsigned int deviceIdx = %u;\n" \
         % (globalParameters["DeviceIdx"])
     h += "cl_platform_id platform;\n"
     h += "cl_device_id device;\n"
@@ -344,10 +365,48 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     h += "cl_mem deviceA;\n"
     h += "cl_mem deviceB;\n"
   else:
-    h += "%s *deviceC;\n" % (typeName, typeName)
+    h += "DataType *deviceC;\n"
     h += "static hipError_t status;\n"
     h += "static int deviceIdx = %u;\n" \
         % (globalParameters["DeviceIdx"])
+
+  h += "const int numEnqueuesPerSync = %u;\n" \
+      % (globalParameters["EnqueuesPerSync"])
+  h += "const int numSyncsPerBenchmark = %u;\n" \
+      % (globalParameters["SyncsPerBenchmark"])
+
+
+  # problem description
+  h += "const unsigned int numIndicesC = %u;\n" % solution["ProblemType"]["NumIndicesC"]
+  h += "const unsigned int indexAssignmentsA[%u] = {\n" \
+      % len(solution["ProblemType"]["IndexAssignmentsA"])
+  h += "  %u" % solution["ProblemType"]["IndexAssignmentsA"][0]
+  for i in range(1, len(solution["ProblemType"]["IndexAssignmentsA"])):
+    h += ",\n  %u" % solution["ProblemType"]["IndexAssignmentsA"][i]
+  h += "\n};\n"
+  h += "const unsigned int indexAssignmentsB[%u] = {\n" \
+      % len(solution["ProblemType"]["IndexAssignmentsB"])
+  h += "  %u" % solution["ProblemType"]["IndexAssignmentsB"][0]
+  for i in range(1, len(solution["ProblemType"]["IndexAssignmentsB"])):
+    h += ",\n  %u" % solution["ProblemType"]["IndexAssignmentsB"][i]
+  h += "\n};\n"
+
+
+  # enqueue solution for problem size
+  h += "void generatedCallToReferenceCPU(\n"
+  h += "  unsigned int *sizes) {\n"
+  h += "};\n\n"
+
+  h += "void generatedCallToSolution(\n"
+  h += "  unsigned int solutionIdx,\n"
+  h += "  unsigned int *sizes) {\n"
+  h += "};\n"
+
+  # output filename
+  resultsFileName = os.path.join(globalParameters["WorkingPath"],"..","%s.csv" % stepName)
+  resultsFileName = resultsFileName.replace("\\", "\\\\")
+
+  h += "const char *resultsFileName = \"%s\";\n" % resultsFileName
 
   benchmarkParametersFile.write(h)
   benchmarkParametersFile.close()

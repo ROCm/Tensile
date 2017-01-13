@@ -665,31 +665,28 @@ class SolutionWriter:
     return s
 
   ########################################
-  # get function signature
-  def getSolutionSignature(self, solution):
+  # get solution arguments
+  def getArgList(self, solution):
     self.strideList = []
     self.sizeList = []
-    t = "" # indent
-    s = ""
-    solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
-    s += "%s%s %s(\n" % (t, self.statusName, solutionName)
-    t += "    "
+    argList = []
+
     # data ptrs
     typeName = solution["ProblemType"]["DataType"].toCpp()
     if self.backend == "HIP":
-      s += "%s%s *dataC,\n" % (t, typeName)
-      s += "%s%s *dataA,\n" % (t, typeName)
-      s += "%s%s *dataB,\n" % (t, typeName)
+      argList.append("%s *dataC" % (typeName))
+      argList.append("%s *dataA" % (typeName))
+      argList.append("%s *dataB" % (typeName))
     else:
-      s += "%scl_mem dataC,\n" % (t)
-      s += "%scl_mem dataA,\n" % (t)
-      s += "%scl_mem dataB,\n" % (t)
-    s += "%s%s alpha,\n" % (t, typeName)
+      argList.append("cl_mem dataC")
+      argList.append("cl_mem dataA")
+      argList.append("cl_mem dataB")
+    argList.append("%s alpha" % (typeName))
     if solution["ProblemType"]["UseBeta"]:
-      s += "%s%s beta,\n" % (t, typeName)
-    s += "%sunsigned int offsetC,\n" % (t)
-    s += "%sunsigned int offsetA,\n" % (t)
-    s += "%sunsigned int offsetB,\n" % (t)
+      argList.append("%s beta" % typeName)
+    argList.append("unsigned int offsetC")
+    argList.append("unsigned int offsetA")
+    argList.append("unsigned int offsetB")
 
     # initial strides ?
     firstStride = 1
@@ -700,37 +697,41 @@ class SolutionWriter:
     lastStrideB = len(solution["ProblemType"]["IndexAssignmentsB"])
     # c strides
     for i in range(firstStride,lastStrideC):
-      #s += "%sC[%u].stride, // strideC%s\n" \
-      #    % (t, i, self.indexChars[i])
       self.strideList.append("strideC%u%s" % (i, self.indexChars[i]))
     # a strides
     for i in range(firstStride,lastStrideA):
-      #s += "%stensorA[%u].stride, // strideA%s\n" \
-      #    % (t, i, self.indexChars[ \
-      #    solution["ProblemType"]["IndexAssignmentsA"][i]] )
       self.strideList.append("strideA%u%s" % (i, \
           self.indexChars[solution["ProblemType"]["IndexAssignmentsA"][i]]))
     # b strides
     for i in range(firstStride,lastStrideB):
-      #s += "%stensorB[%u].stride, // strideB%s\n" \
-      #    % (t, i, self.indexChars[ \
-      #    solution["ProblemType"]["IndexAssignmentsB"][i]] )
       self.strideList.append("strideB%u%s" % (i, \
           self.indexChars[solution["ProblemType"]["IndexAssignmentsB"][i]]))
     # c sizes
     for i in range(0,solution["ProblemType"]["TotalIndices"]):
-      #s += "%ssizes[%u][0][%u] = tensorC[%u].size; // size%s\n" \
-      #    % (t, kernelIdx, i, i, self.indexChars[i])
       self.sizeList.append("size%s" % self.indexChars[i])
     for stride in self.strideList:
-      s += "%sunsigned int %s,\n" % (t, stride)
+      argList.append("unsigned int %s" % stride)
     for size in self.sizeList:
-      s += "%sunsigned int %s,\n" % (t, size)
+      argList.append("unsigned int %s" % size)
 
-    s += "%s%s stream,\n" % (t, self.streamName)
-    s += "%sunsigned int numInputEvents,\n" % (t)
-    s += "%s%s *inputEvents,\n" % (t, self.eventName)
-    s += "%s%s *outputEvent )" % (t, self.eventName)
+    argList.append("%s stream" % self.streamName)
+    argList.append("unsigned int numInputEvents")
+    argList.append("%s *inputEvents" % self.eventName)
+    argList.append("%s *outputEvent" % self.eventName)
+    return argList
+
+  ########################################
+  # get function signature
+  def getSolutionSignature(self, solution):
+    t = "" # indent
+    s = ""
+    solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
+    s += "%s%s %s(\n" % (t, self.statusName, solutionName)
+    t += "    "
+    argList = self.getArgList(solution)
+    for i in range(0, len(argList)):
+      argString = argList[i]
+      s += "%s%s%s" % (t, argString, ",\n" if i < len(argList)-1 else ")" )
     return s
 
 

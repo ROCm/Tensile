@@ -34,35 +34,33 @@ typedef cl_double2 TensileComplexDouble;
 #include <hip/hip_runtime.h>
 #endif
 
-namespace Tensile {
-
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
-template< typename T> T getZero(); // { return static_cast<T>(0); };
+template< typename T> T tensileGetZero(); // { return static_cast<T>(0); };
 
 
 /*******************************************************************************
  * One Templates
  ******************************************************************************/
-template< typename T> T getOne(); // { return static_cast<T>(1); };
+template< typename T> T tensileGetOne(); // { return static_cast<T>(1); };
 
 /*******************************************************************************
  * Random Templates
  ******************************************************************************/
-template< typename T> T getRandom(); // { return static_cast<T>(1); };
+template< typename T> T tensileGetRandom(); // { return static_cast<T>(1); };
 
 /*******************************************************************************
  * Integer Templates
  ******************************************************************************/
-template< typename T> T getTypeForInt( size_t s );
+template< typename T> T tensileGetTypeForInt( size_t s );
 
 
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB >
-TypeC multiply( TypeA a, TypeB b ); /* {
+TypeC tensileMultiply( TypeA a, TypeB b ); /* {
   return static_cast<TypeC>( a * b );
 };*/
 
@@ -72,7 +70,7 @@ TypeC multiply( TypeA a, TypeB b ); /* {
  * Add Templates
  ******************************************************************************/
 template< typename TypeC, typename TypeA, typename TypeB >
-TypeC add( TypeA a, TypeB b ); /* {
+TypeC tensileAdd( TypeA a, TypeB b ); /* {
   return static_cast<TypeC>( a + b );
 };*/
 
@@ -81,7 +79,7 @@ TypeC add( TypeA a, TypeB b ); /* {
 * Floating-Point Equals
 ******************************************************************************/
 template<typename T>
-bool almostEqual( T a, T b); /* {
+bool tensileAlmostEqual( T a, T b); /* {
   return std::fabs(a - b) < std::numeric_limits<T>::epsilon();
 } */
 
@@ -89,17 +87,15 @@ bool almostEqual( T a, T b); /* {
 * Complex Conjugate
 ******************************************************************************/
 template<typename T>
-void complexConjugate(T&);
+void tensileComplexConjugate(T&);
 
 
 /*******************************************************************************
 * sizeOf Type
 ******************************************************************************/
 template<typename Type>
-size_t sizeOfType();
+size_t tensileSizeOfType();
 
-
-} // end Tensile namespace
 
 #endif
 

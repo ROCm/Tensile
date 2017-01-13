@@ -27,12 +27,14 @@
 #include "Tools.h"
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"
-#include "Generated.h"
+#include "GeneratedBenchmarkParameters.h"
+#include <iostream>
+#include <fstream>
 
-// commandline options
+TensileTimer timer;
+std::ofstream file;
 
 static bool doValidation;
-static bool doValidationKernels;
 static void parseCommandLineOptions(int argc, char *argv[]);
 
 
@@ -41,4 +43,5 @@ static void destroyControls();
 static void initData();
 static void destroyData();
 
-static void fillTensor(TensileTensor, TensileTensorData, Tensile::Tensor::FillType, void *src);
+void benchmarkAllSolutionsForSize(
+    unsigned int problemIdx, unsigned int *sizes );

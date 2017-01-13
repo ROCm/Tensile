@@ -5,6 +5,9 @@ Parameters:
   Redo: Changed # Force None
   PlatformIdx: 0
   DeviceIdx: 0
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  
 
 BenchmarkProblems:
   - ProblemType:

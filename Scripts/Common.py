@@ -21,6 +21,9 @@ globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["Redo"] = "Changed" # Force None
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
+globalParameters["EnqueuesPerSync"] = 1
+globalParameters["SyncsPerBenchmark"] = 1
+globalParameters["CMakeBuildType"] = "Release" # Debug
 
 # param name in structures?
 def inListOfDictionaries(param, dictionaries):

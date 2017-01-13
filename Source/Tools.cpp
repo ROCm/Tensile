@@ -24,9 +24,7 @@
 #include <ctype.h>
 #include <cmath>
 
-namespace Tensile {
-
-Timer::Timer() {
+TensileTimer::TensileTimer() {
 #ifdef WIN32
   QueryPerformanceFrequency( &frequency );
 #else
@@ -34,7 +32,7 @@ Timer::Timer() {
 #endif
 }
 
-void Timer::start() {
+void TensileTimer::start() {
 #ifdef WIN32
   QueryPerformanceCounter( &startTime );
 #else
@@ -43,14 +41,14 @@ void Timer::start() {
 }
 
 // returns elapsed time in seconds
-double Timer::elapsed_sec() {
+double TensileTimer::elapsed_sec() {
   return elapsed_us() / 1000000.0;
 }
 // returns elapsed time in seconds
-double Timer::elapsed_ms() {
+double TensileTimer::elapsed_ms() {
   return elapsed_us() / 1000.0;
 }
-double Timer::elapsed_us() {
+double TensileTimer::elapsed_us() {
   double return_elapsed_us;
 #ifdef WIN32
   LARGE_INTEGER currentTime;
@@ -66,45 +64,4 @@ double Timer::elapsed_us() {
 }
 
 
-/*******************************************************************************
- * indent
- ******************************************************************************/
-std::string indent(size_t level) {
-  std::string indentStr = "";
-  for (size_t i = 0; i < level; i++) {
-    indentStr += " ";
-  }
-  return indentStr;
-}
-
-
-
-/*******************************************************************************
-* factor 64-bit uint into 2 32-bit uints
-******************************************************************************/
-bool factor(size_t input, unsigned int & a, unsigned int & b) {
-  double sqrt = std::sqrt(input);
-  a = static_cast<unsigned int>(sqrt+0.5);
-  for ( /*a*/; a >= 2; a--) {
-    b = static_cast<unsigned int>(input / a);
-    if (a*b == input) {
-      return true;
-    }
-  }
-  // plan B: return two numbers just larger than input
-  a = static_cast<unsigned int>(sqrt + 1.5);
-  b = a;
-  return false;
-}
-
-
-void makeFileNameSafe( char *str ) {
-  for ( ; *str != '\0'; str++ ) {
-    if ( !isalnum( *str ) ) {
-      *str = '_';
-    }
-  }
-}
-
-} // namespace
 

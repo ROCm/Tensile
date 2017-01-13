@@ -430,6 +430,35 @@ class ProblemSizes:
     for i in problemType["IndexAssignmentsB"]:
       self.maxNumElements[2] *= self.indexMax[i]
 
+    self.totalProblemSizes = 0
+    currentSizedIndexSizes = []
+    currentSizedIndexIncrements = []
+    for index in self.indicesSized:
+      currentSizedIndexSizes.append(index[0])
+      currentSizedIndexIncrements.append(index[1])
+    numIndicesSized = len(self.indicesSized)
+    moreProblemSizes = True
+    while moreProblemSizes:
+      self.totalProblemSizes += 1
+      currentSizedIndexSizes[0] += currentSizedIndexIncrements[0]
+      currentSizedIndexIncrements[0] += self.indicesSized[0][2]
+      for i in range(1, numIndicesSized+1):
+        if currentSizedIndexSizes[i-1] > self.indicesSized[i-1][3]:
+          # reset prior index
+          currentSizedIndexSizes[i-1] = self.indicesSized[i-1][0]
+          currentSizedIndexIncrements[i-1] += self.indicesSized[i-1][1]
+          # increment next index
+          if i == numIndicesSized:
+            moreProblemSizes = False
+          else:
+            currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
+            currentSizedIndexIncrements[i] += self.indicesSized[i][2];
+        # if last index past max, we're done
+      #if currentSizedIndexSizes[numIndicesSized-1] \
+      #    > self.indicesSized[numIndicesSized-1][3]:
+      #  moreProblemSizes = False
+
+
   def __str__(self):
     return str(self.indexSizes)
 

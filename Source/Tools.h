@@ -29,14 +29,12 @@
 #include <time.h>
 #endif
 
-namespace Tensile {
-
 /*******************************************************************************
  * Timer
  ******************************************************************************/
-class Timer {
+class TensileTimer {
 public:
-  Timer();
+  TensileTimer();
   void start();
   double elapsed_sec();
   double elapsed_ms();
@@ -50,18 +48,6 @@ private:
   timespec startTime;
 #endif
 };
-
-
-/*******************************************************************************
- * xml tags for toString
- ******************************************************************************/
-std::string indent(size_t level);
-
-bool factor( size_t input, unsigned int & a, unsigned int & b);
-
-void makeFileNameSafe( char *str );
-
-} // namespace
 
 
 #define tensileMin(a,b) (((a) < (b)) ? (a) : (b))
