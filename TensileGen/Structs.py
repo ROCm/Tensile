@@ -1021,7 +1021,8 @@ class Solution:
 
   def getAttributes(self):
     return ( \
-        tuple(self.kernels), \
+        self.kernels[0], \
+        len(self.kernels), \
         self.kernelGrid[0], \
         self.kernelGrid[1], \
         self.branch[0], \

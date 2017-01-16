@@ -404,7 +404,7 @@ bool compareTensorsTemplate(
           break;
         }
       }
-#if 0
+#if 1
       else {
         if (printCount < maxToPrint) {
           printMatch<DataType>(index, gpuData[index], cpuData[index]);

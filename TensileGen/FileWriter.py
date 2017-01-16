@@ -759,11 +759,15 @@ class FileWriter:
     self.writeKernelFiles(sslw.getKernelSet())
 
     # add solutions to template
-    for solution in sslw.getSolutionSet():
+    solutionSet = sslw.getSolutionSet()
+    #for s in solutionSet:
+    #  print self.solutionWriter.getName(s)
+    print "\n\n"
+    for solution in solutionSet:
       templateInstantiationSet.add(self.solutionWriter.getTemplateArgList(solution))
 
     # (5) Write Solution Files
-    self.writeSolutionFiles(sslw.getSolutionSet())
+    self.writeSolutionFiles(solutionSet)
 
     # (6) Write CMake File
     backendCMakePath = self.outputPath + self.otherSubdirectory + "TensileLib.cmake"

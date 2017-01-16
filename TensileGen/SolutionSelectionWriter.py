@@ -36,7 +36,7 @@ class SolutionSelectionWriter:
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
     self.printLogic = False
     self.printStatus = False
-    self.printDebugLib = False 
+    self.printDebugLib = True
     self.fallbackPSPU1 = None
   
   def getKernelSet(self):
@@ -684,18 +684,26 @@ class SolutionSelectionWriter:
     return
 
   def addSolutionToSets( self, solution):
-    self.solutionSet.add( solution )
+    #print "NumSolutions: %u" % len(self.solutionSet)
+    #if solution in self.solutionSet:
+      #print "already solution %s" % self.solutionWriter.getName(solution)
+      #for s in self.solutionSet:
+      #    print self.solutionWriter.getName(s)
+    #  pass
+    #else:
+      #print "adding  solution %s" % self.solutionWriter.getName(solution)
+    self.solutionSet.add( copy.deepcopy(solution) )
     for kernel in solution.kernels:
       if kernel != None:
-        self.kernelSet.add( kernel )
+        self.kernelSet.add( copy.deepcopy(kernel) )
 
   def addPSPToSets( self, psp):
     #startSolutionSetSize = len(self.solutionSet)
     #startKernelSetSize = len(self.kernelSet)
-    self.solutionSet.add( psp[1] )
+    self.solutionSet.add( copy.deepcopy( psp[1] ) )
     for kernel in psp[1].kernels:
       if kernel != None:
-        self.kernelSet.add( kernel )
+        self.kernelSet.add( copy.deepcopy(kernel) )
 
   def addRuleToSets(self, rule):
     for ug in rule[0]: # exact tiles
@@ -772,17 +780,33 @@ class SolutionSelectionWriter:
           uniques.append(modPSP)
     fallbackPSP = rule[1]
     if fallbackPSP != None:
-      fallbackSolution = fallbackPSP[1]
-      #for i in range( 0, 4):
-      #  if fallbackSolution.kernels[i] != None:
-      #    if len(fallbackSolution.kernels[i].unrolls) == 1 and fallbackSolution.kernels[i].unrolls[0] > 1:
-      #      fallbackSolution.kernels[i].unrolls.append(1)
-      #self.addSolutionToSets(fallbackSolution)
-      sizeUL = fallbackSolution.kernels[0].unrolls[0] + 1
+      fallbackSolution = copy.deepcopy(fallbackPSP[1])
+      # ensure single unroll
+      for i in range( 0, 4):
+        if fallbackSolution.kernels[i] != None:
+          if len(fallbackSolution.kernels[i].unrolls) > 1:
+            fallbackSolution.kernels[i].unrolls = [ fallbackSolution.kernels[i].unrolls[0] ]
+          #print fallbackSolution.kernels[i].unrolls  
+      self.addSolutionToSets(fallbackSolution)
       gflops = self.getGFlopsString(fallbackPSP[0], fallbackPSP[2])
-      s += indent + "  if ( sizeU >= %2u) {" % sizeUL
+
+      # fallback tile with exact unroll
+      s += indent + "  if ( sizeU %% %2u == 0) {" % (fallbackSolution.kernels[0].unrolls[0])
       if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution))
       s += "return new Tensile::%s%s( problem ); } // %s\n" % (self.solutionWriter.getName(fallbackSolution), self.solutionWriter.getTemplateArgList(fallbackSolution), gflops)
+
+      # fallback tile fallback unroll
+      newFallbackSolution = copy.deepcopy( fallbackSolution )
+      for i in range( 0, 4):
+        if newFallbackSolution.kernels[i] != None:
+          if len(newFallbackSolution.kernels[i].unrolls) == 1 and newFallbackSolution.kernels[i].unrolls[0] > 1:
+            newFallbackSolution.kernels[i].unrolls.append(1)
+          #print newFallbackSolution.kernels[i].unrolls  
+      self.addSolutionToSets(newFallbackSolution)
+      s += indent + "  if ( sizeU >= %2u && sizeU %% %2u != 0) {" % (newFallbackSolution.kernels[0].unrolls[0]+1,newFallbackSolution.kernels[0].unrolls[0] )
+      if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
+      s += "return new Tensile::%s%s( problem ); } // %s\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution), gflops)
+      #print fallbackSolution == newFallbackSolution
       #newFallbackSolution = copy.deepcopy( fallbackSolution )
       #for i in range( 0, 4):
       #  if newFallbackSolution.kernels[i] != None:
@@ -1185,11 +1209,11 @@ class SolutionSelectionWriter:
           localSolutionSet.add( psp[1] )
           fastestPSPs.add( tuple(copy.deepcopy(psp)) )
         # ensure fallback in rule uses k%1
-        for i in range( 0, 4):
-          if rule[1][1].kernels[i] != None:
-            if len(rule[1][1].kernels[i].unrolls) == 1 and rule[1][1].kernels[i].unrolls[0] > 1:
-              if self.printLogic: print "WARNING - fallback didn't have unroll=n,1; fixing."
-              rule[1][1].kernels[i].unrolls.append(1)
+        #for i in range( 0, 4):
+        #  if rule[1][1].kernels[i] != None:
+        #    if len(rule[1][1].kernels[i].unrolls) == 1 and rule[1][1].kernels[i].unrolls[0] > 1:
+        #      if self.printLogic: print "WARNING - fallback didn't have unroll=n,1; fixing."
+        #      rule[1][1].kernels[i].unrolls.append(1)
 
         finalRuleString = self.ruleToString(rule)
         if self.printLogic: print "FINAL RULE: " + finalRuleString
@@ -1207,11 +1231,46 @@ class SolutionSelectionWriter:
         fastestPSPs.add( tuple(copy.deepcopy(rule[1])) )
 
         localSolutionSet.add(rule[1][1])
-        newFallbackSolution = copy.deepcopy( rule[1][1] )
-        #for i in range( 0, 4):
-        #  if newFallbackSolution.kernels[i] != None:
-        #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
-        #localSolutionSet.add(newFallbackSolution)
+        fallbackSolution = copy.deepcopy( rule[1][1] )
+
+        # fallback tile with exact unroll
+        for i in range( 0, 4):
+          if fallbackSolution.kernels[i] != None:
+            if len(fallbackSolution.kernels[i].unrolls) > 1:
+              fallbackSolution.kernels[i].unrolls = [ fallbackSolution.kernels[i].unrolls[0] ]
+            #print fallbackSolution.kernels[i].unrolls  
+        localSolutionSet.add(fallbackSolution)
+
+        # fallback tile fallback unroll
+        newFallbackSolution = copy.deepcopy( fallbackSolution )
+        for i in range( 0, 4):
+          if newFallbackSolution.kernels[i] != None:
+            if len(newFallbackSolution.kernels[i].unrolls) == 1 and newFallbackSolution.kernels[i].unrolls[0] > 1:
+              newFallbackSolution.kernels[i].unrolls.append(1)
+            #print newFallbackSolution.kernels[i].unrolls  
+        localSolutionSet.add(newFallbackSolution)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         # (h) remove psps which have size greater than rule-threshold
         rangeSizeBefore = len(rangePSPs)

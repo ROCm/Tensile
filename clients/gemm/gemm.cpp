@@ -221,9 +221,9 @@ unsigned int addGEMMCombinatorics() {
     { tensileDataTypeComplexDouble, tensileDataTypeComplexConjugateDouble, tensileDataTypeComplexConjugateDouble }
   };
   const bool alphas[] = { true };
-  const bool betas[] = { true, false };
+  const bool betas[] = { false };
   const bool transAs[] = { false, true };
-  const bool transBs[] = { true, false };
+  const bool transBs[] = { false, false };
 
   // create problem for each combination
   numProblems = 0;
@@ -256,7 +256,7 @@ unsigned int addGEMMCombinatorics() {
                 }
 #else
                 //sizes.push_back({ 5760, 5760, 5760 });
-                sizes.push_back({ 128, 128, 128 }); // all good sizes and square
+                sizes.push_back({ 16, 16, 16 }); // all good sizes and square
                 //sizes.push_back({ 131, 257, 37 }); // all bad sizes and non-square
 #endif
 
