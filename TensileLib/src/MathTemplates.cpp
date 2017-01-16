@@ -66,9 +66,9 @@ template<> TensileComplexDouble getOne<TensileComplexDouble>() {
 * Random Templates
 ******************************************************************************/
 #ifdef Tensile_Enable_FP16_HOST
-template<> TensileHalf getRandom<TensileHalf>() { return static_cast<TensileHalf>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
+template<> TensileHalf getRandom<TensileHalf>() { return static_cast<TensileHalf>(rand()%10) /*/static_cast<float>(RAND_MAX)*/ ; }
 #endif
-template<> float getRandom<float>() { return static_cast<float>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
+template<> float getRandom<float>() { return static_cast<float>(rand()%10) /*/static_cast<float>(RAND_MAX)*/ ; }
 template<> double getRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
 template<> TensileComplexFloat getRandom<TensileComplexFloat>() {
   //TensileComplexFloat r = { 1.f, 0.f };
