@@ -777,7 +777,7 @@ class SolutionSelectionWriter:
             minU += unroll
           gflops = self.getGFlopsString(modPSP[0], modPSP[2])
           s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u %s 0 && sizeU >= %2u) {" \
-                  % (size0, size1, multU, "!=" if fallbackU else "==", sizeU, minU)
+                  % (size0, size1, multU, "!=" if fallbackU else "==", minU)
           if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
           s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
