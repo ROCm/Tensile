@@ -130,7 +130,7 @@ def benchmarkProblemType( config ):
     popWorkingPath() # source
 
     resultsFileName = os.path.join(globalParameters["WorkingPath"],"../Data","%s.csv" % stepName)
-    if not os.path.exists(resultsFileName):
+    if not os.path.exists(resultsFileName) or globalParameters["Redo"] == "Force":
       pushWorkingPath("build")
       # create run.bat or run.sh which builds and runs
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
@@ -178,7 +178,7 @@ def benchmarkProblemType( config ):
 
 
     popWorkingPath() # stepName
-    print "%s\n# END BENCHMARK STEP%s\n" % (hr, hr)
+    print "%s\n# END BENCHMARK STEP\n%s\n" % (hr, hr)
     #printExit("ON PURPOSE")
 
   popWorkingPath()
@@ -415,6 +415,8 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       % (globalParameters["EnqueuesPerSync"])
   h += "const int numSyncsPerBenchmark = %u;\n" \
       % (globalParameters["SyncsPerBenchmark"])
+  h += "const int numFlopsPerMac = %u;\n" \
+      % (2 if solution["ProblemType"]["DataType"].isReal() else 8)
 
 
   # problem description
@@ -434,13 +436,72 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
 
 
   # enqueue solution for problem size
-  h += "void generatedCallToReferenceCPU(\n"
-  h += "  unsigned int *sizes) {\n"
+  h += "void generatedCallToReferenceCPU( unsigned int *sizes) {\n"
   h += "};\n\n"
 
   h += "void generatedCallToSolution(\n"
-  h += "  unsigned int solutionIdx,\n"
-  h += "  unsigned int *sizes) {\n"
+  h += "    unsigned int solutionIdx,\n"
+  h += "    unsigned int *sizes) {\n"
+  h += "  /* calculate parameters assuming packed data */\n"
+  # strides
+  indexChars = globalParameters["IndexChars"]
+  firstStride = 1
+  if solution["ProblemType"]["UseInitialStrides"]:
+    firstStride = 0
+  lastStrideC = solution["ProblemType"]["NumIndicesC"]
+  lastStrideA = len(solution["ProblemType"]["IndexAssignmentsA"])
+  lastStrideB = len(solution["ProblemType"]["IndexAssignmentsB"])
+
+  # calculate strides
+  for i in range(0,lastStrideC):
+    h += "  unsigned int strideC%u%s = 1" % (i, indexChars[i])
+    for j in range(0, i):
+      h += "*sizes[%i]" % j
+    h += ";\n"
+  for i in range(0,lastStrideA):
+    h += "  unsigned int strideA%u%s = 1" % (i, \
+        indexChars[solution["ProblemType"]["IndexAssignmentsA"][i]])
+    for j in range(0, i):
+      h += "*sizes[%i]" % \
+        solution["ProblemType"]["IndexAssignmentsA"][j]
+    h += ";\n"
+  for i in range(0,lastStrideB):
+    h += "  unsigned int strideB%u%s = 1" % (i, \
+        indexChars[solution["ProblemType"]["IndexAssignmentsB"][i]])
+    for j in range(0, i):
+      h += "*sizes[%i]" % \
+        solution["ProblemType"]["IndexAssignmentsB"][j]
+    h += ";\n"
+  for i in range(0, solution["ProblemType"]["TotalIndices"]):
+    h += "  unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
+  h += "\n"
+
+  # function call
+  h += "  /* call solution function */\n"
+  h += "  solutions[solutionIdx]( deviceC, deviceA, deviceB,\n"
+  h += "      alpha,\n"
+  if solution["ProblemType"]["UseBeta"]:
+    h += "      beta,\n"
+  h += "      0, 0, 0, // offsets\n"
+  for i in range(firstStride,lastStrideC):
+    h += "      strideC%u%s,\n" % (i, indexChars[i])
+  for i in range(firstStride,lastStrideA):
+    h += "      strideA%u%s,\n" % (i, \
+        indexChars[solution["ProblemType"]["IndexAssignmentsA"][i]])
+  for i in range(firstStride,lastStrideB):
+    h += "      strideB%u%s,\n" % (i, \
+        indexChars[solution["ProblemType"]["IndexAssignmentsB"][i]])
+  # TODO which sizes map to these strides?
+
+
+
+
+
+
+  for i in range(0, solution["ProblemType"]["TotalIndices"]):
+    h += "      size%s,\n" % indexChars[i]
+  h += "      stream,\n"
+  h += "      0, NULL, NULL); // events\n"
   h += "};\n"
 
   # output filename

@@ -32,8 +32,7 @@ from Structs import *
 ################################################################################
 class KernelWriter:
 
-  indexChars = [ "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", \
-      "T", "U", "V", "W", "X", "Y", "Z" ]
+  indexChars = globalParameters["IndexChars"]
 
   ##############################################################################
   # Make OpenCL Kernel String
@@ -94,7 +93,7 @@ class KernelWriter:
     indexChars[kernel["ProblemType"]["Index1"]] \
         = "1" + indexChars[kernel["ProblemType"]["Index1"]]
     unrollChar = indexChars[kernel["ProblemType"]["IndicesSummation"][ \
-        kernel["ProblemType"]["NumIndicesSummation"]-1] + kernel["ProblemType"]["NumIndicesC"]]
+        kernel["ProblemType"]["NumIndicesSummation"]-1]]
     tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
     tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
     tileCharA = tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) else tileChar1
@@ -145,9 +144,9 @@ class KernelWriter:
         "  unsigned int const offsetB" )
 
     # strides
-    firstStride = 0
+    firstStride = 1
     if kernel["ProblemType"]["UseInitialStrides"]:
-      firstStride = 1
+      firstStride = 0
     lastStrideC = kernel["ProblemType"]["NumIndicesC"]
     lastStrideA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     lastStrideB = len(kernel["ProblemType"]["IndexAssignmentsB"])
@@ -161,7 +160,7 @@ class KernelWriter:
           + indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
 
     # sizes
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]+kernel["ProblemType"]["NumIndicesSummation"]):
+    for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
     s += " )"
     return s
@@ -183,7 +182,7 @@ class KernelWriter:
 
     # determine indices
     unrollChar = indexChars[kernel["ProblemType"]["IndicesSummation"][ \
-        kernel["ProblemType"]["NumIndicesSummation"]-1] + kernel["ProblemType"]["NumIndicesC"]]
+        kernel["ProblemType"]["NumIndicesSummation"]-1]]
     tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
     tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
     tileCharA = tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) else tileChar1
@@ -229,13 +228,6 @@ class KernelWriter:
     #     % (tileCharB, tileChar0, tileChar1, self.endLine)
     # kStr += self.endLine
 
-    # num loads
-    kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
-    kStr += "//#define NL_PARA_A %d%s" \
-        % (kernel["NumLoadsParaA"], self.endLine )
-    kStr += "//#define NL_PARA_B %d%s" \
-        % (kernel["NumLoadsParaB"], self.endLine )
-
     # TODO needs splitU
     totalLoadsA  = (kernel["WorkGroup0"]*kernel["ThreadTile0"] \
         *kernel["LoopUnroll"]) / (kernel["WorkGroup0"]*kernel["WorkGroup1"])
@@ -246,9 +238,14 @@ class KernelWriter:
     numLoadsPerpA = totalLoadsA / numLoadsParaA
     numLoadsPerpB = totalLoadsB / numLoadsParaB
 
+    # num loads
+    kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
+    kStr += "#define NL_PARA_A %d%s" % (numLoadsParaA, self.endLine )
+    kStr += "#define NL_PARA_B %d%s" % (numLoadsParaB, self.endLine )
+
     # TODO - continue here, compute locally numloads, load sizes...
-    kStr += "//#define NL_PERP_A %d%s" % (numLoadsPerpA, self.endLine )
-    kStr += "//#define NL_PERP_B %d%s" % (numLoadsPerpB, self.endLine )
+    kStr += "#define NL_PERP_A %d%s" % (numLoadsPerpA, self.endLine )
+    kStr += "#define NL_PERP_B %d%s" % (numLoadsPerpB, self.endLine )
     kStr += self.endLine
 
     # load size
@@ -608,7 +605,7 @@ class KernelWriter:
     # other non-unrolled summation indices
     kStr += "  /* other non-unrolled summation indices (all start at zero) */" + self.endLine
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
-      index = i + kernel["ProblemType"]["NumIndicesC"]
+      index = i
       kStr += "#define a" + indexChars[index] + " 0" + self.endLine
       kStr += "#define b" + indexChars[index] + " 0" + self.endLine
     kStr += self.endLine
@@ -778,8 +775,7 @@ class KernelWriter:
     indent = "  "
     kStr += indent + "/* iterate over summation indice(s) */" + self.endLine
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-      indexChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i] \
-          + kernel["ProblemType"]["NumIndicesC"]]
+      indexChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
       kStr += indent + "unsigned int sumIter" + indexChar \
           + " = size" + indexChar
       if i == kernel["ProblemType"]["NumIndicesSummation"]-1:
@@ -997,8 +993,7 @@ class KernelWriter:
 
     # if another loop, close current unrolled loops
     if kernel["LoopTail"]:
-      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1] \
-          + kernel["ProblemType"]["NumIndicesC"]]
+      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1]]
       # advance A, B along summation dimension
       kStr += indent + "A += (" + self.uint64Str + ")strideA" + loopChar + "*UNROLL;" + self.endLine
       kStr += indent + "B += (" + self.uint64Str + ")strideB" + loopChar + "*UNROLL;" + self.endLine
@@ -1160,16 +1155,14 @@ class KernelWriter:
     ####################################
     # end loop
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
-      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i] \
-          + kernel["ProblemType"]["NumIndicesC"]]
+      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
       # advance A, B along summation dimension
       kStr += indent + "A += (" + self.int64Str + ") strideA" + loopChar
       if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
         kStr += "*UNROLL"
       else:
         for j in range(i+1,min(i+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
-          tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j] \
-              + kernel["ProblemType"]["NumIndicesC"]]
+          tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
           kStr += " - strideA" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
 
@@ -1178,8 +1171,7 @@ class KernelWriter:
         kStr += "*UNROLL"
       else:
         for j in range(i+1,min(i+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-          tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j] \
-              + kernel["ProblemType"]["NumIndicesC"]]
+          tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
           kStr += " - strideB" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
       indent = indent[2:]

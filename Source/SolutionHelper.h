@@ -31,8 +31,9 @@
  ******************************************************************************/
 #if Tensile_BACKEND_OCL
 typedef struct KernelMapKey_ {
-  cl_context context; // address of context
-  cl_device_id device; // address of device
+  //cl_context context; // address of context
+  //cl_device_id device; // address of device
+  cl_command_queue queue;
   const char *kernelSource; // address of kernel source
 } KernelMapKey;
 
@@ -51,25 +52,6 @@ extern __thread KernelMap *kernelMap;
 
 
 /*******************************************************************************
- * OpenCL and HIP status checkers
- ******************************************************************************/
-//#include <assert.h>
-#if Tensile_BACKEND_OCL
-#define tensileCheck(RET) \
-  if(RET != CL_SUCCESS) { \
-    printf("OpenCL Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
-    /*assert(false);*/ \
-    }
-#elif Tensile_BACKEND_HIP
-#define tensileCheck(RET) \
-  if(RET != hipSuccess) { \
-    printf("HIP Error %i on line %u of %s\n", RET, __LINE__, __FILE__); \
-    /*assert(false);*/ \
-    }
-#endif
-
-
-/*******************************************************************************
  * Compile OpenCL kernels
  ******************************************************************************/
 void tensileGetCompiledOpenCLKernel(
@@ -77,6 +59,7 @@ void tensileGetCompiledOpenCLKernel(
   const char *kernelSource,
   cl_command_queue queue,
   const char *sourceBuildOptions);
+
 
 /*******************************************************************************
  * Calculate sizes for multi kernel

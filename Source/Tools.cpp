@@ -40,14 +40,17 @@ void TensileTimer::start() {
 #endif
 }
 
-// returns elapsed time in seconds
+// elapsed time in seconds
 double TensileTimer::elapsed_sec() {
   return elapsed_us() / 1000000.0;
 }
-// returns elapsed time in seconds
+
+// elapsed time in milliseconds
 double TensileTimer::elapsed_ms() {
   return elapsed_us() / 1000.0;
 }
+
+// elapsed time in microseconds
 double TensileTimer::elapsed_us() {
   double return_elapsed_us;
 #ifdef WIN32

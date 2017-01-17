@@ -13,7 +13,6 @@ int main( int argc, char *argv[] ) {
 
   initControls();
 
-  printf("Initializing data");
   initData();
   printf("\n");
 
@@ -117,7 +116,7 @@ void benchmarkAllSolutionsForSize(
   for (unsigned int i = 1; i < totalIndices; i++) {
     file << ", " << sizes[i];
   }
-  size_t totalSize = 1;
+  size_t totalSize = numFlopsPerMac;
   for (unsigned int i = 0; i < totalIndices; i++) { totalSize *= sizes[i]; }
   file << ", " << totalSize;
 
@@ -132,11 +131,12 @@ void benchmarkAllSolutionsForSize(
     if (doValidation) {
       // copy data in language
 #if Tensile_BACKEND_OCL
-      clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
+      status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
           currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
 #else
-      hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
+      status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
 #endif
+      tensileStatusCheck(status);
       // enqueue device solution
       generatedCallToSolution( s, sizes );
 
@@ -167,7 +167,19 @@ void benchmarkAllSolutionsForSize(
           } // else don't print too many
         }
       } // compare loop
-    } // do validation
+    } else {
+      // dummy call to ensure kernels compiled
+      generatedCallToSolution( s, sizes );
+    }
+
+    // re-initialize deviceC
+#if Tensile_BACKEND_OCL
+    status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
+        currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
+#else
+    status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
+#endif
+    tensileStatusCheck(status);
     
     // time solution
     timer.start();
@@ -177,16 +189,17 @@ void benchmarkAllSolutionsForSize(
       }
       // sync
 #if Tensile_BACKEND_OCL
-      status = clFinish(stream);
+      status = clFinish(stream); tensileStatusCheck(status);
 #else
-      status = hipSync(stream);
+      status = hipSync(stream); tensileStatusCheck(status);
 #endif
+      tensileStatusCheck(status);
     } // sync loop
-    double timeUs = timer.elapsed_us()
+    double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
-    //printf("Time[%u]: %f us\n", s, timeUs);
-    file << ", " << timeUs;
-    solutionTimes[problemIdx][s] = static_cast<float>(timeUs);
+    printf("Time[%u]: %f ms\n", s, timeMs);
+    file << ", " << timeMs;
+    solutionTimes[problemIdx][s] = static_cast<float>(timeMs);
   } // solution loop
   file << std::endl;
 } // benchmark solutions
@@ -200,24 +213,35 @@ void initControls() {
   // setup opencl objects
   unsigned int numPlatforms, numDevices;
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
+  tensileStatusCheck(status);
   cl_platform_id *platforms = new cl_platform_id[numPlatforms];
   status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
+  tensileStatusCheck(status);
   platform = platforms[platformIdx];
   status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+  tensileStatusCheck(status);
   cl_device_id *devices = new cl_device_id[numDevices];
   status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
+  tensileStatusCheck(status);
   device = devices[deviceIdx];
   size_t nameLength;
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, 0, nullptr, &nameLength );
+  tensileStatusCheck(status);
   char *deviceName = new char[nameLength+1];
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
+  tensileStatusCheck(status);
   printf("Device: \"%s\"\n", deviceName);
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
+  tensileStatusCheck(status);
   stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
+  tensileStatusCheck(status);
 #elif Tensile_BACKEND_HIP
   status = hipGetDeviceCount( &numDevices );
+  tensileStatusCheck(status);
   status = hipSetDevice( deviceIdx );
+  tensileStatusCheck(status);
   status = hipStreamCreate( &stream );
+  tensileStatusCheck(status);
 #endif
 
   delete[] devices;
@@ -243,6 +267,14 @@ void destroyControls() {
  * initialize data
  ******************************************************************************/
 void initData() {
+  printf("Initializing buffers (%u + %u + %u elements)",
+      maxSizeC,
+      maxSizeA,
+      maxSizeB
+      //maxSizeC*sizeof(DataType)/1024.0/1024.0,
+      //maxSizeA*sizeof(DataType)/1024.0/1024.0,
+      //maxSizeB*sizeof(DataType)/1024.0.1024.0
+      );
     printf(".");
   // initial and reference buffers
   referenceC = new DataType[maxSizeC];
@@ -252,8 +284,11 @@ void initData() {
   initialB = new DataType[maxSizeB];
 #else
   status = hipMalloc( &initialC, sizeMaxC );
+  tensileStatusCheck(status);
   status = hipMalloc( &initialA, sizeMaxA );
+  tensileStatusCheck(status);
   status = hipMalloc( &initialB, sizeMaxB );
+  tensileStatusCheck(status);
 #endif
     printf(".");
 
@@ -299,9 +334,21 @@ void initData() {
     printf(".");
   }
 #if Tensile_BACKEND_OCL
-  deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE, maxSizeC, NULL, &status);
-  deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY, maxSizeA, NULL, &status);
-  deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY, maxSizeB, NULL, &status);
+  deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE,
+      maxSizeC*sizeof(DataType), NULL, &status);
+  tensileStatusCheck(status);
+  deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY,
+      maxSizeA*sizeof(DataType), NULL, &status);
+  tensileStatusCheck(status);
+  deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY,
+      maxSizeB*sizeof(DataType), NULL, &status);
+  tensileStatusCheck(status);
+  status = clEnqueueWriteBuffer(stream, deviceA, CL_TRUE, 0,
+      maxSizeA*sizeof(DataType), initialA, 0, NULL, NULL);
+  tensileStatusCheck(status);
+  status = clEnqueueWriteBuffer(stream, deviceB, CL_TRUE, 0,
+      maxSizeB*sizeof(DataType), initialB, 0, NULL, NULL);
+  tensileStatusCheck(status);
 #else
 #endif
 }

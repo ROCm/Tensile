@@ -38,7 +38,25 @@
 
 #endif
 
+/*******************************************************************************
+ * tensileSetup
+ ******************************************************************************/
 TensileStatus tensileSetup();
+
+/*******************************************************************************
+ * tensileTeardown
+ ******************************************************************************/
 TensileStatus tensileTeardown();
+
+/*******************************************************************************
+ * tensileCheckStatus
+ ******************************************************************************/
+#define tensileStatusCheck(RET) { \
+  TensileStatus tensileCheckStatusTmp = RET; \
+  if(tensileCheckStatusTmp != tensileStatusSuccess) { \
+    printf("TensileStatusFailure %i on line %u of %s\n", \
+        tensileCheckStatusTmp, __LINE__, __FILE__); \
+  } }
+
 
 #endif

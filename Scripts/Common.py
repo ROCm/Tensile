@@ -18,12 +18,16 @@ globalParameters["DebugPrintLevel"] = 1
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
-globalParameters["Redo"] = "Changed" # Force None
+globalParameters["Redo"] = "None" # Force None
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["CMakeBuildType"] = "Release" # Debug
+globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
+    "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
+
+
 
 # param name in structures?
 def inListOfDictionaries(param, dictionaries):

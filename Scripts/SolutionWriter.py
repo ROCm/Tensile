@@ -21,14 +21,14 @@
 
 from Structs import *
 from KernelWriter import *
+from Common import *
 
 ################################################################################
 # SolutionWriter
 ################################################################################
 class SolutionWriter:
 
-  indexChars = [ "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", \
-      "T", "U", "V", "W", "X", "Y", "Z" ]
+  indexChars = globalParameters["IndexChars"]
 
   ##############################################################################
   # SolutionWriter
@@ -38,6 +38,7 @@ class SolutionWriter:
     self.kernelWriter = KernelWriter(self.backend, solutionMinNaming)
     self.solutionMinNaming = solutionMinNaming
     self.kernelMinNaming = kernelMinNaming
+    self.solutionDebug = False
 
     self.streamName = "hipStream_t" if self.backend == "HIP" \
         else "cl_command_queue"
@@ -82,7 +83,7 @@ class SolutionWriter:
       t = t[2:]
       s += "%s};\n" % (t)
       s += "%scl_kernel kernels[numKernels];\n" % (t)
-      s += "%sconst char *buildOptions = \"-clstd=cl2.0\";\n" % (t)
+      s += "%sconst char *buildOptions = \"-cl-std=cl2.0\";\n" % (t)
       s += "%sfor (unsigned int i = 0; i < numKernels; i++) {\n" % (t)
       s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
       s += "%s      &kernels[i],\n" % (t)
@@ -196,20 +197,20 @@ class SolutionWriter:
       if self.backend == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileCheck(status);\n" % (t, 0)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileCheck(status);\n" % (t, 1)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileCheck(status);\n" % (t, 2)
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileCheck(status);\n" % (t, 3, typeName)
-        s += "%s%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &beta ); tensileCheck(status);\n" % (t, \
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 0)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataA ); tensileStatusCheck(status);\n" % (t, 1)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataB ); tensileStatusCheck(status);\n" % (t, 2)
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &alpha ); tensileStatusCheck(status);\n" % (t, 3, typeName)
+        s += "%s%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, \
             "" if solution["ProblemType"]["UseBeta"] else "//", 4, typeName)
         argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
         argIdx += 3 # skipping offsets here
         for stride in self.strideList:
-          s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &%s ); tensileCheck(status);\n" % (t, argIdx, stride)
+          s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, stride)
           argIdx += 1
         for sizeIdx in range(0, solution["ProblemType"]["TotalIndices"]):
           if sizeIdx not in [ solution["ProblemType"]["Index0"],  solution["ProblemType"]["Index1"], solution["ProblemType"]["IndexUnroll"] ]:
-            s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
+            s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
 
 
@@ -220,18 +221,33 @@ class SolutionWriter:
         # set kernel args different for all enqueues
         argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
         # offsets
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][0]); tensileCheck(status);\n" % (t, argIdx )
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][0]); tensileStatusCheck(status);\n" % (t, argIdx )
         argIdx += 1
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][1]); tensileCheck(status);\n" % (t, argIdx )
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][1]); tensileStatusCheck(status);\n" % (t, argIdx )
         argIdx += 1
-        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][2]); tensileCheck(status);\n" % (t, argIdx )
+        s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &offsets[kernelIdx][enqueueIdx][2]); tensileStatusCheck(status);\n" % (t, argIdx )
         argIdx += 1
         argIdx += len(self.strideList)
         # sizes
         for sizeIdx in range(0, solution["ProblemType"]["TotalIndices"]):
           if sizeIdx in [ solution["ProblemType"]["Index0"],  solution["ProblemType"]["Index1"], solution["ProblemType"]["IndexUnroll"] ]:
-            s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
+            s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
+        # debug print kernel dimensions
+        if self.solutionDebug:
+          s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
+        # debug print kernel arguments
+        # offsets
+        if self.solutionDebug:
+          for i in range(0, 3):
+            s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
+          # strides
+          for stride in self.strideList:
+            s += "%sprintf(\"  %s = %%u\\n\", %s);\n" % (t, stride, stride)
+          # sizes
+          for i in range(0, solution["ProblemType"]["TotalIndices"]):
+            s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
+
         # enqueue
         s += "%sstatus = clEnqueueNDRangeKernel(\n" % (t)
         t += "  "
@@ -244,7 +260,7 @@ class SolutionWriter:
         s += "%snumInputEvents,\n" % (t)
         s += "%sinputEvents,\n" % (t)
         s += "%soutputEvent );\n" % (t)
-        s += "%stensileCheck(status);\n" % (t)
+        s += "%stensileStatusCheck(status);\n" % (t)
 
       else:
         s += "%shipLaunchKernel(\n" % (t)
@@ -274,7 +290,7 @@ class SolutionWriter:
         s += "    );\n"
       s += "  }\n"
     s += "\n"
-    s += "  return 0;\n"
+    s += "  return tensileStatusSuccess;\n"
     s += "}\n"
     s += "\n"
 
@@ -504,7 +520,7 @@ class SolutionWriter:
     # compile kernels
     #if self.backend == "OCL":
       #s += "  // compile kernels\n"
-      #s += "  const char *buildOptions = \"-cl-std=CL2.0\";\n"
+      #s += "  const char *buildOptions = \"-cl-std=CL1.2\";\n"
       #s += "  for (size_t i = 0; i < this->numKernels; i++) {\n"
       #s += "    kernels[i] = nullptr;\n"
       #s += "    if (kernelSources[i]) {\n"

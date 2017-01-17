@@ -2,7 +2,7 @@ Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
   PrintDebug: 2
-  Redo: Changed # Force None
+  Redo: Force
   PlatformIdx: 0
   DeviceIdx: 0
   EnqueuesPerSync: 1
@@ -26,7 +26,7 @@ BenchmarkProblems:
       MacroTileMaxRatio:      2
       LoopFor:                True
       LoopUnroll:             16
-      LoopTail:               True
+      LoopTail:               False
       EdgeType:               Shift
       NumLoadsParaA:          1
       NumLoadsParaB:          1
@@ -43,13 +43,13 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
+      - ProblemSizes: [ [128], 0, 0 ]
       - EdgeMultiKernel: [ False ] # hardcoded
-      - ProblemSizes: [ [5760], 0, 0 ]
       - MultiDevice: [ False ]
       - KernelGrid: [ [1, 1, 1] ]
       - EdgeType: [ 'Shift', 'Branch', 'None' ]
       - Interleaving: [ [4, 8], [1, 1] ]
-      - ProblemSizes: [ [128] ]
+      - ProblemSizes: [ [256] ]
       - VectorWidth: [4, 2, 1]
       - GlobalReadCoalescedA: [ True, False ]
         GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
