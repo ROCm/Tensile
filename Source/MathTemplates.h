@@ -59,8 +59,8 @@ template< typename T> T tensileGetTypeForInt( size_t s );
 /*******************************************************************************
  * Multiply Templates
  ******************************************************************************/
-template< typename TypeC, typename TypeA, typename TypeB >
-TypeC tensileMultiply( TypeA a, TypeB b ); /* {
+template< typename Type >
+Type tensileMultiply( Type a, Type b ); /* {
   return static_cast<TypeC>( a * b );
 };*/
 
@@ -69,8 +69,8 @@ TypeC tensileMultiply( TypeA a, TypeB b ); /* {
 /*******************************************************************************
  * Add Templates
  ******************************************************************************/
-template< typename TypeC, typename TypeA, typename TypeB >
-TypeC tensileAdd( TypeA a, TypeB b ); /* {
+template< typename Type >
+Type tensileAdd( Type a, Type b ); /* {
   return static_cast<TypeC>( a + b );
 };*/
 

@@ -337,10 +337,14 @@ class ProblemType:
     name += "_A"
     for i in self["IndexAssignmentsA"]:
       name += indexChars[i].lower()
+    if self["ComplexConjugateA"]:
+      name += "C"
     # B dimensions
     name += "_B"
     for i in self["IndexAssignmentsB"]:
       name += indexChars[i].lower()
+    if self["ComplexConjugateB"]:
+      name += "C"
 
     # precision and other
     name += "_"

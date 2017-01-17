@@ -34,10 +34,6 @@
 TensileTimer timer;
 std::ofstream file;
 
-static bool doValidation;
-static void parseCommandLineOptions(int argc, char *argv[]);
-
-
 static void initControls();
 static void destroyControls();
 static void initData();

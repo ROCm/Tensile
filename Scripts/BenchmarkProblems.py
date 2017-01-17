@@ -32,7 +32,9 @@ def benchmarkProblemType( config ):
     stepName = str(benchmarkStep)
     print "\n\n"
     print hr
-    print "# Performing Benchmark Step %u: %s" % (benchmarkStepIdx, stepName)
+    print hr
+    print "# %s" % (stepName)
+    print hr
     print hr
     pushWorkingPath(stepName)
     # copy files to benchmark source directory
@@ -136,16 +138,16 @@ def benchmarkProblemType( config ):
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
         "run.%s" % "bat" if os.name == "nt" else "sh")
       runScriptFile = open(runScriptName, "w")
-      runScriptFile.write("@echo. & echo %s & echo # Configuring CMake & echo %s\n" \
-          % (hr, hr))
+      runScriptFile.write("@echo. & echo %s & echo # %s: Configuring CMake & echo %s\n" \
+          % (hr, stepName, hr))
       runScriptFile.write("cmake ../source\n")
-      runScriptFile.write("@echo. & echo %s & echo # Building TensileBenchmark & echo %s\n" \
-          % (hr, hr))
+      runScriptFile.write("@echo. & echo %s & echo # %s: Building Benchmark & echo %s\n" \
+          % (hr, stepName, hr))
       runScriptFile.write("cmake --build . --config %s\n" \
           % globalParameters["CMakeBuildType"] )
-      runScriptFile.write("@echo. & echo %s & echo # Running TensileBenchmark & echo %s\n" \
-          % (hr, hr))
-      runScriptFile.write(os.path.join("Release","TensileBenchmark_%s%s") \
+      runScriptFile.write("@echo. & echo %s & echo # %s: Running Benchmark & echo %s\n" \
+          % (hr, stepName, hr))
+      runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s%s") \
           % (stepName, ".exe" if os.name == "nt" else "") )
       runScriptFile.close()
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
@@ -178,7 +180,7 @@ def benchmarkProblemType( config ):
 
 
     popWorkingPath() # stepName
-    print "%s\n# END BENCHMARK STEP\n%s\n" % (hr, hr)
+    print "%s%s\n# %s: End\n%s%s\n" % (hr, hr, stepName, hr, hr)
     #printExit("ON PURPOSE")
 
   popWorkingPath()
@@ -390,8 +392,8 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "DataType *initialA;\n"
   h += "size_t maxSizeB = %u;\n" % (sizeB)
   h += "DataType *initialB;\n"
-  h += "DataType alpha;\n"
-  h += "DataType beta;\n"
+  h += "DataType alpha = tensileGetOne<DataType>();\n"
+  h += "DataType beta = tensileGet%s<DataType>();\n" % ("One" if solution["ProblemType"]["UseBeta"] else "Zero")
   h += "TensileStatus status;\n"
   if globalParameters["Backend"] == "OCL":
     h += "unsigned int platformIdx = %u;\n" \
@@ -417,26 +419,44 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       % (globalParameters["SyncsPerBenchmark"])
   h += "const int numFlopsPerMac = %u;\n" \
       % (2 if solution["ProblemType"]["DataType"].isReal() else 8)
+  h += "const bool doValidation = %s;\n" \
+      % ("true" if globalParameters["DoValidation"] else "false")
 
 
   # problem description
   h += "const unsigned int numIndicesC = %u;\n" % solution["ProblemType"]["NumIndicesC"]
-  h += "const unsigned int indexAssignmentsA[%u] = {\n" \
-      % len(solution["ProblemType"]["IndexAssignmentsA"])
+  h += "const unsigned int numIndicesAB = %u;\n" % len(solution["ProblemType"]["IndexAssignmentsA"])
+  h += "const unsigned int indexAssignmentsA[numIndicesAB] = {\n"
   h += "  %u" % solution["ProblemType"]["IndexAssignmentsA"][0]
   for i in range(1, len(solution["ProblemType"]["IndexAssignmentsA"])):
     h += ",\n  %u" % solution["ProblemType"]["IndexAssignmentsA"][i]
   h += "\n};\n"
-  h += "const unsigned int indexAssignmentsB[%u] = {\n" \
-      % len(solution["ProblemType"]["IndexAssignmentsB"])
+  h += "const unsigned int indexAssignmentsB[numIndicesAB] = {\n"
   h += "  %u" % solution["ProblemType"]["IndexAssignmentsB"][0]
   for i in range(1, len(solution["ProblemType"]["IndexAssignmentsB"])):
     h += ",\n  %u" % solution["ProblemType"]["IndexAssignmentsB"][i]
   h += "\n};\n"
+  h += "const bool complexConjugateA = %s;\n" % ("true" if solution["ProblemType"]["ComplexConjugateA"] else "false" )
+  h += "const bool complexConjugateB = %s;\n" % ("true" if solution["ProblemType"]["ComplexConjugateB"] else "false" )
+
 
 
   # enqueue solution for problem size
   h += "void generatedCallToReferenceCPU( unsigned int *sizes) {\n"
+  h += "  TensileStatus status = tensileReferenceCPU(\n"
+  h += "      referenceC,\n"
+  h += "      initialA,\n"
+  h += "      initialB,\n"
+  h += "      alpha,\n"
+  h += "      beta,\n"
+  h += "      totalIndices,\n"
+  h += "      sizes,\n"
+  h += "      numIndicesC,\n"
+  h += "      numIndicesAB,\n"
+  h += "      indexAssignmentsA,\n"
+  h += "      indexAssignmentsB,\n"
+  h += "      complexConjugateA,\n"
+  h += "      complexConjugateB );\n"
   h += "};\n\n"
 
   h += "void generatedCallToSolution(\n"

@@ -4,7 +4,7 @@
 #include <cstdio>
 
 // {rand, 1, index}
-unsigned int dataInitType = 0;
+unsigned int dataInitType = 1;
 
 /*******************************************************************************
  * main
@@ -125,21 +125,22 @@ void benchmarkAllSolutionsForSize(
     memcpy(referenceC, initialC, currentSizeC*sizeof(DataType));
     generatedCallToReferenceCPU( sizes );
   }
-  for (unsigned int s = 0; s < numSolutions; s++) {
+  for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
+
+      // copy data in language
+#if Tensile_BACKEND_OCL
+    status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
+        currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
+#else
+    status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
+#endif
+    tensileStatusCheck(status);
+
+    // enqueue device solution
+    generatedCallToSolution( solutionIdx , sizes );
 
     // validate solution
     if (doValidation) {
-      // copy data in language
-#if Tensile_BACKEND_OCL
-      status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
-          currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
-#else
-      status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
-#endif
-      tensileStatusCheck(status);
-      // enqueue device solution
-      generatedCallToSolution( s, sizes );
-
       // copy data back to host
 #if Tensile_BACKEND_OCL
       clEnqueueReadBuffer(stream, deviceC, CL_TRUE, 0,
@@ -153,39 +154,36 @@ void benchmarkAllSolutionsForSize(
       bool printTrue = false;
       bool firstPrint = true;
       unsigned int printIdx = 0;
+      size_t invalids = 0;
       for (size_t i = 0; i < currentSizeC; i++) {
         bool equal = tensileAlmostEqual<DataType>(deviceOnHostC[i], referenceC[i]);
         if (!equal || printTrue) {
           if (printIdx < maxPrint) {
             if (firstPrint) {
-              printf("Device | Reference\n");
+              printf("  Device | Reference\n");
               firstPrint = false;
             }
-            printf("%f %s %f\n", deviceOnHostC[i],
+            printf("  %u: %7.1f %s %7.1f\n", i, deviceOnHostC[i],
                 equal ? "==" : "!=", referenceC[i]);
             printIdx++;
-          } // else don't print too many
+            if (!equal) invalids++;
+          } else {
+            break;
+          }
         }
       } // compare loop
-    } else {
-      // dummy call to ensure kernels compiled
-      generatedCallToSolution( s, sizes );
-    }
+      if (invalids) {
+        printf("  Solution[%u] Validation: FAILED\n", solutionIdx);
+      } else {
+        printf("  Solution[%u] Validation: PASSED\n", solutionIdx);
+      }
+    } // if doValidation
 
-    // re-initialize deviceC
-#if Tensile_BACKEND_OCL
-    status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
-        currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
-#else
-    status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
-#endif
-    tensileStatusCheck(status);
-    
     // time solution
     timer.start();
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        generatedCallToSolution( s, sizes );
+        generatedCallToSolution( solutionIdx , sizes );
       }
       // sync
 #if Tensile_BACKEND_OCL
@@ -197,9 +195,9 @@ void benchmarkAllSolutionsForSize(
     } // sync loop
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
-    printf("Time[%u]: %f ms\n", s, timeMs);
+    printf("Time[%u]: %f ms\n", solutionIdx , timeMs);
     file << ", " << timeMs;
-    solutionTimes[problemIdx][s] = static_cast<float>(timeMs);
+    solutionTimes[problemIdx][solutionIdx ] = static_cast<float>(timeMs);
   } // solution loop
   file << std::endl;
 } // benchmark solutions
@@ -278,6 +276,7 @@ void initData() {
     printf(".");
   // initial and reference buffers
   referenceC = new DataType[maxSizeC];
+  deviceOnHostC = new DataType[maxSizeC];
 #if Tensile_BACKEND_OCL
   initialC = new DataType[maxSizeC];
   initialA = new DataType[maxSizeA];
@@ -306,7 +305,7 @@ void initData() {
       initialB[i] = static_cast<DataType>(rand() % 10);
     }
     printf(".");
-  } else if (dataInitType == 0) {
+  } else if (dataInitType == 1) {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = tensileGetOne<DataType>();
     }
@@ -361,6 +360,7 @@ void destroyData() {
   delete[] initialC;
   delete[] initialA;
   delete[] initialB;
+  delete[] deviceOnHostC;
   delete[] referenceC;
 
 #if Tensile_BACKEND_OCL

@@ -18,7 +18,7 @@
 * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
-
+#if 0
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"
 
@@ -31,14 +31,14 @@
 template< typename Type >
 TensileStatus tensileReferenceCPU(
     Type *dataC,
-    Type *dataA,
-    Type *dataB,
+    const Type *dataA,
+    const Type *dataB,
     Type alpha,
     Type beta,
     unsigned int numIndicesC,
     unsigned int numIndicesAB,
-    unsigned int *indexAssignmentsA,
-    unsigned int *indexAssignmentsB
+    const unsigned int *indexAssignmentsA,
+    const unsigned int *indexAssignmentsB
     ) {
 
   // index sizes
@@ -177,49 +177,4 @@ TensileStatus tensileReferenceCPU(
 
   return tensileStatusSuccess;
 } // referenceTensorContraction
-
-
-
-
-
-/*******************************************************************************
- * tensileGetSolution
- * need to list all wanted template variants for compiler in this file
- ******************************************************************************/
-/*
-std::tuple<Solution *,TensileStatus> getSolutionCPU( const Problem & problem) {
-
-  bool problemIsTensorContraction = true;
-
-  if (problemIsTensorContraction) {
-    switch(problem.getDataTypeC()) {
-    case tensileDataTypeSingle:
-      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<float,float,float,float,float>( problem ), tensileStatusSuccess );
-    case tensileDataTypeDouble:
-      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<double,double,double,double,double>( problem ), tensileStatusSuccess );
-    case tensileDataTypeComplexSingle:
-    case tensileDataTypeComplexConjugateSingle:
-      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat>( problem ), tensileStatusSuccess );
-    case tensileDataTypeComplexDouble:
-    case tensileDataTypeComplexConjugateDouble:
-      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble>( problem ), tensileStatusSuccess );
-#ifdef Tensile_ENABLE_FP16_HOST
-    case tensileDataTypeHalf:
-      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileHalf,TensileHalf,TensileHalf,TensileHalf,TensileHalf>( problem ), tensileStatusSuccess );
-    case tensileDataTypeComplexHalf:
-    case tensileDataTypeComplexConjugateHalf:
-      return std::make_tuple(new Tensile::SolutionTensorContractionCPU<TensileComplexHalf,TensileComplexHalf,TensileComplexHalf,TensileComplexHalf,TensileComplexHalf>( problem ), tensileStatusSuccess );
 #endif
-    case tensileNumDataTypes:
-    case tensileDataTypeNone:
-      return std::make_tuple(nullptr, tensileStatusFailure);
-    }
-    //default:
-    //  return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
-    //}
-  } else {
-      return std::make_tuple(nullptr, tensileStatusFailure);
-  }
-}
-*/
-

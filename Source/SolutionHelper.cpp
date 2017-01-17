@@ -55,13 +55,9 @@ void tensileGetCompiledOpenCLKernel(
   KernelMap::iterator idx = kernelMap->find(key); // < 1 microsecond
   if (idx != kernelMap->end()) {
     *kernel = idx->second;
-    //double t2 = timer.elapsed_us();
     //printf("kernel already compiled %p %p\n", kernel, *kernel);
-    //printf("times %f, %f, %f\n", t0, t1, t2);
     return;
   }
-  double t2 = timer.elapsed_us();
-  //printf("times %f, %f, %f\n", t0, t1, t2);
 
   // need to compile kernel
   cl_int status;

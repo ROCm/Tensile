@@ -28,6 +28,8 @@
 #define TensileStatus cl_int
 #define tensileStatusSuccess CL_SUCCESS
 #define tensileStatusFailure -1
+#define TensileComplexFloat cl_float2
+#define TensileComplexDouble cl_double2
 
 // HIP
 #else
@@ -35,6 +37,8 @@
 #define TensileStatus hipError_t
 #define tensileStatusSuccess 0
 #define tensileStatusFailure -1
+#define TensileComplexFloat float2
+#define TensileComplexDouble double2
 
 #endif
 

@@ -26,6 +26,7 @@ globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
     "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
+globalParameters["DoValidation"] = True
 
 
 
@@ -138,14 +139,13 @@ defaultProblemType = {
     "HighPrecisionAccumulate":  False,
     "TransposeA":               False,
     "TransposeB":               True,
-    "ConjugateA":               False,
-    "ConjugateB":               False,
+    "ComplexConjugateA":               False,
+    "ComplexConjugateB":               False,
     "Batched":                  False,
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumDimensionsC":           2,
     "DataType":                 0,
-
     }
 
 # printing for status and debugging
