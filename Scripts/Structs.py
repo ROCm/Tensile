@@ -392,13 +392,13 @@ class ProblemSizes:
   def __init__(self, problemType, config):
     self.totalIndices = 1+max(problemType["IndexAssignmentsA"])
     if len(config) < self.totalIndices:
-      printWarning("SizeRange config (%s) has too few elements (%u < %u) than required by ProblemType (%s); appending defaults."
-          % ( str(config), len(config), self.totalIndices, problemType ))
+      #printDefault("SizeRange config (%s) has too few elements (%u < %u) than required by ProblemType (%s); appending defaults." \
+          #% ( str(config), len(config), self.totalIndices, problemType ))
       for i in range(len(config), self.totalIndices):
         config.append(0)
-    if len(config) < self.totalIndices:
-      printWarning("SizeRange config (%s) has too many elements (%u > %u) than required by ProblemType (%s); ignoring remainder."
-          % ( str(config), len(config), self.totalIndices, problemType ))
+    #if len(config) < self.totalIndices:
+      #printDefault("SizeRange config (%s) has too many elements (%u > %u) than required by ProblemType (%s); ignoring remainder." \
+          # % ( str(config), len(config), self.totalIndices, problemType ))
     self.indexMax = []
     self.indexIsSized = []
     self.indicesSized = []
@@ -479,7 +479,7 @@ class ProblemSizes:
 class Solution:
 
   ########################################
-  def __init__(self, config, solutions):
+  def __init__(self, config):
     self.state = {}
     # problem type
     if "ProblemType" in config:
@@ -498,6 +498,7 @@ class Solution:
       self["WorkGroup1"] *= 2
     if self["WorkGroupShape"] == -1:
       self["WorkGroup0"] *= 2
+    print "WGE=%u, WGS=%u, WG0=%u, WG1=%u" % (self["WorkGroupEdge"], self["WorkGroupShape"], self["WorkGroup0"], self["WorkGroup1"])
 
     # thread tile sizes
     self["ThreadTile0"] = self["ThreadTileEdge"]
@@ -566,6 +567,7 @@ class Solution:
     return Solution.getNameMin(state, requiredParameters)
 
   ########################################
+  # TODO limit parameters to those in global, not derrived ones
   @ staticmethod
   def getNameMin(state, requiredParameters):
     name = ""
@@ -606,7 +608,10 @@ class Solution:
     elif isinstance(value, bool):
       return "1" if value else "0"
     elif isinstance(value, int):
-      return str(value)
+      if value >= 0:
+        return str(value)
+      else: # -1 -> n1
+        return "n%u" % abs(value)
     elif isinstance(value, ProblemType):
       return str(value)
     elif isinstance(value, list):

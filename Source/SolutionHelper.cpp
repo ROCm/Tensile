@@ -85,7 +85,7 @@ void tensileGetCompiledOpenCLKernel(
 
   // print build failure
   if (status != CL_SUCCESS) {
-    printf("clBuildProgram Failed; statusor = %d\n", status);
+    printf("clBuildProgram Failed with status = %d\n", status);
     printf("\nKernel Source:\n\n");
     printf("%s\n", kernelSource);
 

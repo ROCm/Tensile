@@ -238,6 +238,7 @@ class KernelWriter:
     numLoadsPerpA = totalLoadsA / numLoadsParaA
     numLoadsPerpB = totalLoadsB / numLoadsParaB
 
+
     # num loads
     kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
     kStr += "#define NL_PARA_A %d%s" % (numLoadsParaA, self.endLine )
@@ -1317,8 +1318,9 @@ class KernelWriter:
   def getHeaderFileString(self, kernel):
     kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     fileString = ""
-    fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
-    fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
+    #fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
+    #fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
+    fileString += "#pragma once\n\n"
     fileString += "\n"
     if self.backend == "HIP":
       fileString += "#include <hip/hip_runtime.h>\n"
@@ -1329,7 +1331,7 @@ class KernelWriter:
       fileString += self.getSignature(kernel)
       fileString += ";\n"
 
-    fileString += "#endif\n\n"
+    #fileString += "#endif\n\n"
     return fileString
 
 

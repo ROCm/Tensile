@@ -8,6 +8,7 @@ Parameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   CMakeBuildType: Debug
+  SolutionPrintDebug: True
   
 
 BenchmarkProblems:
@@ -18,69 +19,31 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: False
 
-    InitialSolutionParameters:
-      WorkGroupOrder:         -4
-      ThreadTileEdge:         4
-      ThreadTileShape:        0
-      WorkGroupEdge:          16
-      WorkGroupShape:         0
-      MacroTileMaxRatio:      2
-      LoopFor:                True
-      LoopUnroll:             16
-      LoopTail:               False
-      EdgeType:               Shift
-      NumLoadsParaA:          1
-      NumLoadsParaB:          1
-      GlobalLoadVectorWidth:  4
-      LocalStoreVectorWidth:  4
-      LocalLoadVectorWidth:   4
-      GlobalStoreVectorWidth: 4
-      LoadMacInterleave:      4
-      SplitU:                 2
-      Prefetch:               True
-      AtomicAccumulate:       False
-      KernelGrid:             [ 1, 1, 1 ]
-      KernelsConcurrent:      True
+  #InitialSolutionParameters:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [128], 0, 0 ]
-      - EdgeMultiKernel: [ False ] # hardcoded
-      - MultiDevice: [ False ]
-      - KernelGrid: [ [1, 1, 1] ]
-      - EdgeType: [ 'Shift', 'Branch', 'None' ]
-      - Interleaving: [ [4, 8], [1, 1] ]
+      - LoopTail: [ False ]
+      - EdgeType: [ "Branch" ]
+        EdgeMultiKernel: [ False ] # hardcoded
+      - WorkGroupOrdering: [ 1 ]
+        ThreadTileShape: [0, 1, -1]
       - ProblemSizes: [ [256] ]
-      - VectorWidth: [4, 2, 1]
-      - GlobalReadCoalescedA: [ True, False ]
-        GlobalReadCoalescedB: [ True, False ] # do N^2 benchmark here, keep 1 result
-      - WorkGroupOrdering: [ [0], [0, 4], [1, 8] ] # 0 means native dim0 first, option width
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
     BenchmarkForkParameters:
-      - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
-      - PreFetch: [ True, False ]
-      - LoopType: [ 'For', 'DoWhile' ]
+    #  - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
+      - LoopUnroll: [4, 8, 16]
     JoinParameters:
       - MacroTile
       - DepthU
     BenchmarkJoinParameters:
-      - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
-      - Unroll: [4,8] # increase the number of winners, different problems?
-        SplitU: [1, 2, 4, 8 ]
+      - NumLoadsParaA: [ 1, 2, 4 ]
+      - NumLoadsParaB: [ 1, 2, 4 ]
     BenchmarkFinalParameters:
       ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
-
-
-  #- ProblemType:
-  #    OperationType: TensorContraction
-  #    NumDimensionsC: 3
-  #    IndexAssignmentsA: [ 0, 2, 3]
-  #    IndexAssignmentsB: [ 1, 2, 3]
-  #    DataType: d
-
-  #- 
 
 
 # final create problem-range -> solution mapping and encode to .yaml

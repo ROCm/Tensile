@@ -24,9 +24,11 @@ globalParameters["DeviceIdx"] = 0
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["CMakeBuildType"] = "Release" # Debug
+globalParameters["SolutionPrintDebug"] = False
 globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
     "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
 globalParameters["DoValidation"] = True
+globalParameters["MaxThreads"] = 256
 
 
 
@@ -80,13 +82,13 @@ def getParamValues( name, structure ):
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
     {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
-    {"KernelSerial":            [ True, False ] },
-    {"LoopFor":                 [ True, False ] },
+    {"KernelSerial":            [ True ] },
+    {"LoopFor":                 [ False ] },
     {"LoopTail":                [ True ] },
-    {"LoadMacInterleave":       [ 4, 8, 16 ] },
+    {"LoadMacInterleave":       [ 4 ] },
     {"AtomicAccumulate":        [ False ] },
-    {"EdgeType":                [ "Shift", "Branch", "None" ] },
-    {"EdgeMultiKernel":         [ False, True ] },
+    {"EdgeType":                [ "Branch" ] }, # Shift
+    {"EdgeMultiKernel":         [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
@@ -94,12 +96,12 @@ defaultForkParameters = [
     {"WorkGroupShape":          [ 0, -1, 1 ] },
     {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
     {"ThreadTileShape":         [ 0, -1, 1 ] },
-    {"SplitU":                  [ 1, 4, 16, 64 ] },
-    {"Prefetch":                [ True, False ] },
+    {"SplitU":                  [ 1 ] },
+    {"Prefetch":                [ False ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
-    {"WorkGroupOrder":          [ 1, -1, 4, -4, 8, -8 ] },
+    {"WorkGroupOrder":          [ 1 ] },
     {"LoopUnroll":              [ 16, 8, 4, 32 ] },
     ]
 # final list of solutions
@@ -110,10 +112,10 @@ defaultJoinParameters = [
 defaultBenchmarkJoinParameters = [
     {"NumLoadsParaA":           [ 1, 2, 3, 4, 6, 8 ] },
     {"NumLoadsParaB":           [ 1, 2, 3, 4, 6, 8 ] },
-    {"GlobalLoadVectorWidth":   [ 4, 2, 1 ] },
-    {"LocalStoreVectorWidth":   [ 4, 2, 1 ] },
-    {"LocalLoadVectorWidth":    [ 4, 2, 1 ] },
-    {"GlobalStoreVectorWidth":  [ 4, 2, 1 ] },
+    {"GlobalLoadVectorWidth":   [ 4 ] },
+    {"LocalStoreVectorWidth":   [ 4 ] },
+    {"LocalLoadVectorWidth":    [ 4 ] },
+    {"GlobalStoreVectorWidth":  [ 4 ] },
     ]
 defaultBenchmarkFinalProblemSizes = [
     [16, 16, 16, 5760],
@@ -165,6 +167,10 @@ def printWarning( message): # 1
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
+def printDefault( message): # 1
+  f = inspect.currentframe().f_back.f_code
+  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
+  print "Tensile::%s::%s - DEFAULT - %s" % (filebase, f.co_name, message)
 def printExit( message): # 2
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]

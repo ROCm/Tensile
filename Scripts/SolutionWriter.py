@@ -38,7 +38,6 @@ class SolutionWriter:
     self.kernelWriter = KernelWriter(self.backend, solutionMinNaming)
     self.solutionMinNaming = solutionMinNaming
     self.kernelMinNaming = kernelMinNaming
-    self.solutionDebug = False
 
     self.streamName = "hipStream_t" if self.backend == "HIP" \
         else "cl_command_queue"
@@ -153,7 +152,7 @@ class SolutionWriter:
       s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
 
     s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.backend == "OCL" else "")
-    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[0]" if self.backend == "OCL" else "")
+    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.backend == "OCL" else "")
 
 
     # offsets
@@ -234,11 +233,11 @@ class SolutionWriter:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
         # debug print kernel dimensions
-        if self.solutionDebug:
+        if globalParameters["SolutionPrintDebug"]:
           s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
         # debug print kernel arguments
         # offsets
-        if self.solutionDebug:
+        if globalParameters["SolutionPrintDebug"]:
           for i in range(0, 3):
             s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
           # strides
@@ -652,14 +651,17 @@ class SolutionWriter:
     return s
 
 
+
+
   ##############################################################################
   # getHeaderString
   ##############################################################################
   def getHeaderString(self, solution):
     solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
     s = ""
-    s += "#ifndef " + solutionName.upper() + "_H\n"
-    s += "#define " + solutionName.upper() + "_H\n\n"
+    #s += "#ifndef " + solutionName.upper() + "_H\n"
+    #s += "#define " + solutionName.upper() + "_H\n\n"
+    s += "#pragma once\n\n"
     # includes
     s += "#include \"Tensile.h\"\n"
     s += "#include \"SolutionHelper.h\"\n"
@@ -676,7 +678,7 @@ class SolutionWriter:
     # function declaration
     s += self.getSolutionSignature(solution) + ";\n"
     s += "\n"
-    s += "#endif\n"
+    #s += "#endif\n"
     s += "\n"
     return s
 
@@ -758,9 +760,90 @@ class SolutionWriter:
     # TODO append copyright
     return self.getSourceString(solution)
 
+
   ########################################
   # get full header code
   # called from BenchmarkProblems
   def getHeaderFileString(self, solution):
     # TODO append copyright
     return self.getHeaderString(solution)
+
+
+  ##############################################################################
+  # are solution parameters (dict) self-consistent
+  ##############################################################################
+  @ staticmethod
+  def solutionParametersConsistent(solution):
+
+    numThreads = solution["WorkGroup0"]*solution["WorkGroup1"]
+    if numThreads > globalParameters["MaxThreads"]:
+      print "rejecting %u threads" % numThreads
+      return False
+    else:
+      print "accepting %u threads" % numThreads
+    # how many elements to load
+    if solution["ProblemType"]["TLUA"]:
+      totalElementsParaA = solution["MacroTile0"]
+      totalElementsPerpA = solution["LoopUnroll"]
+    else:
+      totalElementsParaA = solution["LoopUnroll"]
+      totalElementsPerpA = solution["MacroTile0"]
+
+    if solution["ProblemType"]["TLUB"]:
+      totalElementsParaB = solution["MacroTile1"]
+      totalElementsPerpB = solution["LoopUnroll"]
+    else:
+      totalElementsParaB = solution["LoopUnroll"]
+      totalElementsPerpB = solution["MacroTile1"]
+    totalElementsA = totalElementsParaA * totalElementsPerpA
+    totalElementsB = totalElementsParaB * totalElementsPerpB
+
+    # how many load instructions
+    if totalElementsA % numThreads != 0:
+      return False
+    else:
+      solution["NumLoadsA"] = totalElementsA / numThreads
+    if totalElementsB % numThreads != 0:
+      return False
+    else:
+      solution["NumLoadsB"] = totalElementsB / numThreads
+
+    # how many loads perp
+    if solution["NumLoadsA"] % solution["NumLoadsParaA"] != 0:
+      return False
+    else:
+      solution["NumLoadsPerpA"] = solution["NumLoadsA"] \
+          / solution["NumLoadsParaA"]
+    if solution["NumLoadsB"] % solution["NumLoadsParaB"] != 0:
+      return False
+    else:
+      solution["NumLoadsPerpB"] = solution["NumLoadsB"] \
+          / solution["NumLoadsParaB"]
+
+    # load size para/perp A
+    if totalElementsParaA % solution["NumLoadsParaA"] != 0:
+      return False
+    else:
+      loadSizeParaA = totalElementsParaA / solution["NumLoadsParaA"]
+    if totalElementsPerpA % solution["NumLoadsPerpA"] != 0:
+      return False
+    else:
+      loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpA"]
+
+    # load size para/perp B
+    if totalElementsParaB % solution["NumLoadsParaB"] != 0:
+      return False
+    else:
+      loadSizeParaB = totalElementsParaB / solution["NumLoadsParaB"]
+    if totalElementsPerpB % solution["NumLoadsPerpB"] != 0:
+      return False
+    else:
+      loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpB"]
+
+    #lastLoadRequiresGuardParaA = totalLoadSizeParaA < numLoadsParaA * loadSizeParaA
+    #lastLoadRequiresGuardPerpA = totalLoadSizePerpA < numLoadsPerpA * loadSizePerpA
+    #loadRequiresFewerThreadsA = workGroup0*workGroup1 > loadSizeParaA * loadSizePerpA
+# same for B
+
+    return True
+

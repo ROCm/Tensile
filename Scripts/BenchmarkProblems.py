@@ -34,8 +34,26 @@ def benchmarkProblemType( config ):
     print hr
     print hr
     print "# %s" % (stepName)
+    print "# BenchmarkParameters:"
+    for paramName in benchmarkStep.benchmarkParameters:
+      paramValues = benchmarkStep.benchmarkParameters[paramName]
+      printStr = "#    %s = { %s" % (paramName, paramValues[0])
+      for paramValueIdx in range(1, len(paramValues)):
+        printStr += ", %s" % str(paramValues[paramValueIdx])
+      printStr += " }"
+      print printStr
+    print "# HardcodedParameters:"
+    paramDictIdx = 0
+    for paramDict in benchmarkStep.hardcodedParameters:
+      printStr = "# (%u): " % paramDictIdx
+      paramDictIdx += 1
+      for paramName in paramDict:
+        paramValue = paramDict[paramName]
+        printStr += "%s: %s; " % (paramName, str(paramValue))
+      print printStr
     print hr
     print hr
+    print ""
     pushWorkingPath(stepName)
     # copy files to benchmark source directory
     pushWorkingPath("source")
@@ -117,22 +135,28 @@ def benchmarkProblemType( config ):
         solution.update(determinedParameters[determinedParameterIdx])
         determinedParameterIdx = (determinedParameterIdx+1) \
             % len(determinedParameters)
-        print solution
+        # print solution
 
         # append default parameters where necessary
         for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
           if initialSolutionParameterName not in solution:
             solution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
-        solutionObject = Solution(solution, solutions)
-        printStatus("appending solution %s" % str(solutionObject))
-        solutions.append(solutionObject)
+        solutionObject = Solution(solution)
+        if SolutionWriter.solutionParametersConsistent(solutionObject.state):
+          printStatus("appending solution %s" % str(solutionObject))
+          solutions.append(solutionObject)
+        else:
+          printStatus("rejecting solution %s" % str(solutionObject))
     # write benchmarkFiles
-    writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, stepName, filesToCopy)
+    writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, \
+        stepName, filesToCopy)
     popWorkingPath() # source
 
-    resultsFileName = os.path.join(globalParameters["WorkingPath"],"../Data","%s.csv" % stepName)
-    if not os.path.exists(resultsFileName) or globalParameters["Redo"] == "Force":
+    resultsFileName = os.path.join(globalParameters["WorkingPath"], \
+        "../Data", "%s.csv" % stepName)
+    if not os.path.exists(resultsFileName) \
+        or globalParameters["Redo"] == "Force":
       pushWorkingPath("build")
       # create run.bat or run.sh which builds and runs
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
@@ -535,6 +559,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
 
 ################################################################################
 # Determine Winners From Results
+# TODO num solution permutations won't be same for each hard-code b/c invalids
 ################################################################################
 def determineWinnersFromResults(resultsFile, solutions, hardcodedParameters):
   numHardcodedParameters = len(hardcodedParameters)
