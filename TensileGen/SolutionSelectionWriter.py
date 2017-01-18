@@ -770,11 +770,14 @@ class SolutionSelectionWriter:
           size0 = solution.kernels[0].tile.workGroup[0] * solution.kernels[0].tile.microTile[0]
           size1 = solution.kernels[0].tile.workGroup[1] * solution.kernels[0].tile.microTile[1]
           sizeU = solution.kernels[0].unrolls[len(solution.kernels[0].unrolls)-1]
-          sizeUL = 0
+          minU = 0
+          fallbackU = len(solution.kernels[0].unrolls) > 1
+          multU = solution.kernels[0].unrolls[0]
           for unroll in solution.kernels[0].unrolls:
-            sizeUL += unroll
+            minU += unroll
           gflops = self.getGFlopsString(modPSP[0], modPSP[2])
-          s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u == 0 && sizeU >= %2u) {" % (size0, size1, sizeU, sizeUL)
+          s += indent + "  if ( size0 %% %3u == 0 && size1 %% %3u == 0 && sizeU %% %2u %s 0 && sizeU >= %2u) {" \
+                  % (size0, size1, multU, "!=" if fallbackU else "==", minU)
           if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution))
           s += " return new Tensile::%s%s( problem ); } // %s\n" %( self.solutionWriter.getName(solution), self.solutionWriter.getTemplateArgList(solution), gflops )
           uniques.append(modPSP)
@@ -806,15 +809,7 @@ class SolutionSelectionWriter:
       s += indent + "  if ( sizeU >= %2u && sizeU %% %2u != 0) {" % (newFallbackSolution.kernels[0].unrolls[0]+1,newFallbackSolution.kernels[0].unrolls[0] )
       if self.printDebugLib: s += "  printf(\"Tensile::%s%s()\\n\");" % ( self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
       s += "return new Tensile::%s%s( problem ); } // %s\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution), gflops)
-      #print fallbackSolution == newFallbackSolution
-      #newFallbackSolution = copy.deepcopy( fallbackSolution )
-      #for i in range( 0, 4):
-      #  if newFallbackSolution.kernels[i] != None:
-      #    newFallbackSolution.kernels[i].unrolls = [ 1 ]
-      #s += indent + "  return new Tensile::%s%s( problem );\n" % (self.solutionWriter.getName(newFallbackSolution), self.solutionWriter.getTemplateArgList(newFallbackSolution))
-    # else:
-    #   s += indent + "  *status = tensileStatusProblemNotSupported; // backend written with only exact solutions, and this problem not explicitly supported\n"
-    #   s += indent + "  return nullptr;\n"
+
     s += indent + "}"
     return s
 
