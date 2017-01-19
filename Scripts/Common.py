@@ -18,7 +18,7 @@ globalParameters["DebugPrintLevel"] = 1
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
-globalParameters["Redo"] = "None" # Force None
+globalParameters["ForceRedo"] = False
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
 globalParameters["EnqueuesPerSync"] = 1
@@ -27,7 +27,10 @@ globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["SolutionPrintDebug"] = False
 globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
     "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
-globalParameters["DoValidation"] = True
+globalParameters["NumElementsToValidate"] = -1
+globalParameters["ValidationMaxToPrint"] = 4
+globalParameters["ValidationPrintValids"] = False
+globalParameters["NumElementsToValidate"] = -1
 globalParameters["MaxThreads"] = 256
 
 

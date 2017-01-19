@@ -218,6 +218,8 @@ class BenchmarkProcess:
         self.initialSolutionParameters.state,
         self.currentProblemSizes,
         self.benchmarkStepIdx )
+    self.benchmarkSteps.append(benchmarkStep)
+    self.benchmarkStepIdx+=1
 
   ##############################################################################
   # for list of config parameters convert to steps and append to steps list
@@ -526,8 +528,11 @@ class BenchmarkStep:
 
   def __str__(self):
     string = "%02u" % self.stepIdx
-    for param in self.benchmarkParameters:
-      string += "_%s" % str(param)
+    if len(self.benchmarkParameters) > 0:
+      for param in self.benchmarkParameters:
+        string += "_%s" % str(param)
+    else:
+      string += "_Final"
     return string
   def __repr__():
     return self.__str__()

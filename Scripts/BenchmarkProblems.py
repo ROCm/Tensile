@@ -27,31 +27,31 @@ def benchmarkProblemType( config ):
 
   totalBenchmarkSteps = len(benchmarkProcess)
   determinedParameters = [{}] # winner chosen from benchmark
+  printStatus("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
     stepName = str(benchmarkStep)
     print "\n\n"
     print hr
-    print hr
     print "# %s" % (stepName)
-    print "# BenchmarkParameters:"
+    print "#  -NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes
+    print "#  -BenchmarkParameters:"
     for paramName in benchmarkStep.benchmarkParameters:
       paramValues = benchmarkStep.benchmarkParameters[paramName]
-      printStr = "#    %s = { %s" % (paramName, paramValues[0])
+      printStr = "#     %s = { %s" % (paramName, paramValues[0])
       for paramValueIdx in range(1, len(paramValues)):
         printStr += ", %s" % str(paramValues[paramValueIdx])
       printStr += " }"
       print printStr
-    print "# HardcodedParameters:"
+    print "#  -HardcodedParameters:"
     paramDictIdx = 0
     for paramDict in benchmarkStep.hardcodedParameters:
-      printStr = "# (%u): " % paramDictIdx
+      printStr = "#   (%u) " % paramDictIdx
       paramDictIdx += 1
       for paramName in paramDict:
         paramValue = paramDict[paramName]
-        printStr += "%s: %s; " % (paramName, str(paramValue))
+        printStr += "%s: %s, " % (paramName, str(paramValue))
       print printStr
-    print hr
     print hr
     print ""
     pushWorkingPath(stepName)
@@ -155,8 +155,7 @@ def benchmarkProblemType( config ):
 
     resultsFileName = os.path.join(globalParameters["WorkingPath"], \
         "../Data", "%s.csv" % stepName)
-    if not os.path.exists(resultsFileName) \
-        or globalParameters["Redo"] == "Force":
+    if not os.path.exists(resultsFileName) or globalParameters["ForceRedo"]:
       pushWorkingPath("build")
       # create run.bat or run.sh which builds and runs
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
@@ -175,7 +174,8 @@ def benchmarkProblemType( config ):
           % (stepName, ".exe" if os.name == "nt" else "") )
       runScriptFile.close()
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-      status = process.wait()
+      #status = process.wait()
+      status = process.communicate()
       popWorkingPath() # build
 
 
@@ -353,15 +353,23 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "  };\n\n"
 
   h += "/* which other index does this index map (for its size) */\n"
-  h += "static const unsigned int numIndicesMapped = %u;\n" \
-      % len(problemSizes.indicesMapped)
-  h += "static const unsigned int indicesMapped[numIndicesMapped] = {\n"
-  for i in range(0, len(problemSizes.indicesMapped)):
-    h += "  %u" % problemSizes.indicesMapped[i]
-    if i < len(problemSizes.indicesMapped)-1:
-      h += ","
-    h += "\n"
-  h += "  };\n"
+  numIndicesMapped = len(problemSizes.indicesMapped)
+  h += "static const unsigned int numIndicesMapped = %u;\n" % numIndicesMapped
+  if numIndicesMapped > 0:
+    h += "static const unsigned int indicesMapped[numIndicesMapped] = {\n"
+    for i in range(0, numIndicesMapped):
+      h += "  %u" % problemSizes.indicesMapped[i]
+      if i < numIndicesMapped-1:
+        h += ","
+      h += "\n"
+    h += "  };\n"
+  else:
+    h += "static const unsigned int indicesMapped[1] = { 0 }; // dummy\n"
+
+  h += "unsigned int fullSizes[totalIndices];\n"
+  h += "unsigned int currentSizedIndexSizes[numIndicesSized];\n"
+  h += "unsigned int currentSizedIndexIncrements[numIndicesSized];\n"
+  h += "\n"
 
   h += "unsigned int problemSize[totalIndices];\n"
 
@@ -443,8 +451,16 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       % (globalParameters["SyncsPerBenchmark"])
   h += "const int numFlopsPerMac = %u;\n" \
       % (2 if solution["ProblemType"]["DataType"].isReal() else 8)
-  h += "const bool doValidation = %s;\n" \
-      % ("true" if globalParameters["DoValidation"] else "false")
+  h += "const unsigned int numElementsToValidate = %s;\n" \
+      % (str(globalParameters["NumElementsToValidate"]) \
+      if globalParameters["NumElementsToValidate"] >= 0 \
+      else "0xFFFFFFFF" )
+  h += "const unsigned int validationMaxToPrint = %u;\n" \
+      % globalParameters["ValidationMaxToPrint"]
+  h += "const bool validationPrintValids = %s;\n" \
+      % ("true" if globalParameters["ValidationPrintValids"] else "false")
+  h += "size_t validationStride;\n"
+  h += "\n"
 
 
   # problem description
@@ -480,7 +496,8 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "      indexAssignmentsA,\n"
   h += "      indexAssignmentsB,\n"
   h += "      complexConjugateA,\n"
-  h += "      complexConjugateB );\n"
+  h += "      complexConjugateB,\n"
+  h += "      validationStride );\n"
   h += "};\n\n"
 
   h += "void generatedCallToSolution(\n"

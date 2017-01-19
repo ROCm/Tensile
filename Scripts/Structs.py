@@ -442,25 +442,25 @@ class ProblemSizes:
       currentSizedIndexIncrements.append(index[1])
     numIndicesSized = len(self.indicesSized)
     moreProblemSizes = True
+    #print "Counting Problem Sizes: %s" % self.indicesSized
     while moreProblemSizes:
+      #print "Size[%u]: sizes=%s incr=%s" % (self.totalProblemSizes, \
+      #    currentSizedIndexSizes, currentSizedIndexIncrements)
       self.totalProblemSizes += 1
       currentSizedIndexSizes[0] += currentSizedIndexIncrements[0]
       currentSizedIndexIncrements[0] += self.indicesSized[0][2]
       for i in range(1, numIndicesSized+1):
         if currentSizedIndexSizes[i-1] > self.indicesSized[i-1][3]:
-          # reset prior index
+          # reset prior index size and incr
           currentSizedIndexSizes[i-1] = self.indicesSized[i-1][0]
-          currentSizedIndexIncrements[i-1] += self.indicesSized[i-1][1]
+          currentSizedIndexIncrements[i-1] = self.indicesSized[i-1][1]
           # increment next index
           if i == numIndicesSized:
             moreProblemSizes = False
           else:
             currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
             currentSizedIndexIncrements[i] += self.indicesSized[i][2];
-        # if last index past max, we're done
-      #if currentSizedIndexSizes[numIndicesSized-1] \
-      #    > self.indicesSized[numIndicesSized-1][3]:
-      #  moreProblemSizes = False
+    #print "ProblemSizes: %u" % self.totalProblemSizes
 
 
   def __str__(self):
@@ -498,7 +498,7 @@ class Solution:
       self["WorkGroup1"] *= 2
     if self["WorkGroupShape"] == -1:
       self["WorkGroup0"] *= 2
-    print "WGE=%u, WGS=%u, WG0=%u, WG1=%u" % (self["WorkGroupEdge"], self["WorkGroupShape"], self["WorkGroup0"], self["WorkGroup1"])
+    #print "WGE=%u, WGS=%u, WG0=%u, WG1=%u" % (self["WorkGroupEdge"], self["WorkGroupShape"], self["WorkGroup0"], self["WorkGroup1"])
 
     # thread tile sizes
     self["ThreadTile0"] = self["ThreadTileEdge"]

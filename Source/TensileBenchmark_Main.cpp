@@ -30,14 +30,30 @@ int main( int argc, char *argv[] ) {
   }
   file << std::endl;
 
+
   // initialize index sizes
-  unsigned int *fullSizes = new unsigned int[totalIndices];
-  unsigned int *currentSizedIndexSizes = new unsigned int[numIndicesSized];
-  unsigned int *currentSizedIndexIncrements = new unsigned int[numIndicesSized];
   for ( unsigned int i = 0; i < numIndicesSized; i++) {
     currentSizedIndexSizes[i] = indicesSized[i][0];
     currentSizedIndexIncrements[i] = indicesSized[i][1];
   }
+
+  // run each solution to pre-compile opencl kernels if not validating
+  unsigned int currentSizedIdx = 0;
+  unsigned int currentMappedIdx = 0;
+#if Tensile_BACKEND_OCL
+  if (numElementsToValidate) {
+    for (unsigned int i = 0; i < totalIndices; i++) {
+      if (indexIsSized[i]) {
+        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
+      } else {
+        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
+      }
+    }
+    for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
+      generatedCallToSolution( sIdx, fullSizes );
+    }
+  }
+#endif
 
   // iterate over all problem sizes
   bool moreProblemSizes = true;
@@ -45,8 +61,8 @@ int main( int argc, char *argv[] ) {
   do {
 
     // convert current sized and mapped indices to full sizes
-    unsigned int currentSizedIdx = 0;
-    unsigned int currentMappedIdx = 0;
+    currentSizedIdx = 0;
+    currentMappedIdx = 0;
     for (unsigned int i = 0; i < totalIndices; i++) {
       if (indexIsSized[i]) {
         fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
@@ -58,7 +74,7 @@ int main( int argc, char *argv[] ) {
     // print size
     printf("Problem[%2u]: %u", problemIdx, fullSizes[0]);
     for (unsigned int i = 1; i < totalIndices; i++) {
-      printf(", %u", fullSizes[1]);
+      printf(", %u", fullSizes[i]);
     }
     printf("\n");
 #endif
@@ -71,10 +87,10 @@ int main( int argc, char *argv[] ) {
     currentSizedIndexIncrements[0] += indicesSized[0][2];
     for (unsigned int i = 1; i < numIndicesSized+1; i++) {
       // if prior index past max, reset to min and increment next index
-      if (currentSizedIndexSizes[i-1] >= indicesSized[i-1][3]) {
+      if (currentSizedIndexSizes[i-1] > indicesSized[i-1][3]) {
         // reset prior index
         currentSizedIndexSizes[i-1] = indicesSized[i-1][0];
-        currentSizedIndexIncrements[i-1] += indicesSized[i-1][1];
+        currentSizedIndexIncrements[i-1] = indicesSized[i-1][1];
         // increment next index
         if ( i >= numIndicesSized) {
           moreProblemSizes = false;
@@ -83,17 +99,14 @@ int main( int argc, char *argv[] ) {
           currentSizedIndexIncrements[i] += indicesSized[i][2];
         }
       }
-      problemIdx++;
     }
+    problemIdx++;
   } while(moreProblemSizes);
 
   // close file
   file.close();
 
   // cleanup
-  delete[] currentSizedIndexSizes;
-  delete[] currentSizedIndexIncrements;
-  delete[] fullSizes;
   destroyControls();
   destroyData();
 
@@ -121,13 +134,34 @@ void benchmarkAllSolutionsForSize(
   file << ", " << totalSize;
 
   // pre-compute referenceCPU if validating
-  if (doValidation) {
+  if (numElementsToValidate) {
     memcpy(referenceC, initialC, currentSizeC*sizeof(DataType));
+    if (numElementsToValidate >= currentSizeC) {
+      validationStride = 1;
+    } else {
+      validationStride = currentSizeC / numElementsToValidate;
+      // find next prime number
+      while (true) { // break statement at end
+        bool prime = true;
+        for (unsigned int i = 2; i < validationStride; i++) {
+          if ( validationStride % i == 0) {
+            prime = false;
+            break;
+          }
+        }
+        if (prime) {
+          break;
+        } else {
+          validationStride++;
+        }
+      }
+    }
+    // printf("ValidationStride: %u\n", validationStride);
     generatedCallToReferenceCPU( sizes );
   }
   for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
 
-      // copy data in language
+    // copy data in language
 #if Tensile_BACKEND_OCL
     status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
         currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
@@ -136,11 +170,14 @@ void benchmarkAllSolutionsForSize(
 #endif
     tensileStatusCheck(status);
 
-    // enqueue device solution
-    generatedCallToSolution( solutionIdx , sizes );
-
     // validate solution
-    if (doValidation) {
+    size_t numInvalids = 0;
+    size_t numChecked = 0;
+    if (numElementsToValidate) {
+
+      // enqueue device solution
+      generatedCallToSolution( solutionIdx , sizes );
+
       // copy data back to host
 #if Tensile_BACKEND_OCL
       clEnqueueReadBuffer(stream, deviceC, CL_TRUE, 0,
@@ -150,15 +187,18 @@ void benchmarkAllSolutionsForSize(
 #endif
 
       // compare
-      unsigned int maxPrint = 16;
-      bool printTrue = false;
+      //unsigned int maxPrint = 16;
+      //bool printTrue = false;
       bool firstPrint = true;
       unsigned int printIdx = 0;
-      size_t invalids = 0;
-      for (size_t i = 0; i < currentSizeC; i++) {
-        bool equal = tensileAlmostEqual<DataType>(deviceOnHostC[i], referenceC[i]);
-        if (!equal || printTrue) {
-          if (printIdx < maxPrint) {
+      for (size_t i = 0; i < currentSizeC; i+= validationStride) {
+        bool equal = tensileAlmostEqual<DataType>(
+            deviceOnHostC[i], referenceC[i]);
+        numChecked++;
+        if (!equal) numInvalids++;
+
+        if (!equal || validationPrintValids) {
+          if (printIdx < validationMaxToPrint) {
             if (firstPrint) {
               printf("  Device | Reference\n");
               firstPrint = false;
@@ -166,18 +206,12 @@ void benchmarkAllSolutionsForSize(
             printf("  %u: %7.1f %s %7.1f\n", i, deviceOnHostC[i],
                 equal ? "==" : "!=", referenceC[i]);
             printIdx++;
-            if (!equal) invalids++;
           } else {
             break;
           }
         }
       } // compare loop
-      if (invalids) {
-        printf("  Solution[%u] Validation: FAILED\n", solutionIdx);
-      } else {
-        printf("  Solution[%u] Validation: PASSED\n", solutionIdx);
-      }
-    } // if doValidation
+    } // if numElementsToValidate > 0
 
     // time solution
     timer.start();
@@ -195,7 +229,14 @@ void benchmarkAllSolutionsForSize(
     } // sync loop
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
-    printf("Time[%u]: %f ms\n", solutionIdx , timeMs);
+    if (numElementsToValidate) {
+      printf("  Solution[%02u]: t:%8.3f ms v: %6s p: %u/%u %s\n",
+          solutionIdx, timeMs, numInvalids ? "FAILED" : "PASSED",
+          numChecked-numInvalids, numChecked, solutionNames[solutionIdx]);
+    } else {
+      printf("  Solution[%02u]: t:%8.3f ms (%s)\n",
+          solutionIdx , timeMs, solutionNames[solutionIdx]);
+    }
     file << ", " << timeMs;
     solutionTimes[problemIdx][solutionIdx ] = static_cast<float>(timeMs);
   } // solution loop

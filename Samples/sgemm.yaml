@@ -2,13 +2,18 @@ Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
   PrintDebug: 2
-  Redo: Force
+  ForceRedo: True
   PlatformIdx: 0
   DeviceIdx: 0
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   CMakeBuildType: Debug
-  SolutionPrintDebug: True
+  SolutionPrintDebug: False
+  NumElementsToValidate: 16
+  ValidationMaxToPrint: 16
+  ValidationPrintValids: False
+
+  #NumElementsToValidate: 16
   
 
 BenchmarkProblems:
@@ -23,13 +28,13 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [128], 0, 0 ]
+      - ProblemSizes: [ [16, 128], 0, 0 ]
       - LoopTail: [ False ]
       - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
       - WorkGroupOrdering: [ 1 ]
         ThreadTileShape: [0, 1, -1]
-      - ProblemSizes: [ [256] ]
+      - ProblemSizes: [ [16, 256] ]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
@@ -43,7 +48,7 @@ BenchmarkProblems:
       - NumLoadsParaA: [ 1, 2, 4 ]
       - NumLoadsParaB: [ 1, 2, 4 ]
     BenchmarkFinalParameters:
-      ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
+      ProblemSizes: [ [16, 16, 16, 128], [16, 16, 16, 128], [16, 16, 16, 128] ]
 
 
 # final create problem-range -> solution mapping and encode to .yaml

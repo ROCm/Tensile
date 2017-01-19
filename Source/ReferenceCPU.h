@@ -23,8 +23,6 @@
 #define REFERENCE_CPU_H
 #include "Tensile.h"
 #include "MathTemplates.h"
-//#include <tuple>
-//#include <algorithm>
 #include <vector>
 
 
@@ -45,7 +43,8 @@ TensileStatus tensileReferenceCPU(
     const unsigned int *indexAssignmentsA,
     const unsigned int *indexAssignmentsB,
     bool complexConjugateA,
-    bool complexConjugateB
+    bool complexConjugateB,
+    size_t validationStride // = 1 means do all
   ) {
 
   // sizes
@@ -94,7 +93,8 @@ TensileStatus tensileReferenceCPU(
   std::vector<unsigned int> coordsA( numIndicesAB );
   std::vector<unsigned int> coordsB( numIndicesAB );
 
-  while (true) { // iterate over entire free index range
+  bool moreIndicesC = true;
+  while (moreIndicesC) { // iterate over entire free index range
 
     Type sumC = tensileGetZero<Type>();
     // reset summation indices
@@ -183,15 +183,19 @@ TensileStatus tensileReferenceCPU(
     dataC[serialIdxC] = sumC;
 
     // increment free coord
-    freeCoord[0]++;
-    for (size_t f = 0; f < numIndicesC-1; f++) {
-      if (freeCoord[f] >= sizes[f]) {
-        freeCoord[f] = 0;
-        freeCoord[f+1]++;
+    // skip = 1, validate everything
+    for (size_t i = 0; i < validationStride; i++) {
+      freeCoord[0]++;
+      for (size_t f = 0; f < numIndicesC-1; f++) {
+        if (freeCoord[f] >= sizes[f]) {
+          freeCoord[f] = 0;
+          freeCoord[f+1]++;
+        }
       }
-    }
-    if (freeCoord[numIndicesC - 1] >= sizes[numIndicesC - 1]) {
-      break; // free index range exit criteria
+      if (freeCoord[numIndicesC - 1] >= sizes[numIndicesC - 1]) {
+        moreIndicesC = false;
+        break; // free index range exit criteria
+      }
     }
 
   } // free range
