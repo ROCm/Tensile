@@ -96,7 +96,7 @@ parallel rocm_fiji: {
     }
   }
 }, catalyst: {
-  node ('opencl && hawaii'){
+  node ('opencl && fiji'){
     stage('Checkout') {
       env.CXXFLAGS = "-Werror"
       checkout scm
