@@ -66,6 +66,7 @@ find_path(OPENCL_INCLUDE_DIRS
     $ENV{AMDAPPSDKROOT}/include
     $ENV{CUDA_PATH}/include
   PATHS
+    /opt/rocm/opencl/include
     /usr/include
     /usr/local/include
     /usr/local/cuda/include
@@ -125,6 +126,7 @@ if( LIB64 )
     DOC "OpenCL dynamic library path"
     PATH_SUFFIXES x86_64 x64
     PATHS
+    /opt/rocm/opencl/lib
     /usr/lib
     /usr/local/cuda/lib
   )
