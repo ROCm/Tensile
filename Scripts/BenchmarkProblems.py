@@ -201,59 +201,22 @@ def benchmarkProblemType( config ):
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    try:
-      resultsFile = open(resultsFileName, "r")
-    except IOError:
-      printExit("Can't open \"%s\" after BenchmarkStep %u: %s" \
-          % (resultsFileName, benchmarkStepIdx, stepName) )
-    winnerIndices = determineWinnersFromResults(resultsFile, solutions, \
-        benchmarkStep.hardcodedParameters)
-    print "NumwinnerIndices: %u" % len(winnerIndices)
-    #print "NumOldDetermineds: %u" % len(determinedParameters)
-    #print "OldDetermineds:"
-    #determinedParametersMinNaming = Solution.getMinNaming(determinedParameters)
-    # hardcodedParametersMinNaming = Solution.getMinNaming(hardcodedParameters)
-    #for detParam in determinedParameters:
-    #  print "  %s" % Solution.getNameMin(detParam, \
-    #      determinedParametersMinNaming)
-    print "NumHardcoded: %u" % len(benchmarkStep.hardcodedParameters)
-    print "NumBenchmarked: %u" % len(benchmarkPermutations)
-    #oldDeterminedParameters = deepcopy(determinedParameters)
-    #determinedParameters = []
-    for hardcodedParameterIdx in range(0, len(winnerIndices)):
-      hardcodedParameters = \
-          benchmarkStep.hardcodedParameters[hardcodedParameterIdx]
-      winnerIdx = winnerIndices[hardcodedParameterIdx]
-      winningParameters = benchmarkPermutations[winnerIdx]
-      #print "Trying %s -> %s" % (Solution.getNameFull(hardcodedParameters), \
-      #    Solution.getNameFull(winningParameters))
-      winners[hardcodedParameters] = winningParameters # does update
+    results = getResults(resultsFileName, len(solutions), \
+        len(benchmarkStep.hardcodedParameters), \
+        solutions[0])
+    winners.addResults(benchmarkStep.hardcodedParameters, \
+        benchmarkPermutations, results)
+    #for hardcodedParameterIdx in range(0, len(winnerIndices)):
+    #  hardcodedParameters = \
+    #      benchmarkStep.hardcodedParameters[hardcodedParameterIdx]
+    #  (winnerIdx, score) = winnerIndices[hardcodedParameterIdx]
+    #  winningParameters = benchmarkPermutations[winnerIdx]
+    #  winners[hardcodedParameters] = (winningParameters, score) # does update
 
-      #print "Winner[%u:%s] is %u:%s" % (hardcodedParameterIdx, \
-      #    Solution.getNameMin(hardcodedParameters, \
-      #    hardcodedParametersMinNaming), winnerIdx, \
-      #    Solution.getNameFull(benchmarkParameters) )
-      #winningParameters = {}
-      #winningParameters.update(hardcodedParameters)
-      #winningParameters.update( \
-      #    oldDeterminedParameters[hardcodedParameterIdx \
-      #    % len(oldDeterminedParameters)])
-      #winningParameters.update(benchmarkParameters)
-      #determinedParameters.append(winningParameters)
-
-
-    #print "NumNewDetermineds: %u" % len(determinedParameters)
-    #determinedParametersMinNaming = Solution.getMinNaming(determinedParameters)
-    #print "NewDetermineds:"
-    #for detParam in determinedParameters:
-    #  print "  %s" % Solution.getNameMin(detParam, \
-    #      determinedParametersMinNaming)
     print "Winners Updated Winners\n%s" % winners
-
 
     popWorkingPath() # stepName
     print "%s%s\n# %s: End\n%s%s\n" % (hr, hr, stepName, hr, hr)
-    #printExit("ON PURPOSE")
 
   popWorkingPath()
 
@@ -261,39 +224,48 @@ def benchmarkProblemType( config ):
 
 
 ################################################################################
-# Determine Winners From Results
+# Read GFlop/s from file
 ################################################################################
-def determineWinnersFromResults(resultsFile, solutions, hardcodedParameters):
-  numHardcodedParameters = len(hardcodedParameters)
-  totalSolutions = len(solutions)
-  numSolutionsPerHardcodedParameter = totalSolutions / numHardcodedParameters
-  print "%u solutions for each of %u hardcoded parameters\n" \
-      % (numSolutionsPerHardcodedParameter, numHardcodedParameters)
+def getResults(resultsFileName, numSolutions, numHardcodedParameters, \
+    solution):
+  try:
+    resultsFile = open(resultsFileName, "r")
+  except IOError:
+    printExit("Can't open \"%s\" to get results" % resultsFileName )
+
+  numSolutionsPerHardcodedParameter = numSolutions / numHardcodedParameters
 
   # setup data structures
-  times = []
-  numWins = []
+  results = []
+  #numWins = []
   for i in range(0, numHardcodedParameters):
-    times.append([])
-    numWins.append([])
+    results.append([])
+    #numWins.append([])
     for j in range(0, numSolutionsPerHardcodedParameter):
-      times[i].append([])
-      numWins[i].append(0)
+      results[i].append([])
+      #numWins[i].append(0)
 
-  # read times
+  # read results in gflops
   csvFile = csv.reader(resultsFile)
-  startIdx = solutions[0]["ProblemType"]["TotalIndices"] + 2
+  problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+  startIdx = problemSizeIdx + 1
   rowIdx = 0
   for row in csvFile:
     if rowIdx == 0:
       rowIdx+=1
       continue
     else:
+      totalFlops = float(row[problemSizeIdx])
       for i in range(0, numHardcodedParameters):
         for j in range(0, numSolutionsPerHardcodedParameter):
-          times[i][j].append(float(row[startIdx+j \
-              + i*numSolutionsPerHardcodedParameter]))
+          time_ms = float(row[startIdx+j \
+              + i*numSolutionsPerHardcodedParameter])
+          flops = totalFlops / (time_ms / 1000)
+          gflops = flops / (1000*1000*1000)
+          results[i][j].append(gflops)
+  return results
 
+  """
   # count wins for each problem size
   for r in range(0, rowIdx):
     for i in range(0, numHardcodedParameters):
@@ -317,6 +289,7 @@ def determineWinnersFromResults(resultsFile, solutions, hardcodedParameters):
         winnerNumWins = numWins[i][j]
     winnerIndices.append(winnerIdx)
   return winnerIndices
+  """
 
 
 ################################################################################
@@ -764,66 +737,153 @@ class WinningParameterDict:
 
   ##########################################################
   # Add Winning Parameters For Hardcoded Parameters
-  def __setitem__( self, hardcodedParameters, newWinningParameters ):
-    (hardcodedParametersKey, tmp) = \
-        WinningParameterDict.get(hardcodedParameters, self.winners)
+  def addResults( self, hardcodedParameterList, benchmarkPermutations, \
+      results):
+    #printStatus("beginning")
+    #print benchmarkPermutations
+    for hardcodedIdx in range(0, len(results)):
+      hardcodedResults = results[hardcodedIdx]
+      hardcodedParameters = hardcodedParameterList[hardcodedIdx]
+      winningIdx = -1
+      winningScore = -1
+      # find fastest benchmark parameters for this hardcoded
+      for benchmarkIdx in range(0, len(hardcodedResults)):
+        benchmarkResult = hardcodedResults[benchmarkIdx]
+        benchmarkScore = max(benchmarkResult) # take fastest regardless of size
+        if benchmarkScore > winningScore:
+          winningScore = benchmarkScore
+          winningIdx = benchmarkIdx
+      #print winningIdx, winningScore
+      winningParameters = benchmarkPermutations[winningIdx]
+      # (hardcodedParametersKey, oldWinningParameters, oldScore) = \
+      matches = WinningParameterDict.get(hardcodedParameters, self.winners)
+      if len(matches) != 1:
+        printExit("Didn't find exactly 1 match")
+      hardcodedParametersKey = matches[0][0]
+      oldWinningParameters = matches[0][1]
+      oldScore = matches[0][2]
+      #print self.winners[hardcodedParametersKey]
+      #print winningParameters
+      self.winners[hardcodedParametersKey][0].update(winningParameters)
+      self.winners[hardcodedParametersKey][1] = winningScore
+
+
+    #(hardcodedParametersKey, winningParameters, score) = \
+    #    WinningParameterDict.get(hardcodedParameters, self.winners)
     #print "Found %s -> %s" % ( hardcodedParametersKey, tmp)
-    self.winners[hardcodedParametersKey].update( \
-        newWinningParameters)
+    #self.winners[hardcodedParametersKey].update( \
+    #    newWinningParameters)
 
   ##########################################################
   # Get Winning Parameters For Hardcoded Parameters
   def __getitem__( self, hardcodedParameters ):
-    (tmp, winningParameters) = \
-        WinningParameterDict.get(hardcodedParameters, self.winners)
-    return winningParameters
+    #(hardcodedParametersKey, winningParameters, score) = \
+    matches = WinningParameterDict.get(hardcodedParameters, self.winners)
+    if len(matches) != 1:
+      printExit("Didn't find exactly 1 match")
+    return matches[0][1]
 
   ##########################################################
   # Update Hardcoded Parameters In Winning Parameters
   # could be forking, joining or adding parameters to same hardcodeds
   def update(self, newHardcodedParameterList ):
+    printStatus("Beginning")
+    # TODO when new list is joining, we need to choose the fastest
     oldWinners = self.winners
     self.winners = {}
     for newHardcodedParameters in newHardcodedParameterList:
       # print newHardcodedParameters
-      (oldHardcodedParameters, winningParameters) = \
-          WinningParameterDict.get(newHardcodedParameters, oldWinners)
-      if winningParameters != None:
+      #(oldHardcodedParameters, winningParameters, score) = \
+      matches = WinningParameterDict.get(newHardcodedParameters, oldWinners)
+      print "Found %u matches" % len(matches)
+      if len(matches) == 1: # plain update
+        print "Update Plain"
+        winningParameters = matches[0][1]
+        score = matches[0][2]
+        #if winningParameters != None:
+        print "Score: %u" % score
         self.winners[FrozenDictionary(newHardcodedParameters)] = \
-            winningParameters
+            [ winningParameters, score ]
+      elif len(matches) > 1: # join
+        print "Update Join %s" % Solution.getNameFull(newHardcodedParameters)
+        fastestIdx = -1
+        fastestScore = -1
+        fastestParameters = {}
+        for matchIdx in range(0, len(matches)):
+          match = matches[matchIdx]
+          hardcodedFrozen = match[0]
+          winningParameters = match[1]
+          score = match[2]
+          print "    %s -> %s %f GFlop/s" % (Solution.getNameFull(hardcodedFrozen), Solution.getNameFull(winningParameters), score)
+          if score > fastestScore:
+            fastestScore = score
+            fastestIdx = matchIdx
+            fastestParameters = winningParameters
+        newHardcodedParameters.update(hardcodedFrozen.parameters)
+        print "FastestScore: %u" % fastestScore
+        self.winners[FrozenDictionary(newHardcodedParameters)] = \
+            [ fastestParameters, fastestScore ]
       else:
-        self.winners[FrozenDictionary(newHardcodedParameters)] = {}
+        print "Update Default"
+        self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
 
   ##########################################################
   # Get Winning Parameters For Hardcoded Parameters
-  # a match if no key in hardcoded has a different value than lookup
+  # need to match MacroTile and DepthU also
   @staticmethod
   def get( lookupHardcodedParameters, winners ):
     #print "  GET looks: %s" % Solution.getNameFull(lookupHardcodedParameters)
+    matches = []
     for hardcodedFrozen in winners:
-      winningParameters = winners[hardcodedFrozen]
-      match = True
+      winningParameters = winners[hardcodedFrozen][0]
+      print "Evaluating %s == %s+%s" \
+          % (Solution.getNameFull(lookupHardcodedParameters), \
+          Solution.getNameFull(hardcodedFrozen), \
+          Solution.getNameFull(winningParameters))
+      score = winners[hardcodedFrozen][1]
+      frozenMatch = True
+      # a match if no key in hardcoded has a different value than lookup
       for paramName in hardcodedFrozen:
         if paramName in lookupHardcodedParameters:
-          #print "comparing %s: %s == %s" % (paramName, \
-          #lookupHardcodedParameters[paramName], \
-          #    hardcodedFrozen[paramName])
           if lookupHardcodedParameters[paramName] != \
               hardcodedFrozen[paramName]:
-            #print "mismatch"
-            match = False
-          #else:
-          #  print "match"
-        #else:
-        #  print "%s not in lookup" % (paramName)
+            frozenMatch = False
+            break
+      if frozenMatch:
+        matchMacroTile = True
+        matchDepthU = True
+        if "MacroTile0" in lookupHardcodedParameters:
+          lookupMacroTile0 = lookupHardcodedParameters["MacroTile0"]
+          lookupMacroTile1 = lookupHardcodedParameters["MacroTile1"]
+          matchUnion = {}
+          #print hardcodedFrozen
+          #for paramName in hardcodedFrozen:
+          #  paramValue = hardcodedFrozen[paramName]
+          #  matchUnion[paramName] = paramValue
+          matchUnion.update(hardcodedFrozen.parameters)
+          matchUnion.update(winningParameters)
+          Solution.assignDimsFromEdgeAndShape(matchUnion)
+          if matchUnion["MacroTile0"] != lookupMacroTile0 \
+              or matchUnion["MacroTile1"] != lookupMacroTile1:
+            print "MacroTile NOT Matched"
+            matchMacroTile = False
+          else:
+            print "MacroTile Matched"
+        if "DepthU" in lookupHardcodedParameters:
+          lookupDepthU = lookupHardcodedParameters["DepthU"]
+          matchUnion = {}
+          matchUnion.update(hardcodedFrozen.parameters)
+          matchUnion.update(winningParameters)
+          matchDepthU = matchUnion["LoopUnroll"] * matchUnion["SplitU"]
+          if matchDepthU != lookupDepthU:
+            print "DepthU NOT Matched"
+            matchDepthU = False
+          else:
+            print "DepthU Matched"
+        if matchMacroTile and matchDepthU:
+          matches.append([hardcodedFrozen, winningParameters, score])
 
-      if match:
-        #print "  GET found: %s" \
-        #    % Solution.getNameFull(lookupHardcodedParameters)
-        return (hardcodedFrozen, winningParameters)
-    return (None, None)
-    printExit("WinningParameterDict::get didn't find %s" \
-        % str(lookupHardcodedParameters))
+    return matches
 
   ##########################################################
   # To String
@@ -831,9 +891,12 @@ class WinningParameterDict:
     state = ""
     idx = 0
     for hardcodedParameters in self.winners:
-      winningParameters = self.winners[hardcodedParameters]
-      state += "  %2u: %s -> %s\n" % (idx, hardcodedParameters, \
-          Solution.getNameFull(winningParameters))
+      print self.winners[hardcodedParameters]
+      winningParameters = self.winners[hardcodedParameters][0]
+      score = self.winners[hardcodedParameters][1]
+      print score
+      state += "  %2u: %s -> %s %f GFlop/s\n" % (idx, hardcodedParameters, \
+          Solution.getNameFull(winningParameters), score)
       idx += 1
     return state
   def __repr__(self):

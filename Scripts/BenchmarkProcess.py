@@ -195,8 +195,9 @@ class BenchmarkProcess:
       joinPermutations.append({})
       pIdx = i
       for joinName in self.joinParameters:
+        print joinName
         if hasParam(joinName, self.forkParameters):
-          for paramDict in self.forkParameters:
+          for paramDict in self.forkParameters: # hardcodedPermutations
             if joinName in paramDict:
               paramValues = paramDict[joinName]
               valueIdx = pIdx % len(paramValues)
@@ -205,15 +206,20 @@ class BenchmarkProcess:
               break
         elif joinName == "MacroTile":
           valueIdx = pIdx % len(macroTiles)
+          pIdx /= len(macroTiles)
           joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
           joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
           #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
         elif joinName == "DepthU":
           valueIdx = pIdx % len(depthUs)
+          pIdx /= len(depthUs)
           joinPermutations[i][joinName] = depthUs[valueIdx]
       #print joinPermutations[i]
     #self.hardcodedParameters.append(joinPermutations)
     self.joinHardcodedParameters(joinPermutations)
+    #print "JoinPermutations"
+    #print len(joinPermutations)
+    #print joinPermutations
 
 
     # (5) benchmark join parameters
@@ -500,11 +506,18 @@ class BenchmarkProcess:
         oldPermutation.pop("LoopUnroll", None )
         oldPermutation.pop("SplitU", None )
 
+    #print self.hardcodedParameters
+    #print update
+    #update = list(set(update))
+    #print update
+
     # for MacroTile and DepthU we end up with same number of parameters,
     # but the fasteset from each group will be chosen during Benchmarking loop
     updatedHardcodedParameters = []
     for newPermutation in update:
+      #print "NewPerm: %s" % Solution.getNameFull(newPermutation)
       for oldPermutation in self.hardcodedParameters:
+        #print "  OldPerm: %s" % Solution.getNameFull(newPermutation)
 
         """
         # skip macro tile mismatch
@@ -530,7 +543,10 @@ class BenchmarkProcess:
         permutation.update(oldPermutation)
         permutation.update(newPermutation)
         if permutation not in updatedHardcodedParameters: # "set"
+          print "adding permutation %s" % Solution.getNameFull(permutation)
           updatedHardcodedParameters.append(permutation)
+        else:
+          print "alread permutation %s" % Solution.getNameFull(permutation)
     # convert to set and back to list to remove duplicates
     self.hardcodedParameters = updatedHardcodedParameters
     #print "Joined HCP: %s" % str(self.hardcodedParameters)
