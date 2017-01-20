@@ -32,8 +32,6 @@ from Structs import *
 ################################################################################
 class KernelWriter:
 
-  indexChars = globalParameters["IndexChars"]
-
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
@@ -87,7 +85,9 @@ class KernelWriter:
     kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
 
     # determine chars for fast access
-    indexChars = copy.deepcopy(self.indexChars)
+    indexChars = []
+    for i in range(0, len(globalParameters["IndexChars"])):
+      indexChars.append(globalParameters["IndexChars"][i])
     indexChars[kernel["ProblemType"]["Index0"]] \
         = "0" + indexChars[kernel["ProblemType"]["Index0"]]
     indexChars[kernel["ProblemType"]["Index1"]] \
@@ -174,7 +174,9 @@ class KernelWriter:
     kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
 
     # determine chars for fast access
-    indexChars = copy.deepcopy(self.indexChars)
+    indexChars = []
+    for i in range(0, len(globalParameters["IndexChars"])):
+      indexChars.append(globalParameters["IndexChars"][i])
     indexChars[kernel["ProblemType"]["Index0"]] \
         = "0" + indexChars[kernel["ProblemType"]["Index0"]]
     indexChars[kernel["ProblemType"]["Index1"]] \

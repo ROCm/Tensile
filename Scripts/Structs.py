@@ -330,9 +330,11 @@ class ProblemType:
 
   ########################################
   def __str__(self):
+    indexChars = globalParameters["IndexChars"]
     # C dimensions
     name = "C"
-    name += indexChars[:self["NumIndicesC"]].lower()
+    for i in range(0, self["NumIndicesC"]):
+      name += indexChars[i].lower()
     # A dimensions
     name += "_A"
     for i in self["IndexAssignmentsA"]:
@@ -491,26 +493,7 @@ class Solution:
     for key in defaultSolution:
       self.assignWithDefault(key, defaultSolution[key], config)
 
-    # workgroup sizes
-    self["WorkGroup0"] = self["WorkGroupEdge"]
-    self["WorkGroup1"] = self["WorkGroupEdge"]
-    if self["WorkGroupShape"] == 1:
-      self["WorkGroup1"] *= 2
-    if self["WorkGroupShape"] == -1:
-      self["WorkGroup0"] *= 2
-    #print "WGE=%u, WGS=%u, WG0=%u, WG1=%u" % (self["WorkGroupEdge"], self["WorkGroupShape"], self["WorkGroup0"], self["WorkGroup1"])
-
-    # thread tile sizes
-    self["ThreadTile0"] = self["ThreadTileEdge"]
-    self["ThreadTile1"] = self["ThreadTileEdge"]
-    if self["ThreadTileShape"] == 1:
-      self["ThreadTile1"] *= 2
-    if self["ThreadTileShape"] == -1:
-      self["ThreadTile0"] *= 2
-
-    # macro tile sizes
-    self["MacroTile0"] = self["WorkGroup0"]*self["ThreadTile0"]
-    self["MacroTile1"] = self["WorkGroup1"]*self["ThreadTile1"]
+    Solution.assignDimsFromEdgeAndShape(self.state)
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -531,6 +514,31 @@ class Solution:
     kernel11.update({"Edge0": True, "Edge1": True})
     kernels.append(kernel11)
     return kernels
+
+
+  ########################################
+  # assign Dim0, 1 based on edge and shape
+  @staticmethod
+  def assignDimsFromEdgeAndShape(state):
+    # workgroup sizes
+    state["WorkGroup0"] = state["WorkGroupEdge"]
+    state["WorkGroup1"] = state["WorkGroupEdge"]
+    if state["WorkGroupShape"] == 1:
+      state["WorkGroup1"] *= 2
+    elif state["WorkGroupShape"] == -1:
+      state["WorkGroup0"] *= 2
+
+    # thread tile sizes
+    state["ThreadTile0"] = state["ThreadTileEdge"]
+    state["ThreadTile1"] = state["ThreadTileEdge"]
+    if state["ThreadTileShape"] == 1:
+      state["ThreadTile1"] *= 2
+    elif state["ThreadTileShape"] == -1:
+      state["ThreadTile0"] *= 2
+
+    # macro tile sizes
+    state["MacroTile0"] = state["WorkGroup0"]*state["ThreadTile0"]
+    state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
 
 
   ########################################
@@ -573,15 +581,16 @@ class Solution:
     name = ""
     first = True
     # put problem first
-    name += str(state["ProblemType"]) + "_"
+    if "ProblemType" in state:
+      name += str(state["ProblemType"]) + "_"
     for key in state:
       if requiredParameters[key]:
         if not first:
           name += "_"
         else:
           first = False
-        name += Solution.getParameterNameAbbreviation(key)
-        name += Solution.getParameterValueAbbreviation(state[key])
+        name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
+            Solution.getParameterValueAbbreviation(state[key]) )
     return name
 
   ########################################
@@ -609,9 +618,9 @@ class Solution:
       return "1" if value else "0"
     elif isinstance(value, int):
       if value >= 0:
-        return str(value)
+        return "%02u" % value
       else: # -1 -> n1
-        return "n%u" % abs(value)
+        return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):
       return str(value)
     elif isinstance(value, list):
@@ -622,7 +631,8 @@ class Solution:
           abbrev += "_"
       return abbrev
     else:
-      printExit("Parameter \"%s\" is new object type" % value)
+      print value
+      printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)
 
   def assignWithDefault(self, parameter, default, config):

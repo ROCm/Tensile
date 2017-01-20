@@ -1,8 +1,8 @@
 Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
-  PrintDebug: 2
-  ForceRedo: True
+  DebugPrintLevel: 2
+  ForceRedo: False
   PlatformIdx: 0
   DeviceIdx: 0
   EnqueuesPerSync: 1
@@ -24,22 +24,26 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: False
 
-  #InitialSolutionParameters:
+    InitialSolutionParameters:
+      LoopTail: False
+      WorkGroupEdge: 16
+      ThreadTileEdge: 4
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [16, 128], 0, 0 ]
       - LoopTail: [ False ]
+      - WorkGroupShape: [ 0 ]
+      - SplitU: [ 1 ]
+      - ThreadTileShape: [ 0 ]
       - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
-      - WorkGroupOrdering: [ 1 ]
-        ThreadTileShape: [0, 1, -1]
-      - ProblemSizes: [ [16, 256] ]
+      - WorkGroupOrder: [ 1 ]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
     BenchmarkForkParameters:
-    #  - ProblemSizes: [ [8,8,16,5760], [16,16,16,5760], [32,32,32,5760] ]
+      - ProblemSizes: [ [128, 1024] ] # important for join step
       - LoopUnroll: [4, 8, 16]
     JoinParameters:
       - MacroTile

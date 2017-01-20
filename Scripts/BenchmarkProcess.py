@@ -52,15 +52,23 @@ class BenchmarkProcess:
   ##############################################################################
   # convert lists of parameters to benchmark steps
   def convertParametersToSteps(self):
-    printExtra("Beginning")
+    print ""
+    print "####################################################################"
+    print "# Convert Parameters to Steps"
+    print "####################################################################"
+    print ""
 
     # (1) benchmark common parameters
-    printExtra("1")
+    print ""
+    print "####################################################################"
+    print "# Benchmark Common Parameters"
     self.addStepsForParameters( self.benchmarkCommonParameters  )
 
     # (2) fork parameters
     # calculate permutations of
-    printExtra("2")
+    print ""
+    print "####################################################################"
+    print "# Fork Parameters"
     totalPermutations = 1
     for param in self.forkParameters:
       for name in param: # only 1
@@ -81,13 +89,17 @@ class BenchmarkProcess:
     self.forkHardcodedParameters(forkPermutations)
 
     # (3) benchmark common parameters
-    printExtra("3")
+    print ""
+    print "####################################################################"
+    print "# Benchmark Fork Parameters"
     self.addStepsForParameters( self.benchmarkForkParameters  )
 
     # (4) join parameters
     # answer should go in hard-coded parameters
     # does it remove the prior forks? Yes.
-    printExtra("4")
+    print ""
+    print "####################################################################"
+    print "# Join Parameters"
     macroTileJoinSet = set()
     depthUJoinSet = set()
     totalPermutations = 1
@@ -193,7 +205,9 @@ class BenchmarkProcess:
               break
         elif joinName == "MacroTile":
           valueIdx = pIdx % len(macroTiles)
-          joinPermutations[i][joinName] = macroTiles[valueIdx]
+          joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
+          joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
+          #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
         elif joinName == "DepthU":
           valueIdx = pIdx % len(depthUs)
           joinPermutations[i][joinName] = depthUs[valueIdx]
@@ -203,11 +217,15 @@ class BenchmarkProcess:
 
 
     # (5) benchmark join parameters
-    printExtra("5")
+    print ""
+    print "####################################################################"
+    print "# Benchmark Join Parameters"
     self.addStepsForParameters( self.benchmarkJoinParameters  )
 
     # (6) benchmark final
-    printExtra("6")
+    print ""
+    print "####################################################################"
+    print "# Benchmark Final"
     self.currentProblemSizes = ProblemSizes(self.problemType, \
         self.benchmarkFinalParameters["ProblemSizes"])
     currentBenchmarkParameters = {}
@@ -258,6 +276,11 @@ class BenchmarkProcess:
   ##############################################################################
   # create thorough lists of parameters, filling in missing info from defaults
   def fillInMissingStepsWithDefaults(self, config):
+    print ""
+    print "####################################################################"
+    print "# Filling in Missing Steps With Defaults"
+    print "####################################################################"
+    print ""
 
     # TODO - print warning when config contains a parameter
     # that doesn't have a default; that means they probably spelled it wrong
@@ -405,7 +428,7 @@ class BenchmarkProcess:
   ##############################################################################
   # add new permutations of hardcoded parameters to old permutations of params
   def forkHardcodedParameters( self, update ):
-    print "Forking HCP from Config: %s" % str(update)
+    #print "Forking HCP from Config: %s" % str(update)
     #printStatus("\nold = %u:%s\nnew = %u:%s" % ( len(self.hardcodedParameters), self.hardcodedParameters, len(update), update))
     #printStatus("update = %s" % str(update))
     updatedHardcodedParameters = []
@@ -418,18 +441,18 @@ class BenchmarkProcess:
         #print "  joinedPermutation = %s" % str(permutation)
         updatedHardcodedParameters.append(permutation)
     self.hardcodedParameters = updatedHardcodedParameters
-    print "Forked HCP: %s" % str(self.hardcodedParameters)
+    #print "Forked HCP: %s" % str(self.hardcodedParameters)
 
   ##############################################################################
   # contract old permutations of hardcoded parameters based on new
   def joinHardcodedParameters( self, update ):
-    print "Joining HCP from Config: %s" % str(update)
+    #print "Joining HCP from Config: %s" % str(update)
     #printStatus("\n  old = %u:%s\n  new = %u:%s" % ( len(self.hardcodedParameters), self.hardcodedParameters, len(update), update))
     #printStatus("update = %s" % str(update))
       #print "oldPermutation = %s" % str(oldPermutation)
     newHasMacroTile = False
     for newPermutation in update:
-      if "MacroTile" in newPermutation:
+      if "MacroTile0" in newPermutation or "MacroTile1" in newPermutation:
         newHasMacroTile = True
         break
     newHasDepthU = False
@@ -438,22 +461,71 @@ class BenchmarkProcess:
         newHasDepthU = True
         break
 
+    """
+    # can only join macro tile if tile sizes and shapes hardcoded
     if newHasMacroTile:
       for oldPermutation in self.hardcodedParameters:
+        if "WorkGroupEdge" not in oldPermutation \
+            or "WorkGroupShape" not in oldPermutation \
+            or "ThreadTileEdge" not in oldPermutation \
+            or "ThreadTileShape" not in oldPermutation:
+          printExit("You can only join MacroTile if you forked or hardcoded WorkGroupEdge, WorkGroupShape, ThreadTileEdge and ThreadTileShape")
+
+    if newHasDepthU:
+      for oldPermutation in self.hardcodedParameters:
+        if "LoopUnroll" not in oldPermutation \
+            or "SplitU" not in oldPermutation:
+          printExit("You can only join DepthU if you forked or hardcoded LoopUnroll and SplitU")
+    """
+
+    if newHasMacroTile:
+      for oldPermutation in self.hardcodedParameters:
+        #solution = Solution(oldPermutation)
+        #macroTile0 = oldPermutation["MacroTile0"]
+        #macroTile1 = oldPermutation["MacroTile1"]
+        #solution.assignDimsFromEdgeAndShape();
+        #if solution["MacroTile0"] != macroTile0 \
+        #    or solution["MacroTile1"] != macroTile1:
+          # tile parameters don't match macro tile
+        #  self.hardcodedParameters.pop(oldPermutation)
         oldPermutation.pop("WorkGroupEdge", None )
         oldPermutation.pop("WorkGroupShape", None )
         oldPermutation.pop("ThreadTileEdge", None )
         oldPermutation.pop("ThreadTileShape", None )
     if newHasDepthU:
       for oldPermutation in self.hardcodedParameters:
+        #if "LoopUnroll" not in oldPermutation \
+        #    or "SplitU" not in oldPermutation:
+        #  printExit("You can only join DepthU if you forked or hardcoded LoopUnroll and SplitU")
         oldPermutation.pop("LoopUnroll", None )
         oldPermutation.pop("SplitU", None )
 
+    # for MacroTile and DepthU we end up with same number of parameters,
+    # but the fasteset from each group will be chosen during Benchmarking loop
     updatedHardcodedParameters = []
     for newPermutation in update:
-      # if its a hybrid param, delete primitives from hard-coded;
-      # primitives will be recorded as "determined" later
       for oldPermutation in self.hardcodedParameters:
+
+        """
+        # skip macro tile mismatch
+        if "MacroTile0" in newPermutation \
+            and "WorkGroupEdge" in oldPermutation \
+            and "WorkGroupShape" in oldPermutation \
+            and "ThreadTileEdge" in oldPermutation \
+            and "ThreadTileShape" in oldPermutation:
+          Solution.assignDimsFromEdgeAndShape(oldPermutation)
+          if oldPermutation["MacroTile0"] != newPermutation["MacroTile0"] \
+              or  oldPermutation["MacroTile1"] != newPermutation["MacroTile1"]:
+            continue
+
+        # skip depthU mismatch
+        if "DepthU" in newPermutation \
+            and "SplitU" in oldPermutation \
+            and "LoopUnroll" in oldPermutation:
+          if newPermutation["DepthU"] != oldPermutation["LoopUnroll"] \
+              * oldPermutation["SplitU"]:
+            continue
+        """
         permutation = {}
         permutation.update(oldPermutation)
         permutation.update(newPermutation)
@@ -461,7 +533,7 @@ class BenchmarkProcess:
           updatedHardcodedParameters.append(permutation)
     # convert to set and back to list to remove duplicates
     self.hardcodedParameters = updatedHardcodedParameters
-    print "Joined HCP: %s" % str(self.hardcodedParameters)
+    #print "Joined HCP: %s" % str(self.hardcodedParameters)
 
 
 

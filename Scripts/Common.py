@@ -9,7 +9,6 @@ from sets import Set
 # 0 - user wants no printing
 # 1 - user wants basic status
 # 2 - user wants debugging
-indexChars = "ijklmnopqrstuvwxyz"
 
 globalParameters = OrderedDict()
 globalParameters["Name"] = "Tensile"
@@ -25,8 +24,9 @@ globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["SolutionPrintDebug"] = False
-globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
-    "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
+globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
+#globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
+#    "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
 globalParameters["NumElementsToValidate"] = -1
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
@@ -187,29 +187,30 @@ def printExit( message): # 2
 ################################################################################
 def assignGlobalParameters( config ):
   global globalParameters
+
+  printExtra("GlobalParameters")
+  for key in globalParameters:
+    value = globalParameters[key]
+    if key in config:
+      if config[key] == globalParameters[key]:
+        printExtra(" %24s: %8s (same)" % (key, value) )
+      else:
+        printExtra(" %24s: %8s (overriden)" % (key, value) )
+    else:
+      printExtra(" %24s: %8s (unspecified)" % (key, value) )
+
   for key in config:
     value = config[key]
     if key not in globalParameters:
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
 
-  print "Tensile::Common::assignGlobalParameters::globalParameters"
-  for key in globalParameters:
-    value = globalParameters[key]
-    if key in config:
-      if config[key] == globalParameters[key]:
-        printExtra(" %16s: %8s (same)" % (key, value) )
-      else:
-        printExtra(" %16s: %8s (overriden)" % (key, value) )
-    else:
-      printExtra(" %16s: %8s" % (key, value) )
-
 ########################################
 # if path doesn't exist, create it
 def pushWorkingPath( foldername ):
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
-  print globalParameters["WorkingPath"]
+  #print globalParameters["WorkingPath"]
   ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
   globalParameters["WorkingPath"] = \
