@@ -583,7 +583,8 @@ class Solution:
     # put problem first
     if "ProblemType" in state:
       name += str(state["ProblemType"]) + "_"
-    for key in state:
+    sortedKeys = sorted(state.keys())
+    for key in sortedKeys:
       if requiredParameters[key]:
         if not first:
           name += "_"

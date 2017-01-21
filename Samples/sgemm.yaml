@@ -2,7 +2,7 @@ Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
   DebugPrintLevel: 2
-  ForceRedo: False
+  ForceRedo: True
   PlatformIdx: 0
   DeviceIdx: 0
   EnqueuesPerSync: 1

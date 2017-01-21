@@ -84,7 +84,7 @@ class BenchmarkProcess:
           valueIdx = pIdx % len(values)
           forkPermutations[i][name] = values[valueIdx]
           pIdx /= len(values)
-      #print forkPermutations[i]
+      print forkPermutations[i]
     #self.hardcodedParameters.append(forkPermutations)
     self.forkHardcodedParameters(forkPermutations)
 
@@ -120,6 +120,9 @@ class BenchmarkProcess:
         workGroupShapeValues = []
         threadTileEdgeValues = []
         threadTileShapeValues = []
+        # todo having MacroTile as join parameter causes trouble if
+        # one parameter is benchmarked rather than forked
+        # however, this may still be the right way to do it
         for paramList in [self.benchmarkCommonParameters, self.forkParameters, self.benchmarkForkParameters, self.benchmarkJoinParameters]:
           if hasParam("WorkGroupEdge", paramList):
             workGroupEdgeValues = getParamValues("WorkGroupEdge", paramList)
@@ -131,6 +134,8 @@ class BenchmarkProcess:
             threadTileShapeValues = getParamValues("ThreadTileShape", paramList)
         macroTilePermutations = len(workGroupEdgeValues)*len(workGroupShapeValues)*len(threadTileEdgeValues)*len(threadTileShapeValues)
         printStatus("Total JoinMacroTile Permutations: %u" % macroTilePermutations)
+        #print "MacroTile Parameters Found:"
+        #print workGroupEdgeValues, workGroupShapeValues, threadTileEdgeValues, threadTileShapeValues
 
         for i in range(0, macroTilePermutations):
           pIdx = i
@@ -158,7 +163,7 @@ class BenchmarkProcess:
 
       # Join DepthU
       elif joinName == "DepthU":
-        print "JoinParam: MacroTile"
+        #print "JoinParam: MacroTile"
         unrollValues = []
         splitUValues = []
         for paramList in [self.benchmarkCommonParameters, self.forkParameters, self.benchmarkForkParameters, self.benchmarkJoinParameters]:
@@ -195,7 +200,6 @@ class BenchmarkProcess:
       joinPermutations.append({})
       pIdx = i
       for joinName in self.joinParameters:
-        print joinName
         if hasParam(joinName, self.forkParameters):
           for paramDict in self.forkParameters: # hardcodedPermutations
             if joinName in paramDict:
@@ -543,10 +547,10 @@ class BenchmarkProcess:
         permutation.update(oldPermutation)
         permutation.update(newPermutation)
         if permutation not in updatedHardcodedParameters: # "set"
-          print "adding permutation %s" % Solution.getNameFull(permutation)
+          #print "adding permutation %s" % Solution.getNameFull(permutation)
           updatedHardcodedParameters.append(permutation)
-        else:
-          print "alread permutation %s" % Solution.getNameFull(permutation)
+        #else:
+        #  print "alread permutation %s" % Solution.getNameFull(permutation)
     # convert to set and back to list to remove duplicates
     self.hardcodedParameters = updatedHardcodedParameters
     #print "Joined HCP: %s" % str(self.hardcodedParameters)
