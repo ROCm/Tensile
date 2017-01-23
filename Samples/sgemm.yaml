@@ -13,7 +13,7 @@ Parameters:
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
   ShortFileNames: False
-  MergeFiles: False
+  MergeFiles: True
 
   #NumElementsToValidate: 16
   
@@ -33,7 +33,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [16, 128], 0, 0 ]
+      - ProblemSizes: [ [5760], 0, 0 ]
       - LoopTail: [ False ]
       - WorkGroupShape: [ 0 ]
       - SplitU: [ 1 ]
@@ -45,7 +45,6 @@ BenchmarkProblems:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
     BenchmarkForkParameters:
-      - ProblemSizes: [ [128, 1024] ] # important for join step
       - LoopUnroll: [4, 8, 16]
     JoinParameters:
       - MacroTile
@@ -54,7 +53,7 @@ BenchmarkProblems:
       - NumLoadsParaA: [ 1, 2, 4 ]
       - NumLoadsParaB: [ 1, 2, 4 ]
     BenchmarkFinalParameters:
-      ProblemSizes: [ [16, 16, 16, 128], [16, 16, 16, 128], [16, 16, 16, 128] ]
+      ProblemSizes: [ [32, 32, 32, 5760], [32, 32, 32, 5760], [32, 32, 32, 5760] ]
 
 
 # final create problem-range -> solution mapping and encode to .yaml

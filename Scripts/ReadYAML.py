@@ -1,5 +1,9 @@
-import yaml
 import sys
+try:
+  import yaml
+except ImportError:
+  print "You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions."
+  sys.exit()
 """
 from collections import OrderedDict
 
