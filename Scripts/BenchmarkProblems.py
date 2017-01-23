@@ -124,7 +124,7 @@ def benchmarkProblemType( config ):
     totalBenchmarkPermutations = 1
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
-    print "TotalSolutions: %u = %u (hardcoded) * %u (benchmark)" % \
+    print "MaxPossibleSolutions: %u = %u (hardcoded) * %u (benchmark)" % \
         (totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters), \
         len(benchmarkStep.hardcodedParameters), totalBenchmarkPermutations)
 
@@ -161,11 +161,13 @@ def benchmarkProblemType( config ):
             solution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
-        if SolutionWriter.solutionParametersConsistent(solutionObject.state):
-          printStatus("appending solution %s" % str(solutionObject))
+        if SolutionWriter.solutionParametersConsistent(solutionObject):
+          #printStatus("appending solution %s" % str(solutionObject))
           solutions.append(solutionObject)
-        else:
-          printStatus("rejecting solution %s" % str(solutionObject))
+        #else:
+          #printStatus("rejecting solution %s" % str(solutionObject))
+    print "NumActualSolutions: %u / %u" % ( len(solutions), \
+        totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters) )
     # write benchmarkFiles
     writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, \
         stepName, filesToCopy)
@@ -299,10 +301,11 @@ def getResults(resultsFileName, numSolutions, numHardcodedParameters, \
 ################################################################################
 def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   printStatus("Beginning")
-  ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
-  ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
+  if not globalParameters["MergeFiles"]:
+    ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
+    ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
 
-  solutionNames = []
+  solutionFileNames = []
   kernelNames = []
   kernels = []
 
@@ -315,53 +318,105 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       if kernel not in kernels:
         kernels.append(kernel)
 
+  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"] :
+    solutionSerialNaming = Solution.getSerialNaming(solutions)
+    kernelSerialNaming = Solution.getSerialNaming(kernels)
+  else:
+    solutionSerialNaming = None
+    kernelSerialNaming = None
   solutionMinNaming = Solution.getMinNaming(solutions)
   kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter(globalParameters["Backend"], \
-      solutionMinNaming, kernelMinNaming)
-  kernelWriter = KernelWriter(globalParameters["Backend"], kernelMinNaming)
+  solutionWriter = SolutionWriter( \
+      solutionMinNaming, solutionSerialNaming, \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriter = KernelWriter( \
+      kernelMinNaming, kernelSerialNaming)
+
+
 
   ##############################################################################
   # Write Solutions
   ##############################################################################
+  if globalParameters["MergeFiles"]:
+    solutionSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
+        "GeneratedSolutions.cpp"), "w")
+    solutionHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
+        "GeneratedSolutions.h"), "w")
+    solutionSourceFile.write("#include \"GeneratedSolutions.h\"\n")
+    solutionHeaderFile.write("#include \"Tensile.h\"\n")
+    solutionHeaderFile.write("#include \"GeneratedKernels.h\"\n")
+    solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
+    solutionHeaderFile.write("#include \"Tools.h\"\n")
   for solution in solutions:
     # get solution name
-    solutionName = Solution.getNameMin(solution.state, solutionMinNaming)
-    solutionNames.append(solutionName)
-    #printStatus("Writing files for solution %s" % solutionName )
+    if not globalParameters["MergeFiles"]:
+      if globalParameters["ShortFileNames"]:
+        solutionFileName = \
+            Solution.getNameSerial(solution, solutionSerialNaming)
+      else:
+        solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
+      solutionFileNames.append(solutionFileName)
+    #printStatus("Writing files for solution %s" % solutionFileName )
 
     # write solution.cpp
-    solutionSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
-        "Solutions", solutionName+".cpp"), "w")
+    if not globalParameters["MergeFiles"]:
+      solutionSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
+          "Solutions", solutionFileName+".cpp"), "w")
     solutionSourceFile.write( \
         solutionWriter.getSourceFileString(solution))
-    solutionSourceFile.close()
+    if not globalParameters["MergeFiles"]:
+      solutionSourceFile.close()
 
     # write solution.h
-    solutionHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
-        "Solutions", solutionName+".h"), "w")
+    if not globalParameters["MergeFiles"]:
+      solutionHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
+          "Solutions", solutionFileName+".h"), "w")
     solutionHeaderFile.write( \
         solutionWriter.getHeaderFileString(solution))
+    if not globalParameters["MergeFiles"]:
+      solutionHeaderFile.close()
+  # close merged
+  if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
 
   ##############################################################################
   # Write Kernels
   ##############################################################################
+  if globalParameters["MergeFiles"]:
+    kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
+        "GeneratedKernels.cpp"), "w")
+    kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
+        "GeneratedKernels.h"), "w")
+    kernelSourceFile.write("#include \"GeneratedKernels.h\"\n")
+    kernelHeaderFile.write("#pragma once\n")
+    if globalParameters["Backend"] != "OCL":
+      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
   for kernel in kernels:
     # get kernel name
-    kernelName = Solution.getNameMin(kernel, kernelMinNaming)
-    kernelNames.append(kernelName)
+    if not globalParameters["MergeFiles"]:
+      if globalParameters["ShortFileNames"]:
+        kernelName = Solution.getNameSerial(kernel, kernelSerialNaming)
+      else:
+        kernelName = Solution.getNameMin(kernel, kernelMinNaming)
+      kernelNames.append(kernelName)
 
     # write kernel.cpp
-    kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
-        "Kernels", kernelName+".cpp"), "w")
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
+          "Kernels", kernelName+".cpp"), "w")
     kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
-    kernelSourceFile.close()
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
 
     # write kernel.h
-    kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
-        "Kernels", kernelName+".h"), "w")
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
+          "Kernels", kernelName+".h"), "w")
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
+  # close merged
+  if globalParameters["MergeFiles"]:
     kernelHeaderFile.close()
 
   ##############################################################################
@@ -372,18 +427,26 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   generatedFile.write(globalParameters["CMakeHeader"])
   generatedFile.write("set( TensileBenchmark_Solutions\n")
   # write solution names
-  for solutionName in solutionNames:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
-        % (solutionName) )
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
-        % (solutionName) )
+  if globalParameters["MergeFiles"]:
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedSolutions.h\n")
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedSolutions.cpp\n")
+  else:
+    for solutionFileName in solutionFileNames:
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
+          % (solutionFileName) )
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
+          % (solutionFileName) )
   generatedFile.write("  )\n")
 
   # write kernel names
   generatedFile.write("set( TensileBenchmark_Kernels\n")
-  for kernelName in kernelNames:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
+  if globalParameters["MergeFiles"]:
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedKernels.h\n")
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedKernels.cpp\n")
+  else:
+    for kernelName in kernelNames:
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
+      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")
 
   generatedFile.write("set( TensileBenchmark_Source\n")
@@ -412,8 +475,11 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   benchmarkParametersFile.write(globalParameters["CHeader"])
 
   h = ""
-  for solutionName in solutionNames:
-    h += "#include \"" + solutionName + ".h\"\n"
+  if globalParameters["MergeFiles"]:
+    h += "#include \"GeneratedSolutions.h\"\n"
+  else:
+    for solutionFileName in solutionFileNames:
+      h += "#include \"" + solutionFileName + ".h\"\n"
   h += "\n"
 
   ##############################################################################
@@ -518,19 +584,22 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   for i in range(0, len(argList)):
     h += "  %s%s" % (argList[i], ",\n" if i < len(argList)-1 else ");\n\n")
   h += "static const SolutionFunctionPointer solutions[numSolutions] = {\n"
-  for i in range(0, len(solutionNames)):
-    solutionName = solutionNames[i]
+  for i in range(0, len(solutions)):
+    solution = solutions[i]
+    solutionName = Solution.getNameMin(solution, solutionMinNaming)
     h += "  %s" % solutionName
-    if i < len(solutionNames)-1:
+    if i < len(solutions)-1:
       h += ","
     h += "\n"
   h += "};\n"
   h += "\n"
+
   h += "const char *solutionNames[numSolutions] = {\n"
-  for i in range(0, len(solutionNames)):
-    solutionName = solutionNames[i]
+  for i in range(0, len(solutions)):
+    solution = solutions[i]
+    solutionName = Solution.getNameMin(solution, solutionMinNaming)
     h += "  \"%s\"" % solutionName
-    if i < len(solutionNames)-1:
+    if i < len(solutions)-1:
       h += ","
     h += "\n"
   h += "};\n"

@@ -583,8 +583,7 @@ class Solution:
     # put problem first
     if "ProblemType" in state:
       name += str(state["ProblemType"]) + "_"
-    sortedKeys = sorted(state.keys())
-    for key in sortedKeys:
+    for key in sorted(state.keys()):
       if requiredParameters[key]:
         if not first:
           name += "_"
@@ -593,6 +592,70 @@ class Solution:
         name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
             Solution.getParameterValueAbbreviation(state[key]) )
     return name
+
+  ########################################
+  # create a dictionary of lists of parameter values
+  @staticmethod
+  def getSerialNaming(objs):
+    data = {}
+    for objIdx in range(0, len(objs)):
+      #print "ObjIdx: %u" % objIdx
+      obj = objs[objIdx]
+      for paramName in sorted(obj.keys()):
+        if paramName not in derrivedParameters:
+          paramValue = obj[paramName]
+          #if paramName == "ThreadTileEdge":
+          #  print "%s = %s" % (paramName, paramValue)
+          if paramName in data:
+            if paramValue not in data[paramName]:
+              data[paramName].append(paramValue)
+          else:
+            data[paramName] = [ paramValue ]
+    maxObjs = 1
+    #print "SerialNaming:"
+    for paramName in data:
+      data[paramName] = sorted(data[paramName])
+      #print "%s: %s" % (paramName, data[paramName])
+      maxObjs *= len(data[paramName])
+    numDigits = len(str(maxObjs))
+    print "MaxSerialNames: %u (%u)" % (maxObjs, numDigits)
+    return [ data, numDigits ]
+
+  ########################################
+  # Get Name Serial
+  @ staticmethod
+  def getNameSerial(state, serialNaming):
+    data = serialNaming[0]
+    numDigits = serialNaming[1]
+
+    serial = 0
+    multiplier = 1
+    for paramName in sorted(state.keys()):
+      if paramName not in derrivedParameters:
+        paramValue = state[paramName]
+        paramData = data[paramName]
+        paramNameMultiplier = len(paramData)
+        if paramValue in paramData:
+          paramValueIdx = paramData.index(paramValue)
+        #else:
+          #print "ERROR %s: %s not in %s" % ( paramName, paramValue, paramData )
+          #print state
+          #printExit()
+        #if paramNameMultiplier > 1:
+          #print "serial = %u*%u + %u; multiplier = %u * %u; %s::%s in %s" % ( \
+          #    paramValueIdx, multiplier, serial, \
+          #    paramNameMultiplier, multiplier, \
+          #    paramName, paramValue, paramData[1] )
+
+        serial += paramValueIdx * multiplier
+        multiplier *= paramNameMultiplier
+    #if serial == 0:
+    #  print state
+    name = "%s%0*u" % ("S" if isinstance(state, Solution) else "K", \
+        numDigits, serial)
+    #print "SerialName: %s" % name
+    return name
+
 
   ########################################
   @ staticmethod
@@ -646,6 +709,14 @@ class Solution:
       self[parameter] = config[parameter]
     else:
       sys.exit("Tensile::Solution::init: ERROR - parameter \"%s\" must be defined" % parameter)
+  # make class look like dict
+  def keys(self):
+    return self.state.keys()
+  def __len__(self):
+    return len(self.state)
+  def __iter__(self):
+    return iter(self.state)
+
   def __getitem__(self, key):
     return self.state[key]
   def __setitem__(self, key, value):

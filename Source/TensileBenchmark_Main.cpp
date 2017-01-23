@@ -306,7 +306,7 @@ void destroyControls() {
  * initialize data
  ******************************************************************************/
 void initData() {
-  printf("Initializing buffers (%u + %u + %u elements)",
+  printf("Initializing buffers (%zu + %zu + %zu elements)",
       maxSizeC,
       maxSizeA,
       maxSizeB
@@ -323,11 +323,11 @@ void initData() {
   initialA = new DataType[maxSizeA];
   initialB = new DataType[maxSizeB];
 #else
-  status = hipMalloc( &initialC, sizeMaxC );
+  status = hipMalloc( &initialC, sizeMaxC*sizeof(DataType) );
   tensileStatusCheck(status);
-  status = hipMalloc( &initialA, sizeMaxA );
+  status = hipMalloc( &initialA, sizeMaxA*sizeof(DataType) );
   tensileStatusCheck(status);
-  status = hipMalloc( &initialB, sizeMaxB );
+  status = hipMalloc( &initialB, sizeMaxB*sizeof(DataType) );
   tensileStatusCheck(status);
 #endif
     printf(".");

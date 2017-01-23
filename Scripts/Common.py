@@ -10,6 +10,9 @@ from sets import Set
 # 1 - user wants basic status
 # 2 - user wants debugging
 
+################################################################################
+# Global Parameters
+################################################################################
 globalParameters = OrderedDict()
 globalParameters["Name"] = "Tensile"
 globalParameters["Backend"] = "OCL" # OCL, HIP, ASM
@@ -25,16 +28,113 @@ globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["SolutionPrintDebug"] = False
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
-#globalParameters["IndexChars"] =  [ "I", "J", "K", "L", "M", "N", "O", "P", \
-#    "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" ]
 globalParameters["NumElementsToValidate"] = -1
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
 globalParameters["NumElementsToValidate"] = -1
+globalParameters["ShortFileNames"] = False
+globalParameters["MergeFiles"] = True
+# protect against invalid kernel
 globalParameters["MaxThreads"] = 256
+globalParameters["MaxRegisters"] = 256
+globalParameters["MaxLDS"] = 32768
 
 
+################################################################################
+# Default Benchmark Parameters
+################################################################################
+# same parameter for all solution b/c depends only on compiler
+defaultBenchmarkCommonParameters = [
+    {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
+    {"KernelSerial":            [ True ] },
+    {"LoopFor":                 [ False ] },
+    {"LoopTail":                [ True ] },
+    {"LoadMacInterleave":       [ 4 ] },
+    {"AtomicAccumulate":        [ False ] },
+    {"EdgeType":                [ "Branch" ] }, # Shift
+    {"EdgeMultiKernel":         [ False ] },
+    {"PadLDS":                  [ 1 ] },
+    ]
+# benchmark these solution independently
+defaultForkParameters = [
+    {"WorkGroupEdge":           [ 16, 8 ] },
+    {"WorkGroupShape":          [ 0, -1, 1 ] },
+    {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
+    {"ThreadTileShape":         [ 0, -1, 1 ] },
+    {"SplitU":                  [ 1 ] },
+    {"Prefetch":                [ False ] },
+    ]
+# keep one winner per solution and it affects which will win
+defaultBenchmarkForkParameters = [
+    {"WorkGroupOrder":          [ 1 ] },
+    {"LoopUnroll":              [ 16, 8, 4 ] },
+    ]
+# final list of solutions
+defaultJoinParameters = [
+    "MacroTile", "DepthU"
+    ]
+# keep one winner per solution and it would affect which solutions fastest
+defaultBenchmarkJoinParameters = [
+    {"NumLoadsParaA":           [ 1, 2, 3, 4, 6, 8 ] },
+    {"NumLoadsParaB":           [ 1, 2, 3, 4, 6, 8 ] },
+    {"GlobalLoadVectorWidth":   [ 4 ] },
+    {"LocalStoreVectorWidth":   [ 4 ] },
+    {"LocalLoadVectorWidth":    [ 4 ] },
+    {"GlobalStoreVectorWidth":  [ 4 ] },
+    ]
 
+# derrived parameters may show up in solution dict but don't use for naming
+derrivedParameters = [
+    "MacroTile0",
+    "MacroTile1",
+    "WorkGroup0",
+    "WorkGroup1",
+    "ThreadTile0",
+    "ThreadTile1",
+    "NumLoadsA",
+    "NumLoadsB",
+    "NumLoadsPerpA",
+    "NumLoadsPerpB",
+    ]
+
+# dictionary of defaults comprised for 1st option for each parameter
+defaultSolution = {}
+for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
+    defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
+  for paramDict in paramList:
+    for key, value in paramDict.iteritems():
+      defaultSolution[key] = value[0]
+# other non-benchmark options for solutions
+defaultSolution["MacroTileMaxRatio"] = 2
+
+################################################################################
+# Default Problem Type
+################################################################################
+defaultProblemType = {
+    "OperationType":            "GEMM",
+    "UseBeta":                  True,
+    "UseInitialStrides":        False,
+    "HighPrecisionAccumulate":  False,
+    "TransposeA":               False,
+    "TransposeB":               True,
+    "ComplexConjugateA":               False,
+    "ComplexConjugateB":               False,
+    "Batched":                  False,
+    "IndexAssignmentsA":        [0, 2],
+    "IndexAssignmentsB":        [1, 2],
+    "NumDimensionsC":           2,
+    "DataType":                 0,
+    }
+defaultBenchmarkFinalProblemSizes = [
+    [16, 16, 16, 128],
+    [16, 16, 16, 128],
+    [16, 16, 16, 128] ]
+defaultProblemSizes = [ [128], 0, 0 ]
+
+
+################################################################################
+# Searching Nested Lists / Dictionaries
+################################################################################
 # param name in structures?
 def inListOfDictionaries(param, dictionaries):
   for dictionary in dictionaries:
@@ -80,80 +180,9 @@ def getParamValues( name, structure ):
   else:
     printExit("structure %s is not list or dict" % structure)
 
-
-
-# same parameter for all solution b/c depends only on compiler
-defaultBenchmarkCommonParameters = [
-    {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
-    {"KernelSerial":            [ True ] },
-    {"LoopFor":                 [ False ] },
-    {"LoopTail":                [ True ] },
-    {"LoadMacInterleave":       [ 4 ] },
-    {"AtomicAccumulate":        [ False ] },
-    {"EdgeType":                [ "Branch" ] }, # Shift
-    {"EdgeMultiKernel":         [ False ] },
-    ]
-# benchmark these solution independently
-defaultForkParameters = [
-    {"WorkGroupEdge":           [ 16, 8 ] },
-    {"WorkGroupShape":          [ 0, -1, 1 ] },
-    {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
-    {"ThreadTileShape":         [ 0, -1, 1 ] },
-    {"SplitU":                  [ 1 ] },
-    {"Prefetch":                [ False ] },
-    ]
-# keep one winner per solution and it affects which will win
-defaultBenchmarkForkParameters = [
-    {"WorkGroupOrder":          [ 1 ] },
-    {"LoopUnroll":              [ 16, 8, 4, 32 ] },
-    ]
-# final list of solutions
-defaultJoinParameters = [
-    "MacroTile", "DepthU"
-    ]
-# keep one winner per solution and it would affect which solutions fastest
-defaultBenchmarkJoinParameters = [
-    {"NumLoadsParaA":           [ 1, 2, 3, 4, 6, 8 ] },
-    {"NumLoadsParaB":           [ 1, 2, 3, 4, 6, 8 ] },
-    {"GlobalLoadVectorWidth":   [ 4 ] },
-    {"LocalStoreVectorWidth":   [ 4 ] },
-    {"LocalLoadVectorWidth":    [ 4 ] },
-    {"GlobalStoreVectorWidth":  [ 4 ] },
-    ]
-defaultBenchmarkFinalProblemSizes = [
-    [16, 16, 16, 5760],
-    [16, 16, 16, 5760],
-    [16, 16, 16, 5760] ]
-defaultProblemSizes = [ [5760], 0, 0 ]
-
-# dictionary of defaults comprised for 1st option for each parameter
-defaultSolution = {}
-for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
-    defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
-  for paramDict in paramList:
-    for key, value in paramDict.iteritems():
-      defaultSolution[key] = value[0]
-# other non-benchmark options for solutions
-defaultSolution["MacroTileMaxRatio"] = 2
-
-# default problem
-defaultProblemType = {
-    "OperationType":            "GEMM",
-    "UseBeta":                  True,
-    "UseInitialStrides":        False,
-    "HighPrecisionAccumulate":  False,
-    "TransposeA":               False,
-    "TransposeB":               True,
-    "ComplexConjugateA":               False,
-    "ComplexConjugateB":               False,
-    "Batched":                  False,
-    "IndexAssignmentsA":        [0, 2],
-    "IndexAssignmentsB":        [1, 2],
-    "NumDimensionsC":           2,
-    "DataType":                 0,
-    }
-
-# printing for status and debugging
+################################################################################
+# Print Debug
+################################################################################
 def printStatus( message): # 0
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
@@ -183,7 +212,7 @@ def printExit( message): # 2
 
 
 ################################################################################
-# Global Parameters
+# Assign Global Parameters
 ################################################################################
 def assignGlobalParameters( config ):
   global globalParameters
@@ -205,8 +234,9 @@ def assignGlobalParameters( config ):
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
 
-########################################
-# if path doesn't exist, create it
+################################################################################
+# Push / Pop Working Path
+################################################################################
 def pushWorkingPath( foldername ):
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )

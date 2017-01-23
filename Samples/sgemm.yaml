@@ -12,6 +12,8 @@ Parameters:
   NumElementsToValidate: 16
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
+  ShortFileNames: False
+  MergeFiles: False
 
   #NumElementsToValidate: 16
   

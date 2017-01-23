@@ -33,11 +33,14 @@ class SolutionWriter:
   ##############################################################################
   # SolutionWriter
   ##############################################################################
-  def __init__(self, backend, solutionMinNaming, kernelMinNaming):
-    self.backend = backend
-    self.kernelWriter = KernelWriter(self.backend, solutionMinNaming)
+  def __init__(self, solutionMinNaming, solutionSerialNaming, \
+      kernelMinNaming, kernelSerialNaming):
+    self.backend = globalParameters["Backend"]
     self.solutionMinNaming = solutionMinNaming
+    self.solutionSerialNaming = solutionSerialNaming
     self.kernelMinNaming = kernelMinNaming
+    self.kernelSerialNaming = kernelSerialNaming
+    self.kernelWriter = KernelWriter( kernelMinNaming, kernelSerialNaming)
 
     self.streamName = "hipStream_t" if self.backend == "HIP" \
         else "cl_command_queue"
@@ -52,17 +55,30 @@ class SolutionWriter:
   # getSourceString
   ##############################################################################
   def getSourceString(self, solution):
-    solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
     kernels = solution.getKernels()
     kernelNames = []
+    #kernelFileNames = []
     for kernel in kernels:
+      #if globalParameters["ShortFileNames"]:
+      #  kernelFileNames.append( Solution.getNameSerial(kernel, \
+      #      self.kernelSerialNaming) )
+      #else:
+      #  kernelFileNames.append( Solution.getNameMin(kernel, self.kernelMinNaming) )
       kernelNames.append( Solution.getNameMin(kernel, self.kernelMinNaming) )
 
     s = ""
     t = ""
     # includes
-    s += "#include \"%s.h\"\n" % solutionName
-    s += "\n"
+
+
+    if not globalParameters["MergeFiles"]:
+      if globalParameters["ShortFileNames"]:
+        solutionFileName = Solution.getNameSerial(solution, \
+            self.solutionSerialNaming)
+      else:
+        solutionFileName = Solution.getNameMin(solution, self.solutionMinNaming)
+      s += "#include \"%s.h\"\n" % solutionFileName
+      s += "\n"
 
     # solution function signature
     s += self.getSolutionSignature(solution)
@@ -661,19 +677,24 @@ class SolutionWriter:
     s = ""
     #s += "#ifndef " + solutionName.upper() + "_H\n"
     #s += "#define " + solutionName.upper() + "_H\n\n"
-    s += "#pragma once\n\n"
-    # includes
-    s += "#include \"Tensile.h\"\n"
-    s += "#include \"SolutionHelper.h\"\n"
-    s += "#include \"Tools.h\"\n"
-    s += "\n"
+    if not globalParameters["MergeFiles"]:
+      s += "#pragma once\n\n"
+      s += "#include \"Tensile.h\"\n"
+      s += "#include \"SolutionHelper.h\"\n"
+      s += "#include \"Tools.h\"\n"
+      s += "\n"
 
-    # include kernels
-    for kernel in solution.getKernels():
-      if kernel != None:
-        s += "#include \"" + \
-            Solution.getNameMin(kernel, self.kernelMinNaming) + ".h\"\n"
-    s += "\n"
+      # include kernels
+      for kernel in solution.getKernels():
+        if kernel != None:
+          if globalParameters["ShortFileNames"]:
+            kernelFileName = Solution.getNameSerial(kernel, \
+                self.kernelSerialNaming)
+          else:
+            kernelFileName = Solution.getNameMin(kernel, \
+                self.kernelMinNaming)
+          s += "#include \"" + kernelFileName + ".h\"\n"
+      s += "\n"
 
     # function declaration
     s += self.getSolutionSignature(solution) + ";\n"
@@ -844,6 +865,16 @@ class SolutionWriter:
     #lastLoadRequiresGuardPerpA = totalLoadSizePerpA < numLoadsPerpA * loadSizePerpA
     #loadRequiresFewerThreadsA = workGroup0*workGroup1 > loadSizeParaA * loadSizePerpA
 # same for B
+    # too much LDS
+    sizeLDS = solution["LoopUnroll"] \
+        * (solution["PadLDS"] * 2 + solution["MacroTile0"] \
+        + solution["MacroTile1"] ) \
+        * solution["ProblemType"]["DataType"].numBytes()
+    if sizeLDS > globalParameters["MaxLDS"]:
+      #print "Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
+      return False
+    #else:
+      #print "Kernel Uses %u < %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
 
     return True
 

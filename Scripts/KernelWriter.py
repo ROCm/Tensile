@@ -35,9 +35,10 @@ class KernelWriter:
   ##############################################################################
   # Make OpenCL Kernel String
   ##############################################################################
-  def __init__( self, backend, kernelMinNaming ):
-    self.backend = backend
+  def __init__( self, kernelMinNaming, kernelSerialNaming ):
+    self.backend = globalParameters["Backend"]
     self.kernelMinNaming = kernelMinNaming
+    self.kernelSerialNaming = kernelSerialNaming
 
     if self.backend == "OCL":
       # everything escaped extra b/c string
@@ -1285,12 +1286,17 @@ class KernelWriter:
   # source file string
   ##############################################################################
   def getSourceFileString(self, kernel):
-    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     fileString = ""
-    fileString += "\n"
-    fileString += "#include \"" + kernelName + ".h\"\n"
-    fileString += "\n"
+    if not globalParameters["MergeFiles"]:
+      if globalParameters["ShortFileNames"]:
+        kernelFileName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
+      else:
+        kernelFileName = Solution.getNameMin(kernel, self.kernelMinNaming)
+      fileString += "\n"
+      fileString += "#include \"" + kernelFileName + ".h\"\n"
+      fileString += "\n"
 
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     # backend pre
     fileString += "\n"
     if self.backend == "OCL":
@@ -1303,8 +1309,6 @@ class KernelWriter:
     if self.backend == "OCL":
       fileString += "\";\n"
 
-    fileString  += "\n"
-    fileString  += "\n"
     fileString  += "/* Kernel Parameters\n"
     fileString  += Solution.getParametersIndented(kernel, "  ")
     fileString  += "*/\n"
@@ -1322,11 +1326,12 @@ class KernelWriter:
     fileString = ""
     #fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     #fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
-    fileString += "#pragma once\n\n"
-    fileString += "\n"
-    if self.backend == "HIP":
-      fileString += "#include <hip/hip_runtime.h>\n"
+    if not globalParameters["MergeFiles"]:
+      fileString += "#pragma once\n\n"
       fileString += "\n"
+      if self.backend == "HIP":
+        fileString += "#include <hip/hip_runtime.h>\n"
+        fileString += "\n"
     if self.backend == "OCL":
       fileString += "extern const char * const %s_src;\n" % kernelName
     else:
