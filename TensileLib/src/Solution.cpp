@@ -118,6 +118,7 @@ TensileStatus Solution::enqueueEntry(
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Tensile_BACKEND_OPENCL12
       status = clFinish(ctrl.queues[i]);
+      if (status != CL_SUCCESS) { return tensileStatusInvalidParameter; }
 #elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -128,6 +129,7 @@ TensileStatus Solution::enqueueEntry(
     status = clEnqueueReadBuffer(ctrl.queues[0], (cl_mem)tensorDataC.data,
         CL_TRUE, tensorDataC.offset, sizeC, gpuOnHostC.data,
         0, nullptr, nullptr);
+    if (status != CL_SUCCESS) { return tensileStatusInvalidParameter; }
 #elif Tensile_BACKEND_HIP
     status = hipMemcpy(gpuOnHostC.data, tensorDataC.data, sizeC, hipMemcpyDeviceToHost);
     status = hipStreamSynchronize(nullptr);
@@ -159,6 +161,7 @@ TensileStatus Solution::enqueueEntry(
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Tensile_BACKEND_OPENCL12
       status = clFinish(ctrl.queues[i]);
+      if (status != CL_SUCCESS) { return tensileStatusInvalidParameter; }
 #elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -178,6 +181,7 @@ TensileStatus Solution::enqueueEntry(
     for (size_t i = 0; i < ctrl.numQueuesUsed; i++) {
 #if Tensile_BACKEND_OPENCL12
       status = clFinish(ctrl.queues[i]);
+      if (status != CL_SUCCESS) { return tensileStatusInvalidParameter; }
 #elif Tensile_BACKEND_HIP
       status = hipStreamSynchronize( ctrl.queues[i] );
 #endif
@@ -1265,7 +1269,7 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
  * Explicit Template Instantiation
  ******************************************************************************/
 // used for cpu classes
-#ifndef WIN32
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
 #endif
@@ -1273,19 +1277,19 @@ template class Tensile::SolutionTemplate<float,float,float,float,float>;
 template class Tensile::SolutionTemplate<double,double,double,double,double>;
 template class Tensile::SolutionTemplate<TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat,TensileComplexFloat>;
 template class Tensile::SolutionTemplate<TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble,TensileComplexDouble>;
-#ifndef WIN32
+#ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 
 #include "SolutionTemplateInstantiations.inl"
 
 #if Tensile_LOGGER_ENABLED
-#ifndef WIN32
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wweak-template-vtables"
 #endif
 template class Tensile::SolutionLogOnly<void,void,void,void,void>;
-#ifndef WIN32
+#ifdef __clang__
 #pragma clang diagnostic pop
 #endif
 #endif

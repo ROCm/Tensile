@@ -261,9 +261,8 @@ std::tuple<Solution *,TensileStatus> getSolutionCPU( const Problem & problem) {
     case tensileDataTypeNone:
       return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
     }
-    //default:
-    //  return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
-    //}
+    printf("Invalid TensileDataType\n");
+    std::abort();
   } else {
       return std::make_tuple(nullptr, tensileStatusProblemNotSupported);
   }

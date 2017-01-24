@@ -542,7 +542,7 @@ class FileWriter:
     h += "static const size_t tensorSizeMaxA = " + str(tensorSizeMaxA) + ";\n"
     h += "static const size_t tensorSizeMaxB = " + str(tensorSizeMaxB) + ";\n"
     h += "static const size_t benchmarkNumExactMatches = " + str(benchmarkNumExactMatches) + ";\n"
-    h += "static const char *benchmarkExactMatchNames[] = {\n"
+    h += "static const char * const benchmarkExactMatchNames[] = {\n"
     h += "    \"" + benchmarkExactMatchNames[0]
     for i in range(1, len(benchmarkExactMatchNames)):
       h += "\",\n    \"" + benchmarkExactMatchNames[i]
@@ -566,7 +566,7 @@ class FileWriter:
     problem = problemList[0]
     dp = problem.deviceProfile
     h += "\n"
-    h += "static const char *benchmarkDeviceName = \"" + dp.devices[0].name + "\";\n"
+    h += "static const char * const benchmarkDeviceName = \"" + dp.devices[0].name + "\";\n"
     h += "static const unsigned int benchmarkDeviceNumComputeUnits = " + str(dp.devices[0].numComputeUnits) + ";\n"
     h += "static const unsigned int benchmarkDeviceClockFrequency = " + str(dp.devices[0].clockFrequency) + ";\n"
     h += "static const unsigned int benchmarkDeviceFlopsPerClock = " + str(dp.devices[0].flopsPerClock) + ";\n"

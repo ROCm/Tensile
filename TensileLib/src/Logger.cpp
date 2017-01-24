@@ -78,10 +78,9 @@ std::string Logger::toString( Logger::TraceEntryType type ) {
   switch( type ) {
     TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(TraceEntryType::getSolution);
     TRACEENTRYTYPE_TO_STRING_HANDLE_CASE(TraceEntryType::enqueueSolution);
-  //default:
-  //  return "Error in toString(TraceEntryType): no switch case for: "
-  //      + std::to_string(type);
   };
+  printf("Invalid Logger::TraceEntryType\n");
+  std::abort();
 }
 
 /*******************************************************************************

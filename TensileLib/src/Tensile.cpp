@@ -122,26 +122,31 @@ TensileStatus tensileEnumerateDeviceProfiles(
     cl_int status;
     cl_uint numPlatforms;
     status = clGetPlatformIDs(0, nullptr, &numPlatforms);
-    cl_platform_id *platforms = new cl_platform_id[numPlatforms];
-    status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
+    if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
+    std::vector<cl_platform_id> platforms(numPlatforms);
+    status = clGetPlatformIDs(numPlatforms, platforms.data(), nullptr);
+    if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
     for (unsigned int p = 0; p < numPlatforms; p++) {
       cl_uint numDevices;
       status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
-      cl_device_id *devices = new cl_device_id[numDevices];
-      status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
+      if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
+      std::vector<cl_device_id> devices(numDevices);
+      status = clGetDeviceIDs(platforms[p], CL_DEVICE_TYPE_GPU, numDevices, devices.data(), nullptr);
+      if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
       for (unsigned int d = 0; d < numDevices; d++) {
         TensileDeviceProfile profile = tensileCreateEmptyDeviceProfile();
         profile.numDevices = 1;
         status = clGetDeviceInfo(devices[d], CL_DEVICE_NAME, profile.devices[0].maxNameLength, profile.devices[0].name, 0);
+        if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
         Tensile::makeFileNameSafe( profile.devices[0].name );
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(profile.devices[0].clockFrequency), &profile.devices[0].clockFrequency, 0);
+        if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
         status = clGetDeviceInfo(devices[d], CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(profile.devices[0].numComputeUnits), &profile.devices[0].numComputeUnits, 0);
+        if (status != CL_SUCCESS) { return tensileStatusDeviceProfileNotSupported; }
         enumeratedProfiles.push_back(profile);
         //printf("  Device[%u/%u][%u/%u]: %s %u CUs @ %u MHz (%.0f GFlop/s)\n", p, numPlatforms, d, numDevices, profile.devices[0].name, profile.devices[0].numComputeUnits, profile.devices[0].clockFrequency, 1.0*profile.devices[0].numComputeUnits*profile.devices[0].clockFrequency*profile.devices[0].flopsPerClock/1000.f);
       }
-      delete[] devices;
     }
-    delete[] platforms;
 #else
     hipError_t status;
     int numDevices;

@@ -71,7 +71,8 @@ if (NOT _CMakeFindDependencyMacro_FOUND)
           ${cmake_fd_quiet_arg}
           ${cmake_fd_required_arg}
       )
-      if (NOT ${dep}_FOUND)
+      string(TOUPPER ${dep} cmake_dep_upper)
+      if (NOT ${dep}_FOUND AND NOT ${cmake_dep_upper}_FOUND)
         set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE "${CMAKE_FIND_PACKAGE_NAME} could not be found because dependency ${dep} could not be found.")
         set(${CMAKE_FIND_PACKAGE_NAME}_FOUND False)
         return()
