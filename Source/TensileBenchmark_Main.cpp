@@ -2,6 +2,8 @@
 #include <string>
 #include <cstring>
 #include <cstdio>
+#include <iostream>
+#include <iomanip>
 
 // {rand, 1, index}
 unsigned int dataInitType = 1;
@@ -10,21 +12,21 @@ unsigned int dataInitType = 1;
  * main
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
-
+  std::cout << "sizeof(size_t) = " << sizeof(size_t) << std::endl;
   initControls();
 
   initData();
-  printf("\n");
+  std::cout << std::endl;
 
-  printf("ResultsFileName: %s\n", resultsFileName);
+  std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
   // write column headers
-  file << "Idx ";
+  file << "Milliseconds ";
   char *indexChars = "IJKLMNOPQRSTUVWXYZ";
   for ( unsigned int i = 0; i < totalIndices; i++) {
     file << ", Size" << indexChars[i];
   }
-  file << ", TotalSize";
+  file << ", TotalFlops";
   for ( unsigned int s = 0; s < numSolutions; s++) {
     file << ", " << solutionNames[s];
   }
@@ -41,7 +43,8 @@ int main( int argc, char *argv[] ) {
   unsigned int currentSizedIdx = 0;
   unsigned int currentMappedIdx = 0;
 #if Tensile_BACKEND_OCL
-  if (numElementsToValidate) {
+  std::cout << "Pre-compiling OpenCL kernels";
+  if (!numElementsToValidate) {
     for (unsigned int i = 0; i < totalIndices; i++) {
       if (indexIsSized[i]) {
         fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
@@ -51,7 +54,15 @@ int main( int argc, char *argv[] ) {
     }
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
       generatedCallToSolution( sIdx, fullSizes );
+#if Tensile_BACKEND_OCL
+      status = clFinish(stream); tensileStatusCheck(status);
+#else
+      status = hipSync(stream); tensileStatusCheck(status);
+#endif
+      tensileStatusCheck(status);
+      std::cout << ".";
     }
+    std::cout << std::endl;
   }
 #endif
 
@@ -72,11 +83,11 @@ int main( int argc, char *argv[] ) {
     }
 #if 1
     // print size
-    printf("Problem[%2u]: %u", problemIdx, fullSizes[0]);
+    std::cout << "Problem[" << problemIdx << "]: " << fullSizes[0];
     for (unsigned int i = 1; i < totalIndices; i++) {
-      printf(", %u", fullSizes[i]);
+      std::cout << ", " << fullSizes[i];
     }
-    printf("\n");
+    std::cout << std::endl;
 #endif
 
     // benchmark all solutions for this problem size
@@ -129,34 +140,37 @@ void benchmarkAllSolutionsForSize(
   for (unsigned int i = 1; i < totalIndices; i++) {
     file << ", " << sizes[i];
   }
-  size_t totalSize = numFlopsPerMac;
-  for (unsigned int i = 0; i < totalIndices; i++) { totalSize *= sizes[i]; }
-  file << ", " << totalSize;
+  size_t totalFlops = numFlopsPerMac;
+  for (unsigned int i = 0; i < totalIndices; i++) { totalFlops *= sizes[i]; }
+  file << ", " << totalFlops;
 
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
-    memcpy(referenceC, initialC, currentSizeC*sizeof(DataType));
+    memcpy(referenceC, initialC, static_cast<size_t>(currentSizeC*sizeof(DataType)));
     if (numElementsToValidate >= currentSizeC) {
       validationStride = 1;
     } else {
-      validationStride = currentSizeC / numElementsToValidate;
-      // find next prime number
-      while (true) { // break statement at end
-        bool prime = true;
-        for (unsigned int i = 2; i < validationStride; i++) {
-          if ( validationStride % i == 0) {
-            prime = false;
+      if (numElementsToValidate) {
+        validationStride = currentSizeC / numElementsToValidate;
+        // find next prime number
+        while (true) { // break statement at end
+          bool prime = true;
+          for (unsigned int i = 2; i < validationStride; i++) {
+            if ( validationStride % i == 0) {
+              prime = false;
+              break;
+            }
+          }
+          if (prime) {
             break;
+          } else {
+            validationStride++;
           }
         }
-        if (prime) {
-          break;
-        } else {
-          validationStride++;
-        }
+      } else {
+        validationStride = 0;
       }
     }
-    // printf("ValidationStride: %u\n", validationStride);
     generatedCallToReferenceCPU( sizes );
   }
   for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
@@ -200,11 +214,11 @@ void benchmarkAllSolutionsForSize(
         if (!equal || validationPrintValids) {
           if (printIdx < validationMaxToPrint) {
             if (firstPrint) {
-              printf("  Device | Reference\n");
+              std::cout << "  Device | Reference" << std::endl;
               firstPrint = false;
             }
-            printf("  %u: %7.1f %s %7.1f\n", i, deviceOnHostC[i],
-                equal ? "==" : "!=", referenceC[i]);
+            std::cout << i << ": " << deviceOnHostC[i] <<
+                (equal ? "==" : "!=") << referenceC[i] << std::endl;
             printIdx++;
           } else {
             break;
@@ -230,12 +244,14 @@ void benchmarkAllSolutionsForSize(
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
     if (numElementsToValidate) {
-      printf("  Solution[%02u]: t:%8.3f ms v: %6s p: %u/%u %s\n",
-          solutionIdx, timeMs, numInvalids ? "FAILED" : "PASSED",
-          numChecked-numInvalids, numChecked, solutionNames[solutionIdx]);
+      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "]: t:"
+        << std::setw(7) << std::fixed << std::setprecision(3)
+        << timeMs << " ms v: " << (numInvalids ? "FAILED" : "PASSED")
+        << " p: " << (numChecked-numInvalids) << "/" << numChecked
+        << "  " << solutionNames[solutionIdx] << std::endl;
     } else {
-      printf("  Solution[%02u]: t:%8.3f ms (%s)\n",
-          solutionIdx , timeMs, solutionNames[solutionIdx]);
+      std::cout << "  Solution[" << solutionIdx << "]: t:" << timeMs
+        << " ms (" << solutionNames[solutionIdx] << ")" << std::endl;
     }
     file << ", " << timeMs;
     solutionTimes[problemIdx][solutionIdx ] = static_cast<float>(timeMs);
@@ -250,7 +266,7 @@ void benchmarkAllSolutionsForSize(
 void initControls() {
 #if Tensile_BACKEND_OCL
   // setup opencl objects
-  unsigned int numPlatforms, numDevices;
+  cl_uint numPlatforms, numDevices;
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
   tensileStatusCheck(status);
   cl_platform_id *platforms = new cl_platform_id[numPlatforms];
@@ -269,7 +285,7 @@ void initControls() {
   char *deviceName = new char[nameLength+1];
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
   tensileStatusCheck(status);
-  printf("Device: \"%s\"\n", deviceName);
+  std::cout << "Device: \"" << deviceName << std::endl;
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
   tensileStatusCheck(status);
   stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
@@ -306,89 +322,92 @@ void destroyControls() {
  * initialize data
  ******************************************************************************/
 void initData() {
-  printf("Initializing buffers (%zu + %zu + %zu elements)",
-      maxSizeC,
-      maxSizeA,
-      maxSizeB
-      //maxSizeC*sizeof(DataType)/1024.0/1024.0,
-      //maxSizeA*sizeof(DataType)/1024.0/1024.0,
-      //maxSizeB*sizeof(DataType)/1024.0.1024.0
-      );
-    printf(".");
+  std::cout << "Initializing " << (sizeof(DataType)*(maxSizeC+maxSizeA+maxSizeB)/1000000) << " MBytes";
+  std::cout << ".";
   // initial and reference buffers
   referenceC = new DataType[maxSizeC];
   deviceOnHostC = new DataType[maxSizeC];
 #if Tensile_BACKEND_OCL
   initialC = new DataType[maxSizeC];
+  std::cout << ".";
   initialA = new DataType[maxSizeA];
+  std::cout << ".";
   initialB = new DataType[maxSizeB];
+  std::cout << ".";
 #else
   status = hipMalloc( &initialC, sizeMaxC*sizeof(DataType) );
   tensileStatusCheck(status);
+  std::cout << ".";
   status = hipMalloc( &initialA, sizeMaxA*sizeof(DataType) );
   tensileStatusCheck(status);
+  std::cout << ".";
   status = hipMalloc( &initialB, sizeMaxB*sizeof(DataType) );
   tensileStatusCheck(status);
+  std::cout << ".";
 #endif
-    printf(".");
 
   // initialize buffers
   if (dataInitType == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = static_cast<DataType>(rand() % 10);
     }
-    printf(".");
+    std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
       initialA[i] = static_cast<DataType>(rand() % 10);
     }
-    printf(".");
+    std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       initialB[i] = static_cast<DataType>(rand() % 10);
     }
-    printf(".");
+    std::cout << ".";
   } else if (dataInitType == 1) {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = tensileGetOne<DataType>();
     }
-    printf(".");
+    std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
       initialA[i] = tensileGetOne<DataType>();
     }
-    printf(".");
+    std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       initialB[i] = tensileGetOne<DataType>();
     }
-    printf(".");
+    std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
       initialC[i] = static_cast<DataType>(i);
     }
-    printf(".");
+    std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
       initialA[i] = static_cast<DataType>(i);
     }
-    printf(".");
+    std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       initialB[i] = static_cast<DataType>(i);
     }
-    printf(".");
+    std::cout << ".";
   }
 #if Tensile_BACKEND_OCL
   deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE,
       maxSizeC*sizeof(DataType), NULL, &status);
   tensileStatusCheck(status);
+    std::cout << ".";
   deviceA = clCreateBuffer(context, CL_MEM_READ_ONLY,
       maxSizeA*sizeof(DataType), NULL, &status);
   tensileStatusCheck(status);
+    std::cout << ".";
   deviceB = clCreateBuffer(context, CL_MEM_READ_ONLY,
       maxSizeB*sizeof(DataType), NULL, &status);
   tensileStatusCheck(status);
+    std::cout << ".";
   status = clEnqueueWriteBuffer(stream, deviceA, CL_TRUE, 0,
       maxSizeA*sizeof(DataType), initialA, 0, NULL, NULL);
   tensileStatusCheck(status);
+    std::cout << ".";
   status = clEnqueueWriteBuffer(stream, deviceB, CL_TRUE, 0,
       maxSizeB*sizeof(DataType), initialB, 0, NULL, NULL);
   tensileStatusCheck(status);
+    std::cout << ".";
 #else
 #endif
 }

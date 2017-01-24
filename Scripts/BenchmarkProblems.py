@@ -2,6 +2,7 @@ import sys
 import os
 from copy import deepcopy
 from shutil import copy as shutil_copy
+from shutil import rmtree
 import csv
 
 from BenchmarkProcess import *
@@ -53,7 +54,7 @@ def benchmarkProblemType( config ):
     stepName = str(benchmarkStep)
     print "\n\n"
     print hr
-    print "# %s" % (stepName)
+    print "# %s\n# %s" % (problemTypeName, stepName)
     print "#  -NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes
     print "#  -BenchmarkParameters:"
     for paramName in benchmarkStep.benchmarkParameters:
@@ -179,20 +180,24 @@ def benchmarkProblemType( config ):
     resultsFileName = os.path.join(globalParameters["WorkingPath"], \
         "../Data", "%s.csv" % stepName)
     if not os.path.exists(resultsFileName) or globalParameters["ForceRedo"]:
+      # if redo=true, clobber the build directory
+      if globalParameters["ForceRedo"]:
+        rmtree(os.path.join(globalParameters["WorkingPath"], "build"), ignore_errors=True)
       pushWorkingPath("build")
+
       # create run.bat or run.sh which builds and runs
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
         "run.%s" % "bat" if os.name == "nt" else "sh")
       runScriptFile = open(runScriptName, "w")
-      runScriptFile.write("@echo. & echo %s & echo # %s: Configuring CMake & echo %s\n" \
-          % (hr, stepName, hr))
-      runScriptFile.write("cmake ../source\n")
-      runScriptFile.write("@echo. & echo %s & echo # %s: Building Benchmark & echo %s\n" \
-          % (hr, stepName, hr))
+      runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
+          % (hr, problemTypeName, stepName, hr))
+      runScriptFile.write("cmake -DCMAKE_GENERATOR_PLATFORM=x64 ../source\n")
+      runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
+          % (hr, problemTypeName, stepName, hr))
       runScriptFile.write("cmake --build . --config %s\n" \
           % globalParameters["CMakeBuildType"] )
-      runScriptFile.write("@echo. & echo %s & echo # %s: Running Benchmark & echo %s\n" \
-          % (hr, stepName, hr))
+      runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
+          % (hr, problemTypeName, stepName, hr))
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s%s") \
           % (stepName, ".exe" if os.name == "nt" else "") )
       runScriptFile.close()
@@ -220,7 +225,8 @@ def benchmarkProblemType( config ):
     #print "Winners Updated Winners\n%s" % winners
 
     popWorkingPath() # stepName
-    print "%s%s\n# %s: End\n%s%s\n" % (hr, hr, stepName, hr, hr)
+    print "%s%s\n# %s\n# %s: End\n%s%s\n" \
+        % (hr, hr, problemTypeName, stepName, hr, hr)
 
   popWorkingPath()
 

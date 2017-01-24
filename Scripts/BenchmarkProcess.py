@@ -84,7 +84,7 @@ class BenchmarkProcess:
           valueIdx = pIdx % len(values)
           forkPermutations[i][name] = values[valueIdx]
           pIdx /= len(values)
-      print forkPermutations[i]
+      print Solution.getNameFull(forkPermutations[i])
     #self.hardcodedParameters.append(forkPermutations)
     self.forkHardcodedParameters(forkPermutations)
 
@@ -288,7 +288,7 @@ class BenchmarkProcess:
   def fillInMissingStepsWithDefaults(self, config):
     print ""
     print "####################################################################"
-    print "# Filling in Missing Steps With Defaults"
+    print "# Filling in Parameters With Defaults"
     print "####################################################################"
     print ""
 
@@ -592,7 +592,8 @@ class BenchmarkStep:
 
   def __init__(self, hardcodedParameters, prevParameters, \
       benchmarkParameters, initialSolutionParameters, problemSizes, idx):
-    printStatus("Creating BenchmarkStep BP=%s HCP=%s" % ( str(benchmarkParameters), str(hardcodedParameters)))
+    printStatus("Creating BenchmarkStep [BP]=%u [HCP]=%u" % ( len(benchmarkParameters), len(hardcodedParameters)))
+    #printStatus("Creating BenchmarkStep BP=%u HCP=%s" % ( str(benchmarkParameters), str(hardcodedParameters)))
     # what is my step Idx
     self.stepIdx = idx
 

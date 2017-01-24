@@ -3,11 +3,7 @@ Parameters:
   Backend: OCL
   DebugPrintLevel: 2
   ForceRedo: True
-  PlatformIdx: 0
-  DeviceIdx: 0
-  EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
-  CMakeBuildType: Debug
+  CMakeBuildType: Release
   SolutionPrintDebug: False
   NumElementsToValidate: 16
   ValidationMaxToPrint: 16
@@ -15,13 +11,16 @@ Parameters:
   ShortFileNames: False
   MergeFiles: True
 
-  #NumElementsToValidate: 16
   
 
 BenchmarkProblems:
+
+  # sgemm NT
   - ProblemType:
       OperationType: GEMM
       DataType: s
+      #TransposeA: False
+      #TransposeB: True
       TransposeA: False
       TransposeB: True
       UseBeta: False
@@ -53,8 +52,11 @@ BenchmarkProblems:
       - NumLoadsParaA: [ 1, 2, 4 ]
       - NumLoadsParaB: [ 1, 2, 4 ]
     BenchmarkFinalParameters:
-      ProblemSizes: [ [32, 32, 32, 5760], [32, 32, 32, 5760], [32, 32, 32, 5760] ]
+      ProblemSizes: [ [32, 32, 32, 128], [32, 32, 32, 128], [32, 32, 32, 128] ]
 
+
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [128], 0, 0 ]
 
 # final create problem-range -> solution mapping and encode to .yaml
 Analyze:

@@ -155,8 +155,8 @@ class SolutionWriter:
         self.indexChars[solution["ProblemType"]["Index0"]])
     s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
         self.indexChars[solution["ProblemType"]["Index1"]])
-    s += "%sunsigned int macroTile0 = localWorkSize[0] * threadTile[0];\n" % (t)
-    s += "%sunsigned int macroTile1 = localWorkSize[1] * threadTile[1];\n" % (t)
+    s += "%sunsigned int macroTile0 = static_cast<unsigned int>(localWorkSize[0] * threadTile[0]);\n" % (t)
+    s += "%sunsigned int macroTile1 = static_cast<unsigned int>(localWorkSize[1] * threadTile[1]);\n" % (t)
     s += "%sunsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n" % (t)
     s += "%sunsigned int totalWorkGroups1 = sizeOfC1 / macroTile1;\n" % (t)
 
