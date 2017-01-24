@@ -142,7 +142,7 @@ class SolutionSelectionWriter:
       s += "      && problem.operationType == " + exactMatch.operationType.getLibString() + "\n"
       s += "      && (!problem.useOffsets || problem.useOffsets == " + ("false" if exactMatch.ppdOffsets else "true") + ")\n"
       s += "      && (!problemRequiresLeadingStrides || problemRequiresLeadingStrides == " + ("false" if exactMatch.ppdLeadingStrides else "true") + ")\n"
-      s += "      && problem.indicesFree.size() + problem.indicesBatched.size() == " + str(exactMatch.numIndicesFree) + "\n"
+      s += "      && problem.indicesFree.size() + problem.indicesBatch.size() == " + str(exactMatch.numIndicesFree) + "\n"
       s += "      && problem.indicesA.size() == " + str(len(exactMatch.indexAssignmentsA)) + "\n"
       s += "      && problem.indicesB.size() == " + str(len(exactMatch.indexAssignmentsB)) + " ) {\n"
       
