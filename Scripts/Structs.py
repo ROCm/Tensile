@@ -488,10 +488,17 @@ class Solution:
       self["ProblemType"] = ProblemType(config["ProblemType"])
     else:
       self["ProblemType"] = ProblemType(defaultProblemType)
-      #sys.exit("Tensile::%s::%s: ERROR - No ProblemType in config: %s" % ( __file__, __line__, str(config) ))
 
+    # assign parameters with defaults
     for key in defaultSolution:
       self.assignWithDefault(key, defaultSolution[key], config)
+
+    # assign parameters without defaults
+    for key in config:
+      if key != "ProblemType" and key not in self.state:
+        #print "Solution::init() - WARNING: appending unrecognized %s=%s" \
+        #    % (key, config[key])
+        self.state[key] = config[key]
 
     Solution.assignDimsFromEdgeAndShape(self.state)
 
@@ -571,6 +578,7 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
+      print "getNameFull %s: %s" % (key, state[key])
       requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
@@ -584,13 +592,16 @@ class Solution:
     if "ProblemType" in state:
       name += str(state["ProblemType"]) + "_"
     for key in sorted(state.keys()):
-      if requiredParameters[key]:
-        if not first:
-          name += "_"
-        else:
-          first = False
-        name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
-            Solution.getParameterValueAbbreviation(state[key]) )
+      if key in requiredParameters:
+        if requiredParameters[key]:
+          if not first:
+            name += "_"
+          else:
+            first = False
+          name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
+              Solution.getParameterValueAbbreviation(state[key]) )
+      else:
+        print "%s not in %s" % (key, requiredParameters)
     return name
 
   ########################################

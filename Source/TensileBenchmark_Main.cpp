@@ -43,8 +43,8 @@ int main( int argc, char *argv[] ) {
   unsigned int currentSizedIdx = 0;
   unsigned int currentMappedIdx = 0;
 #if Tensile_BACKEND_OCL
-  std::cout << "Pre-compiling OpenCL kernels";
   if (!numElementsToValidate) {
+    std::cout << "Pre-compiling OpenCL kernels";
     for (unsigned int i = 0; i < totalIndices; i++) {
       if (indexIsSized[i]) {
         fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];

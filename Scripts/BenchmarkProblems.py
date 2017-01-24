@@ -139,6 +139,7 @@ def benchmarkProblemType( config ):
         valueIdx = pIdx % len(benchmarkParamValues)
         permutation[benchmarkParamName] = benchmarkParamValues[valueIdx]
         pIdx /= len(benchmarkParamValues)
+      #print "BenchmarkPermutation: %s" % permutation
       benchmarkPermutations.append(permutation)
 
     ############################################################################
@@ -149,6 +150,7 @@ def benchmarkProblemType( config ):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
+        print "SolutionParameters: %s" % solution
         winningParameters = winners[hardcodedParamDict]
         if winningParameters == None:
           # this is a joined parameter that didn't have a winner, that's okay
@@ -163,10 +165,10 @@ def benchmarkProblemType( config ):
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
         if SolutionWriter.solutionParametersConsistent(solutionObject):
-          #printStatus("appending solution %s" % str(solutionObject))
+          printStatus("appending solution %s" % str(solutionObject))
           solutions.append(solutionObject)
-        #else:
-          #printStatus("rejecting solution %s" % str(solutionObject))
+        else:
+          printStatus("rejecting solution %s" % str(solutionObject))
     print "NumActualSolutions: %u / %u" % ( len(solutions), \
         totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters) )
     # write benchmarkFiles

@@ -821,21 +821,29 @@ class SolutionWriter:
 
     # how many load instructions
     if totalElementsA % numThreads != 0:
+      print "totalElementsA %u %% numThreads %u != 0" \
+          % (totalElementsA, numThreads)
       return False
     else:
       solution["NumLoadsA"] = totalElementsA / numThreads
     if totalElementsB % numThreads != 0:
+      print "totalElementsB %u %% numThreads %u != 0" \
+          % (totalElementsB, numThreads)
       return False
     else:
       solution["NumLoadsB"] = totalElementsB / numThreads
 
     # how many loads perp
     if solution["NumLoadsA"] % solution["NumLoadsParaA"] != 0:
+      print "numLoadsA %u %% numLoadsParaA %u != 0" \
+          % (solution["NumLoadsA"], solution["NumLoadsParaA"])
       return False
     else:
       solution["NumLoadsPerpA"] = solution["NumLoadsA"] \
           / solution["NumLoadsParaA"]
     if solution["NumLoadsB"] % solution["NumLoadsParaB"] != 0:
+      print "numLoadsB %u %% numLoadsParaB %u != 0" \
+          % (solution["NumLoadsB"], solution["NumLoadsParaB"])
       return False
     else:
       solution["NumLoadsPerpB"] = solution["NumLoadsB"] \
@@ -843,20 +851,28 @@ class SolutionWriter:
 
     # load size para/perp A
     if totalElementsParaA % solution["NumLoadsParaA"] != 0:
+      print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
+          % (totalElementsParaA, solution["NumLoadsParaA"])
       return False
     else:
       loadSizeParaA = totalElementsParaA / solution["NumLoadsParaA"]
     if totalElementsPerpA % solution["NumLoadsPerpA"] != 0:
+      print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+          % (totalElementsPerpA, solution["NumLoadsPerpA"])
       return False
     else:
       loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpA"]
 
     # load size para/perp B
     if totalElementsParaB % solution["NumLoadsParaB"] != 0:
+      print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
+          % (totalElementsParaB, solution["NumLoadsParaB"])
       return False
     else:
       loadSizeParaB = totalElementsParaB / solution["NumLoadsParaB"]
     if totalElementsPerpB % solution["NumLoadsPerpB"] != 0:
+      print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+          % (totalElementsPerpB, solution["NumLoadsPerpB"])
       return False
     else:
       loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpB"]
