@@ -2,7 +2,7 @@ Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
   DebugPrintLevel: 2
-  ForceRedo: True
+  ForceRedo: False
   CMakeBuildType: Release
   SolutionPrintDebug: False
   NumElementsToValidate: 16
@@ -34,7 +34,6 @@ BenchmarkProblems:
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
       - LoopTail: [ False ]
-      - WorkGroupShape: [ 0 ]
       - SplitU: [ 1 ]
       - ThreadTileShape: [ 0 ]
       - EdgeType: [ "Branch" ]
@@ -45,12 +44,13 @@ BenchmarkProblems:
       - ThreadTileEdge: [2, 4, 6, 8]
     BenchmarkForkParameters:
       - LoopUnroll: [4, 8, 16]
+        WorkGroupShape: [ 0, 1 ]
     JoinParameters:
       - MacroTile
       - DepthU
     BenchmarkJoinParameters:
-      - NumLoadsParaA: [ 1, 2, 4 ]
-      - NumLoadsParaB: [ 1, 2, 4 ]
+      - NumLoadsParaA: [ 1, 2, 3, 4 ]
+        NumLoadsParaB: [ 1, 2, 3, 4 ]
     BenchmarkFinalParameters:
       ProblemSizes: [ [32, 32, 32, 128], [32, 32, 32, 128], [32, 32, 32, 128] ]
 

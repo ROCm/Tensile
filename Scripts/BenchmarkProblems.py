@@ -1,6 +1,7 @@
 import sys
 import os
 from copy import deepcopy
+from copy import copy as shallowcopy
 from shutil import copy as shutil_copy
 from shutil import rmtree
 import csv
@@ -158,7 +159,7 @@ def benchmarkProblemType( config ):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
-        print "SolutionParameters: %s" % solution
+        #print "SolutionParameters: %s" % solution
         winningParameters = winners[hardcodedParamDict]
         if winningParameters == None:
           # this is a joined parameter that didn't have a winner, that's okay
@@ -177,6 +178,22 @@ def benchmarkProblemType( config ):
           solutions[hardcodedIdx].append(solutionObject)
         else:
           printStatus("rejecting solution %s" % str(solutionObject))
+
+    # remove hardcoded that don't have any valid benchmarks
+    removeHardcoded = []
+    for hardcodedIdx in range(0, numHardcoded):
+      if len(solutions[hardcodedIdx]) == 0:
+        hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
+        removeHardcoded.append(hardcodedParamDict)
+    for hardcodedParam in removeHardcoded:
+      benchmarkStep.hardcodedParameters.remove(hardcodedParam)
+    winners.update( benchmarkStep.hardcodedParameters )
+    numHardcoded = len(benchmarkStep.hardcodedParameters )
+    # remove from solution 2D list also
+    for solutionList in shallowcopy(solutions):
+      if len(solutionList) == 0:
+        solutions.remove(solutionList)
+
 
     print "NumActualSolutions: %u / %u" % ( len(solutions), \
         totalBenchmarkPermutations*numHardcoded )
@@ -274,11 +291,11 @@ def getResults(resultsFileName, solutions):
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
+      problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
       results[-1].append([])
 
   # read results in gflops
   csvFile = csv.reader(resultsFile)
-  problemSizeIdx = solutions[0][0]["ProblemType"]["TotalIndices"] + 1
   startIdx = problemSizeIdx + 1
   rowIdx = 0
   for row in csvFile:

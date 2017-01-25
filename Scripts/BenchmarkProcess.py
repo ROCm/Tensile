@@ -82,7 +82,7 @@ class BenchmarkProcess:
     configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] \
         if "BenchmarkJoinParameters" in config \
         else [{"ProblemSizes": defaultProblemSizes}]
-    configBenchmarkFinalParameters = config["BenchmarkFinalParameters"] \
+    configBenchmarkFinalParameters = config["BenchmarkFinalParameters"][0] \
         if "BenchmarkFinalParameters" in config \
         else {"ProblemSizes": defaultBenchmarkFinalProblemSizes}
 

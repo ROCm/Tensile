@@ -2,7 +2,7 @@ Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
   DebugPrintLevel: 2
-  ForceRedo: False
+  ForceRedo: True
   CMakeBuildType: Release
   NumElementsToValidate: 0
 
@@ -26,20 +26,19 @@ BenchmarkProblems:
       - SplitU: [ 1 ]
       - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
-      - WorkGroupEdge: [8, 16]
-        ThreadTileEdge: [2, 4, 6, 8]
-      - NumLoadsParaA: [ 1, 2, 3, 4, 5, 6 ]
-        NumLoadsParaB: [ 1, 2, 3, 4, 5, 6 ]
-      - LoopUnroll: [4, 8, 16]
-    ForkParameters:
-      #  - WorkGroupEdge: [8, 16]
-      #- ThreadTileEdge: [2, 4, 6, 8]
+      #- WorkGroupEdge: [8, 16]
+      #  ThreadTileEdge: [2, 4, 6, 8]
       #- NumLoadsParaA: [ 1, 2, 3, 4, 5, 6 ]
-      #- NumLoadsParaB: [ 1, 2, 3, 4, 5, 6 ]
+      #  NumLoadsParaB: [ 1, 2, 3, 4, 5, 6 ]
       #- LoopUnroll: [4, 8, 16]
-    BenchmarkForkParameters:
-      - ProblemSizes: [ [256] ] # important for join step
-      - WorkGroupOrder: [ 1 ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - NumLoadsParaA: [ 1, 2, 3, 4, 5, 6 ]
+      - NumLoadsParaB: [ 1, 2, 3, 4, 5, 6 ]
+      - LoopUnroll: [4, 8, 16]
+    #BenchmarkForkParameters:
+    #  - ProblemSizes: [ [256] ] # important for join step
     JoinParameters:
       - MacroTile
       - DepthU
