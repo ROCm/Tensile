@@ -664,6 +664,15 @@ class BenchmarkStep:
         % ( len(benchmarkParameters), len(hardcodedParameters), \
         problemSizes.totalProblemSizes))
 
+  def abbreviation(self):
+    string = "%02u" % self.stepIdx
+    if len(self.benchmarkParameters) > 0:
+      for param in self.benchmarkParameters:
+        string += "_%s" % Solution.getParameterNameAbbreviation(param)
+    else:
+      string += "_Final"
+    return string
+
   def __str__(self):
     string = "%02u" % self.stepIdx
     if len(self.benchmarkParameters) > 0:

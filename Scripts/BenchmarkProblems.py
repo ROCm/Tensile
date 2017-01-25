@@ -51,7 +51,9 @@ def benchmarkProblemType( config ):
     resultingHardcodedParameterList = \
         winners.update( benchmarkStep.hardcodedParameters )
     benchmarkStep.hardcodedParameters = resultingHardcodedParameterList
+    numHardcoded = len(benchmarkStep.hardcodedParameters)
     stepName = str(benchmarkStep)
+    shortName = benchmarkStep.abbreviation()
     print "\n\n"
     print hr
     print "# %s\n# %s" % (problemTypeName, stepName)
@@ -67,12 +69,12 @@ def benchmarkProblemType( config ):
     print "#  - HardcodedParameters | WinningParameters:"
     paramDictIdx = 0
     #print "hardcodedParameters: %s" % benchmarkStep.hardcodedParameters
-    hardcodedParametersMinNaming = \
+    hardcodedMinNaming = \
         Solution.getMinNaming(benchmarkStep.hardcodedParameters)
     for paramDict in benchmarkStep.hardcodedParameters:
       winningParameters = winners[paramDict]
       print "#   (%u) %s | %s" % (paramDictIdx, \
-          Solution.getNameMin(paramDict, hardcodedParametersMinNaming), \
+          Solution.getNameMin(paramDict, hardcodedMinNaming), \
           Solution.getNameFull(winningParameters) )
       paramDictIdx += 1
       #for paramName in paramDict:
@@ -81,7 +83,8 @@ def benchmarkProblemType( config ):
       #print printStr
     print hr
     print ""
-    pushWorkingPath(stepName)
+    print shortName
+    pushWorkingPath(shortName)
 
     ############################################################################
     # Copy Files to Benchmark Source Directory
@@ -128,8 +131,8 @@ def benchmarkProblemType( config ):
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
     print "MaxPossibleSolutions: %u = %u (hardcoded) * %u (benchmark)" % \
-        (totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters), \
-        len(benchmarkStep.hardcodedParameters), totalBenchmarkPermutations)
+        (totalBenchmarkPermutations*numHardcoded, \
+        numHardcoded, totalBenchmarkPermutations)
 
     benchmarkPermutations = []
     for i in range(0, totalBenchmarkPermutations):
@@ -147,8 +150,11 @@ def benchmarkProblemType( config ):
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
-    for hardcodedParamDict in benchmarkStep.hardcodedParameters:
-      for benchmarkPermutation in benchmarkPermutations:
+    for hardcodedIdx in range(0, numHardcoded):
+      solutions.append([])
+      hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
+      for benchmarkIdx in range(0, len(benchmarkPermutations)):
+        benchmarkPermutation = benchmarkPermutations[benchmarkIdx]
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
@@ -168,21 +174,39 @@ def benchmarkProblemType( config ):
         solutionObject = Solution(solution)
         if SolutionWriter.solutionParametersConsistent(solutionObject):
           printStatus("appending solution %s" % str(solutionObject))
-          solutions.append(solutionObject)
+          solutions[hardcodedIdx].append(solutionObject)
         else:
           printStatus("rejecting solution %s" % str(solutionObject))
+
     print "NumActualSolutions: %u / %u" % ( len(solutions), \
-        totalBenchmarkPermutations*len(benchmarkStep.hardcodedParameters) )
+        totalBenchmarkPermutations*numHardcoded )
+    # create linear list
+    solutionList = []
+    for i in range(0, len(solutions)):
+      solutionsForHardcoded = solutions[i]
+      for j in range(0, len(solutionsForHardcoded)):
+        solution = solutionsForHardcoded[j]
+        solutionList.append(solution)
+    solutionsMinNaming = Solution.getMinNaming(solutionList)
+    for i in range(0, len(solutions)):
+      solutionsForHardcoded = solutions[i]
+      print "HC: %s" \
+          % Solution.getNameMin(benchmarkStep.hardcodedParameters[i], \
+          hardcodedMinNaming)
+      for j in range(0, len(solutionsForHardcoded)):
+        solution = solutionsForHardcoded[j]
+        print "  - %s" % Solution.getNameMin(solution, solutionsMinNaming)
+
     # write benchmarkFiles
-    writeBenchmarkFiles(solutions, benchmarkStep.problemSizes, \
-        stepName, filesToCopy)
+    writeBenchmarkFiles(solutionList, benchmarkStep.problemSizes, \
+        shortName, filesToCopy)
     popWorkingPath() # source
 
     ############################################################################
     # Run Benchmark Script
     ############################################################################
     resultsFileName = os.path.join(globalParameters["WorkingPath"], \
-        "../Data", "%s.csv" % stepName)
+        "../Data", "%s.csv" % shortName)
     if not os.path.exists(resultsFileName) or globalParameters["ForceRedo"]:
       # if redo=true, clobber the build directory
       if globalParameters["ForceRedo"]:
@@ -203,7 +227,7 @@ def benchmarkProblemType( config ):
       runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
           % (hr, problemTypeName, stepName, hr))
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s%s") \
-          % (stepName, ".exe" if os.name == "nt" else "") )
+          % (shortName, ".exe" if os.name == "nt" else "") )
       runScriptFile.close()
       # wait for python to finish printing
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
@@ -214,11 +238,10 @@ def benchmarkProblemType( config ):
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    results = getResults(resultsFileName, len(solutions), \
-        len(benchmarkStep.hardcodedParameters), \
-        solutions[0])
+    results = getResults(resultsFileName, solutions)
+    print "CSV Results: %s" % results
     winners.addResults(benchmarkStep.hardcodedParameters, \
-        benchmarkPermutations, results)
+        benchmarkPermutations, solutions, results)
     #for hardcodedParameterIdx in range(0, len(winnerIndices)):
     #  hardcodedParameters = \
     #      benchmarkStep.hardcodedParameters[hardcodedParameterIdx]
@@ -230,7 +253,7 @@ def benchmarkProblemType( config ):
 
     popWorkingPath() # stepName
     print "%s%s\n# %s\n# %s: End\n%s%s\n" \
-        % (hr, hr, problemTypeName, stepName, hr, hr)
+        % (hr, hr, problemTypeName, shortName, hr, hr)
 
   popWorkingPath()
 
@@ -240,28 +263,22 @@ def benchmarkProblemType( config ):
 ################################################################################
 # Read GFlop/s from file
 ################################################################################
-def getResults(resultsFileName, numSolutions, numHardcodedParameters, \
-    solution):
+def getResults(resultsFileName, solutions):
   try:
     resultsFile = open(resultsFileName, "r")
   except IOError:
     printExit("Can't open \"%s\" to get results" % resultsFileName )
 
-  numSolutionsPerHardcodedParameter = numSolutions / numHardcodedParameters
-
   # setup data structures
   results = []
-  #numWins = []
-  for i in range(0, numHardcodedParameters):
+  for solutionsForHardcoded in solutions:
     results.append([])
-    #numWins.append([])
-    for j in range(0, numSolutionsPerHardcodedParameter):
-      results[i].append([])
-      #numWins[i].append(0)
+    for solution in solutionsForHardcoded:
+      results[-1].append([])
 
   # read results in gflops
   csvFile = csv.reader(resultsFile)
-  problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+  problemSizeIdx = solutions[0][0]["ProblemType"]["TotalIndices"] + 1
   startIdx = problemSizeIdx + 1
   rowIdx = 0
   for row in csvFile:
@@ -270,40 +287,19 @@ def getResults(resultsFileName, numSolutions, numHardcodedParameters, \
       continue
     else:
       totalFlops = float(row[problemSizeIdx])
-      for i in range(0, numHardcodedParameters):
-        for j in range(0, numSolutionsPerHardcodedParameter):
-          time_ms = float(row[startIdx+j \
-              + i*numSolutionsPerHardcodedParameter])
+      idx = startIdx
+      #for i in range(0, len(numBenchmarksPerHardcoded)):
+      #  for j in range(0, numBenchmarksPerHardcoded[i]):
+      for i in range(0, len(solutions)):
+        solutionsForHardcoded = solutions[i]
+        for j in range(0, len(solutionsForHardcoded)):
+          solution = solutionsForHardcoded[j]
+          time_ms = float(row[idx])
           flops = totalFlops / (time_ms / 1000)
           gflops = flops / (1000*1000*1000)
           results[i][j].append(gflops)
+          idx += 1
   return results
-
-  """
-  # count wins for each problem size
-  for r in range(0, rowIdx):
-    for i in range(0, numHardcodedParameters):
-      winnerIdx = -1
-      winnerTime = 1e100
-      for j in range(0, numSolutionsPerHardcodedParameter):
-        solutionTime = times[i][j][r]
-        if solutionTime < winnerTime:
-          winnerIdx = j
-          winnerTime = solutionTime
-      numWins[i][winnerIdx] += 1
-
-  # determine winnerIndices
-  winnerIndices = []
-  for i in range(0, numHardcodedParameters):
-    winnerIdx = -1
-    winnerNumWins = 0
-    for j in range(0, numSolutionsPerHardcodedParameter):
-      if numWins[i][j] > winnerNumWins:
-        winnerIdx = j
-        winnerNumWins = numWins[i][j]
-    winnerIndices.append(winnerIdx)
-  return winnerIndices
-  """
 
 
 ################################################################################
@@ -341,8 +337,6 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       kernelMinNaming, kernelSerialNaming)
   kernelWriter = KernelWriter( \
       kernelMinNaming, kernelSerialNaming)
-
-
 
   ##############################################################################
   # Write Solutions
@@ -819,7 +813,7 @@ class WinningParameterDict:
   ##########################################################
   # Add Winning Parameters For Hardcoded Parameters
   def addResults( self, hardcodedParameterList, benchmarkPermutations, \
-      results):
+      solutions, results):
     printStatus("beginning")
     #print benchmarkPermutations
     for hardcodedIdx in range(0, len(results)):
@@ -834,27 +828,21 @@ class WinningParameterDict:
         if benchmarkScore > winningScore:
           winningScore = benchmarkScore
           winningIdx = benchmarkIdx
-      winningParameters = benchmarkPermutations[winningIdx]
-      print "HCP[%u] Winner: idx=%u, score=%u, param=%s" \
+      winningSolution = solutions[hardcodedIdx][winningIdx]
+      winningParameters = {}
+      for paramName in benchmarkPermutations[0]:
+        winningParameters[paramName] = winningSolution[paramName]
+      print "HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
           % ( hardcodedIdx, winningIdx, winningScore, winningParameters)
-      # (hardcodedParametersKey, oldWinningParameters, oldScore) = \
       matches = WinningParameterDict.get(hardcodedParameters, self.winners)
       if len(matches) != 1:
         printExit("Didn't find exactly 1 match")
       hardcodedParametersKey = matches[0][0]
       oldWinningParameters = matches[0][1]
       oldScore = matches[0][2]
-      #print self.winners[hardcodedParametersKey]
-      #print winningParameters
       self.winners[hardcodedParametersKey][0].update(winningParameters)
       self.winners[hardcodedParametersKey][1] = winningScore
 
-
-    #(hardcodedParametersKey, winningParameters, score) = \
-    #    WinningParameterDict.get(hardcodedParameters, self.winners)
-    #print "Found %s -> %s" % ( hardcodedParametersKey, tmp)
-    #self.winners[hardcodedParametersKey].update( \
-    #    newWinningParameters)
 
   ##########################################################
   # Get Winning Parameters For Hardcoded Parameters

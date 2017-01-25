@@ -801,8 +801,7 @@ class SolutionWriter:
     if numThreads > globalParameters["MaxThreads"]:
       if printReason: print "rejecting %u threads" % numThreads
       return False
-    else:
-      if printReason: print "accepting %u threads" % numThreads
+
     # how many elements to load
     if solution["ProblemType"]["TLUA"]:
       totalElementsParaA = solution["MacroTile0"]
