@@ -795,13 +795,14 @@ class SolutionWriter:
   ##############################################################################
   @ staticmethod
   def solutionParametersConsistent(solution):
+    printReason = True
 
     numThreads = solution["WorkGroup0"]*solution["WorkGroup1"]
     if numThreads > globalParameters["MaxThreads"]:
-      #print "rejecting %u threads" % numThreads
+      if printReason: print "rejecting %u threads" % numThreads
       return False
-    #else:
-      #print "accepting %u threads" % numThreads
+    else:
+      if printReason: print "accepting %u threads" % numThreads
     # how many elements to load
     if solution["ProblemType"]["TLUA"]:
       totalElementsParaA = solution["MacroTile0"]
@@ -821,13 +822,13 @@ class SolutionWriter:
 
     # how many load instructions
     if totalElementsA % numThreads != 0:
-      print "totalElementsA %u %% numThreads %u != 0" \
+      if printReason: print "totalElementsA %u %% numThreads %u != 0" \
           % (totalElementsA, numThreads)
       return False
     else:
       solution["NumLoadsA"] = totalElementsA / numThreads
     if totalElementsB % numThreads != 0:
-      print "totalElementsB %u %% numThreads %u != 0" \
+      if printReason: print "totalElementsB %u %% numThreads %u != 0" \
           % (totalElementsB, numThreads)
       return False
     else:
@@ -835,14 +836,14 @@ class SolutionWriter:
 
     # how many loads perp
     if solution["NumLoadsA"] % solution["NumLoadsParaA"] != 0:
-      print "numLoadsA %u %% numLoadsParaA %u != 0" \
+      if printReason: print "numLoadsA %u %% numLoadsParaA %u != 0" \
           % (solution["NumLoadsA"], solution["NumLoadsParaA"])
       return False
     else:
       solution["NumLoadsPerpA"] = solution["NumLoadsA"] \
           / solution["NumLoadsParaA"]
     if solution["NumLoadsB"] % solution["NumLoadsParaB"] != 0:
-      print "numLoadsB %u %% numLoadsParaB %u != 0" \
+      if printReason: print "numLoadsB %u %% numLoadsParaB %u != 0" \
           % (solution["NumLoadsB"], solution["NumLoadsParaB"])
       return False
     else:
@@ -851,13 +852,13 @@ class SolutionWriter:
 
     # load size para/perp A
     if totalElementsParaA % solution["NumLoadsParaA"] != 0:
-      print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
+      if printReason: print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
           % (totalElementsParaA, solution["NumLoadsParaA"])
       return False
     else:
       loadSizeParaA = totalElementsParaA / solution["NumLoadsParaA"]
     if totalElementsPerpA % solution["NumLoadsPerpA"] != 0:
-      print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+      if printReason: print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
           % (totalElementsPerpA, solution["NumLoadsPerpA"])
       return False
     else:
@@ -865,13 +866,13 @@ class SolutionWriter:
 
     # load size para/perp B
     if totalElementsParaB % solution["NumLoadsParaB"] != 0:
-      print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
+      if printReason: print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
           % (totalElementsParaB, solution["NumLoadsParaB"])
       return False
     else:
       loadSizeParaB = totalElementsParaB / solution["NumLoadsParaB"]
     if totalElementsPerpB % solution["NumLoadsPerpB"] != 0:
-      print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+      if printReason: print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
           % (totalElementsPerpB, solution["NumLoadsPerpB"])
       return False
     else:
@@ -887,10 +888,10 @@ class SolutionWriter:
         + solution["MacroTile1"] ) \
         * solution["ProblemType"]["DataType"].numBytes()
     if sizeLDS > globalParameters["MaxLDS"]:
-      #print "Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
+      if printReason: print "Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
       return False
     #else:
-      #print "Kernel Uses %u < %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
+    #  if printReason: print "Kernel Uses %u < %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
 
     return True
 

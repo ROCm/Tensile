@@ -409,9 +409,9 @@ class ProblemSizes:
       dim = deepcopy(config[i])
       if isinstance(dim, list):
         if len(dim) == 1:
-          self.indicesSized.append([dim[0], 16, 0, dim[0]])
+          self.indicesSized.append([dim[0], 1, 0, dim[0]])
         elif len(dim) == 2:
-          self.indicesSized.append([dim[0], 16, 0, dim[1]])
+          self.indicesSized.append([dim[0], dim[0], 0, dim[1]])
         elif len(dim) == 3:
           self.indicesSized.append([dim[0], dim[1], 0, dim[2]])
         elif len(dim) == 4:
@@ -552,21 +552,30 @@ class Solution:
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
   def getMinNaming(objs):
+    # early return
+    if len(objs) == 0:
+      return {}
+    # determine keys
     requiredParameters = {}
     if isinstance(objs[0], Solution):
       keys = list(objs[0].state.keys())
     else:
       keys = list(objs[0].keys())
-    for key in keys:
-      required = False
-      for i in range(1, len(objs)):
-        if objs[0][key] != objs[i][key]:
-          required = True
-          break
-      if required:
+    # only 1, rather than name being nothing, it'll be everything
+    if len(objs) == 1:
+      for key in keys:
         requiredParameters[key] = True
-      else:
-        requiredParameters[key] = False
+    else:
+      for key in keys:
+        required = False
+        for i in range(1, len(objs)):
+          if objs[0][key] != objs[i][key]:
+            required = True
+            break
+        if required:
+          requiredParameters[key] = True
+        else:
+          requiredParameters[key] = False
     requiredParameters["ProblemType"] = False # always prepended anyways
     # kernels need edge name to distinguish from solution name
     requiredParameters["Edge0"] = True
@@ -578,7 +587,6 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      print "getNameFull %s: %s" % (key, state[key])
       requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 

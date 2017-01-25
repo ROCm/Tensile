@@ -12,9 +12,10 @@ unsigned int dataInitType = 1;
  * main
  ******************************************************************************/
 int main( int argc, char *argv[] ) {
-  std::cout << "sizeof(size_t) = " << sizeof(size_t) << std::endl;
+  if (sizeof(size_t) != 8) {
+    std::cout << "WARNING: Executable not 64-bit." << std::endl;
+  }
   initControls();
-
   initData();
   std::cout << std::endl;
 
@@ -83,7 +84,7 @@ int main( int argc, char *argv[] ) {
     }
 #if 1
     // print size
-    std::cout << "Problem[" << problemIdx << "]: " << fullSizes[0];
+    std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << fullSizes[0];
     for (unsigned int i = 1; i < totalIndices; i++) {
       std::cout << ", " << fullSizes[i];
     }
@@ -244,13 +245,13 @@ void benchmarkAllSolutionsForSize(
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
     if (numElementsToValidate) {
-      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "]: t:"
+      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]: t:"
         << std::setw(7) << std::fixed << std::setprecision(3)
         << timeMs << " ms v: " << (numInvalids ? "FAILED" : "PASSED")
         << " p: " << (numChecked-numInvalids) << "/" << numChecked
         << "  " << solutionNames[solutionIdx] << std::endl;
     } else {
-      std::cout << "  Solution[" << solutionIdx << "]: t:" << timeMs
+      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]: t:" << timeMs
         << " ms (" << solutionNames[solutionIdx] << ")" << std::endl;
     }
     file << ", " << timeMs;

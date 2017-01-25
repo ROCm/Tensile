@@ -55,8 +55,8 @@ def benchmarkProblemType( config ):
     print "\n\n"
     print hr
     print "# %s\n# %s" % (problemTypeName, stepName)
-    print "#  -NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes
-    print "#  -BenchmarkParameters:"
+    print "#  - NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes
+    print "#  - BenchmarkParameters:"
     for paramName in benchmarkStep.benchmarkParameters:
       paramValues = benchmarkStep.benchmarkParameters[paramName]
       printStr = "#     %s = { %s" % (paramName, paramValues[0])
@@ -64,13 +64,16 @@ def benchmarkProblemType( config ):
         printStr += ", %s" % str(paramValues[paramValueIdx])
       printStr += " }"
       print printStr
-    print "#  -HardcodedParameters:"
+    print "#  - HardcodedParameters | WinningParameters:"
     paramDictIdx = 0
+    #print "hardcodedParameters: %s" % benchmarkStep.hardcodedParameters
     hardcodedParametersMinNaming = \
         Solution.getMinNaming(benchmarkStep.hardcodedParameters)
     for paramDict in benchmarkStep.hardcodedParameters:
-      print "#   (%u) %s" % (paramDictIdx, \
-          Solution.getNameMin(paramDict, hardcodedParametersMinNaming))
+      winningParameters = winners[paramDict]
+      print "#   (%u) %s | %s" % (paramDictIdx, \
+          Solution.getNameMin(paramDict, hardcodedParametersMinNaming), \
+          Solution.getNameFull(winningParameters) )
       paramDictIdx += 1
       #for paramName in paramDict:
       #  paramValue = paramDict[paramName]
@@ -121,7 +124,6 @@ def benchmarkProblemType( config ):
     ############################################################################
     solutions = []
     currentSolution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state) }
-    #print "prevParameters = %s" % str(benchmarkStep.prevParameters)
     totalBenchmarkPermutations = 1
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
@@ -818,7 +820,7 @@ class WinningParameterDict:
   # Add Winning Parameters For Hardcoded Parameters
   def addResults( self, hardcodedParameterList, benchmarkPermutations, \
       results):
-    #printStatus("beginning")
+    printStatus("beginning")
     #print benchmarkPermutations
     for hardcodedIdx in range(0, len(results)):
       hardcodedResults = results[hardcodedIdx]
@@ -832,8 +834,9 @@ class WinningParameterDict:
         if benchmarkScore > winningScore:
           winningScore = benchmarkScore
           winningIdx = benchmarkIdx
-      #print winningIdx, winningScore
       winningParameters = benchmarkPermutations[winningIdx]
+      print "HCP[%u] Winner: idx=%u, score=%u, param=%s" \
+          % ( hardcodedIdx, winningIdx, winningScore, winningParameters)
       # (hardcodedParametersKey, oldWinningParameters, oldScore) = \
       matches = WinningParameterDict.get(hardcodedParameters, self.winners)
       if len(matches) != 1:
