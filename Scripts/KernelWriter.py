@@ -236,16 +236,16 @@ class KernelWriter:
         *kernel["LoopUnroll"]) / (kernel["WorkGroup0"]*kernel["WorkGroup1"])
     totalLoadsB  = (kernel["WorkGroup1"]*kernel["ThreadTile1"] \
         *kernel["LoopUnroll"]) / (kernel["WorkGroup0"]*kernel["WorkGroup1"])
-    numLoadsParaA = kernel["NumLoadsParaA"]
-    numLoadsParaB = kernel["NumLoadsParaB"]
+    numLoadsParaA = kernel["NumLoadsCoalescedA"]
+    numLoadsParaB = kernel["NumLoadsCoalescedB"]
     numLoadsPerpA = totalLoadsA / numLoadsParaA
     numLoadsPerpB = totalLoadsB / numLoadsParaB
 
 
     # num loads
     kStr += "/* num loads parallel and perpendicular to coalesced dimension */" + self.endLine
-    kStr += "#define NL_PARA_A %d%s" % (numLoadsParaA, self.endLine )
-    kStr += "#define NL_PARA_B %d%s" % (numLoadsParaB, self.endLine )
+    kStr += "#define NL_COAL_A %d%s" % (numLoadsParaA, self.endLine )
+    kStr += "#define NL_COAL_B %d%s" % (numLoadsParaB, self.endLine )
 
     # TODO - continue here, compute locally numloads, load sizes...
     kStr += "#define NL_PERP_A %d%s" % (numLoadsPerpA, self.endLine )
@@ -254,20 +254,20 @@ class KernelWriter:
 
     # load size
     if kernel["ProblemType"]["TLUA"]:
-      kStr += "#define LS_PARA_A (MT_%s/NL_PARA_A)%s" \
+      kStr += "#define LS_COAL_A (MT_%s/NL_COAL_A)%s" \
           % (tileCharA, self.endLine)
       kStr += "#define LS_PERP_A (UNROLL/NL_PERP_A)" + self.endLine
     else:
-      kStr += "#define LS_PARA_A (UNROLL/NL_PARA_A)%s" \
+      kStr += "#define LS_COAL_A (UNROLL/NL_COAL_A)%s" \
           % (self.endLine)
       kStr += "#define LS_PERP_A (MT_%s/NL_PERP_A)%s" \
           % ( tileCharA, self.endLine)
     if kernel["ProblemType"]["TLUB"]:
-      kStr += "#define LS_PARA_B (MT_%s/NL_PARA_B)%s" \
+      kStr += "#define LS_COAL_B (MT_%s/NL_COAL_B)%s" \
           % (tileCharB, self.endLine)
       kStr += "#define LS_PERP_B (UNROLL/NL_PERP_B)" + self.endLine
     else:
-      kStr += "#define LS_PARA_B (UNROLL/NL_PARA_B)%s" \
+      kStr += "#define LS_COAL_B (UNROLL/NL_COAL_B)%s" \
           % (self.endLine)
       kStr += "#define LS_PERP_B (MT_%s/NL_PERP_B)%s" % (tileCharB, self.endLine)
 
@@ -539,7 +539,7 @@ class KernelWriter:
     kStr += "  /* c indices (group) */" + self.endLine
 
 
-    if kernel["WorkGroupOrder"] < 0:
+    if kernel["WorkGroupMapping"] < 0:
       # swap order in which work-groups cover C
       kStr += "  %s groupSerial = %s(0) * %s(1) + %s(1);%s" \
         % (self.uint64Str, self.getGroupIdStr, self.getNumGroupsStr, self.getGroupIdStr, self.endLine)
@@ -581,29 +581,29 @@ class KernelWriter:
 
     kStr += "  unsigned int a" + tileCharA + " = "
     if kernel["ProblemType"]["TLUA"]:
-      kStr += "loadSerial%LS_PARA_A;" + self.endLine
+      kStr += "loadSerial%LS_COAL_A;" + self.endLine
     else:
-      kStr += "loadSerial/LS_PARA_A;" + self.endLine
+      kStr += "loadSerial/LS_COAL_A;" + self.endLine
 
     kStr += "  unsigned int b" + tileCharB + " = "
     if not kernel["ProblemType"]["TLUB"]:
-      kStr += "loadSerial/LS_PARA_B;" + self.endLine
+      kStr += "loadSerial/LS_COAL_B;" + self.endLine
     else:
-      kStr += "loadSerial%LS_PARA_B;" + self.endLine
+      kStr += "loadSerial%LS_COAL_B;" + self.endLine
     kStr += self.endLine
 
     kStr += "  /* unrolled summation index */" + self.endLine
     kStr += "  unsigned int a" + unrollChar + " = "
     if kernel["ProblemType"]["TLUA"]:
-      kStr += "loadSerial/LS_PARA_A;" + self.endLine
+      kStr += "loadSerial/LS_COAL_A;" + self.endLine
     else:
-      kStr += "loadSerial%LS_PARA_A;" + self.endLine
+      kStr += "loadSerial%LS_COAL_A;" + self.endLine
 
     kStr += "  unsigned int b" + unrollChar + " = "
     if not kernel["ProblemType"]["TLUB"]:
-      kStr += "loadSerial%LS_PARA_B;" + self.endLine
+      kStr += "loadSerial%LS_COAL_B;" + self.endLine
     else:
-      kStr += "loadSerial/LS_PARA_B;" + self.endLine
+      kStr += "loadSerial/LS_COAL_B;" + self.endLine
     kStr += self.endLine
 
     # other non-unrolled summation indices
@@ -688,46 +688,46 @@ class KernelWriter:
     ####################################
     # global -> register branches
     ####################################
-    if not kernel["EdgeType"] == "None":
+    if kernel["EdgeType"] == "Branch":
       kStr += "  /* conditionals to guard against loading A out-of-bounds */" + self.endLine
       for perp in range(0, numLoadsPerpA):
-        for para in range(0, kernel["NumLoadsParaA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
           kStr += "  bool condA_" + str(para) + "_" + str(perp) + " = "
           kStr += "( a%s+g%s*MT_%s+" % ( tileCharA, tileCharA, tileCharA)
           if not kernel["ProblemType"]["TLUA"]:
             kStr += "%d*LS_PERP_A" % (perp)
           else:
-            kStr += "%d*LS_PARA_A" % (para)
+            kStr += "%d*LS_COAL_A" % (para)
           kStr += " >= size%s);%s" %( tileCharA, self.endLine )
       kStr += self.endLine
 
-    if not kernel["EdgeType"] == "None":
+    if kernel["EdgeType"] == "Branch":
       kStr += "  /* conditionals to guard against loading B out-of-bounds */" + self.endLine
       for perp in range(0, numLoadsPerpB):
-        for para in range(0, kernel["NumLoadsParaB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
           kStr += "  bool condB_" + str(para) + "_" + str(perp) + " = "
           kStr += "( b%s+g%s*MT_%s+" % ( tileCharB, tileCharB, tileCharB)
           if not kernel["ProblemType"]["TLUB"]:
             kStr += "%d*LS_PERP_B" % (perp)
           else:
-            kStr += "%d*LS_PARA_B" % (para)
+            kStr += "%d*LS_COAL_B" % (para)
           kStr += " >= size%s);%s" % (tileCharB, self.endLine )
       kStr += self.endLine
 
     kStr += "  /* registers used for global -> local loads */" + self.endLine
     kStr += "  TYPE_A "
     for perp in range(0, numLoadsPerpA):
-      for para in range(0, kernel["NumLoadsParaA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
         kStr += "a_" + str(para) + "_" + str(perp)
-        if para == kernel["NumLoadsParaA"]-1 and perp == numLoadsPerpA-1:
+        if para == kernel["NumLoadsCoalescedA"]-1 and perp == numLoadsPerpA-1:
           kStr += ";" + self.endLine
         else:
           kStr += ", "
     kStr += "  TYPE_B "
     for perp in range(0, numLoadsPerpB):
-      for para in range(0, kernel["NumLoadsParaB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
         kStr += "b_" + str(para) + "_" + str(perp)
-        if para == kernel["NumLoadsParaB"]-1 and perp == numLoadsPerpB-1:
+        if para == kernel["NumLoadsCoalescedB"]-1 and perp == numLoadsPerpB-1:
           kStr += ";" + self.endLine
         else:
           kStr += ", "
@@ -802,9 +802,9 @@ class KernelWriter:
     #      % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
     #  indent += "  "
     for perp in range(0, numLoadsPerpA):
-      for para in range(0, kernel["NumLoadsParaA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
         kStr += indent
-        #condPara = (para==kernel["NumLoadsParaA"]-1 and kernel.lastLoadRequiresGuardParaA())
+        #condPara = (para==kernel["NumLoadsCoalescedA"]-1 and kernel.lastLoadRequiresGuardParaA())
         #condPerp = (perp==numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
         #if condPara or condPerp:
         #  kStr += "if ( "
@@ -818,11 +818,11 @@ class KernelWriter:
 
         kStr += "a_" + str(para) + "_" + str(perp) + " = "
 
-        if not kernel["EdgeType"] == "None":
+        if kernel["EdgeType"] == "Branch":
           kStr += "( condA_%s_%s )" %( str(para), str(perp) )
           kStr += " ? %s : " %( kernel["ProblemType"]["DataType"].zeroString(self.backend) )
 
-        kStr += "A[ %d*LS_PARA_A*strideA%s + %d*LS_PERP_A*strideA%s];" \
+        kStr += "A[ %d*LS_COAL_A*strideA%s + %d*LS_PERP_A*strideA%s];" \
             % (para, unrollChar if not kernel["ProblemType"]["TLUA"] else tileCharA, perp, unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA)
         #if condPara or condPerp:
         #  kStr += " }" + self.endLine
@@ -841,9 +841,9 @@ class KernelWriter:
     #      % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
     #  indent += "  "
     for perp in range(0, numLoadsPerpB):
-      for para in range(0, kernel["NumLoadsParaB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
         kStr += indent
-        #condPara = (para==kernel["NumLoadsParaB"]-1 and kernel.lastLoadRequiresGuardParaB())
+        #condPara = (para==kernel["NumLoadsCoalescedB"]-1 and kernel.lastLoadRequiresGuardParaB())
         #condPerp = (perp==numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
         #if condPara or condPerp:
         #  kStr += "if ( "
@@ -857,11 +857,11 @@ class KernelWriter:
 
         kStr += "b_" + str(para) + "_" + str(perp) + " = "
 
-        if not kernel["EdgeType"] == "None":
+        if kernel["EdgeType"] == "Branch":
           kStr += "( condB_%s_%s )" % ( str(para), str(perp) )
           kStr += " ? %s : " % ( kernel["ProblemType"]["DataType"].zeroString(self.backend) )
 
-        kStr += "B[ %d*LS_PARA_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
+        kStr += "B[ %d*LS_COAL_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
             % (para, unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB, perp, unrollChar if kernel["ProblemType"]["TLUB"] else tileCharB)
         #if condPara or condPerp:
         #  kStr += " }" + self.endLine
@@ -884,10 +884,10 @@ class KernelWriter:
     #      % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
     #  indent += "  "
     for perp in range(0, numLoadsPerpA):
-      for para in range(0, kernel["NumLoadsParaA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
         kStr += indent
         # if thread should be storing
-        #condPara = (para==kernel["NumLoadsParaA"]-1 and kernel.lastLoadRequiresGuardParaA())
+        #condPara = (para==kernel["NumLoadsCoalescedA"]-1 and kernel.lastLoadRequiresGuardParaA())
         #condPerp = (perp==numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
         #if condPara or condPerp:
         #  kStr += "if ( "
@@ -899,7 +899,7 @@ class KernelWriter:
         #    kStr += "a%s < %d" % (unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
         #  kStr += " ) { "
         # store
-        kStr += "lA[ %d*LS_PARA_A" % para
+        kStr += "lA[ %d*LS_COAL_A" % para
         if not kernel["ProblemType"]["TLUA"]:
           kStr += "*(MT_%s+PAD)" % tileCharA
         kStr += " + %d*LS_PERP_A" % perp
@@ -921,10 +921,10 @@ class KernelWriter:
     #      % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
     #  indent += "  "
     for perp in range(0, numLoadsPerpB):
-      for para in range(0, kernel["NumLoadsParaB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
         kStr += indent
         # if thread should store
-        #condPara = (para==kernel["NumLoadsParaB"]-1 and kernel.lastLoadRequiresGuardParaB())
+        #condPara = (para==kernel["NumLoadsCoalescedB"]-1 and kernel.lastLoadRequiresGuardParaB())
         #condPerp = (perp==numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
         #if condPara or condPerp:
         #  kStr += "if ( "
@@ -936,7 +936,7 @@ class KernelWriter:
         #    kStr += "b%s < %d" % (unrollChar if kernel["ProblemType"]["TLUB"] else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
         #  kStr += " ) { "
         # store
-        kStr += "lB[ %d*LS_PARA_B" % para
+        kStr += "lB[ %d*LS_COAL_B" % para
         if not kernel["ProblemType"]["TLUB"]:
           kStr += "*(MT_%s+PAD)" % tileCharB
         kStr += " + %d*LS_PERP_B" % perp
@@ -1024,9 +1024,9 @@ class KernelWriter:
       #      % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
       #  indent += "  "
       for perp in range(0, numLoadsPerpA):
-        for para in range(0, kernel["NumLoadsParaA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
           kStr += indent
-          #condPara = (para==kernel["NumLoadsParaA"]-1 and kernel.lastLoadRequiresGuardParaA())
+          #condPara = (para==kernel["NumLoadsCoalescedA"]-1 and kernel.lastLoadRequiresGuardParaA())
           #condPerp = (perp==numLoadsPerpA-1 and kernel.lastLoadRequiresGuardPerpA())
           #if condPara or condPerp:
           #  kStr += "if ( "
@@ -1037,7 +1037,7 @@ class KernelWriter:
           #      kStr += " && "
           #    kStr += "a%s < %d" % (unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA, kernel.totalLoadSizePerpA % kernel.loadSizePerpA )
           #  kStr += " ) { "
-          kStr += "lA[ %d*LS_PARA_A" % para
+          kStr += "lA[ %d*LS_COAL_A" % para
           if not kernel["ProblemType"]["TLUA"]:
             kStr += "*(MT_%s+PAD)" % tileCharA
           kStr += " + %d*LS_PERP_A" % perp
@@ -1049,18 +1049,18 @@ class KernelWriter:
           if kernel["ProblemType"]["TLUA"]:
             kStr += "%d*LS_PERP_A >= sumIter%s )" % (perp, unrollChar)
           else:
-            kStr += "%d*LS_PARA_A >= sumIter%s )" % (para, unrollChar)
+            kStr += "%d*LS_COAL_A >= sumIter%s )" % (para, unrollChar)
           # guard around branch
-          if not kernel["EdgeType"] == "None":
+          if kernel["EdgeType"] == "Branch":
             kStr += " || "
             kStr += "( a%s+g%s*MT_%s+" % ( tileCharA, tileCharA, tileCharA)
             if not kernel["ProblemType"]["TLUA"]:
               kStr += "%d*LS_PERP_A" % (perp)
             else:
-              kStr += "%d*LS_PARA_A" % (para)
+              kStr += "%d*LS_COAL_A" % (para)
             kStr += " >= size%s)" %( tileCharA )
           kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.backend)
-          kStr += "A[ %d*LS_PARA_A*strideA%s + %d*LS_PERP_A*strideA%s];" \
+          kStr += "A[ %d*LS_COAL_A*strideA%s + %d*LS_PERP_A*strideA%s];" \
               % (para, unrollChar if not kernel["ProblemType"]["TLUA"] else tileCharA, perp, unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA)
           #if condPara or condPerp:
           #  kStr += " }" + self.endLine
@@ -1080,9 +1080,9 @@ class KernelWriter:
       #      % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
       #  indent += "  "
       for perp in range(0, numLoadsPerpB):
-        for para in range(0, kernel["NumLoadsParaB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
           kStr += indent
-          #condPara = (para==kernel["NumLoadsParaB"]-1 and kernel.lastLoadRequiresGuardParaB())
+          #condPara = (para==kernel["NumLoadsCoalescedB"]-1 and kernel.lastLoadRequiresGuardParaB())
           #condPerp = (perp==numLoadsPerpB-1 and kernel.lastLoadRequiresGuardPerpB())
           #if condPara or condPerp:
           #  kStr += "if ( "
@@ -1094,7 +1094,7 @@ class KernelWriter:
           #    kStr += "b%s < %d" % (unrollChar if kernel["ProblemType"]["TLUB"] else tileCharB, kernel.totalLoadSizePerpB % kernel.loadSizePerpB )
           #  kStr += " ) { "
 
-          kStr += "lB[ %d*LS_PARA_B" % para
+          kStr += "lB[ %d*LS_COAL_B" % para
           if not kernel["ProblemType"]["TLUB"]:
             kStr += "*(MT_%s+PAD)" % tileCharB
           kStr += " + %d*LS_PERP_B" % perp
@@ -1106,19 +1106,19 @@ class KernelWriter:
           if kernel["ProblemType"]["TLUB"]:
             kStr += "%d*LS_PERP_B >= sumIter%s )" % (perp, unrollChar)
           else:
-            kStr += "%d*LS_PARA_B >= sumIter%s )" % (para, unrollChar)
+            kStr += "%d*LS_COAL_B >= sumIter%s )" % (para, unrollChar)
           # guard branch
-          if not kernel["EdgeType"] == "None":
+          if kernel["EdgeType"] == "Branch":
             kStr += " || "
             kStr += "( b%s+g%s*MT_%s+" % ( tileCharB, tileCharB, tileCharB)
             if not kernel["ProblemType"]["TLUB"]:
               kStr += "%d*LS_PERP_B" % (perp)
             else:
-              kStr += "%d*LS_PARA_B" % (para)
+              kStr += "%d*LS_COAL_B" % (para)
             kStr += " >= size%s) " % (tileCharB )
 
           kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.backend)
-          kStr += "B[ %d*LS_PARA_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
+          kStr += "B[ %d*LS_COAL_B*strideB%s + %d*LS_PERP_B*strideB%s];" \
               % (para, unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB, perp, unrollChar if kernel["ProblemType"]["TLUB"] else tileCharB)
           #if condPara or condPerp:
           #  kStr += " }" + self.endLine
@@ -1233,13 +1233,13 @@ class KernelWriter:
       for b in range(0, kernel["ThreadTile1"]):
         numEdges = 0
         #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        if not kernel["EdgeType"] == "None":
+        if kernel["EdgeType"] == "Branch":
           kStr += "  if (globalC" \
               + tileChar0 + " + " \
               + str(a) + "*WG_" + tileChar0 + "" + " < size" \
               + tileChar0 + ") {"
           numEdges += 1
-        if not kernel["EdgeType"] == "None":
+        if kernel["EdgeType"] == "Branch":
           kStr += "  if (globalC" \
               + tileChar1 + " + " \
               + str(b) + "*WG_" + tileChar1 + "" + " < size" \
@@ -1286,7 +1286,7 @@ class KernelWriter:
   # source file string
   ##############################################################################
   def getSourceFileString(self, kernel):
-    fileString = ""
+    fileString = "" # CHeader
     if not globalParameters["MergeFiles"]:
       if globalParameters["ShortFileNames"]:
         kernelFileName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -1323,7 +1323,7 @@ class KernelWriter:
   ##############################################################################
   def getHeaderFileString(self, kernel):
     kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
-    fileString = ""
+    fileString = "" # CHeader
     #fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     #fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
     if not globalParameters["MergeFiles"]:

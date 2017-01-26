@@ -89,10 +89,13 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-1) get current problem sizes
-    if "ProblemSizes" in configBenchmarkCommonParameters[0]:
-      # user specified one, so use it, remove it from config and insert later
-      currentProblemSizes = configBenchmarkCommonParameters[0]["ProblemSizes"]
-      del configBenchmarkCommonParameters[0]
+    if configBenchmarkCommonParameters != None:
+      if len(configBenchmarkCommonParameters) > 0:
+        if "ProblemSizes" in configBenchmarkCommonParameters[0]:
+          # user specified, so use it, remove it from config and insert later
+          currentProblemSizes = \
+	    configBenchmarkCommonParameters[0]["ProblemSizes"]
+          del configBenchmarkCommonParameters[0]
     else:
       currentProblemSizes = defaultProblemSizes
     # into common we put in all Dcommon that
@@ -132,10 +135,12 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-3) get current problem sizes
-    if "ProblemSizes" in configBenchmarkForkParameters[0]:
-      # user specified one, so use it, remove it from config and insert later
-      currentProblemSizes = configBenchmarkForkParameters[0]["ProblemSizes"]
-      del configBenchmarkForkParameters[0]
+    if configBenchmarkForkParameters != None:
+      if len(configBenchmarkForkParameters) > 0:
+        if "ProblemSizes" in configBenchmarkForkParameters[0]:
+          # user specified, so use it, remove it from config and insert later
+          currentProblemSizes = configBenchmarkForkParameters[0]["ProblemSizes"]
+          del configBenchmarkForkParameters[0]
     # into Bfork we put in all DBfork that
     # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
     # followed by CBforked
@@ -172,10 +177,12 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-5) benchmark join
-    if "ProblemSizes" in configBenchmarkJoinParameters[0]:
-      # user specified one, so use it, remove it from config and insert later
-      currentProblemSizes = configBenchmarkJoinParameters[0]["ProblemSizes"]
-      del configBenchmarkJoinParameters[0]
+    if configBenchmarkJoinParameters != None:
+      if len(configBenchmarkJoinParameters) > 0:
+        if "ProblemSizes" in configBenchmarkJoinParameters[0]:
+          # user specified, so use it, remove it from config and insert later
+          currentProblemSizes = configBenchmarkJoinParameters[0]["ProblemSizes"]
+          del configBenchmarkJoinParameters[0]
     # into Bjoin we put in all DBjoin that
     # don't show up in Bcommon/Bfork/BBfork/Bjoin/CBjoin
     # followed by CBjoin
@@ -217,7 +224,9 @@ class BenchmarkProcess:
     ############################################################################
     # (I-8) if fork and join, but no benchmark fork, append dummy to get numbers
     if len(self.forkParameters) > 0 and len(self.joinParameters) > 0 \
-        and len(self.benchmarkForkParameters) == 0:
+        and (len(self.benchmarkForkParameters) == 0 \
+	or (len(self.benchmarkForkParameters) == 1 \
+	and hasParam("ProblemSizes", self.benchmarkForkParameters)) ):
       self.benchmarkForkParameters.append({"BenchmarkFork": [0]})
 
 

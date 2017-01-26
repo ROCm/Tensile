@@ -34,6 +34,7 @@ globalParameters["ValidationPrintValids"] = False
 globalParameters["NumElementsToValidate"] = -1
 globalParameters["ShortFileNames"] = False
 globalParameters["MergeFiles"] = True
+globalParameters["RectangularLoadsOnly"] = False
 # protect against invalid kernel
 globalParameters["MaxThreads"] = 256
 globalParameters["MaxRegisters"] = 256
@@ -66,7 +67,7 @@ defaultForkParameters = [
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
-    {"WorkGroupOrder":          [ 1 ] },
+    {"WorkGroupMapping":        [ 1 ] },
     {"LoopUnroll":              [ 16, 8, 4 ] },
     ]
 # final list of solutions
@@ -75,12 +76,12 @@ defaultJoinParameters = [
     ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [
-    {"NumLoadsParaA":           [ 1, 2, 3, 4, 6, 8 ] },
-    {"NumLoadsParaB":           [ 1, 2, 3, 4, 6, 8 ] },
-    {"GlobalLoadVectorWidth":   [ 4 ] },
-    {"LocalStoreVectorWidth":   [ 4 ] },
-    {"LocalLoadVectorWidth":    [ 4 ] },
-    {"GlobalStoreVectorWidth":  [ 4 ] },
+    {"NumLoadsCoalescedA":       [ 1, 2, 3, 4, 6, 8 ] },
+    {"NumLoadsCoalescedB":       [ 1, 2, 3, 4, 6, 8 ] },
+    {"VectorWidthGlobalLoad":   [ 4 ] },
+    {"VectorWidthGlobalStore":  [ 4 ] },
+    {"VectorWidthLocalLoad":    [ 4 ] },
+    {"VectorWidthLocalStore":   [ 4 ] },
     ]
 
 # derrived parameters may show up in solution dict but don't use for naming
@@ -93,8 +94,8 @@ derrivedParameters = [
     "ThreadTile1",
     "NumLoadsA",
     "NumLoadsB",
-    "NumLoadsPerpA",
-    "NumLoadsPerpB",
+    "NumLoadsPerpendicularA",
+    "NumLoadsPerpendicularB",
     ]
 
 # dictionary of defaults comprised for 1st option for each parameter
@@ -219,14 +220,15 @@ def assignGlobalParameters( config ):
 
   printExtra("GlobalParameters")
   for key in globalParameters:
-    value = globalParameters[key]
+    defaultValue = globalParameters[key]
     if key in config:
-      if config[key] == globalParameters[key]:
-        printExtra(" %24s: %8s (same)" % (key, value) )
+      configValue = config[key]
+      if configValue == defaultValue:
+        printExtra(" %24s: %8s (same)" % (key, configValue) )
       else:
-        printExtra(" %24s: %8s (overriden)" % (key, value) )
+        printExtra(" %24s: %8s (overriden)" % (key, configValue) )
     else:
-      printExtra(" %24s: %8s (unspecified)" % (key, value) )
+      printExtra(" %24s: %8s (unspecified)" % (key, defaultValue) )
 
   for key in config:
     value = config[key]
@@ -251,5 +253,5 @@ def ensurePath( path ):
 
 
 # TODO
-globalParameters["CMakeHeader"] = "# Header\n\n"
-globalParameters["CHeader"] = "// Header\n\n"
+CMakeHeader = "# Header\n\n"
+CHeader = "// Header\n\n"

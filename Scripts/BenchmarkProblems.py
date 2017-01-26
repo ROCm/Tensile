@@ -383,6 +383,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     if not globalParameters["MergeFiles"]:
       solutionSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
           "Solutions", solutionFileName+".cpp"), "w")
+    solutionSourceFile.write(CHeader)
     solutionSourceFile.write( \
         solutionWriter.getSourceFileString(solution))
     if not globalParameters["MergeFiles"]:
@@ -392,6 +393,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
           "Solutions", solutionFileName+".h"), "w")
+    solutionHeaderFile.write(CHeader)
     solutionHeaderFile.write( \
         solutionWriter.getHeaderFileString(solution))
     if not globalParameters["MergeFiles"]:
@@ -425,6 +427,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     if not globalParameters["MergeFiles"]:
       kernelSourceFile = open(os.path.join(globalParameters["WorkingPath"], \
           "Kernels", kernelName+".cpp"), "w")
+    kernelSourceFile.write(CHeader)
     kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
@@ -433,6 +436,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
           "Kernels", kernelName+".h"), "w")
+    kernelHeaderFile.write(CHeader)
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
@@ -445,7 +449,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   ##############################################################################
   generatedFile = open(os.path.join(globalParameters["WorkingPath"], \
       "Generated.cmake"), "w")
-  generatedFile.write(globalParameters["CMakeHeader"])
+  generatedFile.write(CMakeHeader)
   generatedFile.write("set( TensileBenchmark_Solutions\n")
   # write solution names
   if globalParameters["MergeFiles"]:
@@ -493,7 +497,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   ##############################################################################
   benchmarkParametersFile = open(os.path.join(globalParameters["WorkingPath"], \
       "GeneratedBenchmarkParameters.h"), "w")
-  benchmarkParametersFile.write(globalParameters["CHeader"])
+  benchmarkParametersFile.write(CHeader)
 
   h = ""
   if globalParameters["MergeFiles"]:

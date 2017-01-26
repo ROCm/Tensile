@@ -778,16 +778,18 @@ class SolutionWriter:
   # get full source code
   # called from BenchmarkProblems
   def getSourceFileString(self, solution):
-    # TODO append copyright
-    return self.getSourceString(solution)
+    fileStr = "" # CHeader
+    fileStr += self.getSourceString(solution)
+    return fileStr
 
 
   ########################################
   # get full header code
   # called from BenchmarkProblems
   def getHeaderFileString(self, solution):
-    # TODO append copyright
-    return self.getHeaderString(solution)
+    fileStr = "" # CHeader
+    fileStr += self.getHeaderString(solution)
+    return fileStr
 
 
   ##############################################################################
@@ -816,6 +818,7 @@ class SolutionWriter:
     else:
       totalElementsParaB = solution["LoopUnroll"]
       totalElementsPerpB = solution["MacroTile1"]
+    print "ParaElements: ", totalElementsParaA, totalElementsPerpA, totalElementsParaB, totalElementsPerpB
     totalElementsA = totalElementsParaA * totalElementsPerpA
     totalElementsB = totalElementsParaB * totalElementsPerpB
 
@@ -833,49 +836,65 @@ class SolutionWriter:
     else:
       solution["NumLoadsB"] = totalElementsB / numThreads
 
-    # how many loads perp
-    if solution["NumLoadsA"] % solution["NumLoadsParaA"] != 0:
-      if printReason: print "numLoadsA %u %% numLoadsParaA %u != 0" \
-          % (solution["NumLoadsA"], solution["NumLoadsParaA"])
-      return False
-    else:
-      solution["NumLoadsPerpA"] = solution["NumLoadsA"] \
-          / solution["NumLoadsParaA"]
-    if solution["NumLoadsB"] % solution["NumLoadsParaB"] != 0:
-      if printReason: print "numLoadsB %u %% numLoadsParaB %u != 0" \
-          % (solution["NumLoadsB"], solution["NumLoadsParaB"])
-      return False
-    else:
-      solution["NumLoadsPerpB"] = solution["NumLoadsB"] \
-          / solution["NumLoadsParaB"]
+      # how many loads para
+      if solution["NumLoadsA"] % solution["NumLoadsCoalescedA"] != 0:
+        if printReason: print "numLoadsA %u %% numLoadsParaA %u != 0" \
+            % (solution["NumLoadsA"], solution["NumLoadsCoalescedA"])
+        return False
+      else:
+        solution["NumLoadsPerpendicularA"] = solution["NumLoadsA"] \
+            / solution["NumLoadsCoalescedA"]
+      if solution["NumLoadsB"] % solution["NumLoadsCoalescedB"] != 0:
+        if printReason: print "numLoadsB %u %% numLoadsParaB %u != 0" \
+            % (solution["NumLoadsB"], solution["NumLoadsCoalescedB"])
+        return False
+      else:
+        solution["NumLoadsPerpendicularB"] = solution["NumLoadsB"] \
+            / solution["NumLoadsCoalescedB"]
 
-    # load size para/perp A
-    if totalElementsParaA % solution["NumLoadsParaA"] != 0:
-      if printReason: print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
-          % (totalElementsParaA, solution["NumLoadsParaA"])
-      return False
-    else:
-      loadSizeParaA = totalElementsParaA / solution["NumLoadsParaA"]
-    if totalElementsPerpA % solution["NumLoadsPerpA"] != 0:
-      if printReason: print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
-          % (totalElementsPerpA, solution["NumLoadsPerpA"])
-      return False
-    else:
-      loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpA"]
+    if globalParameters["RectangularLoadsOnly"]:
+      # load size para/perp A
+      if totalElementsParaA % solution["NumLoadsCoalescedA"] != 0:
+        if printReason: print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
+            % (totalElementsParaA, solution["NumLoadsCoalescedA"])
+        return False
+      else:
+        loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
+      if totalElementsPerpA % solution["NumLoadsPerpendicularA"] != 0:
+        if printReason: print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+            % (totalElementsPerpA, solution["NumLoadsPerpendicularA"])
+        return False
+      else:
+        loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
 
-    # load size para/perp B
-    if totalElementsParaB % solution["NumLoadsParaB"] != 0:
-      if printReason: print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
-          % (totalElementsParaB, solution["NumLoadsParaB"])
-      return False
+      # load size para/perp B
+      if totalElementsParaB % solution["NumLoadsCoalescedB"] != 0:
+        if printReason: print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
+            % (totalElementsParaB, solution["NumLoadsCoalescedB"])
+        return False
+      else:
+        loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
+      if totalElementsPerpB % solution["NumLoadsPerpendicularB"] != 0:
+        if printReason: print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+            % (totalElementsPerpB, solution["NumLoadsPerpendicularB"])
+        return False
+      else:
+        loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
+    """
     else:
-      loadSizeParaB = totalElementsParaB / solution["NumLoadsParaB"]
-    if totalElementsPerpB % solution["NumLoadsPerpB"] != 0:
-      if printReason: print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
-          % (totalElementsPerpB, solution["NumLoadsPerpB"])
-      return False
-    else:
-      loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpB"]
+      totalLoadsA = solution["NumLoadsCoalescedA"] \
+          * solution["NumLoadsPerpendicularA"]
+      totalLoadsB = solution["NumLoadsCoalescedB"] \
+          * solution["NumLoadsPerpendicularB"]
+      if totalElementsA != totalLoadsA * numThreads:
+        if printReason: print "totalElementsA %u != totalLoadsA %u * numThreads %u" \
+            % (totalElementsA, totalLoadsA, numThreads)
+        return False
+      if totalElementsB != totalLoadsB * numThreads:
+        if printReason: print "totalElementsB %u != totalLoadsB %u * numThreads %u" \
+            % (totalElementsB, totalLoadsB, numThreads)
+        return False
+    """
 
     #lastLoadRequiresGuardParaA = totalLoadSizeParaA < numLoadsParaA * loadSizeParaA
     #lastLoadRequiresGuardPerpA = totalLoadSizePerpA < numLoadsPerpA * loadSizePerpA
