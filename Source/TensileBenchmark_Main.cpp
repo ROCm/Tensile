@@ -244,16 +244,16 @@ void benchmarkAllSolutionsForSize(
     } // sync loop
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
-    double gflops = totalFlops / timeMS / 1000000.0;
+    double gflops = totalFlops / timeMs / 1000000.0;
 
     if (numElementsToValidate) {
-      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]: t:"
+      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]: "
         << std::setw(9) << std::fixed << std::setprecision(3)
         << gflops << " GFlop/s v: " << (numInvalids ? "FAILED" : "PASSED")
         << " p: " << (numChecked-numInvalids) << "/" << numChecked
         << "  " << solutionNames[solutionIdx] << std::endl;
     } else {
-      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]: t:"
+      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]: "
         << std::setw(9) << std::fixed << std::setprecision(3)
         << gflops << " GFlop/s (" << solutionNames[solutionIdx] << ")" << std::endl;
     }

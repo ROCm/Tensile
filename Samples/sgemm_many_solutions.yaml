@@ -34,8 +34,8 @@ BenchmarkProblems:
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
-      - NumLoadsParaA: [ 1, 2, 3, 4, 5, 6 ]
-      - NumLoadsParaB: [ 1, 2, 3, 4, 5, 6 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
       - LoopUnroll: [4, 8, 16]
     #BenchmarkForkParameters:
     #  - ProblemSizes: [ [256] ] # important for join step

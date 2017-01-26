@@ -797,7 +797,7 @@ class SolutionWriter:
   ##############################################################################
   @ staticmethod
   def solutionParametersConsistent(solution):
-    printReason = True
+    printReason = False
 
     numThreads = solution["WorkGroup0"]*solution["WorkGroup1"]
     if numThreads > globalParameters["MaxThreads"]:
@@ -818,7 +818,6 @@ class SolutionWriter:
     else:
       totalElementsParaB = solution["LoopUnroll"]
       totalElementsPerpB = solution["MacroTile1"]
-    print "ParaElements: ", totalElementsParaA, totalElementsPerpA, totalElementsParaB, totalElementsPerpB
     totalElementsA = totalElementsParaA * totalElementsPerpA
     totalElementsB = totalElementsParaB * totalElementsPerpB
 
@@ -880,26 +879,7 @@ class SolutionWriter:
         return False
       else:
         loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
-    """
-    else:
-      totalLoadsA = solution["NumLoadsCoalescedA"] \
-          * solution["NumLoadsPerpendicularA"]
-      totalLoadsB = solution["NumLoadsCoalescedB"] \
-          * solution["NumLoadsPerpendicularB"]
-      if totalElementsA != totalLoadsA * numThreads:
-        if printReason: print "totalElementsA %u != totalLoadsA %u * numThreads %u" \
-            % (totalElementsA, totalLoadsA, numThreads)
-        return False
-      if totalElementsB != totalLoadsB * numThreads:
-        if printReason: print "totalElementsB %u != totalLoadsB %u * numThreads %u" \
-            % (totalElementsB, totalLoadsB, numThreads)
-        return False
-    """
 
-    #lastLoadRequiresGuardParaA = totalLoadSizeParaA < numLoadsParaA * loadSizeParaA
-    #lastLoadRequiresGuardPerpA = totalLoadSizePerpA < numLoadsPerpA * loadSizePerpA
-    #loadRequiresFewerThreadsA = workGroup0*workGroup1 > loadSizeParaA * loadSizePerpA
-# same for B
     # too much LDS
     sizeLDS = solution["LoopUnroll"] \
         * (solution["PadLDS"] * 2 + solution["MacroTile0"] \
@@ -908,8 +888,6 @@ class SolutionWriter:
     if sizeLDS > globalParameters["MaxLDS"]:
       if printReason: print "Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
       return False
-    #else:
-    #  if printReason: print "Kernel Uses %u < %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
 
     return True
 

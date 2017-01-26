@@ -2,14 +2,9 @@ Parameters:
   Name: GEMM_Catalyst_15.201
   Backend: OCL
   DebugPrintLevel: 2
-  ForceRedo: False
+  ForceRedo: True
   CMakeBuildType: Release
-  SolutionPrintDebug: False
-  NumElementsToValidate: 16
-  ValidationMaxToPrint: 16
-  ValidationPrintValids: False
-  ShortFileNames: False
-  MergeFiles: True
+  NumElementsToValidate: 0
 
   
 
@@ -19,38 +14,36 @@ BenchmarkProblems:
   - ProblemType:
       OperationType: GEMM
       DataType: s
-      #TransposeA: False
-      #TransposeB: True
       TransposeA: False
       TransposeB: True
       UseBeta: False
 
     InitialSolutionParameters:
       LoopTail: False
-      WorkGroupEdge: 16
-      ThreadTileEdge: 4
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
       - LoopTail: [ False ]
       - SplitU: [ 1 ]
-      - ThreadTileShape: [ 0 ]
       - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
       - WorkGroupOrder: [ 1 ]
+      - WorkGroupShape: [ 0 ]
+      - ThreadTileShape: [ 0 ]
+      #- LoopUnroll: [16]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [2, 4, 6, 8]
-    BenchmarkForkParameters:
+      - ThreadTileEdge: [2, 4 ]
+      - NumLoadsCoalescedA: [ 1, 2, 4 ]
+      - NumLoadsCoalescedB: [ 1, 2, 4 ]
       - LoopUnroll: [4, 8, 16]
-        WorkGroupShape: [ 0, 1 ]
+    #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
       - DepthU
-    BenchmarkJoinParameters:
-      - NumLoadsParaA: [ 1, 2, 3, 4 ]
-        NumLoadsParaB: [ 1, 2, 3, 4 ]
+    #BenchmarkJoinParameters:
+      #- LoopUnroll: [4, 8, 16]
     BenchmarkFinalParameters:
       ProblemSizes: [ [32, 32, 32, 128], [32, 32, 32, 128], [32, 32, 32, 128] ]
 
