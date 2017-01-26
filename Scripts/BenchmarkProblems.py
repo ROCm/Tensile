@@ -311,9 +311,10 @@ def getResults(resultsFileName, solutions):
         solutionsForHardcoded = solutions[i]
         for j in range(0, len(solutionsForHardcoded)):
           solution = solutionsForHardcoded[j]
-          time_ms = float(row[idx])
-          flops = totalFlops / (time_ms / 1000)
-          gflops = flops / (1000*1000*1000)
+          gflops = float(row[idx])
+          #time_ms = float(row[idx])
+          #flops = totalFlops / (time_ms / 1000)
+          #gflops = flops / (1000*1000*1000)
           results[i][j].append(gflops)
           idx += 1
   return results
@@ -602,7 +603,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   ##############################################################################
   h += "/* solutions */\n"
   h += "const unsigned int numSolutions = %u;\n" % len(solutions)
-  h += "float solutionTimes[numProblems][numSolutions]; // milliseconds\n"
+  h += "float solutionPerf[numProblems][numSolutions]; // milliseconds\n"
   h += "\n"
   h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
   argList = solutionWriter.getArgList(solutions[0])

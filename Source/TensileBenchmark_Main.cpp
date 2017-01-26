@@ -45,7 +45,7 @@ int main( int argc, char *argv[] ) {
   unsigned int currentMappedIdx = 0;
 #if Tensile_BACKEND_OCL
   if (!numElementsToValidate) {
-    std::cout << "Pre-compiling OpenCL kernels";
+    std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
     for (unsigned int i = 0; i < totalIndices; i++) {
       if (indexIsSized[i]) {
         fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
@@ -244,18 +244,21 @@ void benchmarkAllSolutionsForSize(
     } // sync loop
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
+    double gflops = totalFlops / timeMS / 1000000.0;
+
     if (numElementsToValidate) {
       std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]: t:"
-        << std::setw(7) << std::fixed << std::setprecision(3)
-        << timeMs << " ms v: " << (numInvalids ? "FAILED" : "PASSED")
+        << std::setw(9) << std::fixed << std::setprecision(3)
+        << gflops << " GFlop/s v: " << (numInvalids ? "FAILED" : "PASSED")
         << " p: " << (numChecked-numInvalids) << "/" << numChecked
         << "  " << solutionNames[solutionIdx] << std::endl;
     } else {
-      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]: t:" << timeMs
-        << " ms (" << solutionNames[solutionIdx] << ")" << std::endl;
+      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]: t:"
+        << std::setw(9) << std::fixed << std::setprecision(3)
+        << gflops << " GFlop/s (" << solutionNames[solutionIdx] << ")" << std::endl;
     }
-    file << ", " << timeMs;
-    solutionTimes[problemIdx][solutionIdx ] = static_cast<float>(timeMs);
+    file << ", " << gflops;
+    solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
   file << std::endl;
 } // benchmark solutions
