@@ -72,7 +72,9 @@ parallel rocm_fiji: {
           echo ${scm_dir}
           curl -O http://pyyaml.org/download/pyyaml/PyYAML-3.12.tar.gz
           tar xvzf PyYAML-3.12.tar.gz
-          python PyYAML-3.12/setup.py --without-libyaml install
+          cd PyYAML-3.12/
+          python setup.py --without-libyaml install
+          cd ../
           """
 
           sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/sgemm_NT_5760.yaml ${scm_dir}/../sgemm_NT_5760"
