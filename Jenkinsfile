@@ -67,9 +67,14 @@ parallel rocm_fiji: {
         //}
 
         stage("unit tests") {
-          sh "pwd"
-          sh "echo ${scm_dir}"
-          sh "curl -O ${scm_dir}/../PyYAML/http://yyaml.org/download/yyaml/PyYAML-3.12.tar.gz"
+          sh """
+          pwd
+          echo ${scm_dir}
+          curl -O http://yyaml.org/download/yyaml/PyYAML-3.12.tar.gz
+          tar xvzf PyYAML-3.12.tar.gz
+          python setup.py --without-libyaml install"
+          """
+
           sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/sgemm_NT_5760.yaml ${scm_dir}/../sgemm_NT_5760"
         }
 
