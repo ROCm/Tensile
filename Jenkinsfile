@@ -52,64 +52,32 @@ parallel rocm_fiji: {
               hipconfig --version
         '''
 
-        dir("${build_dir_release}") {
-          stage("configure clang release") {
-            // withEnv(['CXXFLAGS=-I /usr/include/c++/4.8 -I /usr/include/x86_64-linux-gnu/c++/4.8  -I /usr/include/x86_64-linux-gnu', 'HIP_PATH=/opt/rocm/hip']) {
-            // --amdgpu-target=AMD:AMDGPU:8:0:3
-              sh "cmake -DCMAKE_BUILD_TYPE=Release ${scm_dir}"
-            // }
-          }
+      dir("${build_dir_release}") {
+        //stage("configure clang release") {
+          // withEnv(['CXXFLAGS=-I /usr/include/c++/4.8 -I /usr/include/x86_64-linux-gnu/c++/4.8  -I /usr/include/x86_64-linux-gnu', 'HIP_PATH=/opt/rocm/hip']) {
+          // --amdgpu-target=AMD:AMDGPU:8:0:3
+        //    sh "cmake -DCMAKE_BUILD_TYPE=Release ${scm_dir}"
+          // }
+        //}
 
-          stage("Build") {
-            // withEnv(['HCC_AMDGPU_TARGET=AMD:AMDGPU:7:0:1,AMD:AMDGPU:8:0:3']) {
-              sh 'make -j 8'
-            // }
-          }
+        //stage("Build") {
+          // withEnv(['HCC_AMDGPU_TARGET=AMD:AMDGPU:7:0:1,AMD:AMDGPU:8:0:3']) {
+        //    sh 'make -j 8'
+          // }
+        //}
 
-          stage("unit tests") {
-            // To trim test time, only execute single digit tests
-            sh "python ${scm_dir}/test/test.py -b HIP --problem-set full"
-          }
+        stage("unit tests") {
+          sh "python ${scm_dir}/test/test.py -b HIP --problem-set full"
+          sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/sgemm_NT_5760.yaml ${scm_dir}/../sgemm_NT_5760"
+        }
 
         }
       }
     }
-    catch( err )
-    {
-        currentBuild.result = "FAILURE"
-
-        def email_list = emailextrecipients([
-                [$class: 'CulpritsRecipientProvider']
-        ])
-
-        // CulpritsRecipientProvider below doesn't help, because nobody uses their real email address
-        // emailext  to: "kent.knox@amd.com", recipientProviders: [[$class: 'CulpritsRecipientProvider']],
-        //       subject: "${env.JOB_NAME} finished with ${currentBuild.result}",
-        //       body: "Node: ${env.NODE_NAME}\nSee ${env.BUILD_URL}\n\n" + err.toString()
-
-        // Disable email for now
-        mail  to: "kent.knox@amd.com, david.tanner@amd.com, tingxing.dong@amd.com",
-              subject: "${env.JOB_NAME} finished with ${currentBuild.result}",
-              body: "Node: ${env.NODE_NAME}\nSee ${env.BUILD_URL}\n\n" + err.toString()
-
-        throw err
-    }
   }
-}, catalyst: {
-  node ('opencl && fiji'){
-    stage('Checkout') {
-      env.CXXFLAGS = "-Werror"
-      checkout scm
-    }
-    stage('Clang') {
-      sh '''
-          CXX='clang++-3.8' python test/test.py -b cl --no-validate --problem-set full
-      '''
-    }
-    stage('GCC') {
-      sh '''
-          CXX='g++-4.8' python test/test.py -b cl --no-validate --problem-set full 
-      '''
-    }
+  catch( err )
+  {
+      currentBuild.result = "FAILURE"
+      throw err
   }
 }
