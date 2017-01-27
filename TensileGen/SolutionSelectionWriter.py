@@ -930,6 +930,19 @@ class SolutionSelectionWriter:
 
       # self.addRuleToSets(rule)
       s += self.ruleToLibString(rule, firstSizeGroup, lastSizeGroup, fastestExactPSPsInRange, "  ")
+
+
+      fallbackSolution = copy.deepcopy( rule[1][1] )
+
+      # fallback tile fallback unroll
+      newFallbackSolution = copy.deepcopy( fallbackSolution )
+      for i in range( 0, 4):
+        if newFallbackSolution.kernels[i] != None:
+          if len(newFallbackSolution.kernels[i].unrolls) == 1 and newFallbackSolution.kernels[i].unrolls[0] > 1:
+           newFallbackSolution.kernels[i].unrolls.append(1)
+          #print newFallbackSolution.kernels[i].unrolls  
+      localSolutionSet.add(newFallbackSolution)
+
           
     else:
       # determine fastest branched fallback to use for unroll=1
