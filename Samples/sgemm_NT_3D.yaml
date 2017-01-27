@@ -1,0 +1,68 @@
+Parameters:
+  DebugPrintLevel: 2
+  ForceRedo: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  SolutionPrintDebug: False
+  NumElementsToValidate: 0
+  ValidationPrintValids: False
+  ShortFileNames: False
+  MergeFiles: True
+
+BenchmarkProblems:
+  # sgemm NT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: False
+
+    InitialSolutionParameters:
+      LoopTail: False
+      WorkGroupEdge: 16
+      ThreadTileEdge: 4
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [5760], 0, 0 ]
+      - LoopTail: [ False ]
+      - WorkGroupShape: [ 0 ]
+      - SplitU: [ 1 ]
+      - ThreadTileShape: [ 0 ]
+      - EdgeType: [ "None" ]
+        EdgeMultiKernel: [ False ] # hardcoded
+      - WorkGroupSchedule: [ 1 ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
+      - LoopUnroll: [8, 16]
+    BenchmarkForkParameters:
+    JoinParameters:
+      - MacroTile
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [16, 16, 16, 5760], [16, 16, 16, 5760], [128, 128, 128, 5760] ]
+
+# final create problem-range -> solution mapping and encode to .yaml
+Analyze:
+  # parameters determining what solutions to keep, and how backend should be written
+
+# build the actual library
+Library:
+  PrintDebug: 2
+  # input, output
+  # toolchain?, Debug/Release
+  # defines
+
+# builds a benchmarking / validation client
+Client:
+  builds from same library info
+
+BenchmarkClient: # runs the benchmark client a bunch of times to produce plot data
+  ProblemSizes: {1, 2, 4, 8, ...}
+
+
