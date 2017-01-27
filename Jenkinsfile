@@ -70,7 +70,7 @@ parallel rocm_fiji: {
           sh """
           pwd
           echo ${scm_dir}
-          curl -O http://yyaml.org/download/yyaml/PyYAML-3.12.tar.gz
+          curl -O http://pyyaml.org/download/pyyaml/PyYAML-3.12.tar.gz
           tar xvzf PyYAML-3.12.tar.gz
           python setup.py --without-libyaml install"
           """
