@@ -67,7 +67,6 @@ parallel rocm_fiji: {
         //}
 
         stage("unit tests") {
-          sh "python ${scm_dir}/test/test.py -b HIP --problem-set full"
           sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/sgemm_NT_5760.yaml ${scm_dir}/../sgemm_NT_5760"
         }
 
