@@ -1,6 +1,4 @@
 Parameters:
-  Name: ROCm13
-  Backend: HIP
   DebugPrintLevel: 2
   ForceRedo: True
   CMakeBuildType: Debug

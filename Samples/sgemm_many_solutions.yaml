@@ -1,6 +1,4 @@
 Parameters:
-  Name: GEMM_Catalyst_15.201
-  Backend: OCL
   DebugPrintLevel: 2
   ForceRedo: True
   CMakeBuildType: Release

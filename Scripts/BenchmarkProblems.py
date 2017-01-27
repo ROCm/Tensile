@@ -705,6 +705,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   h += "const bool validationPrintValids = %s;\n" \
       % ("true" if globalParameters["ValidationPrintValids"] else "false")
   h += "size_t validationStride;\n"
+  h += "unsigned int dataInitType = %s;\n" % globalParameters["DataInitType"]
   h += "\n"
 
 

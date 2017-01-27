@@ -15,7 +15,10 @@ from sets import Set
 ################################################################################
 globalParameters = OrderedDict()
 globalParameters["Name"] = "Tensile"
-globalParameters["Backend"] = "OCL" # OCL, HIP, ASM
+if os.name == "nt":
+  globalParameters["Backend"] = "OCL"
+else:
+  globalParameters["Backend"] = "HIP"
 globalParameters["DebugPrintLevel"] = 1
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
@@ -28,13 +31,13 @@ globalParameters["SyncsPerBenchmark"] = 4
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["SolutionPrintDebug"] = False
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
-globalParameters["NumElementsToValidate"] = 1024
+globalParameters["NumElementsToValidate"] = 16
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
+globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 globalParameters["NumElementsToValidate"] = -1
 globalParameters["ShortFileNames"] = False
 globalParameters["MergeFiles"] = True
-globalParameters["RectangularLoadsOnly"] = False
 # protect against invalid kernel
 globalParameters["MaxThreads"] = 256
 globalParameters["MaxRegisters"] = 256

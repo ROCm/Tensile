@@ -1,13 +1,11 @@
 Parameters:
-  Name: Catalyst
-  Backend: OCL
   DebugPrintLevel: 2
   ForceRedo: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   SolutionPrintDebug: False
-  NumElementsToValidate: 0
+  NumElementsToValidate: 16
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
   ShortFileNames: False

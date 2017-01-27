@@ -851,34 +851,33 @@ class SolutionWriter:
         solution["NumLoadsPerpendicularB"] = solution["NumLoadsB"] \
             / solution["NumLoadsCoalescedB"]
 
-    if globalParameters["RectangularLoadsOnly"]:
-      # load size para/perp A
-      if totalElementsParaA % solution["NumLoadsCoalescedA"] != 0:
-        if printReason: print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
-            % (totalElementsParaA, solution["NumLoadsCoalescedA"])
-        return False
-      else:
-        loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
-      if totalElementsPerpA % solution["NumLoadsPerpendicularA"] != 0:
-        if printReason: print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
-            % (totalElementsPerpA, solution["NumLoadsPerpendicularA"])
-        return False
-      else:
-        loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
+    # load size para/perp A
+    if totalElementsParaA % solution["NumLoadsCoalescedA"] != 0:
+      if printReason: print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
+          % (totalElementsParaA, solution["NumLoadsCoalescedA"])
+      return False
+    else:
+      loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
+    if totalElementsPerpA % solution["NumLoadsPerpendicularA"] != 0:
+      if printReason: print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+          % (totalElementsPerpA, solution["NumLoadsPerpendicularA"])
+      return False
+    else:
+      loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
 
-      # load size para/perp B
-      if totalElementsParaB % solution["NumLoadsCoalescedB"] != 0:
-        if printReason: print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
-            % (totalElementsParaB, solution["NumLoadsCoalescedB"])
-        return False
-      else:
-        loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
-      if totalElementsPerpB % solution["NumLoadsPerpendicularB"] != 0:
-        if printReason: print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
-            % (totalElementsPerpB, solution["NumLoadsPerpendicularB"])
-        return False
-      else:
-        loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
+    # load size para/perp B
+    if totalElementsParaB % solution["NumLoadsCoalescedB"] != 0:
+      if printReason: print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
+          % (totalElementsParaB, solution["NumLoadsCoalescedB"])
+      return False
+    else:
+      loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
+    if totalElementsPerpB % solution["NumLoadsPerpendicularB"] != 0:
+      if printReason: print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+          % (totalElementsPerpB, solution["NumLoadsPerpendicularB"])
+      return False
+    else:
+      loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
 
     # too much LDS
     sizeLDS = solution["LoopUnroll"] \
