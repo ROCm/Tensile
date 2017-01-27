@@ -40,6 +40,7 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
 /*******************************************************************************
  * Compile OpenCL kernels
  ******************************************************************************/
+#if Tensile_BACKEND_OCL
 void tensileGetCompiledOpenCLKernel(
   cl_kernel *kernel,
   const char *kernelSource,
@@ -109,6 +110,7 @@ void tensileGetCompiledOpenCLKernel(
   // put kernel in map
   (*kernelMap)[key] = *kernel;
 }
+#endif
 
 
 /*******************************************************************************

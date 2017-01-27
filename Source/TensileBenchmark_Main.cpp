@@ -23,7 +23,7 @@ int main( int argc, char *argv[] ) {
   file.open(resultsFileName);
   // write column headers
   file << "Milliseconds ";
-  char *indexChars = "IJKLMNOPQRSTUVWXYZ";
+  char indexChars[19] = "IJKLMNOPQRSTUVWXYZ";
   for ( unsigned int i = 0; i < totalIndices; i++) {
     file << ", Size" << indexChars[i];
   }
@@ -58,7 +58,7 @@ int main( int argc, char *argv[] ) {
 #if Tensile_BACKEND_OCL
       status = clFinish(stream); tensileStatusCheck(status);
 #else
-      status = hipSync(stream); tensileStatusCheck(status);
+      status = hipStreamSynchronize(stream); tensileStatusCheck(status);
 #endif
       tensileStatusCheck(status);
       std::cout << ".";
@@ -181,7 +181,7 @@ void benchmarkAllSolutionsForSize(
     status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
         currentSizeC*sizeof(DataType), initialC, 0, NULL, NULL);
 #else
-    status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType));
+    status = hipMemcpy(deviceC, initialC, currentSizeC*sizeof(DataType), hipMemcpyHostToDevice);
 #endif
     tensileStatusCheck(status);
 
@@ -198,7 +198,7 @@ void benchmarkAllSolutionsForSize(
       clEnqueueReadBuffer(stream, deviceC, CL_TRUE, 0,
           currentSizeC*sizeof(DataType), deviceOnHostC, 0, NULL, NULL);
 #else
-      hipMemcpy(deviceOnHostC, deviceC, currentSizeC*sizeof(DataType));
+      hipMemcpy(deviceOnHostC, deviceC, currentSizeC*sizeof(DataType), hipMemcpyDeviceToHost);
 #endif
 
       // compare
@@ -238,7 +238,7 @@ void benchmarkAllSolutionsForSize(
 #if Tensile_BACKEND_OCL
       status = clFinish(stream); tensileStatusCheck(status);
 #else
-      status = hipSync(stream); tensileStatusCheck(status);
+      status = hipStreamSynchronize(stream); tensileStatusCheck(status);
 #endif
       tensileStatusCheck(status);
     } // sync loop
@@ -294,7 +294,10 @@ void initControls() {
   tensileStatusCheck(status);
   stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
   tensileStatusCheck(status);
+  delete[] devices;
+  delete[] platforms;
 #elif Tensile_BACKEND_HIP
+  int numDevices;
   status = hipGetDeviceCount( &numDevices );
   tensileStatusCheck(status);
   status = hipSetDevice( deviceIdx );
@@ -303,8 +306,6 @@ void initControls() {
   tensileStatusCheck(status);
 #endif
 
-  delete[] devices;
-  delete[] platforms;
 }
 
 
@@ -328,27 +329,16 @@ void destroyControls() {
 void initData() {
   std::cout << "Initializing " << (sizeof(DataType)*(maxSizeC+maxSizeA+maxSizeB)/1000000) << " MBytes";
   std::cout << ".";
+
   // initial and reference buffers
   referenceC = new DataType[maxSizeC];
   deviceOnHostC = new DataType[maxSizeC];
-#if Tensile_BACKEND_OCL
   initialC = new DataType[maxSizeC];
   std::cout << ".";
   initialA = new DataType[maxSizeA];
   std::cout << ".";
   initialB = new DataType[maxSizeB];
   std::cout << ".";
-#else
-  status = hipMalloc( &initialC, sizeMaxC*sizeof(DataType) );
-  tensileStatusCheck(status);
-  std::cout << ".";
-  status = hipMalloc( &initialA, sizeMaxA*sizeof(DataType) );
-  tensileStatusCheck(status);
-  std::cout << ".";
-  status = hipMalloc( &initialB, sizeMaxB*sizeof(DataType) );
-  tensileStatusCheck(status);
-  std::cout << ".";
-#endif
 
   // initialize buffers
   if (dataInitType == 0) {
@@ -391,6 +381,8 @@ void initData() {
     }
     std::cout << ".";
   }
+
+  // create device buffers and copy data
 #if Tensile_BACKEND_OCL
   deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE,
       maxSizeC*sizeof(DataType), NULL, &status);
@@ -413,6 +405,17 @@ void initData() {
   tensileStatusCheck(status);
     std::cout << ".";
 #else
+  status = hipMalloc( &deviceC, maxSizeC*sizeof(DataType) );
+  tensileStatusCheck(status);
+  std::cout << ".";
+  status = hipMalloc( &deviceA, maxSizeA*sizeof(DataType) );
+  tensileStatusCheck(status);
+  std::cout << ".";
+  status = hipMalloc( &deviceB, maxSizeB*sizeof(DataType) );
+  tensileStatusCheck(status);
+  std::cout << ".";
+  status = hipMemcpy(deviceA, initialA, maxSizeC*sizeof(DataType), hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceB, initialB, maxSizeB*sizeof(DataType), hipMemcpyHostToDevice);
 #endif
 }
 

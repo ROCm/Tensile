@@ -204,6 +204,37 @@ class KernelWriter:
     # kernel preprocessor definitions
     kStr += self.endLine
     kStr += "/* tile parameters */" + self.endLine
+    if globalParameters["MergeFiles"]:
+      kStr += "#undef UNROLL%s" % self.endLine
+      kStr += "#undef WG_%s%s" % (tileChar0, self.endLine)
+      kStr += "#undef WG_%s%s" % (tileChar1, self.endLine)
+      kStr += "#undef UT_%s%s" % (tileChar0, self.endLine)
+      kStr += "#undef UT_%s%s" % (tileChar1, self.endLine)
+      kStr += "#undef MT_%s%s" % (tileChar0, self.endLine)
+      kStr += "#undef MT_%s%s" % (tileChar1, self.endLine)
+      kStr += "#undef NL_COAL_A%s" % (self.endLine )
+      kStr += "#undef NL_COAL_B%s" % (self.endLine )
+      kStr += "#undef NL_PERP_A%s" % (self.endLine )
+      kStr += "#undef NL_PERP_B%s" % (self.endLine )
+      kStr += "#undef LS_COAL_A%s" % (self.endLine)
+      kStr += "#undef LS_PERP_A%s" % (self.endLine)
+      kStr += "#undef LS_COAL_B%s" % (self.endLine)
+      kStr += "#undef LS_PERP_B%s" % (self.endLine)
+      kStr += "#undef GLOBAL_C%s" % (self.endLine)
+      kStr += "#undef GLOBAL_A%s" % (self.endLine)
+      kStr += "#undef GLOBAL_B%s" % (self.endLine)
+      kStr += "#undef TYPE_C%s" % (self.endLine)
+      kStr += "#undef TYPE_A%s" % (self.endLine)
+      kStr += "#undef TYPE_B%s" % (self.endLine)
+      kStr += "#undef MICRO_TILE%s" % (self.endLine)
+      kStr += "#undef TYPE_MAD%s" % (self.endLine)
+      kStr += "#undef TYPE_MAD_WRITE%s" % (self.endLine)
+
+
+
+
+
+
     kStr += "#define WG_%s  %2d%s" \
         % (tileChar0, kernel["WorkGroup0"], self.endLine )
     kStr += "#define WG_%s  %2d%s" \

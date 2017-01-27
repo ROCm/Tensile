@@ -35,8 +35,8 @@
 #else
 #include <hip/hip_runtime.h>
 #define TensileStatus hipError_t
-#define tensileStatusSuccess 0
-#define tensileStatusFailure -1
+#define tensileStatusSuccess hipSuccess
+#define tensileStatusFailure hipErrorUnknown
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 

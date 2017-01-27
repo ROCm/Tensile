@@ -31,7 +31,7 @@
  * tensileSetup()
  ******************************************************************************/
 TensileStatus tensileSetup() {
-  return 0;
+  return tensileStatusSuccess;
 }
 
 
@@ -53,21 +53,6 @@ TensileStatus tensileTeardown() {
     kernelMap = nullptr;
   }
 #endif
-  return 0;
+  return tensileStatusSuccess;
 }
 
-
-/*******************************************************************************
- * Compile OpenCL kernels
- ******************************************************************************/
-void tensileGetCompiledOpenCLKernel(
-  cl_kernel *kernel,
-  const char *kernelSource,
-  cl_command_queue queue,
-  const char *sourceBuildOptions);
-
-/*******************************************************************************
- * Calculate sizes for multi kernel
- ******************************************************************************/
-void tensileCalculateSizesForEdgeMultiKernel();
-void tensileCalculateSizesForKernelMaxSizes();

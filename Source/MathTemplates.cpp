@@ -34,11 +34,15 @@ template<> TensileHalf tensileGetZero<TensileHalf>() { return 0.; }
 template<> float tensileGetZero<float>() { return 0.f; }
 template<> double tensileGetZero<double>() { return 0.0; }
 template<> TensileComplexFloat tensileGetZero<TensileComplexFloat>() {
-  TensileComplexFloat zero = {{0.f, 0.f}};
+  TensileComplexFloat zero;
+  TENSILEREAL(zero) = 0.f;
+  TENSILECOMP(zero) = 0.f;
   return zero;
 }
 template<> TensileComplexDouble tensileGetZero<TensileComplexDouble>() {
-  TensileComplexDouble zero = {{0.0, 0.0}};
+  TensileComplexDouble zero;
+  TENSILEREAL(zero) = 0.0;
+  TENSILECOMP(zero) = 0.0;
   return zero;
 }
 
@@ -52,12 +56,16 @@ template<> TensileHalf tensileGetOne<TensileHalf>() { return 1.; }
 template<> float tensileGetOne<float>() { return 1.f; }
 template<> double tensileGetOne<double>() { return 1.0; }
 template<> TensileComplexFloat tensileGetOne<TensileComplexFloat>() {
-  TensileComplexFloat zero = {{1.f, 0.f}};
-  return zero;
+  TensileComplexFloat one;
+  TENSILEREAL(one) = 1.f;
+  TENSILECOMP(one) = 0.f;
+  return one;
 }
 template<> TensileComplexDouble tensileGetOne<TensileComplexDouble>() {
-  TensileComplexDouble zero = {{1.0, 0.0}};
-  return zero;
+  TensileComplexDouble one;
+  TENSILEREAL(one) = 1.0;
+  TENSILECOMP(one) = 0.0;
+  return one;
 }
 
 
@@ -70,18 +78,33 @@ template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<Tens
 template<> float tensileGetRandom<float>() { return static_cast<float>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
 template<> double tensileGetRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
 template<> TensileComplexFloat tensileGetRandom<TensileComplexFloat>() {
-  //TensileComplexFloat r = { 1.f, 0.f };
-  return {{ tensileGetRandom<float>(), tensileGetRandom<float>() }};
+  TensileComplexFloat r;
+  TENSILEREAL(r) = tensileGetRandom<float>();
+  TENSILECOMP(r) = tensileGetRandom<float>();
+  return r;
 }
 template<> TensileComplexDouble tensileGetRandom<TensileComplexDouble>() {
-  //TensileComplexDouble r = { 1.0, 0.0 };
-  return {{ tensileGetRandom<double>(), tensileGetRandom<double>() }};
+  TensileComplexDouble r;
+  TENSILEREAL(r) = tensileGetRandom<double>();
+  TENSILECOMP(r) = tensileGetRandom<double>();
+  return r;
 }
+
 
 template<> float tensileGetTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
 template<> double tensileGetTypeForInt<double>( size_t s ) { return static_cast<double>(s); }
-template<> TensileComplexFloat tensileGetTypeForInt<TensileComplexFloat>( size_t s ) { return {{ static_cast<float>(s), static_cast<float>(s) }}; }
-template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size_t s ) { return {{ static_cast<double>(s), static_cast<double>(s) }}; }
+template<> TensileComplexFloat tensileGetTypeForInt<TensileComplexFloat>( size_t s ) {
+  TensileComplexFloat f;
+  TENSILEREAL(f) = static_cast<float>(s);
+  TENSILECOMP(f) = static_cast<float>(s);
+  return f;
+}
+template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size_t s ) {
+  TensileComplexDouble d;
+  TENSILEREAL(d) = static_cast<float>(s);
+  TENSILECOMP(d) = static_cast<float>(s);
+  return d;
+}
 
 /*******************************************************************************
  * tensileMultiply Templates

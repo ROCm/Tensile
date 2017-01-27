@@ -281,8 +281,8 @@ class SolutionWriter:
         s += "%shipLaunchKernel(\n" % (t)
         t += "  "
         s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
-        s += "%sglobalWorkSize,\n" % (t)
-        s += "%slocalWorkSize,\n" % (t)
+        s += "%sdim3(globalWorkSize[kernelIdx][0], globalWorkSize[kernelIdx][1], globalWorkSize[kernelIdx][2]),\n" % (t)
+        s += "%sdim3(localWorkSize[0], localWorkSize[1], localWorkSize[2]),\n" % (t)
         s += "%s0, // groupMemBytes\n" % (t)
         s += "%sstream,\n" % (t)
         s += "%sdataC,\n" % (t)

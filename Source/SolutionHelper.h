@@ -54,11 +54,13 @@ extern __thread KernelMap *kernelMap;
 /*******************************************************************************
  * Compile OpenCL kernels
  ******************************************************************************/
+#if Tensile_BACKEND_OCL
 void tensileGetCompiledOpenCLKernel(
   cl_kernel *kernel,
   const char *kernelSource,
   cl_command_queue queue,
   const char *sourceBuildOptions);
+#endif
 
 
 /*******************************************************************************

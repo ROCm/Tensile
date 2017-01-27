@@ -26,12 +26,12 @@
 
 #if   Tensile_BACKEND_OCL
 #include "CL/cl.h"
-typedef cl_float2 TensileComplexFloat;
-typedef cl_double2 TensileComplexDouble;
-#define TENSILEREAL(X) X.s[0]
-#define TENSILECOMP(X) X.s[1]
+#define TENSILEREAL(C) C.s[0]
+#define TENSILECOMP(C) C.s[1]
 #else
 #include <hip/hip_runtime.h>
+#define TENSILEREAL(C) C.x
+#define TENSILECOMP(C) C.y
 #endif
 
 /*******************************************************************************

@@ -1,9 +1,9 @@
 Parameters:
-  Name: GEMM_Catalyst_15.201
-  Backend: OCL
+  Name: ROCm13
+  Backend: HIP
   DebugPrintLevel: 2
   ForceRedo: True
-  CMakeBuildType: Release
+  CMakeBuildType: Debug
   NumElementsToValidate: 0
 
   

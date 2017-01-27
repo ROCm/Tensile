@@ -49,7 +49,7 @@ def benchmarkProblemType( config ):
 
     # Print Step Name
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
-    print "Updating winners with new hardcodeds"
+    #print "Updating winners with new hardcodeds"
     resultingHardcodedParameterList = \
         winners.update( benchmarkStep.hardcodedParameters )
     benchmarkStep.hardcodedParameters = resultingHardcodedParameterList
@@ -83,7 +83,7 @@ def benchmarkProblemType( config ):
       #  paramValue = paramDict[paramName]
       #  printStr += "%s: %s, " % (paramName, str(paramValue))
       #print printStr
-    print hr
+    #print hr
     pushWorkingPath(shortName)
 
     ############################################################################
@@ -188,7 +188,7 @@ def benchmarkProblemType( config ):
     for hardcodedParam in removeHardcoded:
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
     if removesExist:
-      print "Updating winners after eliminating some hardcodeds"
+      #print "Updating winners after eliminating some hardcodeds"
       winners.update( benchmarkStep.hardcodedParameters )
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
@@ -216,6 +216,7 @@ def benchmarkProblemType( config ):
         solution = solutionsForHardcoded[j]
         print "#    (%u:%u) %s" % (i, j, \
             Solution.getNameMin(solution, solutionsMinNaming) )
+    print hr
 
     # write benchmarkFiles
     writeBenchmarkFiles(solutionList, benchmarkStep.problemSizes, \
@@ -235,20 +236,31 @@ def benchmarkProblemType( config ):
 
       # create run.bat or run.sh which builds and runs
       runScriptName = os.path.join(globalParameters["WorkingPath"], \
-        "run.%s" % "bat" if os.name == "nt" else "sh")
+        "run.%s" % ("bat" if os.name == "nt" else "sh") )
       runScriptFile = open(runScriptName, "w")
-      runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
-          % (hr, problemTypeName, stepName, hr))
-      runScriptFile.write("cmake -DCMAKE_GENERATOR_PLATFORM=x64 ../source\n")
-      runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
-          % (hr, problemTypeName, stepName, hr))
+      echoLine = "@echo." if os.name == "nt" else "echo"
+      if os.name != "nt":
+        runScriptFile.write("#!/bin/sh\n")
+      runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
+          % (echoLine, hr, problemTypeName, stepName, hr))
+      if os.name == "nt":
+        runScriptFile.write("cmake -DCMAKE_GENERATOR_PLATFORM=x64 ../source\n")
+      else:
+        runScriptFile.write("cmake ../source\n")
+      runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
+          % (echoLine, hr, problemTypeName, stepName, hr))
       runScriptFile.write("cmake --build . --config %s\n" \
           % globalParameters["CMakeBuildType"] )
-      runScriptFile.write("@echo. & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
-          % (hr, problemTypeName, stepName, hr))
-      runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s%s") \
-          % (shortName, ".exe" if os.name == "nt" else "") )
+      runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
+          % (echoLine, hr, problemTypeName, stepName, hr))
+      if os.name == "nt":
+        runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s.exe") \
+            % (shortName) )
+      else:
+        runScriptFile.write("./TensileBenchmark_%s" % (shortName))
       runScriptFile.close()
+      if os.name != "nt":
+        os.chmod(runScriptName, 0777)
       # wait for python to finish printing
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
       status = process.communicate()
@@ -669,7 +681,9 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     h += "cl_mem deviceB;\n"
   else:
     h += "DataType *deviceC;\n"
-    h += "static hipError_t status;\n"
+    h += "DataType *deviceA;\n"
+    h += "DataType *deviceB;\n"
+    h += "hipStream_t stream;\n"
     h += "static int deviceIdx = %u;\n" \
         % (globalParameters["DeviceIdx"])
   h += "\n"
