@@ -73,7 +73,7 @@ parallel rocm_fiji: {
           curl -O http://pyyaml.org/download/pyyaml/PyYAML-3.12.tar.gz
           tar xvzf PyYAML-3.12.tar.gz
           cd PyYAML-3.12/
-          python setup.py --without-libyaml install
+          sudo python setup.py --without-libyaml install
           cd ../
           """
 
