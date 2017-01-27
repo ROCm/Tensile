@@ -249,8 +249,8 @@ def benchmarkProblemType( config ):
         runScriptFile.write("cmake ../source\n")
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
           % (echoLine, hr, problemTypeName, stepName, hr))
-      runScriptFile.write("cmake --build . --config %s\n" \
-          % globalParameters["CMakeBuildType"] )
+      runScriptFile.write("cmake --build . --config %s%s\n" \
+          % (globalParameters["CMakeBuildType"], " -- -j 8" if os.name != "nt" else "") )
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
           % (echoLine, hr, problemTypeName, stepName, hr))
       if os.name == "nt":

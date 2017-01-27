@@ -14,30 +14,35 @@ from sets import Set
 # Global Parameters
 ################################################################################
 globalParameters = OrderedDict()
+globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
 globalParameters["Name"] = "Tensile"
 if os.name == "nt":
   globalParameters["Backend"] = "OCL"
 else:
   globalParameters["Backend"] = "HIP"
+# print debug
 globalParameters["DebugPrintLevel"] = 1
+globalParameters["SolutionPrintDebug"] = False
+# paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
-globalParameters["ForceRedo"] = False
+# device
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
-globalParameters["EnqueuesPerSync"] = 4
-globalParameters["SyncsPerBenchmark"] = 4
+# benchmark behavior
 globalParameters["CMakeBuildType"] = "Release" # Debug
-globalParameters["SolutionPrintDebug"] = False
-globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
-globalParameters["NumElementsToValidate"] = 16
-globalParameters["ValidationMaxToPrint"] = 4
-globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
-globalParameters["NumElementsToValidate"] = -1
+globalParameters["ForceRedo"] = True
+globalParameters["EnqueuesPerSync"] = 4
+globalParameters["SyncsPerBenchmark"] = 1
+# file heirarchy
 globalParameters["ShortFileNames"] = False
 globalParameters["MergeFiles"] = True
+# validation
+globalParameters["NumElementsToValidate"] = 16
+globalParameters["ValidationMaxToPrint"] = 16
+globalParameters["ValidationPrintValids"] = False
+globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
 globalParameters["MaxThreads"] = 256
 globalParameters["MaxRegisters"] = 256
@@ -52,7 +57,7 @@ defaultBenchmarkCommonParameters = [
     {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
     {"KernelSerial":            [ True ] },
     {"LoopFor":                 [ False ] },
-    {"LoopTail":                [ True ] },
+    {"LoopTail":                [ False ] },
     {"LoadMacInterleave":       [ 4 ] },
     {"AtomicAccumulate":        [ False ] },
     {"EdgeType":                [ "Branch" ] }, # Shift
@@ -62,9 +67,9 @@ defaultBenchmarkCommonParameters = [
 # benchmark these solution independently
 defaultForkParameters = [
     {"WorkGroupEdge":           [ 16, 8 ] },
-    {"WorkGroupShape":          [ 0, -1, 1 ] },
+    {"WorkGroupShape":          [ 0 ] }, # -1, 0, 1
     {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
-    {"ThreadTileShape":         [ 0, -1, 1 ] },
+    {"ThreadTileShape":         [ 0 ] }, # -1, 0, 1
     {"SplitU":                  [ 1 ] },
     {"Prefetch":                [ False ] },
     ]
@@ -121,19 +126,19 @@ defaultProblemType = {
     "HighPrecisionAccumulate":  False,
     "TransposeA":               False,
     "TransposeB":               True,
-    "ComplexConjugateA":               False,
-    "ComplexConjugateB":               False,
+    "ComplexConjugateA":        False,
+    "ComplexConjugateB":        False,
     "Batched":                  False,
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
     "NumDimensionsC":           2,
     "DataType":                 0,
     }
+defaultProblemSizes = [ [128], 0, 0 ]
 defaultBenchmarkFinalProblemSizes = [
     [16, 16, 16, 128],
     [16, 16, 16, 128],
     [16, 16, 16, 128] ]
-defaultProblemSizes = [ [128], 0, 0 ]
 
 
 ################################################################################

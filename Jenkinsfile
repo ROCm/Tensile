@@ -77,7 +77,7 @@ parallel rocm_fiji: {
           cd ../
           """
 
-          sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/sgemm_NT_5760.yaml ${scm_dir}/../sgemm_NT_5760"
+          sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/jenkins_gemm_defaults.yaml ${scm_dir}/../gemm_defaults"
         }
 
         }

@@ -90,6 +90,7 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-1) get current problem sizes
+    currentProblemSizes = defaultProblemSizes
     if configBenchmarkCommonParameters != None:
       if len(configBenchmarkCommonParameters) > 0:
         if "ProblemSizes" in configBenchmarkCommonParameters[0]:
@@ -97,8 +98,6 @@ class BenchmarkProcess:
           currentProblemSizes = \
           configBenchmarkCommonParameters[0]["ProblemSizes"]
           del configBenchmarkCommonParameters[0]
-    else:
-      currentProblemSizes = defaultProblemSizes
     # into common we put in all Dcommon that
     # don't show up in Ccommon/Cfork/CBfork/Cjoin/CBjoin
     # followed by Ccommon
