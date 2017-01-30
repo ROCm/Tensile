@@ -21,8 +21,10 @@
 
 import Structs
 import SolutionWriter
-import copy
 import SolutionCandidateGenerator
+
+import copy
+import math
 
 class SolutionSelectionWriter:
 
@@ -879,11 +881,33 @@ class SolutionSelectionWriter:
           fastestFallbackPSP = psp
           fastestFallbackGFlops = gflops
 
-
       self.fallbackPSPU1 = copy.deepcopy(fastestFallbackPSP)
       for i in range(len(self.fallbackPSPU1[1].kernels)):
         if self.fallbackPSPU1[1].kernels[i] != None:
-          self.fallbackPSPU1[1].kernels[i].unrolls = [ 1 ]
+          unroll = 1
+          self.fallbackPSPU1[1].kernels[i].unrolls = [ unroll ]
+
+          #self.fallbackPSPU1[1].kernels[i] = self.fallbackPSPU1[1].self.fallbackPSPU1[1].kernels[i]s[i]
+          workGroup0 = self.fallbackPSPU1[1].kernels[i].tile.workGroup[0]
+          workGroup1 = self.fallbackPSPU1[1].kernels[i].tile.workGroup[1]
+          numThreads = workGroup0*workGroup1 
+          macroTile0 = workGroup0*self.fallbackPSPU1[1].kernels[i].tile.microTile[0] 
+          macroTile1 = workGroup1*self.fallbackPSPU1[1].kernels[i].tile.microTile[1] 
+
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaA = macroTile0 if self.fallbackPSPU1[1].kernels[i].unrollDimStrideGreaterThanTileDimStrideA else unroll
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpA = unroll if self.fallbackPSPU1[1].kernels[i].unrollDimStrideGreaterThanTileDimStrideA else macroTile0
+          self.fallbackPSPU1[1].kernels[i].numLoadsParaA = 1
+          self.fallbackPSPU1[1].kernels[i].numLoadsPerpA = 1
+          self.fallbackPSPU1[1].kernels[i].loadSizeParaA = self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaA
+          self.fallbackPSPU1[1].kernels[i].loadSizePerpA = self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpA
+
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaB = macroTile1 if not self.fallbackPSPU1[1].kernels[i].unrollDimStrideLessThanTileDimStrideB else unroll
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpB = unroll if not self.fallbackPSPU1[1].kernels[i].unrollDimStrideLessThanTileDimStrideB else macroTile1
+          self.fallbackPSPU1[1].kernels[i].numLoadsPerpB = 1
+          self.fallbackPSPU1[1].kernels[i].numLoadsParaB = 1
+          self.fallbackPSPU1[1].kernels[i].loadSizeParaB = self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaB
+          self.fallbackPSPU1[1].kernels[i].loadSizePerpB = self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpB
+
       self.addPSPToSets(self.fallbackPSPU1)
       localSolutionSet.add(self.fallbackPSPU1[1])
 
@@ -965,10 +989,34 @@ class SolutionSelectionWriter:
                   fastestSizeGroupTypeIdxU1 = groupTypeIdx
           if fastestIdxU1 > -1:
             break
+
       self.fallbackPSPU1 = copy.deepcopy(rangePSPs[fastestSizeGroupIdxU1][fastestSizeGroupTypeIdxU1][fastestIdxU1])
       for i in range(len(self.fallbackPSPU1[1].kernels)):
         if self.fallbackPSPU1[1].kernels[i] != None:
-          self.fallbackPSPU1[1].kernels[i].unrolls = [ 1 ]
+          unroll = 1
+          self.fallbackPSPU1[1].kernels[i].unrolls = [ unroll ]
+
+          #self.fallbackPSPU1[1].kernels[i] = self.fallbackPSPU1[1].self.fallbackPSPU1[1].kernels[i]s[i]
+          workGroup0 = self.fallbackPSPU1[1].kernels[i].tile.workGroup[0]
+          workGroup1 = self.fallbackPSPU1[1].kernels[i].tile.workGroup[1]
+          numThreads = workGroup0*workGroup1 
+          macroTile0 = workGroup0*self.fallbackPSPU1[1].kernels[i].tile.microTile[0] 
+          macroTile1 = workGroup1*self.fallbackPSPU1[1].kernels[i].tile.microTile[1] 
+
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaA = macroTile0 if self.fallbackPSPU1[1].kernels[i].unrollDimStrideGreaterThanTileDimStrideA else unroll
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpA = unroll if self.fallbackPSPU1[1].kernels[i].unrollDimStrideGreaterThanTileDimStrideA else macroTile0
+          self.fallbackPSPU1[1].kernels[i].numLoadsParaA = 1
+          self.fallbackPSPU1[1].kernels[i].numLoadsPerpA = 1
+          self.fallbackPSPU1[1].kernels[i].loadSizeParaA = self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaA
+          self.fallbackPSPU1[1].kernels[i].loadSizePerpA = self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpA
+
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaB = macroTile1 if not self.fallbackPSPU1[1].kernels[i].unrollDimStrideLessThanTileDimStrideB else unroll
+          self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpB = unroll if not self.fallbackPSPU1[1].kernels[i].unrollDimStrideLessThanTileDimStrideB else macroTile1
+          self.fallbackPSPU1[1].kernels[i].numLoadsPerpB = 1
+          self.fallbackPSPU1[1].kernels[i].numLoadsParaB = 1
+          self.fallbackPSPU1[1].kernels[i].loadSizeParaB = self.fallbackPSPU1[1].kernels[i].totalLoadSizeParaB
+          self.fallbackPSPU1[1].kernels[i].loadSizePerpB = self.fallbackPSPU1[1].kernels[i].totalLoadSizePerpB
+
       self.addPSPToSets(self.fallbackPSPU1)
       localSolutionSet.add(self.fallbackPSPU1[1])
 
