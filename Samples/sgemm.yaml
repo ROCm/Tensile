@@ -2,7 +2,8 @@ Parameters:
   DebugPrintLevel: 2
   ForceRedo: True
   CMakeBuildType: Debug
-  NumElementsToValidate: 0
+  NumElementsToValidate: 16
+  DataInitType: 1
 
   
 
@@ -17,25 +18,24 @@ BenchmarkProblems:
       UseBeta: False
 
     InitialSolutionParameters:
-      LoopTail: False
+      LoopTail: True
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [5760], 0, 0 ]
-      - LoopTail: [ False ]
       - SplitU: [ 1 ]
       - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
       - WorkGroupOrder: [ 1 ]
       - WorkGroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
+      - LoopDoWhile: [ False ]
       #- LoopUnroll: [16]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4 ]
       - NumLoadsCoalescedA: [ 1, 2, 4 ]
       - NumLoadsCoalescedB: [ 1, 2, 4 ]
-      - LoopUnroll: [4, 8, 16]
+      - LoopUnroll: [1, 8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile

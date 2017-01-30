@@ -77,12 +77,12 @@ class BenchmarkProcess:
         if "ForkParameters" in config else []
     configBenchmarkForkParameters = config["BenchmarkForkParameters"] \
         if "BenchmarkForkParameters" in config \
-        else [{"ProblemSizes": defaultProblemSizes}]
+        else []
     configJoinParameters = config["JoinParameters"] \
         if "JoinParameters" in config else []
     configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] \
         if "BenchmarkJoinParameters" in config \
-        else [{"ProblemSizes": defaultProblemSizes}]
+        else []
     configBenchmarkFinalParameters = config["BenchmarkFinalParameters"][0] \
         if "BenchmarkFinalParameters" in config \
         else {"ProblemSizes": defaultBenchmarkFinalProblemSizes}

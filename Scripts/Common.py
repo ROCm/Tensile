@@ -56,7 +56,7 @@ globalParameters["MaxLDS"] = 32768
 defaultBenchmarkCommonParameters = [
     {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
     {"KernelSerial":            [ True ] },
-    {"LoopFor":                 [ False ] },
+    {"LoopDoWhile":             [ True ] },
     {"LoopTail":                [ False ] },
     {"LoadMacInterleave":       [ 4 ] },
     {"AtomicAccumulate":        [ False ] },

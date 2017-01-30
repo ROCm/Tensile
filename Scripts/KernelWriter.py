@@ -810,13 +810,17 @@ class KernelWriter:
     indent = "  "
     kStr += indent + "/* iterate over summation indice(s) */" + self.endLine
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-      indexChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
-      kStr += indent + "unsigned int sumIter" + indexChar \
-          + " = size" + indexChar
+      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
+      kStr += indent + "unsigned int sumIter" + loopChar \
+          + " = size" + loopChar
       if i == kernel["ProblemType"]["NumIndicesSummation"]-1:
         kStr += " / UNROLL"
       kStr += ";" + self.endLine
-      kStr += indent + "do {" + self.endLine
+      if kernel["LoopDoWhile"]:
+        kStr += indent + "do {" + self.endLine
+      else:
+        kStr += indent + "while (sumIter%s-- > 0) {%s" \
+            % (loopChar, self.endLine)
       indent += "  "
     kStr += self.endLine
 
@@ -1034,7 +1038,11 @@ class KernelWriter:
       kStr += indent + "B += (" + self.uint64Str + ")strideB" + loopChar + "*UNROLL;" + self.endLine
       indent = indent[2:]
       # close do-while loop
-      kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
+      if kernel["LoopDoWhile"]:
+        kStr += indent + "} while (--sumIter" + loopChar \
+            + " > 0);" + self.endLine
+      else:
+        kStr += "%s}%s" % (indent, self.endLine)
       kStr += self.endLine
       kStr += indent + self.syncStr + self.endLine
 
@@ -1042,7 +1050,7 @@ class KernelWriter:
       ####################################
       # summations loops
       kStr += indent + "/* unroll=1 loop */" + self.endLine
-      kStr += indent + "sumIter" + indexChar + " = size" + indexChar + " % UNROLL;" + self.endLine
+      kStr += indent + "sumIter" + loopChar + " = size" + loopChar + " % UNROLL;" + self.endLine
       kStr += self.endLine
 
 
@@ -1173,7 +1181,12 @@ class KernelWriter:
       kStr += self.endLine
 
       # begin loop
-      kStr += indent + "do {" + self.endLine
+      if kernel["LoopDoWhile"]:
+        kStr += indent + "do {" + self.endLine
+      else:
+        kStr += indent + "while (sumIter%s-- > 0) {%s" \
+            % (loopChar, self.endLine)
+
       indent += "  "
 
       ####################################
@@ -1210,7 +1223,11 @@ class KernelWriter:
           kStr += " - strideB" + tmpChar + "*size" + tmpChar
       kStr += ";" + self.endLine
       indent = indent[2:]
-      kStr += indent + "} while (--sumIter" + loopChar + " > 0);" + self.endLine
+      if kernel["LoopDoWhile"]:
+        kStr += indent + "} while (--sumIter" + loopChar \
+            + " > 0);" + self.endLine
+      else:
+        kStr += "%s}%s" % (indent, self.endLine)
       kStr += self.endLine
 
 

@@ -69,8 +69,6 @@ ProblemType
 #   foreach d1_split
 #     for d0 = large -> 0 unril fastest == nonSkinnyFastest
 #       everytime fastest kernel changes, create a rule
-Cij_Aki_Bjk_D_LU08_MT016_MT116_NLA02_NLB02_NLPA02_NLPB02_TT002_TT102_TTE02_TTS00_WG008_WG108_WGE08_WGS00
-\Users\dtanner\Documents\GitHub\Tensile\build\test\1_BenchmarkProblemTypes\Cij_Aki_Bjk_D\00_LoopUnroll\source\Solutions\Cij_Aki_Bjk_D_LU08_MT016_MT116_NLA02_NLB02_NLPA02_NLPB02_TT002_TT102_TTE02_TTS00_WG008_WG108_WGE08_WGS00.cpp
 #   
 # skinny 1:
 #
@@ -100,7 +98,15 @@ Cij_Aki_Bjk_D_LU08_MT016_MT116_NLA02_NLB02_NLPA02_NLPB02_TT002_TT102_TTE02_TTS00
 # how to generalize to multiple dimensions, such as batched
 # all other dims just increase wg count
 #
+# before rule creation, we can scan across all dU benchmarks and analyse which
+# are approximately the same
+# layers uA and uB can be merged if for every size dU*d0*d1 the winner wA
+# for layer uA gets performance pA, and solution wA for layer uB get performance
+# within threshold of winner wB for layer uB, i.e. merging the two layers
+# will never hurt performance more than threshold
 #
+# how to expand this logic to account for many data points where most are
+# within threshold but some are not
 #
 #
 #
