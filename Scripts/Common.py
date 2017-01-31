@@ -27,6 +27,8 @@ globalParameters["SolutionPrintDebug"] = False
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
+globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblemTypes"
+globalParameters["AnalyzePath"] = "2_Analyze"
 # device
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
@@ -226,17 +228,17 @@ def printExit( message): # 2
 def assignGlobalParameters( config ):
   global globalParameters
 
-  printExtra("GlobalParameters")
+  print "GlobalParameters:"
   for key in globalParameters:
     defaultValue = globalParameters[key]
     if key in config:
       configValue = config[key]
       if configValue == defaultValue:
-        printExtra(" %24s: %8s (same)" % (key, configValue) )
+        print " %24s: %8s (same)" % (key, configValue)
       else:
-        printExtra(" %24s: %8s (overriden)" % (key, configValue) )
+        print " %24s: %8s (overriden)" % (key, configValue)
     else:
-      printExtra(" %24s: %8s (unspecified)" % (key, defaultValue) )
+      print " %24s: %8s (unspecified)" % (key, defaultValue)
 
   for key in config:
     value = config[key]
@@ -263,3 +265,4 @@ def ensurePath( path ):
 # TODO
 CMakeHeader = "# Header\n\n"
 CHeader = "// Header\n\n"
+HR = "################################################################################"

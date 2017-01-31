@@ -23,7 +23,7 @@ import os
 import sys
 
 from Common import *
-import ReadYAML
+import YAMLIO
 import BenchmarkProblems
 import Analyze
 import Library
@@ -37,13 +37,26 @@ def executeStepsInConfig( config ):
 
   if "Parameters" in config:
     assignGlobalParameters( config["Parameters"] )
-    print ""
+  else:
+    assignGlobalParameters({})
+  print ""
 
   if "BenchmarkProblems" in config:
-    BenchmarkProblems.main( config["BenchmarkProblems"] )
-    print ""
+    benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
+        globalParameters["BenchmarkProblemsPath"], "Data")
+    resultFiles = os.listdir(benchmarkDataPath)
+    if len(resultFiles) < 2* len(config["BenchmarkProblems"]) \
+            or globalParameters["ForceRedo"]:
+      BenchmarkProblems.main( config["BenchmarkProblems"] )
+      print ""
+    else:
+      print "# Benchmarking already done."
 
   if "Analyze" in config:
+    if "BenchmarkProblems" in config:
+      config["Analyze"]["DataPath"] = benchmarkDataPath
+    elif "DataPath" not in config["Analyze"]:
+      printExit("Must specify \"DataPath\" for Analyze if not BenchmarkingProblemTypes.")
     Analyze.main( config["Analyze"] )
     print ""
 
@@ -76,7 +89,7 @@ else:
 
   configPath = os.path.realpath( sys.argv[1] )
   print("Tensile::Main ConfigFile: %s" % (configPath) )
-  config = ReadYAML.readConfig( configPath )
+  config = YAMLIO.readConfig( configPath )
   executeStepsInConfig( config )
   sys.exit(0)
 

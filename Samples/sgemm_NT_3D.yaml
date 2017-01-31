@@ -1,6 +1,6 @@
 Parameters:
   DebugPrintLevel: 2
-  ForceRedo: True
+  ForceRedo: False
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
@@ -17,21 +17,17 @@ BenchmarkProblems:
       DataType: s
       TransposeA: False
       TransposeB: True
-      UseBeta: False
-
-    InitialSolutionParameters:
-      LoopTail: False
-      WorkGroupEdge: 16
-      ThreadTileEdge: 4
+      UseBeta: True
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - LoopTail: [ False ]
+      - LoopTail: [ True ]
+      - LoopDoWhile: [ False ]
       - WorkGroupShape: [ 0 ]
       - SplitU: [ 1 ]
       - ThreadTileShape: [ 0 ]
-      - EdgeType: [ "None" ]
+      - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
       - WorkGroupSchedule: [ 1 ]
     ForkParameters:
@@ -45,11 +41,13 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [16, 16, 16, 5760], [16, 16, 16, 5760], [128, 128, 128, 5760] ]
+      - ProblemSizes: [ [16, 16, 16, 128], [16, 16, 16, 128], [128, 128, 128, 256] ]
 
 # final create problem-range -> solution mapping and encode to .yaml
 Analyze:
-  # parameters determining what solutions to keep, and how backend should be written
+  Dilate: 0 # 0=none, 1= 66566 -> 66666, 2= 665566 -> 666666
+  Threshold: 0.1
+
 
 # build the actual library
 Library:

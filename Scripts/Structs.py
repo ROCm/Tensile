@@ -19,10 +19,10 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import sys
-from copy import deepcopy
 
 from Common import *
+import sys
+from copy import deepcopy
 
 ################################################################################
 # Data Type
@@ -466,7 +466,22 @@ class ProblemSizes:
 
 
   def __str__(self):
-    return str(self.indexSizes)
+    state = "[ "
+    sizedIdx = 0
+    mappedIdx = 0
+    for i in range(0, len(self.indexIsSized)):
+      if self.indexIsSized[i]:
+        indices = self.indicesSized[sizedIdx]
+        state += "[ %u, %u, %u, %u ]" % (indices[0], indices[1], indices[2], indices[3])
+        sizedIdx += 1
+      else:
+        indices = self.indicesSized[self.indicesMapped[mappedIdx]]
+        state += str(self.indicesMapped[mappedIdx])
+        mappedIdx += 1
+      if i < len(self.indexIsSized)-1:
+        state += ", "
+    state += " ]"
+    return state
 
 
 

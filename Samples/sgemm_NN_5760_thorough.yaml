@@ -14,12 +14,12 @@ Parameters:
   MergeFiles: True
 
 BenchmarkProblems:
-  # sgemm NT
+  # sgemm NN
   - ProblemType:
       OperationType: GEMM
       DataType: s
       TransposeA: False
-      TransposeB: True
+      TransposeB: False
       UseBeta: False
 
     # keep benchmark as single list to make easier to modify in future

@@ -5,13 +5,14 @@ from copy import copy as shallowcopy
 from shutil import copy as shutil_copy
 from shutil import rmtree
 import csv
+from subprocess import Popen
 
 from BenchmarkProcess import *
 from Common import *
 from Structs import *
 from SolutionWriter import *
 from KernelWriter import *
-from subprocess import Popen
+import YAMLIO
 
 
 ################################################################################
@@ -19,13 +20,11 @@ from subprocess import Popen
 ################################################################################
 def benchmarkProblemType( config ):
 
-  hr = "#######################################################################"
-
   # convert config to full benchmark process (resolves defaults)
   print ""
-  print hr
+  print HR
   print "# Converting Config to BenchmarkProcess Object"
-  print hr
+  print HR
   print ""
   benchmarkProcess = BenchmarkProcess(config)
 
@@ -38,9 +37,9 @@ def benchmarkProblemType( config ):
   determinedParameters = [{}] # winner chosen from benchmark
   printStatus("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   print ""
-  print hr
+  print HR
   print "# Done Creating BenchmarkProcess Object"
-  print hr
+  print HR
 
   ##############################################################################
   # For Each Benchmark Step
@@ -57,7 +56,7 @@ def benchmarkProblemType( config ):
     stepName = str(benchmarkStep)
     shortName = benchmarkStep.abbreviation()
     print "\n\n"
-    print hr
+    print HR
     print "# %s\n# %s" % (problemTypeName, stepName)
     print "# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes
     print "# BenchmarkParameters:"
@@ -83,7 +82,7 @@ def benchmarkProblemType( config ):
       #  paramValue = paramDict[paramName]
       #  printStr += "%s: %s, " % (paramName, str(paramValue))
       #print printStr
-    #print hr
+    #print HR
     pushWorkingPath(shortName)
 
     ############################################################################
@@ -216,7 +215,7 @@ def benchmarkProblemType( config ):
         solution = solutionsForHardcoded[j]
         print "#    (%u:%u) %s" % (i, j, \
             Solution.getNameMin(solution, solutionsMinNaming) )
-    print hr
+    print HR
 
     # write benchmarkFiles
     writeBenchmarkFiles(solutionList, benchmarkStep.problemSizes, \
@@ -226,12 +225,15 @@ def benchmarkProblemType( config ):
     ############################################################################
     # Run Benchmark Script
     ############################################################################
-    resultsFileName = os.path.join(globalParameters["WorkingPath"], \
-        "../Data", "%s.csv" % shortName)
+    resultsFileBase = os.path.normpath(os.path.join( \
+        globalParameters["WorkingPath"], "../Data", shortName))
+    resultsFileName = resultsFileBase + ".csv"
+    solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or globalParameters["ForceRedo"]:
       # if redo=true, clobber the build directory
       if globalParameters["ForceRedo"]:
-        rmtree(os.path.join(globalParameters["WorkingPath"], "build"), ignore_errors=True)
+        rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
+            ignore_errors=True)
       pushWorkingPath("build")
 
       # create run.bat or run.sh which builds and runs
@@ -242,17 +244,17 @@ def benchmarkProblemType( config ):
       if os.name != "nt":
         runScriptFile.write("#!/bin/sh\n")
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
-          % (echoLine, hr, problemTypeName, stepName, hr))
+          % (echoLine, HR, problemTypeName, stepName, HR))
       if os.name == "nt":
         runScriptFile.write("cmake -DCMAKE_GENERATOR_PLATFORM=x64 ../source\n")
       else:
         runScriptFile.write("cmake ../source\n")
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
-          % (echoLine, hr, problemTypeName, stepName, hr))
+          % (echoLine, HR, problemTypeName, stepName, HR))
       runScriptFile.write("cmake --build . --config %s%s\n" \
           % (globalParameters["CMakeBuildType"], " -- -j 8" if os.name != "nt" else "") )
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
-          % (echoLine, hr, problemTypeName, stepName, hr))
+          % (echoLine, HR, problemTypeName, stepName, HR))
       if os.name == "nt":
         runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s.exe") \
             % (shortName) )
@@ -274,22 +276,26 @@ def benchmarkProblemType( config ):
     print "CSV Results: %s" % results
     winners.addResults(benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, solutions, results)
-    #for hardcodedParameterIdx in range(0, len(winnerIndices)):
-    #  hardcodedParameters = \
-    #      benchmarkStep.hardcodedParameters[hardcodedParameterIdx]
-    #  (winnerIdx, score) = winnerIndices[hardcodedParameterIdx]
-    #  winningParameters = benchmarkPermutations[winnerIdx]
-    #  winners[hardcodedParameters] = (winningParameters, score) # does update
 
-    #print "Winners Updated Winners\n%s" % winners
+    ##############################################################################
+    # Write Solutions YAML
+    ##############################################################################
+    YAMLIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
+        solutions )
 
+    #solutionsFromFile = YAMLIO.readSolutions(solutionYAMLFileName)
+    #solutionsMinNaming = Solution.getMinNaming(solutionsFromFile)
+    #for solution in solutionsFromFile:
+    #  print Solution.getNameMin(solution, solutionsMinNaming)
+
+    # End Iteration
     popWorkingPath() # stepName
-    print "%s%s\n# %s\n# %s: End\n%s%s\n" \
-        % (hr, hr, problemTypeName, shortName, hr, hr)
+    print "%s\n# %s\n# %s: End\n%s\n" \
+        % (HR, problemTypeName, shortName, HR)
 
-  popWorkingPath()
-
-
+  popWorkingPath() # ProblemType
+  return resultsFileBase
+# End benchmarkProblemType()
 
 
 ################################################################################
@@ -810,25 +816,9 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   benchmarkParametersFile.close()
 
 
-
 ################################################################################
-# Main
+# FrozenDictionary
 ################################################################################
-def main( config ):
-  printStatus("Beginning")
-  pushWorkingPath("1_BenchmarkProblemTypes")
-  for problemType in config:
-    if problemType is None:
-      benchmarkProblemType({})
-    else:
-      benchmarkProblemType(problemType)
-    if globalParameters["DebugPrintLevel"] >= 1:
-      print ""
-
-  printStatus("DONE.")
-  popWorkingPath()
-
-
 class FrozenDictionary:
   def __init__(self, parameters):
     self.parameters = deepcopy(parameters)
@@ -850,6 +840,7 @@ class FrozenDictionary:
     return Solution.getNameFull(self.parameters)
   def __repr__(self):
     return self.__str__();
+
 
 ################################################################################
 # Winning Parameters For Hardcoded Parameters
@@ -1059,3 +1050,32 @@ class WinningParameterDict:
     return state
   def __repr__(self):
     return self.__str__()
+
+
+################################################################################
+# Main
+################################################################################
+def main( config ):
+  printStatus("Beginning")
+  pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
+  dataPath = os.path.join(globalParameters["WorkingPath"], "Data")
+  ensurePath(dataPath)
+  for problemType in config:
+    problemTypeObj = ProblemType(problemType)
+
+    # Benchmark Problem Type
+    if problemType is None:
+      resultsFileBase = benchmarkProblemType({})
+    else:
+      resultsFileBase = benchmarkProblemType(problemType)
+
+    # Copy Data
+    resultsFileName = resultsFileBase + ".csv"
+    solutionsFileName = resultsFileBase + ".yaml"
+    newResultsFileName = os.path.join(globalParameters["WorkingPath"], "Data", "%s.csv" % str(problemTypeObj))
+    newSolutionsFileName = os.path.join(globalParameters["WorkingPath"], "Data", "%s.yaml" % str(problemTypeObj))
+    shutil_copy( resultsFileName, newResultsFileName )
+    shutil_copy( solutionsFileName, newSolutionsFileName )
+
+  printStatus("DONE.")
+  popWorkingPath()
