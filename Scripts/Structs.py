@@ -436,34 +436,23 @@ class ProblemSizes:
     for i in problemType["IndexAssignmentsB"]:
       self.maxNumElements[2] *= self.indexMax[i]
 
-    self.totalProblemSizes = 0
-    currentSizedIndexSizes = []
-    currentSizedIndexIncrements = []
-    for index in self.indicesSized:
-      currentSizedIndexSizes.append(index[0])
-      currentSizedIndexIncrements.append(index[1])
-    numIndicesSized = len(self.indicesSized)
-    moreProblemSizes = True
-    #print "Counting Problem Sizes: %s" % self.indicesSized
-    while moreProblemSizes:
-      #print "Size[%u]: sizes=%s incr=%s" % (self.totalProblemSizes, \
-      #    currentSizedIndexSizes, currentSizedIndexIncrements)
-      self.totalProblemSizes += 1
-      currentSizedIndexSizes[0] += currentSizedIndexIncrements[0]
-      currentSizedIndexIncrements[0] += self.indicesSized[0][2]
-      for i in range(1, numIndicesSized+1):
-        if currentSizedIndexSizes[i-1] > self.indicesSized[i-1][3]:
-          # reset prior index size and incr
-          currentSizedIndexSizes[i-1] = self.indicesSized[i-1][0]
-          currentSizedIndexIncrements[i-1] = self.indicesSized[i-1][1]
-          # increment next index
-          if i == numIndicesSized:
-            moreProblemSizes = False
-          else:
-            currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
-            currentSizedIndexIncrements[i] += self.indicesSized[i][2];
-    #print "ProblemSizes: %u" % self.totalProblemSizes
-
+    self.totalProblemSizes = 1
+    self.numProblemSizes = [] # per index
+    sizedIdx = 0
+    for i in range(0, len(self.indexIsSized)):
+      if self.indexIsSized[i]:
+        self.numProblemSizes.append(0)
+        index = self.indicesSized[sizedIdx]
+        sizedIdx += 1
+        currentSize = index[0]
+        currentIncrement = index[1]
+        while currentSize <= index[3]:
+          currentSize += currentIncrement
+          currentIncrement += index[2]
+          self.numProblemSizes[i] += 1
+      else:
+        self.numProblemSizes.append(1)
+      self.totalProblemSizes *= self.numProblemSizes[i]
 
   def __str__(self):
     state = "[ "

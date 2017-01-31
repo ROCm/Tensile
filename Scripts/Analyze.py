@@ -4,6 +4,9 @@ from Common import *
 from Structs import *
 import YAMLIO
 
+################################################################################
+# Analyze Problem Type
+################################################################################
 def analyzeProblemType( problemTypeTuple ):
   problemType = problemTypeTuple[0]
   problemSizes = problemTypeTuple[1]
@@ -24,8 +27,25 @@ def analyzeProblemType( problemTypeTuple ):
     solutionIdx += 1
   print HR
 
-  
+  # Num Data Points in each index
+  numProblemSizes = problemSizes.numProblemSizes
+  print numProblemSizes
+  data = BenchmarkData(numProblemSizes, len(solutions))
 
+  
+class BenchmarkData:
+  def __init__(self, numProblemSizes, numSolutions):
+    self.numProblemSizes = numProblemSizes
+    self.numSolutions = numSolutions
+    self.totalSize = numSolutions
+    for problemSize in self.numProblemSizes:
+      self.totalSize *= problemSize
+    self.totalSize
+    print self.totalSize
+
+################################################################################
+# Main
+################################################################################
 def main(  config ):
   pushWorkingPath(globalParameters["AnalyzePath"])
   print ""
@@ -54,10 +74,7 @@ def main(  config ):
       problemTypeTuple = ( problemType, problemSizes, \
           dataFileName, solutionsFileName)
       if problemTypeTuple not in problemTypeTuples:
-        print "adding tuple"
         problemTypeTuples.append(problemTypeTuple)
-      else:
-        print "not adding tuple"
 
   # Run Analysis
   for problemTypeTuple in problemTypeTuples:
