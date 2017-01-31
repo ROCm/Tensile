@@ -15,6 +15,10 @@ int main( int argc, char *argv[] ) {
   initControls();
   initData();
   std::cout << std::endl;
+  std::cout << "Solutions: " << std::endl;
+  for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
+    std::cout << "  " << solutionNames[sIdx] << std::endl;
+  }
 
   std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
@@ -244,15 +248,16 @@ void benchmarkAllSolutionsForSize(
     double gflops = totalFlops / timeMs / 1000000.0;
 
     if (numElementsToValidate) {
-      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]: "
-        << std::setw(9) << std::fixed << std::setprecision(3)
-        << gflops << " GFlop/s v: " << (numInvalids ? "FAILED" : "PASSED")
-        << " p: " << (numChecked-numInvalids) << "/" << numChecked
-        << "  " << solutionNames[solutionIdx] << std::endl;
+      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]:"
+        << std::setw(10) << std::fixed << std::setprecision(3)
+        << gflops << " GFlop/s |"
+        << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
+        << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
     } else {
-      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]: "
-        << std::setw(9) << std::fixed << std::setprecision(3)
-        << gflops << " GFlop/s (" << solutionNames[solutionIdx] << ")" << std::endl;
+      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]:"
+        << std::setw(10) << std::fixed << std::setprecision(3)
+        << gflops << " GFlop/s |"
+        << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
     }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
@@ -286,7 +291,7 @@ void initControls() {
   char *deviceName = new char[nameLength+1];
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
   tensileStatusCheck(status);
-  std::cout << "Device: \"" << deviceName << std::endl;
+  std::cout << "Device: \"" << deviceName << "\"" << std::endl;
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
   tensileStatusCheck(status);
   stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
