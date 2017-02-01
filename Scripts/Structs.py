@@ -438,8 +438,12 @@ class ProblemSizes:
 
     self.totalProblemSizes = 1
     self.numProblemSizes = [] # per index
+    self.problemSizeToIndex = []
+    self.problemIndexToSize = []
     sizedIdx = 0
     for i in range(0, len(self.indexIsSized)):
+      self.problemSizeToIndex.append({})
+      self.problemIndexToSize.append({})
       if self.indexIsSized[i]:
         self.numProblemSizes.append(0)
         index = self.indicesSized[sizedIdx]

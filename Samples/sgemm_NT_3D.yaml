@@ -21,7 +21,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [5760], 0, 0 ]
+      - ProblemSizes: [ [2880], 0, 0 ]
       - LoopTail: [ True ]
       - LoopDoWhile: [ False ]
       - WorkGroupShape: [ 0 ]
@@ -47,20 +47,4 @@ BenchmarkProblems:
 Analyze:
   Dilate: 0 # 0=none, 1= 66566 -> 66666, 2= 665566 -> 666666
   Threshold: 0.1
-
-
-# build the actual library
-Library:
-  PrintDebug: 2
-  # input, output
-  # toolchain?, Debug/Release
-  # defines
-
-# builds a benchmarking / validation client
-Client:
-  builds from same library info
-
-BenchmarkClient: # runs the benchmark client a bunch of times to produce plot data
-  ProblemSizes: {1, 2, 4, 8, ...}
-
 
