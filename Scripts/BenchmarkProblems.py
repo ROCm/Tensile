@@ -1058,7 +1058,7 @@ class WinningParameterDict:
 def main( config ):
   printStatus("Beginning")
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
-  dataPath = os.path.join(globalParameters["WorkingPath"], "Data")
+  dataPath = os.path.join(globalParameters["WorkingPath"], "Results")
   ensurePath(dataPath)
   for problemType in config:
     problemTypeObj = ProblemType(problemType)
@@ -1072,8 +1072,10 @@ def main( config ):
     # Copy Data
     resultsFileName = resultsFileBase + ".csv"
     solutionsFileName = resultsFileBase + ".yaml"
-    newResultsFileName = os.path.join(globalParameters["WorkingPath"], "Data", "%s.csv" % str(problemTypeObj))
-    newSolutionsFileName = os.path.join(globalParameters["WorkingPath"], "Data", "%s.yaml" % str(problemTypeObj))
+    newResultsFileName = os.path.join(globalParameters["WorkingPath"], \
+        "Results", "%s.csv" % str(problemTypeObj))
+    newSolutionsFileName = os.path.join(globalParameters["WorkingPath"], \
+        "Results", "%s.yaml" % str(problemTypeObj))
     shutil_copy( resultsFileName, newResultsFileName )
     shutil_copy( solutionsFileName, newSolutionsFileName )
 
