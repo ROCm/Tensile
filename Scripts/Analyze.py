@@ -31,22 +31,47 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
     solutionIdx += 1
   print HR
 
-  # Read Data
+  # Read Data From CSV
   numProblemSizes = problemSizes.numProblemSizes
-  data = BenchmarkData(problemType, problemSizes, solutions, analysisParameters)
+  data = BenchmarkDataAnalyzer(problemType, problemSizes, solutions, \
+      analysisParameters)
   data.populateFromCSV(dataFileName)
-  #data.printData()
-  diagonalSolutions = data.getFastestSolutionsAlongDiagonal()
+
+  ##############################################################################
+  # Determine Solutions Along Diagonal
+  # roughly same splitting regardless of sizeU
+  problemIndices = []
+  for numProblemsForIndex in data.numProblemSizes:
+    problemIndices.append(numProblemsForIndex-1)
+  diagonalRules = data.getFastestSolutionsAlongDiagonal(problemIndices)
+  print "Diagonal Rules:"
+  for rule in diagonalRules:
+    string = "  if freeSize >=%4u" % data.problemIndexToSize[0][rule[1][0]]
+    for i in range(1, data.numIndices):
+      string += "x%4u" % data.problemIndexToSize[i][rule[1][i]]
+    string += " return S[%u] @ %5.0f-%5.0f>%5.0f GFlops is %s" \
+        % (rule[0], rule[2], rule[3], rule[4], \
+        data.solutionNames[rule[0]])
+    print string
+
+  ##############################################################################
+  # Determine Skinny Solutions
+  data.getSkinnySolutions(diagonalRules, problemIndices)
+
+
 
 ################################################################################
-# BenchmarkData
+# BenchmarkDataAnalyzer
 ################################################################################
+class BenchmarkDataAnalyzer:
 
-################################################################################
-# BenchmarkData
-################################################################################
-class BenchmarkData:
-  # numProblemSizes[i] = num0, num1, ...
+  ########################################
+  # diagonal rule looks like
+  # 0: solutionIdx
+  # 1: problemIndices for minThreshold problem
+  # 2: gflops at above minSize
+  # 3: maxGFlops for this solution along diagonal in interval it won
+  # 4: gflops of prior winner at minSize, i.e., what performance did it beat
 
   def __init__(self, problemType, problemSizes, solutions, analysisParameters):
     self.problemType = problemType
@@ -168,20 +193,16 @@ class BenchmarkData:
   ##############################################################################
   # Get Fastest Solutions Along Diagonal (d0=d1) for largest sizes
   ##############################################################################
-  def getFastestSolutionsAlongDiagonal(self):
-    print "Determining fastest solution along diagonal"
+  def getFastestSolutionsAlongDiagonal(self, problemIndices):
+    print "\nFastest Diagonal idxU: %u" % problemIndices[self.idxU]
     # abstract to multidimensions
     # what is the diagonal
     dilation = self.analysisParameters["Dilation"]
     threshold = self.analysisParameters["Threshold"]
     numProblems0 = self.numProblemSizes[self.idx0]
-    print "NumProblemsDiag: %u" % numProblems0
 
     ############################################################################
     # determine winner at largest size
-    problemIndices = []
-    for numProblemsForIndex in self.numProblemSizes:
-      problemIndices.append(numProblemsForIndex-1)
     solutionNumWins = [0]*self.numSolutions
     solutionGFlops = [0]*self.numSolutions
     for problemSizeIdx in range(numProblems0-dilation*2, numProblems0):
@@ -212,9 +233,9 @@ class BenchmarkData:
         largestWinnerIdx = i
         largestWinnerNumWins = solutionNumWins[i]
         largestWinnerGFlops = solutionGFlops[i]
-    print "Winner at Largest Problem: S[%u] @ %.0f GFlops with %u/%u wins" \
-        % (largestWinnerIdx, largestWinnerGFlops, largestWinnerNumWins, \
-        dilation*2)
+    #print "Winner at Largest Problem: S[%u] @ %.0f GFlops with %u/%u wins" \
+    #    % (largestWinnerIdx, largestWinnerGFlops, largestWinnerNumWins, \
+    #    dilation*2)
     problemIndices[self.idx0] = numProblems0-1
     problemIndices[self.idx1] = numProblems0-1
     largestWinnerAtLargestProblemIdx = self.indicesToSerial(largestWinnerIdx, \
@@ -224,10 +245,10 @@ class BenchmarkData:
 
     ############################################################################
     # Diagonal Rule
-    # [ solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops ]
+    # solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops, oldGFlops
     numRules = 1
-    diagonalRules = [ [largestWinnerIdx, numProblems0-1, \
-        largestWinnerGFlopsAtLargestSize, largestWinnerGFlops] ]
+    diagonalRules = [ [largestWinnerIdx, deepcopy(problemIndices), \
+        largestWinnerGFlopsAtLargestSize, largestWinnerGFlops, -1] ]
 
     ############################################################################
     # For largest to smallest, determine fastest solution
@@ -260,7 +281,7 @@ class BenchmarkData:
       if winnerForSizeIdx == ruleWinnerIdx \
           or ruleWinnerGFlopsForSize > (1-threshold)*winnerForSizeGFlops:
         # just update rule
-        diagonalRules[numRules-1][1] = problemSizeIdx
+        diagonalRules[numRules-1][1] = deepcopy(problemIndices)
         diagonalRules[numRules-1][2] = ruleWinnerGFlopsForSize
         diagonalRules[numRules-1][3] = max(diagonalRules[numRules-1][3], \
             ruleWinnerGFlopsForSize)
@@ -292,7 +313,9 @@ class BenchmarkData:
             # yes, within Dilation, we've returned to same winner
             revert = True
             # so update rule for this size
-            diagonalRules[numRules-1][1] = dilationIdx
+            problemIndices[self.idx0] = dilationIdx
+            problemIndices[self.idx1] = dilationIdx
+            diagonalRules[numRules-1][1] = deepcopy(problemIndices)
             diagonalRules[numRules-1][2] = winnerForDilationGFlops
             diagonalRules[numRules-1][3] = max(diagonalRules[numRules-1][3], \
                 winnerForSizeGflops)
@@ -306,22 +329,72 @@ class BenchmarkData:
 
         # if we never revert to rule during dilation, create new rule
         if not revert:
-          # [ solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops ]
-          newRule = [ winnerForSizeIdx, problemSizeIdx, \
-              winnerForSizeGFlops, winnerForSizeGFlops]
+          # solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops, old
+          newRule = [ winnerForSizeIdx, deepcopy(problemIndices), \
+              winnerForSizeGFlops, winnerForSizeGFlops, ruleWinnerGFlopsForSize]
           diagonalRules.append(newRule)
           numRules += 1
           #print "Added new rule: %s" % newRule
 
-    print "Diagonal Rules:"
-    for rule in diagonalRules:
-      # [ solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops ]
-      print "  d0,1 >=%5u: S[%u] @ %5.0f GFlops is %s" \
-          % (self.problemIndexToSize[self.idx0][rule[1]], rule[0], rule[3], \
-          self.solutionNames[rule[0]])
-    self.diagonalRules = diagonalRules
+    return diagonalRules
     #end diagonal rules
 
+
+  ##############################################################################
+  # Skinny Solutions
+  ##############################################################################
+  def getSkinnySolutions(self, diagonalRules, problemIndices):
+    idx0 = self.idx0
+    idx1 = self.idx1
+    idxU = self.idxU
+
+    # for each size threshold along diagonal
+    for diagonalRuleIdx in range(0, len(diagonalRules)):
+      diagonalRule = diagonalRules[diagonalRuleIdx]
+      diagonalRuleSolution = diagonalRule[0]
+      diagonalRuleThresholdProblem = diagonalRule[1]
+      diagonalRuleGFlops = diagonalRule[2] # perf at threshold
+      thresholdSizeFree = self.getSizeFree(diagonalRuleThresholdProblem)
+      print "ThresholdSizeFree[%u][%u]: %u" \
+          % (diagonalRuleThresholdProblem[idx0], \
+          diagonalRuleThresholdProblem[idx1], \
+          thresholdSizeFree)
+
+      # check skinny0 (large d0, small d1)
+      skinnyProblemIndices = deepcopy(problemIndices)
+      for sizeIdx0 in range( diagonalRuleThresholdProblem[idx0]-1, -1, -1):
+        skinnyProblemIndices[idx0] = sizeIdx0
+        for sizeIdx1 in range( diagonalRuleThresholdProblem[idx1], \
+            self.numProblemSizes[idx1]):
+          skinnyProblemIndices[idx1] = sizeIdx1
+          skinnySizeFree = self.getSizeFree(skinnyProblemIndices)
+          if skinnySizeFree > thresholdSizeFree:
+            print "SkinnySizeFree[%u][%u]: %u" % (sizeIdx0, sizeIdx1, \
+              skinnySizeFree)
+            break
+          # check if problem size is larget than threshold size
+
+        #problem d0,d1 getting skinnier and skinnier
+        # at which point is the winner not the diagonalWinner
+
+    # end skinny solutions
+
+
+  ##############################################################################
+  # Get Size Free and Summation
+  ##############################################################################
+  def getSizeFree(self, problemIndices):
+    sizeFree = 1
+    for i in range(0, self.problemType["NumIndicesC"]):
+      sizeFree *= self.problemIndexToSize[i][problemIndices[i]]
+    return sizeFree
+
+  def getSizeSummation(self, problemIndices):
+    sizeSummation = 1
+    for i in range(self.problemType["NumIndicesC"], \
+        self.problemType["TotalIndices"]):
+      sizeSummation *= self.problemIndexToSize[i][problemIndices[i]]
+    return sizeSummation
 
   ##############################################################################
   # Print Data
