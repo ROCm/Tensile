@@ -144,6 +144,15 @@ defaultBenchmarkFinalProblemSizes = [
 
 
 ################################################################################
+# Default Analysis Parameters
+################################################################################
+defaultAnalysisParameters = {
+    "Dilation":                 3,
+    "Threshold":                0.1,
+    }
+
+
+################################################################################
 # Searching Nested Lists / Dictionaries
 ################################################################################
 # param name in structures?
@@ -245,6 +254,24 @@ def assignGlobalParameters( config ):
     if key not in globalParameters:
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
+
+
+################################################################################
+# Assign Parameters
+################################################################################
+def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
+    defaultDictionary):
+  if key in sourceDictionary:
+    destinationDictionary[key] = sourceDictionary[key]
+  else:
+    destinationDictionary[key] = defaultDictionary[key]
+
+def assignParameterRequired(destinationDictionary, key, sourceDictionary):
+  if key in sourceDictionary:
+    destinationDictionary[key] = sourceDictionary[key]
+  else:
+    printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
+
 
 ################################################################################
 # Push / Pop Working Path

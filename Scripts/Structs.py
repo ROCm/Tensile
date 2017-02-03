@@ -194,7 +194,7 @@ class ProblemType:
   def __init__(self, config):
     self.state = {}
     for key in defaultProblemType:
-      self.assignWithDefault(key, defaultProblemType[key], config)
+      assignParameterWithDefault(self.state, key, config, defaultProblemType)
 
     if "DataType" in config:
       self["DataType"] = DataType(config["DataType"])
@@ -227,9 +227,9 @@ class ProblemType:
 
   ########################################
   def initTensorContraction(self, config):
-    self.assign("NumIndicesC", config)
-    self.assign("IndexAssignmentsA", config)
-    self.assign("IndexAssignmentsB", config)
+    assignParameterRequired(self.state, "NumIndicesC", config)
+    assignParameterRequired(self.state, "IndexAssignmentsA", config)
+    assignParameterRequired(self.state, "IndexAssignmentsB", config)
 
   ########################################
   def isGEMM(self):
@@ -356,16 +356,6 @@ class ProblemType:
     if self["UseInitialStrides"]: name += "I"
     return name
 
-  def assignWithDefault(self, parameter, default, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      self[parameter] = default
-  def assign(self, parameter, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      sys.exit("Tensile::ProblemType::init ERROR - parameter \"%s\" must be defined" % parameter)
   def __getitem__(self, key):
     return self.state[key]
   def __setitem__(self, key, value):
@@ -499,7 +489,7 @@ class Solution:
 
     # assign parameters with defaults
     for key in defaultSolution:
-      self.assignWithDefault(key, defaultSolution[key], config)
+      assignParameterWithDefault(self.state, key, config, defaultSolution)
 
     # assign parameters without defaults
     for key in config:
@@ -726,16 +716,6 @@ class Solution:
       printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)
 
-  def assignWithDefault(self, parameter, default, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      self[parameter] = default
-  def assign(self, parameter, config):
-    if parameter in config:
-      self[parameter] = config[parameter]
-    else:
-      sys.exit("Tensile::Solution::init: ERROR - parameter \"%s\" must be defined" % parameter)
   # make class look like dict
   def keys(self):
     return self.state.keys()

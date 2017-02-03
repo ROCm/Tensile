@@ -43,7 +43,7 @@ def executeStepsInConfig( config ):
 
   if "BenchmarkProblems" in config:
     benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
-        globalParameters["BenchmarkProblemsPath"], "Data")
+        globalParameters["BenchmarkProblemsPath"], "Results")
     if os.path.exists(benchmarkDataPath):
       resultFiles = os.listdir(benchmarkDataPath)
     else:
