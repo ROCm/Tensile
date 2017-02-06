@@ -544,6 +544,7 @@ class Solution:
     # macro tile sizes
     state["MacroTile0"] = state["WorkGroup0"]*state["ThreadTile0"]
     state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
+    state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
 
   ########################################

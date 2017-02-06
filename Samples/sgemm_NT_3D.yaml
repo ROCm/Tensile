@@ -1,6 +1,7 @@
 Parameters:
+  Name: Hawaii
   DebugPrintLevel: 2
-  ForceRedo: False
+  ForceRedoBenchmarkProblems: False
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
@@ -44,7 +45,7 @@ BenchmarkProblems:
       - ProblemSizes: [ [16, 16, 16, 128], [16, 16, 16, 128], [128, 128, 128, 256] ]
 
 # final create problem-range -> solution mapping and encode to .yaml
-Analyze:
+LibraryLogic:
   Dilation: 3 # 0=none, 1= 66566 -> 66666, 2= 665566 -> 666666
   Threshold: 0.1
 

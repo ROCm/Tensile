@@ -27,16 +27,19 @@ globalParameters["SolutionPrintDebug"] = False
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
 globalParameters["WorkingPath"] = os.getcwd()
-globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblemTypes"
-globalParameters["AnalyzePath"] = "2_Analyze"
+globalParameters["BenchmarkPath"] = "1_Benchmarks"
+globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"
+globalParameters["LibraryLogicPath"] = "3_LibraryLogic"
+globalParameters["WriteLibraryPath"] = "4_Library"
 # device
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
 # benchmark behavior
 globalParameters["CMakeBuildType"] = "Release" # Debug
-globalParameters["ForceRedo"] = True
-globalParameters["EnqueuesPerSync"] = 4
-globalParameters["SyncsPerBenchmark"] = 1
+globalParameters["ForceRedoBenchmarkProblems"] = True
+globalParameters["ForceRedoLibraryLogic"] = True
+globalParameters["EnqueuesPerSync"] = 1
+globalParameters["SyncsPerBenchmark"] = 4
 # file heirarchy
 globalParameters["ShortFileNames"] = False
 globalParameters["MergeFiles"] = True

@@ -25,8 +25,8 @@ import sys
 from Common import *
 import YAMLIO
 import BenchmarkProblems
-import Analyze
-import Library
+import LibraryLogic
+import LibraryWriter
 import Client
 import BenchmarkClient
 
@@ -41,31 +41,47 @@ def executeStepsInConfig( config ):
     assignGlobalParameters({})
   print ""
 
+  ##############################################################################
+  # Benchmark Problems
+  ##############################################################################
+  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["BenchmarkDataPath"])
   if "BenchmarkProblems" in config:
-    benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
-        globalParameters["BenchmarkProblemsPath"], "Results")
     if os.path.exists(benchmarkDataPath):
       resultFiles = os.listdir(benchmarkDataPath)
     else:
       resultFiles = []
 
     if len(resultFiles) < 2* len(config["BenchmarkProblems"]) \
-            or globalParameters["ForceRedo"]:
+            or globalParameters["ForceRedoBenchmarkProblems"]:
       BenchmarkProblems.main( config["BenchmarkProblems"] )
       print ""
     else:
       print "# Benchmarking already done."
 
-  if "Analyze" in config:
-    if "BenchmarkProblems" in config:
-      config["Analyze"]["DataPath"] = benchmarkDataPath
-    elif "DataPath" not in config["Analyze"]:
-      printExit("Must specify \"DataPath\" for Analyze if not BenchmarkingProblemTypes.")
-    Analyze.main( config["Analyze"] )
+  ##############################################################################
+  # Library Logic
+  ##############################################################################
+  libraryLogicDataPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["LibraryLogicPath"])
+  if "LibraryLogic" in config:
+    if os.path.exists(libraryLogicDataPath):
+      libraryLogicFiles = os.listdir(libraryLogicDataPath)
+    else:
+      libraryLogicFiles = []
+    if len(libraryLogicFiles) < 1 or globalParameters["ForceRedoLibraryLogic"]:
+      LibraryLogic.main( config["LibraryLogic"] )
+      print ""
+    else:
+      print "# LibraryLogic already done."
     print ""
 
-  if "Library" in config:
-    Library.main( config["Library"] )
+  return
+  ##############################################################################
+  # Write Library
+  ##############################################################################
+  if "WriteLibrary" in config:
+    LibraryWriter.main( config["WriteLibrary"] )
     print ""
 
   if "Client" in config:

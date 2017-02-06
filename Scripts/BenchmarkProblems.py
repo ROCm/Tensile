@@ -1058,7 +1058,7 @@ class WinningParameterDict:
 def main( config ):
   printStatus("Beginning")
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
-  dataPath = os.path.join(globalParameters["WorkingPath"], "Results")
+  dataPath = os.path.join(globalParameters["WorkingPath"], globalParameters["BenchmarkPath"])
   ensurePath(dataPath)
   for problemType in config:
     problemTypeObj = ProblemType(problemType)

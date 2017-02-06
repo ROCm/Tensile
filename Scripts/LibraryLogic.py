@@ -44,15 +44,16 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
   for numProblemsForIndex in data.numProblemSizes:
     problemIndices.append(numProblemsForIndex-1)
   diagonalRules = data.getFastestSolutionsAlongDiagonal(problemIndices)
-  print "Diagonal Rules:"
-  for rule in diagonalRules:
-    string = "  if freeSize >=%4u" % data.problemIndexToSize[0][rule[1][0]]
-    for i in range(1, data.numIndices):
-      string += "x%4u" % data.problemIndexToSize[i][rule[1][i]]
-    string += " return S[%u] @ %5.0f-%5.0f>%5.0f GFlops is %s" \
-        % (rule[0], rule[2], rule[3], rule[4], \
-        data.solutionNames[rule[0]])
-    print string
+  if True:
+    print "Diagonal Rules:"
+    for rule in diagonalRules:
+      string = "  if freeSize >=%4u" % data.problemIndexToSize[0][rule[1][0]]
+      for i in range(1, data.numIndices):
+        string += "x%4u" % data.problemIndexToSize[i][rule[1][i]]
+      string += " return S[%u] @ %5.0f-%5.0f>%5.0f GFlops is %s" \
+          % (rule[0], rule[2], rule[3], rule[4], \
+          data.solutionNames[rule[0]])
+      print string
 
   ##############################################################################
   # Determine Skinny0 Solutions
@@ -72,7 +73,77 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
   skinnyRules10 = data.getSkinnySolutions(diagonalRules, problemIndices, \
       data.idx1, data.idx0)
 
+  # list solutions that actually get used
+  solutionIndicesUsed = []
+  for rule in skinnyRules01:
+    pass
+  for rule in skinnyRules10:
+    pass
+  for rule in diagonalRules:
+    solutionIdx = rule[0]
+    solution = solutions[solutionIdx]
+    MT0 = solution["MacroTile0"]
+    MT1 = solution["MacroTile1"]
+    DU = solution["DepthU"]
+    #print "Rule Tile S[%u]: %ux%ux%u" % (solutionIdx, MT0, MT1, DU)
+    # is this solution in the list
+    inList = False
+    for solutionUsed in solutionIndicesUsed:
+      if solutionUsed[0] == solutionIdx:
+        inList = True
+        break
+    if not inList:
+      insertIdx = len(solutionIndicesUsed)
+      for i in range(0, len(solutionIndicesUsed)):
+        iMT0 = solutionIndicesUsed[i][1]
+        iMT1 = solutionIndicesUsed[i][2]
+        iDU  = solutionIndicesUsed[i][3]
+        #print "  compare S[%u]: %ux%ux%u" % (solutionIndicesUsed[i][0], \
+        #    iMT0, iMT1, iDU)
+        if MT0*MT1 < iMT0*iMT1:
+          insertIdx = i
+          break
+        elif MT0*MT1 > iMT0*iMT1:
+          continue
+        else: # MT == MT
+          if DU < iDU:
+            insertIdx = i
+            break
+          else:
+            continue
 
+        # if i'm smaller than i, insert me before i
+      #print "insert: %u" % insertIdx
+      solutionIndicesUsed.insert(insertIdx, [solutionIdx, MT0, MT1, DU])
+  print solutionIndicesUsed
+
+  # list of solutions used
+  solutionsUsed = []
+  for solutionIndexUsed in solutionIndicesUsed:
+    solutionsUsed.append(solutions[solutionIndexUsed[0]])
+
+  # translate rules to new solution indices
+  for rule in skinnyRules01:
+    pass
+  for rule in skinnyRules10:
+    pass
+  for ruleIdx in range(0, len(diagonalRules)):
+    solutionIdx = diagonalRules[ruleIdx][0]
+    for i in range(0, len(solutionIndicesUsed)):
+      solutionIndexUsed = solutionIndicesUsed[i]
+      if solutionIdx == solutionIndexUsed[0]:
+        diagonalRules[ruleIdx][0] = i
+        break
+    # change problemSizeIndices to sizes
+    for i in range(0, 3):
+      diagonalRules[ruleIdx][1][i] = \
+          data.problemIndexToSize[i][ diagonalRules[ruleIdx][1][i] ]
+
+  print "New Rules: %s" % diagonalRules
+
+
+  #return (skinnyRules01, skinnyRules10, diagonalRules)
+  return (problemType, solutionsUsed, [], [], diagonalRules )
 
 
 
@@ -521,7 +592,8 @@ class BenchmarkDataAnalyzer:
 def main(  config ):
   print config
   print defaultAnalysisParameters
-  pushWorkingPath(globalParameters["AnalyzePath"])
+  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], globalParameters["BenchmarkDataPath"])
+  pushWorkingPath(globalParameters["LibraryLogicPath"])
 
   # Assign Defaults
   analysisParameters = {}
@@ -531,7 +603,7 @@ def main(  config ):
 
   print ""
   print HR
-  print "# Analysing data in %s." % config["DataPath"]
+  print "# Analysing data in %s." % globalParameters["BenchmarkDataPath"]
   for parameter in analysisParameters:
     print "#   %s: %s" % (parameter, analysisParameters[parameter])
   print HR
@@ -543,9 +615,13 @@ def main(  config ):
   # Determine Which Problem Types
   ##############################################################################
   problemTypeTuples = []
-  for fileName in os.listdir(config["DataPath"]):
+  if not os.path.exists(benchmarkDataPath):
+    printExit("Path doesn't exist: %s" % benchmarkDataPath)
+  for fileName in os.listdir(benchmarkDataPath):
     if os.path.splitext(fileName)[1] == ".csv":
-      fileBase = os.path.splitext(os.path.join(config["DataPath"], fileName))[0]
+      fileBase = os.path.splitext( \
+          os.path.join(benchmarkDataPath, \
+          fileName))[0]
       dataFileName = fileBase + ".csv"
       solutionsFileName = fileBase + ".yaml"
       if not os.path.exists(dataFileName):
@@ -562,8 +638,11 @@ def main(  config ):
         problemTypeTuples.append(problemTypeTuple)
 
   # Run Analysis
+  schedulePrefix = globalParameters["Name"]
   for problemTypeTuple in problemTypeTuples:
-    analyzeProblemType( problemTypeTuple, analysisParameters )
+    logic = analyzeProblemType( problemTypeTuple, analysisParameters )
+    YAMLIO.writeLibraryConfigForProblemType(globalParameters["WorkingPath"], \
+        schedulePrefix, logic)
 
   printStatus("DONE.")
   popWorkingPath()
