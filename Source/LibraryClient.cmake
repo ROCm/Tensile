@@ -47,12 +47,19 @@ set_property( CACHE Tensile_BACKEND PROPERTY STRINGS HIP OCL )
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 include(${CMAKE_SOURCE_DIR}/CreateTensile.cmake)
 
-message(STATUS ${Tensile_LOGIC_PATH})          # path
-message(STATUS ${Tensile_ROOT})                # path
-message(STATUS ${Tensile_BACKEND})             # OCL or HIP
-message(STATUS ${Tensile_MERGE_FILES})         # ON or OFF
-message(STATUS ${Tensile_SHORT_FILE_NAMES})    # ON or OFF
-message(STATUS ${Tensile_LIBRARY_PRINT_DEBUG}) # ON or OFF
+#message(STATUS ${Tensile_LOGIC_PATH})          # path
+#message(STATUS ${Tensile_ROOT})                # path
+#message(STATUS ${Tensile_BACKEND})             # OCL or HIP
+#message(STATUS ${Tensile_MERGE_FILES})         # ON or OFF
+#message(STATUS ${Tensile_SHORT_FILE_NAMES})    # ON or OFF
+#message(STATUS ${Tensile_LIBRARY_PRINT_DEBUG}) # ON or OFF
+
+# find device libraries
+if( Tensile_BACKEND MATCHES "OCL")
+  find_package(OpenCL "1.2" REQUIRED)
+elseif( Tensile_BACKEND MATCHES "HIP")
+  find_package( HIP REQUIRED )
+endif()
 
 # Create Tensile Library
 CreateTensile(
@@ -75,7 +82,7 @@ target_link_libraries( ${LibraryClient} Tensile )
 ###############################################################################
 # Backend dependent parameters
 if( Tensile_BACKEND MATCHES "OCL")
-  find_package(OpenCL "1.2" REQUIRED)
+  #find_package(OpenCL "1.2" REQUIRED)
   target_link_libraries( ${LibraryClient} ${OPENCL_LIBRARIES} )
   target_compile_definitions( ${LibraryClient} PUBLIC 
     -DTensile_BACKEND_OCL=1
@@ -83,7 +90,7 @@ if( Tensile_BACKEND MATCHES "OCL")
   target_include_directories( ${LibraryClient} SYSTEM
     PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
 elseif( Tensile_BACKEND MATCHES "HIP")
-  find_package( HIP REQUIRED )
+  #find_package( HIP REQUIRED )
   set (CMAKE_CXX_COMPILER ${HIPCC})
   target_include_directories( ${LibraryClient} SYSTEM
     PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )

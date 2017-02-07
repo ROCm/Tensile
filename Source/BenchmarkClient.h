@@ -23,7 +23,7 @@
  * Tensile Benchmark
  ******************************************************************************/
 
-#include "Tensile.h"
+#include "TensileTypes.h"
 #include "Tools.h"
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"

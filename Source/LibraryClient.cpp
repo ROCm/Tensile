@@ -1,4 +1,6 @@
-#include "LibraryClient.h"
+//#include "LibraryClient.h"
+#include "Tensile.h"
+#include "GeneratedHeader.h"
 #include <string>
 #include <cstring>
 #include <cstdio>

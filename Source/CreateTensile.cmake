@@ -104,11 +104,22 @@ function(CreateTensile
 
   # define backend for library source
   if( Tensile_BACKEND MATCHES "OCL")
+    #find_package(OpenCL "1.2" REQUIRED)
+    target_link_libraries( Tensile ${OPENCL_LIBRARIES} )
     target_compile_definitions( Tensile PUBLIC
       -DTensile_BACKEND_OCL=1 -DTensile_BACKEND_HIP=0 )
+    target_include_directories( Tensile SYSTEM
+      PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
   else()
+    #find_package( HIP REQUIRED )
+    set (CMAKE_CXX_COMPILER ${HIPCC})
+    target_include_directories( Tensile SYSTEM
+      PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
+    target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} )
     target_compile_definitions( Tensile PUBLIC
       -DTensile_BACKEND_OCL=0 -DTensile_BACKEND_HIP=1 )
   endif()
 
 endfunction()
+
+

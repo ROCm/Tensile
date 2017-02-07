@@ -23,11 +23,4 @@
  * Tensile Benchmark
  ******************************************************************************/
 
-#include "Tensile.h"
-//#include "Tools.h"
-//#include "ReferenceCPU.h"
-//#include "MathTemplates.h"
-//#include "GeneratedBenchmarkParameters.h"
-#include <iostream>
-#include <fstream>
 

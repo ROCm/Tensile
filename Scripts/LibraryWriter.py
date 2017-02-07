@@ -54,7 +54,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     solutionHeaderFile = open(os.path.join(outputPath, \
         "GeneratedSolutions.h"), "w")
     solutionSourceFile.write("#include \"GeneratedSolutions.h\"\n")
-    solutionHeaderFile.write("#include \"Tensile.h\"\n")
+    solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"GeneratedKernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
@@ -144,14 +144,16 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     ensurePath(os.path.join(outputPath, "Logic"))
   indexChars = globalParameters["IndexChars"]
 
+  # the header will always be merged into "Tensile.h"
   # includes for merged files
   s = ""
   h = ""
-  if globalParameters["MergeFiles"]:
-    s += "#include \"GetSolutions.h\"\n"
-    h += "#pragma once\n"
-    h += "#include \"Tensile.h\"\n"
-    h += "#include \"GeneratedSolutions.h\"\n"
+  h += "#pragma once\n"
+  h += "#include \"TensileTypes.h\"\n"
+  h += "#include \"GeneratedSolutions.h\"\n"
+  h += "\nTensileStatus tensileSetup();\n"
+  h += "\nTensileStatus tensileTeardown();\n"
+  s += "#include \"Tensile.h\"\n"
 
   # for each ProblemType
   for logicProblemType in logicList:
@@ -178,14 +180,12 @@ def writeLogic(outputPath, logicList, solutionWriter ):
         solutionNames.append(Solution.getNameMin(solution, \
             solutionMinNaming) )
 
-    functionName = "getSolution_%s_%s" % (scheduleName, problemType)
+    functionName = "tensile_%s_%s" % (scheduleName, problemType)
 
     # reset individual file string
     if not globalParameters["MergeFiles"]:
-      filePrefix   = "GetSolution_%s_%s" % (scheduleName, problemType)
+      filePrefix   = "Tensile_%s_%s" % (scheduleName, problemType)
       s = "#include \"%s.h\"" % filePrefix
-      h = "#pragma once\n"
-      h += "#include \"Tensile.h\"\n"
       for solutionName in solutionNames:
         h += "#include \"%s.h\"\n" % solutionName
 
@@ -238,7 +238,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
       s += " dataC, dataA, dataB, alpha"
       if problemType["UseBeta"]:
         s += ", beta"
-      s += " offsetC, offsetA, offsetB"
+      s += ", offsetC, offsetA, offsetB"
       firstStride = 1
       if problemType["UseInitialStrides"]:
         firstStride = 0
@@ -265,23 +265,20 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     if not globalParameters["MergeFiles"]:
       logicSourceFile = open(os.path.join(outputPath, "Logic", \
           "%s.cpp" % filePrefix), "w")
-      logicHeaderFile = open(os.path.join(outputPath, "Logic", \
-          "%s.h" % filePrefix), "w")
       logicSourceFile.write(s)
-      logicHeaderFile.write(h)
       logicSourceFile.close()
-      logicHeaderFile.close()
 
   # close merged files
   if globalParameters["MergeFiles"]:
     logicSourceFile = open(os.path.join(outputPath, \
-        "GetSolution.cpp"), "w")
-    logicHeaderFile = open(os.path.join(outputPath, \
-        "GetSolution.h"), "w")
+        "TensileFunctions.cpp"), "w")
     logicSourceFile.write(s)
-    logicHeaderFile.write(h)
     logicSourceFile.close()
-    logicHeaderFile.close()
+
+  logicHeaderFile = open(os.path.join(outputPath, \
+      "Tensile.h"), "w")
+  logicHeaderFile.write(h)
+  logicHeaderFile.close()
 
 ################################################################################
 # Write CMake
@@ -458,8 +455,8 @@ if __name__ == "__main__":
   libraryStaticFiles = [
       #"MathTemplates.cpp",
       #"MathTemplates.h",
-      "Tensile.cpp",
-      "Tensile.h",
+      "SetupTeardown.cpp",
+      "TensileTypes.h",
       #"ReferenceCPU.h",
       "SolutionHelper.cpp",
       "SolutionHelper.h",

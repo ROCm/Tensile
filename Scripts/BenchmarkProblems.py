@@ -95,8 +95,8 @@ def benchmarkProblemType( config ):
         "BenchmarkClient.h",
         "MathTemplates.cpp",
         "MathTemplates.h",
-        "Tensile.cpp",
-        "Tensile.h",
+        "SetupTeardown.cpp",
+        "TensileTypes.h",
         "ReferenceCPU.h",
         "SolutionHelper.cpp",
         "SolutionHelper.h",
@@ -384,7 +384,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     solutionHeaderFile = open(os.path.join(globalParameters["WorkingPath"], \
         "GeneratedSolutions.h"), "w")
     solutionSourceFile.write("#include \"GeneratedSolutions.h\"\n")
-    solutionHeaderFile.write("#include \"Tensile.h\"\n")
+    solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"GeneratedKernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
