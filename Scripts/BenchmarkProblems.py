@@ -12,6 +12,7 @@ from Common import *
 from Structs import *
 from SolutionWriter import *
 from KernelWriter import *
+import LibraryWriter
 import YAMLIO
 
 
@@ -283,9 +284,9 @@ def benchmarkProblemType( config ):
     winners.addResults(benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, solutions, results)
 
-    ##############################################################################
+    ############################################################################
     # Write Solutions YAML
-    ##############################################################################
+    ############################################################################
     YAMLIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
         solutions )
 
@@ -367,33 +368,13 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
 
-  solutionFileNames = []
-  kernelNames = []
-  kernels = []
 
-  ##############################################################################
-  # Min Naming
-  ##############################################################################
-  for solution in solutions:
-    solutionKernels = solution.getKernels()
-    for kernel in solutionKernels:
-      if kernel not in kernels:
-        kernels.append(kernel)
+  # write solution, kernels and CMake
+  LibraryWriter.writeSolutionsAndKernels( \
+      globalParameters["WorkingPath"], solutions)
 
-  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"] :
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming = None
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter( \
-      solutionMinNaming, solutionSerialNaming, \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriter( \
-      kernelMinNaming, kernelSerialNaming)
 
+  """
   ##############################################################################
   # Write Solutions
   ##############################################################################
@@ -482,6 +463,33 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   # close merged
   if globalParameters["MergeFiles"]:
     kernelHeaderFile.close()
+  """
+
+  ##############################################################################
+  # Min Naming
+  ##############################################################################
+  solutionFileNames = []
+  kernelNames = []
+  kernels = []
+  for solution in solutions:
+    solutionKernels = solution.getKernels()
+    for kernel in solutionKernels:
+      if kernel not in kernels:
+        kernels.append(kernel)
+
+  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"] :
+    solutionSerialNaming = Solution.getSerialNaming(solutions)
+    kernelSerialNaming = Solution.getSerialNaming(kernels)
+  else:
+    solutionSerialNaming = None
+    kernelSerialNaming = None
+  solutionMinNaming = Solution.getMinNaming(solutions)
+  kernelMinNaming = Solution.getMinNaming(kernels)
+  solutionWriter = SolutionWriter( \
+      solutionMinNaming, solutionSerialNaming, \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriter = KernelWriter( \
+      kernelMinNaming, kernelSerialNaming)
 
   ##############################################################################
   # Write CMake

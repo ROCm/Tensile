@@ -734,7 +734,7 @@ class Solution:
   def __repr__(self):
     return self.__str__()
   def getAttributes(self):
-    return state
+    return self.state
   def __hash__(self):
     return hash(self.getAttributes())
   def __eq__(self, other):

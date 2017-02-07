@@ -641,7 +641,7 @@ def main(  config ):
   schedulePrefix = globalParameters["Name"]
   for problemTypeTuple in problemTypeTuples:
     logic = analyzeProblemType( problemTypeTuple, analysisParameters )
-    YAMLIO.writeLibraryConfigForProblemType(globalParameters["WorkingPath"], \
+    YAMLIO.writeLibraryLogicForProblemType(globalParameters["WorkingPath"], \
         schedulePrefix, logic)
 
   printStatus("DONE.")

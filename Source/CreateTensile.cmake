@@ -19,28 +19,49 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+include(FindPythonInterp)
+
+################################################################################
+# Create A Tensile Library from LibraryLogic.yaml files
+################################################################################
 function(CreateTensile
     Tensile_LOGIC_PATH
     Tensile_ROOT
     Tensile_BACKEND
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
-    Tensile_PRINT_DEBUG
-    )
-  message(STATUS "CreateTensile logic=${Tensile_LOGIC_PATH} root= ${Tensile_ROOT}")
+    Tensile_LIBRARY_PRINT_DEBUG )
+  set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
 
-  # create python command
-  set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile/${NAME}")
+  # Tensile::LibraryWriter optional arguments
   set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE}
-    ${Tensile_ROOT}/Scripts/LibraryWriter.py
+    ${Tensile_ROOT}/Scripts/LibraryWriter.py)
+  if(${Tensile_MERGE_FILES})
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--merge-files")
+  else()
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-merge-files")
+  endif()
+
+  if(${Tensile_SHORT_FILE_NAMES})
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--short-file-names")
+  else()
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-short-file-names")
+  endif()
+
+  if(${Tensile_PRINT_DEBUG})
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--library-print-debug")
+  else()
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
+  endif()
+
+  # Tensile::LibraryWriter positional arguments
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
     ${Tensile_LOGIC_PATH}
     ${Tensile_SOURCE_PATH}
     ${Tensile_BACKEND}
-    ${Tensile_MERGE_FILES}
-    ${Tensile_SHORT_FILE_NAMES}
-    ${Tensile_PRINT_DEBUG}
     )
-  string( REPLACE ";" " " Tensile_CREATE_COMMAND "${Tensile_CREATE_COMMAND}")
+
+  #string( REPLACE ";" " " Tensile_CREATE_COMMAND "${Tensile_CREATE_COMMAND}")
   message(STATUS "Tensile_CREATE_COMMAND: ${Tensile_CREATE_COMMAND}")
 
   # execute python command
@@ -69,23 +90,25 @@ function(CreateTensile
   # create Tensile
   set(options)
   add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
-  target_include_directories(${NAME}
-      PUBLIC  $<BUILD_INTERFACE:${Tensile_DIR}/Tensile/include>
-              $<BUILD_INTERFACE:${Tensile_DIR}/Tensile/src>
-              $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}>
-              $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Kernels>
-              $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Solutions>
-              $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Other>
-              $<INSTALL_INTERFACE:include>
-  )
+  if( Tensile_MERGE_FILES )
+    target_include_directories(Tensile
+      PUBLIC $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}> )
+  else()
+    target_include_directories(Tensile PUBLIC
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}>
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Kernels>
+      $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Solutions>
+      $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Logic>
+      $<INSTALL_INTERFACE:include> )
+  endif()
 
   # define backend for library source
   if( Tensile_BACKEND MATCHES "OCL")
     target_compile_definitions( Tensile PUBLIC
-      -DTensile_BACKEND_OPENCL12=1 -DTensile_BACKEND_HIP=0 )
+      -DTensile_BACKEND_OCL=1 -DTensile_BACKEND_HIP=0 )
   else()
     target_compile_definitions( Tensile PUBLIC
-      -DTensile_BACKEND_OPENCL12=0 -DTensile_BACKEND_HIP=1 )
+      -DTensile_BACKEND_OCL=0 -DTensile_BACKEND_HIP=1 )
   endif()
 
 endfunction()

@@ -13,7 +13,7 @@ from shutil import rmtree
 def main(  config ):
   libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["LibraryLogicPath"])
-  pushWorkingPath(globalParameters["ClientPath"])
+  pushWorkingPath(globalParameters["LibraryClientPath"])
   printStatus("Beginning")
 
 
@@ -69,23 +69,23 @@ def main(  config ):
   runScriptFile.write("cmake")
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-  runScriptFile.write(" -DTensile_LOGIC=%s" % libraryLogicPath)
+  runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
   runScriptFile.write(" -DTensile_ROOT=%s" \
       % os.path.join(globalParameters["ScriptPath"], ".."))
   runScriptFile.write(" -DTensile_BACKEND=%s" \
       % globalParameters["Backend"])
-  runScriptFile.write(" -DTensile_MERGE_FILES=%u" \
-      % (1 if globalParameters["MergeFiles"] else 0))
-  runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%u" \
-      % (1 if globalParameters["ShortFileNames"] else 0))
-  runScriptFile.write(" -DTensile_PRINT_DEBUG=%u" \
-      % (1 if globalParameters["LibraryPrintDebug"] else 0))
+  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
+      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
+  runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
+      % ("ON" if globalParameters["ShortFileNames"] else "OFF"))
+  runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
+      % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
   runScriptFile.write(" ../source\n")
   runScriptFile.write("%s & echo %s & echo # Building Library Client & echo %s\n" \
       % (echoLine, HR, HR))
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" if os.name != "nt" else "") )
-  runScriptFile.write("%s & echo %s & & echo # Running Library Client & echo %s\n" \
+  runScriptFile.write("%s & echo %s & echo # Running Library Client & echo %s\n" \
       % (echoLine, HR, HR))
   if os.name == "nt":
     runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \

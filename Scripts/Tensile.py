@@ -21,12 +21,12 @@
 
 import os
 import sys
+import argparse
 
 from Common import *
 import YAMLIO
 import BenchmarkProblems
 import LibraryLogic
-import LibraryWriter
 import LibraryClient
 import BenchmarkClient
 
@@ -100,16 +100,16 @@ def executeStepsInConfig( config ):
 ################################################################################
 # Tensile - Main
 ################################################################################
-if len(sys.argv) < 2:
-  print("Usage: python Tensile.py config.yaml output_path")
-  sys.exit(1)
-else:
-  if len(sys.argv) == 3:
-    globalParameters["WorkingPath"] = os.path.abspath(sys.argv[2])
-  else:
-    globalParameters["WorkingPath"] = os.getcwd()
+if __name__ == "__main__":
+  argParser = argparse.ArgumentParser()
+  argParser.add_argument("ConfigFilePath", \
+      help="Path to top-level config.yaml file")
+  argParser.add_argument("OutputPath", \
+      help="Where to build and run benchmark steps.")
+  args = argParser.parse_args()
+  globalParameters["WorkingPath"] = os.path.abspath(args.OutputPath)
 
-  configPath = os.path.realpath( sys.argv[1] )
+  configPath = os.path.realpath( args.ConfigFilePath )
   print("Tensile::Main ConfigFile: %s" % (configPath) )
   config = YAMLIO.readConfig( configPath )
   executeStepsInConfig( config )

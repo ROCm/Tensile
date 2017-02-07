@@ -22,7 +22,8 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 set_property(GLOBAL PROPERTY FIND_LIBRARY_USE_LIB64_PATHS TRUE )
-
+project(LibraryClient)
+set(LibraryClient LibraryClient)
 
 # require C++11
 if(MSVC)
@@ -33,53 +34,61 @@ else()
   add_definitions( "-std=c++11" )
 endif()
 
-option( Tensile_MERGE_FILES
-  "Merge kernels and solution into single files" OFF)
-option( Tensile_SHORT_FILE_NAMES
-  "Use short file names (for MSVC)" OFF)
-option( Tensile_PRINT_DEBUG
-  "Tensile to print solution selection and enqueue" OFF)
-if( Tensile_LOGIC )
-  set(Tensile_BACKEND HIP CACHE STRING "Which backend to use")
-  set_property( CACHE Tensile_BACKEND PROPERTY STRINGS HIP OCL )
-endif()
+# boolean arguments
+option( Tensile_MERGE_FILES "Merge kernels and solutions into single files" OFF)
+option( Tensile_SHORT_FILE_NAMES "Use short file names (for MSVC)" OFF)
+option( Tensile_LIBRARY_PRINT_DEBUG "TensileLib to print debug info" OFF)
 
-# include generated parameters
+# string arguments
+set(Tensile_BACKEND HIP CACHE STRING "Which backend to use")
+set_property( CACHE Tensile_BACKEND PROPERTY STRINGS HIP OCL )
+
+# include CreateTensile function
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
-# library client
 include(${CMAKE_SOURCE_DIR}/CreateTensile.cmake)
+
+message(STATUS ${Tensile_LOGIC_PATH})          # path
+message(STATUS ${Tensile_ROOT})                # path
+message(STATUS ${Tensile_BACKEND})             # OCL or HIP
+message(STATUS ${Tensile_MERGE_FILES})         # ON or OFF
+message(STATUS ${Tensile_SHORT_FILE_NAMES})    # ON or OFF
+message(STATUS ${Tensile_LIBRARY_PRINT_DEBUG}) # ON or OFF
+
+# Create Tensile Library
 CreateTensile(
-  ${Tensile_LOGIC}
-  ${Tensile_ROOT}
-  ${Tensile_BACKEND}
-  ${Tensile_MERGE_FILES}
-  ${Tensile_SHORT_FILE_NAMES}
-  ${Tensile_PRINT_DEBUG}
+  ${Tensile_LOGIC_PATH}           # path
+  ${Tensile_ROOT}                 # path
+  ${Tensile_BACKEND}              # OCL or HIP
+  ${Tensile_MERGE_FILES}          # ON or OFF
+  ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
+  ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
   )
-add_executable( ${TensileClient}
+
+# Executable
+add_executable( ${LibraryClient}
   LibraryClient.cpp
   LibraryClient.h
   )
-target_link_libraries( ${TensileClient} Tensile )
+target_link_libraries( ${LibraryClient} Tensile )
 
 
 ###############################################################################
 # Backend dependent parameters
 if( Tensile_BACKEND MATCHES "OCL")
   find_package(OpenCL "1.2" REQUIRED)
-  target_link_libraries( ${TensileClient} opencl )
-  target_compile_definitions( ${TensileClient} PUBLIC 
+  target_link_libraries( ${LibraryClient} ${OPENCL_LIBRARIES} )
+  target_compile_definitions( ${LibraryClient} PUBLIC 
     -DTensile_BACKEND_OCL=1
     -DTensile_BACKEND_HIP=0 )
-  target_include_directories( ${TensileClient} SYSTEM
+  target_include_directories( ${LibraryClient} SYSTEM
     PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
 elseif( Tensile_BACKEND MATCHES "HIP")
   find_package( HIP REQUIRED )
   set (CMAKE_CXX_COMPILER ${HIPCC})
-  target_include_directories( ${TensileClient} SYSTEM
+  target_include_directories( ${LibraryClient} SYSTEM
     PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
-  target_link_libraries( ${TensileClient} PUBLIC ${HSA_LIBRARIES} )
-  target_compile_definitions( ${TensileClient} PUBLIC 
+  target_link_libraries( ${LibraryClient} PUBLIC ${HSA_LIBRARIES} )
+  target_compile_definitions( ${LibraryClient} PUBLIC 
     -DTensile_BACKEND_OCL=0
     -DTensile_BACKEND_HIP=1 )
 else()

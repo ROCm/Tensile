@@ -84,14 +84,14 @@ def readSolutions( filename ):
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################
-def writeLibraryConfigForProblemType( filePath, schedulePrefix, \
-    logic):
+def writeLibraryLogicForProblemType( filePath, schedulePrefix, logic):
   problemType   = logic[0]
   solutions     = logic[1]
   skinnyLogic0  = logic[2]
   skinnyLogic1  = logic[3]
   diagonalLogic = logic[4]
-  filename = os.path.join(filePath, "%s_%s.yaml" % (schedulePrefix, str(problemType)))
+  filename = os.path.join(filePath, "%s_%s.yaml" \
+      % (schedulePrefix, str(problemType)))
   print "writeLogic( %s )" % ( filename )
 
   # open file
@@ -123,3 +123,36 @@ def writeLibraryConfigForProblemType( filePath, schedulePrefix, \
   stream.close()
 
 
+def readLibraryLogicForProblemType( filename ):
+  print "Tensile::YAMLIO::readLibraryLogicForProblemType( %s )" % ( filename )
+  try:
+    stream = open(filename, "r")
+  except IOError:
+    printExit("Cannot open file: %s" % filename )
+  data = yaml.load(stream, yaml.SafeLoader)
+  stream.close()
+
+  # verify
+  if len(data) < 6:
+    printExit("len(%s) %u < 6" % (filename, len(solutionStates)))
+
+  # parse out objects
+  scheduleName = data[0]
+  problemTypeState = data[1]
+  solutionStates = data[2]
+  skinnyLogic0 = data[3]
+  skinnyLogic1 = data[4]
+  diagonalLogic = data[5]
+
+  solutions = []
+  problemType = ProblemType(problemTypeState)
+  for i in range(0, len(solutionStates)):
+    solutionState = solutionStates[i]
+    solutionObject = Solution(solutionState)
+    if solutionObject["ProblemType"] != problemType:
+      printExit("ProblemType of file doesn't match solution: %s != %s" \
+          % (problemType, solutionObject["ProblemType"]))
+    solutions.append(solutionObject)
+
+  return (scheduleName, problemType, solutions, skinnyLogic0, skinnyLogic1, \
+      diagonalLogic)

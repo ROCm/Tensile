@@ -1,7 +1,6 @@
 import os.path
 import sys
 import inspect
-
 from collections import OrderedDict
 from sets import Set
 
@@ -30,7 +29,7 @@ globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["BenchmarkPath"] = "1_Benchmarks"
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"
-globalParameters["ClientPath"] = "4_Client"
+globalParameters["LibraryClientPath"] = "4_LibraryClient"
 # device
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
@@ -297,3 +296,4 @@ def ensurePath( path ):
 CMakeHeader = "# Header\n\n"
 CHeader = "// Header\n\n"
 HR = "################################################################################"
+
