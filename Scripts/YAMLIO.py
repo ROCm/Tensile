@@ -104,19 +104,19 @@ def writeLibraryConfigForProblemType( filePath, schedulePrefix, \
   problemTypeState = problemType.state
   problemTypeState["DataType"] = \
       problemTypeState["DataType"].value
-  data = [ problemTypeState, [], [], [], [] ]
+  data = [ globalParameters["Name"], problemTypeState, [], [], [], [] ]
   for solution in solutions:
     solutionState = solution.state
     solutionState["ProblemType"] = solutionState["ProblemType"].state
     solutionState["ProblemType"]["DataType"] = \
         solutionState["ProblemType"]["DataType"].value
-    data[1].append(solutionState)
+    data[2].append(solutionState)
   for rule in skinnyLogic0:
-    data[2].append(rule)
-  for rule in skinnyLogic1:
     data[3].append(rule)
-  for rule in diagonalLogic:
+  for rule in skinnyLogic1:
     data[4].append(rule)
+  for rule in diagonalLogic:
+    data[5].append(rule)
 
   #stream.write(data)
   yaml.dump(data, stream, default_flow_style=False)

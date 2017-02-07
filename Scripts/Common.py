@@ -22,7 +22,7 @@ else:
   globalParameters["Backend"] = "HIP"
 # print debug
 globalParameters["DebugPrintLevel"] = 1
-globalParameters["SolutionPrintDebug"] = False
+globalParameters["LibraryPrintDebug"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
@@ -30,7 +30,7 @@ globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["BenchmarkPath"] = "1_Benchmarks"
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"
-globalParameters["WriteLibraryPath"] = "4_Library"
+globalParameters["ClientPath"] = "4_Client"
 # device
 globalParameters["PlatformIdx"] = 0
 globalParameters["DeviceIdx"] = 0
@@ -38,6 +38,7 @@ globalParameters["DeviceIdx"] = 0
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["ForceRedoBenchmarkProblems"] = True
 globalParameters["ForceRedoLibraryLogic"] = True
+globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 4
 # file heirarchy

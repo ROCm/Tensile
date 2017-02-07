@@ -1,4 +1,4 @@
-#include "TensileBenchmark_Main.h"
+#include "BenchmarkClient.h"
 #include <string>
 #include <cstring>
 #include <cstdio>

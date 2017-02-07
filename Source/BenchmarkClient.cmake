@@ -35,33 +35,34 @@ endif()
 
 # include generated parameters
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
+# benchmark includes
 include(${CMAKE_SOURCE_DIR}/Generated.cmake)
 include_directories( . Kernels Solutions )
-
 # executable
-add_executable( ${TensileBenchmark_NAME}
+add_executable( ${TensileClient}
   ${TensileBenchmark_Source}
   ${TensileBenchmark_Solutions}
   ${TensileBenchmark_Kernels}
 )
 
+
 ###############################################################################
 # Backend dependent parameters
 if( TensileBenchmark_BACKEND MATCHES "OCL")
   find_package(OpenCL "1.2" REQUIRED)
-  target_link_libraries( ${TensileBenchmark_NAME} PRIVATE opencl )
-  target_compile_definitions( ${TensileBenchmark_NAME} PUBLIC 
+  target_link_libraries( ${TensileClient} PRIVATE opencl )
+  target_compile_definitions( ${TensileClient} PUBLIC 
     -DTensile_BACKEND_OCL=1
     -DTensile_BACKEND_HIP=0 )
-  target_include_directories( ${TensileBenchmark_NAME} SYSTEM
+  target_include_directories( ${TensileClient} SYSTEM
     PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
 elseif( TensileBenchmark_BACKEND MATCHES "HIP")
   find_package( HIP REQUIRED )
   set (CMAKE_CXX_COMPILER ${HIPCC})
-  target_include_directories( ${TensileBenchmark_NAME} SYSTEM
+  target_include_directories( ${TensileClient} SYSTEM
     PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
-  target_link_libraries( ${TensileBenchmark_NAME} PUBLIC ${HSA_LIBRARIES} )
-  target_compile_definitions( ${TensileBenchmark_NAME} PUBLIC 
+  target_link_libraries( ${TensileClient} PUBLIC ${HSA_LIBRARIES} )
+  target_compile_definitions( ${TensileClient} PUBLIC 
     -DTensile_BACKEND_OCL=0
     -DTensile_BACKEND_HIP=1 )
 else()

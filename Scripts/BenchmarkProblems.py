@@ -90,8 +90,8 @@ def benchmarkProblemType( config ):
     ############################################################################
     pushWorkingPath("source")
     filesToCopy = [
-        "TensileBenchmark_Main.cpp",
-        "TensileBenchmark_Main.h",
+        "BenchmarkClient.cpp",
+        "BenchmarkClient.h",
         "MathTemplates.cpp",
         "MathTemplates.h",
         "Tensile.cpp",
@@ -102,13 +102,18 @@ def benchmarkProblemType( config ):
         "Tools.cpp",
         "Tools.h",
         ]
+    shutil_copy(
+      os.path.join(globalParameters["SourcePath"], "BenchmarkClient.cmake"),
+      os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
+
     for f in filesToCopy:
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], f),
           globalParameters["WorkingPath"] )
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "TensileBenchmark_CMakeLists.txt"),
-        os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
+    #shutil_copy(
+    #    os.path.join(globalParameters["SourcePath"], \
+    #    "TensileBenchmark_CMakeLists.txt"),
+    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
     if globalParameters["Backend"] == "OCL":
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
@@ -229,9 +234,10 @@ def benchmarkProblemType( config ):
         globalParameters["WorkingPath"], "../Data", shortName))
     resultsFileName = resultsFileBase + ".csv"
     solutionsFileName = resultsFileBase + ".yaml"
-    if not os.path.exists(resultsFileName) or globalParameters["ForceRedo"]:
+    if not os.path.exists(resultsFileName) or \
+        globalParameters["ForceRedoBenchmarkProblems"]:
       # if redo=true, clobber the build directory
-      if globalParameters["ForceRedo"]:
+      if globalParameters["ForceRedoBenchmarkProblems"]:
         rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
             ignore_errors=True)
       pushWorkingPath("build")
@@ -513,7 +519,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   generatedFile.write("  )\n\n")
 
   # benchmark parameters
-  generatedFile.write("set( TensileBenchmark_NAME TensileBenchmark_%s)\n" \
+  generatedFile.write("set( TensileClient TensileBenchmark_%s)\n" \
       % (stepName) )
   generatedFile.write("set( TensileBenchmark_BACKEND \"%s\")\n" \
       % (globalParameters["Backend"]) )

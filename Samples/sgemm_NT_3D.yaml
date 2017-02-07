@@ -49,3 +49,4 @@ LibraryLogic:
   Dilation: 3 # 0=none, 1= 66566 -> 66666, 2= 665566 -> 666666
   Threshold: 0.1
 
+LibraryClient:

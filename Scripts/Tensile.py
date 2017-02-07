@@ -27,7 +27,7 @@ import YAMLIO
 import BenchmarkProblems
 import LibraryLogic
 import LibraryWriter
-import Client
+import LibraryClient
 import BenchmarkClient
 
 def executeStepsInConfig( config ):
@@ -76,21 +76,23 @@ def executeStepsInConfig( config ):
       print "# LibraryLogic already done."
     print ""
 
-  return
   ##############################################################################
   # Write Library
   ##############################################################################
-  if "WriteLibrary" in config:
-    LibraryWriter.main( config["WriteLibrary"] )
+  #if "WriteLibrary" in config:
+  #  LibraryWriter.main( config["WriteLibrary"] )
+  #  print ""
+
+  ##############################################################################
+  # Write Client
+  ##############################################################################
+  if "LibraryClient" in config:
+    LibraryClient.main( config["LibraryClient"] )
     print ""
 
-  if "Client" in config:
-    Client.main( config["Client"] )
-    print ""
-
-  if "BenchmarkClient" in config:
-    BenchmarkClient.main( config["BenchmarkClient"] )
-    print ""
+  #if "BenchmarkClient" in config:
+  #  BenchmarkClient.main( config["BenchmarkClient"] )
+  #  print ""
 
 
 
