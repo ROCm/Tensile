@@ -7,9 +7,9 @@ from shutil import rmtree
 import csv
 from subprocess import Popen
 
-from BenchmarkProcess import *
+from BenchmarkStructs import *
 from Common import *
-from Structs import *
+from SolutionStructs import *
 from SolutionWriter import *
 from KernelWriter import *
 import LibraryWriter

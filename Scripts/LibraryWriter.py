@@ -1,6 +1,6 @@
 # This script only gets called by CMake
 from Common import *
-from Structs import *
+from SolutionStructs import *
 import YAMLIO
 from SolutionWriter import *
 from KernelWriter import *

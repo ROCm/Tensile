@@ -5,7 +5,7 @@ try:
 except ImportError:
   printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
 
-from Structs import *
+from SolutionStructs import *
 
 ################################################################################
 # Read Benchmark Config from YAML Files

@@ -4,7 +4,7 @@ import array
 import csv
 
 from Common import *
-from Structs import *
+from SolutionStructs import *
 import YAMLIO
 
 ################################################################################

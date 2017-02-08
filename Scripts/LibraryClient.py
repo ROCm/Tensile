@@ -61,7 +61,7 @@ def main(  config ):
     (scheduleName, problemType, solutionsForType, skinnyLogic0, skinnyLogic1, \
         diagonalLogic) = YAMLIO.readLibraryLogicForProblemType(logicFileName)
     functions.append((scheduleName, problemType))
-    functionName = "tensile_%s_%s(...)" % (scheduleName, problemType)
+    functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
 
   # open file
   generated = open(os.path.join(globalParameters["WorkingPath"],
@@ -71,12 +71,14 @@ def main(  config ):
   g += "char *functionNames[numFunctions] = {\n"
   for functionIdx in range(0, len(functionNames)):
     functionName = functionNames[functionIdx]
+
     g += "    \"%s\"%s\n" % (functionName, \
         "," if functionIdx < len(functionNames)-1 else "" )
   g += "};\n"
 
 
   # close file
+  generated.write(g)
   generated.close()
   popWorkingPath() # source
 
