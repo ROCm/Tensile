@@ -19,7 +19,7 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-#include "Tensile.h"
+#include "TensileTypes.h"
 #include "MathTemplates.h"
 #include <cstdio>
 #include <cstdlib>

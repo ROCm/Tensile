@@ -91,8 +91,9 @@ def benchmarkProblemType( config ):
     ############################################################################
     pushWorkingPath("source")
     filesToCopy = [
-        "BenchmarkClient.cpp",
-        "BenchmarkClient.h",
+        "Client.cpp",
+        "Client.h",
+        "CMakeLists.txt",
         "MathTemplates.cpp",
         "MathTemplates.h",
         "SetupTeardown.cpp",
@@ -103,9 +104,6 @@ def benchmarkProblemType( config ):
         "Tools.cpp",
         "Tools.h",
         ]
-    shutil_copy(
-      os.path.join(globalParameters["SourcePath"], "BenchmarkClient.cmake"),
-      os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
 
     for f in filesToCopy:
       shutil_copy(
@@ -253,7 +251,7 @@ def benchmarkProblemType( config ):
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
           % (echoLine, HR, problemTypeName, stepName, HR))
       if os.name == "nt":
-        runScriptFile.write("cmake -DCMAKE_GENERATOR_PLATFORM=x64 ../source\n")
+        runScriptFile.write("cmake -DTensile_CLIENT_BENCHMARK=ON -DTensile_MERGE_FILES=%s -DCMAKE_GENERATOR_PLATFORM=x64 ../source\n" % ("ON" if globalParameters["MergeFiles"] else "OFF") )
       else:
         runScriptFile.write("cmake ../source\n")
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
@@ -369,10 +367,6 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
 
 
-  # write solution, kernels and CMake
-  LibraryWriter.writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], solutions)
-
 
   """
   ##############################################################################
@@ -477,7 +471,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       if kernel not in kernels:
         kernels.append(kernel)
 
-  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"] :
+  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
   else:
@@ -490,6 +484,11 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       kernelMinNaming, kernelSerialNaming)
   kernelWriter = KernelWriter( \
       kernelMinNaming, kernelSerialNaming)
+
+  # write solution, kernels and CMake
+  LibraryWriter.writeSolutionsAndKernels( \
+      globalParameters["WorkingPath"], solutions, solutionWriter, kernelWriter)
+
 
   ##############################################################################
   # Write CMake
@@ -527,9 +526,9 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   generatedFile.write("  )\n\n")
 
   # benchmark parameters
-  generatedFile.write("set( TensileClient TensileBenchmark_%s)\n" \
+  generatedFile.write("set( ClientName TensileBenchmark_%s)\n" \
       % (stepName) )
-  generatedFile.write("set( TensileBenchmark_BACKEND \"%s\")\n" \
+  generatedFile.write("set( Tensile_BACKEND \"%s\")\n" \
       % (globalParameters["Backend"]) )
 
   # build parameters
@@ -1071,8 +1070,9 @@ class WinningParameterDict:
 ################################################################################
 def main( config ):
   printStatus("Beginning")
+  dataPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
-  dataPath = os.path.join(globalParameters["WorkingPath"], globalParameters["BenchmarkPath"])
   ensurePath(dataPath)
   for problemType in config:
     problemTypeObj = ProblemType(problemType)
@@ -1086,10 +1086,8 @@ def main( config ):
     # Copy Data
     resultsFileName = resultsFileBase + ".csv"
     solutionsFileName = resultsFileBase + ".yaml"
-    newResultsFileName = os.path.join(globalParameters["WorkingPath"], \
-        "Results", "%s.csv" % str(problemTypeObj))
-    newSolutionsFileName = os.path.join(globalParameters["WorkingPath"], \
-        "Results", "%s.yaml" % str(problemTypeObj))
+    newResultsFileName = os.path.join(dataPath, "%s.csv" % str(problemTypeObj))
+    newSolutionsFileName = os.path.join(dataPath, "%s.yaml" % str(problemTypeObj))
     shutil_copy( resultsFileName, newResultsFileName )
     shutil_copy( solutionsFileName, newSolutionsFileName )
 

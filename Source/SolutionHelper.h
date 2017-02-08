@@ -22,7 +22,7 @@
 #ifndef SOLUTION_HELPER_H
 #define SOLUTION_HELPER_H
 
-#include "Tensile.h"
+#include "TensileTypes.h"
 #include <map>
 #include <string>
 

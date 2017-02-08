@@ -24,7 +24,7 @@
 #include <cmath>
 #include <limits>
 
-#if   Tensile_BACKEND_OCL
+#if Tensile_BACKEND_OCL
 #include "CL/cl.h"
 #define TENSILEREAL(C) C.s[0]
 #define TENSILECOMP(C) C.s[1]

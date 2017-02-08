@@ -5,7 +5,7 @@ Parameters:
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  SolutionPrintDebug: False
+  LibraryPrintDebug: False
   NumElementsToValidate: 0
   ValidationPrintValids: False
   ShortFileNames: False

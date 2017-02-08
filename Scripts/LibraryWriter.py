@@ -227,7 +227,10 @@ def writeLogic(outputPath, logicList, solutionWriter ):
       maxGFlops = rule[3]
       # rule logic
       if ruleIdx == len(diagonalLogic)-1:
-        s += "%selse" % indent
+        if len(diagonalLogic) > 1:
+          s += "%selse" % indent
+        else:
+          s += "%s" % indent
       else:
         s += "%s%s(sizeC >= static_cast<size_t>(%u" % (indent, ("if" if ruleIdx == 0 else "else if"), problemSize[0])
         for i in range(1, problemType["NumIndicesC"]):

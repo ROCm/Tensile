@@ -21,7 +21,7 @@
 
 #ifndef REFERENCE_CPU_H
 #define REFERENCE_CPU_H
-#include "Tensile.h"
+#include "TensileTypes.h"
 #include "MathTemplates.h"
 #include <vector>
 

@@ -23,14 +23,12 @@ def main(  config ):
   ##############################################################################
   pushWorkingPath("source")
   filesToCopy = [
-      "LibraryClient.cpp",
-      "LibraryClient.h",
+      "Client.cpp",
+      "Client.h",
+      "CMakeLists.txt",
       "CreateTensile.cmake"
       ]
 
-  shutil_copy(
-      os.path.join(globalParameters["SourcePath"], "LibraryClient.cmake"),
-      os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
   for f in filesToCopy:
     filename = os.path.join(globalParameters["SourcePath"], f)
     shutil_copy(
@@ -103,6 +101,7 @@ def main(  config ):
   runScriptFile.write("cmake")
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
+  runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
   runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
   runScriptFile.write(" -DTensile_ROOT=%s" \
       % os.path.join(globalParameters["ScriptPath"], ".."))
