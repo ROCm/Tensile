@@ -24,7 +24,7 @@ import sys
 import argparse
 import copy
 
-from Structs import *
+from SolutionStructs import *
 
 
 ################################################################################

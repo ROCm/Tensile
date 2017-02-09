@@ -50,12 +50,12 @@ def writeSolutionsAndKernels(outputPath, solutions, \
   ##############################################################################
   if globalParameters["MergeFiles"]:
     solutionSourceFile = open(os.path.join(outputPath, \
-        "GeneratedSolutions.cpp"), "w")
+        "Solutions.cpp"), "w")
     solutionHeaderFile = open(os.path.join(outputPath, \
-        "GeneratedSolutions.h"), "w")
-    solutionSourceFile.write("#include \"GeneratedSolutions.h\"\n")
+        "Solutions.h"), "w")
+    solutionSourceFile.write("#include \"Solutions.h\"\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
-    solutionHeaderFile.write("#include \"GeneratedKernels.h\"\n")
+    solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
   for solution in solutions:
@@ -97,10 +97,10 @@ def writeSolutionsAndKernels(outputPath, solutions, \
   ##############################################################################
   if globalParameters["MergeFiles"]:
     kernelSourceFile = open(os.path.join(outputPath, \
-        "GeneratedKernels.cpp"), "w")
+        "Kernels.cpp"), "w")
     kernelHeaderFile = open(os.path.join(outputPath, \
-        "GeneratedKernels.h"), "w")
-    kernelSourceFile.write("#include \"GeneratedKernels.h\"\n")
+        "Kernels.h"), "w")
+    kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["Backend"] != "OCL":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
@@ -150,7 +150,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
   h = ""
   h += "#pragma once\n"
   h += "#include \"TensileTypes.h\"\n"
-  h += "#include \"GeneratedSolutions.h\"\n"
+  h += "#include \"Solutions.h\"\n"
   h += "\nTensileStatus tensileSetup();\n"
   h += "\nTensileStatus tensileTeardown();\n"
   s += "#include \"Tensile.h\"\n"
@@ -320,8 +320,8 @@ def writeCMake(outputPath, solutions, libraryStaticFiles ):
 
   # write solution names
   if globalParameters["MergeFiles"]:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedSolutions.h\n")
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedSolutions.cpp\n")
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.h\n")
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.cpp\n")
   else:
     for solutionFileName in solutionFileNames:
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
@@ -333,8 +333,8 @@ def writeCMake(outputPath, solutions, libraryStaticFiles ):
   # write kernel names
   generatedFile.write("set( Tensile_Kernels\n")
   if globalParameters["MergeFiles"]:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedKernels.h\n")
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/GeneratedKernels.cpp\n")
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.h\n")
+    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernelName in kernelNames:
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))

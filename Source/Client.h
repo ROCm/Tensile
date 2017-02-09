@@ -27,7 +27,7 @@
 #include "Tools.h"
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"
-#include "GeneratedBenchmarkParameters.h"
+#include "ClientParameters.h"
 #include <iostream>
 #include <fstream>
 
@@ -39,5 +39,7 @@ static void destroyControls();
 static void initData();
 static void destroyData();
 
+#if Tensile_CLIENT_BENCHMARK
 void benchmarkAllSolutionsForSize(
     unsigned int problemIdx, unsigned int *sizes );
+#endif

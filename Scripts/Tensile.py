@@ -27,8 +27,7 @@ from Common import *
 import YAMLIO
 import BenchmarkProblems
 import LibraryLogic
-import LibraryClient
-import BenchmarkClient
+import ClientWriter
 
 def executeStepsInConfig( config ):
   # ensure working directory exists
@@ -87,14 +86,8 @@ def executeStepsInConfig( config ):
   # Write Client
   ##############################################################################
   if "LibraryClient" in config:
-    LibraryClient.main( config["LibraryClient"] )
+    ClientWriter.main( config["LibraryClient"] )
     print ""
-
-  #if "BenchmarkClient" in config:
-  #  BenchmarkClient.main( config["BenchmarkClient"] )
-  #  print ""
-
-
 
 
 ################################################################################

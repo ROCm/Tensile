@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from Structs import *
+from SolutionStructs import *
 from KernelWriter import *
 from Common import *
 

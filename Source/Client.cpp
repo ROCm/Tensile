@@ -12,14 +12,17 @@ int main( int argc, char *argv[] ) {
   if (sizeof(size_t) != 8) {
     std::cout << "WARNING: Executable not 64-bit." << std::endl;
   }
+#if Tensile_CLIENT_LIBRARY
+  parseCommandLineParameters(argc, argv);
+#endif
   initControls();
   initData();
+#if Tensile_CLIENT_BENCHMARK
   std::cout << std::endl;
   std::cout << "Solutions: " << std::endl;
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
     std::cout << "  " << solutionNames[sIdx] << std::endl;
   }
-
   std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
   // write column headers
@@ -33,6 +36,7 @@ int main( int argc, char *argv[] ) {
     file << ", " << solutionNames[s];
   }
   file << std::endl;
+#endif
 
 
   // initialize index sizes
@@ -68,6 +72,7 @@ int main( int argc, char *argv[] ) {
   }
 #endif
 
+#if Tensile_CLIENT_BENCHMARK
   // iterate over all problem sizes
   bool moreProblemSizes = true;
   unsigned int problemIdx = 0;
@@ -115,6 +120,7 @@ int main( int argc, char *argv[] ) {
     }
     problemIdx++;
   } while(moreProblemSizes);
+#endif // benchmark
 
   // close file
   file.close();
@@ -130,6 +136,7 @@ int main( int argc, char *argv[] ) {
 /*******************************************************************************
  * benchmark all solutions for problem size
  ******************************************************************************/
+#if Tensile_CLIENT_BENCHMARK
 void benchmarkAllSolutionsForSize(
     unsigned int problemIdx, unsigned int *sizes ) {
 
@@ -264,6 +271,7 @@ void benchmarkAllSolutionsForSize(
   } // solution loop
   file << std::endl;
 } // benchmark solutions
+#endif // benchmark client
 
 
 /*******************************************************************************

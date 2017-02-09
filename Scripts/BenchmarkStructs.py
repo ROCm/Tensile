@@ -2,7 +2,7 @@ import sys
 from copy import *
 
 from Common import *
-from Structs import *
+from SolutionStructs import *
 
 ################################################################################
 # Benchmark Process

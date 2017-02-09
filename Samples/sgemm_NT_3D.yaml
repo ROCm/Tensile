@@ -1,7 +1,7 @@
 Parameters:
   Name: Hawaii
   DebugPrintLevel: 2
-  ForceRedoBenchmarkProblems: False
+  ForceRedoBenchmarkProblems: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
@@ -32,8 +32,8 @@ BenchmarkProblems:
         EdgeMultiKernel: [ False ] # hardcoded
       - WorkGroupSchedule: [ 1 ]
     ForkParameters:
-      - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [2, 4, 6, 8]
+      - WorkGroupEdge: [16]
+      - ThreadTileEdge: [2, 4 ]
       - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
       - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
       - LoopUnroll: [8, 16]

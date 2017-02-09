@@ -592,7 +592,8 @@ class BenchmarkDataAnalyzer:
 def main(  config ):
   print config
   print defaultAnalysisParameters
-  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], globalParameters["BenchmarkDataPath"])
+  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["LibraryLogicPath"])
 
   # Assign Defaults
