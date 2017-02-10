@@ -38,7 +38,7 @@ class SolutionSelectionWriter:
     #self.scg = SolutionCandidateGenerator.SolutionCandidateGenerator(False, False) # dummy generator for getting indices 0, 1
     self.printLogic = False
     self.printStatus = False
-    self.printDebugLib = True
+    self.printDebugLib = False
     self.fallbackPSPU1 = None
   
   def getKernelSet(self):
