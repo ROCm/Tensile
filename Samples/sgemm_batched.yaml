@@ -1,0 +1,50 @@
+# benchmark MANY kernel for the 5760 size
+# don't validate because some are slightly wrong on purpose (DoWhile vs While Loop)
+Parameters:
+  DebugPrintLevel: 2
+  ForceRedo: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  SolutionPrintDebug: False
+  NumElementsToValidate: 128
+  ValidationMaxToPrint: 16
+  ValidationPrintValids: False
+  ShortFileNames: False
+  MergeFiles: True
+
+BenchmarkProblems:
+  # sgemm NT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: False
+      Batched: True
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [128], [192], [64], [1024] ]
+      - WorkGroupShape: [ 0 ]
+      - SplitU: [ 1 ]
+      - EdgeType: [ "Branch" ]
+        EdgeMultiKernel: [ False ] # hardcoded
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [False]
+      - LoopTail: [ True ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - ThreadTileShape: [ -1, 0, 1 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
+      - LoopUnroll: [8, 16]
+    #BenchmarkForkParameters:
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    #BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [128], [192], [64], [1024] ]
+
