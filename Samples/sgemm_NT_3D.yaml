@@ -1,7 +1,7 @@
 Parameters:
   Name: Hawaii
   DebugPrintLevel: 2
-  ForceRedoBenchmarkProblems: False
+  ForceRedoBenchmarkProblems: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1

@@ -588,6 +588,7 @@ void destroyData(
 #endif
 
 }
+#if Tensile_CLIENT_LIBRARY
 unsigned int defaultNumElementsToValidate = 128;
 void printLibraryClientUsage(std::string executableName) {
   std::cout << "Usage: " << executableName << " FunctionIdx SizeI SizeJ SizeK ... [NumElementsToValidate=" << defaultNumElementsToValidate << "]" << std::endl;
@@ -596,6 +597,7 @@ void printLibraryClientUsage(std::string executableName) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
   }
 }
+#endif
 
 void parseCommandLineParameters( int argc, char *argv[] ) {
   std::string executableName = argv[0];
