@@ -453,6 +453,7 @@ void benchmarkAllSolutionsForSize(
         << gflops << " GFlop/s |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
     }
+    if (numInvalids) { gflops = -1.0; }
 #endif
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);

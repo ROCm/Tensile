@@ -668,12 +668,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       function = functions[functionIdx]
       scheduleName = function[0]
       problemType = function[1]
-      if functionIdx == 0:
-        h += "  if (functionIdx == %u) {\n" % functionIdx
-      elif functionIdx == numFunctions-1:
-        h += "  } else {\n"
-      else:
-        h += "  } else if (functionIdx == %u) {\n" % functionIdx
+      if numFunctions > 1:
+        if functionIdx == 0:
+          h += "  if (functionIdx == %u) {\n" % functionIdx
+        elif functionIdx == numFunctions-1:
+          h += "  } else {\n"
+        else:
+          h += "  } else if (functionIdx == %u) {\n" % functionIdx
 
       # strides
       indexChars = globalParameters["IndexChars"]
@@ -727,7 +728,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "        size%s,\n" % indexChars[i]
       h += "        stream,\n"
       h += "        0, NULL, NULL); // events\n"
-    h += "  }\n" # close last if
+    if numFunctions > 1:
+      h += "  }\n" # close last if
     h += "};\n" # close callToFunction
 
   ##############################################################################

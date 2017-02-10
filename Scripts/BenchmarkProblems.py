@@ -69,17 +69,20 @@ def benchmarkProblemType( config ):
         printStr += ", %s" % str(paramValues[paramValueIdx])
       printStr += " }"
       print printStr
-    print "# HardcodedParameters | WinningParameters:"
-    paramDictIdx = 0
-    #print "hardcodedParameters: %s" % benchmarkStep.hardcodedParameters
-    hardcodedMinNaming = \
-        Solution.getMinNaming(benchmarkStep.hardcodedParameters)
-    for paramDict in benchmarkStep.hardcodedParameters:
-      winningParameters = winners[paramDict]
-      print "#    (%u) %s | %s" % (paramDictIdx, \
-          Solution.getNameMin(paramDict, hardcodedMinNaming), \
-          Solution.getNameFull(winningParameters) )
-      paramDictIdx += 1
+
+    if False:
+    # print hardcoded parameters and their winners
+      print "# HardcodedParameters | WinningParameters:"
+      paramDictIdx = 0
+      #print "hardcodedParameters: %s" % benchmarkStep.hardcodedParameters
+      hardcodedMinNaming = \
+          Solution.getMinNaming(benchmarkStep.hardcodedParameters)
+      for paramDict in benchmarkStep.hardcodedParameters:
+        winningParameters = winners[paramDict]
+        print "#    (%u) %s | %s" % (paramDictIdx, \
+            Solution.getNameMin(paramDict, hardcodedMinNaming), \
+            Solution.getNameFull(winningParameters) )
+        paramDictIdx += 1
       #for paramName in paramDict:
       #  paramValue = paramDict[paramName]
       #  printStr += "%s: %s, " % (paramName, str(paramValue))
