@@ -795,7 +795,7 @@ class WinningParameterDict:
       hardcodedResults = results[hardcodedIdx]
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
-      winningScore = -1
+      winningScore = -9999 # -1 is score of invalid
       # find fastest benchmark parameters for this hardcoded
       for benchmarkIdx in range(0, len(hardcodedResults)):
         benchmarkResult = hardcodedResults[benchmarkIdx]
