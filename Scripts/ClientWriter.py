@@ -31,6 +31,8 @@ def main(  config ):
       "ReferenceCPU.h",
       "MathTemplates.cpp",
       "MathTemplates.h",
+      "Tools.cpp",
+      "Tools.h",
       "CMakeLists.txt",
       "CreateTensile.cmake"
       ]
@@ -71,6 +73,9 @@ def main(  config ):
   # Write Generated Header
   ##############################################################################
   forBenchmark = False
+  solutions = None
+  problemSizes = None
+  stepName = None
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       functions)
   """
@@ -204,6 +209,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "} DataTypeEnum;\n"
   h += "\n"
 
+  h += "const char indexChars[%u] = \"%s" \
+      % (len(globalParameters["IndexChars"])+1, \
+      globalParameters["IndexChars"][0])
+  for i in range(1, len(globalParameters["IndexChars"])):
+    h += globalParameters["IndexChars"][i]
+  h += "\";\n"
+
   h += "unsigned int functionIdx;\n"
   h += "unsigned int problemTypeIdx;\n"
   h += "unsigned int dataTypeIdx;\n"
@@ -228,13 +240,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       problemType = function[1]
       if problemType not in problemTypes:
         problemTypes.append(problemType)
-      problemTypeIndices.append(problemTypes.find(problemType))
-    for problemTypeIdx in range(0, len(problemTypeIndices)):
-      problemType = problemTypeIndices[problemTypeIdx]
+      problemTypeIndices.append(problemTypes.index(problemType))
+    for problemTypeIdx in range(0, len(problemTypes)):
+      problemType = problemTypes[problemTypeIdx]
       dataType = problemType["DataType"]
       if dataType not in dataTypes:
         dataTypes.append(dataType)
-      dataTypeIndices.append(dataTypes.find(dataType))
+      dataTypeIndices.append(dataTypes.index(dataType))
 
   ##############################################################################
   # Data Types
@@ -342,8 +354,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "\n"
   h += "const unsigned int dataTypeIndices[numProblemTypes] = { %u" \
       % dataTypeIndices[0]
-  for problemTypeIdx in range(1, numProblemTypes):
-    h += ", %u" % problemTypeIndices[problemTypeIdx]
+  for dataTypeIdx in range(1, numDataTypes):
+    h += ", %u" % dataTypeIndices[dataTypeIdx]
   h += " };\n"
 
 
@@ -353,13 +365,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   maxNumIndices = problemTypes[0]["TotalIndices"]
   if not forBenchmark:
     for problemType in problemTypes:
-      maxNumIndices = max(problemType["TotalIndices"])
+      maxNumIndices = max(problemType["TotalIndices"], maxNumIndices)
   h += "const unsigned int maxNumIndices = %u;\n" % maxNumIndices
   h += "const unsigned int totalIndices[numProblemTypes] = { %u" \
       % problemTypes[0]["TotalIndices"]
   for problemTypeIdx in range(1, numProblemTypes):
       h += ", %u" % problemTypes[problemTypeIdx]["TotalIndices"]
   h += " };\n"
+  h += "unsigned int userSizes[maxNumIndices];\n"
   if forBenchmark:
     h += "/* problem sizes */\n"
     h += "const bool indexIsSized[maxNumIndices] = {"
@@ -381,17 +394,17 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "\n"
     h += "  };\n"
 
-  numIndicesMapped = len(problemSizes.indicesMapped)
-  h += "const unsigned int numIndicesMapped = %u;\n" % numIndicesMapped
-  if numIndicesMapped > 0:
-    h += "const unsigned int indicesMapped[numIndicesMapped] = {"
-    for i in range(0, numIndicesMapped):
-      h += " %u" % problemSizes.indicesMapped[i]
-      if i < numIndicesMapped-1:
-        h += ","
-    h += " };\n"
-  else:
-    h += "const unsigned int indicesMapped[1] = { 0 }; // dummy\n"
+    numIndicesMapped = len(problemSizes.indicesMapped)
+    h += "const unsigned int numIndicesMapped = %u;\n" % numIndicesMapped
+    if numIndicesMapped > 0:
+      h += "const unsigned int indicesMapped[numIndicesMapped] = {"
+      for i in range(0, numIndicesMapped):
+        h += " %u" % problemSizes.indicesMapped[i]
+        if i < numIndicesMapped-1:
+          h += ","
+      h += " };\n"
+  #else:
+  #  h += "const unsigned int indicesMapped[1] = { 0 }; // dummy\n"
 
   ##############################################################################
   # Max Problem Sizes
@@ -410,6 +423,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "size_t maxSizeC = %u;\n" % (sizeC)
     h += "size_t maxSizeA = %u;\n" % (sizeA)
     h += "size_t maxSizeB = %u;\n" % (sizeB)
+    h += "\n"
+  else:
+    h += "size_t maxSizeC;\n"
+    h += "size_t maxSizeA;\n"
+    h += "size_t maxSizeB;\n"
     h += "\n"
 
   ##############################################################################
@@ -467,10 +485,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # Problem Type Indices
     h += "const unsigned int problemTypeIndices[numFunctions] = { %u" \
         % problemTypeIndices[0]
-    for problemTypeIdx in range(0, numFunctions):
+    for problemTypeIdx in range(1, numFunctions):
       h += ", %u" % problemTypeIndices[problemTypeIdx]
     h += " };\n"
     # Function Names
+    functionNames = []
+    for function in functions:
+      functionNames.append("tensile_%s_%s" % (function[0], function[1]))
     h += "char *functionNames[numFunctions] = {\n"
     for functionIdx in range(0, len(functionNames)):
       functionName = functionNames[functionIdx]
@@ -635,15 +656,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # Generated Call to Function
     ############################################################################
     h += "/* generated call to function */\n"
-    h += "void generatedCallToFunction(\n"
-    h += "    unsigned int functionIdx,\n"
-    h += "    unsigned int *sizes) {\n"
-    h += "  unsigned int problemIdx = problemTypeIndices[functionIdx];\n"
-    h += "  unsigned int dataTypeIdx = dataTypeIndices[problemIdx];\n"
+    h += "template<typename DataType>\n"
+    h += "TensileStatus generatedCallToFunction(\n"
+    h += "    unsigned int *sizes,\n"
+    h += "    DataType alpha,\n"
+    h += "    DataType beta ) {\n"
     for functionIdx in range(0, numFunctions):
       function = functions[functionIdx]
       scheduleName = function[0]
-      problemType = functions[1]
+      problemType = function[1]
       if functionIdx == 0:
         h += "  if (functionIdx == %u) {\n" % functionIdx
       elif functionIdx == numFunctions-1:
@@ -685,7 +706,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
       # function call
       h += "    // call solution function\n"
-      h += "    return tensile_%s_%s(" % (scheduleName, problemType)
+      h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
       h += "        deviceC, deviceA, deviceB,\n"
       h += "        alpha,\n"
       if problemType["UseBeta"]:
@@ -703,7 +724,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "        size%s,\n" % indexChars[i]
       h += "        stream,\n"
       h += "        0, NULL, NULL); // events\n"
-    h += "};\n"
+    h += "  }\n" # close last if
+    h += "};\n" # close callToFunction
 
   ##############################################################################
   # Results File Name

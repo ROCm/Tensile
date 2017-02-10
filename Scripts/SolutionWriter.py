@@ -143,7 +143,7 @@ class SolutionWriter:
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
     for i in range(0, solution["ProblemType"]["NumIndicesC"]):
       if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
-        s += "%sglobalWorkSize[0][2] *= tensorC[%u].size;\n" % (t, i)
+        s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
     # TODO only handling kernelMaxSizes = 1,1,1 and single kernel
     s += "%s%stensileCalculateSizesForEdgeMultiKernel();\n" % (t, "" if solution["EdgeMultiKernel"] else "//" )

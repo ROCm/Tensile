@@ -38,7 +38,147 @@ void initControls();
 void destroyControls();
 
 #if Tensile_CLIENT_LIBRARY
-void callLibrary();
+template<typename DataType>
+void callLibrary(
+    DataType *initialC,
+    DataType *initialA,
+    DataType *initialB,
+    DataType alpha,
+    DataType beta,
+    DataType *referenceC,
+    DataType *deviceOnHostC ) {
+
+  size_t currentSizeC = 1;
+  for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    currentSizeC *= userSizes[i];
+  }
+  size_t totalFlops = numFlopsPerMac[dataTypeIdx];
+  for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+    totalFlops *= userSizes[i]; }
+
+  // copy data to device
+  size_t sizeToWrite = currentSizeC*bytesPerElement[dataTypeIdx];
+#if Tensile_BACKEND_OCL
+  status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
+      sizeToWrite, initialC, 0, NULL, NULL);
+#else
+  status = hipMemcpy(deviceC, initialC, sizeToWrite, hipMemcpyHostToDevice);
+#endif
+  tensileStatusCheck(status);
+
+  size_t numInvalids = 0;
+  size_t numChecked = 0;
+
+  // do validation
+  if (numElementsToValidate) {
+    memcpy(referenceC, initialC,
+        static_cast<size_t>(currentSizeC*bytesPerElement[dataTypeIdx]));
+    // calculate validation stride
+    if (numElementsToValidate >= currentSizeC) {
+      validationStride = 1;
+    } else {
+      if (numElementsToValidate) {
+        validationStride = currentSizeC / numElementsToValidate;
+        // find next prime number
+        while (true) { // break statement at end
+          bool prime = true;
+          for (unsigned int i = 2; i < validationStride; i++) {
+            if ( validationStride % i == 0) {
+              prime = false;
+              break;
+            }
+          }
+          if (prime) {
+            break;
+          } else {
+            validationStride++;
+          }
+        }
+      } else {
+        validationStride = 0;
+      }
+    }
+    // call reference function
+    generatedCallToReferenceCPU( userSizes, referenceC, initialA, initialB,
+        alpha, beta);
+
+    // call device function
+    generatedCallToFunction( userSizes, alpha, beta);
+
+    // copy data back to host
+#if Tensile_BACKEND_OCL
+    clEnqueueReadBuffer(stream, deviceC, CL_TRUE, 0,
+        currentSizeC*bytesPerElement[dataTypeIdx], deviceOnHostC, 0, NULL,
+        NULL);
+#else
+    hipMemcpy(deviceOnHostC, deviceC, currentSizeC*
+        bytesPerElement[dataTypeIdx], hipMemcpyDeviceToHost);
+#endif
+
+    // compare
+    bool firstPrint = true;
+    unsigned int printIdx = 0;
+    for (size_t i = 0; i < currentSizeC; i+= validationStride) {
+      bool equal;
+      equal = tensileAlmostEqual<DataType>(
+          deviceOnHostC[i], referenceC[i]);
+      numChecked++;
+      if (!equal) numInvalids++;
+
+      if (!equal || validationPrintValids) {
+        if (printIdx < validationMaxToPrint) {
+          if (firstPrint) {
+            std::cout << "  Device | Reference" << std::endl;
+            firstPrint = false;
+          }
+          std::cout << i << ": " << deviceOnHostC[i] <<
+              (equal ? "==" : "!=") << referenceC[i] << std::endl;
+          printIdx++;
+        } else {
+          break;
+        }
+      }
+    } // compare loop
+  } // if validate
+
+  // time solution
+  timer.start();
+  for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+    for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+      generatedCallToFunction( userSizes, alpha, beta );
+    }
+    // sync
+#if Tensile_BACKEND_OCL
+    status = clFinish(stream); tensileStatusCheck(status);
+#else
+    status = hipStreamSynchronize(stream); tensileStatusCheck(status);
+#endif
+    tensileStatusCheck(status);
+  } // sync loop
+
+  double timeMs = timer.elapsed_ms()
+    / numSyncsPerBenchmark / numEnqueuesPerSync;
+  double gflops = totalFlops / timeMs / 1000000.0;
+
+  if (numElementsToValidate) {
+    std::cout << "Function[" << std::setw(2) << functionIdx << "/"
+      << numFunctions << "]:"
+      << std::setw(10) << std::fixed << std::setprecision(3)
+      << gflops << " GFlop/s |"
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
+      << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
+      << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
+  }
+#if 1
+  else {
+    std::cout << "Function[" << functionIdx << "/" << numFunctions << "]:"
+      << std::setw(10) << std::fixed << std::setprecision(3)
+      << gflops << " GFlop/s |"
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
+  }
+#endif
+
+} // callLibrary
 #endif
 
 /*******************************************************************************
@@ -66,7 +206,6 @@ void benchmarkProblemSizes(
   std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
   file << "Milliseconds ";
-  char indexChars[19] = "IJKLMNOPQRSTUVWXYZ";
   for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     file << ", Size" << indexChars[i];
   }
@@ -329,6 +468,7 @@ void initData(
     DataType *beta,
     DataType **referenceC,
     DataType **deviceOnHostC) {
+  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", " << maxSizeB << std::endl;
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
@@ -448,8 +588,17 @@ void destroyData(
 #endif
 
 }
+unsigned int defaultNumElementsToValidate = 128;
+void printLibraryClientUsage(std::string executableName) {
+  std::cout << "Usage: " << executableName << " FunctionIdx SizeI SizeJ SizeK ... [NumElementsToValidate=" << defaultNumElementsToValidate << "]" << std::endl;
+  std::cout << "Functions:" << std::endl;
+  for (unsigned int i = 0; i < numFunctions; i++) {
+    std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
+  }
+}
 
 void parseCommandLineParameters( int argc, char *argv[] ) {
+  std::string executableName = argv[0];
 
 #if Tensile_CLIENT_BENCHMARK
   problemTypeIdx = 0;
@@ -457,6 +606,48 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 #endif
 
 #if Tensile_CLIENT_LIBRARY
+  if (argc < 5) {
+    printLibraryClientUsage(executableName);
+    exit(0);
+  }
+  try {
+    functionIdx = static_cast<unsigned int>(atoi(argv[1]));
+    std::cout << "FunctionIdx: " << functionIdx << std::endl;
+    problemTypeIdx = problemTypeIndices[functionIdx];
+    dataTypeIdx = dataTypeIndices[problemTypeIdx];
 
+    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+      userSizes[i] = static_cast<unsigned int>(atoi(argv[2+i]));
+      std::cout << "Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
+    }
+    if (static_cast<unsigned int>(argc) > 2+totalIndices[problemTypeIdx]) {
+      numElementsToValidate = static_cast<unsigned int>(atoi(argv[1]));
+      std::cout << "NumElementsToValidate: " << numElementsToValidate
+        << std::endl;
+    } else {
+      numElementsToValidate = defaultNumElementsToValidate;
+      std::cout << "NumElementsToValidate: " << numElementsToValidate
+        << " (unspecified)" << std::endl;
+    }
+
+  } catch (...) {
+    printLibraryClientUsage(executableName);
+    exit(0);
+  }
+
+  maxSizeC = 1;
+  for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    maxSizeC *= userSizes[i];
+  }
+  maxSizeA = 1;
+  maxSizeB = 1;
+  for (unsigned int i = 0; i < numIndicesAB[problemTypeIdx]; i++) {
+    maxSizeA *= userSizes[indexAssignmentsA[problemTypeIdx][i]];
+    maxSizeB *= userSizes[indexAssignmentsB[problemTypeIdx][i]];
+  }
+  std::cout << "MaxSizeC: " << maxSizeC << std::endl;
+  std::cout << "MaxSizeA: " << maxSizeA << std::endl;
+  std::cout << "MaxSizeB: " << maxSizeB << std::endl;
 #endif
 }
+

@@ -37,7 +37,8 @@ int main( int argc, char *argv[] ) {
     benchmarkProblemSizes(initialC, initialA, initialB, alpha, beta,
         referenceC, deviceOnHostC);
 #else
-    callLibrary(initialC, initialA, initialB, referenceC, deviceOnHostC);
+    callLibrary(initialC, initialA, initialB, alpha, beta, referenceC,
+        deviceOnHostC);
 #endif
     destroyData(initialC, initialA, initialB, referenceC, deviceOnHostC);
     break;

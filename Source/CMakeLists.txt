@@ -54,7 +54,8 @@ else()
   option( Tensile_LIBRARY_PRINT_DEBUG "TensileLib to print debug info" OFF)
   add_executable( ${ClientName}
     Client.cpp
-    Client.h )
+    MathTemplates.cpp
+    Tools.cpp )
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_CLIENT_BENCHMARK=0
     -DTensile_CLIENT_LIBRARY=1 )
