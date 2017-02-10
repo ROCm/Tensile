@@ -230,9 +230,12 @@ void benchmarkProblemSizes(
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
       if (indexIsSized[i]) {
         fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
-      } else {
+      }
+#if Tensile_INDICES_MAPPED
+      else {
         fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
       }
+#endif
     }
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
       generatedCallToSolution( sIdx, fullSizes, alpha, beta );
@@ -255,9 +258,12 @@ void benchmarkProblemSizes(
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
       if (indexIsSized[i]) {
         fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
-      } else {
+      }
+#if Tensile_INDICES_MAPPED
+      else {
         fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
       }
+#endif
     }
     // print size
     std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << fullSizes[0];

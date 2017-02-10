@@ -397,12 +397,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     numIndicesMapped = len(problemSizes.indicesMapped)
     h += "const unsigned int numIndicesMapped = %u;\n" % numIndicesMapped
     if numIndicesMapped > 0:
+      h += "#define Tensile_INDICES_MAPPED 1\n"
       h += "const unsigned int indicesMapped[numIndicesMapped] = {"
       for i in range(0, numIndicesMapped):
         h += " %u" % problemSizes.indicesMapped[i]
         if i < numIndicesMapped-1:
           h += ","
       h += " };\n"
+    else:
+      h += "#define Tensile_INDICES_MAPPED 0\n"
   #else:
   #  h += "const unsigned int indicesMapped[1] = { 0 }; // dummy\n"
 
