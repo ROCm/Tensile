@@ -60,10 +60,10 @@ void callLibrary(
   // copy data to device
   size_t sizeToWrite = currentSizeC*bytesPerElement[dataTypeIdx];
 #if Tensile_BACKEND_OCL
-  status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
       sizeToWrite, initialC, 0, NULL, NULL);
 #else
-  status = hipMemcpy(deviceC, initialC, sizeToWrite, hipMemcpyHostToDevice);
+  status = hipMemcpy(static_cast<cl_mem>(deviceC), initialC, sizeToWrite, hipMemcpyHostToDevice);
 #endif
   tensileStatusCheck(status);
 
@@ -109,11 +109,11 @@ void callLibrary(
 
     // copy data back to host
 #if Tensile_BACKEND_OCL
-    clEnqueueReadBuffer(stream, deviceC, CL_TRUE, 0,
+    clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
         currentSizeC*bytesPerElement[dataTypeIdx], deviceOnHostC, 0, NULL,
         NULL);
 #else
-    hipMemcpy(deviceOnHostC, deviceC, currentSizeC*
+    hipMemcpy(deviceOnHostC, static_cast<cl_mem>(deviceC), currentSizeC*
         bytesPerElement[dataTypeIdx], hipMemcpyDeviceToHost);
 #endif
 
@@ -251,10 +251,10 @@ void benchmarkAllSolutionsForSize(
 
     // copy data in language
 #if Tensile_BACKEND_OCL
-    status = clEnqueueWriteBuffer(stream, deviceC, CL_TRUE, 0,
+    status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
         currentSizeC*bytesPerElement[dataTypeIdx], initialC, 0, NULL, NULL);
 #else
-    status = hipMemcpy(deviceC, initialC, currentSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
+    status = hipMemcpy(static_cast<cl_mem>(deviceC), initialC, currentSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
 #endif
     tensileStatusCheck(status);
 
@@ -268,10 +268,10 @@ void benchmarkAllSolutionsForSize(
 
       // copy data back to host
 #if Tensile_BACKEND_OCL
-      clEnqueueReadBuffer(stream, deviceC, CL_TRUE, 0,
+      clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
           currentSizeC*bytesPerElement[dataTypeIdx], deviceOnHostC, 0, NULL, NULL);
 #else
-      hipMemcpy(deviceOnHostC, deviceC, currentSizeC*bytesPerElement[dataTypeIdx], hipMemcpyDeviceToHost);
+      hipMemcpy(deviceOnHostC, static_cast<cl_mem>(deviceC), currentSizeC*bytesPerElement[dataTypeIdx], hipMemcpyDeviceToHost);
 #endif
 
       // compare
@@ -549,26 +549,26 @@ void initData(
       maxSizeB*bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
     std::cout << ".";
-  status = clEnqueueWriteBuffer(stream, deviceA, CL_TRUE, 0,
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceA), CL_TRUE, 0,
       maxSizeA*bytesPerElement[dataTypeIdx], *initialA, 0, NULL, NULL);
   tensileStatusCheck(status);
     std::cout << ".";
-  status = clEnqueueWriteBuffer(stream, deviceB, CL_TRUE, 0,
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceB), CL_TRUE, 0,
       maxSizeB*bytesPerElement[dataTypeIdx], *initialB, 0, NULL, NULL);
   tensileStatusCheck(status);
     std::cout << ".";
 #else
-  status = hipMalloc( &deviceC, maxSizeC*bytesPerElement[dataTypeIdx] );
+  status = hipMalloc( &static_cast<cl_mem>(deviceC), maxSizeC*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMalloc( &deviceA, maxSizeA*bytesPerElement[dataTypeIdx] );
+  status = hipMalloc( &static_cast<cl_mem>(deviceA), maxSizeA*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMalloc( &deviceB, maxSizeB*bytesPerElement[dataTypeIdx] );
+  status = hipMalloc( &static_cast<cl_mem>(deviceB), maxSizeB*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMemcpy(deviceA, *initialA, maxSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
-  status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
+  status = hipMemcpy(static_cast<cl_mem>(deviceA), *initialA, maxSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
+  status = hipMemcpy(static_cast<cl_mem>(deviceB), *initialB, maxSizeB*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
 #endif
   std::cout << std::endl;
 }
@@ -591,13 +591,13 @@ void destroyData(
   delete[] deviceOnHostC;
 
 #if Tensile_BACKEND_OCL
-  clReleaseMemObject(deviceC);
-  clReleaseMemObject(deviceA);
-  clReleaseMemObject(deviceB);
+  clReleaseMemObject(static_cast<cl_mem>(deviceC));
+  clReleaseMemObject(static_cast<cl_mem>(deviceA));
+  clReleaseMemObject(static_cast<cl_mem>(deviceB));
 #else
-  hipFree(deviceC);
-  hipFree(deviceA);
-  hipFree(deviceB);
+  hipFree(static_cast<cl_mem>(deviceC));
+  hipFree(static_cast<cl_mem>(deviceA));
+  hipFree(static_cast<cl_mem>(deviceB));
 #endif
 
 }

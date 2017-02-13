@@ -1,7 +1,7 @@
 # batched cgemm
 Parameters:
   DebugPrintLevel: 2
-  ForceRedoBenchmarkProblems: False
+  ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
@@ -14,7 +14,7 @@ Parameters:
   ShortFileNames: False
   MergeFiles: True
   PlatformIdx: 0
-  DeviceIdx: 0
+  DeviceIdx: 1
 
 BenchmarkProblems:
   # sgemm NT
@@ -39,7 +39,7 @@ BenchmarkProblems:
       - ThreadTileShape: [ 0 ]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [2, 4, 8]
+      - ThreadTileEdge: [2, 4 ]
       - NumLoadsCoalescedA: [ 1, 2, 4 ]
       - NumLoadsCoalescedB: [ 1, 2, 4 ]
       - LoopUnroll: [8, 16]

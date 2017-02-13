@@ -544,9 +544,12 @@ class Solution:
       state["ThreadTile0"] *= 2
 
     # macro tile sizes
-    state["MacroTile0"] = state["WorkGroup0"]*state["ThreadTile0"]
-    state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
-    state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
+    if "WorkGroup0" in state and "ThreadTile0" in state:
+      state["MacroTile0"] = state["WorkGroup0"]*state["ThreadTile0"]
+    if "WorkGroup1" in state and "ThreadTile1" in state:
+      state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
+    if "SplitU" in state and "LoopUnroll" in state:
+      state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
 
   ########################################
