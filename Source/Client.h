@@ -570,6 +570,7 @@ void initData(
   status = hipMemcpy(deviceA, *initialA, maxSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
   status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
 #endif
+  std::cout << std::endl;
 }
 
 /*******************************************************************************
