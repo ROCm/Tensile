@@ -299,7 +299,7 @@ class BenchmarkDataAnalyzer:
     # determine winner at largest size
     solutionNumWins = [0]*self.numSolutions
     solutionGFlops = [0]*self.numSolutions
-    for problemSizeIdx in range(numProblems0-dilation*2, numProblems0):
+    for problemSizeIdx in range(max(0,numProblems0-dilation*2), numProblems0):
       problemIndices[self.idx0] = problemSizeIdx
       problemIndices[self.idx1] = problemSizeIdx
       problemIdx = self.indicesToSerial(0, problemIndices)

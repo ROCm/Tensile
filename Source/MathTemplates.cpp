@@ -242,4 +242,21 @@ template<> size_t tensileSizeOfType<TensileComplexFloat>(){ return sizeof(Tensil
 template<> size_t tensileSizeOfType<TensileComplexDouble>(){ return sizeof(TensileComplexDouble); }
 template<> size_t tensileSizeOfType<void>() { return 0; }
 
+/*******************************************************************************
+ * ToString
+ ******************************************************************************/
+#ifdef Tensile_Enable_FP16_HOST
+template<> std::string tensileToString(TensileHalf v){
+  return std::to_string(v); }
+#endif
+template<> std::string tensileToString(float v){
+  return std::to_string(v); }
+template<> std::string tensileToString(double v){
+  return std::to_string(v); }
+template<> std::string tensileToString(TensileComplexFloat v){
+  return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v)); }
+template<> std::string tensileToString(TensileComplexDouble v){
+  return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v)); }
+
+
 

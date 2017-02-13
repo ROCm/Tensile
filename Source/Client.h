@@ -19,9 +19,6 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-/*******************************************************************************
- * Tensile Benchmark
- ******************************************************************************/
 
 #include "TensileTypes.h"
 #include "Tools.h"
@@ -37,6 +34,9 @@ std::ofstream file;
 void initControls();
 void destroyControls();
 
+/*******************************************************************************
+ * Call Library
+ ******************************************************************************/
 #if Tensile_CLIENT_LIBRARY
 template<typename DataType>
 void callLibrary(
@@ -99,7 +99,8 @@ void callLibrary(
       }
     }
     // call reference function
-    generatedCallToReferenceCPU( userSizes, referenceC, initialA, initialB,
+    generatedCallToReferenceCPU( userSizes, referenceC,
+        initialA, initialB,
         alpha, beta);
 
     // call device function
@@ -131,8 +132,9 @@ void callLibrary(
             std::cout << "  Device | Reference" << std::endl;
             firstPrint = false;
           }
-          std::cout << i << ": " << deviceOnHostC[i] <<
-              (equal ? "==" : "!=") << referenceC[i] << std::endl;
+          std::cout << i << ": " << tensileToString(deviceOnHostC[i])
+            << (equal ? "==" : "!=") << tensileToString(referenceC[i])
+            << std::endl;
           printIdx++;
         } else {
           break;
@@ -194,8 +196,6 @@ void benchmarkProblemSizes(
     DataType beta,
     DataType *referenceC,
     DataType *deviceOnHostC) {
-  std::cout << "initialC: " << initialC << std::endl;
-  std::cout << "*initialC: " << *initialC << std::endl;
 
   // write benchmark data column headers
   std::cout << std::endl;
@@ -411,8 +411,9 @@ void benchmarkAllSolutionsForSize(
               std::cout << "  Device | Reference" << std::endl;
               firstPrint = false;
             }
-            std::cout << i << ": " << deviceOnHostC[i] <<
-                (equal ? "==" : "!=") << referenceC[i] << std::endl;
+            std::cout << i << ": " << tensileToString(deviceOnHostC[i])
+              << (equal ? "==" : "!=") << tensileToString(referenceC[i])
+              << std::endl;
             printIdx++;
           } else {
             break;
@@ -500,13 +501,13 @@ void initData(
   // initialize buffers
   if (dataInitType == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = static_cast<DataType>(rand() % 10); }
+      (*initialC)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = static_cast<DataType>(rand() % 10); }
+      (*initialA)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = static_cast<DataType>(rand() % 10); }
+      (*initialB)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
   } else if (dataInitType == 1) {
     for (size_t i = 0; i < maxSizeC; i++) {
@@ -520,13 +521,13 @@ void initData(
     std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = static_cast<DataType>(i); }
+      (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = static_cast<DataType>(i); }
+      (*initialA)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = static_cast<DataType>(i); }
+      (*initialB)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
   }
 
@@ -610,8 +611,8 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   std::string executableName = argv[0];
 
 #if Tensile_CLIENT_BENCHMARK
+  dataTypeIdx = 0;
   problemTypeIdx = 0;
-  dataTypeIdx = dataTypeIndices[0];
 #endif
 
 #if Tensile_CLIENT_LIBRARY
@@ -622,8 +623,12 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   try {
     functionIdx = static_cast<unsigned int>(atoi(argv[1]));
     std::cout << "FunctionIdx: " << functionIdx << std::endl;
-    problemTypeIdx = problemTypeIndices[functionIdx];
-    dataTypeIdx = dataTypeIndices[problemTypeIdx];
+    dataTypeIdx = functionInfo[functionIdx][0];
+    problemTypeIdx = functionInfo[functionIdx][2];
+    if (static_cast<unsigned int>(argc - 2) < totalIndices[problemTypeIdx]) {
+      printLibraryClientUsage(executableName);
+      exit(0);
+    }
 
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
       userSizes[i] = static_cast<unsigned int>(atoi(argv[2+i]));

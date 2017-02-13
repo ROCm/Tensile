@@ -1,18 +1,20 @@
 # batched cgemm
 Parameters:
   DebugPrintLevel: 2
-  ForceRedo: True
+  ForceRedoBenchmarkProblems: False
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  SolutionPrintDebug: False
+  LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
   ShortFileNames: False
   MergeFiles: True
   PlatformIdx: 0
-  DeviceIdx: 1
+  DeviceIdx: 0
 
 BenchmarkProblems:
   # sgemm NT
@@ -34,12 +36,12 @@ BenchmarkProblems:
       - WorkGroupSchedule: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [ True ]
+      - ThreadTileShape: [ 0 ]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [2, 4, 6, 8]
-      - ThreadTileShape: [ -1, 0, 1 ]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
+      - ThreadTileEdge: [2, 4, 8]
+      - NumLoadsCoalescedA: [ 1, 2, 4 ]
+      - NumLoadsCoalescedB: [ 1, 2, 4 ]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -49,3 +51,8 @@ BenchmarkProblems:
     BenchmarkFinalParameters:
       - ProblemSizes: [ [128], [192], [64], [1024] ]
 
+LibraryLogic:
+  Dilation: 3
+  Threshold: 0.1
+
+LibraryClient:

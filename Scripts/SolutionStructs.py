@@ -199,6 +199,7 @@ class ProblemType:
     if "DataType" in config:
       self["DataType"] = DataType(config["DataType"])
     else:
+      printExit("NO data type specified")
       self["DataType"] = DataType(0)
 
     if self["OperationType"] == "GEMM":
@@ -365,7 +366,8 @@ class ProblemType:
   def getAttributes(self):
     return self.state
   def __hash__(self):
-    return hash(self.getAttributes())
+    return hash(str(self))
+    #return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, ProblemType) and self.getAttributes() == other.getAttributes()
   def __ne__(self, other):
@@ -736,7 +738,8 @@ class Solution:
   def getAttributes(self):
     return self.state
   def __hash__(self):
-    return hash(self.getAttributes())
+    return hash(str(self))
+    #return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
   def __ne__(self, other):

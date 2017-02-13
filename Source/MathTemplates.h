@@ -23,6 +23,7 @@
 #define MATH_TEMPLATES_H
 #include <cmath>
 #include <limits>
+#include <string>
 
 #if Tensile_BACKEND_OCL
 #include "CL/cl.h"
@@ -37,18 +38,20 @@
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
-template< typename T> T tensileGetZero(); // { return static_cast<T>(0); };
+template< typename T> T tensileGetZero();
 
 
 /*******************************************************************************
  * One Templates
  ******************************************************************************/
-template< typename T> T tensileGetOne(); // { return static_cast<T>(1); };
+template< typename T> T tensileGetOne();
+
 
 /*******************************************************************************
  * Random Templates
  ******************************************************************************/
-template< typename T> T tensileGetRandom(); // { return static_cast<T>(1); };
+template< typename T> T tensileGetRandom();
+
 
 /*******************************************************************************
  * Integer Templates
@@ -60,28 +63,22 @@ template< typename T> T tensileGetTypeForInt( size_t s );
  * Multiply Templates
  ******************************************************************************/
 template< typename Type >
-Type tensileMultiply( Type a, Type b ); /* {
-  return static_cast<TypeC>( a * b );
-};*/
-
+Type tensileMultiply( Type a, Type b );
 
 
 /*******************************************************************************
  * Add Templates
  ******************************************************************************/
 template< typename Type >
-Type tensileAdd( Type a, Type b ); /* {
-  return static_cast<TypeC>( a + b );
-};*/
+Type tensileAdd( Type a, Type b );
 
 
 /*******************************************************************************
 * Floating-Point Equals
 ******************************************************************************/
 template<typename T>
-bool tensileAlmostEqual( T a, T b); /* {
-  return std::fabs(a - b) < std::numeric_limits<T>::epsilon();
-} */
+bool tensileAlmostEqual( T a, T b);
+
 
 /*******************************************************************************
 * Complex Conjugate
@@ -91,11 +88,17 @@ void tensileComplexConjugate(T&);
 
 
 /*******************************************************************************
-* sizeOf Type
+* sizeOf
 ******************************************************************************/
 template<typename Type>
 size_t tensileSizeOfType();
 
+
+/*******************************************************************************
+* ToString
+******************************************************************************/
+template<typename Type>
+std::string tensileToString(Type);
 
 #endif
 

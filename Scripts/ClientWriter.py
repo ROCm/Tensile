@@ -159,7 +159,7 @@ def main(  config ):
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functions):
+    functionList):
   h = ""
 
   ##############################################################################
@@ -217,36 +217,86 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "\";\n"
 
   h += "unsigned int functionIdx;\n"
-  h += "unsigned int problemTypeIdx;\n"
   h += "unsigned int dataTypeIdx;\n"
+  h += "unsigned int problemTypeIdx;\n"
   h += "\n"
 
   ##############################################################################
   # Problem Types
   ##############################################################################
+  #dataTypes = []
+  #problemTypes = []
+  #functionSerialToDataTypeAndIdx = []
   dataTypes = []
   problemTypes = []
-  dataTypeIndices = [] # per problemType
-  problemTypeIndices = [] # per function/solution
+  problemTypesForDataType = {} # for data type
+  schedulesForProblemType = {} # for problem type
+  functionInfo = [] # dataTypeIdx, problemTypeIdx, idxWithinDataType, idxWithinProblemType
+
   if forBenchmark:
-    dataTypes.append(solutions[0]["ProblemType"]["DataType"])
-    problemTypes.append(solutions[0]["ProblemType"])
-    dataTypeIndices.append(0)
-    problemTypeIndices.append(0)
+    problemType = solutions[0]["ProblemType"]
+    dataType = problemType["DataType"]
+    dataTypes.append(dataType)
+    problemTypes.append(problemType)
+    problemTypesForDataType[dataType] = [problemType]
+    schedulesForProblemType[problemType] = solutions
+    numProblemTypes = 1
+    for solution in solutions:
+      functionInfo.append([ 0, 0, 0, 0, 0, 0 ])
   else:
-    for functionIdx in range(0, len(functions)):
-      function = functions[functionIdx]
+    for functionIdx in range(0, len(functionList)):
+      function = functionList[functionIdx]
       scheduleName = function[0]
       problemType = function[1]
-      if problemType not in problemTypes:
-        problemTypes.append(problemType)
-      problemTypeIndices.append(problemTypes.index(problemType))
-    for problemTypeIdx in range(0, len(problemTypes)):
-      problemType = problemTypes[problemTypeIdx]
       dataType = problemType["DataType"]
       if dataType not in dataTypes:
         dataTypes.append(dataType)
-      dataTypeIndices.append(dataTypes.index(dataType))
+        problemTypesForDataType[dataType] = []
+      if problemType not in problemTypesForDataType[dataType]:
+        problemTypesForDataType[dataType].append(problemType)
+        schedulesForProblemType[problemType] = []
+      schedulesForProblemType[problemType].append(scheduleName)
+
+    # sort
+    dataTypes = sorted(dataTypes)
+    for dataType in dataTypes:
+      problemTypesForDataType[dataType] = \
+          sorted(problemTypesForDataType[dataType])
+      for problemType in problemTypesForDataType[dataType]:
+        schedulesForProblemType[problemType] = \
+            sorted(schedulesForProblemType[problemType])
+
+    # assign info
+    functionIdxSerial = 0
+    problemTypeIdxSerial = 0
+    for dataTypeIdxSerial in range(0, len(dataTypes)):
+      dataType = dataTypes[dataTypeIdxSerial]
+      functionIdxForDataType = 0
+      for problemTypeIdxForDataType in range(0, \
+          len(problemTypesForDataType[dataType])):
+        problemType = \
+            problemTypesForDataType[dataType][problemTypeIdxForDataType]
+        problemTypes.append(problemType)
+        functionIdxForProblemType = 0
+        for functionIdxForProblemType in range(0, \
+            len(schedulesForProblemType[problemType])):
+          schedule = \
+              schedulesForProblemType[problemType][functionIdxForProblemType]
+          functionInfo.append([ \
+              dataTypeIdxSerial, \
+              problemTypeIdxForDataType, \
+              problemTypeIdxSerial, \
+              functionIdxSerial,\
+              functionIdxForDataType,\
+              functionIdxForProblemType, \
+              ])
+          functionIdxForProblemType += 1
+          functionIdxForDataType += 1
+          functionIdxSerial += 1
+      problemTypeIdxSerial += 1
+    numProblemTypes = problemTypeIdxSerial
+    numFunctions = functionIdxSerial
+    h += "const unsigned int numFunctions = %u;\n" % numFunctions
 
   ##############################################################################
   # Data Types
@@ -273,12 +323,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     dataType = dataTypes[dataTypeIdx]
     h += ", %u" % (2 if dataType.isReal() else 8)
   h += " };\n"
+  for dataTypeIdx in range(0, numDataTypes):
+    h += "#define Tensile_DATA_TYPE_%s\n" \
+        % dataTypes[dataTypeIdx].toCpp().upper()
 
   ##############################################################################
   # Problem Types
   ##############################################################################
   h += "/* problem types */\n"
-  numProblemTypes = len(problemTypes)
   h += "const unsigned int numProblemTypes = %u;\n" % numProblemTypes
   # Num C Indices
   h += "const unsigned int numIndicesC[numProblemTypes] = { %u" \
@@ -332,7 +384,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " }\n"
   h += "};\n"
   # beta
-  h += "bool useBeta[numProblemTypes] = { %s\n" \
+  h += "bool useBeta[numProblemTypes] = { %s" \
       % ("true" if problemTypes[0]["UseBeta"] else "false")
   for problemTypeIdx in range(1, numProblemTypes):
     problemType = problemTypes[problemTypeIdx]
@@ -352,11 +404,16 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += ", %s" % ("true" if problemTypes[0]["ComplexConjugateB"] else "false" )
   h += " };\n"
   h += "\n"
-  h += "const unsigned int dataTypeIndices[numProblemTypes] = { %u" \
-      % dataTypeIndices[0]
-  for dataTypeIdx in range(1, numDataTypes):
-    h += ", %u" % dataTypeIndices[dataTypeIdx]
-  h += " };\n"
+
+  if not forBenchmark:
+    h += "// dataTypeIdxSerial, problemTypeIdxForDataType, problemTypeIdxSerial, functionIdxSerial, functionIdxForDataType, functionIdxForProblemType\n"
+    first = True
+    h += "const unsigned int functionInfo[numFunctions][6] = {\n"
+    for info in functionInfo:
+      h += "%s{ %u, %u, %u, %u, %u, %u }" % ("  " if first else ",\n  ", \
+          info[0], info[1], info[2], info[3], info[4], info[5] )
+      first = False
+    h += " };\n"
 
 
   ##############################################################################
@@ -452,8 +509,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "/* solutions */\n"
     # Problem Type Indices
     h += "const unsigned int numSolutions = %u;\n" % len(solutions)
-    h += "const unsigned int problemTypeIndices[numSolutions] = { %u };\n" \
-        % problemTypeIndices[0]
     h += "float solutionPerf[numProblems][numSolutions]; // milliseconds\n"
     h += "\n"
     # Solution Ptrs
@@ -483,18 +538,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += " };\n"
     h += "\n"
   else:
-    numFunctions = len(functions)
-    h += "const unsigned int numFunctions = %u;\n" % numFunctions
-    # Problem Type Indices
-    h += "const unsigned int problemTypeIndices[numFunctions] = { %u" \
-        % problemTypeIndices[0]
-    for problemTypeIdx in range(1, numFunctions):
-      h += ", %u" % problemTypeIndices[problemTypeIdx]
-    h += " };\n"
     # Function Names
     functionNames = []
-    for function in functions:
-      functionNames.append("tensile_%s_%s" % (function[0], function[1]))
+    for dataType in dataTypes:
+      for problemType in problemTypesForDataType[dataType]:
+        for scheduleName in schedulesForProblemType[problemType]:
+          functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
     h += "char *functionNames[numFunctions] = {\n"
     for functionIdx in range(0, len(functionNames)):
       functionName = functionNames[functionIdx]
@@ -562,34 +611,29 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "    DataType *initialB,\n"
   h += "    DataType alpha,\n"
   h += "    DataType beta) {\n"
-  h += "  unsigned int dataTypeIdx = dataTypeIndices[problemTypeIdx];\n"
-  h += "  switch(dataTypeIdx) {\n"
-  for dataTypeIdx in range(0, numDataTypes):
-    h += "  case %u: return tensileReferenceCPU(\n" % dataTypeIdx
-    h += "      referenceC,\n"
-    h += "      initialA,\n"
-    h += "      initialB,\n"
-    h += "      alpha,\n"
-    h += "      beta,\n"
-    h += "      totalIndices[problemTypeIdx],\n"
-    h += "      sizes,\n"
-    h += "      numIndicesC[problemTypeIdx],\n"
-    h += "      numIndicesAB[problemTypeIdx],\n"
-    h += "      indexAssignmentsA[problemTypeIdx],\n"
-    h += "      indexAssignmentsB[problemTypeIdx],\n"
-    h += "      complexConjugateA[problemTypeIdx],\n"
-    h += "      complexConjugateB[problemTypeIdx],\n"
-    h += "      validationStride );\n"
-    h += "  };\n"
-    h += "  return tensileStatusFailure;\n"
-    h += "};\n"
+  h += "  return tensileReferenceCPU(\n"
+  h += "      referenceC,\n"
+  h += "      initialA,\n"
+  h += "      initialB,\n"
+  h += "      alpha,\n"
+  h += "      beta,\n"
+  h += "      totalIndices[problemTypeIdx],\n"
+  h += "      sizes,\n"
+  h += "      numIndicesC[problemTypeIdx],\n"
+  h += "      numIndicesAB[problemTypeIdx],\n"
+  h += "      indexAssignmentsA[problemTypeIdx],\n"
+  h += "      indexAssignmentsB[problemTypeIdx],\n"
+  h += "      complexConjugateA[problemTypeIdx],\n"
+  h += "      complexConjugateB[problemTypeIdx],\n"
+  h += "      validationStride );\n"
+  h += "};\n"
   h += "\n"
 
   ##############################################################################
   # Generated Call to Solution
   ##############################################################################
   if forBenchmark:
-    problemType = problemTypes[0]
+    problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
     h += "template<typename DataType>\n"
     h += "void generatedCallToSolution(\n"
@@ -597,8 +641,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
     h += "    DataType beta ) {\n"
-    h += "  unsigned int problemIdx = problemTypeIndices[solutionIdx];\n"
-    h += "  unsigned int dataTypeIdx = dataTypeIndices[problemIdx];\n"
     h += "  // calculate parameters assuming packed data\n"
     # strides
     indexChars = globalParameters["IndexChars"]
@@ -663,74 +705,89 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "TensileStatus generatedCallToFunction(\n"
     h += "    unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
-    h += "    DataType beta ) {\n"
-    for functionIdx in range(0, numFunctions):
-      function = functions[functionIdx]
-      scheduleName = function[0]
-      problemType = function[1]
-      if numFunctions > 1:
-        if functionIdx == 0:
-          h += "  if (functionIdx == %u) {\n" % functionIdx
-        elif functionIdx == numFunctions-1:
-          h += "  } else {\n"
-        else:
-          h += "  } else if (functionIdx == %u) {\n" % functionIdx
+    h += "    DataType beta );\n\n"
 
-      # strides
-      indexChars = globalParameters["IndexChars"]
-      firstStride = 1
-      if problemType["UseInitialStrides"]:
-        firstStride = 0
-      lastStrideC = problemType["NumIndicesC"]
-      lastStrideA = len(problemType["IndexAssignmentsA"])
-      lastStrideB = len(problemType["IndexAssignmentsB"])
+    for dataType in dataTypes:
+      functionsForDataType = []
+      for problemType in problemTypesForDataType[dataType]:
+        for scheduleName in schedulesForProblemType[problemType]:
+          functionsForDataType.append([scheduleName, problemType])
+      h += "template<>\n"
+      h += "inline TensileStatus generatedCallToFunction<%s>(\n" \
+          % dataType.toCpp()
+      h += "    unsigned int *sizes,\n"
+      h += "    %s alpha,\n" % dataType.toCpp()
+      h += "    %s beta ) {\n\n" % dataType.toCpp()
 
-      # calculate strides
-      for i in range(0,lastStrideC):
-        h += "    unsigned int strideC%u%s = 1" % (i, indexChars[i])
-        for j in range(0, i):
-          h += "*sizes[%i]" % j
-        h += ";\n"
-      for i in range(0,lastStrideA):
-        h += "    unsigned int strideA%u%s = 1" % (i, \
-            indexChars[problemType["IndexAssignmentsA"][i]])
-        for j in range(0, i):
-          h += "*sizes[%i]" % \
-            problemType["IndexAssignmentsA"][j]
-        h += ";\n"
-      for i in range(0,lastStrideB):
-        h += "    unsigned int strideB%u%s = 1" % (i, \
-            indexChars[problemType["IndexAssignmentsB"][i]])
-        for j in range(0, i):
-          h += "*sizes[%i]" % \
-            problemType["IndexAssignmentsB"][j]
-        h += ";\n"
-      for i in range(0, problemType["TotalIndices"]):
-        h += "    unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
+      h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
-      # function call
-      h += "    // call solution function\n"
-      h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
-      h += "        deviceC, deviceA, deviceB,\n"
-      h += "        alpha,\n"
-      if problemType["UseBeta"]:
-        h += "        beta,\n"
-      h += "        0, 0, 0, // offsets\n"
-      for i in range(firstStride,lastStrideC):
-        h += "        strideC%u%s,\n" % (i, indexChars[i])
-      for i in range(firstStride,lastStrideA):
-        h += "        strideA%u%s,\n" % (i, \
-            indexChars[problemType["IndexAssignmentsA"][i]])
-      for i in range(firstStride,lastStrideB):
-        h += "        strideB%u%s,\n" % (i, \
-            indexChars[problemType["IndexAssignmentsB"][i]])
-      for i in range(0, problemType["TotalIndices"]):
-        h += "        size%s,\n" % indexChars[i]
-      h += "        stream,\n"
-      h += "        0, NULL, NULL); // events\n"
-    if numFunctions > 1:
-      h += "  }\n" # close last if
-    h += "};\n" # close callToFunction
+      for functionIdx in range(0, len(functionsForDataType)):
+        function = functionsForDataType[functionIdx]
+        scheduleName = function[0]
+        problemType = function[1]
+        if len(functionsForDataType)> 1:
+          if functionIdx == 0:
+            h += "  if (functionIdxForDataType == %u) {\n" % functionIdx
+          elif functionIdx == len(functionsForDataType)-1:
+            h += "  } else {\n"
+          else:
+            h += "  } else if (functionIdxForDataType == %u) {\n" % functionIdx
+
+        # strides
+        indexChars = globalParameters["IndexChars"]
+        firstStride = 1
+        if problemType["UseInitialStrides"]:
+          firstStride = 0
+        lastStrideC = problemType["NumIndicesC"]
+        lastStrideA = len(problemType["IndexAssignmentsA"])
+        lastStrideB = len(problemType["IndexAssignmentsB"])
+
+        # calculate strides
+        for i in range(0,lastStrideC):
+          h += "    unsigned int strideC%u%s = 1" % (i, indexChars[i])
+          for j in range(0, i):
+            h += "*sizes[%i]" % j
+          h += ";\n"
+        for i in range(0,lastStrideA):
+          h += "    unsigned int strideA%u%s = 1" % (i, \
+              indexChars[problemType["IndexAssignmentsA"][i]])
+          for j in range(0, i):
+            h += "*sizes[%i]" % \
+              problemType["IndexAssignmentsA"][j]
+          h += ";\n"
+        for i in range(0,lastStrideB):
+          h += "    unsigned int strideB%u%s = 1" % (i, \
+              indexChars[problemType["IndexAssignmentsB"][i]])
+          for j in range(0, i):
+            h += "*sizes[%i]" % \
+              problemType["IndexAssignmentsB"][j]
+          h += ";\n"
+        for i in range(0, problemType["TotalIndices"]):
+          h += "    unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
+
+        # function call
+        h += "    // call solution function\n"
+        h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
+        h += "        deviceC, deviceA, deviceB,\n"
+        h += "        alpha,\n"
+        if problemType["UseBeta"]:
+          h += "        beta,\n"
+        h += "        0, 0, 0, // offsets\n"
+        for i in range(firstStride,lastStrideC):
+          h += "        strideC%u%s,\n" % (i, indexChars[i])
+        for i in range(firstStride,lastStrideA):
+          h += "        strideA%u%s,\n" % (i, \
+              indexChars[problemType["IndexAssignmentsA"][i]])
+        for i in range(firstStride,lastStrideB):
+          h += "        strideB%u%s,\n" % (i, \
+              indexChars[problemType["IndexAssignmentsB"][i]])
+        for i in range(0, problemType["TotalIndices"]):
+          h += "        size%s,\n" % indexChars[i]
+        h += "        stream,\n"
+        h += "        0, NULL, NULL); // events\n"
+      if len(functionsForDataType) > 1:
+        h += "  }\n" # close last if
+      h += "};\n" # close callToFunction
 
   ##############################################################################
   # Results File Name

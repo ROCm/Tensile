@@ -385,7 +385,7 @@ class KernelWriter:
             + "DST = (ALPHA)*(REG);" + self.endLine
     else:
       # complex data
-      if not kernel["ProblemType"]["ConjugateA"] and not kernel["ProblemType"]["ConjugateB"]:
+      if not kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
         # neither conjugate
         kStr += (
           "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
@@ -393,7 +393,7 @@ class KernelWriter:
           "  DST.s0 = MAD( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = MAD(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
-      elif kernel["ProblemType"]["ConjugateA"] and not kernel["ProblemType"]["ConjugateB"]:
+      elif kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
         # A conjugate (negate imaginary A.s1)
         kStr += (
           "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
@@ -401,7 +401,7 @@ class KernelWriter:
           "  DST.s0 = MAD(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
           "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
           "  DST.s1 = MAD( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
-      elif not kernel["ProblemType"]["ConjugateA"] and kernel["ProblemType"]["ConjugateB"]:
+      elif not kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]:
         # B conjugate (negate imaginary B.s1)
         kStr += (
           "#define TYPE_MAD(MULA,MULB,DST) " + self.endLinePP +
