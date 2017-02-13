@@ -565,19 +565,23 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "cl_device_id device;\n"
     h += "cl_context context;\n"
     h += "cl_command_queue stream;\n"
-    h += "cl_mem deviceC;\n"
-    h += "cl_mem deviceA;\n"
-    h += "cl_mem deviceB;\n"
+    #h += "cl_mem deviceC;\n"
+    #h += "cl_mem deviceA;\n"
+    #h += "cl_mem deviceB;\n"
   else:
-    for dataType in dataTypes:
-      typeName = dataType.toCpp()
-      h += "%s *deviceC_%s;\n" % (typeName, typeName)
-      h += "%s *deviceA_%s;\n" % (typeName, typeName)
-      h += "%s *deviceB_%s;\n" % (typeName, typeName)
+    #for dataType in dataTypes:
+    #  typeName = dataType.toCpp()
+    #  h += "%s *deviceC_%s;\n" % (typeName, typeName)
+    #  h += "%s *deviceA_%s;\n" % (typeName, typeName)
+    #  h += "%s *deviceB_%s;\n" % (typeName, typeName)
+
     h += "hipStream_t stream;\n"
     h += "int deviceIdx = %u;\n" \
         % (globalParameters["DeviceIdx"])
   h += "\n"
+  h += "void *deviceC;\n"
+  h += "void *deviceA;\n"
+  h += "void *deviceB;\n"
 
   ##############################################################################
   # Benchmarking and Validation Parameters
@@ -677,7 +681,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // call solution function\n"
-    h += "  solutions[solutionIdx]( deviceC, deviceA, deviceB,\n"
+    if globalParameters["Backend"] == "OCL":
+      h += "  solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+    else:
+      typeName = dataTypes[0].toCpp()
+      h += "  solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+          % (typeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"

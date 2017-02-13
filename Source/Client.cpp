@@ -111,6 +111,9 @@ int main( int argc, char *argv[] ) {
         deviceOnHostC_TCD);
     break;
 #endif
+  default:
+    break;
+    // nothing
 
   }
 

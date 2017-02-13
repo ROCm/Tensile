@@ -1,0 +1,88 @@
+# benchmark MANY kernel for the 5760 size
+# don't validate because some are slightly wrong on purpose (DoWhile vs While Loop)
+Parameters:
+  DebugPrintLevel: 2
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 128
+  ValidationMaxToPrint: 16
+  ValidationPrintValids: False
+  ShortFileNames: False
+  MergeFiles: True
+  PlatformIdx: 0
+  DeviceIdx: 0
+
+BenchmarkProblems:
+  # sgemm NT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: False
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [2880], [2880], [1152] ]
+      - SplitU: [ 1 ]
+      - EdgeType: [ "Branch" ]
+        EdgeMultiKernel: [ False ] # hardcoded
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [False]
+      - LoopTail: [ True ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - WorkGroupShape: [ -1, 0, 1 ]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - ThreadTileShape: [ -1, 0, 1 ]
+    BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - LoopUnroll: [8, 16]
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [16, 16, 16, 5760], [16, 16, 16, 5760], [1152] ]
+
+  # sgemm NT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [2880], [2880], [4], [1152] ]
+      - SplitU: [ 1 ]
+      - EdgeType: [ "Branch" ]
+        EdgeMultiKernel: [ False ] # hardcoded
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [False]
+      - LoopTail: [ True ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - WorkGroupShape: [ -1, 0, 1 ]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - ThreadTileShape: [ -1, 0, 1 ]
+    BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - LoopUnroll: [8, 16]
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [16, 16, 16, 5760], [16, 16, 16, 5760], [2], [1152] ]
+

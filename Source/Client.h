@@ -26,6 +26,7 @@
 #include "MathTemplates.h"
 #include "ClientParameters.h"
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 
 TensileTimer timer;
@@ -182,126 +183,6 @@ void callLibrary(
 
 } // callLibrary
 #endif
-
-/*******************************************************************************
- * Benchmark Problem Sizes
- ******************************************************************************/
-#if Tensile_CLIENT_BENCHMARK
-template<typename DataType>
-void benchmarkProblemSizes(
-    DataType *initialC,
-    DataType *initialA,
-    DataType *initialB,
-    DataType alpha,
-    DataType beta,
-    DataType *referenceC,
-    DataType *deviceOnHostC) {
-
-  // write benchmark data column headers
-  std::cout << std::endl;
-  std::cout << "Solutions: " << std::endl;
-  for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-    std::cout << "  " << solutionNames[sIdx] << std::endl;
-  }
-  std::cout << "ResultsFileName: " << resultsFileName << std::endl;
-  file.open(resultsFileName);
-  file << "Milliseconds ";
-  for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-    file << ", Size" << indexChars[i];
-  }
-  file << ", TotalFlops";
-  for ( unsigned int s = 0; s < numSolutions; s++) {
-    file << ", " << solutionNames[s];
-  }
-  file << std::endl;
-
-  // initialize index sizes
-  for ( unsigned int i = 0; i < numIndicesSized; i++) {
-    currentSizedIndexSizes[i] = indicesSized[i][0];
-    currentSizedIndexIncrements[i] = indicesSized[i][1];
-  }
-
-  // run each solution to pre-compile opencl kernels if not validating
-  unsigned int currentSizedIdx = 0;
-  unsigned int currentMappedIdx = 0;
-#if Tensile_BACKEND_OCL
-  if (!numElementsToValidate) {
-    std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
-    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-      if (indexIsSized[i]) {
-        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
-      }
-#if Tensile_INDICES_MAPPED
-      else {
-        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
-      }
-#endif
-    }
-    for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-      generatedCallToSolution( sIdx, fullSizes, alpha, beta );
-      status = clFinish(stream); tensileStatusCheck(status);
-      tensileStatusCheck(status);
-      std::cout << ".";
-    }
-    std::cout << std::endl;
-  }
-#endif // opencl
-
-  // iterate over all problem sizes
-  bool moreProblemSizes = true;
-  unsigned int problemIdx = 0;
-  do {
-
-    // convert current sized and mapped indices to full sizes
-    currentSizedIdx = 0;
-    currentMappedIdx = 0;
-    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-      if (indexIsSized[i]) {
-        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
-      }
-#if Tensile_INDICES_MAPPED
-      else {
-        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
-      }
-#endif
-    }
-    // print size
-    std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << fullSizes[0];
-    for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
-      std::cout << ", " << fullSizes[i];
-    }
-    std::cout << std::endl;
-
-    // benchmark all solutions for this problem size
-    benchmarkAllSolutionsForSize( problemIdx, fullSizes, initialC, initialA,
-        initialB, alpha, beta, referenceC, deviceOnHostC);
-
-    // increment sizes for next benchmark
-    currentSizedIndexSizes[0] += currentSizedIndexIncrements[0];
-    currentSizedIndexIncrements[0] += indicesSized[0][2];
-    for (unsigned int i = 1; i < numIndicesSized+1; i++) {
-      // if prior index past max, reset to min and increment next index
-      if (currentSizedIndexSizes[i-1] > indicesSized[i-1][3]) {
-        // reset prior index
-        currentSizedIndexSizes[i-1] = indicesSized[i-1][0];
-        currentSizedIndexIncrements[i-1] = indicesSized[i-1][1];
-        // increment next index
-        if ( i >= numIndicesSized) {
-          moreProblemSizes = false;
-        } else {
-          currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
-          currentSizedIndexIncrements[i] += indicesSized[i][2];
-        }
-      }
-    }
-    problemIdx++;
-  } while(moreProblemSizes);
-
-  // close file
-  file.close();
-
-} // benchmarkProblemSizes
-#endif // benchmark
 
 
 /*******************************************************************************
@@ -462,6 +343,129 @@ void benchmarkAllSolutionsForSize(
   file << std::endl;
 } // benchmark solutions
 #endif // benchmark client
+
+
+/*******************************************************************************
+ * Benchmark Problem Sizes
+ ******************************************************************************/
+#if Tensile_CLIENT_BENCHMARK
+template<typename DataType>
+void benchmarkProblemSizes(
+    DataType *initialC,
+    DataType *initialA,
+    DataType *initialB,
+    DataType alpha,
+    DataType beta,
+    DataType *referenceC,
+    DataType *deviceOnHostC) {
+
+  // write benchmark data column headers
+  std::cout << std::endl;
+  std::cout << "Solutions: " << std::endl;
+  for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
+    std::cout << "  " << solutionNames[sIdx] << std::endl;
+  }
+  std::cout << "ResultsFileName: " << resultsFileName << std::endl;
+  file.open(resultsFileName);
+  file << "Milliseconds ";
+  for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+    file << ", Size" << indexChars[i];
+  }
+  file << ", TotalFlops";
+  for ( unsigned int s = 0; s < numSolutions; s++) {
+    file << ", " << solutionNames[s];
+  }
+  file << std::endl;
+
+  // initialize index sizes
+  for ( unsigned int i = 0; i < numIndicesSized; i++) {
+    currentSizedIndexSizes[i] = indicesSized[i][0];
+    currentSizedIndexIncrements[i] = indicesSized[i][1];
+  }
+
+  // run each solution to pre-compile opencl kernels if not validating
+  unsigned int currentSizedIdx = 0;
+  unsigned int currentMappedIdx = 0;
+#if Tensile_BACKEND_OCL
+  if (!numElementsToValidate) {
+    std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
+    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+      if (indexIsSized[i]) {
+        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
+      }
+#if Tensile_INDICES_MAPPED
+      else {
+        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
+      }
+#endif
+    }
+    for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
+      generatedCallToSolution( sIdx, fullSizes, alpha, beta );
+      status = clFinish(stream); tensileStatusCheck(status);
+      tensileStatusCheck(status);
+      std::cout << ".";
+    }
+    std::cout << std::endl;
+  }
+#endif // opencl
+
+  // iterate over all problem sizes
+  bool moreProblemSizes = true;
+  unsigned int problemIdx = 0;
+  do {
+
+    // convert current sized and mapped indices to full sizes
+    currentSizedIdx = 0;
+    currentMappedIdx = 0;
+    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+      if (indexIsSized[i]) {
+        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
+      }
+#if Tensile_INDICES_MAPPED
+      else {
+        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
+      }
+#endif
+    }
+    // print size
+    std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << fullSizes[0];
+    for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
+      std::cout << ", " << fullSizes[i];
+    }
+    std::cout << std::endl;
+
+    // benchmark all solutions for this problem size
+    benchmarkAllSolutionsForSize( problemIdx, fullSizes, initialC, initialA,
+        initialB, alpha, beta, referenceC, deviceOnHostC);
+
+    // increment sizes for next benchmark
+    currentSizedIndexSizes[0] += currentSizedIndexIncrements[0];
+    currentSizedIndexIncrements[0] += indicesSized[0][2];
+    for (unsigned int i = 1; i < numIndicesSized+1; i++) {
+      // if prior index past max, reset to min and increment next index
+      if (currentSizedIndexSizes[i-1] > indicesSized[i-1][3]) {
+        // reset prior index
+        currentSizedIndexSizes[i-1] = indicesSized[i-1][0];
+        currentSizedIndexIncrements[i-1] = indicesSized[i-1][1];
+        // increment next index
+        if ( i >= numIndicesSized) {
+          moreProblemSizes = false;
+        } else {
+          currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
+          currentSizedIndexIncrements[i] += indicesSized[i][2];
+        }
+      }
+    }
+    problemIdx++;
+  } while(moreProblemSizes);
+
+  // close file
+  file.close();
+
+} // benchmarkProblemSizes
+#endif // benchmark
+
+
 
 
 /*******************************************************************************
