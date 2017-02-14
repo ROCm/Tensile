@@ -30,13 +30,13 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [16, 32], [16, 32], [16, 32] ]
+      - ProblemSizes: [ [32], [32], [32] ]
       - SplitU: [ 1 ]
       - EdgeType: [ "Branch" ]
         EdgeMultiKernel: [ False ] # hardcoded
       - WorkGroupSchedule: [ 1 ]
-      - LoopDoWhile: [False]
-      - LoopTail: [ True ]
+      - LoopDoWhile: [True]
+      - LoopTail: [False]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - WorkGroupShape: [ 0 ]

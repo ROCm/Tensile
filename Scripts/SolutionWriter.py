@@ -232,6 +232,20 @@ class SolutionWriter:
 
       s += "%sfor (unsigned int enqueueIdx = 0; enqueueIdx < numEnqueues[%u]; enqueueIdx++) {\n" % (t, kernelIdx)
       t += "  "
+      # debug print kernel dimensions
+      if globalParameters["LibraryPrintDebug"]:
+        s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
+      # debug print kernel arguments
+      # offsets
+        for i in range(0, 3):
+          s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
+        # strides
+        for stride in self.strideList:
+          s += "%sprintf(\"  %s = %%u\\n\", %s);\n" % (t, stride, stride)
+        # sizes
+        for i in range(0, solution["ProblemType"]["TotalIndices"]):
+          s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
+
       if self.backend == "OCL":
         # set kernel args different for all enqueues
         argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
@@ -248,20 +262,6 @@ class SolutionWriter:
           if sizeIdx in [ solution["ProblemType"]["Index0"],  solution["ProblemType"]["Index1"], solution["ProblemType"]["IndexUnroll"] ]:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
-        # debug print kernel dimensions
-        if globalParameters["LibraryPrintDebug"]:
-          s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
-        # debug print kernel arguments
-        # offsets
-        if globalParameters["LibraryPrintDebug"]:
-          for i in range(0, 3):
-            s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
-          # strides
-          for stride in self.strideList:
-            s += "%sprintf(\"  %s = %%u\\n\", %s);\n" % (t, stride, stride)
-          # sizes
-          for i in range(0, solution["ProblemType"]["TotalIndices"]):
-            s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
 
         # enqueue
         s += "%sstatus = clEnqueueNDRangeKernel(\n" % (t)

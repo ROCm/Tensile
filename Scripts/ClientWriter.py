@@ -777,9 +777,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         # function call
         h += "    // call solution function\n"
         h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
-        h += "        static_cast<%s *>(deviceC),\n" % typeName
-        h += "        static_cast<%s *>(deviceA),\n" % typeName
-        h += "        static_cast<%s *>(deviceB),\n" % typeName
+        if globalParameters["Backend"] == "OCL":
+          h += "        static_cast<cl_mem>(deviceC),\n"
+          h += "        static_cast<cl_mem>(deviceA),\n"
+          h += "        static_cast<cl_mem>(deviceB),\n"
+        else:
+          h += "        static_cast<%s *>(deviceC),\n" % typeName
+          h += "        static_cast<%s *>(deviceA),\n" % typeName
+          h += "        static_cast<%s *>(deviceB),\n" % typeName
         h += "        alpha,\n"
         if problemType["UseBeta"]:
           h += "        beta,\n"
