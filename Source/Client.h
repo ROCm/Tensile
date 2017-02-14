@@ -58,12 +58,13 @@ void callLibrary(
     totalFlops *= userSizes[i]; }
 
   // copy data to device
-  size_t sizeToWrite = currentSizeC*bytesPerElement[dataTypeIdx];
+  size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
+  std::cout << currentSizeC << " <= " << maxSizeC << " ?" << std::endl;
 #if Tensile_BACKEND_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-      sizeToWrite, initialC, 0, NULL, NULL);
+      sizeToCopy, initialC, 0, NULL, NULL);
 #else
-  status = hipMemcpy(deviceC, initialC, sizeToWrite, hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
 #endif
   tensileStatusCheck(status);
 
@@ -72,8 +73,7 @@ void callLibrary(
 
   // do validation
   if (numElementsToValidate) {
-    memcpy(referenceC, initialC,
-        static_cast<size_t>(currentSizeC*bytesPerElement[dataTypeIdx]));
+    memcpy(referenceC, initialC, sizeToCopy);
     // calculate validation stride
     if (numElementsToValidate >= currentSizeC) {
       validationStride = 1;
@@ -110,11 +110,10 @@ void callLibrary(
     // copy data back to host
 #if Tensile_BACKEND_OCL
     clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-        currentSizeC*bytesPerElement[dataTypeIdx], deviceOnHostC, 0, NULL,
+        sizeToCopy, deviceOnHostC, 0, NULL,
         NULL);
 #else
-    hipMemcpy(deviceOnHostC, deviceC, currentSizeC*
-        bytesPerElement[dataTypeIdx], hipMemcpyDeviceToHost);
+    hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
 
     // compare
@@ -205,6 +204,8 @@ void benchmarkAllSolutionsForSize(
   for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
     currentSizeC *= sizes[i];
   }
+  size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
+  std::cout << currentSizeC << " <= " << maxSizeC << " ?" << std::endl;
 
   file << problemIdx << ", " << sizes[0];
   for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
@@ -217,8 +218,7 @@ void benchmarkAllSolutionsForSize(
 
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
-    memcpy(referenceC, initialC,
-        static_cast<size_t>(currentSizeC*bytesPerElement[dataTypeIdx]));
+    memcpy(referenceC, initialC, sizeToCopy);
     if (numElementsToValidate >= currentSizeC) {
       validationStride = 1;
     } else {
@@ -252,9 +252,9 @@ void benchmarkAllSolutionsForSize(
     // copy data in language
 #if Tensile_BACKEND_OCL
     status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-        currentSizeC*bytesPerElement[dataTypeIdx], initialC, 0, NULL, NULL);
+        sizeToCopy, initialC, 0, NULL, NULL);
 #else
-    status = hipMemcpy(deviceC, initialC, currentSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
+    status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
 #endif
     tensileStatusCheck(status);
 
@@ -269,9 +269,9 @@ void benchmarkAllSolutionsForSize(
       // copy data back to host
 #if Tensile_BACKEND_OCL
       clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-          currentSizeC*bytesPerElement[dataTypeIdx], deviceOnHostC, 0, NULL, NULL);
+          sizeToCopy, deviceOnHostC, 0, NULL, NULL);
 #else
-      hipMemcpy(deviceOnHostC, deviceC, currentSizeC*bytesPerElement[dataTypeIdx], hipMemcpyDeviceToHost);
+      hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
 
       // compare
@@ -363,7 +363,7 @@ void benchmarkProblemSizes(
   std::cout << std::endl;
   std::cout << "Solutions: " << std::endl;
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-    std::cout << "  " << solutionNames[sIdx] << std::endl;
+    std::cout << "(" << sIdx << ") " << solutionNames[sIdx] << std::endl;
   }
   std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);

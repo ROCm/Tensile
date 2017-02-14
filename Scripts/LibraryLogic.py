@@ -646,5 +646,4 @@ def main(  config ):
     YAMLIO.writeLibraryLogicForProblemType(globalParameters["WorkingPath"], \
         schedulePrefix, logic)
 
-  printStatus("DONE.")
   popWorkingPath()
