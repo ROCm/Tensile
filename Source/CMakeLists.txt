@@ -82,7 +82,7 @@ endif()
 # find and use device libraries
 if( Tensile_BACKEND MATCHES "OCL")
   find_package(OpenCL "1.2" REQUIRED)
-  target_link_libraries( ${ClientName} ${OPENCL_LIBRARIES} )
+  target_link_libraries( ${ClientName} PUBLIC ${OPENCL_LIBRARIES} )
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_BACKEND_OCL=1
     -DTensile_BACKEND_HIP=0 )
