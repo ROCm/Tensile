@@ -801,7 +801,7 @@ class SolutionWriter:
 
     numThreads = solution["WorkGroup0"]*solution["WorkGroup1"]
     if numThreads > globalParameters["MaxThreads"]:
-      if printReason: print "rejecting %u threads" % numThreads
+      if printReason: print2("rejecting %u threads" % numThreads)
       return False
 
     # how many elements to load
@@ -823,29 +823,29 @@ class SolutionWriter:
 
     # how many load instructions
     if totalElementsA % numThreads != 0:
-      if printReason: print "totalElementsA %u %% numThreads %u != 0" \
-          % (totalElementsA, numThreads)
+      if printReason: print2("totalElementsA %u %% numThreads %u != 0" \
+          % (totalElementsA, numThreads))
       return False
     else:
       solution["NumLoadsA"] = totalElementsA / numThreads
     if totalElementsB % numThreads != 0:
-      if printReason: print "totalElementsB %u %% numThreads %u != 0" \
-          % (totalElementsB, numThreads)
+      if printReason: print2("totalElementsB %u %% numThreads %u != 0" \
+          % (totalElementsB, numThreads))
       return False
     else:
       solution["NumLoadsB"] = totalElementsB / numThreads
 
       # how many loads para
       if solution["NumLoadsA"] % solution["NumLoadsCoalescedA"] != 0:
-        if printReason: print "numLoadsA %u %% numLoadsParaA %u != 0" \
-            % (solution["NumLoadsA"], solution["NumLoadsCoalescedA"])
+        if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
+            % (solution["NumLoadsA"], solution["NumLoadsCoalescedA"]))
         return False
       else:
         solution["NumLoadsPerpendicularA"] = solution["NumLoadsA"] \
             / solution["NumLoadsCoalescedA"]
       if solution["NumLoadsB"] % solution["NumLoadsCoalescedB"] != 0:
-        if printReason: print "numLoadsB %u %% numLoadsParaB %u != 0" \
-            % (solution["NumLoadsB"], solution["NumLoadsCoalescedB"])
+        if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
+            % (solution["NumLoadsB"], solution["NumLoadsCoalescedB"]))
         return False
       else:
         solution["NumLoadsPerpendicularB"] = solution["NumLoadsB"] \
@@ -853,28 +853,28 @@ class SolutionWriter:
 
     # load size para/perp A
     if totalElementsParaA % solution["NumLoadsCoalescedA"] != 0:
-      if printReason: print "totalElementsParaA %u %% numLoadsParaA %u != 0" \
-          % (totalElementsParaA, solution["NumLoadsCoalescedA"])
+      if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
+          % (totalElementsParaA, solution["NumLoadsCoalescedA"]))
       return False
     else:
       loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
     if totalElementsPerpA % solution["NumLoadsPerpendicularA"] != 0:
-      if printReason: print "totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
-          % (totalElementsPerpA, solution["NumLoadsPerpendicularA"])
+      if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+          % (totalElementsPerpA, solution["NumLoadsPerpendicularA"]))
       return False
     else:
       loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
 
     # load size para/perp B
     if totalElementsParaB % solution["NumLoadsCoalescedB"] != 0:
-      if printReason: print "totalElementsParaB %u %% numLoadsParaB %u != 0" \
-          % (totalElementsParaB, solution["NumLoadsCoalescedB"])
+      if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
+          % (totalElementsParaB, solution["NumLoadsCoalescedB"]))
       return False
     else:
       loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
     if totalElementsPerpB % solution["NumLoadsPerpendicularB"] != 0:
-      if printReason: print "totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
-          % (totalElementsPerpB, solution["NumLoadsPerpendicularB"])
+      if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+          % (totalElementsPerpB, solution["NumLoadsPerpendicularB"]))
       return False
     else:
       loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
@@ -885,7 +885,7 @@ class SolutionWriter:
         + solution["MacroTile1"] ) \
         * solution["ProblemType"]["DataType"].numBytes()
     if sizeLDS > globalParameters["MaxLDS"]:
-      if printReason: print "Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"])
+      if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
       return False
 
     return True

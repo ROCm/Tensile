@@ -17,17 +17,18 @@ from LibraryWriter import *
 import YAMLIO
 
 
+
 ################################################################################
 # Benchmark Problem Type
 ################################################################################
 def benchmarkProblemType( config ):
 
   # convert config to full benchmark process (resolves defaults)
-  print ""
-  print HR
-  print "# Converting Config to BenchmarkProcess Object"
-  print HR
-  print ""
+  print1("")
+  print1(HR)
+  print1("# Converting Config to BenchmarkProcess Object")
+  print1(HR)
+  print1("")
   benchmarkProcess = BenchmarkProcess(config)
 
   problemTypeName = str(benchmarkProcess.problemType)
@@ -37,57 +38,49 @@ def benchmarkProblemType( config ):
   totalBenchmarkSteps = len(benchmarkProcess)
   winners = WinningParameterDict()
   determinedParameters = [{}] # winner chosen from benchmark
-  printStatus("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
-  print ""
-  print HR
-  print "# Done Creating BenchmarkProcess Object"
-  print HR
+  print1("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
+  print1("")
+  print1(HR)
+  print1("# Done Creating BenchmarkProcess Object")
+  print1(HR)
 
   ##############################################################################
   # For Each Benchmark Step
   ##############################################################################
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
 
-    # Print Step Name
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
-    #print "Updating winners with new hardcodeds"
     resultingHardcodedParameterList = \
         winners.update( benchmarkStep.hardcodedParameters )
     benchmarkStep.hardcodedParameters = resultingHardcodedParameterList
     numHardcoded = len(benchmarkStep.hardcodedParameters)
     stepName = str(benchmarkStep)
     shortName = benchmarkStep.abbreviation()
-    print "\n\n"
-    print HR
-    print "# %s\n# %s" % (problemTypeName, stepName)
-    print "# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes
-    print "# BenchmarkParameters:"
+    print1("\n\n")
+    print1(HR)
+    print1("# %s\n# %s" % (problemTypeName, stepName))
+    print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
+    print1("# BenchmarkParameters:")
     for paramName in benchmarkStep.benchmarkParameters:
       paramValues = benchmarkStep.benchmarkParameters[paramName]
       printStr = "#     %s = { %s" % (paramName, paramValues[0])
       for paramValueIdx in range(1, len(paramValues)):
         printStr += ", %s" % str(paramValues[paramValueIdx])
       printStr += " }"
-      print printStr
+      print1(printStr)
 
-    if True:
-    # print hardcoded parameters and their winners
-      print "# HardcodedParameters | WinningParameters:"
+    if False:
+    # print1(hardcoded parameters and their winners
+      print1("# HardcodedParameters | WinningParameters:")
       paramDictIdx = 0
-      #print "hardcodedParameters: %s" % benchmarkStep.hardcodedParameters
       hardcodedMinNaming = \
           Solution.getMinNaming(benchmarkStep.hardcodedParameters)
       for paramDict in benchmarkStep.hardcodedParameters:
         winningParameters = winners[paramDict]
-        print "#    (%u) %s | %s" % (paramDictIdx, \
+        print1("#    (%u) %s | %s" % (paramDictIdx, \
             Solution.getNameMin(paramDict, hardcodedMinNaming), \
-            Solution.getNameFull(winningParameters) )
+            Solution.getNameFull(winningParameters) ))
         paramDictIdx += 1
-      #for paramName in paramDict:
-      #  paramValue = paramDict[paramName]
-      #  printStr += "%s: %s, " % (paramName, str(paramValue))
-      #print printStr
-    #print HR
     pushWorkingPath(shortName)
 
     ############################################################################
@@ -138,8 +131,8 @@ def benchmarkProblemType( config ):
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
     maxPossibleSolutions = totalBenchmarkPermutations*numHardcoded
-    print "# MaxPossibleSolutions: %u = %u (hardcoded) * %u (benchmark)" % \
-        (maxPossibleSolutions, numHardcoded, totalBenchmarkPermutations)
+    print1("# MaxPossibleSolutions: %u = %u (hardcoded) * %u (benchmark)" % \
+        (maxPossibleSolutions, numHardcoded, totalBenchmarkPermutations))
 
     benchmarkPermutations = []
     for i in range(0, totalBenchmarkPermutations):
@@ -151,12 +144,12 @@ def benchmarkProblemType( config ):
         valueIdx = pIdx % len(benchmarkParamValues)
         permutation[benchmarkParamName] = benchmarkParamValues[valueIdx]
         pIdx /= len(benchmarkParamValues)
-      #print "BenchmarkPermutation: %s" % permutation
       benchmarkPermutations.append(permutation)
 
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
+    sys.stdout.write("# Enumerating Solutions")
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
@@ -165,25 +158,33 @@ def benchmarkProblemType( config ):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
-        #print "SolutionParameters: %s" % solution
         winningParameters = winners[hardcodedParamDict]
         if winningParameters == None:
           # this is a joined parameter that didn't have a winner, that's okay
           continue
         solution.update(winningParameters)
-        # print solution
 
         # append default parameters where necessary
         for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
           if initialSolutionParameterName not in solution:
-            solution[initialSolutionParameterName] = benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
+            solution[initialSolutionParameterName] = \
+                benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
         if SolutionWriter.solutionParametersConsistent(solutionObject):
-          #printStatus("appending solution %s" % str(solutionObject))
           solutions[hardcodedIdx].append(solutionObject)
+          if globalParameters["PrintLevel"] >= 1:
+            sys.stdout.write("|")
+        else:
+          if globalParameters["PrintLevel"] >= 1:
+            sys.stdout.write(".")
+        if globalParameters["PrintLevel"] >= 1:
+          sys.stdout.flush()
         #else:
-        #  printStatus("rejecting solution %s" % str(solutionObject))
+        #  print2("rejecting solution %s" % str(solutionObject))
+    if globalParameters["PrintLevel"] >= 1:
+      sys.stdout.write("\n")
+      sys.stdout.flush()
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = []
@@ -195,7 +196,6 @@ def benchmarkProblemType( config ):
     for hardcodedParam in removeHardcoded:
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
     if removesExist:
-      #print "Updating winners after eliminating some hardcodeds"
       winners.update( benchmarkStep.hardcodedParameters )
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
@@ -204,8 +204,8 @@ def benchmarkProblemType( config ):
           solutions.remove(solutionList)
 
 
-    print "# NumActualSolutions: %u / %u" % ( len(solutions), \
-        maxPossibleSolutions )
+    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
+        maxPossibleSolutions ))
     # create linear list
     solutionList = []
     for i in range(0, len(solutions)):
@@ -214,16 +214,14 @@ def benchmarkProblemType( config ):
         solution = solutionsForHardcoded[j]
         solutionList.append(solution)
     solutionsMinNaming = Solution.getMinNaming(solutionList)
-    for i in range(0, len(solutions)):
-      solutionsForHardcoded = solutions[i]
-      #print "HC: %s" \
-      #    % Solution.getNameMin(benchmarkStep.hardcodedParameters[i], \
-      #    hardcodedMinNaming)
-      for j in range(0, len(solutionsForHardcoded)):
-        solution = solutionsForHardcoded[j]
-        print "#    (%u:%u) %s" % (i, j, \
-            Solution.getNameMin(solution, solutionsMinNaming) )
-    print HR
+    if globalParameters["PrintLevel"] >= 1:
+      for i in range(0, len(solutions)):
+        solutionsForHardcoded = solutions[i]
+        for j in range(0, len(solutionsForHardcoded)):
+          solution = solutionsForHardcoded[j]
+          print2("#    (%u:%u) %s" % (i, j, \
+              Solution.getNameMin(solution, solutionsMinNaming) ))
+      print2(HR)
 
     # write benchmarkFiles
     writeBenchmarkFiles(solutionList, benchmarkStep.problemSizes, \
@@ -281,7 +279,7 @@ def benchmarkProblemType( config ):
     # Winners -> Determined Parameters
     ############################################################################
     results = getResults(resultsFileName, solutions)
-    print "CSV Results: %s" % results
+    print2("CSV Results: %s" % results)
     winners.addResults(benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, solutions, results)
 
@@ -294,12 +292,11 @@ def benchmarkProblemType( config ):
     #solutionsFromFile = YAMLIO.readSolutions(solutionYAMLFileName)
     #solutionsMinNaming = Solution.getMinNaming(solutionsFromFile)
     #for solution in solutionsFromFile:
-    #  print Solution.getNameMin(solution, solutionsMinNaming)
 
     # End Iteration
     popWorkingPath() # stepName
-    print "%s\n# %s\n# %s: End\n%s\n" \
-        % (HR, problemTypeName, shortName, HR)
+    print1("%s\n# %s\n# %s: End\n%s\n" \
+        % (HR, problemTypeName, shortName, HR))
 
   popWorkingPath() # ProblemType
   return resultsFileBase
@@ -364,7 +361,6 @@ def getResults(resultsFileName, solutions):
 # Write Benchmark Files
 ################################################################################
 def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
-  printStatus("Beginning")
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -497,8 +493,6 @@ class WinningParameterDict:
   # Add Winning Parameters For Hardcoded Parameters
   def addResults( self, hardcodedParameterList, benchmarkPermutations, \
       solutions, results):
-    printStatus("beginning")
-    #print benchmarkPermutations
     for hardcodedIdx in range(0, len(results)):
       hardcodedResults = results[hardcodedIdx]
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
@@ -515,8 +509,8 @@ class WinningParameterDict:
       winningParameters = {}
       for paramName in benchmarkPermutations[0]:
         winningParameters[paramName] = winningSolution[paramName]
-      print "HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
-          % ( hardcodedIdx, winningIdx, winningScore, winningParameters)
+      print2("HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
+          % ( hardcodedIdx, winningIdx, winningScore, winningParameters))
       matches = WinningParameterDict.get(hardcodedParameters, self.winners)
       if len(matches) != 1:
         printExit("Didn't find exactly 1 match")
@@ -544,7 +538,6 @@ class WinningParameterDict:
   # Update Hardcoded Parameters In Winning Parameters
   # could be forking, joining or adding parameters to same hardcodeds
   def update(self, newHardcodedParameterList ):
-    #print "WinnerObj::update()"
     # TODO when new list is joining, we need to choose the fastest
     oldWinners = self.winners
     self.winners = {}
@@ -555,22 +548,17 @@ class WinningParameterDict:
         self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
     else:
       for newHardcodedParameters in newHardcodedParameterList:
-        #print "New: ", Solution.getNameFull(newHardcodedParameters)
         #(oldHardcodedParameters, winningParameters, score) = \
         matches = WinningParameterDict.get(newHardcodedParameters, oldWinners)
-        #print "Found %u matches" % len(matches)
         if len(matches) == 1: # plain update
-          #print "Update Plain"
           hardcodedFrozen = matches[0][0]
           winningParameters = matches[0][1]
           score = matches[0][2]
           #if winningParameters != None:
           newHardcodedParameters.update(hardcodedFrozen.parameters)
-          #print "Score: %u" % score
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ winningParameters, score ]
         elif len(matches) > 1: # join
-          #print "Update Join %u matches for %s" % (len(matches), Solution.getNameFull(newHardcodedParameters) )
           fastestIdx = -1
           fastestScore = -1
           fastestHardcodedParameters = {}
@@ -580,19 +568,15 @@ class WinningParameterDict:
             hardcodedFrozen = match[0]
             winningParameters = match[1]
             score = match[2]
-            #print "    %s -> %s %f GFlop/s" % (Solution.getNameFull(hardcodedParameters), Solution.getNameFull(winningParameters), score)
             if score > fastestScore:
               fastestScore = score
               fastestIdx = matchIdx
               fastestWinningParameters = winningParameters
               fastestHardcodedParameters = hardcodedFrozen.parameters
           newHardcodedParameters.update(fastestHardcodedParameters)
-          #print "FastestScore: %u" % fastestScore
-          #print "FastestHardcoded: %s" % Solution.getNameFull(fastestHardcodedParameters)
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ fastestWinningParameters, fastestScore ]
         #else:
-          #print "No Winners found for %s" \
           #    % Solution.getNameFull(newHardcodedParameters)
           # TODO can I avoid reaching this code by not allowing join DepthU
           # probably not
@@ -612,11 +596,9 @@ class WinningParameterDict:
   # need to match MacroTile and DepthU also
   @staticmethod
   def get( lookupHardcodedParameters, winners ):
-    #print "  GET looks: %s" % Solution.getNameFull(lookupHardcodedParameters)
     matches = []
     for hardcodedFrozen in winners:
       winningParameters = winners[hardcodedFrozen][0]
-      #print "Evaluating %s == %s+%s" \
       #    % (Solution.getNameFull(lookupHardcodedParameters), \
       #    Solution.getNameFull(hardcodedFrozen.parameters), \
       #    Solution.getNameFull(winningParameters))
@@ -627,7 +609,6 @@ class WinningParameterDict:
         if paramName in lookupHardcodedParameters:
           if lookupHardcodedParameters[paramName] != \
               hardcodedFrozen[paramName]:
-            #print "%s: lookup %s != hardcoded %s" \
             #    % (paramName, \
             #    lookupHardcodedParameters[paramName], hardcodedFrozen[paramName])
             frozenMatch = False
@@ -641,7 +622,6 @@ class WinningParameterDict:
         if "MacroTile0" in lookupHardcodedParameters:
           lookupMacroTile0 = lookupHardcodedParameters["MacroTile0"]
           lookupMacroTile1 = lookupHardcodedParameters["MacroTile1"]
-          #print hardcodedFrozen
           #for paramName in hardcodedFrozen:
           #  paramValue = hardcodedFrozen[paramName]
           #  matchUnion[paramName] = paramValue
@@ -649,10 +629,7 @@ class WinningParameterDict:
           Solution.assignDimsFromEdgeAndShape(hardcodedFrozen.parameters)
           if matchUnion["MacroTile0"] != lookupMacroTile0 \
               or matchUnion["MacroTile1"] != lookupMacroTile1:
-            #print "MacroTile NOT Matched"
             matchMacroTile = False
-          #else:
-            #print "MacroTile Matched"
         if "DepthU" in lookupHardcodedParameters:
           lookupDepthU = lookupHardcodedParameters["DepthU"]
           matchDepthU = 1
@@ -661,16 +638,12 @@ class WinningParameterDict:
           if "SplitU" in matchUnion:
             matchDepthU *= matchUnion["SplitU"]
           if matchDepthU != lookupDepthU:
-            #print "DepthU NOT Matched"
             matchDepthU = False
           else:
             hardcodedFrozen.parameters["DepthU"] = lookupDepthU
-            #print "DepthU Matched"
         if matchMacroTile and matchDepthU:
-          #print "Match: %s" % Solution.getNameFull(hardcodedFrozen.parameters)
           matches.append([hardcodedFrozen, winningParameters, score])
       else:
-        #print "Frozen NOT Matched"
         pass
 
     return matches
@@ -681,10 +654,8 @@ class WinningParameterDict:
     state = ""
     idx = 0
     for hardcodedParameters in self.winners:
-      #print self.winners[hardcodedParameters]
       winningParameters = self.winners[hardcodedParameters][0]
       score = self.winners[hardcodedParameters][1]
-      #print score
       state += "  %2u: %s -> %s %f GFlop/s\n" % (idx, hardcodedParameters, \
           Solution.getNameFull(winningParameters), score)
       idx += 1
@@ -697,14 +668,13 @@ class WinningParameterDict:
 # Main
 ################################################################################
 def main( config ):
-  printStatus("Beginning")
   dataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
   ensurePath(dataPath)
   for benchmarkProblemTypeConfig in config:
     problemTypeConfig = benchmarkProblemTypeConfig["ProblemType"]
-    print problemTypeConfig
+    print2("ProblemTypeConfig: %s" % problemTypeConfig)
     problemTypeObj = ProblemType(problemTypeConfig)
 
     # Benchmark Problem Type
@@ -721,5 +691,4 @@ def main( config ):
     shutil_copy( resultsFileName, newResultsFileName )
     shutil_copy( solutionsFileName, newSolutionsFileName )
 
-  printStatus("DONE.")
   popWorkingPath()

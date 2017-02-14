@@ -15,21 +15,21 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
   problemSizes = problemTypeTuple[1]
   dataFileName = problemTypeTuple[2]
   solutionsFileName = problemTypeTuple[3]
-  print HR
-  print "# %s" % problemType
+  print1(HR)
+  print1("# %s" % problemType)
   #print "#  %s" % dataFileName
   #print "#  %s" % solutionsFileName
 
   # Read Solutions
   (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
-  print "# ProblemSizes: %s" % problemSizes
+  print2("# ProblemSizes: %s" % problemSizes)
   solutionMinNaming = Solution.getMinNaming(solutions)
-  print "# Solutions:"
+  print2("# Solutions:")
   solutionIdx = 0
   for solution in solutions:
-    print "#  (%u) %s" % (solutionIdx, Solution.getNameMin(solution, solutionMinNaming))
+    print2("#  (%u) %s" % (solutionIdx, Solution.getNameMin(solution, solutionMinNaming)))
     solutionIdx += 1
-  print HR
+  print2(HR)
 
   # Read Data From CSV
   numProblemSizes = problemSizes.numProblemSizes
@@ -45,7 +45,7 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
     problemIndices.append(numProblemsForIndex-1)
   diagonalRules = data.getFastestSolutionsAlongDiagonal(problemIndices)
   if True:
-    print "Diagonal Rules:"
+    print2("Diagonal Rules:")
     for rule in diagonalRules:
       string = "  if freeSize >=%4u" % data.problemIndexToSize[0][rule[1][0]]
       for i in range(1, data.numIndices):
@@ -53,7 +53,7 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
       string += " return S[%u] @ %5.0f-%5.0f>%5.0f GFlops is %s" \
           % (rule[0], rule[2], rule[3], rule[4], \
           data.solutionNames[rule[0]])
-      print string
+      print2(string)
 
   ##############################################################################
   # Determine Skinny0 Solutions
@@ -115,7 +115,7 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
         # if i'm smaller than i, insert me before i
       #print "insert: %u" % insertIdx
       solutionIndicesUsed.insert(insertIdx, [solutionIdx, MT0, MT1, DU])
-  print solutionIndicesUsed
+  #print solutionIndicesUsed
 
   # list of solutions used
   solutionsUsed = []
@@ -139,7 +139,7 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
       diagonalRules[ruleIdx][1][i] = \
           data.problemIndexToSize[i][ diagonalRules[ruleIdx][1][i] ]
 
-  print "New Rules: %s" % diagonalRules
+  print2("# New Rules: %s" % diagonalRules)
 
 
   #return (skinnyRules01, skinnyRules10, diagonalRules)
@@ -171,13 +171,13 @@ class BenchmarkDataAnalyzer:
     self.problemType = problemType
     self.problemSizes = problemSizes
     self.analysisParameters = analysisParameters
-    print "ProblemSizes: %s" % self.problemSizes
+    print2("ProblemSizes: %s" % self.problemSizes)
     # TODO verify that data is symmetric for diagonal
     #if self.problemSizes[self.problemType["Index0"]] \
     #    != self.problemSizes[self.problemType["Index1"]]:
     #  printExit("d0 / d1 must be symmetric for analysis.")
     self.numProblemSizes = problemSizes.numProblemSizes # native order
-    print "NumProblemSizes: %s" % self.numProblemSizes
+    print2("NumProblemSizes: %s" % self.numProblemSizes)
     self.numIndices = len(self.numProblemSizes)
     self.solutions = solutions
     self.numSolutions = len(self.solutions)
@@ -197,9 +197,9 @@ class BenchmarkDataAnalyzer:
     for numProblems in self.numProblemSizes:
       self.totalProblems *= numProblems
     self.totalSize = self.totalProblems * self.numSolutions
-    print "TotalProblems: %u" % self.totalProblems
-    print "TotalSolutions: %u" % self.numSolutions
-    print "TotalSize: %u" % self.totalSize
+    print2("TotalProblems: %u" % self.totalProblems)
+    print2("TotalSolutions: %u" % self.numSolutions)
+    print2("TotalSize: %u" % self.totalSize)
     self.data = array.array('f', [0]*self.totalSize)
 
     # map problem sizes -> index
@@ -265,7 +265,7 @@ class BenchmarkDataAnalyzer:
         for i in range(problemSizeStartIdx, totalSizeIdx):
           problemSize.append(int(row[i]))
         problemIndices = []
-        print "NumIndices: ", self.numIndices
+        print2("NumIndices: %u" % self.numIndices)
         for i in range(0, self.numIndices):
           problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
         serialIdx = self.indicesToSerial(0, problemIndices)
@@ -289,7 +289,7 @@ class BenchmarkDataAnalyzer:
   # Get Fastest Solutions Along Diagonal (d0=d1) for largest sizes
   ##############################################################################
   def getFastestSolutionsAlongDiagonal(self, problemIndices):
-    print "\nFastest Diagonal idxU: %u" % problemIndices[self.idxU]
+    print2("\nFastest Diagonal idxU: %u" % problemIndices[self.idxU])
     # abstract to multidimensions
     # what is the diagonal
     dilation = self.analysisParameters["Dilation"]
@@ -439,10 +439,10 @@ class BenchmarkDataAnalyzer:
       diagonalRuleThresholdProblem = diagonalRule[1]
       diagonalRuleGFlops = diagonalRule[2] # perf at threshold
       thresholdSizeFree = self.getSizeFree(diagonalRuleThresholdProblem)
-      print "ThresholdSizeFree[%u][%u]: %u" \
+      print2("ThresholdSizeFree[%u][%u]: %u" \
           % (diagonalRuleThresholdProblem[idx0], \
           diagonalRuleThresholdProblem[idx1], \
-          thresholdSizeFree)
+          thresholdSizeFree))
 
       # check skinny d0<<d1 (large d0, small d1)
       skinnyProblemIndices = deepcopy(problemIndices)
@@ -470,19 +470,19 @@ class BenchmarkDataAnalyzer:
             if winnerIdx == diagonalRuleWinnerIdx \
                 or diagonalWinnerGFlopsForSkinny > (1-threshold)*winnerGFlops:
               # diagonal rule also wins here
-              print "if dS <%5u and dL >%5u diagnl S[%2u] %5.0f == S[%2u] %5.0f GFlops" \
+              print2("if dS <%5u and dL >%5u diagnl S[%2u] %5.0f == S[%2u] %5.0f GFlops" \
                   % (self.problemIndexToSize[idxSmall][sizeIdxSmall], \
                   self.problemIndexToSize[idxLarge][sizeIdxLarge], \
                   winnerIdx, winnerGFlops, diagonalRuleWinnerIdx, \
-                  diagonalWinnerGFlopsForSkinny )
+                  diagonalWinnerGFlopsForSkinny ))
               pass
             else:
               # we're so skinny that diagonal rule no longer applies
-              print "if dS <%5u and dL >%5u skinny S[%2u] %5.0f >> S[%2u] %5.0f GFlops" \
+              print2("if dS <%5u and dL >%5u skinny S[%2u] %5.0f >> S[%2u] %5.0f GFlops" \
                   % (self.problemIndexToSize[idxSmall][sizeIdxSmall], \
                   self.problemIndexToSize[idxLarge][sizeIdxLarge], \
                   winnerIdx, winnerGFlops, diagonalRuleWinnerIdx, \
-                  diagonalWinnerGFlopsForSkinny )
+                  diagonalWinnerGFlopsForSkinny ))
               skinnyRule = [deepcopy(skinnyProblemIndices), winnerIdx, \
                   winnerGFlops]
               skinnyRules.append(skinnyRule)
@@ -536,7 +536,7 @@ class BenchmarkDataAnalyzer:
   # Print Data
   ##############################################################################
   def printData(self):
-    print "serial; idxD0, idxD1, idxDU, idxOthers; sizeD0, sizeD1, sizeDU, sizeOthers; sol0, sol1, sol2, ..."
+    print2("serial; idxD0, idxD1, idxDU, idxOthers; sizeD0, sizeD1, sizeDU, sizeOthers; sol0, sol1, sol2, ...")
     indices = [0]*self.numIndices
     for serial in range(0, self.totalProblems):
       s = "[%4u] [%2u" % (serial, indices[0])
@@ -548,7 +548,7 @@ class BenchmarkDataAnalyzer:
       s += "]: %9.3f" % self.data[serial*self.numSolutions+0]
       for i in range(1, self.numSolutions):
         s += ", %9.3f" % self.data[serial*self.numSolutions+i]
-      print s
+      print2(s)
       indices[0] += 1
       for i in range(1, self.numIndices):
         if indices[i-1] >= self.numProblemSizes[i-1]:
@@ -591,8 +591,8 @@ class BenchmarkDataAnalyzer:
 # Main
 ################################################################################
 def main(  config ):
-  print config
-  print defaultAnalysisParameters
+  print2("# LibraryLogic config: %s" % config)
+  print2("# DefaultAnalysisParameters: " % defaultAnalysisParameters)
   benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["LibraryLogicPath"])
@@ -603,13 +603,13 @@ def main(  config ):
     assignParameterWithDefault(analysisParameters, parameter, config, \
         defaultAnalysisParameters)
 
-  print ""
-  print HR
-  print "# Analysing data in %s." % globalParameters["BenchmarkDataPath"]
+  print1("")
+  print1(HR)
+  print1("# Analysing data in %s" % globalParameters["BenchmarkDataPath"])
   for parameter in analysisParameters:
-    print "#   %s: %s" % (parameter, analysisParameters[parameter])
-  print HR
-  print ""
+    print2("#   %s: %s" % (parameter, analysisParameters[parameter]))
+  print1(HR)
+  print1("")
 
 
 

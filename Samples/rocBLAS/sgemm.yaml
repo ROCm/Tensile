@@ -1,7 +1,7 @@
 # benchmark MANY kernel for the 5760 size
 # don't validate because some are slightly wrong on purpose (DoWhile vs While Loop)
 Parameters:
-  DebugPrintLevel: 2
+  PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
@@ -12,11 +12,11 @@ Parameters:
   NumElementsToValidate: 128
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
-  ShortFileNames: True
-  MergeFiles: False
+  ShortFileNames: False
+  MergeFiles: True
   PlatformIdx: 0
   DeviceIdx: 0
-  DataInitType: 1
+  DataInitType: 0
 
 BenchmarkProblems:
   # sgemm NN
@@ -37,14 +37,14 @@ BenchmarkProblems:
       - WorkGroupSchedule: [ 1 ]
       - LoopDoWhile: [True]
       - LoopTail: [False]
+    ForkParameters:
       - WorkGroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
-    ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
-    BenchmarkForkParameters:
       - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
       - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+    BenchmarkForkParameters:
       - LoopUnroll: [8, 16]
     JoinParameters:
       - MacroTile

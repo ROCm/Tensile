@@ -20,18 +20,18 @@ class BenchmarkProcess:
       problemTypeConfig = config["ProblemType"]
     else:
       problemTypeConfig = {}
-      printDefault("No ProblemType in config: %s; using defaults." % str(config) )
+      print2("No ProblemType in config: %s; using defaults." % str(config) )
     self.problemType = ProblemType(problemTypeConfig)
-    printStatus("BenchmarkProcess beginning %s" % str(self.problemType))
+    print2("# BenchmarkProcess beginning %s" % str(self.problemType))
 
     # read initial solution parameters
     solutionConfig = { "ProblemType": problemTypeConfig }
     if "InitialSolutionParameters" not in config:
-      printDefault("No InitialSolutionParameters; using defaults.")
+      print2("No InitialSolutionParameters; using defaults.")
     else:
       solutionConfig.update(config["InitialSolutionParameters"])
     self.initialSolutionParameters = Solution(solutionConfig)
-    printExtra("InitialSolutionParameters: %s" % str(self.initialSolutionParameters))
+    print2("# InitialSolutionParameters: %s" % str(self.initialSolutionParameters))
 
     # fill in missing steps using defaults
     self.benchmarkCommonParameters = []
@@ -59,14 +59,11 @@ class BenchmarkProcess:
   # (I) Create lists of param, filling in missing params from defaults
   ##############################################################################
   def fillInMissingStepsWithDefaults(self, config):
-    print ""
-    print "####################################################################"
-    print "# Filling in Parameters With Defaults"
-    print "####################################################################"
-    print ""
-
-    # TODO - print warning when config contains a parameter
-    # that doesn't have a default; that means they probably spelled it wrong
+    print2("")
+    print2("####################################################################")
+    print1("# Filling in Parameters With Defaults")
+    print2("####################################################################")
+    print2("")
 
     ############################################################################
     # (I-0) get 6 phases from config
@@ -202,7 +199,6 @@ class BenchmarkProcess:
         self.benchmarkJoinParameters.append(paramDict)
     else: # make empty
       self.benchmarkJoinParameters = [{"ProblemSizes": currentProblemSizes}]
-    #print "0: ", self.benchmarkJoinParameters
 
     ############################################################################
     # (I-6) benchmark final sizes
@@ -244,61 +240,61 @@ class BenchmarkProcess:
     # No, this is handles by Final Benchmark
 
     ############################################################################
-    # (I-10) Print Parameter Lists
+    # (I-10) Parameter Lists
     # benchmarkCommonParameters
-    print "HardcodedParameters:"
+    print2("HardcodedParameters:")
     for paramName in self.hardcodedParameters[0]:
       paramValues = self.hardcodedParameters[0][paramName]
-      print "    %s: %s" % (paramName, paramValues)
-    print "BenchmarkCommonParameters:"
+      print2("    %s: %s" % (paramName, paramValues))
+    print2("BenchmarkCommonParameters:")
     for step in self.benchmarkCommonParameters:
-      print "    %s" % step
+      print2("    %s" % step)
     # forkParameters
-    print "ForkParameters:"
+    print2("ForkParameters:")
     for param in self.forkParameters:
-      print "    %s" % param
+      print2("    %s" % param)
     # benchmarkForkParameters
-    print "BenchmarkForkParameters:"
+    print2("BenchmarkForkParameters:")
     for step in self.benchmarkForkParameters:
-      print "    %s" % step
+      print2("    %s" % step)
     # joinParameters
-    print "JoinParameters:"
+    print2("JoinParameters:")
     for param in self.joinParameters:
-      print "    %s" % param
+      print2("    %s" % param)
     # benchmarkJoinParameters
-    print "BenchmarkJoinParameters:"
+    print2("BenchmarkJoinParameters:")
     for step in self.benchmarkJoinParameters:
-      print "    %s" % step
+      print2("    %s" % step)
     # benchmarkJoinParameters
-    print "BenchmarkfinalParameters:"
+    print2("BenchmarkfinalParameters:")
     for step in self.benchmarkFinalParameters:
-      print "    %s" % step
+      print2("    %s" % step)
 
 
   ##############################################################################
   # (II) convert lists of parameters to benchmark steps
   ##############################################################################
   def convertParametersToSteps(self):
-    print ""
-    print "####################################################################"
-    print "# Convert Parameters to Steps"
-    print "####################################################################"
-    print ""
+    print2("")
+    print2("####################################################################")
+    print1("# Convert Parameters to Steps")
+    print2("####################################################################")
+    print2("")
 
     ############################################################################
     # (II-1) benchmark common parameters
-    print ""
-    print "####################################################################"
-    print "# Benchmark Common Parameters"
+    print2("")
+    print2("####################################################################")
+    print1("# Benchmark Common Parameters")
     self.addStepsForParameters( self.benchmarkCommonParameters  )
 
     ############################################################################
     # (II-2) fork parameters
     # calculate permutations of
-    print ""
-    print "####################################################################"
-    print "# Fork Parameters"
-    print self.forkParameters
+    print2("")
+    print2("####################################################################")
+    print1("# Fork Parameters")
+    print2(self.forkParameters)
     totalPermutations = 1
     for param in self.forkParameters:
       for name in param: # only 1
@@ -314,24 +310,23 @@ class BenchmarkProcess:
           valueIdx = pIdx % len(values)
           forkPermutations[i][name] = values[valueIdx]
           pIdx /= len(values)
-      #print Solution.getNameFull(forkPermutations[i])
     if len(forkPermutations) > 0:
       self.forkHardcodedParameters(forkPermutations)
 
     ############################################################################
     # (II-3) benchmark common parameters
-    print ""
-    print "####################################################################"
-    print "# Benchmark Fork Parameters"
+    print2("")
+    print2("####################################################################")
+    print1("# Benchmark Fork Parameters")
     self.addStepsForParameters( self.benchmarkForkParameters  )
 
     ############################################################################
     # (II-4.1) join parameters
     # answer should go in hard-coded parameters
     # does it remove the prior forks? Yes.
-    print ""
-    print "####################################################################"
-    print "# Join Parameters"
+    print2("")
+    print2("####################################################################")
+    print1("# Join Parameters")
     macroTileJoinSet = set()
     depthUJoinSet = set()
     totalPermutations = 1
@@ -346,15 +341,15 @@ class BenchmarkProcess:
           for name in param: # only 1
             values = param[name]
             localPermutations = len(values)
-            print "JoinParameter %s has %u possibilities" % (joinName, localPermutations)
+            print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
             totalPermutations *= localPermutations
 
       ##########################################################################
       # (II-4.2) Join MacroTile
       elif joinName == "MacroTile":
-        print "JoinParam: MacroTile"
+        print2("JoinParam: MacroTile")
         # get possible WorkGroupEdges from forked
-        print "currentForkParameters = %s" % str(self.forkParameters)
+        print2("currentForkParameters = %s" % str(self.forkParameters))
         workGroupEdgeValues = []
         workGroupShapeValues = []
         threadTileEdgeValues = []
@@ -378,9 +373,7 @@ class BenchmarkProcess:
         macroTilePermutations = len(workGroupEdgeValues) \
             * len(workGroupShapeValues) * len(threadTileEdgeValues) \
             * len(threadTileShapeValues)
-        printStatus("Total JoinMacroTile Permutations: %u" % macroTilePermutations)
-        #print "MacroTile Parameters Found:"
-        #print workGroupEdgeValues, workGroupShapeValues, threadTileEdgeValues, threadTileShapeValues
+        print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
 
         # enumerate permutations
         for i in range(0, macroTilePermutations):
@@ -405,7 +398,7 @@ class BenchmarkProcess:
           if macroTileDim0/macroTileDim1 <= self.initialSolutionParameters["MacroTileMaxRatio"] and macroTileDim1/macroTileDim0 <= self.initialSolutionParameters["MacroTileMaxRatio"]:
             macroTileJoinSet.add((macroTileDim0, macroTileDim1))
         totalPermutations *=len(macroTileJoinSet)
-        printStatus("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
+        print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
 
       ##########################################################################
       # (II-4.3) Join DepthU
@@ -421,7 +414,7 @@ class BenchmarkProcess:
           if hasParam("SplitU", paramList):
             splitUValues = getParamValues("SplitU", paramList)
         depthUPermutations = len(unrollValues)*len(splitUValues)
-        printStatus("Total JoinDepthU Permutations: %u" % depthUPermutations)
+        print2("# Total JoinDepthU Permutations: %u" % depthUPermutations)
         # enumerate permutations
         for i in range(0, depthUPermutations):
           pIdx = i
@@ -431,7 +424,7 @@ class BenchmarkProcess:
           depthU = unrollValues[unrollIdx]*splitUValues[splitUIdx]
           depthUJoinSet.add(depthU)
         totalPermutations *= len(depthUJoinSet)
-        printStatus("JoinSplitUSet(%u): %s" % (len(depthUJoinSet), depthUJoinSet) )
+        print2("# JoinSplitUSet(%u): %s" % (len(depthUJoinSet), depthUJoinSet) )
 
       # invalid join parameter
       else:
@@ -445,7 +438,7 @@ class BenchmarkProcess:
     # (II-4.4) Enumerate Permutations Other * MacroTile * DepthU
     macroTiles = list(macroTileJoinSet)
     depthUs = list(depthUJoinSet)
-    printStatus("TotalJoinPermutations = %u" % ( totalPermutations) )
+    print2("# TotalJoinPermutations = %u" % ( totalPermutations) )
     joinPermutations = []
     for i in range(0, totalPermutations):
       joinPermutations.append({})
@@ -469,31 +462,29 @@ class BenchmarkProcess:
           valueIdx = pIdx % len(depthUs)
           pIdx /= len(depthUs)
           joinPermutations[i][joinName] = depthUs[valueIdx]
-      #print joinPermutations[i]
     #self.hardcodedParameters.append(joinPermutations)
-    print "JoinPermutations: "
+    print2("JoinPermutations: ")
     for perm in joinPermutations:
-      print Solution.getNameFull(perm)
+      print2(Solution.getNameFull(perm))
     if len(joinPermutations) > 0:
       self.joinHardcodedParameters(joinPermutations)
 
 
     ############################################################################
     # (II-5) benchmark join parameters
-    print ""
-    print "####################################################################"
-    print "# Benchmark Join Parameters"
+    print2("")
+    print2("####################################################################")
+    print1("# Benchmark Join Parameters")
     self.addStepsForParameters( self.benchmarkJoinParameters  )
 
     ############################################################################
     # (II-6) benchmark final
-    print ""
-    print "####################################################################"
-    print "# Benchmark Final"
+    print2("")
+    print2("####################################################################")
+    print1("# Benchmark Final")
     self.currentProblemSizes = ProblemSizes(self.problemType, \
         self.benchmarkFinalParameters["ProblemSizes"])
     currentBenchmarkParameters = {}
-    print "Adding BenchmarkStep for Final"
     benchmarkStep = BenchmarkStep(
         self.hardcodedParameters,
         currentBenchmarkParameters,
@@ -508,7 +499,7 @@ class BenchmarkProcess:
   # For list of config parameters convert to steps and append to steps list
   ##############################################################################
   def addStepsForParameters(self, configParameterList):
-    print configParameterList
+    print2("# AddStepsForParameters: %s" % configParameterList)
     for paramConfig in configParameterList:
       if isinstance(paramConfig, dict):
         if "ProblemSizes" in paramConfig:
@@ -523,7 +514,7 @@ class BenchmarkProcess:
           printExit("Parameter \"%s\" for ProblemType %s must be formatted as a list but isn't" \
               % ( paramName, str(self.problemType) ) )
       if len(currentBenchmarkParameters) > 0:
-        print "Adding BenchmarkStep for %s" % str(currentBenchmarkParameters)
+        print2("Adding BenchmarkStep for %s" % str(currentBenchmarkParameters))
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
             currentBenchmarkParameters,
@@ -577,7 +568,6 @@ class BenchmarkStep:
 
   def __init__(self, hardcodedParameters, \
       benchmarkParameters, initialSolutionParameters, problemSizes, idx):
-    #printStatus("Creating BenchmarkStep BP=%u HCP=%s" % ( str(benchmarkParameters), str(hardcodedParameters)))
     # what is my step Idx
     self.stepIdx = idx
 
@@ -598,7 +588,7 @@ class BenchmarkStep:
     # what problem sizes do I benchmark
     self.problemSizes = deepcopy(problemSizes)
 
-    printStatus("Creating BenchmarkStep [BP]=%u [HCP]=%u [P]=%u" \
+    print2("# Creating BenchmarkStep [BP]=%u [HCP]=%u [P]=%u" \
         % ( len(benchmarkParameters), len(hardcodedParameters), \
         problemSizes.totalProblemSizes))
 

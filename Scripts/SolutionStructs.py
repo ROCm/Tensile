@@ -496,8 +496,6 @@ class Solution:
     # assign parameters without defaults
     for key in config:
       if key != "ProblemType" and key not in self.state:
-        #print "Solution::init() - WARNING: appending unrecognized %s=%s" \
-        #    % (key, config[key])
         self.state[key] = config[key]
 
     Solution.assignDimsFromEdgeAndShape(self.state)
@@ -612,8 +610,8 @@ class Solution:
             first = False
           name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
               Solution.getParameterValueAbbreviation(state[key]) )
-      else:
-        print "%s not in %s" % (key, requiredParameters)
+      #else:
+      #  print "%s not in %s" % (key, requiredParameters)
     return name
 
   ########################################
@@ -641,7 +639,7 @@ class Solution:
       #print "%s: %s" % (paramName, data[paramName])
       maxObjs *= len(data[paramName])
     numDigits = len(str(maxObjs))
-    print "MaxSerialNames: %u (%u)" % (maxObjs, numDigits)
+    #print "MaxSerialNames: %u (%u)" % (maxObjs, numDigits)
     return [ data, numDigits ]
 
   ########################################
@@ -718,7 +716,6 @@ class Solution:
           abbrev += "_"
       return abbrev
     else:
-      print value
       printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)
 

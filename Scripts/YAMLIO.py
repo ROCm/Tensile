@@ -92,7 +92,7 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logic):
   diagonalLogic = logic[4]
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
-  print "writeLogic( %s )" % ( filename )
+  print2("# writeLogic( %s )" % ( filename ))
 
   # open file
   try:
@@ -124,7 +124,7 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logic):
 
 
 def readLibraryLogicForProblemType( filename ):
-  print "Tensile::YAMLIO::readLibraryLogicForProblemType( %s )" % ( filename )
+  print1("# readLibraryLogicForProblemType( %s )" % ( filename ))
   try:
     stream = open(filename, "r")
   except IOError:

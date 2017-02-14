@@ -60,7 +60,7 @@ def main( config ):
   logicFiles = [os.path.join(libraryLogicPath, f) for f \
       in os.listdir(libraryLogicPath) \
       if os.path.isfile(os.path.join(libraryLogicPath, f))]
-  print logicFiles
+  print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
   for logicFileName in logicFiles:

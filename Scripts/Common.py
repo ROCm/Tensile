@@ -4,10 +4,10 @@ import inspect
 from collections import OrderedDict
 from sets import Set
 
-# debug print level
+# print level
 # 0 - user wants no printing
-# 1 - user wants basic status
-# 2 - user wants debugging
+# 1 - user wants limited prints
+# 2 - user wants full prints
 
 ################################################################################
 # Global Parameters
@@ -19,8 +19,8 @@ if os.name == "nt":
   globalParameters["Backend"] = "OCL"
 else:
   globalParameters["Backend"] = "HIP"
-# print debug
-globalParameters["DebugPrintLevel"] = 1
+# print level
+globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
@@ -206,27 +206,18 @@ def getParamValues( name, structure ):
 ################################################################################
 # Print Debug
 ################################################################################
-def printStatus( message): # 0
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - %s" % (filebase, f.co_name, message)
-def printExtra( message): # 1
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - %s" % (filebase, f.co_name, message)
-def printDebug( message): # 2
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - %s" % (filebase, f.co_name, message)
-def printWarning( message): # 1
+def print1(message):
+  if globalParameters["PrintLevel"] >= 1:
+    print message
+def print2(message):
+  if globalParameters["PrintLevel"] >= 2:
+    print message
+
+def printWarning(message):
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
-def printDefault( message): # 1
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - DEFAULT - %s" % (filebase, f.co_name, message)
-def printExit( message): # 2
+def printExit(message):
   f = inspect.currentframe().f_back.f_code
   filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
   print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
@@ -240,17 +231,17 @@ def printExit( message): # 2
 def assignGlobalParameters( config ):
   global globalParameters
 
-  print "GlobalParameters:"
+  print1("GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
     if key in config:
       configValue = config[key]
       if configValue == defaultValue:
-        print " %24s: %8s (same)" % (key, configValue)
+        print1(" %24s: %8s (same)" % (key, configValue))
       else:
-        print " %24s: %8s (overriden)" % (key, configValue)
+        print1(" %24s: %8s (overriden)" % (key, configValue))
     else:
-      print " %24s: %8s (unspecified)" % (key, defaultValue)
+      print1(" %24s: %8s (unspecified)" % (key, defaultValue))
 
   for key in config:
     value = config[key]
@@ -282,7 +273,6 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 def pushWorkingPath( foldername ):
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
-  #print globalParameters["WorkingPath"]
   ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
   globalParameters["WorkingPath"] = \

@@ -38,7 +38,7 @@ def executeStepsInConfig( config ):
     assignGlobalParameters( config["Parameters"] )
   else:
     assignGlobalParameters({})
-  print ""
+  print1("")
 
   ##############################################################################
   # Benchmark Problems
@@ -54,9 +54,9 @@ def executeStepsInConfig( config ):
     if len(resultFiles) < 2* len(config["BenchmarkProblems"]) \
             or globalParameters["ForceRedoBenchmarkProblems"]:
       BenchmarkProblems.main( config["BenchmarkProblems"] )
-      print ""
+      print1("")
     else:
-      print "# Benchmarking already done."
+      print1("# Benchmarking already done.")
 
   ##############################################################################
   # Library Logic
@@ -70,24 +70,18 @@ def executeStepsInConfig( config ):
       libraryLogicFiles = []
     if len(libraryLogicFiles) < 1 or globalParameters["ForceRedoLibraryLogic"]:
       LibraryLogic.main( config["LibraryLogic"] )
-      print ""
+      print1("")
     else:
-      print "# LibraryLogic already done."
-    print ""
+      print1("# LibraryLogic already done.")
+    print1("")
 
-  ##############################################################################
-  # Write Library
-  ##############################################################################
-  #if "WriteLibrary" in config:
-  #  LibraryWriter.main( config["WriteLibrary"] )
-  #  print ""
 
   ##############################################################################
   # Write Client
   ##############################################################################
   if "LibraryClient" in config:
     ClientWriter.main( config["LibraryClient"] )
-    print ""
+    print1("")
 
 
 ################################################################################

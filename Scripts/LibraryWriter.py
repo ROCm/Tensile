@@ -17,8 +17,7 @@ from shutil import copy as shutil_copy
 ################################################################################
 def writeSolutionsAndKernels(outputPath, solutions, \
     solutionWriter, kernelWriter):
-
-  printStatus("Beginning")
+  print1("# Writing Solutions and Kernels")
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
@@ -139,6 +138,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
 # Write Logic
 ################################################################################
 def writeLogic(outputPath, logicList, solutionWriter ):
+  print1("# Writing Library Logic")
 
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Logic"))
@@ -213,14 +213,14 @@ def writeLogic(outputPath, logicList, solutionWriter ):
       s += "*size%s" % indexChars[problemType["IndicesSummation"][i]]
     s += ";\n\n"
     for rule in skinnyLogic0:
-      print rule
+      print2(rule)
     for rule in skinnyLogic1:
-      print rule
-    print solutionNames
+      print2(rule)
+    print2(solutionNames)
 
     for ruleIdx in range(0, len(diagonalLogic)):
       rule = diagonalLogic[ruleIdx]
-      print rule
+      print2(rule)
       winnerIdx = rule[0]
       problemSize = rule[1]
       minGFlops = rule[2]
@@ -287,7 +287,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
 # Write CMake
 ################################################################################
 def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
-  printStatus("beginning")
+  print1("# Writing CMake")
   ##############################################################################
   # Min Naming
   ##############################################################################
@@ -330,7 +330,6 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
             Solution.getNameSerial(solution, solutionSerialNaming)
       else:
         solutionName = Solution.getNameMin(solution, solutionMinNaming)
-      print solutionName
       #solutionFileNames.append(solutionFileName)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
           % (solutionName) )
@@ -383,15 +382,15 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
 # Main
 ################################################################################
 if __name__ == "__main__":
-  print HR
-  print "# Library Writer"
-  print HR
-  print ""
+  print1(HR)
+  print1("# Library Writer")
+  print1(HR)
+  print1("")
 
   ##############################################################################
   # Parse Command Line Arguments
   ##############################################################################
-  print "Arguments: %s" % sys.argv
+  print2("Arguments: %s" % sys.argv)
   argParser = argparse.ArgumentParser()
   argParser.add_argument("LogicPath", help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath", help="Where to write library files?")
@@ -413,7 +412,7 @@ if __name__ == "__main__":
 
   logicPath = args.LogicPath
   outputPath = args.OutputPath
-  print "OutputPath: %s" % outputPath
+  print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
   arguments = {}
   arguments["Backend"] = args.Backend
@@ -428,7 +427,7 @@ if __name__ == "__main__":
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
       if os.path.isfile(os.path.join(logicPath, f))]
 
-  print "LibraryLogicFiles: %s" % logicFiles
+  print1("LibraryLogicFiles: %s" % logicFiles)
 
   ##############################################################################
   # Parse config files
