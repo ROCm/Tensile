@@ -166,7 +166,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Min Naming
   ##############################################################################
   if forBenchmark:
-    solutionFileNames = []
     kernelNames = []
     kernels = []
     for solution in solutions:
@@ -194,7 +193,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     if globalParameters["MergeFiles"]:
       h += "#include \"Solutions.h\"\n"
     else:
-      for solutionFileName in solutionFileNames:
+      for solution in solutions:
+        if globalParameters["ShortFileNames"]:
+          solutionFileName = \
+              Solution.getNameSerial(solution, solutionSerialNaming)
+        else:
+          solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
         h += "#include \"" + solutionFileName + ".h\"\n"
     h += "\n"
   else:

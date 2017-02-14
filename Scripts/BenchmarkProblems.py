@@ -13,7 +13,7 @@ from SolutionStructs import *
 from SolutionWriter import *
 from KernelWriter import *
 from ClientWriter import *
-import LibraryWriter
+from LibraryWriter import *
 import YAMLIO
 
 
@@ -396,13 +396,17 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
-  LibraryWriter.writeSolutionsAndKernels( \
+  writeSolutionsAndKernels( \
       globalParameters["WorkingPath"], solutions, solutionWriter, kernelWriter)
 
 
   ##############################################################################
   # Write CMake
   ##############################################################################
+
+  clientName = "TensileBenchmark_%s" % stepName
+  writeCMake(globalParameters["WorkingPath"], solutions, filesToCopy, clientName)
+  """
   generatedFile = open(os.path.join(globalParameters["WorkingPath"], \
       "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
@@ -447,6 +451,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
 
   # close generated cmake
   generatedFile.close()
+  """
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, filesToCopy)

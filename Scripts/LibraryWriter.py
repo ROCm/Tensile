@@ -23,7 +23,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  solutionFileNames = []
+  #solutionFileNames = []
   kernelNames = []
   kernels = []
 
@@ -66,7 +66,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
             Solution.getNameSerial(solution, solutionSerialNaming)
       else:
         solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
-      solutionFileNames.append(solutionFileName)
+    #  solutionFileNames.append(solutionFileName)
     #printStatus("Writing files for solution %s" % solutionFileName )
 
     # write solution.cpp
@@ -286,12 +286,12 @@ def writeLogic(outputPath, logicList, solutionWriter ):
 ################################################################################
 # Write CMake
 ################################################################################
-def writeCMake(outputPath, solutions, libraryStaticFiles ):
-
+def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
+  printStatus("beginning")
   ##############################################################################
   # Min Naming
   ##############################################################################
-  solutionFileNames = []
+  #solutionFileNames = []
   kernelNames = []
   kernels = []
   for solution in solutions:
@@ -316,33 +316,46 @@ def writeCMake(outputPath, solutions, libraryStaticFiles ):
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
-  generatedFile.write("set( Tensile_Solutions\n")
+  generatedFile.write("set( ClientName %s)\n\n" % clientName )
+  generatedFile.write("set( TensileClient_SOLUTIONS\n")
 
   # write solution names
   if globalParameters["MergeFiles"]:
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.h\n")
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.cpp\n")
   else:
-    for solutionFileName in solutionFileNames:
+    for solution in solutions:
+      if globalParameters["ShortFileNames"]:
+        solutionName = \
+            Solution.getNameSerial(solution, solutionSerialNaming)
+      else:
+        solutionName = Solution.getNameMin(solution, solutionMinNaming)
+      print solutionName
+      #solutionFileNames.append(solutionFileName)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
-          % (solutionFileName) )
+          % (solutionName) )
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
-          % (solutionFileName) )
+          % (solutionName) )
   generatedFile.write("  )\n")
 
   # write kernel names
-  generatedFile.write("set( Tensile_Kernels\n")
+  generatedFile.write("set( TensileClient_KERNELS\n")
   if globalParameters["MergeFiles"]:
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.h\n")
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
-    for kernelName in kernelNames:
+    for kernel in kernels:
+      if globalParameters["ShortFileNames"]:
+        kernelName = \
+            Solution.getNameSerial(kernel, kernelSerialNaming)
+      else:
+        kernelName = Solution.getNameMin(kernel, kernelMinNaming)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")
 
 
-  generatedFile.write("set( Tensile_Source\n")
+  generatedFile.write("set( TensileClient_SOURCE\n")
   for fileName in libraryStaticFiles:
     # copy file
     shutil_copy( os.path.join(globalParameters["SourcePath"], fileName), \
@@ -467,7 +480,8 @@ if __name__ == "__main__":
       "Tools.h" ]
 
   # write cmake
-  writeCMake(outputPath, solutions, libraryStaticFiles )
+  clientName = "LibraryClient"
+  writeCMake(outputPath, solutions, libraryStaticFiles, clientName )
 
   # write logic
   writeLogic(outputPath, logicList, solutionWriter)

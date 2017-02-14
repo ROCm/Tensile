@@ -8,17 +8,51 @@ Parameters:
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  LibraryPrintDebug: True
+  LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
-  ShortFileNames: False
-  MergeFiles: True
+  ShortFileNames: True
+  MergeFiles: False
   PlatformIdx: 0
   DeviceIdx: 0
   DataInitType: 1
 
 BenchmarkProblems:
+  # sgemm NN
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - SplitU: [ 1 ]
+      - EdgeType: ["Branch"]
+        EdgeMultiKernel: [False]
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [True]
+      - LoopTail: [False]
+      - WorkGroupShape: [ 0 ]
+      - ThreadTileShape: [ 0 ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 6, 8]
+    BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - LoopUnroll: [8, 16]
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+
   # sgemm NT
   - ProblemType:
       OperationType: GEMM
@@ -26,14 +60,14 @@ BenchmarkProblems:
       TransposeA: False
       TransposeB: True
       UseBeta: True
-      Batched: False
+      Batched: True
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [32], [32], [32] ]
+      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
       - SplitU: [ 1 ]
-      - EdgeType: [ "Branch" ]
-        EdgeMultiKernel: [ False ] # hardcoded
+      - EdgeType: ["Branch"]
+        EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
       - LoopDoWhile: [True]
       - LoopTail: [False]
@@ -51,8 +85,75 @@ BenchmarkProblems:
       - DepthU
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [16], [16], [16] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
 
+  # sgemm TN
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - SplitU: [ 1 ]
+      - EdgeType: ["Branch"]
+        EdgeMultiKernel: [False]
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [True]
+      - LoopTail: [False]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - WorkGroupShape: [ 0 ]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - ThreadTileShape: [ 0 ]
+    BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - LoopUnroll: [8, 16]
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+
+  # sgemm TT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: True
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - SplitU: [ 1 ]
+      - EdgeType: ["Branch"]
+        EdgeMultiKernel: [False]
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [True]
+      - LoopTail: [False]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - WorkGroupShape: [ 0 ]
+      - ThreadTileEdge: [2, 4, 6, 8]
+      - ThreadTileShape: [ 0 ]
+    BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - LoopUnroll: [8, 16]
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
 
 LibraryLogic:
   Dilation: 3

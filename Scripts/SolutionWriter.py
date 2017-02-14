@@ -679,7 +679,7 @@ class SolutionWriter:
     #s += "#define " + solutionName.upper() + "_H\n\n"
     if not globalParameters["MergeFiles"]:
       s += "#pragma once\n\n"
-      s += "#include \"Tensile.h\"\n"
+      s += "#include \"TensileTypes.h\"\n"
       s += "#include \"SolutionHelper.h\"\n"
       s += "#include \"Tools.h\"\n"
       s += "\n"

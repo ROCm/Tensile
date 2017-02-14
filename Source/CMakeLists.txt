@@ -36,11 +36,12 @@ set_property( CACHE Tensile_BACKEND PROPERTY STRINGS HIP OCL )
 # Benchmark Client
 if(Tensile_CLIENT_BENCHMARK)
   message(STATUS "Making BenchmarkClient")
+  set(ClientName "BenchmarkClient")
   include(${CMAKE_SOURCE_DIR}/Generated.cmake)
   add_executable( ${ClientName}
-    ${TensileBenchmark_Source}
-    ${TensileBenchmark_Solutions}
-    ${TensileBenchmark_Kernels} )
+    ${TensileClient_SOURCE}
+    ${TensileClient_SOLUTIONS}
+    ${TensileClient_KERNELS} )
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_CLIENT_BENCHMARK=1
     -DTensile_CLIENT_LIBRARY=0 )
@@ -76,6 +77,7 @@ if(Tensile_MERGE_FILES)
   #include_directories(.)
 else()
   include_directories( Kernels Solutions )
+  include_directories(.)
 endif()
 
 ###############################################################################
