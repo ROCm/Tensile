@@ -480,7 +480,7 @@ void initData(
     DataType *beta,
     DataType **referenceC,
     DataType **deviceOnHostC) {
-  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", " << maxSizeB << std::endl;
+  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", " << maxSizeB << ")" << std::endl;
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
@@ -567,7 +567,7 @@ void initData(
   status = hipMalloc( &deviceB, maxSizeB*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMemcpy(deviceA, *initialA, maxSizeC*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceA, *initialA, maxSizeA*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
   status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
 #endif
   std::cout << std::endl;
