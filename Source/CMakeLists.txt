@@ -55,7 +55,8 @@ else()
   add_executable( ${ClientName}
     Client.cpp
     MathTemplates.cpp
-    Tools.cpp )
+    #Tools.cpp
+    )
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_CLIENT_BENCHMARK=0
     -DTensile_CLIENT_LIBRARY=1 )
@@ -111,7 +112,7 @@ if(NOT Tensile_CLIENT_BENCHMARK)
     ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
     ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF
     )
-  target_link_libraries( ${ClientName} Tensile )
+  target_link_libraries( ${ClientName} PUBLIC Tensile )
 endif()
 
 

@@ -568,7 +568,7 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        requiredParameters[key] = True
+        requiredParameters[key] = False
     else:
       for key in keys:
         required = False

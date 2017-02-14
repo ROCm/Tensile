@@ -14,7 +14,7 @@ from shutil import rmtree
 ################################################################################
 # Main
 ################################################################################
-def main(  config ):
+def main( config ):
   libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["LibraryLogicPath"])
   pushWorkingPath(globalParameters["LibraryClientPath"])
@@ -31,7 +31,7 @@ def main(  config ):
       "ReferenceCPU.h",
       "MathTemplates.cpp",
       "MathTemplates.h",
-      "Tools.cpp",
+      #"Tools.cpp",
       "Tools.h",
       "CMakeLists.txt",
       "CreateTensile.cmake"
@@ -544,7 +544,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       for problemType in problemTypesForDataType[dataType]:
         for scheduleName in schedulesForProblemType[problemType]:
           functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
-    h += "char *functionNames[numFunctions] = {\n"
+    h += "const char *functionNames[numFunctions] = {\n"
     for functionIdx in range(0, len(functionNames)):
       functionName = functionNames[functionIdx]
       h += "    \"%s\"%s\n" % (functionName, \
@@ -717,16 +717,16 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    DataType beta );\n\n"
 
     for dataType in dataTypes:
+      typeName = dataType.toCpp()
       functionsForDataType = []
       for problemType in problemTypesForDataType[dataType]:
         for scheduleName in schedulesForProblemType[problemType]:
           functionsForDataType.append([scheduleName, problemType])
       h += "template<>\n"
-      h += "inline TensileStatus generatedCallToFunction<%s>(\n" \
-          % dataType.toCpp()
+      h += "inline TensileStatus generatedCallToFunction<%s>(\n" % typeName
       h += "    unsigned int *sizes,\n"
-      h += "    %s alpha,\n" % dataType.toCpp()
-      h += "    %s beta ) {\n\n" % dataType.toCpp()
+      h += "    %s alpha,\n" % typeName
+      h += "    %s beta ) {\n\n" % typeName
 
       h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
@@ -777,7 +777,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         # function call
         h += "    // call solution function\n"
         h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
-        h += "        deviceC, deviceA, deviceB,\n"
+        h += "        static_cast<%s *>(deviceC),\n" % typeName
+        h += "        static_cast<%s *>(deviceA),\n" % typeName
+        h += "        static_cast<%s *>(deviceB),\n" % typeName
         h += "        alpha,\n"
         if problemType["UseBeta"]:
           h += "        beta,\n"
