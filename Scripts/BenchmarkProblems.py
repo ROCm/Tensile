@@ -252,9 +252,15 @@ def benchmarkProblemType( config ):
         runScriptFile.write("#!/bin/sh\n")
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
           % (echoLine, HR, problemTypeName, stepName, HR))
-      runScriptFile.write("cmake -DTensile_CLIENT_BENCHMARK=ON -DTensile_MERGE_FILES=%s %s../source\n" \
-          % ("ON" if globalParameters["MergeFiles"] else "OFF",
-          "-DCMAKE_GENERATOR_PLATFORM=x64 " if os.name=="nt" else "" ) )
+      runScriptFile.write("cmake")
+      runScriptFile.write(" -DTensile_BACKEND=%s" \
+          % globalParameters["Backend"])
+      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
+      runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
+          % ("ON" if globalParameters["MergeFiles"] else "OFF") )
+      if os.name == "nt":
+        runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
+      runScriptFile.write(" ../source\n")
       runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
           % (echoLine, HR, problemTypeName, stepName, HR))
       runScriptFile.write("cmake --build . --config %s%s\n" \
