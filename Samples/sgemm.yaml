@@ -28,28 +28,28 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [1536] ]
+      - ProblemSizes: [ [512], [512], [512] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
-    ForkParameters:
+      - LoopDoWhile: [False]
+      - LoopTail: [True]
       - WorkGroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
-      - WorkGroupEdge: [16]
-      - ThreadTileEdge: [2, 4 ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 8 ]
+    BenchmarkForkParameters:
       - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
       - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
-    BenchmarkForkParameters:
       - LoopUnroll: [8, 16]
     JoinParameters:
       - MacroTile
       - DepthU
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [2880], [2880], [1536] ]
+      - ProblemSizes: [ [16, 128], [16, 128], [256] ]
 
 LibraryLogic:
   Dilation: 3

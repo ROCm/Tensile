@@ -59,7 +59,6 @@ void callLibrary(
 
   // copy data to device
   size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
-  std::cout << currentSizeC << " <= " << maxSizeC << " ?" << std::endl;
 #if Tensile_BACKEND_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
       sizeToCopy, initialC, 0, NULL, NULL);
@@ -639,13 +638,14 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
       std::cout << "Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
     }
     if (static_cast<unsigned int>(argc) > 2+totalIndices[problemTypeIdx]) {
-      numElementsToValidate = static_cast<unsigned int>(atoi(argv[1]));
+      numElementsToValidate = static_cast<unsigned int>(
+          atoi(argv[2+totalIndices[problemTypeIdx]]));
       std::cout << "NumElementsToValidate: " << numElementsToValidate
-        << std::endl;
+          << std::endl;
     } else {
       numElementsToValidate = defaultNumElementsToValidate;
       std::cout << "NumElementsToValidate: " << numElementsToValidate
-        << " (unspecified)" << std::endl;
+          << " (unspecified)" << std::endl;
     }
 
   } catch (...) {
