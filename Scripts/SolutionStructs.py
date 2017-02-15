@@ -87,12 +87,20 @@ class DataType:
 
   ########################################
   def zeroString(self, backend):
-    zeroString = "("
-    zeroString += self.toDevice(backend)
-    zeroString += ")("
-    if self.isReal():
+    if backend == "HIP":
+      if self.value == self.complexSingle:
+        return "make_float2(0.f, 0.f)"
+      if self.value == self.complexDouble:
+        return "make_float2(0.0, 0.0)"
+
+    zeroString = "(%s)(" % self.toDevice(backend)
+    if self.value == self.float or self.value == self.half:
+      zeroString += "0.f"
+    elif self.value == self.double: 
       zeroString += "0.0"
-    else:
+    elif self.value == self.complexSingle: 
+      zeroString += "0.f, 0.f"
+    elif self.value == self.complexDouble:
       zeroString += "0.0, 0.0"
     zeroString += ")"
     return zeroString
