@@ -124,7 +124,7 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logic):
 
 
 def readLibraryLogicForProblemType( filename ):
-  print1("# readLibraryLogicForProblemType( %s )" % ( filename ))
+  print1("# Reading Library Logic: %s" % ( filename ))
   try:
     stream = open(filename, "r")
   except IOError:

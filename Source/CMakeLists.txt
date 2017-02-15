@@ -34,9 +34,9 @@ set_property( CACHE Tensile_BACKEND PROPERTY STRINGS HIP OCL )
 
 ###############################################################################
 # Benchmark Client
+set(ClientName "client")
 if(Tensile_CLIENT_BENCHMARK)
   message(STATUS "Making BenchmarkClient")
-  set(ClientName "BenchmarkClient")
   include(${CMAKE_SOURCE_DIR}/Generated.cmake)
   add_executable( ${ClientName}
     ${TensileClient_SOURCE}
@@ -50,7 +50,6 @@ else()
 ###############################################################################
 # Library Client
   message(STATUS "Making LibraryClient")
-  set(ClientName "LibraryClient")
   option( Tensile_SHORT_FILE_NAMES "Use short file names (for MSVC)" OFF)
   option( Tensile_LIBRARY_PRINT_DEBUG "TensileLib to print debug info" OFF)
   add_executable( ${ClientName}

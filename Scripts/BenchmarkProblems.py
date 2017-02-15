@@ -243,39 +243,13 @@ def benchmarkProblemType( config ):
             ignore_errors=True)
       pushWorkingPath("build")
 
-      # create run.bat or run.sh which builds and runs
-      runScriptName = os.path.join(globalParameters["WorkingPath"], \
-        "run.%s" % ("bat" if os.name == "nt" else "sh") )
-      runScriptFile = open(runScriptName, "w")
-      echoLine = "@echo." if os.name == "nt" else "echo"
-      if os.name != "nt":
-        runScriptFile.write("#!/bin/sh\n")
-      runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Configuring CMake & echo %s\n" \
-          % (echoLine, HR, problemTypeName, stepName, HR))
-      runScriptFile.write("cmake")
-      runScriptFile.write(" -DTensile_BACKEND=%s" \
-          % globalParameters["Backend"])
-      runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-      runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-          % ("ON" if globalParameters["MergeFiles"] else "OFF") )
-      if os.name == "nt":
-        runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-      runScriptFile.write(" ../source\n")
-      runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Building Benchmark & echo %s\n" \
-          % (echoLine, HR, problemTypeName, stepName, HR))
-      runScriptFile.write("cmake --build . --config %s%s\n" \
-          % (globalParameters["CMakeBuildType"], " -- -j 8" if os.name != "nt" else "") )
-      runScriptFile.write("%s & echo %s & echo # %s & echo # %s: Running Benchmark & echo %s\n" \
-          % (echoLine, HR, problemTypeName, stepName, HR))
-      if os.name == "nt":
-        runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"],"TensileBenchmark_%s.exe") \
-            % (shortName) )
-      else:
-        runScriptFile.write("./TensileBenchmark_%s" % (shortName))
-      runScriptFile.close()
-      if os.name != "nt":
-        os.chmod(runScriptName, 0777)
-      # wait for python to finish printing
+      # write runScript
+      libraryLogicPath = None
+      path = globalParameters["WorkingPath"]
+      forBenchmark = True
+      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark)
+
+      # run runScript
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
       status = process.communicate()
       popWorkingPath() # build

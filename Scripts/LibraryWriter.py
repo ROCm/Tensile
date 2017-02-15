@@ -65,8 +65,6 @@ def writeSolutionsAndKernels(outputPath, solutions, \
             Solution.getNameSerial(solution, solutionSerialNaming)
       else:
         solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
-    #  solutionFileNames.append(solutionFileName)
-    #printStatus("Writing files for solution %s" % solutionFileName )
 
     # write solution.cpp
     if not globalParameters["MergeFiles"]:
@@ -283,11 +281,12 @@ def writeLogic(outputPath, logicList, solutionWriter ):
   logicHeaderFile.write(h)
   logicHeaderFile.close()
 
+
 ################################################################################
 # Write CMake
 ################################################################################
 def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
-  print1("# Writing CMake")
+  print1("# Writing Custom CMake")
   ##############################################################################
   # Min Naming
   ##############################################################################
@@ -316,7 +315,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
-  generatedFile.write("set( ClientName %s)\n\n" % clientName )
+  #generatedFile.write("set( ClientName %s)\n\n" % clientName )
   generatedFile.write("set( TensileClient_SOLUTIONS\n")
 
   # write solution names
@@ -363,16 +362,6 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
   generatedFile.write("  )\n\n")
 
-  # benchmark parameters
-  #generatedFile.write("set( TensileClient TensileBenchmark_%s)\n" \
-  #    % (stepName) )
-  #generatedFile.write("set( TensileBenchmark_BACKEND \"%s\")\n" \
-  #    % (globalParameters["Backend"]) )
-
-  # build parameters
-  #generatedFile.write("set( CMAKE_BUILD_TYPE \"%s\")\n" \
-  #    % (globalParameters["CMakeBuildType"]) )
-
   # close generated cmake
   generatedFile.close()
 
@@ -382,10 +371,11 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
 # Main
 ################################################################################
 if __name__ == "__main__":
-  print1(HR)
-  print1("# Library Writer")
-  print1(HR)
   print1("")
+  print1(HR)
+  print1("# Tensile Library Writer")
+  print2(HR)
+  print2("")
 
   ##############################################################################
   # Parse Command Line Arguments
@@ -427,7 +417,9 @@ if __name__ == "__main__":
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
       if os.path.isfile(os.path.join(logicPath, f))]
 
-  print1("LibraryLogicFiles: %s" % logicFiles)
+  print2("# LibraryLogicFiles:" % logicFiles)
+  for logicFile in logicFiles:
+    print2("#   %s" % logicFile)
 
   ##############################################################################
   # Parse config files
@@ -484,3 +476,6 @@ if __name__ == "__main__":
 
   # write logic
   writeLogic(outputPath, logicList, solutionWriter)
+  print1("# Tensile Library Writer DONE")
+  print1(HR)
+  print1("")

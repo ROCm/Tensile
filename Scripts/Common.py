@@ -231,17 +231,17 @@ def printExit(message):
 def assignGlobalParameters( config ):
   global globalParameters
 
-  print1("GlobalParameters:")
+  print2("GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
     if key in config:
       configValue = config[key]
       if configValue == defaultValue:
-        print1(" %24s: %8s (same)" % (key, configValue))
+        print2(" %24s: %8s (same)" % (key, configValue))
       else:
-        print1(" %24s: %8s (overriden)" % (key, configValue))
+        print2(" %24s: %8s (overriden)" % (key, configValue))
     else:
-      print1(" %24s: %8s (unspecified)" % (key, defaultValue))
+      print2(" %24s: %8s (unspecified)" % (key, defaultValue))
 
   for key in config:
     value = config[key]

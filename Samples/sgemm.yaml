@@ -1,70 +1,58 @@
 Parameters:
-  DebugPrintLevel: 2
-  ForceRedo: True
-  CMakeBuildType: Debug
-  NumElementsToValidate: 16
-  DataInitType: 1
-
-  
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: False
+  ForceRedoLibraryLogic: False
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 128
+  ValidationMaxToPrint: 16
+  ValidationPrintValids: False
+  ShortFileNames: False
+  MergeFiles: True
+  PlatformIdx: 0
+  DeviceIdx: 0
+  DataInitType: 0
 
 BenchmarkProblems:
-
-  # sgemm NT
+  # sgemm NN
   - ProblemType:
       OperationType: GEMM
       DataType: s
       TransposeA: False
       TransposeB: True
-      UseBeta: False
-
-    InitialSolutionParameters:
-      LoopTail: True
+      UseBeta: True
+      Batched: False
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
+      - ProblemSizes: [ [2880], [2880], [1536] ]
       - SplitU: [ 1 ]
-      - EdgeType: [ "Branch" ]
-        EdgeMultiKernel: [ False ] # hardcoded
-      - WorkGroupOrder: [ 1 ]
+      - EdgeType: ["Branch"]
+        EdgeMultiKernel: [False]
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [True]
+      - LoopTail: [False]
+    ForkParameters:
       - WorkGroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
-      - LoopDoWhile: [ False ]
-      #- LoopUnroll: [16]
-    ForkParameters:
-      - WorkGroupEdge: [8, 16]
+      - WorkGroupEdge: [16]
       - ThreadTileEdge: [2, 4 ]
-      - NumLoadsCoalescedA: [ 1, 2, 4 ]
-      - NumLoadsCoalescedB: [ 1, 2, 4 ]
-      - LoopUnroll: [1, 8, 16]
-    #BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+    BenchmarkForkParameters:
+      - LoopUnroll: [8, 16]
     JoinParameters:
       - MacroTile
       - DepthU
-    #BenchmarkJoinParameters:
-      #- LoopUnroll: [4, 8, 16]
+    BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      ProblemSizes: [ [32, 32, 32, 128], [32, 32, 32, 128], [32, 32, 32, 128] ]
+      - ProblemSizes: [ [2880], [2880], [1536] ]
 
+LibraryLogic:
+  Dilation: 3
+  Threshold: 0.1
 
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [128], 0, 0 ]
-
-# final create problem-range -> solution mapping and encode to .yaml
-Analyze:
-  # parameters determining what solutions to keep, and how backend should be written
-
-# build the actual library
-Library:
-  PrintDebug: 2
-  # input, output
-  # toolchain?, Debug/Release
-  # defines
-
-# builds a benchmarking / validation client
-Client:
-  builds from same library info
-
-BenchmarkClient: # runs the benchmark client a bunch of times to produce plot data
-  ProblemSizes: {1, 2, 4, 8, ...}
-
-
+LibraryClient:
