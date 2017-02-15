@@ -2,7 +2,7 @@
 # don't validate because some are slightly wrong on purpose (DoWhile vs While Loop)
 Parameters:
   PrintLevel: 1
-  ForceRedoBenchmarkProblems: True
+  ForceRedoBenchmarkProblems: False
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release

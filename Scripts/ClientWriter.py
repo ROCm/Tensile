@@ -118,22 +118,24 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   # backend
   runScriptFile.write(" -DTensile_BACKEND=%s" \
       % globalParameters["Backend"])
-  # for benchmark
   if forBenchmark:
+    # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
   else:
+    # for library client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
     runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
     runScriptFile.write(" -DTensile_ROOT=%s" \
         % os.path.join(globalParameters["ScriptPath"], ".."))
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
         % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
+    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
+        % ("ON" if globalParameters["ShortFileNames"] else "OFF"))
+  # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
   runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
       % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-  runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-      % ("ON" if globalParameters["ShortFileNames"] else "OFF"))
   runScriptFile.write(" ../source\n")
   runScriptFile.write("%s & echo %s & echo # Building Client & echo %s\n" \
       % (echoLine, HR, HR))

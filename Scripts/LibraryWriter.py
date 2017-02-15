@@ -148,10 +148,21 @@ def writeLogic(outputPath, logicList, solutionWriter ):
   h = ""
   h += "#pragma once\n"
   h += "#include \"TensileTypes.h\"\n"
-  h += "#include \"Solutions.h\"\n"
-  h += "\nTensileStatus tensileSetup();\n"
-  h += "\nTensileStatus tensileTeardown();\n"
+  #h += "\nTensileStatus tensileSetup();\n"
+  #h += "\nTensileStatus tensileTeardown();\n"
   s += "#include \"Tensile.h\"\n"
+  s += "#include \"Solutions.h\"\n"
+
+  # solution naming
+  solutions = []
+  for logicProblemType in logicList:
+    problemTypeSolutions = logicProblemType[2]
+    solutions.extend(problemTypeSolutions)
+  if globalParameters["ShortFileNames"]:
+    solutionSerialNaming = Solution.getSerialNaming(solutions)
+  else:
+    solutionMinNaming = Solution.getMinNaming(solutions)
+
 
   # for each ProblemType
   for logicProblemType in logicList:
@@ -164,12 +175,8 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     skinnyLogic1 = logicProblemType[4]
     diagonalLogic = logicProblemType[5]
 
-    # solution naming
+    # solution names
     solutionNames = []
-    if globalParameters["ShortFileNames"]:
-      solutionSerialNaming = Solution.getSerialNaming(solutions)
-    else:
-      solutionMinNaming = Solution.getMinNaming(solutions)
     for solution in solutions:
       if globalParameters["ShortFileNames"]:
         solutionNames.append(Solution.getNameSerial(solution, \

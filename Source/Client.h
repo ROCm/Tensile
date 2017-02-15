@@ -205,7 +205,6 @@ void benchmarkAllSolutionsForSize(
     currentSizeC *= sizes[i];
   }
   size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
-  std::cout << currentSizeC << " <= " << maxSizeC << " ?" << std::endl;
 
   file << problemIdx << ", " << sizes[0];
   for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
