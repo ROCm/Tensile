@@ -1,6 +1,5 @@
-# benchmark MANY kernel for the 5760 size
-# don't validate because some are slightly wrong on purpose (DoWhile vs While Loop)
 Parameters:
+  Name: rocBLAS
   PrintLevel: 1
   ForceRedoBenchmarkProblems: False
   ForceRedoLibraryLogic: True
@@ -35,8 +34,8 @@ BenchmarkProblems:
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
+      - LoopTail: [True]
     ForkParameters:
       - WorkGroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
@@ -69,8 +68,8 @@ BenchmarkProblems:
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
+      - LoopTail: [True]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - WorkGroupShape: [ 0 ]
@@ -103,8 +102,8 @@ BenchmarkProblems:
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
+      - LoopTail: [True]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - WorkGroupShape: [ 0 ]
@@ -137,8 +136,8 @@ BenchmarkProblems:
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
+      - LoopTail: [True]
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - WorkGroupShape: [ 0 ]
