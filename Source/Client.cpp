@@ -24,7 +24,7 @@ int main( int argc, char *argv[] ) {
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
-  case enum_float:
+  case enum_float: {
     float *initialC_float;
     float *initialA_float;
     float *initialB_float;
@@ -43,10 +43,11 @@ int main( int argc, char *argv[] ) {
 #endif
     destroyData(initialC_float, initialA_float, initialB_float,
         referenceC_float, deviceOnHostC_float);
+    }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_DOUBLE
-  case enum_double:
+  case enum_double: {
     double *initialC_double;
     double *initialA_double;
     double *initialB_double;
@@ -65,10 +66,11 @@ int main( int argc, char *argv[] ) {
 #endif
     destroyData(initialC_double, initialA_double, initialB_double,
         referenceC_double, deviceOnHostC_double);
+    }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXFLOAT
-  case enum_TensileComplexFloat:
+  case enum_TensileComplexFloat: {
     TensileComplexFloat *initialC_TCF;
     TensileComplexFloat *initialA_TCF;
     TensileComplexFloat *initialB_TCF;
@@ -87,10 +89,11 @@ int main( int argc, char *argv[] ) {
 #endif
     destroyData(initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
         deviceOnHostC_TCF);
+    }
     break;
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILECOMPLEXDOUBLE
-  case enum_TensileComplexDouble:
+  case enum_TensileComplexDouble: {
     TensileComplexDouble *initialC_TCD;
     TensileComplexDouble *initialA_TCD;
     TensileComplexDouble *initialB_TCD;
@@ -109,6 +112,7 @@ int main( int argc, char *argv[] ) {
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
         deviceOnHostC_TCD);
+    }
     break;
 #endif
   default:

@@ -12,7 +12,7 @@ Parameters:
   NumElementsToValidate: 128
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
-  ShortFileNames: False
+  ShortNames: True
   MergeFiles: True
   PlatformIdx: 0
   DeviceIdx: 0

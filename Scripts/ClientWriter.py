@@ -130,7 +130,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
         % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
     runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-        % ("ON" if globalParameters["ShortFileNames"] else "OFF"))
+        % ("ON" if globalParameters["ShortNames"] else "OFF"))
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
@@ -174,13 +174,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         if kernel not in kernels:
           kernels.append(kernel)
 
-    if globalParameters["ShortFileNames"] \
-        and not globalParameters["MergeFiles"]:
-      solutionSerialNaming = Solution.getSerialNaming(solutions)
-      kernelSerialNaming = Solution.getSerialNaming(kernels)
-    else:
-      solutionSerialNaming = None
-      kernelSerialNaming = None
+    solutionSerialNaming = Solution.getSerialNaming(solutions)
+    kernelSerialNaming = Solution.getSerialNaming(kernels)
     solutionMinNaming = Solution.getMinNaming(solutions)
     kernelMinNaming = Solution.getMinNaming(kernels)
     solutionWriter = SolutionWriter( \
@@ -194,12 +189,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "#include \"Solutions.h\"\n"
     else:
       for solution in solutions:
-        if globalParameters["ShortFileNames"]:
-          solutionFileName = \
-              Solution.getNameSerial(solution, solutionSerialNaming)
-        else:
-          solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
-        h += "#include \"" + solutionFileName + ".h\"\n"
+        solutionName = solutionWriter.getSolutionName(solution)
+        #if globalParameters["ShortNames"]:
+        #  solutionFileName = \
+        #      Solution.getNameSerial(solution, solutionSerialNaming)
+        #else:
+        #  solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
+        h += "#include \"" + solutionName + ".h\"\n"
     h += "\n"
   else:
     h += "#include \"Tensile.h\"\n"
@@ -523,7 +519,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "const SolutionFunctionPointer solutions[numSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
-      solutionName = Solution.getNameMin(solution, solutionMinNaming)
+      solutionName = solutionWriter.getSolutionName(solution)
       h += "  %s" % solutionName
       if i < len(solutions)-1:
         h += ","
@@ -534,7 +530,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "const char *solutionNames[numSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
-      solutionName = Solution.getNameMin(solution, solutionMinNaming)
+      solutionName = solutionWriter.getSolutionName(solution)
       h += "  \"%s\"" % solutionName
       if i < len(solutions)-1:
         h += ","

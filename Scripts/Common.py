@@ -41,7 +41,7 @@ globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 4
 # file heirarchy
-globalParameters["ShortFileNames"] = False
+globalParameters["ShortNames"] = False
 globalParameters["MergeFiles"] = True
 # validation
 globalParameters["NumElementsToValidate"] = 16

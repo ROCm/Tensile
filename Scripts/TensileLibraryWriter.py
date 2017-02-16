@@ -35,7 +35,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
       if kernel not in kernels:
         kernels.append(kernel)
 
-  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"] :
+  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
   else:
@@ -60,7 +60,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
-      if globalParameters["ShortFileNames"]:
+      if globalParameters["ShortNames"]:
         solutionFileName = \
             Solution.getNameSerial(solution, solutionSerialNaming)
       else:
@@ -104,7 +104,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
   for kernel in kernels:
     # get kernel name
     if not globalParameters["MergeFiles"]:
-      if globalParameters["ShortFileNames"]:
+      if globalParameters["ShortNames"]:
         kernelName = Solution.getNameSerial(kernel, kernelSerialNaming)
       else:
         kernelName = Solution.getNameMin(kernel, kernelMinNaming)
@@ -158,7 +158,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
   for logicProblemType in logicList:
     problemTypeSolutions = logicProblemType[2]
     solutions.extend(problemTypeSolutions)
-  if globalParameters["ShortFileNames"]:
+  if globalParameters["ShortNames"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
   else:
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -178,7 +178,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     # solution names
     solutionNames = []
     for solution in solutions:
-      if globalParameters["ShortFileNames"]:
+      if globalParameters["ShortNames"]:
         solutionNames.append(Solution.getNameSerial(solution, \
             solutionSerialNaming) )
       else:
@@ -307,7 +307,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
       if kernel not in kernels:
         kernels.append(kernel)
 
-  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"] :
+  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
   else:
@@ -332,7 +332,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.cpp\n")
   else:
     for solution in solutions:
-      if globalParameters["ShortFileNames"]:
+      if globalParameters["ShortNames"]:
         solutionName = \
             Solution.getNameSerial(solution, solutionSerialNaming)
       else:
@@ -351,7 +351,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernel in kernels:
-      if globalParameters["ShortFileNames"]:
+      if globalParameters["ShortNames"]:
         kernelName = \
             Solution.getNameSerial(kernel, kernelSerialNaming)
       else:
@@ -398,9 +398,9 @@ if __name__ == "__main__":
       action="store_true")
   argParser.add_argument("--no-merge-files", dest="MergeFiles", \
       action="store_false")
-  argParser.add_argument("--short-file-names", dest="ShortFileNames", \
+  argParser.add_argument("--short-file-names", dest="ShortNames", \
       action="store_true")
-  argParser.add_argument("--no-short-file-names", dest="ShortFileNames", \
+  argParser.add_argument("--no-short-file-names", dest="ShortNames", \
       action="store_false")
   argParser.add_argument("--library-print-debug", dest="LibraryPrintDebug", \
       action="store_true")
@@ -415,7 +415,7 @@ if __name__ == "__main__":
   arguments = {}
   arguments["Backend"] = args.Backend
   arguments["MergeFiles"] = args.MergeFiles
-  arguments["ShortFileNames"] = args.ShortFileNames
+  arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
   assignGlobalParameters(arguments)
 
@@ -450,7 +450,7 @@ if __name__ == "__main__":
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
-  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"]:
+  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
   else:

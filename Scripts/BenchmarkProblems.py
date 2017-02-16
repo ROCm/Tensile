@@ -13,7 +13,7 @@ from SolutionStructs import *
 from SolutionWriter import *
 from KernelWriter import *
 from ClientWriter import *
-from LibraryWriter import *
+from TensileLibraryWriter import *
 import YAMLIO
 
 
@@ -357,12 +357,8 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
       if kernel not in kernels:
         kernels.append(kernel)
 
-  if globalParameters["ShortFileNames"] and not globalParameters["MergeFiles"]:
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming = None
+  solutionSerialNaming = Solution.getSerialNaming(solutions)
+  kernelSerialNaming = Solution.getSerialNaming(kernels)
   solutionMinNaming = Solution.getMinNaming(solutions)
   kernelMinNaming = Solution.getMinNaming(kernels)
   solutionWriter = SolutionWriter( \

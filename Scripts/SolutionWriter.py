@@ -51,20 +51,27 @@ class SolutionWriter:
     self.strideList = []
     self.sizeList = []
 
+
+  ##############################################################################
+  # get solution name
+  ##############################################################################
+  def getSolutionName(self, solution):
+    if globalParameters["ShortNames"]:
+      solutionName = Solution.getNameSerial(solution, self.solutionSerialNaming)
+    else:
+      solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
+    return solutionName
+
+
   ##############################################################################
   # getSourceString
   ##############################################################################
   def getSourceString(self, solution):
     kernels = solution.getKernels()
     kernelNames = []
-    #kernelFileNames = []
     for kernel in kernels:
-      #if globalParameters["ShortFileNames"]:
-      #  kernelFileNames.append( Solution.getNameSerial(kernel, \
-      #      self.kernelSerialNaming) )
-      #else:
-      #  kernelFileNames.append( Solution.getNameMin(kernel, self.kernelMinNaming) )
-      kernelNames.append( Solution.getNameMin(kernel, self.kernelMinNaming) )
+      kernelName = self.kernelWriter.getKernelName(kernel)
+      kernelNames.append( kernelName )
 
     s = ""
     t = ""
@@ -72,12 +79,8 @@ class SolutionWriter:
 
 
     if not globalParameters["MergeFiles"]:
-      if globalParameters["ShortFileNames"]:
-        solutionFileName = Solution.getNameSerial(solution, \
-            self.solutionSerialNaming)
-      else:
-        solutionFileName = Solution.getNameMin(solution, self.solutionMinNaming)
-      s += "#include \"%s.h\"\n" % solutionFileName
+      solutionName = self.getSolutionName(solution)
+      s += "#include \"%s.h\"\n" % solutionName
       s += "\n"
 
     # solution function signature
@@ -185,7 +188,7 @@ class SolutionWriter:
         % (t, solution["ProblemType"]["TotalIndices"])
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
-      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+      kernelName = self.kernelWriter.getKernelName(kernel)
       # free index sizes
       for i in range(0,solution["ProblemType"]["NumIndicesFree"] \
           + solution["ProblemType"]["NumIndicesBatch"] ):
@@ -205,7 +208,7 @@ class SolutionWriter:
     #enqueue the kernels
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
-      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+      kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)
       typeName = solution["ProblemType"]["DataType"].toCpp()
@@ -673,7 +676,7 @@ class SolutionWriter:
   # getHeaderString
   ##############################################################################
   def getHeaderString(self, solution):
-    solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
+    solutionName = self.getSolutionName(solution)
     s = ""
     #s += "#ifndef " + solutionName.upper() + "_H\n"
     #s += "#define " + solutionName.upper() + "_H\n\n"
@@ -687,13 +690,8 @@ class SolutionWriter:
       # include kernels
       for kernel in solution.getKernels():
         if kernel != None:
-          if globalParameters["ShortFileNames"]:
-            kernelFileName = Solution.getNameSerial(kernel, \
-                self.kernelSerialNaming)
-          else:
-            kernelFileName = Solution.getNameMin(kernel, \
-                self.kernelMinNaming)
-          s += "#include \"" + kernelFileName + ".h\"\n"
+          kernelName = self.kernelWriter.getKernelName(kernel)
+          s += "#include \"" + kernelName + ".h\"\n"
       s += "\n"
 
     # function declaration
@@ -764,7 +762,7 @@ class SolutionWriter:
   def getSolutionSignature(self, solution):
     t = "" # indent
     s = ""
-    solutionName = Solution.getNameMin(solution.state, self.solutionMinNaming)
+    solutionName = self.getSolutionName(solution)
     s += "%s%s %s(\n" % (t, self.statusName, solutionName)
     t += "    "
     argList = self.getArgList(solution)

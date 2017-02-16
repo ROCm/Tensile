@@ -77,13 +77,22 @@ class KernelWriter:
 
     self.returnOnly = False
 
+  ##############################################################################
+  # get kernel name
+  ##############################################################################
+  def getKernelName(self, kernel):
+    if globalParameters["ShortNames"]:
+      kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
+    else:
+      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    return kernelName
 
 
   ##############################################################################
   # get kernel signature - DONE
   ##############################################################################
   def getSignature(self, kernel ):
-    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    kernelName = self.getKernelName(kernel)
 
     # determine chars for fast access
     indexChars = []
@@ -172,7 +181,7 @@ class KernelWriter:
   # make kernel body
   ##############################################################################
   def getBody( self, kernel ):
-    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    kernelName = self.getKernelName(kernel)
 
     # determine chars for fast access
     indexChars = []
@@ -1351,17 +1360,13 @@ class KernelWriter:
   # source file string
   ##############################################################################
   def getSourceFileString(self, kernel):
+    kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
     if not globalParameters["MergeFiles"]:
-      if globalParameters["ShortFileNames"]:
-        kernelFileName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
-      else:
-        kernelFileName = Solution.getNameMin(kernel, self.kernelMinNaming)
       fileString += "\n"
       fileString += "#include \"" + kernelFileName + ".h\"\n"
       fileString += "\n"
 
-    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     # backend pre
     fileString += "\n"
     if self.backend == "OCL":
@@ -1387,7 +1392,7 @@ class KernelWriter:
   # header file string
   ##############################################################################
   def getHeaderFileString(self, kernel):
-    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
     #fileString += "#ifndef KERNEL_" + kernelName.upper() + "_H\n"
     #fileString += "#define KERNEL_" + kernelName.upper() + "_H\n"
