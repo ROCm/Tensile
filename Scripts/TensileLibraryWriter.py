@@ -190,7 +190,8 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     # reset individual file string
     if not globalParameters["MergeFiles"]:
       filePrefix   = "Tensile_%s_%s" % (scheduleName, problemType)
-      s = "#include \"%s.h\"" % filePrefix
+      #s = "#include \"%s.h\"" % filePrefix
+      s = "#include \"Tensile.h\""
       for solutionName in solutionNames:
         h += "#include \"%s.h\"\n" % solutionName
 

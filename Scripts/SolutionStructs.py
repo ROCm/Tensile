@@ -94,7 +94,7 @@ class DataType:
         return "make_float2(0.0, 0.0)"
 
     zeroString = "(%s)(" % self.toDevice(backend)
-    if self.value == self.float or self.value == self.half:
+    if self.value == self.single or self.value == self.half:
       zeroString += "0.f"
     elif self.value == self.double: 
       zeroString += "0.0"

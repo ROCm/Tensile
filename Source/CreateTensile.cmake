@@ -32,10 +32,11 @@ function(CreateTensile
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
+  message(STATUS "Tensile_SOURCE_PATH=${Tensile_SOURCE_PATH}")
 
-  # Tensile::LibraryWriter optional arguments
+  # TensileLibraryWriter optional arguments
   set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE}
-    ${Tensile_ROOT}/Scripts/LibraryWriter.py)
+    ${Tensile_ROOT}/Scripts/TensileLibraryWriter.py)
   if(${Tensile_MERGE_FILES})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--merge-files")
   else()
@@ -54,7 +55,7 @@ function(CreateTensile
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
 
-  # Tensile::LibraryWriter positional arguments
+  # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
     ${Tensile_LOGIC_PATH}
     ${Tensile_SOURCE_PATH}
@@ -97,8 +98,8 @@ function(CreateTensile
     target_include_directories(Tensile PUBLIC
       $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}>
       $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Kernels>
-      $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Solutions>
-      $<BUILD_INTERFACE:${Tensile_DIR_GENERATED}/Logic>
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Solutions>
+      $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Logic>
       $<INSTALL_INTERFACE:include> )
   endif()
 

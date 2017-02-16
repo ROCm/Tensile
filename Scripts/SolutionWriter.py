@@ -714,8 +714,8 @@ class SolutionWriter:
     typeName = solution["ProblemType"]["DataType"].toCpp()
     if self.backend == "HIP":
       argList.append("%s *dataC" % (typeName))
-      argList.append("%s *dataA" % (typeName))
-      argList.append("%s *dataB" % (typeName))
+      argList.append("const %s *dataA" % (typeName))
+      argList.append("const %s *dataB" % (typeName))
     else:
       argList.append("cl_mem dataC")
       argList.append("cl_mem dataA")
