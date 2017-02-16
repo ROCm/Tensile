@@ -1364,7 +1364,7 @@ class KernelWriter:
     fileString = "" # CHeader
     if not globalParameters["MergeFiles"]:
       fileString += "\n"
-      fileString += "#include \"" + kernelFileName + ".h\"\n"
+      fileString += "#include \"" + kernelName + ".h\"\n"
       fileString += "\n"
 
     # backend pre
