@@ -1,1 +1,1 @@
-recursive-include Tensile *.py *.h *.cpp *.txt *.cmake
+recursive-include Tensile *.py *.h *.cpp *.txt *.cmake *.yaml
