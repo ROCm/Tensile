@@ -35,6 +35,9 @@ std::ofstream file;
 void initControls();
 void destroyControls();
 
+double fastestGFlops = 0.0;
+unsigned int fastestIdx = 0;
+
 /*******************************************************************************
  * Call Library
  ******************************************************************************/
@@ -160,12 +163,24 @@ void callLibrary(
   double timeMs = timer.elapsed_ms()
     / numSyncsPerBenchmark / numEnqueuesPerSync;
   double gflops = totalFlops / timeMs / 1000000.0;
+  bool newFastest = false;
+  if (gflops > fastestGFlops) {
+    fastestGFlops = gflops;
+    fastestIdx = functionIdx;
+    newFastest = true;
+  }
 
   if (numElementsToValidate) {
     std::cout << "Function[" << std::setw(2) << functionIdx << "/"
       << numFunctions << "]:"
       << std::setw(10) << std::fixed << std::setprecision(3)
-      << gflops << " GFlop/s |"
+      << gflops << " GFlop/s";
+      if (newFastest) {
+        std::cout << "*";
+      } else {
+        std::cout << " ";
+      }
+    std::cout << " |"
       << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
@@ -174,8 +189,18 @@ void callLibrary(
   else {
     std::cout << "Function[" << functionIdx << "/" << numFunctions << "]:"
       << std::setw(10) << std::fixed << std::setprecision(3)
-      << gflops << " GFlop/s |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
+      << gflops << " GFlop/s";
+      if (newFastest) {
+        std::cout << "*";
+      } else {
+        std::cout << " ";
+      }
+    std::cout << " |"
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms";
+      if (newFastest) {
+        std::cout << "*";
+      }
+      std::cout << std::endl;
   }
 #endif
 
@@ -318,11 +343,24 @@ void benchmarkAllSolutionsForSize(
     double timeMs = timer.elapsed_ms()
       / numSyncsPerBenchmark / numEnqueuesPerSync;
     double gflops = totalFlops / timeMs / 1000000.0;
+    bool newFastest = false;
+    if (gflops > fastestGFlops) {
+      fastestGFlops = gflops;
+      fastestIdx = solutionIdx;
+      newFastest = true;
+    }
+
 
     if (numElementsToValidate) {
       std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]:"
         << std::setw(10) << std::fixed << std::setprecision(3)
-        << gflops << " GFlop/s |"
+        << gflops << " GFlop/s";
+      if (newFastest) {
+        std::cout << "*";
+      } else {
+        std::cout << " ";
+      }
+      std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
         << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
     }
@@ -330,7 +368,13 @@ void benchmarkAllSolutionsForSize(
     else {
       std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]:"
         << std::setw(10) << std::fixed << std::setprecision(3)
-        << gflops << " GFlop/s |"
+        << gflops << " GFlop/s";
+      if (newFastest) {
+        std::cout << "*";
+      } else {
+        std::cout << " ";
+      }
+      std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
     }
     if (numInvalids) { gflops = -1.0; }
@@ -602,7 +646,7 @@ void destroyData(
 #if Tensile_CLIENT_LIBRARY
 unsigned int defaultNumElementsToValidate = 128;
 void printLibraryClientUsage(std::string executableName) {
-  std::cout << "Usage: " << executableName << " FunctionIdx SizeI SizeJ SizeK ... [NumElementsToValidate=" << defaultNumElementsToValidate << "]" << std::endl;
+  std::cout << "Usage: " << executableName << " FunctionIdx SizeI SizeJ SizeK [SizeL ...] [NumElementsToValidate=" << defaultNumElementsToValidate << "]" << std::endl;
   std::cout << "Functions:" << std::endl;
   for (unsigned int i = 0; i < numFunctions; i++) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;

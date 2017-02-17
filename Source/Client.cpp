@@ -123,6 +123,13 @@ int main( int argc, char *argv[] ) {
 
   // cleanup
   destroyControls();
+  std::cout << std::endl << "Fastest: " << fastestGFlops << " GFlop/s by (" << fastestIdx << ") ";
+#if Tensile_CLIENT_BENCHMARK
+  std::cout << solutionNames[fastestIdx];
+#else
+  std::cout << functionNames[fastestIdx];
+#endif
+  std::cout << std::endl;
 
 } // main
 
