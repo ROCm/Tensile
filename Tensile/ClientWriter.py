@@ -137,11 +137,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile.write(" ../source\n")
   runScriptFile.write("%s & echo %s & echo # Building Client & echo %s\n" \
       % (echoLine, HR, HR))
-  if os.name != "nt":
-      runScriptFile.write("time ")
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
       if os.name != "nt" else "") )
+  #if os.name != "nt":
+  #  runScriptFile.write("find .\n")
   runScriptFile.write("%s & echo %s & echo # Running Client & echo %s\n" \
       % (echoLine, HR, HR))
   if os.name == "nt":
