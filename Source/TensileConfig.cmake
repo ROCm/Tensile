@@ -31,8 +31,9 @@ function(TensileCreateLibrary
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
 
+  # Tensile_ROOT can be specified instead of installing
   set(oneValueArgs Tensile_ROOT)
-  cmake_parse_arguments(PARSE "${oneValueArgs}" ${ARGN})
+  cmake_parse_arguments(PARSE "" "${oneValueArgs}" "" ${ARGN})
 
   if(PARSE_Tensile_ROOT)
     # python not pre-installed, use scripts downloaded to extern/Tensile
