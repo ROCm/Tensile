@@ -85,15 +85,15 @@ def executeStepsInConfig( config ):
 
 
 ################################################################################
-# Tensile - Main
+# Tensile - below entry points call here
 ################################################################################
-def Tensile():
+def Tensile(userArgs):
   argParser = argparse.ArgumentParser()
   argParser.add_argument("ConfigFilePath", \
       help="Path to top-level config.yaml file")
   argParser.add_argument("OutputPath", \
       help="Where to build and run benchmark steps.")
-  args = argParser.parse_args()
+  args = argParser.parse_args(userArgs)
   globalParameters["WorkingPath"] = os.path.abspath(args.OutputPath)
 
   configPath = os.path.realpath( args.ConfigFilePath )
@@ -103,5 +103,51 @@ def Tensile():
   sys.exit(0)
 
 
+################################################################################
+# Entry points
+################################################################################
+
+
+# installed "tensile_rocblas_sgemm" command
+def TensileROCBLASSGEMM():
+  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+      "..", "Configs", "rocblas_sgemm.yaml")
+  Tensile([configPath, "."])
+
+
+# installed "tensile_rocblas_dgemm" command
+def TensileROCBLASDGEMM():
+  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+      "..", "Configs", "rocblas_dgemm.yaml")
+  Tensile([configPath, "."])
+
+
+# installed "tensile_rocblas_cgemm" command
+def TensileROCBLASCGEMM():
+  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+      "..", "Configs", "rocblas_cgemm.yaml")
+  Tensile([configPath, "."])
+
+
+# installed "tensile_rocblas_zgemm" command
+def TensileROCBLASZGEMM():
+  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+      "..", "Configs", "rocblas_zgemm.yaml")
+  Tensile([configPath, "."])
+
+
+# installed "tensile_sgemm" command
+def TensileSGEMM5760():
+  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+      "..", "Configs", "sgemm_5760.yaml")
+  Tensile([configPath, "."])
+
+
+# installed "tensile" command
+def main():
+    Tensile(sys.argv[1:])
+
+
+# script run from commandline
 if __name__ == "__main__":
-  Tensile()
+  main()

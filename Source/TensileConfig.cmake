@@ -26,7 +26,6 @@ include(FindPythonInterp)
 ################################################################################
 function(TensileCreateLibrary
     Tensile_LOGIC_PATH
-    Tensile_ROOT
     Tensile_BACKEND
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
@@ -35,8 +34,7 @@ function(TensileCreateLibrary
   message(STATUS "Tensile_SOURCE_PATH=${Tensile_SOURCE_PATH}")
 
   # TensileLibraryWriter optional arguments
-  set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE}
-    ${Tensile_ROOT}/Tensile/TensileCreateLibrary.py)
+  set(Tensile_CREATE_COMMAND TensileCreateLibrary)
   if(${Tensile_MERGE_FILES})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--merge-files")
   else()
