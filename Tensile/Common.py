@@ -24,7 +24,7 @@ globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
-globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "..", "Source")
+globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source")
 globalParameters["WorkingPath"] = os.getcwd()
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarksProblems"
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"

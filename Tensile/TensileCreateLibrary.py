@@ -468,11 +468,8 @@ def TensileCreateLibrary():
   writeSolutionsAndKernels(outputPath, solutions, solutionWriter, kernelWriter)
 
   libraryStaticFiles = [
-      #"MathTemplates.cpp",
-      #"MathTemplates.h",
       "SetupTeardown.cpp",
       "TensileTypes.h",
-      #"ReferenceCPU.h",
       "SolutionHelper.cpp",
       "SolutionHelper.h",
       "Tools.cpp",
