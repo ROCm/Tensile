@@ -376,12 +376,12 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
 
 
 ################################################################################
-# Main
+# Tensile Create Library
 ################################################################################
-if __name__ == "__main__":
+def TensileCreateLibrary():
   print1("")
   print1(HR)
-  print1("# Tensile Library Writer")
+  print1("# Tensile Create Library")
   print2(HR)
   print2("")
 
@@ -487,3 +487,9 @@ if __name__ == "__main__":
   print1("# Tensile Library Writer DONE")
   print1(HR)
   print1("")
+
+################################################################################
+# Main
+################################################################################
+if __name__ == "__main__":
+    TensileCreateLibrary()

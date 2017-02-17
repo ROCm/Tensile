@@ -13,7 +13,7 @@ from SolutionStructs import *
 from SolutionWriter import *
 from KernelWriter import *
 from ClientWriter import *
-from TensileLibraryWriter import *
+from TensileCreateLibrary import *
 import YAMLIO
 
 

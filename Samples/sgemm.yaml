@@ -1,7 +1,7 @@
 Parameters:
   PrintLevel: 1
   ForceRedoBenchmarkProblems: False
-  ForceRedoLibraryLogic: False
+  ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1

@@ -24,7 +24,7 @@ include(FindPythonInterp)
 ################################################################################
 # Create A Tensile Library from LibraryLogic.yaml files
 ################################################################################
-function(CreateTensile
+function(TensileCreateLibrary
     Tensile_LOGIC_PATH
     Tensile_ROOT
     Tensile_BACKEND
@@ -36,7 +36,7 @@ function(CreateTensile
 
   # TensileLibraryWriter optional arguments
   set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE}
-    ${Tensile_ROOT}/Scripts/TensileLibraryWriter.py)
+    ${Tensile_ROOT}/Tensile/TensileCreateLibrary.py)
   if(${Tensile_MERGE_FILES})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--merge-files")
   else()

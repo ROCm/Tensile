@@ -33,7 +33,7 @@ def main( config ):
       #"Tools.cpp",
       "Tools.h",
       "CMakeLists.txt",
-      "CreateTensile.cmake"
+      "TensileCreateLibrary.cmake"
       ]
 
   for f in filesToCopy:

@@ -70,15 +70,18 @@ parallel rocm_fiji: {
           sh """
           pwd
           echo ${scm_dir}
-          curl -O http://pyyaml.org/download/pyyaml/PyYAML-3.12.tar.gz
-          tar xvzf PyYAML-3.12.tar.gz
-          cd PyYAML-3.12/
-          sudo python setup.py --without-libyaml install
-          cd ../
+          sudo python ${scm_dir}/setup.py install --record tensile_installed_files.txt
+          cat tensile_installed_files.txt
+          which tensile
+          #curl -O http://pyyaml.org/download/pyyaml/PyYAML-3.12.tar.gz
+          #tar xvzf PyYAML-3.12.tar.gz
+          #cd PyYAML-3.12/
+          #sudo python setup.py --without-libyaml install
+          #cd ../
           """
 
-          sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/jenkins_sgemm_defaults.yaml ${scm_dir}/../sgemm_defaults"
-          sh "python ${scm_dir}/Scripts/Tensile.py ${scm_dir}/Samples/jenkins_dgemm_defaults.yaml ${scm_dir}/../dgemm_defaults"
+          sh "tensile ${scm_dir}/Samples/jenkins_sgemm_defaults.yaml ${scm_dir}/../sgemm_defaults"
+          sh "tensile ${scm_dir}/Samples/jenkins_dgemm_defaults.yaml ${scm_dir}/../dgemm_defaults"
         }
 
         }

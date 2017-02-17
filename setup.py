@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 setup(
@@ -9,13 +9,33 @@ setup(
     author="Advanced Micro Devices",
     license="MIT",
     install_requires=["pyyaml"],
-    packages=["tensile"],
-    package_data={"tensile": ["tensile/*", "Source/*"]},
-    #data_files=["Source", ["Client.cpp"{"tensile": ["Tensile/*"]},
+    packages=["Tensile"],
+    data_files=[
+        ("Source", [
+            "Source/BenchmarkClient.cmake",
+            "Source/CMakeLists.txt",
+            "Source/FindHCC.cmake",
+            "Source/MathTemplates.cpp",
+            "Source/SetupTeardown.cpp",
+            "Source/TensileTypes.h",
+            "Source/Client.cpp",
+            "Source/FindHIP.cmake",
+            "Source/MathTemplates.h",
+            "Source/SolutionHelper.cpp",
+            "Source/TensileCreateLibrary.cmake",
+            "Source/Tools.cpp",
+            "Source/Client.h",
+            "Source/EnableWarnings.cmake",
+            "Source/FindOpenCL.cmake",
+            "Source/ReferenceCPU.h",
+            "Source/SolutionHelper.h",
+            "Source/Tools.h",
+            ] ),
+        ], 
     include_package_data=True,
-    zip_safe=False,
+    #zip_safe=False,
     entry_points={"console_scripts": [
-        "tensile = tensile.Tensile:Tensile",
-        "tensile-library-writer = tensile.TensileLibraryWriter"
+        "tensile = Tensile.Tensile:Tensile",
+        "tensile_library_writer = Tensile.TensileCreateLibrary:TensileCreateLibrary"
         ]}
     )

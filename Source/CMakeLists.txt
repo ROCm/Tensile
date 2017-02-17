@@ -104,8 +104,8 @@ endif()
 ###############################################################################
 # Create Tensile Library
 if(NOT Tensile_CLIENT_BENCHMARK)
-  include(${CMAKE_SOURCE_DIR}/CreateTensile.cmake)
-  CreateTensile(
+  include(${CMAKE_SOURCE_DIR}/TensileCreateLibrary.cmake)
+  TensileCreateLibrary(
     ${Tensile_LOGIC_PATH}           # path
     ${Tensile_ROOT}                 # path
     ${Tensile_BACKEND}              # OCL or HIP

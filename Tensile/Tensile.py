@@ -87,7 +87,7 @@ def executeStepsInConfig( config ):
 ################################################################################
 # Tensile - Main
 ################################################################################
-if __name__ == "__main__":
+def Tensile():
   argParser = argparse.ArgumentParser()
   argParser.add_argument("ConfigFilePath", \
       help="Path to top-level config.yaml file")
@@ -102,3 +102,6 @@ if __name__ == "__main__":
   executeStepsInConfig( config )
   sys.exit(0)
 
+
+if __name__ == "__main__":
+  Tensile()
