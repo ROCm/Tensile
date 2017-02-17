@@ -1,0 +1,58 @@
+Parameters:
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: False
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 128
+  ValidationMaxToPrint: 16
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  PlatformIdx: 0
+  DeviceIdx: 0
+  DataInitType: 0
+
+BenchmarkProblems:
+  # sgemm NN
+  - ProblemType:
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: False
+
+    # keep benchmark as single list to make easier to modify in future
+    BenchmarkCommonParameters:
+      - ProblemSizes: [ [512], [512], [512] ]
+      - SplitU: [ 1 ]
+      - EdgeType: ["Branch"]
+        EdgeMultiKernel: [False]
+      - WorkGroupSchedule: [ 1 ]
+      - LoopDoWhile: [False]
+      - LoopTail: [True]
+      - WorkGroupShape: [ 0 ]
+      - ThreadTileShape: [ 0 ]
+    ForkParameters:
+      - WorkGroupEdge: [8, 16]
+      - ThreadTileEdge: [2, 4, 8 ]
+    BenchmarkForkParameters:
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - LoopUnroll: [8, 16]
+    JoinParameters:
+      - MacroTile
+      - DepthU
+    BenchmarkJoinParameters:
+    BenchmarkFinalParameters:
+      - ProblemSizes: [ [16, 128], [16, 128], [256] ]
+
+LibraryLogic:
+  Dilation: 3
+  Threshold: 0.1
+
+LibraryClient:
