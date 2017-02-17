@@ -52,7 +52,7 @@ setup(
     # user runs a benchmark
     "tensile = Tensile.Tensile:main",
     # CMake calls this to create Tensile.lib
-    "TensileCreateLibrary = Tensile.TensileCreateLibrary:TensileCreateLibrary"
+    "TensileCreateLibrary = Tensile.TensileCreateLibrary:TensileCreateLibrary",
     # automatic benchmarking for rocblas
     "tensile_rocblas_sgemm = Tensile.Tensile:TensileROCBLASSGEMM",
     "tensile_rocblas_dgemm = Tensile.Tensile:TensileROCBLASDGEMM",
