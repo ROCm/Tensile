@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-include(FindPythonInterp)
+include(CMakeParseArguments)
 
 ################################################################################
 # Create A Tensile Library from LibraryLogic.yaml files
@@ -30,11 +30,23 @@ function(TensileCreateLibrary
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
+
+  set(oneValueArgs Tensile_ROOT)
+  cmake_parse_arguments(PARSE "${oneValueArgs}" ${ARGN})
+
+  if(PARSE_Tensile_ROOT)
+    # python not pre-installed, use scripts downloaded to extern/Tensile
+    include(FindPythonInterp)
+    set(Tensile_CREATE_COMMAND ${PYTHON_EXECUTABLE} "${Tensile_ROOT}/Tensile/TensileCreateLibrary.py")
+  else()
+    set(Tensile_CREATE_COMMAND TensileCreateLibrary)
+  endif()
+
+
   set(Tensile_SOURCE_PATH "${PROJECT_BINARY_DIR}/Tensile")
   message(STATUS "Tensile_SOURCE_PATH=${Tensile_SOURCE_PATH}")
 
   # TensileLibraryWriter optional arguments
-  set(Tensile_CREATE_COMMAND TensileCreateLibrary)
   if(${Tensile_MERGE_FILES})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--merge-files")
   else()
