@@ -3,3 +3,6 @@
 *.xml
 *.vscode
 *~
+Tensile.egg-info
+build
+dist
