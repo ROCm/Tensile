@@ -25,12 +25,21 @@ class BenchmarkProcess:
     print2("# BenchmarkProcess beginning %s" % str(self.problemType))
 
     # read initial solution parameters
-    solutionConfig = { "ProblemType": problemTypeConfig }
+    self.initialSolutionParameters = { "ProblemType": problemTypeConfig }
+    self.initialSolutionParameters.update(defaultSolution)
     if "InitialSolutionParameters" not in config:
       print2("No InitialSolutionParameters; using defaults.")
     else:
-      solutionConfig.update(config["InitialSolutionParameters"])
-    self.initialSolutionParameters = Solution(solutionConfig)
+      if config["InitialSolutionParameters"] != None:
+        for paramDict in config["InitialSolutionParameters"]:
+          for paramName in paramDict:
+            paramValueList = paramDict[paramName]
+            if isinstance(paramValueList, list):
+              if len(paramValueList) != 1:
+                printWarning("InitialSolutionParameters must have length=1: %s:%s" % (paramName, paramValueList))
+              self.initialSolutionParameters[paramName] = paramValueList[0]
+            else:
+              self.initialSolutionParameters[paramName] = paramValueList
     print2("# InitialSolutionParameters: %s" % str(self.initialSolutionParameters))
 
     # fill in missing steps using defaults
@@ -219,6 +228,7 @@ class BenchmarkProcess:
             #self.benchmarkCommonParameters.insert(0, {paramName: paramValues })
             self.hardcodedParameters[0][paramName] = paramValues[0]
             self.singleValueParameters[paramName] = [ paramValues[0] ]
+            self.initialSolutionParameters[paramName] = paramValues[0]
             if len(paramDict) == 0:
               stepList.remove(paramDict)
 
@@ -488,7 +498,7 @@ class BenchmarkProcess:
     benchmarkStep = BenchmarkStep(
         self.hardcodedParameters,
         currentBenchmarkParameters,
-        self.initialSolutionParameters.state,
+        self.initialSolutionParameters,
         self.currentProblemSizes,
         self.benchmarkStepIdx )
     self.benchmarkSteps.append(benchmarkStep)
@@ -518,7 +528,7 @@ class BenchmarkProcess:
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
             currentBenchmarkParameters,
-            self.initialSolutionParameters.state,
+            self.initialSolutionParameters,
             self.currentProblemSizes,
             self.benchmarkStepIdx )
         self.benchmarkSteps.append(benchmarkStep)

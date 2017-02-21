@@ -220,7 +220,8 @@ def benchmarkProblemType( config ):
         for j in range(0, len(solutionsForHardcoded)):
           solution = solutionsForHardcoded[j]
           print2("#    (%u:%u) %s" % (i, j, \
-              Solution.getNameMin(solution, solutionsMinNaming) ))
+              #Solution.getNameMin(solution, solutionsMinNaming) ))
+              Solution.getNameFull(solution) ))
       print2(HR)
 
     # write benchmarkFiles

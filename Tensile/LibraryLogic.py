@@ -265,7 +265,6 @@ class BenchmarkDataAnalyzer:
         for i in range(problemSizeStartIdx, totalSizeIdx):
           problemSize.append(int(row[i]))
         problemIndices = []
-        print2("NumIndices: %u" % self.numIndices)
         for i in range(0, self.numIndices):
           problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
         serialIdx = self.indicesToSerial(0, problemIndices)
