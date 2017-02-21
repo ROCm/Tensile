@@ -27,8 +27,8 @@ parallel rocm_fiji: {
   node('rocm-1.3 && fiji')
   {
     def scm_dir = pwd()
-    def build_dir_debug = "${scm_dir}/../build/debug"
-    def build_dir_release = "${scm_dir}/../build/release"
+    def build_dir_debug = "${scm_dir}/test/debug"
+    def build_dir_release = "${scm_dir}/test/release"
 
     // Run the containers preperation script
     // Note, exported environment variables do not live outside of sh step
@@ -44,53 +44,37 @@ parallel rocm_fiji: {
       }
 
       withEnv(["PATH=${PATH}:/opt/rocm/bin"]) {
-
         // Record important versions of software layers we use
         sh '''clang++ --version
               cmake --version
               hcc --version
               hipconfig --version
-        '''
+           '''
 
-      dir("${build_dir_release}") {
-        //stage("configure clang release") {
-          // withEnv(['CXXFLAGS=-I /usr/include/c++/4.8 -I /usr/include/x86_64-linux-gnu/c++/4.8  -I /usr/include/x86_64-linux-gnu', 'HIP_PATH=/opt/rocm/hip']) {
-          // --amdgpu-target=AMD:AMDGPU:8:0:3
-        //    sh "cmake -DCMAKE_BUILD_TYPE=Release ${scm_dir}"
-          // }
-        //}
-
-        //stage("Build") {
-          // withEnv(['HCC_AMDGPU_TARGET=AMD:AMDGPU:7:0:1,AMD:AMDGPU:8:0:3']) {
-        //    sh 'make -j 8'
-          // }
-        //}
-
-        stage("unit tests") {
-          sh """
-          pwd
-          echo ${scm_dir}
-          sudo python ${scm_dir}/setup.py install --record tensile_installed_files.txt
-          cat tensile_installed_files.txt
-          which tensile
-          #curl -O http://pyyaml.org/download/pyyaml/PyYAML-3.12.tar.gz
-          #tar xvzf PyYAML-3.12.tar.gz
-          #cd PyYAML-3.12/
-          #sudo python setup.py --without-libyaml install
-          #cd ../
-          """
-
-          sh "tensile ${scm_dir}/Samples/jenkins_sgemm_defaults.yaml ${scm_dir}/../sgemm_defaults"
-          sh "tensile ${scm_dir}/Samples/jenkins_dgemm_defaults.yaml ${scm_dir}/../dgemm_defaults"
+        // install Tensile
+        dir("${scm_dir}") {
+          sh '''
+            pwd
+            ls -l
+            sudo apt-get update
+            sudo apt-get install python-setuptools
+            sudo python setup.py install
+          '''
         }
 
+        // run jenkins tests
+        dir("${build_dir_release}") {
+          stage("unit tests") {
+           sh "tensile ../../Tensile/Configs/jenkins_sgemm_defaults.yaml sgemm_defaults"
+           sh "tensile ../../Tensile/Configs/jenkins_dgemm_defaults.yaml dgemm_defaults"
+          }
         }
       }
     }
-  }
-  catch( err )
-  {
+    catch( err )
+    {
       currentBuild.result = "FAILURE"
       throw err
-  }
+    }
+  } // node
 }
