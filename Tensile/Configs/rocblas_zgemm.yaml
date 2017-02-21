@@ -6,7 +6,7 @@ Parameters:
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
+  SyncsPerBenchmark: 8
   LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 16
