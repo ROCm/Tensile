@@ -1,5 +1,5 @@
 Parameters:
-  Name: rocBLAS
+  Name: Fiji
   PrintLevel: 1
   ForceRedoBenchmarkProblems: False
   ForceRedoLibraryLogic: True
