@@ -888,14 +888,15 @@ class SolutionWriter:
 
     # Compiler may be causing incorrect reads on ROCm1.4 from DT on 2/21/17
     # TODO is this a bug in KernelWriter, check against later ROCm's
-    #if globalParameters["Backend"] == "HIP":
-      #if solution["WorkGroupEdge"] == 16:
-      #  if solution["ThreadTileEdge"] == 8:
-      #    if solution["NumLoadsCoalescedA"] != 1 and solution["NumLoadsCoalescedB"] != 8:
-      #      return False
     if globalParameters["Backend"] == "HIP":
-      if solution["ThreadTileEdge"] > 7:
-        return False
+      if solution["ProblemType"]["DataType"].value == DataType.single:
+        if solution["MacroTile0"] == 128 or solution["MacroTile1"] == 128:
+          if solution["NumLoadsCoalescedA"] != 1 and solution["NumLoadsCoalescedB"] != 8:
+            return False
+      elif solution["ProblemType"]["DataType"].value == DataType.double:
+        if globalParameters["Backend"] == "HIP":
+          if solution["MacroTile0"] == 128 or solution["MacroTile1"] == 128:
+            return False
 
     return True
 
