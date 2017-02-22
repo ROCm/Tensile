@@ -103,6 +103,9 @@ def Tensile(userArgs):
   sys.exit(0)
 
 
+def TensileConfigPath(*args):
+  return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Configs", *args)
+
 ################################################################################
 # Entry points
 ################################################################################
@@ -110,37 +113,27 @@ def Tensile(userArgs):
 
 # installed "tensile_rocblas_sgemm" command
 def TensileROCBLASSGEMM():
-  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-      "Configs", "rocblas_sgemm.yaml")
-  Tensile([configPath, "."])
+  Tensile([TensileConfigPath("rocblas_sgemm.yaml"), "."])
 
 
 # installed "tensile_rocblas_dgemm" command
 def TensileROCBLASDGEMM():
-  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-      "Configs", "rocblas_dgemm.yaml")
-  Tensile([configPath, "."])
+  Tensile([TensileConfigPath("rocblas_dgemm.yaml"), "."])
 
 
 # installed "tensile_rocblas_cgemm" command
 def TensileROCBLASCGEMM():
-  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-      "Configs", "rocblas_cgemm.yaml")
-  Tensile([configPath, "."])
+  Tensile([TensileConfigPath("rocblas_cgemm.yaml"), "."])
 
 
 # installed "tensile_rocblas_zgemm" command
 def TensileROCBLASZGEMM():
-  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-      "Configs", "rocblas_zgemm.yaml")
-  Tensile([configPath, "."])
+  Tensile([TensileConfigPath("rocblas_zgemm.yaml"), "."])
 
 
 # installed "tensile_sgemm" command
 def TensileSGEMM5760():
-  configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-      "Configs", "sgemm_5760.yaml")
-  Tensile([configPath, "."])
+  Tensile([TensileConfigPath("sgemm_5760.yaml"), "."])
 
 
 # installed "tensile" command

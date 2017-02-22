@@ -5,7 +5,16 @@
 # - installs TensileConfig.cmake so one call find_package(Tensile)
 ################################################################################
 from setuptools import setup
-import sys
+
+def get_requires(filename):
+    requirements = []
+    with open(filename) as req_file:
+        for line in req_file.read().splitlines():
+            if not line.strip().startswith("#"):
+                requirements.append(line)
+    return requirements
+
+project_requires = get_requires("requirements.txt")
 
 setup(
   name="Tensile",
@@ -14,7 +23,7 @@ setup(
   url="https://github.com/RadeonOpenCompute/Tensile",
   author="Advanced Micro Devices",
   license="MIT",
-  install_requires=["pyyaml"],
+  install_requires=project_requires,
   packages=["Tensile"],
   package_data={ "Tensile": ["Tensile/Source/*", "Tensile/Configs/*"] },
   data_files=[ ("cmake", ["Tensile/Source/TensileConfig.cmake"]) ], 
