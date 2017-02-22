@@ -3,8 +3,10 @@ import os.path
 import array
 import csv
 
-from Common import *
-from SolutionStructs import *
+from copy import deepcopy
+
+from Common import print1, print2, printWarning, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault
+from SolutionStructs import Solution
 import YAMLIO
 
 ################################################################################

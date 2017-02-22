@@ -2,7 +2,6 @@ import os.path
 import sys
 import inspect
 from collections import OrderedDict
-from sets import Set
 
 # print level
 # 0 - user wants no printing

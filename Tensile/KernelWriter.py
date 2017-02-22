@@ -19,13 +19,8 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import os
-import sys
-import argparse
-import copy
-
-from SolutionStructs import *
-
+from SolutionStructs import Solution, DataType
+from Common import globalParameters
 
 ################################################################################
 # Make OpenCL Kernel String

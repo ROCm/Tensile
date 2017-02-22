@@ -1,9 +1,9 @@
 # This script only gets called by CMake
-from Common import *
-from SolutionStructs import *
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters
+from SolutionStructs import Solution
 import YAMLIO
-from SolutionWriter import *
-from KernelWriter import *
+from SolutionWriter import SolutionWriter
+from KernelWriter import KernelWriter
 
 import os
 import os.path

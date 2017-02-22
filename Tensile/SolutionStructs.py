@@ -20,8 +20,7 @@
 ################################################################################
 
 
-from Common import *
-import sys
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derrivedParameters
 from copy import deepcopy
 
 ################################################################################
