@@ -97,14 +97,8 @@ class KernelWriter:
         = "0" + indexChars[kernel["ProblemType"]["Index0"]]
     indexChars[kernel["ProblemType"]["Index1"]] \
         = "1" + indexChars[kernel["ProblemType"]["Index1"]]
-    unrollChar = indexChars[kernel["ProblemType"]["IndicesSummation"][ \
-        kernel["ProblemType"]["NumIndicesSummation"]-1]]
     tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
     tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
-    tileCharA = tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) else tileChar1
-    tileCharB = tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) else tileChar1
-    tensorChar0 = "A" if (kernel["ProblemType"]["Tensor0"]==0) else "B"
-    tensorChar1 = "A" if (kernel["ProblemType"]["Tensor1"]==0) else "B"
 
     s = ""
     # kernel name

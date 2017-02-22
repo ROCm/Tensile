@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution
+from SolutionStructs import Solution, DataType
 from KernelWriter import KernelWriter
 from Common import globalParameters, print2
 
@@ -676,10 +676,7 @@ class SolutionWriter:
   # getHeaderString
   ##############################################################################
   def getHeaderString(self, solution):
-    solutionName = self.getSolutionName(solution)
     s = ""
-    #s += "#ifndef " + solutionName.upper() + "_H\n"
-    #s += "#define " + solutionName.upper() + "_H\n\n"
     if not globalParameters["MergeFiles"]:
       s += "#pragma once\n\n"
       s += "#include \"TensileTypes.h\"\n"
@@ -854,28 +851,28 @@ class SolutionWriter:
       if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
           % (totalElementsParaA, solution["NumLoadsCoalescedA"]))
       return False
-    else:
-      loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
+    #else:
+    #  loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
     if totalElementsPerpA % solution["NumLoadsPerpendicularA"] != 0:
       if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
           % (totalElementsPerpA, solution["NumLoadsPerpendicularA"]))
       return False
-    else:
-      loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
+    #else:
+    #  loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
 
     # load size para/perp B
     if totalElementsParaB % solution["NumLoadsCoalescedB"] != 0:
       if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
           % (totalElementsParaB, solution["NumLoadsCoalescedB"]))
       return False
-    else:
-      loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
+    #else:
+    #  loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
     if totalElementsPerpB % solution["NumLoadsPerpendicularB"] != 0:
       if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
           % (totalElementsPerpB, solution["NumLoadsPerpendicularB"]))
       return False
-    else:
-      loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
+    #else:
+    #  loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
 
     # too much LDS
     sizeLDS = solution["LoopUnroll"] \

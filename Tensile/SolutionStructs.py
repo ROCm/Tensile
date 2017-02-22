@@ -689,8 +689,6 @@ class Solution:
   @ staticmethod
   def getParametersIndented(state, indent):
     s = ""
-    first = True
-    # put problem first
     s += "%sProblemType: %s\n" % (indent, str(state["ProblemType"]))
     for key in state:
       s += "%s%s: %s\n" % (indent, str(key), str(state[key]))

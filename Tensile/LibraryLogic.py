@@ -34,7 +34,7 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
   print2(HR)
 
   # Read Data From CSV
-  numProblemSizes = problemSizes.numProblemSizes
+  #numProblemSizes = problemSizes.numProblemSizes
   data = BenchmarkDataAnalyzer(problemType, problemSizes, solutions, \
       analysisParameters)
   data.populateFromCSV(dataFileName)
@@ -273,7 +273,7 @@ class BenchmarkDataAnalyzer:
         #print "%s -> %s -> %u" % (problemSize, problemIndices, serialIdx)
 
         # total size
-        totalFlops = float(row[totalSizeIdx])
+        #totalFlops = float(row[totalSizeIdx])
 
         # data
         solutionIdx = 0
@@ -427,8 +427,8 @@ class BenchmarkDataAnalyzer:
       idxLarge, idxSmall):
     idx0 = self.idx0
     idx1 = self.idx1
-    idxU = self.idxU
-    dilation = self.analysisParameters["Dilation"]
+    #idxU = self.idxU
+    #dilation = self.analysisParameters["Dilation"]
     threshold = self.analysisParameters["Threshold"]
 
     skinnyRules = []
@@ -438,7 +438,7 @@ class BenchmarkDataAnalyzer:
       diagonalRule = diagonalRules[diagonalRuleIdx]
       diagonalRuleWinnerIdx = diagonalRule[0]
       diagonalRuleThresholdProblem = diagonalRule[1]
-      diagonalRuleGFlops = diagonalRule[2] # perf at threshold
+      #diagonalRuleGFlops = diagonalRule[2] # perf at threshold
       thresholdSizeFree = self.getSizeFree(diagonalRuleThresholdProblem)
       print2("ThresholdSizeFree[%u][%u]: %u" \
           % (diagonalRuleThresholdProblem[idx0], \
