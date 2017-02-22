@@ -6,7 +6,6 @@
 ################################################################################
 from setuptools import setup
 import sys
-import os.path
 
 setup(
   name="Tensile",
@@ -18,7 +17,7 @@ setup(
   install_requires=["pyyaml"],
   packages=["Tensile"],
   package_data={ "Tensile": ["Tensile/Source/*", "Tensile/Configs/*"] },
-  data_files=[ (os.path.join(sys.exec_prefix, "cmake"), ["Tensile/Source/TensileConfig.cmake"]) ], 
+  data_files=[ ("cmake", ["Tensile/Source/TensileConfig.cmake"]) ], 
   include_package_data=True,
   entry_points={"console_scripts": [
     # user runs a benchmark
