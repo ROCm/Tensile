@@ -7,13 +7,13 @@ from shutil import rmtree
 import csv
 from subprocess import Popen
 
-from BenchmarkStructs import *
-from Common import *
-from SolutionStructs import *
-from SolutionWriter import *
-from KernelWriter import *
-from ClientWriter import *
-from TensileCreateLibrary import *
+from BenchmarkStructs import BenchmarkProcess
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath
+from SolutionStructs import Solution, ProblemType
+from SolutionWriter import SolutionWriter
+from KernelWriter import KernelWriter
+from ClientWriter import writeRunScript, writeClientParameters
+from TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 import YAMLIO
 
 

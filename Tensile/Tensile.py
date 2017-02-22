@@ -23,7 +23,7 @@ import os
 import sys
 import argparse
 
-from Common import *
+from Common import globalParameters, print1, ensurePath, assignGlobalParameters
 import YAMLIO
 import BenchmarkProblems
 import LibraryLogic

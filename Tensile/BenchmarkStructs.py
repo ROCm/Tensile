@@ -1,8 +1,9 @@
-import sys
-from copy import *
+# import sys
+# from copy import *
 
-from Common import *
-from SolutionStructs import *
+from copy import copy, deepcopy
+from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit
+from SolutionStructs import Solution, ProblemType, ProblemSizes
 
 ################################################################################
 # Benchmark Process

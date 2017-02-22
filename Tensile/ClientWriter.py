@@ -1,10 +1,9 @@
-from Common import *
-from SolutionStructs import *
-from SolutionWriter import *
-from KernelWriter import *
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader
+from SolutionStructs import Solution
+from SolutionWriter import SolutionWriter
+from KernelWriter import KernelWriter
 import YAMLIO
 
-import sys
 import os
 from subprocess import Popen
 from shutil import copy as shutil_copy
