@@ -1,12 +1,12 @@
 Parameters:
-  Name: rocBLAS
+  Name: Fiji
   PrintLevel: 1
   ForceRedoBenchmarkProblems: False
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
+  SyncsPerBenchmark: 8
   LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 16
@@ -41,8 +41,8 @@ BenchmarkProblems:
       - ThreadTileShape: [ 0 ]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
     BenchmarkForkParameters:
       - LoopUnroll: [8, 16]
     JoinParameters:
@@ -76,8 +76,8 @@ BenchmarkProblems:
       - ThreadTileEdge: [2, 4, 6, 8]
       - ThreadTileShape: [ 0 ]
     BenchmarkForkParameters:
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
       - LoopUnroll: [8, 16]
     JoinParameters:
       - MacroTile
@@ -110,8 +110,8 @@ BenchmarkProblems:
       - ThreadTileEdge: [2, 4, 6, 8]
       - ThreadTileShape: [ 0 ]
     BenchmarkForkParameters:
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
       - LoopUnroll: [8, 16]
     JoinParameters:
       - MacroTile
@@ -144,8 +144,8 @@ BenchmarkProblems:
       - ThreadTileEdge: [2, 4, 6, 8]
       - ThreadTileShape: [ 0 ]
     BenchmarkForkParameters:
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
       - LoopUnroll: [8, 16]
     JoinParameters:
       - MacroTile
