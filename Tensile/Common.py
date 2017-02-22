@@ -30,8 +30,8 @@ globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"
 globalParameters["LibraryClientPath"] = "4_LibraryClient"
 # device
-globalParameters["PlatformIdx"] = 0
-globalParameters["DeviceIdx"] = 0
+globalParameters["Platform"] = 0
+globalParameters["Device"] = 0
 # benchmark behavior
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["ForceRedoBenchmarkProblems"] = True

@@ -557,9 +557,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "TensileStatus status;\n"
   if globalParameters["Backend"] == "OCL":
     h += "unsigned int platformIdx = %u;\n" \
-        % (globalParameters["PlatformIdx"])
+        % (globalParameters["Platform"])
     h += "unsigned int deviceIdx = %u;\n" \
-        % (globalParameters["DeviceIdx"])
+        % (globalParameters["Device"])
     h += "cl_platform_id platform;\n"
     h += "cl_device_id device;\n"
     h += "cl_context context;\n"
@@ -567,7 +567,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   else:
     h += "hipStream_t stream;\n"
     h += "int deviceIdx = %u;\n" \
-        % (globalParameters["DeviceIdx"])
+        % (globalParameters["Device"])
   h += "\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"

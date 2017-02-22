@@ -1,4 +1,4 @@
-Parameters:
+GlobalParameters:
   PrintLevel: 1
   ForceRedoBenchmarkProblems: False
   ForceRedoLibraryLogic: True
@@ -12,8 +12,8 @@ Parameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  PlatformIdx: 0
-  DeviceIdx: 0
+  Platform: 0
+  Device: 0
   DataInitType: 0
 
 BenchmarkProblems:

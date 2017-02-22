@@ -28,17 +28,9 @@ import YAMLIO
 import BenchmarkProblems
 import LibraryLogic
 import ClientWriter
+from __init__ import __version__
 
 def executeStepsInConfig( config ):
-  # ensure working directory exists
-  ensurePath(globalParameters["WorkingPath"])
-
-
-  if "Parameters" in config:
-    assignGlobalParameters( config["Parameters"] )
-  else:
-    assignGlobalParameters({})
-  print1("")
 
   ##############################################################################
   # Benchmark Problems
@@ -88,17 +80,61 @@ def executeStepsInConfig( config ):
 # Tensile - below entry points call here
 ################################################################################
 def Tensile(userArgs):
-  argParser = argparse.ArgumentParser()
-  argParser.add_argument("ConfigFilePath", \
-      help="Path to top-level config.yaml file")
-  argParser.add_argument("OutputPath", \
-      help="Where to build and run benchmark steps.")
-  args = argParser.parse_args(userArgs)
-  globalParameters["WorkingPath"] = os.path.abspath(args.OutputPath)
 
-  configPath = os.path.realpath( args.ConfigFilePath )
-  print("Tensile::Main ConfigFile: %s" % (configPath) )
+  # setup argument parser
+  argParser = argparse.ArgumentParser()
+  argParser.add_argument("config_file", \
+      help="benchmark config.yaml file")
+  argParser.add_argument("output_path", \
+      help="path where to conduct benchmark")
+  argParser.add_argument("--version", action="version", \
+      version="%(prog)s {version}".format(version=__version__))
+  argParser.add_argument("-d", "--device", dest="device", type=int, \
+      help="override which device to benchmark")
+  argParser.add_argument("-p", "--platform", dest="platform", type=int, \
+      help="override which OpenCL platform to benchmark")
+  argParser.add_argument("-b", "--backend", dest="backend", \
+      choices=["HIP", "OCL"], help="override which backend to use")
+  argParser.add_argument("-v", "--verbose", action="store_true", \
+      help="set PrintLevel=2 and LibraryPrintDebug=True")
+  argParser.add_argument("--debug", action="store_true", \
+      help="set PrintLevel=2, LibraryPrintDebug=True and CMakeBuildType=Debug")
+
+  # parse arguments
+  args = argParser.parse_args(userArgs)
+  globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
+  configPath = os.path.realpath( args.config_file)
+  print1("# ConfigFile: %s" % (configPath) )
   config = YAMLIO.readConfig( configPath )
+  ensurePath(globalParameters["WorkingPath"])
+
+  # assign global parameters
+  if "GlobalParameters" in config:
+    assignGlobalParameters( config["GlobalParameters"] )
+  else:
+    assignGlobalParameters({})
+
+  # override config with command-line options
+  if args.device:
+    print1("# Command-line override: Device")
+    globalParameters["Device"] = args.device
+  if args.platform:
+    print1("# Command-line override: Platform")
+    globalParameters["Platform"] = args.platform
+  if args.backend:
+    print1("# Command-line override: Backend")
+    globalParameters["Backend"] = args.backend
+  if args.verbose:
+    print1("# Command-line override: PrintLevel")
+    globalParameters["PrintLevel"] = 2
+    globalParameters["LibraryPrintDebug"] = True
+  if args.debug:
+    print1("# Command-line override: Debug")
+    globalParameters["PrintLevel"] = 2
+    globalParameters["LibraryPrintDebug"] = True
+    globalParameters["CMakeBuildType"] = "Debug"
+
+  print1("")
   executeStepsInConfig( config )
   sys.exit(0)
 
