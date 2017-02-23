@@ -883,8 +883,7 @@ class SolutionWriter:
       if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
       return False
 
-    # Compiler may be causing incorrect reads on ROCm1.4 from DT on 2/21/17
-    # TODO is this a bug in KernelWriter, check against later ROCm's
+    # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
     if globalParameters["Backend"] == "HIP":
       if solution["ProblemType"]["DataType"].value == DataType.single:
         if solution["MacroTile0"] == 128 or solution["MacroTile1"] == 128:
@@ -892,8 +891,19 @@ class SolutionWriter:
             return False
       elif solution["ProblemType"]["DataType"].value == DataType.double:
         if globalParameters["Backend"] == "HIP":
-          if solution["MacroTile0"] == 128 or solution["MacroTile1"] == 128:
+          if solution["MacroTile0"] >= 64 or solution["MacroTile1"] >= 64:
             return False
+# validation failures
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA04_NLCB02_NLPA04_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB04_NLPA08_NLPB04_TT008_TT108_TTE08_WG008_WG108_WGE08
+
+# Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA04_NLCB01_NLPA04_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB01_NLPA08_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB01_NLPA01_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB08_NLPA01_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA08_NLCB08_NLPA02_NLPB02_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB08_NLPA08_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
 
     return True
 

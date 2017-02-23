@@ -93,7 +93,7 @@ def main( config ):
   process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
   process.communicate()
   if process.returncode:
-    printExit("Benchmark Process exited with code %u" % process.returncode)
+    printWarning("Benchmark Process exited with code %u" % process.returncode)
   popWorkingPath() # build
 
   popWorkingPath() # LibraryClient

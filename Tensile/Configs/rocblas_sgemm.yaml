@@ -106,7 +106,7 @@ BenchmarkProblems:
       - WorkGroupEdge: [8, 16]
       - WorkGroupShape: [ 0 ]
       - ThreadTileEdge: [2, 4, 6, 8]
-      - ThreadTileShape: [ 0 ]
+      - ThreadTileShape: [ 0, 1 ]
       - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
       - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
       - LoopUnroll: [8, 16]
