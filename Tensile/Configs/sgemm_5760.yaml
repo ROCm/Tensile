@@ -1,18 +1,20 @@
 # benchmark MANY kernel for the 5760 size
-Parameters:
-  DebugPrintLevel: 2
-  ForceRedo: True
+GlobalParameters:
+  PrintLevel: 2
+  ForceRedoBenchmarkProblems: False
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  SolutionPrintDebug: False
+  LibraryPrintDebug: False
   NumElementsToValidate: 0
   ValidationMaxToPrint: 16
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  PlatformIdx: 0
-  DeviceIdx: 0
+  Platform: 0
+  Device: 0
 
 BenchmarkProblems:
   # sgemm NN
@@ -26,7 +28,6 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - WorkGroupShape: [0]
       - SplitU: [1]
       - EdgeType: ["Branch"]
       - LoopDoWhile: [False]
@@ -34,16 +35,16 @@ BenchmarkProblems:
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
     ForkParameters:
+      - WorkGroupShape: [0, 1]
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [4, 6, 8]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
+      - ThreadTileEdge: [ 8 ]
+      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
-      - DepthU
     #BenchmarkJoinParameters:
     BenchmarkFinalParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
@@ -76,7 +77,6 @@ BenchmarkProblems:
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
-      - DepthU
     #BenchmarkJoinParameters:
     BenchmarkFinalParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
@@ -92,7 +92,6 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - WorkGroupShape: [0]
       - SplitU: [1]
       - EdgeType: ["Branch"]
       - LoopDoWhile: [False]
@@ -100,6 +99,7 @@ BenchmarkProblems:
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
     ForkParameters:
+      - WorkGroupShape: [0, 1]
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [4, 6, 8]
@@ -109,7 +109,6 @@ BenchmarkProblems:
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
-      - DepthU
     #BenchmarkJoinParameters:
     BenchmarkFinalParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
@@ -125,7 +124,6 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - WorkGroupShape: [0]
       - SplitU: [1]
       - EdgeType: ["Branch"]
       - LoopDoWhile: [False]
@@ -133,6 +131,7 @@ BenchmarkProblems:
         EdgeMultiKernel: [False]
       - WorkGroupSchedule: [ 1 ]
     ForkParameters:
+      - WorkGroupShape: [0, 1]
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [4, 6, 8]
@@ -142,7 +141,6 @@ BenchmarkProblems:
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
-      - DepthU
     #BenchmarkJoinParameters:
     BenchmarkFinalParameters:
       - ProblemSizes: [ [5760], 0, 0 ]

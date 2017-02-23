@@ -22,6 +22,7 @@ int main( int argc, char *argv[] ) {
   // init data
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
+  bool invalids;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
@@ -35,10 +36,10 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_float, &initialA_float, &initialB_float, &alpha_float,
         &beta_float, &referenceC_float, &deviceOnHostC_float);
 #if Tensile_CLIENT_BENCHMARK
-    benchmarkProblemSizes(initialC_float, initialA_float, initialB_float,
+    invalids = benchmarkProblemSizes(initialC_float, initialA_float, initialB_float,
         alpha_float, beta_float, referenceC_float, deviceOnHostC_float);
 #else
-    callLibrary(initialC_float, initialA_float, initialB_float, alpha_float,
+    invalids = callLibrary(initialC_float, initialA_float, initialB_float, alpha_float,
         beta_float, referenceC_float, deviceOnHostC_float);
 #endif
     destroyData(initialC_float, initialA_float, initialB_float,
@@ -58,10 +59,10 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_double, &initialA_double, &initialB_double,
         &alpha_double, &beta_double, &referenceC_double, &deviceOnHostC_double);
 #if Tensile_CLIENT_BENCHMARK
-    benchmarkProblemSizes(initialC_double, initialA_double, initialB_double,
+    invalids = benchmarkProblemSizes(initialC_double, initialA_double, initialB_double,
         alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
 #else
-    callLibrary(initialC_double, initialA_double, initialB_double,
+    invalids = callLibrary(initialC_double, initialA_double, initialB_double,
         alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
 #endif
     destroyData(initialC_double, initialA_double, initialB_double,
@@ -81,10 +82,10 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_TCF, &initialA_TCF, &initialB_TCF, &alpha_TCF,
         &beta_TCF, &referenceC_TCF, &deviceOnHostC_TCF);
 #if Tensile_CLIENT_BENCHMARK
-    benchmarkProblemSizes(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
+    invalids = benchmarkProblemSizes(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
         beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
 #else
-    callLibrary(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
+    invalids = callLibrary(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
         beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
 #endif
     destroyData(initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
@@ -104,10 +105,10 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
         &beta_TCD, &referenceC_TCD, &deviceOnHostC_TCD);
 #if Tensile_CLIENT_BENCHMARK
-    benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
+    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
         beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
 #else
-    callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
+    invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
         referenceC_TCD, deviceOnHostC_TCD_TCD);
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
@@ -130,7 +131,11 @@ int main( int argc, char *argv[] ) {
   std::cout << functionNames[fastestIdx];
 #endif
   std::cout << std::endl;
-
+  if (invalids) {
+    return EXIT_FAILURE;
+  } else {
+    return EXIT_SUCCESS;
+  }
 } // main
 
 

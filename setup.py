@@ -5,25 +5,30 @@
 # - installs TensileConfig.cmake so one call find_package(Tensile)
 ################################################################################
 from setuptools import setup
+import sys
+import os.path
+import re
 
-def get_requires(filename):
-    requirements = []
-    with open(filename) as req_file:
-        for line in req_file.read().splitlines():
-            if not line.strip().startswith("#"):
-                requirements.append(line)
-    return requirements
+def readRequirementsFromTxt():
+  requirements = []
+  with open("requirements.txt") as req_file:
+    for line in req_file.read().splitlines():
+      if not line.strip().startswith("#"):
+        requirements.append(line)
+  return requirements
 
-project_requires = get_requires("requirements.txt")
+def readVersionFromInit():
+  fileStr = open(os.path.join("Tensile", "__init__.py")).read()
+  return re.search("__version__ = ['\"]([^'\"]+)['\"]", fileStr).group(1)
 
 setup(
   name="Tensile",
-  version="2.0",
+  version=readVersionFromInit(),
   description="An auto-tuning tool for GEMMs and higher-dimensional tensor contractions on GPUs.",
   url="https://github.com/RadeonOpenCompute/Tensile",
   author="Advanced Micro Devices",
   license="MIT",
-  install_requires=project_requires,
+  install_requires=readRequirementsFromTxt(),
   packages=["Tensile"],
   package_data={ "Tensile": ["Tensile/Source/*", "Tensile/Configs/*"] },
   data_files=[ ("cmake", ["Tensile/Source/TensileConfig.cmake"]) ], 

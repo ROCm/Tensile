@@ -1,7 +1,6 @@
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printExit
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
-from KernelWriter import KernelWriter
 import YAMLIO
 
 import os
@@ -35,7 +34,6 @@ def main( config ):
       ]
 
   for f in filesToCopy:
-    filename = os.path.join(globalParameters["SourcePath"], f)
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
@@ -93,7 +91,9 @@ def main( config ):
 
   # run runScript
   process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-  status = process.communicate()
+  process.communicate()
+  if process.returncode:
+    printWarning("Benchmark Process exited with code %u" % process.returncode)
   popWorkingPath() # build
 
   popWorkingPath() # LibraryClient
@@ -165,7 +165,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Min Naming
   ##############################################################################
   if forBenchmark:
-    kernelNames = []
     kernels = []
     for solution in solutions:
       solutionKernels = solution.getKernels()
@@ -180,8 +179,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     solutionWriter = SolutionWriter( \
         solutionMinNaming, solutionSerialNaming, \
         kernelMinNaming, kernelSerialNaming)
-    kernelWriter = KernelWriter( \
-        kernelMinNaming, kernelSerialNaming)
 
   if forBenchmark:
     if globalParameters["MergeFiles"]:
@@ -189,11 +186,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     else:
       for solution in solutions:
         solutionName = solutionWriter.getSolutionName(solution)
-        #if globalParameters["ShortNames"]:
-        #  solutionFileName = \
-        #      Solution.getNameSerial(solution, solutionSerialNaming)
-        #else:
-        #  solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
         h += "#include \"" + solutionName + ".h\"\n"
     h += "\n"
   else:
@@ -279,8 +271,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         functionIdxForProblemType = 0
         for functionIdxForProblemType in range(0, \
             len(schedulesForProblemType[problemType])):
-          schedule = \
-              schedulesForProblemType[problemType][functionIdxForProblemType]
           functionInfo.append([ \
               dataTypeIdxSerial, \
               problemTypeIdxForDataType, \
@@ -292,7 +282,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           functionIdxForProblemType += 1
           functionIdxForDataType += 1
           functionIdxSerial += 1
-      problemTypeIdxSerial += 1
+        problemTypeIdxSerial += 1
     numProblemTypes = problemTypeIdxSerial
     numFunctions = functionIdxSerial
     h += "const unsigned int numFunctions = %u;\n" % numFunctions
@@ -360,7 +350,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
-        h += ", -1"
+        h += ", static_cast<unsigned int>(-1)"
     if problemTypeIdx < numProblemTypes-1:
       h += " },\n"
     else:
@@ -376,7 +366,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
-        h += ", -1"
+        h += ", static_cast<unsigned int>(-1)"
     if problemTypeIdx < numProblemTypes-1:
       h += " },\n"
     else:
@@ -557,9 +547,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "TensileStatus status;\n"
   if globalParameters["Backend"] == "OCL":
     h += "unsigned int platformIdx = %u;\n" \
-        % (globalParameters["PlatformIdx"])
+        % (globalParameters["Platform"])
     h += "unsigned int deviceIdx = %u;\n" \
-        % (globalParameters["DeviceIdx"])
+        % (globalParameters["Device"])
     h += "cl_platform_id platform;\n"
     h += "cl_device_id device;\n"
     h += "cl_context context;\n"
@@ -567,7 +557,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   else:
     h += "hipStream_t stream;\n"
     h += "int deviceIdx = %u;\n" \
-        % (globalParameters["DeviceIdx"])
+        % (globalParameters["Device"])
   h += "\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"

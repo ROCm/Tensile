@@ -40,10 +40,11 @@ unsigned int fastestIdx = 0;
 
 /*******************************************************************************
  * Call Library
+ * return true if errors/invalids
  ******************************************************************************/
 #if Tensile_CLIENT_LIBRARY
 template<typename DataType>
-void callLibrary(
+bool callLibrary(
     DataType *initialC,
     DataType *initialA,
     DataType *initialB,
@@ -134,12 +135,10 @@ void callLibrary(
             std::cout << "  Device | Reference" << std::endl;
             firstPrint = false;
           }
-          std::cout << i << ": " << tensileToString(deviceOnHostC[i])
+          std::cout << "[" << (numChecked-1) << "] " << i << ": " << tensileToString(deviceOnHostC[i])
             << (equal ? "==" : "!=") << tensileToString(referenceC[i])
             << std::endl;
           printIdx++;
-        } else {
-          break;
         }
       }
     } // compare loop
@@ -184,9 +183,7 @@ void callLibrary(
       << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
-  }
-#if 1
-  else {
+  } else {
     std::cout << "Function[" << functionIdx << "/" << numFunctions << "]:"
       << std::setw(10) << std::fixed << std::setprecision(3)
       << gflops << " GFlop/s";
@@ -202,18 +199,18 @@ void callLibrary(
       }
       std::cout << std::endl;
   }
-#endif
-
+  return (numInvalids > 0);
 } // callLibrary
 #endif
 
 
 /*******************************************************************************
  * benchmark all solutions for problem size
+ * return true if error/invalids
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
 template<typename DataType>
-void benchmarkAllSolutionsForSize(
+bool benchmarkAllSolutionsForSize(
     unsigned int problemIdx,
     unsigned int *sizes,
     DataType *initialC,
@@ -224,6 +221,7 @@ void benchmarkAllSolutionsForSize(
     DataType *referenceC,
     DataType *deviceOnHostC) {
 
+  bool returnInvalids = false;
   size_t currentSizeC = 1;
   for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
     currentSizeC *= sizes[i];
@@ -315,15 +313,14 @@ void benchmarkAllSolutionsForSize(
               std::cout << "  Device | Reference" << std::endl;
               firstPrint = false;
             }
-            std::cout << i << ": " << tensileToString(deviceOnHostC[i])
+            std::cout << "[" << (numChecked-1) << "] " << i << ": " << tensileToString(deviceOnHostC[i])
               << (equal ? "==" : "!=") << tensileToString(referenceC[i])
               << std::endl;
             printIdx++;
-          } else {
-            break;
           }
         }
       } // compare loop
+      if (numInvalids) returnInvalids = true;
     } // if numElementsToValidate > 0
 
     // time solution
@@ -383,6 +380,7 @@ void benchmarkAllSolutionsForSize(
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
   file << std::endl;
+  return returnInvalids;
 } // benchmark solutions
 #endif // benchmark client
 
@@ -392,7 +390,7 @@ void benchmarkAllSolutionsForSize(
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
 template<typename DataType>
-void benchmarkProblemSizes(
+bool benchmarkProblemSizes(
     DataType *initialC,
     DataType *initialA,
     DataType *initialB,
@@ -400,6 +398,7 @@ void benchmarkProblemSizes(
     DataType beta,
     DataType *referenceC,
     DataType *deviceOnHostC) {
+  bool returnInvalids = false;
 
   // write benchmark data column headers
   std::cout << std::endl;
@@ -477,8 +476,9 @@ void benchmarkProblemSizes(
     std::cout << std::endl;
 
     // benchmark all solutions for this problem size
-    benchmarkAllSolutionsForSize( problemIdx, fullSizes, initialC, initialA,
+    bool invalids = benchmarkAllSolutionsForSize( problemIdx, fullSizes, initialC, initialA,
         initialB, alpha, beta, referenceC, deviceOnHostC);
+    if (invalids) returnInvalids = true;
 
     // increment sizes for next benchmark
     currentSizedIndexSizes[0] += currentSizedIndexIncrements[0];
@@ -503,7 +503,7 @@ void benchmarkProblemSizes(
 
   // close file
   file.close();
-
+  return returnInvalids;
 } // benchmarkProblemSizes
 #endif // benchmark
 
@@ -663,32 +663,37 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 #endif
 
 #if Tensile_CLIENT_LIBRARY
-  if (argc < 5) {
+  if (argc < 2) {
+    std::cout << "FATAL ERROR: no FunctionIdx provided" << std::endl;
     printLibraryClientUsage(executableName);
     exit(0);
   }
   try {
     functionIdx = static_cast<unsigned int>(atoi(argv[1]));
+    if (functionIdx >= numFunctions) {
+      std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= " << "NumFunctions=" << numFunctions << std::endl;
+    }
     std::cout << "FunctionIdx: " << functionIdx << std::endl;
     dataTypeIdx = functionInfo[functionIdx][0];
     problemTypeIdx = functionInfo[functionIdx][2];
     if (static_cast<unsigned int>(argc - 2) < totalIndices[problemTypeIdx]) {
+      std::cout << "FATAL ERROR: " << totalIndices[problemTypeIdx] << " sizes required for function[" << functionIdx << "]; only " << static_cast<unsigned int>(argc - 2) << " provided." << std::endl;
       printLibraryClientUsage(executableName);
       exit(0);
     }
 
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
       userSizes[i] = static_cast<unsigned int>(atoi(argv[2+i]));
-      std::cout << "Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
+      std::cout << "  Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
     }
     if (static_cast<unsigned int>(argc) > 2+totalIndices[problemTypeIdx]) {
       numElementsToValidate = static_cast<unsigned int>(
           atoi(argv[2+totalIndices[problemTypeIdx]]));
-      std::cout << "NumElementsToValidate: " << numElementsToValidate
+      std::cout << "  NumElementsToValidate: " << numElementsToValidate
           << std::endl;
     } else {
       numElementsToValidate = defaultNumElementsToValidate;
-      std::cout << "NumElementsToValidate: " << numElementsToValidate
+      std::cout << "  NumElementsToValidate: " << numElementsToValidate
           << " (unspecified)" << std::endl;
     }
 
@@ -707,9 +712,6 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
     maxSizeA *= userSizes[indexAssignmentsA[problemTypeIdx][i]];
     maxSizeB *= userSizes[indexAssignmentsB[problemTypeIdx][i]];
   }
-  std::cout << "MaxSizeC: " << maxSizeC << std::endl;
-  std::cout << "MaxSizeA: " << maxSizeA << std::endl;
-  std::cout << "MaxSizeB: " << maxSizeB << std::endl;
 #endif
 }
 

@@ -37,7 +37,6 @@ def benchmarkProblemType( config ):
 
   totalBenchmarkSteps = len(benchmarkProcess)
   winners = WinningParameterDict()
-  determinedParameters = [{}] # winner chosen from benchmark
   print1("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   print1("")
   print1(HR)
@@ -56,7 +55,7 @@ def benchmarkProblemType( config ):
     numHardcoded = len(benchmarkStep.hardcodedParameters)
     stepName = str(benchmarkStep)
     shortName = benchmarkStep.abbreviation()
-    print1("\n\n")
+    print1("\n")
     print1(HR)
     print1("# %s\n# %s" % (problemTypeName, stepName))
     print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
@@ -126,7 +125,6 @@ def benchmarkProblemType( config ):
     # Enumerate Benchmark Permutations
     ############################################################################
     solutions = []
-    currentSolution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state) }
     totalBenchmarkPermutations = 1
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
@@ -213,14 +211,12 @@ def benchmarkProblemType( config ):
       for j in range(0, len(solutionsForHardcoded)):
         solution = solutionsForHardcoded[j]
         solutionList.append(solution)
-    solutionsMinNaming = Solution.getMinNaming(solutionList)
     if globalParameters["PrintLevel"] >= 1:
       for i in range(0, len(solutions)):
         solutionsForHardcoded = solutions[i]
         for j in range(0, len(solutionsForHardcoded)):
           solution = solutionsForHardcoded[j]
           print2("#    (%u:%u) %s" % (i, j, \
-              #Solution.getNameMin(solution, solutionsMinNaming) ))
               Solution.getNameFull(solution) ))
       print2(HR)
 
@@ -252,7 +248,9 @@ def benchmarkProblemType( config ):
 
       # run runScript
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
-      status = process.communicate()
+      process.communicate()
+      if process.returncode:
+        printWarning("Benchmark Process exited with code %u" % process.returncode)
       popWorkingPath() # build
 
 
@@ -269,10 +267,6 @@ def benchmarkProblemType( config ):
     ############################################################################
     YAMLIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
         solutions )
-
-    #solutionsFromFile = YAMLIO.readSolutions(solutionYAMLFileName)
-    #solutionsMinNaming = Solution.getMinNaming(solutionsFromFile)
-    #for solution in solutionsFromFile:
 
     # End Iteration
     popWorkingPath() # stepName
@@ -318,7 +312,6 @@ def getResults(resultsFileName, solutions):
         printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
             % (resultsFileName, rowIdx, rowLength) )
         break
-      totalFlops = float(row[problemSizeIdx])
       idx = startIdx
       #for i in range(0, len(numBenchmarksPerHardcoded)):
       #  for j in range(0, numBenchmarksPerHardcoded[i]):
@@ -327,9 +320,6 @@ def getResults(resultsFileName, solutions):
         for j in range(0, len(solutionsForHardcoded)):
           solution = solutionsForHardcoded[j]
           gflops = float(row[idx])
-          #time_ms = float(row[idx])
-          #flops = totalFlops / (time_ms / 1000)
-          #gflops = flops / (1000*1000*1000)
           results[i][j].append(gflops)
           idx += 1
   if rowIdx < 2:
@@ -349,8 +339,6 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   ##############################################################################
   # Min Naming
   ##############################################################################
-  solutionFileNames = []
-  kernelNames = []
   kernels = []
   for solution in solutions:
     solutionKernels = solution.getKernels()
@@ -379,52 +367,6 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
 
   clientName = "TensileBenchmark_%s" % stepName
   writeCMake(globalParameters["WorkingPath"], solutions, filesToCopy, clientName)
-  """
-  generatedFile = open(os.path.join(globalParameters["WorkingPath"], \
-      "Generated.cmake"), "w")
-  generatedFile.write(CMakeHeader)
-  generatedFile.write("set( TensileBenchmark_Solutions\n")
-  # write solution names
-  if globalParameters["MergeFiles"]:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.h\n")
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.cpp\n")
-  else:
-    for solutionFileName in solutionFileNames:
-      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
-          % (solutionFileName) )
-      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
-          % (solutionFileName) )
-  generatedFile.write("  )\n")
-
-  # write kernel names
-  generatedFile.write("set( TensileBenchmark_Kernels\n")
-  if globalParameters["MergeFiles"]:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.h\n")
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
-  else:
-    for kernelName in kernelNames:
-      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
-      generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
-  generatedFile.write("  )\n")
-
-  generatedFile.write("set( TensileBenchmark_Source\n")
-  for fileName in filesToCopy:
-    generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
-  generatedFile.write("  )\n\n")
-
-  # benchmark parameters
-  generatedFile.write("set( ClientName TensileBenchmark_%s)\n" \
-      % (stepName) )
-  generatedFile.write("set( Tensile_BACKEND \"%s\")\n" \
-      % (globalParameters["Backend"]) )
-
-  # build parameters
-  generatedFile.write("set( CMAKE_BUILD_TYPE \"%s\")\n" \
-      % (globalParameters["CMakeBuildType"]) )
-
-  # close generated cmake
-  generatedFile.close()
-  """
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, filesToCopy)
@@ -492,8 +434,8 @@ class WinningParameterDict:
       if len(matches) != 1:
         printExit("Didn't find exactly 1 match")
       hardcodedParametersKey = matches[0][0]
-      oldWinningParameters = matches[0][1]
-      oldScore = matches[0][2]
+      #oldWinningParameters = matches[0][1]
+      #oldScore = matches[0][2]
       self.winners[hardcodedParametersKey][0].update(winningParameters)
       self.winners[hardcodedParametersKey][1] = winningScore
 
@@ -508,7 +450,6 @@ class WinningParameterDict:
     elif len(matches) == 0:
       return None
     else:
-      happy += 1
       printExit("Didn't find exactly 1 match")
 
   ##########################################################
@@ -536,7 +477,6 @@ class WinningParameterDict:
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ winningParameters, score ]
         elif len(matches) > 1: # join
-          fastestIdx = -1
           fastestScore = -1
           fastestHardcodedParameters = {}
           fastestWinningParameters = {}
@@ -547,7 +487,6 @@ class WinningParameterDict:
             score = match[2]
             if score > fastestScore:
               fastestScore = score
-              fastestIdx = matchIdx
               fastestWinningParameters = winningParameters
               fastestHardcodedParameters = hardcodedFrozen.parameters
           newHardcodedParameters.update(fastestHardcodedParameters)

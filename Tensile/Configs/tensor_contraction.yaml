@@ -19,16 +19,16 @@ GlobalParameters:
 BenchmarkProblems:
   # sgemm NN
   - ProblemType:
-      OperationType: GEMM
+      OperationType: TensorContraction
       DataType: s
-      TransposeA: False
-      TransposeB: True
       UseBeta: True
-      Batched: False
+      NumIndicesC: 3
+      IndexAssignmentsA: [0, 3, 2]
+      IndexAssignmentsB: [1, 3, 2]
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [512], [512], [512] ]
+      - ProblemSizes: [ [512], [512], [2], [512] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
@@ -49,7 +49,7 @@ BenchmarkProblems:
       - DepthU
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [16, 128], [16, 128], [256] ]
+      - ProblemSizes: [ [16, 128], [16, 128], [2, 2, 4], [256] ]
 
 LibraryLogic:
   Dilation: 3

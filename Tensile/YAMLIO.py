@@ -135,7 +135,7 @@ def readLibraryLogicForProblemType( filename ):
 
   # verify
   if len(data) < 6:
-    printExit("len(%s) %u < 6" % (filename, len(solutionStates)))
+    printExit("len(%s) %u < 6" % (filename, len(data)))
 
   # parse out objects
   scheduleName = data[0]

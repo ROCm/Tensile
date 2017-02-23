@@ -265,7 +265,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
             indexChars[problemType["IndexAssignmentsB"][i]])
       for i in range(0, problemType["TotalIndices"]):
         s += ", size%s" % indexChars[i]
-      s += ", stream, numInputEvents, inputEvents, outputEvent );\n"
+      s += ", stream, numInputEvents, inputEvents, outputEvent ); /* [%f,%f] GFlops*/\n" % (minGFlops,maxGFlops)
 
 
     s += "\n}\n"
@@ -298,8 +298,6 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
   ##############################################################################
   # Min Naming
   ##############################################################################
-  #solutionFileNames = []
-  kernelNames = []
   kernels = []
   for solution in solutions:
     solutionKernels = solution.getKernels()
@@ -332,12 +330,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions.cpp\n")
   else:
     for solution in solutions:
-      if globalParameters["ShortNames"]:
-        solutionName = \
-            Solution.getNameSerial(solution, solutionSerialNaming)
-      else:
-        solutionName = Solution.getNameMin(solution, solutionMinNaming)
-      #solutionFileNames.append(solutionFileName)
+      solutionName = solutionWriter.getSolutionName(solution)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.h\n" \
           % (solutionName) )
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Solutions/%s.cpp\n" \
@@ -351,11 +344,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernel in kernels:
-      if globalParameters["ShortNames"]:
-        kernelName = \
-            Solution.getNameSerial(kernel, kernelSerialNaming)
-      else:
-        kernelName = Solution.getNameMin(kernel, kernelMinNaming)
+      kernelName = kernelWriter.getKernelName(kernel)
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")

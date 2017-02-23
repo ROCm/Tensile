@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution
+from SolutionStructs import Solution, DataType
 from KernelWriter import KernelWriter
 from Common import globalParameters, print2
 
@@ -676,10 +676,7 @@ class SolutionWriter:
   # getHeaderString
   ##############################################################################
   def getHeaderString(self, solution):
-    solutionName = self.getSolutionName(solution)
     s = ""
-    #s += "#ifndef " + solutionName.upper() + "_H\n"
-    #s += "#define " + solutionName.upper() + "_H\n\n"
     if not globalParameters["MergeFiles"]:
       s += "#pragma once\n\n"
       s += "#include \"TensileTypes.h\"\n"
@@ -854,28 +851,28 @@ class SolutionWriter:
       if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
           % (totalElementsParaA, solution["NumLoadsCoalescedA"]))
       return False
-    else:
-      loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
+    #else:
+    #  loadSizeParaA = totalElementsParaA / solution["NumLoadsCoalescedA"]
     if totalElementsPerpA % solution["NumLoadsPerpendicularA"] != 0:
       if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
           % (totalElementsPerpA, solution["NumLoadsPerpendicularA"]))
       return False
-    else:
-      loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
+    #else:
+    #  loadSizePerpA = totalElementsPerpA / solution["NumLoadsPerpendicularA"]
 
     # load size para/perp B
     if totalElementsParaB % solution["NumLoadsCoalescedB"] != 0:
       if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
           % (totalElementsParaB, solution["NumLoadsCoalescedB"]))
       return False
-    else:
-      loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
+    #else:
+    #  loadSizeParaB = totalElementsParaB / solution["NumLoadsCoalescedB"]
     if totalElementsPerpB % solution["NumLoadsPerpendicularB"] != 0:
       if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
           % (totalElementsPerpB, solution["NumLoadsPerpendicularB"]))
       return False
-    else:
-      loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
+    #else:
+    #  loadSizePerpB = totalElementsPerpB / solution["NumLoadsPerpendicularB"]
 
     # too much LDS
     sizeLDS = solution["LoopUnroll"] \
@@ -886,16 +883,27 @@ class SolutionWriter:
       if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
       return False
 
-    # Compiler may be causing incorrect reads on ROCm1.4 from DT on 2/21/17
-    # TODO is this a bug in KernelWriter, check against later ROCm's
-    #if globalParameters["Backend"] == "HIP":
-      #if solution["WorkGroupEdge"] == 16:
-      #  if solution["ThreadTileEdge"] == 8:
-      #    if solution["NumLoadsCoalescedA"] != 1 and solution["NumLoadsCoalescedB"] != 8:
-      #      return False
+    # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
     if globalParameters["Backend"] == "HIP":
-      if solution["ThreadTileEdge"] > 7:
-        return False
+      if solution["ProblemType"]["DataType"].value == DataType.single:
+        if solution["MacroTile0"] == 128 or solution["MacroTile1"] == 128:
+          if solution["NumLoadsCoalescedA"] != 1 and solution["NumLoadsCoalescedB"] != 8:
+            return False
+      elif solution["ProblemType"]["DataType"].value == DataType.double:
+        if globalParameters["Backend"] == "HIP":
+          if solution["MacroTile0"] >= 64 or solution["MacroTile1"] >= 64:
+            return False
+# validation failures
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA04_NLCB02_NLPA04_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB04_NLPA08_NLPB04_TT008_TT108_TTE08_WG008_WG108_WGE08
+
+# Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA04_NLCB01_NLPA04_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB01_NLPA08_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB01_NLPA01_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB08_NLPA01_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA08_NLCB08_NLPA02_NLPB02_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB08_NLPA08_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
 
     return True
 
