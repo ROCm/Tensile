@@ -55,7 +55,7 @@ def benchmarkProblemType( config ):
     numHardcoded = len(benchmarkStep.hardcodedParameters)
     stepName = str(benchmarkStep)
     shortName = benchmarkStep.abbreviation()
-    print1("\n\n")
+    print1("\n")
     print1(HR)
     print1("# %s\n# %s" % (problemTypeName, stepName))
     print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)

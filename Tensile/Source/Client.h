@@ -138,8 +138,6 @@ void callLibrary(
             << (equal ? "==" : "!=") << tensileToString(referenceC[i])
             << std::endl;
           printIdx++;
-        } else {
-          break;
         }
       }
     } // compare loop
@@ -663,32 +661,37 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 #endif
 
 #if Tensile_CLIENT_LIBRARY
-  if (argc < 5) {
+  if (argc < 2) {
+    std::cout << "FATAL ERROR: no FunctionIdx provided" << std::endl;
     printLibraryClientUsage(executableName);
     exit(0);
   }
   try {
     functionIdx = static_cast<unsigned int>(atoi(argv[1]));
+    if (functionIdx >= numFunctions) {
+      std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= " << "NumFunctions=" << numFunctions << std::endl;
+    }
     std::cout << "FunctionIdx: " << functionIdx << std::endl;
     dataTypeIdx = functionInfo[functionIdx][0];
     problemTypeIdx = functionInfo[functionIdx][2];
     if (static_cast<unsigned int>(argc - 2) < totalIndices[problemTypeIdx]) {
+      std::cout << "FATAL ERROR: " << totalIndices[problemTypeIdx] << " sizes required for function[" << functionIdx << "]; only " << static_cast<unsigned int>(argc - 2) << " provided." << std::endl;
       printLibraryClientUsage(executableName);
       exit(0);
     }
 
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
       userSizes[i] = static_cast<unsigned int>(atoi(argv[2+i]));
-      std::cout << "Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
+      std::cout << "  Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
     }
     if (static_cast<unsigned int>(argc) > 2+totalIndices[problemTypeIdx]) {
       numElementsToValidate = static_cast<unsigned int>(
           atoi(argv[2+totalIndices[problemTypeIdx]]));
-      std::cout << "NumElementsToValidate: " << numElementsToValidate
+      std::cout << "  NumElementsToValidate: " << numElementsToValidate
           << std::endl;
     } else {
       numElementsToValidate = defaultNumElementsToValidate;
-      std::cout << "NumElementsToValidate: " << numElementsToValidate
+      std::cout << "  NumElementsToValidate: " << numElementsToValidate
           << " (unspecified)" << std::endl;
     }
 
@@ -707,9 +710,6 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
     maxSizeA *= userSizes[indexAssignmentsA[problemTypeIdx][i]];
     maxSizeB *= userSizes[indexAssignmentsB[problemTypeIdx][i]];
   }
-  std::cout << "MaxSizeC: " << maxSizeC << std::endl;
-  std::cout << "MaxSizeA: " << maxSizeA << std::endl;
-  std::cout << "MaxSizeB: " << maxSizeB << std::endl;
 #endif
 }
 

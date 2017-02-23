@@ -17,8 +17,9 @@ def analyzeProblemType( problemTypeTuple, analysisParameters ):
   problemSizes = problemTypeTuple[1]
   dataFileName = problemTypeTuple[2]
   solutionsFileName = problemTypeTuple[3]
-  print1(HR)
+  print2(HR)
   print1("# %s" % problemType)
+
   #print "#  %s" % dataFileName
   #print "#  %s" % solutionsFileName
 
@@ -495,7 +496,6 @@ class BenchmarkDataAnalyzer:
 
             # does the diagonalRuleWinner also win here?
             break # only check the problem size closest to ruleSize
-      print
 
     return skinnyRules
     # end skinny solutions

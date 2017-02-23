@@ -271,8 +271,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         functionIdxForProblemType = 0
         for functionIdxForProblemType in range(0, \
             len(schedulesForProblemType[problemType])):
-          #schedule = \
-          #    schedulesForProblemType[problemType][functionIdxForProblemType]
           functionInfo.append([ \
               dataTypeIdxSerial, \
               problemTypeIdxForDataType, \
@@ -284,7 +282,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           functionIdxForProblemType += 1
           functionIdxForDataType += 1
           functionIdxSerial += 1
-      problemTypeIdxSerial += 1
+        problemTypeIdxSerial += 1
     numProblemTypes = problemTypeIdxSerial
     numFunctions = functionIdxSerial
     h += "const unsigned int numFunctions = %u;\n" % numFunctions
@@ -352,7 +350,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
-        h += ", -1"
+        h += ", static_cast<unsigned int>(-1)"
     if problemTypeIdx < numProblemTypes-1:
       h += " },\n"
     else:
@@ -368,7 +366,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       if i < len(indices):
         h += ", %u" % indices[i]
       else:
-        h += ", -1"
+        h += ", static_cast<unsigned int>(-1)"
     if problemTypeIdx < numProblemTypes-1:
       h += " },\n"
     else:
