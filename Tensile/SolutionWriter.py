@@ -830,21 +830,21 @@ class SolutionWriter:
     else:
       solution["NumLoadsB"] = totalElementsB / numThreads
 
-      # how many loads para
-      if solution["NumLoadsA"] % solution["NumLoadsCoalescedA"] != 0:
-        if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
-            % (solution["NumLoadsA"], solution["NumLoadsCoalescedA"]))
-        return False
-      else:
-        solution["NumLoadsPerpendicularA"] = solution["NumLoadsA"] \
-            / solution["NumLoadsCoalescedA"]
-      if solution["NumLoadsB"] % solution["NumLoadsCoalescedB"] != 0:
-        if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
-            % (solution["NumLoadsB"], solution["NumLoadsCoalescedB"]))
-        return False
-      else:
-        solution["NumLoadsPerpendicularB"] = solution["NumLoadsB"] \
-            / solution["NumLoadsCoalescedB"]
+    # how many loads para
+    if solution["NumLoadsA"] % solution["NumLoadsCoalescedA"] != 0:
+      if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
+          % (solution["NumLoadsA"], solution["NumLoadsCoalescedA"]))
+      return False
+    else:
+      solution["NumLoadsPerpendicularA"] = solution["NumLoadsA"] \
+          / solution["NumLoadsCoalescedA"]
+    if solution["NumLoadsB"] % solution["NumLoadsCoalescedB"] != 0:
+      if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
+          % (solution["NumLoadsB"], solution["NumLoadsCoalescedB"]))
+      return False
+    else:
+      solution["NumLoadsPerpendicularB"] = solution["NumLoadsB"] \
+          / solution["NumLoadsCoalescedB"]
 
     # load size para/perp A
     if totalElementsParaA % solution["NumLoadsCoalescedA"] != 0:
