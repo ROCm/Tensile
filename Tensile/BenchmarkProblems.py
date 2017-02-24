@@ -148,6 +148,7 @@ def benchmarkProblemType( config ):
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
     sys.stdout.write("# Enumerating Solutions")
+    solutionSet = set() # avoid duplicates for nlca=-1, 1
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
@@ -170,18 +171,14 @@ def benchmarkProblemType( config ):
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
         if solutionObject["Valid"]:
-          hasSolution = False
-          for hardcodedSolutions in solutions:
-            for hardcodedSolution in hardcodedSolutions:
-              if hardcodedSolution == solutionObject:
-                hasSolution = True
-          if hasSolution:
-            if globalParameters["PrintLevel"] >= 1:
-              sys.stdout.write(":")
-          else:
+          if solutionObject not in solutionSet:
+            solutionSet.add(solutionObject)
             solutions[hardcodedIdx].append(solutionObject)
             if globalParameters["PrintLevel"] >= 1:
               sys.stdout.write("|")
+          else:
+            if globalParameters["PrintLevel"] >= 1:
+              sys.stdout.write(":")
         else:
           if globalParameters["PrintLevel"] >= 1:
             sys.stdout.write(".")
