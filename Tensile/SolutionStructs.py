@@ -95,9 +95,9 @@ class DataType:
     zeroString = "(%s)(" % self.toDevice(backend)
     if self.value == self.single or self.value == self.half:
       zeroString += "0.f"
-    elif self.value == self.double: 
+    elif self.value == self.double:
       zeroString += "0.0"
-    elif self.value == self.complexSingle: 
+    elif self.value == self.complexSingle:
       zeroString += "0.f, 0.f"
     elif self.value == self.complexDouble:
       zeroString += "0.0, 0.0"
@@ -214,7 +214,8 @@ class ProblemType:
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(config)
 
-    self.assignIndices()
+    self.state["AssignedDerivedParameters"] = False
+    ProblemType.assignDerivedParameters(self.state)
 
 
   ########################################
@@ -249,90 +250,98 @@ class ProblemType:
 
   ########################################
   # determine d0, d1, dU
-  def assignIndices(self):
-    self["TotalIndices"] = max(max(self["IndexAssignmentsA"])+1, max(self["IndexAssignmentsB"])+1)
+  @staticmethod
+  def assignDerivedParameters(state):
+    if "AssignedDerivedParameters" in state:
+      if state["AssignedDerivedParameters"]:
+        return
+    state["AssignedDerivedParameters"] = False
+
+    state["TotalIndices"] = max(max(state["IndexAssignmentsA"])+1, \
+        max(state["IndexAssignmentsB"])+1)
 
     # determine num free, batch
-    self["IndicesFree"] = []
-    self["IndicesBatch"] = []
-    self["IndicesSummation"] = []
+    state["IndicesFree"] = []
+    state["IndicesBatch"] = []
+    state["IndicesSummation"] = []
 
-    for i in range(0, self["NumIndicesC"]):
-      inA = i in self["IndexAssignmentsA"]
-      inB = i in self["IndexAssignmentsB"]
+    for i in range(0, state["NumIndicesC"]):
+      inA = i in state["IndexAssignmentsA"]
+      inB = i in state["IndexAssignmentsB"]
       if inA and inB:
-        #self["NumIndicesBatch"] = (i+1)-self["NumIndicesFree"]
-        self["IndicesBatch"].append(i)
+        #state["NumIndicesBatch"] = (i+1)-state["NumIndicesFree"]
+        state["IndicesBatch"].append(i)
 
       elif inA or inB:
-        #self["NumIndicesFree"] = (i+1)
-        self["IndicesFree"].append(i)
+        #state["NumIndicesFree"] = (i+1)
+        state["IndicesFree"].append(i)
       else:
         printExit("invalid index %u" % i)
 
     # determine num summation
-    for i in range(self["NumIndicesC"], self["TotalIndices"]):
-      inA = i in self["IndexAssignmentsA"]
-      inB = i in self["IndexAssignmentsB"]
+    for i in range(state["NumIndicesC"], state["TotalIndices"]):
+      inA = i in state["IndexAssignmentsA"]
+      inB = i in state["IndexAssignmentsB"]
       if inA and inB:
-        #self["NumIndicesSummation"] = (i+1)-self["NumIndicesC"]
-        self.state["IndicesSummation"].append(i)
+        #state["NumIndicesSummation"] = (i+1)-state["NumIndicesC"]
+        state["IndicesSummation"].append(i)
       else:
         printExit("invalid index %u" % i)
-    self["NumIndicesFree"] = len(self["IndicesFree"])
-    self["NumIndicesBatch"] = len(self["IndicesBatch"])
-    self["NumIndicesSummation"] = len(self["IndicesSummation"])
+    state["NumIndicesFree"] = len(state["IndicesFree"])
+    state["NumIndicesBatch"] = len(state["IndicesBatch"])
+    state["NumIndicesSummation"] = len(state["IndicesSummation"])
 
 
     # by default, unroll index will be the first summation index
     # TODO sort summation indices by "stride"
-    self["IndexUnroll"] = self["IndicesSummation"][0]
-    for i in range(0, len(self["IndexAssignmentsA"])):
-      if self["IndexAssignmentsA"][i] == self["IndexUnroll"]:
-        self["IndexUnrollA"] = i
+    state["IndexUnroll"] = state["IndicesSummation"][0]
+    for i in range(0, len(state["IndexAssignmentsA"])):
+      if state["IndexAssignmentsA"][i] == state["IndexUnroll"]:
+        state["IndexUnrollA"] = i
         break
-    for i in range(0, len(self["IndexAssignmentsB"])):
-      if self["IndexAssignmentsB"][i] == self["IndexUnroll"]:
-        self["IndexUnrollB"] = i
+    for i in range(0, len(state["IndexAssignmentsB"])):
+      if state["IndexAssignmentsB"][i] == state["IndexUnroll"]:
+        state["IndexUnrollB"] = i
         break
 
     # assign d0, d1
-    self["Index01A"] = -1
-    self["Index01B"] = -1
-    for i in self["IndexAssignmentsA"]:
-      if i < self["NumIndicesC"]:
-        self["Index01A"] = i
+    state["Index01A"] = -1
+    state["Index01B"] = -1
+    for i in state["IndexAssignmentsA"]:
+      if i < state["NumIndicesC"]:
+        state["Index01A"] = i
         break
-    for i in self["IndexAssignmentsB"]:
-      if i < self["NumIndicesC"]:
-        self["Index01B"] = i
+    for i in state["IndexAssignmentsB"]:
+      if i < state["NumIndicesC"]:
+        state["Index01B"] = i
         break
     # whichever has lower stride in C (lower value), is 0, other is 1
-    if self["Index01A"] < self["Index01B"]:
-      self["Index0"]  = self["Index01A"]
-      self["Index1"]  = self["Index01B"]
-      self["Tensor0"] = 0
-      self["Tensor1"] = 1
-      self["TileA"] = 0
-      self["TileB"] = 1
+    if state["Index01A"] < state["Index01B"]:
+      state["Index0"]  = state["Index01A"]
+      state["Index1"]  = state["Index01B"]
+      state["Tensor0"] = 0
+      state["Tensor1"] = 1
+      state["TileA"] = 0
+      state["TileB"] = 1
     else:
-      self["Index0"]  = self["Index01B"]
-      self["Index1"]  = self["Index01A"]
-      self["Tensor0"] = 1
-      self["Tensor1"] = 0
-      self["TileA"] = 1
-      self["TileB"] = 0
+      state["Index0"]  = state["Index01B"]
+      state["Index1"]  = state["Index01A"]
+      state["Tensor0"] = 1
+      state["Tensor1"] = 0
+      state["TileA"] = 1
+      state["TileB"] = 0
 
     # generalize transpose
-    strideIdxA = self["IndexAssignmentsA"].index(self["Index01A"])
-    strideIdxB = self["IndexAssignmentsB"].index(self["Index01B"])
-    unrollIdxA = self["IndexAssignmentsA"].index(self["IndexUnroll"])
-    unrollIdxB = self["IndexAssignmentsB"].index(self["IndexUnroll"])
-    self["TLUA"] = strideIdxA < unrollIdxA
-    self["TLUB"] = strideIdxB < unrollIdxB
+    strideIdxA = state["IndexAssignmentsA"].index(state["Index01A"])
+    strideIdxB = state["IndexAssignmentsB"].index(state["Index01B"])
+    unrollIdxA = state["IndexAssignmentsA"].index(state["IndexUnroll"])
+    unrollIdxB = state["IndexAssignmentsB"].index(state["IndexUnroll"])
+    state["TLUA"] = strideIdxA < unrollIdxA
+    state["TLUB"] = strideIdxB < unrollIdxB
 
     #unrollDimStrideGreaterThanTileDimStrideA = TLUA
     #unrollDimStrideLessThanTileDimStrideB    = !TLUB
+    state["AssignedDerivedParameters"] = True
 
 
 
@@ -363,6 +372,18 @@ class ProblemType:
     if self["HighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStrides"]: name += "I"
     return name
+
+  def keys(self):
+    return self.state.keys()
+  def __len__(self):
+    return len(self.state)
+  def __iter__(self):
+    return iter(self.state)
+
+
+
+
+
 
   def __getitem__(self, key):
     return self.state[key]
@@ -504,7 +525,9 @@ class Solution:
     for key in config:
       if key != "ProblemType" and key not in self.state:
         self.state[key] = config[key]
-
+    self["Valid"] = True
+    self["AssignedProblemIndependentDerivedParameters"] = False
+    self["AssignedDerivedParameters"] = False
     Solution.assignDerivedParameters(self.state)
 
   ########################################
@@ -529,10 +552,13 @@ class Solution:
 
 
   ########################################
-  # assign Dim0, 1 based on edge and shape
+  # assign tile sizes
   @staticmethod
-  def assignDerivedParameters(state):
-
+  def assignProblemIndependentDerivedParameters(state):
+    if "AssignedProblemIndependentDerivedParameters" in state:
+      if state["AssignedProblemIndependentDerivedParameters"]:
+        return
+    state["AssignedProblemIndependentDerivedParameters"] = False
     # workgroup sizes
     state["WorkGroup0"] = state["WorkGroupEdge"]
     state["WorkGroup1"] = state["WorkGroupEdge"]
@@ -557,14 +583,25 @@ class Solution:
     if "SplitU" in state and "LoopUnroll" in state:
       state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
-    printReason = False
-
     # num threads
     state["NumThreads"] = state["WorkGroup0"]*state["WorkGroup1"]
     if state["NumThreads"] > globalParameters["MaxThreads"]:
       if printReason: print2("rejecting %u threads" % state["NumThreads"])
       state["Valid"] = False
-      return
+    state["AssignedProblemIndependentDerivedParameters"] = True
+
+  ########################################
+  # assign all derived parameters
+  @staticmethod
+  def assignDerivedParameters(state):
+    Solution.assignProblemIndependentDerivedParameters(state)
+    if "AssignedDerivedParameters" in state:
+      if state["AssignedDerivedParameters"]:
+        return
+    state["AssignedDerivedParameters"] = False
+
+    ProblemType.assignDerivedParameters(state["ProblemType"])
+    printReason = False
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
@@ -588,37 +625,35 @@ class Solution:
       if printReason: print2("totalElementsA %u %% NumThreads %u != 0" \
           % (totalElementsA, state["NumThreads"]))
       state["Valid"] = False
-      return
+      #return
     else:
       state["NumLoadsA"] = totalElementsA / state["NumThreads"]
     if totalElementsB % state["NumThreads"] != 0:
       if printReason: print2("totalElementsB %u %% NumThreads %u != 0" \
           % (totalElementsB, state["NumThreads"]))
       state["Valid"] = False
-      return
+      #return
     else:
       state["NumLoadsB"] = totalElementsB / state["NumThreads"]
 
     # how many loads para
     if state["NumLoadsCoalescedA"] < 1:
       state["NumLoadsCoalescedA"] = state["NumLoadsA"]
-      print "Assigning NLCA=%u" % state["NumLoadsA"]
     if state["NumLoadsA"] % state["NumLoadsCoalescedA"] != 0:
       if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
           % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
       state["Valid"] = False
-      return
+      #return
     else:
       state["NumLoadsPerpendicularA"] = state["NumLoadsA"] \
           / state["NumLoadsCoalescedA"]
     if state["NumLoadsCoalescedB"] < 1:
       state["NumLoadsCoalescedB"] = state["NumLoadsB"]
-      print "Assigning NLCB=%u" % state["NumLoadsB"]
     if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
       if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
           % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
       state["Valid"] = False
-      return
+      #return
     else:
       state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
           / state["NumLoadsCoalescedB"]
@@ -628,14 +663,14 @@ class Solution:
       if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
           % (totalElementsParaA, state["NumLoadsCoalescedA"]))
       state["Valid"] = False
-      return
+      #return
     #else:
     #  loadSizeParaA = totalElementsParaA / state["NumLoadsCoalescedA"]
     if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
       if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
           % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
       state["Valid"] = False
-      return
+      #return
     #else:
     #  loadSizePerpA = totalElementsPerpA / state["NumLoadsPerpendicularA"]
 
@@ -644,14 +679,14 @@ class Solution:
       if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
           % (totalElementsParaB, state["NumLoadsCoalescedB"]))
       state["Valid"] = False
-      return
+      #return
     #else:
     #  loadSizeParaB = totalElementsParaB / state["NumLoadsCoalescedB"]
     if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
       if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
           % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
       state["Valid"] = False
-      return
+      #return
     #else:
     #  loadSizePerpB = totalElementsPerpB / state["NumLoadsPerpendicularB"]
 
@@ -663,7 +698,7 @@ class Solution:
     if sizeLDS > globalParameters["MaxLDS"]:
       if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
       state["Valid"] = False
-      return
+      #return
 
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
     if globalParameters["Backend"] == "HIP":
@@ -671,14 +706,14 @@ class Solution:
         if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:
           if state["NumLoadsCoalescedA"] != 1 and state["NumLoadsCoalescedB"] != 8:
             state["Valid"] = False
-            return
+            #return
       elif state["ProblemType"]["DataType"].value == DataType.double:
         if globalParameters["Backend"] == "HIP":
           if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
             state["Valid"] = False
-            return
+            #return
+    state["AssignedDerivedParameters"] = True
 
-    state["Valid"] = True
 
 # validation failures
 # Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
@@ -691,7 +726,6 @@ class Solution:
 # Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB08_NLPA01_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
 # Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA08_NLCB08_NLPA02_NLPB02_TT008_TT108_TTE08_WG008_WG108_WGE08
 # Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB08_NLPA08_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
-
 
 
 
@@ -755,8 +789,6 @@ class Solution:
             first = False
           name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
               Solution.getParameterValueAbbreviation(state[key]) )
-      #else:
-      #  print "%s not in %s" % (key, requiredParameters)
     return name
 
   ########################################
@@ -765,26 +797,20 @@ class Solution:
   def getSerialNaming(objs):
     data = {}
     for objIdx in range(0, len(objs)):
-      #print "ObjIdx: %u" % objIdx
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
         if paramName not in derrivedParameters:
           paramValue = obj[paramName]
-          #if paramName == "ThreadTileEdge":
-          #  print "%s = %s" % (paramName, paramValue)
           if paramName in data:
             if paramValue not in data[paramName]:
               data[paramName].append(paramValue)
           else:
             data[paramName] = [ paramValue ]
     maxObjs = 1
-    #print "SerialNaming:"
     for paramName in data:
       data[paramName] = sorted(data[paramName])
-      #print "%s: %s" % (paramName, data[paramName])
       maxObjs *= len(data[paramName])
     numDigits = len(str(maxObjs))
-    #print "MaxSerialNames: %u (%u)" % (maxObjs, numDigits)
     return [ data, numDigits ]
 
   ########################################
@@ -803,23 +829,10 @@ class Solution:
         paramNameMultiplier = len(paramData)
         if paramValue in paramData:
           paramValueIdx = paramData.index(paramValue)
-        #else:
-          #print "ERROR %s: %s not in %s" % ( paramName, paramValue, paramData )
-          #print state
-          #printExit()
-        #if paramNameMultiplier > 1:
-          #print "serial = %u*%u + %u; multiplier = %u * %u; %s::%s in %s" % ( \
-          #    paramValueIdx, multiplier, serial, \
-          #    paramNameMultiplier, multiplier, \
-          #    paramName, paramValue, paramData[1] )
-
         serial += paramValueIdx * multiplier
         multiplier *= paramNameMultiplier
-    #if serial == 0:
-    #  print state
     name = "%s%0*u" % ("S" if isinstance(state, Solution) else "K", \
         numDigits, serial)
-    #print "SerialName: %s" % name
     return name
 
 

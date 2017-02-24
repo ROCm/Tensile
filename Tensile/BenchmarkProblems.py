@@ -37,7 +37,7 @@ def benchmarkProblemType( config ):
 
   totalBenchmarkSteps = len(benchmarkProcess)
   winners = WinningParameterDict()
-  print1("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
+  print1("# NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   print1("")
   print1(HR)
   print1("# Done Creating BenchmarkProcess Object")
@@ -170,13 +170,13 @@ def benchmarkProblemType( config ):
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
         if solutionObject["Valid"]:
-          print str(solutionObject), " LOOKING"
-          for s in solutions:
-            print s
-          if solutionObject not in solutions:
+          hasSolution = False
+          for hardcodedSolutions in solutions:
+            for hardcodedSolution in hardcodedSolutions:
+              if hardcodedSolution == solutionObject:
+                hasSolution = True
+          if not hasSolution:
             solutions[hardcodedIdx].append(solutionObject)
-          else:
-            print "SOLUTION ALREADY IN SOLUTIONS"
           if globalParameters["PrintLevel"] >= 1:
             sys.stdout.write("|")
         else:
@@ -547,8 +547,8 @@ class WinningParameterDict:
           #for paramName in hardcodedFrozen:
           #  paramValue = hardcodedFrozen[paramName]
           #  matchUnion[paramName] = paramValue
-          Solution.assignDerivedParameters(matchUnion)
-          Solution.assignDerivedParameters(hardcodedFrozen.parameters)
+          Solution.assignProblemIndependentDerivedParameters(matchUnion)
+          Solution.assignProblemIndependentDerivedParameters(hardcodedFrozen.parameters)
           if matchUnion["MacroTile0"] != lookupMacroTile0 \
               or matchUnion["MacroTile1"] != lookupMacroTile1:
             matchMacroTile = False
