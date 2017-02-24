@@ -175,10 +175,13 @@ def benchmarkProblemType( config ):
             for hardcodedSolution in hardcodedSolutions:
               if hardcodedSolution == solutionObject:
                 hasSolution = True
-          if not hasSolution:
+          if hasSolution:
+            if globalParameters["PrintLevel"] >= 1:
+              sys.stdout.write(":")
+          else:
             solutions[hardcodedIdx].append(solutionObject)
-          if globalParameters["PrintLevel"] >= 1:
-            sys.stdout.write("|")
+            if globalParameters["PrintLevel"] >= 1:
+              sys.stdout.write("|")
         else:
           if globalParameters["PrintLevel"] >= 1:
             sys.stdout.write(".")

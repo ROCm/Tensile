@@ -39,8 +39,6 @@ BenchmarkProblems:
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [ 8 ]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -71,8 +69,6 @@ BenchmarkProblems:
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [4, 6, 8]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -103,8 +99,6 @@ BenchmarkProblems:
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [4, 6, 8]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -135,8 +129,6 @@ BenchmarkProblems:
       - ThreadTileShape: [0, 1]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [4, 6, 8]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 5, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 5, 6 ]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:

@@ -41,8 +41,8 @@ BenchmarkProblems:
       - ThreadTileShape: [ 0 ]
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 6, 8]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedA: [ 1, -1 ]
+      - NumLoadsCoalescedB: [ 1, -1 ]
       - LoopUnroll: [8, 16]
     BenchmarkForkParameters:
     JoinParameters:
@@ -74,8 +74,8 @@ BenchmarkProblems:
       - WorkGroupShape: [ 0 ]
       - ThreadTileEdge: [2, 4, 6, 8]
       - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedA: [ 1, -1 ]
+      - NumLoadsCoalescedB: [ 1, -1 ]
       - LoopUnroll: [8, 16]
     BenchmarkForkParameters:
     JoinParameters:
@@ -107,8 +107,8 @@ BenchmarkProblems:
       - WorkGroupShape: [ 0 ]
       - ThreadTileEdge: [2, 4, 6, 8]
       - ThreadTileShape: [ 0, 1 ]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedA: [ 1, -1 ]
+      - NumLoadsCoalescedB: [ 1, -1 ]
       - LoopUnroll: [8, 16]
     BenchmarkForkParameters:
     JoinParameters:
@@ -140,8 +140,8 @@ BenchmarkProblems:
       - WorkGroupShape: [ 0 ]
       - ThreadTileEdge: [2, 4, 6, 8]
       - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6, 8 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6, 8 ]
+      - NumLoadsCoalescedA: [ 1, -1 ]
+      - NumLoadsCoalescedB: [ 1, -1 ]
       - LoopUnroll: [8, 16]
     BenchmarkForkParameters:
     JoinParameters:

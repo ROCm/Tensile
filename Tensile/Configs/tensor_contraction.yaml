@@ -40,10 +40,8 @@ BenchmarkProblems:
     ForkParameters:
       - WorkGroupEdge: [8, 16]
       - ThreadTileEdge: [2, 4, 8 ]
-    BenchmarkForkParameters:
-      - NumLoadsCoalescedA: [ 1, 2, 3, 4, 6 ]
-      - NumLoadsCoalescedB: [ 1, 2, 3, 4, 6 ]
       - LoopUnroll: [8, 16]
+    BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
       - DepthU

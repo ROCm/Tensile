@@ -67,6 +67,8 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                [ "Branch" ] }, # Shift
     {"EdgeMultiKernel":         [ False ] },
     {"PadLDS":                  [ 1 ] },
+    {"SplitU":                  [ 1 ] },
+    {"Prefetch":                [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
@@ -74,8 +76,8 @@ defaultForkParameters = [
     {"WorkGroupShape":          [ 0 ] }, # -1, 0, 1
     {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
     {"ThreadTileShape":         [ 0 ] }, # -1, 0, 1
-    {"SplitU":                  [ 1 ] },
-    {"Prefetch":                [ False ] },
+    {"NumLoadsCoalescedA":       [ 1, -1 ] },
+    {"NumLoadsCoalescedB":       [ 1, -1 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
@@ -88,8 +90,6 @@ defaultJoinParameters = [
     ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [
-    {"NumLoadsCoalescedA":       [ 1, 2, 3, 4, 6, 8 ] },
-    {"NumLoadsCoalescedB":       [ 1, 2, 3, 4, 6, 8 ] },
     {"VectorWidthGlobalLoad":   [ 4 ] },
     {"VectorWidthGlobalStore":  [ 4 ] },
     {"VectorWidthLocalLoad":    [ 4 ] },

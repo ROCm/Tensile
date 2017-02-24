@@ -606,20 +606,20 @@ class Solution:
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
-      totalElementsParaA = state["MacroTile0"]
+      totalElementsCoalescedA = state["MacroTile0"]
       totalElementsPerpA = state["LoopUnroll"]
     else:
-      totalElementsParaA = state["LoopUnroll"]
+      totalElementsCoalescedA = state["LoopUnroll"]
       totalElementsPerpA = state["MacroTile0"]
 
     if state["ProblemType"]["TLUB"]:
-      totalElementsParaB = state["MacroTile1"]
+      totalElementsCoalescedB = state["MacroTile1"]
       totalElementsPerpB = state["LoopUnroll"]
     else:
-      totalElementsParaB = state["LoopUnroll"]
+      totalElementsCoalescedB = state["LoopUnroll"]
       totalElementsPerpB = state["MacroTile1"]
-    totalElementsA = totalElementsParaA * totalElementsPerpA
-    totalElementsB = totalElementsParaB * totalElementsPerpB
+    totalElementsA = totalElementsCoalescedA * totalElementsPerpA
+    totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
     # how many load instructions
     if totalElementsA % state["NumThreads"] != 0:
@@ -638,17 +638,122 @@ class Solution:
     else:
       state["NumLoadsB"] = totalElementsB / state["NumThreads"]
 
-    # how many loads para
-    if state["NumLoadsCoalescedA"] < 1:
-      state["NumLoadsCoalescedA"] = state["NumLoadsA"]
-    if state["NumLoadsA"] % state["NumLoadsCoalescedA"] != 0:
-      if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
-          % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
-      state["Valid"] = False
-      return
+    # nlca = 1
+    if state["NumLoadsCoalescedA"] == 1:
+      foundValid = False
+      for nlca in range(1, state["NumLoadsA"]+1):
+        nlpa = state["NumLoadsA"] / nlca
+        if state["NumLoadsA"] % nlca == 0 \
+            and totalElementsCoalescedA % nlca == 0 \
+            and totalElementsPerpA % nlpa == 0:
+          state["NumLoadsCoalescedA"] = nlca
+          state["NumLoadsPerpendicularA"] = nlpa
+          foundValid = True
+          break
+      if not foundValid:
+        state["Valid"] = False
+        return
+
+    # nlca = -1
+    elif state["NumLoadsCoalescedA"] == -1:
+      foundValid = False
+      for nlca in range(state["NumLoadsA"], 0, -1):
+        nlpa = state["NumLoadsA"] / nlca
+        if state["NumLoadsA"] % nlca == 0 \
+            and totalElementsCoalescedA % nlca == 0 \
+            and totalElementsPerpA % nlpa == 0:
+          state["NumLoadsCoalescedA"] = nlca
+          state["NumLoadsPerpendicularA"] = nlpa
+          foundValid = True
+          break
+      if not foundValid:
+        state["Valid"] = False
+        return
+
+    # nlca = other
     else:
       state["NumLoadsPerpendicularA"] = state["NumLoadsA"] \
           / state["NumLoadsCoalescedA"]
+
+      if state["NumLoadsA"] % state["NumLoadsCoalescedA"] != 0:
+        if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
+            % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
+        state["Valid"] = False
+      if totalElementsCoalescedA % state["NumLoadsCoalescedA"] != 0:
+        if printReason: print2("totalElementsCoalescedA %u %% numLoadsParaA %u != 0" \
+            % (totalElementsCoalescedA, state["NumLoadsCoalescedA"]))
+        state["Valid"] = False
+        return
+      if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
+        if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+            % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
+        state["Valid"] = False
+        return
+
+
+
+
+
+    # nlcb = 1
+    if state["NumLoadsCoalescedB"] == 1:
+      foundValid = False
+      for nlca in range(1, state["NumLoadsB"]+1):
+        nlpa = state["NumLoadsB"] / nlca
+        if state["NumLoadsB"] % nlca == 0 \
+            and totalElementsCoalescedB % nlca == 0 \
+            and totalElementsPerpB % nlpa == 0:
+          state["NumLoadsCoalescedB"] = nlca
+          state["NumLoadsPerpendicularB"] = nlpa
+          foundValid = True
+          break
+      if not foundValid:
+        state["Valid"] = False
+        return
+
+    # nlcb = -1
+    elif state["NumLoadsCoalescedB"] == -1:
+      foundValid = False
+      for nlca in range(state["NumLoadsB"], 0, -1):
+        nlpa = state["NumLoadsB"] / nlca
+        if state["NumLoadsB"] % nlca == 0 \
+            and totalElementsCoalescedB % nlca == 0 \
+            and totalElementsPerpB % nlpa == 0:
+          state["NumLoadsCoalescedB"] = nlca
+          state["NumLoadsPerpendicularB"] = nlpa
+          foundValid = True
+          break
+      if not foundValid:
+        state["Valid"] = False
+        return
+
+    # nlcb = other
+    else:
+      state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
+          / state["NumLoadsCoalescedB"]
+
+      if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
+        if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
+            % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
+        state["Valid"] = False
+      if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
+        if printReason: print2("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
+            % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
+        state["Valid"] = False
+        return
+      if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
+        if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+            % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
+        state["Valid"] = False
+        return
+
+
+
+
+
+
+
+
+    """
     if state["NumLoadsCoalescedB"] < 1:
       state["NumLoadsCoalescedB"] = state["NumLoadsB"]
     if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
@@ -660,30 +765,15 @@ class Solution:
       state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
           / state["NumLoadsCoalescedB"]
 
-    # load size para/perp A
-    if totalElementsParaA % state["NumLoadsCoalescedA"] != 0:
-      if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
-          % (totalElementsParaA, state["NumLoadsCoalescedA"]))
-      state["Valid"] = False
-      return
-    #else:
-    #  loadSizeParaA = totalElementsParaA / state["NumLoadsCoalescedA"]
-    if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
-      if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
-          % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
-      state["Valid"] = False
-      return
-    #else:
-    #  loadSizePerpA = totalElementsPerpA / state["NumLoadsPerpendicularA"]
 
     # load size para/perp B
-    if totalElementsParaB % state["NumLoadsCoalescedB"] != 0:
-      if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
-          % (totalElementsParaB, state["NumLoadsCoalescedB"]))
+    if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
+      if printReason: print2("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
+          % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
       state["Valid"] = False
       return
     #else:
-    #  loadSizeParaB = totalElementsParaB / state["NumLoadsCoalescedB"]
+    #  loadSizeParaB = totalElementsCoalescedB / state["NumLoadsCoalescedB"]
     if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
       if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
           % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
@@ -691,6 +781,15 @@ class Solution:
       return
     #else:
     #  loadSizePerpB = totalElementsPerpB / state["NumLoadsPerpendicularB"]
+    """
+
+
+
+
+
+
+
+
 
     # too much LDS
     sizeLDS = state["LoopUnroll"] \
