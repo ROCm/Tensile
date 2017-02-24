@@ -49,6 +49,7 @@ globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
 globalParameters["MaxThreads"] = 256
+globalParameters["MinThreads"] = 64
 globalParameters["MaxRegisters"] = 256
 globalParameters["MaxLDS"] = 32768
 
@@ -73,9 +74,9 @@ defaultBenchmarkCommonParameters = [
 # benchmark these solution independently
 defaultForkParameters = [
     {"WorkGroupEdge":           [ 16, 8 ] },
-    {"WorkGroupShape":          [ 0 ] }, # -1, 0, 1
+    {"WorkGroupShape":          [ 0 ] }, # -4, -2, 0, 2, 4
     {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
-    {"ThreadTileShape":         [ 0 ] }, # -1, 0, 1
+    {"ThreadTileShape":         [ 0 ] }, # -4, -2, 0, 2, 4
     {"NumLoadsCoalescedA":       [ 1, -1 ] },
     {"NumLoadsCoalescedB":       [ 1, -1 ] },
     ]
