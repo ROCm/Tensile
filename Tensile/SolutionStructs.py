@@ -592,6 +592,14 @@ class Solution:
     if state["NumThreads"] < globalParameters["MinThreads"]:
       if printReason: print2("rejecting %u threads" % state["NumThreads"])
       state["Valid"] = False
+
+    if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
+        or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"] \
+        or state["ThreadTile0"]*state["ThreadTile1"]*state["ProblemType"]["DataType"].numRegisters() > globalParameters["MaxThreadTile"]:
+      state["Valid"] = False
+
+
+
     state["AssignedProblemIndependentDerivedParameters"] = True
 
   ########################################

@@ -50,8 +50,9 @@ globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
 globalParameters["MaxThreads"] = 256
 globalParameters["MinThreads"] = 64
-globalParameters["MaxRegisters"] = 256
 globalParameters["MaxLDS"] = 32768
+globalParameters["MaxMacroTileRatio"] = 4
+globalParameters["MaxThreadTile"] = 64
 
 
 ################################################################################
@@ -101,6 +102,7 @@ defaultBenchmarkJoinParameters = [
 derivedParameters = [
     "MacroTile0",
     "MacroTile1",
+    "DepthU",
     "WorkGroup0",
     "WorkGroup1",
     "ThreadTile0",
@@ -120,7 +122,6 @@ for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
     for key, value in paramDict.iteritems():
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
-defaultSolution["MacroTileMaxRatio"] = 2
 
 ################################################################################
 # Default Problem Type
