@@ -593,14 +593,14 @@ class Solution:
       if printReason: print2("rejecting %u threads" % state["NumThreads"])
       state["Valid"] = False
 
+    # tile shape
     if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
-        or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"] \
-        or state["ThreadTile0"]*state["ThreadTile1"]*state["ProblemType"]["DataType"].numRegisters() > globalParameters["MaxThreadTile"]:
+        or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
       state["Valid"] = False
 
-
-
+    # done
     state["AssignedProblemIndependentDerivedParameters"] = True
+
 
   ########################################
   # assign all derived parameters
@@ -614,6 +614,10 @@ class Solution:
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     printReason = False
+
+    # tile size
+    if state["ThreadTile0"]*state["ThreadTile1"]*state["ProblemType"]["DataType"].numRegisters() > globalParameters["MaxThreadTile"]:
+      state["Valid"] = False
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
