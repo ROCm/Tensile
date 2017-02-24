@@ -505,7 +505,7 @@ class Solution:
       if key != "ProblemType" and key not in self.state:
         self.state[key] = config[key]
 
-    Solution.assignDimsFromEdgeAndShape(self.state)
+    Solution.assignDerivedParameters(self.state)
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -531,7 +531,8 @@ class Solution:
   ########################################
   # assign Dim0, 1 based on edge and shape
   @staticmethod
-  def assignDimsFromEdgeAndShape(state):
+  def assignDerivedParameters(state):
+
     # workgroup sizes
     state["WorkGroup0"] = state["WorkGroupEdge"]
     state["WorkGroup1"] = state["WorkGroupEdge"]
@@ -555,6 +556,143 @@ class Solution:
       state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
     if "SplitU" in state and "LoopUnroll" in state:
       state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
+
+    printReason = False
+
+    # num threads
+    state["NumThreads"] = state["WorkGroup0"]*state["WorkGroup1"]
+    if state["NumThreads"] > globalParameters["MaxThreads"]:
+      if printReason: print2("rejecting %u threads" % state["NumThreads"])
+      state["Valid"] = False
+      return
+
+    # how many elements to load
+    if state["ProblemType"]["TLUA"]:
+      totalElementsParaA = state["MacroTile0"]
+      totalElementsPerpA = state["LoopUnroll"]
+    else:
+      totalElementsParaA = state["LoopUnroll"]
+      totalElementsPerpA = state["MacroTile0"]
+
+    if state["ProblemType"]["TLUB"]:
+      totalElementsParaB = state["MacroTile1"]
+      totalElementsPerpB = state["LoopUnroll"]
+    else:
+      totalElementsParaB = state["LoopUnroll"]
+      totalElementsPerpB = state["MacroTile1"]
+    totalElementsA = totalElementsParaA * totalElementsPerpA
+    totalElementsB = totalElementsParaB * totalElementsPerpB
+
+    # how many load instructions
+    if totalElementsA % state["NumThreads"] != 0:
+      if printReason: print2("totalElementsA %u %% NumThreads %u != 0" \
+          % (totalElementsA, state["NumThreads"]))
+      state["Valid"] = False
+      return
+    else:
+      state["NumLoadsA"] = totalElementsA / state["NumThreads"]
+    if totalElementsB % state["NumThreads"] != 0:
+      if printReason: print2("totalElementsB %u %% NumThreads %u != 0" \
+          % (totalElementsB, state["NumThreads"]))
+      state["Valid"] = False
+      return
+    else:
+      state["NumLoadsB"] = totalElementsB / state["NumThreads"]
+
+    # how many loads para
+    if state["NumLoadsCoalescedA"] < 1:
+      state["NumLoadsCoalescedA"] = state["NumLoadsA"]
+      print "Assigning NLCA=%u" % state["NumLoadsA"]
+    if state["NumLoadsA"] % state["NumLoadsCoalescedA"] != 0:
+      if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
+          % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
+      state["Valid"] = False
+      return
+    else:
+      state["NumLoadsPerpendicularA"] = state["NumLoadsA"] \
+          / state["NumLoadsCoalescedA"]
+    if state["NumLoadsCoalescedB"] < 1:
+      state["NumLoadsCoalescedB"] = state["NumLoadsB"]
+      print "Assigning NLCB=%u" % state["NumLoadsB"]
+    if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
+      if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
+          % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
+      state["Valid"] = False
+      return
+    else:
+      state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
+          / state["NumLoadsCoalescedB"]
+
+    # load size para/perp A
+    if totalElementsParaA % state["NumLoadsCoalescedA"] != 0:
+      if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
+          % (totalElementsParaA, state["NumLoadsCoalescedA"]))
+      state["Valid"] = False
+      return
+    #else:
+    #  loadSizeParaA = totalElementsParaA / state["NumLoadsCoalescedA"]
+    if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
+      if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+          % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
+      state["Valid"] = False
+      return
+    #else:
+    #  loadSizePerpA = totalElementsPerpA / state["NumLoadsPerpendicularA"]
+
+    # load size para/perp B
+    if totalElementsParaB % state["NumLoadsCoalescedB"] != 0:
+      if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
+          % (totalElementsParaB, state["NumLoadsCoalescedB"]))
+      state["Valid"] = False
+      return
+    #else:
+    #  loadSizeParaB = totalElementsParaB / state["NumLoadsCoalescedB"]
+    if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
+      if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+          % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
+      state["Valid"] = False
+      return
+    #else:
+    #  loadSizePerpB = totalElementsPerpB / state["NumLoadsPerpendicularB"]
+
+    # too much LDS
+    sizeLDS = state["LoopUnroll"] \
+        * (state["PadLDS"] * 2 + state["MacroTile0"] \
+        + state["MacroTile1"] ) \
+        * state["ProblemType"]["DataType"].numBytes()
+    if sizeLDS > globalParameters["MaxLDS"]:
+      if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
+      state["Valid"] = False
+      return
+
+    # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
+    if globalParameters["Backend"] == "HIP":
+      if state["ProblemType"]["DataType"].value == DataType.single:
+        if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:
+          if state["NumLoadsCoalescedA"] != 1 and state["NumLoadsCoalescedB"] != 8:
+            state["Valid"] = False
+            return
+      elif state["ProblemType"]["DataType"].value == DataType.double:
+        if globalParameters["Backend"] == "HIP":
+          if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
+            state["Valid"] = False
+            return
+
+    state["Valid"] = True
+
+# validation failures
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA04_NLCB02_NLPA04_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB04_NLPA08_NLPB04_TT008_TT108_TTE08_WG008_WG108_WGE08
+
+# Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA04_NLCB01_NLPA04_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB01_NLPA08_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB01_NLPA01_NLPB08_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA08_NLCB08_NLPA01_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA08_NLCB08_NLPA02_NLPB02_TT008_TT108_TTE08_WG008_WG108_WGE08
+# Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB08_NLPA08_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
+
+
 
 
   ########################################
@@ -746,7 +884,8 @@ class Solution:
     return hash(str(self))
     #return hash(self.getAttributes())
   def __eq__(self, other):
-    return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
+    #return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
+    return isinstance(other, Solution) and str(self) == str(other)
   def __ne__(self, other):
     result = self.__eq__(other)
     if result is NotImplemented:

@@ -169,8 +169,14 @@ def benchmarkProblemType( config ):
                 benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
-        if SolutionWriter.solutionParametersConsistent(solutionObject):
-          solutions[hardcodedIdx].append(solutionObject)
+        if solutionObject["Valid"]:
+          print str(solutionObject), " LOOKING"
+          for s in solutions:
+            print s
+          if solutionObject not in solutions:
+            solutions[hardcodedIdx].append(solutionObject)
+          else:
+            print "SOLUTION ALREADY IN SOLUTIONS"
           if globalParameters["PrintLevel"] >= 1:
             sys.stdout.write("|")
         else:
@@ -541,8 +547,8 @@ class WinningParameterDict:
           #for paramName in hardcodedFrozen:
           #  paramValue = hardcodedFrozen[paramName]
           #  matchUnion[paramName] = paramValue
-          Solution.assignDimsFromEdgeAndShape(matchUnion)
-          Solution.assignDimsFromEdgeAndShape(hardcodedFrozen.parameters)
+          Solution.assignDerivedParameters(matchUnion)
+          Solution.assignDerivedParameters(hardcodedFrozen.parameters)
           if matchUnion["MacroTile0"] != lookupMacroTile0 \
               or matchUnion["MacroTile1"] != lookupMacroTile1:
             matchMacroTile = False
