@@ -399,13 +399,13 @@ class BenchmarkProcess:
           macroTileDim0 = workGroupEdgeValues[workGroupEdgeIdx]*threadTileEdgeValues[threadTileEdgeIdx]
           macroTileDim1 = macroTileDim0
           if workGroupShapeValues[workGroupShapeIdx] < 0:
-            macroTileDim1 /= 2
+            macroTileDim0 *= abs(workGroupShapeValues[workGroupShapeIdx])
           elif workGroupShapeValues[workGroupShapeIdx] > 0:
-            macroTileDim1 *= 2
+            macroTileDim1 *= abs(workGroupShapeValues[workGroupShapeIdx])
           if threadTileShapeValues[threadTileShapeIdx] < 0:
-            macroTileDim1 /= 2
+            macroTileDim0 *= abs(threadTileShapeValues[threadTileShapeIdx])
           elif threadTileShapeValues[threadTileShapeIdx] > 0:
-            macroTileDim1 *= 2
+            macroTileDim1 *= abs(threadTileShapeValues[threadTileShapeIdx])
           if macroTileDim0/macroTileDim1 <= self.initialSolutionParameters["MacroTileMaxRatio"] and macroTileDim1/macroTileDim0 <= self.initialSolutionParameters["MacroTileMaxRatio"]:
             macroTileJoinSet.add((macroTileDim0, macroTileDim1))
         totalPermutations *=len(macroTileJoinSet)

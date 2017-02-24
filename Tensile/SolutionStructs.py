@@ -562,18 +562,18 @@ class Solution:
     # workgroup sizes
     state["WorkGroup0"] = state["WorkGroupEdge"]
     state["WorkGroup1"] = state["WorkGroupEdge"]
-    if state["WorkGroupShape"] == 1:
-      state["WorkGroup1"] *= 2
-    elif state["WorkGroupShape"] == -1:
-      state["WorkGroup0"] *= 2
+    if state["WorkGroupShape"] > 0:
+      state["WorkGroup1"] *= abs(state["WorkGroupShape"])
+    elif state["WorkGroupShape"] < 0:
+      state["WorkGroup0"] *= abs(state["WorkGroupShape"])
 
     # thread tile sizes
     state["ThreadTile0"] = state["ThreadTileEdge"]
     state["ThreadTile1"] = state["ThreadTileEdge"]
-    if state["ThreadTileShape"] == 1:
-      state["ThreadTile1"] *= 2
-    elif state["ThreadTileShape"] == -1:
-      state["ThreadTile0"] *= 2
+    if state["ThreadTileShape"] > 0:
+      state["ThreadTile1"] *= abs(state["ThreadTileShape"])
+    elif state["ThreadTileShape"] < 0:
+      state["ThreadTile0"] *= abs(state["ThreadTileShape"])
 
     # macro tile sizes
     if "WorkGroup0" in state and "ThreadTile0" in state:
