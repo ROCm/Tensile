@@ -29,11 +29,11 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
-      - WorkGroupSchedule: [ 1 ]
+      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
     ForkParameters:
@@ -49,7 +49,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [2880] ]
 
   # sgemm NT
   - ProblemType:
@@ -62,11 +62,11 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
-      - WorkGroupSchedule: [ 1 ]
+      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
     ForkParameters:
@@ -82,7 +82,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [2880] ]
 
   # sgemm TN
   - ProblemType:
@@ -95,11 +95,11 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
-      - WorkGroupSchedule: [ 1 ]
+      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
     ForkParameters:
@@ -115,7 +115,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [2880] ]
 
   # sgemm TT
   - ProblemType:
@@ -128,11 +128,11 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
-      - WorkGroupSchedule: [ 1 ]
+      - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
     ForkParameters:
@@ -148,7 +148,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [2880] ]
 
 LibraryLogic:
   Dilation: 3

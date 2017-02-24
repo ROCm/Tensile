@@ -32,7 +32,7 @@ BenchmarkProblems:
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
         EdgeMultiKernel: [False]
-      - WorkGroupSchedule: [ 1 ]
+      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
       - WorkGroupShape: [ 0 ]
