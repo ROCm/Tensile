@@ -96,8 +96,8 @@ defaultBenchmarkJoinParameters = [
     {"VectorWidthLocalStore":   [ 4 ] },
     ]
 
-# derrived parameters may show up in solution dict but don't use for naming
-derrivedParameters = [
+# derived parameters may show up in solution dict but don't use for naming
+derivedParameters = [
     "MacroTile0",
     "MacroTile1",
     "WorkGroup0",
@@ -108,6 +108,7 @@ derrivedParameters = [
     "NumLoadsB",
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
+    "NumThreads",
     ]
 
 # dictionary of defaults comprised for 1st option for each parameter

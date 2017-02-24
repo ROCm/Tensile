@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derrivedParameters
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derivedParameters
 from copy import deepcopy
 
 ################################################################################
@@ -583,6 +583,7 @@ class Solution:
     if "SplitU" in state and "LoopUnroll" in state:
       state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
+    printReason = False
     # num threads
     state["NumThreads"] = state["WorkGroup0"]*state["WorkGroup1"]
     if state["NumThreads"] > globalParameters["MaxThreads"]:
@@ -625,14 +626,15 @@ class Solution:
       if printReason: print2("totalElementsA %u %% NumThreads %u != 0" \
           % (totalElementsA, state["NumThreads"]))
       state["Valid"] = False
-      #return
+      return
     else:
       state["NumLoadsA"] = totalElementsA / state["NumThreads"]
     if totalElementsB % state["NumThreads"] != 0:
       if printReason: print2("totalElementsB %u %% NumThreads %u != 0" \
           % (totalElementsB, state["NumThreads"]))
       state["Valid"] = False
-      #return
+      return
+      state["NumLoadsB"] = totalElementsB / state["NumThreads"]
     else:
       state["NumLoadsB"] = totalElementsB / state["NumThreads"]
 
@@ -643,7 +645,7 @@ class Solution:
       if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
           % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
       state["Valid"] = False
-      #return
+      return
     else:
       state["NumLoadsPerpendicularA"] = state["NumLoadsA"] \
           / state["NumLoadsCoalescedA"]
@@ -653,7 +655,7 @@ class Solution:
       if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
           % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
       state["Valid"] = False
-      #return
+      return
     else:
       state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
           / state["NumLoadsCoalescedB"]
@@ -663,14 +665,14 @@ class Solution:
       if printReason: print2("totalElementsParaA %u %% numLoadsParaA %u != 0" \
           % (totalElementsParaA, state["NumLoadsCoalescedA"]))
       state["Valid"] = False
-      #return
+      return
     #else:
     #  loadSizeParaA = totalElementsParaA / state["NumLoadsCoalescedA"]
     if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
       if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
           % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
       state["Valid"] = False
-      #return
+      return
     #else:
     #  loadSizePerpA = totalElementsPerpA / state["NumLoadsPerpendicularA"]
 
@@ -679,14 +681,14 @@ class Solution:
       if printReason: print2("totalElementsParaB %u %% numLoadsParaB %u != 0" \
           % (totalElementsParaB, state["NumLoadsCoalescedB"]))
       state["Valid"] = False
-      #return
+      return
     #else:
     #  loadSizeParaB = totalElementsParaB / state["NumLoadsCoalescedB"]
     if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
       if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
           % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
       state["Valid"] = False
-      #return
+      return
     #else:
     #  loadSizePerpB = totalElementsPerpB / state["NumLoadsPerpendicularB"]
 
@@ -698,7 +700,7 @@ class Solution:
     if sizeLDS > globalParameters["MaxLDS"]:
       if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
       state["Valid"] = False
-      #return
+      return
 
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
     if globalParameters["Backend"] == "HIP":
@@ -745,14 +747,16 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        requiredParameters[key] = False
+        if key not in derivedParameters:
+          requiredParameters[key] = False
     else:
       for key in keys:
         required = False
-        for i in range(1, len(objs)):
-          if objs[0][key] != objs[i][key]:
-            required = True
-            break
+        if key not in derivedParameters:
+          for i in range(1, len(objs)):
+            if objs[0][key] != objs[i][key]:
+              required = True
+              break
         if required:
           requiredParameters[key] = True
         else:
@@ -799,7 +803,7 @@ class Solution:
     for objIdx in range(0, len(objs)):
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
-        if paramName not in derrivedParameters:
+        if paramName not in derivedParameters:
           paramValue = obj[paramName]
           if paramName in data:
             if paramValue not in data[paramName]:
@@ -823,7 +827,7 @@ class Solution:
     serial = 0
     multiplier = 1
     for paramName in sorted(state.keys()):
-      if paramName not in derrivedParameters:
+      if paramName not in derivedParameters:
         paramValue = state[paramName]
         paramData = data[paramName]
         paramNameMultiplier = len(paramData)
