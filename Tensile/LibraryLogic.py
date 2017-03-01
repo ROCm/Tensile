@@ -240,9 +240,9 @@ class LogicAnalyzer:
       moreProblems = True
       invalidIdx = -1
       for problemIndices in self.problemIndicesForGlobalRange:
-        problemIdx = self.indicesToSerial(0, problemIndices)
+        problemSerial = self.indicesToSerial(0, problemIndices)
         for solutionIdx in range(0, self.numSolutions):
-          gflops = self.data[problemIdx+solutionIdx]
+          gflops = self.data[problemSerial+solutionIdx]
           if gflops == 0:
             invalidIdx = solutionIdx
             break
@@ -276,10 +276,10 @@ class LogicAnalyzer:
     outlierThreshold = self.parameters["OutlierThreshold"]
     problemSizes = [0]*self.numIndices
     for problemIndices in self.problemIndicesForGlobalRange:
-      problemIdx = self.indicesToSerial(0, problemIndices)
+      problemSerial = self.indicesToSerial(0, problemIndices)
 
       for solutionIdx in range(0, self.numSolutions):
-        gflops = self.data[problemIdx+solutionIdx]
+        gflops = self.data[problemSerial+solutionIdx]
         neighborGFlops = []
         smoothProblem = False
         for iIdx in range(0, self.numIndices):
@@ -304,132 +304,107 @@ class LogicAnalyzer:
             problemSizes[i] = self.problemIndexToSize[i][problemIndices[i]]
             s += "%u, " % problemSizes[i]
           new = sum(neighborGFlops)/len(neighborGFlops)
-          old = self.data[problemIdx+solutionIdx]
+          old = self.data[problemSerial+solutionIdx]
           s += "%f -> %f" % (old, new)
           print s
-          self.data[problemIdx+solutionIdx] \
+          self.data[problemSerial+solutionIdx] \
               = sum(neighborGFlops)/len(neighborGFlops)
 
 
   ##############################################################################
   # ENTRY: En Rule
   # currentIndexIndex = 0, 1, 2, 3...
+  # currentIndexRange will have only 1 size for prior indices (unless initial)
+  #
+  # Rule:
+  # [128, [
+  #         [64, [
+  #                [16, 0],
+  #                [2880,1]
+  #              ]
+  #         ],
+  #         [96, [
+  #                [16, 0],
+  #                [64, 1]
+  #              ]
+  #         ]
+  #       ]
+  # ], another
+  #
+  #
   ##############################################################################
   def enRule(self, currentIndexIndex, currentIndexRange):
+    tab = ""
+    for i in range(0, currentIndexIndex):
+      tab += "  "
+    print "%senRule(%u, %s)" % (tab, currentIndexIndex, currentIndexRange)
     currentIndex = self.indexOrder[currentIndexIndex]
-    lastIndex = currentIndexIndex == self.numIndices-1
+    nextIndexIndex = currentIndexIndex+1
+    nextIndexRange = deepcopy(currentIndexRange)
+    isLastIndex = currentIndexIndex == self.numIndices-1
 
     # if there's only 1 problem size here
     if currentIndexRange[currentIndex][1] \
         - currentIndexRange[currentIndex][0] == 1:
+
       # this is last index, so just return fastest solution
-      if lastIndex:
-        scores = scoreRangeForSolutions(currentIndexRange)
-        winnerIdx = 0
-        for solutionIdx in range(1, self.numSolution):
-          if scores[solutionIdx] < scores[winnerIdx]:
-            winnerIdx = solutionIdx
-        rule = [ -1, winnerIdx ]
+      if isLastIndex:
+        # optimize b/c this should be only single problem
+        #scores = self.scoreRangeForSolutions(currentIndexRange)
+        #winnerIdx = 0
+        #for solutionIdx in range(1, self.numSolution):
+        #  if scores[solutionIdx] < scores[winnerIdx]:
+        #    winnerIdx = solutionIdx
+        winnerIdx = self.winnerForRange(currentIndexRange)
+        print "%s  returning early winner=%u" % (tab, winnerIdx)
+        return [ -1, winnerIdx ]
+
       # this isn't last index, so just return next index
       else:
-        newIndexIndex = currentIndexIndex+1
-        newIndexRange = deepcopy(currentIndexRange)
-        rule = [ -1, self.enRule(newIndexIndex, newIndexRange) ]
+        print "%s  returning early enRule(%u,%s)" \
+            % (tab, nextIndexIndex, nextIndexRange)
+        return [ -1, self.enRule(nextIndexIndex, nextIndexRange) ]
+
+    # ruleList
+    ruleList = []
 
     # create rule for smallest size
+    initialSize = min(currentIndexRange[currentIndex][0] \
+        + self.parameters["InitialSolutionWindow"], \
+        self.numProblemSizes[currentIndex])
+    nextIndexRange[currentIndex][1] = initialSize
+    if isLastIndex:
+      winnerIdx = self.winnerForRange(nextIndexRange)
+      initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
+
+    else:
+      initialRule = [ currentIndexRange[currentIndex][0], \
+          self.enRule(nextIndexIndex, nextIndexRange) ]
+    ruleList.append(initialRule)
 
     # for all problem indices in this index
+
     for problemIndex in range(currentIndexRange[currentIndex][0], \
         currentIndexRange[currentIndex][1]):
-    # rules = seed with smallest rule
-    # for dimIdx = 0 -> numSizes
-      # if newRule
-        # score range using newRule
-        # score range using priorRule
-        # accept/reject based on score
-    # current index is dimOrder[0]
+      print "%s  pIdx: %u" % (tab, problemIndex)
+      nextIndexRange[currentIndex][0] = problemIndex
+      nextIndexRange[currentIndex][1] = problemIndex+1
 
+      if isLastIndex:
+        winnerIdx = self.winnerForRange(currentIndexRange)
+        candidateRule = [ currentIndexRange[currentIndex][0], winnerIdx]
+      else:
+        candidateRule = [ problemIndex, self.enRule(nextIndexIndex, \
+            nextIndexRange) ]
+      priorRule = ruleList[len(ruleList)-1]
+      priorRuleScore = self.scoreRangeForLogic(nextIndexRange, priorRule)
+      candidateRuleScore = self.scoreRangeForLogic(nextIndexRange, \
+          candidateRule)
+      candidateRuleScore += self.parameters["BranchWeight"] # penalize
+      if candidateRuleScore < priorRuleScore:
+        ruleList.append(candidateRule)
 
-
-
-
-    sumValues = []
-    totalSummationSizes = 1
-    for i in self.rangeIndicesSummation:
-      totalSummationSizes *= self.numProblemSizes[i]
-    summationPermutations = []
-    for permutationIdx in range(0, totalSummationSizes):
-      permutation = []
-      permutationSize = 1
-      pIdx = permutationIdx
-      for i in self.rangeIndicesSummation:
-        idx = pIdx % self.numProblemSizes[i]
-        permutation.append(idx)
-        permutationSize *= self.problemIndexToSize[i][idx]
-        pIdx /= self.numProblemSizes[i]
-      # insert permutation in sorted order
-      insertIdx = len(summationPermutations)-1
-      for pIdx in range(0, len(summationPermutations)):
-        size = 1
-        for i in self.rangeIndicesSummation:
-          size *= self.problemIndexToSize[i][summationPermutations[pIdx][i]]
-        if permutationSize > size:
-          insertIdx = pIdx
-          break
-      summationPermutations.insert(insertIdx, permutation)
-    print "SummationPermutations:", summationPermutations
-
-
-    if len(summationPermutations) == 1:
-      rules = [ 0, self.createRules01(summationPermutations[0]) ]
-      return rules
-    else:
-      printExit("No Logic to support multiple summation sizes.")
-      # iterate over summation permutations
-# for each serial pair, scoreA, scoreB, scoreAB
-# keep rule AB if scoreAB isn't much slower than scoreA + scoreB
-
-    """
-    sizeSummation *= self.problemIndexToSize[i][problemIndices[i]]
-
-    firstProblemIndices = []
-    lastProblemIndices = []
-    for i in range(0, self.numIndices):
-      firstProblemIndices.append(0)
-      lastProblemIndices.append(self.numProblems[i]-1)
-    minSumValue = self.getSizeSummation(firstProblemIndices)
-    maxSumValue = self.getSizeSummation(lastProblemIndices)
-    numSumValues =
-
-
-    rule = [
-        [
-          minU,                             # k threshold
-          [[min01,s], [0,s]],               # diagonals
-          [0, max0, [[min1,s], [min1,s]]],  # skinny0's
-          [1, max1, [[min0,s], [min0,s]]],  # skinny1's
-        ],
-        [
-          minU,                             # k threshold
-          [[min01,s], [0,s]],               # diagonals
-          [0, max0, [[min1,s], [min1,s]]],  # skinny0's
-          [1, max1, [[min0,s], [min0,s]]],  # skinny1's
-        ],
-    ]
-
-    ruleA = createRules01()
-    ruleB = createRules01()
-
-    minSumValue = 0
-    maxSumValue = self.numProblems
-
-
-    sizeSummation = 1
-    for i in range(self.problemType["NumIndicesC"], \
-        self.problemType["TotalIndices"]):
-      sizeSummation *= self.problemIndexToSize[i][problemIndices[i]]
-    return sizeSummation
-    """
+    return ruleList
 
 
 
@@ -441,585 +416,6 @@ class LogicAnalyzer:
   ##############################################################################
   ##############################################################################
 
-
-
-  ##############################################################################
-  # Create Rules dim0 / dim1
-  ##############################################################################
-  def createRules01(self, problemSizeSummation ):
-
-    diagonalRules = self.createRulesDiagonal(problemSizeSummation)
-
-
-  ##############################################################################
-  # Create Rules Diagonal
-  ##############################################################################
-  def createRulesDiagonal(self, problemSizeSummation):
-    thresholdForDiagonality = 1.5 # slightly fewer problems than 2
-    numProblemSizesFastestDiagonal = 16
-    problemIndices = [0]*self.numIndices
-    for i in self.rangeIndicesSummation:
-      problemIndices[i] = problemSizeSummation[i \
-          - self.problemType["NumIndicesC"]]
-    print2("\nDiagonalRules for %s" % problemIndices)
-    problemSizes = [0]*self.numIndices
-    totalFlopsPerSizeFree = self.flopsPerMac
-    for i in self.rangeIndicesSummation:
-      totalFlopsPerSizeFree *= self.problemIndexToSize[i][problemIndices[i]]
-    print "totalFlopsPerSizeFree", totalFlopsPerSizeFree
-
-    ########################################
-    # transform data into serial list of "diagonal problem sizes"
-    diagonalData = []
-    moreProblems = True
-    while moreProblems:
-
-      # size free
-      for i in range(0, self.numIndices):
-        problemSizes[i] = self.problemIndexToSize[i][problemIndices[i]]
-      size0 = problemSizes[self.idx0]
-      size1 = problemSizes[self.idx1]
-
-      # if diagonal
-      if size0 < size1*thresholdForDiagonality \
-          and size1 < size0*thresholdForDiagonality:
-        sizeFree = self.getSizeFree(problemIndices)
-
-        problemIdx = self.indicesToSerial(0, problemIndices)
-        solutionGFlops = []
-        for i in range(0, self.numSolutions):
-          solutionGFlops.append(self.data[problemIdx+i])
-
-        diagonalData.append([ sizeFree, solutionGFlops ])
-
-      # next problem
-      problemIndices[0] += 1
-      for i in self.rangeIndicesFree:
-        if problemIndices[i] >= self.numProblemSizes[i]:
-          if i == self.problemType["NumIndicesFree"]-1:
-            moreProblems = False
-            break
-          else:
-            problemIndices[i] = 0
-            problemIndices[i+1] += 1
-        else:
-          break
-
-    diagonalData.sort(key=lambda x: x[0], reverse=True)
-    for dd in diagonalData:
-      print "DD[%u]: %s" % (dd[0], dd[1])
-    print len(diagonalData)
-
-
-    ########################################
-    # create first rule
-    sizeFree = diagonalData[0][0]
-    relativeTime = [0]*self.numSolutions
-    for i in range(0, numProblemSizesFastestDiagonal):
-      for j in range(0, self.numSolutions):
-        gflops = diagonalData[i][1][j]
-        relativeTime[j] += 1 / gflops
-    winnerIdx = 0
-    winnerRelativeTime = relativeTime[0]
-    for i in range(1, self.numSolutions):
-      if relativeTime[i] < winnerRelativeTime:
-        winnerIdx = i
-        winnerRelativeTime = relativeTime[i]
-    print "FastestDiagonalSolution:", winnerIdx, self.solutionNames[winnerIdx]
-    fastestGFlops = 0
-    for i in range(0, numProblemSizesFastestDiagonal):
-      gflops = diagonalData[i][1][winnerIdx]
-      if gflops > fastestGFlops:
-        fastestGFlops = gflops
-
-    rules = []
-    #                                  minGFlops      maxGFlops      oldGFlops?
-    rules.append([winnerIdx, sizeFree, fastestGFlops, fastestGFlops, -1])
-    print "Winner[%3u]: %u" % (0, winnerIdx)
-# we can't just pay attention to single winner
-# we need to compute scores for all solutions over a window
-# b/c 441115111333
-#   = 441555555333
-#
-# we can do a smoothing pass to get rid of bogus data; if a data point is more than x% slower than 4 surrounding points, than its bogus, just set it equal to average of 4 surrounding points
-#
-
-    ########################################
-    # create subsequent rules for smaller sizes
-    for diagonalDataIdx in range(1, len(diagonalData)):
-      print "DiagonalDataIdx:", diagonalDataIdx
-      # prior rule
-      priorRule = rules[len(rules)-1]
-      priorWinnerIdx = priorRule[0]
-      # candidate winner
-      candidateWinnerIdx = 0
-      candidateWinnerGFlops = diagonalData[diagonalDataIdx][1][0]
-      for j in range(1, self.numSolutions):
-        gflops = diagonalData[diagonalDataIdx][1][j]
-        if gflops > candidateWinnerGFlops:
-          candidateWinnerIdx = j
-          candidateWinnerGFlops = gflops
-      if candidateWinnerIdx == priorWinnerIdx:
-        # update prior rule to include this sizeFree
-        rules[len(rules)-1][1] = diagonalData[diagonalDataIdx][0] # size free
-        rules[len(rules)-1][2] = \
-            diagonalData[diagonalDataIdx][1][priorWinnerIdx] # perf at size
-        continue
-      else:
-        # candidate rule
-        sizeFree = diagonalData[diagonalDataIdx][0]
-        totalFlops = sizeFree*totalFlopsPerSizeFree
-        candidateGFlops = diagonalData[diagonalDataIdx][1][candidateWinnerIdx]
-        priorGFlops = diagonalData[diagonalDataIdx][1][priorWinnerIdx]
-        candidateRule = [ candidateWinnerIdx, sizeFree, candidateGFlops, \
-            candidateGFlops, -1 ]
-        # candidate and prior scores
-        candidateTimeUs = totalFlops / candidateGFlops / 1000
-        priorTimeUs = totalFlops / priorGFlops / 1000
-        candidateScore = 1*self.w2 + candidateTimeUs
-        priorScore = 0*self.w2 + priorTimeUs
-        print "DDI[%3u] Prior[%2u]: %.0fus vs Candi[%2u]: %.0fus" \
-            % (diagonalDataIdx, priorWinnerIdx, priorScore, candidateWinnerIdx, candidateScore)
-        checkMoreProblems = True
-        for newDiagonalDataIdx in range(diagonalDataIdx+1, len(diagonalData)):
-          newWinnerIdx = 0
-          newWinnerGFlops = diagonalData[newDiagonalDataIdx][1][0]
-          for j in range(1, self.numSolutions):
-            gflops = diagonalData[newDiagonalDataIdx][1][j]
-            if gflops > newWinnerGFlops:
-              newWinnerIdx = j
-              newWinnerGFlops = gflops
-          # update candidate and prior scores
-          sizeFree = diagonalData[newDiagonalDataIdx][0]
-          totalFlops = sizeFree*totalFlopsPerSizeFree
-          candidateGFlops = \
-              diagonalData[newDiagonalDataIdx][1][candidateWinnerIdx]
-          priorGFlops = diagonalData[newDiagonalDataIdx][1][priorWinnerIdx]
-          candidateTimeUs = totalFlops / candidateGFlops / 1000
-          priorTimeUs = totalFlops / priorGFlops / 1000
-          candidateScore += candidateTimeUs
-          priorScore += priorTimeUs
-          print "  NDDI[%3u] Prior[%2u]: %.0fus vs Candi[%2u]: %.0fus" \
-              % (newDiagonalDataIdx, priorWinnerIdx, priorScore, \
-              candidateWinnerIdx, candidateScore)
-          if newWinnerIdx == candidateWinnerIdx:
-            print "    newWinnerIdx == candidateWinnerIdx"
-            if candidateScore < priorScore:
-              # candidate rule accepted
-              rules.append(candidateRule)
-              print "      accepting"
-              break
-            else:
-              # candidate rule not yet accepted
-              candidateRule[1] = sizeFree
-              candidateRule[2] = candidateGFlops
-              print "      continuing"
-              continue
-          elif newWinnerIdx == priorWinnerIdx:
-            print "    newWinnerIdx == priorWinnerIdx"
-            # returned to original winner, decide now to accept/reject
-            if candidateScore < priorScore:
-              # candidate rule accepted
-              rules.append(candidateRule)
-              print "      accepting"
-              break
-            else:
-              # candidate rule rejected; update prior, continue at newSize
-              rules[len(rules)-1][1] = sizeFree
-              rules[len(rules)-1][2] = priorGFlops
-              diagonalDataIdx = newDiagonalDataIdx
-              print "      rejecting"
-              break
-          else:
-            print "    newWinnerIdx is %u" % newWinnerIdx
-            # new winner was a 3rd solution; decide now (same as above)
-            if candidateScore < priorScore:
-              # candidate rule accepted
-              rules.append(candidateRule)
-              print "      accepting"
-              break
-            else:
-              # candidate rule rejected; update prior, continue at newSize
-              rules[len(rules)-1][1] = diagonalData[newDiagonalDataIdx][0]
-              rules[len(rules)-1][2] = \
-                  diagonalData[newDiagonalDataIdx][1][priorWinnerIdx]
-              diagonalDataIdx = newDiagonalDataIdx
-              print "      rejecting"
-              break
-
-      return
-
-        # go farther forward, does candidate rule keep winning, or does priorRule keep winning?
-        # the new rule should start at a loss b/c of Weight2
-        # a few problems in the future
-            # if new rule is better, W2 gets amortized, Wt improves
-            # if new rule is worse, W2 gets amortized, Wt worsens
-        # continue to future problems until, and make final decision
-          # newRule gets better score; accept
-          # return to priorRule winner; accept/reject
-          # Yet a new winner
-            # easy: make final accept/reject including this new problem size
-            # hard: recure?
-          #
-        # is the num problems in future vary with W2,Wt?
-# Wt = 1
-# W2 = 1 means we would rather lose 1us per kernel rather than adding another split (actually they're equal)
-# so, in order for candidate to be accepted immediately, it must improve all kernels by more than 1us, or after 2 sizes, improve by 0.5us per kernel
-#
-#
-# 0 0 1 0 0
-# 0 0 1 1 0
-# 0 0 1 4 0
-# 0 0 1 4 1 0
-#
-
-      print "Winner[%3u]: %u" % (i, winnerIdx)
-
-
-    return
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # abstract to multidimensions
-    # what is the diagonal
-    dilation = self.self.parameters["Dilation"]
-    threshold = self.self.parameters["Threshold"]
-    numProblems0 = self.numProblemSizes[self.idx0]
-
-    ############################################################################
-    # determine winner at largest size
-    solutionNumWins = [0]*self.numSolutions
-    solutionGFlops = [0]*self.numSolutions
-    for problemSizeIdx in range(max(0,numProblems0-dilation*2), numProblems0):
-      problemIndices[self.idx0] = problemSizeIdx
-      problemIndices[self.idx1] = problemSizeIdx
-      problemIdx = self.indicesToSerial(0, problemIndices)
-      winnerIdx = -1
-      winnerGFlops = -1
-      for solutionIdx in range(0, self.numSolutions):
-        solutionSerialIdx = problemIdx + solutionIdx
-        solutionTmpGFlops = self.data[solutionSerialIdx]
-        if solutionTmpGFlops > winnerGFlops:
-          winnerIdx = solutionIdx
-          winnerGFlops = solutionTmpGFlops
-        #print "updated winner: ", winnerIdx
-      #print winnerIdx
-      solutionNumWins[winnerIdx] += 1
-      if winnerGFlops > solutionGFlops[winnerIdx]:
-        solutionGFlops[winnerIdx] = winnerGFlops
-    largestWinnerIdx = -1
-    largestWinnerNumWins = -1
-    largestWinnerGFlops = -1
-    #print "FastestWins:"
-    for i in range(0, self.numSolutions):
-      #print "sol[%u] = %u wins @ %.0f GFlops" \
-      #    % (i, solutionNumWins[i], solutionGFlops[i])
-      if solutionNumWins[i] > largestWinnerNumWins:
-        largestWinnerIdx = i
-        largestWinnerNumWins = solutionNumWins[i]
-        largestWinnerGFlops = solutionGFlops[i]
-    #print "Winner at Largest Problem: S[%u] @ %.0f GFlops with %u/%u wins" \
-    #    % (largestWinnerIdx, largestWinnerGFlops, largestWinnerNumWins, \
-    #    dilation*2)
-    problemIndices[self.idx0] = numProblems0-1
-    problemIndices[self.idx1] = numProblems0-1
-    largestWinnerAtLargestProblemIdx = self.indicesToSerial(largestWinnerIdx, \
-        problemIndices)
-    largestWinnerGFlopsAtLargestSize = \
-        self.data[largestWinnerAtLargestProblemIdx]
-
-    ############################################################################
-    # Diagonal Rule
-    # solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops, oldGFlops
-    numRules = 1
-    diagonalRules = [ [largestWinnerIdx, deepcopy(problemIndices), \
-        largestWinnerGFlopsAtLargestSize, largestWinnerGFlops, -1] ]
-
-    ############################################################################
-    # For largest to smallest, determine fastest solution
-    for problemSizeIdx in range(numProblems0-2, -1, -1):
-      problemIndices[self.idx0] = problemSizeIdx
-      problemIndices[self.idx1] = problemSizeIdx
-      problemIdx = self.indicesToSerial(0, problemIndices)
-
-      # current rule winner performance at this problemSizeIdx
-      ruleWinnerIdx = diagonalRules[-1][0]
-      ruleWinnerGFlopsForSize = self.data[problemIdx + ruleWinnerIdx]
-
-      #determine fastest at this problemSizeIdx
-      (winnerForSizeIdx, winnerForSizeGFlops) = \
-          self.getWinnerForProblem( problemIndices )
-
-      # ruleWinner also wins at this problem size (at least by threshold)
-      if winnerForSizeIdx == ruleWinnerIdx \
-          or ruleWinnerGFlopsForSize > (1-threshold)*winnerForSizeGFlops:
-        # just update rule
-        diagonalRules[numRules-1][1] = deepcopy(problemIndices)
-        diagonalRules[numRules-1][2] = ruleWinnerGFlopsForSize
-        diagonalRules[numRules-1][3] = max(diagonalRules[numRules-1][3], \
-            ruleWinnerGFlopsForSize)
-
-      # we have a new candidate winner
-      # only keep it if don't revert back to ruleWinner over next Dilation
-      else:
-
-        # check if we don't revert back to ruleWinner over next Dilation probs
-        revert = False
-        endDilationIdx = max(-1, problemSizeIdx-dilation)
-        for dilationSizeIdx in range(problemSizeIdx-1, \
-            endDilationIdx, -1):
-          problemIndices[self.idx0] = dilationSizeIdx
-          problemIndices[self.idx1] = dilationSizeIdx
-          dilationIdx = self.indicesToSerial(0, problemIndices)
-          ruleWinnerGFlopsForDilation = self.data[dilationIdx \
-              + ruleWinnerIdx]
-          #determine fastest at this problemSizeIdx
-          (winnerForDilationIdx, winnerForDilationGFlops) = \
-              self.getWinnerForProblem(problemIndices)
-
-          # ruleWinner also wins at dilation size (at least by threshold)
-          if winnerForDilationIdx == ruleWinnerIdx \
-              or ruleWinnerGFlopsForDilation \
-              > (1-threshold)*winnerForSizeGFlops:
-            # yes, within Dilation, we've returned to same winner
-            revert = True
-            # so update rule for this size
-            diagonalRules[numRules-1][1] = deepcopy(problemIndices)
-            diagonalRules[numRules-1][2] = winnerForDilationGFlops
-            diagonalRules[numRules-1][3] = max(diagonalRules[numRules-1][3], \
-                winnerForSizeGFlops)
-            # resume outer loop after dilation
-            problemSizeIdx = dilationSizeIdx
-            break
-          else:
-            # different winner at this dilation size
-            # don't need to do anything
-            pass
-
-        # if we never revert to rule during dilation, create new rule
-        if not revert:
-          # solutionIdx, minSizeThresholdIdx, gflops at minSize, maxGFlops, old
-          newRule = [ winnerForSizeIdx, deepcopy(problemIndices), \
-              winnerForSizeGFlops, winnerForSizeGFlops, ruleWinnerGFlopsForSize]
-          diagonalRules.append(newRule)
-          numRules += 1
-          #print "Added new rule: %s" % newRule
-
-    return diagonalRules
-    #end diagonal rules
-
-
-  ##############################################################################
-  # Skinny Solutions
-  ##############################################################################
-  def getSkinnySolutions(self, diagonalRules, problemIndices, \
-      idxLarge, idxSmall):
-    idx0 = self.idx0
-    idx1 = self.idx1
-    #idxU = self.idxU
-    #dilation = self.self.parameters["Dilation"]
-    threshold = self.self.parameters["Threshold"]
-
-    skinnyRules = []
-
-    # for each size threshold along diagonal
-    for diagonalRuleIdx in range(0, len(diagonalRules)):
-      diagonalRule = diagonalRules[diagonalRuleIdx]
-      diagonalRuleWinnerIdx = diagonalRule[0]
-      diagonalRuleThresholdProblem = diagonalRule[1]
-      #diagonalRuleGFlops = diagonalRule[2] # perf at threshold
-      thresholdSizeFree = self.getSizeFree(diagonalRuleThresholdProblem)
-      print2("ThresholdSizeFree[%u][%u]: %u" \
-          % (diagonalRuleThresholdProblem[idx0], \
-          diagonalRuleThresholdProblem[idx1], \
-          thresholdSizeFree))
-
-      # check skinny d0<<d1 (large d0, small d1)
-      skinnyProblemIndices = deepcopy(problemIndices)
-      for sizeIdxSmall in range( diagonalRuleThresholdProblem[idxSmall]-1, -1, -1):
-        skinnyProblemIndices[idxSmall] = sizeIdxSmall
-        for sizeIdxLarge in range( diagonalRuleThresholdProblem[idxLarge], \
-            self.numProblemSizes[idxLarge]):
-          skinnyProblemIndices[idxLarge] = sizeIdxLarge
-
-
-          skinnySizeFree = self.getSizeFree(skinnyProblemIndices)
-          if skinnySizeFree > thresholdSizeFree:
-            #print "SkinnySizeFree[%u][%u]: %u" % (sizeIdxSmall, sizeIdxLarge, \
-            #  skinnySizeFree)
-
-            # rule winner's performance at this skinnyness
-            skinnyProblemIdx = self.indicesToSerial(0, skinnyProblemIndices)
-            diagonalWinnerGFlopsForSkinny = self.data[skinnyProblemIdx \
-                + diagonalRuleWinnerIdx]
-
-            # which solution wins here?
-            (winnerIdx, winnerGFlops) = \
-                self.getWinnerForProblem(skinnyProblemIndices)
-            #print winnerIdx, winnerGFlops
-            if winnerIdx == diagonalRuleWinnerIdx \
-                or diagonalWinnerGFlopsForSkinny > (1-threshold)*winnerGFlops:
-              # diagonal rule also wins here
-              print2("if dS <%5u and dL >%5u diagnl S[%2u] %5.0f == S[%2u] %5.0f GFlops" \
-                  % (self.problemIndexToSize[idxSmall][sizeIdxSmall], \
-                  self.problemIndexToSize[idxLarge][sizeIdxLarge], \
-                  winnerIdx, winnerGFlops, diagonalRuleWinnerIdx, \
-                  diagonalWinnerGFlopsForSkinny ))
-              pass
-            else:
-              # we're so skinny that diagonal rule no longer applies
-              print2("if dS <%5u and dL >%5u skinny S[%2u] %5.0f >> S[%2u] %5.0f GFlops" \
-                  % (self.problemIndexToSize[idxSmall][sizeIdxSmall], \
-                  self.problemIndexToSize[idxLarge][sizeIdxLarge], \
-                  winnerIdx, winnerGFlops, diagonalRuleWinnerIdx, \
-                  diagonalWinnerGFlopsForSkinny ))
-              skinnyRule = [deepcopy(skinnyProblemIndices), winnerIdx, \
-                  winnerGFlops]
-              skinnyRules.append(skinnyRule)
-              # TODO need to use dilate parameter to make sure we've switched
-              # TODO data along this size may not agree with
-              #   data along different sizes (but perhaps it should
-              # TODO need extra loop here, to iterate idxSmall to
-              # smaller sizes to see if the solution changes further
-
-            # does the diagonalRuleWinner also win here?
-            break # only check the problem size closest to ruleSize
-
-    return skinnyRules
-    # end skinny solutions
-
-
-  ##############################################################################
-  # Determine Logic Along U
-  ##############################################################################
-  def determineLogicAlongU(self):
-    globalRange = []
-    for i in range(0, self.numIndices):
-      globalRange.append( [0, self.numProblemSizes[i]] )
-
-
-
-
-    self.print2D([0, 0])
-
-    ############################################################################
-    # Determine Solutions Along Diagonal
-    # roughly same splitting regardless of sizeU
-    problemIndices = []
-    for numProblemsForIndex in self.numProblemSizes:
-      problemIndices.append(numProblemsForIndex-1)
-    print problemIndices
-    self.diagonalRules = self.getFastestSolutionsAlongDiagonal(problemIndices)
-    if True:
-      print2("Diagonal Rules:")
-      for rule in self.diagonalRules:
-        string = "  if freeSize >=%4u" % self.problemIndexToSize[0][rule[1][0]]
-        for i in range(1, self.numIndices):
-          string += "x%4u" % self.problemIndexToSize[i][rule[1][i]]
-        string += " return S[%u] @ %5.0f-%5.0f>%5.0f GFlops is %s" \
-            % (rule[0], rule[2], rule[3], rule[4], \
-            self.solutionNames[rule[0]])
-        print2(string)
-
-    ############################################################################
-    # Determine Skinny0 Solutions
-    skinnyRules01 = self.getSkinnySolutions(self.diagonalRules, problemIndices, \
-        self.idx0, self.idx1)
-    #print "Skinny Rules:"
-    #for rule in skinnyRules01:
-    #  string = "  if freeSize >=%4u" % data.problemIndexToSize[0][rule[1][0]]
-    #  for i in range(1, data.numIndices):
-    #    string += "x%4u" % data.problemIndexToSize[i][rule[1][i]]
-    #  string += " return S[%u] @ %5.0f-%5.0f>%5.0f GFlops is %s" \
-    #      % (rule[0], rule[2], rule[3], rule[4], \
-    #      data.solutionNames[rule[0]])
-
-    ############################################################################
-    # Determine Skinny1 Solutions
-    skinnyRules10 = self.getSkinnySolutions(self.diagonalRules, problemIndices, \
-        self.idx1, self.idx0)
-
-    # list solutions that actually get used
-    solutionIndicesUsed = []
-    for rule in skinnyRules01:
-      pass
-    for rule in skinnyRules10:
-      pass
-    for rule in self.diagonalRules:
-      solutionIdx = rule[0]
-      solution = self.solutions[solutionIdx]
-      MT0 = solution["MacroTile0"]
-      MT1 = solution["MacroTile1"]
-      DU = solution["DepthU"]
-      #print "Rule Tile S[%u]: %ux%ux%u" % (solutionIdx, MT0, MT1, DU)
-      # is this solution in the list
-      inList = False
-      for solutionUsed in solutionIndicesUsed:
-        if solutionUsed[0] == solutionIdx:
-          inList = True
-          break
-      if not inList:
-        insertIdx = len(solutionIndicesUsed)
-        for i in range(0, len(solutionIndicesUsed)):
-          iMT0 = solutionIndicesUsed[i][1]
-          iMT1 = solutionIndicesUsed[i][2]
-          iDU  = solutionIndicesUsed[i][3]
-          #print "  compare S[%u]: %ux%ux%u" % (solutionIndicesUsed[i][0], \
-          #    iMT0, iMT1, iDU)
-          if MT0*MT1 < iMT0*iMT1:
-            insertIdx = i
-            break
-          elif MT0*MT1 > iMT0*iMT1:
-            continue
-          else: # MT == MT
-            if DU < iDU:
-              insertIdx = i
-              break
-            else:
-              continue
-
-          # if i'm smaller than i, insert me before i
-        #print "insert: %u" % insertIdx
-        solutionIndicesUsed.insert(insertIdx, [solutionIdx, MT0, MT1, DU])
-    #print solutionIndicesUsed
-
-    # list of solutions used
-    self.solutionsUsed = []
-    for solutionIndexUsed in solutionIndicesUsed:
-      self.solutionsUsed.append(self.solutions[solutionIndexUsed[0]])
-
-    # translate rules to new solution indices
-    for rule in skinnyRules01:
-      pass
-    for rule in skinnyRules10:
-      pass
-    for ruleIdx in range(0, len(self.diagonalRules)):
-      solutionIdx = self.diagonalRules[ruleIdx][0]
-      for i in range(0, len(solutionIndicesUsed)):
-        solutionIndexUsed = solutionIndicesUsed[i]
-        if solutionIdx == solutionIndexUsed[0]:
-          self.diagonalRules[ruleIdx][0] = i
-          break
-      # change problemSizeIndices to sizes
-      for i in range(0, 3):
-        self.diagonalRules[ruleIdx][1][i] = \
-            self.problemIndexToSize[i][ self.diagonalRules[ruleIdx][1][i] ]
-
-    print2("# New Rules: %s" % self.diagonalRules)
 
 
 
@@ -1078,22 +474,22 @@ class LogicAnalyzer:
         sss[sIdx] += "%4u" % self.problemIndexToSize[0][i]
       for j in range(0, self.numProblemSizes[1]):
         problemIndices[self.idx1] = j
-        problemIdx = self.indicesToSerial(0, problemIndices)
+        problemSerial = self.indicesToSerial(0, problemIndices)
         for sIdx in range(0, self.numSolutions):
-          sss[sIdx] += ",%f" % self.data[problemIdx+sIdx]
+          sss[sIdx] += ",%f" % self.data[problemSerial+sIdx]
 
-        if self.data[problemIdx+0] > self.data[problemIdx+1]:
+        if self.data[problemSerial+0] > self.data[problemSerial+1]:
           winnerIdx = 0
-          winnerGFlops = self.data[problemIdx+0]
+          winnerGFlops = self.data[problemSerial+0]
           secondIdx = 1
-          secondGFlops = self.data[problemIdx+1]
+          secondGFlops = self.data[problemSerial+1]
         else:
           winnerIdx = 1
-          winnerGFlops = self.data[problemIdx+1]
+          winnerGFlops = self.data[problemSerial+1]
           secondIdx = 0
-          secondGFlops = self.data[problemIdx+0]
+          secondGFlops = self.data[problemSerial+0]
         for solutionIdx in range(2, self.numSolutions):
-          solutionSerialIdx = problemIdx + solutionIdx
+          solutionSerialIdx = problemSerial + solutionIdx
           solutionGFlops = self.data[solutionSerialIdx]
           if solutionGFlops > winnerGFlops:
             #print "%f > %f" % (solutionGFlops, winnerGFlops)
@@ -1157,20 +553,20 @@ class LogicAnalyzer:
       for size in problemSizes:
         totalFlops *= size
 
-      problemIdx = self.indicesToSerial(0, problemIndices)
-      if self.data[problemIdx+0] > self.data[problemIdx+1]:
+      problemSerial = self.indicesToSerial(0, problemIndices)
+      if self.data[problemSerial+0] > self.data[problemSerial+1]:
         winnerIdx = 0
-        winnerGFlops = self.data[problemIdx+0]
+        winnerGFlops = self.data[problemSerial+0]
         secondIdx = 1
-        secondGFlops = self.data[problemIdx+1]
+        secondGFlops = self.data[problemSerial+1]
       else:
         winnerIdx = 1
-        winnerGFlops = self.data[problemIdx+1]
+        winnerGFlops = self.data[problemSerial+1]
         secondIdx = 0
-        secondGFlops = self.data[problemIdx+0]
+        secondGFlops = self.data[problemSerial+0]
 
       for solutionIdx in range(2, self.numSolutions):
-        solutionSerialIdx = problemIdx + solutionIdx
+        solutionSerialIdx = problemSerial + solutionIdx
         solutionGFlops = self.data[solutionSerialIdx]
         if solutionGFlops > winnerGFlops:
           secondIdx = winnerIdx
@@ -1194,9 +590,29 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # Score Range For Logic
-  def scoreRangeForLogic(self, indexRange, logic):
-    pass
+  # Get Winner For Problem
+  def getWinnerForProblem(self, problemIndices):
+    problemSerial = self.indicesToSerial(0, problemIndices)
+    winnerIdx = -1
+    winnerGFlops = -1
+    for solutionIdx in range(0, self.numSolutions):
+      solutionSerialIdx = problemSerial + solutionIdx
+      solutionGFlops = self.data[solutionSerialIdx]
+      if solutionGFlops > winnerGFlops:
+        #print "%f > %f" % (solutionGFlops, winnerGFlops)
+        winnerIdx = solutionIdx
+        winnerGFlops = solutionGFlops
+    return (winnerIdx, winnerGFlops)
+
+  ##############################################################################
+  # Winner For Range
+  def winnerForRange(self, indexRange):
+    scores = self.scoreRangeForSolutions(indexRange)
+    winnerIdx = 0
+    for solutionIdx in range(1, self.numSolutions):
+      if scores[solutionIdx] < scores[winnerIdx]:
+        winnerIdx = solutionIdx
+    return winnerIdx
 
   ##############################################################################
   # Score (microseconds) Range For Solutions
@@ -1210,6 +626,89 @@ class LogicAnalyzer:
         timeUs = totalFlops / gflops / 1000
         scores[solutionIdx] += timeUs
     return scores
+
+  ##############################################################################
+  # Score Range For Logic
+  def scoreRangeForLogic(self, indexRange, logic):
+    print "ScoreRangeForLogic", indexRange, logic
+    depth = self.getLogicDepth([logic])
+    depth = self.numIndices - depth
+    #obj = logic
+    #while isinstance(obj[0], list):
+    #  obj = obj[0][1]
+    #  depth -= 1
+    print "Depth:", depth
+    fullLogic = deepcopy(logic)
+    for i in range(0, depth):
+      #print "Logic:", fullLogic
+      fullLogic = [-1, [fullLogic]]
+    fullLogic = [fullLogic]
+    #print "FullLogic:", fullLogic
+    return self.scoreRangeForFullLogic(indexRange, fullLogic)
+
+  ##############################################################################
+  # Score Range For Full Logic
+  def scoreRangeForFullLogic(self, indexRange, logic):
+    print "ScoreRangeForFullLogic", indexRange, logic
+    score = 0
+    for problemIndices in self.problemIndicesForRange(indexRange):
+      problemSerial = self.indicesToSerial(0, problemIndices)
+      totalFlops = self.totalFlopsForProblemIndices(problemIndices)
+      solutionIdx = self.getSolutionForProblemIndicesUsingLogic( \
+          problemIndices, logic)
+      gflops = self.data[problemSerial + solutionIdx]
+      timeUs = totalFlops / gflops / 1000
+      score += timeUs
+    logicComplexity = [0]*self.numIndices
+    self.scoreLogicComplexity(logic, logicComplexity)
+    score += self.parameters["BranchWeight"] * sum(logicComplexity)
+    print "LogicComplexity:", logicComplexity
+    return score
+
+  ##############################################################################
+  # Get Solution For Problem Indices Using Logic
+  def getSolutionForProblemIndicesUsingLogic(self, problemIndices, logic):
+    currentProblemIndices = problemIndices
+    currentLogic = logic
+    for i in range(0, self.numIndices):
+      #print "CurrentLogic[%u]: %s" % (i, currentLogic)
+      currentSizeIndex = currentProblemIndices[0]
+      for j in range(0, len(currentLogic)):
+        if currentLogic[j][0] < 0:
+          currentProblemIndices = currentProblemIndices[1:]
+          currentLogic = currentLogic[j][1]
+          break
+        if currentLogic[j][0] >= 0:
+          if currentSizeIndex <= currentLogic[j][0]:
+            currentProblemIndices = currentProblemIndices[1:]
+            currentLogic = currentLogic[j][1]
+            break
+    #print "CurrentLogic[%u]: %s" % (i, currentLogic)
+    return currentLogic
+
+  ##############################################################################
+  # Score Logic Complexity
+  def scoreLogicComplexity(self, logic, logicComplexity):
+    print "ScoreLogicComplexity: %s" % (logic)
+    depth = self.getLogicDepth(logic)
+    depth = self.numIndices - depth
+    if depth == 0: return
+    #print "[%u]ScoreLogicComplexity: %s" % (depth, logic)
+    currentLogic = logic
+    for i in range(0, len(logic)):
+      logicComplexity[depth] += 1
+      self.scoreLogicComplexity(logic[i][1], logicComplexity)
+
+
+  ##############################################################################
+  # Get Logic Depth
+  def getLogicDepth(self, logic):
+    obj = logic
+    depth = 0
+    while isinstance(obj, list):
+      obj = obj[0][1]
+      depth += 1
+    return depth
 
   ##############################################################################
   # Total Flops For Problem Indices
@@ -1247,12 +746,12 @@ class LogicAnalyzer:
     # update data
     self.totalSize = self.totalProblems * self.numSolutions
     self.data = array.array('f', [0]*self.totalSize)
-    for problemIdx in range(0, self.totalProblems):
+    for problemIndex in range(0, self.totalProblems):
       newSolutionIdx = 0
       for oldSolutionIdx in range(0, oldNumSolutions):
         if oldSolutionIdx != removeSolutionIdx:
-          self.data[problemIdx*self.numSolutions+newSolutionIdx] \
-              = oldData[problemIdx*oldNumSolutions+oldSolutionIdx]
+          self.data[problemIndex*self.numSolutions+newSolutionIdx] \
+              = oldData[problemIndex*oldNumSolutions+oldSolutionIdx]
           newSolutionIdx += 1
 
   ##############################################################################
@@ -1314,20 +813,6 @@ class LogicAnalyzer:
           break
     return problemIndexList
 
-  ##############################################################################
-  # Get Winner For Problem
-  def getWinnerForProblem(self, problemIndices):
-    problemIdx = self.indicesToSerial(0, problemIndices)
-    winnerIdx = -1
-    winnerGFlops = -1
-    for solutionIdx in range(0, self.numSolutions):
-      solutionSerialIdx = problemIdx + solutionIdx
-      solutionGFlops = self.data[solutionSerialIdx]
-      if solutionGFlops > winnerGFlops:
-        #print "%f > %f" % (solutionGFlops, winnerGFlops)
-        winnerIdx = solutionIdx
-        winnerGFlops = solutionGFlops
-    return (winnerIdx, winnerGFlops)
 
 
   ##############################################################################
