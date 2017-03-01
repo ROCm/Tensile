@@ -154,6 +154,11 @@ defaultBenchmarkFinalProblemSizes = [
 defaultAnalysisParameters = {
     "Dilation":                 3,
     "Threshold":                0.1,
+    "OutlierThreshold":         0,
+    "FractionTimeSavedMin":     0.01, # = 1%
+    "Weight0":                  100,
+    "Weight1":                  100,
+    "Weight2":                  100,
     }
 
 

@@ -123,6 +123,8 @@ class DataType:
     return self.properties[self.value][self.idxReg]
   def numBytes( self ):
     return self.numRegisters() * 4
+  def flopsPerMac(self):
+    return 1 if self.isReal() else 8
 
   def __str__(self):
     return self.toChar()
