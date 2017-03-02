@@ -124,7 +124,7 @@ class DataType:
   def numBytes( self ):
     return self.numRegisters() * 4
   def flopsPerMac(self):
-    return 1 if self.isReal() else 8
+    return 2 if self.isReal() else 8
 
   def __str__(self):
     return self.toChar()

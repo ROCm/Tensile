@@ -38,30 +38,39 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
 
   ######################################
   # Read Data From CSV
-  logic = LogicAnalyzer(problemType, problemSizes, solutions, inputParameters)
-  logic.populateFromCSV(dataFileName)
+  logicAnalyzer = LogicAnalyzer( \
+      problemType, problemSizes, solutions, inputParameters)
+  logicAnalyzer.populateFromCSV(dataFileName)
 
   ######################################
   # Remove invalid solutions
-  logic.removeInvalidSolutions()
+  logicAnalyzer.removeInvalidSolutions()
 
   ######################################
   # Remove least important solutions
-  logic.removeLeastImportantSolutions()
+  logicAnalyzer.removeLeastImportantSolutions()
 
   ######################################
   # Correct outliers
-  # logic.smooth()
-  logic.print2D([0, 0])
+  # logicAnalyzer.smooth()
+  logicAnalyzer.print2D([0, 0])
 
   ######################################
   # Create Rules
-  logic.enRule(0, logic.globalIndexRange)
+  logic = logicAnalyzer.enRule(0, logicAnalyzer.globalIndexRange)
+  print "Final Logic:"
+  print logic
+  logicComplexity = [0]*logicAnalyzer.numIndices
+  logicAnalyzer.scoreLogicComplexity(logic, logicComplexity)
+  print "Logic Complexity:", logicComplexity
+  score = logicAnalyzer.scoreRangeForLogic( \
+      logicAnalyzer.globalIndexRange, logic)
+  print "Global Score:", score
 
 
 
   #return (skinnyRules01, skinnyRules10, diagonalRules)
-  #return (problemType, logic.solutionsUsed, [], [], logic.diagonalRules )
+  #return (problemType, logicAnalyzer.solutionsUsed, [], [], logicAnalyzer.diagonalRules )
   return (problemType, [], [], [], [] )
 
 
@@ -173,6 +182,7 @@ class LogicAnalyzer:
       self.globalIndexRange.append([0, self.numProblemSizes[i]])
     self.problemIndicesForGlobalRange \
         = self.problemIndicesForRange(self.globalIndexRange)
+    self.tab = [""]*self.numIndices
 
 
 
@@ -334,76 +344,135 @@ class LogicAnalyzer:
   #
   ##############################################################################
   def enRule(self, currentIndexIndex, currentIndexRange):
-    tab = ""
-    for i in range(0, currentIndexIndex):
-      tab += "  "
-    print "%senRule(%u, %s)" % (tab, currentIndexIndex, currentIndexRange)
+    cii = currentIndexIndex
+    if currentIndexIndex == 0:
+      self.tab[cii] = "| "
+    elif currentIndexIndex == 1:
+      self.tab[cii] = "[%2u]-| " % ( \
+          currentIndexRange[self.indexOrder[0]][0])
+    elif currentIndexIndex == 2:
+      self.tab[cii] = "[%2u,%2u]--| " % ( \
+          currentIndexRange[self.indexOrder[0]][0], \
+          currentIndexRange[self.indexOrder[1]][0])
+    elif currentIndexIndex == 3:
+      self.tab[cii] = "[%2u,%2u,%2u]---| " % ( \
+          currentIndexRange[self.indexOrder[0]][0], \
+          currentIndexRange[self.indexOrder[1]][0], \
+          currentIndexRange[self.indexOrder[2]][0])
+    elif currentIndexIndex == 4:
+      self.tab[cii] = "[%2u,%2u,%2u,%2u]---| " % ( \
+          currentIndexRange[self.indexOrder[0]][0], \
+          currentIndexRange[self.indexOrder[1]][0], \
+          currentIndexRange[self.indexOrder[2]][0], \
+          currentIndexRange[self.indexOrder[3]][0])
+    tab = self.tab[cii]
     currentIndex = self.indexOrder[currentIndexIndex]
+    print "%senRule(%s)" % (tab, currentIndexRange)
     nextIndexIndex = currentIndexIndex+1
     nextIndexRange = deepcopy(currentIndexRange)
     isLastIndex = currentIndexIndex == self.numIndices-1
+    ruleList = []
 
+    ########################################
     # if there's only 1 problem size here
+    ########################################
     if currentIndexRange[currentIndex][1] \
         - currentIndexRange[currentIndex][0] == 1:
 
+      ########################################
       # this is last index, so just return fastest solution
       if isLastIndex:
-        # optimize b/c this should be only single problem
+        # TODO optimize b/c this should be only single problem
         #scores = self.scoreRangeForSolutions(currentIndexRange)
         #winnerIdx = 0
         #for solutionIdx in range(1, self.numSolution):
         #  if scores[solutionIdx] < scores[winnerIdx]:
         #    winnerIdx = solutionIdx
         winnerIdx = self.winnerForRange(currentIndexRange)
-        print "%s  returning early winner=%u" % (tab, winnerIdx)
-        return [ -1, winnerIdx ]
+        print "%sreturning early winner=%u" % (tab, winnerIdx)
+        ruleList.append(-1)
+        ruleList.append(winnerIdx)
 
-      # this isn't last index, so just return next index
+      ########################################
+      # this isn't last index, so just recursively return next index
       else:
-        print "%s  returning early enRule(%u,%s)" \
-            % (tab, nextIndexIndex, nextIndexRange)
-        return [ -1, self.enRule(nextIndexIndex, nextIndexRange) ]
+        print "%sreturning early enRule(%s)" \
+            % (tab, nextIndexRange)
+        rule = [ -1, self.enRule(nextIndexIndex, nextIndexRange) ]
+        ruleList.append(rule)
 
-    # ruleList
-    ruleList = []
-
-    # create rule for smallest size
-    initialSize = min(currentIndexRange[currentIndex][0] \
-        + self.parameters["InitialSolutionWindow"], \
-        self.numProblemSizes[currentIndex])
-    nextIndexRange[currentIndex][1] = initialSize
-    if isLastIndex:
-      winnerIdx = self.winnerForRange(nextIndexRange)
-      initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
-
+    ########################################
+    # full iterative rule list
+    ########################################
     else:
-      initialRule = [ currentIndexRange[currentIndex][0], \
-          self.enRule(nextIndexIndex, nextIndexRange) ]
-    ruleList.append(initialRule)
 
-    # for all problem indices in this index
-
-    for problemIndex in range(currentIndexRange[currentIndex][0], \
-        currentIndexRange[currentIndex][1]):
-      print "%s  pIdx: %u" % (tab, problemIndex)
-      nextIndexRange[currentIndex][0] = problemIndex
-      nextIndexRange[currentIndex][1] = problemIndex+1
-
+      ########################################
+      # create initial rule
+      initialSize = min(currentIndexRange[currentIndex][0] \
+          + self.parameters["InitialSolutionWindow"], \
+          self.numProblemSizes[currentIndex])
+      nextIndexRange[currentIndex][1] = initialSize
       if isLastIndex:
-        winnerIdx = self.winnerForRange(currentIndexRange)
-        candidateRule = [ currentIndexRange[currentIndex][0], winnerIdx]
+        winnerIdx = self.winnerForRange(nextIndexRange)
+        initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
       else:
-        candidateRule = [ problemIndex, self.enRule(nextIndexIndex, \
-            nextIndexRange) ]
-      priorRule = ruleList[len(ruleList)-1]
-      priorRuleScore = self.scoreRangeForLogic(nextIndexRange, priorRule)
-      candidateRuleScore = self.scoreRangeForLogic(nextIndexRange, \
-          candidateRule)
-      candidateRuleScore += self.parameters["BranchWeight"] # penalize
-      if candidateRuleScore < priorRuleScore:
-        ruleList.append(candidateRule)
+        print "%sinitialRule(%s)" % (tab, nextIndexRange)
+        initialRule = [ currentIndexRange[currentIndex][0], \
+            self.enRule(nextIndexIndex, nextIndexRange) ]
+        print "%sinitialRule(%s) DONE" % (tab, nextIndexRange)
+      ruleList.append(initialRule)
 
+      ########################################
+      # for all problem indices in this index
+      for problemIndex in range(currentIndexRange[currentIndex][0]+1, \
+          currentIndexRange[currentIndex][1]):
+        nextIndexRange[currentIndex][0] = problemIndex
+        nextIndexRange[currentIndex][1] = problemIndex+1
+        priorRule = ruleList[len(ruleList)-1]
+        priorRuleForSize = deepcopy(priorRule)
+        priorRuleForSize[0] = problemIndex
+
+        if isLastIndex:
+          winnerIdx = self.winnerForRange(nextIndexRange)
+          candidateRule = [ problemIndex, winnerIdx]
+        else:
+          candidateRule = [ problemIndex, self.enRule(nextIndexIndex, \
+              nextIndexRange) ]
+
+        ########################################
+        # candidate same as prior
+        if candidateRule[1] == priorRule[1]:
+          print "%sP[%2u]: same" % (tab, problemIndex)
+          ruleList[len(ruleList)-1][0] = problemIndex
+          continue
+
+        ########################################
+        # compare candidate vs prior
+        else:
+          print "%sScoring P:%s for Prior=%s, Cand=%s" \
+              % ( tab, nextIndexRange, priorRuleForSize, candidateRule)
+          priorRuleScore = self.scoreRangeForLogic(nextIndexRange, \
+              [priorRuleForSize])
+          candidateRuleScore = self.scoreRangeForLogic(nextIndexRange, \
+              [candidateRule])
+          candidateRuleScore += self.parameters["BranchWeight"] # penalize
+          candidateFaster = candidateRuleScore < priorRuleScore
+          print "%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
+              "wins" if candidateFaster else "same", \
+              candidateRule, candidateRuleScore, priorRuleForSize, \
+              priorRuleScore )
+
+          ########################################
+          # candidate wins
+          if candidateRuleScore < priorRuleScore:
+            ruleList.append(candidateRule)
+
+          ########################################
+          # prior wins
+          else:
+            ruleList[len(ruleList)-1][0] = problemIndex
+
+    print "%sReturning RuleList: %s" % (tab, ruleList)
     return ruleList
 
 
@@ -417,20 +486,9 @@ class LogicAnalyzer:
   ##############################################################################
 
 
-
-
-  ##############################################################################
-  ##############################################################################
-  ###
-  ###  Helper / Low-Level Functions
-  ###
-  ##############################################################################
-  ##############################################################################
-
-
-
   ##############################################################################
   # Print2D
+  ##############################################################################
   def print2D(self, indices ):
     indicesIdx = 0
     problemIndices = []
@@ -538,6 +596,7 @@ class LogicAnalyzer:
 
   ##############################################################################
   # Least Important Solution
+  ##############################################################################
   def leastImportantSolution(self):
     solutionImportance = []
     for i in range(0, self.numSolutions):
@@ -590,136 +649,8 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # Get Winner For Problem
-  def getWinnerForProblem(self, problemIndices):
-    problemSerial = self.indicesToSerial(0, problemIndices)
-    winnerIdx = -1
-    winnerGFlops = -1
-    for solutionIdx in range(0, self.numSolutions):
-      solutionSerialIdx = problemSerial + solutionIdx
-      solutionGFlops = self.data[solutionSerialIdx]
-      if solutionGFlops > winnerGFlops:
-        #print "%f > %f" % (solutionGFlops, winnerGFlops)
-        winnerIdx = solutionIdx
-        winnerGFlops = solutionGFlops
-    return (winnerIdx, winnerGFlops)
-
-  ##############################################################################
-  # Winner For Range
-  def winnerForRange(self, indexRange):
-    scores = self.scoreRangeForSolutions(indexRange)
-    winnerIdx = 0
-    for solutionIdx in range(1, self.numSolutions):
-      if scores[solutionIdx] < scores[winnerIdx]:
-        winnerIdx = solutionIdx
-    return winnerIdx
-
-  ##############################################################################
-  # Score (microseconds) Range For Solutions
-  def scoreRangeForSolutions(self, indexRange):
-    scores = [0]*self.numSolutions
-    for problemIndices in self.problemIndicesForRange(indexRange):
-      problemSerial = self.indicesToSerial(0, problemIndices)
-      totalFlops = self.totalFlopsForProblemIndices(problemIndices)
-      for solutionIdx in range(0, self.numSolutions):
-        gflops = self.data[problemSerial+solutionIdx]
-        timeUs = totalFlops / gflops / 1000
-        scores[solutionIdx] += timeUs
-    return scores
-
-  ##############################################################################
-  # Score Range For Logic
-  def scoreRangeForLogic(self, indexRange, logic):
-    print "ScoreRangeForLogic", indexRange, logic
-    depth = self.getLogicDepth([logic])
-    depth = self.numIndices - depth
-    #obj = logic
-    #while isinstance(obj[0], list):
-    #  obj = obj[0][1]
-    #  depth -= 1
-    print "Depth:", depth
-    fullLogic = deepcopy(logic)
-    for i in range(0, depth):
-      #print "Logic:", fullLogic
-      fullLogic = [-1, [fullLogic]]
-    fullLogic = [fullLogic]
-    #print "FullLogic:", fullLogic
-    return self.scoreRangeForFullLogic(indexRange, fullLogic)
-
-  ##############################################################################
-  # Score Range For Full Logic
-  def scoreRangeForFullLogic(self, indexRange, logic):
-    print "ScoreRangeForFullLogic", indexRange, logic
-    score = 0
-    for problemIndices in self.problemIndicesForRange(indexRange):
-      problemSerial = self.indicesToSerial(0, problemIndices)
-      totalFlops = self.totalFlopsForProblemIndices(problemIndices)
-      solutionIdx = self.getSolutionForProblemIndicesUsingLogic( \
-          problemIndices, logic)
-      gflops = self.data[problemSerial + solutionIdx]
-      timeUs = totalFlops / gflops / 1000
-      score += timeUs
-    logicComplexity = [0]*self.numIndices
-    self.scoreLogicComplexity(logic, logicComplexity)
-    score += self.parameters["BranchWeight"] * sum(logicComplexity)
-    print "LogicComplexity:", logicComplexity
-    return score
-
-  ##############################################################################
-  # Get Solution For Problem Indices Using Logic
-  def getSolutionForProblemIndicesUsingLogic(self, problemIndices, logic):
-    currentProblemIndices = problemIndices
-    currentLogic = logic
-    for i in range(0, self.numIndices):
-      #print "CurrentLogic[%u]: %s" % (i, currentLogic)
-      currentSizeIndex = currentProblemIndices[0]
-      for j in range(0, len(currentLogic)):
-        if currentLogic[j][0] < 0:
-          currentProblemIndices = currentProblemIndices[1:]
-          currentLogic = currentLogic[j][1]
-          break
-        if currentLogic[j][0] >= 0:
-          if currentSizeIndex <= currentLogic[j][0]:
-            currentProblemIndices = currentProblemIndices[1:]
-            currentLogic = currentLogic[j][1]
-            break
-    #print "CurrentLogic[%u]: %s" % (i, currentLogic)
-    return currentLogic
-
-  ##############################################################################
-  # Score Logic Complexity
-  def scoreLogicComplexity(self, logic, logicComplexity):
-    print "ScoreLogicComplexity: %s" % (logic)
-    depth = self.getLogicDepth(logic)
-    depth = self.numIndices - depth
-    if depth == 0: return
-    #print "[%u]ScoreLogicComplexity: %s" % (depth, logic)
-    currentLogic = logic
-    for i in range(0, len(logic)):
-      logicComplexity[depth] += 1
-      self.scoreLogicComplexity(logic[i][1], logicComplexity)
-
-
-  ##############################################################################
-  # Get Logic Depth
-  def getLogicDepth(self, logic):
-    obj = logic
-    depth = 0
-    while isinstance(obj, list):
-      obj = obj[0][1]
-      depth += 1
-    return depth
-
-  ##############################################################################
-  # Total Flops For Problem Indices
-  def totalFlopsForProblemIndices(self, problemIndices):
-    totalFlops = self.flopsPerMac
-    for i in range(0, self.numIndices):
-      totalFlops *= self.problemIndexToSize[i][problemIndices[i]]
-    return totalFlops
-
-  ##############################################################################
   # Remove Solution
+  ##############################################################################
   def removeSolution(self, removeSolutionIdx):
 
     # temporarily move current to old
@@ -754,6 +685,174 @@ class LogicAnalyzer:
               = oldData[problemIndex*oldNumSolutions+oldSolutionIdx]
           newSolutionIdx += 1
 
+
+  ##############################################################################
+  # Score Range For Logic
+  ##############################################################################
+  def scoreRangeForLogic(self, indexRange, logic):
+    #print "ScoreRangeForLogic", indexRange, logic
+    depth = self.getLogicDepth(logic)
+    depth = self.numIndices - depth
+    #print "%sSRFL R=%s L=%s" % (self.tab[depth], indexRange, logic)
+    #obj = logic
+    #while isinstance(obj[0], list):
+    #  obj = obj[0][1]
+    #  depth -= 1
+    #print "Depth:", depth
+    fullLogic = deepcopy(logic)
+    for i in range(0, depth):
+      #print "Logic:", fullLogic
+      fullLogic = [[-1, fullLogic]]
+    fullLogic = fullLogic
+    #print "FullLogic:", fullLogic
+    return self.scoreRangeForFullLogic(depth, indexRange, fullLogic)
+
+  ##############################################################################
+  # Score Range For Full Logic
+  ##############################################################################
+  def scoreRangeForFullLogic(self, depth, indexRange, logic):
+    #print "ScoreRangeForFullLogic", indexRange, logic
+    #print "%sSRFFL R=%s L=%s" % (self.tab[depth], indexRange, logic)
+    score = 0
+    for problemIndices in self.problemIndicesForRange(indexRange):
+      problemSerial = self.indicesToSerial(0, problemIndices)
+      totalFlops = self.totalFlopsForProblemIndices(problemIndices)
+      solutionIdx = self.getSolutionForProblemIndicesUsingLogic( \
+          problemIndices, logic)
+      gflops = self.data[problemSerial + solutionIdx]
+      timeUs = totalFlops / gflops / 1000
+      score += timeUs
+      #print "%sSRFFL t+=%.0f" % (self.tab[depth], timeUs)
+    logicComplexity = [0]*self.numIndices
+    self.scoreLogicComplexity(logic, logicComplexity)
+    #print "%sSRFFL Complexity=%s" % (self.tab[depth], logicComplexity)
+    score += self.parameters["BranchWeight"] * sum(logicComplexity)
+    #print "LogicComplexity:", logicComplexity
+    return score
+
+  ##############################################################################
+  # Get Solution For Problem Indices Using Logic
+  ##############################################################################
+  def getSolutionForProblemIndicesUsingLogic(self, problemIndices, logic):
+    #print "i:", problemIndices
+    currentProblemIndices = self.toIndexOrder(problemIndices)
+    #print "i:", currentProblemIndices
+    currentLogic = logic
+    for i in range(0, self.numIndices):
+      currentSizeIndex = currentProblemIndices[0]
+      #print "CurrentLogic[%u] P[%2u]: %s" % (i, currentSizeIndex, currentLogic)
+      for j in range(0, len(currentLogic)):
+        if currentLogic[j][0] < 0:
+          currentProblemIndices = currentProblemIndices[1:]
+          currentLogic = currentLogic[j][1]
+          break
+        if currentLogic[j][0] >= 0:
+          if currentSizeIndex <= currentLogic[j][0]:
+            currentProblemIndices = currentProblemIndices[1:]
+            currentLogic = currentLogic[j][1]
+            break
+    #print "FinalLogic[%u]: %s" % (i, currentLogic)
+    return currentLogic
+
+
+  ##############################################################################
+  ##############################################################################
+  ###
+  ###  Helper / Low-Level Functions
+  ###
+  ##############################################################################
+  ##############################################################################
+
+
+  ##############################################################################
+  # Get Winner For Problem
+  def getWinnerForProblem(self, problemIndices):
+    problemSerial = self.indicesToSerial(0, problemIndices)
+    winnerIdx = -1
+    winnerGFlops = -1
+    for solutionIdx in range(0, self.numSolutions):
+      solutionSerialIdx = problemSerial + solutionIdx
+      solutionGFlops = self.data[solutionSerialIdx]
+      if solutionGFlops > winnerGFlops:
+        #print "%f > %f" % (solutionGFlops, winnerGFlops)
+        winnerIdx = solutionIdx
+        winnerGFlops = solutionGFlops
+    return (winnerIdx, winnerGFlops)
+
+
+  ##############################################################################
+  # Winner For Range
+  def winnerForRange(self, indexRange):
+    scores = self.scoreRangeForSolutions(indexRange)
+    winnerIdx = 0
+    for solutionIdx in range(1, self.numSolutions):
+      if scores[solutionIdx] < scores[winnerIdx]:
+        winnerIdx = solutionIdx
+    return winnerIdx
+
+
+  ##############################################################################
+  # Score (microseconds) Range For Solutions
+  def scoreRangeForSolutions(self, indexRange):
+    scores = [0]*self.numSolutions
+    for problemIndices in self.problemIndicesForRange(indexRange):
+      problemSerial = self.indicesToSerial(0, problemIndices)
+      totalFlops = self.totalFlopsForProblemIndices(problemIndices)
+      for solutionIdx in range(0, self.numSolutions):
+        gflops = self.data[problemSerial+solutionIdx]
+        timeUs = totalFlops / gflops / 1000
+        scores[solutionIdx] += timeUs
+    return scores
+
+
+  ##############################################################################
+  # Score Logic Complexity
+  def scoreLogicComplexity(self, logic, logicComplexity):
+    depth = self.getLogicDepth(logic)
+    if depth == 0: return
+    depth = self.numIndices - depth
+    #print "ScoreLogicComplexity[%u]: %s" % (depth, logic)
+    #print "[%u]ScoreLogicComplexity: %s" % (depth, logic)
+    currentLogic = logic
+    for i in range(0, len(logic)):
+      logicComplexity[depth] += 1
+      self.scoreLogicComplexity(logic[i][1], logicComplexity)
+
+
+  ##############################################################################
+  # Get Logic Depth
+  def getLogicDepth(self, logic):
+    obj = logic
+    depth = 0
+    while isinstance(obj, list):
+      obj = obj[0][1]
+      depth += 1
+    return depth
+
+  ##############################################################################
+  # To Index Order
+  def toIndexOrder(self, problemIndices):
+    ordered = []
+    for i in self.indexOrder:
+      ordered.append(problemIndices[i])
+    return ordered
+# serial order = 0, 1, 2, 3
+# problem indi = 9, 8, 7, 6
+
+# index  order = 3, 2, 0, 1
+# ordered      = 6, 7, 9, 8
+#
+#
+
+  ##############################################################################
+  # Total Flops For Problem Indices
+  def totalFlopsForProblemIndices(self, problemIndices):
+    totalFlops = self.flopsPerMac
+    for i in range(0, self.numIndices):
+      totalFlops *= self.problemIndexToSize[i][problemIndices[i]]
+    return totalFlops
+
+
   ##############################################################################
   # Recommended Index Order
   # TODO, this may depend on transposes
@@ -766,28 +865,6 @@ class LogicAnalyzer:
     order.append(self.idx0)
     order.append(self.idx1)
     return order
-
-  ##############################################################################
-  # Print Data
-  def printData(self):
-    print2("serial; idxD0, idxD1, idxDU, idxOthers; sizeD0, sizeD1, sizeDU, sizeOthers; sol0, sol1, sol2, ...")
-    indices = [0]*self.numIndices
-    for serial in range(0, self.totalProblems):
-      s = "[%4u] [%2u" % (serial, indices[0])
-      for i in range(1, self.numIndices):
-        s += ", %2u" % indices[i]
-      s += "] [%4u" % self.problemIndexToSize[0][indices[0]]
-      for i in range(1, self.numIndices):
-        s += ", %4u" % self.problemIndexToSize[i][indices[i]]
-      s += "]: %9.3f" % self.data[serial*self.numSolutions+0]
-      for i in range(1, self.numSolutions):
-        s += ", %9.3f" % self.data[serial*self.numSolutions+i]
-      print2(s)
-      indices[0] += 1
-      for i in range(1, self.numIndices):
-        if indices[i-1] >= self.numProblemSizes[i-1]:
-          indices[i-1] = 0
-          indices[i] += 1
 
   ##############################################################################
   # Problem Indices For Range
@@ -812,7 +889,6 @@ class LogicAnalyzer:
         else:
           break
     return problemIndexList
-
 
 
   ##############################################################################
@@ -929,3 +1005,7 @@ def main(  config ):
         schedulePrefix, logic)
 
   popWorkingPath()
+
+########################################
+# TODO
+# - is scoring working
