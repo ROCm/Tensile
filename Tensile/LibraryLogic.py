@@ -451,10 +451,22 @@ class LogicAnalyzer:
         else:
           print "%sScoring P:%s for Prior=%s, Cand=%s" \
               % ( tab, nextIndexRange, priorRuleForSize, candidateRule)
+          # score prior
           priorRuleScore = self.scoreRangeForLogic(nextIndexRange, \
               [priorRuleForSize])
+          logicComplexity = [0]*self.numIndices
+          self.scoreLogicComplexity( \
+              [priorRuleForSize], logicComplexity)
+          priorRuleScore += self.parameters["BranchWeight"] \
+              * sum(logicComplexity)
+          # score candidate
           candidateRuleScore = self.scoreRangeForLogic(nextIndexRange, \
               [candidateRule])
+          logicComplexity = [0]*self.numIndices
+          self.scoreLogicComplexity( \
+              [candidateRule], logicComplexity)
+          candidateRuleScore += self.parameters["BranchWeight"] \
+              * sum(logicComplexity)
           candidateRuleScore += self.parameters["BranchWeight"] # penalize
           candidateFaster = candidateRuleScore < priorRuleScore
           print "%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
@@ -723,10 +735,10 @@ class LogicAnalyzer:
       timeUs = totalFlops / gflops / 1000
       score += timeUs
       #print "%sSRFFL t+=%.0f" % (self.tab[depth], timeUs)
-    logicComplexity = [0]*self.numIndices
-    self.scoreLogicComplexity(logic, logicComplexity)
+    #logicComplexity = [0]*self.numIndices
+    #self.scoreLogicComplexity(logic, logicComplexity)
     #print "%sSRFFL Complexity=%s" % (self.tab[depth], logicComplexity)
-    score += self.parameters["BranchWeight"] * sum(logicComplexity)
+    #score += self.parameters["BranchWeight"] * sum(logicComplexity)
     #print "LogicComplexity:", logicComplexity
     return score
 
