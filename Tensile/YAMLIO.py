@@ -85,27 +85,52 @@ def readSolutions( filename ):
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################
-def writeLibraryLogicForProblemType( filePath, schedulePrefix, logic):
-  problemType   = logic[0]
-  solutions     = logic[1]
-  skinnyLogic0  = logic[2]
-  skinnyLogic1  = logic[3]
-  diagonalLogic = logic[4]
+def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
+  problemType   = logicTuple[0]
+  solutions     = logicTuple[1]
+  indexOrder    = logicTuple[2]
+  logic         = logicTuple[3]
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
   print2("# writeLogic( %s )" % ( filename ))
 
-  # open file
+  data = []
+  # logic name
+  data.append(globalParameters["Name"])
+  # problem type
+  problemTypeState = problemType.state
+  problemTypeState["DataType"] = \
+      problemTypeState["DataType"].value
+  data.append(problemTypeState)
+  # solutions
+  solutionList = []
+  for solution in solutions:
+    solutionState = solution.state
+    solutionState["ProblemType"] = solutionState["ProblemType"].state
+    solutionState["ProblemType"]["DataType"] = \
+        solutionState["ProblemType"]["DataType"].value
+    solutionList.append(solutionState)
+  data.append(solutionList)
+  # index order
+  data.append(indexOrder)
+  # logic
+  data.append(logic)
+
+  # open & write file
   try:
     stream = open(filename, "w")
+    #yaml.dump(data, stream, default_flow_style=False)
+    yaml.dump(data, stream)
+    stream.close()
   except IOError:
     printExit("Cannot open file: %s" % filename)
 
+  """
+  #data = [ globalParameters["Name"], problemTypeState, [], [], [] ]
   # write problem type
   problemTypeState = problemType.state
   problemTypeState["DataType"] = \
       problemTypeState["DataType"].value
-  data = [ globalParameters["Name"], problemTypeState, [], [], [], [] ]
   for solution in solutions:
     solutionState = solution.state
     solutionState["ProblemType"] = solutionState["ProblemType"].state
@@ -122,6 +147,7 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logic):
   #stream.write(data)
   yaml.dump(data, stream, default_flow_style=False)
   stream.close()
+  """
 
 
 def readLibraryLogicForProblemType( filename ):
@@ -134,19 +160,20 @@ def readLibraryLogicForProblemType( filename ):
   stream.close()
 
   # verify
-  if len(data) < 6:
+  if len(data) < 5:
     printExit("len(%s) %u < 6" % (filename, len(data)))
 
   # parse out objects
   scheduleName = data[0]
   problemTypeState = data[1]
   solutionStates = data[2]
-  skinnyLogic0 = data[3]
-  skinnyLogic1 = data[4]
-  diagonalLogic = data[5]
+  indexOrder = data[3]
+  logic = data[4]
 
-  solutions = []
+  # unpack problemType
   problemType = ProblemType(problemTypeState)
+  # unpack solutions
+  solutions = []
   for i in range(0, len(solutionStates)):
     solutionState = solutionStates[i]
     solutionObject = Solution(solutionState)
@@ -155,5 +182,4 @@ def readLibraryLogicForProblemType( filename ):
           % (problemType, solutionObject["ProblemType"]))
     solutions.append(solutionObject)
 
-  return (scheduleName, problemType, solutions, skinnyLogic0, skinnyLogic1, \
-      diagonalLogic)
+  return (scheduleName, problemType, solutions, indexOrder, logic )

@@ -1,4 +1,4 @@
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printExit
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printExit, printWarning
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO
@@ -54,13 +54,14 @@ def main( config ):
   ##############################################################################
   logicFiles = [os.path.join(libraryLogicPath, f) for f \
       in os.listdir(libraryLogicPath) \
-      if os.path.isfile(os.path.join(libraryLogicPath, f))]
+      if (os.path.isfile(os.path.join(libraryLogicPath, f)) \
+      and os.path.splitext(f)[1]==".yaml")]
   print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
   for logicFileName in logicFiles:
-    (scheduleName, problemType, solutionsForType, skinnyLogic0, skinnyLogic1, \
-        diagonalLogic) = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    (scheduleName, problemType, solutionsForType, indexOrder, logic) \
+        = YAMLIO.readLibraryLogicForProblemType(logicFileName)
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
 

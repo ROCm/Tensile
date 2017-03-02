@@ -2,6 +2,7 @@ import os
 import os.path
 import array
 import csv
+from sys import stdout
 
 from copy import deepcopy
 
@@ -19,9 +20,6 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   solutionsFileName = problemTypeTuple[3]
   print2(HR)
   print1("# %s" % problemType)
-
-  #print "#  %s" % dataFileName
-  #print "#  %s" % solutionsFileName
 
   ######################################
   # Read Solutions
@@ -58,20 +56,18 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   ######################################
   # Create Rules
   logic = logicAnalyzer.enRule(0, logicAnalyzer.globalIndexRange)
-  print "Final Logic:"
-  print logic
+  print2("# Final Logic:")
+  print2(logic)
   logicComplexity = [0]*logicAnalyzer.numIndices
   logicAnalyzer.scoreLogicComplexity(logic, logicComplexity)
-  print "Logic Complexity:", logicComplexity
+  print2("Logic Complexity: %s" % logicComplexity)
   score = logicAnalyzer.scoreRangeForLogic( \
       logicAnalyzer.globalIndexRange, logic)
-  print "Global Score:", score
-
-
+  print1("\nScore: %.0f ms" % (score/1000))
 
   #return (skinnyRules01, skinnyRules10, diagonalRules)
   #return (problemType, logicAnalyzer.solutionsUsed, [], [], logicAnalyzer.diagonalRules )
-  return (problemType, [], [], [], [] )
+  return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, logic)
 
 
 
@@ -79,20 +75,6 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
 # LogicAnalyzer
 ################################################################################
 class LogicAnalyzer:
-
-  ########################################
-  # diagonal rule looks like
-  # 0: solutionIdx
-  # 1: problemIndices for minThreshold problem
-  # 2: gflops at above minSize
-  # 3: maxGFlops for this solution along diagonal in interval it won
-  # 4: gflops of prior winner at minSize, i.e., what performance did it beat
-
-  ########################################
-  # skinny rule looks like
-  # 0: solutionIdx
-  # 1: problemIndices for minThreshold problem
-  # 2: gflops at above minSize
 
   ##############################################################################
   ##############################################################################
@@ -173,8 +155,6 @@ class LogicAnalyzer:
     self.w0 = self.parameters["Weight0"]
     self.w1 = self.parameters["Weight1"]
     self.w2 = self.parameters["Weight2"]
-    #print "S->I %s" % self.problemSizeToIndex
-    #print "I->S %s" % self.problemIndexToSize
     self.indexOrder = self.recommendedIndexOrder()
     print2("IndexOrder: %s" % self.indexOrder)
     self.globalIndexRange = []
@@ -224,10 +204,6 @@ class LogicAnalyzer:
         for i in range(0, self.numIndices):
           problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
         serialIdx = self.indicesToSerial(0, problemIndices)
-        #print "%s -> %s -> %u" % (problemSize, problemIndices, serialIdx)
-
-        # total size
-        #totalFlops = float(row[totalSizeIdx])
 
         # data
         solutionIdx = 0
@@ -316,7 +292,6 @@ class LogicAnalyzer:
           new = sum(neighborGFlops)/len(neighborGFlops)
           old = self.data[problemSerial+solutionIdx]
           s += "%f -> %f" % (old, new)
-          print s
           self.data[problemSerial+solutionIdx] \
               = sum(neighborGFlops)/len(neighborGFlops)
 
@@ -346,28 +321,30 @@ class LogicAnalyzer:
   def enRule(self, currentIndexIndex, currentIndexRange):
     cii = currentIndexIndex
     if currentIndexIndex == 0:
-      self.tab[cii] = "| "
+      self.tab[cii] = "[] "
     elif currentIndexIndex == 1:
-      self.tab[cii] = "[%2u]-| " % ( \
+      self.tab[cii] = "[%2u] " % ( \
           currentIndexRange[self.indexOrder[0]][0])
     elif currentIndexIndex == 2:
-      self.tab[cii] = "[%2u,%2u]--| " % ( \
+      self.tab[cii] = "[%2u,%2u] " % ( \
           currentIndexRange[self.indexOrder[0]][0], \
           currentIndexRange[self.indexOrder[1]][0])
     elif currentIndexIndex == 3:
-      self.tab[cii] = "[%2u,%2u,%2u]---| " % ( \
+      self.tab[cii] = "[%2u,%2u,%2u] " % ( \
           currentIndexRange[self.indexOrder[0]][0], \
           currentIndexRange[self.indexOrder[1]][0], \
           currentIndexRange[self.indexOrder[2]][0])
     elif currentIndexIndex == 4:
-      self.tab[cii] = "[%2u,%2u,%2u,%2u]---| " % ( \
+      self.tab[cii] = "[%2u,%2u,%2u,%2u] " % ( \
           currentIndexRange[self.indexOrder[0]][0], \
           currentIndexRange[self.indexOrder[1]][0], \
           currentIndexRange[self.indexOrder[2]][0], \
           currentIndexRange[self.indexOrder[3]][0])
     tab = self.tab[cii]
+    if globalParameters["PrintLevel"] == 1:
+      stdout.write("\n%s"%tab)
     currentIndex = self.indexOrder[currentIndexIndex]
-    print "%senRule(%s)" % (tab, currentIndexRange)
+    print2("%senRule(%s)" % (tab, currentIndexRange))
     nextIndexIndex = currentIndexIndex+1
     nextIndexRange = deepcopy(currentIndexRange)
     isLastIndex = currentIndexIndex == self.numIndices-1
@@ -389,17 +366,21 @@ class LogicAnalyzer:
         #  if scores[solutionIdx] < scores[winnerIdx]:
         #    winnerIdx = solutionIdx
         winnerIdx = self.winnerForRange(currentIndexRange)
-        print "%sreturning early winner=%u" % (tab, winnerIdx)
+        #print2("%sreturning early winner=%u" % (tab, winnerIdx))
         ruleList.append(-1)
         ruleList.append(winnerIdx)
+        if globalParameters["PrintLevel"] == 1:
+          stdout.write("#")
 
       ########################################
       # this isn't last index, so just recursively return next index
       else:
-        print "%sreturning early enRule(%s)" \
-            % (tab, nextIndexRange)
+        #print2("%sreturning early enRule(%s)" \
+        #    % (tab, nextIndexRange) )
         rule = [ -1, self.enRule(nextIndexIndex, nextIndexRange) ]
         ruleList.append(rule)
+        if globalParameters["PrintLevel"] == 1:
+          stdout.write("#")
 
     ########################################
     # full iterative rule list
@@ -416,11 +397,13 @@ class LogicAnalyzer:
         winnerIdx = self.winnerForRange(nextIndexRange)
         initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
       else:
-        print "%sinitialRule(%s)" % (tab, nextIndexRange)
+        #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
         initialRule = [ currentIndexRange[currentIndex][0], \
             self.enRule(nextIndexIndex, nextIndexRange) ]
-        print "%sinitialRule(%s) DONE" % (tab, nextIndexRange)
+        #print2("%sinitialRule(%s) DONE" % (tab, nextIndexRange))
       ruleList.append(initialRule)
+      if globalParameters["PrintLevel"] == 1:
+        stdout.write("#")
 
       ########################################
       # for all problem indices in this index
@@ -442,15 +425,17 @@ class LogicAnalyzer:
         ########################################
         # candidate same as prior
         if candidateRule[1] == priorRule[1]:
-          print "%sP[%2u]: same" % (tab, problemIndex)
+          #print2("%sP[%2u]: same" % (tab, problemIndex))
           ruleList[len(ruleList)-1][0] = problemIndex
+          if globalParameters["PrintLevel"] == 1:
+            stdout.write(" ")
           continue
 
         ########################################
         # compare candidate vs prior
         else:
-          print "%sScoring P:%s for Prior=%s, Cand=%s" \
-              % ( tab, nextIndexRange, priorRuleForSize, candidateRule)
+          #print2("%sScoring P:%s for Prior=%s, Cand=%s" \
+          #    % ( tab, nextIndexRange, priorRuleForSize, candidateRule))
           # score prior
           priorRuleScore = self.scoreRangeForLogic(nextIndexRange, \
               [priorRuleForSize])
@@ -469,22 +454,26 @@ class LogicAnalyzer:
               * sum(logicComplexity)
           candidateRuleScore += self.parameters["BranchWeight"] # penalize
           candidateFaster = candidateRuleScore < priorRuleScore
-          print "%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
+          print2("%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
               "wins" if candidateFaster else "same", \
               candidateRule, candidateRuleScore, priorRuleForSize, \
-              priorRuleScore )
+              priorRuleScore ))
 
           ########################################
           # candidate wins
           if candidateRuleScore < priorRuleScore:
             ruleList.append(candidateRule)
+            if globalParameters["PrintLevel"] == 1:
+              stdout.write("#")
 
           ########################################
           # prior wins
           else:
+            if globalParameters["PrintLevel"] == 1:
+              stdout.write(".")
             ruleList[len(ruleList)-1][0] = problemIndex
 
-    print "%sReturning RuleList: %s" % (tab, ruleList)
+    #print2("%sReturning RuleList: %s" % (tab, ruleList))
     return ruleList
 
 
@@ -562,7 +551,6 @@ class LogicAnalyzer:
           solutionSerialIdx = problemSerial + solutionIdx
           solutionGFlops = self.data[solutionSerialIdx]
           if solutionGFlops > winnerGFlops:
-            #print "%f > %f" % (solutionGFlops, winnerGFlops)
             secondIdx = winnerIdx
             secondGFlops = winnerGFlops
             winnerIdx = solutionIdx
@@ -702,29 +690,18 @@ class LogicAnalyzer:
   # Score Range For Logic
   ##############################################################################
   def scoreRangeForLogic(self, indexRange, logic):
-    #print "ScoreRangeForLogic", indexRange, logic
     depth = self.getLogicDepth(logic)
     depth = self.numIndices - depth
-    #print "%sSRFL R=%s L=%s" % (self.tab[depth], indexRange, logic)
-    #obj = logic
-    #while isinstance(obj[0], list):
-    #  obj = obj[0][1]
-    #  depth -= 1
-    #print "Depth:", depth
     fullLogic = deepcopy(logic)
     for i in range(0, depth):
-      #print "Logic:", fullLogic
       fullLogic = [[-1, fullLogic]]
     fullLogic = fullLogic
-    #print "FullLogic:", fullLogic
     return self.scoreRangeForFullLogic(depth, indexRange, fullLogic)
 
   ##############################################################################
   # Score Range For Full Logic
   ##############################################################################
   def scoreRangeForFullLogic(self, depth, indexRange, logic):
-    #print "ScoreRangeForFullLogic", indexRange, logic
-    #print "%sSRFFL R=%s L=%s" % (self.tab[depth], indexRange, logic)
     score = 0
     for problemIndices in self.problemIndicesForRange(indexRange):
       problemSerial = self.indicesToSerial(0, problemIndices)
@@ -734,25 +711,16 @@ class LogicAnalyzer:
       gflops = self.data[problemSerial + solutionIdx]
       timeUs = totalFlops / gflops / 1000
       score += timeUs
-      #print "%sSRFFL t+=%.0f" % (self.tab[depth], timeUs)
-    #logicComplexity = [0]*self.numIndices
-    #self.scoreLogicComplexity(logic, logicComplexity)
-    #print "%sSRFFL Complexity=%s" % (self.tab[depth], logicComplexity)
-    #score += self.parameters["BranchWeight"] * sum(logicComplexity)
-    #print "LogicComplexity:", logicComplexity
     return score
 
   ##############################################################################
   # Get Solution For Problem Indices Using Logic
   ##############################################################################
   def getSolutionForProblemIndicesUsingLogic(self, problemIndices, logic):
-    #print "i:", problemIndices
     currentProblemIndices = self.toIndexOrder(problemIndices)
-    #print "i:", currentProblemIndices
     currentLogic = logic
     for i in range(0, self.numIndices):
       currentSizeIndex = currentProblemIndices[0]
-      #print "CurrentLogic[%u] P[%2u]: %s" % (i, currentSizeIndex, currentLogic)
       for j in range(0, len(currentLogic)):
         if currentLogic[j][0] < 0:
           currentProblemIndices = currentProblemIndices[1:]
@@ -763,7 +731,6 @@ class LogicAnalyzer:
             currentProblemIndices = currentProblemIndices[1:]
             currentLogic = currentLogic[j][1]
             break
-    #print "FinalLogic[%u]: %s" % (i, currentLogic)
     return currentLogic
 
 
@@ -786,7 +753,6 @@ class LogicAnalyzer:
       solutionSerialIdx = problemSerial + solutionIdx
       solutionGFlops = self.data[solutionSerialIdx]
       if solutionGFlops > winnerGFlops:
-        #print "%f > %f" % (solutionGFlops, winnerGFlops)
         winnerIdx = solutionIdx
         winnerGFlops = solutionGFlops
     return (winnerIdx, winnerGFlops)
@@ -823,8 +789,6 @@ class LogicAnalyzer:
     depth = self.getLogicDepth(logic)
     if depth == 0: return
     depth = self.numIndices - depth
-    #print "ScoreLogicComplexity[%u]: %s" % (depth, logic)
-    #print "[%u]ScoreLogicComplexity: %s" % (depth, logic)
     currentLogic = logic
     for i in range(0, len(logic)):
       logicComplexity[depth] += 1
@@ -841,6 +805,7 @@ class LogicAnalyzer:
       depth += 1
     return depth
 
+
   ##############################################################################
   # To Index Order
   def toIndexOrder(self, problemIndices):
@@ -848,13 +813,7 @@ class LogicAnalyzer:
     for i in self.indexOrder:
       ordered.append(problemIndices[i])
     return ordered
-# serial order = 0, 1, 2, 3
-# problem indi = 9, 8, 7, 6
 
-# index  order = 3, 2, 0, 1
-# ordered      = 6, 7, 9, 8
-#
-#
 
   ##############################################################################
   # Total Flops For Problem Indices
@@ -1012,12 +971,17 @@ def main(  config ):
   # Run Analysis
   schedulePrefix = globalParameters["Name"]
   for problemTypeTuple in problemTypeTuples:
-    logic = analyzeProblemType( problemTypeTuple, analysisParameters )
+    logicTuple = analyzeProblemType( problemTypeTuple, analysisParameters )
     YAMLIO.writeLibraryLogicForProblemType(globalParameters["WorkingPath"], \
-        schedulePrefix, logic)
+        schedulePrefix, logicTuple)
 
   popWorkingPath()
 
 ########################################
 # TODO
-# - is scoring working
+# - different weights for different levels?
+#   are there pairs of weights that would result in same logic complexity but better score?
+
+########################################
+# TODO problems which this algorithm
+# - barrier to switching may not always be amortised on next step, need to calculate several steps into future to see if net win; process needs to be a search tree. 32x32 search only takes 1 second

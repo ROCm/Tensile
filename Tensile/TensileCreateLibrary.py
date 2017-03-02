@@ -171,9 +171,8 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     scheduleName = logicProblemType[0]
     problemType = logicProblemType[1]
     solutions = logicProblemType[2]
-    skinnyLogic0 = logicProblemType[3]
-    skinnyLogic1 = logicProblemType[4]
-    diagonalLogic = logicProblemType[5]
+    indexOrder = logicProblemType[3]
+    logic = logicProblemType[4]
 
     # solution names
     solutionNames = []
@@ -218,14 +217,22 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     for i in range(1, len(problemType["IndicesSummation"])):
       s += "*size%s" % indexChars[problemType["IndicesSummation"][i]]
     s += ";\n\n"
-    for rule in skinnyLogic0:
-      print2(rule)
-    for rule in skinnyLogic1:
-      print2(rule)
+    #for rule in skinnyLogic0:
+    #  print2(rule)
+    #for rule in skinnyLogic1:
+    #  print2(rule)
     print2(solutionNames)
 
-    for ruleIdx in range(0, len(diagonalLogic)):
-      rule = diagonalLogic[ruleIdx]
+    logicStr = writeLogicRec(0, indexOrder, logic, solutionNames)
+    print logicStr
+    printExit("TODO")
+    #for indexIndex in range(0, problemType["TotalIndices"]):
+    #  index = indexOrder[indexIndex]
+    #  for ruleIdx in range(0, len(logic)):
+    #    rule = logic[ruleIdx]
+
+
+    """
       print2(rule)
       winnerIdx = rule[0]
       problemSize = rule[1]
@@ -267,7 +274,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
         s += ", size%s" % indexChars[i]
       s += ", stream, numInputEvents, inputEvents, outputEvent ); /* [%f,%f] GFlops*/\n" % (minGFlops,maxGFlops)
 
-
+    """
     s += "\n}\n"
 
     # open and close individual files
@@ -288,6 +295,45 @@ def writeLogic(outputPath, logicList, solutionWriter ):
       "Tensile.h"), "w")
   logicHeaderFile.write(h)
   logicHeaderFile.close()
+
+################################################################################
+# Write Logic Recursive
+################################################################################
+def writeLogicRec(depth, indexOrder, logic, solutionNames):
+  indexChars = globalParameters["IndexChars"]
+  indent = "  "
+  indent += "  "*depth
+  s = ""
+  lowestLevel = depth == len(indexOrder)-1
+  numRules = len(logic)
+  if numRules > 1:
+    # multiple rules, need if/else
+    for ruleIdx in range(0, numRules):
+      rule = logic[ruleIdx]
+      threshold = rule[0]
+      if lowestLevel:
+        solutionIdx = rule[1]
+        s += "%sif (size%s < %u) return solution[%u];\n" \
+            % (indent, indexChars[indexOrder[depth]], threshold, solutionIdx)
+      else:
+        s += "%sif (size%s < %u) {\n" \
+            % (indent, indexChars[indexOrder[depth]], threshold)
+        s += writeLogicRec(depth+1, indexOrder, rule[1], solutionNames)
+        s += "%s}\n" % (indent)
+  else:
+    ruleIdx = 0
+    rule = logic[ruleIdx]
+    threshold = rule[0]
+    if lowestLevel:
+      solutionIdx = rule[1]
+      s += "%sreturn solution[%u];\n" \
+          % (indent, solutionIdx)
+    else:
+      s += "%s{\n" \
+          % (indent)
+      s += writeLogicRec(depth+1, indexOrder, rule[1], solutionNames)
+      s += "%s}\n" % (indent)
+  return s
 
 
 ################################################################################
@@ -412,11 +458,12 @@ def TensileCreateLibrary():
     printExit("LogicPath %s doesn't exist" % logicPath)
 
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
-      if os.path.isfile(os.path.join(logicPath, f))]
+      if (os.path.isfile(os.path.join(logicPath, f)) \
+      and os.path.splitext(f)[1]==".yaml")]
 
-  print2("# LibraryLogicFiles:" % logicFiles)
+  print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
-    print2("#   %s" % logicFile)
+    print1("#   %s" % logicFile)
 
   ##############################################################################
   # Parse config files
@@ -424,10 +471,10 @@ def TensileCreateLibrary():
   solutions = []
   logicList = []
   for logicFileName in logicFiles:
-    (scheduleName, problemType, solutionsForType, skinnyLogic0, skinnyLogic1, \
-        diagonalLogic) = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    (scheduleName, problemType, solutionsForType, indexOrder, logic) \
+        = YAMLIO.readLibraryLogicForProblemType(logicFileName)
     logicList.append((scheduleName, problemType, solutionsForType, \
-        skinnyLogic0, skinnyLogic1, diagonalLogic))
+        indexOrder, logic ))
     for solution in solutionsForType:
       if solution not in solutions:
         solutions.append(solution)
