@@ -1,4 +1,4 @@
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printExit
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printExit, printWarning
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO
@@ -54,13 +54,14 @@ def main( config ):
   ##############################################################################
   logicFiles = [os.path.join(libraryLogicPath, f) for f \
       in os.listdir(libraryLogicPath) \
-      if os.path.isfile(os.path.join(libraryLogicPath, f))]
+      if (os.path.isfile(os.path.join(libraryLogicPath, f)) \
+      and os.path.splitext(f)[1]==".yaml")]
   print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
   for logicFileName in logicFiles:
-    (scheduleName, problemType, solutionsForType, skinnyLogic0, skinnyLogic1, \
-        diagonalLogic) = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    (scheduleName, problemType, solutionsForType, indexOrder, logic) \
+        = YAMLIO.readLibraryLogicForProblemType(logicFileName)
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
 
@@ -139,15 +140,22 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
       if os.name != "nt" else "") )
-  #if os.name != "nt":
-  #  runScriptFile.write("find .\n")
-  runScriptFile.write("%s & echo %s & echo # Running Client & echo %s\n" \
-      % (echoLine, HR, HR))
-  if os.name == "nt":
-    runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
-        "client.exe") )
+  if forBenchmark:
+    if os.name == "nt":
+      runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
+          "client.exe") )
+    else:
+      runScriptFile.write("./client")
   else:
-    runScriptFile.write("./client")
+    executablePath = os.path.join(globalParameters["WorkingPath"])
+    if os.name == "nt":
+      executablePath = os.path.join(executablePath, \
+          globalParameters["CMakeBuildType"], \
+          "client.exe")
+    else:
+      executablePath = os.path.join(executablePath, "client")
+    runScriptFile.write("%s & echo %s & echo # Library Client Path: & echo %s\n" \
+        % (echoLine, HR, executablePath) )
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)

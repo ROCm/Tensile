@@ -30,6 +30,7 @@
 #include <fstream>
 
 TensileTimer timer;
+TensileTimer apiTimer;
 std::ofstream file;
 
 void initControls();
@@ -135,7 +136,8 @@ bool callLibrary(
             std::cout << "  Device | Reference" << std::endl;
             firstPrint = false;
           }
-          std::cout << "[" << (numChecked-1) << "] " << i << ": " << tensileToString(deviceOnHostC[i])
+          std::cout << "[" << (numChecked-1) << "] " << i << ": "
+            << tensileToString(deviceOnHostC[i])
             << (equal ? "==" : "!=") << tensileToString(referenceC[i])
             << std::endl;
           printIdx++;
@@ -146,10 +148,14 @@ bool callLibrary(
 
   // time solution
   timer.start();
+  double apiTimeUs = 0;
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+    apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
       generatedCallToFunction( userSizes, alpha, beta );
     }
+    double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
+    apiTimeUs += currentApiTimeUs;
     // sync
 #if Tensile_BACKEND_OCL
     status = clFinish(stream); tensileStatusCheck(status);
@@ -158,6 +164,7 @@ bool callLibrary(
 #endif
     tensileStatusCheck(status);
   } // sync loop
+  apiTimeUs /= numSyncsPerBenchmark;
 
   double timeMs = timer.elapsed_ms()
     / numSyncsPerBenchmark / numEnqueuesPerSync;
@@ -174,30 +181,35 @@ bool callLibrary(
       << numFunctions << "]:"
       << std::setw(10) << std::fixed << std::setprecision(3)
       << gflops << " GFlop/s";
-      if (newFastest) {
-        std::cout << "*";
-      } else {
-        std::cout << " ";
-      }
+    if (newFastest) {
+      std::cout << "*";
+    } else {
+      std::cout << " ";
+    }
     std::cout << " |"
       << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
-      << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
+      << " " << (numChecked-numInvalids) << "/" << numChecked;
+    std::cout << " | api:" << std::setw(6) << std::fixed 
+      << std::setprecision(3) << apiTimeUs << " us";
+    std::cout << std::endl;
   } else {
     std::cout << "Function[" << functionIdx << "/" << numFunctions << "]:"
       << std::setw(10) << std::fixed << std::setprecision(3)
       << gflops << " GFlop/s";
-      if (newFastest) {
-        std::cout << "*";
-      } else {
-        std::cout << " ";
-      }
+    if (newFastest) {
+      std::cout << "*";
+    } else {
+      std::cout << " ";
+    }
     std::cout << " |"
       << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms";
-      if (newFastest) {
-        std::cout << "*";
-      }
-      std::cout << std::endl;
+    if (newFastest) {
+      std::cout << "*";
+    }
+    std::cout << " | api:" << std::setw(6) << std::fixed 
+      << std::setprecision(3) << apiTimeUs << " us";
+    std::cout << std::endl;
   }
   return (numInvalids > 0);
 } // callLibrary
@@ -359,7 +371,7 @@ bool benchmarkAllSolutionsForSize(
       }
       std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
-        << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
+        << " " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
     }
 #if 1
     else {

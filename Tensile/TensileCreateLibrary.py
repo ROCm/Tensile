@@ -171,9 +171,8 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     scheduleName = logicProblemType[0]
     problemType = logicProblemType[1]
     solutions = logicProblemType[2]
-    skinnyLogic0 = logicProblemType[3]
-    skinnyLogic1 = logicProblemType[4]
-    diagonalLogic = logicProblemType[5]
+    indexOrder = logicProblemType[3]
+    logic = logicProblemType[4]
 
     # solution names
     solutionNames = []
@@ -208,6 +207,7 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     for i in range(0, len(argList)):
       s += "    %s%s" % (argList[i], ",\n" if i < len(argList)-1 else ") {\n\n")
 
+    """
     indent = "  "
     s += "%ssize_t sizeC = size%s" % ( indent, indexChars[0])
     for i in range(1, problemType["NumIndicesC"]):
@@ -218,56 +218,11 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     for i in range(1, len(problemType["IndicesSummation"])):
       s += "*size%s" % indexChars[problemType["IndicesSummation"][i]]
     s += ";\n\n"
-    for rule in skinnyLogic0:
-      print2(rule)
-    for rule in skinnyLogic1:
-      print2(rule)
+    """
     print2(solutionNames)
 
-    for ruleIdx in range(0, len(diagonalLogic)):
-      rule = diagonalLogic[ruleIdx]
-      print2(rule)
-      winnerIdx = rule[0]
-      problemSize = rule[1]
-      minGFlops = rule[2]
-      maxGFlops = rule[3]
-      # rule logic
-      if ruleIdx == len(diagonalLogic)-1:
-        if len(diagonalLogic) > 1:
-          s += "%selse" % indent
-        else:
-          s += "%s" % indent
-      else:
-        s += "%s%s(sizeC >= static_cast<size_t>(%u" % (indent, ("if" if ruleIdx == 0 else "else if"), problemSize[0])
-        for i in range(1, problemType["NumIndicesC"]):
-          s += "*%u" % problemSize[i]
-        s += "))"
-      s += " return %s(" % solutionNames[winnerIdx]
-      # solution parameters
-      s += " dataC, dataA, dataB, alpha"
-      if problemType["UseBeta"]:
-        s += ", beta"
-      s += ", offsetC, offsetA, offsetB"
-      firstStride = 1
-      if problemType["UseInitialStrides"]:
-        firstStride = 0
-      lastStrideC = problemType["NumIndicesC"]
-      lastStrideA = len(problemType["IndexAssignmentsA"])
-      lastStrideB = len(problemType["IndexAssignmentsB"])
-
-      for i in range(firstStride,lastStrideC):
-        s += ", strideC%u%s" % (i, indexChars[i])
-      for i in range(firstStride,lastStrideA):
-        s += ", strideA%u%s" % (i, \
-            indexChars[problemType["IndexAssignmentsA"][i]])
-      for i in range(firstStride,lastStrideB):
-        s += ", strideB%u%s" % (i, \
-            indexChars[problemType["IndexAssignmentsB"][i]])
-      for i in range(0, problemType["TotalIndices"]):
-        s += ", size%s" % indexChars[i]
-      s += ", stream, numInputEvents, inputEvents, outputEvent ); /* [%f,%f] GFlops*/\n" % (minGFlops,maxGFlops)
-
-
+    logicStr = writeLogicRec(0, indexOrder, logic, solutionNames, problemType)
+    s += logicStr
     s += "\n}\n"
 
     # open and close individual files
@@ -288,6 +243,72 @@ def writeLogic(outputPath, logicList, solutionWriter ):
       "Tensile.h"), "w")
   logicHeaderFile.write(h)
   logicHeaderFile.close()
+
+################################################################################
+# Write Logic Recursive
+################################################################################
+def writeLogicRec(depth, indexOrder, logic, solutionNames, problemType):
+  indexChars = globalParameters["IndexChars"]
+  indent = "  "
+  indent += "  "*depth
+  s = ""
+  lowestLevel = depth == len(indexOrder)-1
+  numRules = len(logic)
+  for ruleIdx in range(0, numRules):
+    rule = logic[ruleIdx]
+    threshold = rule[0]
+    if lowestLevel:
+      solutionIdx = rule[1]
+      solutionCall = writeSolutionCall(solutionNames[solutionIdx],problemType)
+      if threshold > 0:
+        s += "%sif (size%s < %u) return %s;\n" \
+            % (indent, indexChars[indexOrder[depth]], threshold, solutionCall)
+      else:
+        s += "%sreturn %s;\n" % (indent, solutionCall)
+    else:
+      if threshold > 0:
+        s += "%sif (size%s < %u) {\n" \
+            % (indent, indexChars[indexOrder[depth]], threshold)
+      else:
+        s += "%s{\n" % (indent)
+      s += writeLogicRec(depth+1, indexOrder, rule[1], solutionNames, \
+          problemType)
+      s += "%s}\n" % (indent)
+  return s
+
+
+################################################################################
+# Write Solution Call
+################################################################################
+def writeSolutionCall(solutionName, problemType):
+  indexChars = globalParameters["IndexChars"]
+  s = ""
+  s += "%s(" % solutionName
+  # solution parameters
+  s += " dataC, dataA, dataB, alpha"
+  if problemType["UseBeta"]:
+    s += ", beta"
+  s += ", offsetC, offsetA, offsetB"
+  firstStride = 1
+  if problemType["UseInitialStrides"]:
+    firstStride = 0
+  lastStrideC = problemType["NumIndicesC"]
+  lastStrideA = len(problemType["IndexAssignmentsA"])
+  lastStrideB = len(problemType["IndexAssignmentsB"])
+  for i in range(firstStride,lastStrideC):
+    s += ", strideC%u%s" % (i, indexChars[i])
+  for i in range(firstStride,lastStrideA):
+    s += ", strideA%u%s" % (i, \
+        indexChars[problemType["IndexAssignmentsA"][i]])
+  for i in range(firstStride,lastStrideB):
+    s += ", strideB%u%s" % (i, \
+        indexChars[problemType["IndexAssignmentsB"][i]])
+  for i in range(0, problemType["TotalIndices"]):
+    s += ", size%s" % indexChars[i]
+  s += ", stream, numInputEvents, inputEvents, outputEvent )"
+  return s
+
+
 
 
 ################################################################################
@@ -412,11 +433,12 @@ def TensileCreateLibrary():
     printExit("LogicPath %s doesn't exist" % logicPath)
 
   logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
-      if os.path.isfile(os.path.join(logicPath, f))]
+      if (os.path.isfile(os.path.join(logicPath, f)) \
+      and os.path.splitext(f)[1]==".yaml")]
 
-  print2("# LibraryLogicFiles:" % logicFiles)
+  print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
-    print2("#   %s" % logicFile)
+    print1("#   %s" % logicFile)
 
   ##############################################################################
   # Parse config files
@@ -424,10 +446,10 @@ def TensileCreateLibrary():
   solutions = []
   logicList = []
   for logicFileName in logicFiles:
-    (scheduleName, problemType, solutionsForType, skinnyLogic0, skinnyLogic1, \
-        diagonalLogic) = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    (scheduleName, problemType, solutionsForType, indexOrder, logic) \
+        = YAMLIO.readLibraryLogicForProblemType(logicFileName)
     logicList.append((scheduleName, problemType, solutionsForType, \
-        skinnyLogic0, skinnyLogic1, diagonalLogic))
+        indexOrder, logic ))
     for solution in solutionsForType:
       if solution not in solutions:
         solutions.append(solution)

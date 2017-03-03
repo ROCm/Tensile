@@ -37,7 +37,7 @@ def benchmarkProblemType( config ):
 
   totalBenchmarkSteps = len(benchmarkProcess)
   winners = WinningParameterDict()
-  print1("NumBenchmarkSteps: %u" % totalBenchmarkSteps)
+  print1("# NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   print1("")
   print1(HR)
   print1("# Done Creating BenchmarkProcess Object")
@@ -148,6 +148,7 @@ def benchmarkProblemType( config ):
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
     sys.stdout.write("# Enumerating Solutions")
+    solutionSet = set() # avoid duplicates for nlca=-1, 1
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
@@ -169,10 +170,15 @@ def benchmarkProblemType( config ):
                 benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
-        if SolutionWriter.solutionParametersConsistent(solutionObject):
-          solutions[hardcodedIdx].append(solutionObject)
-          if globalParameters["PrintLevel"] >= 1:
-            sys.stdout.write("|")
+        if solutionObject["Valid"]:
+          if solutionObject not in solutionSet:
+            solutionSet.add(solutionObject)
+            solutions[hardcodedIdx].append(solutionObject)
+            if globalParameters["PrintLevel"] >= 1:
+              sys.stdout.write("|")
+          else:
+            if globalParameters["PrintLevel"] >= 1:
+              sys.stdout.write(":")
         else:
           if globalParameters["PrintLevel"] >= 1:
             sys.stdout.write(".")
@@ -541,8 +547,8 @@ class WinningParameterDict:
           #for paramName in hardcodedFrozen:
           #  paramValue = hardcodedFrozen[paramName]
           #  matchUnion[paramName] = paramValue
-          Solution.assignDimsFromEdgeAndShape(matchUnion)
-          Solution.assignDimsFromEdgeAndShape(hardcodedFrozen.parameters)
+          Solution.assignProblemIndependentDerivedParameters(matchUnion)
+          Solution.assignProblemIndependentDerivedParameters(hardcodedFrozen.parameters)
           if matchUnion["MacroTile0"] != lookupMacroTile0 \
               or matchUnion["MacroTile1"] != lookupMacroTile1:
             matchMacroTile = False

@@ -49,8 +49,10 @@ globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
 globalParameters["MaxThreads"] = 256
-globalParameters["MaxRegisters"] = 256
+globalParameters["MinThreads"] = 64
 globalParameters["MaxLDS"] = 32768
+globalParameters["MaxMacroTileRatio"] = 4
+globalParameters["MaxThreadTile"] = 64
 
 
 ################################################################################
@@ -67,15 +69,17 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                [ "Branch" ] }, # Shift
     {"EdgeMultiKernel":         [ False ] },
     {"PadLDS":                  [ 1 ] },
+    {"SplitU":                  [ 1 ] },
+    {"Prefetch":                [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
     {"WorkGroupEdge":           [ 16, 8 ] },
-    {"WorkGroupShape":          [ 0 ] }, # -1, 0, 1
+    {"WorkGroupShape":          [ 0 ] }, # -4, -2, 0, 2, 4
     {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
-    {"ThreadTileShape":         [ 0 ] }, # -1, 0, 1
-    {"SplitU":                  [ 1 ] },
-    {"Prefetch":                [ False ] },
+    {"ThreadTileShape":         [ 0 ] }, # -4, -2, 0, 2, 4
+    {"NumLoadsCoalescedA":       [ 1, -1 ] },
+    {"NumLoadsCoalescedB":       [ 1, -1 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
@@ -88,18 +92,17 @@ defaultJoinParameters = [
     ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [
-    {"NumLoadsCoalescedA":       [ 1, 2, 3, 4, 6, 8 ] },
-    {"NumLoadsCoalescedB":       [ 1, 2, 3, 4, 6, 8 ] },
     {"VectorWidthGlobalLoad":   [ 4 ] },
     {"VectorWidthGlobalStore":  [ 4 ] },
     {"VectorWidthLocalLoad":    [ 4 ] },
     {"VectorWidthLocalStore":   [ 4 ] },
     ]
 
-# derrived parameters may show up in solution dict but don't use for naming
-derrivedParameters = [
+# derived parameters may show up in solution dict but don't use for naming
+derivedParameters = [
     "MacroTile0",
     "MacroTile1",
+    "DepthU",
     "WorkGroup0",
     "WorkGroup1",
     "ThreadTile0",
@@ -108,6 +111,7 @@ derrivedParameters = [
     "NumLoadsB",
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
+    "NumThreads",
     ]
 
 # dictionary of defaults comprised for 1st option for each parameter
@@ -118,7 +122,6 @@ for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
     for key, value in paramDict.iteritems():
       defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
-defaultSolution["MacroTileMaxRatio"] = 2
 
 ################################################################################
 # Default Problem Type
@@ -149,8 +152,10 @@ defaultBenchmarkFinalProblemSizes = [
 # Default Analysis Parameters
 ################################################################################
 defaultAnalysisParameters = {
-    "Dilation":                 3,
-    "Threshold":                0.1,
+    "InitialSolutionWindow":      4,
+    "BranchPenalty":            100, # microseconds / kernel
+    "SmoothOutliers":         False, # enforce monotonic data
+    "SolutionImportanceMin":   0.01, # = 1%
     }
 
 

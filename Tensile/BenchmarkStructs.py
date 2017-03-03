@@ -2,7 +2,7 @@
 # from copy import *
 
 from copy import copy, deepcopy
-from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit
+from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit, globalParameters
 from SolutionStructs import Solution, ProblemType, ProblemSizes
 
 ################################################################################
@@ -399,14 +399,16 @@ class BenchmarkProcess:
           macroTileDim0 = workGroupEdgeValues[workGroupEdgeIdx]*threadTileEdgeValues[threadTileEdgeIdx]
           macroTileDim1 = macroTileDim0
           if workGroupShapeValues[workGroupShapeIdx] < 0:
-            macroTileDim1 /= 2
+            macroTileDim0 *= abs(workGroupShapeValues[workGroupShapeIdx])
           elif workGroupShapeValues[workGroupShapeIdx] > 0:
-            macroTileDim1 *= 2
+            macroTileDim1 *= abs(workGroupShapeValues[workGroupShapeIdx])
           if threadTileShapeValues[threadTileShapeIdx] < 0:
-            macroTileDim1 /= 2
+            macroTileDim0 *= abs(threadTileShapeValues[threadTileShapeIdx])
           elif threadTileShapeValues[threadTileShapeIdx] > 0:
-            macroTileDim1 *= 2
-          if macroTileDim0/macroTileDim1 <= self.initialSolutionParameters["MacroTileMaxRatio"] and macroTileDim1/macroTileDim0 <= self.initialSolutionParameters["MacroTileMaxRatio"]:
+            macroTileDim1 *= abs(threadTileShapeValues[threadTileShapeIdx])
+          # TODO is this still useful?
+          if macroTileDim0/macroTileDim1 <= globalParameters["MaxMacroTileRatio"] \
+              and macroTileDim1/macroTileDim0 <= globalParameters["MaxMacroTileRatio"]:
             macroTileJoinSet.add((macroTileDim0, macroTileDim1))
         totalPermutations *=len(macroTileJoinSet)
         print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
