@@ -142,13 +142,16 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
       if os.name != "nt" else "") )
   #if os.name != "nt":
   #  runScriptFile.write("find .\n")
-  runScriptFile.write("%s & echo %s & echo # Running Client & echo %s\n" \
-      % (echoLine, HR, HR))
+  #    % (echoLine, HR, HR))
+  executablePath = os.path.join(globalParameters["WorkingPath"])
   if os.name == "nt":
-    runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
-        "client.exe") )
+    executablePath = os.path.join(executablePath, \
+        globalParameters["CMakeBuildType"], \
+        "client.exe")
   else:
-    runScriptFile.write("./client")
+    executablePath = os.path.join(executablePath, "client")
+  runScriptFile.write("%s & echo %s & echo # Library Client Path: & echo %s\n" \
+      % (echoLine, HR, executablePath) )
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)
