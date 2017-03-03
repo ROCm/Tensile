@@ -164,6 +164,7 @@ bool callLibrary(
 #endif
     tensileStatusCheck(status);
   } // sync loop
+  apiTimeUs /= numSyncsPerBenchmark;
 
   double timeMs = timer.elapsed_ms()
     / numSyncsPerBenchmark / numEnqueuesPerSync;
@@ -188,8 +189,8 @@ bool callLibrary(
     std::cout << " |"
       << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
-      << " p: " << (numChecked-numInvalids) << "/" << numChecked;
-    std::cout << " api:" << std::setw(6) << std::fixed 
+      << " " << (numChecked-numInvalids) << "/" << numChecked;
+    std::cout << " | api:" << std::setw(6) << std::fixed 
       << std::setprecision(3) << apiTimeUs << " us";
     std::cout << std::endl;
   } else {
@@ -206,7 +207,7 @@ bool callLibrary(
     if (newFastest) {
       std::cout << "*";
     }
-    std::cout << " api:" << std::setw(6) << std::fixed 
+    std::cout << " | api:" << std::setw(6) << std::fixed 
       << std::setprecision(3) << apiTimeUs << " us";
     std::cout << std::endl;
   }
@@ -370,7 +371,7 @@ bool benchmarkAllSolutionsForSize(
       }
       std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
-        << " p: " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
+        << " " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
     }
 #if 1
     else {
