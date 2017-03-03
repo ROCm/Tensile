@@ -152,16 +152,10 @@ defaultBenchmarkFinalProblemSizes = [
 # Default Analysis Parameters
 ################################################################################
 defaultAnalysisParameters = {
-    "InitialSolutionWindow":     4,
-    "BranchWeight":              100, # microseconds / kernel
-
-    "Dilation":                 3,
-    "Threshold":                0.1,
-    "OutlierThreshold":         0,
-    "FractionTimeSavedMin":     0.01, # = 1%
-    "Weight0":                  100,
-    "Weight1":                  100,
-    "Weight2":                  100,
+    "InitialSolutionWindow":      4,
+    "BranchPenalty":           10000, # microseconds / kernel
+    "SmoothOutliers":         False, # enforce monotonic data
+    "SolutionImportanceMin":   0.01, # = 1%
     }
 
 

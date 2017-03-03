@@ -50,8 +50,9 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
 
   ######################################
   # Correct outliers
-  # logicAnalyzer.smooth()
-  logicAnalyzer.print2D([0, 0])
+  if inputParameters["SmoothOutliers"]:
+    logicAnalyzer.smoothOutliers()
+  #logicAnalyzer.print2D([0, 0])
 
   ######################################
   # Create Rules
@@ -64,6 +65,8 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   score = logicAnalyzer.scoreRangeForLogic( \
       logicAnalyzer.globalIndexRange, logic)
   print1("\nScore: %.0f ms" % (score/1000))
+
+  logicAnalyzer.prepareLogic(logic)
 
   #return (skinnyRules01, skinnyRules10, diagonalRules)
   #return (problemType, logicAnalyzer.solutionsUsed, [], [], logicAnalyzer.diagonalRules )
@@ -152,9 +155,6 @@ class LogicAnalyzer:
     self.rangeIndicesFree = range(0, self.problemType["NumIndicesC"])
     self.rangeIndicesSummation = range(self.problemType["NumIndicesC"], \
         self.problemType["TotalIndices"])
-    self.w0 = self.parameters["Weight0"]
-    self.w1 = self.parameters["Weight1"]
-    self.w2 = self.parameters["Weight2"]
     self.indexOrder = self.recommendedIndexOrder()
     print2("IndexOrder: %s" % self.indexOrder)
     self.globalIndexRange = []
@@ -248,7 +248,7 @@ class LogicAnalyzer:
     while True:
       (lisIdx, lisPercSaved, lisPercWins, lisPercExec) \
           = self.leastImportantSolution()
-      if lisPercSaved < self.parameters["FractionTimeSavedMin"]:
+      if lisPercSaved < self.parameters["SolutionImportanceMin"]:
         self.removeSolution(lisIdx)
         continue
       else:
@@ -256,10 +256,9 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # ENTRY: Smooth - correct outliers
+  # ENTRY: Smooth Outliers
   ##############################################################################
-  def smooth(self):
-    outlierThreshold = self.parameters["OutlierThreshold"]
+  def smoothOutliers(self):
     problemSizes = [0]*self.numIndices
     for problemIndices in self.problemIndicesForGlobalRange:
       problemSerial = self.indicesToSerial(0, problemIndices)
@@ -281,8 +280,8 @@ class LogicAnalyzer:
             neighborAfterGFlops = self.data[neighborAfterIdx+solutionIdx]
             neighborGFlops.append(neighborBeforeGFlops)
             neighborGFlops.append(neighborAfterGFlops)
-            if neighborBeforeGFlops > gflops * (1+outlierThreshold) \
-                and neighborAfterGFlops * (1+outlierThreshold) < gflops :
+            if neighborBeforeGFlops > gflops \
+                and neighborAfterGFlops < gflops :
               smoothProblem = True
         if smoothProblem:
           s = ""
@@ -442,7 +441,7 @@ class LogicAnalyzer:
           logicComplexity = [0]*self.numIndices
           self.scoreLogicComplexity( \
               [priorRuleForSize], logicComplexity)
-          priorRuleScore += self.parameters["BranchWeight"] \
+          priorRuleScore += self.parameters["BranchPenalty"] \
               * sum(logicComplexity)
           # score candidate
           candidateRuleScore = self.scoreRangeForLogic(nextIndexRange, \
@@ -450,9 +449,9 @@ class LogicAnalyzer:
           logicComplexity = [0]*self.numIndices
           self.scoreLogicComplexity( \
               [candidateRule], logicComplexity)
-          candidateRuleScore += self.parameters["BranchWeight"] \
+          candidateRuleScore += self.parameters["BranchPenalty"] \
               * sum(logicComplexity)
-          candidateRuleScore += self.parameters["BranchWeight"] # penalize
+          candidateRuleScore += self.parameters["BranchPenalty"] # penalize
           candidateFaster = candidateRuleScore < priorRuleScore
           print2("%sP[%2u]: %s %s~%.0fus < %s~%.0fus" % (tab, problemIndex, \
               "wins" if candidateFaster else "same", \
@@ -485,6 +484,25 @@ class LogicAnalyzer:
   ###
   ##############################################################################
   ##############################################################################
+
+
+
+  ##############################################################################
+  # Prepare Logic
+  # convert threshold indices to sizes
+  # last threshold = -1
+  ##############################################################################
+  def prepareLogic(self, logic):
+    depth = self.getLogicDepth(logic)
+    if depth == 0: return
+    indexIndex = self.numIndices - depth
+    index = self.indexOrder[indexIndex]
+    for i in range(0, len(logic)):
+      if i == len(logic)-1:
+        logic[i][0] = -1
+      else:
+        logic[i][0] = self.problemIndexToSize[index][logic[i][0]]
+      self.prepareLogic(logic[i][1])
 
 
   ##############################################################################
