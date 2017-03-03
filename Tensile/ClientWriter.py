@@ -140,18 +140,22 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
       if os.name != "nt" else "") )
-  #if os.name != "nt":
-  #  runScriptFile.write("find .\n")
-  #    % (echoLine, HR, HR))
-  executablePath = os.path.join(globalParameters["WorkingPath"])
-  if os.name == "nt":
-    executablePath = os.path.join(executablePath, \
-        globalParameters["CMakeBuildType"], \
-        "client.exe")
+  if forBenchmark:
+    if os.name == "nt":
+      runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
+          "client.exe") )
+    else:
+      runScriptFile.write("./client")
   else:
-    executablePath = os.path.join(executablePath, "client")
-  runScriptFile.write("%s & echo %s & echo # Library Client Path: & echo %s\n" \
-      % (echoLine, HR, executablePath) )
+    executablePath = os.path.join(globalParameters["WorkingPath"])
+    if os.name == "nt":
+      executablePath = os.path.join(executablePath, \
+          globalParameters["CMakeBuildType"], \
+          "client.exe")
+    else:
+      executablePath = os.path.join(executablePath, "client")
+    runScriptFile.write("%s & echo %s & echo # Library Client Path: & echo %s\n" \
+        % (echoLine, HR, executablePath) )
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)

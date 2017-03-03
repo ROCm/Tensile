@@ -49,7 +49,6 @@ BenchmarkProblems:
       - ProblemSizes: [ [16, 128], [16, 128], [256] ]
 
 LibraryLogic:
-  Dilation: 3
-  Threshold: 0.1
+  BranchPenalty: 0
 
 LibraryClient:
