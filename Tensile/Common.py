@@ -70,6 +70,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeMultiKernel":         [ False ] },
     {"PadLDS":                  [ 1 ] },
     {"SplitU":                  [ 1 ] },
+    {"LdsPad":                  [ 1 ] }, # 0
     {"Prefetch":                [ False ] },
     ]
 # benchmark these solution independently

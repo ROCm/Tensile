@@ -48,8 +48,8 @@ class KernelWriter:
       self.getNumGroupsStr = "get_num_groups"
       self.getLocalIdStr = "get_local_id"
       self.getGlobalIdStr = "get_global_id"
-      self.sharedDeclStr = "__local"
-      self.sharedPtrStr = "__local"
+      self.sharedDeclStr = "__local "
+      self.sharedPtrStr = "__local "
       self.syncStr = "barrier(CLK_LOCAL_MEM_FENCE);"
       self.fenceStr = "mem_fence(CLK_LOCAL_MEM_FENCE);"
       self.macFStr = "mad"
@@ -61,7 +61,7 @@ class KernelWriter:
       self.getNumGroupsStr = "hc_get_num_groups"
       self.getLocalIdStr = "hc_get_workitem_id"
       self.getGlobalIdStr = "hc_get_workitem_absolute_id"
-      self.sharedDeclStr = "__shared__"
+      self.sharedDeclStr = "__shared__ "
       self.sharedPtrStr = ""
       self.syncStr = "__syncthreads();"
       self.fenceStr = self.syncStr
@@ -220,7 +220,7 @@ class KernelWriter:
     kStr += "#define UNROLL %d%s" \
         % (kernel["LoopUnroll"], self.endLine )
     kStr += "#define DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
-    kStr += "#define PAD 1" + self.endLine
+    kStr += "#define PAD %u%s" % (kernel["LdsPad"], self.endLine)
     kStr += self.endLine
 
     ####################################
@@ -267,6 +267,18 @@ class KernelWriter:
           % (self.endLine)
       kStr += "#define LSPB (MT%s/NLPB)%s" % (tileCharB, self.endLine)
 
+    # lds buffer size
+    ldsAlign = 256 / kernel["ProblemType"]["DataType"].numRegisters()
+    ldsSizeA = kernel["DepthU"]*(kernel["MacroTile0"]+kernel["LdsPad"])
+    ldsSizeB = kernel["DepthU"]*(kernel["MacroTile1"]+kernel["LdsPad"])
+    ldsSizeAlignedA = ((ldsSizeA+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsSizeAlignedB = ((ldsSizeB+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsSizeReduction = 0 if (kernel["SplitU"] == 1) \
+        else (kernel["MacroTile0"]*kernel["MacroTile1"])
+    ldsSize = max(ldsSizeAlignedA+ldsSizeB, ldsSizeReduction)
+    kStr += "#define LDS_OFFSET_B %u%s" % (ldsSizeAlignedA, self.endLine)
+    kStr += "#define LDS_SIZE %u%s" % (ldsSize, self.endLine)
+
 
     ####################################
     # global memory indices
@@ -311,16 +323,9 @@ class KernelWriter:
     # data types
     kStr += self.endLine
     kStr += "/* data types */" + self.endLine
-    kStr += "#define TYPE_A     %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), self.endLine)
-    kStr += "#define TYPE_B     %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), self.endLine)
-    kStr += "#define TYPE_C     %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), self.endLine)
-    kStr += "//#define TYPE_ALPHA %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), self.endLine)
-    kStr += "//#define TYPE_BETA  %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), self.endLine)
+    kStr += "#define DATA_TYPE %s%s" \
+        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), \
+        self.endLine)
 
     if self.backend == "OCL":
       kStr += "#define MAD(A,B,DST) mad(A,B,DST)"
@@ -504,36 +509,30 @@ class KernelWriter:
     kStr += self.endLine
     kStr += (
       "  /* allocate registers */" + self.endLine +
-      "  TYPE_C rC[TT" + tileChar0 + "][TT" + tileChar1 + "] "
+      "  DATA_TYPE rC[TT" + tileChar0 + "][TT" + tileChar1 + "] "
           + "= {{0}};" + self.endLine +
-      "  TYPE_A rA[TT" + tileChar0 + "];" + self.endLine +
-      "  TYPE_B rB[TT" + tileChar1 + "];" + self.endLine )
+      "  DATA_TYPE rA[TT" + tileChar0 + "];" + self.endLine +
+      "  DATA_TYPE rB[TT" + tileChar1 + "];" + self.endLine )
 
 
     ####################################
     # allocate local memory
     kStr += self.endLine
-    kStr += (
-      "  /* allocate local memory */" + self.endLine +
-      "  " + self.sharedDeclStr + " TYPE_A localA[DEPTHU*(MT" + tileChar0 + "+PAD)];" \
-          + self.endLine +
-      "  "+self.sharedDeclStr + " TYPE_B localB[DEPTHU*(MT" + tileChar1 + "+PAD)];" \
-          + self.endLine )
+    kStr += "  /* allocate local memory */" + self.endLine
+    kStr += "  %sDATA_TYPE lds[LDS_SIZE];%s" \
+        % (self.sharedDeclStr, self.endLine )
+    kStr += "  %sDATA_TYPE *localA = lds;%s" \
+        % (self.sharedPtrStr, self.endLine)
+    kStr += "  %sDATA_TYPE *localB = lds + LDS_OFFSET_B;%s" \
+        % (self.sharedPtrStr, self.endLine)
 
     ####################################
     # c indices
     ####################################
-    # kernel.indexOrderC - performance defined
-    # kernel["ProblemType"]["IndicesSummation"] - performance defined
-    # kernel.indexAssignmentsA - user defined
-    # kernel.indexAssignmentsB - user defined
-    # convert self.getGroupIdStr(0) to however many c indices there are
-
 
     # work-group free indices
     kStr += self.endLine
     kStr += "  /* c indices (group) */" + self.endLine
-
 
     if kernel["WorkGroupMapping"] < 0:
       # swap order in which work-groups cover C
@@ -676,9 +675,9 @@ class KernelWriter:
     # offset local pointers
     ####################################
     kStr += "  /* where will this thread write to local memory */" + self.endLine
-    kStr += "  %s TYPE_A *lA = localA + a%s + a%s*(MT%s+PAD);%s" \
+    kStr += "  %s DATA_TYPE *lA = localA + a%s + a%s*(MT%s+PAD);%s" \
         % (self.sharedPtrStr, tileCharA, unrollChar, tileCharA, self.endLine)
-    kStr += "  %s TYPE_B *lB = localB + b%s + b%s*(MT%s+PAD);%s" \
+    kStr += "  %s DATA_TYPE *lB = localB + b%s + b%s*(MT%s+PAD);%s" \
         % (self.sharedPtrStr, tileCharB, unrollChar, tileCharB, self.endLine)
     kStr += self.endLine
 
@@ -712,7 +711,7 @@ class KernelWriter:
       kStr += self.endLine
 
     kStr += "  /* registers used for global -> local loads */" + self.endLine
-    kStr += "  TYPE_A "
+    kStr += "  DATA_TYPE "
     for perp in range(0, numLoadsPerpA):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         kStr += "a_" + str(para) + "_" + str(perp)
@@ -720,7 +719,7 @@ class KernelWriter:
           kStr += ";" + self.endLine
         else:
           kStr += ", "
-    kStr += "  TYPE_B "
+    kStr += "  DATA_TYPE "
     for perp in range(0, numLoadsPerpB):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         kStr += "b_" + str(para) + "_" + str(perp)
@@ -1217,7 +1216,7 @@ class KernelWriter:
     # debug printf
     #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
     # end debug
-    # kStr += "  rC[0][0] = TYPE_C(1.23456789, -1.23456789);" + self.endLine
+    # kStr += "  rC[0][0] = DATA_TYPE(1.23456789, -1.23456789);" + self.endLine
 
     # kStr += indent + "/* print LDS state */" + self.endLine
     # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && serial == 0) {" + self.endLine
@@ -1320,9 +1319,7 @@ class KernelWriter:
       kStr += "#undef GLOBAL_C%s" % (self.endLine)
       kStr += "#undef GLOBAL_A%s" % (self.endLine)
       kStr += "#undef GLOBAL_B%s" % (self.endLine)
-      kStr += "#undef TYPE_C%s" % (self.endLine)
-      kStr += "#undef TYPE_A%s" % (self.endLine)
-      kStr += "#undef TYPE_B%s" % (self.endLine)
+      kStr += "#undef DATA_TYPE%s" % (self.endLine)
       kStr += "#undef MICRO_TILE%s" % (self.endLine)
       firstStride = 0
       if kernel["ProblemType"]["UseInitialStrides"]:
