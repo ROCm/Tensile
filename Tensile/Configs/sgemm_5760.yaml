@@ -35,10 +35,10 @@ BenchmarkProblems:
         EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
     ForkParameters:
-      - WorkGroupShape: [0, 1]
+      - GroupShape: [0, 1]
       - ThreadTileShape: [0, 1]
-      - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [ 8 ]
+      - NumThreads: [64, 256]
+      - ThreadTileNumElements: [16, 36, 64]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -58,7 +58,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - WorkGroupShape: [0]
+      - GroupShape: [0]
       - SplitU: [1]
       - EdgeType: ["Branch"]
       - LoopDoWhile: [False]
@@ -67,8 +67,8 @@ BenchmarkProblems:
       - WorkGroupMapping: [ 1 ]
     ForkParameters:
       - ThreadTileShape: [0, 1]
-      - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [4, 6, 8]
+      - NumThreads: [64, 256]
+      - ThreadTileNumElements: [16, 36, 64]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -95,10 +95,10 @@ BenchmarkProblems:
         EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
     ForkParameters:
-      - WorkGroupShape: [0, 1]
+      - GroupShape: [0, 1]
       - ThreadTileShape: [0, 1]
-      - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [4, 6, 8]
+      - NumThreads: [64, 256]
+      - ThreadTileNumElements: [16, 36, 64]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
@@ -125,10 +125,10 @@ BenchmarkProblems:
         EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
     ForkParameters:
-      - WorkGroupShape: [0, 1]
+      - GroupShape: [0, 1]
       - ThreadTileShape: [0, 1]
-      - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [4, 6, 8]
+      - NumThreads: [64, 256]
+      - ThreadTileNumElements: [16, 36, 64]
       - LoopUnroll: [8, 16]
     #BenchmarkForkParameters:
     JoinParameters:

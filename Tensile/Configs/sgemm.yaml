@@ -35,11 +35,11 @@ BenchmarkProblems:
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-      - WorkGroupShape: [ 0 ]
+      - GroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
     ForkParameters:
-      - WorkGroupEdge: [8, 16]
-      - ThreadTileEdge: [2, 4, 8 ]
+      - NumThreads: [64, 256]
+      - ThreadTileNumElements: [4, 16, 64]
       - LoopUnroll: [8, 16]
     BenchmarkForkParameters:
     JoinParameters:

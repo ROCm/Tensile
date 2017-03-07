@@ -74,12 +74,12 @@ defaultBenchmarkCommonParameters = [
     ]
 # benchmark these solution independently
 defaultForkParameters = [
-    {"WorkGroupEdge":           [ 16, 8 ] },
-    {"WorkGroupShape":          [ 0 ] }, # -4, -2, 0, 2, 4
-    {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
+    {"NumThreads":              [ 16*16, 8*8 ] },
+    {"GroupShape":              [ 0 ] }, # -4, -2, 0, 2, 4
+    {"ThreadTileNumElements":   [ 4*4, 2*2, 6*6, 8*8 ] },
     {"ThreadTileShape":         [ 0 ] }, # -4, -2, 0, 2, 4
-    {"NumLoadsCoalescedA":       [ 1, -1 ] },
-    {"NumLoadsCoalescedB":       [ 1, -1 ] },
+    {"NumLoadsCoalescedA":      [ 1, -1 ] },
+    {"NumLoadsCoalescedB":      [ 1, -1 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [

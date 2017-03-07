@@ -245,7 +245,7 @@ class LogicAnalyzer:
   ##############################################################################
   def removeLeastImportantSolutions(self):
     # Remove least important solutions
-    while True:
+    while len(self.solutions) > 1:
       (lisIdx, lisPercSaved, lisPercWins, lisPercExec) \
           = self.leastImportantSolution()
       if lisPercSaved < self.parameters["SolutionImportanceMin"]:

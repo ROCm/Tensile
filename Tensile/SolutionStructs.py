@@ -145,54 +145,6 @@ class DataType:
     return not result
 
 
-
-################################################################################
-# Device
-################################################################################
-class Device:
-
-  ########################################
-  def __init__( self, name, numComputeUnits, clockFrequency, flopsPerClock):
-    self.name = name
-    self.numComputeUnits = numComputeUnits
-    self.clockFrequency = clockFrequency
-    self.flopsPerClock = flopsPerClock
-
-  ########################################
-  def __str__(self):
-    state = "[Device"
-    state += "; " + self.name
-    state += "; " + str(self.numComputeUnits)
-    state += "; " + str(self.clockFrequency)
-    state += "; " + str(self.flopsPerClock)
-    state += "]"
-    return state
-
-  def __repr__(self):
-    return self.__str__()
-
-  def getAttributes(self):
-    return ( \
-        self.name, \
-        self.numComputeUnits, \
-        self.clockFrequency, \
-        self.flopsPerClock, \
-        )
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, Device) and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
-
-# ProblemSize
-#  GEMM: M, N, K, [lda, ldb, ldc]
-#  TensorContraction: sizeI, sizeJ, ...; [ stridesC, A, B ]
-
-
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
@@ -381,12 +333,6 @@ class ProblemType:
     return len(self.state)
   def __iter__(self):
     return iter(self.state)
-
-
-
-
-
-
   def __getitem__(self, key):
     return self.state[key]
   def __setitem__(self, key, value):
@@ -397,7 +343,6 @@ class ProblemType:
     return self.state
   def __hash__(self):
     return hash(str(self))
-    #return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, ProblemType) and self.getAttributes() == other.getAttributes()
   def __ne__(self, other):
@@ -561,33 +506,35 @@ class Solution:
       if state["AssignedProblemIndependentDerivedParameters"]:
         return
     state["AssignedProblemIndependentDerivedParameters"] = False
-    # workgroup sizes
-    state["WorkGroup0"] = state["WorkGroupEdge"]
-    state["WorkGroup1"] = state["WorkGroupEdge"]
-    if state["WorkGroupShape"] > 0:
-      state["WorkGroup1"] *= abs(state["WorkGroupShape"])
-    elif state["WorkGroupShape"] < 0:
-      state["WorkGroup0"] *= abs(state["WorkGroupShape"])
 
-    # thread tile sizes
-    state["ThreadTile0"] = state["ThreadTileEdge"]
-    state["ThreadTile1"] = state["ThreadTileEdge"]
-    if state["ThreadTileShape"] > 0:
-      state["ThreadTile1"] *= abs(state["ThreadTileShape"])
-    elif state["ThreadTileShape"] < 0:
-      state["ThreadTile0"] *= abs(state["ThreadTileShape"])
+    (subGroup0, subGroup1, threadTile0, threadTile1) \
+        = Solution.tileSizes(state["NumThreads"], state["SplitU"], \
+        state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
+
+    state["SubGroup0"] = subGroup0
+    state["SubGroup1"] = subGroup1
+    state["ThreadTile0"] = threadTile0
+    state["ThreadTile1"] = threadTile1
+    if state["SubGroup0"]*state["SubGroup1"] \
+        != state["NumThreads"]/state["SplitU"]:
+      state["Valid"] = False
+    #print "Group:", state["SubGroup0"], state["SubGroup1"]
+
+    if state["ThreadTile0"]*state["ThreadTile1"] != state["ThreadTileNumElements"]:
+      state["Valid"] = False
+    #print "ThreadTile:", state["ThreadTile0"], state["ThreadTile1"]
 
     # macro tile sizes
-    if "WorkGroup0" in state and "ThreadTile0" in state:
-      state["MacroTile0"] = state["WorkGroup0"]*state["ThreadTile0"]
-    if "WorkGroup1" in state and "ThreadTile1" in state:
-      state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
+    if "SubGroup0" in state and "ThreadTile0" in state:
+      state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
+    if "SubGroup1" in state and "ThreadTile1" in state:
+      state["MacroTile1"] = state["SubGroup1"]*state["ThreadTile1"]
     if "SplitU" in state and "LoopUnroll" in state:
       state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
     printReason = False
     # num threads
-    state["NumThreads"] = state["WorkGroup0"]*state["WorkGroup1"]
+    state["NumThreads"] = state["SubGroup0"]*state["SubGroup1"]
     if state["NumThreads"] > globalParameters["MaxThreads"]:
       if printReason: print2("rejecting %u threads" % state["NumThreads"])
       state["Valid"] = False
@@ -707,10 +654,6 @@ class Solution:
         state["Valid"] = False
         return
 
-
-
-
-
     # nlcb = 1
     if state["NumLoadsCoalescedB"] == 1:
       foundValid = False
@@ -763,51 +706,6 @@ class Solution:
         state["Valid"] = False
         return
 
-
-
-
-
-
-
-
-    """
-    if state["NumLoadsCoalescedB"] < 1:
-      state["NumLoadsCoalescedB"] = state["NumLoadsB"]
-    if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
-      if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
-          % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
-      state["Valid"] = False
-      return
-    else:
-      state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
-          / state["NumLoadsCoalescedB"]
-
-
-    # load size para/perp B
-    if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
-      if printReason: print2("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
-          % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
-      state["Valid"] = False
-      return
-    #else:
-    #  loadSizeParaB = totalElementsCoalescedB / state["NumLoadsCoalescedB"]
-    if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
-      if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
-          % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
-      state["Valid"] = False
-      return
-    #else:
-    #  loadSizePerpB = totalElementsPerpB / state["NumLoadsPerpendicularB"]
-    """
-
-
-
-
-
-
-
-
-
     # too much LDS
     sizeLDS = state["LoopUnroll"] \
         * (state["PadLDS"] * 2 + state["MacroTile0"] \
@@ -845,7 +743,42 @@ class Solution:
 # Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA08_NLCB08_NLPA02_NLPB02_TT008_TT108_TTE08_WG008_WG108_WGE08
 # Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB08_NLPA08_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
 
+  ########################################
+  # compute tile sizes
+  @staticmethod
+  def tileSizes(numThreads, splitU, groupShape, \
+      threadTileNumElements, threadTileShape):
 
+    # group sizes
+    subGroupSize = numThreads / splitU
+    if groupShape == 0:
+      subGroup0 = int(subGroupSize**0.5)
+      subGroup1 = int(subGroupSize**0.5)
+    elif groupShape > 0:
+      subGroup0 = int((subGroupSize \
+          / abs(groupShape))**0.5)
+      subGroup1 = subGroup0 * abs(groupShape)
+    elif groupShape < 0:
+      subGroup1 = int((subGroupSize \
+          / abs(groupShape))**0.5)
+      subGroup0 = subGroup1 * abs(groupShape)
+
+    # thread-tile sizes
+    if threadTileShape == 0:
+      threadTile0 = int(threadTileNumElements**0.5)
+      threadTile1 = int(threadTileNumElements**0.5)
+    elif threadTileShape > 0:
+      threadTile0 = int((threadTileNumElements \
+          / abs(threadTileShape))**0.5)
+      threadTile1 = threadTile0 \
+          * abs(threadTileShape)
+    elif threadTileShape < 0:
+      threadTile1 = int((threadTileNumElements \
+          / abs(threadTileShape))**0.5)
+      threadTile0 = threadTile1 \
+          * abs(threadTileShape)
+
+    return (subGroup0, subGroup1, threadTile0, threadTile1)
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
