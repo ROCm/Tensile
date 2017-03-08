@@ -21,6 +21,7 @@ else:
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
+globalParameters["PrintSolutionRejectionReason"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source")
@@ -48,11 +49,8 @@ globalParameters["ValidationMaxToPrint"] = 16
 globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
-globalParameters["MaxThreads"] = 256
-globalParameters["MinThreads"] = 64
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
-globalParameters["MaxThreadTile"] = 64
 
 
 ################################################################################
@@ -113,6 +111,8 @@ derivedParameters = [
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
     "NumThreads",
+    "LdsSize",
+    "LdsOffsetB"
     ]
 
 # dictionary of defaults comprised for 1st option for each parameter

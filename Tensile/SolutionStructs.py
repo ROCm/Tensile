@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derivedParameters
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derivedParameters, print1, print2
 from copy import deepcopy
 
 ################################################################################
@@ -517,10 +517,14 @@ class Solution:
     state["ThreadTile1"] = threadTile1
     if state["SubGroup0"]*state["SubGroup1"] \
         != state["NumThreads"]/state["SplitU"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["SplitU"]))
       state["Valid"] = False
     #print "Group:", state["SubGroup0"], state["SubGroup1"]
 
     if state["ThreadTile0"]*state["ThreadTile1"] != state["ThreadTileNumElements"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("ThreadTile %u * %u != %u" % (state["ThreadTile0"], state["ThreadTile1"], state["ThreadTileNumElements"]))
       state["Valid"] = False
     #print "ThreadTile:", state["ThreadTile0"], state["ThreadTile1"]
 
@@ -532,19 +536,11 @@ class Solution:
     if "SplitU" in state and "LoopUnroll" in state:
       state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
-    printReason = False
-    # num threads
-    state["NumThreads"] = state["SubGroup0"]*state["SubGroup1"]
-    if state["NumThreads"] > globalParameters["MaxThreads"]:
-      if printReason: print2("rejecting %u threads" % state["NumThreads"])
-      state["Valid"] = False
-    if state["NumThreads"] < globalParameters["MinThreads"]:
-      if printReason: print2("rejecting %u threads" % state["NumThreads"])
-      state["Valid"] = False
-
     # tile shape
     if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
         or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
       state["Valid"] = False
 
     # done
@@ -562,45 +558,43 @@ class Solution:
     state["AssignedDerivedParameters"] = False
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
-    printReason = False
-
-    # tile size
-    if state["ThreadTile0"]*state["ThreadTile1"]*state["ProblemType"]["DataType"].numRegisters() > globalParameters["MaxThreadTile"]:
-      state["Valid"] = False
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
       totalElementsCoalescedA = state["MacroTile0"]
-      totalElementsPerpA = state["LoopUnroll"]
+      totalElementsPerpA = state["DepthU"]
     else:
-      totalElementsCoalescedA = state["LoopUnroll"]
+      totalElementsCoalescedA = state["DepthU"]
       totalElementsPerpA = state["MacroTile0"]
 
     if state["ProblemType"]["TLUB"]:
       totalElementsCoalescedB = state["MacroTile1"]
-      totalElementsPerpB = state["LoopUnroll"]
+      totalElementsPerpB = state["DepthU"]
     else:
-      totalElementsCoalescedB = state["LoopUnroll"]
+      totalElementsCoalescedB = state["DepthU"]
       totalElementsPerpB = state["MacroTile1"]
     totalElementsA = totalElementsCoalescedA * totalElementsPerpA
     totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
     # how many load instructions
     if totalElementsA % state["NumThreads"] != 0:
-      if printReason: print2("totalElementsA %u %% NumThreads %u != 0" \
-          % (totalElementsA, state["NumThreads"]))
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("totalElementsA %u %% NumThreads %u != 0" \
+            % (totalElementsA, state["NumThreads"]))
       state["Valid"] = False
       return
     else:
       state["NumLoadsA"] = totalElementsA / state["NumThreads"]
+
     if totalElementsB % state["NumThreads"] != 0:
-      if printReason: print2("totalElementsB %u %% NumThreads %u != 0" \
-          % (totalElementsB, state["NumThreads"]))
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("totalElementsB %u %% NumThreads %u != 0" \
+            % (totalElementsB, state["NumThreads"]))
       state["Valid"] = False
       return
-      state["NumLoadsB"] = totalElementsB / state["NumThreads"]
     else:
       state["NumLoadsB"] = totalElementsB / state["NumThreads"]
+    print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
@@ -615,6 +609,8 @@ class Solution:
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedA=1 found")
         state["Valid"] = False
         return
 
@@ -631,6 +627,8 @@ class Solution:
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedA=-1 found")
         state["Valid"] = False
         return
 
@@ -640,17 +638,20 @@ class Solution:
           / state["NumLoadsCoalescedA"]
 
       if state["NumLoadsA"] % state["NumLoadsCoalescedA"] != 0:
-        if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
-            % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("numLoadsA %u %% numLoadsParaA %u != 0" \
+              % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
         state["Valid"] = False
       if totalElementsCoalescedA % state["NumLoadsCoalescedA"] != 0:
-        if printReason: print2("totalElementsCoalescedA %u %% numLoadsParaA %u != 0" \
-            % (totalElementsCoalescedA, state["NumLoadsCoalescedA"]))
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalElementsCoalescedA %u %% numLoadsParaA %u != 0" \
+              % (totalElementsCoalescedA, state["NumLoadsCoalescedA"]))
         state["Valid"] = False
         return
       if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
-        if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
-            % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+              % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
         state["Valid"] = False
         return
 
@@ -667,6 +668,8 @@ class Solution:
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedB=1 found")
         state["Valid"] = False
         return
 
@@ -683,6 +686,8 @@ class Solution:
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedB=-1 found")
         state["Valid"] = False
         return
 
@@ -692,27 +697,39 @@ class Solution:
           / state["NumLoadsCoalescedB"]
 
       if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
-        if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("numLoadsB %u %% numLoadsParaB %u != 0" \
             % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
         state["Valid"] = False
       if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
-        if printReason: print2("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
             % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
         state["Valid"] = False
         return
       if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
-        if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
             % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
         state["Valid"] = False
         return
 
-    # too much LDS
-    sizeLDS = state["LoopUnroll"] \
-        * (state["PadLDS"] * 2 + state["MacroTile0"] \
-        + state["MacroTile1"] ) \
-        * state["ProblemType"]["DataType"].numBytes()
-    if sizeLDS > globalParameters["MaxLDS"]:
-      if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
+    # lds buffer size
+    ldsAlign = 256 / state["ProblemType"]["DataType"].numRegisters()
+    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
+    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
+    ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
+    ldsNumElementsReduction = 0 if (state["SplitU"] == 1) \
+        else (state["MacroTile0"]*state["MacroTile1"])
+    ldsNumElements = max(ldsNumElementsAlignedA+ldsNumElementsB, ldsNumElementsReduction)
+    state["LdsNumElements"] = ldsNumElements
+    state["LdsOffsetB"] = ldsNumElementsAlignedA
+    ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
+
+    if ldsSize > globalParameters["MaxLDS"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("Kernel Uses %u > %u bytes of LDS" % ( ldsSize, globalParameters["MaxLDS"]))
       state["Valid"] = False
       return
 
@@ -730,6 +747,7 @@ class Solution:
             #return
     state["AssignedDerivedParameters"] = True
 
+    print Solution.getNameFull(state)
 
 # validation failures
 # Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
