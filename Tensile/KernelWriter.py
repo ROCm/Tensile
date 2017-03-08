@@ -1162,7 +1162,9 @@ class KernelWriter:
       kStr += self.endLine
 
       # begin loop
-      kStr += "%ssumIter%s = UNROLL;%s" % (indent, loopChar, self.endLine)
+      # kStr += "%ssumIter%s = UNROLL;%s" % (indent, loopChar, self.endLine)
+      kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" % (indent, loopChar, loopChar, self.endLine)
+
       if kernel["LoopDoWhile"]:
         kStr += indent + "do {" + self.endLine
       else:
