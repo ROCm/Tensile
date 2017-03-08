@@ -543,7 +543,6 @@ class Solution:
         print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
       state["Valid"] = False
 
-
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
 
@@ -560,12 +559,21 @@ class Solution:
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
 
+    # SplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
     state["NumElementsPerThread"] = numElementsPerWorkGroup / state["NumThreads"]
     if state["NumElementsPerThread"] * state["NumThreads"] != numElementsPerWorkGroup:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("SplitU %u too large; less than 1 element per thread" \
             % (state["SplitU"]))
+      state["Valid"] = False
+      return
+
+    # SplitU but can't NumThreads%MacroTile doesn't support sideways load
+    if state["NumThreads"] % state["MacroTile0"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("SplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
+            % (state["NumThreads"], state["MacroTile0"]))
       state["Valid"] = False
       return
 
@@ -644,6 +652,11 @@ class Solution:
 
     # nlca = other
     else:
+      if state["NumLoadsCoalescedA"] > state["NumLoadsA"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NLCA > NLA")
+        state["Valid"] = False
+        return
       state["NumLoadsPerpendicularA"] = state["NumLoadsA"] \
           / state["NumLoadsCoalescedA"]
 
@@ -703,6 +716,12 @@ class Solution:
 
     # nlcb = other
     else:
+      if state["NumLoadsCoalescedB"] > state["NumLoadsB"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NLCB > NLB")
+        state["Valid"] = False
+        return
+
       state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
           / state["NumLoadsCoalescedB"]
 
@@ -711,6 +730,7 @@ class Solution:
           print1("numLoadsB %u %% numLoadsParaB %u != 0" \
             % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
         state["Valid"] = False
+        return
       if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
