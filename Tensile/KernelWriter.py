@@ -433,7 +433,7 @@ class KernelWriter:
     kStr += "  offB += SPLITU*(MT" + tileChar1 + "+PAD); " + self.endLinePP
     for a in range(0, kernel["ThreadTile0"]):
       for b in range(0, kernel["ThreadTile1"]):
-        kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d][%d]); %s" % (a, b, a, b, self.endLinePP)
+        kStr += "  TYPE_MAD(rA[%d],rB[%d],rC[%d+TT%s*%d]); %s" % (a, b, a, tileChar0, b, self.endLinePP)
     kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
 
@@ -509,8 +509,8 @@ class KernelWriter:
     kStr += self.endLine
     kStr += (
       "  /* allocate registers */" + self.endLine +
-      "  DATA_TYPE rC[TT" + tileChar0 + "][TT" + tileChar1 + "] "
-          + "= {{0}};" + self.endLine +
+      "  DATA_TYPE rC[TT" + tileChar0 + "*TT" + tileChar1 + "] "
+          + "= {0};" + self.endLine +
       "  DATA_TYPE rA[TT" + tileChar0 + "];" + self.endLine +
       "  DATA_TYPE rB[TT" + tileChar1 + "];" + self.endLine )
 
@@ -1196,97 +1196,130 @@ class KernelWriter:
         kStr += "%s}%s" % (indent, self.endLine)
       kStr += self.endLine
 
-
-
     ####################################
-    # which global Cij index
-    kStr += "  /* which global Cij index */" + self.endLine
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int globalC" + indexChars[i] \
-          + " = g" + indexChars[i]
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += "*MT%s + (serial %% SG%s)" % (tileChar0, tileChar0)
-      if i == kernel["ProblemType"]["Index1"]:
-        kStr += "*MT%s + (serial / SG%s)" % (tileChar1, tileChar0)
-      kStr += ";" + self.endLine
-    kStr += self.endLine
-
+    # SplitU reduction
     ####################################
-    # write global Cij
-    # debug printf
-    #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
-    # end debug
-    # kStr += "  rC[0][0] = DATA_TYPE(1.23456789, -1.23456789);" + self.endLine
+    if kernel["SplitU"] > 1:
+      kStr += "  unsigned int tid0 = serial %% SG%s;%s" \
+          % (tileChar0, self.endLine)
+      kStr += "  unsigned int tid1 = (serial / SG%s) % SG%s;%s" \
+          % (tileChar0, tileChar1, self.endLine)
+      kStr += "  if (sgId == 0) {%s" % (self.endLine)
+      for i in range(0, kernel["ThreadTile0"]):
+        for j in range(0, kernel["ThreadTile1"]):
+          kStr += "    ldsBuffer[tid%s + %u*SG%s + MT%s*(tid%s + %u*SG%s)] = rC[%u+TT%s*%u];%s" \
+              % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
+              j, tileChar1, i, tileChar0, j)
+      kStr += "  }%s" % self.endLine
+      kStr += self.syncStr + self.endLine + self.endLine
 
-    # kStr += indent + "/* print LDS state */" + self.endLine
-    # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && serial == 0) {" + self.endLine
-    # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
-    # kStr += indent + "    for (unsigned int i = 0; i < MT" + tileChar0 + "; i++) {" + self.endLine
-    # kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u,%u][%02u,%02u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, u, i, localA[i+u*(MT"+tileChar0+"+PAD)], localB[i+u*(MT"+tileChar0+"+PAD)] );" + self.endLine
-    # # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
-    # # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
-    # kStr += indent + "    }" + self.endLine
-    # kStr += indent + "  }" + self.endLine
-    # kStr += indent + "}" + self.endLine
+      kStr += "  for (unsigned int s = 1; s < SPLITU; s++) {%s" % self.endLine
+      kStr += "    if (sgId == s) {%s" % self.endLine
+      for i in range(0, kernel["ThreadTile0"]):
+        for j in range(0, kernel["ThreadTile1"]):
+          kStr += "    ldsBuffer[tid%s + %u*SG%s + MT%s*(tid%s + %u*SG%s)] = rC[%u+TT%s*%u];%s" \
+              % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
+              j, tileChar1, i, tileChar0, j)
+      kStr += "    }%s" % self.endLine
+      kStr += self.syncStr + self.endLine + self.endLine
+
+# we have MT0*MT1 elements to write to global
+# we have NumThreads threads to do the writing
+
+      ####################################
+      # SplitU==1, write data straight
+      ####################################
+    else:
+
+      ####################################
+      # which global Cij index
+      kStr += "  /* which global Cij index */" + self.endLine
+      for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+        kStr += "  unsigned int globalC" + indexChars[i] \
+            + " = g" + indexChars[i]
+        if i == kernel["ProblemType"]["Index0"]:
+          kStr += "*MT%s + (serial %% SG%s)" % (tileChar0, tileChar0)
+        if i == kernel["ProblemType"]["Index1"]:
+          kStr += "*MT%s + (serial / SG%s)" % (tileChar1, tileChar0)
+        kStr += ";" + self.endLine
+      kStr += self.endLine
+
+      ####################################
+      # write global Cij
+      # debug printf
+      #kStr += "  printf(\\\"T[%u,%u] global = %u, %u, %u size=%u, %u\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), global0I, global1J, globalCK, size0I, size1J);" + self.endLine
+      # end debug
+      # kStr += "  rC[0][0] = DATA_TYPE(1.23456789, -1.23456789);" + self.endLine
+
+      # kStr += indent + "/* print LDS state */" + self.endLine
+      # kStr += indent + "if ( gJ==0 && gL==0 && g1K==0 && g0I==0 && serial == 0) {" + self.endLine
+      # kStr += indent + "  for (unsigned int u = 0; u < UNROLL; u++) {" + self.endLine
+      # kStr += indent + "    for (unsigned int i = 0; i < MT" + tileChar0 + "; i++) {" + self.endLine
+      # kStr += indent + "      printf(\\\"[%u,%u,%u,%u][%u,%u,%u][%02u,%02u] a=%f; b=%f\\\\n\\\", gJ, gL, g1K, g0I, sumIterM, sumIterN, sumIterO, u, i, localA[i+u*(MT"+tileChar0+"+PAD)], localB[i+u*(MT"+tileChar0+"+PAD)] );" + self.endLine
+      # # kStr += indent + "      printf(\\\"hi %u\\\\n\\\", size0I);" + self.endLine
+      # # kStr += indent + "      printf(\\\"hi\\\\n\\\");" + self.endLine
+      # kStr += indent + "    }" + self.endLine
+      # kStr += indent + "  }" + self.endLine
+      # kStr += indent + "}" + self.endLine
 
 
-    # kStr += indent + "  for (unsigned int i = 0; i < 8; i++) {" + self.endLine
-    # kStr += indent + "    for (unsigned int j = 0; j < 8; j++) {" + self.endLine
-    # kStr += indent + "      rC[i][j] = 75.0;" + self.endLine
-    # kStr += indent + "    }" + self.endLine
-    # kStr += indent + "  }" + self.endLine
-    # kStr += self.endLine
+      # kStr += indent + "  for (unsigned int i = 0; i < 8; i++) {" + self.endLine
+      # kStr += indent + "    for (unsigned int j = 0; j < 8; j++) {" + self.endLine
+      # kStr += indent + "      rC[i][j] = 75.0;" + self.endLine
+      # kStr += indent + "    }" + self.endLine
+      # kStr += indent + "  }" + self.endLine
+      # kStr += self.endLine
 
-    kStr += "  /* write global C */" + self.endLine
-    if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
-      kStr += "  float type_mac_tmp;" + self.endLine
-    if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
-      kStr += "  double type_mac_tmp;" + self.endLine
+      kStr += "  /* write global C */" + self.endLine
+      if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
+        kStr += "  float type_mac_tmp;" + self.endLine
+      if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
+        kStr += "  double type_mac_tmp;" + self.endLine
 
-    for a in range(0, kernel["ThreadTile0"]):
-      for b in range(0, kernel["ThreadTile1"]):
-        numEdges = 0
-        #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        if kernel["EdgeType"] == "Branch":
-          kStr += "  if (globalC" \
-              + tileChar0 + " + " \
-              + str(a) + "*SG" + tileChar0 + "" + " < size" \
-              + tileChar0 + ") {"
-          numEdges += 1
-        if kernel["EdgeType"] == "Branch":
-          kStr += "  if (globalC" \
-              + tileChar1 + " + " \
-              + str(b) + "*SG" + tileChar1 + "" + " < size" \
-              + tileChar1 + ") {"
-          numEdges += 1
+      for a in range(0, kernel["ThreadTile0"]):
+        for b in range(0, kernel["ThreadTile1"]):
+          numEdges = 0
+          #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+          if kernel["EdgeType"] == "Branch":
+            kStr += "  if (globalC" \
+                + tileChar0 + " + " \
+                + str(a) + "*SG" + tileChar0 + "" + " < size" \
+                + tileChar0 + ") {"
+            numEdges += 1
+          if kernel["EdgeType"] == "Branch":
+            kStr += "  if (globalC" \
+                + tileChar1 + " + " \
+                + str(b) + "*SG" + tileChar1 + "" + " < size" \
+                + tileChar1 + ") {"
+            numEdges += 1
 
-        kStr += "  TYPE_MAD_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
-        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-          kStr += " globalC" + indexChars[i]
-          if i == kernel["ProblemType"]["Index0"]:
-            kStr += " + " + str(a) + "*SG" + tileChar0
-          if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + " + str(b) + "*SG" + tileChar1
-          if i < kernel["ProblemType"]["NumIndicesC"]-1:
-            kStr += ", (" + self.uint64Str + ")"
-        kStr += ") ]"
-        kStr += ", alpha"
-        kStr += ", rC[%d][%d]" % (a, b)
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += ", beta"
-        kStr += ")"
-        # debug printf
-        #kStr += " printf(\\\"T[%u,%u] Cijk = %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[" + str(a) + "][" + str(b) + "] );"
+          kStr += "  TYPE_MAD_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
+          for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+            kStr += " globalC" + indexChars[i]
+            if i == kernel["ProblemType"]["Index0"]:
+              kStr += " + " + str(a) + "*SG" + tileChar0
+            if i == kernel["ProblemType"]["Index1"]:
+              kStr += " + " + str(b) + "*SG" + tileChar1
+            if i < kernel["ProblemType"]["NumIndicesC"]-1:
+              kStr += ", (" + self.uint64Str + ")"
+          kStr += ") ]"
+          kStr += ", alpha"
+          kStr += ", rC[%d+TT%s*%d]" % (a, tileChar0, b)
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += ", beta"
+          kStr += ")"
+          # debug printf
+          #kStr += " printf(\\\"T[%u,%u] Cijk = %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), rC[" + str(a) + "][" + str(b) + "] );"
 
-        # debug printf
-        # kStr += "  printf(\\\"T[%u,%u] writing C[%u] = %f, %f, %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), GLOBAL_C(globalC0I, globalC1J), alpha, beta, rC[0][0]"
-        # kStr += ");" + self.endLine
-        # end debug printf
+          # debug printf
+          # kStr += "  printf(\\\"T[%u,%u] writing C[%u] = %f, %f, %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), GLOBAL_C(globalC0I, globalC1J), alpha, beta, rC[0][0]"
+          # kStr += ");" + self.endLine
+          # end debug printf
 
-        for i in range(0,numEdges):
-          kStr += " }"
-        kStr += self.endLine
-        #kStr += "  if (serial < 24) printf(\\\"T[%u,%u]%u C[%u] = %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), globalCK, serial, C[serial]);"
+          for i in range(0,numEdges):
+            kStr += " }"
+          kStr += self.endLine
+          #kStr += "  if (serial < 24) printf(\\\"T[%u,%u]%u C[%u] = %f\\\\n\\\", " + self.getLocalIdStr + "(0), " + self.getLocalIdStr + "(1), globalCK, serial, C[serial]);"
 
 
     ####################################
