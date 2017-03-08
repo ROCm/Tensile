@@ -1238,9 +1238,7 @@ class KernelWriter:
       ####################################
       # new C elements to store
       kStr += "  /* new C elements to store */" + self.endLine
-      numElements = kernel["MacroTile0"]*kernel["MacroTile1"]
-      numElementsPerThread = numElements / kernel["NumThreads"]
-      for i in range(0, numElementsPerThread):
+      for i in range(0, kernel["NumElementsPerThread"]):
         kStr += "  rC[%3u] = lds[serial+%u*NUM_THREADS];%s" \
             % (i, i, self.endLine)
       kStr += self.endLine
@@ -1268,7 +1266,7 @@ class KernelWriter:
       if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
         kStr += "  double type_mac_tmp;" + self.endLine
 
-      for b in range(0, numElementsPerThread):
+      for b in range(0, kernel["NumElementsPerThread"]):
         numEdges = 0
         #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         if kernel["EdgeType"] == "Branch":

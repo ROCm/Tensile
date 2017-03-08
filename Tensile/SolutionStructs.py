@@ -543,6 +543,7 @@ class Solution:
         print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
       state["Valid"] = False
 
+
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
 
@@ -558,6 +559,15 @@ class Solution:
     state["AssignedDerivedParameters"] = False
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
+
+    numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
+    state["NumElementsPerThread"] = numElementsPerWorkGroup / state["NumThreads"]
+    if state["NumElementsPerThread"] * state["NumThreads"] != numElementsPerWorkGroup:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("SplitU %u too large; less than 1 element per thread" \
+            % (state["SplitU"]))
+      state["Valid"] = False
+      return
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:

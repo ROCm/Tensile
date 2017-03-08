@@ -110,8 +110,7 @@ derivedParameters = [
     "NumLoadsB",
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
-    "NumThreads",
-    "LdsSize",
+    "LdsNumElements",
     "LdsOffsetB"
     ]
 
