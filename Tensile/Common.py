@@ -102,8 +102,8 @@ derivedParameters = [
     "MacroTile0",
     "MacroTile1",
     "DepthU",
-    "WorkGroup0",
-    "WorkGroup1",
+    "SubGroup0",
+    "SubGroup1",
     "ThreadTile0",
     "ThreadTile1",
     "NumLoadsA",
@@ -111,7 +111,8 @@ derivedParameters = [
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
     "LdsNumElements",
-    "LdsOffsetB"
+    "LdsOffsetB",
+    "NumElementsPerThread"
     ]
 
 # dictionary of defaults comprised for 1st option for each parameter

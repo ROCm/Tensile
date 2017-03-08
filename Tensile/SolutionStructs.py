@@ -612,7 +612,7 @@ class Solution:
       return
     else:
       state["NumLoadsB"] = totalElementsB / state["NumThreads"]
-    print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
+    #print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
@@ -777,7 +777,7 @@ class Solution:
             #return
     state["AssignedDerivedParameters"] = True
 
-    print Solution.getNameFull(state)
+    #print Solution.getNameFull(state)
 
 # validation failures
 # Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08

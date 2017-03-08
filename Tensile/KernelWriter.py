@@ -1022,20 +1022,20 @@ class KernelWriter:
       else:
         kStr += "%s}%s" % (indent, self.endLine)
       kStr += self.endLine
-      kStr += indent + self.syncStr + self.endLine
 
 
       ####################################
       # summations loops
-      kStr += indent + "/* unroll=1 loop */" + self.endLine
-      kStr += indent + "sumIter" + loopChar + " = size" + loopChar + " % DEPTHU;" + self.endLine
-      kStr += self.endLine
+      #kStr += indent + "/* unroll=1 loop */" + self.endLine
+      #kStr += indent + "sumIter" + loopChar + " = size" + loopChar + " % DEPTHU;" + self.endLine
+      #kStr += self.endLine
 
 
       ####################################
       # load A single
       ####################################
-      kStr += indent + "/* load A global -> local */" + self.endLine
+      kStr += indent + "/* unroll=1 load A global -> local */" + self.endLine
+      kStr += indent + self.syncStr + self.endLine
       #if kernel.loadRequiresFewerThreadsA():
       #  kStr += indent + "if ( serial < %d ) {%s" \
       #      % (kernel.loadSizeParaA*kernel.loadSizePerpA, self.endLine)
@@ -1064,9 +1064,9 @@ class KernelWriter:
           # guard around K
           kStr += "( a%s + " % (unrollChar)
           if kernel["ProblemType"]["TLUA"]:
-            kStr += "%d*LSPA >= sumIter%s )" % (perp, unrollChar)
+            kStr += "%d*LSPA >= (size%s %% DEPTHU) )" % (perp, unrollChar)
           else:
-            kStr += "%d*LSCA >= sumIter%s )" % (para, unrollChar)
+            kStr += "%d*LSCA >= (size%s %% DEPTHU) )" % (para, unrollChar)
           # guard around branch
           if kernel["EdgeType"] == "Branch":
             kStr += " || "
@@ -1085,13 +1085,11 @@ class KernelWriter:
       #if kernel.loadRequiresFewerThreadsA():
       #  indent = indent[2:]
       #  kStr += indent + "}" + self.endLine
-      kStr += self.endLine
 
 
       ####################################
       # load B single
       ####################################
-      kStr += indent + "/* load B global -> local */" + self.endLine
       #if kernel.loadRequiresFewerThreadsB():
       #  kStr += indent + "if ( serial < %d ) {%s" \
       #      % (kernel.loadSizeParaB*kernel.loadSizePerpB, self.endLine)
@@ -1121,9 +1119,9 @@ class KernelWriter:
           # guard around k
           kStr += "( b%s + " % (unrollChar)
           if kernel["ProblemType"]["TLUB"]:
-            kStr += "%d*LSPB >= sumIter%s )" % (perp, unrollChar)
+            kStr += "%d*LSPB >= (size%s %% DEPTHU) )" % (perp, unrollChar)
           else:
-            kStr += "%d*LSCB >= sumIter%s )" % (para, unrollChar)
+            kStr += "%d*LSCB >= (size%s %% DEPTHU) )" % (para, unrollChar)
           # guard branch
           if kernel["EdgeType"] == "Branch":
             kStr += " || "
@@ -1132,7 +1130,7 @@ class KernelWriter:
               kStr += "%d*LSPB" % (perp)
             else:
               kStr += "%d*LSCB" % (para)
-            kStr += " >= size%s) " % (tileCharB )
+            kStr += " >= size%s)" % (tileCharB )
 
           kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.backend)
           kStr += "B[ %d*LSCB*strideB%s + %d*LSPB*strideB%s];" \
@@ -1143,22 +1141,28 @@ class KernelWriter:
       #if kernel.loadRequiresFewerThreadsB():
       #  indent = indent[2:]
       #  kStr += indent + "}" + self.endLine
-      kStr += self.endLine
 
       kStr += indent + self.syncStr + self.endLine
 
       # full end loop b/c local full of zeros
+      kStr += self.endLine
       kStr += indent + "/* full unroll loop */" + self.endLine
       #kStr += indent + "sumIter" + indexChar + " = UNROLL;" + self.endLine
-      kStr += "#undef UNROLL" + self.endLine
-      kStr += "#define UNROLL 1" + self.endLine
-      kStr += self.endLine
+      #kStr += "#undef UNROLL" + self.endLine
+      #kStr += "#define UNROLL 1" + self.endLine
+      #kStr += self.endLine
 
-      kStr += indent + "unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine
-      kStr += indent + "unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine
+      kStr += "%sunsigned int offA = l%s + sgId*(MT%s+PAD);%s" \
+            % (indent, tileChar0, tileChar0, self.endLine)
+      kStr += "%sunsigned int offB = l%s + sgId*(MT%s+PAD);%s"\
+            % (indent, tileChar1, tileChar1, self.endLine)
+
+      #kStr += indent + "unsigned int offA = l" + tileChar0 + "; // d0" + self.endLine
+      #kStr += indent + "unsigned int offB = l" + tileChar1 + "; // d1" + self.endLine
       kStr += self.endLine
 
       # begin loop
+      kStr += "%ssumIter%s = UNROLL;%s" % (indent, loopChar, self.endLine)
       if kernel["LoopDoWhile"]:
         kStr += indent + "do {" + self.endLine
       else:
