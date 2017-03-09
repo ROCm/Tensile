@@ -1218,37 +1218,32 @@ class KernelWriter:
     # SplitU reduction
     ####################################
     if kernel["SplitU"] > 1:
-      kStr += "  /* SplitU reduction */" + self.endLine
-      kStr += "  if (sgId == 0) {%s" % (self.endLine)
+      kStr += "  /* SplitU: store all rC's to LDS */" + self.endLine
+      kStr += "  " + self.syncStr + self.endLine
+      # assign initial
       for i in range(0, kernel["ThreadTile0"]):
         for j in range(0, kernel["ThreadTile1"]):
-          kStr += "    lds[l%s + %u*SG%s + MT%s*(l%s + %u*SG%s)] = rC[%u+TT%s*%u];%s" \
+          kStr += "  lds[l%s + %u*SG%s + MT%s*(l%s + %u*SG%s) + MT%s*MT%s*sgId] = rC[%u+TT%s*%u];%s" \
               % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
-              j, tileChar1, i, tileChar0, j, self.endLine)
-      kStr += "  }%s" % self.endLine
+              j, tileChar1, tileChar0, tileChar1, i, tileChar0, j, self.endLine)
       kStr += "  " + self.syncStr + self.endLine + self.endLine
-
-      kStr += "  for (unsigned int s = 1; s < SPLITU; s++) {%s" % self.endLine
-      kStr += "    if (sgId == s) {%s" % self.endLine
-      for i in range(0, kernel["ThreadTile0"]):
-        for j in range(0, kernel["ThreadTile1"]):
-          kStr += "      lds[l%s + %u*SG%s + MT%s*(l%s + %u*SG%s)] += rC[%u+TT%s*%u];%s" \
-              % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
-              j, tileChar1, i, tileChar0, j, self.endLine)
-      kStr += "    }%s" % self.endLine
-      kStr += "    " + self.syncStr + self.endLine
-      kStr += "  }%s" % self.endLine
-      kStr += self.endLine
-
 
       ####################################
       # new C elements to store
-      kStr += "  /* new C elements to store */" + self.endLine
+      kStr += "  /* SplitU: new C elements to store */" + self.endLine
       for i in range(0, kernel["NumElementsPerThread"]):
         kStr += "  rC[%3u] = lds[serial+%u*NUM_THREADS];%s" \
             % (i, i, self.endLine)
       kStr += self.endLine
 
+      ####################################
+      # SplitU reduction
+      kStr += "  /* SplitU: reduction */" + self.endLine
+      for s in range(1, kernel["SplitU"]):
+        for i in range(0, kernel["NumElementsPerThread"]):
+          kStr += "  rC[%3u] += lds[serial+%u*NUM_THREADS + %u*MT%s*MT%s];%s" \
+              % (i, i, s, tileChar0, tileChar1, self.endLine)
+        kStr += self.endLine
 
       ####################################
       # which global Cij index

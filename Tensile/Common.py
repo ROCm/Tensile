@@ -112,7 +112,8 @@ derivedParameters = [
     "NumLoadsPerpendicularB",
     "LdsNumElements",
     "LdsOffsetB",
-    "NumElementsPerThread"
+    "NumElementsPerThread",
+    "NumMacroTileReplicates"
     ]
 
 # dictionary of defaults comprised for 1st option for each parameter

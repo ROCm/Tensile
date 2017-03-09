@@ -749,24 +749,28 @@ class Solution:
         state["Valid"] = False
         return
 
-    # lds buffer size
+    # lds buffer size for A, B
     ldsAlign = 256 / state["ProblemType"]["DataType"].numRegisters()
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
+    state["LdsOffsetB"] = ldsNumElementsAlignedA
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
-    ldsNumElementsReduction = 0 if (state["SplitU"] == 1) \
-        else (state["MacroTile0"]*state["MacroTile1"])
+
+    # lds buffer size for reduction
+    ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
+
+    # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAlignedA+ldsNumElementsB, ldsNumElementsReduction)
     state["LdsNumElements"] = ldsNumElements
-    state["LdsOffsetB"] = ldsNumElementsAlignedA
     ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
-
     if ldsSize > globalParameters["MaxLDS"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("Kernel Uses %u > %u bytes of LDS" % ( ldsSize, globalParameters["MaxLDS"]))
       state["Valid"] = False
       return
+
+
 
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
     if globalParameters["Backend"] == "HIP":
