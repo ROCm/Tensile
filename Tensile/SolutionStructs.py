@@ -506,6 +506,8 @@ class Solution:
       if state["AssignedProblemIndependentDerivedParameters"]:
         return
     state["AssignedProblemIndependentDerivedParameters"] = False
+    if "Valid" not in state:
+      state["Valid"] = True
 
     (subGroup0, subGroup1, threadTile0, threadTile1) \
         = Solution.tileSizes(state["NumThreads"], state["SplitU"], \
@@ -537,11 +539,12 @@ class Solution:
       state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
 
     # tile shape
-    if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
-        or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
-      state["Valid"] = False
+    if state["Valid"]:
+      if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
+          or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
+        state["Valid"] = False
 
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
@@ -558,6 +561,8 @@ class Solution:
     state["AssignedDerivedParameters"] = False
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
+    if not state["Valid"]:
+      return
 
     # SplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]

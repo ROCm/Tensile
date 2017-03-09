@@ -1417,7 +1417,7 @@ class KernelWriter:
     ####################################
     # undefine definitions if merged
     ####################################
-    if globalParameters["MergeFiles"]:
+    if globalParameters["MergeFiles"] and self.backend == "HIP":
       kStr += "#undef UNROLL%s" % self.endLine
       kStr += "#undef SPLITU%s" % self.endLine
       kStr += "#undef DEPTHU%s" % self.endLine
@@ -1440,6 +1440,9 @@ class KernelWriter:
       kStr += "#undef GLOBAL_B%s" % (self.endLine)
       kStr += "#undef DATA_TYPE%s" % (self.endLine)
       kStr += "#undef MICRO_TILE%s" % (self.endLine)
+      kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
+      kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
+      kStr += "#undef NUM_THREADS%s" % (self.endLine)
       firstStride = 0
       if kernel["ProblemType"]["UseInitialStrides"]:
         lastStrideC = 0
