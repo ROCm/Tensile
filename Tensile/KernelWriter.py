@@ -1259,7 +1259,7 @@ class KernelWriter:
         if i == kernel["ProblemType"]["Index0"]:
           kStr += "*MT%s + (serial %% MT%s)" % (tileChar0, tileChar0)
         if i == kernel["ProblemType"]["Index1"]:
-          kStr += "*MT%s + (serial / MT%s)" % (tileChar1, tileChar1)
+          kStr += "*MT%s + (serial / MT%s)" % (tileChar1, tileChar0)
         kStr += ";" + self.endLine
       kStr += self.endLine
 
