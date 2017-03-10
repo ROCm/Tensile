@@ -30,20 +30,19 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
-        EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-    ForkParameters:
+      - NumLoadsCoalescedA: [-1]
+      - NumLoadsCoalescedB: [1]
       - GroupShape: [ 0 ]
       - ThreadTileShape: [ 0 ]
-      - NumThreads: [64, 256]
+    ForkParameters:
+      - NumThreads: [64, 128, 256]
       - ThreadTileNumElements: [4, 16, 36, 64]
-      - NumLoadsCoalescedA: [ 1, -1 ]
-      - NumLoadsCoalescedB: [ 1, -1 ]
-      - LoopUnroll: [8, 16]
+      - LoopUnroll: [2, 4, 8, 16]
+      - SplitU: [ 1, 2, 4, 8, 16 ]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -63,20 +62,19 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
-        EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-    ForkParameters:
-      - NumThreads: [64, 256]
-      - GroupShape: [ 0 ]
-      - ThreadTileNumElements: [4, 16, 36, 64]
       - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [ 1, -1 ]
-      - NumLoadsCoalescedB: [ 1, -1 ]
-      - LoopUnroll: [8, 16]
+      - NumLoadsCoalescedA: [-1]
+      - NumLoadsCoalescedB: [-1]
+      - GroupShape: [ 0 ]
+    ForkParameters:
+      - NumThreads: [64, 128, 256]
+      - ThreadTileNumElements: [4, 16, 36, 64]
+      - LoopUnroll: [2, 4, 8, 16]
+      - SplitU: [ 1, 2, 4, 8, 16 ]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -96,20 +94,19 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
-        EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-    ForkParameters:
-      - NumThreads: [64, 256]
+      - NumLoadsCoalescedA: [1]
+      - NumLoadsCoalescedB: [1]
       - GroupShape: [ 0 ]
-      - ThreadTileNumElements: [4, 16, 36, 64]
       - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [ 1, -1 ]
-      - NumLoadsCoalescedB: [ 1, -1 ]
-      - LoopUnroll: [8, 16]
+    ForkParameters:
+      - NumThreads: [64, 128, 256]
+      - ThreadTileNumElements: [4, 16, 36, 64]
+      - LoopUnroll: [2, 4, 8, 16]
+      - SplitU: [ 1, 2, 4, 8, 16 ]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -129,20 +126,19 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
-        EdgeMultiKernel: [False]
       - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-    ForkParameters:
-      - NumThreads: [64, 256]
-      - GroupShape: [ 0 ]
-      - ThreadTileNumElements: [4, 16, 36, 64]
       - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [ 1, -1 ]
-      - NumLoadsCoalescedB: [ 1, -1 ]
-      - LoopUnroll: [8, 16]
+      - NumLoadsCoalescedA: [1]
+      - NumLoadsCoalescedB: [-1]
+      - GroupShape: [ 0 ]
+    ForkParameters:
+      - NumThreads: [64, 128, 256]
+      - ThreadTileNumElements: [4, 16, 36, 64]
+      - LoopUnroll: [2, 4, 8, 16]
+      - SplitU: [ 1, 2, 4, 8, 16 ]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
