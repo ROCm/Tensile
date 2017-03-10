@@ -236,8 +236,6 @@ class KernelWriter:
     #    / (kernel["SubGroup0"]*kernel["SubGroup1"])
     #numLoadsParaA = kernel["NumLoadsCoalescedA"]
     #numLoadsParaB = kernel["NumLoadsCoalescedB"]
-    #kernel["NumLoadsPerpendicularA"] = totalLoadsA / numLoadsParaA
-    #kernel["NumLoadsPerpendicularB"] = totalLoadsB / numLoadsParaB
 
 
     # num loads
@@ -756,10 +754,6 @@ class KernelWriter:
     #if kernel["ProblemType"]["Tensor0"]:
     #  tensorAssignedToTileDim.append(kernel.problem.operation.
     #unrollStrideGreaterThanTileA
-    #kernel["ProblemType"]["TLUA"] = kernel["ProblemType"]["Index0"] \
-     #   > kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1]
-    #not kernel["ProblemType"]["TLUB"] = kernel["ProblemType"]["Index1"] \
-    #    > kernel["ProblemType"]["IndicesSummation"][kernel["ProblemType"]["NumIndicesSummation"]-1]
 
 
     # kStr += "  bool validC ="

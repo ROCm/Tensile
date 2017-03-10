@@ -52,7 +52,26 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   # Correct outliers
   if inputParameters["SmoothOutliers"]:
     logicAnalyzer.smoothOutliers()
-  #logicAnalyzer.print2D([0, 0])
+  numProblemSizes = logicAnalyzer.numProblemSizes
+  # print all 2D
+  numPermutations = 1
+  permutations = []
+  for i in range(0, logicAnalyzer.numIndices):
+    if i != logicAnalyzer.idx0 and i != logicAnalyzer.idx1:
+      numPermutations *= numProblemSizes[i]
+  print numPermutations
+  for j in range(0, numPermutations):
+    pIdx = j
+    permutation = []
+    for i in range(0, logicAnalyzer.numIndices):
+      if i != logicAnalyzer.idx0 and i != logicAnalyzer.idx1:
+        npsi = numProblemSizes[i]
+        permutation.append(pIdx%npsi)
+        pIdx /= numProblemSizes[i]
+    permutations.append(permutation)
+  print permutations
+  for permutation in permutations:
+    logicAnalyzer.print2D(permutation)
 
   ######################################
   # Create Rules
@@ -67,6 +86,12 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   print1("\nScore: %.0f ms" % (score/1000))
 
   logicAnalyzer.prepareLogic(logic)
+
+  ######################################
+  # Print solutions used
+  print1("Solutions Used:")
+  for i in range(0, len(logicAnalyzer.solutions)):
+    print1("(%2u) %s" % (i, Solution.getNameFull(logicAnalyzer.solutions[i])))
 
   #return (skinnyRules01, skinnyRules10, diagonalRules)
   #return (problemType, logicAnalyzer.solutionsUsed, [], [], logicAnalyzer.diagonalRules )

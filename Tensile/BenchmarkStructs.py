@@ -2,7 +2,7 @@
 # from copy import *
 
 from copy import copy, deepcopy
-from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit, globalParameters
+from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit, globalParameters, validParameters
 from SolutionStructs import Solution, ProblemType, ProblemSizes
 
 ################################################################################
@@ -94,6 +94,28 @@ class BenchmarkProcess:
         if "BenchmarkFinalParameters" in config and config["BenchmarkFinalParameters"] != None \
         and len(config["BenchmarkFinalParameters"]) > 0 \
         else {"ProblemSizes": defaultBenchmarkFinalProblemSizes}
+
+    ############################################################################
+    # Ensure only valid solution parameters were requested
+    validParameterNames = validParameters.keys()
+    for paramDictList in [configBenchmarkCommonParameters, \
+        configForkParameters, configBenchmarkForkParameters, \
+        configBenchmarkJoinParameters]:
+      if paramDictList != None:
+        for paramDict in paramDictList:
+          for paramName in paramDict:
+            if paramName in ["ProblemSizes"]:
+              continue
+            else:
+              if paramName not in validParameterNames:
+                printExit("Invalid parameter name: %s\nValid parameters are %s." \
+                    % (paramName, validParameterNames))
+              paramValues = paramDict[paramName]
+              for paramValue in paramValues:
+                if paramValue not in validParameters[paramName]:
+                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s." \
+                      % (paramName, paramValue, paramName, validParameters[paramName]))
+
 
 
     ############################################################################

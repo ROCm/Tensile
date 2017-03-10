@@ -124,11 +124,6 @@ class SolutionWriter:
 
     # num enqueues
     s += "\n%s/* num kernels */\n" % (t)
-    kernelHasMaxSizes = solution["KernelMaxSizes"][0] > 0
-    s += "%sconst bool kernelHasMaxSizes = %s;\n" % (t, "true" if kernelHasMaxSizes else "false")
-    s += "%s%sconst unsigned int kernelMaxSizes[3] = { %u, %u, %u }; // max for dim 0, 1, U\n" \
-        % (t, "" if kernelHasMaxSizes else "//", solution["KernelMaxSizes"][0], solution["KernelMaxSizes"][1], \
-        solution["KernelMaxSizes"][0] )
     s += "%sunsigned int numEnqueues[numKernels] = { 1" % (t)
     for i in range(1, len(kernels)):
       s += ", 1"
@@ -150,10 +145,6 @@ class SolutionWriter:
       if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
         s += "%sglobalWorkSize[0][2] *= size%s;\n" % (t, self.indexChars[i])
 
-    # TODO only handling kernelMaxSizes = 1,1,1 and single kernel
-    s += "%s%stensileCalculateSizesForEdgeMultiKernel();\n" % (t, "" if solution["EdgeMultiKernel"] else "//" )
-    s += "%s%stensileCalculateSizesForKernelMaxSizes();\n" % (t, "" if kernelHasMaxSizes else "//" )
-
 
     # grid size [0,1]
     s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
@@ -165,12 +156,9 @@ class SolutionWriter:
     s += "%sunsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n" % (t)
     s += "%sunsigned int totalWorkGroups1 = sizeOfC1 / macroTile1;\n" % (t)
 
-    if solution["EdgeMultiKernel"]:
-      s += "%s// b/c multi kernel, don't add extra work-group here\n" % (t)
-    else:
-      s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
-      s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
-      s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
+    s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
+    s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
 
     s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.backend == "OCL" else "")
     s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.backend == "OCL" else "")

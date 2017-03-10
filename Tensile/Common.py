@@ -52,21 +52,35 @@ globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
 
+# BF00 
 
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
+validParameters = {
+    "LoopDoWhile":            [ False, True ],
+    "LoopTail":               [ False, True ],
+    "Prefetch":               [ False, True ] ,
+
+    "WorkGroupMapping":       [ -64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64 ],
+    "GroupShape":             [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
+    "ThreadTileShape":        [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
+    "NumLoadsCoalescedA":     [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
+    "NumLoadsCoalescedB":     [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
+    "ThreadTileNumElements":  [ 1, 2, 4, 8, 16, 32, 64, 36],
+    "SplitU":                 [ 1, 2, 4, 8, 16, 32, 64 ],
+    "LoopUnroll":             [ 1, 2, 4, 8, 16, 32, 64 ],
+    "NumThreads":             [ 64, 128, 256 ],
+    "LdsPad":                 [ 0, 1 ] ,
+
+    "EdgeType":               [ "Branch", "Shift", "None" ],
+
+    }
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
-    {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
-    {"KernelSerial":            [ True ] },
     {"LoopDoWhile":             [ True ] },
     {"LoopTail":                [ False ] },
-    {"LoadMacInterleave":       [ 4 ] },
-    {"AtomicAccumulate":        [ False ] },
     {"EdgeType":                [ "Branch" ] }, # Shift
-    {"EdgeMultiKernel":         [ False ] },
-    {"PadLDS":                  [ 1 ] },
     {"SplitU":                  [ 1 ] },
     {"LdsPad":                  [ 1 ] }, # 0
     {"Prefetch":                [ False ] },
@@ -91,30 +105,31 @@ defaultJoinParameters = [
     ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [
-    {"VectorWidthGlobalLoad":   [ 4 ] },
-    {"VectorWidthGlobalStore":  [ 4 ] },
-    {"VectorWidthLocalLoad":    [ 4 ] },
-    {"VectorWidthLocalStore":   [ 4 ] },
     ]
 
 # derived parameters may show up in solution dict but don't use for naming
+"""
 derivedParameters = [
-    "MacroTile0",
-    "MacroTile1",
-    "DepthU",
     "SubGroup0",
     "SubGroup1",
     "ThreadTile0",
     "ThreadTile1",
+    "Valid",
+    "MacroTile0",
+    "MacroTile1",
+    "NumElementsPerThread",
     "NumLoadsA",
     "NumLoadsB",
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
-    "LdsNumElements",
     "LdsOffsetB",
-    "NumElementsPerThread",
-    "NumMacroTileReplicates"
+    "LdsNumElements",
+    "DepthU",
+    "AssignedDerivedParameters",
+    "AssignedProblemIndependentDerivedParameters",
+    "BenchmarkFork"
     ]
+"""
 
 # dictionary of defaults comprised for 1st option for each parameter
 defaultSolution = {}
@@ -220,13 +235,15 @@ def print2(message):
     print message
 
 def printWarning(message):
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
+  #f = inspect.currentframe().f_back.f_code
+  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
+  #print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
+  print "Tensile::WARNING: %s" % message
 def printExit(message):
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
+  #f = inspect.currentframe().f_back.f_code
+  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
+  #print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
+  print "Tensile::FATAL: %s" % message
   sys.exit(-1)
 
 

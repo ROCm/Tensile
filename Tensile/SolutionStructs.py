@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derivedParameters, print1, print2
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1, print2
 from copy import deepcopy
 
 ################################################################################
@@ -853,12 +853,12 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        if key not in derivedParameters:
+        if key in validParameters.keys():
           requiredParameters[key] = False
     else:
       for key in keys:
         required = False
-        if key not in derivedParameters:
+        if key in validParameters.keys():
           for i in range(1, len(objs)):
             if objs[0][key] != objs[i][key]:
               required = True
@@ -878,7 +878,8 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      requiredParameters[key] = True
+      if key in validParameters.keys():
+        requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
   ########################################
@@ -909,7 +910,7 @@ class Solution:
     for objIdx in range(0, len(objs)):
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
-        if paramName not in derivedParameters:
+        if paramName in validParameters.keys():
           paramValue = obj[paramName]
           if paramName in data:
             if paramValue not in data[paramName]:
@@ -933,7 +934,7 @@ class Solution:
     serial = 0
     multiplier = 1
     for paramName in sorted(state.keys()):
-      if paramName not in derivedParameters:
+      if paramName in validParameters.keys():
         paramValue = state[paramName]
         paramData = data[paramName]
         paramNameMultiplier = len(paramData)
