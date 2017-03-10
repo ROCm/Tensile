@@ -770,20 +770,196 @@ class Solution:
       state["Valid"] = False
       return
 
-
-
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
     if globalParameters["Backend"] == "HIP":
+
       if state["ProblemType"]["DataType"].value == DataType.single:
-        if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:
-          if state["NumLoadsCoalescedA"] != 1 and state["NumLoadsCoalescedB"] != 8:
-            state["Valid"] = False
-            #return
+
+        # sgemm NN
+        if state["ProblemType"]["TransposeA"] == False and state["ProblemType"]["TransposeB"] == False:
+          if state["NumThreads"] == 128:
+            if state["ThreadTileNumElements"] == 64:
+              if state["NumLoadsCoalescedA"] == 2:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 4:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 8:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 8: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 16:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 8: state["Valid"] = False
+
+        # sgemm NT
+        if state["ProblemType"]["TransposeA"] == False and state["ProblemType"]["TransposeB"] == True:
+          if state["NumThreads"] == 128:
+            if state["ThreadTileNumElements"] == 64:
+              if state["NumLoadsCoalescedA"] == 2:
+                if state["NumLoadsCoalescedB"] == 2:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 4:
+                if state["NumLoadsCoalescedB"] == 4:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 8:
+                if state["NumLoadsCoalescedB"] == 8:
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 16:
+                if state["NumLoadsCoalescedB"] == 16:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+
+        # sgemm TN
+        if state["ProblemType"]["TransposeA"] == True and state["ProblemType"]["TransposeB"] == False:
+          if state["GroupShape"] == 0:
+            if state["NumThreads"] == 64:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 16: state["Valid"] = False
+            if state["NumThreads"] == 128:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+            if state["NumThreads"] == 256:
+              if state["ThreadTileShape"] == 2:
+                if state["ThreadTileNumElements"] == 32:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+          if state["GroupShape"] == 2:
+            if state["NumThreads"] == 64:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 8: state["Valid"] = False
+            if state["NumThreads"] == 128:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+            if state["NumThreads"] == 256:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 16:
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["ThreadTileShape"] == 2:
+                if state["ThreadTileNumElements"] == 32:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+
+        # sgemm TT
+        if state["ProblemType"]["TransposeA"] == True and state["ProblemType"]["TransposeB"] == True:
+          if state["NumThreads"] == 128:
+            if state["ThreadTileNumElements"] == 64:
+              if state["NumLoadsCoalescedA"] == 1:
+                if state["NumLoadsCoalescedB"] == 2:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                if state["NumLoadsCoalescedB"] == 4:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                if state["NumLoadsCoalescedB"] == 8:
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                if state["NumLoadsCoalescedB"] == 16:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+
+
+      # dgemm
       elif state["ProblemType"]["DataType"].value == DataType.double:
         if globalParameters["Backend"] == "HIP":
           if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
             state["Valid"] = False
-            #return
+      """
+      if state["ProblemType"]["DataType"].value == DataType.single:
+        if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:
+          if state["NumLoadsCoalescedA"] != 1 and state["NumLoadsCoalescedB"] != 8:
+            state["Valid"] = False
+      """
+
     state["AssignedDerivedParameters"] = True
 
     #print Solution.getNameFull(state)
