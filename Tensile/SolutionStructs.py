@@ -509,9 +509,16 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    (subGroup0, subGroup1, threadTile0, threadTile1) \
-        = Solution.tileSizes(state["NumThreads"], state["SplitU"], \
-        state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
+    if "NumThreads" in state \
+        and "SplitU" in state \
+        and "GroupShape" in state \
+        and "ThreadTileNumElements" in state \
+        and "ThreadTileShape" in state:
+      (subGroup0, subGroup1, threadTile0, threadTile1) \
+          = Solution.tileSizes(state["NumThreads"], state["SplitU"], \
+          state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
+    else:
+      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile or DepthU but you didn't pre-determine NumThreads, SplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
 
     state["SubGroup0"] = subGroup0
     state["SubGroup1"] = subGroup1
