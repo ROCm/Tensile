@@ -506,7 +506,7 @@ class BenchmarkProcess:
     #self.hardcodedParameters.append(joinPermutations)
     print2("JoinPermutations: ")
     for perm in joinPermutations:
-      print2(Solution.getNameFull(perm))
+      print2(perm)
     if len(joinPermutations) > 0:
       self.joinHardcodedParameters(joinPermutations)
 

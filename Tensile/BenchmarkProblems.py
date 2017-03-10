@@ -180,12 +180,12 @@ def benchmarkProblemType( config ):
             if globalParameters["PrintLevel"] >= 1:
               sys.stdout.write(":")
         else:
-          if globalParameters["PrintLevel"] >= 1:
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("rejecting solution %s" % str(solutionObject))
+          elif globalParameters["PrintLevel"] >= 1:
             sys.stdout.write(".")
         if globalParameters["PrintLevel"] >= 1:
           sys.stdout.flush()
-        #else:
-        #  print2("rejecting solution %s" % str(solutionObject))
     if globalParameters["PrintLevel"] >= 1:
       sys.stdout.write("\n")
       sys.stdout.flush()

@@ -765,7 +765,10 @@ class Solution:
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
 
     # lds buffer size for reduction
-    ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
+    if state["SplitU"] >= 2:
+      ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
+    else:
+      ldsNumElementsReduction = 0
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAlignedA+ldsNumElementsB, ldsNumElementsReduction)
