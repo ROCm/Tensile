@@ -223,6 +223,7 @@ class KernelWriter:
     kStr += "#define PAD %u%s" % (kernel["LdsPad"], self.endLine)
     kStr += "// columns per store%s" % self.endLine
     kStr += "#define CPS (NUM_THREADS / MT%s)%s" % (tileChar0, self.endLine)
+    kStr += "#define WORK_GROUP_MAPPING %u%s" % (abs(kernel["WorkGroupMapping"]), self.endLine)
     kStr += self.endLine
 
     ####################################
@@ -532,23 +533,53 @@ class KernelWriter:
     # c indices
     ####################################
 
-    # work-group free indices
-    kStr += self.endLine
     kStr += "  /* c indices (group) */" + self.endLine
-
-    if kernel["WorkGroupMapping"] < 0:
-      # swap order in which work-groups cover C
-      kStr += "  %s groupSerial = %s(0) * %s(1) + %s(1);%s" \
-        % (self.uint64Str, self.getGroupIdStr, self.getNumGroupsStr, self.getGroupIdStr, self.endLine)
-      kStr += "  unsigned int g%s = groupSerial %% %s(0);%s" % (tileChar0, self.getNumGroupsStr, self.endLine)
-      kStr += "  unsigned int g%s = groupSerial / %s(0);%s" % (tileChar1, self.getNumGroupsStr, self.endLine)
-    else:
+    if kernel["WorkGroupMapping"] == 1:
       kStr += "  unsigned int g" + tileChar0 + " = " \
-          + self.getGroupIdStr + "(0);" \
-          + " // d0, tensor" + tensorChar0 + self.endLine
+          + self.getGroupIdStr + "(0);" + self.endLine
       kStr += "  unsigned int g" + tileChar1 + " = " \
-          + self.getGroupIdStr + "(1);" \
-          + " // d1, tensor" + tensorChar1 + self.endLine
+          + self.getGroupIdStr + "(1);" + self.endLine
+    else:
+      dimCoal = (0 if kernel["WorkGroupMapping"] > 0 else 1)
+      dimPerp = (1 if kernel["WorkGroupMapping"] > 0 else 0)
+
+      # work-group free indices
+      kStr += self.endLine
+      kStr += "  unsigned int g%s, g%s;%s" % (tileChar0, tileChar1, self.endLine)
+      kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
+          % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
+          self.getNumGroupsStr, self.endLine)
+      kStr += "  %s superGroup = groupSerial / (%s(%u)*WORK_GROUP_MAPPING);%s" \
+          % (self.uint64Str, self.getNumGroupsStr, dimCoal, self.endLine );
+      kStr += "  unsigned int lastSuperGroupWidth = %s(%u) %% WORK_GROUP_MAPPING;%s" % \
+          ( self.getNumGroupsStr, dimPerp, self.endLine )
+      kStr += "  unsigned int numWorkGroupsBeforeLastSuperGroup = (%s(%u) - lastSuperGroupWidth)*%s(%u);%s" \
+            % (self.getNumGroupsStr, dimPerp, self.getNumGroupsStr, dimCoal, \
+            self.endLine)
+
+
+      # if not in last super group
+      kStr += "  if ( groupSerial < numWorkGroupsBeforeLastSuperGroup) {%s" \
+              % (self.endLine)
+      kStr += "    g%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
+          % ((tileChar0 if kernel["WorkGroupMapping"] > 0 else tileChar1), \
+          self.getNumGroupsStr, dimCoal, self.endLine)
+      kStr += "    g%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% WORK_GROUP_MAPPING;%s" \
+          % ((tileChar1 if kernel["WorkGroupMapping"] > 0 else tileChar0), \
+          self.endLine)
+
+      # if in last super group
+      kStr += "  } else {%s" % self.endLine
+      kStr += "    g%s = (groupSerial-numWorkGroupsBeforeLastSuperGroup)/lastSuperGroupWidth;%s" \
+          % ((tileChar0 if kernel["WorkGroupMapping"] > 0 else tileChar1), \
+          self.endLine)
+      kStr += "    g%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
+          % ((tileChar1 if kernel["WorkGroupMapping"] > 0 else tileChar0), \
+          self.endLine)
+
+      # if in last super group
+      kStr += "  }%s" % self.endLine
+
 
     # other free indices
     nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
@@ -685,9 +716,9 @@ class KernelWriter:
     # offset local pointers
     ####################################
     kStr += "  /* where will this thread write to local memory */" + self.endLine
-    kStr += "  %s DATA_TYPE *lA = localA + a%s + a%s*(MT%s+PAD);%s" \
+    kStr += "  %sDATA_TYPE *lA = localA + a%s + a%s*(MT%s+PAD);%s" \
         % (self.sharedPtrStr, tileCharA, unrollChar, tileCharA, self.endLine)
-    kStr += "  %s DATA_TYPE *lB = localB + b%s + b%s*(MT%s+PAD);%s" \
+    kStr += "  %sDATA_TYPE *lB = localB + b%s + b%s*(MT%s+PAD);%s" \
         % (self.sharedPtrStr, tileCharB, unrollChar, tileCharB, self.endLine)
     kStr += self.endLine
 
@@ -1432,6 +1463,7 @@ class KernelWriter:
       kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
       kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
+      kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
       firstStride = 0
       if kernel["ProblemType"]["UseInitialStrides"]:
         lastStrideC = 0
