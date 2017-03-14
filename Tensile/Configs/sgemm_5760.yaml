@@ -41,7 +41,7 @@ BenchmarkProblems:
       - ThreadTileShape: [-2, 0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
-      - LoopUnroll: [8, 16]
+      - DepthU: [ 8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -73,7 +73,7 @@ BenchmarkProblems:
       - ThreadTileShape: [-2, 0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
-      - LoopUnroll: [8, 16]
+      - DepthU: [ 8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -105,7 +105,7 @@ BenchmarkProblems:
       - ThreadTileShape: [-2, 0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
-      - LoopUnroll: [8, 16]
+      - DepthU: [ 8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -137,7 +137,7 @@ BenchmarkProblems:
       - ThreadTileShape: [-2, 0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
-      - LoopUnroll: [8, 16]
+      - DepthU: [ 8, 16]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile

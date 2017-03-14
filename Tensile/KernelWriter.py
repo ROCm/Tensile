@@ -203,8 +203,6 @@ class KernelWriter:
     kStr += "/* tile parameters */" + self.endLine
     kStr += "#define NUM_THREADS %3d%s" \
         % (kernel["NumThreads"], self.endLine )
-    kStr += "#define SPLITU %d%s" \
-        % (kernel["SplitU"], self.endLine )
     kStr += "#define SG%s %d%s" \
         % (tileChar0, kernel["SubGroup0"], self.endLine )
     kStr += "#define SG%s %d%s" \
@@ -217,6 +215,8 @@ class KernelWriter:
         % (tileChar0, tileChar0, tileChar0, self.endLine )
     kStr += "#define MT%s (SG%s*TT%s)%s" \
         % (tileChar1, tileChar1, tileChar1, self.endLine )
+    kStr += "#define SPLITU %d%s" \
+        % (kernel["SplitU"], self.endLine )
     kStr += "#define UNROLL %d%s" \
         % (kernel["LoopUnroll"], self.endLine )
     kStr += "#define DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )

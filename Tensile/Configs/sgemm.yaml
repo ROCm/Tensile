@@ -40,7 +40,7 @@ BenchmarkProblems:
     ForkParameters:
       - NumThreads: [64, 256]
       - ThreadTileNumElements: [4, 16, 64]
-      - LoopUnroll: [8, 16]
+      - DepthU: [8, 16]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile

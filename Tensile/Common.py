@@ -42,7 +42,7 @@ globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 4
-globalParameters["PinClocks"] = True
+globalParameters["PinClocks"] = False
 # file heirarchy
 globalParameters["ShortNames"] = False
 globalParameters["MergeFiles"] = True
@@ -71,8 +71,8 @@ validParameters = {
     "NumLoadsCoalescedA":     [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "NumLoadsCoalescedB":     [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "ThreadTileNumElements":  [ 1, 2, 4, 8, 16, 32, 64, 36],
+    "DepthU":                 [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
     "SplitU":                 [ 1, 2, 4, 8, 16, 32, 64 ],
-    "LoopUnroll":             [ 1, 2, 4, 8, 16, 32, 64 ],
     "NumThreads":             [ 64, 128, 256 ],
     "LdsPad":                 [ 0, 1 ] ,
 
@@ -81,10 +81,9 @@ validParameters = {
     }
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
-    {"LoopDoWhile":             [ True ] },
-    {"LoopTail":                [ False ] },
+    {"LoopDoWhile":             [ False ] },
+    {"LoopTail":                [ True ] },
     {"EdgeType":                [ "Branch" ] }, # Shift
-    {"SplitU":                  [ 1 ] },
     {"LdsPad":                  [ 1 ] }, # 0
     {"Prefetch":                [ False ] },
     ]
@@ -96,16 +95,16 @@ defaultForkParameters = [
     {"ThreadTileShape":         [ 0 ] }, # -4, -2, 0, 2, 4
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
+    {"DepthU":                  [ 4, 8, 16, 32 ] },
+    {"SplitU":                  [ 1, 4, 16 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
     {"WorkGroupMapping":        [ 1 ] },
-    {"LoopUnroll":              [ 16, 8, 4 ] },
     ]
 # final list of solutions
 defaultJoinParameters = [
-    "MacroTile", "DepthU"
-    ]
+    "MacroTile" ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [
     ]
@@ -127,7 +126,7 @@ derivedParameters = [
     "NumLoadsPerpendicularB",
     "LdsOffsetB",
     "LdsNumElements",
-    "DepthU",
+    "LoopUnroll",
     "AssignedDerivedParameters",
     "AssignedProblemIndependentDerivedParameters",
     "BenchmarkFork"

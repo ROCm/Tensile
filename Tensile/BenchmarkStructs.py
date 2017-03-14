@@ -199,7 +199,7 @@ class BenchmarkProcess:
           configJoinParameters, configBenchmarkJoinParameters]) \
           or paramName == "ProblemSizes":
         if "JoinParameters" not in config \
-            or (paramName != "MacroTile" and paramName != "DepthU"):
+            or (paramName != "MacroTile"):
           self.joinParameters.append(paramName)
     if configJoinParameters != None:
       for paramName in configJoinParameters:
@@ -361,7 +361,6 @@ class BenchmarkProcess:
     print2("####################################################################")
     print1("# Join Parameters")
     macroTileJoinSet = set()
-    depthUJoinSet = set()
     totalPermutations = 1
     for joinName in self.joinParameters:
       # joining a parameter with only a single value
@@ -441,32 +440,6 @@ class BenchmarkProcess:
         totalPermutations *=len(macroTileJoinSet)
         print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
 
-      ##########################################################################
-      # (II-4.3) Join DepthU
-      elif joinName == "DepthU":
-        unrollValues = []
-        splitUValues = []
-        # count permutations
-        for paramList in [self.benchmarkCommonParameters, \
-            self.forkParameters, self.benchmarkForkParameters, \
-            self.benchmarkJoinParameters, self.singleValueParameters ]:
-          if hasParam("LoopUnroll", paramList):
-            unrollValues = getParamValues("LoopUnroll", paramList)
-          if hasParam("SplitU", paramList):
-            splitUValues = getParamValues("SplitU", paramList)
-        depthUPermutations = len(unrollValues)*len(splitUValues)
-        print2("# Total JoinDepthU Permutations: %u" % depthUPermutations)
-        # enumerate permutations
-        for i in range(0, depthUPermutations):
-          pIdx = i
-          unrollIdx = pIdx % len(unrollValues)
-          pIdx /= len(unrollValues)
-          splitUIdx = pIdx % len(splitUValues)
-          depthU = unrollValues[unrollIdx]*splitUValues[splitUIdx]
-          depthUJoinSet.add(depthU)
-        totalPermutations *= len(depthUJoinSet)
-        print2("# JoinSplitUSet(%u): %s" % (len(depthUJoinSet), depthUJoinSet) )
-
       # invalid join parameter
       else:
         validJoinNames = ["MacroTile", "DepthU"]
@@ -478,7 +451,6 @@ class BenchmarkProcess:
     ############################################################################
     # (II-4.4) Enumerate Permutations Other * MacroTile * DepthU
     macroTiles = list(macroTileJoinSet)
-    depthUs = list(depthUJoinSet)
     print2("# TotalJoinPermutations = %u" % ( totalPermutations) )
     joinPermutations = []
     for i in range(0, totalPermutations):
@@ -499,10 +471,6 @@ class BenchmarkProcess:
           joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
           joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
           #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
-        elif joinName == "DepthU":
-          valueIdx = pIdx % len(depthUs)
-          pIdx /= len(depthUs)
-          joinPermutations[i][joinName] = depthUs[valueIdx]
     #self.hardcodedParameters.append(joinPermutations)
     print2("JoinPermutations: ")
     for perm in joinPermutations:

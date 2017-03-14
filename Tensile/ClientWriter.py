@@ -148,11 +148,13 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
           "client.exe") )
       runScriptFile.write("\n")
     else:
-      runScriptFile.write("rocm-smi -d 0 --setfan 255 --setsclk 7\n")
-      runScriptFile.write("sleep 1\n")
-      runScriptFile.write("rocm-smi -d 0 -a\n")
+      if globalParameters["PinClocks"]:
+        runScriptFile.write("rocm-smi -d 0 --setfan 255 --setsclk 7\n")
+        runScriptFile.write("sleep 1\n")
+        runScriptFile.write("rocm-smi -d 0 -a\n")
       runScriptFile.write("./client\n")
-      runScriptFile.write("rocm-smi -d 0 --resetclocks\n")
+      if globalParameters["PinClocks"]:
+        runScriptFile.write("rocm-smi -d 0 --resetclocks\n")
   else:
     executablePath = os.path.join(globalParameters["WorkingPath"])
     if os.name == "nt":

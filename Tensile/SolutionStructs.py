@@ -518,7 +518,7 @@ class Solution:
           = Solution.tileSizes(state["NumThreads"], state["SplitU"], \
           state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
     else:
-      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile or DepthU but you didn't pre-determine NumThreads, SplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
+      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, SplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
 
     state["SubGroup0"] = subGroup0
     state["SubGroup1"] = subGroup1
@@ -542,8 +542,10 @@ class Solution:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
     if "SubGroup1" in state and "ThreadTile1" in state:
       state["MacroTile1"] = state["SubGroup1"]*state["ThreadTile1"]
-    if "SplitU" in state and "LoopUnroll" in state:
-      state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
+    if "SplitU" in state and "DepthU" in state:
+      state["LoopUnroll"] = state["DepthU"] / state["SplitU"]
+    if state["LoopUnroll"] * state["SplitU"] != state["DepthU"]:
+        state["Valid"] = False
 
     # tile shape
     if state["Valid"]:
