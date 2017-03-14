@@ -31,7 +31,6 @@ BenchmarkProblems:
       - ProblemSizes: [ [512], [512], [2], [512] ]
       - SplitU: [ 1 ]
       - EdgeType: ["Branch"]
-        EdgeMultiKernel: [False]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]

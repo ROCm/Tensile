@@ -573,6 +573,10 @@ class Solution:
     if not state["Valid"]:
       return
 
+    # VectorWidth
+    if state["VectorWidth"] < 1:
+      state["VectorWidth"] = 4 / state["ProblemType"]["DataType"].numRegisters()
+
     # SplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
     state["NumElementsPerThread"] = numElementsPerWorkGroup / state["NumThreads"]

@@ -74,7 +74,8 @@ validParameters = {
     "DepthU":                 [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
     "SplitU":                 [ 1, 2, 4, 8, 16, 32, 64 ],
     "NumThreads":             [ 64, 128, 256 ],
-    "LdsPad":                 [ 0, 1 ] ,
+    "VectorWidth":            [ -1, 1, 2, 4 ],
+    "LdsPad":                 [ 0, 1 ],
 
     "EdgeType":               [ "Branch", "Shift", "None" ],
 
@@ -86,6 +87,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                [ "Branch" ] }, # Shift
     {"LdsPad":                  [ 1 ] }, # 0
     {"Prefetch":                [ False ] },
+    {"VectorWidth":             [ -1 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
