@@ -40,7 +40,7 @@ TensileStatus tensileSetup() {
  ******************************************************************************/
 TensileStatus tensileTeardown() {
 
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   // delete kernels
   if (kernelMap) {
     unsigned int index = 0;

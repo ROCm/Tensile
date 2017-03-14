@@ -109,7 +109,7 @@ def benchmarkProblemType( config ):
     #    os.path.join(globalParameters["SourcePath"], \
     #    "TensileBenchmark_CMakeLists.txt"),
     #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
-    if globalParameters["Backend"] == "OCL":
+    if globalParameters["RuntimeLanguage"] == "OCL":
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
           globalParameters["WorkingPath"] )

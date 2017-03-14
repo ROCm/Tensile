@@ -23,7 +23,7 @@
 #define TENSILE_H
 
 // OpenCL
-#if   Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"
 #define TensileStatus cl_int
 #define tensileStatusSuccess CL_SUCCESS

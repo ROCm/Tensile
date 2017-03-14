@@ -29,8 +29,8 @@ set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 # Common Options
 option( Tensile_CLIENT_BENCMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
 option( Tensile_MERGE_FILES "Merge kernels and solutions files" OFF)
-set(Tensile_BACKEND HIP CACHE STRING "Which backend to use")
-set_property( CACHE Tensile_BACKEND PROPERTY STRINGS HIP OCL )
+set(Tensile_RUNTIME_LANGUAGE HIP CACHE STRING "Which runtime language to use")
+set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
 
 ###############################################################################
 # Benchmark Client
@@ -81,23 +81,23 @@ endif()
 
 ###############################################################################
 # find and use device libraries
-if( Tensile_BACKEND MATCHES "OCL")
+if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
   find_package(OpenCL "1.2" REQUIRED)
   target_link_libraries( ${ClientName} PUBLIC ${OPENCL_LIBRARIES} )
   target_compile_definitions( ${ClientName} PUBLIC 
-    -DTensile_BACKEND_OCL=1
-    -DTensile_BACKEND_HIP=0 )
+    -DTensile_RUNTIME_LANGUAGE_OCL=1
+    -DTensile_RUNTIME_LANGUAGE_HIP=0 )
   target_include_directories( ${ClientName} SYSTEM
     PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
-elseif( Tensile_BACKEND MATCHES "HIP")
+elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
   find_package( HIP REQUIRED )
   set (CMAKE_CXX_COMPILER ${HIPCC})
   target_include_directories( ${ClientName} SYSTEM
     PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
   target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
   target_compile_definitions( ${ClientName} PUBLIC 
-    -DTensile_BACKEND_OCL=0
-    -DTensile_BACKEND_HIP=1 )
+    -DTensile_RUNTIME_LANGUAGE_OCL=0
+    -DTensile_RUNTIME_LANGUAGE_HIP=1 )
 endif()
 
 
@@ -108,7 +108,8 @@ if(NOT Tensile_CLIENT_BENCHMARK)
   #find_package(Tensile)
   TensileCreateLibrary(
     ${Tensile_LOGIC_PATH}           # path
-    ${Tensile_BACKEND}              # OCL or HIP
+    ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP
+    ${Tensile_KERNEL_LANGUAGE}      # OCL or HIP
     ${Tensile_MERGE_FILES}          # ON or OFF
     ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
     ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF

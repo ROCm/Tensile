@@ -81,7 +81,7 @@ def readSolutions( filename ):
 
 
 ################################################################################
-# Encode Library Backend to YAML
+# Encode Library Logic to YAML
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################

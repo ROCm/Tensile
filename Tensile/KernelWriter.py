@@ -31,11 +31,11 @@ class KernelWriter:
   # Make OpenCL Kernel String
   ##############################################################################
   def __init__( self, kernelMinNaming, kernelSerialNaming ):
-    self.backend = globalParameters["Backend"]
+    self.language = globalParameters["KernelLanguage"]
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
 
-    if self.backend == "OCL":
+    if self.language == "OCL":
       # everything escaped extra b/c string
       self.endLine = "\\n\"\n\""
       self.endLinePP = "\\\\" + self.endLine
@@ -43,7 +43,7 @@ class KernelWriter:
       self.endLine = "\n"
       self.endLinePP =  "\\" + self.endLine
 
-    if self.backend == "OCL":
+    if self.language == "OCL":
       self.getGroupIdStr = "get_group_id"
       self.getNumGroupsStr = "get_num_groups"
       self.getLocalIdStr = "get_local_id"
@@ -102,7 +102,7 @@ class KernelWriter:
 
     s = ""
     # kernel name
-    if self.backend == "OCL":
+    if self.language == "OCL":
       s += "__attribute__((reqd_work_group_size(NUM_THREADS,1,1)))"
       s += self.endLine
       s += "__kernel "
@@ -113,27 +113,27 @@ class KernelWriter:
     s += "(" + self.endLine
     # pointers
     globalStr = "__global "
-    if self.backend == "HIP":
+    if self.language == "HIP":
       s += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
     restrictStr = "restrict"
-    if self.backend == "HIP":
+    if self.language == "HIP":
       restrictStr = "__restrict__"
-    s += "  " + globalStr + kernel["ProblemType"]["DataType"].toDevice(self.backend) \
+    s += "  " + globalStr + kernel["ProblemType"]["DataType"].toDevice(self.language) \
         + "       *          C,"
     s += self.endLine
-    s += "  " + globalStr + kernel["ProblemType"]["DataType"].toDevice(self.backend) \
+    s += "  " + globalStr + kernel["ProblemType"]["DataType"].toDevice(self.language) \
         + " const * " + restrictStr + " A,"
     s += self.endLine
-    s += "  " + globalStr + kernel["ProblemType"]["DataType"].toDevice(self.backend) \
+    s += "  " + globalStr + kernel["ProblemType"]["DataType"].toDevice(self.language) \
         + " const * " + restrictStr + " B"
 
     # alpha & beta
     s += "," + self.endLine + "  " \
-        + kernel["ProblemType"]["DataType"].toDevice(self.backend) + " const alpha"
+        + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
     if kernel["ProblemType"]["UseBeta"]:
       s += "," + self.endLine + "  " \
-          + kernel["ProblemType"]["DataType"].toDevice(self.backend) + " const beta"
+          + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
 
     # offsets
     s += ( "," + self.endLine + "  unsigned int const offsetC,"
@@ -327,16 +327,16 @@ class KernelWriter:
     # data types
     kStr += "/* data types */" + self.endLine
     kStr += "#define DATA_TYPE %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.backend), \
+        % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
 
-    if self.backend == "OCL":
+    if self.language == "OCL":
       kStr += "#define MAD(A,B,DST) mad(A,B,DST)"
     else:
       kStr += "#define MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
 
-    if self.backend == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
+    if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
       kStr += "#define s0 x" + self.endLine
       kStr += "#define s1 y" + self.endLine
     kStr += self.endLine
@@ -471,12 +471,12 @@ class KernelWriter:
     # function signature
     ####################################
     kStr += "/* kernel */" + self.endLine
-    if self.backend == "HIP":
+    if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wunused-parameter\"" + self.endLine
     kStr += self.getSignature(kernel)
     kStr += " {" + self.endLine
-    if self.backend == "HIP":
+    if self.language == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
 
 
@@ -857,7 +857,7 @@ class KernelWriter:
 
         if kernel["EdgeType"] == "Branch":
           kStr += "( condA_%s_%s )" %( str(para), str(perp) )
-          kStr += " ? %s : " %( kernel["ProblemType"]["DataType"].zeroString(self.backend) )
+          kStr += " ? %s : " %( kernel["ProblemType"]["DataType"].zeroString(self.language) )
 
         kStr += "A[ %d*LSCA*strideA%s + %d*LSPA*strideA%s];" \
             % (para, unrollChar if not kernel["ProblemType"]["TLUA"] else tileCharA, perp, unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA)
@@ -896,7 +896,7 @@ class KernelWriter:
 
         if kernel["EdgeType"] == "Branch":
           kStr += "( condB_%s_%s )" % ( str(para), str(perp) )
-          kStr += " ? %s : " % ( kernel["ProblemType"]["DataType"].zeroString(self.backend) )
+          kStr += " ? %s : " % ( kernel["ProblemType"]["DataType"].zeroString(self.language) )
 
         kStr += "B[ %d*LSCB*strideB%s + %d*LSPB*strideB%s];" \
             % (para, unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB, perp, unrollChar if kernel["ProblemType"]["TLUB"] else tileCharB)
@@ -912,7 +912,7 @@ class KernelWriter:
     ########################################
     # store registers in lds
     ########################################
-    if self.backend == "HIP":
+    if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     # if num threads
@@ -989,7 +989,7 @@ class KernelWriter:
     #  kStr += indent + "}" + self.endLine
     kStr += self.endLine
     # end store in lds
-    if self.backend == "HIP":
+    if self.language == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
 
     # 2nd barrier
@@ -1101,7 +1101,7 @@ class KernelWriter:
             else:
               kStr += "%d*LSCA" % (para)
             kStr += " >= size%s)" %( tileCharA )
-          kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.backend)
+          kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.language)
           kStr += "A[ %d*LSCA*strideA%s + %d*LSPA*strideA%s];" \
               % (para, unrollChar if not kernel["ProblemType"]["TLUA"] else tileCharA, perp, unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA)
           #if condPara or condPerp:
@@ -1157,7 +1157,7 @@ class KernelWriter:
               kStr += "%d*LSCB" % (para)
             kStr += " >= size%s)" % (tileCharB )
 
-          kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.backend)
+          kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.language)
           kStr += "B[ %d*LSCB*strideB%s + %d*LSPB*strideB%s];" \
               % (para, unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB, perp, unrollChar if kernel["ProblemType"]["TLUB"] else tileCharB)
           #if condPara or condPerp:
@@ -1437,7 +1437,7 @@ class KernelWriter:
     ####################################
     # undefine definitions if merged
     ####################################
-    if globalParameters["MergeFiles"] and self.backend == "HIP":
+    if globalParameters["MergeFiles"] and self.language == "HIP":
       kStr += "#undef UNROLL%s" % self.endLine
       kStr += "#undef SPLITU%s" % self.endLine
       kStr += "#undef DEPTHU%s" % self.endLine
@@ -1498,16 +1498,16 @@ class KernelWriter:
       fileString += "#include \"" + kernelName + ".h\"\n"
       fileString += "\n"
 
-    # backend pre
+    # language pre
     fileString += "\n"
-    if self.backend == "OCL":
+    if self.language == "OCL":
       fileString += "const char * const %s_src =\"" % (kernelName)
 
     # write kernel body
     fileString += self.getBody( kernel )
 
-    # backend post
-    if self.backend == "OCL":
+    # language post
+    if self.language == "OCL":
       fileString += "\";\n"
 
     fileString  += "/* Kernel Parameters\n"
@@ -1530,10 +1530,10 @@ class KernelWriter:
     if not globalParameters["MergeFiles"]:
       fileString += "#pragma once\n\n"
       fileString += "\n"
-      if self.backend == "HIP":
+      if self.language == "HIP":
         fileString += "#include <hip/hip_runtime.h>\n"
         fileString += "\n"
-    if self.backend == "OCL":
+    if self.language == "OCL":
       fileString += "extern const char * const %s_src;\n" % kernelName
     else:
       fileString += self.getSignature(kernel)

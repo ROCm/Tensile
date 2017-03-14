@@ -35,18 +35,18 @@ class SolutionWriter:
   ##############################################################################
   def __init__(self, solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming):
-    self.backend = globalParameters["Backend"]
+    self.language = globalParameters["RuntimeLanguage"]
     self.solutionMinNaming = solutionMinNaming
     self.solutionSerialNaming = solutionSerialNaming
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
     self.kernelWriter = KernelWriter( kernelMinNaming, kernelSerialNaming)
 
-    self.streamName = "hipStream_t" if self.backend == "HIP" \
+    self.streamName = "hipStream_t" if self.language == "HIP" \
         else "cl_command_queue"
-    self.eventName = "hipEvent_t" if self.backend == "HIP" \
+    self.eventName = "hipEvent_t" if self.language == "HIP" \
         else "cl_event"
-    self.statusName = "hipError_t" if self.backend == "HIP" \
+    self.statusName = "hipError_t" if self.language == "HIP" \
         else "cl_int"
     self.strideList = []
     self.sizeList = []
@@ -91,7 +91,7 @@ class SolutionWriter:
     # kernels
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
-    if self.backend == "OCL":
+    if globalParameters["KernelLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
       for kernelIdx in range(0, len(kernelNames)):
@@ -160,8 +160,8 @@ class SolutionWriter:
     s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
     s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
 
-    s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.backend == "OCL" else "")
-    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.backend == "OCL" else "")
+    s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.language == "OCL" else "")
+    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.language == "OCL" else "")
 
 
     # offsets
@@ -202,7 +202,7 @@ class SolutionWriter:
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)
       typeName = solution["ProblemType"]["DataType"].toCpp()
-      if self.backend == "OCL":
+      if self.language == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
         s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, 0)
@@ -239,7 +239,7 @@ class SolutionWriter:
         for i in range(0, solution["ProblemType"]["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
 
-      if self.backend == "OCL":
+      if self.language == "OCL":
         # set kernel args different for all enqueues
         argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
         # offsets
@@ -346,7 +346,7 @@ class SolutionWriter:
 
     # data ptrs
     typeName = solution["ProblemType"]["DataType"].toCpp()
-    if self.backend == "HIP":
+    if self.language == "HIP":
       argList.append("%s *dataC" % (typeName))
       argList.append("const %s *dataA" % (typeName))
       argList.append("const %s *dataB" % (typeName))

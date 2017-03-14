@@ -74,8 +74,8 @@ class DataType:
     return self.properties[self.value][self.idxOpenCL]
   def toHIP(self):
     return self.properties[self.value][self.idxOpenCL]
-  def toDevice(self, backend):
-    if backend == "OCL":
+  def toDevice(self, language):
+    if language == "OCL":
       return self.toOpenCL()
     else:
       return self.toHIP()
@@ -85,14 +85,14 @@ class DataType:
     return self.properties[self.value][self.idxLibEnum]
 
   ########################################
-  def zeroString(self, backend):
-    if backend == "HIP":
+  def zeroString(self, language):
+    if language == "HIP":
       if self.value == self.complexSingle:
         return "make_float2(0.f, 0.f)"
       if self.value == self.complexDouble:
         return "make_float2(0.0, 0.0)"
 
-    zeroString = "(%s)(" % self.toDevice(backend)
+    zeroString = "(%s)(" % self.toDevice(language)
     if self.value == self.single or self.value == self.half:
       zeroString += "0.f"
     elif self.value == self.double:
@@ -781,7 +781,7 @@ class Solution:
       return
 
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
-    if globalParameters["Backend"] == "HIP":
+    if globalParameters["KernelLanguage"] == "HIP":
 
       if state["ProblemType"]["DataType"].value == DataType.single:
 
@@ -960,7 +960,7 @@ class Solution:
 
       # dgemm
       elif state["ProblemType"]["DataType"].value == DataType.double:
-        if globalParameters["Backend"] == "HIP":
+        if globalParameters["KernelLanguage"] == "HIP":
           if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
             state["Valid"] = False
       """

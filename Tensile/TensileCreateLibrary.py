@@ -99,7 +99,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
         "Kernels.h"), "w")
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
-    if globalParameters["Backend"] != "OCL":
+    if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
   for kernel in kernels:
     # get kernel name
@@ -402,8 +402,10 @@ def TensileCreateLibrary():
   argParser = argparse.ArgumentParser()
   argParser.add_argument("LogicPath", help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath", help="Where to write library files?")
-  argParser.add_argument("Backend", help="Which backend?", \
-      choices=["OCL", "HIP"])
+  argParser.add_argument("RuntimeLanguage", help="Which runtime language?", \
+      choices=["OCL", "HIP", "HSA"])
+  argParser.add_argument("KernelLanguage", help="Which kernel language?", \
+      choices=["OCL", "HIP", "ASM"])
   argParser.add_argument("--merge-files", dest="MergeFiles", \
       action="store_true")
   argParser.add_argument("--no-merge-files", dest="MergeFiles", \
@@ -423,7 +425,8 @@ def TensileCreateLibrary():
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
   arguments = {}
-  arguments["Backend"] = args.Backend
+  arguments["RuntimeLanguage"] = args.RuntimeLanguage
+  arguments["KernelLanguage"] = args.KernelLanguage
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug

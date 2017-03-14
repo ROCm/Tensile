@@ -15,9 +15,11 @@ globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
 globalParameters["Name"] = "Tensile"
 if os.name == "nt":
-  globalParameters["Backend"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["KernelLanguage"] = "OCL"
 else:
-  globalParameters["Backend"] = "HIP"
+  globalParameters["RuntimeLanguage"] = "HIP"
+  globalParameters["KernelLanguage"] = "HIP"
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
@@ -40,6 +42,7 @@ globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 4
+globalParameters["PinClocks"] = True
 # file heirarchy
 globalParameters["ShortNames"] = False
 globalParameters["MergeFiles"] = True

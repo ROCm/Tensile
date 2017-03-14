@@ -37,7 +37,7 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
-  if globalParameters["Backend"] == "OCL":
+  if globalParameters["RuntimeLanguage"] == "OCL":
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
         globalParameters["WorkingPath"] )
@@ -114,9 +114,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile.write("%s & echo %s & echo # Configuring CMake for Client & echo %s\n" \
       % (echoLine, HR, HR))
   runScriptFile.write("cmake")
-  # backend
-  runScriptFile.write(" -DTensile_BACKEND=%s" \
-      % globalParameters["Backend"])
+  # runtime and kernel language
+  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
+      % globalParameters["RuntimeLanguage"])
+  #runScriptFile.write(" -DTensile_KERNEL_LANGUAGE=%s" \
+  #    % globalParameters["KernelLanguage"])
   if forBenchmark:
     # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
@@ -144,8 +146,13 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     if os.name == "nt":
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
           "client.exe") )
+      runScriptFile.write("\n")
     else:
-      runScriptFile.write("./client")
+      runScriptFile.write("rocm-smi -d 0 --setfan 255 --setsclk 7\n")
+      runScriptFile.write("sleep 1\n")
+      runScriptFile.write("rocm-smi -d 0 -a\n")
+      runScriptFile.write("./client\n")
+      runScriptFile.write("rocm-smi -d 0 --resetclocks\n")
   else:
     executablePath = os.path.join(globalParameters["WorkingPath"])
     if os.name == "nt":
@@ -553,7 +560,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   h += "/* runtime structures */\n"
   h += "TensileStatus status;\n"
-  if globalParameters["Backend"] == "OCL":
+  if globalParameters["RuntimeLanguage"] == "OCL":
     h += "unsigned int platformIdx = %u;\n" \
         % (globalParameters["Platform"])
     h += "unsigned int deviceIdx = %u;\n" \
@@ -669,7 +676,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // call solution function\n"
-    if globalParameters["Backend"] == "OCL":
+    if globalParameters["RuntimeLanguage"] == "OCL":
       h += "  solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
@@ -765,7 +772,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         # function call
         h += "    // call solution function\n"
         h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
-        if globalParameters["Backend"] == "OCL":
+        if globalParameters["RuntimeLanguage"] == "OCL":
           h += "        static_cast<cl_mem>(deviceC),\n"
           h += "        static_cast<cl_mem>(deviceA),\n"
           h += "        static_cast<cl_mem>(deviceB),\n"
