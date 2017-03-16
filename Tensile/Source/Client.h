@@ -579,7 +579,8 @@ void initData(
     std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
+      //(*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
+      (*initialC)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetTypeForInt<DataType>(i); }

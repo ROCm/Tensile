@@ -609,27 +609,36 @@ class Solution:
     else:
       totalElementsCoalescedB = state["DepthU"]
       totalElementsPerpB = state["MacroTile1"]
+
     totalElementsA = totalElementsCoalescedA * totalElementsPerpA
     totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
-    # how many load instructions
-    if totalElementsA % state["NumThreads"] != 0:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("totalElementsA %u %% NumThreads %u != 0" \
-            % (totalElementsA, state["NumThreads"]))
-      state["Valid"] = False
-      return
-    else:
-      state["NumLoadsA"] = totalElementsA / state["NumThreads"]
+    # convert elements to vectors based on VectorWidth
+    totalVectorsCoalescedA = totalElementsCoalescedA / state["VectorWidth"]
+    #totalVectorsPerpA = totalElementsPerpA / state["VectorWidth"]
+    totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
+    #totalVectorsPerpB = totalElementsPerpB / state["VectorWidth"]
+    totalVectorsA = totalElementsA / state["VectorWidth"]
+    totalVectorsB = totalElementsB / state["VectorWidth"]
 
-    if totalElementsB % state["NumThreads"] != 0:
+    # how many load instructions
+    if totalVectorsA % state["NumThreads"] != 0:
       if globalParameters["PrintSolutionRejectionReason"]:
-        print1("totalElementsB %u %% NumThreads %u != 0" \
-            % (totalElementsB, state["NumThreads"]))
+        print1("totalVectorsA %u %% NumThreads %u != 0" \
+            % (totalVectorsA, state["NumThreads"]))
       state["Valid"] = False
       return
     else:
-      state["NumLoadsB"] = totalElementsB / state["NumThreads"]
+      state["NumLoadsA"] = totalVectorsA / state["NumThreads"]
+
+    if totalVectorsB % state["NumThreads"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("totalVectorsB %u %% NumThreads %u != 0" \
+            % (totalVectorsB, state["NumThreads"]))
+      state["Valid"] = False
+      return
+    else:
+      state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
     #print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
 
     # nlca = 1
@@ -638,7 +647,7 @@ class Solution:
       for nlca in range(1, state["NumLoadsA"]+1):
         nlpa = state["NumLoadsA"] / nlca
         if state["NumLoadsA"] % nlca == 0 \
-            and totalElementsCoalescedA % nlca == 0 \
+            and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:
           state["NumLoadsCoalescedA"] = nlca
           state["NumLoadsPerpendicularA"] = nlpa
@@ -656,7 +665,7 @@ class Solution:
       for nlca in range(state["NumLoadsA"], 0, -1):
         nlpa = state["NumLoadsA"] / nlca
         if state["NumLoadsA"] % nlca == 0 \
-            and totalElementsCoalescedA % nlca == 0 \
+            and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:
           state["NumLoadsCoalescedA"] = nlca
           state["NumLoadsPerpendicularA"] = nlpa
@@ -683,10 +692,10 @@ class Solution:
           print1("numLoadsA %u %% numLoadsParaA %u != 0" \
               % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
         state["Valid"] = False
-      if totalElementsCoalescedA % state["NumLoadsCoalescedA"] != 0:
+      if totalVectorsCoalescedA % state["NumLoadsCoalescedA"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("totalElementsCoalescedA %u %% numLoadsParaA %u != 0" \
-              % (totalElementsCoalescedA, state["NumLoadsCoalescedA"]))
+          print1("totalVectorsCoalescedA %u %% numLoadsParaA %u != 0" \
+              % (totalVectorsCoalescedA, state["NumLoadsCoalescedA"]))
         state["Valid"] = False
         return
       if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
@@ -702,7 +711,7 @@ class Solution:
       for nlca in range(1, state["NumLoadsB"]+1):
         nlpa = state["NumLoadsB"] / nlca
         if state["NumLoadsB"] % nlca == 0 \
-            and totalElementsCoalescedB % nlca == 0 \
+            and totalVectorsCoalescedB % nlca == 0 \
             and totalElementsPerpB % nlpa == 0:
           state["NumLoadsCoalescedB"] = nlca
           state["NumLoadsPerpendicularB"] = nlpa
@@ -720,7 +729,7 @@ class Solution:
       for nlca in range(state["NumLoadsB"], 0, -1):
         nlpa = state["NumLoadsB"] / nlca
         if state["NumLoadsB"] % nlca == 0 \
-            and totalElementsCoalescedB % nlca == 0 \
+            and totalVectorsCoalescedB % nlca == 0 \
             and totalElementsPerpB % nlpa == 0:
           state["NumLoadsCoalescedB"] = nlca
           state["NumLoadsPerpendicularB"] = nlpa
@@ -749,10 +758,10 @@ class Solution:
             % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
         state["Valid"] = False
         return
-      if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
+      if totalVectorsCoalescedB % state["NumLoadsCoalescedB"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
-            % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
+          print1("totalVectorsCoalescedB %u %% numLoadsParaB %u != 0" \
+            % (totalVectorsCoalescedB, state["NumLoadsCoalescedB"]))
         state["Valid"] = False
         return
       if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
