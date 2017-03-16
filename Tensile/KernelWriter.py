@@ -452,17 +452,17 @@ class KernelWriter:
 
     kStr += "#define SUMMATION_UNROLL " + self.endLinePP
     for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-      kStr += "  rA[%d] = ldsIterReadA[%d*SG%s]; %s" \
+      kStr += "  rA[%d] = ldsReadIterA[%d*SG%s]; %s" \
           % (a, a, tileChar0, self.endLinePP)
     for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      kStr += "  rB[%d] = ldsIterReadB[%d*SG%s]; %s" \
+      kStr += "  rB[%d] = ldsReadIterB[%d*SG%s]; %s" \
           % (b, b, tileChar1, self.endLinePP)
 
-    if kernel["VectorWidth"] == -1:
+    if kernel["VectorWidth"] == 4:
       kStr += "  printf(\\\"T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[0].s2, rA[0].s3, rB[0].s0, rB[0].s1, rB[0].s2, rB[0].s3); %s" % (self.endLinePP)
-    kStr += "  ldsIterReadA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "  ldsReadIterA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (tileChar0, self.endLinePP)
-    kStr += "  ldsIterReadB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "  ldsReadIterB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (tileChar1, self.endLinePP)
     for b in range(0, kernel["ThreadTile1"]):
       for a in range(0, kernel["ThreadTile0"]):
@@ -736,7 +736,7 @@ class KernelWriter:
           index = kernel["ProblemType"]["IndexAssignmentsB"][i]
           if index < kernel["ProblemType"]["NumIndicesC"]: # c index
             if index == kernel["ProblemType"]["TileB"]: # this index is B's tile index
-              kStr += "(b%s+%u*LVCB)+g%s*MT%s/VECTOR_WIDTH" \
+              kStr += "(b%s+%u*LVCB)+g%s*MT%s" \
                   % (tileCharB, s, tileCharB, tileCharB)
             else: # just a group index
               kStr += "g" + indexChars[index]
@@ -815,6 +815,8 @@ class KernelWriter:
           kStr += "  %sVECTOR_TYPE const *globalReadB_%u_%u = B + globalReadOffsetB_%u_%u;%s" \
               % (self.globalPtrStr, para, perp, para, perp, self.endLine)
 
+    if kernel["VectorWidth"] == 4:
+      kStr += "  printf(\\\"T[%%03u]: GRB=%%u, %%u, %%u, %%u\\\\n\\\", serial, globalReadOffsetB_0_0_s0, globalReadOffsetB_0_0_s1, globalReadOffsetB_0_0_s2, globalReadOffsetB_0_0_s3 );%s" % self.endLine
 
     ####################################
     # LDS Write Addresses
@@ -830,7 +832,6 @@ class KernelWriter:
         % (tileCharA, unrollChar, tileCharA, self.endLine)
     kStr += "  unsigned int ldsWriteOffsetInitialB = b%s + b%s*(MT%s/VECTOR_WIDTH+PAD) + LDS_OFFSET_B/VECTOR_WIDTH;%s" \
         % (tileCharB, unrollChar, tileCharB, self.endLine)
-    kStr += self.endLine
 
     ####################################
     # lds write offsets
@@ -885,20 +886,20 @@ class KernelWriter:
         % (tileChar1, tileChar0, tileChar1, self.endLine)
     kStr += "  %sVECTOR_TYPE *ldsReadA = lds + (l%s + sgId*(MT%s/VECTOR_WIDTH+PAD));%s" \
           % (self.sharedPtrStr, tileChar0, tileChar0, self.endLine)
-    if kernel["VectorWidth"] > 1:
-      kStr += "  %sDATA_TYPE *ldsTmpB = (%sDATA_TYPE *)lds;%s" \
-          % ( self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-      kStr += "  ldsTmpB += LDS_OFFSET_B;%s" % self.endLine
-      kStr += "  ldsTmpB += (l%s + sgId*(MT%s+PAD));%s"\
-            % (tileChar1, tileChar1, self.endLine)
-      kStr += "  %sVECTOR_TYPE *ldsReadB = (%sVECTOR_TYPE *)ldsTmpB;%s"\
-          % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-    else:
-      kStr += "  %sVECTOR_TYPE *ldsReadB = lds + (l%s + sgId*(MT%s/VECTOR_WIDTH+PAD)) + LDS_OFFSET_B/VECTOR_WIDTH;%s"\
-            % (self.sharedPtrStr, tileChar1, tileChar1, self.endLine)
-    kStr += "  %sVECTOR_TYPE *ldsIterReadA = ldsReadA;%s" \
+    #if kernel["VectorWidth"] == -1:
+    #  kStr += "  %sDATA_TYPE *ldsTmpB = (%sDATA_TYPE *)lds;%s" \
+    #      % ( self.sharedPtrStr, self.sharedPtrStr, self.endLine)
+    #  kStr += "  ldsTmpB += LDS_OFFSET_B;%s" % self.endLine
+    #  kStr += "  ldsTmpB += (l%s + sgId*(MT%s+PAD));%s"\
+    #        % (tileChar1, tileChar1, self.endLine)
+    #  kStr += "  %sVECTOR_TYPE *ldsReadB = (%sVECTOR_TYPE *)ldsTmpB;%s"\
+    #      % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
+    #else:
+    kStr += "  %sVECTOR_TYPE *ldsReadB = lds + (l%s + sgId*(MT%s/VECTOR_WIDTH+PAD)) + LDS_OFFSET_B/VECTOR_WIDTH;%s"\
+          % (self.sharedPtrStr, tileChar1, tileChar1, self.endLine)
+    kStr += "  %sVECTOR_TYPE *ldsReadIterA = ldsReadA;%s" \
           % (self.sharedPtrStr, self.endLine)
-    kStr += "  %sVECTOR_TYPE *ldsIterReadB = ldsReadB;%s"\
+    kStr += "  %sVECTOR_TYPE *ldsReadIterB = ldsReadB;%s"\
           % (self.sharedPtrStr, self.endLine)
     kStr += self.endLine
 
@@ -928,9 +929,9 @@ class KernelWriter:
             kStr += "%d*LSCB" % (para)
           kStr += " >= size%s);%s" % (tileCharB, self.endLine )
 
-    ####################################
+    ###########################################################################
     # summations loops
-    ####################################
+    ###########################################################################
     indent = "  "
     kStr += self.endLine
     kStr += "%s/****************************************/%s" \
@@ -1016,16 +1017,16 @@ class KernelWriter:
     # re-init lds read addresses
     kStr += self.endLine
     kStr += "%s/* re-init lds read addresses */%s" % (indent, self.endLine)
-    kStr += "%sldsIterReadA = ldsReadA;%s" \
+    kStr += "%sldsReadIterA = ldsReadA;%s" \
           % (indent, self.endLine)
-    kStr += "%sldsIterReadB = ldsReadB;%s"\
+    kStr += "%sldsReadIterB = ldsReadB;%s"\
           % (indent, self.endLine)
 
     # debug LDS state
     if kernel["VectorWidth"] == -1:
       kStr += "    /* print LDS state */" + self.endLine
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS/VECTOR_WIDTH; i+=NUM_THREADS) {%s" % self.endLine
-      kStr += "      printf(\\\"lds[%%u] = %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1, lds[i].s2, lds[i].s3);%s" % self.endLine
+      kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1, lds[i].s2, lds[i].s3);%s" % self.endLine
       kStr += "    }" + self.endLine
 
 
@@ -1184,9 +1185,9 @@ class KernelWriter:
       # full end loop b/c local full of zeros
       kStr += self.endLine
       kStr += indent + "/* re-init lds read addresses */" + self.endLine
-      kStr += "%sldsIterReadA = ldsReadA;%s" \
+      kStr += "%sldsReadIterA = ldsReadA;%s" \
             % (indent, self.endLine)
-      kStr += "%sldsIterReadB = ldsReadB;%s"\
+      kStr += "%sldsReadIterB = ldsReadB;%s"\
             % (indent, self.endLine)
 
       kStr += self.endLine
