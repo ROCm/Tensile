@@ -458,13 +458,13 @@ class KernelWriter:
       kStr += "  rB[%d] = ldsReadIterB[%d*SG%s]; %s" \
           % (b, b, tileChar1, self.endLinePP)
 
-    if False:
+    if True:
       if kernel["VectorWidth"] == 1:
-        kStr += "  printf(\\\"T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rB[0], rB[1], rB[2], rB[3]); %s" % (self.endLinePP)
+        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLinePP)
       if kernel["VectorWidth"] == 2:
-        kStr += "  printf(\\\"T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[1].s0, rA[1].s1, rB[0].s0, rB[0].s1, rB[1].s0, rB[1].s1); %s" % (self.endLinePP)
+        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[1].s0, rA[1].s1, rA[2].s0, rA[2].s1, rA[3].s0, rA[3].s1, rB[0].s0, rB[0].s1, rB[1].s0, rB[1].s1, rB[2].s0, rB[2].s1, rB[3].s0, rB[3].s1); %s" % (self.endLinePP)
       if kernel["VectorWidth"] == 4:
-        kStr += "  printf(\\\"T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[0].s2, rA[0].s3, rB[0].s0, rB[0].s1, rB[0].s2, rB[0].s3); %s" % (self.endLinePP)
+        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[0].s2, rA[0].s3, rA[1].s0, rA[1].s1, rA[1].s2, rA[1].s3, rB[0].s0, rB[0].s1, rB[0].s2, rB[0].s3, rB[1].s0, rB[1].s1, rB[1].s2, rB[1].s3); %s" % (self.endLinePP)
 
     kStr += "  ldsReadIterA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (tileChar0, self.endLinePP)
@@ -670,7 +670,11 @@ class KernelWriter:
     if not kernel["ProblemType"]["TLUB"]:
       kStr += "serial/LVCB;" + self.endLine
     else:
-      kStr += "serial%LVCB;" + self.endLine
+      #kStr += "serial%LVCB;" + self.endLine
+      kStr += "(serial%%SG%s) + ((serial%%(MT%s/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
+          % (tileCharB, tileCharB, tileCharB, tileCharB, self.endLine)
+      #kStr += "serial%%SG%s + (serial/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
+      #    % (tileCharB, tileCharB, tileCharB, self.endLine)
     kStr += self.endLine
     # summation index assignment a
     kStr += "  unsigned int grA" + unrollChar + " = "
@@ -684,6 +688,8 @@ class KernelWriter:
       kStr += "serial%LVCB;" + self.endLine
     else:
       kStr += "serial/LVCB;" + self.endLine
+      #kStr += "serial/(LVCB/(TT%s/VECTOR_WIDTH));%s" \
+      #    % (tileChar0, self.endLine)
 
     ####################################
     # global read: other free indices
@@ -715,8 +721,6 @@ class KernelWriter:
 
     ####################################
     # global read initial offsets
-# here we need to swizzle data during read, then write coalesced to lds
-# since writing to lds will interrupt all reading from lds and l1 cache can handle our swizzle
     globalReadScalarB = kernel["VectorWidth"] > 1
     kStr += self.endLine
     kStr += "  /* global read initial offsets */" + self.endLine
@@ -772,7 +776,8 @@ class KernelWriter:
 
 
 
-    #kStr += "  printf(\\\"T[%%u] off: = %%llu, %%llu\\\\n\\\", serial, globalOffsetA, globalOffsetB);%s" % self.endLine
+    kStr += "  printf(\\\"GRB1J: T[%%u] %%u\\\\n\\\", serial, grB1J);%s" \
+        % self.endLine
 
     ####################################
     # global read offsets
@@ -1050,11 +1055,15 @@ class KernelWriter:
           % (indent, self.endLine)
 
     # debug LDS state
-    if kernel["VectorWidth"] == 2:
+    if True:
       kStr += "    /* print LDS state */" + self.endLine
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS/VECTOR_WIDTH; i+=NUM_THREADS) {%s" % self.endLine
-      #kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1, lds[i].s2, lds[i].s3);%s" % self.endLine
-      kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1 );%s" % self.endLine
+      if kernel["VectorWidth"] == 4:
+        kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1, lds[i].s2, lds[i].s3);%s" % self.endLine
+      if kernel["VectorWidth"] == 2:
+        kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1 );%s" % self.endLine
+      if kernel["VectorWidth"] == 1:
+        kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, lds[i]);%s" % self.endLine
       kStr += "    }" + self.endLine
 
 
