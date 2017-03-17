@@ -57,6 +57,7 @@ class KernelWriter:
       self.macDStr = "mad"
       self.int64Str = "long"
       self.uint64Str = "unsigned long"
+      self.vectorComponents = ["s0", "s1", "s2", "s3"]
     else:
       self.getGroupIdStr = "hc_get_group_id"
       self.getNumGroupsStr = "hc_get_num_groups"
@@ -71,6 +72,7 @@ class KernelWriter:
       self.macDStr = "fma"
       self.int64Str = "int64_t"
       self.uint64Str = "uint64_t"
+      self.vectorComponents = ["x", "y", "z", "w"]
 
     self.returnOnly = False
 
@@ -122,16 +124,16 @@ class KernelWriter:
     if self.language == "HIP":
       restrictStr = "__restrict__"
     ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
-    if kernel["VectorWidth"] > 1:
-      ptrStr += str(kernel["VectorWidth"])
+    #if kernel["VectorWidth"] > 1:
+    #  ptrStr += str(kernel["VectorWidth"])
     s += "  " + globalStr + ptrStr \
-        + "       *          C,"
+        + " *inputC,"
     s += self.endLine
     s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " A,"
+        + " const * " + restrictStr + " inputA,"
     s += self.endLine
     s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " B"
+        + " const * " + restrictStr + " inputB"
 
     # alpha & beta
     s += "," + self.endLine + "  " \
@@ -462,9 +464,23 @@ class KernelWriter:
       if kernel["VectorWidth"] == 1:
         kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLinePP)
       if kernel["VectorWidth"] == 2:
-        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[1].s0, rA[1].s1, rA[2].s0, rA[2].s1, rA[3].s0, rA[3].s1, rB[0].s0, rB[0].s1, rB[1].s0, rB[1].s1, rB[2].s0, rB[2].s1, rB[3].s0, rB[3].s1); %s" % (self.endLinePP)
+        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].%s, rA[0].%s, rA[1].%s, rA[1].%s, rA[2].%s, rA[2].%s, rA[3].%s, rA[3].%s, rB[0].%s, rB[0].%s, rB[1].%s, rB[1].%s, rB[2].%s, rB[2].%s, rB[3].%s, rB[3].%s); %s" % ( \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.vectorComponents[0], self.vectorComponents[1], \
+            self.endLinePP)
       if kernel["VectorWidth"] == 4:
-        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].s0, rA[0].s1, rA[0].s2, rA[0].s3, rA[1].s0, rA[1].s1, rA[1].s2, rA[1].s3, rB[0].s0, rB[0].s1, rB[0].s2, rB[0].s3, rB[1].s0, rB[1].s1, rB[1].s2, rB[1].s3); %s" % (self.endLinePP)
+        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].%s, rA[0].%s, rA[0].%s, rA[0].%s, rA[1].%s, rA[1].%s, rA[1].%s, rA[1].%s, rB[0].%s, rB[0].%s, rB[0].%s, rB[0].%s, rB[1].%s, rB[1].%s, rB[1].%s, rB[1].%s); %s" % ( \
+            self.vectorComponents[0], self.vectorComponents[1], self.vectorComponents[2], self.vectorComponents[2], \
+            self.vectorComponents[0], self.vectorComponents[1], self.vectorComponents[2], self.vectorComponents[2], \
+            self.vectorComponents[0], self.vectorComponents[1], self.vectorComponents[2], self.vectorComponents[2], \
+            self.vectorComponents[0], self.vectorComponents[1], self.vectorComponents[2], self.vectorComponents[2], \
+            self.endLinePP)
 
     kStr += "  ldsReadIterA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (tileChar0, self.endLinePP)
@@ -477,27 +493,25 @@ class KernelWriter:
         elemA = a % kernel["VectorWidth"]
         strA = "rA[%d]" % vecA
         if kernel["VectorWidth"] > 1:
-          strA += ".s%d" % elemA
+          strA += ".%s" % self.vectorComponents[elemA]
         # b
         vecB = b / kernel["VectorWidth"]
         elemB = b % kernel["VectorWidth"]
         strB = "rB[%d]" % vecB
         if kernel["VectorWidth"] > 1:
-          strB += ".s%d" % elemB
+          strB += ".%s" % self.vectorComponents[elemB]
         # c
         #strC = "rC[(%d+TT%s*%d)/VECTOR_WIDTH]" % (a, tileChar0, b)
         strC = "rC[(%d+%d*TT%s/VECTOR_WIDTH)]" % (vecA, b, tileChar0)
         elemC = elemA
         if kernel["VectorWidth"] > 1:
-          strC += ".s%d" % elemA
+          strC += ".%s" % self.vectorComponents[elemA]
 
         #kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
 
         kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
 
         #kStr += "  TYPE_MAC(rA[%d],rB[%d],rC[%d+TT%s*%d]); %s" % (a, b, a, tileChar0, b, self.endLinePP)
-    if kernel["VectorWidth"] == -1:
-      kStr += "  printf(\\\"T[%%02u]: rC[1]: %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rC[1].s0, rC[1].s1, rC[1].s2, rC[1].s3); %s" % (self.endLinePP)
     kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
 
@@ -547,9 +561,15 @@ class KernelWriter:
     # apply offsets
     kStr += self.endLine
     kStr += "  /* apply offsets */" + self.endLine
-    kStr += ("  C += offsetC;" + self.endLine +
-        "  A += offsetA;" + self.endLine +
-        "  B += offsetB;" + self.endLine )
+    kStr += "  %sVECTOR_TYPE *C = (%sVECTOR_TYPE *)(inputC + offsetC);%s" \
+            % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
+    kStr += "  %sVECTOR_TYPE *A = (%sVECTOR_TYPE *)(inputA + offsetA);%s" \
+            % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
+    kStr += "  %sVECTOR_TYPE *B = (%sVECTOR_TYPE *)(inputB + offsetB);%s" \
+            % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
+    #kStr += ("  C += offsetC;" + self.endLine +
+    #    "  A += offsetA;" + self.endLine +
+    #    "  B += offsetB;" + self.endLine )
 
     kStr += self.endLine
     kStr += "  /***************************************/" + self.endLine
@@ -910,24 +930,15 @@ class KernelWriter:
     ####################################
     kStr += self.endLine
     kStr += "  /***************************************/" + self.endLine
-    kStr += "  /* LDS Read Addresses                 */" + self.endLine
+    kStr += "  /* LDS Read Addresses                  */" + self.endLine
     kStr += "  /***************************************/" + self.endLine
-    kStr += "  unsigned int l%s = (serial %% SG%s);%s" \
+    kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
         % (tileChar0, tileChar0, self.endLine)
-    kStr += "  unsigned int l%s = (serial / SG%s) %% SG%s;%s" \
+    kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
         % (tileChar1, tileChar0, tileChar1, self.endLine)
-    kStr += "  %sVECTOR_TYPE *ldsReadA = lds + (l%s + sgId*(MT%s/VECTOR_WIDTH+PAD));%s" \
+    kStr += "  %sVECTOR_TYPE *ldsReadA = lds + (lr%s + sgId*(MT%s/VECTOR_WIDTH+PAD));%s" \
           % (self.sharedPtrStr, tileChar0, tileChar0, self.endLine)
-    #if kernel["VectorWidth"] == -1:
-    #  kStr += "  %sDATA_TYPE *ldsTmpB = (%sDATA_TYPE *)lds;%s" \
-    #      % ( self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-    #  kStr += "  ldsTmpB += LDS_OFFSET_B;%s" % self.endLine
-    #  kStr += "  ldsTmpB += (l%s + sgId*(MT%s+PAD));%s"\
-    #        % (tileChar1, tileChar1, self.endLine)
-    #  kStr += "  %sVECTOR_TYPE *ldsReadB = (%sVECTOR_TYPE *)ldsTmpB;%s"\
-    #      % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-    #else:
-    kStr += "  %sVECTOR_TYPE *ldsReadB = lds + (l%s + sgId*(MT%s/VECTOR_WIDTH+PAD)) + LDS_OFFSET_B/VECTOR_WIDTH;%s"\
+    kStr += "  %sVECTOR_TYPE *ldsReadB = lds + (lr%s + sgId*(MT%s/VECTOR_WIDTH+PAD)) + LDS_OFFSET_B/VECTOR_WIDTH;%s"\
           % (self.sharedPtrStr, tileChar1, tileChar1, self.endLine)
     kStr += "  %sVECTOR_TYPE *ldsReadIterA = ldsReadA;%s" \
           % (self.sharedPtrStr, self.endLine)
@@ -1006,7 +1017,8 @@ class KernelWriter:
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         if globalReadScalarB:
           for s in range(0, kernel["VectorWidth"]):
-            kStr += "%sb_%u_%u.s%u = " % (indent, para, perp, s)
+            #kStr += "%sb_%u_%u.s%u = " % (indent, para, perp, s)
+            kStr += "%sb_%u_%u.%s = " % (indent, para, perp, self.vectorComponents[s])
             if kernel["EdgeType"] == "Branch":
               kStr += "( condB_%s_%s )" % ( str(para), str(perp) )
               kStr += " ? %s : " \
@@ -1055,7 +1067,7 @@ class KernelWriter:
           % (indent, self.endLine)
 
     # debug LDS state
-    if True:
+    if False:
       kStr += "    /* print LDS state */" + self.endLine
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS/VECTOR_WIDTH; i+=NUM_THREADS) {%s" % self.endLine
       if kernel["VectorWidth"] == 4:
@@ -1155,7 +1167,8 @@ class KernelWriter:
           if globalReadScalarB:
             for s in range(0, kernel["VectorWidth"]):
               kStr += indent
-              kStr += "b_%u_%u.s%u = " % (para, perp, s)
+              #kStr += "b_%u_%u.s%u = " % (para, perp, s)
+              kStr += "%sb_%u_%u.%s = " % (indent, para, perp, self.vectorComponents[s])
               # guard around k
               kStr += "( grB%s + " % (unrollChar)
               if kernel["ProblemType"]["TLUB"]:
