@@ -458,7 +458,7 @@ class KernelWriter:
       kStr += "  rB[%d] = ldsReadIterB[%d*SG%s]; %s" \
           % (b, b, tileChar1, self.endLinePP)
 
-    if True:
+    if False:
       if kernel["VectorWidth"] == 1:
         kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLinePP)
       if kernel["VectorWidth"] == 2:
@@ -776,8 +776,8 @@ class KernelWriter:
 
 
 
-    kStr += "  printf(\\\"GRB1J: T[%%u] %%u\\\\n\\\", serial, grB1J);%s" \
-        % self.endLine
+    #kStr += "  printf(\\\"GRB1J: T[%%u] %%u\\\\n\\\", serial, grB1J);%s" \
+    #    % self.endLine
 
     ####################################
     # global read offsets
@@ -1055,7 +1055,7 @@ class KernelWriter:
           % (indent, self.endLine)
 
     # debug LDS state
-    if True:
+    if False:
       kStr += "    /* print LDS state */" + self.endLine
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS/VECTOR_WIDTH; i+=NUM_THREADS) {%s" % self.endLine
       if kernel["VectorWidth"] == 4:
@@ -1098,7 +1098,7 @@ class KernelWriter:
         for para in range(0, kernel["NumLoadsCoalescedB"]):
           if globalReadScalarB:
             for s in range(0, kernel["VectorWidth"]):
-              kStr += "%sglobalReadB_%u_%u_s%u += (%s)strideB%s*DEPTHU/VECTOR_WIDTH;%s"\
+              kStr += "%sglobalReadB_%u_%u_s%u += (%s)strideB%s*DEPTHU;%s"\
                   % (indent, para, perp, s, self.uint64Str, loopChar, self.endLine)
           else:
             kStr += "%sglobalReadB_%u_%u += (%s)strideB%s*DEPTHU/VECTOR_WIDTH;%s"\
