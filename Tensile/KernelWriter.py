@@ -670,11 +670,11 @@ class KernelWriter:
     if not kernel["ProblemType"]["TLUB"]:
       kStr += "serial/LVCB;" + self.endLine
     else:
-      #kStr += "serial%LVCB;" + self.endLine
-      kStr += "(serial%%SG%s) + ((serial%%(MT%s/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
-          % (tileCharB, tileCharB, tileCharB, tileCharB, self.endLine)
-      #kStr += "serial%%SG%s + (serial/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
-      #    % (tileCharB, tileCharB, tileCharB, self.endLine)
+      # worked for nlcb=1
+      #kStr += "(serial%%SG%s) + ((serial%%(MT%s/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
+      #    % (tileCharB, tileCharB, tileCharB, tileCharB, self.endLine)
+      kStr += "(serial%%SG%s) + ((serial%%(NLCB/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
+          % (tileCharB, tileCharB, tileCharB, self.endLine)
     kStr += self.endLine
     # summation index assignment a
     kStr += "  unsigned int grA" + unrollChar + " = "
@@ -795,7 +795,7 @@ class KernelWriter:
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         if globalReadScalarB:
           for s in range(0, kernel["VectorWidth"]):
-            kStr += "  %s globalReadOffsetB_%u_%u_s%u = globalReadOffsetInitialB_s%u + %d*LVCB*strideB%s + %d*LSPB*strideB%s;%s" \
+            kStr += "  %s globalReadOffsetB_%u_%u_s%u = globalReadOffsetInitialB_s%u + %d*LSCB*strideB%s + %d*LSPB*strideB%s;%s" \
                 % (self.uint64Str, para, perp, s, s, para, \
                 unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB,\
                 perp, \
@@ -1055,7 +1055,7 @@ class KernelWriter:
           % (indent, self.endLine)
 
     # debug LDS state
-    if False:
+    if True:
       kStr += "    /* print LDS state */" + self.endLine
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS/VECTOR_WIDTH; i+=NUM_THREADS) {%s" % self.endLine
       if kernel["VectorWidth"] == 4:
