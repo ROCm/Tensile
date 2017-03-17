@@ -576,6 +576,17 @@ class Solution:
     # VectorWidth
     if state["VectorWidth"] < 1:
       state["VectorWidth"] = 4 / state["ProblemType"]["DataType"].numRegisters()
+      while state["ThreadTile0"] % state["VectorWidth"] != 0 \
+          or state["ThreadTile1"] % state["VectorWidth"] != 0:
+        state["VectorWidth"] /= 2
+    # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
+    if state["ThreadTile0"] % state["VectorWidth"] != 0 \
+        or state["ThreadTile1"] % state["VectorWidth"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
+            % (state["ThreadTile0"], state["ThreadTile1"], \
+            state["VectorWidth"]))
+      state["Valid"] = False
 
     # SplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
