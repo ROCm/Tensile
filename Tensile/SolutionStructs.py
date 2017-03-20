@@ -783,7 +783,7 @@ class Solution:
         return
 
     # lds buffer size for A, B
-    ldsAlign = 256 / state["ProblemType"]["DataType"].numRegisters()
+    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign

@@ -690,10 +690,11 @@ class KernelWriter:
     if not kernel["ProblemType"]["TLUB"]:
       kStr += "serial/LVCB;" + self.endLine
     else:
-      # worked for nlcb=1
+      # nlcb=1
       #kStr += "(serial%%SG%s) + ((serial%%(MT%s/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
       #    % (tileCharB, tileCharB, tileCharB, tileCharB, self.endLine)
-      kStr += "(serial%%SG%s) + ((serial%%(NLCB/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
+      # nlcb=1 fails many nlcb>1
+      kStr += "(serial%%SG%s) + ((serial%%LVCB)/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
           % (tileCharB, tileCharB, tileCharB, self.endLine)
     kStr += self.endLine
     # summation index assignment a
@@ -815,6 +816,9 @@ class KernelWriter:
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         if globalReadScalarB:
           for s in range(0, kernel["VectorWidth"]):
+            # nlcb=1
+            #kStr += "  %s globalReadOffsetB_%u_%u_s%u = globalReadOffsetInitialB_s%u + %d*LVCB*strideB%s + %d*LSPB*strideB%s;%s" \
+            # nlcb>=1
             kStr += "  %s globalReadOffsetB_%u_%u_s%u = globalReadOffsetInitialB_s%u + %d*LSCB*strideB%s + %d*LSPB*strideB%s;%s" \
                 % (self.uint64Str, para, perp, s, s, para, \
                 unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB,\
@@ -824,7 +828,10 @@ class KernelWriter:
             #kStr += "  printf(\\\"T[%%03u]: globalReadOffsetB_%u_%u_s%u: %%u\\\\n\\\", serial, globalReadOffsetB_%u_%u_s%u);%s" % (para, perp, s, para, perp, s, self.endLine)
 
         else:
-          kStr += "  %s globalReadOffsetB_%u_%u = globalReadOffsetInitialB + %d*LVCB*strideB%s + %d*LSPB*strideB%s;%s" \
+          # nlcb=1
+          #kStr += "  %s globalReadOffsetB_%u_%u = globalReadOffsetInitialB + %d*LVCB*strideB%s + %d*LSPB*strideB%s;%s" \
+          # nlcb>=1
+          kStr += "  %s globalReadOffsetB_%u_%u = globalReadOffsetInitialB + %d*LSCB*strideB%s + %d*LSPB*strideB%s;%s" \
               % (self.uint64Str, para, perp, para, \
               unrollChar if not kernel["ProblemType"]["TLUB"] else tileCharB, \
               perp, \
