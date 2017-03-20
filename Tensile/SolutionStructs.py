@@ -783,6 +783,16 @@ class Solution:
         state["Valid"] = False
         return
 
+    # Vector Width & NLCB
+    if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+        > state["ThreadTile1"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("NLCB %u * VW %u > TT1 %u" \
+          % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+          state["ThreadTile1"]))
+      state["Valid"] = False
+      return
+
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])

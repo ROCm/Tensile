@@ -801,7 +801,7 @@ class KernelWriter:
     #    % self.endLine
 
     ####################################
-    # global read offsets
+    # global read offsets a
     kStr += self.endLine
     kStr += "  /* global read offsets */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
@@ -812,6 +812,8 @@ class KernelWriter:
             perp, unrollChar if kernel["ProblemType"]["TLUA"] else tileCharA, \
             self.endLine)
         #kStr += "  printf(\\\"T[%%03u]: globalReadOffsetA_%u_%u: %%u\\\\n\\\", serial, globalReadOffsetA_%u_%u);%s" % (para, perp, para, perp, self.endLine)
+    ####################################
+    # global read offsets b
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         if globalReadScalarB:
@@ -1146,8 +1148,7 @@ class KernelWriter:
       kStr += "%s/* global read */%s" % (indent, self.endLine)
       for perp in range(0, kernel["NumLoadsPerpendicularA"]):
         for para in range(0, kernel["NumLoadsCoalescedA"]):
-          kStr += indent
-          kStr += "a_%u_%u = " % (para, perp)
+          kStr += "%sa_%u_%u = " % (indent, para, perp)
           # guard around K
           kStr += "( grA%s + " % (unrollChar)
           if kernel["ProblemType"]["TLUA"]:
@@ -1173,7 +1174,6 @@ class KernelWriter:
         for para in range(0, kernel["NumLoadsCoalescedB"]):
           if globalReadScalarB:
             for s in range(0, kernel["VectorWidth"]):
-              kStr += indent
               #kStr += "b_%u_%u.s%u = " % (para, perp, s)
               kStr += "%sb_%u_%u.%s = " % (indent, para, perp, self.vectorComponents[s])
               # guard around k
