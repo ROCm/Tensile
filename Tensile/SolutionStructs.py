@@ -599,12 +599,13 @@ class Solution:
       return
 
     # SplitU but can't NumThreads%MacroTile doesn't support sideways load
-    if state["NumThreads"] % state["MacroTile0"] != 0:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("SplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
-            % (state["NumThreads"], state["MacroTile0"]))
-      state["Valid"] = False
-      return
+    if state["SplitU"] > 1:
+      if state["NumThreads"] % state["MacroTile0"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("SplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
+              % (state["NumThreads"], state["MacroTile0"]))
+        state["Valid"] = False
+        return
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
