@@ -293,8 +293,8 @@ class ProblemType:
     state["TLUA"] = strideIdxA < unrollIdxA
     state["TLUB"] = strideIdxB < unrollIdxB
 
-    #unrollDimStrideGreaterThanTileDimStrideA = TLUA
-    #unrollDimStrideLessThanTileDimStrideB    = !TLUB
+    #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
+    #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
 
 
