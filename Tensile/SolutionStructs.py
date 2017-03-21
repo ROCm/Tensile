@@ -784,14 +784,20 @@ class Solution:
         return
 
     # Vector Width & NLCB
-    if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
-        > state["ThreadTile1"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("NLCB %u * VW %u > TT1 %u" \
-          % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
-          state["ThreadTile1"]))
-      state["Valid"] = False
-      return
+    # only filteres out extreme cases (such as wg=4x16, tt=8x2) which
+    # don't support complicated VW grB indexing and they happen to
+    # be sollutions which should never be fastest b/c work-group and
+    # thread tile are of opposite shape - DT
+    if state["VectorWidth"] > 1:
+      if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+          > state["ThreadTile1"]:
+        #  < state["ThreadTile1"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NLCB %u * VW %u > TT1 %u" \
+            % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+            state["ThreadTile1"]))
+        state["Valid"] = False
+        return
 
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()

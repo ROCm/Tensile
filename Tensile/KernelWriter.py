@@ -690,12 +690,12 @@ class KernelWriter:
     if not kernel["ProblemType"]["TLUB"]:
       kStr += "serial/LVCB;" + self.endLine
     else:
-      # nlcb=1
-      #kStr += "(serial%%SG%s) + ((serial%%(MT%s/VECTOR_WIDTH))/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
-      #    % (tileCharB, tileCharB, tileCharB, tileCharB, self.endLine)
-      # nlcb=1 fails many nlcb>1
-      kStr += "(serial%%SG%s) + ((serial%%LVCB)/SG%s)*(SG%s*VECTOR_WIDTH);%s" \
-          % (tileCharB, tileCharB, tileCharB, self.endLine)
+      # VW>1 grB1 indexing
+      if kernel["VectorWidth"] > 1:
+        kStr += "(serial%%SG%s) + ((serial%%LVCB)/SG%s)*(SG%s*VECTOR_WIDTH);%s"\
+            % (tileCharB, tileCharB, tileCharB, self.endLine)
+      else: # VW=1 traditional / faster indexing
+        kStr += "(serial%%LVCB);%s" % (self.endLine)
     kStr += self.endLine
     # summation index assignment a
     kStr += "  unsigned int grA" + unrollChar + " = "
@@ -709,8 +709,6 @@ class KernelWriter:
       kStr += "serial%LVCB;" + self.endLine
     else:
       kStr += "serial/LVCB;" + self.endLine
-      #kStr += "serial/(LVCB/(TT%s/VECTOR_WIDTH));%s" \
-      #    % (tileChar0, self.endLine)
 
     ####################################
     # global read: other free indices
