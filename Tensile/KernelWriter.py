@@ -1285,39 +1285,45 @@ class KernelWriter:
 
     ####################################
     # end loop
-    if kernel["ProblemType"]["NumIndicesSummation"] > 1:
-      for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
-        loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
+    for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
+      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
 
-        kStr += "%s/* increment global read addresses */%s" % (indent, self.endLine)
-        ####################################
-        # global read addresses a
-        for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-          for para in range(0, kernel["NumLoadsCoalescedA"]):
-            kStr += "%sglobalReadA_%u_%u += ((%s) strideA%s" \
-                % (indent, para, perp, self.int64Str, loopChar)
+      kStr += "%s/* increment global read addresses */%s" % (indent, self.endLine)
+      ####################################
+      # global read addresses a
+      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
+          kStr += "%sglobalReadA_%u_%u += ((%s) strideA%s" \
+              % (indent, para, perp, self.int64Str, loopChar)
+          if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
+            kStr += "*DEPTHU"
+          else:
+            for j in range(i+1, \
+                min(i+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
+              tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
+              kStr += " - strideA" + tmpChar + "*size" + tmpChar
+          kStr += ")/VECTOR_WIDTH;" + self.endLine
+
+      ####################################
+      # global read addresses b
+      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
+          for s in range(0, kernel["VectorWidth"]):
+            kStr += "%sglobalReadB_%u_%u%s += (%s) strideB%s" \
+                % (indent, para, perp, \
+                (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), \
+                self.int64Str, loopChar)
             if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
               kStr += "*DEPTHU"
             else:
-              for j in range(i+1, \
-                  min(i+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
-                tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
-                kStr += " - strideA" + tmpChar + "*size" + tmpChar
-            kStr += ")/VECTOR_WIDTH;" + self.endLine
-
-        ####################################
-        # global read addresses b
-        for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-          for para in range(0, kernel["NumLoadsCoalescedB"]):
-            kStr += "%sglobalReadB_%u_%u += ((%s) strideB%s" \
-                % (indent, parap, perp, self.int64Str, loopChar)
-            if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
-              kStr += "*DEPTHU"
-            else:
-              for j in range(i+1,min(i+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-                tmpChar = indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
+              for j in range(i+1,min(i+2, \
+                  kernel["ProblemType"]["NumIndicesSummation"]) ):
+                tmpChar = \
+                    indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
                 kStr += " - strideB" + tmpChar + "*size" + tmpChar
-            kStr += ")/VECTOR_WIDTH;" + self.endLine
+            kStr += ";" + self.endLine
+
+
 
     ########################################
     # close loop
