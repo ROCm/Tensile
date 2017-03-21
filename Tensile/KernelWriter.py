@@ -625,9 +625,9 @@ class KernelWriter:
     kStr += self.endLine
     kStr += "  /* work-group mapping */" + self.endLine
     if kernel["WorkGroupMapping"] == 1:
-      kStr += "  unsigned int g" + tileChar0 + " = " \
+      kStr += "  unsigned int wg" + tileChar0 + " = " \
           + self.getGroupIdStr + "(0);" + self.endLine
-      kStr += "  unsigned int g" + tileChar1 + " = " \
+      kStr += "  unsigned int wg" + tileChar1 + " = " \
           + self.getGroupIdStr + "(1);" + self.endLine
     else:
       dimCoal = (0 if kernel["WorkGroupMapping"] > 0 else 1)
@@ -635,7 +635,7 @@ class KernelWriter:
 
       # work-group free indices
       kStr += self.endLine
-      kStr += "  unsigned int g%s, g%s;%s" % (tileChar0, tileChar1, self.endLine)
+      kStr += "  unsigned int wg%s, wg%s;%s" % (tileChar0, tileChar1, self.endLine)
       kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
           % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
           self.getNumGroupsStr, self.endLine)
@@ -650,19 +650,19 @@ class KernelWriter:
       # if not in last super group
       kStr += "  if ( groupSerial < numWorkGroupsBeforeLastSuperGroup) {%s" \
               % (self.endLine)
-      kStr += "    g%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
+      kStr += "    wg%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
           % ((tileChar0 if kernel["WorkGroupMapping"] > 0 else tileChar1), \
           self.getNumGroupsStr, dimCoal, self.endLine)
-      kStr += "    g%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% WORK_GROUP_MAPPING;%s" \
+      kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% WORK_GROUP_MAPPING;%s" \
           % ((tileChar1 if kernel["WorkGroupMapping"] > 0 else tileChar0), \
           self.endLine)
 
       # if in last super group
       kStr += "  } else {%s" % self.endLine
-      kStr += "    g%s = (groupSerial-numWorkGroupsBeforeLastSuperGroup)/lastSuperGroupWidth;%s" \
+      kStr += "    wg%s = (groupSerial-numWorkGroupsBeforeLastSuperGroup)/lastSuperGroupWidth;%s" \
           % ((tileChar0 if kernel["WorkGroupMapping"] > 0 else tileChar1), \
           self.endLine)
-      kStr += "    g%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
+      kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
           % ((tileChar1 if kernel["WorkGroupMapping"] > 0 else tileChar0), \
           self.endLine)
 
@@ -737,7 +737,6 @@ class KernelWriter:
         kStr += "#define grA" + indexChars[index] + " 0" + self.endLine
         kStr += "#define grB" + indexChars[index] + " 0" + self.endLine
 
-
     ####################################
     # global read initial offsets
     globalReadScalarB = kernel["VectorWidth"] > 1
@@ -749,7 +748,7 @@ class KernelWriter:
       index = kernel["ProblemType"]["IndexAssignmentsA"][i]
       if index < kernel["ProblemType"]["NumIndicesC"]:
         if index == kernel["ProblemType"]["TileA"]:
-          kStr += "grA%s+g%s*MT%s/VECTOR_WIDTH" \
+          kStr += "grA%s+wg%s*MT%s/VECTOR_WIDTH" \
               % (tileCharA, tileCharA, tileCharA)
         else: # just a group index
           kStr += "g" + indexChars[index]
@@ -767,7 +766,7 @@ class KernelWriter:
           index = kernel["ProblemType"]["IndexAssignmentsB"][i]
           if index < kernel["ProblemType"]["NumIndicesC"]: # c index
             if index == kernel["ProblemType"]["TileB"]: # this index is B's tile index
-              kStr += "(grB%s+%u*SG%s)+g%s*MT%s" \
+              kStr += "(grB%s+%u*SG%s)+wg%s*MT%s" \
                   % (tileCharB, s, tileCharB, tileCharB, tileCharB)
             else: # just a group index
               kStr += "g" + indexChars[index]
@@ -783,7 +782,7 @@ class KernelWriter:
         index = kernel["ProblemType"]["IndexAssignmentsB"][i]
         if index < kernel["ProblemType"]["NumIndicesC"]: # c index
           if index == kernel["ProblemType"]["TileB"]: # this index is B's tile index
-            kStr += "grB%s+g%s*MT%s/VECTOR_WIDTH" % (tileCharB, tileCharB, tileCharB)
+            kStr += "grB%s+wg%s*MT%s/VECTOR_WIDTH" % (tileCharB, tileCharB, tileCharB)
           else: # just a group index
             kStr += "g" + indexChars[index]
         else: # summation index
@@ -792,11 +791,6 @@ class KernelWriter:
           kStr += ", (" + self.uint64Str + ")"
       kStr += " );" + self.endLine
 
-
-
-
-    #kStr += "  printf(\\\"GRB1J: T[%%u] %%u\\\\n\\\", serial, grB1J);%s" \
-    #    % self.endLine
 
     ####################################
     # global read offsets a
@@ -961,7 +955,7 @@ class KernelWriter:
       for perp in range(0, kernel["NumLoadsPerpendicularA"]):
         for para in range(0, kernel["NumLoadsCoalescedA"]):
           kStr += "  bool condA_" + str(para) + "_" + str(perp) + " = "
-          kStr += "( a%s+g%s*MT%s+" % ( tileCharA, tileCharA, tileCharA)
+          kStr += "( grA%s+wg%s*MT%s+" % ( tileCharA, tileCharA, tileCharA)
           if not kernel["ProblemType"]["TLUA"]:
             kStr += "%d*LSPA" % (perp)
           else:
@@ -972,7 +966,7 @@ class KernelWriter:
       for perp in range(0, kernel["NumLoadsPerpendicularB"]):
         for para in range(0, kernel["NumLoadsCoalescedB"]):
           kStr += "  bool condB_" + str(para) + "_" + str(perp) + " = "
-          kStr += "( b%s+g%s*MT%s+" % ( tileCharB, tileCharB, tileCharB)
+          kStr += "( grB%s+wg%s*MT%s+" % ( tileCharB, tileCharB, tileCharB)
           if not kernel["ProblemType"]["TLUB"]:
             kStr += "%d*LSPB" % (perp)
           else:
@@ -1156,7 +1150,7 @@ class KernelWriter:
           # guard around branch
           if kernel["EdgeType"] == "Branch":
             kStr += " || "
-            kStr += "( grA%s+g%s*MT%s+" % ( tileCharA, tileCharA, tileCharA)
+            kStr += "( grA%s+wg%s*MT%s+" % ( tileCharA, tileCharA, tileCharA)
             if not kernel["ProblemType"]["TLUA"]:
               kStr += "%d*LSPA" % (perp)
             else:
@@ -1183,7 +1177,7 @@ class KernelWriter:
               # guard branch
               if kernel["EdgeType"] == "Branch":
                 kStr += " || "
-                kStr += "( grB%s+g%s*MT%s+" % ( tileCharB, tileCharB, tileCharB)
+                kStr += "( grB%s+wg%s*MT%s+" % ( tileCharB, tileCharB, tileCharB)
                 if not kernel["ProblemType"]["TLUB"]:
                   kStr += "%d*LSPB" % (perp)
                 else:
@@ -1205,7 +1199,7 @@ class KernelWriter:
             # guard branch
             if kernel["EdgeType"] == "Branch":
               kStr += " || "
-              kStr += "( grB%s+g%s*MT%s+" % ( tileCharB, tileCharB, tileCharB)
+              kStr += "( grB%s+wg%s*MT%s+" % ( tileCharB, tileCharB, tileCharB)
               if not kernel["ProblemType"]["TLUB"]:
                 kStr += "%d*LSPB" % (perp)
               else:
