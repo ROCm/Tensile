@@ -567,9 +567,6 @@ class KernelWriter:
             % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
     kStr += "  %sVECTOR_TYPE *B = (%sVECTOR_TYPE *)(inputB + offsetB);%s" \
             % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
-    #kStr += ("  C += offsetC;" + self.endLine +
-    #    "  A += offsetA;" + self.endLine +
-    #    "  B += offsetB;" + self.endLine )
 
     kStr += self.endLine
     kStr += "  /***************************************/" + self.endLine
@@ -1144,13 +1141,11 @@ class KernelWriter:
       # increment global read addresses b
       for perp in range(0, kernel["NumLoadsPerpendicularB"]):
         for para in range(0, kernel["NumLoadsCoalescedB"]):
-          if globalReadScalarB:
-            for s in range(0, kernel["VectorWidth"]):
-              kStr += "%sglobalReadB_%u_%u_s%u += (%s)strideB%s*DEPTHU;%s"\
-                  % (indent, para, perp, s, self.uint64Str, loopChar, self.endLine)
-          else:
-            kStr += "%sglobalReadB_%u_%u += (%s)strideB%s*DEPTHU/VECTOR_WIDTH;%s"\
-                % (indent, para, perp, self.uint64Str, loopChar, self.endLine)
+          for s in range(0, kernel["VectorWidth"]):
+            kStr += "%sglobalReadB_%u_%u%s += (%s)strideB%s*DEPTHU;%s"\
+                % (indent, para, perp, \
+                (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), \
+                self.uint64Str, loopChar, self.endLine)
 
       indent = indent[2:]
       # close unrolled loop
@@ -1177,16 +1172,15 @@ class KernelWriter:
         for para in range(0, kernel["NumLoadsCoalescedA"]):
           kStr += "%sa_%u_%u = " % (indent, para, perp)
           # guard around K
-          kStr += "( globalReadOffsetA%s + " % (unrollChar)
-          if kernel["ProblemType"]["TLUA"]:
-            kStr += "%d*LSPA >= (size%s %% DEPTHU) )" % (perp, unrollChar)
-          else:
-            kStr += "%d*LSCA >= (size%s %% DEPTHU) )" % (para, unrollChar)
-          # guard around branch
+          kStr += "( globalReadOffsetA%s_%u >= (size%s %% DEPTHU) )" \
+              % (unrollChar, (perp if kernel["ProblemType"]["TLUA"] else para),\
+              unrollChar)
+          # guard around edge
           if kernel["EdgeType"] == "Branch":
             kStr += " || "
             kStr += "( condA_%u_%u )" % ( para, perp )
-          kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.language)
+          kStr += " ? %s : " % \
+              kernel["ProblemType"]["DataType"].zeroString(self.language)
           kStr += "*globalReadA_%u_%u;%s" % (para, perp, self.endLine)
 
       ####################################
@@ -1194,25 +1188,24 @@ class KernelWriter:
       ####################################
       for perp in range(0, kernel["NumLoadsPerpendicularB"]):
         for para in range(0, kernel["NumLoadsCoalescedB"]):
-          if globalReadScalarB:
-            for s in range(0, kernel["VectorWidth"]):
-              #kStr += "b_%u_%u.s%u = " % (para, perp, s)
-              kStr += "%sb_%u_%u.%s = " % (indent, para, perp, self.vectorComponents[s])
-              # guard around k
-              kStr += "( globalReadOffsetB%s + " % (unrollChar)
-              if kernel["ProblemType"]["TLUB"]:
-                kStr += "%d*LSPB >= (size%s %% DEPTHU) )" % (perp, unrollChar)
-              else:
-                kStr += "%d*LSCB >= (size%s %% DEPTHU) )" % (para, unrollChar)
-              # guard branch
-              if kernel["EdgeType"] == "Branch":
-                kStr += " || "
-                kStr += "( condB_%u_%u%s )" % ( para, perp, \
-                    (("_s%u"%s) if kernel["VectorWidth"]>1 else "") )
-              kStr += " ? %s : " % kernel["ProblemType"]["DataType"].zeroString(self.language)
-              kStr += "*globalReadB_%u_%u%s;%s" \
-                  % (para, perp, \
-                  (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), self.endLine)
+          for s in range(0, kernel["VectorWidth"]):
+            kStr += "%sb_%u_%u%s = " % (indent, para, perp, \
+                ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
+                else "") )
+            # guard around k
+            kStr += "( globalReadOffsetB%s_%u >= (size%s %% DEPTHU) )" \
+                % (unrollChar, \
+                (perp if kernel["ProblemType"]["TLUB"] else para), unrollChar )
+            # guard around edge
+            if kernel["EdgeType"] == "Branch":
+              kStr += " || "
+              kStr += "( condB_%u_%u%s )" % ( para, perp, \
+                  (("_s%u"%s) if kernel["VectorWidth"]>1 else "") )
+            kStr += " ? %s : " % \
+                kernel["ProblemType"]["DataType"].zeroString(self.language)
+            kStr += "*globalReadB_%u_%u%s;%s" \
+                % (para, perp, \
+                (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), self.endLine)
 
 
       ########################################
@@ -1448,13 +1441,13 @@ class KernelWriter:
       for b in range(0, kernel["ThreadTile1"]):
         for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           numEdges = 0
-          if kernel["EdgeType"] == "Branch":
+          if kernel["EdgeType"] != "None":
             kStr += "  if (globalC" \
                 + tileChar0 + " + " \
                 + str(a) + "*SG" + tileChar0 + "" + " < size" \
                 + tileChar0 + "/VECTOR_WIDTH) {"
             numEdges += 1
-          if kernel["EdgeType"] == "Branch":
+          if kernel["EdgeType"] != "None":
             kStr += "  if (globalC" \
                 + tileChar1 + " + " \
                 + str(b) + "*SG" + tileChar1 + "" + " < size" \
