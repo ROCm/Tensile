@@ -809,7 +809,7 @@ class KernelWriter:
         for para in range(0, kernel["NumLoadsCoalescedA"]):
           for s in range(0, kernel["VectorWidth"]):
             gro = "globalReadOffsetA%s_%u%s" % (tileCharA,
-                (para if kernel["ProblemType"]["TLUA"] else perp) \
+                (para if kernel["ProblemType"]["TLUA"] else perp), \
                 (("_s%u"%s) if kernel["VectorWidth"]>1 else ""))
             limit = "(size%s-1)" % (tileCharA)
 
@@ -1408,27 +1408,28 @@ class KernelWriter:
         kStr += "  double type_mac_tmp;" + self.endLine
 
       for b in range(0, kernel["NumElementsPerThread"]):
-        numEdges = 0
         #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         if kernel["EdgeType"] != "None":
-          kStr += "  if (globalC" \
-              + tileChar0 + " < size" \
-              + tileChar0 + "/VECTOR_WIDTH) {"
-          numEdges += 1
-        if kernel["EdgeType"] != "None":
-          kStr += "  if (globalC" \
-              + tileChar1 + " + " \
-              + str(b) + "*CPS < size" \
-              + tileChar1 + ") {"
+          #kStr += "  if (globalC" \
+          #    + tileChar0 + " < size" \
+          #    + tileChar0 + "/VECTOR_WIDTH) {"
+          kStr += "  if (globalC%s < size%s/VECTOR_WIDTH) {" \
+              % (tileChar0, tileChar0)
+          #kStr += "  if (globalC" \
+          #    + tileChar1 + " + " \
+          #    + str(b) + "*CPS < size" \
+          #    + tileChar1 + ") {"
+          kStr += "  if (globalC%s + %u*CPS < size%s) {" \
+              % (tileChar1, b, tileChar1)
           numEdges += 1
 
-        kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
+        kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-          kStr += " globalC" + indexChars[i]
+          kStr += " globalC%s" % indexChars[i]
           if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + " + str(b) + "*CPS"
+            kStr += " + %u*CPS" %b
           if i < kernel["ProblemType"]["NumIndicesC"]-1:
-            kStr += ", (" + self.uint64Str + ")"
+            kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
         kStr += ", alpha"
         kStr += ", rC[%d]" % (b)
@@ -1436,8 +1437,8 @@ class KernelWriter:
           kStr += ", beta"
         kStr += ")"
 
-        for i in range(0,numEdges):
-          kStr += " }"
+        if kernel["EdgeType"] != "None":
+          kStr += "} }"
         kStr += self.endLine
 
 
@@ -1484,19 +1485,21 @@ class KernelWriter:
       for b in range(0, kernel["ThreadTile1"]):
         for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for s in range(0, kernel["VectorWidth"]):
-            numEdges = 0
             if kernel["EdgeType"] != "None":
-              kStr += "  if (globalC" \
-                  + tileChar0 + " + " \
-                  + str(a) + "*SG" + tileChar0 + "" + " < size" \
-                  + tileChar0 + ") {"
-              numEdges += 1
-            if kernel["EdgeType"] != "None":
-              kStr += "  if (globalC" \
-                  + tileChar1 + " + " \
-                  + str(b) + "*SG" + tileChar1 + "" + " < size" \
-                  + tileChar1 + ") {"
-              numEdges += 1
+              #kStr += "  if (globalC" \
+              #    + tileChar0 + " + " \
+              #    + str(a) + "*SG" + tileChar0 + "" + " < size" \
+              #    + tileChar0 + ") {"
+              kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                  % (tileChar0, \
+                  ((" + %u"%s) if kernel["VectorWidth"]>1 else ""), \
+                  a, tileChar0, tileChar0)
+              #kStr += "  if (globalC" \
+              #    + tileChar1 + " + " \
+              #    + str(b) + "*SG" + tileChar1 + "" + " < size" \
+              #    + tileChar1 + ") {"
+              kStr += "  if (globalC%s + %u*SG%s < size%s) {" \
+                  % (tileChar1, b, tileChar1, tileChar1)
 
             kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
             for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
@@ -1521,8 +1524,8 @@ class KernelWriter:
               kStr += ", beta"
             kStr += ")"
 
-            for i in range(0,numEdges):
-              kStr += " }"
+            if kernel["EdgeType"] != "None":
+              kStr += " } }"
             kStr += self.endLine
 
 
