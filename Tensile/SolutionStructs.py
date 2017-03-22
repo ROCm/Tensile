@@ -590,10 +590,12 @@ class Solution:
 
     # SplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
-    state["NumElementsPerThread"] = numElementsPerWorkGroup / state["NumThreads"]
-    if state["NumElementsPerThread"] * state["NumThreads"] != numElementsPerWorkGroup:
+    state["NumVectorsPerThread"] = numElementsPerWorkGroup / \
+        state["NumThreads"] / state["VectorWidth"]
+    if state["NumVectorsPerThread"] * state["NumThreads"] \
+        * state["VectorWidth"] != numElementsPerWorkGroup:
       if globalParameters["PrintSolutionRejectionReason"]:
-        print1("SplitU %u too large; less than 1 element per thread" \
+        print1("SplitU %u too large; less than 1 vector per thread" \
             % (state["SplitU"]))
       state["Valid"] = False
       return

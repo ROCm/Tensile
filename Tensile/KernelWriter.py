@@ -226,7 +226,8 @@ class KernelWriter:
         % (tileChar1, tileChar1, tileChar1, self.endLine )
     kStr += self.endLine
     kStr += "/* DepthU parameters*/%s" % self.endLine
-    kStr += "#define CPS (NUM_THREADS / MT%s)%s" % (tileChar0, self.endLine)
+    kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
+        % (tileChar0, self.endLine)
     kStr += "#define SPLITU %d%s" \
         % (kernel["SplitU"], self.endLine )
     kStr += "#define UNROLL %d%s" \
@@ -1357,47 +1358,51 @@ class KernelWriter:
       kStr += "  /* SplitU Reduction                    */" + self.endLine
       kStr += "  /***************************************/" + self.endLine
       kStr += "  " + self.syncStr + self.endLine
-      # assign initial
-      for i in range(0, kernel["ThreadTile0"]):
+
+      ####################################
+      # SplitU: write to lds
+      for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for j in range(0, kernel["ThreadTile1"]):
-          kStr += "  lds[l%s + %u*SG%s + MT%s*(l%s + %u*SG%s) + MT%s*MT%s*sgId] = rC[%u+TT%s*%u];%s" \
+          kStr += "  lds[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s + %u*SG%s) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)];%s" \
               % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
-              j, tileChar1, tileChar0, tileChar1, i, tileChar0, j, self.endLine)
+              j, tileChar1, tileChar0, tileChar1, i, j, tileChar0, self.endLine)
       kStr += "  " + self.syncStr + self.endLine + self.endLine
 
       ####################################
-      # new C elements to store
+      # SplitU: C elements to store
       kStr += "  /* SplitU: new C elements to store */" + self.endLine
-      for i in range(0, kernel["NumElementsPerThread"]):
+      for i in range(0, kernel["NumVectorsPerThread"]):
         kStr += "  rC[%3u] = lds[serial+%u*NUM_THREADS];%s" \
             % (i, i, self.endLine)
       kStr += self.endLine
 
       ####################################
-      # SplitU reduction
+      # SplitU: reduction
       kStr += "  /* SplitU: reduction */" + self.endLine
       for s in range(1, kernel["SplitU"]):
-        for i in range(0, kernel["NumElementsPerThread"]):
-          kStr += "  rC[%3u] += lds[serial+%u*NUM_THREADS + %u*MT%s*MT%s];%s" \
+        for i in range(0, kernel["NumVectorsPerThread"]):
+          kStr += "  rC[%3u] += lds[serial+%u*NUM_THREADS + %u*(MT%s*MT%s/VECTOR_WIDTH)];%s" \
               % (i, i, s, tileChar0, tileChar1, self.endLine)
         kStr += self.endLine
 
       ####################################
-      # which global Cij index
-      kStr += "  /* which global Cij index */" + self.endLine
+      # SplitU: which global Cij index
+      kStr += "  /* which global Cij index */%s" % self.endLine
       for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        kStr += "  unsigned int globalC" + indexChars[i] \
-            + " = wg" + indexChars[i]
+        kStr += "  unsigned int globalC%s = wg%s" \
+            % (indexChars[i], indexChars[i])
         if i == kernel["ProblemType"]["Index0"]:
-          kStr += "*MT%s/VECTOR_WIDTH + (serial %% MT%s)" % (tileChar0, tileChar0)
+          kStr += "*MT%s + (serial %% (MT%s/VECTOR_WIDTH))*VECTOR_WIDTH" \
+              % (tileChar0, tileChar0)
         if i == kernel["ProblemType"]["Index1"]:
-          kStr += "*MT%s + (serial / MT%s)" % (tileChar1, tileChar0)
+          kStr += "*MT%s + (serial / (MT%s/VECTOR_WIDTH))" \
+              % (tileChar1, tileChar0)
         kStr += ";" + self.endLine
       kStr += self.endLine
 
 
       ####################################
-      # Global Write Addresses
+      # SplitU: Global Write
       ####################################
       kStr += "  /***************************************/" + self.endLine
       kStr += "  /* Global Write                        */" + self.endLine
@@ -1407,39 +1412,41 @@ class KernelWriter:
       if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
         kStr += "  double type_mac_tmp;" + self.endLine
 
-      for b in range(0, kernel["NumElementsPerThread"]):
-        #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        if kernel["EdgeType"] != "None":
-          #kStr += "  if (globalC" \
-          #    + tileChar0 + " < size" \
-          #    + tileChar0 + "/VECTOR_WIDTH) {"
-          kStr += "  if (globalC%s < size%s/VECTOR_WIDTH) {" \
-              % (tileChar0, tileChar0)
-          #kStr += "  if (globalC" \
-          #    + tileChar1 + " + " \
-          #    + str(b) + "*CPS < size" \
-          #    + tileChar1 + ") {"
-          kStr += "  if (globalC%s + %u*CPS < size%s) {" \
-              % (tileChar1, b, tileChar1)
-          numEdges += 1
+      for b in range(0, kernel["NumVectorsPerThread"]):
+        for s in range(0, kernel["VectorWidth"]):
+          #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+          if kernel["EdgeType"] != "None":
 
-        kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
-        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-          kStr += " globalC%s" % indexChars[i]
-          if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + %u*CPS" %b
-          if i < kernel["ProblemType"]["NumIndicesC"]-1:
-            kStr += ", (%s)" % self.uint64Str
-        kStr += ") ]"
-        kStr += ", alpha"
-        kStr += ", rC[%d]" % (b)
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += ", beta"
-        kStr += ")"
+            kStr += "  if (globalC%s%s < size%s) {" \
+                % (tileChar0, \
+                ((" + %u"%s) if kernel["VectorWidth"]>1 else ""), \
+                tileChar0)
 
-        if kernel["EdgeType"] != "None":
-          kStr += "} }"
-        kStr += self.endLine
+            kStr += "  if (globalC%s + %u*CPS < size%s) {" \
+                % (tileChar1, b, tileChar1)
+
+          kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
+          for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+            kStr += " globalC%s" % indexChars[i]
+            if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
+              kStr += " + %u" %s
+            if i == kernel["ProblemType"]["Index1"]:
+              kStr += " + %u*CPS" %b
+            if i < kernel["ProblemType"]["NumIndicesC"]-1:
+              kStr += ", (%s)" % self.uint64Str
+          kStr += ") ]"
+          kStr += ", alpha"
+          kStr += ", rC[%d]%s" % (b, \
+              ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
+              else "") )
+
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += ", beta"
+          kStr += ")"
+
+          if kernel["EdgeType"] != "None":
+            kStr += "} }"
+          kStr += self.endLine
 
 
 
