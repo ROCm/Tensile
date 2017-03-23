@@ -722,13 +722,25 @@ class Solution:
     # nlcb = 1
     if state["NumLoadsCoalescedB"] == 1:
       foundValid = False
-      for nlca in range(1, state["NumLoadsB"]+1):
-        nlpa = state["NumLoadsB"] / nlca
-        if state["NumLoadsB"] % nlca == 0 \
-            and totalVectorsCoalescedB % nlca == 0 \
-            and totalElementsPerpB % nlpa == 0:
-          state["NumLoadsCoalescedB"] = nlca
-          state["NumLoadsPerpendicularB"] = nlpa
+      for nlcb in range(1, state["NumLoadsB"]+1):
+        # pre-filter for VW*NLCB
+        if state["VectorWidth"] > 1:
+          if state["ProblemType"]["TLUB"]:
+            if nlcb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              print 1
+              continue
+          #else:
+          #  if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+          #      * state["SubGroup1"] > state["DepthU"]:
+          #    print 2
+          #    continue
+        nlpb = state["NumLoadsB"] / nlcb
+        if state["NumLoadsB"] % nlcb == 0 \
+            and totalVectorsCoalescedB % nlcb == 0 \
+            and totalElementsPerpB % nlpb == 0:
+          state["NumLoadsCoalescedB"] = nlcb
+          state["NumLoadsPerpendicularB"] = nlpb
           foundValid = True
           break
       if not foundValid:
@@ -740,13 +752,24 @@ class Solution:
     # nlcb = -1
     elif state["NumLoadsCoalescedB"] == -1:
       foundValid = False
-      for nlca in range(state["NumLoadsB"], 0, -1):
-        nlpa = state["NumLoadsB"] / nlca
-        if state["NumLoadsB"] % nlca == 0 \
-            and totalVectorsCoalescedB % nlca == 0 \
-            and totalElementsPerpB % nlpa == 0:
-          state["NumLoadsCoalescedB"] = nlca
-          state["NumLoadsPerpendicularB"] = nlpa
+      for nlcb in range(state["NumLoadsB"], 0, -1):
+        # pre-filter for VW*NLCB
+        if state["VectorWidth"] > 1:
+          if state["ProblemType"]["TLUB"]:
+            if nlcb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
+          #else:
+          #  if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+          #      * state["SubGroup1"] > state["DepthU"]:
+          #    print 4
+          #    continue
+        nlpb = state["NumLoadsB"] / nlcb
+        if state["NumLoadsB"] % nlcb == 0 \
+            and totalVectorsCoalescedB % nlcb == 0 \
+            and totalElementsPerpB % nlpb == 0:
+          state["NumLoadsCoalescedB"] = nlcb
+          state["NumLoadsPerpendicularB"] = nlpb
           foundValid = True
           break
       if not foundValid:
@@ -791,15 +814,24 @@ class Solution:
     # be sollutions which should never be fastest b/c work-group and
     # thread tile are of opposite shape - DT
     if state["VectorWidth"] > 1:
-      if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
-          > state["ThreadTile1"]:
-        #  < state["ThreadTile1"]:
-        if globalParameters["PrintSolutionRejectionReason"]:
-          print1("NLCB %u * VW %u > TT1 %u" \
-            % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
-            state["ThreadTile1"]))
-        state["Valid"] = False
-        return
+      if state["ProblemType"]["TLUB"]:
+        if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+            > state["ThreadTile1"]:
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("NLCB %u * VW %u > TT1 %u" \
+              % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+              state["ThreadTile1"]))
+          state["Valid"] = False
+          return
+      #else:
+      #  if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+      #      * state["ThreadTile1"] > state["DepthU"]:
+      #    if globalParameters["PrintSolutionRejectionReason"]:
+      #      print1("NLCB %u * VW %u * TT1 %u > DU %u" \
+      #        % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+      #        state["ThreadTile1"], state["DepthU"]))
+      #    state["Valid"] = False
+      #    return
 
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
