@@ -132,6 +132,10 @@ int main( int argc, char *argv[] ) {
 #endif
   std::cout << std::endl;
   if (invalids) {
+    printf("\nInvalid Solutions:\n");
+    for (unsigned int i = 0; i < numInvalidSolutions; i++) {
+      printf("[%2u] %s\n", invalidSolutions[i], solutionNames[invalidSolutions[i]]);
+    }
     return EXIT_FAILURE;
   } else {
     return EXIT_SUCCESS;

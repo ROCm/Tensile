@@ -33,6 +33,9 @@ TensileTimer timer;
 TensileTimer apiTimer;
 std::ofstream file;
 
+unsigned int invalidSolutions[numSolutions];
+unsigned int numInvalidSolutions = 0;
+
 void initControls();
 void destroyControls();
 
@@ -371,10 +374,12 @@ bool benchmarkAllSolutionsForSize(
       }
       std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
-        << " " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
-    }
-#if 1
-    else {
+        << " " << (numChecked-numInvalids) << "/" << numChecked;
+      if (numInvalids > 0) {
+        std::cout << " - " << solutionNames[solutionIdx];
+      }
+      std::cout << std::endl;
+    } else {
       std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]:"
         << std::setw(10) << std::fixed << std::setprecision(3)
         << gflops << " GFlop/s";
@@ -386,8 +391,10 @@ bool benchmarkAllSolutionsForSize(
       std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
     }
-    if (numInvalids) { gflops = -1.0; }
-#endif
+    if (numInvalids > 0) {
+      gflops = -1.0;
+      invalidSolutions[numInvalidSolutions++] = solutionIdx;
+    }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
