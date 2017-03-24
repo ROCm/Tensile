@@ -132,7 +132,7 @@ int main( int argc, char *argv[] ) {
 #endif
   std::cout << std::endl;
   if (invalids) {
-    printf("\nInvalid Solutions:\n");
+    printf("\nInvalid Solutions: %u/%u\n", numInvalidSolutions, numSolutions);
     for (unsigned int i = 0; i < numInvalidSolutions; i++) {
       printf("[%2u] %s\n", invalidSolutions[i], solutionNames[invalidSolutions[i]]);
     }
