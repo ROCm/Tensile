@@ -723,19 +723,17 @@ class Solution:
     if state["NumLoadsCoalescedB"] == 1:
       foundValid = False
       for nlcb in range(1, state["NumLoadsB"]+1):
+        nlpb = state["NumLoadsB"] / nlcb
         # pre-filter for VW*NLCB
         if state["VectorWidth"] > 1:
           if state["ProblemType"]["TLUB"]:
             if nlcb * state["VectorWidth"] \
                 > state["ThreadTile1"]:
-              print 1
               continue
-          #else:
-          #  if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
-          #      * state["SubGroup1"] > state["DepthU"]:
-          #    print 2
-          #    continue
-        nlpb = state["NumLoadsB"] / nlcb
+          else:
+            if nlpb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
         if state["NumLoadsB"] % nlcb == 0 \
             and totalVectorsCoalescedB % nlcb == 0 \
             and totalElementsPerpB % nlpb == 0:
@@ -753,18 +751,17 @@ class Solution:
     elif state["NumLoadsCoalescedB"] == -1:
       foundValid = False
       for nlcb in range(state["NumLoadsB"], 0, -1):
+        nlpb = state["NumLoadsB"] / nlcb
         # pre-filter for VW*NLCB
         if state["VectorWidth"] > 1:
           if state["ProblemType"]["TLUB"]:
             if nlcb * state["VectorWidth"] \
                 > state["ThreadTile1"]:
               continue
-          #else:
-          #  if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
-          #      * state["SubGroup1"] > state["DepthU"]:
-          #    print 4
-          #    continue
-        nlpb = state["NumLoadsB"] / nlcb
+          else:
+            if nlpb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
         if state["NumLoadsB"] % nlcb == 0 \
             and totalVectorsCoalescedB % nlcb == 0 \
             and totalElementsPerpB % nlpb == 0:
@@ -823,15 +820,15 @@ class Solution:
               state["ThreadTile1"]))
           state["Valid"] = False
           return
-      #else:
-      #  if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
-      #      * state["ThreadTile1"] > state["DepthU"]:
-      #    if globalParameters["PrintSolutionRejectionReason"]:
-      #      print1("NLCB %u * VW %u * TT1 %u > DU %u" \
-      #        % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
-      #        state["ThreadTile1"], state["DepthU"]))
-      #    state["Valid"] = False
-      #    return
+      else:
+        if state["NumLoadsPerpendicularB"] * state["VectorWidth"] \
+            > state["ThreadTile1"]:
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("NLCB %u * VW %u * TT1 %u > DU %u" \
+              % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+              state["ThreadTile1"], state["DepthU"]))
+          state["Valid"] = False
+          return
 
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
