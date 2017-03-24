@@ -157,11 +157,12 @@ def benchmarkProblemType( config ):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
-        winningParameters = winners[hardcodedParamDict]
-        if winningParameters == None:
-          # this is a joined parameter that didn't have a winner, that's okay
-          continue
-        solution.update(winningParameters)
+	if benchmarkStepIdx > 0:
+          winningParameters = winners[hardcodedParamDict]
+          if winningParameters == None:
+            # this is a joined parameter that didn't have a winner, that's okay
+            continue
+          solution.update(winningParameters)
 
         # append default parameters where necessary
         for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
