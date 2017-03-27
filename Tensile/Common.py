@@ -55,7 +55,7 @@ globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
 
-# BF00 
+# BF00
 
 ################################################################################
 # Default Benchmark Parameters
@@ -64,6 +64,8 @@ validParameters = {
     "LoopDoWhile":            [ False, True ],
     "LoopTail":               [ False, True ],
     "Prefetch":               [ False, True ] ,
+    "GlobalReadCoalesceGroup": [False, True],
+    "GlobalReadCoalesceVector": [False, True],
 
     "WorkGroupMapping":       [1]+range(-1024,0)+range(2,1025),
     "GroupShape":             [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
@@ -88,6 +90,8 @@ defaultBenchmarkCommonParameters = [
     {"LdsPad":                  [ 1 ] }, # 0
     {"Prefetch":                [ False ] },
     {"VectorWidth":             [ -1 ] },
+    {"GlobalReadCoalesceGroup": [True] },
+    {"GlobalReadCoalesceVector": [True] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
