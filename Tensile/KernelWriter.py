@@ -702,7 +702,6 @@ class KernelWriter:
     # tile index assignment b
     kStr += "  unsigned int globalReadOffsetB%s = " % tileCharB
     if kernel["GlobalReadCoalesceGroup"]:
-      # new TN reading coalesced
       if kernel["ProblemType"]["TLUB"]: # old coalesced NT
         if kernel["VectorWidth"] > 1:
           kStr += "(serial%%SG%s) + ((serial%%%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
@@ -713,7 +712,12 @@ class KernelWriter:
             kStr += "(serial%%%s)" \
                 % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
       else: # TODO new coalesced TN
-        kStr += "(serial/LSCB)*(SG%s*VECTOR_WIDTH)" % (tileCharB)
+        if kernel["VectorWidth"] > 1:
+          #kStr += "(serial/LSCB)"
+          kStr += "(serial/LSCB)%%SG%s + ((serial/LSCB)/SG%s)*(SG%s*VECTOR_WIDTH)" \
+              % (tileCharB, tileCharB, tileCharB)
+        else:
+          kStr += "(serial/LSCB)"
     else:
       if kernel["ProblemType"]["TLUB"]: # TODO new not-coalesced NT
         pass
