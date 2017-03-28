@@ -75,6 +75,7 @@ class KernelWriter:
       self.vectorComponents = ["x", "y", "z", "w"]
 
     self.returnOnly = False
+    self.tt2D = True
 
   ##############################################################################
   # get kernel name
@@ -687,7 +688,7 @@ class KernelWriter:
     kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
         % (tileChar0, tileChar1, self.endLine)
 
-    # tile index assignment a - DONE
+    # tile index assignment a
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
         % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUA"] else "/") )
@@ -699,65 +700,52 @@ class KernelWriter:
     kStr += " + (wg%s*MT%s);%s" \
         % (tileCharA, tileCharA, self.endLine)
 
-    # tile index assignment b
+    # tile index assignment b - old interleaving
+    """
+    # NOT tt2D
     kStr += "  unsigned int globalReadOffsetB%s = " % tileCharB
-    if kernel["GlobalReadCoalesceGroup"]:
-      if kernel["ProblemType"]["TLUB"]: # old coalesced NT
-        if kernel["VectorWidth"] > 1:
-          kStr += "(serial%%SG%s) + ((serial%%%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
-              % (tileCharB, \
-              ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
-              tileCharB, tileCharB)
-        else: # VW=1 traditional / faster indexing
-            kStr += "(serial%%%s)" \
-                % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
-      else: # new coalesced TN
-        if kernel["VectorWidth"] > 1:
-          kStr += "(serial/LSCB)%%SG%s + ((serial/LSCB)/SG%s)*(SG%s*VECTOR_WIDTH)" \
-              % (tileCharB, tileCharB, tileCharB)
-        else:
-          kStr += "(serial/LSCB)"
+    #if kernel["GlobalReadCoalesceGroup"]:
+    if kernel["GlobalReadCoalesceGroup"] == kernel["ProblemType"]["TLUB"]: # old coalesced NT
+      if kernel["VectorWidth"] > 1:
+        kStr += "(serial%%SG%s) + ((serial%%%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
+            % (tileCharB, \
+            ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
+            tileCharB, tileCharB)
+      else: # VW=1 traditional / faster indexing
+        kStr += "(serial%%%s)" \
+            % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
+
     else:
-      if kernel["ProblemType"]["TLUB"]: # TODO new not-coalesced NT
-        if kernel["VectorWidth"] > 1:
-          kStr += "((serial/LSPB)%%SG%s) + ((serial/LSPB)/SG%s)*(SG%s*VECTOR_WIDTH)" \
-              % (tileCharB, tileCharB, tileCharB)
-        else:
-          kStr += "(serial/LSPB)"
-      else: # old not-coalesced TN
-        if kernel["VectorWidth"] > 1:
-          kStr += "(serial%%SG%s) + ((serial%%%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
-              % (tileCharB, \
-              ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
-              tileCharB, tileCharB)
-        else: # VW=1 traditional / faster indexing
-            kStr += "(serial%%%s)" \
-                % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
+      if kernel["VectorWidth"] > 1:
+        kStr += "((serial/%s)%%SG%s) + ((serial/%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
+            % (("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
+            tileCharB, \
+            ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
+            tileCharB, tileCharB)
+      else:
+        kStr += "(serial/%s)" \
+            % ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB")
+
     kStr += " + (wg%s*MT%s);%s" \
         % (tileCharB, tileCharB, self.endLine)
+    """
 
 
+    #"""
+    # tt2D
+    kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
+        % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroup"] \
+        == kernel["ProblemType"]["TLUB"] else "/") )
+    if kernel["GlobalReadCoalesceGroup"]:
+      kStr += ("LVCB" if kernel["ProblemType"]["TLUB"] else "LSCB")
+    else:
+      kStr += ("LSPB" if kernel["ProblemType"]["TLUB"] else "LVPB")
+    kStr += ")*VECTOR_WIDTH + (wg%s*MT%s);%s" \
+        % (tileCharB, tileCharB, self.endLine)
+    #"""
 
-    # free index assignment b - new
 
-
-
-
-    #if kernel["ProblemType"]["TLUB"]: # transB
-    #  # VW>1 globReadB1 indexing
-    #  if kernel["VectorWidth"] > 1:
-    #    kStr += "(serial%%SG%s) + ((serial%%LVCB)/SG%s)*(SG%s*VECTOR_WIDTH)"\
-    #        % (tileCharB, tileCharB, tileCharB)
-    #  else: # VW=1 traditional / faster indexing
-    #    kStr += "(serial%LVCB)"
-    #else:
-    #  # new TN
-    #  #kStr += "(serial/LVCB)" # old
-    #  kStr += "(serial/SG%s)" % tileCharB
-    #kStr += " + (wg%s*MT%s);%s" \
-    #    % (tileCharB, tileCharB, self.endLine)
-
-    # summation index assignment a - DONE
+    # summation index assignment a
     """
     kStr += "  unsigned int globalReadOffsetA%s = serial/%s;%s" \
         % (unrollChar, ("LVCA" if kernel["ProblemType"]["TLUA"] else "LVPA"), \
@@ -772,18 +760,7 @@ class KernelWriter:
       kStr += ("LSPA" if kernel["ProblemType"]["TLUA"] else "LVPA")
     kStr += ";%s" % self.endLine
 
-
-
-    #if kernel["ProblemType"]["TLUA"]:
-    #  kStr += "serial/LVCA"
-    #else:
-    #  # new TN
-    #  #kStr += "serial%LVCA;" + self.endLine
-    #  kStr += "(serial%LVCA)*VECTOR_WIDTH"
-    #kStr += ";%s" % self.endLine
-
-    # TODO - LSPB
-    # summation index assignment b - LVCB, LVPB, LSCB
+    # summation index assignment b
     """
     kStr += "  unsigned int globalReadOffsetB%s = serial/%s;%s" \
         % (unrollChar, ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
@@ -798,18 +775,6 @@ class KernelWriter:
       kStr += ("LSPB" if kernel["ProblemType"]["TLUB"] else "LVPB")
     kStr += ";%s" % self.endLine
     #"""
-
-    #if kernel["ProblemType"]["TLUB"]:
-    #  kStr += "serial/LVCB"
-    #else:
-    #  # new TN
-    #  #kStr += "serial%LVCB;" + self.endLine
-    #  if kernel["VectorWidth"] > 1:
-    #    kStr += "(serial%%SG%s) + ((serial%%LVCB)/SG%s)*(SG%s*VECTOR_WIDTH)"\
-    #        % (tileCharB, tileCharB, tileCharB)
-    #  else: # VW=1 traditional / faster indexing
-    #    kStr += "(serial%LVCB)"
-    #kStr += ";%s" % self.endLine
 
     ####################################
     # global read: other free indices
@@ -890,8 +855,8 @@ class KernelWriter:
         kStr += "  %s globalReadOffsetB%s_%u%s = globalReadOffsetB%s%s + %d*%s;%s" \
             % (self.uint64Str, tileCharB, l, \
             (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), tileCharB, \
-            ((" + %u*SG%s"%(s, tileCharB)) if kernel["VectorWidth"]>1 else ""),\
-            #((" + %u%s"%(s, ("" if  (kernel["ProblemType"]["TLUB"] and not kernel["GlobalReadCoalesceGroup"]) else ("*SG%s"%tileCharB)))) if kernel["VectorWidth"]>1 else ""), \
+            #(("+%u*SG%s"%(s, tileCharB)) if kernel["VectorWidth"]>1 else ""),\
+            ((" + %u"%(s)) if kernel["VectorWidth"]>1 else ""),\
             l, \
             ("LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"), \
             self.endLine)
@@ -910,20 +875,6 @@ class KernelWriter:
     if kernel["EdgeType"] != "None":
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global a */%s" % self.endLine
-      #for l in range(0, numLoadsTileA):
-      #for s in range(0, kernel["VectorWidth"]):
-      #  kStr += "  %s globalReadOffsetA%s_%u%s = globalReadOffsetA%s%s + %d*%s;%s" \
-      #      % (self.uint64Str, tileCharA, l, \
-      #      (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), tileCharA, \
-      #      ((" + %u"%s) if kernel["VectorWidth"]>1 else ""), l, \
-      #      ("LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"), \
-      #      self.endLine)
-
-
-
-
-      #for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      #  for para in range(0, kernel["NumLoadsCoalescedA"]):
       for l in range(0, numLoadsTileA):
         for s in range(0, kernel["VectorWidth"]):
           gro = "globalReadOffsetA%s_%u%s" % (tileCharA,
@@ -942,8 +893,6 @@ class KernelWriter:
 
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global b */%s" % self.endLine
-      #for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      #  for para in range(0, kernel["NumLoadsCoalescedB"]):
       for l in range(0, numLoadsTileB):
         for s in range(0, kernel["VectorWidth"]):
           gro = "globalReadOffsetB%s_%u%s" % (tileCharB, \
@@ -1100,10 +1049,7 @@ class KernelWriter:
     #"""
 
 
-
-
-    # TODO - LSPB
-    # free index assignment b - LVCB, LVPB, LSCB
+    # free index assignment b
     """
     kStr += "  unsigned int lwB%s = serial%%%s;%s" % (tileCharB, \
         ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), self.endLine)
@@ -1117,7 +1063,6 @@ class KernelWriter:
       kStr += ("LSPB" if kernel["ProblemType"]["TLUB"] else "LVPB")
     kStr += ";%s" % self.endLine
     #"""
-
 
 
     # summation index assignment a
@@ -1135,8 +1080,7 @@ class KernelWriter:
     kStr += ";%s" % self.endLine
     #"""
 
-    # TODO - LSPB
-    # summation index assignment b - LVCB, LVPB, LSCB
+    # summation index assignment b
     """
     kStr += "  unsigned int lwB%s = serial/%s;%s" % (unrollChar, \
         ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), self.endLine)
@@ -1574,11 +1518,25 @@ class KernelWriter:
 
       ####################################
       # SplitU: write to lds
-      for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-        for j in range(0, kernel["ThreadTile1"]):
-          kStr += "  lds[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s + %u*SG%s) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)];%s" \
-              % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
-              j, tileChar1, tileChar0, tileChar1, i, j, tileChar0, self.endLine)
+      for j in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+        for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+          for s in range(0, kernel["VectorWidth"]):
+            kStr += "  lds[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s];%s" \
+                % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
+                s, tileChar1, j, tileChar0, tileChar1, i, s, \
+                tileChar0, j, tileChar0, self.endLine)
+            """
+            kStr += "  lds[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH*%u + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = 1;%s" \
+                % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
+                j, s, tileChar1, i, tileChar0, tileChar1, self.endLine)
+            """
+
+            """
+            kStr += "  unsigned int lIdx%u%u%u = lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId;%s" \
+                % (j, i, s, tileChar0, i, tileChar0, tileChar0, tileChar1, \
+                s, tileChar1, j, tileChar0, tileChar1, self.endLine)
+            kStr += "  printf(\\\"T[%%02u]:%%5u\\\\n\\\", serial, lIdx%u%u%u); %s" % (j, i, s, self.endLinePP)
+            """
       kStr += "  " + self.syncStr + self.endLine + self.endLine
 
       ####################################
@@ -1682,7 +1640,7 @@ class KernelWriter:
         if i == kernel["ProblemType"]["Index0"]:
           kStr += "*MT%s + (serial %% SG%s)*VECTOR_WIDTH" % (tileChar0, tileChar0)
         if i == kernel["ProblemType"]["Index1"]:
-          kStr += "*MT%s + (serial / SG%s)" % (tileChar1, tileChar0)
+          kStr += "*MT%s + (serial / SG%s)*VECTOR_WIDTH" % (tileChar1, tileChar0)
         kStr += ";" + self.endLine
       kStr += self.endLine
 
@@ -1702,51 +1660,48 @@ class KernelWriter:
       if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
         kStr += "  double type_mac_tmp;" + self.endLine
 
-      for b in range(0, kernel["ThreadTile1"]):
+      for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
         for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-          for s in range(0, kernel["VectorWidth"]):
-            if kernel["EdgeType"] != "None":
-              #kStr += "  if (globalC" \
-              #    + tileChar0 + " + " \
-              #    + str(a) + "*SG" + tileChar0 + "" + " < size" \
-              #    + tileChar0 + ") {"
-              kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (tileChar0, \
-                  ((" + %u"%s) if kernel["VectorWidth"]>1 else ""), \
-                  a, tileChar0, tileChar0)
-              #kStr += "  if (globalC" \
-              #    + tileChar1 + " + " \
-              #    + str(b) + "*SG" + tileChar1 + "" + " < size" \
-              #    + tileChar1 + ") {"
-              kStr += "  if (globalC%s + %u*SG%s < size%s) {" \
-                  % (tileChar1, b, tileChar1, tileChar1)
+          for s1 in range(0, kernel["VectorWidth"]):
+            for s0 in range(0, kernel["VectorWidth"]):
+              if kernel["EdgeType"] != "None":
+                kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                    % (tileChar0, \
+                    ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
+                    a, tileChar0, tileChar0)
+                kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                    % (tileChar1, \
+                    ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
+                    b, tileChar1, tileChar1)
 
-            kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (" + self.uint64Str + ")"
-            for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-              kStr += " globalC%s" % indexChars[i]
-              if i == kernel["ProblemType"]["Index0"]:
-                #kStr += " + " + str(a) + "*SG" + tileChar0
-                kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                    ((" + %u"%s) if kernel["VectorWidth"]>1 else ""), \
-                    a, tileChar0)
-              if i == kernel["ProblemType"]["Index1"]:
-                #kStr += " + " + str(b) + "*SG" + tileChar1
-                kStr += " + %u*SG%s" % (b, tileChar1)
-              if i < kernel["ProblemType"]["NumIndicesC"]-1:
-                kStr += ", (%s)" % self.uint64Str
-            kStr += ") ]"
-            kStr += ", alpha"
-            kStr += ", rC[(%d+%d*TT%s/VECTOR_WIDTH)]%s" % (a, b, \
-                tileChar0, \
-                ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
-                else "") )
-            if kernel["ProblemType"]["UseBeta"]:
-              kStr += ", beta"
-            kStr += ")"
+              kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
+              for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+                kStr += " globalC%s" % indexChars[i]
+                if i == kernel["ProblemType"]["Index0"]:
+                  #kStr += " + " + str(a) + "*SG" + tileChar0
+                  kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
+                      ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
+                      a, tileChar0)
+                if i == kernel["ProblemType"]["Index1"]:
+                  #kStr += " + " + str(b) + "*SG" + tileChar1
+                  kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
+                      ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
+                      b, tileChar1)
+                if i < kernel["ProblemType"]["NumIndicesC"]-1:
+                  kStr += ", (%s)" % self.uint64Str
+              kStr += ") ]"
+              kStr += ", alpha"
+              kStr += ", rC[%d+%d*(TT%s/VECTOR_WIDTH)+%d*TT%s]%s" \
+                  % (a, s1, tileChar0, b, tileChar0, \
+                  ((".%s"%self.vectorComponents[s0]) if kernel["VectorWidth"]>1\
+                  else "") )
+              if kernel["ProblemType"]["UseBeta"]:
+                kStr += ", beta"
+              kStr += ")"
 
-            if kernel["EdgeType"] != "None":
-              kStr += " } }"
-            kStr += self.endLine
+              if kernel["EdgeType"] != "None":
+                kStr += " } }"
+              kStr += self.endLine
 
 
     ####################################
