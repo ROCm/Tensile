@@ -712,14 +712,10 @@ class KernelWriter:
         else: # VW=1 traditional / faster indexing
             kStr += "(serial%%%s)" \
                 % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
-        kStr += " + (wg%s*MT%s);%s" \
-            % (tileCharB, tileCharB, self.endLine)
-      else: # new coalesced TN
-        kStr += "(serial/LSCB)*(SG%s*VECTOR_WIDTH)" % (tileCharB) # TODO
-        kStr += " + (wg%s*MT%s);%s" \
-            % (tileCharB, tileCharB, self.endLine)
+      else: # TODO new coalesced TN
+        kStr += "(serial/LSCB)*(SG%s*VECTOR_WIDTH)" % (tileCharB)
     else:
-      if kernel["ProblemType"]["TLUB"]: # new not-coalesced NT
+      if kernel["ProblemType"]["TLUB"]: # TODO new not-coalesced NT
         pass
       else: # old not-coalesced TN
         if kernel["VectorWidth"] > 1:
@@ -730,8 +726,8 @@ class KernelWriter:
         else: # VW=1 traditional / faster indexing
             kStr += "(serial%%%s)" \
                 % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
-        kStr += " + (wg%s*MT%s);%s" \
-            % (tileCharB, tileCharB, self.endLine)
+    kStr += " + (wg%s*MT%s);%s" \
+        % (tileCharB, tileCharB, self.endLine)
 
 
 
@@ -1106,7 +1102,7 @@ class KernelWriter:
     """
     kStr += "  unsigned int lwB%s = serial%s" \
         % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroup"] \
-        == kernel["ProblemType"]["TLUA"] else "/") )
+        == kernel["ProblemType"]["TLUB"] else "/") )
     if kernel["GlobalReadCoalesceGroup"]:
       kStr += ("LVCB" if kernel["ProblemType"]["TLUB"] else "LSCB")
     else:
@@ -1139,7 +1135,7 @@ class KernelWriter:
     """
     kStr += "  unsigned int lwB%s = serial%s" \
         % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
-        == kernel["ProblemType"]["TLUA"] else "%") )
+        == kernel["ProblemType"]["TLUB"] else "%") )
     if kernel["GlobalReadCoalesceGroup"]:
       kStr += ("LVCB" if kernel["ProblemType"]["TLUB"] else "LSCB")
     else:
