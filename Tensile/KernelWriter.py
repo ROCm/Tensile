@@ -711,16 +711,19 @@ class KernelWriter:
         else: # VW=1 traditional / faster indexing
             kStr += "(serial%%%s)" \
                 % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
-      else: # TODO new coalesced TN
+      else: # new coalesced TN
         if kernel["VectorWidth"] > 1:
-          #kStr += "(serial/LSCB)"
           kStr += "(serial/LSCB)%%SG%s + ((serial/LSCB)/SG%s)*(SG%s*VECTOR_WIDTH)" \
               % (tileCharB, tileCharB, tileCharB)
         else:
           kStr += "(serial/LSCB)"
     else:
       if kernel["ProblemType"]["TLUB"]: # TODO new not-coalesced NT
-        pass
+        if kernel["VectorWidth"] > 1:
+          kStr += "((serial/LSPB)%%SG%s) + ((serial/LSPB)/SG%s)*(SG%s*VECTOR_WIDTH)" \
+              % (tileCharB, tileCharB, tileCharB)
+        else:
+          kStr += "(serial/LSPB)"
       else: # old not-coalesced TN
         if kernel["VectorWidth"] > 1:
           kStr += "(serial%%SG%s) + ((serial%%%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
@@ -779,8 +782,8 @@ class KernelWriter:
     #  kStr += "(serial%LVCA)*VECTOR_WIDTH"
     #kStr += ";%s" % self.endLine
 
-    # TODO - LSCB, LSPB
-    # summation index assignment b - LVCB, LVPB
+    # TODO - LSPB
+    # summation index assignment b - LVCB, LVPB, LSCB
     """
     kStr += "  unsigned int globalReadOffsetB%s = serial/%s;%s" \
         % (unrollChar, ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
@@ -887,7 +890,8 @@ class KernelWriter:
         kStr += "  %s globalReadOffsetB%s_%u%s = globalReadOffsetB%s%s + %d*%s;%s" \
             % (self.uint64Str, tileCharB, l, \
             (("_s%u"%s) if kernel["VectorWidth"]>1 else ""), tileCharB, \
-            ((" + %u*SG%s"%(s,tileCharB)) if kernel["VectorWidth"]>1 else ""), \
+            ((" + %u*SG%s"%(s, tileCharB)) if kernel["VectorWidth"]>1 else ""),\
+            #((" + %u%s"%(s, ("" if  (kernel["ProblemType"]["TLUB"] and not kernel["GlobalReadCoalesceGroup"]) else ("*SG%s"%tileCharB)))) if kernel["VectorWidth"]>1 else ""), \
             l, \
             ("LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"), \
             self.endLine)
@@ -1098,8 +1102,8 @@ class KernelWriter:
 
 
 
-    # TODO - LSCB, LSPB
-    # free index assignment b - LVCB, LVPB
+    # TODO - LSPB
+    # free index assignment b - LVCB, LVPB, LSCB
     """
     kStr += "  unsigned int lwB%s = serial%%%s;%s" % (tileCharB, \
         ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), self.endLine)
@@ -1131,8 +1135,8 @@ class KernelWriter:
     kStr += ";%s" % self.endLine
     #"""
 
-    # TODO - LSCB, LSPB
-    # summation index assignment b - LVCB, LVPB
+    # TODO - LSPB
+    # summation index assignment b - LVCB, LVPB, LSCB
     """
     kStr += "  unsigned int lwB%s = serial/%s;%s" % (unrollChar, \
         ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), self.endLine)

@@ -811,7 +811,7 @@ class Solution:
     # be sollutions which should never be fastest b/c work-group and
     # thread tile are of opposite shape - DT
     if state["VectorWidth"] > 1:
-      if state["ProblemType"]["TLUB"]:
+      if state["ProblemType"]["TLUB"] and state["GlobalReadCoalesceGroup"]:
         if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
             > state["ThreadTile1"]:
           if globalParameters["PrintSolutionRejectionReason"]:
@@ -822,7 +822,7 @@ class Solution:
           return
       else:
         if state["NumLoadsPerpendicularB"] * state["VectorWidth"] \
-            > state["ThreadTile1"]:
+            > state["ThreadTile1"] and not state["GlobalReadCoalesceGroup"]:
           if globalParameters["PrintSolutionRejectionReason"]:
             print1("NLCB %u * VW %u * TT1 %u > DU %u" \
               % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
