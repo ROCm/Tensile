@@ -132,6 +132,10 @@ int main( int argc, char *argv[] ) {
 #endif
   std::cout << std::endl;
   if (invalids) {
+    printf("\nInvalid Solutions: %u/%u\n", numInvalidSolutions, numSolutions);
+    for (unsigned int i = 0; i < numInvalidSolutions; i++) {
+      printf("[%2u] %s\n", invalidSolutions[i], solutionNames[invalidSolutions[i]]);
+    }
     return EXIT_FAILURE;
   } else {
     return EXIT_SUCCESS;
@@ -144,7 +148,7 @@ int main( int argc, char *argv[] ) {
  * init controls
  ******************************************************************************/
 void initControls() {
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   // setup opencl objects
   cl_uint numPlatforms, numDevices;
   status = clGetPlatformIDs(0, nullptr, &numPlatforms);
@@ -182,7 +186,7 @@ void initControls() {
   tensileStatusCheck(status);
   delete[] devices;
   delete[] platforms;
-#elif Tensile_BACKEND_HIP
+#elif Tensile_RUNTIME_LANGUAGE_HIP
   int numDevices;
   status = hipGetDeviceCount( &numDevices );
   if (deviceIdx >= static_cast<unsigned int>(numDevices)) {
@@ -204,7 +208,7 @@ void initControls() {
  * destroy controls
  ******************************************************************************/
 void destroyControls() {
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   clReleaseCommandQueue(stream);
   clReleaseContext(context);
   clReleaseDevice(device);

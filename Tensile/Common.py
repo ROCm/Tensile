@@ -15,17 +15,20 @@ globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
 globalParameters["Name"] = "Tensile"
 if os.name == "nt":
-  globalParameters["Backend"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["KernelLanguage"] = "OCL"
 else:
-  globalParameters["Backend"] = "HIP"
+  globalParameters["RuntimeLanguage"] = "HIP"
+  globalParameters["KernelLanguage"] = "HIP"
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
+globalParameters["PrintSolutionRejectionReason"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source")
 globalParameters["WorkingPath"] = os.getcwd()
-globalParameters["BenchmarkProblemsPath"] = "1_BenchmarksProblems"
+globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems"
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"
 globalParameters["LibraryClientPath"] = "4_LibraryClient"
@@ -39,6 +42,7 @@ globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 4
+globalParameters["PinClocks"] = False
 # file heirarchy
 globalParameters["ShortNames"] = False
 globalParameters["MergeFiles"] = True
@@ -48,71 +52,92 @@ globalParameters["ValidationMaxToPrint"] = 16
 globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
-globalParameters["MaxThreads"] = 256
-globalParameters["MinThreads"] = 64
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
-globalParameters["MaxThreadTile"] = 64
 
+# BF00
 
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
+validParameters = {
+    "LoopDoWhile":            [ False, True ],
+    "LoopTail":               [ False, True ],
+    "Prefetch":               [ False, True ] ,
+    "GlobalReadCoalesceGroup": [False, True],
+    "GlobalReadCoalesceVector": [False, True],
+
+    "WorkGroupMapping":       [1]+range(-1024,0)+range(2,1025),
+    "GroupShape":             [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
+    "ThreadTileShape":        [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
+    "NumLoadsCoalescedA":     [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
+    "NumLoadsCoalescedB":     [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
+    "ThreadTileNumElements":  [ 1, 2, 4, 8, 16, 32, 64, 36],
+    "DepthU":                 [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
+    "SplitU":                 [ 1, 2, 4, 8, 16, 32, 64 ],
+    "NumThreads":             [ 64, 128, 256 ],
+    "VectorWidth":            [ -1, 1, 2, 4 ],
+    "LdsPad":                 [ 0, 1 ],
+
+    "EdgeType":               [ "Branch", "Shift", "None" ],
+
+    }
 # same parameter for all solution b/c depends only on compiler
 defaultBenchmarkCommonParameters = [
-    {"KernelMaxSizes":          [ [0, 0, 0] ] }, # infinite
-    {"KernelSerial":            [ True ] },
-    {"LoopDoWhile":             [ True ] },
-    {"LoopTail":                [ False ] },
-    {"LoadMacInterleave":       [ 4 ] },
-    {"AtomicAccumulate":        [ False ] },
+    {"LoopDoWhile":             [ False ] },
+    {"LoopTail":                [ True ] },
     {"EdgeType":                [ "Branch" ] }, # Shift
-    {"EdgeMultiKernel":         [ False ] },
-    {"PadLDS":                  [ 1 ] },
-    {"SplitU":                  [ 1 ] },
+    {"LdsPad":                  [ 1 ] }, # 0
     {"Prefetch":                [ False ] },
+    {"VectorWidth":             [ -1 ] },
+    {"GlobalReadCoalesceGroup": [True] },
+    {"GlobalReadCoalesceVector": [True] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
-    {"WorkGroupEdge":           [ 16, 8 ] },
-    {"WorkGroupShape":          [ 0 ] }, # -4, -2, 0, 2, 4
-    {"ThreadTileEdge":          [ 1, 2, 4, 6, 8 ] },
+    {"NumThreads":              [ 16*16, 8*8 ] },
+    {"GroupShape":              [ 0 ] }, # -4, -2, 0, 2, 4
+    {"ThreadTileNumElements":   [ 4*4, 2*2, 6*6, 8*8 ] },
     {"ThreadTileShape":         [ 0 ] }, # -4, -2, 0, 2, 4
-    {"NumLoadsCoalescedA":       [ 1, -1 ] },
-    {"NumLoadsCoalescedB":       [ 1, -1 ] },
+    {"NumLoadsCoalescedA":      [ 1, -1 ] },
+    {"NumLoadsCoalescedB":      [ 1, -1 ] },
+    {"DepthU":                  [ 4, 8, 16, 32 ] },
+    {"SplitU":                  [ 1, 4, 16 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
     {"WorkGroupMapping":        [ 1 ] },
-    {"LoopUnroll":              [ 16, 8, 4 ] },
     ]
 # final list of solutions
 defaultJoinParameters = [
-    "MacroTile", "DepthU"
-    ]
+    "MacroTile" ]
 # keep one winner per solution and it would affect which solutions fastest
 defaultBenchmarkJoinParameters = [
-    {"VectorWidthGlobalLoad":   [ 4 ] },
-    {"VectorWidthGlobalStore":  [ 4 ] },
-    {"VectorWidthLocalLoad":    [ 4 ] },
-    {"VectorWidthLocalStore":   [ 4 ] },
     ]
 
 # derived parameters may show up in solution dict but don't use for naming
+"""
 derivedParameters = [
-    "MacroTile0",
-    "MacroTile1",
-    "DepthU",
-    "WorkGroup0",
-    "WorkGroup1",
+    "SubGroup0",
+    "SubGroup1",
     "ThreadTile0",
     "ThreadTile1",
+    "Valid",
+    "MacroTile0",
+    "MacroTile1",
+    "NumElementsPerThread",
     "NumLoadsA",
     "NumLoadsB",
     "NumLoadsPerpendicularA",
     "NumLoadsPerpendicularB",
-    "NumThreads",
+    "LdsOffsetB",
+    "LdsNumElements",
+    "LoopUnroll",
+    "AssignedDerivedParameters",
+    "AssignedProblemIndependentDerivedParameters",
+    "BenchmarkFork"
     ]
+"""
 
 # dictionary of defaults comprised for 1st option for each parameter
 defaultSolution = {}
@@ -218,13 +243,15 @@ def print2(message):
     print message
 
 def printWarning(message):
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
+  #f = inspect.currentframe().f_back.f_code
+  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
+  #print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
+  print "Tensile::WARNING: %s" % message
 def printExit(message):
-  f = inspect.currentframe().f_back.f_code
-  filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
+  #f = inspect.currentframe().f_back.f_code
+  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
+  #print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
+  print "Tensile::FATAL: %s" % message
   sys.exit(-1)
 
 

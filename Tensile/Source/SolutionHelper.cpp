@@ -22,7 +22,7 @@
 #include "SolutionHelper.h"
 #include "Tools.h"
 
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
 #ifdef WIN32
 __declspec(thread) KernelMap *kernelMap = 0;
 #else
@@ -40,7 +40,7 @@ bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
 /*******************************************************************************
  * Compile OpenCL kernels
  ******************************************************************************/
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
 void tensileGetCompiledOpenCLKernel(
   cl_kernel *kernel,
   const char *kernelSource,

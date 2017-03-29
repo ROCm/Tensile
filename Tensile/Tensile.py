@@ -93,8 +93,10 @@ def Tensile(userArgs):
       help="override which device to benchmark")
   argParser.add_argument("-p", "--platform", dest="platform", type=int, \
       help="override which OpenCL platform to benchmark")
-  argParser.add_argument("-b", "--backend", dest="backend", \
-      choices=["HIP", "OCL"], help="override which backend to use")
+  argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
+      choices=["HIP", "OCL"], help="override which runtime language to use")
+  argParser.add_argument("--kernel-language", dest="KernelLanguage", \
+      choices=["HIP", "OCL"], help="override which kernel language to use")
   argParser.add_argument("-v", "--verbose", action="store_true", \
       help="set PrintLevel=2 and LibraryPrintDebug=True")
   argParser.add_argument("--debug", action="store_true", \
@@ -121,9 +123,12 @@ def Tensile(userArgs):
   if args.platform:
     print1("# Command-line override: Platform")
     globalParameters["Platform"] = args.platform
-  if args.backend:
-    print1("# Command-line override: Backend")
-    globalParameters["Backend"] = args.backend
+  if args.RuntimeLanguage:
+    print1("# Command-line override: RuntimeLanguage")
+    globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
+  if args.KernelLanguage:
+    print1("# Command-line override: KernelLanguage")
+    globalParameters["KernelLanguage"] = args.KernelLanguage
   if args.verbose:
     print1("# Command-line override: PrintLevel")
     globalParameters["PrintLevel"] = 2

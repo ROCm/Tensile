@@ -33,6 +33,9 @@ TensileTimer timer;
 TensileTimer apiTimer;
 std::ofstream file;
 
+unsigned int invalidSolutions[numSolutions];
+unsigned int numInvalidSolutions = 0;
+
 void initControls();
 void destroyControls();
 
@@ -64,7 +67,7 @@ bool callLibrary(
 
   // copy data to device
   size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
       sizeToCopy, initialC, 0, NULL, NULL);
 #else
@@ -112,7 +115,7 @@ bool callLibrary(
     generatedCallToFunction( userSizes, alpha, beta);
 
     // copy data back to host
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
     clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
         sizeToCopy, deviceOnHostC, 0, NULL,
         NULL);
@@ -157,7 +160,7 @@ bool callLibrary(
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
     // sync
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
     status = clFinish(stream); tensileStatusCheck(status);
 #else
     status = hipStreamSynchronize(stream); tensileStatusCheck(status);
@@ -283,7 +286,7 @@ bool benchmarkAllSolutionsForSize(
   for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
 
     // copy data in language
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
     status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
         sizeToCopy, initialC, 0, NULL, NULL);
 #else
@@ -300,7 +303,7 @@ bool benchmarkAllSolutionsForSize(
       generatedCallToSolution( solutionIdx , sizes, alpha, beta );
 
       // copy data back to host
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
       clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
           sizeToCopy, deviceOnHostC, 0, NULL, NULL);
 #else
@@ -342,7 +345,7 @@ bool benchmarkAllSolutionsForSize(
         generatedCallToSolution( solutionIdx , sizes, alpha, beta );
       }
       // sync
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
       status = clFinish(stream); tensileStatusCheck(status);
 #else
       status = hipStreamSynchronize(stream); tensileStatusCheck(status);
@@ -371,10 +374,12 @@ bool benchmarkAllSolutionsForSize(
       }
       std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
-        << " " << (numChecked-numInvalids) << "/" << numChecked << std::endl;
-    }
-#if 1
-    else {
+        << " " << (numChecked-numInvalids) << "/" << numChecked;
+      if (numInvalids > 0) {
+        std::cout << " - " << solutionNames[solutionIdx];
+      }
+      std::cout << std::endl;
+    } else {
       std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]:"
         << std::setw(10) << std::fixed << std::setprecision(3)
         << gflops << " GFlop/s";
@@ -386,8 +391,10 @@ bool benchmarkAllSolutionsForSize(
       std::cout << " |"
         << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
     }
-    if (numInvalids) { gflops = -1.0; }
-#endif
+    if (numInvalids > 0) {
+      gflops = -1.0;
+      invalidSolutions[numInvalidSolutions++] = solutionIdx;
+    }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
@@ -439,7 +446,7 @@ bool benchmarkProblemSizes(
   // run each solution to pre-compile opencl kernels if not validating
   unsigned int currentSizedIdx = 0;
   unsigned int currentMappedIdx = 0;
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   if (!numElementsToValidate) {
     std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
@@ -579,7 +586,8 @@ void initData(
     std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
+      //(*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
+      (*initialC)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetTypeForInt<DataType>(i); }
@@ -590,7 +598,7 @@ void initData(
   }
 
   // create device buffers and copy data
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   deviceC = clCreateBuffer(context, CL_MEM_READ_WRITE,
       maxSizeC*bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
@@ -644,7 +652,7 @@ void destroyData(
   delete[] referenceC;
   delete[] deviceOnHostC;
 
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
   clReleaseMemObject(static_cast<cl_mem>(deviceC));
   clReleaseMemObject(static_cast<cl_mem>(deviceA));
   clReleaseMemObject(static_cast<cl_mem>(deviceB));

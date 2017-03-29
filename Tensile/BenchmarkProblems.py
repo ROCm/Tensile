@@ -109,7 +109,7 @@ def benchmarkProblemType( config ):
     #    os.path.join(globalParameters["SourcePath"], \
     #    "TensileBenchmark_CMakeLists.txt"),
     #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
-    if globalParameters["Backend"] == "OCL":
+    if globalParameters["RuntimeLanguage"] == "OCL":
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
           globalParameters["WorkingPath"] )
@@ -157,11 +157,12 @@ def benchmarkProblemType( config ):
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
-        winningParameters = winners[hardcodedParamDict]
-        if winningParameters == None:
-          # this is a joined parameter that didn't have a winner, that's okay
-          continue
-        solution.update(winningParameters)
+	if benchmarkStepIdx > 0:
+          winningParameters = winners[hardcodedParamDict]
+          if winningParameters == None:
+            # this is a joined parameter that didn't have a winner, that's okay
+            continue
+          solution.update(winningParameters)
 
         # append default parameters where necessary
         for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
@@ -180,12 +181,12 @@ def benchmarkProblemType( config ):
             if globalParameters["PrintLevel"] >= 1:
               sys.stdout.write(":")
         else:
-          if globalParameters["PrintLevel"] >= 1:
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("rejecting solution %s" % str(solutionObject))
+          elif globalParameters["PrintLevel"] >= 1:
             sys.stdout.write(".")
         if globalParameters["PrintLevel"] >= 1:
           sys.stdout.flush()
-        #else:
-        #  print2("rejecting solution %s" % str(solutionObject))
     if globalParameters["PrintLevel"] >= 1:
       sys.stdout.write("\n")
       sys.stdout.flush()
@@ -498,14 +499,6 @@ class WinningParameterDict:
           newHardcodedParameters.update(fastestHardcodedParameters)
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ fastestWinningParameters, fastestScore ]
-        #else:
-          #    % Solution.getNameFull(newHardcodedParameters)
-          # TODO can I avoid reaching this code by not allowing join DepthU
-          # probably not
-          #printWarning("No Winners found for %s" \
-          #    % Solution.getNameFull(newHardcodedParameters))
-          #printExit("AVOID ME")
-          #self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
 
     # return resulting hardcodedParameterList
     returnHardcodedParameterList = []
@@ -515,7 +508,7 @@ class WinningParameterDict:
 
   ##########################################################
   # Get Winning Parameters For Hardcoded Parameters
-  # need to match MacroTile and DepthU also
+  # need to match MacroTile also
   @staticmethod
   def get( lookupHardcodedParameters, winners ):
     matches = []
@@ -537,7 +530,6 @@ class WinningParameterDict:
             break
       if frozenMatch:
         matchMacroTile = True
-        matchDepthU = True
         matchUnion = {}
         matchUnion.update(hardcodedFrozen.parameters)
         matchUnion.update(winningParameters)
@@ -552,18 +544,7 @@ class WinningParameterDict:
           if matchUnion["MacroTile0"] != lookupMacroTile0 \
               or matchUnion["MacroTile1"] != lookupMacroTile1:
             matchMacroTile = False
-        if "DepthU" in lookupHardcodedParameters:
-          lookupDepthU = lookupHardcodedParameters["DepthU"]
-          matchDepthU = 1
-          if "LoopUnroll" in matchUnion:
-            matchDepthU *= matchUnion["LoopUnroll"]
-          if "SplitU" in matchUnion:
-            matchDepthU *= matchUnion["SplitU"]
-          if matchDepthU != lookupDepthU:
-            matchDepthU = False
-          else:
-            hardcodedFrozen.parameters["DepthU"] = lookupDepthU
-        if matchMacroTile and matchDepthU:
+        if matchMacroTile:
           matches.append([hardcodedFrozen, winningParameters, score])
       else:
         pass

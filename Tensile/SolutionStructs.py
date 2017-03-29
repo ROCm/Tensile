@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, derivedParameters
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1, print2
 from copy import deepcopy
 
 ################################################################################
@@ -74,8 +74,8 @@ class DataType:
     return self.properties[self.value][self.idxOpenCL]
   def toHIP(self):
     return self.properties[self.value][self.idxOpenCL]
-  def toDevice(self, backend):
-    if backend == "OCL":
+  def toDevice(self, language):
+    if language == "OCL":
       return self.toOpenCL()
     else:
       return self.toHIP()
@@ -85,14 +85,14 @@ class DataType:
     return self.properties[self.value][self.idxLibEnum]
 
   ########################################
-  def zeroString(self, backend):
-    if backend == "HIP":
+  def zeroString(self, language):
+    if language == "HIP":
       if self.value == self.complexSingle:
         return "make_float2(0.f, 0.f)"
       if self.value == self.complexDouble:
         return "make_float2(0.0, 0.0)"
 
-    zeroString = "(%s)(" % self.toDevice(backend)
+    zeroString = "(%s)(" % self.toDevice(language)
     if self.value == self.single or self.value == self.half:
       zeroString += "0.f"
     elif self.value == self.double:
@@ -143,54 +143,6 @@ class DataType:
     if result is NotImplemented:
       return result
     return not result
-
-
-
-################################################################################
-# Device
-################################################################################
-class Device:
-
-  ########################################
-  def __init__( self, name, numComputeUnits, clockFrequency, flopsPerClock):
-    self.name = name
-    self.numComputeUnits = numComputeUnits
-    self.clockFrequency = clockFrequency
-    self.flopsPerClock = flopsPerClock
-
-  ########################################
-  def __str__(self):
-    state = "[Device"
-    state += "; " + self.name
-    state += "; " + str(self.numComputeUnits)
-    state += "; " + str(self.clockFrequency)
-    state += "; " + str(self.flopsPerClock)
-    state += "]"
-    return state
-
-  def __repr__(self):
-    return self.__str__()
-
-  def getAttributes(self):
-    return ( \
-        self.name, \
-        self.numComputeUnits, \
-        self.clockFrequency, \
-        self.flopsPerClock, \
-        )
-  def __hash__(self):
-    return hash(self.getAttributes())
-  def __eq__(self, other):
-    return isinstance(other, Device) and self.getAttributes() == other.getAttributes()
-  def __ne__(self, other):
-    result = self.__eq__(other)
-    if result is NotImplemented:
-      return result
-    return not result
-
-# ProblemSize
-#  GEMM: M, N, K, [lda, ldb, ldc]
-#  TensorContraction: sizeI, sizeJ, ...; [ stridesC, A, B ]
 
 
 ################################################################################
@@ -341,8 +293,8 @@ class ProblemType:
     state["TLUA"] = strideIdxA < unrollIdxA
     state["TLUB"] = strideIdxB < unrollIdxB
 
-    #unrollDimStrideGreaterThanTileDimStrideA = TLUA
-    #unrollDimStrideLessThanTileDimStrideB    = !TLUB
+    #unrollDimStrideGreaterThanTileDimStrideA = TLUA = !transA = fast
+    #!unrollDimStrideLessThanTileDimStrideB   = TLUB =  transB = fast
     state["AssignedDerivedParameters"] = True
 
 
@@ -381,12 +333,6 @@ class ProblemType:
     return len(self.state)
   def __iter__(self):
     return iter(self.state)
-
-
-
-
-
-
   def __getitem__(self, key):
     return self.state[key]
   def __setitem__(self, key, value):
@@ -397,7 +343,6 @@ class ProblemType:
     return self.state
   def __hash__(self):
     return hash(str(self))
-    #return hash(self.getAttributes())
   def __eq__(self, other):
     return isinstance(other, ProblemType) and self.getAttributes() == other.getAttributes()
   def __ne__(self, other):
@@ -561,44 +506,54 @@ class Solution:
       if state["AssignedProblemIndependentDerivedParameters"]:
         return
     state["AssignedProblemIndependentDerivedParameters"] = False
-    # workgroup sizes
-    state["WorkGroup0"] = state["WorkGroupEdge"]
-    state["WorkGroup1"] = state["WorkGroupEdge"]
-    if state["WorkGroupShape"] > 0:
-      state["WorkGroup1"] *= abs(state["WorkGroupShape"])
-    elif state["WorkGroupShape"] < 0:
-      state["WorkGroup0"] *= abs(state["WorkGroupShape"])
+    if "Valid" not in state:
+      state["Valid"] = True
 
-    # thread tile sizes
-    state["ThreadTile0"] = state["ThreadTileEdge"]
-    state["ThreadTile1"] = state["ThreadTileEdge"]
-    if state["ThreadTileShape"] > 0:
-      state["ThreadTile1"] *= abs(state["ThreadTileShape"])
-    elif state["ThreadTileShape"] < 0:
-      state["ThreadTile0"] *= abs(state["ThreadTileShape"])
+    if "NumThreads" in state \
+        and "SplitU" in state \
+        and "GroupShape" in state \
+        and "ThreadTileNumElements" in state \
+        and "ThreadTileShape" in state:
+      (subGroup0, subGroup1, threadTile0, threadTile1) \
+          = Solution.tileSizes(state["NumThreads"], state["SplitU"], \
+          state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
+    else:
+      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, SplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
+
+    state["SubGroup0"] = subGroup0
+    state["SubGroup1"] = subGroup1
+    state["ThreadTile0"] = threadTile0
+    state["ThreadTile1"] = threadTile1
+    if state["SubGroup0"]*state["SubGroup1"] \
+        != state["NumThreads"]/state["SplitU"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["SplitU"]))
+      state["Valid"] = False
+    #print "Group:", state["SubGroup0"], state["SubGroup1"]
+
+    if state["ThreadTile0"]*state["ThreadTile1"] != state["ThreadTileNumElements"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("ThreadTile %u * %u != %u" % (state["ThreadTile0"], state["ThreadTile1"], state["ThreadTileNumElements"]))
+      state["Valid"] = False
+    #print "ThreadTile:", state["ThreadTile0"], state["ThreadTile1"]
 
     # macro tile sizes
-    if "WorkGroup0" in state and "ThreadTile0" in state:
-      state["MacroTile0"] = state["WorkGroup0"]*state["ThreadTile0"]
-    if "WorkGroup1" in state and "ThreadTile1" in state:
-      state["MacroTile1"] = state["WorkGroup1"]*state["ThreadTile1"]
-    if "SplitU" in state and "LoopUnroll" in state:
-      state["DepthU"] = state["SplitU"] * state["LoopUnroll"]
-
-    printReason = False
-    # num threads
-    state["NumThreads"] = state["WorkGroup0"]*state["WorkGroup1"]
-    if state["NumThreads"] > globalParameters["MaxThreads"]:
-      if printReason: print2("rejecting %u threads" % state["NumThreads"])
-      state["Valid"] = False
-    if state["NumThreads"] < globalParameters["MinThreads"]:
-      if printReason: print2("rejecting %u threads" % state["NumThreads"])
-      state["Valid"] = False
+    if "SubGroup0" in state and "ThreadTile0" in state:
+      state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
+    if "SubGroup1" in state and "ThreadTile1" in state:
+      state["MacroTile1"] = state["SubGroup1"]*state["ThreadTile1"]
+    if "SplitU" in state and "DepthU" in state:
+      state["LoopUnroll"] = state["DepthU"] / state["SplitU"]
+    if state["LoopUnroll"] * state["SplitU"] != state["DepthU"]:
+        state["Valid"] = False
 
     # tile shape
-    if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
-        or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
-      state["Valid"] = False
+    if state["Valid"]:
+      if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
+          or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
+        state["Valid"] = False
 
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
@@ -615,45 +570,90 @@ class Solution:
     state["AssignedDerivedParameters"] = False
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
-    printReason = False
+    if not state["Valid"]:
+      return
 
-    # tile size
-    if state["ThreadTile0"]*state["ThreadTile1"]*state["ProblemType"]["DataType"].numRegisters() > globalParameters["MaxThreadTile"]:
+    # VectorWidth
+    if state["VectorWidth"] < 1:
+      state["VectorWidth"] = 4 / state["ProblemType"]["DataType"].numRegisters()
+      while state["ThreadTile0"] % state["VectorWidth"] != 0 \
+          or state["ThreadTile1"] % state["VectorWidth"] != 0:
+        state["VectorWidth"] /= 2
+    # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
+    if state["ThreadTile0"] % state["VectorWidth"] != 0 \
+        or state["ThreadTile1"] % state["VectorWidth"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
+            % (state["ThreadTile0"], state["ThreadTile1"], \
+            state["VectorWidth"]))
       state["Valid"] = False
+
+    # SplitU too large?
+    numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
+    state["NumVectorsPerThread"] = numElementsPerWorkGroup / \
+        state["NumThreads"] / state["VectorWidth"]
+    if state["NumVectorsPerThread"] * state["NumThreads"] \
+        * state["VectorWidth"] != numElementsPerWorkGroup:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("SplitU %u too large; less than 1 vector per thread" \
+            % (state["SplitU"]))
+      state["Valid"] = False
+      return
+
+    # SplitU but can't NumThreads%MacroTile doesn't support sideways load
+    if state["SplitU"] > 1:
+      if state["NumThreads"] % state["MacroTile0"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("SplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
+              % (state["NumThreads"], state["MacroTile0"]))
+        state["Valid"] = False
+        return
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
       totalElementsCoalescedA = state["MacroTile0"]
-      totalElementsPerpA = state["LoopUnroll"]
+      totalElementsPerpA = state["DepthU"]
     else:
-      totalElementsCoalescedA = state["LoopUnroll"]
+      totalElementsCoalescedA = state["DepthU"]
       totalElementsPerpA = state["MacroTile0"]
 
     if state["ProblemType"]["TLUB"]:
       totalElementsCoalescedB = state["MacroTile1"]
-      totalElementsPerpB = state["LoopUnroll"]
+      totalElementsPerpB = state["DepthU"]
     else:
-      totalElementsCoalescedB = state["LoopUnroll"]
+      totalElementsCoalescedB = state["DepthU"]
       totalElementsPerpB = state["MacroTile1"]
+
     totalElementsA = totalElementsCoalescedA * totalElementsPerpA
     totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
+    # convert elements to vectors based on VectorWidth
+    totalVectorsCoalescedA = totalElementsCoalescedA / state["VectorWidth"]
+    #totalVectorsPerpA = totalElementsPerpA / state["VectorWidth"]
+    totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
+    #totalVectorsPerpB = totalElementsPerpB / state["VectorWidth"]
+    totalVectorsA = totalElementsA / state["VectorWidth"]
+    totalVectorsB = totalElementsB / state["VectorWidth"]
+
     # how many load instructions
-    if totalElementsA % state["NumThreads"] != 0:
-      if printReason: print2("totalElementsA %u %% NumThreads %u != 0" \
-          % (totalElementsA, state["NumThreads"]))
+    if totalVectorsA % state["NumThreads"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("totalVectorsA %u %% NumThreads %u != 0" \
+            % (totalVectorsA, state["NumThreads"]))
       state["Valid"] = False
       return
     else:
-      state["NumLoadsA"] = totalElementsA / state["NumThreads"]
-    if totalElementsB % state["NumThreads"] != 0:
-      if printReason: print2("totalElementsB %u %% NumThreads %u != 0" \
-          % (totalElementsB, state["NumThreads"]))
+      state["NumLoadsA"] = totalVectorsA / state["NumThreads"]
+
+    if totalVectorsB % state["NumThreads"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("totalVectorsB %u %% NumThreads %u != 0" \
+            % (totalVectorsB, state["NumThreads"]))
       state["Valid"] = False
       return
-      state["NumLoadsB"] = totalElementsB / state["NumThreads"]
     else:
-      state["NumLoadsB"] = totalElementsB / state["NumThreads"]
+      state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
+    #print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
@@ -661,13 +661,15 @@ class Solution:
       for nlca in range(1, state["NumLoadsA"]+1):
         nlpa = state["NumLoadsA"] / nlca
         if state["NumLoadsA"] % nlca == 0 \
-            and totalElementsCoalescedA % nlca == 0 \
+            and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:
           state["NumLoadsCoalescedA"] = nlca
           state["NumLoadsPerpendicularA"] = nlpa
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedA=1 found")
         state["Valid"] = False
         return
 
@@ -677,161 +679,374 @@ class Solution:
       for nlca in range(state["NumLoadsA"], 0, -1):
         nlpa = state["NumLoadsA"] / nlca
         if state["NumLoadsA"] % nlca == 0 \
-            and totalElementsCoalescedA % nlca == 0 \
+            and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:
           state["NumLoadsCoalescedA"] = nlca
           state["NumLoadsPerpendicularA"] = nlpa
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedA=-1 found")
         state["Valid"] = False
         return
 
     # nlca = other
     else:
+      if state["NumLoadsCoalescedA"] > state["NumLoadsA"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NLCA > NLA")
+        state["Valid"] = False
+        return
       state["NumLoadsPerpendicularA"] = state["NumLoadsA"] \
           / state["NumLoadsCoalescedA"]
 
       if state["NumLoadsA"] % state["NumLoadsCoalescedA"] != 0:
-        if printReason: print2("numLoadsA %u %% numLoadsParaA %u != 0" \
-            % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("numLoadsA %u %% numLoadsParaA %u != 0" \
+              % (state["NumLoadsA"], state["NumLoadsCoalescedA"]))
         state["Valid"] = False
-      if totalElementsCoalescedA % state["NumLoadsCoalescedA"] != 0:
-        if printReason: print2("totalElementsCoalescedA %u %% numLoadsParaA %u != 0" \
-            % (totalElementsCoalescedA, state["NumLoadsCoalescedA"]))
+      if totalVectorsCoalescedA % state["NumLoadsCoalescedA"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalVectorsCoalescedA %u %% numLoadsParaA %u != 0" \
+              % (totalVectorsCoalescedA, state["NumLoadsCoalescedA"]))
         state["Valid"] = False
         return
       if totalElementsPerpA % state["NumLoadsPerpendicularA"] != 0:
-        if printReason: print2("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
-            % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalElementsPerpA %u %% numLoadsPerpA %u != 0" \
+              % (totalElementsPerpA, state["NumLoadsPerpendicularA"]))
         state["Valid"] = False
         return
-
-
-
-
 
     # nlcb = 1
     if state["NumLoadsCoalescedB"] == 1:
       foundValid = False
-      for nlca in range(1, state["NumLoadsB"]+1):
-        nlpa = state["NumLoadsB"] / nlca
-        if state["NumLoadsB"] % nlca == 0 \
-            and totalElementsCoalescedB % nlca == 0 \
-            and totalElementsPerpB % nlpa == 0:
-          state["NumLoadsCoalescedB"] = nlca
-          state["NumLoadsPerpendicularB"] = nlpa
+      for nlcb in range(1, state["NumLoadsB"]+1):
+        nlpb = state["NumLoadsB"] / nlcb
+        # pre-filter for VW*NLCB
+        if state["VectorWidth"] > 1:
+          if state["ProblemType"]["TLUB"]:
+            if nlcb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
+          else:
+            if nlpb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
+        if state["NumLoadsB"] % nlcb == 0 \
+            and totalVectorsCoalescedB % nlcb == 0 \
+            and totalElementsPerpB % nlpb == 0:
+          state["NumLoadsCoalescedB"] = nlcb
+          state["NumLoadsPerpendicularB"] = nlpb
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedB=1 found")
         state["Valid"] = False
         return
 
     # nlcb = -1
     elif state["NumLoadsCoalescedB"] == -1:
       foundValid = False
-      for nlca in range(state["NumLoadsB"], 0, -1):
-        nlpa = state["NumLoadsB"] / nlca
-        if state["NumLoadsB"] % nlca == 0 \
-            and totalElementsCoalescedB % nlca == 0 \
-            and totalElementsPerpB % nlpa == 0:
-          state["NumLoadsCoalescedB"] = nlca
-          state["NumLoadsPerpendicularB"] = nlpa
+      for nlcb in range(state["NumLoadsB"], 0, -1):
+        nlpb = state["NumLoadsB"] / nlcb
+        # pre-filter for VW*NLCB
+        if state["VectorWidth"] > 1:
+          if state["ProblemType"]["TLUB"]:
+            if nlcb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
+          else:
+            if nlpb * state["VectorWidth"] \
+                > state["ThreadTile1"]:
+              continue
+        if state["NumLoadsB"] % nlcb == 0 \
+            and totalVectorsCoalescedB % nlcb == 0 \
+            and totalElementsPerpB % nlpb == 0:
+          state["NumLoadsCoalescedB"] = nlcb
+          state["NumLoadsPerpendicularB"] = nlpb
           foundValid = True
           break
       if not foundValid:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("No NumLoadsCoalescedB=-1 found")
         state["Valid"] = False
         return
 
     # nlcb = other
     else:
+      if state["NumLoadsCoalescedB"] > state["NumLoadsB"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NLCB > NLB")
+        state["Valid"] = False
+        return
+
       state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
           / state["NumLoadsCoalescedB"]
 
       if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
-        if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("numLoadsB %u %% numLoadsParaB %u != 0" \
             % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
         state["Valid"] = False
-      if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
-        if printReason: print2("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
-            % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
+        return
+      if totalVectorsCoalescedB % state["NumLoadsCoalescedB"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalVectorsCoalescedB %u %% numLoadsParaB %u != 0" \
+            % (totalVectorsCoalescedB, state["NumLoadsCoalescedB"]))
         state["Valid"] = False
         return
       if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
-        if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
             % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
         state["Valid"] = False
         return
 
+    # Vector Width & NLCB
+    # only filteres out extreme cases (such as wg=4x16, tt=8x2) which
+    # don't support complicated VW grB indexing and they happen to
+    # be sollutions which should never be fastest b/c work-group and
+    # thread tile are of opposite shape - DT
+    if state["VectorWidth"] > 1:
+      if state["ProblemType"]["TLUB"] and state["GlobalReadCoalesceGroup"]:
+        if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
+            > state["ThreadTile1"]:
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("NLCB %u * VW %u > TT1 %u" \
+              % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+              state["ThreadTile1"]))
+          state["Valid"] = False
+          return
+      else:
+        if state["NumLoadsPerpendicularB"] * state["VectorWidth"] \
+            > state["ThreadTile1"] and not state["GlobalReadCoalesceGroup"]:
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("NLCB %u * VW %u * TT1 %u > DU %u" \
+              % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
+              state["ThreadTile1"], state["DepthU"]))
+          state["Valid"] = False
+          return
 
+    # lds buffer size for A, B
+    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
+    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
+    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
+    ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
+    state["LdsOffsetB"] = ldsNumElementsAlignedA
+    ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
 
-
-
-
-
-
-    """
-    if state["NumLoadsCoalescedB"] < 1:
-      state["NumLoadsCoalescedB"] = state["NumLoadsB"]
-    if state["NumLoadsB"] % state["NumLoadsCoalescedB"] != 0:
-      if printReason: print2("numLoadsB %u %% numLoadsParaB %u != 0" \
-          % (state["NumLoadsB"], state["NumLoadsCoalescedB"]))
-      state["Valid"] = False
-      return
+    # lds buffer size for reduction
+    if state["SplitU"] >= 2:
+      ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
     else:
-      state["NumLoadsPerpendicularB"] = state["NumLoadsB"] \
-          / state["NumLoadsCoalescedB"]
+      ldsNumElementsReduction = 0
 
-
-    # load size para/perp B
-    if totalElementsCoalescedB % state["NumLoadsCoalescedB"] != 0:
-      if printReason: print2("totalElementsCoalescedB %u %% numLoadsParaB %u != 0" \
-          % (totalElementsCoalescedB, state["NumLoadsCoalescedB"]))
-      state["Valid"] = False
-      return
-    #else:
-    #  loadSizeParaB = totalElementsCoalescedB / state["NumLoadsCoalescedB"]
-    if totalElementsPerpB % state["NumLoadsPerpendicularB"] != 0:
-      if printReason: print2("totalElementsPerpB %u %% numLoadsPerpB %u != 0" \
-          % (totalElementsPerpB, state["NumLoadsPerpendicularB"]))
-      state["Valid"] = False
-      return
-    #else:
-    #  loadSizePerpB = totalElementsPerpB / state["NumLoadsPerpendicularB"]
-    """
-
-
-
-
-
-
-
-
-
-    # too much LDS
-    sizeLDS = state["LoopUnroll"] \
-        * (state["PadLDS"] * 2 + state["MacroTile0"] \
-        + state["MacroTile1"] ) \
-        * state["ProblemType"]["DataType"].numBytes()
-    if sizeLDS > globalParameters["MaxLDS"]:
-      if printReason: print2("Kernel Uses %u > %u bytes" % ( sizeLDS, globalParameters["MaxLDS"]))
+    # lds size is the greater of the two
+    ldsNumElements = max(ldsNumElementsAlignedA+ldsNumElementsB, ldsNumElementsReduction)
+    state["LdsNumElements"] = ldsNumElements
+    ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
+    if ldsSize > globalParameters["MaxLDS"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("Kernel Uses %u > %u bytes of LDS" % ( ldsSize, globalParameters["MaxLDS"]))
       state["Valid"] = False
       return
 
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
-    if globalParameters["Backend"] == "HIP":
+    if globalParameters["KernelLanguage"] == "HIP":
+
+      if state["ProblemType"]["DataType"].value == DataType.single:
+
+        # sgemm NN
+        if state["ProblemType"]["TransposeA"] == False and state["ProblemType"]["TransposeB"] == False:
+          if state["NumThreads"] == 128:
+            if state["ThreadTileNumElements"] == 64:
+              if state["NumLoadsCoalescedA"] == 2:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 4:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 8:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 8: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 16:
+                if state["NumLoadsCoalescedB"] == 1:
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 8: state["Valid"] = False
+
+        # sgemm NT
+        if state["ProblemType"]["TransposeA"] == False and state["ProblemType"]["TransposeB"] == True:
+          if state["NumThreads"] == 128:
+            if state["ThreadTileNumElements"] == 64:
+              if state["NumLoadsCoalescedA"] == 2:
+                if state["NumLoadsCoalescedB"] == 2:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 4:
+                if state["NumLoadsCoalescedB"] == 4:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 8:
+                if state["NumLoadsCoalescedB"] == 8:
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["NumLoadsCoalescedA"] == 16:
+                if state["NumLoadsCoalescedB"] == 16:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+
+        # sgemm TN
+        if state["ProblemType"]["TransposeA"] == True and state["ProblemType"]["TransposeB"] == False:
+          if state["GroupShape"] == 0:
+            if state["NumThreads"] == 64:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 16: state["Valid"] = False
+            if state["NumThreads"] == 128:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+            if state["NumThreads"] == 256:
+              if state["ThreadTileShape"] == 2:
+                if state["ThreadTileNumElements"] == 32:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+          if state["GroupShape"] == 2:
+            if state["NumThreads"] == 64:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 8: state["Valid"] = False
+            if state["NumThreads"] == 128:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 64:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 1: state["Valid"] = False
+                    if state["SplitU"] == 4: state["Valid"] = False
+                    if state["SplitU"] == 16: state["Valid"] = False
+            if state["NumThreads"] == 256:
+              if state["ThreadTileShape"] == 0:
+                if state["ThreadTileNumElements"] == 16:
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+              if state["ThreadTileShape"] == 2:
+                if state["ThreadTileNumElements"] == 32:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+
+        # sgemm TT
+        if state["ProblemType"]["TransposeA"] == True and state["ProblemType"]["TransposeB"] == True:
+          if state["NumThreads"] == 128:
+            if state["ThreadTileNumElements"] == 64:
+              if state["NumLoadsCoalescedA"] == 1:
+                if state["NumLoadsCoalescedB"] == 2:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                if state["NumLoadsCoalescedB"] == 4:
+                  if state["LoopUnroll"] == 2:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                if state["NumLoadsCoalescedB"] == 8:
+                  if state["LoopUnroll"] == 4:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                if state["NumLoadsCoalescedB"] == 16:
+                  if state["LoopUnroll"] == 8:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+                  if state["LoopUnroll"] == 16:
+                    if state["SplitU"] == 2: state["Valid"] = False
+                    if state["SplitU"] == 8: state["Valid"] = False
+
+
+      # dgemm
+      elif state["ProblemType"]["DataType"].value == DataType.double:
+        if globalParameters["KernelLanguage"] == "HIP":
+          if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
+            state["Valid"] = False
+      """
       if state["ProblemType"]["DataType"].value == DataType.single:
         if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:
           if state["NumLoadsCoalescedA"] != 1 and state["NumLoadsCoalescedB"] != 8:
             state["Valid"] = False
-            #return
-      elif state["ProblemType"]["DataType"].value == DataType.double:
-        if globalParameters["Backend"] == "HIP":
-          if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
-            state["Valid"] = False
-            #return
+      """
+
     state["AssignedDerivedParameters"] = True
 
+    #print Solution.getNameFull(state)
 
 # validation failures
 # Cijk_Ailk_Bjlk_SB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA02_NLCB01_NLPA08_NLPB16_TT008_TT108_TTE08_WG008_WG108_WGE08
@@ -845,7 +1060,42 @@ class Solution:
 # Cijk_Ailk_Bjlk_DB_DU16_LU16_MT064_MT164_NLA16_NLB16_NLCA08_NLCB08_NLPA02_NLPB02_TT008_TT108_TTE08_WG008_WG108_WGE08
 # Cijk_Ailk_Bjlk_DB_DU08_LU08_MT064_MT164_NLA08_NLB08_NLCA01_NLCB08_NLPA08_NLPB01_TT008_TT108_TTE08_WG008_WG108_WGE08
 
+  ########################################
+  # compute tile sizes
+  @staticmethod
+  def tileSizes(numThreads, splitU, groupShape, \
+      threadTileNumElements, threadTileShape):
 
+    # group sizes
+    subGroupSize = numThreads / splitU
+    if groupShape == 0:
+      subGroup0 = int(subGroupSize**0.5)
+      subGroup1 = int(subGroupSize**0.5)
+    elif groupShape > 0:
+      subGroup0 = int((subGroupSize \
+          / abs(groupShape))**0.5)
+      subGroup1 = subGroup0 * abs(groupShape)
+    elif groupShape < 0:
+      subGroup1 = int((subGroupSize \
+          / abs(groupShape))**0.5)
+      subGroup0 = subGroup1 * abs(groupShape)
+
+    # thread-tile sizes
+    if threadTileShape == 0:
+      threadTile0 = int(threadTileNumElements**0.5)
+      threadTile1 = int(threadTileNumElements**0.5)
+    elif threadTileShape > 0:
+      threadTile0 = int((threadTileNumElements \
+          / abs(threadTileShape))**0.5)
+      threadTile1 = threadTile0 \
+          * abs(threadTileShape)
+    elif threadTileShape < 0:
+      threadTile1 = int((threadTileNumElements \
+          / abs(threadTileShape))**0.5)
+      threadTile0 = threadTile1 \
+          * abs(threadTileShape)
+
+    return (subGroup0, subGroup1, threadTile0, threadTile1)
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
@@ -863,12 +1113,12 @@ class Solution:
     # only 1, rather than name being nothing, it'll be everything
     if len(objs) == 1:
       for key in keys:
-        if key not in derivedParameters:
+        if key in validParameters.keys():
           requiredParameters[key] = False
     else:
       for key in keys:
         required = False
-        if key not in derivedParameters:
+        if key in validParameters.keys():
           for i in range(1, len(objs)):
             if objs[0][key] != objs[i][key]:
               required = True
@@ -888,7 +1138,8 @@ class Solution:
   def getNameFull(state):
     requiredParameters = {}
     for key in state:
-      requiredParameters[key] = True
+      if key in validParameters.keys():
+        requiredParameters[key] = True
     return Solution.getNameMin(state, requiredParameters)
 
   ########################################
@@ -919,7 +1170,7 @@ class Solution:
     for objIdx in range(0, len(objs)):
       obj = objs[objIdx]
       for paramName in sorted(obj.keys()):
-        if paramName not in derivedParameters:
+        if paramName in validParameters.keys():
           paramValue = obj[paramName]
           if paramName in data:
             if paramValue not in data[paramName]:
@@ -943,7 +1194,7 @@ class Solution:
     serial = 0
     multiplier = 1
     for paramName in sorted(state.keys()):
-      if paramName not in derivedParameters:
+      if paramName in validParameters.keys():
         paramValue = state[paramName]
         paramData = data[paramName]
         paramNameMultiplier = len(paramData)

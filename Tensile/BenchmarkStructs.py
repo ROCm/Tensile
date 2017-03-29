@@ -2,7 +2,7 @@
 # from copy import *
 
 from copy import copy, deepcopy
-from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit, globalParameters
+from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit, globalParameters, validParameters
 from SolutionStructs import Solution, ProblemType, ProblemSizes
 
 ################################################################################
@@ -95,6 +95,28 @@ class BenchmarkProcess:
         and len(config["BenchmarkFinalParameters"]) > 0 \
         else {"ProblemSizes": defaultBenchmarkFinalProblemSizes}
 
+    ############################################################################
+    # Ensure only valid solution parameters were requested
+    validParameterNames = validParameters.keys()
+    for paramDictList in [configBenchmarkCommonParameters, \
+        configForkParameters, configBenchmarkForkParameters, \
+        configBenchmarkJoinParameters]:
+      if paramDictList != None:
+        for paramDict in paramDictList:
+          for paramName in paramDict:
+            if paramName in ["ProblemSizes"]:
+              continue
+            else:
+              if paramName not in validParameterNames:
+                printExit("Invalid parameter name: %s\nValid parameters are %s." \
+                    % (paramName, validParameterNames))
+              paramValues = paramDict[paramName]
+              for paramValue in paramValues:
+                if paramValue not in validParameters[paramName]:
+                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s." \
+                      % (paramName, paramValue, paramName, validParameters[paramName]))
+
+
 
     ############################################################################
     # (I-1) get current problem sizes
@@ -177,7 +199,7 @@ class BenchmarkProcess:
           configJoinParameters, configBenchmarkJoinParameters]) \
           or paramName == "ProblemSizes":
         if "JoinParameters" not in config \
-            or (paramName != "MacroTile" and paramName != "DepthU"):
+            or (paramName != "MacroTile"):
           self.joinParameters.append(paramName)
     if configJoinParameters != None:
       for paramName in configJoinParameters:
@@ -339,7 +361,6 @@ class BenchmarkProcess:
     print2("####################################################################")
     print1("# Join Parameters")
     macroTileJoinSet = set()
-    depthUJoinSet = set()
     totalPermutations = 1
     for joinName in self.joinParameters:
       # joining a parameter with only a single value
@@ -361,10 +382,12 @@ class BenchmarkProcess:
         print2("JoinParam: MacroTile")
         # get possible WorkGroupEdges from forked
         print2("currentForkParameters = %s" % str(self.forkParameters))
-        workGroupEdgeValues = []
-        workGroupShapeValues = []
-        threadTileEdgeValues = []
+        #workGroupEdgeValues = []
+        numThreadsValues = []
+        groupShapeValues = []
+        threadTileNumElementsValues = []
         threadTileShapeValues = []
+        splitUValues = []
         # todo having MacroTile as join parameter causes trouble if
         # one parameter is benchmarked rather than forked
         # however, this may still be the right way to do it
@@ -373,71 +396,49 @@ class BenchmarkProcess:
         for paramList in [self.benchmarkCommonParameters, \
             self.forkParameters, self.benchmarkForkParameters, \
             self.benchmarkJoinParameters, self.singleValueParameters ]:
-          if hasParam("WorkGroupEdge", paramList):
-            workGroupEdgeValues = getParamValues("WorkGroupEdge", paramList)
-          if hasParam("WorkGroupShape", paramList):
-            workGroupShapeValues = getParamValues("WorkGroupShape", paramList)
-          if hasParam("ThreadTileEdge", paramList):
-            threadTileEdgeValues = getParamValues("ThreadTileEdge", paramList)
+          if hasParam("NumThreads", paramList):
+            numThreadsValues = getParamValues("NumThreads", paramList)
+          if hasParam("GroupShape", paramList):
+            groupShapeValues = getParamValues("GroupShape", paramList)
+          if hasParam("ThreadTileNumElements", paramList):
+            threadTileNumElementsValues = getParamValues("ThreadTileNumElements", paramList)
           if hasParam("ThreadTileShape", paramList):
             threadTileShapeValues = getParamValues("ThreadTileShape", paramList)
-        macroTilePermutations = len(workGroupEdgeValues) \
-            * len(workGroupShapeValues) * len(threadTileEdgeValues) \
-            * len(threadTileShapeValues)
+          if hasParam("SplitU", paramList):
+            splitUValues = getParamValues("SplitU", paramList)
+        macroTilePermutations = len(numThreadsValues) \
+            * len(groupShapeValues) * len(threadTileNumElementsValues) \
+            * len(threadTileShapeValues) * len(splitUValues)
         print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
 
         # enumerate permutations
         for i in range(0, macroTilePermutations):
           pIdx = i
-          workGroupEdgeIdx = pIdx % len(workGroupEdgeValues)
-          pIdx /= len(workGroupEdgeValues)
-          workGroupShapeIdx = pIdx % len(workGroupShapeValues)
-          pIdx /= len(workGroupShapeValues)
-          threadTileEdgeIdx = pIdx % len(threadTileEdgeValues)
-          pIdx /= len(threadTileEdgeValues)
+          numThreadsIdx = pIdx % len(numThreadsValues)
+          pIdx /= len(numThreadsValues)
+          groupShapeIdx = pIdx % len(groupShapeValues)
+          pIdx /= len(groupShapeValues)
+          threadTileNumElementsIdx = pIdx % len(threadTileNumElementsValues)
+          pIdx /= len(threadTileNumElementsValues)
           threadTileShapeIdx = pIdx % len(threadTileShapeValues)
-          macroTileDim0 = workGroupEdgeValues[workGroupEdgeIdx]*threadTileEdgeValues[threadTileEdgeIdx]
-          macroTileDim1 = macroTileDim0
-          if workGroupShapeValues[workGroupShapeIdx] < 0:
-            macroTileDim0 *= abs(workGroupShapeValues[workGroupShapeIdx])
-          elif workGroupShapeValues[workGroupShapeIdx] > 0:
-            macroTileDim1 *= abs(workGroupShapeValues[workGroupShapeIdx])
-          if threadTileShapeValues[threadTileShapeIdx] < 0:
-            macroTileDim0 *= abs(threadTileShapeValues[threadTileShapeIdx])
-          elif threadTileShapeValues[threadTileShapeIdx] > 0:
-            macroTileDim1 *= abs(threadTileShapeValues[threadTileShapeIdx])
-          # TODO is this still useful?
-          if macroTileDim0/macroTileDim1 <= globalParameters["MaxMacroTileRatio"] \
-              and macroTileDim1/macroTileDim0 <= globalParameters["MaxMacroTileRatio"]:
-            macroTileJoinSet.add((macroTileDim0, macroTileDim1))
+          pIdx /= len(threadTileShapeValues)
+          splitUIdx = pIdx % len(splitUValues)
+
+          numThreads = numThreadsValues[numThreadsIdx]
+          groupShape = groupShapeValues[groupShapeIdx]
+          threadTileNumElements = threadTileNumElementsValues[threadTileNumElementsIdx]
+          threadTileShape = threadTileShapeValues[threadTileShapeIdx]
+          splitU = splitUValues[splitUIdx]
+
+          (subGroup0, subGroup1, threadTile0, threadTile1) \
+              = Solution.tileSizes(numThreads, splitU, \
+              groupShape, threadTileNumElements, threadTileShape)
+          macroTile0 = subGroup0*threadTile0
+          macroTile1 = subGroup1*threadTile1
+
+          macroTileJoinSet.add((macroTile0, macroTile1))
         totalPermutations *=len(macroTileJoinSet)
         print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
-
-      ##########################################################################
-      # (II-4.3) Join DepthU
-      elif joinName == "DepthU":
-        unrollValues = []
-        splitUValues = []
-        # count permutations
-        for paramList in [self.benchmarkCommonParameters, \
-            self.forkParameters, self.benchmarkForkParameters, \
-            self.benchmarkJoinParameters, self.singleValueParameters ]:
-          if hasParam("LoopUnroll", paramList):
-            unrollValues = getParamValues("LoopUnroll", paramList)
-          if hasParam("SplitU", paramList):
-            splitUValues = getParamValues("SplitU", paramList)
-        depthUPermutations = len(unrollValues)*len(splitUValues)
-        print2("# Total JoinDepthU Permutations: %u" % depthUPermutations)
-        # enumerate permutations
-        for i in range(0, depthUPermutations):
-          pIdx = i
-          unrollIdx = pIdx % len(unrollValues)
-          pIdx /= len(unrollValues)
-          splitUIdx = pIdx % len(splitUValues)
-          depthU = unrollValues[unrollIdx]*splitUValues[splitUIdx]
-          depthUJoinSet.add(depthU)
-        totalPermutations *= len(depthUJoinSet)
-        print2("# JoinSplitUSet(%u): %s" % (len(depthUJoinSet), depthUJoinSet) )
 
       # invalid join parameter
       else:
@@ -450,7 +451,6 @@ class BenchmarkProcess:
     ############################################################################
     # (II-4.4) Enumerate Permutations Other * MacroTile * DepthU
     macroTiles = list(macroTileJoinSet)
-    depthUs = list(depthUJoinSet)
     print2("# TotalJoinPermutations = %u" % ( totalPermutations) )
     joinPermutations = []
     for i in range(0, totalPermutations):
@@ -471,14 +471,10 @@ class BenchmarkProcess:
           joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
           joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
           #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
-        elif joinName == "DepthU":
-          valueIdx = pIdx % len(depthUs)
-          pIdx /= len(depthUs)
-          joinPermutations[i][joinName] = depthUs[valueIdx]
     #self.hardcodedParameters.append(joinPermutations)
     print2("JoinPermutations: ")
     for perm in joinPermutations:
-      print2(Solution.getNameFull(perm))
+      print2(perm)
     if len(joinPermutations) > 0:
       self.joinHardcodedParameters(joinPermutations)
 

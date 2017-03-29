@@ -26,7 +26,8 @@ include(CMakeParseArguments)
 ################################################################################
 function(TensileCreateLibrary
     Tensile_LOGIC_PATH
-    Tensile_BACKEND
+    Tensile_RUNTIME_LANGUAGE
+    Tensile_KERNEL_LANGUAGE
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
@@ -70,7 +71,8 @@ function(TensileCreateLibrary
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
     ${Tensile_LOGIC_PATH}
     ${Tensile_SOURCE_PATH}
-    ${Tensile_BACKEND}
+    ${Tensile_RUNTIME_LANGUAGE}
+    ${Tensile_KERNEL_LANGUAGE}
     )
 
   #string( REPLACE ";" " " Tensile_CREATE_COMMAND "${Tensile_CREATE_COMMAND}")
@@ -114,12 +116,12 @@ function(TensileCreateLibrary
       $<INSTALL_INTERFACE:include> )
   endif()
 
-  # define backend for library source
-  if( Tensile_BACKEND MATCHES "OCL")
+  # define language for library source
+  if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
     #find_package(OpenCL "1.2" REQUIRED)
     target_link_libraries( Tensile ${OPENCL_LIBRARIES} )
     target_compile_definitions( Tensile PUBLIC
-      -DTensile_BACKEND_OCL=1 -DTensile_BACKEND_HIP=0 )
+      -DTensile_RUNTIME_LANGUAGE_OCL=1 -DTensile_RUNTIME_LANGUAGE_HIP=0 )
     target_include_directories( Tensile SYSTEM
       PUBLIC  ${OPENCL_INCLUDE_DIRS} ) 
   else()
@@ -129,7 +131,7 @@ function(TensileCreateLibrary
       PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
     target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} )
     target_compile_definitions( Tensile PUBLIC
-      -DTensile_BACKEND_OCL=0 -DTensile_BACKEND_HIP=1 )
+      -DTensile_RUNTIME_LANGUAGE_OCL=0 -DTensile_RUNTIME_LANGUAGE_HIP=1 )
   endif()
 
 endfunction()

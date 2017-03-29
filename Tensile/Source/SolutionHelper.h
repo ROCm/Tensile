@@ -29,7 +29,7 @@
 /*******************************************************************************
  * OpenCL Kernel Cache
  ******************************************************************************/
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
 typedef struct KernelMapKey_ {
   //cl_context context; // address of context
   //cl_device_id device; // address of device
@@ -46,7 +46,7 @@ __declspec(thread) extern KernelMap *kernelMap;
 extern __thread KernelMap *kernelMap;
 #endif
 
-#elif Tensile_BACKEND_HIP
+#elif Tensile_RUNTIME_LANGUAGE_HIP
 // HIP doesn't need kernel cache
 #endif
 
@@ -54,7 +54,7 @@ extern __thread KernelMap *kernelMap;
 /*******************************************************************************
  * Compile OpenCL kernels
  ******************************************************************************/
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
 void tensileGetCompiledOpenCLKernel(
   cl_kernel *kernel,
   const char *kernelSource,
@@ -205,7 +205,7 @@ protected:
 /*******************************************************************************
  * TensileSolutionOpenCL - parent class for OpenCL solutions
  ******************************************************************************/
-#if Tensile_BACKEND_OCL
+#if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"
 template<
     typename TypeC,
@@ -266,7 +266,7 @@ protected:
  *    - all kernels will accept alpha/beta, to simplify calling
  *    - leading strides are optional
  ******************************************************************************/
-#if Tensile_BACKEND_HIP
+#if Tensile_RUNTIME_LANGUAGE_HIP
 template<typename TypeC, typename TypeA, typename TypeB, typename TypeAlpha, typename TypeBeta>
 class SolutionHIP : public SolutionGPU<TypeC,TypeA,TypeB,TypeAlpha,TypeBeta> {
 public:
