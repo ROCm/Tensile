@@ -125,8 +125,6 @@ class KernelWriter:
     if self.language == "HIP":
       restrictStr = "__restrict__"
     ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
-    #if kernel["VectorWidth"] > 1:
-    #  ptrStr += str(kernel["VectorWidth"])
     s += "  " + globalStr + ptrStr \
         + " *C,"
     s += self.endLine
@@ -325,30 +323,6 @@ class KernelWriter:
       kStr += " + (IDX%s)*strideB%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     kStr += self.endLine
-    # A vector
-    #kStr += "#define GLOBAL_OFFSET_VECTOR_A(IDX%s" \
-    #    % indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
-    #for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
-    #  kStr += ", IDX%s" \
-    #      % indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-    #indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
-    #kStr += ") (( (IDX%s)*strideA%s" % (indexChar, indexChar)
-    #for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
-    #  indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-    #  kStr += " + (IDX%s)*strideA%s/VECTOR_WIDTH" % (indexChar, indexChar)
-    #kStr += " ))%s" % self.endLine
-    # B vector
-    #kStr += "#define GLOBAL_OFFSET_VECTOR_B(IDX%s" \
-    #    % indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
-    #for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
-    #  kStr += ", IDX%s" \
-    #      % indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-    #indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
-    #kStr += ") (( (IDX%s)*strideB%s" % (indexChar, indexChar)
-    #for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
-    #  indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-    #  kStr += " + (IDX%s)*strideB%s/VECTOR_WIDTH" % (indexChar, indexChar)
-    #kStr += " ))" + self.endLine
 
     ####################################
     # data types
@@ -509,17 +483,15 @@ class KernelWriter:
         if kernel["VectorWidth"] > 1:
           strB += ".%s" % self.vectorComponents[elemB]
         # c
-        #strC = "rC[(%d+TT%s*%d)/VECTOR_WIDTH]" % (a, tileChar0, b)
         strC = "rC[(%d+%d*TT%s/VECTOR_WIDTH)]" % (vecA, b, tileChar0)
         elemC = elemA
         if kernel["VectorWidth"] > 1:
           strC += ".%s" % self.vectorComponents[elemA]
-
-        #kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
-
+        """
+        kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
+        """
         kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
 
-        #kStr += "  TYPE_MAC(rA[%d],rB[%d],rC[%d+TT%s*%d]); %s" % (a, b, a, tileChar0, b, self.endLinePP)
     kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
 
@@ -569,12 +541,6 @@ class KernelWriter:
     # apply offsets
     kStr += self.endLine
     kStr += "  /* apply offsets */" + self.endLine
-    #kStr += "  %sVECTOR_TYPE *C = (%sVECTOR_TYPE *)(inputC + offsetC);%s" \
-    #        % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
-    #kStr += "  %sVECTOR_TYPE *A = (%sVECTOR_TYPE *)(inputA + offsetA);%s" \
-    #        % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
-    #kStr += "  %sVECTOR_TYPE *B = (%sVECTOR_TYPE *)(inputB + offsetB);%s" \
-    #        % ( self.globalPtrStr, self.globalPtrStr, self.endLine)
     kStr += "  C += offsetC;%s" % self.endLine
     kStr += "  A += offsetA;%s" % self.endLine
     kStr += "  B += offsetB;%s" % self.endLine
@@ -688,16 +654,13 @@ class KernelWriter:
     kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
         % (tileChar0, tileChar1, self.endLine)
 
-# for GRCV=False, grA0I=serial%LVCA is wrong, it should be %LSCA, same for lds
     # tile index assignment a
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
         % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUA"] else "/") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCA" if """kernel["ProblemType"]["TLUA"] == """ kernel["GlobalReadCoalesceVector"] else "LSCA")
       kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
     else:
-      #kStr += ("LSPA" if """ kernel["ProblemType"]["TLUA"] == """ kernel["GlobalReadCoalesceVector"] else "LVPA")
       kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
     kStr += ")"
     if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUA"]:
@@ -705,70 +668,27 @@ class KernelWriter:
     kStr += " + (wg%s*MT%s);%s" \
         % (tileCharA, tileCharA, self.endLine)
 
-    # tile index assignment b - old interleaving
-    """
-    # NOT tt2D
-    kStr += "  unsigned int globalReadOffsetB%s = " % tileCharB
-    #if kernel["GlobalReadCoalesceGroup"]:
-    if kernel["GlobalReadCoalesceGroup"] == kernel["ProblemType"]["TLUB"]: # old coalesced NT
-      if kernel["VectorWidth"] > 1:
-        kStr += "(serial%%SG%s) + ((serial%%%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
-            % (tileCharB, \
-            ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
-            tileCharB, tileCharB)
-      else: # VW=1 traditional / faster indexing
-        kStr += "(serial%%%s)" \
-            % ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB")
-
-    else:
-      if kernel["VectorWidth"] > 1:
-        kStr += "((serial/%s)%%SG%s) + ((serial/%s)/SG%s)*(SG%s*VECTOR_WIDTH)" \
-            % (("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
-            tileCharB, \
-            ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
-            tileCharB, tileCharB)
-      else:
-        kStr += "(serial/%s)" \
-            % ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB")
-
-    kStr += " + (wg%s*MT%s);%s" \
-        % (tileCharB, tileCharB, self.endLine)
-    """
-
-
-    #"""
-    # tt2D
+    # tile index assignment b
     kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
         % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUB"] else "/") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCB" if """ kernel["ProblemType"]["TLUB"] == """ kernel["GlobalReadCoalesceVector"] else "LSCB")
       kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
     else:
-      #kStr += ("LSPB" if """ kernel["ProblemType"]["TLUB"] == """ kernel["GlobalReadCoalesceVector"] else "LVPB")
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
     kStr += ")"
     if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s*MT%s);%s" \
         % (tileCharB, tileCharB, self.endLine)
-    #"""
-
 
     # summation index assignment a
-    """
-    kStr += "  unsigned int globalReadOffsetA%s = serial/%s;%s" \
-        % (unrollChar, ("LVCA" if kernel["ProblemType"]["TLUA"] else "LVPA"), \
-        self.endLine)
-    """
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
         % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUA"] else "%") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCA" if """ kernel["ProblemType"]["TLUA"] == """ kernel["GlobalReadCoalesceVector"] else "LSCA")
       kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
     else:
-      #kStr += ("LSPA" if """ kernel["ProblemType"]["TLUA"] == """ kernel["GlobalReadCoalesceVector"] else "LVPA")
       kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
     kStr += ")"
     if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUA"]:
@@ -776,25 +696,17 @@ class KernelWriter:
     kStr += ";%s" % self.endLine
 
     # summation index assignment b
-    """
-    kStr += "  unsigned int globalReadOffsetB%s = serial/%s;%s" \
-        % (unrollChar, ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), \
-        self.endLine)
-    """
     kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
         % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUB"] else "%") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCB" if """ kernel["ProblemType"]["TLUB"] == """ kernel["GlobalReadCoalesceVector"] else "LSCB")
       kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
     else:
-      #kStr += ("LSPB" if """ kernel["ProblemType"]["TLUB"] == """ kernel["GlobalReadCoalesceVector"] else "LVPB")
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
     kStr += ")"
     if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
-    #"""
 
     ####################################
     # global read: other free indices
@@ -858,34 +770,6 @@ class KernelWriter:
     numWriteVectorComponentsA = kernel["VectorWidth"] \
         if (writeTileDimComponentsA or writeUnrollDimComponentsA) else 1
 
-    """
-    if kernel["ProblemType"]["TLUA"]: # NT no transpose
-      numReadsTileA = kernel["NumLoadsCoalescedA"]
-      numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
-      if kernel["GlobalReadCoalesceVector"]:
-        readTileDimComponentsA = False
-        readUnrollDimComponentsA = False
-        #numReadsTileA /= kernel["VectorWidth"]
-      else:
-        readTileDimComponentsA = False
-        readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # True
-    else:
-      numReadsTileA = kernel["NumLoadsPerpendicularA"]
-      numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      if kernel["GlobalReadCoalesceVector"]:
-        readTileDimComponentsA = False
-        readUnrollDimComponentsA = False
-        #numReadsUnrollA /= kernel["VectorWidth"]
-      else:
-        readTileDimComponentsA = kernel["VectorWidth"] > 1 # True
-        readUnrollDimComponentsA = False
-    numReadVectorComponentsA = kernel["VectorWidth"] \
-        if (readTileDimComponentsA or readUnrollDimComponentsA) else 1
-    #print "NumVectorComponentsA", numReadVectorComponentsA
-    #print "NumReadsTileA", numReadsTileA
-    #print "NumReadsUnrollA", numReadsUnrollA
-    """
-
     ####################################
     # global read: dimension offsets tile a
     kStr += self.endLine
@@ -917,17 +801,6 @@ class KernelWriter:
             % (unrollChar, l, unrollChar, l, \
             ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA"), \
             self.endLine)
-
-
-
-    ####################################
-    # global read: num reads tile / unroll b
-    #if kernel["ProblemType"]["TLUB"]:
-    #  numReadsTileB = kernel["NumLoadsCoalescedB"]
-    #  numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
-    #else:
-    #  numReadsTileB = kernel["NumLoadsPerpendicularB"]
-    #  numReadsUnrollB = kernel["NumLoadsCoalescedB"]
 
     ####################################
     # read / write vectors or vector components b
@@ -962,8 +835,6 @@ class KernelWriter:
     numWriteVectorComponentsB = kernel["VectorWidth"] \
         if (writeTileDimComponentsB or writeUnrollDimComponentsB) else 1
 
-
-
     ####################################
     # global read: dimension offsets tile b
     kStr += self.endLine
@@ -995,7 +866,6 @@ class KernelWriter:
             % (unrollChar, l, unrollChar, l, \
             ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
             self.endLine)
-
 
     ####################################
     # global read: branches
@@ -1035,7 +905,6 @@ class KernelWriter:
           else:
             kStr += "  %s = (%s > %s) ? %s : %s;%s" \
                 % (gro, gro, limit, limit, gro, self.endLine)
-
 
     ####################################
     # global read: offsets final a
@@ -1080,8 +949,6 @@ class KernelWriter:
               self.endLine )
           """
 
-
-
     ####################################
     # global read: offsets final b
     kStr += self.endLine
@@ -1124,7 +991,6 @@ class KernelWriter:
               or readUnrollDimComponentsB) else ""), \
               self.endLine )
           """
-
 
     ####################################
     # global read: addresses a
@@ -1177,87 +1043,56 @@ class KernelWriter:
     kStr += "  /***************************************/" + self.endLine
 
     # free index assignment a
-    """
-    kStr += "  unsigned int lwA%s = serial%%%s;%s" % (tileCharA, \
-        ("LVCA" if kernel["ProblemType"]["TLUA"] else "LVPA"), self.endLine)
-    """
     kStr += "  unsigned int lwA%s = (serial%s" \
         % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUA"] else "/") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCA" if kernel["ProblemType"]["TLUA"] == kernel["GlobalReadCoalesceVector"] else "LSCA")
       kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
     else:
-      #kStr += ("LSPA" if kernel["ProblemType"]["TLUA"] == kernel["GlobalReadCoalesceVector"] else "LVPA")
       kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
     kStr += ")";
     if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
-    #"""
-
 
     # free index assignment b
-    """
-    kStr += "  unsigned int lwB%s = serial%%%s;%s" % (tileCharB, \
-        ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), self.endLine)
-    """
     kStr += "  unsigned int lwB%s = (serial%s" \
         % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUB"] else "/") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCB" if kernel["ProblemType"]["TLUB"] == kernel["GlobalReadCoalesceVector"] else "LSCB")
       kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
     else:
-      #kStr += ("LSPB" if kernel["ProblemType"]["TLUB"] == kernel["GlobalReadCoalesceVector"] else "LVPB")
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
     kStr += ")"
     if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
-    #"""
-
 
     # summation index assignment a
-    """
-    kStr += "  unsigned int lwA%s = serial/%s;%s" % (unrollChar, \
-        ("LVCA" if kernel["ProblemType"]["TLUA"] else "LVPA"), self.endLine)
-    """
     kStr += "  unsigned int lwA%s = (serial%s" \
         % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUA"] else "%") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCA" if kernel["ProblemType"]["TLUA"] == kernel["GlobalReadCoalesceVector"] else "LSCA")
       kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
     else:
-      #kStr += ("LSPA" if kernel["ProblemType"]["TLUA"] == kernel["GlobalReadCoalesceVector"] else "LVPA")
       kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
     kStr += ")";
     if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
-    #"""
 
     # summation index assignment b
-    """
-    kStr += "  unsigned int lwB%s = serial/%s;%s" % (unrollChar, \
-        ("LVCB" if kernel["ProblemType"]["TLUB"] else "LVPB"), self.endLine)
-    """
     kStr += "  unsigned int lwB%s = (serial%s" \
         % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
         == kernel["ProblemType"]["TLUB"] else "%") )
     if kernel["GlobalReadCoalesceGroup"]:
-      #kStr += ("LVCB" if kernel["ProblemType"]["TLUB"] == kernel["GlobalReadCoalesceVector"] else "LSCB")
       kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
     else:
-      #kStr += ("LSPB" if kernel["ProblemType"]["TLUB"] == kernel["GlobalReadCoalesceVector"] else "LVPB")
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
     kStr += ")"
     if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
-    #"""
-
 
     kStr += self.endLine
     kStr += "  /* lds write initial offsets */" + self.endLine
@@ -1265,7 +1100,7 @@ class KernelWriter:
         % (tileCharA, unrollChar, tileCharA, self.endLine)
     kStr += "  unsigned int ldsWriteOffsetInitialB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (tileCharB, unrollChar, tileCharB, self.endLine)
-# TODO for lds write offsets i changed to only using ls and not lv, this may need to be changed for new transpose?
+
     ####################################
     # lds write offsets a
     kStr += self.endLine
@@ -1279,19 +1114,13 @@ class KernelWriter:
               or writeUnrollDimComponentsA) else ""), \
               (("%u + "%s) if writeTileDimComponentsA else ""), \
               para, ("LSCA" if not kernel["ProblemType"]["TLUA"] else "LSCA") )
-              #para, ("LVCA" if not kernel["ProblemType"]["TLUA"] else "LSCA") )
           if not kernel["ProblemType"]["TLUA"]:
-            kStr += "*(MT%s%s+PAD)" % (tileCharA, \
-                ("" if (True or writeTileDimComponentsA \
-                or writeUnrollDimComponentsA) else "/VECTOR_WIDTH") )
+            kStr += "*(MT%s+PAD)" % (tileCharA)
           kStr += " + (%s%d*%s)" % (
               (("%u + "%s) if writeUnrollDimComponentsA else ""), perp, \
               ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSPA") )
-              #("LSPA" if kernel["ProblemType"]["TLUA"] else "LVPA") )
           if kernel["ProblemType"]["TLUA"]:
-            kStr += "*(MT%s%s+PAD)" % (tileCharA, \
-                ("" if (True or writeTileDimComponentsA \
-                or writeUnrollDimComponentsA) else "/VECTOR_WIDTH") )
+            kStr += "*(MT%s+PAD)" % (tileCharA)
           kStr += ";%s" % self.endLine
           """
           kStr += "  printf(\\\"LWA T[%%02u] lWOA_%u_%u%s = %%4u\\\\n\\\", serial, ldsWriteOffsetA_%u_%u%s);%s" \
@@ -1315,19 +1144,13 @@ class KernelWriter:
               or writeUnrollDimComponentsB) else ""), \
               (("%u + "%s) if writeTileDimComponentsB else ""), para, \
               ("LSCB" if not kernel["ProblemType"]["TLUB"] else "LSCB") )
-              #("LVCB" if not kernel["ProblemType"]["TLUB"] else "LSCB") )
           if not kernel["ProblemType"]["TLUB"]:
-            kStr += "*(MT%s%s+PAD)" % (tileCharB, \
-                ("" if (True or writeTileDimComponentsB \
-                or writeUnrollDimComponentsB) else "/VECTOR_WIDTH") )
+            kStr += "*(MT%s+PAD)" % (tileCharB)
           kStr += " + (%s%d*%s)" % ( \
               (("%u + "%s) if writeUnrollDimComponentsB else ""), perp, \
               ("LSPB" if not kernel["ProblemType"]["TLUB"] else "LSPB") )
-              #("LSPB" if not kernel["ProblemType"]["TLUB"] else "LVPB") )
           if kernel["ProblemType"]["TLUB"]:
-            kStr += "*(MT%s%s+PAD)" % (tileCharB, \
-                ("" if (True or writeTileDimComponentsB \
-                or writeUnrollDimComponentsB) else "/VECTOR_WIDTH") )
+            kStr += "*(MT%s+PAD)" % (tileCharB)
           kStr += ";%s" % self.endLine
           """
           kStr += "  printf(\\\"LWB T[%%02u] lWOB_%u_%u%s = %%4u\\\\n\\\", serial, ldsWriteOffsetB_%u_%u%s);%s" \
@@ -1492,8 +1315,8 @@ class KernelWriter:
               (("_s%u"%s) if (writeTileDimComponentsB \
               or writeUnrollDimComponentsB) else "" ), \
               para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else "" ), \
+              ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsB \
+              or writeUnrollDimComponentsB) else "" ), \
               self.endLine)
     kStr += indent + self.syncStr + self.endLine
 
@@ -1512,11 +1335,6 @@ class KernelWriter:
     if False:
       kStr += "    /* print LDS state */" + self.endLine
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
-      #if kernel["VectorWidth"] == 4:
-      #  kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1, lds[i].s2, lds[i].s3);%s" % self.endLine
-      #if kernel["VectorWidth"] == 2:
-      #  kStr += "      printf(\\\"lds[%%06u] = %%.0f, %%.0f\\\\n\\\", i, lds[i].s0, lds[i].s1 );%s" % self.endLine
-      #if kernel["VectorWidth"] == 1:
       kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, lds[i]);%s" % self.endLine
       kStr += "    }" + self.endLine
 
@@ -1659,11 +1477,11 @@ class KernelWriter:
       # Tail: lds write b
       for perp in range(0, kernel["NumLoadsPerpendicularB"]):
         for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, numWriteVectorComponentsA):
+          for s in range(0, numWriteVectorComponentsB):
             kStr += "%s*ldsWriteB_%u_%u%s = b_%u_%u%s;%s" \
                 % (indent, para, perp, \
-                (("_s%u"%s) if (writeTileDimComponentsA \
-                or writeUnrollDimComponentsA) else "" ), \
+                (("_s%u"%s) if (writeTileDimComponentsB \
+                or writeUnrollDimComponentsB) else "" ), \
                 para, perp, \
                 ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsB \
                 or writeUnrollDimComponentsB) else "" ), \
@@ -1787,18 +1605,6 @@ class KernelWriter:
                 % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
                 s, tileChar1, j, tileChar0, tileChar1, i, s, \
                 tileChar0, j, tileChar0, self.endLine)
-            """
-            kStr += "  ldsSplitU[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH*%u + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = 1;%s" \
-                % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
-                j, s, tileChar1, i, tileChar0, tileChar1, self.endLine)
-            """
-
-            """
-            kStr += "  unsigned int lIdx%u%u%u = lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId;%s" \
-                % (j, i, s, tileChar0, i, tileChar0, tileChar0, tileChar1, \
-                s, tileChar1, j, tileChar0, tileChar1, self.endLine)
-            kStr += "  printf(\\\"T[%%02u]:%%5u\\\\n\\\", serial, lIdx%u%u%u); %s" % (j, i, s, self.endLinePP)
-            """
       kStr += "  " + self.syncStr + self.endLine + self.endLine
 
       ####################################
@@ -1847,7 +1653,6 @@ class KernelWriter:
 
       for b in range(0, kernel["NumVectorsPerThread"]):
         for s in range(0, kernel["VectorWidth"]):
-          #for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           if kernel["EdgeType"] != "None":
 
             kStr += "  if (globalC%s%s < size%s) {" \
@@ -1887,8 +1692,6 @@ class KernelWriter:
       # SplitU==1, write data straight
       ####################################
     else:
-      #for i in range(0, kernel["ThreadTileNumElements"]/kernel["VectorWidth"]):
-      #  kStr += "  printf(\\\"T[%%02u]: rC[%u]: %%.0f, %%.0f\\\\n\\\", serial, rC[%u].s0, rC[%u].s1); %s" % (i, i, i, self.endLinePP)
 
       ####################################
       # Global Write Addresses
@@ -1906,16 +1709,15 @@ class KernelWriter:
         kStr += ";" + self.endLine
       kStr += self.endLine
 
-      #kStr += "  printf(\\\"T[%%02u]: %%u, %%u\\\\n\\\", serial, globalC0I, globalC1J);%s" % self.endLine
-      #kStr += "  printf(\\\"T[%%02u]:  %%u\\\\n\\\", serial, globalC0I, globalC1J);%s" % self.endLine
-
-      #for b in range(0, kernel["ThreadTile1"]):
-      #  for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-      #    for s in range(0, kernel["VectorWidth"]):
-      #      kStr += "printf(\\\"T[%%02u]: %%.0f\\\\n\\\", serial, rC[(%d+%d*TT%s/VECTOR_WIDTH)]%s);%s" % (a, b, \
-      #          tileChar0, \
-      #          ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
-      #          else ""), self.endLine )
+      """
+      for b in range(0, kernel["ThreadTile1"]):
+        for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+          for s in range(0, kernel["VectorWidth"]):
+            kStr += "printf(\\\"T[%%02u]: %%.0f\\\\n\\\", serial, rC[(%d+%d*TT%s/VECTOR_WIDTH)]%s);%s" % (a, b, \
+                tileChar0, \
+                ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
+                else ""), self.endLine )
+      """
 
       if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
         kStr += "  float type_mac_tmp;" + self.endLine
@@ -1940,12 +1742,10 @@ class KernelWriter:
               for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
                 kStr += " globalC%s" % indexChars[i]
                 if i == kernel["ProblemType"]["Index0"]:
-                  #kStr += " + " + str(a) + "*SG" + tileChar0
                   kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
                       ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
                       a, tileChar0)
                 if i == kernel["ProblemType"]["Index1"]:
-                  #kStr += " + " + str(b) + "*SG" + tileChar1
                   kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
                       ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
                       b, tileChar1)
