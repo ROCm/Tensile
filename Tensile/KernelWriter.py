@@ -1761,17 +1761,20 @@ class KernelWriter:
       kStr += "  /***************************************/" + self.endLine
       kStr += "  " + self.syncStr + self.endLine
 
+      kStr += "  %sVECTOR_TYPE *ldsSplitU = (%sVECTOR_TYPE *)(lds);%s" \
+          % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
+
       ####################################
       # SplitU: write to lds
       for j in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
         for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for s in range(0, kernel["VectorWidth"]):
-            kStr += "  lds[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s];%s" \
+            kStr += "  ldsSplitU[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s];%s" \
                 % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
                 s, tileChar1, j, tileChar0, tileChar1, i, s, \
                 tileChar0, j, tileChar0, self.endLine)
             """
-            kStr += "  lds[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH*%u + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = 1;%s" \
+            kStr += "  ldsSplitU[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH*%u + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = 1;%s" \
                 % (tileChar0, i, tileChar0, tileChar0, tileChar1, \
                 j, s, tileChar1, i, tileChar0, tileChar1, self.endLine)
             """
@@ -1788,7 +1791,7 @@ class KernelWriter:
       # SplitU: C elements to store
       kStr += "  /* SplitU: new C elements to store */" + self.endLine
       for i in range(0, kernel["NumVectorsPerThread"]):
-        kStr += "  rC[%3u] = lds[serial+%u*NUM_THREADS];%s" \
+        kStr += "  rC[%3u] = ldsSplitU[serial+%u*NUM_THREADS];%s" \
             % (i, i, self.endLine)
       kStr += self.endLine
 
@@ -1797,7 +1800,7 @@ class KernelWriter:
       kStr += "  /* SplitU: reduction */" + self.endLine
       for s in range(1, kernel["SplitU"]):
         for i in range(0, kernel["NumVectorsPerThread"]):
-          kStr += "  rC[%3u] += lds[serial+%u*NUM_THREADS + %u*(MT%s*MT%s/VECTOR_WIDTH)];%s" \
+          kStr += "  rC[%3u] += ldsSplitU[serial+%u*NUM_THREADS + %u*(MT%s*MT%s/VECTOR_WIDTH)];%s" \
               % (i, i, s, tileChar0, tileChar1, self.endLine)
         kStr += self.endLine
 
