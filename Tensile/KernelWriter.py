@@ -1249,7 +1249,7 @@ class KernelWriter:
         % (tileCharA, unrollChar, tileCharA, self.endLine)
     kStr += "  unsigned int ldsWriteOffsetInitialB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (tileCharB, unrollChar, tileCharB, self.endLine)
-
+# TODO for lds write offsets i changed to only using ls and not lv, this may need to be changed for new transpose?
     ####################################
     # lds write offsets a
     kStr += self.endLine
@@ -1262,14 +1262,16 @@ class KernelWriter:
               (("_s%u"%s) if (writeTileDimComponentsA \
               or writeUnrollDimComponentsA) else ""), \
               (("%u + "%s) if writeTileDimComponentsA else ""), \
-              para, ("LVCA" if kernel["ProblemType"]["TLUA"] else "LSCA") )
+              para, ("LSCA" if not kernel["ProblemType"]["TLUA"] else "LSCA") )
+              #para, ("LVCA" if not kernel["ProblemType"]["TLUA"] else "LSCA") )
           if not kernel["ProblemType"]["TLUA"]:
             kStr += "*(MT%s%s+PAD)" % (tileCharA, \
                 ("" if (True or writeTileDimComponentsA \
                 or writeUnrollDimComponentsA) else "/VECTOR_WIDTH") )
           kStr += " + (%s%d*%s)" % (
               (("%u + "%s) if writeUnrollDimComponentsA else ""), perp, \
-              ("LSPA" if kernel["ProblemType"]["TLUA"] else "LVPA") )
+              ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSPA") )
+              #("LSPA" if kernel["ProblemType"]["TLUA"] else "LVPA") )
           if kernel["ProblemType"]["TLUA"]:
             kStr += "*(MT%s%s+PAD)" % (tileCharA, \
                 ("" if (True or writeTileDimComponentsA \
@@ -1296,14 +1298,16 @@ class KernelWriter:
               (("_s%u"%s) if (writeTileDimComponentsB \
               or writeUnrollDimComponentsB) else ""), \
               (("%u + "%s) if writeTileDimComponentsB else ""), para, \
-              ("LVCB" if kernel["ProblemType"]["TLUB"] else "LSCB") )
+              ("LSCB" if not kernel["ProblemType"]["TLUB"] else "LSCB") )
+              #("LVCB" if not kernel["ProblemType"]["TLUB"] else "LSCB") )
           if not kernel["ProblemType"]["TLUB"]:
             kStr += "*(MT%s%s+PAD)" % (tileCharB, \
                 ("" if (True or writeTileDimComponentsB \
                 or writeUnrollDimComponentsB) else "/VECTOR_WIDTH") )
           kStr += " + (%s%d*%s)" % ( \
               (("%u + "%s) if writeUnrollDimComponentsB else ""), perp, \
-              ("LSPB" if kernel["ProblemType"]["TLUB"] else "LVPB") )
+              ("LSPB" if not kernel["ProblemType"]["TLUB"] else "LSPB") )
+              #("LSPB" if not kernel["ProblemType"]["TLUB"] else "LVPB") )
           if kernel["ProblemType"]["TLUB"]:
             kStr += "*(MT%s%s+PAD)" % (tileCharB, \
                 ("" if (True or writeTileDimComponentsB \
