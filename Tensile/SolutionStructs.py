@@ -479,22 +479,11 @@ class Solution:
 
   ########################################
   # get a list of kernel parameters for this solution
-  # kernels have edge0,1=T/F
   def getKernels(self):
+    kernel = deepcopy(self.state)
+    kernel.update({"Kernel": True})
     kernels = []
-    if self.state["EdgeType"] == "MultiBranch" or self.state["EdgeType"] == "MultiShift":
-      kernel00 = deepcopy(self.state)
-      kernel00.update({"Edge0": False, "Edge1": False})
-      kernel10 = deepcopy(self.state)
-      kernel10.update({"Edge0": True, "Edge1": False})
-      kernel01 = deepcopy(self.state)
-      kernel01.update({"Edge0": False, "Edge1": True})
-      kernels.append(kernel00)
-      kernels.append(kernel10)
-      kernels.append(kernel01)
-    kernel11 = deepcopy(self.state)
-    kernel11.update({"Edge0": True, "Edge1": True})
-    kernels.append(kernel11)
+    kernels.append(kernel)
     return kernels
 
 
@@ -1127,10 +1116,12 @@ class Solution:
           requiredParameters[key] = True
         else:
           requiredParameters[key] = False
-    requiredParameters["ProblemType"] = False # always prepended anyways
-    # kernels need edge name to distinguish from solution name
-    requiredParameters["Edge0"] = True
-    requiredParameters["Edge1"] = True
+    requiredParameters["ProblemType"] = False # always prepended
+    requiredParameters["MacroTile0"] = False # always prepended
+    requiredParameters["MacroTile1"] = False # always prepended
+    requiredParameters["DepthU"] = False # always prepended
+    requiredParameters["Kernel"] = True # distinguish kernels from solutions
+                                        # for single-source compilation
     return requiredParameters
 
   ########################################
@@ -1151,6 +1142,12 @@ class Solution:
     # put problem first
     if "ProblemType" in state:
       name += str(state["ProblemType"]) + "_"
+    if "MacroTile0" in state \
+        and "MacroTile1" in state \
+        and "DepthU" in state:
+      name += "%s%03ux%03ux%02u_" \
+          % ( Solution.getParameterNameAbbreviation("MacroTile"), \
+          state["MacroTile0"], state["MacroTile1"], state["DepthU"] )
     for key in sorted(state.keys()):
       if key in requiredParameters:
         if requiredParameters[key]:
