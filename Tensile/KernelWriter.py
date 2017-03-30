@@ -917,9 +917,6 @@ class KernelWriter:
 
     ####################################
     # global read: offsets final a
-    numReadVectorComponentsA = kernel["VectorWidth"] \
-        if (readTileDimComponentsA or readUnrollDimComponentsA) else 1
-    print "NumVectorComponentsA", numReadVectorComponentsA
     kStr += self.endLine
     kStr += "  /* global read: final offsets a */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
@@ -963,9 +960,6 @@ class KernelWriter:
 
     ####################################
     # global read: offsets final b
-    numReadVectorComponentsB = kernel["VectorWidth"] \
-        if (readTileDimComponentsB or readUnrollDimComponentsB) else 1
-    print "NumVectorComponentsB", numReadVectorComponentsB
     kStr += self.endLine
     kStr += "  /* global read: final offsets b */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
