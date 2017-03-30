@@ -1109,7 +1109,7 @@ class KernelWriter:
         % (tileCharA, unrollChar, tileCharA, self.endLine)
     kStr += "  unsigned int ldsWriteOffsetInitialB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (tileCharB, unrollChar, tileCharB, self.endLine)
-# TODO for lds write offsets i changed to only using ls and not lv, this may need to be changed for new transpose?
+
     ####################################
     # lds write offsets a
     kStr += self.endLine
