@@ -1023,9 +1023,8 @@ class Solution:
 
       # dgemm
       elif state["ProblemType"]["DataType"].value == DataType.double:
-        if globalParameters["KernelLanguage"] == "HIP":
-          if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
-            state["Valid"] = False
+        if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
+          state["Valid"] = False
       """
       if state["ProblemType"]["DataType"].value == DataType.single:
         if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:

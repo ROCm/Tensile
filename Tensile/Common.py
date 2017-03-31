@@ -105,8 +105,8 @@ defaultForkParameters = [
     {"ThreadTileNumElements":   [ 4*4, 2*2, 6*6, 8*8 ] },
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
-    {"DepthU":                  [ 1, 2, 4 ] },
-    {"SplitU":                  [ 1, 4, 16 ] },
+    {"DepthU":                  [ 4, 8, 16 ] },
+    {"SplitU":                  [ 1, 2, 4 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
