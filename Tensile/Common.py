@@ -64,8 +64,10 @@ validParameters = {
     "LoopDoWhile":            [ False, True ],
     "LoopTail":               [ False, True ],
     "Prefetch":               [ False, True ] ,
-    "GlobalReadCoalesceGroup": [False, True],
-    "GlobalReadCoalesceVector": [False, True],
+    "LocalWriteCoalesceGroupA": [False, True],
+    "LocalWriteCoalesceGroupB": [False, True],
+    "GlobalReadCoalesceVectorA": [False, True],
+    "GlobalReadCoalesceVectorB": [False, True],
 
     "WorkGroupMapping":       [1]+range(-1024,0)+range(2,1025),
     "GroupShape":             [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
@@ -86,23 +88,25 @@ validParameters = {
 defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":             [ False ] },
     {"LoopTail":                [ True ] },
-    {"EdgeType":                [ "Branch" ] }, # Shift
-    {"LdsPad":                  [ 1 ] }, # 0
+    {"EdgeType":                [ "Branch" ] },
+    {"LdsPad":                  [ 0 ] },
     {"Prefetch":                [ False ] },
-    {"VectorWidth":             [ -1 ] },
-    {"GlobalReadCoalesceGroup": [True] },
-    {"GlobalReadCoalesceVector": [True] },
+    {"VectorWidth":             [ 1 ] }, # =2 once fixed
+    {"GlobalReadCoalesceVectorA": [True] },
+    {"GlobalReadCoalesceVectorB": [True] },
+    {"LocalWriteCoalesceGroupA": [True] },
+    {"LocalWriteCoalesceGroupB": [True] },
+    {"NumThreads":              [ 16*16] },
+    {"GroupShape":              [ 0 ] },
+    {"ThreadTileShape":         [ 0 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
-    {"NumThreads":              [ 16*16, 8*8 ] },
-    {"GroupShape":              [ 0 ] }, # -4, -2, 0, 2, 4
     {"ThreadTileNumElements":   [ 4*4, 2*2, 6*6, 8*8 ] },
-    {"ThreadTileShape":         [ 0 ] }, # -4, -2, 0, 2, 4
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
-    {"DepthU":                  [ 4, 8, 16, 32 ] },
-    {"SplitU":                  [ 1, 4, 16 ] },
+    {"DepthU":                  [ 4, 8, 16 ] },
+    {"SplitU":                  [ 1, 2, 4 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
