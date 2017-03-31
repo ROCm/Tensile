@@ -64,8 +64,8 @@ validParameters = {
     "LoopDoWhile":            [ False, True ],
     "LoopTail":               [ False, True ],
     "Prefetch":               [ False, True ] ,
-    "GlobalReadCoalesceGroupA": [False, True],
-    "GlobalReadCoalesceGroupB": [False, True],
+    "ReadCoalesceGroupA": [False, True],
+    "ReadCoalesceGroupB": [False, True],
     "GlobalReadCoalesceVectorA": [False, True],
     "GlobalReadCoalesceVectorB": [False, True],
 
