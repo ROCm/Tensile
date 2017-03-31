@@ -1744,7 +1744,6 @@ class KernelWriter:
                 kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                     % (tileChar1, \
                     b, tileChar1, tileChar1)
-                kStr += "%s  " % self.endLine
 
               kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
               for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
