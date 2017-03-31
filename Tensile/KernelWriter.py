@@ -656,55 +656,55 @@ class KernelWriter:
 
     # tile index assignment a
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
-        % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroup"] \
+        % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroupA"] \
         == kernel["ProblemType"]["TLUA"] else "/") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
+    if kernel["GlobalReadCoalesceGroupA"]:
+      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
+      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
     kStr += ")"
-    if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUA"]:
+    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s*MT%s);%s" \
         % (tileCharA, tileCharA, self.endLine)
 
     # tile index assignment b
     kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
-        % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroup"] \
+        % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroupB"] \
         == kernel["ProblemType"]["TLUB"] else "/") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
+    if kernel["GlobalReadCoalesceGroupB"]:
+      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
     else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
+      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
     kStr += ")"
-    if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUB"]:
+    if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s*MT%s);%s" \
         % (tileCharB, tileCharB, self.endLine)
 
     # summation index assignment a
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
-        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
+        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroupA"] \
         == kernel["ProblemType"]["TLUA"] else "%") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
+    if kernel["GlobalReadCoalesceGroupA"]:
+      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
+      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
     kStr += ")"
-    if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUA"]:
+    if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
 
     # summation index assignment b
     kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
-        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
+        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroupB"] \
         == kernel["ProblemType"]["TLUB"] else "%") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
+    if kernel["GlobalReadCoalesceGroupB"]:
+      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
     else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
+      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
     kStr += ")"
-    if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUB"]:
+    if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
 
@@ -742,7 +742,7 @@ class KernelWriter:
     if kernel["ProblemType"]["TLUA"]: # NT no transpose
       numReadsTileA = kernel["NumLoadsCoalescedA"]
       numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
-      if kernel["GlobalReadCoalesceVector"]:
+      if kernel["GlobalReadCoalesceVectorA"]:
         readTileDimComponentsA = False # Vector
         readUnrollDimComponentsA = False # Scalar
         writeTileDimComponentsA = False # Vector
@@ -755,7 +755,7 @@ class KernelWriter:
     else:
       numReadsTileA = kernel["NumLoadsPerpendicularA"]
       numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      if kernel["GlobalReadCoalesceVector"]:
+      if kernel["GlobalReadCoalesceVectorA"]:
         readTileDimComponentsA = False # Scalar
         readUnrollDimComponentsA = False # Vector
         writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
@@ -809,7 +809,7 @@ class KernelWriter:
     if kernel["ProblemType"]["TLUB"]: # NT no transpose
       numReadsTileB = kernel["NumLoadsCoalescedB"]
       numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
-      if kernel["GlobalReadCoalesceVector"]:
+      if kernel["GlobalReadCoalesceVectorB"]:
         readTileDimComponentsB = False # Vector
         readUnrollDimComponentsB = False # Scalar
         writeTileDimComponentsB = False # Vector
@@ -822,7 +822,7 @@ class KernelWriter:
     else:
       numReadsTileB = kernel["NumLoadsPerpendicularB"]
       numReadsUnrollB = kernel["NumLoadsCoalescedB"]
-      if kernel["GlobalReadCoalesceVector"]:
+      if kernel["GlobalReadCoalesceVectorB"]:
         readTileDimComponentsB = False # Scalar
         readUnrollDimComponentsB = False # Vector
         writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
@@ -1017,7 +1017,7 @@ class KernelWriter:
     kStr += "  /* global read: addresses b */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        if readTileDimComponentsA or readUnrollDimComponentsA:
+        if readTileDimComponentsB or readUnrollDimComponentsB:
           for s in range(0, numReadVectorComponentsB):
             kStr += "  %sDATA_TYPE const *globalReadB_%u_%u%s = B + globalReadOffsetB_%u_%u%s;%s" \
                 % (self.globalPtrStr, para, perp, \
@@ -1042,53 +1042,53 @@ class KernelWriter:
 
     # free index assignment a
     kStr += "  unsigned int lwA%s = (serial%s" \
-        % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroup"] \
+        % (tileCharA, ("%" if kernel["GlobalReadCoalesceGroupA"] \
         == kernel["ProblemType"]["TLUA"] else "/") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
+    if kernel["GlobalReadCoalesceGroupA"]:
+      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
+      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
     kStr += ")";
-    if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUA"]:
+    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
 
     # free index assignment b
     kStr += "  unsigned int lwB%s = (serial%s" \
-        % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroup"] \
+        % (tileCharB, ("%" if kernel["GlobalReadCoalesceGroupB"] \
         == kernel["ProblemType"]["TLUB"] else "/") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
+    if kernel["GlobalReadCoalesceGroupB"]:
+      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
     else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
+      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
     kStr += ")"
-    if kernel["GlobalReadCoalesceVector"] == kernel["ProblemType"]["TLUB"]:
+    if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
 
     # summation index assignment a
     kStr += "  unsigned int lwA%s = (serial%s" \
-        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
+        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroupA"] \
         == kernel["ProblemType"]["TLUA"] else "%") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVector"] else "LSCA")
+    if kernel["GlobalReadCoalesceGroupA"]:
+      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVector"] else "LVPA")
+      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
     kStr += ")";
-    if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUA"]:
+    if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
 
     # summation index assignment b
     kStr += "  unsigned int lwB%s = (serial%s" \
-        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroup"] \
+        % (unrollChar, ("/" if kernel["GlobalReadCoalesceGroupB"] \
         == kernel["ProblemType"]["TLUB"] else "%") )
-    if kernel["GlobalReadCoalesceGroup"]:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVector"] else "LSCB")
+    if kernel["GlobalReadCoalesceGroupB"]:
+      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
     else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVector"] else "LVPB")
+      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
     kStr += ")"
-    if kernel["GlobalReadCoalesceVector"] != kernel["ProblemType"]["TLUB"]:
+    if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
 

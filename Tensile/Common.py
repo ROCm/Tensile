@@ -64,8 +64,10 @@ validParameters = {
     "LoopDoWhile":            [ False, True ],
     "LoopTail":               [ False, True ],
     "Prefetch":               [ False, True ] ,
-    "GlobalReadCoalesceGroup": [False, True],
-    "GlobalReadCoalesceVector": [False, True],
+    "GlobalReadCoalesceGroupA": [False, True],
+    "GlobalReadCoalesceGroupB": [False, True],
+    "GlobalReadCoalesceVectorA": [False, True],
+    "GlobalReadCoalesceVectorB": [False, True],
 
     "WorkGroupMapping":       [1]+range(-1024,0)+range(2,1025),
     "GroupShape":             [ -64, -32, -16, -8, -4, -2, 0, 2, 4, 8, 16, 32, 64 ],
