@@ -1549,8 +1549,8 @@ class KernelWriter:
                 % (indent, para, perp, \
                 (("_s%u"%s) if (readTileDimComponentsA \
                 or readUnrollDimComponentsA) else ""), \
-                self.int64Str, loopChar, "" if (readTileDimComponentsB \
-                or readUnrollDimComponentsB) else "/VECTOR_WIDTH")
+                self.int64Str, loopChar, "" if (readTileDimComponentsA \
+                or readUnrollDimComponentsA) else "/VECTOR_WIDTH")
             if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
               kStr += "*DEPTHU"
             else:
