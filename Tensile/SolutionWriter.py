@@ -101,7 +101,7 @@ class SolutionWriter:
       t = t[2:]
       s += "%s};\n" % (t)
       s += "%scl_kernel kernels[numKernels];\n" % (t)
-      s += "%sconst char *buildOptions = \"-cl-std=cl2.0\";\n" % (t)
+      s += "%sconst char *buildOptions = \"-cl-std=cl1.2\";\n" % (t)
       s += "%sfor (unsigned int i = 0; i < numKernels; i++) {\n" % (t)
       s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
       s += "%s      &kernels[i],\n" % (t)

@@ -799,6 +799,7 @@ class Solution:
     # don't support complicated VW grB indexing and they happen to
     # be sollutions which should never be fastest b/c work-group and
     # thread tile are of opposite shape - DT
+    """
     if state["VectorWidth"] > 1:
       if state["ProblemType"]["TLUB"] and state["GlobalReadCoalesceGroup"]:
         if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
@@ -818,6 +819,7 @@ class Solution:
               state["ThreadTile1"], state["DepthU"]))
           state["Valid"] = False
           return
+    """
 
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
