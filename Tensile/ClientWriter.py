@@ -590,10 +590,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   # Benchmarking and Validation Parameters
   ##############################################################################
-  h += "/* benchmarking parameters */\n"
-  h += "unsigned int numEnqueuesPerSync = %u;\n" \
+  h += "\n/* benchmarking parameters */\n"
+  h += "const bool measureKernelTime = %s;\n" \
+      % ("true" if globalParameters["KernelTime"] else "false")
+  h += "const unsigned int numEnqueuesPerSync = %u;\n" \
       % (globalParameters["EnqueuesPerSync"])
-  h += "unsigned int numSyncsPerBenchmark = %u;\n" \
+  h += "const unsigned int numSyncsPerBenchmark = %u;\n" \
       % (globalParameters["SyncsPerBenchmark"])
   h += "unsigned int numElementsToValidate = %s;\n" \
       % (str(globalParameters["NumElementsToValidate"]) \
@@ -648,7 +650,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    unsigned int solutionIdx,\n"
     h += "    unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
-    h += "    DataType beta ) {\n"
+    h += "    DataType beta, \n"
+    h += "    cl_event *outputEvent = nullptr ) {\n"
     h += "  // calculate parameters assuming packed data\n"
     # strides
     indexChars = globalParameters["IndexChars"]
@@ -706,7 +709,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, problemType["TotalIndices"]):
       h += "      size%s,\n" % indexChars[i]
     h += "      stream,\n"
-    h += "      0, NULL, NULL); // events\n"
+    h += "      0, NULL, outputEvent ); // events\n"
     h += "};\n"
     h += "\n"
   else:
@@ -827,4 +830,3 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   clientParametersFile.write(CHeader)
   clientParametersFile.write(h)
   clientParametersFile.close()
-

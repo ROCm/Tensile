@@ -184,8 +184,15 @@ void initControls() {
   std::cout << "Device: \"" << deviceName << "\"" << std::endl;
   context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
   tensileStatusCheck(status);
-  stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
+
+  if (measureKernelTime) {
+      stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
+  }
+  else {
+      stream = clCreateCommandQueue(context, device, 0x0, &status);
+  }
   tensileStatusCheck(status);
+
   delete[] devices;
   delete[] platforms;
 #elif Tensile_RUNTIME_LANGUAGE_HIP
@@ -218,4 +225,3 @@ void destroyControls() {
   hipStreamDestroy(stream);
 #endif
 }
-

@@ -195,7 +195,7 @@ bool callLibrary(
       << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " " << (numChecked-numInvalids) << "/" << numChecked;
-    std::cout << " | api:" << std::setw(6) << std::fixed 
+    std::cout << " | api:" << std::setw(6) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
     std::cout << std::endl;
   } else {
@@ -212,7 +212,7 @@ bool callLibrary(
     if (newFastest) {
       std::cout << "*";
     }
-    std::cout << " | api:" << std::setw(6) << std::fixed 
+    std::cout << " | api:" << std::setw(6) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
     std::cout << std::endl;
   }
@@ -220,6 +220,32 @@ bool callLibrary(
 } // callLibrary
 #endif
 
+
+/*******************************************************************************
+* Given a finished/synced OpenCL event
+* return performance in nano-seconds of time executing the kernel associated with the event
+******************************************************************************/
+cl_ulong getEventDeltaTime( cl_event event )
+{
+    cl_ulong start, end = 0;
+    cl_int cl_error = CL_SUCCESS;
+
+    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL) != CL_SUCCESS)
+    {
+        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+
+        start = 0;
+    }
+
+    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL) != CL_SUCCESS)
+    {
+        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+
+        end = 0;
+    }
+
+    return (end - start);
+}
 
 /*******************************************************************************
  * benchmark all solutions for problem size
@@ -340,23 +366,53 @@ bool benchmarkAllSolutionsForSize(
       if (numInvalids) returnInvalids = true;
     } // if numElementsToValidate > 0
 
+#if Tensile_RUNTIME_LANGUAGE_OCL
+    cl_event l_eventNDRange[numSyncsPerBenchmark][numEnqueuesPerSync];
+#else
+    static_assert("HIP events not implemented");
+#endif
+
     // time solution
     timer.start();
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        generatedCallToSolution( solutionIdx , sizes, alpha, beta );
+          if (measureKernelTime)
+            generatedCallToSolution( solutionIdx , sizes, alpha, beta, &l_eventNDRange[syncIdx][enqIdx] );
+          else
+            generatedCallToSolution( solutionIdx, sizes, alpha, beta );
       }
       // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
-      status = clFinish(stream); tensileStatusCheck(status);
+      status = clFinish(stream);
 #else
-      status = hipStreamSynchronize(stream); tensileStatusCheck(status);
+      status = hipStreamSynchronize(stream);
 #endif
       tensileStatusCheck(status);
     } // sync loop
-    double timeMs = timer.elapsed_ms()
-      / numSyncsPerBenchmark / numEnqueuesPerSync;
-    double gflops = totalFlops / timeMs / 1000000.0;
+
+    double timeNs = 0.0;
+#if Tensile_RUNTIME_LANGUAGE_OCL
+    if (measureKernelTime) {
+        // Loop through the multi-dimensional event array and collect kernel performance data
+        // Release events when done with them
+        cl_ulong kernel_time_sum = 0;
+        for (auto& event_array : l_eventNDRange) {
+            for (auto event : event_array) {
+                // getEventDeltaTime returns unsigned long in nano-seconds
+                kernel_time_sum += getEventDeltaTime(event);
+                ::clReleaseEvent(event);
+            }
+        }
+        timeNs = static_cast<double>(kernel_time_sum);
+    } else {
+        timeNs = timer.elapsed_ns();
+    }
+
+#endif
+
+    timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
+
+    double gflops = totalFlops / timeNs;
     bool newFastest = false;
     if (gflops > fastestGFlops) {
       fastestGFlops = gflops;
@@ -375,7 +431,7 @@ bool benchmarkAllSolutionsForSize(
         std::cout << " ";
       }
       std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
+        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand << " us | v: " << (numInvalids ? "FAILED" : "PASSED")
         << " " << (numChecked-numInvalids) << "/" << numChecked;
       if (numInvalids > 0) {
         std::cout << " - " << solutionNames[solutionIdx];
@@ -391,7 +447,7 @@ bool benchmarkAllSolutionsForSize(
         std::cout << " ";
       }
       std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms" << std::endl;
+        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand << " us" << std::endl;
     }
     if (numInvalids > 0) {
       gflops = -1.0;
@@ -736,4 +792,3 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   }
 #endif
 }
-

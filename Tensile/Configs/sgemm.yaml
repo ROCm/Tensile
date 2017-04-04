@@ -15,6 +15,7 @@ GlobalParameters:
   Platform: 0
   Device: 0
   DataInitType: 0
+  KernelTime: True
 
 BenchmarkProblems:
   # sgemm NN

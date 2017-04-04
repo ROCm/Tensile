@@ -45,6 +45,8 @@ globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 4
 globalParameters["PinClocks"] = False
+globalParameters["KernelTime"] = False
+
 # file heirarchy
 globalParameters["ShortNames"] = False
 globalParameters["MergeFiles"] = True
@@ -323,4 +325,3 @@ def ensurePath( path ):
 CMakeHeader = "# Header\n\n"
 CHeader = "// Header\n\n"
 HR = "################################################################################"
-
