@@ -922,6 +922,7 @@ class KernelWriter:
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
+      # b
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global b */%s" % self.endLine
       for l in range(0, numReadsTileB):
@@ -1618,13 +1619,65 @@ class KernelWriter:
           + " > 0);" + self.endLine
     else:
       kStr += "%s}%s" % (indent, self.endLine)
-    kStr += self.endLine
+
+    ####################################
+    # Shift: d0 vector components
+    if kernel["EdgeType"] == "Shift":
+      kStr += self.endLine
+      kStr += "  /* shift d%s vector components */%s" \
+          % (tileChar0, self.endLine)
+      kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+          % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+      kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+          %(tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+      kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+          % (tileChar0, tileChar0, self.endLine)
+      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% (MT%s/VECTOR_WIDTH) ) {%s" \
+          % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+      kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
+          % (tileChar0, tileChar0, tileChar0, self.endLine)
+      for r0 in range(1, kernel["VectorWidth"]):
+        kStr += "    if (r%s == %u) {%s" % (tileChar0, r0, self.endLine)
+        for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+          for s in range(0, r0):
+            kStr += "      rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s = rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
+              % (tileChar0, tt1, tileChar0, self.vectorComponents[s],  \
+              tileChar0, tt1, tileChar0, \
+              self.vectorComponents[s+kernel["VectorWidth"]-r0], self.endLine)
+        kStr += "    }%s" % self.endLine
+      kStr += "  }%s" % self.endLine
+
+      ####################################
+      # Shift: d1 vector
+      kStr += self.endLine
+      kStr += "  /* shift d%s vectors */%s" \
+          % (tileChar1, self.endLine)
+      kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+          %(tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+          % (tileChar1, tileChar1, self.endLine)
+      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% (MT%s/VECTOR_WIDTH) ) {%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      for r1 in range(1, kernel["VectorWidth"]):
+        kStr += "    if (r%s == %u) {%s" % (tileChar1, r1, self.endLine)
+        for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+          for s in range(0, r1):
+            kStr += "      rC[%u+%u*(TT%s/VECTOR_WIDTH)] = rC[%u+%u*(TT%s/VECTOR_WIDTH)];%s" \
+              % (tt0, s, tileChar1, \
+              tt0, s+kernel["VectorWidth"]-r1, tileChar1, \
+              self.endLine)
+        kStr += "    }%s" % self.endLine
+      kStr += "  }%s" % self.endLine
+
 
     ####################################
     # SplitU reduction
     ####################################
     #if kernel["SplitU"] > 1:
     if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
+      kStr += self.endLine
       kStr += "  /***************************************/" + self.endLine
       kStr += "  /* SplitU Reduction                    */" + self.endLine
       kStr += "  /***************************************/" + self.endLine
@@ -1674,6 +1727,7 @@ class KernelWriter:
       # SplitU: which global Cij index
       kStr += "  /* which global Cij index */%s" % self.endLine
       # my wg's MT
+      """
       kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
           % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
       kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
@@ -1682,6 +1736,9 @@ class KernelWriter:
           % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
       kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
           %(tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+          % (tileChar1, tileChar1, self.endLine)
+      """
 
       kStr += "  unsigned int localC%s = (serial %% (MT%s/VECTOR_WIDTH))*VECTOR_WIDTH;%s" \
           % (tileChar0, tileChar0, self.endLine)
@@ -1713,13 +1770,15 @@ class KernelWriter:
         kStr += "  double type_mac_tmp;" + self.endLine
 
 
+      """
       ####################################
       # write full vectors
       kStr += "  if (localC%s+(VECTOR_WIDTH-1) < wgMT%s) {%s" \
           % (tileChar0, tileChar0, self.endLine)
       kStr += "    /* write full vectors */%s" % self.endLine
-      kStr += "    for (unsigned int writeIdx%s = 0; writeIdx%s*CPS + localC%s < wgMT%s; writeIdx%s++) {%s" \
-          % (tileChar1, tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "    for (unsigned int writeIdx%s = 0; writeIdx%s*CPS < wgMT%s-r%s; writeIdx%s++) {%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar1, tileChar1, \
+          self.endLine)
 
       for s in range(0, kernel["VectorWidth"]):
         kStr += "      "
@@ -1744,7 +1803,6 @@ class KernelWriter:
         kStr += ", rC[writeIdx%s]%s" % (tileChar1, \
             ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
             else "") )
-
         if kernel["ProblemType"]["UseBeta"]:
           kStr += ", beta"
         kStr += ")"
@@ -1757,33 +1815,58 @@ class KernelWriter:
       # end loop
       kStr += "    }%s" % self.endLine
 
+      # r1J
+      kStr += "    if (localC%s > VECTOR_WIDTH - r%s - 1) {%s" \
+          % (tileChar1, tileChar1, self.endLine)
+      for s in range(0, kernel["VectorWidth"]):
+        kStr += "      "
+        kStr += "TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
+        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+         kStr += " globalC%s" % indexChars[i]
+         if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
+           kStr += " + %u" % s
+         if i == kernel["ProblemType"]["Index1"]:
+           kStr += " + (wgMT%s-r%s) - (VECTOR_WIDTH-r%s)" \
+               % (tileChar1, tileChar1, tileChar1)
+         if i < kernel["ProblemType"]["NumIndicesC"]-1:
+            kStr += ", (%s)" % self.uint64Str
+        kStr += ") ]"
+        kStr += ", alpha"
+        kStr += ", rC[(wgMT%s-r%s)]%s" % (tileChar1, tileChar1, \
+            ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
+            else "") )
+        if kernel["ProblemType"]["UseBeta"]:
+          kStr += ", beta"
+        kStr += ")%s" % self.endLine
+      kStr += "    }%s" % self.endLine
+
       ####################################
       # write shifted partial vectors
       kStr += "  } else if (localC%s < wgMT%s) {%s" \
           % (tileChar0, tileChar0, self.endLine)
       kStr += "    /* write shifted partial vectors */%s" % self.endLine
-      kStr += "    unsigned int remainder = size%s %% VECTOR_WIDTH;%s" \
-          % (tileChar0, self.endLine)
-      #kStr += "    unsigned int shift = VECTOR_WIDTH - remainder;%s" \
+      kStr += "    unsigned int r%s = size%s %% VECTOR_WIDTH;%s" \
+          % (tileChar0, tileChar0, self.endLine)
+      #kStr += "    unsigned int shift = VECTOR_WIDTH - r0;%s" \
       #    % (self.endLine)
-      for remainder in range(1, kernel["VectorWidth"]):
+      for r0 in range(1, kernel["VectorWidth"]):
 
-        # if remainder
+        # if r0
         if kernel["VectorWidth"] > 2:
-          if remainder == 1:
+          if r0 == 1:
             kStr += "    "
           else:
             kStr += " else "
-          if remainder < kernel["VectorWidth"]-1:
-            kStr += "if (remainder == %s) " % remainder
+          if r0 < kernel["VectorWidth"]-1:
+            kStr += "if (r%s == %s) " % (tileChar0, r0)
           kStr += "{%s" % self.endLine
 
-        kStr += "      for (unsigned int writeIdx%s = 0; writeIdx%s*CPS + localC%s < wgMT%s; writeIdx%s++) {%s" \
+        kStr += "      for (unsigned int writeIdx%s = 0; writeIdx%s*CPS + localC%s < wgMT%s - r%s; writeIdx%s++) {%s" \
             % (tileChar1, tileChar1, tileChar1, tileChar1, tileChar1, \
-            self.endLine)
+            tileChar1, self.endLine)
 
-        # components in remainder
-        for s in range(kernel["VectorWidth"]-remainder, kernel["VectorWidth"]):
+        # components in r0
+        for s in range(kernel["VectorWidth"]-r0, kernel["VectorWidth"]):
           kStr += "        "
 
           # write
@@ -1791,7 +1874,7 @@ class KernelWriter:
           for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
            kStr += " globalC%s" % indexChars[i]
            if i == kernel["ProblemType"]["Index0"]:
-             kStr += " + (%u-%u)" % (s, kernel["VectorWidth"]-remainder)
+             kStr += " + (%u-%u)" % (s, kernel["VectorWidth"]-r0)
            if i == kernel["ProblemType"]["Index1"]:
              kStr += " + writeIdx%s*CPS" % tileChar1
            if i < kernel["ProblemType"]["NumIndicesC"]-1:
@@ -1810,18 +1893,22 @@ class KernelWriter:
         # end component loop
         kStr += "      }%s" % self.endLine
 
-        # close if remainder
+        # close if r0
         if kernel["VectorWidth"] > 2:
           kStr += "    }"
+      kStr += self.endLine
 
       ####################################
       # write nothing
       kStr += "  } else {%s" % self.endLine
       kStr += "    /* write nothing */%s" % self.endLine
       kStr += "  }%s" % self.endLine
-
-
       """
+
+
+      #"""
+      ####################################
+      # old write
       for b in range(0, kernel["NumVectorsPerThread"]):
         for s in range(0, kernel["VectorWidth"]):
           if kernel["EdgeType"] != "None":
@@ -1855,7 +1942,7 @@ class KernelWriter:
           if kernel["EdgeType"] != "None":
             kStr += "} }"
           kStr += self.endLine
-      """
+      #"""
 
 
 
