@@ -1717,8 +1717,8 @@ class KernelWriter:
       kStr += "  if (localC%s+(VECTOR_WIDTH-1) < wgMT%s) {%s" \
           % (tileChar0, tileChar0, self.endLine)
       kStr += "    /* write full vectors */%s" % self.endLine
-      kStr += "    for (unsigned int writeIdx%s = 0; writeIdx%s < wgMT%s/CPS; writeIdx%s++) {%s" \
-          % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "    for (unsigned int writeIdx%s = 0; writeIdx%s*CPS + localC%s < wgMT%s; writeIdx%s++) {%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
 
       for s in range(0, kernel["VectorWidth"]):
         kStr += "      "
