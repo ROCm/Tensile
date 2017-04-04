@@ -888,30 +888,39 @@ class KernelWriter:
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global a */%s" % self.endLine
       for l in range(0, numReadsTileA):
-        gro = "(globalReadOffsetA%s_%u%s)" % (tileCharA, l, \
-            ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsA else "") )
-        limit = "size%s" % (tileCharA)
-
         if kernel["EdgeType"] == "Branch":
+          gro = "(globalReadOffsetA%s_%u%s)" % (tileCharA, l, \
+              ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsA else "") )
+          limit = "size%s" % (tileCharA)
           kStr += "  bool inBoundsA_%u = %s < %s;%s" \
               % (l, gro, \
               limit, self.endLine)
         else:
+# if i'm going to read a full vector, then I need to be vector away from edge
+# if i'm going to read a component, then I only need to be 1 away from edge
+# if i'm going to read a scalar, then I only need to be 1 away from edge
+          #shiftWidth = "VECTOR_WIDTH" or 1 ?
+          gro = "globalReadOffsetA%s_%u%s" % (tileCharA, l, \
+              ("_s0" if readTileDimComponentsA else "") )
+          limit = "(size%s-VECTOR_WIDTH)" % (tileCharA)
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global b */%s" % self.endLine
       for l in range(0, numReadsTileB):
-        gro = "(globalReadOffsetB%s_%u%s)" % (tileCharB, l, \
-            ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsB else ""))
-        limit = "size%s" % tileCharB
 
         if kernel["EdgeType"] == "Branch":
+          gro = "(globalReadOffsetB%s_%u%s)" % (tileCharB, l, \
+              ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsB else ""))
+          limit = "size%s" % tileCharB
           kStr += "  bool inBoundsB_%u = %s < %s;%s" \
               % (l, gro, \
               limit, self.endLine)
         else:
+          gro = "globalReadOffsetB%s_%u%s" % (tileCharB, l, \
+              ("_s0" if readTileDimComponentsB else ""))
+          limit = "(size%s-VECTOR_WIDTH)" % tileCharB
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
@@ -1597,7 +1606,8 @@ class KernelWriter:
     ####################################
     # SplitU reduction
     ####################################
-    if kernel["SplitU"] > 1:
+    #if kernel["SplitU"] > 1:
+    if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
       kStr += "  /***************************************/" + self.endLine
       kStr += "  /* SplitU Reduction                    */" + self.endLine
       kStr += "  /***************************************/" + self.endLine
@@ -1616,6 +1626,15 @@ class KernelWriter:
                 s, tileChar1, j, tileChar0, tileChar1, i, s, \
                 tileChar0, j, tileChar0, self.endLine)
       kStr += "  " + self.syncStr + self.endLine + self.endLine
+
+      """
+      kStr += "    /* print LDS state */" + self.endLine
+      kStr += "    for (unsigned int i = serial; i < MT0I*MT1J; i+=NUM_THREADS) {%s" % self.endLine
+      kStr += "      printf(\\\"ldsSplitU[%%06u] = %%.0f\\\\n\\\", i, lds[i]);%s" \
+          % self.endLine
+      kStr += "    }" + self.endLine
+      """
+
 
       ####################################
       # SplitU: C elements to store
