@@ -1632,13 +1632,15 @@ class KernelWriter:
           %(tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
       kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
           % (tileChar0, tileChar0, self.endLine)
-      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% (MT%s/VECTOR_WIDTH) ) {%s" \
+      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% SG%s ) {%s" \
           % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
       kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
           % (tileChar0, tileChar0, tileChar0, self.endLine)
       for r0 in range(1, kernel["VectorWidth"]):
         kStr += "    if (r%s == %u) {%s" % (tileChar0, r0, self.endLine)
-        for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+        #kStr += "      printf(\\\"T[%%06u] shift d0 r%u @ %%u, %%u, %%u, %%u\\\\n\\\", serial, s%s, wgMT%s, size%s, MT%s);%s" \
+        #    % (r0, tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+        for tt1 in range(0, kernel["ThreadTile1"]):
           for s in range(0, r0):
             kStr += "      rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s = rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
               % (tileChar0, tt1, tileChar0, self.vectorComponents[s],  \
@@ -1913,8 +1915,9 @@ class KernelWriter:
         for s in range(0, kernel["VectorWidth"]):
           if kernel["EdgeType"] != "None":
 
-            kStr += "  if (globalC%s < size%s) {" \
+            kStr += "  if (globalC%s%s< size%s) {" \
                 % (tileChar0, \
+                ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
                 tileChar0)
 
             kStr += "  if (globalC%s + %u*CPS < size%s) {" \
