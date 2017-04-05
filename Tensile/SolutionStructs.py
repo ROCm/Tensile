@@ -799,8 +799,9 @@ class Solution:
     # don't support complicated VW grB indexing and they happen to
     # be sollutions which should never be fastest b/c work-group and
     # thread tile are of opposite shape - DT
+    """
     if state["VectorWidth"] > 1:
-      if state["ProblemType"]["TLUB"] and state["GlobalReadCoalesceGroup"]:
+      if state["ProblemType"]["TLUB"] and state["GlobalReadCoalesceGroupB"]:
         if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
             > state["ThreadTile1"]:
           if globalParameters["PrintSolutionRejectionReason"]:
@@ -818,6 +819,7 @@ class Solution:
               state["ThreadTile1"], state["DepthU"]))
           state["Valid"] = False
           return
+    """
 
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
@@ -828,10 +830,7 @@ class Solution:
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
 
     # lds buffer size for reduction
-    if state["SplitU"] >= 2:
-      ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
-    else:
-      ldsNumElementsReduction = 0
+    ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAlignedA+ldsNumElementsB, ldsNumElementsReduction)

@@ -754,12 +754,16 @@ class KernelWriter:
       numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]:
         readTileDimComponentsA = False # Vector
+        readTileDimVectorA = True # Vector
         readUnrollDimComponentsA = False # Scalar
+        readUnrollDimVectorA = False # Scalar
         writeTileDimComponentsA = False # Vector
         writeUnrollDimComponentsA = False # Scalar
       else:
         readTileDimComponentsA = False # Scalar
+        readTileDimVectorA = False # Scalar
         readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        readUnrollDimVectorA = False # Components
         writeTileDimComponentsA = False # Scalar
         writeUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
     else:
@@ -767,12 +771,16 @@ class KernelWriter:
       numReadsUnrollA = kernel["NumLoadsCoalescedA"]
       if kernel["GlobalReadCoalesceVectorA"]:
         readTileDimComponentsA = False # Scalar
+        readTileDimVectorA = False # Scalar
         readUnrollDimComponentsA = False # Vector
+        readUnrollDimVectorA = True # Vector
         writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
         writeUnrollDimComponentsA = False # Scalar
       else:
         readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        readTileDimVectorA = False # Components
         readUnrollDimComponentsA = False # Scalar
+        readUnrollDimVectorA = False # Scalar
         writeTileDimComponentsA = False # Vector
         writeUnrollDimComponentsA = False # Scalar
 
@@ -822,12 +830,16 @@ class KernelWriter:
       numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         readTileDimComponentsB = False # Vector
+        readTileDimVectorB = True # Vector
         readUnrollDimComponentsB = False # Scalar
+        readUnrollDimVectorB = False # Scalar
         writeTileDimComponentsB = False # Vector
         writeUnrollDimComponentsB = False # Scalar
       else:
         readTileDimComponentsB = False # Scalar
+        readTileDimVectorB = False # Scalar
         readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        readUnrollDimVectorB = False # Components
         writeTileDimComponentsB = False # Scalar
         writeUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
     else:
@@ -835,12 +847,16 @@ class KernelWriter:
       numReadsUnrollB = kernel["NumLoadsCoalescedB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         readTileDimComponentsB = False # Scalar
+        readTileDimVectorB = False # Scalar
         readUnrollDimComponentsB = False # Vector
+        readUnrollDimVectorB = True # Vector
         writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
         writeUnrollDimComponentsB = False # Scalar
       else:
         readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        readTileDimVectorB = False # Components
         readUnrollDimComponentsB = False # Scalar
+        readUnrollDimVectorB = False # Scalar
         writeTileDimComponentsB = False # Vector
         writeUnrollDimComponentsB = False # Scalar
     numReadVectorComponentsB = kernel["VectorWidth"] \
@@ -888,30 +904,41 @@ class KernelWriter:
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global a */%s" % self.endLine
       for l in range(0, numReadsTileA):
-        gro = "(globalReadOffsetA%s_%u%s)" % (tileCharA, l, \
-            ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsA else "") )
-        limit = "size%s" % (tileCharA)
-
         if kernel["EdgeType"] == "Branch":
+          gro = "(globalReadOffsetA%s_%u%s)" % (tileCharA, l, \
+              ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsA else "") )
+          limit = "size%s" % (tileCharA)
           kStr += "  bool inBoundsA_%u = %s < %s;%s" \
               % (l, gro, \
               limit, self.endLine)
-        else:
+        else: # ptr-shift
+# if i'm going to read a full vector, then I need to be vector away from edge
+# if i'm going to read a component, then I only need to be 1 away from edge
+# if i'm going to read a scalar, then I only need to be 1 away from edge
+          gro = "globalReadOffsetA%s_%u%s" % (tileCharA, l, \
+              ("_s0" if readTileDimComponentsA else "") )
+          limit = "(size%s-%s)" % (tileCharA, \
+              ("VECTOR_WIDTH" if readTileDimVectorA else "1") )
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
+      # b
       kStr += self.endLine
       kStr += "  /* don't read out-of-bounds global b */%s" % self.endLine
       for l in range(0, numReadsTileB):
-        gro = "(globalReadOffsetB%s_%u%s)" % (tileCharB, l, \
-            ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsB else ""))
-        limit = "size%s" % tileCharB
 
         if kernel["EdgeType"] == "Branch":
+          gro = "(globalReadOffsetB%s_%u%s)" % (tileCharB, l, \
+              ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsB else ""))
+          limit = "size%s" % tileCharB
           kStr += "  bool inBoundsB_%u = %s < %s;%s" \
               % (l, gro, \
               limit, self.endLine)
-        else:
+        else: # ptr-shift
+          gro = "globalReadOffsetB%s_%u%s" % (tileCharB, l, \
+              ("_s0" if readTileDimComponentsB else ""))
+          limit = "(size%s-%s)" % (tileCharB, \
+              ("VECTOR_WIDTH" if readTileDimVectorB else "1") )
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
@@ -1549,8 +1576,8 @@ class KernelWriter:
                 % (indent, para, perp, \
                 (("_s%u"%s) if (readTileDimComponentsA \
                 or readUnrollDimComponentsA) else ""), \
-                self.int64Str, loopChar, "" if (readTileDimComponentsB \
-                or readUnrollDimComponentsB) else "/VECTOR_WIDTH")
+                self.int64Str, loopChar, "" if (readTileDimComponentsA \
+                or readUnrollDimComponentsA) else "/VECTOR_WIDTH")
             if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
               kStr += "*DEPTHU"
             else:
@@ -1592,12 +1619,74 @@ class KernelWriter:
           + " > 0);" + self.endLine
     else:
       kStr += "%s}%s" % (indent, self.endLine)
-    kStr += self.endLine
+
+    ####################################
+    # Shift: d0 vector components
+    if kernel["EdgeType"] == "Shift" and kernel["VectorWidth"] > 1:
+      if readTileDimVectorA:
+        kStr += self.endLine
+        kStr += "  /* shift d%s vector components */%s" \
+            % (tileChar0, self.endLine)
+        kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+            % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+        kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+            %(tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+        kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+            % (tileChar0, tileChar0, self.endLine)
+        kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% SG%s ) {%s" \
+            % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+        kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
+            % (tileChar0, tileChar0, tileChar0, self.endLine)
+        for r0 in range(1, kernel["VectorWidth"]):
+          kStr += "    if (r%s == %u) {%s" % (tileChar0, r0, self.endLine)
+          #kStr += "      printf(\\\"T[%%06u] shift d0 r%u @ %%u, %%u, %%u, %%u\\\\n\\\", serial, s%s, wgMT%s, size%s, MT%s);%s" \
+          #    % (r0, tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+          for tt1 in range(0, kernel["ThreadTile1"]):
+            for s in range(0, r0):
+              kStr += "      rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s = rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
+                % (tileChar0, tt1, tileChar0, self.vectorComponents[s],  \
+                tileChar0, tt1, tileChar0, \
+                self.vectorComponents[s+kernel["VectorWidth"]-r0], self.endLine)
+          kStr += "    }%s" % self.endLine
+        kStr += "  }%s" % self.endLine
+
+      ####################################
+      # Shift: d1 vector
+      if readTileDimVectorB:
+        kStr += self.endLine
+        kStr += "  /* shift d%s vectors */%s" \
+            % (tileChar1, self.endLine)
+        kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+            % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+        kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+            %(tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+        kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+            % (tileChar1, tileChar1, self.endLine)
+        kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == ((serial / SG%s) %% SG%s) ) {%s" \
+            % (tileChar1, tileChar1, tileChar1, tileChar0, tileChar1, \
+            self.endLine)
+        kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
+            % (tileChar1, tileChar1, tileChar1, self.endLine)
+        for r1 in range(1, kernel["VectorWidth"]):
+          kStr += "    if (r%s == %u) {%s" % (tileChar1, r1, self.endLine)
+          #kStr += "      printf(\\\"T[%%06u] shift d1 r%u @ %%u, %%u, %%u, %%u\\\\n\\\", serial, s%s, wgMT%s, size%s, MT%s);%s" \
+          #    % (r1, tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+          for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+            for s in range(0, r1):
+              kStr += "      rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)] = rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)];%s" \
+                % (tt0, tileChar1, tileChar0, s, tileChar0, \
+                tt0, tileChar1, tileChar0, \
+                s+kernel["VectorWidth"]-r1, tileChar0, self.endLine)
+          kStr += "    }%s" % self.endLine
+        kStr += "  }%s" % self.endLine
+
 
     ####################################
     # SplitU reduction
     ####################################
-    if kernel["SplitU"] > 1:
+    #if kernel["SplitU"] > 1:
+    if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
+      kStr += self.endLine
       kStr += "  /***************************************/" + self.endLine
       kStr += "  /* SplitU Reduction                    */" + self.endLine
       kStr += "  /***************************************/" + self.endLine
@@ -1616,6 +1705,15 @@ class KernelWriter:
                 s, tileChar1, j, tileChar0, tileChar1, i, s, \
                 tileChar0, j, tileChar0, self.endLine)
       kStr += "  " + self.syncStr + self.endLine + self.endLine
+
+      """
+      kStr += "    /* print LDS state */" + self.endLine
+      kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*SPLITU; i+=NUM_THREADS) {%s" % self.endLine
+      kStr += "      printf(\\\"ldsSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, lds[i], lds[i]);%s" \
+          % self.endLine
+      kStr += "    }" + self.endLine
+      """
+
 
       ####################################
       # SplitU: C elements to store
@@ -1637,15 +1735,34 @@ class KernelWriter:
       ####################################
       # SplitU: which global Cij index
       kStr += "  /* which global Cij index */%s" % self.endLine
+      # my wg's MT
+      """
+      kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+          % (tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+      kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+          %(tileChar0, tileChar0, tileChar0, tileChar0, self.endLine)
+      kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+          %(tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+          % (tileChar1, tileChar1, self.endLine)
+      """
+
+      kStr += "  unsigned int localC%s = (serial %% (MT%s/VECTOR_WIDTH))*VECTOR_WIDTH;%s" \
+          % (tileChar0, tileChar0, self.endLine)
+      kStr += "  unsigned int localC%s = serial / (MT%s/VECTOR_WIDTH);%s" \
+          % (tileChar1, tileChar0, self.endLine)
+
       for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         kStr += "  unsigned int globalC%s = wg%s" \
             % (indexChars[i], indexChars[i])
         if i == kernel["ProblemType"]["Index0"]:
-          kStr += "*MT%s + (serial %% (MT%s/VECTOR_WIDTH))*VECTOR_WIDTH" \
+          kStr += "*MT%s + localC%s" \
               % (tileChar0, tileChar0)
         if i == kernel["ProblemType"]["Index1"]:
-          kStr += "*MT%s + (serial / (MT%s/VECTOR_WIDTH))" \
-              % (tileChar1, tileChar0)
+          kStr += "*MT%s + localC%s" \
+              % (tileChar1, tileChar1)
         kStr += ";" + self.endLine
       kStr += self.endLine
 
@@ -1664,11 +1781,10 @@ class KernelWriter:
       for b in range(0, kernel["NumVectorsPerThread"]):
         for s in range(0, kernel["VectorWidth"]):
           if kernel["EdgeType"] != "None":
-
-            kStr += "  if (globalC%s < size%s) {" \
+            kStr += "  if (globalC%s%s < size%s) {" \
                 % (tileChar0, \
+                ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
                 tileChar0)
-
             kStr += "  if (globalC%s + %u*CPS < size%s) {" \
                 % (tileChar1, b, tileChar1)
 
@@ -1737,12 +1853,19 @@ class KernelWriter:
         for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for s1 in range(0, kernel["VectorWidth"]):
             for s0 in range(0, kernel["VectorWidth"]):
-              if kernel["EdgeType"] != "None":
+              if kernel["EdgeType"] == "Branch":
                 kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                    % (tileChar0, a, tileChar0, tileChar0)
+                kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                    % (tileChar1, b, tileChar1, tileChar1)
+              elif kernel["EdgeType"] == "Shift":
+                kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                     % (tileChar0, \
+                    ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
                     a, tileChar0, tileChar0)
-                kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                     % (tileChar1, \
+                    ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
                     b, tileChar1, tileChar1)
 
               kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
