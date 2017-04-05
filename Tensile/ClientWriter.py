@@ -721,7 +721,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "TensileStatus generatedCallToFunction(\n"
     h += "    unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
-    h += "    DataType beta );\n\n"
+    h += "    DataType beta, \n"
+    h += "    cl_event *outputEvent = nullptr );\n\n"
 
     for dataType in dataTypes:
       typeName = dataType.toCpp()
@@ -733,7 +734,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "inline TensileStatus generatedCallToFunction<%s>(\n" % typeName
       h += "    unsigned int *sizes,\n"
       h += "    %s alpha,\n" % typeName
-      h += "    %s beta ) {\n\n" % typeName
+      h += "    %s beta,\n" % typeName
+      h += "    cl_event *outputEvent ) {\n\n"
 
       h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
@@ -807,7 +809,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         for i in range(0, problemType["TotalIndices"]):
           h += "        size%s,\n" % indexChars[i]
         h += "        stream,\n"
-        h += "        0, NULL, NULL); // events\n"
+        h += "        0, NULL, outputEvent); // events\n"
       if len(functionsForDataType) > 1:
         h += "  }\n" # close last if
       h += "};\n" # close callToFunction

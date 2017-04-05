@@ -151,29 +151,61 @@ bool callLibrary(
     } // compare loop
   } // if validate
 
+#if Tensile_RUNTIME_LANGUAGE_OCL
+  cl_event l_eventNDRange[numSyncsPerBenchmark][numEnqueuesPerSync];
+#else
+  static_assert("HIP events not implemented");
+#endif
+
   // time solution
   timer.start();
   double apiTimeUs = 0;
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-      generatedCallToFunction( userSizes, alpha, beta );
+        if (measureKernelTime)
+            generatedCallToFunction(userSizes, alpha, beta, &l_eventNDRange[syncIdx][enqIdx]);
+        else
+            generatedCallToFunction(userSizes, alpha, beta);
     }
+
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
     // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
-    status = clFinish(stream); tensileStatusCheck(status);
+    status = clFinish(stream);
 #else
-    status = hipStreamSynchronize(stream); tensileStatusCheck(status);
+    status = hipStreamSynchronize(stream);
 #endif
     tensileStatusCheck(status);
   } // sync loop
+
   apiTimeUs /= numSyncsPerBenchmark;
 
-  double timeMs = timer.elapsed_ms()
-    / numSyncsPerBenchmark / numEnqueuesPerSync;
-  double gflops = totalFlops / timeMs / 1000000.0;
+  double timeNs = 0.0;
+#if Tensile_RUNTIME_LANGUAGE_OCL
+  if (measureKernelTime) {
+      // Loop through the multi-dimensional event array and collect kernel performance data
+      // Release events when done with them
+      cl_ulong kernel_time_sum = 0;
+      for (auto& event_array : l_eventNDRange) {
+          for (auto event : event_array) {
+              // getEventDeltaTime returns unsigned long in nano-seconds
+              kernel_time_sum += getEventDeltaTime(event);
+              ::clReleaseEvent(event);
+          }
+      }
+      timeNs = static_cast<double>(kernel_time_sum);
+  }
+  else {
+      timeNs = timer.elapsed_ns();
+  }
+#endif
+
+  timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
+
+  double gflops = totalFlops / timeNs;
+
   bool newFastest = false;
   if (gflops > fastestGFlops) {
     fastestGFlops = gflops;
@@ -192,8 +224,8 @@ bool callLibrary(
       std::cout << " ";
     }
     std::cout << " |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeMs
-      << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand
+      << " us | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " " << (numChecked-numInvalids) << "/" << numChecked;
     std::cout << " | api:" << std::setw(6) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
@@ -208,7 +240,7 @@ bool callLibrary(
       std::cout << " ";
     }
     std::cout << " |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeMs << " ms";
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand << " us";
     if (newFastest) {
       std::cout << "*";
     }
