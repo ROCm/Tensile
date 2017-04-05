@@ -1660,16 +1660,20 @@ class KernelWriter:
           %(tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
       kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
           % (tileChar1, tileChar1, self.endLine)
-      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% (MT%s/VECTOR_WIDTH) ) {%s" \
-          % (tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
+      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (serial / SG%s) ) {%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar0, self.endLine)
+      kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
+          % (tileChar1, tileChar1, tileChar1, self.endLine)
       for r1 in range(1, kernel["VectorWidth"]):
         kStr += "    if (r%s == %u) {%s" % (tileChar1, r1, self.endLine)
+        #kStr += "      printf(\\\"T[%%06u] shift d1 r%u @ %%u, %%u, %%u, %%u\\\\n\\\", serial, s%s, wgMT%s, size%s, MT%s);%s" \
+        #    % (r1, tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
         for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for s in range(0, r1):
-            kStr += "      rC[%u+%u*(TT%s/VECTOR_WIDTH)] = rC[%u+%u*(TT%s/VECTOR_WIDTH)];%s" \
-              % (tt0, s, tileChar1, \
-              tt0, s+kernel["VectorWidth"]-r1, tileChar1, \
-              self.endLine)
+            kStr += "      rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)] = rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)];%s" \
+              % (tt0, tileChar1, tileChar0, s, tileChar0, \
+              tt0, tileChar1, tileChar0, \
+              s+kernel["VectorWidth"]-r1, tileChar0, self.endLine)
         kStr += "    }%s" % self.endLine
       kStr += "  }%s" % self.endLine
 
@@ -1915,7 +1919,7 @@ class KernelWriter:
         for s in range(0, kernel["VectorWidth"]):
           if kernel["EdgeType"] != "None":
 
-            kStr += "  if (globalC%s%s< size%s) {" \
+            kStr += "  if (globalC%s%s < size%s) {" \
                 % (tileChar0, \
                 ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
                 tileChar0)
