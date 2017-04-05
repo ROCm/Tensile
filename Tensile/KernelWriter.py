@@ -1778,146 +1778,6 @@ class KernelWriter:
       if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
         kStr += "  double type_mac_tmp;" + self.endLine
 
-
-      """
-      ####################################
-      # write full vectors
-      kStr += "  if (localC%s+(VECTOR_WIDTH-1) < wgMT%s) {%s" \
-          % (tileChar0, tileChar0, self.endLine)
-      kStr += "    /* write full vectors */%s" % self.endLine
-      kStr += "    for (unsigned int writeIdx%s = 0; writeIdx%s*CPS < wgMT%s-r%s; writeIdx%s++) {%s" \
-          % (tileChar1, tileChar1, tileChar1, tileChar1, tileChar1, \
-          self.endLine)
-
-      for s in range(0, kernel["VectorWidth"]):
-        kStr += "      "
-        # open branches
-        if kernel["EdgeType"] == "Branches":
-          kStr += "if (globalC%s < size%s) { " % (tileChar0, tileChar0)
-          kStr += "if (globalC%s + writeIdx%s*CPS < size%s) { " \
-              % (tileChar1, tileChar1, tileChar1)
-
-        # write
-        kStr += "TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
-        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-         kStr += " globalC%s" % indexChars[i]
-         if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
-           kStr += " + %u" % s
-         if i == kernel["ProblemType"]["Index1"]:
-           kStr += " + writeIdx%s*CPS" % tileChar1
-         if i < kernel["ProblemType"]["NumIndicesC"]-1:
-            kStr += ", (%s)" % self.uint64Str
-        kStr += ") ]"
-        kStr += ", alpha"
-        kStr += ", rC[writeIdx%s]%s" % (tileChar1, \
-            ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
-            else "") )
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += ", beta"
-        kStr += ")"
-
-        # close branches
-        if kernel["EdgeType"] == "Branches":
-          kStr += "} }"
-        kStr += self.endLine
-
-      # end loop
-      kStr += "    }%s" % self.endLine
-
-      # r1J
-      kStr += "    if (localC%s > VECTOR_WIDTH - r%s - 1) {%s" \
-          % (tileChar1, tileChar1, self.endLine)
-      for s in range(0, kernel["VectorWidth"]):
-        kStr += "      "
-        kStr += "TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
-        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-         kStr += " globalC%s" % indexChars[i]
-         if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
-           kStr += " + %u" % s
-         if i == kernel["ProblemType"]["Index1"]:
-           kStr += " + (wgMT%s-r%s) - (VECTOR_WIDTH-r%s)" \
-               % (tileChar1, tileChar1, tileChar1)
-         if i < kernel["ProblemType"]["NumIndicesC"]-1:
-            kStr += ", (%s)" % self.uint64Str
-        kStr += ") ]"
-        kStr += ", alpha"
-        kStr += ", rC[(wgMT%s-r%s)]%s" % (tileChar1, tileChar1, \
-            ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
-            else "") )
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += ", beta"
-        kStr += ")%s" % self.endLine
-      kStr += "    }%s" % self.endLine
-
-      ####################################
-      # write shifted partial vectors
-      kStr += "  } else if (localC%s < wgMT%s) {%s" \
-          % (tileChar0, tileChar0, self.endLine)
-      kStr += "    /* write shifted partial vectors */%s" % self.endLine
-      kStr += "    unsigned int r%s = size%s %% VECTOR_WIDTH;%s" \
-          % (tileChar0, tileChar0, self.endLine)
-      #kStr += "    unsigned int shift = VECTOR_WIDTH - r0;%s" \
-      #    % (self.endLine)
-      for r0 in range(1, kernel["VectorWidth"]):
-
-        # if r0
-        if kernel["VectorWidth"] > 2:
-          if r0 == 1:
-            kStr += "    "
-          else:
-            kStr += " else "
-          if r0 < kernel["VectorWidth"]-1:
-            kStr += "if (r%s == %s) " % (tileChar0, r0)
-          kStr += "{%s" % self.endLine
-
-        kStr += "      for (unsigned int writeIdx%s = 0; writeIdx%s*CPS + localC%s < wgMT%s - r%s; writeIdx%s++) {%s" \
-            % (tileChar1, tileChar1, tileChar1, tileChar1, tileChar1, \
-            tileChar1, self.endLine)
-
-        # components in r0
-        for s in range(kernel["VectorWidth"]-r0, kernel["VectorWidth"]):
-          kStr += "        "
-
-          # write
-          kStr += "TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
-          for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-           kStr += " globalC%s" % indexChars[i]
-           if i == kernel["ProblemType"]["Index0"]:
-             kStr += " + (%u-%u)" % (s, kernel["VectorWidth"]-r0)
-           if i == kernel["ProblemType"]["Index1"]:
-             kStr += " + writeIdx%s*CPS" % tileChar1
-           if i < kernel["ProblemType"]["NumIndicesC"]-1:
-              kStr += ", (%s)" % self.uint64Str
-          kStr += ") ]"
-          kStr += ", alpha"
-          kStr += ", rC[writeIdx%s]%s" % (tileChar1, \
-              ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
-              else "") )
-
-          if kernel["ProblemType"]["UseBeta"]:
-            kStr += ", beta"
-          kStr += ")"
-          kStr += self.endLine
-
-        # end component loop
-        kStr += "      }%s" % self.endLine
-
-        # close if r0
-        if kernel["VectorWidth"] > 2:
-          kStr += "    }"
-      kStr += self.endLine
-
-      ####################################
-      # write nothing
-      kStr += "  } else {%s" % self.endLine
-      kStr += "    /* write nothing */%s" % self.endLine
-      kStr += "  }%s" % self.endLine
-      """
-
-
-      #"""
-      ####################################
-      # old write
       for b in range(0, kernel["NumVectorsPerThread"]):
         for s in range(0, kernel["VectorWidth"]):
           if kernel["EdgeType"] != "None":
@@ -1952,7 +1812,6 @@ class KernelWriter:
           if kernel["EdgeType"] != "None":
             kStr += "} }"
           kStr += self.endLine
-      #"""
 
 
 
@@ -1996,12 +1855,19 @@ class KernelWriter:
         for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
           for s1 in range(0, kernel["VectorWidth"]):
             for s0 in range(0, kernel["VectorWidth"]):
-              if kernel["EdgeType"] != "None":
+              if kernel["EdgeType"] == "Branch":
                 kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                    % (tileChar0, a, tileChar0, tileChar0)
+                kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                    % (tileChar1, b, tileChar1, tileChar1)
+              elif kernel["EdgeType"] == "Shift":
+                kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                     % (tileChar0, \
+                    ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
                     a, tileChar0, tileChar0)
-                kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
+                kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                     % (tileChar1, \
+                    ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
                     b, tileChar1, tileChar1)
 
               kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
