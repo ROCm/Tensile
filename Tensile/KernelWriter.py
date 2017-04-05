@@ -1781,12 +1781,10 @@ class KernelWriter:
       for b in range(0, kernel["NumVectorsPerThread"]):
         for s in range(0, kernel["VectorWidth"]):
           if kernel["EdgeType"] != "None":
-
             kStr += "  if (globalC%s%s < size%s) {" \
                 % (tileChar0, \
                 ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
                 tileChar0)
-
             kStr += "  if (globalC%s + %u*CPS < size%s) {" \
                 % (tileChar1, b, tileChar1)
 
