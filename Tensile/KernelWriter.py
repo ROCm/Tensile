@@ -1622,7 +1622,7 @@ class KernelWriter:
 
     ####################################
     # Shift: d0 vector components
-    if kernel["EdgeType"] == "Shift":
+    if kernel["EdgeType"] == "Shift" and kernel["VectorWidth"] > 1:
       kStr += self.endLine
       kStr += "  /* shift d%s vector components */%s" \
           % (tileChar0, self.endLine)
@@ -1660,8 +1660,9 @@ class KernelWriter:
           %(tileChar1, tileChar1, tileChar1, tileChar1, self.endLine)
       kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
           % (tileChar1, tileChar1, self.endLine)
-      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (serial / SG%s) ) {%s" \
-          % (tileChar1, tileChar1, tileChar1, tileChar0, self.endLine)
+      kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == ((serial / SG%s) %% SG%s) ) {%s" \
+          % (tileChar1, tileChar1, tileChar1, tileChar0, tileChar1, \
+          self.endLine)
       kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
           % (tileChar1, tileChar1, tileChar1, self.endLine)
       for r1 in range(1, kernel["VectorWidth"]):
@@ -1705,8 +1706,8 @@ class KernelWriter:
 
       """
       kStr += "    /* print LDS state */" + self.endLine
-      kStr += "    for (unsigned int i = serial; i < MT0I*MT1J; i+=NUM_THREADS) {%s" % self.endLine
-      kStr += "      printf(\\\"ldsSplitU[%%06u] = %%.0f\\\\n\\\", i, lds[i]);%s" \
+      kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*SPLITU; i+=NUM_THREADS) {%s" % self.endLine
+      kStr += "      printf(\\\"ldsSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, lds[i], lds[i]);%s" \
           % self.endLine
       kStr += "    }" + self.endLine
       """
