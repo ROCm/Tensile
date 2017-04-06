@@ -117,20 +117,27 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   # runtime and kernel language
   runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
       % globalParameters["RuntimeLanguage"])
-  #runScriptFile.write(" -DTensile_KERNEL_LANGUAGE=%s" \
-  #    % globalParameters["KernelLanguage"])
   if forBenchmark:
     # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
   else:
     # for library client
-    runScriptFile.write(" -DTensile_ROOT=%s" % os.path.join(globalParameters["ScriptPath"], "..") )
+    runScriptFile.write(" -DTensile_ROOT=%s" \
+        % os.path.join(globalParameters["ScriptPath"], "..") )
+    runScriptFile.write(" -DTensile_KERNEL_LANGUAGE=%s" \
+        % globalParameters["KernelLanguage"])
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
     runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
         % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
     runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
         % ("ON" if globalParameters["ShortNames"] else "OFF"))
+  if globalParameters["CMakeCXXFlags"]:
+    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" \
+        % globalParameters["CMakeCXXFlags"] )
+  if globalParameters["CMakeCFlags"]:
+    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" \
+        % globalParameters["CMakeCFlags"] )
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")

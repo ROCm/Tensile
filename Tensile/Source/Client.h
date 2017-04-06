@@ -33,8 +33,10 @@ TensileTimer timer;
 TensileTimer apiTimer;
 std::ofstream file;
 
+#if Tensile_CLIENT_BENCHMARK
 unsigned int invalidSolutions[numSolutions];
 unsigned int numInvalidSolutions = 0;
+#endif
 
 void initControls();
 void destroyControls();

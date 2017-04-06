@@ -67,9 +67,6 @@ endif()
 if(MSVC)
   # object-level build parallelism for VS, not just target-level
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
-  #set_property( GLOBAL PROPERTY USE_FOLDERS TRUE )
-else()
-  #add_definitions( "-std=c++11" )
 endif()
 
 if(Tensile_MERGE_FILES)
@@ -105,7 +102,6 @@ endif()
 # Create Tensile Library
 if(NOT Tensile_CLIENT_BENCHMARK)
   include(${CMAKE_SOURCE_DIR}/TensileConfig.cmake)
-  #find_package(Tensile)
   TensileCreateLibrary(
     ${Tensile_LOGIC_PATH}           # path
     ${Tensile_RUNTIME_LANGUAGE}     # OCL or HIP

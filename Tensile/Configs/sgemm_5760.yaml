@@ -9,7 +9,7 @@ GlobalParameters:
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
   NumElementsToValidate: 128
-  ValidationMaxToPrint: 16
+  ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
@@ -29,19 +29,20 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - EdgeType: ["None"]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
       - NumLoadsCoalescedA: [-1]
       - NumLoadsCoalescedB: [1]
       - WorkGroupMapping: [1]
       - SplitU: [1]
     ForkParameters:
-      - GroupShape: [-2, 0, 2]
-      - ThreadTileShape: [-2, 0, 2]
+      - LoopTail: [False, True]
+      - EdgeType: ["None", "Branch", "Shift"]
+      - GroupShape: [0, 2]
+      - ThreadTileShape: [0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
       - DepthU: [ 8, 16]
+      - VectorWidth: [1, 2, 4]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -61,19 +62,20 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - EdgeType: ["None"]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
       - NumLoadsCoalescedA: [-1]
       - NumLoadsCoalescedB: [-1]
       - WorkGroupMapping: [1]
       - SplitU: [1]
     ForkParameters:
-      - GroupShape: [-2, 0, 2]
-      - ThreadTileShape: [-2, 0, 2]
+      - LoopTail: [False, True]
+      - EdgeType: ["None", "Branch", "Shift"]
+      - GroupShape: [0, 2]
+      - ThreadTileShape: [0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
       - DepthU: [ 8, 16]
+      - VectorWidth: [1, 2, 4]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -93,19 +95,20 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - EdgeType: ["None"]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
       - WorkGroupMapping: [1]
       - SplitU: [1]
     ForkParameters:
-      - GroupShape: [-2, 0, 2]
-      - ThreadTileShape: [-2, 0, 2]
+      - LoopTail: [False, True]
+      - EdgeType: ["None", "Branch", "Shift"]
+      - GroupShape: [0, 2]
+      - ThreadTileShape: [0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
       - DepthU: [ 8, 16]
+      - VectorWidth: [1, 2, 4]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
@@ -125,19 +128,20 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [5760], 0, 0 ]
-      - EdgeType: ["None"]
-      - LoopDoWhile: [True]
-      - LoopTail: [False]
+      - LoopDoWhile: [False]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [-1]
       - WorkGroupMapping: [-1]
       - SplitU: [1]
     ForkParameters:
-      - GroupShape: [-2, 0, 2]
-      - ThreadTileShape: [-2, 0, 2]
+      - LoopTail: [False, True]
+      - EdgeType: ["None", "Branch", "Shift"]
+      - GroupShape: [0, 2]
+      - ThreadTileShape: [0, 2]
       - NumThreads: [128, 256]
       - ThreadTileNumElements: [16, 32, 36, 64]
       - DepthU: [ 8, 16]
+      - VectorWidth: [1, 2, 4]
     #BenchmarkForkParameters:
     JoinParameters:
       - MacroTile

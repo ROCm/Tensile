@@ -8,7 +8,7 @@ GlobalParameters:
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
   NumElementsToValidate: 128
-  ValidationMaxToPrint: 16
+  ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True

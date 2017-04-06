@@ -65,8 +65,14 @@ parallel rocm_fiji: {
         // run jenkins tests
         dir("${build_dir_release}") {
           stage("unit tests") {
-           sh "tensile ../../Tensile/Configs/jenkins_sgemm_defaults.yaml sgemm_defaults"
-           sh "tensile ../../Tensile/Configs/jenkins_dgemm_defaults.yaml dgemm_defaults"
+           sh "tensile ../../Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults"
+           sh "tensile ../../Tensile/Configs/test_sgemm_scalar_load_patterns.yaml sgemm_scalar_load_patterns"
+           sh "tensile ../../Tensile/Configs/test_sgemm_scalar_tile_sizes.yaml sgemm_scalar_tile_sizes"
+           sh "tensile ../../Tensile/Configs/test_sgemm_scalar_branches.yaml sgemm_scalar_branches"
+           //sh "tensile ../../Tensile/Configs/test_sgemm_vector_load_patterns.yaml sgemm_vector_load_patterns"
+           //sh "tensile ../../Tensile/Configs/test_sgemm_vector_tile_sizes.yaml sgemm_vector_tile_sizes"
+           //sh "tensile ../../Tensile/Configs/test_sgemm_vector_branches.yaml sgemm_vector_branches"
+           sh "tensile ../../Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults"
           }
         }
       }
