@@ -49,6 +49,12 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   logicAnalyzer.removeLeastImportantSolutions()
 
   ######################################
+  # Print solutions used
+  print1("Solutions Used:")
+  for i in range(0, len(logicAnalyzer.solutions)):
+    print1("(%2u) %s" % (i, Solution.getNameFull(logicAnalyzer.solutions[i])))
+
+  ######################################
   # Correct outliers
   if inputParameters["SmoothOutliers"]:
     logicAnalyzer.smoothOutliers()
@@ -87,14 +93,6 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
 
   logicAnalyzer.prepareLogic(logic)
 
-  ######################################
-  # Print solutions used
-  print1("Solutions Used:")
-  for i in range(0, len(logicAnalyzer.solutions)):
-    print1("(%2u) %s" % (i, Solution.getNameFull(logicAnalyzer.solutions[i])))
-
-  #return (skinnyRules01, skinnyRules10, diagonalRules)
-  #return (problemType, logicAnalyzer.solutionsUsed, [], [], logicAnalyzer.diagonalRules )
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, logic)
 
 
@@ -239,6 +237,7 @@ class LogicAnalyzer:
     if rowIdx < 2:
       printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
           % (dataFileName, rowIdx) )
+    print self.data
 
 
   ##############################################################################
@@ -579,18 +578,11 @@ class LogicAnalyzer:
         problemSerial = self.indicesToSerial(0, problemIndices)
         for sIdx in range(0, self.numSolutions):
           sss[sIdx] += ",%f" % self.data[problemSerial+sIdx]
-
-        if self.data[problemSerial+0] > self.data[problemSerial+1]:
-          winnerIdx = 0
-          winnerGFlops = self.data[problemSerial+0]
-          secondIdx = 1
-          secondGFlops = self.data[problemSerial+1]
-        else:
-          winnerIdx = 1
-          winnerGFlops = self.data[problemSerial+1]
-          secondIdx = 0
-          secondGFlops = self.data[problemSerial+0]
-        for solutionIdx in range(2, self.numSolutions):
+        winnerIdx = 0
+        secondIdx = 1
+        winnerGFlops = self.data[problemSerial+0]
+        secondGFlops = 1e-9
+        for solutionIdx in range(1, self.numSolutions):
           solutionSerialIdx = problemSerial + solutionIdx
           solutionGFlops = self.data[solutionSerialIdx]
           if solutionGFlops > winnerGFlops:
@@ -598,7 +590,6 @@ class LogicAnalyzer:
             secondGFlops = winnerGFlops
             winnerIdx = solutionIdx
             winnerGFlops = solutionGFlops
-
 
         if winnerIdx not in winnerIndices:
           winnerIndices.append(winnerIdx)
