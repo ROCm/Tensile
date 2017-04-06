@@ -65,7 +65,7 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
   for i in range(0, logicAnalyzer.numIndices):
     if i != logicAnalyzer.idx0 and i != logicAnalyzer.idx1:
       numPermutations *= numProblemSizes[i]
-  print numPermutations
+  #print numPermutations
   for j in range(0, numPermutations):
     pIdx = j
     permutation = []
@@ -75,7 +75,7 @@ def analyzeProblemType( problemTypeTuple, inputParameters ):
         permutation.append(pIdx%npsi)
         pIdx /= numProblemSizes[i]
     permutations.append(permutation)
-  print permutations
+  #print permutations
   for permutation in permutations:
     logicAnalyzer.print2D(permutation)
 
@@ -382,16 +382,8 @@ class LogicAnalyzer:
       ########################################
       # this is last index, so just return fastest solution
       if isLastIndex:
-        # TODO optimize b/c this should be only single problem
-        #scores = self.scoreRangeForSolutions(currentIndexRange)
-        #winnerIdx = 0
-        #for solutionIdx in range(1, self.numSolution):
-        #  if scores[solutionIdx] < scores[winnerIdx]:
-        #    winnerIdx = solutionIdx
         winnerIdx = self.winnerForRange(currentIndexRange)
-        #print2("%sreturning early winner=%u" % (tab, winnerIdx))
-        ruleList.append(-1)
-        ruleList.append(winnerIdx)
+        ruleList.append([-1, winnerIdx])
         if globalParameters["PrintLevel"] == 1:
           stdout.write("#")
 
