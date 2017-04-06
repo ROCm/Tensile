@@ -49,8 +49,8 @@ globalParameters["PinClocks"] = False
 globalParameters["ShortNames"] = False
 globalParameters["MergeFiles"] = True
 # validation
-globalParameters["NumElementsToValidate"] = 16
-globalParameters["ValidationMaxToPrint"] = 16
+globalParameters["NumElementsToValidate"] = 128
+globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
