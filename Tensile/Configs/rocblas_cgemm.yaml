@@ -30,7 +30,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -62,7 +62,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -94,7 +94,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -126,7 +126,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]

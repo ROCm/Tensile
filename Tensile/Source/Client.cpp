@@ -132,10 +132,12 @@ int main( int argc, char *argv[] ) {
 #endif
   std::cout << std::endl;
   if (invalids) {
+#if Tensile_CLIENT_BENCHMARK
     printf("\nInvalid Solutions: %u/%u\n", numInvalidSolutions, numSolutions);
     for (unsigned int i = 0; i < numInvalidSolutions; i++) {
       printf("[%2u] %s\n", invalidSolutions[i], solutionNames[invalidSolutions[i]]);
     }
+#endif
     return EXIT_FAILURE;
   } else {
     return EXIT_SUCCESS;

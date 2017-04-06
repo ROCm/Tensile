@@ -21,7 +21,7 @@ BenchmarkProblems:
   # zgemm NN
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: z
       TransposeA: False
       TransposeB: False
       UseBeta: True
@@ -30,7 +30,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -53,7 +53,7 @@ BenchmarkProblems:
   # zgemm NT
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: z
       TransposeA: False
       TransposeB: True
       UseBeta: True
@@ -62,7 +62,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -85,7 +85,7 @@ BenchmarkProblems:
   # zgemm TN
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: z
       TransposeA: True
       TransposeB: False
       UseBeta: True
@@ -94,7 +94,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -117,7 +117,7 @@ BenchmarkProblems:
   # zgemm TT
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: z
       TransposeA: True
       TransposeB: True
       UseBeta: True
@@ -126,7 +126,7 @@ BenchmarkProblems:
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [2880], [2880], [2], [1536] ]
-      - EdgeType: ["Branch"]
+      - EdgeType: ["Shift"]
       - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]

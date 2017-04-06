@@ -37,6 +37,8 @@ globalParameters["Platform"] = 0
 globalParameters["Device"] = 0
 # benchmark behavior
 globalParameters["CMakeBuildType"] = "Release" # Debug
+globalParameters["CMakeCXXFlags"] = ""
+globalParameters["CMakeCFlags"] = ""
 globalParameters["ForceRedoBenchmarkProblems"] = True
 globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
