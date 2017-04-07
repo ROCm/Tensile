@@ -822,18 +822,33 @@ class Solution:
     """
 
     # lds buffer size for A, B
-    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
-    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
-    state["LdsOffsetB"] = ldsNumElementsAlignedA
+    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
+    # todo, can the alignment be a power of 2?
+    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
+    if kernel["PrefetchGlobalRead"]:
+      kernel["LdsNumElementsAlignedA"] = ldsNumElementsAlignedA
+      kernel["LdsNumElementsAlignedB"] = ldsNumElementsAlignedB
+      kernel["LdsOffsetA"] = 0
+      kernel["LdsOffsetB"] = kernel["LdsOffsetA"] \
+        + kernel["LdsNumElementsAlignedA"]
+      kernel["LdsOffsetA_Blk"] = kernel["LdsOffsetB"] \
+        + kernel["LdsNumElementsAlignedB"]
+      kernel["LdsOffsetB_Blk"] = kernel["LdsOffsetA_Blk"] \
+        + kernel["LdsNumElementsAlignedB"]
+      ldsNumElementsAB = ldsNumElementsAlignedA*2 \
+          + ldsNumElementsAlignedB + ldsNumElementsB
+    else:
+      state["LdsOffsetB"] = ldsNumElementsAlignedA
+      ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
     # lds buffer size for reduction
     ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
 
     # lds size is the greater of the two
-    ldsNumElements = max(ldsNumElementsAlignedA+ldsNumElementsB, ldsNumElementsReduction)
+    ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction)
     state["LdsNumElements"] = ldsNumElements
     ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
     if ldsSize > globalParameters["MaxLDS"]:

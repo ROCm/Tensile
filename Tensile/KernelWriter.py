@@ -283,6 +283,15 @@ class KernelWriter:
     kStr += "#define LDS_NUM_ELEMENTS %u%s" % (kernel["LdsNumElements"], \
         self.endLine)
 
+    # prefetch lds buffer offsets
+    # layout is redA, redB, blkA, blkB
+    if kernel["PrefetchGlobalRead"]:
+      kStr += "#define LDS_OFFSET_A %u%s" \
+          % (kernel["LdsOffsetA"], self.endLine)
+      kStr += "#define LDS_OFFSET_A_BLK %u%s" \
+          % (kernel["LdsOffsetA_Blk"], self.endLine)
+      kStr += "#define LDS_OFFSET_B_BLK %u%s" \
+          % (kernel["LdsOffsetB_Blk"], self.endLine)
 
     ####################################
     # global memory indices
@@ -426,7 +435,10 @@ class KernelWriter:
           "  DST = REG;" + self.endLine )
 
     ####################################
-    # micro-tile
+    # sumation unroll
+    # TODO local prefetch, will be reading from red or black, but
+    # will prefetch into different offsets of rA, and rB
+# when we prefetch local AND global, one of these reads from lds into rA, rB will come in a prior iteration, so we'll need to split up the macros
     kStr += self.endLine
     kStr += "/* %dx%d micro-tile */%s" % (kernel["ThreadTile0"], kernel["ThreadTile1"], self.endLine)
 
@@ -556,10 +568,13 @@ class KernelWriter:
     kStr += "  /* registers for MAC's */" + self.endLine
     kStr += "  VECTOR_TYPE rC[TT%s*TT%s/VECTOR_WIDTH] = {0};%s" \
         % (tileChar0, tileChar1, self.endLine )
-    kStr += "  VECTOR_TYPE rA[TT%s/VECTOR_WIDTH];%s" \
-        % (tileChar0, self.endLine)
-    kStr += "  VECTOR_TYPE rB[TT%s/VECTOR_WIDTH];%s" \
-        % (tileChar1, self.endLine)
+    if kernel["PrefetchLocalRead"]:
+    kStr += "  VECTOR_TYPE rA[TT%s/VECTOR_WIDTH%s];%s" \
+        % (tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
+        self.endLine)
+    kStr += "  VECTOR_TYPE rB[TT%s/VECTOR_WIDTH%s];%s" \
+        % (tileChar1, ("*2" if kernel["PrefetchLocalRead"] else ""), \
+        self.endLine)
 
     ####################################
     # registers for global -> local load
@@ -912,9 +927,6 @@ class KernelWriter:
               % (l, gro, \
               limit, self.endLine)
         else: # ptr-shift
-# if i'm going to read a full vector, then I need to be vector away from edge
-# if i'm going to read a component, then I only need to be 1 away from edge
-# if i'm going to read a scalar, then I only need to be 1 away from edge
           gro = "globalReadOffsetA%s_%u%s" % (tileCharA, l, \
               ("_s0" if readTileDimComponentsA else "") )
           limit = "(size%s-%s)" % (tileCharA, \
@@ -1073,6 +1085,7 @@ class KernelWriter:
     ####################################
     # LDS Write Addresses
     ####################################
+    # TODO global prefetch, how do I swap write addresses
     kStr += self.endLine
     kStr += "  /***************************************/" + self.endLine
     kStr += "  /* LDS Write Addresses                 */" + self.endLine
@@ -1236,6 +1249,7 @@ class KernelWriter:
     ####################################
     # LDS Read Addresses
     ####################################
+    # TODO global prefetch, how do I swap read addresses
     kStr += self.endLine
     kStr += "  /***************************************/" + self.endLine
     kStr += "  /* LDS Read Addresses                  */" + self.endLine
