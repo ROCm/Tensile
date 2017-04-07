@@ -44,6 +44,46 @@ void destroyControls();
 double fastestGFlops = 0.0;
 unsigned int fastestIdx = 0;
 
+#if Tensile_RUNTIME_LANGUAGE_OCL
+/*******************************************************************************
+* Given a finished/synced OpenCL event
+* return performance in nano-seconds of time executing the kernel associated with the event
+******************************************************************************/
+cl_ulong getEventDeltaTime(cl_event event)
+{
+    cl_ulong start, end = 0;
+    cl_int cl_error = CL_SUCCESS;
+
+    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL) != CL_SUCCESS)
+    {
+        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+
+        start = 0;
+    }
+
+    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL) != CL_SUCCESS)
+    {
+        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+
+        end = 0;
+    }
+
+    return (end - start);
+}
+#else
+/*******************************************************************************
+* Given a finished/synced OpenCL event
+* return performance in nano-seconds of time executing the kernel associated with the event
+******************************************************************************/
+float getEventDeltaTime(hipEvent_t start, hipEvent_t stop)
+{
+    float result = 0.0f;
+    hipEventElapsedTime( &result, start, stop );
+    return result;
+}
+
+#endif
+
 /*******************************************************************************
  * Call Library
  * return true if errors/invalids
@@ -152,9 +192,16 @@ bool callLibrary(
   } // if validate
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
-  cl_event l_eventNDRange[numSyncsPerBenchmark][numEnqueuesPerSync];
+  cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
 #else
-  static_assert("HIP events not implemented");
+  hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
+  hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
+  for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+          hipEventCreateWithFlags(&l_eventStart[syncIdx][enqIdx], hipEventDefault);
+          hipEventCreateWithFlags(&l_eventStop[syncIdx][enqIdx], hipEventDefault);
+      }
+  }
 #endif
 
   // time solution
@@ -164,7 +211,11 @@ bool callLibrary(
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
         if (measureKernelTime)
-            generatedCallToFunction(userSizes, alpha, beta, &l_eventNDRange[syncIdx][enqIdx]);
+#if Tensile_RUNTIME_LANGUAGE_OCL
+            generatedCallToFunction(userSizes, alpha, beta, 0, nullptr, &l_outputEvent[syncIdx][0]);
+#else
+            generatedCallToFunction(userSizes, alpha, beta, numEnqueuesPerSync, &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
+#endif
         else
             generatedCallToFunction(userSizes, alpha, beta);
     }
@@ -188,9 +239,9 @@ bool callLibrary(
       // Loop through the multi-dimensional event array and collect kernel performance data
       // Release events when done with them
       cl_ulong kernel_time_sum = 0;
-      for (auto& event_array : l_eventNDRange) {
+      for (auto& event_array : l_outputEvent) {
           for (auto event : event_array) {
-              // getEventDeltaTime returns unsigned long in nano-seconds
+              // getEventDeltaTime returns unsigned long in nano-seconds on opencl
               kernel_time_sum += getEventDeltaTime(event);
               ::clReleaseEvent(event);
           }
@@ -200,6 +251,25 @@ bool callLibrary(
   else {
       timeNs = timer.elapsed_ns();
   }
+#else
+  if (measureKernelTime) {
+      // Loop through the multi-dimensional event array and collect kernel performance data
+      // Release events when done with them
+      float kernel_time_sum = 0;
+      for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+          for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+              // getEventDeltaTime returns unsigned long in milli-seconds on hip
+              kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx], l_eventStop[syncIdx][enqIdx]);
+              ::hipEventDestroy(l_eventStart[syncIdx][enqIdx]);
+              ::hipEventDestroy(l_eventStop[syncIdx][enqIdx]);
+          }
+      }
+      timeNs = static_cast<double>(kernel_time_sum) * TensileTimer::million;  // convert to nano-seconds
+  }
+  else {
+      timeNs = timer.elapsed_ns();
+  }
+
 #endif
 
   timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
@@ -251,33 +321,6 @@ bool callLibrary(
   return (numInvalids > 0);
 } // callLibrary
 #endif
-
-
-/*******************************************************************************
-* Given a finished/synced OpenCL event
-* return performance in nano-seconds of time executing the kernel associated with the event
-******************************************************************************/
-cl_ulong getEventDeltaTime( cl_event event )
-{
-    cl_ulong start, end = 0;
-    cl_int cl_error = CL_SUCCESS;
-
-    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL) != CL_SUCCESS)
-    {
-        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
-
-        start = 0;
-    }
-
-    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL) != CL_SUCCESS)
-    {
-        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
-
-        end = 0;
-    }
-
-    return (end - start);
-}
 
 /*******************************************************************************
  * benchmark all solutions for problem size
@@ -399,9 +442,16 @@ bool benchmarkAllSolutionsForSize(
     } // if numElementsToValidate > 0
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
-    cl_event l_eventNDRange[numSyncsPerBenchmark][numEnqueuesPerSync];
+    cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
 #else
-    static_assert("HIP events not implemented");
+    hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
+    hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
+    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+        for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+            hipEventCreateWithFlags( &l_eventStart[syncIdx][enqIdx], hipEventDefault );
+            hipEventCreateWithFlags( &l_eventStop[syncIdx][enqIdx], hipEventDefault );
+        }
+    }
 #endif
 
     // time solution
@@ -409,7 +459,11 @@ bool benchmarkAllSolutionsForSize(
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
           if (measureKernelTime)
-            generatedCallToSolution( solutionIdx , sizes, alpha, beta, &l_eventNDRange[syncIdx][enqIdx] );
+#if Tensile_RUNTIME_LANGUAGE_OCL
+              generatedCallToSolution( solutionIdx , sizes, alpha, beta, 0, nullptr, &l_outputEvent[syncIdx][0] );
+#else
+              generatedCallToSolution( solutionIdx, sizes, alpha, beta, numEnqueuesPerSync, &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0] );
+#endif
           else
             generatedCallToSolution( solutionIdx, sizes, alpha, beta );
       }
@@ -428,15 +482,33 @@ bool benchmarkAllSolutionsForSize(
         // Loop through the multi-dimensional event array and collect kernel performance data
         // Release events when done with them
         cl_ulong kernel_time_sum = 0;
-        for (auto& event_array : l_eventNDRange) {
+        for (auto& event_array : l_outputEvent) {
             for (auto event : event_array) {
-                // getEventDeltaTime returns unsigned long in nano-seconds
+                // getEventDeltaTime returns unsigned long in nano-seconds on opencl
                 kernel_time_sum += getEventDeltaTime(event);
                 ::clReleaseEvent(event);
             }
         }
         timeNs = static_cast<double>(kernel_time_sum);
     } else {
+        timeNs = timer.elapsed_ns();
+    }
+#else
+    if (measureKernelTime) {
+        // Loop through the multi-dimensional event array and collect kernel performance data
+        // Release events when done with them
+        float kernel_time_sum = 0;
+        for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+            for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+                // getEventDeltaTime returns unsigned long in milli-seconds on hip
+                kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx], l_eventStop[syncIdx][enqIdx] );
+                ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
+                ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
+            }
+        }
+        timeNs = static_cast<double>(kernel_time_sum) * TensileTimer::million;  // convert to nano-seconds
+    }
+    else {
         timeNs = timer.elapsed_ns();
     }
 

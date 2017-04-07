@@ -90,9 +90,10 @@ double TensileTimer::elapsed_ns() {
 
     // (currentTime.tv_nsec - startTime.tv_nsec) might be negative, if a 'second' boundary crossed and tv_nsec reset to 0
     // Convert to double type before subtracting to properly borrow from seconds when nano-seconds would be negative
+
     double d_startTime = static_cast<double>(startTime.tv_sec)*billion + static_cast<double>(startTime.tv_nsec);
     double d_currentTime = static_cast<double>(currentTime.tv_sec)*billion + static_cast<double>(currentTime.tv_nsec);
-    double return_elapsed_ns = d_currentTime - d_startTime;
+    return_elapsed_ns = d_currentTime - d_startTime;
 #endif
     return return_elapsed_ns;
 }

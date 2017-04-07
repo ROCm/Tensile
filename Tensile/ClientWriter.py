@@ -651,7 +651,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
     h += "    DataType beta, \n"
-    h += "    cl_event *outputEvent = nullptr ) {\n"
+    h += "    unsigned int numEvents = 0, \n"
+    if globalParameters["RuntimeLanguage"] == "OCL":
+      h += "    cl_event *event_wait_list = nullptr,\n"
+      h += "    cl_event *outputEvent = nullptr ) {\n"
+    else:
+      h += "    hipEvent_t *startEvent = nullptr,\n"
+      h += "    hipEvent_t *stopEvent = nullptr ) {\n"
+
     h += "  // calculate parameters assuming packed data\n"
     # strides
     indexChars = globalParameters["IndexChars"]
@@ -709,7 +716,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, problemType["TotalIndices"]):
       h += "      size%s,\n" % indexChars[i]
     h += "      stream,\n"
-    h += "      0, NULL, outputEvent ); // events\n"
+    if globalParameters["RuntimeLanguage"] == "OCL":
+       h += "      numEvents, event_wait_list, outputEvent ); // events\n"
+    else:
+       h += "      numEvents, startEvent, stopEvent); // events\n"
+
     h += "};\n"
     h += "\n"
   else:
@@ -722,7 +733,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
     h += "    DataType beta, \n"
-    h += "    cl_event *outputEvent = nullptr );\n\n"
+    h += "    unsigned int numEvents = 0, \n"
+
+    if globalParameters["RuntimeLanguage"] == "OCL":
+      h += "    cl_event *event_wait_list = nullptr,\n"
+      h += "    cl_event *outputEvent = nullptr );\n\n"
+    else:
+      h += "    hipEvent_t *startEvent = nullptr,\n"
+      h += "    hipEvent_t *stopEvent = nullptr );\n\n"
+
 
     for dataType in dataTypes:
       typeName = dataType.toCpp()
@@ -735,7 +754,14 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "    unsigned int *sizes,\n"
       h += "    %s alpha,\n" % typeName
       h += "    %s beta,\n" % typeName
-      h += "    cl_event *outputEvent ) {\n\n"
+      h += "    unsigned int numEvents, \n"
+
+      if globalParameters["RuntimeLanguage"] == "OCL":
+        h += "    cl_event *event_wait_list,\n"
+        h += "    cl_event *outputEvent ) {\n\n"
+      else:
+        h += "    hipEvent_t *startEvent,\n"
+        h += "    hipEvent_t *stopEvent ) {\n\n"
 
       h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
@@ -809,7 +835,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         for i in range(0, problemType["TotalIndices"]):
           h += "        size%s,\n" % indexChars[i]
         h += "        stream,\n"
-        h += "        0, NULL, outputEvent); // events\n"
+        if globalParameters["RuntimeLanguage"] == "OCL":
+           h += "        numEvents, event_wait_list, outputEvent); // events\n"
+        else:
+           h += "        numEvents, startEvent, stopEvent); // events\n"
+
       if len(functionsForDataType) > 1:
         h += "  }\n" # close last if
       h += "};\n" # close callToFunction
