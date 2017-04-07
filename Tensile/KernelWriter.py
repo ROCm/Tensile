@@ -95,15 +95,15 @@ class KernelWriter:
     kernelName = self.getKernelName(kernel)
 
     # determine chars for fast access
-    indexChars = []
+    self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
-      indexChars.append(globalParameters["IndexChars"][i])
-    indexChars[kernel["ProblemType"]["Index0"]] \
-        = "0" + indexChars[kernel["ProblemType"]["Index0"]]
-    indexChars[kernel["ProblemType"]["Index1"]] \
-        = "1" + indexChars[kernel["ProblemType"]["Index1"]]
-    tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
-    tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
+      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
+    tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
+    tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
 
     s = ""
     # kernel name
@@ -155,17 +155,17 @@ class KernelWriter:
     lastStrideA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     lastStrideB = len(kernel["ProblemType"]["IndexAssignmentsB"])
     for i in range(firstStride, lastStrideC):
-      s += "," + self.endLine + "  unsigned int const strideC" + indexChars[i]
+      s += "," + self.endLine + "  unsigned int const strideC" + self.indexChars[i]
     for i in range(firstStride, lastStrideA):
       s += "," + self.endLine + "  unsigned int const strideA" \
-          + indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
+          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
     for i in range(firstStride, lastStrideB):
       s += "," + self.endLine + "  unsigned int const strideB" \
-          + indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
+          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
 
     # sizes
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
-      s += "," + self.endLine + "  unsigned int const size" + indexChars[i]
+      s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
     s += " )"
     return s
 
@@ -178,19 +178,19 @@ class KernelWriter:
     kernelName = self.getKernelName(kernel)
 
     # determine chars for fast access
-    indexChars = []
+    self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
-      indexChars.append(globalParameters["IndexChars"][i])
-    indexChars[kernel["ProblemType"]["Index0"]] \
-        = "0" + indexChars[kernel["ProblemType"]["Index0"]]
-    indexChars[kernel["ProblemType"]["Index1"]] \
-        = "1" + indexChars[kernel["ProblemType"]["Index1"]]
+      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
 
     # determine indices
-    unrollChar = indexChars[kernel["ProblemType"]["IndicesSummation"][ \
+    unrollChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][ \
         kernel["ProblemType"]["NumIndicesSummation"]-1]]
-    tileChar0 = indexChars[kernel["ProblemType"]["Index0"]]
-    tileChar1 = indexChars[kernel["ProblemType"]["Index1"]]
+    tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
+    tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
     tileCharA = tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) else tileChar1
     tileCharB = tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) else tileChar1
     tensorChar0 = "A" if (kernel["ProblemType"]["Tensor0"]==0) else "B"
@@ -286,49 +286,49 @@ class KernelWriter:
     # prefetch lds buffer offsets
     # layout is redA, redB, blkA, blkB
     if kernel["PrefetchGlobalRead"]:
-      kStr += "#define LDS_OFFSET_A %u%s" \
-          % (kernel["LdsOffsetA"], self.endLine)
-      kStr += "#define LDS_OFFSET_A_BLK %u%s" \
+      #kStr += "#define LDS_OFFSET_A %u%s" \
+      #    % (kernel["LdsOffsetA"], self.endLine)
+      kStr += "#define LDS_OFFSET_BLK %u%s" \
           % (kernel["LdsOffsetA_Blk"], self.endLine)
-      kStr += "#define LDS_OFFSET_B_BLK %u%s" \
-          % (kernel["LdsOffsetB_Blk"], self.endLine)
+      #kStr += "#define LDS_OFFSET_B_BLK %u%s" \
+      #    % (kernel["LdsOffsetB_Blk"], self.endLine)
 
     ####################################
     # global memory indices
     kStr += self.endLine
     kStr += "/* global memory indices */" + self.endLine
     # C
-    kStr += "#define GLOBAL_C(IDX%s" % indexChars[0]
+    kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += ", IDX%s" % indexChars[i]
-    indexChar = indexChars[0]
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
     kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
-      indexChar = indexChars[i]
+      indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     # A non-vector
     kStr += "#define GLOBAL_OFFSET_A(IDX%s" \
-        % indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
+        % self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
       kStr += ", IDX%s" \
-          % indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-    indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
+          % self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
+    indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
     kStr += ") (( (IDX%s)*strideA%s" % (indexChar, indexChar)
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
-      indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
+      indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
       kStr += " + (IDX%s)*strideA%s" % (indexChar, indexChar)
     kStr += " ))%s" % self.endLine
     # B non-vector
     kStr += "#define GLOBAL_OFFSET_B(IDX%s" \
-        % indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
+        % self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
       kStr += ", IDX%s" \
-          % indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-    indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
+          % self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
+    indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
     kStr += ") (( (IDX%s)*strideB%s" % (indexChar, indexChar)
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
-      indexChar = indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
+      indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
       kStr += " + (IDX%s)*strideB%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     kStr += self.endLine
@@ -524,14 +524,14 @@ class KernelWriter:
       lastStrideB = 1
 
     for i in range(firstStride, lastStrideC):
-      kStr += "#define strideC" + indexChars[i] + " 1" + self.endLine
+      kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
     for i in range(firstStride, lastStrideA):
       kStr += "#define strideA" \
-          + indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
+          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
           + " 1" + self.endLine
     for i in range(firstStride, lastStrideB):
       kStr += "#define strideB" \
-          + indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
+          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
           + " 1" + self.endLine
     kStr += self.endLine
 
@@ -568,7 +568,6 @@ class KernelWriter:
     kStr += "  /* registers for MAC's */" + self.endLine
     kStr += "  VECTOR_TYPE rC[TT%s*TT%s/VECTOR_WIDTH] = {0};%s" \
         % (tileChar0, tileChar1, self.endLine )
-    if kernel["PrefetchLocalRead"]:
     kStr += "  VECTOR_TYPE rA[TT%s/VECTOR_WIDTH%s];%s" \
         % (tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
         self.endLine)
@@ -743,12 +742,12 @@ class KernelWriter:
       kStr += "  /* global read: other free indices */%s" % self.endLine
       for i in range(0, len(nonTileFreeIndices)):
         index = nonTileFreeIndices[i]
-        kStr += "  unsigned int wg" + indexChars[index] \
+        kStr += "  unsigned int wg" + self.indexChars[index] \
             + " = ( " + self.getGroupIdStr + "(2)"
         for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
           index2 = nonTileFreeIndices[j]
-          kStr += " / size" + indexChars[index2]
-        kStr += " ) % size" + indexChars[index] + ";" + self.endLine
+          kStr += " / size" + self.indexChars[index2]
+        kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
 
     ####################################
     # global read: other non-unrolled summation indices
@@ -758,9 +757,9 @@ class KernelWriter:
       for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
         index = i
         kStr += "#define globalReadOffsetA%s 0%s" \
-            % (indexChars[index], self.endLine)
+            % (self.indexChars[index], self.endLine)
         kStr += "#define globalReadOffsetB%s 0%s" \
-            % (indexChars[index], self.endLine)
+            % (self.indexChars[index], self.endLine)
 
     ####################################
     # read / write vectors or vector components
@@ -768,50 +767,50 @@ class KernelWriter:
       numReadsTileA = kernel["NumLoadsCoalescedA"]
       numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]:
-        readTileDimComponentsA = False # Vector
-        readTileDimVectorA = True # Vector
-        readUnrollDimComponentsA = False # Scalar
-        readUnrollDimVectorA = False # Scalar
-        writeTileDimComponentsA = False # Vector
-        writeUnrollDimComponentsA = False # Scalar
+        self.readTileDimComponentsA = False # Vector
+        self.readTileDimVectorA = True # Vector
+        self.readUnrollDimComponentsA = False # Scalar
+        self.readUnrollDimVectorA = False # Scalar
+        self.writeTileDimComponentsA = False # Vector
+        self.writeUnrollDimComponentsA = False # Scalar
       else:
-        readTileDimComponentsA = False # Scalar
-        readTileDimVectorA = False # Scalar
-        readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
-        readUnrollDimVectorA = False # Components
-        writeTileDimComponentsA = False # Scalar
-        writeUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimComponentsA = False # Scalar
+        self.readTileDimVectorA = False # Scalar
+        self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimVectorA = False # Components
+        self.writeTileDimComponentsA = False # Scalar
+        self.writeUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
     else:
       numReadsTileA = kernel["NumLoadsPerpendicularA"]
       numReadsUnrollA = kernel["NumLoadsCoalescedA"]
       if kernel["GlobalReadCoalesceVectorA"]:
-        readTileDimComponentsA = False # Scalar
-        readTileDimVectorA = False # Scalar
-        readUnrollDimComponentsA = False # Vector
-        readUnrollDimVectorA = True # Vector
-        writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
-        writeUnrollDimComponentsA = False # Scalar
+        self.readTileDimComponentsA = False # Scalar
+        self.readTileDimVectorA = False # Scalar
+        self.readUnrollDimComponentsA = False # Vector
+        self.readUnrollDimVectorA = True # Vector
+        self.writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsA = False # Scalar
       else:
-        readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
-        readTileDimVectorA = False # Components
-        readUnrollDimComponentsA = False # Scalar
-        readUnrollDimVectorA = False # Scalar
-        writeTileDimComponentsA = False # Vector
-        writeUnrollDimComponentsA = False # Scalar
+        self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimVectorA = False # Components
+        self.readUnrollDimComponentsA = False # Scalar
+        self.readUnrollDimVectorA = False # Scalar
+        self.writeTileDimComponentsA = False # Vector
+        self.writeUnrollDimComponentsA = False # Scalar
 
-    numReadVectorComponentsA = kernel["VectorWidth"] \
-        if (readTileDimComponentsA or readUnrollDimComponentsA) else 1
-    numWriteVectorComponentsA = kernel["VectorWidth"] \
-        if (writeTileDimComponentsA or writeUnrollDimComponentsA) else 1
-    numReadTileVectorComponentsA = kernel["VectorWidth"] \
-        if readTileDimComponentsA else 1 # for branches
+    self.numReadVectorComponentsA = kernel["VectorWidth"] \
+        if (self.readTileDimComponentsA or self.readUnrollDimComponentsA) else 1
+    self.numWriteVectorComponentsA = kernel["VectorWidth"] \
+        if (self.writeTileDimComponentsA or self.writeUnrollDimComponentsA) else 1
+    self.numReadTileVectorComponentsA = kernel["VectorWidth"] \
+        if self.readTileDimComponentsA else 1 # for branches
 
     ####################################
     # global read: dimension offsets tile a
     kStr += self.endLine
     kStr += "  /* global read: dimension offsets a */%s" % self.endLine
     for l in range(0, numReadsTileA):
-      if readTileDimComponentsA:
+      if self.readTileDimComponentsA:
         for s in range(0, kernel["VectorWidth"]):
           kStr += "  unsigned int globalReadOffsetA%s_%u_s%u = globalReadOffsetA%s + %u + %d*%s;%s" \
               % (tileCharA, l, s, tileCharA, s, l, \
@@ -826,7 +825,7 @@ class KernelWriter:
     ####################################
     # global read: dimension offsets unroll a
     for l in range(0, numReadsUnrollA):
-      if readUnrollDimComponentsA:
+      if self.readUnrollDimComponentsA:
         for s in range(0, kernel["VectorWidth"]):
           kStr += "  unsigned int globalReadOffsetA%s_%u_s%u = globalReadOffsetA%s + %u + %d*%s;%s" \
               % (unrollChar, l, s, unrollChar, s, l, \
@@ -844,49 +843,49 @@ class KernelWriter:
       numReadsTileB = kernel["NumLoadsCoalescedB"]
       numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
       if kernel["GlobalReadCoalesceVectorB"]:
-        readTileDimComponentsB = False # Vector
-        readTileDimVectorB = True # Vector
-        readUnrollDimComponentsB = False # Scalar
-        readUnrollDimVectorB = False # Scalar
-        writeTileDimComponentsB = False # Vector
-        writeUnrollDimComponentsB = False # Scalar
+        self.readTileDimComponentsB = False # Vector
+        self.readTileDimVectorB = True # Vector
+        self.readUnrollDimComponentsB = False # Scalar
+        self.readUnrollDimVectorB = False # Scalar
+        self.writeTileDimComponentsB = False # Vector
+        self.writeUnrollDimComponentsB = False # Scalar
       else:
-        readTileDimComponentsB = False # Scalar
-        readTileDimVectorB = False # Scalar
-        readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        readUnrollDimVectorB = False # Components
-        writeTileDimComponentsB = False # Scalar
-        writeUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimComponentsB = False # Scalar
+        self.readTileDimVectorB = False # Scalar
+        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimVectorB = False # Components
+        self.writeTileDimComponentsB = False # Scalar
+        self.writeUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
     else:
       numReadsTileB = kernel["NumLoadsPerpendicularB"]
       numReadsUnrollB = kernel["NumLoadsCoalescedB"]
       if kernel["GlobalReadCoalesceVectorB"]:
-        readTileDimComponentsB = False # Scalar
-        readTileDimVectorB = False # Scalar
-        readUnrollDimComponentsB = False # Vector
-        readUnrollDimVectorB = True # Vector
-        writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        writeUnrollDimComponentsB = False # Scalar
+        self.readTileDimComponentsB = False # Scalar
+        self.readTileDimVectorB = False # Scalar
+        self.readUnrollDimComponentsB = False # Vector
+        self.readUnrollDimVectorB = True # Vector
+        self.writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsB = False # Scalar
       else:
-        readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        readTileDimVectorB = False # Components
-        readUnrollDimComponentsB = False # Scalar
-        readUnrollDimVectorB = False # Scalar
-        writeTileDimComponentsB = False # Vector
-        writeUnrollDimComponentsB = False # Scalar
-    numReadVectorComponentsB = kernel["VectorWidth"] \
-        if (readTileDimComponentsB or readUnrollDimComponentsB) else 1
-    numWriteVectorComponentsB = kernel["VectorWidth"] \
-        if (writeTileDimComponentsB or writeUnrollDimComponentsB) else 1
-    numReadTileVectorComponentsB = kernel["VectorWidth"] \
-        if readTileDimComponentsB else 1 # for branches
+        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimVectorB = False # Components
+        self.readUnrollDimComponentsB = False # Scalar
+        self.readUnrollDimVectorB = False # Scalar
+        self.writeTileDimComponentsB = False # Vector
+        self.writeUnrollDimComponentsB = False # Scalar
+    self.numReadVectorComponentsB = kernel["VectorWidth"] \
+        if (self.readTileDimComponentsB or self.readUnrollDimComponentsB) else 1
+    self.numWriteVectorComponentsB = kernel["VectorWidth"] \
+        if (self.writeTileDimComponentsB or self.writeUnrollDimComponentsB) else 1
+    self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
+        if self.readTileDimComponentsB else 1 # for branches
 
     ####################################
     # global read: dimension offsets tile b
     kStr += self.endLine
     kStr += "  /* global read: dimension offsets b */%s" % self.endLine
     for l in range(0, numReadsTileB):
-      if readTileDimComponentsB:
+      if self.readTileDimComponentsB:
         for s in range(0, kernel["VectorWidth"]):
           kStr += "  unsigned int globalReadOffsetB%s_%u_s%u = globalReadOffsetB%s + %u + %d*%s;%s" \
               % (tileCharB, l, s, tileCharB, s, l, \
@@ -901,7 +900,7 @@ class KernelWriter:
     ####################################
     # global read: dimension offsets unroll b
     for l in range(0, numReadsUnrollB):
-      if readUnrollDimComponentsB:
+      if self.readUnrollDimComponentsB:
         for s in range(0, kernel["VectorWidth"]):
           kStr += "  unsigned int globalReadOffsetB%s_%u_s%u = globalReadOffsetB%s + %u + %d*%s;%s" \
               % (unrollChar, l, s, unrollChar, s, l, \
@@ -921,16 +920,16 @@ class KernelWriter:
       for l in range(0, numReadsTileA):
         if kernel["EdgeType"] == "Branch":
           gro = "(globalReadOffsetA%s_%u%s)" % (tileCharA, l, \
-              ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsA else "") )
+              ("_s0 + (VECTOR_WIDTH-1)" if self.readTileDimComponentsA else "") )
           limit = "size%s" % (tileCharA)
           kStr += "  bool inBoundsA_%u = %s < %s;%s" \
               % (l, gro, \
               limit, self.endLine)
         else: # ptr-shift
           gro = "globalReadOffsetA%s_%u%s" % (tileCharA, l, \
-              ("_s0" if readTileDimComponentsA else "") )
+              ("_s0" if self.readTileDimComponentsA else "") )
           limit = "(size%s-%s)" % (tileCharA, \
-              ("VECTOR_WIDTH" if readTileDimVectorA else "1") )
+              ("VECTOR_WIDTH" if self.readTileDimVectorA else "1") )
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
@@ -941,16 +940,16 @@ class KernelWriter:
 
         if kernel["EdgeType"] == "Branch":
           gro = "(globalReadOffsetB%s_%u%s)" % (tileCharB, l, \
-              ("_s0 + (VECTOR_WIDTH-1)" if readTileDimComponentsB else ""))
+              ("_s0 + (VECTOR_WIDTH-1)" if self.readTileDimComponentsB else ""))
           limit = "size%s" % tileCharB
           kStr += "  bool inBoundsB_%u = %s < %s;%s" \
               % (l, gro, \
               limit, self.endLine)
         else: # ptr-shift
           gro = "globalReadOffsetB%s_%u%s" % (tileCharB, l, \
-              ("_s0" if readTileDimComponentsB else ""))
+              ("_s0" if self.readTileDimComponentsB else ""))
           limit = "(size%s-%s)" % (tileCharB, \
-              ("VECTOR_WIDTH" if readTileDimVectorB else "1") )
+              ("VECTOR_WIDTH" if self.readTileDimVectorB else "1") )
           kStr += "  %s = (%s > %s) ? %s : %s;%s" \
               % (gro, gro, limit, limit, gro, self.endLine)
 
@@ -960,11 +959,11 @@ class KernelWriter:
     kStr += "  /* global read: final offsets a */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, numReadVectorComponentsA):
+        for s in range(0, self.numReadVectorComponentsA):
           kStr += "  %s globalReadOffsetA_%u_%u%s = GLOBAL_OFFSET_A( " \
               % (self.uint64Str, para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsA \
-              or readUnrollDimComponentsA) else ""))
+              (("_s%u"%s) if (self.readTileDimComponentsA \
+              or self.readUnrollDimComponentsA) else ""))
           for i in range(0, len(kernel["ProblemType"]["IndexAssignmentsA"])):
             index = kernel["ProblemType"]["IndexAssignmentsA"][i]
             if index < kernel["ProblemType"]["NumIndicesC"]:
@@ -972,28 +971,28 @@ class KernelWriter:
                 kStr += "globalReadOffsetA%s_%u%s" \
                     % (tileCharA, \
                     (para if kernel["ProblemType"]["TLUA"] else perp), \
-                    (("_s%u"%s) if readTileDimComponentsA else "") )
+                    (("_s%u"%s) if self.readTileDimComponentsA else "") )
               else: # just a group index
-                kStr += "wg" + indexChars[index]
+                kStr += "wg" + self.indexChars[index]
             else: # summation index
               if index == kernel["ProblemType"]["IndexUnroll"]:
                 kStr += "globalReadOffsetA%s_%u%s" \
                     % (unrollChar, \
                     (perp if kernel["ProblemType"]["TLUA"] else para), \
-                    (("_s%u"%s) if readUnrollDimComponentsA else "") )
+                    (("_s%u"%s) if self.readUnrollDimComponentsA else "") )
               else:
-                kStr += "globalReadOffsetA%s" % indexChars[index]
+                kStr += "globalReadOffsetA%s" % self.indexChars[index]
             if i < len(kernel["ProblemType"]["IndexAssignmentsA"])-1:
               kStr += ", "
           kStr += " );%s" % self.endLine
           """
           kStr += "  printf(\\\"GRA T[%%02u] gROA_%u_%u%s = %%4u\\\\n\\\", serial, globalReadOffsetA_%u_%u%s);%s" \
               % (para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsA \
-              or readUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (self.readTileDimComponentsA \
+              or self.readUnrollDimComponentsA) else ""), \
               para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsA \
-              or readUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (self.readTileDimComponentsA \
+              or self.readUnrollDimComponentsA) else ""), \
               self.endLine )
           """
 
@@ -1003,11 +1002,11 @@ class KernelWriter:
     kStr += "  /* global read: final offsets b */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, numReadVectorComponentsB):
+        for s in range(0, self.numReadVectorComponentsB):
           kStr += "  %s globalReadOffsetB_%u_%u%s = GLOBAL_OFFSET_B( " \
               % (self.uint64Str, para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsB \
-              or readUnrollDimComponentsB) else ""))
+              (("_s%u"%s) if (self.readTileDimComponentsB \
+              or self.readUnrollDimComponentsB) else ""))
           for i in range(0, len(kernel["ProblemType"]["IndexAssignmentsB"])):
             index = kernel["ProblemType"]["IndexAssignmentsB"][i]
             if index < kernel["ProblemType"]["NumIndicesC"]:
@@ -1015,28 +1014,28 @@ class KernelWriter:
                 kStr += "globalReadOffsetB%s_%u%s" \
                     % (tileCharB, \
                     (para if kernel["ProblemType"]["TLUB"] else perp), \
-                    (("_s%u"%s) if readTileDimComponentsB else "") )
+                    (("_s%u"%s) if self.readTileDimComponentsB else "") )
               else: # just a group index
-                kStr += "wg" + indexChars[index]
+                kStr += "wg" + self.indexChars[index]
             else: # summation index
               if index == kernel["ProblemType"]["IndexUnroll"]:
                 kStr += "globalReadOffsetB%s_%u%s" \
                     % (unrollChar, \
                     (perp if kernel["ProblemType"]["TLUB"] else para), \
-                    (("_s%u"%s) if readUnrollDimComponentsB else "") )
+                    (("_s%u"%s) if self.readUnrollDimComponentsB else "") )
               else:
-                kStr += "globalReadOffsetB%s" % indexChars[index]
+                kStr += "globalReadOffsetB%s" % self.indexChars[index]
             if i < len(kernel["ProblemType"]["IndexAssignmentsB"])-1:
               kStr += ", "
           kStr += " );%s" % self.endLine
           """
           kStr += "  printf(\\\"GRB T[%%02u] gROB_%u_%u%s = %%4u\\\\n\\\", serial, globalReadOffsetB_%u_%u%s);%s" \
               % (para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsB \
-              or readUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (self.readTileDimComponentsB \
+              or self.readUnrollDimComponentsB) else ""), \
               para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsB \
-              or readUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (self.readTileDimComponentsB \
+              or self.readUnrollDimComponentsB) else ""), \
               self.endLine )
           """
 
@@ -1046,15 +1045,15 @@ class KernelWriter:
     kStr += "  /* global read: addresses a */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
-        if readTileDimComponentsA or readUnrollDimComponentsA:
-          for s in range(0, numReadVectorComponentsA):
+        if self.readTileDimComponentsA or self.readUnrollDimComponentsA:
+          for s in range(0, self.numReadVectorComponentsA):
             kStr += "  %sDATA_TYPE const *globalReadA_%u_%u%s = A + globalReadOffsetA_%u_%u%s;%s" \
                 % (self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (readTileDimComponentsA \
-                or readUnrollDimComponentsA) else ""), \
+                (("_s%u"%s) if (self.readTileDimComponentsA \
+                or self.readUnrollDimComponentsA) else ""), \
                 para, perp, \
-                (("_s%u"%s) if (readTileDimComponentsA \
-                or readUnrollDimComponentsA) else ""), \
+                (("_s%u"%s) if (self.readTileDimComponentsA \
+                or self.readUnrollDimComponentsA) else ""), \
                 self.endLine)
         else:
             kStr += "  %sVECTOR_TYPE const *globalReadA_%u_%u = (%sVECTOR_TYPE const *)(A + globalReadOffsetA_%u_%u);%s" \
@@ -1067,15 +1066,15 @@ class KernelWriter:
     kStr += "  /* global read: addresses b */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        if readTileDimComponentsB or readUnrollDimComponentsB:
-          for s in range(0, numReadVectorComponentsB):
+        if self.readTileDimComponentsB or self.readUnrollDimComponentsB:
+          for s in range(0, self.numReadVectorComponentsB):
             kStr += "  %sDATA_TYPE const *globalReadB_%u_%u%s = B + globalReadOffsetB_%u_%u%s;%s" \
                 % (self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (readTileDimComponentsB \
-                or readUnrollDimComponentsB) else ""), \
+                (("_s%u"%s) if (self.readTileDimComponentsB \
+                or self.readUnrollDimComponentsB) else ""), \
                 para, perp, \
-                (("_s%u"%s) if (readTileDimComponentsB \
-                or readUnrollDimComponentsB) else ""), self.endLine)
+                (("_s%u"%s) if (self.readTileDimComponentsB \
+                or self.readUnrollDimComponentsB) else ""), self.endLine)
         else:
             kStr += "  %sVECTOR_TYPE const *globalReadB_%u_%u = (%sVECTOR_TYPE const *)(B + globalReadOffsetB_%u_%u);%s" \
                 % (self.globalPtrStr, para, perp, self.globalPtrStr, \
@@ -1156,17 +1155,17 @@ class KernelWriter:
     kStr += "  /* lds write offsets */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, numWriteVectorComponentsA):
+        for s in range(0, self.numWriteVectorComponentsA):
           kStr += "  unsigned int ldsWriteOffsetA_%u_%u%s = ldsWriteOffsetInitialA + (%s%d*%s)" \
               % (para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else ""), \
-              (("%u + "%s) if writeTileDimComponentsA else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
+              (("%u + "%s) if self.writeTileDimComponentsA else ""), \
               para, ("LSCA" if not kernel["ProblemType"]["TLUA"] else "LSCA") )
           if not kernel["ProblemType"]["TLUA"]:
             kStr += "*(MT%s+PAD)" % (tileCharA)
           kStr += " + (%s%d*%s)" % (
-              (("%u + "%s) if writeUnrollDimComponentsA else ""), perp, \
+              (("%u + "%s) if self.writeUnrollDimComponentsA else ""), perp, \
               ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSPA") )
           if kernel["ProblemType"]["TLUA"]:
             kStr += "*(MT%s+PAD)" % (tileCharA)
@@ -1174,11 +1173,11 @@ class KernelWriter:
           """
           kStr += "  printf(\\\"LWA T[%%02u] lWOA_%u_%u%s = %%4u\\\\n\\\", serial, ldsWriteOffsetA_%u_%u%s);%s" \
               % (para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
               para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
               self.endLine )
           """
 
@@ -1186,17 +1185,17 @@ class KernelWriter:
     # lds write offsets b
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, numWriteVectorComponentsB):
+        for s in range(0, self.numWriteVectorComponentsB):
           kStr += "  unsigned int ldsWriteOffsetB_%u_%u%s = ldsWriteOffsetInitialB + (%s%d*%s)" \
               % (para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else ""), \
-              (("%u + "%s) if writeTileDimComponentsB else ""), para, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
+              (("%u + "%s) if self.writeTileDimComponentsB else ""), para, \
               ("LSCB" if not kernel["ProblemType"]["TLUB"] else "LSCB") )
           if not kernel["ProblemType"]["TLUB"]:
             kStr += "*(MT%s+PAD)" % (tileCharB)
           kStr += " + (%s%d*%s)" % ( \
-              (("%u + "%s) if writeUnrollDimComponentsB else ""), perp, \
+              (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
               ("LSPB" if not kernel["ProblemType"]["TLUB"] else "LSPB") )
           if kernel["ProblemType"]["TLUB"]:
             kStr += "*(MT%s+PAD)" % (tileCharB)
@@ -1204,11 +1203,11 @@ class KernelWriter:
           """
           kStr += "  printf(\\\"LWB T[%%02u] lWOB_%u_%u%s = %%4u\\\\n\\\", serial, ldsWriteOffsetB_%u_%u%s);%s" \
              % (para, perp,
-              (("_s%u"%s) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
               para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
               self.endLine )
           """
 
@@ -1219,37 +1218,88 @@ class KernelWriter:
     kStr += "  /* lds write addresses */" + self.endLine
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, numWriteVectorComponentsA):
+        for s in range(0, self.numWriteVectorComponentsA):
           kStr += "  %s%s *ldsWriteA_%u_%u%s = (%s%s *)(lds + ldsWriteOffsetA_%u_%u%s);%s"\
-              % (self.sharedPtrStr, ("DATA_TYPE" if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else "VECTOR_TYPE"), para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
+              % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
               self.endLine)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, numWriteVectorComponentsB):
+        for s in range(0, self.numWriteVectorComponentsB):
           kStr += "  %s%s *ldsWriteB_%u_%u%s = (%s%s *)(lds + ldsWriteOffsetB_%u_%u%s);%s"\
-              % (self.sharedPtrStr, ("DATA_TYPE" if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
+              % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
               self.endLine)
+
+    ####################################
+    # lds write addresses
+    # prefetch global read
+    if kernel["PrefetchGlobalRead"]:
+      kStr += self.endLine
+      kStr += "  /* lds write addresses for global prefetch*/%s" % self.endLine
+      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
+          for s in range(0, self.numWriteVectorComponentsA):
+            kStr += "  %s%s *ldsWriteA_%u_%u%s_Red = ldsWriteA_%u_%u%s;%s"\
+                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), para, perp, \
+                (("_s%u"%s) if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else ""), \
+                para, perp,
+                (("_s%u"%s) if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else ""), self.endLine)
+      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
+          for s in range(0, self.numWriteVectorComponentsB):
+            kStr += "  %s%s *ldsWriteB_%u_%u%s_Red = ldsWriteB_%u_%u%s;%s"\
+                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
+                (("_s%u"%s) if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else ""), \
+                para, perp,
+                (("_s%u"%s) if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else ""), self.endLine)
+      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
+          for s in range(0, self.numWriteVectorComponentsA):
+            kStr += "  %s%s *ldsWriteA_%u_%u%s_Blk = ldsWriteA_%u_%u%s + LDS_OFFSET_BLK;%s"\
+                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), para, perp, \
+                (("_s%u"%s) if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else ""), \
+                para, perp,
+                (("_s%u"%s) if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else ""), self.endLine)
+      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
+          for s in range(0, self.numWriteVectorComponentsB):
+            kStr += "  %s%s *ldsWriteB_%u_%u%s_Blk = ldsWriteB_%u_%u%s + LDS_OFFSET_BLK;%s"\
+                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
+                (("_s%u"%s) if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else ""), \
+                para, perp,
+                (("_s%u"%s) if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else ""), self.endLine)
+
 
     ####################################
     # LDS Read Addresses
     ####################################
-    # TODO global prefetch, how do I swap read addresses
     kStr += self.endLine
     kStr += "  /***************************************/" + self.endLine
     kStr += "  /* LDS Read Addresses                  */" + self.endLine
@@ -1264,6 +1314,15 @@ class KernelWriter:
     kStr += "  %sVECTOR_TYPE *ldsReadB = (%sVECTOR_TYPE *)(lds + lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B);%s"\
           % (self.sharedPtrStr, self.sharedPtrStr, \
           tileChar1, tileChar1, self.endLine)
+
+    # prefetch global black lds read addresses
+    if kernel["PrefetchGlobalRead"]:
+      kStr += "  %sVECTOR_TYPE *ldsReadA_Blk = ldsReadA + LDS_OFFSET_BLK;%s" \
+            % (self.sharedPtrStr, self.endLine)
+      kStr += "  %sVECTOR_TYPE *ldsReadB_Blk = ldsReadB + LDS_OFFSET_BLK;%s" \
+            % (self.sharedPtrStr, self.endLine)
+
+    # temporary read addresses
     kStr += "  %sVECTOR_TYPE *ldsReadIterA = ldsReadA;%s" \
           % (self.sharedPtrStr, self.endLine)
     kStr += "  %sVECTOR_TYPE *ldsReadIterB = ldsReadB;%s"\
@@ -1275,111 +1334,72 @@ class KernelWriter:
     ###########################################################################
     # summations loops
     ###########################################################################
-    indent = "  "
+    self.indent = "  "
     kStr += self.endLine
     kStr += "%s/****************************************/%s" \
-        % (indent, self.endLine)
+        % (self.indent, self.endLine)
     kStr += "%s/* summation loops(s)                   */%s" \
-        % (indent, self.endLine)
+        % (self.indent, self.endLine)
     kStr += "%s/****************************************/%s" \
-        % (indent, self.endLine)
+        % (self.indent, self.endLine)
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
-      kStr += indent + "unsigned int sumIter" + loopChar \
+      loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
+      kStr += self.indent + "unsigned int sumIter" + loopChar \
           + " = size" + loopChar
       if i == kernel["ProblemType"]["NumIndicesSummation"]-1:
         kStr += " / DEPTHU"
       kStr += ";" + self.endLine
+
+      # if right before unrolled loop, prefetch
+      if i == kernel["ProblemType"]["NumIndicesSummation"]-1:
+        if kernel["PrefetchGlobalRead"]:
+          kStr += self.endLine
+          kStr += "%s/* prefetch global -> lds*/%s" % (self.indent, self.endLine)
+          kStr += "%sif (sumIter%s > 1) {%s" % (self.indent, loopChar, self.endLine)
+          self.indent += "  "
+          kStr += self.globalReadAB(kernel)
+          kStr += self.indent + self.syncStr + self.endLine
+          kStr += self.ldsWriteAB(kernel)
+          kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
+          #kStr += self.ldsWriteSwapRedBlk(kernel)
+          kStr += self.indent + self.syncStr + self.endLine
+          # TODO increment global read pointers
+          #kStr += self.globalReadIncrement(kernel, i)
+          self.indent = self.indent[2:]
+          kStr += "%s}%s" % (self.indent, self.endLine)
+          kStr += self.endLine
+
       if kernel["LoopDoWhile"]:
-        kStr += indent + "do {" + self.endLine
+        kStr += self.indent + "do {" + self.endLine
       else:
-        kStr += indent + "while (sumIter%s-- > 0) {%s" \
+        kStr += self.indent + "while (sumIter%s-- > 0) {%s" \
             % (loopChar, self.endLine)
-      indent += "  "
+      self.indent += "  "
 
     ####################################
-    # global read A
+    # global read A, B
     kStr += self.endLine
-    kStr += indent + "/* read global */" + self.endLine
-    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, numReadVectorComponentsA):
-          kStr += "%sa_%u_%u%s = " % (indent, para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (readTileDimComponentsA \
-              or readUnrollDimComponentsA) else "") )
-          if kernel["EdgeType"] == "Branch":
-            kStr += "( !inBoundsA_%u )" % ( \
-                (para if kernel["ProblemType"]["TLUA"] else perp) )
-            kStr += " ? %s : " % ( \
-                kernel["ProblemType"]["DataType"].zeroString(self.language) )
-          kStr += "*globalReadA_%u_%u%s;%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsA \
-              or readUnrollDimComponentsA) else "" ), self.endLine)
-
-    ####################################
-    # global read B
-    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, numReadVectorComponentsB):
-          kStr += "%sb_%u_%u%s = " % (indent, para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (readTileDimComponentsB \
-              or readUnrollDimComponentsB) else "") )
-          if kernel["EdgeType"] == "Branch":
-            kStr += "( !inBoundsB_%u )" % ( \
-                (para if kernel["ProblemType"]["TLUB"] else perp) )
-            kStr += " ? %s : " \
-                % kernel["ProblemType"]["DataType"].zeroString(self.language)
-          kStr += "*globalReadB_%u_%u%s;%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (readTileDimComponentsB \
-              or readUnrollDimComponentsB) else "" ), self.endLine)
+    kStr += self.indent + "/* read global */" + self.endLine
+    kStr += self.globalReadAB(kernel)
 
     ########################################
-    # lds write a
+    # lds write A, B
     kStr += self.endLine
-    kStr += indent + "/* lds write */" + self.endLine
-    kStr += indent + self.syncStr + self.endLine
-    if self.language == "HIP":
-      kStr += "#pragma clang diagnostic push" + self.endLine
-      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
-    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, numWriteVectorComponentsA):
-          kStr += "%s*ldsWriteA_%u_%u%s = a_%u_%u%s;%s" \
-              % (indent, para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else "" ), \
-              para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsA \
-              or writeUnrollDimComponentsA) else "" ), \
-              self.endLine)
-
-    ########################################
-    # lds write b
-    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, numWriteVectorComponentsB):
-          kStr += "%s*ldsWriteB_%u_%u%s = b_%u_%u%s;%s" \
-              % (indent, para, perp, \
-              (("_s%u"%s) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else "" ), \
-              para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsB \
-              or writeUnrollDimComponentsB) else "" ), \
-              self.endLine)
-    kStr += indent + self.syncStr + self.endLine
+    kStr += self.indent + "/* lds write */" + self.endLine
+    kStr += self.indent + self.syncStr + self.endLine
+    kStr += self.ldsWriteAB(kernel)
+    kStr += self.indent + self.syncStr + self.endLine
 
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
 
     # re-init lds read addresses
     kStr += self.endLine
-    kStr += "%s/* re-init lds read addresses */%s" % (indent, self.endLine)
+    kStr += "%s/* re-init lds read addresses */%s" % (self.indent, self.endLine)
     kStr += "%sldsReadIterA = ldsReadA;%s" \
-          % (indent, self.endLine)
+          % (self.indent, self.endLine)
     kStr += "%sldsReadIterB = ldsReadB;%s"\
-          % (indent, self.endLine)
+          % (self.indent, self.endLine)
 
     # debug LDS state
     if False:
@@ -1393,70 +1413,35 @@ class KernelWriter:
     ####################################
     # do macs
     kStr += self.endLine
-    kStr += indent + "/* do macs */" + self.endLine
+    kStr += self.indent + "/* do macs */" + self.endLine
     for u in range(0, kernel["LoopUnroll"]):
-      kStr += indent + "SUMMATION_UNROLL" + self.endLine
+      kStr += self.indent + "SUMMATION_UNROLL" + self.endLine
     kStr += self.endLine
 
 
     ####################################
     # if has tail loop, close unrolled loop
     if kernel["LoopTail"]:
+      loopIdx = kernel["ProblemType"]["NumIndicesSummation"]-1
       loopChar = \
-          indexChars[ \
-          kernel["ProblemType"]["IndicesSummation"][ \
-          kernel["ProblemType"]["NumIndicesSummation"]-1]]
+          self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+
 
       ####################################
       # increment global read addresses a
       kStr += "%s/* increment global read addresses */%s" \
-          % (indent, self.endLine)
-      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-        for para in range(0, kernel["NumLoadsCoalescedA"]):
-          for s in range(0, numReadVectorComponentsA):
-            if readTileDimVectorA or readUnrollDimVectorA:
-              kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE *)( ((%sDATA_TYPE *)globalReadA_%u_%u%s) + ((%s) strideA%s)*DEPTHU);%s" \
-                  % (indent, \
-                  para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsA or readUnrollDimComponentsA) else ""), \
-                  self.globalPtrStr, self.globalPtrStr, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsA or readUnrollDimComponentsA) else ""), \
-                  self.uint64Str, loopChar, self.endLine)
-            else:
-              kStr += "%sglobalReadA_%u_%u%s += ((%s)strideA%s)*DEPTHU;%s" \
-                  % (indent, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsA \
-                  or readUnrollDimComponentsA) else ""), \
-                  self.uint64Str, loopChar, self.endLine)
-
-      ####################################
-      # increment global read addresses b
-      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-        for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, numReadVectorComponentsB):
-            if readTileDimVectorB or readUnrollDimVectorB:
-              kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + ((%s) strideB%s)*DEPTHU);%s" \
-                  % (indent, \
-                  para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsB or readUnrollDimComponentsB) else ""), \
-                  self.globalPtrStr, self.globalPtrStr, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsB or readUnrollDimComponentsB) else ""), \
-                  self.uint64Str, loopChar, self.endLine)
-            else:
-              kStr += "%sglobalReadB_%u_%u%s += ((%s)strideB%s)*DEPTHU;%s"\
-                  % (indent, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsB \
-                  or readUnrollDimComponentsB) else ""), \
-                  self.uint64Str, loopChar, self.endLine)
+          % (self.indent, self.endLine)
+      kStr += self.globalReadIncrement(kernel, loopIdx)
 
 
-      indent = indent[2:]
+      self.indent = self.indent[2:]
       # close unrolled loop
       if kernel["LoopDoWhile"]:
-        kStr += indent + "} while (--sumIter" + loopChar \
+        kStr += self.indent + "} while (--sumIter" + loopChar \
             + " > 0);" + self.endLine
       else:
-        kStr += "%s}%s" % (indent, self.endLine)
+        kStr += "%s}%s" % (self.indent, self.endLine)
       kStr += self.endLine
 
       ########################################
@@ -1470,18 +1455,18 @@ class KernelWriter:
       # Tail: global read A
       ####################################
       kStr += self.endLine
-      kStr += "%s/* global read */%s" % (indent, self.endLine)
+      kStr += "%s/* global read */%s" % (self.indent, self.endLine)
       for perp in range(0, kernel["NumLoadsPerpendicularA"]):
         for para in range(0, kernel["NumLoadsCoalescedA"]):
-          for s in range(0, numReadVectorComponentsA):
-            kStr += "%sa_%u_%u%s = " % (indent, para, perp, \
-                ((".%s"%self.vectorComponents[s]) if (readTileDimComponentsA \
-                or readUnrollDimComponentsA) else "") )
+          for s in range(0, self.numReadVectorComponentsA):
+            kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
+                ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsA \
+                or self.readUnrollDimComponentsA) else "") )
             # guard around K
             kStr += "( globalReadOffsetA%s_%u%s >= (size%s %% DEPTHU) )" \
                 % (unrollChar, \
                 (perp if kernel["ProblemType"]["TLUA"] else para), \
-                (("_s%u"%s) if readUnrollDimComponentsA else ""), unrollChar)
+                (("_s%u"%s) if self.readUnrollDimComponentsA else ""), unrollChar)
             # guard around edge
             if kernel["EdgeType"] == "Branch":
               kStr += " || "
@@ -1490,24 +1475,24 @@ class KernelWriter:
             kStr += " ? %s : " % \
                 kernel["ProblemType"]["DataType"].zeroString(self.language)
             kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
-                (("_s%u"%s) if (readTileDimComponentsA \
-                or readUnrollDimComponentsA) else ""), self.endLine)
+                (("_s%u"%s) if (self.readTileDimComponentsA \
+                or self.readUnrollDimComponentsA) else ""), self.endLine)
 
       ####################################
       # Tail: global read B
       ####################################
       for perp in range(0, kernel["NumLoadsPerpendicularB"]):
         for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, numReadVectorComponentsB):
-            kStr += "%sb_%u_%u%s = " % (indent, para, perp, \
-                ((".%s"%self.vectorComponents[s]) if (readTileDimComponentsB \
-                or readUnrollDimComponentsB) \
+          for s in range(0, self.numReadVectorComponentsB):
+            kStr += "%sb_%u_%u%s = " % (self.indent, para, perp, \
+                ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsB \
+                or self.readUnrollDimComponentsB) \
                 else "") )
             # guard around k
             kStr += "( globalReadOffsetB%s_%u%s >= (size%s %% DEPTHU) )" \
                 % (unrollChar, \
                 (perp if kernel["ProblemType"]["TLUB"] else para), \
-                (("_s%u"%s) if readUnrollDimComponentsB else ""), unrollChar)
+                (("_s%u"%s) if self.readUnrollDimComponentsB else ""), unrollChar)
             # guard around edge
             if kernel["EdgeType"] == "Branch":
               kStr += " || "
@@ -1517,74 +1502,74 @@ class KernelWriter:
                 kernel["ProblemType"]["DataType"].zeroString(self.language)
             kStr += "*globalReadB_%u_%u%s;%s" \
                 % (para, perp, \
-                (("_s%u"%s) if (readTileDimComponentsB \
-                or readUnrollDimComponentsB) else ""), self.endLine)
+                (("_s%u"%s) if (self.readTileDimComponentsB \
+                or self.readUnrollDimComponentsB) else ""), self.endLine)
 
 
       ########################################
       # Tail: lds write a
       kStr += self.endLine
-      kStr += indent + "/* lds write */" + self.endLine
-      kStr += indent + self.syncStr + self.endLine
+      kStr += self.indent + "/* lds write */" + self.endLine
+      kStr += self.indent + self.syncStr + self.endLine
       if self.language == "HIP":
         kStr += "#pragma clang diagnostic push" + self.endLine
         kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
       for perp in range(0, kernel["NumLoadsPerpendicularA"]):
         for para in range(0, kernel["NumLoadsCoalescedA"]):
-          for s in range(0, numWriteVectorComponentsA):
+          for s in range(0, self.numWriteVectorComponentsA):
             kStr += "%s*ldsWriteA_%u_%u%s = a_%u_%u%s;%s" \
-                % (indent, para, perp, \
-                (("_s%u"%s) if (writeTileDimComponentsA \
-                or writeUnrollDimComponentsA) else "" ), \
+                % (self.indent, para, perp, \
+                (("_s%u"%s) if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else "" ), \
                 para, perp, \
-                ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsA \
-                or writeUnrollDimComponentsA) else "" ), \
+                ((".%s"%self.vectorComponents[s]) if (self.writeTileDimComponentsA \
+                or self.writeUnrollDimComponentsA) else "" ), \
                 self.endLine)
 
       ########################################
       # Tail: lds write b
       for perp in range(0, kernel["NumLoadsPerpendicularB"]):
         for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, numWriteVectorComponentsB):
+          for s in range(0, self.numWriteVectorComponentsB):
             kStr += "%s*ldsWriteB_%u_%u%s = b_%u_%u%s;%s" \
-                % (indent, para, perp, \
-                (("_s%u"%s) if (writeTileDimComponentsB \
-                or writeUnrollDimComponentsB) else "" ), \
+                % (self.indent, para, perp, \
+                (("_s%u"%s) if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else "" ), \
                 para, perp, \
-                ((".%s"%self.vectorComponents[s]) if (writeTileDimComponentsB \
-                or writeUnrollDimComponentsB) else "" ), \
+                ((".%s"%self.vectorComponents[s]) if (self.writeTileDimComponentsB \
+                or self.writeUnrollDimComponentsB) else "" ), \
                 self.endLine)
 
-      kStr += indent + self.syncStr + self.endLine
+      kStr += self.indent + self.syncStr + self.endLine
       if self.language == "HIP":
         kStr += "#pragma clang diagnostic pop" + self.endLine
 
       # full end loop b/c local full of zeros
       kStr += self.endLine
-      kStr += indent + "/* re-init lds read addresses */" + self.endLine
+      kStr += self.indent + "/* re-init lds read addresses */" + self.endLine
       kStr += "%sldsReadIterA = ldsReadA;%s" \
-            % (indent, self.endLine)
+            % (self.indent, self.endLine)
       kStr += "%sldsReadIterB = ldsReadB;%s"\
-            % (indent, self.endLine)
+            % (self.indent, self.endLine)
 
       kStr += self.endLine
 
       # begin loop
-      kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" % (indent, loopChar, loopChar, self.endLine)
+      kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" % (self.indent, loopChar, loopChar, self.endLine)
 
       if kernel["LoopDoWhile"]:
-        kStr += indent + "do {" + self.endLine
+        kStr += self.indent + "do {" + self.endLine
       else:
-        kStr += indent + "while (sumIter%s-- > 0) {%s" \
+        kStr += self.indent + "while (sumIter%s-- > 0) {%s" \
             % (loopChar, self.endLine)
 
-      indent += "  "
+      self.indent += "  "
 
       ####################################
       # Tail: do macs
       kStr += self.endLine
-      kStr += indent + "/* do macs */" + self.endLine
-      kStr += indent + "SUMMATION_UNROLL" + self.endLine
+      kStr += self.indent + "/* do macs */" + self.endLine
+      kStr += self.indent + "SUMMATION_UNROLL" + self.endLine
       kStr += self.endLine
 
     ########################################################################
@@ -1593,102 +1578,26 @@ class KernelWriter:
 
 
     ####################################
-    # end loop
+    # global read increment
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"])):
-      loopChar = indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
+      loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
 
-      kStr += "%s/* increment global read addresses */%s" % (indent, self.endLine)
-      ####################################
-      # global read addresses a
-      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-        for para in range(0, kernel["NumLoadsCoalescedA"]):
-          for s in range(0, numReadVectorComponentsA):
-            if readTileDimVectorA or readUnrollDimVectorA:
-              kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadA_%u_%u%s) + ((%s) strideA%s)" \
-                  % (indent, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsA or readUnrollDimComponentsA) else ""), \
-                  self.globalPtrStr, self.globalPtrStr, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsA or readUnrollDimComponentsA) else ""), \
-                  self.int64Str, loopChar)
-              if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
-                kStr += "*DEPTHU"
-              else:
-                for j in range(i+1, \
-                    min(i+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
-                  tmpChar = \
-                      indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
-                  kStr += " - strideA" + tmpChar + "*size" + tmpChar
-              kStr += ");" + self.endLine
-            else:
-              kStr += "%sglobalReadA_%u_%u%s += (%s) (strideA%s%s)" \
-                  % (indent, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsA \
-                  or readUnrollDimComponentsA) else ""), \
-                  self.int64Str, loopChar, "" if (readTileDimComponentsA \
-                  or readUnrollDimComponentsA) else "/VECTOR_WIDTH")
-              if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
-                kStr += "*DEPTHU"
-              else:
-                for j in range(i+1, \
-                    min(i+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
-                  tmpChar = \
-                      indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
-                  kStr += " - strideA" + tmpChar + "*size" + tmpChar
-              kStr += ";" + self.endLine
-
-      ####################################
-      # global read addresses b
-      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-        for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, numReadVectorComponentsB):
-            if readTileDimVectorB or readUnrollDimVectorB:
-              kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + ((%s) strideB%s)" \
-                  % (indent, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsB or readUnrollDimComponentsB) else ""), \
-                  self.globalPtrStr, self.globalPtrStr, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsB or readUnrollDimComponentsB) else ""), \
-                  self.int64Str, loopChar )
-              if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
-                kStr += "*DEPTHU"
-              else:
-                for j in range(i+1,min(i+2, \
-                    kernel["ProblemType"]["NumIndicesSummation"]) ):
-                  tmpChar = \
-                      indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
-                  kStr += " - strideB" + tmpChar + "*size" + tmpChar
-              kStr += ");" + self.endLine
-            else:
-              kStr += "%sglobalReadB_%u_%u%s += (%s) (strideB%s%s)" \
-                  % (indent, para, perp, \
-                  (("_s%u"%s) if (readTileDimComponentsB \
-                  or readUnrollDimComponentsB) else ""), \
-                  self.int64Str, loopChar, "" if (readTileDimComponentsB \
-                  or readUnrollDimComponentsB) else "/VECTOR_WIDTH")
-              if i==kernel["ProblemType"]["NumIndicesSummation"]-1:
-                kStr += "*DEPTHU"
-              else:
-                for j in range(i+1,min(i+2, \
-                    kernel["ProblemType"]["NumIndicesSummation"]) ):
-                  tmpChar = \
-                      indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
-                  kStr += " - strideB" + tmpChar + "*size" + tmpChar
-              kStr += ";" + self.endLine
-
-
+      kStr += "%s/* increment global read addresses */%s" % (self.indent, self.endLine)
+      kStr += self.globalReadIncrement(kernel, i)
 
     ########################################
     # close loop
-    indent = indent[2:]
+    self.indent = self.indent[2:]
     if kernel["LoopDoWhile"]:
-      kStr += indent + "} while (--sumIter" + loopChar \
+      kStr += self.indent + "} while (--sumIter" + loopChar \
           + " > 0);" + self.endLine
     else:
-      kStr += "%s}%s" % (indent, self.endLine)
+      kStr += "%s}%s" % (self.indent, self.endLine)
 
     ####################################
     # Shift: d0 vector components
     if kernel["EdgeType"] == "Shift" and kernel["VectorWidth"] > 1:
-      if readTileDimVectorA:
+      if self.readTileDimVectorA:
         kStr += self.endLine
         kStr += "  /* shift d%s vector components */%s" \
             % (tileChar0, self.endLine)
@@ -1717,7 +1626,7 @@ class KernelWriter:
 
       ####################################
       # Shift: d1 vector
-      if readTileDimVectorB:
+      if self.readTileDimVectorB:
         kStr += self.endLine
         kStr += "  /* shift d%s vectors */%s" \
             % (tileChar1, self.endLine)
@@ -1821,7 +1730,7 @@ class KernelWriter:
 
       for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         kStr += "  unsigned int globalC%s = wg%s" \
-            % (indexChars[i], indexChars[i])
+            % (self.indexChars[i], self.indexChars[i])
         if i == kernel["ProblemType"]["Index0"]:
           kStr += "*MT%s + localC%s" \
               % (tileChar0, tileChar0)
@@ -1855,7 +1764,7 @@ class KernelWriter:
 
           kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
           for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-            kStr += " globalC%s" % indexChars[i]
+            kStr += " globalC%s" % self.indexChars[i]
             if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
               kStr += " + %u" %s
             if i == kernel["ProblemType"]["Index1"]:
@@ -1890,8 +1799,8 @@ class KernelWriter:
       kStr += "  /* Global Write                        */" + self.endLine
       kStr += "  /***************************************/" + self.endLine
       for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        kStr += "  unsigned int globalC" + indexChars[i] \
-            + " = wg" + indexChars[i]
+        kStr += "  unsigned int globalC" + self.indexChars[i] \
+            + " = wg" + self.indexChars[i]
         if i == kernel["ProblemType"]["Index0"]:
           kStr += "*MT%s + (serial %% SG%s)*VECTOR_WIDTH" % (tileChar0, tileChar0)
         if i == kernel["ProblemType"]["Index1"]:
@@ -1935,7 +1844,7 @@ class KernelWriter:
 
               kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
               for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-                kStr += " globalC%s" % indexChars[i]
+                kStr += " globalC%s" % self.indexChars[i]
                 if i == kernel["ProblemType"]["Index0"]:
                   kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
                       ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
@@ -2007,18 +1916,252 @@ class KernelWriter:
         lastStrideA = 1
         lastStrideB = 1
       for i in range(firstStride, lastStrideC):
-        kStr += "#undef strideC" + indexChars[i] + self.endLine
+        kStr += "#undef strideC" + self.indexChars[i] + self.endLine
       for i in range(firstStride, lastStrideA):
         kStr += "#undef strideA" \
-            + indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
+            + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
             + self.endLine
       for i in range(firstStride, lastStrideB):
         kStr += "#undef strideB" \
-            + indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
+            + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
             + self.endLine
       kStr += self.endLine + self.endLine
 
     return kStr
+
+  ##############################################################################
+  # Functions to Write Kernel Segments
+  ##############################################################################
+
+  ##############################################################################
+  # global read A, B
+  def globalReadAB(self, kernel):
+    kStr = ""
+    # global read A
+    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
+        for s in range(0, self.numReadVectorComponentsA):
+          kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
+              ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsA \
+              or self.readUnrollDimComponentsA) else "") )
+          if kernel["EdgeType"] == "Branch":
+            kStr += "( !inBoundsA_%u )" % ( \
+                (para if kernel["ProblemType"]["TLUA"] else perp) )
+            kStr += " ? %s : " % ( \
+                kernel["ProblemType"]["DataType"].zeroString(self.language) )
+          kStr += "*globalReadA_%u_%u%s;%s" \
+              % (para, perp, \
+              (("_s%u"%s) if (self.readTileDimComponentsA \
+              or self.readUnrollDimComponentsA) else "" ), self.endLine)
+
+    # global read B
+    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
+        for s in range(0, self.numReadVectorComponentsB):
+          kStr += "%sb_%u_%u%s = " % (self.indent, para, perp, \
+              ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsB \
+              or self.readUnrollDimComponentsB) else "") )
+          if kernel["EdgeType"] == "Branch":
+            kStr += "( !inBoundsB_%u )" % ( \
+                (para if kernel["ProblemType"]["TLUB"] else perp) )
+            kStr += " ? %s : " \
+                % kernel["ProblemType"]["DataType"].zeroString(self.language)
+          kStr += "*globalReadB_%u_%u%s;%s" \
+              % (para, perp, \
+              (("_s%u"%s) if (self.readTileDimComponentsB \
+              or self.readUnrollDimComponentsB) else "" ), self.endLine)
+    return kStr
+
+  ##############################################################################
+  # lds write A, B
+  def ldsWriteAB(self, kernel):
+    kStr = ""
+    if self.language == "HIP":
+      kStr += "#pragma clang diagnostic push" + self.endLine
+      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
+    # lds write a
+    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
+        for s in range(0, self.numWriteVectorComponentsA):
+          kStr += "%s*ldsWriteA_%u_%u%s = a_%u_%u%s;%s" \
+              % (self.indent, para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else "" ), \
+              para, perp, \
+              ((".%s"%self.vectorComponents[s]) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else "" ), \
+              self.endLine)
+
+    # lds write b
+    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
+        for s in range(0, self.numWriteVectorComponentsB):
+          kStr += "%s*ldsWriteB_%u_%u%s = b_%u_%u%s;%s" \
+              % (self.indent, para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else "" ), \
+              para, perp, \
+              ((".%s"%self.vectorComponents[s]) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else "" ), \
+              self.endLine)
+    return kStr
+
+  ##############################################################################
+  # lds write swap red blk pointers
+  def ldsWriteSwapRedBlk(self, kernel):
+    kStr = ""
+    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
+        for s in range(0, self.numWriteVectorComponentsA):
+          ptr = "ldsWriteA_%u_%u%s" \
+              % (para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else "") )
+          red = ptr + "_Red"
+          blk = ptr + "_Blk"
+          kStr += "%s%s = (%s == %s) ? %s : %s;%s" \
+              % (self.indent, ptr, ptr, red, blk, red, self.endLine)
+    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
+        for s in range(0, self.numWriteVectorComponentsB):
+          ptr = "ldsWriteB_%u_%u%s" \
+              % (para, perp, (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else "") )
+          red = ptr + "_Red"
+          blk = ptr + "_Blk"
+          kStr += "%s%s = (%s == %s) ? %s : %s;%s" \
+              % (self.indent, ptr, ptr, red, blk, red, self.endLine)
+    return kStr
+
+  ##############################################################################
+  # global read increment
+  def globalReadIncrement(self, kernel, loopIdx):
+    kStr = ""
+    """
+      ####################################
+      # increment global read addresses a
+      kStr += "%s/* increment global read addresses */%s" \
+          % (self.indent, self.endLine)
+      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
+          for s in range(0, self.numReadVectorComponentsA):
+            if self.readTileDimVectorA or self.readUnrollDimVectorA:
+              kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE *)( ((%sDATA_TYPE *)globalReadA_%u_%u%s) + ((%s) strideA%s)*DEPTHU);%s" \
+                  % (self.indent, \
+                  para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsA or self.readUnrollDimComponentsA) else ""), \
+                  self.globalPtrStr, self.globalPtrStr, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsA or self.readUnrollDimComponentsA) else ""), \
+                  self.uint64Str, loopChar, self.endLine)
+            else:
+              kStr += "%sglobalReadA_%u_%u%s += ((%s)strideA%s)*DEPTHU;%s" \
+                  % (self.indent, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsA \
+                  or self.readUnrollDimComponentsA) else ""), \
+                  self.uint64Str, loopChar, self.endLine)
+
+      ####################################
+      # increment global read addresses b
+      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
+          for s in range(0, self.numReadVectorComponentsB):
+            if self.readTileDimVectorB or self.readUnrollDimVectorB:
+              kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + ((%s) strideB%s)*DEPTHU);%s" \
+                  % (self.indent, \
+                  para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsB or self.readUnrollDimComponentsB) else ""), \
+                  self.globalPtrStr, self.globalPtrStr, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsB or self.readUnrollDimComponentsB) else ""), \
+                  self.uint64Str, loopChar, self.endLine)
+            else:
+              kStr += "%sglobalReadB_%u_%u%s += ((%s)strideB%s)*DEPTHU;%s"\
+                  % (self.indent, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsB \
+                  or self.readUnrollDimComponentsB) else ""), \
+                  self.uint64Str, loopChar, self.endLine)
+    """
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    if True:
+      kStr += "%s/* increment global read addresses */%s" % (self.indent, self.endLine)
+      ####################################
+      # outer: global read addresses a
+      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+        for para in range(0, kernel["NumLoadsCoalescedA"]):
+          for s in range(0, self.numReadVectorComponentsA):
+            if self.readTileDimVectorA or self.readUnrollDimVectorA:
+              kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadA_%u_%u%s) + ((%s) strideA%s)" \
+                  % (self.indent, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsA or self.readUnrollDimComponentsA) else ""), \
+                  self.globalPtrStr, self.globalPtrStr, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsA or self.readUnrollDimComponentsA) else ""), \
+                  self.int64Str, loopChar)
+              if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+                kStr += "*DEPTHU"
+              else:
+                for j in range(i+1, \
+                    min(loopIdx+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
+                  tmpChar = \
+                      self.indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
+                  kStr += " - strideA" + tmpChar + "*size" + tmpChar
+              kStr += ");" + self.endLine
+            else:
+              kStr += "%sglobalReadA_%u_%u%s += (%s) (strideA%s%s)" \
+                  % (self.indent, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsA \
+                  or self.readUnrollDimComponentsA) else ""), \
+                  self.int64Str, loopChar, "" if (self.readTileDimComponentsA \
+                  or self.readUnrollDimComponentsA) else "/VECTOR_WIDTH")
+              if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+                kStr += "*DEPTHU"
+              else:
+                for j in range(loopIdx+1, \
+                    min(loopIdx+2, kernel["ProblemType"]["NumIndicesSummation"]) ):
+                  tmpChar = \
+                      self.indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
+                  kStr += " - strideA" + tmpChar + "*size" + tmpChar
+              kStr += ";" + self.endLine
+
+      ####################################
+      # global read addresses b
+      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+        for para in range(0, kernel["NumLoadsCoalescedB"]):
+          for s in range(0, self.numReadVectorComponentsB):
+            if self.readTileDimVectorB or self.readUnrollDimVectorB:
+              kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + ((%s) strideB%s)" \
+                  % (self.indent, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsB or self.readUnrollDimComponentsB) else ""), \
+                  self.globalPtrStr, self.globalPtrStr, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsB or self.readUnrollDimComponentsB) else ""), \
+                  self.int64Str, loopChar )
+              if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+                kStr += "*DEPTHU"
+              else:
+                for j in range(i+1,min(i+2, \
+                    kernel["ProblemType"]["NumIndicesSummation"]) ):
+                  tmpChar = \
+                      self.indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
+                  kStr += " - strideB" + tmpChar + "*size" + tmpChar
+              kStr += ");" + self.endLine
+            else:
+              kStr += "%sglobalReadB_%u_%u%s += (%s) (strideB%s%s)" \
+                  % (self.indent, para, perp, \
+                  (("_s%u"%s) if (self.readTileDimComponentsB \
+                  or self.readUnrollDimComponentsB) else ""), \
+                  self.int64Str, loopChar, "" if (self.readTileDimComponentsB \
+                  or self.readUnrollDimComponentsB) else "/VECTOR_WIDTH")
+              if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+                kStr += "*DEPTHU"
+              else:
+                for j in range(loopIdx+1,min(loopIdx+2, \
+                    kernel["ProblemType"]["NumIndicesSummation"]) ):
+                  tmpChar = \
+                      self.indexChars[kernel["ProblemType"]["IndicesSummation"][j]]
+                  kStr += " - strideB" + tmpChar + "*size" + tmpChar
+              kStr += ";" + self.endLine
+
+
+    return kStr
+
+
 
   ##############################################################################
   # source file string

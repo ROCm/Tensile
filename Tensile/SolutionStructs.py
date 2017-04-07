@@ -822,22 +822,22 @@ class Solution:
     """
 
     # lds buffer size for A, B
+    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
     # todo, can the alignment be a power of 2?
-    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
-    if kernel["PrefetchGlobalRead"]:
-      kernel["LdsNumElementsAlignedA"] = ldsNumElementsAlignedA
-      kernel["LdsNumElementsAlignedB"] = ldsNumElementsAlignedB
-      kernel["LdsOffsetA"] = 0
-      kernel["LdsOffsetB"] = kernel["LdsOffsetA"] \
-        + kernel["LdsNumElementsAlignedA"]
-      kernel["LdsOffsetA_Blk"] = kernel["LdsOffsetB"] \
-        + kernel["LdsNumElementsAlignedB"]
-      kernel["LdsOffsetB_Blk"] = kernel["LdsOffsetA_Blk"] \
-        + kernel["LdsNumElementsAlignedB"]
+    if state["PrefetchGlobalRead"]:
+      state["LdsNumElementsAlignedA"] = ldsNumElementsAlignedA
+      state["LdsNumElementsAlignedB"] = ldsNumElementsAlignedB
+      state["LdsOffsetA"] = 0
+      state["LdsOffsetB"] = state["LdsOffsetA"] \
+        + state["LdsNumElementsAlignedA"]
+      state["LdsOffsetA_Blk"] = state["LdsOffsetB"] \
+        + state["LdsNumElementsAlignedB"]
+      state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] \
+        + state["LdsNumElementsAlignedB"]
       ldsNumElementsAB = ldsNumElementsAlignedA*2 \
           + ldsNumElementsAlignedB + ldsNumElementsB
     else:
