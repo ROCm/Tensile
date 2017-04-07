@@ -126,30 +126,6 @@ defaultJoinParameters = [
 defaultBenchmarkJoinParameters = [
     ]
 
-# derived parameters may show up in solution dict but don't use for naming
-"""
-derivedParameters = [
-    "SubGroup0",
-    "SubGroup1",
-    "ThreadTile0",
-    "ThreadTile1",
-    "Valid",
-    "MacroTile0",
-    "MacroTile1",
-    "NumElementsPerThread",
-    "NumLoadsA",
-    "NumLoadsB",
-    "NumLoadsPerpendicularA",
-    "NumLoadsPerpendicularB",
-    "LdsOffsetB",
-    "LdsNumElements",
-    "LoopUnroll",
-    "AssignedDerivedParameters",
-    "AssignedProblemIndependentDerivedParameters",
-    "BenchmarkFork"
-    ]
-"""
-
 # dictionary of defaults comprised for 1st option for each parameter
 defaultSolution = {}
 for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
