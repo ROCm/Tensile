@@ -1232,7 +1232,7 @@ class KernelWriter:
               or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
               (("_s%u"%s) if (self.writeTileDimComponentsB \
               or self.writeUnrollDimComponentsB) else ""), self.endLine )
-    kStr += self.initLdsWriteAB(kernel)
+    kStr += self.ldsWriteInitPointers(kernel)
 
     ####################################
     # lds write addresses
@@ -1380,11 +1380,12 @@ class KernelWriter:
           # write lds
           kStr += self.endLine
           kStr += "%s/* write lds */%s" % (self.indent, self.endLine)
-          kStr += self.ldsWriteAB(kernel)
+          kStr += self.ldsWriteDo(kernel)
           # swap lds ptrs
           kStr += self.endLine
           kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
           kStr += self.ldsWriteSwapOffsets(kernel)
+          kStr += self.ldsWriteInitPointers(kernel)
           kStr += self.indent + self.syncStr + self.endLine
           self.indent = self.indent[2:]
           kStr += "%s}%s" % (self.indent, self.endLine)
@@ -1410,7 +1411,7 @@ class KernelWriter:
     kStr += self.endLine
     kStr += self.indent + "/* lds write */" + self.endLine
     kStr += self.indent + self.syncStr + self.endLine
-    kStr += self.ldsWriteAB(kernel)
+    kStr += self.ldsWriteDo(kernel)
 
     ########################################
     # prefetch: swap lds ptrs
@@ -1418,6 +1419,7 @@ class KernelWriter:
       kStr += self.endLine
       kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
       kStr += self.ldsWriteSwapOffsets(kernel)
+      kStr += self.ldsWriteInitPointers(kernel)
     kStr += self.indent + self.syncStr + self.endLine
 
     # debug LDS state
@@ -1440,10 +1442,11 @@ class KernelWriter:
     kStr += self.endLine
     if kernel["PrefetchGlobalRead"]:
       kStr += "%s/* swap lds read addresses */%s" % (self.indent, self.endLine)
-      kStr += self.swapLdsReadAddresses(kernel)
+      kStr += self.ldsReadSwapOffsets(kernel)
+      kStr += self.ldsReadInitPointers(kernel)
     else:
       kStr += "%s/* init lds read addresses */%s" % (self.indent, self.endLine)
-      kStr += self.initLdsReadAddresses(kernel)
+      kStr += self.ldsReadInitPointers(kernel)
 
     ####################################
     # unrolled loop: increment global read addresses
@@ -1476,7 +1479,8 @@ class KernelWriter:
       # swap lds read addresses
       #kStr += self.endLine
       #kStr += "%s/* swap lds read addresses */%s" % (self.indent, self.endLine)
-      #kStr += self.swapLdsReadAddresses(kernel)
+      #kStr += self.ldsReadSwapOffsets(kernel)
+      #kStr += self.ldsReadInitPointers(kernel)
       # increment global read
       #kStr += self.endLine
       #kStr += "%s/* increment global read */%s" % (self.indent, self.endLine)
@@ -1501,9 +1505,11 @@ class KernelWriter:
 
       # tail: local write
       kStr += self.indent + "/* lds write */" + self.endLine
-      kStr += self.initLdsWriteAB(kernel)
+      if kernel["PrefetchGlobalRead"]:
+        kStr += self.ldsWriteResetOffsets(kernel)
+      kStr += self.ldsWriteInitPointers(kernel)
       kStr += self.indent + self.syncStr + self.endLine
-      kStr += self.ldsWriteAB(kernel)
+      kStr += self.ldsWriteDo(kernel)
       kStr += self.indent + self.syncStr + self.endLine
 
       # tail: re-init lds read addresses
@@ -1514,7 +1520,7 @@ class KernelWriter:
             % (self.indent, self.endLine)
         kStr += "%sldsReadOffsetB %%= LDS_OFFSET_BLK;%s" \
             % (self.indent, self.endLine)
-        kStr += self.initLdsReadAddresses(kernel)
+        kStr += self.ldsReadInitPointers(kernel)
 
       # tail: macs
       kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
@@ -1990,7 +1996,6 @@ class KernelWriter:
   ##############################################################################
   def globalReadDo(self, kernel, guardK):
     kStr = ""
-    ####################################
     # global read A
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -2017,7 +2022,6 @@ class KernelWriter:
               (("_s%u"%s) if (self.readTileDimComponentsA \
               or self.readUnrollDimComponentsA) else ""), self.endLine)
 
-    ####################################
     # global read B
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -2049,9 +2053,82 @@ class KernelWriter:
     return kStr
 
   ##############################################################################
-  # lds write addresses
+  # lds write: swap offsets
+  def ldsWriteSwapOffsets(self, kernel):
+    kStr = ""
+    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
+        for s in range(0, self.numWriteVectorComponentsA):
+          kStr += "%sldsWriteOffsetA_%u_%u%s = (ldsWriteOffsetA_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
+              % (self.indent, \
+              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
+              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), self.endLine )
+          """
+          kStr += "%sldsWriteA_%u_%u%s = (%s%s *)(lds + ldsWriteOffsetA_%u_%u%s);%s"\
+              % (self.indent, para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
+              para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), \
+              self.endLine)
+          """
+
+    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
+        for s in range(0, self.numWriteVectorComponentsB):
+          kStr += "%sldsWriteOffsetB_%u_%u%s = (ldsWriteOffsetB_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
+              % (self.indent, para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
+              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), self.endLine )
+          """
+          kStr += "%sldsWriteB_%u_%u%s = (%s%s *)(lds + ldsWriteOffsetB_%u_%u%s);%s"\
+              % (self.indent, para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
+              para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), \
+              self.endLine)
+          """
+    return kStr
+
   ##############################################################################
-  def initLdsWriteAB(self, kernel):
+  # lds write: reset offset
+  ##############################################################################
+  def ldsWriteResetOffsets(self, kernel):
+    kStr = ""
+    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
+      for para in range(0, kernel["NumLoadsCoalescedA"]):
+        for s in range(0, self.numWriteVectorComponentsA):
+          kStr += "%sldsWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
+              % (self.indent, \
+              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
+              or self.writeUnrollDimComponentsA) else ""), self.endLine )
+
+    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
+      for para in range(0, kernel["NumLoadsCoalescedB"]):
+        for s in range(0, self.numWriteVectorComponentsB):
+          kStr += "%sldsWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
+              % (self.indent, para, perp, \
+              (("_s%u"%s) if (self.writeTileDimComponentsB \
+              or self.writeUnrollDimComponentsB) else ""), self.endLine )
+    return kStr
+
+
+
+  ##############################################################################
+  # lds write: init pointers
+  ##############################################################################
+  def ldsWriteInitPointers(self, kernel):
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -2084,9 +2161,9 @@ class KernelWriter:
 
 
   ##############################################################################
-  # lds write A, B
+  # lds write: do it
   ##############################################################################
-  def ldsWriteAB(self, kernel):
+  def ldsWriteDo(self, kernel):
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
@@ -2121,64 +2198,23 @@ class KernelWriter:
     return kStr
 
   ##############################################################################
-  # lds write swap red blk pointers
-  def ldsWriteSwapOffsets(self, kernel):
-    kStr = ""
-    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numWriteVectorComponentsA):
-          kStr += "%sldsWriteOffsetA_%u_%u%s = (ldsWriteOffsetA_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
-              % (self.indent, \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), self.endLine )
-          kStr += "%sldsWriteA_%u_%u%s = (%s%s *)(lds + ldsWriteOffsetA_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.endLine)
-
-    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numWriteVectorComponentsB):
-          kStr += "%sldsWriteOffsetB_%u_%u%s = (ldsWriteOffsetB_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), self.endLine )
-          kStr += "%sldsWriteB_%u_%u%s = (%s%s *)(lds + ldsWriteOffsetB_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.endLine)
-
-    return kStr
-
+  # lds read: swap offsets
   ##############################################################################
-  # init lds read addresses
-  ##############################################################################
-  def swapLdsReadAddresses(self, kernel):
+  def ldsReadSwapOffsets(self, kernel):
     kStr = ""
     kStr += "%sldsReadOffsetA = (ldsReadOffsetA + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
     kStr += "%sldsReadOffsetB = (ldsReadOffsetB + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
-    kStr += self.initLdsReadAddresses(kernel)
     return kStr
+# TODO: lds read reset offsets
+# TODO: lds read inc
+# TODO: lds read do it
 
-  def initLdsReadAddresses(self, kernel):
+  ##############################################################################
+  # lds read: init pointers
+  ##############################################################################
+  def ldsReadInitPointers(self, kernel):
     kStr = ""
     kStr += "%sldsReadA = (%sVECTOR_TYPE *)(lds + ldsReadOffsetA);%s" \
         % (self.indent, self.sharedPtrStr, self.endLine)
