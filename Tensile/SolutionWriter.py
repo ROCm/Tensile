@@ -271,6 +271,8 @@ class SolutionWriter:
         s += "%stensileStatusCheck(status);\n" % (t)
 
       else:
+        s += "%sif( inputEvents != nullptr )\n" % (t)
+        s += "%s  hipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
         s += "%shipLaunchKernel(\n" % (t)
         t += "  "
         s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -296,6 +298,8 @@ class SolutionWriter:
           s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
               % (t, i, "" if lastParam else "," )
         s += "    );\n"
+        s += "%sif( outputEvent != nullptr )\n" % (t)
+        s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
       s += "  }\n"
     s += "\n"
     s += "  return tensileStatusSuccess;\n"

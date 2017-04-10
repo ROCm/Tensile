@@ -39,12 +39,22 @@ public:
   double elapsed_sec();
   double elapsed_ms();
   double elapsed_us();
+  double elapsed_ns();
+
+  static const double billion;
+  static const double million;
+  static const double thousand;
+  static const double reciprical_billion;
+  static const double reciprical_million;
+  static const double reciprical_thousand;
 
 private:
 #ifdef WIN32
   LARGE_INTEGER startTime;
   LARGE_INTEGER frequency; 
 #else
+    const clockid_t clock_type = CLOCK_MONOTONIC;
+    //const clockid_t clock_type = CLOCK_MONOTONIC_RAW;
   timespec startTime;
 #endif
 };
