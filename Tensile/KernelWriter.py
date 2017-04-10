@@ -1403,44 +1403,84 @@ class KernelWriter:
     kStr += "%s/* read global */%s" % (self.indent, self.endLine)
     kStr += self.globalReadDo(kernel, False)
 
-    ########################################
-    # unrolled loop: lds write A, B
+    ####################################
+    # unrolled loop: increment global read addresses
     kStr += self.endLine
-    kStr += self.indent + "/* lds write */" + self.endLine
-    kStr += self.indent + self.syncStr + self.endLine
-    kStr += self.ldsWriteDo(kernel)
+    kStr += "%s/* increment global read addresses */%s" \
+        % (self.indent, self.endLine)
+    unrollIdx = kernel["ProblemType"]["NumIndicesSummation"]-1
+    kStr += self.globalReadIncrement(kernel, unrollIdx)
 
     ########################################
-    # prefetch: swap lds ptrs
-    if kernel["PrefetchGlobalRead"]:
-      kStr += self.endLine
-      kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
-      kStr += self.ldsWriteSwapOffsets(kernel)
-      kStr += self.ldsWriteInitPointers(kernel)
-    kStr += self.indent + self.syncStr + self.endLine
+    # if not prefetch global, do global->local before mac's
+    if not kernel["PrefetchGlobalRead"]:
 
-    # debug LDS state
-    if False:
-      kStr += "    /* print LDS state */" + self.endLine
-      kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
-      kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, lds[i]);%s" \
-          % self.endLine
-      kStr += "    }" + self.endLine
+      ########################################
+      # unrolled loop: lds write A, B
+      kStr += self.endLine
+      kStr += self.indent + "/* lds write */" + self.endLine
+      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.ldsWriteDo(kernel)
+      kStr += self.indent + self.syncStr + self.endLine
+      # debug LDS state
+      if False:
+        kStr += "    /* print LDS state */" + self.endLine
+        kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
+        kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, lds[i]);%s" \
+            % self.endLine
+        kStr += "    }" + self.endLine
+
 
     ####################################
     # unrolled loop: macs
     kStr += self.endLine
     kStr += self.indent + "/* do macs */" + self.endLine
-    for u in range(0, kernel["LoopUnroll"]):
-      kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
-      readBlk = kernel["PrefetchLocalRead"] and u%2>0
-      kStr += self.ldsReadDo(kernel, readBlk)
+    if kernel["PrefetchLocalRead"]:
+      kStr += self.ldsReadDo(kernel, False)
       kStr += self.ldsReadInc(kernel)
+    for u in range(0, kernel["LoopUnroll"]-1):
+      kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
+      readBlk = kernel["PrefetchLocalRead"] and u%2==0
+      if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+        kStr += self.ldsReadDo(kernel, readBlk)
+        kStr += self.ldsReadInc(kernel)
       kStr += "%sMAC_%ux%u" % (self.indent, \
           kernel["ThreadTile0"],kernel["ThreadTile1"])
       if kernel["PrefetchLocalRead"]:
         kStr += ("_Red" if u%2==0 else "_Blk")
       kStr += self.endLine
+
+    ########################################
+    # if prefetch global read, register->lds after mac's
+    if kernel["PrefetchGlobalRead"]:
+      ########################################
+      # unrolled loop: lds write A, B
+      kStr += self.endLine
+      kStr += self.indent + "/* lds write */" + self.endLine
+      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.ldsWriteDo(kernel)
+
+      ########################################
+      # prefetch: swap lds ptrs
+      kStr += self.endLine
+      kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
+      kStr += self.ldsWriteSwapOffsets(kernel)
+      kStr += self.ldsWriteInitPointers(kernel)
+
+    ####################################
+    # unrolled loop: last summation iter
+    unrollIter = kernel["LoopUnroll"]-1
+    kStr += self.endLine
+    kStr += "%s/* iter %u */%s" % (self.indent, unrollIter, self.endLine)
+    readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+    if not kernel["PrefetchLocalRead"]:
+      kStr += self.ldsReadDo(kernel, readBlk)
+      kStr += self.ldsReadInc(kernel)
+    kStr += "%sMAC_%ux%u" % (self.indent, \
+        kernel["ThreadTile0"],kernel["ThreadTile1"])
+    if kernel["PrefetchLocalRead"]:
+      kStr += ("_Red" if unrollIter%2==0 else "_Blk")
+    kStr += self.endLine
 
     ########################################
     # unrolled loop: init/swap lds read addresses
@@ -1454,16 +1494,8 @@ class KernelWriter:
       kStr += self.ldsReadInitPointers(kernel)
 
     ####################################
-    # unrolled loop: increment global read addresses
-    kStr += self.endLine
-    kStr += "%s/* increment global read addresses */%s" \
-        % (self.indent, self.endLine)
-    unrollIdx = kernel["ProblemType"]["NumIndicesSummation"]-1
-    kStr += self.globalReadIncrement(kernel, unrollIdx)
-    self.indent = self.indent[2:]
-
-    ####################################
     # unrolled loop: close
+    self.indent = self.indent[2:]
     if kernel["LoopDoWhile"]:
       kStr += "%s} while (--sumIter%s > %u);%s" \
           % (self.indent, unrollChar, \
@@ -1480,25 +1512,20 @@ class KernelWriter:
       kStr += "%sif (size%s >= DEPTHU) {%s" \
           % (self.indent, self.unrollChar, self.endLine)
       self.indent += "  "
+      if kernel["PrefetchLocalRead"]:
+        kStr += self.ldsReadDo(kernel, False)
+        kStr += self.ldsReadInc(kernel)
       for u in range(0, kernel["LoopUnroll"]):
         kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
-        readBlk = kernel["PrefetchLocalRead"] and u%2>0
-        kStr += self.ldsReadDo(kernel, readBlk)
-        kStr += self.ldsReadInc(kernel)
+        readBlk = kernel["PrefetchLocalRead"] and u%2==0
+        if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+          kStr += self.ldsReadDo(kernel, readBlk)
+          kStr += self.ldsReadInc(kernel)
         kStr += "%sMAC_%ux%u" % (self.indent, \
             kernel["ThreadTile0"],kernel["ThreadTile1"])
         if kernel["PrefetchLocalRead"]:
           kStr += ("_Red" if u%2==0 else "_Blk")
         kStr += self.endLine
-      # swap lds read addresses
-      #kStr += self.endLine
-      #kStr += "%s/* swap lds read addresses */%s" % (self.indent, self.endLine)
-      #kStr += self.ldsReadSwapOffsets(kernel)
-      #kStr += self.ldsReadInitPointers(kernel)
-      # increment global read
-      #kStr += self.endLine
-      #kStr += "%s/* increment global read */%s" % (self.indent, self.endLine)
-      #kStr += self.globalReadIncrement(kernel, unrollIdx)
       self.indent = self.indent[2:]
       kStr += "%s}%s" % (self.indent, self.endLine)
 
