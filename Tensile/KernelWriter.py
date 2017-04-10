@@ -433,20 +433,18 @@ class KernelWriter:
 
     ####################################
     # sumation unroll
-    # TODO local prefetch, will be reading from red or black, but
-    # will prefetch into different offsets of rA, and rB
-# when we prefetch local AND global, one of these reads from lds into rA, rB will come in a prior iteration, so we'll need to split up the macros
     kStr += self.endLine
     kStr += "/* %dx%d micro-tile */%s" % (kernel["ThreadTile0"], kernel["ThreadTile1"], self.endLine)
+    numMacs = 2 if kernel["PrefetchLocalRead"] else 1
 
-    kStr += "#define SUMMATION_UNROLL " + self.endLinePP
-    for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-      kStr += "  rA[%d] = ldsReadA[%d*SG%s]; %s" \
-          % (a, a, self.tileChar0, self.endLinePP)
-    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      kStr += "  rB[%d] = ldsReadB[%d*SG%s]; %s" \
-          % (b, b, self.tileChar1, self.endLinePP)
+    for m in range(0, numMacs):
+      kStr += "#define MAC_%ux%u" \
+          % (kernel["ThreadTile0"], kernel["ThreadTile1"])
+      if kernel["PrefetchLocalRead"]:
+        kStr += ("_Red" if m==0 else "_Blk")
+      kStr += self.endLinePP
 
+      """
     if False:
       if kernel["VectorWidth"] == 1:
         kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLinePP)
@@ -472,36 +470,35 @@ class KernelWriter:
             self.vectorComponents[0], self.vectorComponents[1], \
             self.vectorComponents[2], self.vectorComponents[3], \
             self.endLinePP)
+      """
 
-    kStr += "  ldsReadA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
-        % (self.tileChar0, self.endLinePP)
-    kStr += "  ldsReadB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
-        % (self.tileChar1, self.endLinePP)
-    for b in range(0, kernel["ThreadTile1"]):
-      for a in range(0, kernel["ThreadTile0"]):
-        # a
-        vecA = a / kernel["VectorWidth"]
-        elemA = a % kernel["VectorWidth"]
-        strA = "rA[%d]" % vecA
-        if kernel["VectorWidth"] > 1:
-          strA += ".%s" % self.vectorComponents[elemA]
-        # b
-        vecB = b / kernel["VectorWidth"]
-        elemB = b % kernel["VectorWidth"]
-        strB = "rB[%d]" % vecB
-        if kernel["VectorWidth"] > 1:
-          strB += ".%s" % self.vectorComponents[elemB]
-        # c
-        strC = "rC[(%d+%d*TT%s/VECTOR_WIDTH)]" % (vecA, b, self.tileChar0)
-        elemC = elemA
-        if kernel["VectorWidth"] > 1:
-          strC += ".%s" % self.vectorComponents[elemA]
-        """
-        kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
-        """
-        kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
-
-    kStr += "  " + self.fenceStr + self.endLine
+      for b in range(0, kernel["ThreadTile1"]):
+        for a in range(0, kernel["ThreadTile0"]):
+          # a
+          vecA = a / kernel["VectorWidth"]
+          elemA = a % kernel["VectorWidth"]
+          strA = "rA[%d%s]" % (vecA, ("+TT%s/VECTOR_WIDTH"%self.tileCharA) \
+              if m>0 else "")
+          if kernel["VectorWidth"] > 1:
+            strA += ".%s" % self.vectorComponents[elemA]
+          # b
+          vecB = b / kernel["VectorWidth"]
+          elemB = b % kernel["VectorWidth"]
+          strB = "rB[%d%s]" % (vecB, ("+TT%s/VECTOR_WIDTH"%self.tileCharB) \
+              if m>0 else "")
+          if kernel["VectorWidth"] > 1:
+            strB += ".%s" % self.vectorComponents[elemB]
+          # c
+          strC = "rC[%d+%d*TT%s/VECTOR_WIDTH]" % (vecA, b, self.tileChar0 )
+          elemC = elemA
+          if kernel["VectorWidth"] > 1:
+            strC += ".%s" % self.vectorComponents[elemA]
+          """
+          kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
+          """
+          kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
+              self.endLinePP)
+      kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
 
     ####################################
@@ -1435,7 +1432,15 @@ class KernelWriter:
     kStr += self.endLine
     kStr += self.indent + "/* do macs */" + self.endLine
     for u in range(0, kernel["LoopUnroll"]):
-      kStr += self.indent + "SUMMATION_UNROLL" + self.endLine
+      kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
+      readBlk = kernel["PrefetchLocalRead"] and u%2>0
+      kStr += self.ldsReadDo(kernel, readBlk)
+      kStr += self.ldsReadInc(kernel)
+      kStr += "%sMAC_%ux%u" % (self.indent, \
+          kernel["ThreadTile0"],kernel["ThreadTile1"])
+      if kernel["PrefetchLocalRead"]:
+        kStr += ("_Red" if u%2==0 else "_Blk")
+      kStr += self.endLine
 
     ########################################
     # unrolled loop: init/swap lds read addresses
@@ -1470,12 +1475,21 @@ class KernelWriter:
     # prefetch: unrolled loop suffix
     if kernel["PrefetchGlobalRead"]:
       kStr += self.endLine
-      kStr += self.indent + "/* prefetch: last unrolled iteration */" + self.endLine
+      kStr += "%s/* prefetch: last unrolled iteration */%s" \
+          % (self.indent, self.endLine)
       kStr += "%sif (size%s >= DEPTHU) {%s" \
           % (self.indent, self.unrollChar, self.endLine)
       self.indent += "  "
       for u in range(0, kernel["LoopUnroll"]):
-        kStr +=  "%sSUMMATION_UNROLL%s" % (self.indent, self.endLine)
+        kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
+        readBlk = kernel["PrefetchLocalRead"] and u%2>0
+        kStr += self.ldsReadDo(kernel, readBlk)
+        kStr += self.ldsReadInc(kernel)
+        kStr += "%sMAC_%ux%u" % (self.indent, \
+            kernel["ThreadTile0"],kernel["ThreadTile1"])
+        if kernel["PrefetchLocalRead"]:
+          kStr += ("_Red" if u%2==0 else "_Blk")
+        kStr += self.endLine
       # swap lds read addresses
       #kStr += self.endLine
       #kStr += "%s/* swap lds read addresses */%s" % (self.indent, self.endLine)
@@ -1532,7 +1546,13 @@ class KernelWriter:
             % (loopChar, self.endLine)
       kStr += self.endLine
       kStr += self.indent + "  /* do macs */" + self.endLine
-      kStr += self.indent + "  SUMMATION_UNROLL" + self.endLine
+      kStr += self.ldsReadDo(kernel, False)
+      kStr += self.ldsReadInc(kernel)
+      kStr += "%sMAC_%ux%u" % (self.indent, \
+          kernel["ThreadTile0"],kernel["ThreadTile1"])
+      if kernel["PrefetchLocalRead"]:
+        kStr += "_Red"
+      kStr += self.endLine
 
       # tail: close
       # TODO if we have outer summation indices,
@@ -1873,6 +1893,7 @@ class KernelWriter:
       kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
       kStr += "#undef SUMMATION_UNROLL%s" % (self.endLine)
       kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
+      kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
       kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
       kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
@@ -2207,9 +2228,13 @@ class KernelWriter:
     kStr += "%sldsReadOffsetB = (ldsReadOffsetB + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
     return kStr
-# TODO: lds read reset offsets
-# TODO: lds read inc
-# TODO: lds read do it
+
+  ##############################################################################
+  # lds read: reset offsets TODO
+  ##############################################################################
+  def ldsReadResetOffsets(self, kernel):
+    pass
+
 
   ##############################################################################
   # lds read: init pointers
@@ -2221,6 +2246,35 @@ class KernelWriter:
     kStr += "%sldsReadB = (%sVECTOR_TYPE *)(lds + ldsReadOffsetB);%s" \
         % (self.indent, self.sharedPtrStr, self.endLine)
     return kStr
+
+  ##############################################################################
+  # lds read: increment TODO
+  ##############################################################################
+  def ldsReadInc(self, kernel):
+    kStr = ""
+    kStr += "%sldsReadA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+        % (self.indent, self.tileChar0, self.endLine)
+    kStr += "%sldsReadB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+        % (self.indent, self.tileChar1, self.endLine)
+    return kStr
+
+  ##############################################################################
+  # lds read: do it TODO
+  ##############################################################################
+  def ldsReadDo(self, kernel, black):
+    kStr = ""
+    for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+      kStr += "%srA[%d%s] = ldsReadA[%d*SG%s]; %s" \
+          % (self.indent, a, \
+          (("+TT%s/VECTOR_WIDTH"%self.tileCharA) if black else ""), \
+          a, self.tileChar0, self.endLine)
+    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+      kStr += "%srB[%d%s] = ldsReadB[%d*SG%s]; %s" \
+          % (self.indent, b, \
+          (("+TT%s/VECTOR_WIDTH"%self.tileCharB) if black else ""), \
+          b, self.tileChar1, self.endLine)
+    return kStr
+
 
   ##############################################################################
   # source file string
