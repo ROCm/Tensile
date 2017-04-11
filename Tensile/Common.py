@@ -65,7 +65,6 @@ globalParameters["MaxMacroTileRatio"] = 4
 validParameters = {
     "LoopDoWhile":                [ False, True ],
     "LoopTail":                   [ False, True ],
-    "Prefetch":                   [ False, True ] ,
     "LocalWriteCoalesceGroupA":   [ False, True ],
     "LocalWriteCoalesceGroupB":   [ False, True ],
     "GlobalReadCoalesceVectorA":  [ False, True ],

@@ -1232,60 +1232,6 @@ class KernelWriter:
     kStr += self.ldsWriteInitPointers(kernel)
 
     ####################################
-    # lds write addresses
-    # prefetch global read
-    """
-    if kernel["PrefetchGlobalRead"]:
-      kStr += self.endLine
-      kStr += "  /* lds write addresses for global prefetch*/%s" % self.endLine
-      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-        for para in range(0, kernel["NumLoadsCoalescedA"]):
-          for s in range(0, self.numWriteVectorComponentsA):
-            kStr += "  %s%s *ldsWriteA_%u_%u%s_Red = ldsWriteA_%u_%u%s;%s"\
-                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
-                or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), para, perp, \
-                (("_s%u"%s) if (self.writeTileDimComponentsA \
-                or self.writeUnrollDimComponentsA) else ""), \
-                para, perp,
-                (("_s%u"%s) if (self.writeTileDimComponentsA \
-                or self.writeUnrollDimComponentsA) else ""), self.endLine)
-      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-        for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, self.numWriteVectorComponentsB):
-            kStr += "  %s%s *ldsWriteB_%u_%u%s_Red = ldsWriteB_%u_%u%s;%s"\
-                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
-                or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
-                (("_s%u"%s) if (self.writeTileDimComponentsB \
-                or self.writeUnrollDimComponentsB) else ""), \
-                para, perp,
-                (("_s%u"%s) if (self.writeTileDimComponentsB \
-                or self.writeUnrollDimComponentsB) else ""), self.endLine)
-      for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-        for para in range(0, kernel["NumLoadsCoalescedA"]):
-          for s in range(0, self.numWriteVectorComponentsA):
-            kStr += "  %s%s *ldsWriteA_%u_%u%s_Blk = ldsWriteA_%u_%u%s + LDS_OFFSET_BLK;%s"\
-                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
-                or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), para, perp, \
-                (("_s%u"%s) if (self.writeTileDimComponentsA \
-                or self.writeUnrollDimComponentsA) else ""), \
-                para, perp,
-                (("_s%u"%s) if (self.writeTileDimComponentsA \
-                or self.writeUnrollDimComponentsA) else ""), self.endLine)
-      for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-        for para in range(0, kernel["NumLoadsCoalescedB"]):
-          for s in range(0, self.numWriteVectorComponentsB):
-            kStr += "  %s%s *ldsWriteB_%u_%u%s_Blk = ldsWriteB_%u_%u%s + LDS_OFFSET_BLK;%s"\
-                % (self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
-                or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), para, perp, \
-                (("_s%u"%s) if (self.writeTileDimComponentsB \
-                or self.writeUnrollDimComponentsB) else ""), \
-                para, perp,
-                (("_s%u"%s) if (self.writeTileDimComponentsB \
-                or self.writeUnrollDimComponentsB) else ""), self.endLine)
-    """
-
-
-    ####################################
     # LDS Read Addresses
     ####################################
     kStr += self.endLine
@@ -1308,35 +1254,6 @@ class KernelWriter:
           % (self.sharedPtrStr, self.endLine)
     kStr += "  ldsReadB = (%sVECTOR_TYPE *)(lds + ldsReadOffsetB);%s" \
           % (self.sharedPtrStr, self.endLine)
-
-    #kStr += "  %sVECTOR_TYPE *ldsReadA = (%sVECTOR_TYPE *)(lds + ldsReadOffsetA);%s" \
-
-
-
-
-
-    #kStr += "  %sVECTOR_TYPE *ldsReadA = (%sVECTOR_TYPE *)(lds + ldsReadOffsetA);%s" \
-    #    % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-    #kStr += "  %sVECTOR_TYPE *ldsReadB = (%sVECTOR_TYPE *)(lds + ldsReadOffsetB);%s" \
-    #    % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
-
-    """
-    # prefetch global black lds read addresses
-    if kernel["PrefetchGlobalRead"]:
-      kStr += "  %sVECTOR_TYPE *ldsReadA_Blk = ldsReadA + LDS_OFFSET_BLK;%s" \
-            % (self.sharedPtrStr, self.endLine)
-      kStr += "  %sVECTOR_TYPE *ldsReadB_Blk = ldsReadB + LDS_OFFSET_BLK;%s" \
-            % (self.sharedPtrStr, self.endLine)
-
-    # temporary read addresses
-    kStr += "  %sVECTOR_TYPE *ldsReadIterA = ldsReadA;%s" \
-          % (self.sharedPtrStr, self.endLine)
-    kStr += "  %sVECTOR_TYPE *ldsReadIterB = ldsReadB;%s"\
-          % (self.sharedPtrStr, self.endLine)
-    kStr += self.endLine
-    """
-
-
 
     ###########################################################################
     # summations loops: open
@@ -1384,6 +1301,12 @@ class KernelWriter:
           kStr += self.ldsWriteSwapOffsets(kernel)
           kStr += self.ldsWriteInitPointers(kernel)
           kStr += self.indent + self.syncStr + self.endLine
+          # prefetch-local
+          if kernel["PrefetchLocalRead"]:
+            kStr += self.endLine
+            kStr += "%s/* prefetch local */%s" % (self.indent, self.endLine)
+            kStr += self.ldsReadDo(kernel, False)
+            kStr += self.ldsReadInc(kernel)
           self.indent = self.indent[2:]
           kStr += "%s}%s" % (self.indent, self.endLine)
           kStr += self.endLine
@@ -1433,65 +1356,79 @@ class KernelWriter:
 
     ####################################
     # unrolled loop: macs
-    kStr += self.endLine
-    kStr += self.indent + "/* do macs */" + self.endLine
-    if kernel["PrefetchLocalRead"]:
+    if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
+      kStr += self.endLine
+      kStr += "%s/* prefetch local */%s" % (self.indent, self.endLine)
       kStr += self.ldsReadDo(kernel, False)
       kStr += self.ldsReadInc(kernel)
-    for u in range(0, kernel["LoopUnroll"]-1):
+    for u in range(0, kernel["LoopUnroll"]-2):
+      kStr += self.endLine
       kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
       readBlk = kernel["PrefetchLocalRead"] and u%2==0
-      if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
-        kStr += self.ldsReadDo(kernel, readBlk)
-        kStr += self.ldsReadInc(kernel)
+      kStr += self.ldsReadDo(kernel, readBlk)
+      kStr += self.ldsReadInc(kernel)
       kStr += "%sMAC_%ux%u" % (self.indent, \
           kernel["ThreadTile0"],kernel["ThreadTile1"])
       if kernel["PrefetchLocalRead"]:
         kStr += ("_Red" if u%2==0 else "_Blk")
       kStr += self.endLine
 
-    ########################################
-    # if prefetch global read, register->lds after mac's
-    if kernel["PrefetchGlobalRead"]:
-      ########################################
-      # unrolled loop: lds write A, B
-      kStr += self.endLine
-      kStr += self.indent + "/* lds write */" + self.endLine
-      kStr += self.indent + self.syncStr + self.endLine
-      kStr += self.ldsWriteDo(kernel)
-
-      ########################################
-      # prefetch: swap lds ptrs
-      kStr += self.endLine
-      kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
-      kStr += self.ldsWriteSwapOffsets(kernel)
-      kStr += self.ldsWriteInitPointers(kernel)
-
     ####################################
-    # unrolled loop: last summation iter
-    unrollIter = kernel["LoopUnroll"]-1
+    # unrolled loop: 2nd-to-last summation iter
+    # if prefetch-local: read for last unroll, lds write, readSwap/Init, writeSwapInit
+    # if no prefetch-local: read for current unroll of current iter
+    unrollIter = kernel["LoopUnroll"]-2
     kStr += self.endLine
     kStr += "%s/* iter %u */%s" % (self.indent, unrollIter, self.endLine)
-    readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
-    if not kernel["PrefetchLocalRead"]:
+    if kernel["PrefetchLocalRead"] and kernel["PrefetchGlobalRead"]:
+      # read lds for last unroll
+      kStr += self.ldsReadDo(kernel, True)
+      kStr += self.indent + self.syncStr + self.endLine
+      # write lds for next iter
+      kStr += self.ldsWriteDo(kernel)
+      # swap read and write pointers
+      kStr += self.ldsReadSwapOffsets(kernel)
+      kStr += self.ldsReadInitPointers(kernel)
+      kStr += self.ldsWriteSwapOffsets(kernel)
+      kStr += self.ldsWriteInitPointers(kernel)
+    else:
+      readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
       kStr += self.ldsReadDo(kernel, readBlk)
-      kStr += self.ldsReadInc(kernel)
+      if kernel["PrefetchLocalRead"]:
+        kStr += self.ldsReadInitPointers(kernel)
+      else:
+        kStr += self.ldsReadInc(kernel)
     kStr += "%sMAC_%ux%u" % (self.indent, \
         kernel["ThreadTile0"],kernel["ThreadTile1"])
     if kernel["PrefetchLocalRead"]:
-      kStr += ("_Red" if unrollIter%2==0 else "_Blk")
+      kStr += "_Red"
     kStr += self.endLine
 
-    ########################################
-    # unrolled loop: init/swap lds read addresses
+    ####################################
+    # unrolled loop: last summation iter
+    # if prefetch-local: read red for 1st unroll of next iter
+    # if not prefetch-local: read for current unroll of current iter
+    unrollIter = kernel["LoopUnroll"]-1
     kStr += self.endLine
-    if kernel["PrefetchGlobalRead"]:
-      kStr += "%s/* swap lds read addresses */%s" % (self.indent, self.endLine)
+    kStr += "%s/* iter %u */%s" % (self.indent, unrollIter, self.endLine)
+    if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
+      readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+      kStr += self.ldsReadDo(kernel, readBlk)
+    if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
+      kStr += self.ldsReadInc(kernel)
+    elif kernel["PrefetchGlobalRead"]:
+      kStr += self.ldsWriteDo(kernel)
       kStr += self.ldsReadSwapOffsets(kernel)
       kStr += self.ldsReadInitPointers(kernel)
-    else:
-      kStr += "%s/* init lds read addresses */%s" % (self.indent, self.endLine)
+      kStr += self.ldsWriteSwapOffsets(kernel)
+      kStr += self.ldsWriteInitPointers(kernel)
+    elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       kStr += self.ldsReadInitPointers(kernel)
+    kStr += "%sMAC_%ux%u" % (self.indent, \
+        kernel["ThreadTile0"],kernel["ThreadTile1"])
+    if kernel["PrefetchLocalRead"]:
+      kStr += "_Blk"
+    kStr += self.endLine
 
     ####################################
     # unrolled loop: close
@@ -1512,7 +1449,7 @@ class KernelWriter:
       kStr += "%sif (size%s >= DEPTHU) {%s" \
           % (self.indent, self.unrollChar, self.endLine)
       self.indent += "  "
-      if kernel["PrefetchLocalRead"]:
+      if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
         kStr += self.ldsReadDo(kernel, False)
         kStr += self.ldsReadInc(kernel)
       for u in range(0, kernel["LoopUnroll"]):
@@ -2063,7 +2000,7 @@ class KernelWriter:
               kStr += " || "
             kStr += "( !inBoundsA_%u )" % ( \
                 (para if kernel["ProblemType"]["TLUA"] else perp) )
-          if guardK:
+          if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % \
                kernel["ProblemType"]["DataType"].zeroString(self.language)
           kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
@@ -2090,7 +2027,7 @@ class KernelWriter:
               kStr += " || "
             kStr += "( !inBoundsB_%u )" % ( \
                 (para if kernel["ProblemType"]["TLUB"] else perp) )
-          if guardK:
+          if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % \
                 kernel["ProblemType"]["DataType"].zeroString(self.language)
           kStr += "*globalReadB_%u_%u%s;%s" \
