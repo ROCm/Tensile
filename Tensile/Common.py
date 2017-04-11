@@ -95,7 +95,6 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
     {"LdsPad":                    [ 0 ] },
-    {"Prefetch":                  [ False ] },
     {"VectorWidth":               [ 1 ] }, # =2 once fixed
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
