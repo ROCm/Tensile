@@ -1295,12 +1295,12 @@ class KernelWriter:
           kStr += self.endLine
           kStr += "%s/* write lds */%s" % (self.indent, self.endLine)
           kStr += self.ldsWriteDo(kernel)
+          kStr += self.indent + self.syncStr + self.endLine
           # swap lds ptrs
           kStr += self.endLine
           kStr += "%s/* swap lds write ptrs */%s" % (self.indent, self.endLine)
           kStr += self.ldsWriteSwapOffsets(kernel)
           kStr += self.ldsWriteInitPointers(kernel)
-          kStr += self.indent + self.syncStr + self.endLine
           # prefetch-local
           if kernel["PrefetchLocalRead"]:
             kStr += self.endLine
@@ -1383,9 +1383,9 @@ class KernelWriter:
     if kernel["PrefetchLocalRead"] and kernel["PrefetchGlobalRead"]:
       # read lds for last unroll
       kStr += self.ldsReadDo(kernel, True)
-      kStr += self.indent + self.syncStr + self.endLine
       # write lds for next iter
       kStr += self.ldsWriteDo(kernel)
+      kStr += self.indent + self.syncStr + self.endLine
       # swap read and write pointers
       kStr += self.ldsReadSwapOffsets(kernel)
       kStr += self.ldsReadInitPointers(kernel)
@@ -1418,6 +1418,7 @@ class KernelWriter:
       kStr += self.ldsReadInc(kernel)
     elif kernel["PrefetchGlobalRead"]:
       kStr += self.ldsWriteDo(kernel)
+      kStr += self.indent + self.syncStr + self.endLine
       kStr += self.ldsReadSwapOffsets(kernel)
       kStr += self.ldsReadInitPointers(kernel)
       kStr += self.ldsWriteSwapOffsets(kernel)
