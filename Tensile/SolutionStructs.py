@@ -589,6 +589,13 @@ class Solution:
       state["Valid"] = False
       return
 
+    # LoopUnroll too small
+    if state["LoopUnroll"] < 2:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("LoopUnroll %u is less than 2" \
+            % (state["LoopUnroll"]))
+      state["Valid"] = False
+
     # SplitU but can't NumThreads%MacroTile doesn't support sideways load
     if state["SplitU"] > 1:
       if state["NumThreads"] % state["MacroTile0"] != 0:

@@ -294,8 +294,8 @@ bool callLibrary(
       std::cout << " ";
     }
     std::cout << " |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand
-      << " us | v: " << (numInvalids ? "FAILED" : "PASSED")
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million
+      << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " " << (numChecked-numInvalids) << "/" << numChecked;
     std::cout << " | api:" << std::setw(6) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
@@ -310,7 +310,7 @@ bool callLibrary(
       std::cout << " ";
     }
     std::cout << " |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand << " us";
+      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million << " ms";
     if (newFastest) {
       std::cout << "*";
     }
@@ -535,7 +535,7 @@ bool benchmarkAllSolutionsForSize(
         std::cout << " ";
       }
       std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand << " us | v: " << (numInvalids ? "FAILED" : "PASSED")
+        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
         << " " << (numChecked-numInvalids) << "/" << numChecked;
       if (numInvalids > 0) {
         std::cout << " - " << solutionNames[solutionIdx];
@@ -551,7 +551,7 @@ bool benchmarkAllSolutionsForSize(
         std::cout << " ";
       }
       std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_thousand << " us" << std::endl;
+        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million << " ms" << std::endl;
     }
     if (numInvalids > 0) {
       gflops = -1.0;
