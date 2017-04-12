@@ -387,6 +387,10 @@ class KernelWriter:
     # summations loops: open
     ###########################################################################
 
+    # declare loop iterators
+    kStr += self.comment("declare loop iterators")
+    kStr += self.declareLoopIterators(kernel)
+
     # open non-unrolled summation loops
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
       kStr += self.comment("summation loop %u"%i)
@@ -592,88 +596,89 @@ class KernelWriter:
       kStr += self.comment("local read init pointers b")
       kStr += self.ldsReadInitPointersB(kernel)
     kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
-    # resume
 
     # close unrolled loop
     kStr += self.closeLoop(kernel, self.unrollIdx)
 
-    ########################################
     # prefetch: unrolled loop suffix
     if kernel["PrefetchGlobalRead"]:
-      kStr += self.endLine
-      kStr += "%s/* prefetch: last unrolled iteration */%s" \
-          % (self.indent, self.endLine)
-      kStr += "%sif (size%s >= DEPTHU) {%s" \
-          % (self.indent, self.unrollChar, self.endLine)
-      self.indent += "  "
+      kStr += self.comment("prefetch: last unrolled iteration")
+      kStr += self.openSumAtLeastUnroll(kernel)
       if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
+        kStr += self.comment("prefetch local read a")
         kStr += self.ldsReadDoA(kernel, False)
+        kStr += self.comment("prefetch local read b")
         kStr += self.ldsReadDoB(kernel, False)
+        kStr += self.comment("prefetch local read inc a")
         kStr += self.ldsReadIncA(kernel)
+        kStr += self.comment("prefetch local read inc b")
         kStr += self.ldsReadIncB(kernel)
       for u in range(0, kernel["LoopUnroll"]):
-        kStr += "%s/* iter %u */%s" % (self.indent, u, self.endLine)
+        kStr += self.comment("iter %u"%u)
         readBlk = kernel["PrefetchLocalRead"] and u%2==0
         if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+          kStr += self.comment("local read a")
           kStr += self.ldsReadDoA(kernel, readBlk)
+          kStr += self.comment("local read b")
           kStr += self.ldsReadDoB(kernel, readBlk)
+          kStr += self.comment("local read inc a")
           kStr += self.ldsReadIncA(kernel)
+          kStr += self.comment("local read inc b")
           kStr += self.ldsReadIncB(kernel)
         kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
-      self.indent = self.indent[2:]
-      kStr += "%s}%s" % (self.indent, self.endLine)
+      kStr += self.closeSumAtLeastUnroll(kernel)
 
 
     ########################################
     # Tail Loop
     ########################################
     if kernel["LoopTail"]:
-      kStr += self.endLine
-      kStr += "  /***************************************/" + self.endLine
-      kStr += "  /* Tail Loop                           */" + self.endLine
-      kStr += "  /***************************************/" + self.endLine
+      kStr += self.comment3("Tail Loop")
 
       # tail: global read
-      kStr += self.indent + "/* global read */" + self.endLine
+      kStr += self.comment("global read a")
       kStr += self.globalReadDoA(kernel, True)
+      kStr += self.comment("global read b")
       kStr += self.globalReadDoB(kernel, True)
-      kStr += self.endLine
 
       # tail: local write
-      kStr += self.indent + "/* lds write */" + self.endLine
       if kernel["PrefetchGlobalRead"]:
-        kStr += self.ldsWriteResetOffsets(kernel)
+        kStr += self.comment("local write reset offsets a")
+        kStr += self.ldsWriteResetOffsetsA(kernel)
+        kStr += self.comment("local write reset offsets b")
+        kStr += self.ldsWriteResetOffsetsB(kernel)
+      kStr += self.comment("local write init pointers a")
       kStr += self.ldsWriteInitPointersA(kernel)
+      kStr += self.comment("local write init pointers b")
       kStr += self.ldsWriteInitPointersB(kernel)
       kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.comment("local write a")
       kStr += self.ldsWriteDoA(kernel)
+      kStr += self.comment("local write b")
       kStr += self.ldsWriteDoB(kernel)
       kStr += self.indent + self.syncStr + self.endLine
 
       # tail: re-init lds read addresses
       if kernel["PrefetchGlobalRead"]:
-        kStr += self.endLine
-        kStr += self.indent + "/* re-init lds read addresses */" + self.endLine
-        kStr += "%sldsReadOffsetA %%= LDS_OFFSET_BLK;%s" \
-            % (self.indent, self.endLine)
-        kStr += "%sldsReadOffsetB %%= LDS_OFFSET_BLK;%s" \
-            % (self.indent, self.endLine)
+        kStr += self.comment("local read reset offsets a")
+        kStr += self.ldsReadResetOffsetsB(kernel)
+        kStr += self.comment("local read reset offsets b")
+        kStr += self.ldsReadResetOffsetsB(kernel)
+        kStr += self.comment("local read init pointers a")
         kStr += self.ldsReadInitPointersA(kernel)
+        kStr += self.comment("local read init pointers b")
         kStr += self.ldsReadInitPointersB(kernel)
 
       # tail: macs
-      kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
-          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-      if kernel["LoopDoWhile"]:
-        kStr += self.indent + "do {" + self.endLine
-      else:
-        kStr += self.indent + "while (sumIter%s-- > 0) {%s" \
-            % (self.unrollChar, self.endLine)
-      kStr += self.endLine
-      kStr += self.indent + "  /* do macs */" + self.endLine
+      kStr += self.comment("tail loop: macs")
+      kStr += self.openLoop(kernel, -1)
+      kStr += self.comment("local read a")
       kStr += self.ldsReadDoA(kernel, False)
+      kStr += self.comment("local read b")
       kStr += self.ldsReadDoB(kernel, False)
+      kStr += self.comment("local read inc a")
       kStr += self.ldsReadIncA(kernel)
+      kStr += self.comment("local read inc b")
       kStr += self.ldsReadIncB(kernel)
       kStr += self.macIter(kernel, False )
 
@@ -682,34 +687,16 @@ class KernelWriter:
       # then do we need to do some incrementing here
       # since we subtract strides for outer loops?
       kStr += self.closeLoop(kernel, self.unrollIdx)
-      """
-      if kernel["LoopDoWhile"]:
-        kStr += "%s} while (--sumIter%s > %u);%s" \
-            % (self.indent, self.unrollChar, \
-            (1 if kernel["PrefetchGlobalRead"] else 0), self.endLine )
-      else:
-        kStr += "%s}%s" % (self.indent, self.endLine)
-      kStr += self.endLine
-      """
 
-    ####################################
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
       loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
-      kStr += self.endLine
-      kStr += "%s/* increment global read addresses */%s" \
-          % (self.indent, self.endLine)
+      kStr += self.comment("global read inc a")
       kStr += self.globalReadIncrementA(kernel, i)
+      kStr += self.comment("global read inc b")
       kStr += self.globalReadIncrementB(kernel, i)
       kStr += self.closeLoop(kernel, self.unrollIdx)
-      """
-      self.indent = self.indent[2:]
-      if kernel["LoopDoWhile"]:
-        kStr += "%s} while (--sumIter%s > 0);%s" \
-            % (self.indent, loopChar, self.endLine)
-      else:
-        kStr += "%s}%s" % (self.indent, self.endLine)
-      """
+    # resume
 
     ########################################################################
     # Shift Vectors
@@ -2270,23 +2257,42 @@ class KernelWriter:
     kStr += "  %sVECTOR_TYPE *ldsReadB;%s" % (self.sharedPtrStr, self.endLine)
     return kStr
 
+  ##############################################################################
+  # Declare Loop Iterators
+  ##############################################################################
+  def declareLoopIterators(self, kernel):
+    kStr = ""
+    for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
+      loopChar = self.indexChars[loopIdx]
+      kStr += "%sunsigned int sumIter%s;%s" \
+          % (self.indent, loopChar, self.endLine)
+    return kStr
 
   ##############################################################################
   # Open Loop
   ##############################################################################
   def openLoop(self, kernel, loopIdx):
+    tailLoop = loopIdx < 0
+    if tailLoop:
+      loopIdx = self.unrollIdx
+
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    kStr += "%sunsigned int sumIter%s = size%s%s;%s" \
-        % (self.indent, loopChar, loopChar, \
-        (" / DEPTHU" if loopIdx == self.unrollIdx else ""), self.endLine)
+    if tailLoop:
+      kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
+    else:
+      kStr += "%ssumIter%s = size%s%s;%s" \
+          % (self.indent, loopChar, loopChar, \
+          (" / DEPTHU" if loopIdx == self.unrollIdx else ""), self.endLine)
     if kernel["LoopDoWhile"]:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
     else:
       kStr += "%swhile (sumIter%s-- > %u) {%s" \
           % (self.indent, loopChar, \
-          (1 if kernel["PrefetchGlobalRead"] else 0), self.endLine)
+          (1 if (kernel["PrefetchGlobalRead"] and loopIdx == self.unrollIdx \
+          and not tailLoop) else 0), self.endLine)
     self.indent += "  "
     return kStr
 
@@ -2327,11 +2333,19 @@ class KernelWriter:
         % (self.indent, self.unrollChar, self.endLine)
     self.indent += "  "
     return kStr
-
   def closeSumAtLeastUnroll(self, kernel):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s}%s" % (self.indent, self.endLine)
+    return kStr
+
+  ##############################################################################
+  # Tail Loop: Num Iter
+  ##############################################################################
+  def tailLoopNumIter(self, kernel):
+    kStr = ""
+    kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
     return kStr
   # resume
 
@@ -2553,9 +2567,9 @@ class KernelWriter:
     return kStr
 
   ##############################################################################
-  # lds write: reset offset
+  # LDS Write: Reset Offsets A
   ##############################################################################
-  def ldsWriteResetOffsets(self, kernel):
+  def ldsWriteResetOffsetsA(self, kernel):
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -2564,7 +2578,13 @@ class KernelWriter:
               % (self.indent, \
               para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
               or self.writeUnrollDimComponentsA) else ""), self.endLine )
+    return kStr
 
+  ##############################################################################
+  # LDS Write: Reset Offsets B
+  ##############################################################################
+  def ldsWriteResetOffsetsB(self, kernel):
+    kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
@@ -2685,11 +2705,22 @@ class KernelWriter:
     return kStr
 
   ##############################################################################
-  # lds read: reset offsets TODO
+  # LDS Read: Reset Offsets A
   ##############################################################################
-  def ldsReadResetOffsets(self, kernel):
-    pass
+  def ldsReadResetOffsetsA(self, kernel):
+    kStr = ""
+    kStr += "%sldsReadOffsetA %%= LDS_OFFSET_BLK;%s" \
+        % (self.indent, self.endLine)
+    return kStr
 
+  ##############################################################################
+  # LDS Read: Reset Offsets B
+  ##############################################################################
+  def ldsReadResetOffsetsB(self, kernel):
+    kStr = ""
+    kStr += "%sldsReadOffsetB %%= LDS_OFFSET_BLK;%s" \
+        % (self.indent, self.endLine)
+    return kStr
 
   ##############################################################################
   # LDS Read: Init Pointers A
