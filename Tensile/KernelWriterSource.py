@@ -575,6 +575,7 @@ class KernelWriterSource(KernelWriter):
   def functionSignatureSuffix(self, kernel):
     s = ""
     if self.language == "HIP":
+      s += self.endLine
       s += "#pragma clang diagnostic pop" + self.endLine
     return s
 
