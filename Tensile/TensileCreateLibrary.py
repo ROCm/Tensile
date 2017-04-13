@@ -101,6 +101,8 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+    else:
+      kernelHeaderFile.write("#include <string>\n")
   for kernel in kernels:
     # get kernel name
     if not globalParameters["MergeFiles"]:

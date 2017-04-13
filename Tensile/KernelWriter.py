@@ -214,9 +214,11 @@ class KernelWriter:
     ####################################
     # Begin String
     kStr = ""
+    kStr += self.openString(kernel)
 
     ####################################
     # Function Prefix
+    kStr += self.comment3("Function Prefix")
     kStr += self.functionPrefix(kernel)
 
     ####################################
@@ -486,6 +488,9 @@ class KernelWriter:
       kStr += self.comment("local read increment b")
       kStr += self.localReadIncB(kernel)
 
+    kStr += self.closeString(kernel)
+    kStr += self.openString(kernel)
+
     ####################################
     # unrolled loop: mac iterations
     ####################################
@@ -502,6 +507,9 @@ class KernelWriter:
       kStr += self.comment("local read increment b")
       kStr += self.localReadIncB(kernel)
       kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
+
+    kStr += self.closeString(kernel)
+    kStr += self.openString(kernel)
 
     ####################################
     # unrolled loop: 2nd-to-last summation iter
@@ -644,7 +652,6 @@ class KernelWriter:
         kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
       kStr += self.closeSumAtLeastUnroll(kernel)
 
-
     ########################################
     # Tail Loop
     ########################################
@@ -775,6 +782,8 @@ class KernelWriter:
     kStr += self.functionEnd(kernel)
     kStr += self.functionSuffix(kernel)
 
+    kStr += self.closeString(kernel)
+
     return kStr
 
 
@@ -824,15 +833,31 @@ class KernelWriter:
     return s
 
   ##############################################################################
+  # Open String
+  ##############################################################################
+  def openString(self, kernel):
+    kStr = ""
+    if self.language == "OCL":
+      kernelName = self.getKernelName(kernel)
+      kStr += "\n"
+      kStr += "std::string %s_src_%u = \"" % (kernelName, self.stringIdx)
+    return kStr
+
+  ##############################################################################
+  # Close String
+  ##############################################################################
+  def closeString(self, kernel):
+    kStr = ""
+    if self.language == "OCL":
+      kStr += "\";\n"
+      self.stringIdx += 1
+    return kStr
+
+  ##############################################################################
   # Function Prefix
   ##############################################################################
   def functionPrefix(self, kernel):
     kStr = ""
-    kStr += self.endLine
-    kStr += self.endLine
-    kStr += "/****************************************/%s" % self.endLine
-    kStr += "/* Preprocessor Definitions             */%s" % self.endLine
-    kStr += "/****************************************/%s" % self.endLine
 
     ####################################
     # kernel preprocessor definitions
@@ -2189,7 +2214,7 @@ class KernelWriter:
                 % (self.indent, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsB \
                 or self.readUnrollDimComponentsB) else ""), \
-                self.int64Str, loopChar, "" if (self.readTileDimComponentsB \
+                loopChar, "" if (self.readTileDimComponentsB \
                 or self.readUnrollDimComponentsB) else "/VECTOR_WIDTH", \
                 self.endLine)
     return kStr
@@ -2874,9 +2899,9 @@ class KernelWriter:
       s += "#include \"%s.h\"\n" % kernelName
       s += "\n"
 
-    s += "\n"
-    if self.language == "OCL":
-      s += "const char * const %s_src =\"" % (kernelName)
+    #s += "\n"
+    #if self.language == "OCL":
+    #  s += "const char * const %s_src =\"" % (kernelName)
     return s
 
   ##############################################################################
@@ -2884,12 +2909,22 @@ class KernelWriter:
   ##############################################################################
   def kernelBodySuffix(self, kernel):
     s = ""
-    if self.language == "OCL":
-      s += "\";\n"
+    kernelName = self.getKernelName(kernel)
+    #if self.language == "OCL":
+    #  s += "\";\n"
 
-    s += "/* Kernel Parameters\n"
-    s += Solution.getParametersIndented(kernel, "  ")
-    s += "*/\n"
+    if self.language == "OCL":
+      s += "std::string %s_src_concatenated = \n  %s_src_0" \
+          % (kernelName, kernelName)
+      for i in range(1, self.stringIdx):
+        s += "\n  + %s_src_%u" % (kernelName, i)
+      s += ";\n"
+      s += "const char * const %s_src = %s_src_concatenated.c_str();" \
+          % (kernelName, kernelName)
+
+    #s += "/* Kernel Parameters\n"
+    #s += Solution.getParametersIndented(kernel, "  ")
+    #s += "*/\n"
     s += "\n"
     return s
 
@@ -2918,6 +2953,7 @@ class KernelWriter:
   def getSourceFileString(self, kernel):
     fileString = ""
     fileString += self.kernelBodyPrefix( kernel )
+    self.stringIdx = 0
     fileString += self.kernelBody( kernel )
     fileString += self.kernelBodySuffix( kernel )
     return fileString
@@ -2935,6 +2971,8 @@ class KernelWriter:
       if self.language == "HIP":
         fileString += "#include <hip/hip_runtime.h>\n"
         fileString += "\n"
+      else:
+        fileString += "#include <string>\n"
     if self.language == "OCL":
       fileString += "extern const char * const %s_src;\n" % kernelName
     else:
