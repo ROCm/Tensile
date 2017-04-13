@@ -3,7 +3,7 @@ from Common import globalParameters, HR, print1, print2, printExit, ensurePath, 
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
-from KernelWriter import KernelWriter
+from KernelWriterSource import KernelWriterSource
 
 import os
 import os.path
@@ -339,7 +339,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriter( \
+  kernelWriter = KernelWriterSource( \
       kernelMinNaming, kernelSerialNaming)
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
@@ -477,7 +477,7 @@ def TensileCreateLibrary():
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriter( \
+  kernelWriter = KernelWriterSource( \
       kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels

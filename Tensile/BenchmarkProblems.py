@@ -11,7 +11,7 @@ from BenchmarkStructs import BenchmarkProcess
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
-from KernelWriter import KernelWriter
+from KernelWriterSource import KernelWriterSource
 from ClientWriter import writeRunScript, writeClientParameters
 from TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 import YAMLIO
@@ -360,7 +360,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriter( \
+  kernelWriter = KernelWriterSource( \
       kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
