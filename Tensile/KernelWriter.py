@@ -226,6 +226,7 @@ class KernelWriter:
     kStr += self.functionSignaturePrefix(kernel)
     kStr += self.functionSignature(kernel)
     kStr += self.functionSignatureSuffix(kernel)
+    kStr += self.functionBegin(kernel)
 
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
@@ -304,6 +305,14 @@ class KernelWriter:
     kStr += self.graAddressesA(kernel)
     kStr += self.comment("global read addresses: addresses b")
     kStr += self.graAddressesB(kernel)
+
+    # increments
+    kStr += self.comment("global read addresses: increments a")
+    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      kStr += self.graIncrementsA(kernel, i)
+    kStr += self.comment("global read addresses: increments b")
+    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+      kStr += self.graIncrementsB(kernel, i)
 
     ####################################
     # Local Write Addresses
@@ -401,9 +410,9 @@ class KernelWriter:
       kStr += self.comment("global read b")
       kStr += self.globalReadDoB(kernel, False)
       # increment global
-      kStr += self.comment("global read increment a")
+      kStr += self.comment("global read inc a")
       kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
-      kStr += self.comment("global read increment b")
+      kStr += self.comment("global read inc b")
       kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
       # local write
       kStr += self.comment("local write a")
@@ -443,9 +452,9 @@ class KernelWriter:
     kStr += self.globalReadDoB(kernel, False)
 
     # unrolled loop: increment global read addresses
-    kStr += self.comment("global read increment a")
+    kStr += self.comment("global read inc a")
     kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
-    kStr += self.comment("global read increment b")
+    kStr += self.comment("global read inc b")
     kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
 
     # if not prefetch global, localWrite before mac's
@@ -763,6 +772,7 @@ class KernelWriter:
       kStr += self.notSplitUGlobalWrite(kernel)
 
     # function suffix
+    kStr += self.functionEnd(kernel)
     kStr += self.functionSuffix(kernel)
 
     return kStr
@@ -1246,9 +1256,16 @@ class KernelWriter:
   ##############################################################################
   def functionSignatureSuffix(self, kernel):
     s = ""
-    s += " {" + self.endLine
     if self.language == "HIP":
       s += "#pragma clang diagnostic pop" + self.endLine
+    return s
+
+  ##############################################################################
+  # Function Begin
+  ##############################################################################
+  def functionBegin(self, kernel):
+    s = ""
+    s += " {" + self.endLine
     return s
 
   ##############################################################################
@@ -1743,6 +1760,48 @@ class KernelWriter:
     return kStr
 
   ##############################################################################
+  # Global Read Addresses: Increments A
+  ##############################################################################
+  def graIncrementsA(self, kernel, loopIdx):
+    kStr = ""
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    kStr += "%s%s globalReadIncA%s = (%s)strideA%s" \
+        % (self.indent, self.int64Str, loopChar, \
+        self.int64Str, loopChar)
+    if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+      kStr += "*DEPTHU"
+    else:
+      for j in range(i+1, \
+          min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
+        tmpChar = self.indexChars[ \
+            kernel["ProblemType"]["IndicesSummation"][j]]
+        kStr += " - strideA%s*size%s" % (tmpChar, tmpChar)
+    kStr += ";" + self.endLine
+    return kStr
+
+  ##############################################################################
+  # Global Read Addresses: Increments B
+  ##############################################################################
+  def graIncrementsB(self, kernel, loopIdx):
+    kStr = ""
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    kStr += "%s%s globalReadIncB%s = (%s)strideB%s" \
+        % (self.indent, self.int64Str, loopChar, \
+        self.int64Str, loopChar)
+    if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+      kStr += "*DEPTHU"
+    else:
+      for j in range(i+1, \
+          min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
+        tmpChar = self.indexChars[ \
+            kernel["ProblemType"]["IndicesSummation"][j]]
+        kStr += " - strideB%s*size%s" % (tmpChar, tmpChar)
+    kStr += ";" + self.endLine
+    return kStr
+
+  ##############################################################################
   # Local Write Addresses: Tile Assignment A
   ##############################################################################
   def lwaTileAssignmentA(self, kernel):
@@ -2088,39 +2147,22 @@ class KernelWriter:
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
           if self.readTileDimVectorA or self.readUnrollDimVectorA:
-            kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadA_%u_%u%s) + ((%s) strideA%s)" \
+            kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadA_%u_%u%s) + globalReadIncA%s);%s" \
                 % (self.indent, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsA \
                 or self.readUnrollDimComponentsA) else ""), \
                 self.globalPtrStr, self.globalPtrStr, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsA \
                 or self.readUnrollDimComponentsA) else ""), \
-                self.int64Str, loopChar)
-            if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-              kStr += "*DEPTHU"
-            else:
-              for j in range(i+1, \
-                  min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-                tmpChar = self.indexChars[ \
-                    kernel["ProblemType"]["IndicesSummation"][j]]
-                kStr += " - strideA" + tmpChar + "*size" + tmpChar
-            kStr += ");" + self.endLine
+                loopChar, self.endLine)
           else:
-            kStr += "%sglobalReadA_%u_%u%s += (%s) (strideA%s%s)" \
+            kStr += "%sglobalReadA_%u_%u%s += globalReadIncA%s%s;%s" \
                 % (self.indent, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsA \
                 or self.readUnrollDimComponentsA) else ""), \
-                self.int64Str, loopChar, "" if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else "/VECTOR_WIDTH")
-            if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-              kStr += "*DEPTHU"
-            else:
-              for j in range(loopIdx+1, \
-                  min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-                tmpChar = self.indexChars[ \
-                    kernel["ProblemType"]["IndicesSummation"][j]]
-                kStr += " - strideA" + tmpChar + "*size" + tmpChar
-            kStr += ";" + self.endLine
+                loopChar, "" if (self.readTileDimComponentsA \
+                or self.readUnrollDimComponentsA) else "/VECTOR_WIDTH", \
+                self.endLine)
     return kStr
 
   ##############################################################################
@@ -2134,41 +2176,22 @@ class KernelWriter:
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numReadVectorComponentsB):
           if self.readTileDimVectorB or self.readUnrollDimVectorB:
-            kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + ((%s) strideB%s)" \
+            kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + globalReadIncB%s);%s" \
                 % (self.indent, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsB \
                 or self.readUnrollDimComponentsB) else ""), \
                 self.globalPtrStr, self.globalPtrStr, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsB \
                 or self.readUnrollDimComponentsB) else ""), \
-                self.int64Str, loopChar )
-            if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-              kStr += "*DEPTHU"
-            else:
-              for j in range(i+1,min(i+2, \
-                  kernel["ProblemType"]["NumIndicesSummation"]) ):
-                tmpChar = \
-                    self.indexChars[ \
-                    kernel["ProblemType"]["IndicesSummation"][j]]
-                kStr += " - strideB" + tmpChar + "*size" + tmpChar
-            kStr += ");" + self.endLine
+                loopChar, self.endLine )
           else:
-            kStr += "%sglobalReadB_%u_%u%s += (%s) (strideB%s%s)" \
+            kStr += "%sglobalReadB_%u_%u%s += globalReadIncB%s%s;%s" \
                 % (self.indent, para, perp, \
                 (("_s%u"%s) if (self.readTileDimComponentsB \
                 or self.readUnrollDimComponentsB) else ""), \
                 self.int64Str, loopChar, "" if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else "/VECTOR_WIDTH")
-            if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-              kStr += "*DEPTHU"
-            else:
-              for j in range(loopIdx+1,min(loopIdx+2, \
-                  kernel["ProblemType"]["NumIndicesSummation"]) ):
-                tmpChar = \
-                    self.indexChars[ \
-                    kernel["ProblemType"]["IndicesSummation"][j]]
-                kStr += " - strideB" + tmpChar + "*size" + tmpChar
-            kStr += ";" + self.endLine
+                or self.readUnrollDimComponentsB) else "/VECTOR_WIDTH", \
+                self.endLine)
     return kStr
 
   ##############################################################################
@@ -2766,15 +2789,19 @@ class KernelWriter:
     return kStr
 
   ##############################################################################
+  # Function End
+  ##############################################################################
+  def functionEnd(self, kernel):
+    kStr = ""
+    kStr += self.endLine
+    kStr += "}" + self.endLine
+    return kStr
+
+  ##############################################################################
   # Function Suffix
   ##############################################################################
   def functionSuffix(self, kernel):
     kStr = ""
-    kStr += self.endLine
-    kStr += "}" + self.endLine
-
-    ####################################
-    # undefine definitions if merged
     if globalParameters["MergeFiles"] and self.language == "HIP":
       kStr += "#undef UNROLL%s" % self.endLine
       kStr += "#undef SPLITU%s" % self.endLine
