@@ -3,7 +3,7 @@ from Common import globalParameters, HR, print1, print2, printExit, ensurePath, 
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
-from KernelWriter import KernelWriter
+from KernelWriterSource import KernelWriterSource
 
 import os
 import os.path
@@ -101,6 +101,8 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+    else:
+      kernelHeaderFile.write("#include <string>\n")
   for kernel in kernels:
     # get kernel name
     if not globalParameters["MergeFiles"]:
@@ -337,7 +339,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriter( \
+  kernelWriter = KernelWriterSource( \
       kernelMinNaming, kernelSerialNaming)
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
@@ -475,7 +477,7 @@ def TensileCreateLibrary():
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriter( \
+  kernelWriter = KernelWriterSource( \
       kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels

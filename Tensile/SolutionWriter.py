@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import Solution, DataType
-from KernelWriter import KernelWriter
+from KernelWriterSource import KernelWriterSource
 from Common import globalParameters, print2
 
 ################################################################################
@@ -40,7 +40,7 @@ class SolutionWriter:
     self.solutionSerialNaming = solutionSerialNaming
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
-    self.kernelWriter = KernelWriter( kernelMinNaming, kernelSerialNaming)
+    self.kernelWriter = KernelWriterSource( kernelMinNaming, kernelSerialNaming)
 
     self.streamName = "hipStream_t" if self.language == "HIP" \
         else "cl_command_queue"
