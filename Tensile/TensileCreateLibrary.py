@@ -24,6 +24,7 @@ from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
+from KernelWriterAssembly import KernelWriterAssembly
 
 import os
 import os.path
@@ -633,8 +634,12 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)

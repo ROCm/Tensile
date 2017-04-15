@@ -216,6 +216,13 @@ defaultAnalysisParameters = {
 
 
 ################################################################################
+# Kernel Language Belongs to Source or Assembly?
+################################################################################
+def kernelLanguageIsSource():
+  return globalParameters["KernelLanguage"] \
+      in ["OCL", "HIP"]
+
+################################################################################
 # Searching Nested Lists / Dictionaries
 ################################################################################
 # param name in structures?

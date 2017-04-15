@@ -40,6 +40,7 @@ class SolutionWriter:
     self.solutionSerialNaming = solutionSerialNaming
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
+    # only using getKernelName from KernelWriter so child doesn't matter
     self.kernelWriter = KernelWriterSource( kernelMinNaming, kernelSerialNaming)
 
     self.streamName = "hipStream_t" if self.language == "HIP" \

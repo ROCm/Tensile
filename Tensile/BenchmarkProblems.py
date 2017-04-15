@@ -32,6 +32,7 @@ from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
+from KernelWriterAssembly import KernelWriterAssembly
 from ClientWriter import writeRunScript, writeClientParameters
 from TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 import YAMLIO
@@ -380,8 +381,12 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   writeSolutionsAndKernels( \

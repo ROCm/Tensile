@@ -36,49 +36,67 @@ class KernelWriterAssembly(KernelWriter):
     super(KernelWriterAssembly, self).__init__( \
         kernelMinNaming, kernelSerialNaming)
 
-    if self.language == "OCL":
-      # everything escaped extra b/c string
-      self.endLine = "\\n\"\n\""
-      self.endLinePP = "\\\\" + self.endLine
-    else:
-      self.endLine = "\n"
-      self.endLinePP =  "\\" + self.endLine
+    self.versionMajor = self.language[3]
+    self.versionMinor = self.language[4]
+    self.versionPatch = self.language[5]
+    print1("Generating assembly for gfx-%s:%s:%s\n" \
+        % (self.versionMajor, self.versionMinor, self.versionPatch) )
 
-    if self.language == "OCL":
-      self.getGroupIdStr = "get_group_id"
-      self.getNumGroupsStr = "get_num_groups"
-      self.getLocalIdStr = "get_local_id"
-      self.getGlobalIdStr = "get_global_id"
-      self.sharedDeclStr = "__local "
-      self.sharedPtrStr = "__local "
-      self.globalPtrStr = "__global "
-      self.syncStr = "barrier(CLK_LOCAL_MEM_FENCE);"
-      self.fenceStr = "mem_fence(CLK_LOCAL_MEM_FENCE);"
-      self.macFStr = "mad"
-      self.macDStr = "mad"
-      self.int64Str = "long"
-      self.uint64Str = "unsigned long"
-      self.vectorComponents = ["s0", "s1", "s2", "s3"]
-    else:
-      self.getGroupIdStr = "hc_get_group_id"
-      self.getNumGroupsStr = "hc_get_num_groups"
-      self.getLocalIdStr = "hc_get_workitem_id"
-      self.getGlobalIdStr = "hc_get_workitem_absolute_id"
-      self.sharedDeclStr = "__shared__ "
-      self.sharedPtrStr = ""
-      self.globalPtrStr = ""
-      self.syncStr = "__syncthreads();"
-      self.fenceStr = self.syncStr
-      self.macFStr = "fmaf"
-      self.macDStr = "fma"
-      self.int64Str = "int64_t"
-      self.uint64Str = "uint64_t"
-      self.vectorComponents = ["x", "y", "z", "w"]
+    ########################################
+    # available memory instructions in order of preference
+    # name,
+    # num addresses,
+    # num offsets,
+    # offset multiplier,
+    # bit width
+    self.memoryArchitecture = {
+        ["LocalRead"]: [
+          ["ds_read_b128",        1, 1,   4, 128],
+          ["ds_read2st64_b64",    1, 2, 128,  64],
+          ["ds_read2_b64",        1, 2,   2,  64],
+          ["ds_read_b64",         1, 1,   2,  64],
+          ["ds_read2st64_b32",    1, 2,  64,  32],
+          ["ds_read2_b32",        1, 2,   1,  32],
+          ["ds_read_b32",         1, 1,   1,  32] ],
+        ["LocalWrite"]: [
+          ["ds_write_b128",       1, 1,   4, 128],
+          ["ds_write2st64_b64",   1, 2, 128,  64],
+          ["ds_write2_b64",       1, 2,   2,  64],
+          ["ds_write_b64",        1, 1,   2,  64],
+          ["ds_write2st64_b32",   1, 2,  64,  32],
+          ["ds_write2_b32",       1, 2,   1,  32],
+          ["ds_write_b32",        1, 1,   1,  32] ],
+        ["GlobalRead"]: [
+          ["flat_load_dwordx4",   1, 1,   0, 128],
+          ["flat_load_dwordx2",   1, 1,   0,  64],
+          ["flat_load_dword",     1, 1,   0,  32] ],
+        ["GlobalWrite"]: [
+          ["flat_store_dwordx4",  1, 1,   0, 128],
+          ["flat_store_dwordx2",  1, 1,   0,  64],
+          ["flat_store_dword",    1, 1,   0,  32] ]
+        }
 
+    # Supported AMD Graphics Architectures
+    # gfx701 - Hawaii
+    # gfx801 - Carrizo
+    # gfx802 - Tonga
+    # gfx803 - Fiji
+    """
+    for b64, offset is how many b64's to skip, now how many b32's to skip
+ds_read_b32: read single word, 16-bit offset = 65536
+ds_read_b64: read 2 adjacent words, 16-bit offset = 65536*2
+ds_read2_b32: read 2 words diff addr, 8-it offsets = 256
+ds_read2_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
+ds_read2st64_b32: read 2 words diff addr, 8-it offsets = 256
+ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
+    """
+
+    self.endLine = "\n"
+    self.syncStr = "s_barrier"
     self.commentPrefix = "/*"
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
-    self.indent = "  "
+    self.indent = ""
 
 
   ##############################################################################
@@ -88,63 +106,16 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
 
   ##############################################################################
-  # single line comment
-  ##############################################################################
-  def comment(self, text):
-    s = ""
-    s += self.endLine
-    s += self.indent
-    s += self.commentPrefix
-    s += " %s " % text
-    s += self.commentSuffix
-    s += self.endLine
-    return s
-
-  ##############################################################################
-  # 3-line comment
-  ##############################################################################
-  def comment3(self, text):
-    s = ""
-    s += self.endLine
-    s += self.indent
-    s += self.commentPrefix
-    s += self.commentHR
-    s += self.commentSuffix
-    s += self.endLine
-
-    s += self.indent
-    s += self.commentPrefix
-    s += " %-39s" % text
-    s += self.commentSuffix
-    s += self.endLine
-
-    s += self.indent
-    s += self.commentPrefix
-    s += self.commentHR
-    s += self.commentSuffix
-    s += self.endLine
-    return s
-
-  ##############################################################################
-  # Open String
+  # Open String - DONE
   ##############################################################################
   def openString(self, kernel):
-    kStr = ""
-    if self.language == "OCL":
-      kernelName = self.getKernelName(kernel)
-      kStr += "\n"
-      kStr += "std::string %s_src_%u = \"" % (kernelName, self.stringIdx)
-    return kStr
+    return ""
 
   ##############################################################################
-  # Close String
+  # Close String - DONE
   ##############################################################################
   def closeString(self, kernel):
-    kStr = ""
-    if self.language == "OCL":
-      kStr += "\";\n"
-      self.stringIdx += 1
-    return kStr
+    return ""
 
   ##############################################################################
   # Function Prefix
@@ -153,95 +124,334 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     ####################################
+    # register allocation
+    # choosing instructions
+    ####################################
+    self.instructions = {}
+
+    # registers per element
+    self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
+    #self.bpe = self.rpe * 32
+    #self.bpv = self.bpe * kernel["VectorWidth"] # this is how many bits
+    # wide each read/write would be without read2
+    #print1("BytesPerVector: %u"% self.pbv)
+
+    # registers per global address
+    self.rpga = 2 # 64-bit
+    # registers per local address
+    self.rpla = 1 # 32-bit
+
+    ########################################
+    # multiply-accumulate
+    numRegC = kernel["ThreadTile0"]*kernel["ThreadTile1"] * self.rpe
+    numRegValuA = kernel["ThreadTile0"] * self.rpe
+    numRegValuB = kernel["ThreadTile0"] * self.rpe
+    numRegValuBlkA = numRegValuA if kernel["PrefetchLocalRead"] else 0
+    numRegValuBlkB = numRegValuB if kernel["PrefetchLocalRead"] else 0
+
+    ########################################
+    # local read a
+    self.numLocalReadVectorsA = kernel["ThreadTile0"] / kernel["VectorWidth"]
+    self.localReadVectorStrideA = kernel["MacroTile0"] / kernel["VectorWidth"]
+    # within the same unroll
+
+    # CombineAllowed = (nLRVA > 1 and LocalRead2=-1,1)
+    combineA = self.numLocalReadVectorsA > 1 and kernel["LocalRead2"] != 0
+
+"""
+strategy:
+  what is the offset in regs from one read address to the next same iter
+  what is the max offset in regs we need (last reg address in last iter - first reg address in first iter)
+for each read instruction
+  what is the max offset in number (maxOffsetRegs/4 for b128)
+  what is the max offset supported by instruction
+  numAddresses = maxOffsetNumber / maxOffsetSupported
+  if it succeeds
+    read instruction name
+    how many different addresses will we need
+"""
+
+    # attempt ds_read_b128
+    if "ds_read_b128" in self.architecture and self.bpv >= 128:
+      self.instructions["LocalReadA"] = "ds_read_b32"
+      self.localReadBitsA = 128
+      self.localRead2A = 16
+
+  # if bpv >= 128 and instruction exists
+  # 4+x4+ microtile of float4
+  # 2+x2+ microtile of double2
+  # 2+x2+ microtile of CS2
+  # 1+x1+ microtile of CD2
+
+# attempt ds_read2_b64
+  # if (bpv > 64 or (bpv=64 and CombineAllowed)) and exists and not prior
+  # 2+x2+ microtile of floats
+
+# attempt ds_read_b64
+  # if bpv >= 64 and exists and not prior
+  # 1x1 microtile of doubles
+  # 1x1 microtile of ComplexSingles
+  # 2x2 microtile of float2's
+  # 2+x2+ microtile of doubles but LR2=0
+  # 2+x2+ microtile of ComplexSingles but LR2=0
+  # 4+x4+ microtile of float2's but LR2=0
+
+# attempt ds_read2_b32
+  # if (bpv > 32 or ( bpv=32 and CombineAllowed)) and exists and not prior
+  # 2+x2+ microtile of floats
+
+# attept ds_read_b32
+  # if exists and nor prior
+  # 1x1 microtile of floats
+  # 2+x2+ microtile of floats and LR2=0
+
+# if none assigned, FAIL
+
+
+    if kernel["LocalRead2"] and self.numLocalReadVectorsA > 1:
+      # if read stride is multiple of 64
+      if self.localReadVectorStrideA % 64 == 0:
+        if (kernel["VectorWidth"] == 1 \
+            and "ds_read2st64_b32" in self.architecture ):
+          self.instructions["LocalReadA"] = "ds_read2st64_b32"
+          self.numVectorsPerLocalReadA = 2
+        if (kernel["VectorWidth"] == 2 \
+            and "ds_read2st64_b64" in self.architecture ):
+          self.instructions["LocalReadA"] = "ds_read2st64_b64"
+          self.numVectorsPerLocalReadA = 2
+        if (kernel["VectorWidth"] == 4 \
+            and "ds_read2st64_b128" in self.architecture ):
+          self.instructions["LocalReadA"] = "ds_read2st64_b128"
+          self.numVectorsPerLocalReadA = 2
+      else:
+        # if read stride is not multiple of 64
+        if (kernel["VectorWidth"] == 1 \
+            and "ds_read2_b32" in self.architecture ):
+          self.instructions["LocalReadA"] = "ds_read2_b32"
+          self.numVectorsPerLocalReadA = 2
+        if (kernel["VectorWidth"] == 2 \
+            and "ds_read2_b64" in self.architecture ):
+          self.instructions["LocalReadA"] = "ds_read2_b64"
+          self.numVectorsPerLocalReadA = 2
+        if (kernel["VectorWidth"] == 4 \
+            and "ds_read2_b128" in self.architecture ):
+          self.instructions["LocalReadA"] = "ds_read2_b128"
+          self.numVectorsPerLocalReadA = 2
+    if "LocalReadA" not in self.instructions:
+      if (kernel["VectorWidth"] == 1 \
+          and "ds_read_b32" in self.architecture ):
+        self.instructions["LocalReadA"] = "ds_read_b32"
+        self.numVectorsPerLocalReadA = 1
+      if (kernel["VectorWidth"] == 2 \
+          and "ds_read_b64" in self.architecture ):
+        self.instructions["LocalReadA"] = "ds_read_b64"
+        self.numVectorsPerLocalReadA = 1
+      if kernel["VectorWidth"] == 4:
+        if "ds_read_b128" in self.architecture:
+          self.instructions["LocalReadA"] = "ds_read_b128"
+          self.numVectorsPerLocalReadA = 1
+        elif "ds_read2_b64" in self.architecture:
+          self.instructions["LocalReadA"] = "ds_read2_b64"
+          self.numVectorsPerLocalReadA = 1
+    if "LocalReadA" not in self.instructions:
+      printWarning("LocalReadA: no suitable instruction found")
+    numLocalReadInstructionsA = numLocalReadVectorsA / numVectorsPerLocalReadA
+    numRegLocalReadAddressesA = numLocalReadInstructionsA * self.rpla
+
+    numLocalReadAddressesA = 1 # all offsets hardcoded
+    numLocalReadAddressRegsA = numLocalReadAddressesA * self.rpla
+
+LocalRead2A = -1, 0, 1
+LocalReadIncrementA = False, True
+# TODO: option: when offset bits aren't sufficient, do we use VALU to
+# increment address or do we use extra registers to store addresses?
+# (1) read1 and aways have sufficient offset bits
+# (2) read2 and if insufficient offset bits then IncrementAndReset
+# (3) read2 and if insufficient offset bits then AllocateAdditionalAddresses
+
+    ########################################
+    # local read b
+    numLocalReadAddressesB = 1 # all offsets hardcoded
+    numLocalReadAddressRegsB = numLocalReadAddressesB * self.rpla
+
+    ########################################
+    # TODO registers used for local read increments, resets
+    # in case I don't have enough offset bits when read2
+    # do I need any, or can it be completely hardcoded
+    # hardcode the mod value, or in sgpr
+
+    ########################################
+    # local write a
+# TODO: option: when offset bits aren't sufficient, do we use VALU to
+# increment address or do we use extra registers to store addresses?
+# (1) write1 and aways have sufficient offset bits
+# (2) write2 and if insufficient offset bits then IncrementAndReset
+# (3) write2 and if insufficient offset bits then AllocateAdditionalAddresses
+
+    # CombineAllowed = (nLRVA > 1 and LocalRead2=-1,1)
+    combineA = self.numLocalReadVectorsA > 1 and kernel["LocalRead2"] != 0
+
+    # attempt ds_read_b128
+    if "ds_read_b128" in self.architecture and self.bpv >= 128:
+      self.instructions["LocalReadA"] = "ds_read_b32"
+      self.localReadBits = 128
+
+  # if bpv >= 128 and instruction exists
+  # 4+x4+ microtile of float4
+  # 2+x2+ microtile of double2
+  # 2+x2+ microtile of CS2
+  # 1+x1+ microtile of CD2
+
+# attempt ds_read2_b64
+  # if (bpv > 64 or (bpv=64 and CombineAllowed)) and exists and not prior
+  # 2+x2+ microtile of floats
+
+# attempt ds_read_b64
+  # if bpv >= 64 and exists and not prior
+  # 1x1 microtile of doubles
+  # 1x1 microtile of ComplexSingles
+  # 2x2 microtile of float2's
+  # 2+x2+ microtile of doubles but LR2=0
+  # 2+x2+ microtile of ComplexSingles but LR2=0
+  # 4+x4+ microtile of float2's but LR2=0
+
+# attempt ds_read2_b32
+  # if (bpv > 32 or ( bpv=32 and CombineAllowed)) and exists and not prior
+  # 2+x2+ microtile of floats
+
+# attept ds_read_b32
+  # if exists and nor prior
+  # 1x1 microtile of floats
+  # 2+x2+ microtile of floats and LR2=0
+
+# if none assigned, FAIL
+
+
+
+
+
+
+
+
+
+
+    numLocalWriteVectorsA = kernel["NumLoadsPerpendicularA"] \
+        * kernel["NumLoadsCoalescedA"] * NumWriteVectorComponentsA * self.rpla
+    if kernel["LocalWrite2"] < 0:
+      # combine local writes in tile dimension
+      self.localWriteVectorTileStrideA = -1
+      pass
+    elif kernel["LocalWrite2"] > 0:
+      # combine local writes in unroll dimension
+      self.localWriteVectorUnrollStrideA = -1
+      pass
+    else:
+      # don't combine local writes
+      if (kernel["VectorWidth"] == 1 \
+          and "ds_write_b32" in self.architecture):
+        self.instructions["LocalWriteA"] = "ds_write_b32"
+      if (kernel["VectorWidth"] == 2 \
+          and "ds_write_b64" in self.architecture):
+        self.instructions["LocalWriteA"] = "ds_write_b64"
+      numVectorsPerLocalWriteA = 1
+
+    numLocalWriteInstructionsA = numLocalWriteVectorsB \
+        / numVectorsPerLocalWriteA
+    numRegLocalWriteAddressesA = numLocalWriteInstructionsA * self.rpla
+
+    # registers used for global load increments
+
+    # registers used for global load elements
+
+    # registers used for global load addresses
+
+    kStr += ".set vC 0%s" % self.endLine
+    kStr += ".set vA %s%s" % (numReg, self.endLine)
+
+
+    ####################################
     # kernel preprocessor definitions
-    kStr += self.endLine
-    kStr += "/* tile parameters */" + self.endLine
-    kStr += "#define NUM_THREADS %3d%s" \
+    kStr += self.comment("tile parameters")
+    kStr += ".set NUM_THREADS %3d%s" \
         % (kernel["NumThreads"], self.endLine )
-    kStr += "#define SG%s %d%s" \
+    kStr += ".set SG%s %d%s" \
         % (self.tileChar0, kernel["SubGroup0"], self.endLine )
-    kStr += "#define SG%s %d%s" \
+    kStr += ".set SG%s %d%s" \
         % (self.tileChar1, kernel["SubGroup1"], self.endLine )
-    kStr += "#define TT%s %d%s" \
+    kStr += ".set TT%s %d%s" \
         % (self.tileChar0, kernel["ThreadTile0"], self.endLine )
-    kStr += "#define TT%s %d%s" \
+    kStr += ".set TT%s %d%s" \
         % (self.tileChar1, kernel["ThreadTile1"], self.endLine )
-    kStr += "#define MT%s (SG%s*TT%s)%s" \
+    kStr += ".set MT%s (SG%s*TT%s)%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine )
-    kStr += "#define MT%s (SG%s*TT%s)%s" \
+    kStr += ".set MT%s (SG%s*TT%s)%s" \
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
-    kStr += self.endLine
-    kStr += "/* DepthU parameters*/%s" % self.endLine
-    kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
+    kStr += self.comment("DepthU parameters")
+    kStr += ".set CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
     kStr += "#define SPLITU %d%s" \
         % (kernel["LocalSplitU"], self.endLine )
     kStr += "#define UNROLL %d%s" \
         % (kernel["LoopUnroll"], self.endLine )
-    kStr += "#define DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
-    kStr += self.endLine
-    kStr += "/* other */%s" % self.endLine
-    kStr += "#define PAD %u%s" % (kernel["LdsPad"], self.endLine)
-    kStr += "#define WORK_GROUP_MAPPING %u%s" % (abs(kernel["WorkGroupMapping"]), self.endLine)
-    kStr += "#define VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
-    kStr += self.endLine
+    kStr += ".set DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
+    kStr += self.comment("other")
+    kStr += ".set PAD %u%s" % (kernel["LdsPad"], self.endLine)
+    kStr += ".set WORK_GROUP_MAPPING %u%s" % (abs(kernel["WorkGroupMapping"]), self.endLine)
+    kStr += ".set VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
 
     ####################################
     # num loads
-    kStr += "/* num loads parallel and perpendicular to coalesced */" + self.endLine
-    kStr += "#define NLCA %d%s" % (kernel["NumLoadsCoalescedA"], self.endLine )
-    kStr += "#define NLCB %d%s" % (kernel["NumLoadsCoalescedB"], \
+    kStr += self.comment("num loads parallel and perpendicular to coalesced")
+    kStr += ".set NLCA %d%s" % (kernel["NumLoadsCoalescedA"], self.endLine )
+    kStr += ".set NLCB %d%s" % (kernel["NumLoadsCoalescedB"], \
         self.endLine )
 
-    kStr += "#define NLPA %d%s" % (kernel["NumLoadsPerpendicularA"], \
+    kStr += ".set NLPA %d%s" % (kernel["NumLoadsPerpendicularA"], \
         self.endLine )
-    kStr += "#define NLPB %d%s" % (kernel["NumLoadsPerpendicularB"], \
+    kStr += ".set NLPB %d%s" % (kernel["NumLoadsPerpendicularB"], \
         self.endLine )
-    kStr += self.endLine
 
     ####################################
     # load sizes
-    kStr += "/* load sizes parallel and perpendicular to coalesced */%s" % self.endLine
+    kStr += self.comment("load sizes parallel and perpendicular to coalesced")
     if kernel["ProblemType"]["TLUA"]:
-      kStr += "#define LSCA (MT%s/NLCA)%s" \
+      kStr += ".set LSCA (MT%s/NLCA)%s" \
           % (self.tileCharA, self.endLine)
-      kStr += "#define LSPA (DEPTHU/NLPA)" + self.endLine
+      kStr += ".set LSPA (DEPTHU/NLPA)" + self.endLine
     else:
-      kStr += "#define LSCA (DEPTHU/NLCA)%s" \
+      kStr += ".set LSCA (DEPTHU/NLCA)%s" \
           % (self.endLine)
-      kStr += "#define LSPA (MT%s/NLPA)%s" \
+      kStr += ".set LSPA (MT%s/NLPA)%s" \
           % ( self.tileCharA, self.endLine)
     if kernel["ProblemType"]["TLUB"]:
-      kStr += "#define LSCB (MT%s/NLCB)%s" \
+      kStr += ".set LSCB (MT%s/NLCB)%s" \
           % (self.tileCharB, self.endLine)
-      kStr += "#define LSPB (DEPTHU/NLPB)" + self.endLine
+      kStr += ".set LSPB (DEPTHU/NLPB)" + self.endLine
     else:
-      kStr += "#define LSCB (DEPTHU/NLCB)%s" \
+      kStr += ".set LSCB (DEPTHU/NLCB)%s" \
           % (self.endLine)
-      kStr += "#define LSPB (MT%s/NLPB)%s" % (self.tileCharB, self.endLine)
-    kStr += "#define LVCA (LSCA/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += "#define LVCB (LSCB/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += "#define LVPA (LSPA/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += "#define LVPB (LSPB/VECTOR_WIDTH)%s" % (self.endLine)
-
+      kStr += ".set LSPB (MT%s/NLPB)%s" % (self.tileCharB, self.endLine)
+    kStr += ".set LVCA (LSCA/VECTOR_WIDTH)%s" % (self.endLine)
+    kStr += ".set LVCB (LSCB/VECTOR_WIDTH)%s" % (self.endLine)
+    kStr += ".set LVPA (LSPA/VECTOR_WIDTH)%s" % (self.endLine)
+    kStr += ".set LVPB (LSPB/VECTOR_WIDTH)%s" % (self.endLine)
 
     # local buffer size
-    kStr += "#define LDS_OFFSET_B %u%s" % (kernel["LdsOffsetB"], self.endLine)
-    kStr += "#define LDS_NUM_ELEMENTS %u%s" % (kernel["LdsNumElements"], \
+    kStr += ".set LDS_OFFSET_B %u%s" % (kernel["LdsOffsetB"], self.endLine)
+    kStr += ".set LDS_NUM_ELEMENTS %u%s" % (kernel["LdsNumElements"], \
         self.endLine)
 
     # prefetch local buffer offsets
     # layout is redA, redB, blkA, blkB
     if kernel["PrefetchGlobalRead"]:
-      kStr += "#define LDS_OFFSET_BLK %u%s" \
+      kStr += ".set LDS_OFFSET_BLK %u%s" \
           % (kernel["LdsOffsetA_Blk"], self.endLine)
 
     ####################################
     # global memory indices
-    kStr += self.endLine
-    kStr += "/* global memory indices */" + self.endLine
+    kStr += self.comment("global memory indices")
     # C
-    kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
+    kStr += ".set GLOBAL_C(IDX%s" % self.indexChars[0]
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
@@ -251,7 +461,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
     # A non-vector
-    kStr += "#define GLOBAL_OFFSET_A(IDX%s" \
+    kStr += ".set GLOBAL_OFFSET_A(IDX%s" \
         % self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
       kStr += ", IDX%s" \
@@ -263,7 +473,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += " + (IDX%s)*strideA%s" % (indexChar, indexChar)
     kStr += " ))%s" % self.endLine
     # B non-vector
-    kStr += "#define GLOBAL_OFFSET_B(IDX%s" \
+    kStr += ".set GLOBAL_OFFSET_B(IDX%s" \
         % self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
     for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
       kStr += ", IDX%s" \
@@ -274,126 +484,122 @@ class KernelWriterAssembly(KernelWriter):
       indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
       kStr += " + (IDX%s)*strideB%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
-    kStr += self.endLine
 
     ####################################
     # data types
-    kStr += "/* data types */" + self.endLine
-    kStr += "#define DATA_TYPE %s%s" \
+    kStr += self.comment("data types")
+    kStr += ".set DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
     vecStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     if kernel["VectorWidth"] > 1:
       vecStr += str(kernel["VectorWidth"])
-    kStr += "#define VECTOR_TYPE %s%s" % (vecStr, self.endLine)
+    kStr += ".set VECTOR_TYPE %s%s" % (vecStr, self.endLine)
 
     if self.language == "OCL":
-      kStr += "#define MAD(A,B,DST) mad(A,B,DST)"
+      kStr += ".set MAD(A,B,DST) mad(A,B,DST)"
     else:
-      kStr += "#define MAD(A,B,DST) DST += A*B"
-    kStr += self.endLine
-
-    if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
-      kStr += "#define s0 x" + self.endLine
-      kStr += "#define s1 y" + self.endLine
+      kStr += ".set MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
 
     ####################################
     # MACs
-    kStr += "/* MAC's */" + self.endLine
+    """
+    kStr += self.comment("MAC's")
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
-      kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
+      kStr += ".set TYPE_MAC(MULA,MULB,DST) " \
           + "DST = MAD(MULA,MULB,DST);" + self.endLine
       if kernel["ProblemType"]["UseBeta"]:
         # dst = alpha*reg + beta*dst
-        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
+        kStr += ".set TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
             + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
       else:
         # dst = alpha*reg
-        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) " \
+        kStr += ".set TYPE_MAC_WRITE(DST,ALPHA,REG) " \
             + "DST = (ALPHA)*(REG);" + self.endLine
     else:
       # complex data
       if not kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
         # neither conjugate
         kStr += (
-          "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
+          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLine +
+          "  DST.s0 = MAD( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLine +
+          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLine +
           "  DST.s1 = MAD(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
         # A conjugate (negate imaginary A.s1)
         kStr += (
-          "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
+          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLine +
+          "  DST.s0 = MAD(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLine +
+          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLine +
           "  DST.s1 = MAD( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif not kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]:
         # B conjugate (negate imaginary B.s1)
         kStr += (
-          "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
+          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLine +
+          "  DST.s0 = MAD( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLine +
+          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLine +
           "  DST.s1 = MAD(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       else:
         # A & B conjugate (negate imaginary .s1)
         kStr += (
-          "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
+          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLine +
+          "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLine +
+          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLine +
           "  DST.s1 = MAD( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       if kernel["ProblemType"]["UseBeta"]:
         # dst = alpha*reg + beta*dst
         kStr += (
-          "#define TYPE_MAC_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
-          "  /* (1) */ " + self.endLinePP +
-          "  type_mac_tmp = REG.s0; " + self.endLinePP +
-          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
-          "  /* (2) */ " + self.endLinePP +
-          "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-          "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
-          "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
-          "  /* (3) */ " + self.endLinePP +
+          ".set TYPE_MAC_WRITE( DST, ALPHA, REG, BETA ) "+self.endLine +
+          "  /* (1) */ " + self.endLine +
+          "  type_mac_tmp = REG.s0; " + self.endLine +
+          "  REG.s0 *= ALPHA.s0; " + self.endLine +
+          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLine +
+          "  REG.s1 *= ALPHA.s0; " + self.endLine +
+          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLine+
+          "  /* (2) */ " + self.endLine +
+          "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLine +
+          "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLine +
+          "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLine +
+          "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLine +
+          "  /* (3) */ " + self.endLine +
           "  DST = REG;" + self.endLine )
       else:
         # dst = alpha*reg
         kStr += (
-          "#define TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLinePP+
-          "  /* (1) */ " + self.endLinePP +
-          "  type_mac_tmp = REG.s0; " + self.endLinePP +
-          "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
-          "  /* (3) */ " + self.endLinePP +
+          ".set TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLine+
+          "  /* (1) */ " + self.endLine +
+          "  type_mac_tmp = REG.s0; " + self.endLine +
+          "  REG.s0 *= ALPHA.s0; " + self.endLine +
+          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLine +
+          "  REG.s1 *= ALPHA.s0; " + self.endLine +
+          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLine+
+          "  /* (3) */ " + self.endLine +
           "  DST = REG;" + self.endLine )
+    """
 
     ####################################
     # sumation unroll
-    kStr += self.endLine
-    kStr += "/* %dx%d micro-tile */%s" % (kernel["ThreadTile0"], kernel["ThreadTile1"], self.endLine)
+    kStr += self.comment("%dx%d micro-tile" \
+        % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
     numMacs = 2 if kernel["PrefetchLocalRead"] else 1
 
     for m in range(0, numMacs):
-      kStr += "#define MAC_%ux%u" \
+      kStr += ".set MAC_%ux%u" \
           % (kernel["ThreadTile0"], kernel["ThreadTile1"])
       if kernel["PrefetchLocalRead"]:
         kStr += ("" if m==0 else "_BLK")
-      kStr += self.endLinePP
+      kStr += self.endLine
 
       """
     if False:
       if kernel["VectorWidth"] == 1:
-        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLinePP)
+        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLine)
       if kernel["VectorWidth"] == 2:
         kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].%s, rA[0].%s, rA[1].%s, rA[1].%s, rA[2].%s, rA[2].%s, rA[3].%s, rA[3].%s, rB[0].%s, rB[0].%s, rB[1].%s, rB[1].%s, rB[2].%s, rB[2].%s, rB[3].%s, rB[3].%s); %s" % ( \
             self.vectorComponents[0], self.vectorComponents[1], \
@@ -404,7 +610,7 @@ class KernelWriterAssembly(KernelWriter):
             self.vectorComponents[0], self.vectorComponents[1], \
             self.vectorComponents[0], self.vectorComponents[1], \
             self.vectorComponents[0], self.vectorComponents[1], \
-            self.endLinePP)
+            self.endLine)
       if kernel["VectorWidth"] == 4:
         kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].%s, rA[0].%s, rA[0].%s, rA[0].%s, rA[1].%s, rA[1].%s, rA[1].%s, rA[1].%s, rB[0].%s, rB[0].%s, rB[0].%s, rB[0].%s, rB[1].%s, rB[1].%s, rB[1].%s, rB[1].%s); %s" % ( \
             self.vectorComponents[0], self.vectorComponents[1], \
@@ -415,9 +621,10 @@ class KernelWriterAssembly(KernelWriter):
             self.vectorComponents[2], self.vectorComponents[3], \
             self.vectorComponents[0], self.vectorComponents[1], \
             self.vectorComponents[2], self.vectorComponents[3], \
-            self.endLinePP)
+            self.endLine)
       """
 
+      """
       for b in range(0, kernel["ThreadTile1"]):
         for a in range(0, kernel["ThreadTile0"]):
           # a
@@ -443,34 +650,34 @@ class KernelWriterAssembly(KernelWriter):
           kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
           """
           kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
-              self.endLinePP)
+              self.endLine)
       kStr += "  " + self.fenceStr + self.endLine
     kStr += self.endLine
+      """
 
     ####################################
     # preprocessor definitions of kernel arguments
     firstStride = 0
     if kernel["ProblemType"]["UseInitialStrides"]:
-      # no strides #defined
+      # no strides .setd
       lastStrideC = 0
       lastStrideA = 0
       lastStrideB = 0
     else:
-      # #define initial stride
-      kStr += "/* hard-coded initial strides */%s" \
-          % self.endLine
+      # .set initial stride
+      kStr += self.comment("hard-coded initial strides")
       lastStrideC = 1
       lastStrideA = 1
       lastStrideB = 1
 
     for i in range(firstStride, lastStrideC):
-      kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
+      kStr += ".set strideC" + self.indexChars[i] + " 1" + self.endLine
     for i in range(firstStride, lastStrideA):
-      kStr += "#define strideA" \
+      kStr += ".set strideA" \
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
           + " 1" + self.endLine
     for i in range(firstStride, lastStrideB):
-      kStr += "#define strideB" \
+      kStr += ".set strideB" \
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
           + " 1" + self.endLine
     kStr += self.endLine
@@ -481,6 +688,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function Signature Prefix
   ##############################################################################
   def functionSignaturePrefix(self, kernel):
+    return ""
     s = ""
     if self.language == "HIP":
       s += "#pragma clang diagnostic push" + self.endLine
@@ -492,6 +700,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function Signature
   ##############################################################################
   def functionSignature(self, kernel ):
+    return ""
     kernelName = self.getKernelName(kernel)
 
     # determine chars for fast access
@@ -573,6 +782,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function Signature Suffix
   ##############################################################################
   def functionSignatureSuffix(self, kernel):
+    return ""
     s = ""
     if self.language == "HIP":
       s += "#pragma clang diagnostic pop" + self.endLine
@@ -582,6 +792,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function Begin
   ##############################################################################
   def functionBegin(self, kernel):
+    return ""
     s = ""
     s += " {" + self.endLine
     return s
@@ -590,9 +801,8 @@ class KernelWriterAssembly(KernelWriter):
   # Allocate Resources
   ##############################################################################
   def allocateResources(self, kernel):
+    return ""
     kStr = ""
-    kStr += self.endLine
-    kStr += "  /* registers for MAC's */" + self.endLine
     kStr += "  VECTOR_TYPE rC[TT%s*TT%s/VECTOR_WIDTH] = {0};%s" \
         % (self.tileChar0, self.tileChar1, self.endLine )
     kStr += "  VECTOR_TYPE rA[TT%s/VECTOR_WIDTH%s];%s" \
@@ -604,8 +814,6 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # registers for global -> local load
-    kStr += self.endLine
-    kStr += "  /* registers for global->local */" + self.endLine
     kStr += "  VECTOR_TYPE "
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -627,8 +835,6 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # allocate local memory
-    kStr += self.endLine
-    kStr += "  /* allocate local memory */" + self.endLine
     kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
     return kStr
@@ -637,6 +843,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Work-Group
   ##############################################################################
   def graWorkGroup(self, kernel):
+    return ""
     kStr = ""
     if kernel["WorkGroupMapping"] == 1:
       kStr += "  unsigned int wg" + self.tileChar0 + " = " \
@@ -688,6 +895,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Subgroup
   ##############################################################################
   def graSubgroup(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int serial = %s(0);%s" \
         % (self.getLocalIdStr, self.endLine)
@@ -699,6 +907,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Tile Assignment A
   ##############################################################################
   def graTileAssignmentA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
         % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
@@ -718,6 +927,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Tile Assignment B
   ##############################################################################
   def graTileAssignmentB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
         % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
@@ -737,6 +947,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Unroll Assignment A
   ##############################################################################
   def graUnrollAssignmentA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
         % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
@@ -755,6 +966,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Unroll Assignment B
   ##############################################################################
   def graUnrollAssignmentB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
         % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
@@ -773,6 +985,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Other Free Assignments
   ##############################################################################
   def graOtherFreeAssignments(self, kernel):
+    return ""
     kStr = ""
     nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
@@ -791,12 +1004,13 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Other Summation Assignments
   ##############################################################################
   def graOtherSummationAssignments(self, kernel):
+    return ""
     kStr = ""
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
       index = i
-      kStr += "#define globalReadOffsetA%s 0%s" \
+      kStr += ".set globalReadOffsetA%s 0%s" \
           % (self.indexChars[index], self.endLine)
-      kStr += "#define globalReadOffsetB%s 0%s" \
+      kStr += ".set globalReadOffsetB%s 0%s" \
           % (self.indexChars[index], self.endLine)
     return kStr
 
@@ -804,6 +1018,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Tile Offsets A
   ##############################################################################
   def graTileOffsetsA(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsTileA):
       if self.readTileDimComponentsA:
@@ -823,6 +1038,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Tile Offsets B
   ##############################################################################
   def graTileOffsetsB(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsTileB):
       if self.readTileDimComponentsB:
@@ -842,6 +1058,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Unroll Offsets A
   ##############################################################################
   def graUnrollOffsetsA(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsUnrollA):
       if self.readUnrollDimComponentsA:
@@ -861,6 +1078,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Unroll Offsets B
   ##############################################################################
   def graUnrollOffsetsB(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsUnrollB):
       if self.readUnrollDimComponentsB:
@@ -880,6 +1098,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Branch A
   ##############################################################################
   def graBranchA(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsTileA):
       gro = "(globalReadOffsetA%s_%u%s)" % (self.tileCharA, l, \
@@ -894,6 +1113,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Branch B
   ##############################################################################
   def graBranchB(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsTileB):
         gro = "(globalReadOffsetB%s_%u%s)" % (self.tileCharB, l, \
@@ -908,6 +1128,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A
   ##############################################################################
   def graShiftA(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsTileA):
       gro = "globalReadOffsetA%s_%u%s" % (self.tileCharA, l, \
@@ -922,6 +1143,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift B
   ##############################################################################
   def graShiftB(self, kernel):
+    return ""
     kStr = ""
     for l in range(0, self.numReadsTileB):
       gro = "globalReadOffsetB%s_%u%s" % (self.tileCharB, l, \
@@ -936,6 +1158,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Final Offsets A
   ##############################################################################
   def graFinalOffsetsA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -981,6 +1204,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Final Offsets B
   ##############################################################################
   def graFinalOffsetsB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1026,6 +1250,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Apply User Offsets
   ##############################################################################
   def graApplyUserOffsets(self, kernel):
+    return ""
     kStr = ""
     kStr += "  C += offsetC;%s" % self.endLine
     kStr += "  A += offsetA;%s" % self.endLine
@@ -1036,6 +1261,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Addresses A
   ##############################################################################
   def graAddressesA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1059,6 +1285,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Addresses B
   ##############################################################################
   def graAddressesB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1081,6 +1308,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Increments A
   ##############################################################################
   def graIncrementsA(self, kernel, loopIdx):
+    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -1102,6 +1330,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Increments B
   ##############################################################################
   def graIncrementsB(self, kernel, loopIdx):
+    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -1123,6 +1352,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Tile Assignment A
   ##############################################################################
   def lwaTileAssignmentA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int lwA%s = (serial%s" \
         % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
@@ -1141,6 +1371,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Tile Assignment B
   ##############################################################################
   def lwaTileAssignmentB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int lwB%s = (serial%s" \
         % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
@@ -1159,6 +1390,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Unroll Assignment A
   ##############################################################################
   def lwaUnrollAssignmentA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int lwA%s = (serial%s" \
         % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
@@ -1177,6 +1409,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Unroll Assignment B
   ##############################################################################
   def lwaUnrollAssignmentB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int lwB%s = (serial%s" \
         % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
@@ -1195,6 +1428,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: First Offset A
   ##############################################################################
   def lwaFirstOffsetA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int localWriteFirstOffsetA = lwA%s + lwA%s*(MT%s+PAD);%s" \
         % (self.tileCharA, self.unrollChar, self.tileCharA, self.endLine)
@@ -1204,6 +1438,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: First Offset B
   ##############################################################################
   def lwaFirstOffsetB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int localWriteFirstOffsetB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (self.tileCharB, self.unrollChar, self.tileCharB, self.endLine)
@@ -1213,6 +1448,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Final Offsets A
   ##############################################################################
   def lwaFinalOffsetsA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1247,6 +1483,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Final Offsets B
   ##############################################################################
   def lwaFinalOffsetsB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1281,6 +1518,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Declare Addresses A
   ##############################################################################
   def lwaDeclareAddressesA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1298,6 +1536,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write Addresses: Declare Addresses B
   ##############################################################################
   def lwaDeclareAddressesB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1315,6 +1554,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read Addresses: Tile Assignment A
   ##############################################################################
   def lraTileAssignmentA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
         % (self.tileChar0, self.tileChar0, self.endLine)
@@ -1324,6 +1564,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read Addresses: Tile Assignment B
   ##############################################################################
   def lraTileAssignmentB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
         % (self.tileChar1, self.tileChar0, self.tileChar1, self.endLine)
@@ -1333,6 +1574,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read Addresses: Final Offset A
   ##############################################################################
   def lraFinalOffsetA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD);%s" \
         % ( self.tileChar0, self.tileChar0, self.endLine)
@@ -1342,6 +1584,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read Addresses: Final Offset B
   ##############################################################################
   def lraFinalOffsetB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (self.tileChar1, self.tileChar1, self.endLine)
@@ -1351,6 +1594,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read Addresses: Declare Addresses A
   ##############################################################################
   def lraDeclareAddressesA(self, kernel):
+    return ""
     kStr = ""
     kStr += "  %sVECTOR_TYPE *localReadA;%s" % (self.sharedPtrStr, self.endLine)
     return kStr
@@ -1359,6 +1603,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read Addresses: Declare Addresses B
   ##############################################################################
   def lraDeclareAddressesB(self, kernel):
+    return ""
     kStr = ""
     kStr += "  %sVECTOR_TYPE *localReadB;%s" % (self.sharedPtrStr, self.endLine)
     return kStr
@@ -1384,6 +1629,7 @@ class KernelWriterAssembly(KernelWriter):
   # Open Loop
   ##############################################################################
   def openLoop(self, kernel, loopIdx):
+    return ""
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -1412,6 +1658,7 @@ class KernelWriterAssembly(KernelWriter):
   # Close Loop
   ##############################################################################
   def closeLoop(self, kernel, loopIdx):
+    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -1428,6 +1675,7 @@ class KernelWriterAssembly(KernelWriter):
   # MAC Iteration
   ##############################################################################
   def macIter(self, kernel, black):
+    return ""
     kStr = ""
     kStr += "%sMAC_%ux%u" % (self.indent, \
         kernel["ThreadTile0"],kernel["ThreadTile1"])
@@ -1440,12 +1688,14 @@ class KernelWriterAssembly(KernelWriter):
   # At Least 1 Unroll
   ##############################################################################
   def openSumAtLeastUnroll(self, kernel):
+    return ""
     kStr = ""
     kStr += "%sif (size%s >= DEPTHU) {%s" \
         % (self.indent, self.unrollChar, self.endLine)
     self.indent += "  "
     return kStr
   def closeSumAtLeastUnroll(self, kernel):
+    return ""
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s}%s" % (self.indent, self.endLine)
@@ -1455,6 +1705,7 @@ class KernelWriterAssembly(KernelWriter):
   # Tail Loop: Num Iter
   ##############################################################################
   def tailLoopNumIter(self, kernel):
+    return ""
     kStr = ""
     kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
@@ -1464,6 +1715,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Increment A
   ##############################################################################
   def globalReadIncrementA(self, kernel, loopIdx):
+    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -1493,6 +1745,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Increment B
   ##############################################################################
   def globalReadIncrementB(self, kernel, loopIdx):
+    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -1522,7 +1775,9 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Do It A
   ##############################################################################
   def globalReadDoA(self, kernel, guardK):
+    return ""
     kStr = ""
+    return kStr
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
@@ -1554,7 +1809,9 @@ class KernelWriterAssembly(KernelWriter):
   # Global Gead: Do It B
   ##############################################################################
   def globalReadDoB(self, kernel, guardK):
+    return ""
     kStr = ""
+    return kStr
     # global read B
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1589,6 +1846,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Swap Offsets A
   ##############################################################################
   def localWriteSwapOffsetsA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1617,6 +1875,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Swap Offsets B
   ##############################################################################
   def localWriteSwapOffsetsB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1645,6 +1904,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Reset Offsets A
   ##############################################################################
   def localWriteResetOffsetsA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1659,6 +1919,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Reset Offsets B
   ##############################################################################
   def localWriteResetOffsetsB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1675,6 +1936,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Init Pointers A
   ##############################################################################
   def localWriteInitPointersA(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1695,6 +1957,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Init Pointers B
   ##############################################################################
   def localWriteInitPointersB(self, kernel):
+    return ""
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1717,6 +1980,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Do It A
   ##############################################################################
   def localWriteDoA(self, kernel):
+    return ""
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
@@ -1741,6 +2005,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Do It B
   ##############################################################################
   def localWriteDoB(self, kernel):
+    return ""
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
@@ -1765,6 +2030,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Swap Offsets A
   ##############################################################################
   def localReadSwapOffsetsA(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadOffsetA = (localReadOffsetA + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
@@ -1774,6 +2040,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Wwap Offsets B
   ##############################################################################
   def localReadSwapOffsetsB(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadOffsetB = (localReadOffsetB + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
@@ -1783,6 +2050,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Reset Offsets A
   ##############################################################################
   def localReadResetOffsetsA(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
         % (self.indent, self.endLine)
@@ -1792,6 +2060,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Reset Offsets B
   ##############################################################################
   def localReadResetOffsetsB(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadOffsetB %%= LDS_OFFSET_BLK;%s" \
         % (self.indent, self.endLine)
@@ -1801,6 +2070,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Init Pointers A
   ##############################################################################
   def localReadInitPointersA(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadA = (%sVECTOR_TYPE *)(localMemory + localReadOffsetA);%s" \
         % (self.indent, self.sharedPtrStr, self.endLine)
@@ -1810,6 +2080,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Init Pointers B
   ##############################################################################
   def localReadInitPointersB(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadB = (%sVECTOR_TYPE *)(localMemory + localReadOffsetB);%s" \
         % (self.indent, self.sharedPtrStr, self.endLine)
@@ -1819,6 +2090,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Increment A
   ##############################################################################
   def localReadIncA(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar0, self.endLine)
@@ -1828,6 +2100,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Increment B
   ##############################################################################
   def localReadIncB(self, kernel):
+    return ""
     kStr = ""
     kStr += "%slocalReadB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar1, self.endLine)
@@ -1837,6 +2110,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Do It A
   ##############################################################################
   def localReadDoA(self, kernel, black):
+    return ""
     kStr = ""
     for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
       kStr += "%srA[%d%s] = localReadA[%d*SG%s]; %s" \
@@ -1849,6 +2123,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Do It B
   ##############################################################################
   def localReadDoB(self, kernel, black):
+    return ""
     kStr = ""
     for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
@@ -1861,6 +2136,7 @@ class KernelWriterAssembly(KernelWriter):
   # Shift Vector Components d0
   ##############################################################################
   def shiftVectorComponents0(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar0, \
@@ -1891,6 +2167,7 @@ class KernelWriterAssembly(KernelWriter):
   # Shift Vectors Components d1
   ##############################################################################
   def shiftVectorComponents1(self, kernel):
+    return ""
     kStr = ""
     kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
         % (self.tileChar1, self.tileChar1, self.tileChar1, \
@@ -1922,6 +2199,7 @@ class KernelWriterAssembly(KernelWriter):
   # Complex Declare Tmp Registers
   ##############################################################################
   def complexDeclareTmpRegisters(self, kernel):
+    return ""
     kStr = ""
     if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
       kStr += "  float type_mac_tmp;" + self.endLine
@@ -2116,6 +2394,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function End
   ##############################################################################
   def functionEnd(self, kernel):
+    return ""
     kStr = ""
     kStr += self.endLine
     kStr += "}" + self.endLine
@@ -2125,6 +2404,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function Suffix
   ##############################################################################
   def functionSuffix(self, kernel):
+    return ""
     kStr = ""
     if globalParameters["MergeFiles"] and self.language == "HIP":
       kStr += "#undef UNROLL%s" % self.endLine
@@ -2192,6 +2472,7 @@ class KernelWriterAssembly(KernelWriter):
   # Kernel Body Prefix
   ##############################################################################
   def kernelBodyPrefix(self, kernel):
+    return ""
     s = ""
     kernelName = self.getKernelName(kernel)
     if not globalParameters["MergeFiles"]:
@@ -2205,6 +2486,7 @@ class KernelWriterAssembly(KernelWriter):
   # Kernel Body Suffix
   ##############################################################################
   def kernelBodySuffix(self, kernel):
+    return ""
     s = ""
     kernelName = self.getKernelName(kernel)
 

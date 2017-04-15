@@ -37,12 +37,6 @@ class KernelWriter:
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
 
-    """
-    self.commentPrefix = "/*"
-    self.commentSuffix = "*/"
-    self.commentHR = "*"*40
-    self.indent = "  "
-    """
 
   ##############################################################################
   # Kernel Body
@@ -797,6 +791,131 @@ class KernelWriter:
     return s
 
   ##############################################################################
+  # Init Kernel
+  ##############################################################################
+  def initKernel(self, kernel):
+    self.indexChars = []
+    for i in range(0, len(globalParameters["IndexChars"])):
+      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
+    self.unrollIdx = kernel["ProblemType"]["NumIndicesSummation"]-1
+    self.unrollChar = \
+        self.indexChars[kernel["ProblemType"]["IndicesSummation"][\
+        self.unrollIdx]]
+    self.tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
+    self.tileCharA = self.tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) \
+        else self.tileChar1
+    self.tileCharB = self.tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) \
+        else self.tileChar1
+
+    ########################################
+    # derrive global-read-coalesce-group from local in config
+    if kernel["ProblemType"]["TLUA"]:
+      self.globalReadCoalesceGroupA = kernel["LocalWriteCoalesceGroupA"]
+    else:
+      self.globalReadCoalesceGroupA = not kernel["LocalWriteCoalesceGroupA"]
+    if kernel["ProblemType"]["TLUB"]:
+      self.globalReadCoalesceGroupB = kernel["LocalWriteCoalesceGroupB"]
+    else:
+      self.globalReadCoalesceGroupB = not kernel["LocalWriteCoalesceGroupB"]
+
+    ########################################
+    # read / write vectors or vector components
+    ########################################
+    if kernel["ProblemType"]["TLUA"]: # NT no transpose
+      self.numReadsTileA = kernel["NumLoadsCoalescedA"]
+      self.numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
+      if kernel["GlobalReadCoalesceVectorA"]:
+        self.readTileDimComponentsA = False # Vector
+        self.readTileDimVectorA = True # Vector
+        self.readUnrollDimComponentsA = False # Scalar
+        self.readUnrollDimVectorA = False # Scalar
+        self.writeTileDimComponentsA = False # Vector
+        self.writeUnrollDimComponentsA = False # Scalar
+      else:
+        self.readTileDimComponentsA = False # Scalar
+        self.readTileDimVectorA = False # Scalar
+        self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimVectorA = False # Components
+        self.writeTileDimComponentsA = False # Scalar
+        self.writeUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+    else:
+      self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
+      self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
+      if kernel["GlobalReadCoalesceVectorA"]:
+        self.readTileDimComponentsA = False # Scalar
+        self.readTileDimVectorA = False # Scalar
+        self.readUnrollDimComponentsA = False # Vector
+        self.readUnrollDimVectorA = True # Vector
+        self.writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsA = False # Scalar
+      else:
+        self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimVectorA = False # Components
+        self.readUnrollDimComponentsA = False # Scalar
+        self.readUnrollDimVectorA = False # Scalar
+        self.writeTileDimComponentsA = False # Vector
+        self.writeUnrollDimComponentsA = False # Scalar
+    self.numReadVectorComponentsA = kernel["VectorWidth"] \
+        if (self.readTileDimComponentsA \
+        or self.readUnrollDimComponentsA) else 1
+    self.numWriteVectorComponentsA = kernel["VectorWidth"] \
+        if (self.writeTileDimComponentsA \
+        or self.writeUnrollDimComponentsA) else 1
+    self.numReadTileVectorComponentsA = kernel["VectorWidth"] \
+        if self.readTileDimComponentsA else 1 # for branches
+
+    ####################################
+    # read / write vectors or vector components b
+    ####################################
+    if kernel["ProblemType"]["TLUB"]: # NT no transpose
+      self.numReadsTileB = kernel["NumLoadsCoalescedB"]
+      self.numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
+      if kernel["GlobalReadCoalesceVectorB"]:
+        self.readTileDimComponentsB = False # Vector
+        self.readTileDimVectorB = True # Vector
+        self.readUnrollDimComponentsB = False # Scalar
+        self.readUnrollDimVectorB = False # Scalar
+        self.writeTileDimComponentsB = False # Vector
+        self.writeUnrollDimComponentsB = False # Scalar
+      else:
+        self.readTileDimComponentsB = False # Scalar
+        self.readTileDimVectorB = False # Scalar
+        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimVectorB = False # Components
+        self.writeTileDimComponentsB = False # Scalar
+        self.writeUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+    else:
+      self.numReadsTileB = kernel["NumLoadsPerpendicularB"]
+      self.numReadsUnrollB = kernel["NumLoadsCoalescedB"]
+      if kernel["GlobalReadCoalesceVectorB"]:
+        self.readTileDimComponentsB = False # Scalar
+        self.readTileDimVectorB = False # Scalar
+        self.readUnrollDimComponentsB = False # Vector
+        self.readUnrollDimVectorB = True # Vector
+        self.writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsB = False # Scalar
+      else:
+        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimVectorB = False # Components
+        self.readUnrollDimComponentsB = False # Scalar
+        self.readUnrollDimVectorB = False # Scalar
+        self.writeTileDimComponentsB = False # Vector
+        self.writeUnrollDimComponentsB = False # Scalar
+    self.numReadVectorComponentsB = kernel["VectorWidth"] \
+        if (self.readTileDimComponentsB \
+        or self.readUnrollDimComponentsB) else 1
+    self.numWriteVectorComponentsB = kernel["VectorWidth"] \
+        if (self.writeTileDimComponentsB \
+        or self.writeUnrollDimComponentsB) else 1
+    self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
+        if self.readTileDimComponentsB else 1 # for branches
+
+  ##############################################################################
   # Open String
   ##############################################################################
   @abc.abstractmethod
@@ -1453,6 +1572,7 @@ class KernelWriter:
   ##############################################################################
   def getSourceFileString(self, kernel):
     fileString = ""
+    self.initKernel(kernel)
     fileString += self.kernelBodyPrefix( kernel )
     self.stringIdx = 0
     fileString += self.kernelBody( kernel )
