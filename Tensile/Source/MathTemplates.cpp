@@ -28,7 +28,7 @@
 /*******************************************************************************
  * Zero Templates
  ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetZero<TensileHalf>() { return 0.; }
 #endif
 template<> float tensileGetZero<float>() { return 0.f; }
@@ -50,7 +50,7 @@ template<> TensileComplexDouble tensileGetZero<TensileComplexDouble>() {
 /*******************************************************************************
  * One Templates
  ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetOne<TensileHalf>() { return 1.; }
 #endif
 template<> float tensileGetOne<float>() { return 1.f; }
@@ -72,11 +72,11 @@ template<> TensileComplexDouble tensileGetOne<TensileComplexDouble>() {
 /*******************************************************************************
 * Random Templates
 ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
-template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<TensileHalf>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
+#ifdef Tensile_ENABLE_HALF
+template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<TensileHalf>(rand()%100); }
 #endif
-template<> float tensileGetRandom<float>() { return static_cast<float>(rand()%100) /*/static_cast<float>(RAND_MAX)*/ ; }
-template<> double tensileGetRandom<double>() { return static_cast<double>(rand()) / static_cast<double>(RAND_MAX); }
+template<> float tensileGetRandom<float>() { return static_cast<float>(rand()%100); }
+template<> double tensileGetRandom<double>() { return static_cast<double>(rand()%100); }
 template<> TensileComplexFloat tensileGetRandom<TensileComplexFloat>() {
   TensileComplexFloat r;
   TENSILEREAL(r) = tensileGetRandom<float>();
@@ -91,6 +91,9 @@ template<> TensileComplexDouble tensileGetRandom<TensileComplexDouble>() {
 }
 
 
+#ifdef Tensile_ENABLE_HALF
+template<> TensileHalf tensileGetTypeForInt<TensileHalf>( size_t s ) { return static_cast<TensileHalf>(s); }
+#endif
 template<> float tensileGetTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
 template<> double tensileGetTypeForInt<double>( size_t s ) { return static_cast<double>(s); }
 template<> TensileComplexFloat tensileGetTypeForInt<TensileComplexFloat>( size_t s ) {
@@ -111,7 +114,7 @@ template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size
  ******************************************************************************/
 
 // half
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template< >
 TensileHalf tensileMultiply( TensileHalf a, TensileHalf b ) {
   return a*b;
@@ -150,7 +153,7 @@ TensileComplexDouble tensileMultiply( TensileComplexDouble a, TensileComplexDoub
  ******************************************************************************/
 
 // half
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template< >
 TensileHalf tensileAdd( TensileHalf a, TensileHalf b ) {
   return a+b;
@@ -186,10 +189,13 @@ TensileComplexDouble tensileAdd( TensileComplexDouble a, TensileComplexDouble b 
 /*******************************************************************************
 * Floating-Point Equals
 ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template< >
 bool tensileAlmostEqual(TensileHalf a, TensileHalf b) {
-  return std::fabs(a - b)/(std::fabs(a)+std::fabs(b)+1) < 0.01; // ?
+  TensileHalf absA = (a > 0) ? a : -a;
+  TensileHalf absB = (b > 0) ? b : -b;
+  TensileHalf absDiff = (a-b > 0) ? a-b : b-a;
+  return absDiff/(absA+absB+1) < 0.01;
 }
 #endif
 template< >
@@ -212,7 +218,7 @@ bool tensileAlmostEqual(TensileComplexDouble a, TensileComplexDouble b) {
 /*******************************************************************************
 * Complex Conjugate
 ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template< >
 void tensileComplexConjugate(TensileHalf &) {}
 #endif
@@ -233,7 +239,7 @@ void tensileComplexConjugate(TensileComplexDouble & v) {
 /*******************************************************************************
  * sizeOf Type
  ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template<> size_t tensileSizeOfType<TensileHalf>(){ return sizeof(TensileHalf); }
 #endif
 template<> size_t tensileSizeOfType<float>(){ return sizeof(float); }
@@ -245,9 +251,9 @@ template<> size_t tensileSizeOfType<void>() { return 0; }
 /*******************************************************************************
  * ToString
  ******************************************************************************/
-#ifdef Tensile_Enable_FP16_HOST
+#ifdef Tensile_ENABLE_HALF
 template<> std::string tensileToString(TensileHalf v){
-  return std::to_string(v); }
+  return std::to_string(static_cast<float>(v)); }
 #endif
 template<> std::string tensileToString(float v){
   return std::to_string(v); }

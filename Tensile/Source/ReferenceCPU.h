@@ -125,8 +125,8 @@ TensileStatus tensileReferenceCPU(
       }
       Type valueA = dataA[serialIdxA];
       if (
-#ifdef Tensile_Enable_FP16_HOST
-           std::is_same<Type, TensileComplexHalf>() ||
+#ifdef Tensile_ENABLE_HALF
+//           std::is_same<Type, TensileComplexHalf>() ||
 #endif
            std::is_same<Type, TensileComplexFloat>()
         || std::is_same<Type, TensileComplexDouble>() ) {
@@ -141,8 +141,8 @@ TensileStatus tensileReferenceCPU(
       }
       Type valueB = dataB[serialIdxB];
       if (
-#ifdef Tensile_Enable_FP16_HOST
-           std::is_same<Type, TensileComplexHalf>() ||
+#ifdef Tensile_ENABLE_HALF
+//           std::is_same<Type, TensileComplexHalf>() ||
 #endif
            std::is_same<Type, TensileComplexFloat>()
         || std::is_same<Type, TensileComplexDouble>() ) {

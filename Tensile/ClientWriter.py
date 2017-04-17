@@ -221,6 +221,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "    enum_double,\n"
   h += "    enum_TensileComplexFloat,\n"
   h += "    enum_TensileComplexDouble\n"
+  h += "#ifdef Tensile_ENABLE_HALF\n"
+  h += "    ,enum_TensileHalf\n"
+  h += "#endif\n"
   h += "} DataTypeEnum;\n"
   h += "\n"
 

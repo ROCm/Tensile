@@ -46,9 +46,9 @@ class DataType:
   properties = [
       [ "S", 1,   "float",   "float",   "float",                 "tensileDataTypeFloat"         ],
       [ "D", 2,   "double",  "double",  "double",                "tensileDataTypeDouble"        ],
-      [ "C", 2,   "float2",  "float_2", "TensileComplexFloat",   "tensileDataTypeComplexFloat"  ],
-      [ "Z", 4,   "double2", "double_2", "TensileComplexDouble", "tensileDataTypeComplexDouble" ],
-      [ "H", 0.5, "ERROR",   "fp16",     "TensileHalf",          "tensileDataTypeHalf"          ]
+      [ "C", 2,   "float2",  "float2",  "TensileComplexFloat",   "tensileDataTypeComplexFloat"  ],
+      [ "Z", 4,   "double2", "double2", "TensileComplexDouble", "tensileDataTypeComplexDouble" ],
+      [ "H", 0.5, "ERROR",   "__fp16",    "TensileHalf",          "tensileDataTypeHalf"          ]
   ]
 
   ########################################
@@ -73,7 +73,7 @@ class DataType:
   def toOpenCL(self):
     return self.properties[self.value][self.idxOpenCL]
   def toHIP(self):
-    return self.properties[self.value][self.idxOpenCL]
+    return self.properties[self.value][self.idxHIP]
   def toDevice(self, language):
     if language == "OCL":
       return self.toOpenCL()

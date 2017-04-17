@@ -94,7 +94,9 @@ elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
   target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_RUNTIME_LANGUAGE_OCL=0
-    -DTensile_RUNTIME_LANGUAGE_HIP=1 )
+    -DTensile_RUNTIME_LANGUAGE_HIP=1
+    -DTensile_ENABLE_HALF=1
+    )
 endif()
 
 

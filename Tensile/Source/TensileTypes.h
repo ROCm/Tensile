@@ -39,6 +39,7 @@
 #define tensileStatusFailure hipErrorUnknown
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
+#define TensileHalf __fp16
 
 #endif
 
