@@ -793,6 +793,7 @@ class KernelWriter:
   ##############################################################################
   # Init Kernel
   ##############################################################################
+  @abc.abstractmethod
   def initKernel(self, kernel):
     self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
@@ -914,6 +915,35 @@ class KernelWriter:
         or self.writeUnrollDimComponentsB) else 1
     self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
         if self.readTileDimComponentsB else 1 # for branches
+
+    ####################################
+    # load sizes
+    kStr += "/* load sizes parallel and perpendicular to coalesced */%s" \
+        % self.endLine
+    if kernel["ProblemType"]["TLUA"]:
+      kernel["LSCA"] = kernel["MacroTile%s"%self.tileCharA] \
+          / kernel["NumLoadsCoalescedA"]
+      kernel["LSPA"] = kernel["DEPTHU"] / kernel["NumLoadsPerpendicularA"]
+    else:
+      kernel["LSCA"] = kernel["DEPTHU"] / kernel["NumLoadsCoalescedA"]
+      kernel["LSPA"] = kernel["MacroTtile%s"%self.tileCharA] \
+          / kernel["NumLoadsPerpendicularA"]
+
+    if kernel["ProblemType"]["TLUB"]:
+      kernel["LSCB"] = kernel["MacroTtile%s"%self.tileCharB] \
+          / kernel["NumLoadsCoalescedB"]
+      kernel["LSPB"] = kernel["DEPTHU"] / kernel["NumLoadsPerpendicularB"]
+    else:
+      kernel["LSCB"] = kernel["DEPTHU"] / kernel["NumLoadsCoalescedB"]
+      kerenl["LSPB"] = kernel["MacroTile%s"%self.tileCharB] \
+          / kernel["NumLoadsPerpendicularB"]
+
+    kernel["LVCA"] = kernel["LSCA"] / kernel["VectorWidth"]
+    kernel["LVCB"] = kernel["LSCB"] / kernel["VectorWidth"]
+    kernel["LVPA"] = kernel["LSPA"] / kernel["VectorWidth"]
+    kernel["LVPB"] = kernel["LSPB"] / kernel["VectorWidth"]
+
+
 
   ##############################################################################
   # Open String

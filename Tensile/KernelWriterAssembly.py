@@ -36,10 +36,10 @@ class KernelWriterAssembly(KernelWriter):
     super(KernelWriterAssembly, self).__init__( \
         kernelMinNaming, kernelSerialNaming)
 
-    self.versionMajor = self.language[3]
-    self.versionMinor = self.language[4]
-    self.versionPatch = self.language[5]
-    print1("Generating assembly for gfx-%s:%s:%s\n" \
+    self.versionMajor = int(self.language[3])
+    self.versionMinor = int(self.language[4])
+    self.versionPatch = int(self.language[5])
+    print1("Generating assembly for gfx-%u:%u:%u\n" \
         % (self.versionMajor, self.versionMinor, self.versionPatch) )
 
     ########################################
@@ -48,32 +48,32 @@ class KernelWriterAssembly(KernelWriter):
     # num addresses,
     # num offsets,
     # offset multiplier,
-    # bit width
+    # width in registers (of each individual read1)
     self.memoryArchitecture = {
         ["LocalRead"]: [
-          ["ds_read_b128",        1, 1,   4, 128],
-          ["ds_read2st64_b64",    1, 2, 128,  64],
-          ["ds_read2_b64",        1, 2,   2,  64],
-          ["ds_read_b64",         1, 1,   2,  64],
-          ["ds_read2st64_b32",    1, 2,  64,  32],
-          ["ds_read2_b32",        1, 2,   1,  32],
-          ["ds_read_b32",         1, 1,   1,  32] ],
+          ["ds_read_b128",        1, 1,   4, 4],
+          ["ds_read2st64_b64",    1, 2, 128, 2],
+          ["ds_read2_b64",        1, 2,   2, 2],
+          ["ds_read_b64",         1, 1,   2, 2],
+          ["ds_read2st64_b32",    1, 2,  64, 1],
+          ["ds_read2_b32",        1, 2,   1, 1],
+          ["ds_read_b32",         1, 1,   1, 1] ],
         ["LocalWrite"]: [
-          ["ds_write_b128",       1, 1,   4, 128],
-          ["ds_write2st64_b64",   1, 2, 128,  64],
-          ["ds_write2_b64",       1, 2,   2,  64],
-          ["ds_write_b64",        1, 1,   2,  64],
-          ["ds_write2st64_b32",   1, 2,  64,  32],
-          ["ds_write2_b32",       1, 2,   1,  32],
-          ["ds_write_b32",        1, 1,   1,  32] ],
+          ["ds_write_b128",       1, 1,   4, 4],
+          ["ds_write2st64_b64",   1, 2, 128, 2],
+          ["ds_write2_b64",       1, 2,   2, 2],
+          ["ds_write_b64",        1, 1,   2, 2],
+          ["ds_write2st64_b32",   1, 2,  64, 1],
+          ["ds_write2_b32",       1, 2,   1, 1],
+          ["ds_write_b32",        1, 1,   1, 1] ],
         ["GlobalRead"]: [
-          ["flat_load_dwordx4",   1, 1,   0, 128],
-          ["flat_load_dwordx2",   1, 1,   0,  64],
-          ["flat_load_dword",     1, 1,   0,  32] ],
+          ["flat_load_dwordx4",   1, 1,   0, 4],
+          ["flat_load_dwordx2",   1, 1,   0, 2],
+          ["flat_load_dword",     1, 1,   0, 1] ],
         ["GlobalWrite"]: [
-          ["flat_store_dwordx4",  1, 1,   0, 128],
-          ["flat_store_dwordx2",  1, 1,   0,  64],
-          ["flat_store_dword",    1, 1,   0,  32] ]
+          ["flat_store_dwordx4",  1, 1,   0, 4],
+          ["flat_store_dwordx2",  1, 1,   0, 2],
+          ["flat_store_dword",    1, 1,   0, 1] ]
         }
 
     # Supported AMD Graphics Architectures
@@ -81,6 +81,7 @@ class KernelWriterAssembly(KernelWriter):
     # gfx801 - Carrizo
     # gfx802 - Tonga
     # gfx803 - Fiji
+    # gfx900 - TBD
     """
     for b64, offset is how many b64's to skip, now how many b32's to skip
 ds_read_b32: read single word, 16-bit offset = 65536
@@ -118,6 +119,100 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     return ""
 
   ##############################################################################
+  # Kernel Init
+  ##############################################################################
+  def kernelInit(self, kernel):
+    super(KernelWriterAssembly, self).kernelInit( self, kernel)
+
+    # registers per element
+    self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
+    # registers per global address
+    self.rpga = 2 # 64-bit
+    # registers per local address
+    self.rpla = 1 # 32-bit
+
+    ########################################
+    # read/write widths and strides in elements
+    #globalRead - DONE
+    globalReadWidthA = kernel["VectorWidth"] if self.readTileDimVectorA else 1
+    globalReadWidthB = kernel["VectorWidth"] if self.readTileDimVectorB else 1
+
+    # localWriteA width
+    localWriteWidthA = 1 if (self.writeTileDimComponentsA \
+        or self.writeUnrollDimComponentsA) else kernel["VectorWidth"]
+    # localWriteA stride tile
+    if kernel["TLUA"]:
+      if writeTileDimComponentsA:
+        self.localWrite2StrideTileA = 1
+        self.localWrite2JoinTileA = "Comp"
+      else:
+        self.localWrite2StrideTileA = kernel["LSCA"]
+        self.localWrite2JoinTileA = "Para"
+    else:
+      if writeUnrollDimComponentsA:
+        self.localWrite2StrideTileA = 1
+        self.localWrite2JoinTileA = "Comp"
+      else:
+        self.localWrite2StrideTileA = kernel["LSPA"]
+        self.localWrite2JoinTileA = "Perp"
+    # localWriteA stride unroll
+    if kernel["TLUA"]:
+      if writeUnrollDimComponentsA:
+        self.localWrite2StrideUnrollA = 1
+        self.localWrite2JoinUnrollA = "Comp"
+      else:
+        self.localWrite2StrideUnrollA = kernel["LSCA"]
+        self.localWrite2JoinUnrollA = "Perp"
+    else:
+      if writeTileDimComponentsA:
+        self.localWrite2StrideUnrollA = 1
+        self.localWrite2JoinUnrollA = "Comp"
+      else:
+        self.localWrite2StrideUnrollA = kernel["LSCA"]
+        self.localWrite2JoinUnrollA = "Para"
+
+    # localWriteB
+    localWriteWidthB = 1 if (self.writeTileDimComponentsB \
+        or self.writeUnrollDimComponentsB) else kernel["VectorWidth"]
+    # localWriteB stride tile
+    if kernel["TLUB"]:
+      if writeTileDimComponentsB:
+        self.localWrite2StrideTileB = 1
+        self.localWrite2JoinTileB = "Comp"
+      else:
+        self.localWrite2StrideTileB = kernel["LSCB"]
+        self.localWrite2JoinTileB = "Para"
+    else:
+      if writeUnrollDimComponentsB:
+        self.localWrite2StrideTileB = 1
+        self.localWrite2JoinTileB = "Comp"
+      else:
+        self.localWrite2StrideTileB = kernel["LSPB"]
+        self.localWrite2JoinTileB = "Perp"
+
+    # localWriteB stride unroll
+    if kernel["TLUB"]:
+      if writeUnrollDimComponentsB:
+        self.localWrite2StrideUnrollB = 1
+        self.localWrite2JoinUnrollB = "Comp"
+      else:
+        self.localWrite2StrideUnrollB = kernel["LSCB"]
+        self.localWrite2JoinUnrollB = "Perp"
+    else:
+      if writeTileDimComponentsB:
+        self.localWrite2StrideUnrollB = 1
+        self.localWrite2JoinUnrollB = "Comp"
+      else:
+        self.localWrite2StrideUnrollB = kernel["LSCB"]
+        self.localWrite2JoinUnrollB = "Para"
+
+    # localRead
+    localReadWidthA = -1
+    localRead2StrideTileA = -1
+    localReadWidthB = -1
+    localRead2StrideTileB = -1
+
+  ##############################################################################
   # Function Prefix
   ##############################################################################
   def functionPrefix(self, kernel):
@@ -129,7 +224,6 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     ####################################
     self.instructions = {}
 
-    # registers per element
     self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
     #self.bpe = self.rpe * 32
     #self.bpv = self.bpe * kernel["VectorWidth"] # this is how many bits
