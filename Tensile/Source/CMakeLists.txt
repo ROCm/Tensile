@@ -27,6 +27,7 @@ set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR} )
 
 ###############################################################################
 # Common Options
+option( Tensile_ENABLE_HALF "Enable half precision data types" OFF)
 option( Tensile_CLIENT_BENCMARK "ON=BenchmarkClient; OFF=LibraryClient" ON)
 option( Tensile_MERGE_FILES "Merge kernels and solutions files" OFF)
 set(Tensile_RUNTIME_LANGUAGE HIP CACHE STRING "Which runtime language to use")
@@ -95,8 +96,10 @@ elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_RUNTIME_LANGUAGE_OCL=0
     -DTensile_RUNTIME_LANGUAGE_HIP=1
-    -DTensile_ENABLE_HALF=1
     )
+  if( Tensile_ENABLE_HALF )
+    target_compile_definitions( ${ClientName} PUBLIC  -DTensile_ENABLE_HALF )
+  endif()
 endif()
 
 

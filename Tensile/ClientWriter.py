@@ -59,11 +59,15 @@ def main( config ):
   print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
+  enableHalf = False
   for logicFileName in logicFiles:
     (scheduleName, problemType, solutionsForType, indexOrder, logic) \
         = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    if problemType["DataType"].isHalf():
+        enableHalf = True
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+  globalParameters["EnableHalf"] = enableHalf
 
   ##############################################################################
   # Write Generated Header
@@ -117,6 +121,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   # runtime and kernel language
   runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
       % globalParameters["RuntimeLanguage"])
+  if globalParameters["EnableHalf"]:
+    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
   if forBenchmark:
     # for benchmark client
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
