@@ -1,0 +1,33 @@
+BenchmarkProblems:
+  # sgemm NT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: h
+      TransposeA: False
+      TransposeB: True
+      UseBeta: False
+
+  # sgemm NN
+  - ProblemType:
+      OperationType: GEMM
+      DataType: h
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+
+  # sgemm TN
+  - ProblemType:
+      OperationType: GEMM
+      DataType: h
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+
+  # sgemm TT
+  - ProblemType:
+      OperationType: GEMM
+      DataType: h
+      TransposeA: True
+      TransposeB: True
+      UseBeta: True
+

@@ -579,6 +579,7 @@ def main( config ):
     problemTypeConfig = benchmarkProblemTypeConfig["ProblemType"]
     print2("ProblemTypeConfig: %s" % problemTypeConfig)
     problemTypeObj = ProblemType(problemTypeConfig)
+    globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
     # Benchmark Problem Type
     if benchmarkProblemTypeConfig is None:

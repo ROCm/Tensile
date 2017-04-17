@@ -36,6 +36,7 @@ globalParameters["LibraryClientPath"] = "4_LibraryClient"
 globalParameters["Platform"] = 0
 globalParameters["Device"] = 0
 # benchmark behavior
+globalParameters["EnableHalf"] = False
 globalParameters["CMakeBuildType"] = "Release" # Debug
 globalParameters["CMakeCXXFlags"] = ""
 globalParameters["CMakeCFlags"] = ""
@@ -58,8 +59,6 @@ globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
-
-# BF00
 
 ################################################################################
 # Default Benchmark Parameters

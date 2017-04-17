@@ -21,7 +21,7 @@ BenchmarkProblems:
   # sgemm NN
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: h
       TransposeA: False
       TransposeB: False
       UseBeta: True
@@ -29,7 +29,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
@@ -49,12 +49,12 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
   # sgemm NT
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: h
       TransposeA: False
       TransposeB: True
       UseBeta: True
@@ -62,7 +62,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
@@ -82,12 +82,12 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
   # sgemm TN
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: h
       TransposeA: True
       TransposeB: False
       UseBeta: True
@@ -95,7 +95,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
@@ -115,12 +115,12 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
   # sgemm TT
   - ProblemType:
       OperationType: GEMM
-      DataType: s
+      DataType: h
       TransposeA: True
       TransposeB: True
       UseBeta: True
@@ -128,7 +128,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
@@ -148,7 +148,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
 LibraryLogic:
   BranchPenalty: 0

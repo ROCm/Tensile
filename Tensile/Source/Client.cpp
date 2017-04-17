@@ -116,6 +116,29 @@ int main( int argc, char *argv[] ) {
     }
     break;
 #endif
+#ifdef Tensile_DATA_TYPE_TENSILEHALF
+  case enum_TensileHalf: {
+    TensileHalf *initialC_TCD;
+    TensileHalf *initialA_TCD;
+    TensileHalf *initialB_TCD;
+    TensileHalf alpha_TCD;
+    TensileHalf beta_TCD;
+    TensileHalf *referenceC_TCD;
+    TensileHalf *deviceOnHostC_TCD;
+    initData(&initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
+        &beta_TCD, &referenceC_TCD, &deviceOnHostC_TCD);
+#if Tensile_CLIENT_BENCHMARK
+    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
+        beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
+#else
+    invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
+        referenceC_TCD, deviceOnHostC_TCD_TCD);
+#endif
+    destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
+        deviceOnHostC_TCD);
+    }
+    break;
+#endif
   default:
     break;
     // nothing
