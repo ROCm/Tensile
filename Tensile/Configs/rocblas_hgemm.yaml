@@ -29,7 +29,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [1], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
@@ -49,7 +49,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
   # sgemm NT
   - ProblemType:
@@ -62,7 +62,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [1], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
@@ -82,7 +82,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
   # sgemm TN
   - ProblemType:
@@ -95,7 +95,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
@@ -115,7 +115,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
   # sgemm TT
   - ProblemType:
@@ -128,7 +128,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [2880] ]
+      - ProblemSizes: [ [2880], [2880], [2], [512] ]
       - EdgeType: ["Shift"]
       - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
@@ -148,7 +148,7 @@ BenchmarkProblems:
       - MacroTile
     BenchmarkJoinParameters:
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
 LibraryLogic:
   BranchPenalty: 0
