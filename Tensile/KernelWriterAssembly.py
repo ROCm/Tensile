@@ -49,6 +49,11 @@ class KernelWriterAssembly(KernelWriter):
     # num offsets,
     # offset multiplier,
     # width in registers (of each individual read1)
+    self.instructionIdxName = 0
+    self.instructionIdxNumAddresses = 1
+    self.instructionIdxNumOffsets = 2
+    self.instructionIdxOffsetMultiplier = 3
+    self.instructionIdxWidth = 4
     self.memoryArchitecture = {
         ["LocalRead"]: [
           ["ds_read_b128",        1, 1,   4, 4],
@@ -99,6 +104,72 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.commentHR = "*"*40
     self.indent = ""
 
+  ##############################################################################
+  # Find Memory Instruction For Width and Stride
+  ##############################################################################
+  def findMemoryInstructionForWidthStride(self, width, stride, combine, \
+      instructions):
+    for i in range(0, len(instructions)):
+      instruction = instructions[i]
+      name = instruction[self.instructionIdxName]
+      numAddresses = instruction[self.instructionIdxNumAddresses]
+      numOffsets = instruction[self.instructionIdxNumOffsets]
+      offsetMultiplier = instruction[self.instructionIdxOffsetMultiplier]
+      readWidth = instruction[self.instructionIdxWidth]
+      if width < readWidth:
+        continue
+      if stride % offsetMultiplier != 0:
+        continue
+      if numOffsets > 1 and not combine:
+        continue
+      return i
+    return len(instructions)
+
+
+  ##############################################################################
+  # Select Memory Instruction
+  ##############################################################################
+  def selectMemoryInstruction(self,
+      operation, # ReadGlobal, WriteLocal, ReadLocal
+      width, # num registers 1 chunk
+      write2, # Para, Perp, None
+      para2, # NumLoadsPara >= 2
+      perp2, # NumLoadsPerp >= 2
+      strideCoalesced,
+      stridePerpendicular ):
+    instructions = self.memoryArchitecture[operation]
+    if write2 == "Coalesced": # prefer to combine coalesced
+      if para2: # num loads > 1
+        instructionIdx = self.findMemoryInstructionForWidthStride( \
+            width, strideCoalesced, True, instructions)
+        numOffsets = instructions[instructionIdx][self.instructionIdxNumOffsets]
+        if instructionIdx < len(instructions): # found combined
+          return instructionIdx
+      # return non-combined
+      return self.findMemoryInstructionForWidthStride( \
+            width, strideCoalesced, False, instructions)
+    elif write2 == "Perpendicular": # prefer to combine perpendicular
+      if perp2: # num loads > 1
+        instructionIdx = self.findMemoryInstructionForWidthStride( \
+            width, stridePerpendicular, True, instructions)
+        numOffsets = instructions[instructionIdx][self.instructionIdxNumOffsets]
+        if instructionIdx < len(instructions): # found combined
+          return instructionIdx
+      # return non-combined
+      return self.findMemoryInstructionForWidthStride( \
+            width, stridePerpendicular, False, instructions)
+    else:
+      # return non-combined
+      return self.findMemoryInstructionForWidthStride( \
+            width, stridePerpendicular, False, instructions)
+
+
+
+# TODO: option: when offset bits aren't sufficient, do we use VALU to
+# increment address or do we use extra registers to store addresses?
+# (1) write1 and aways have sufficient offset bits
+# (2) write2 and if insufficient offset bits then IncrementAndReset
+# (3) write2 and if insufficient offset bits then AllocateAdditionalAddresses
 
   ##############################################################################
   #
@@ -119,9 +190,9 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     return ""
 
   ##############################################################################
-  # Kernel Init
+  # Init Kernel
   ##############################################################################
-  def kernelInit(self, kernel):
+  def initKernel(self, kernel):
     super(KernelWriterAssembly, self).kernelInit( self, kernel)
 
     # registers per element
@@ -132,85 +203,178 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.rpla = 1 # 32-bit
 
     ########################################
-    # read/write widths and strides in elements
-    #globalRead - DONE
-    globalReadWidthA = kernel["VectorWidth"] if self.readTileDimVectorA else 1
-    globalReadWidthB = kernel["VectorWidth"] if self.readTileDimVectorB else 1
+    # globalReadA instruction
+    globalReadCombine = 0
+    globalReadStrideTile = 0
+    globalReadStrideUnroll = 0
+    self.globalReadWidthA = kernel["VectorWidth"] if self.readTileDimVectorA \
+        else 1
+    self.globalReadWidthA *= self.rpe
+    self.globalRead2CoalescedA = kernel["NumLoadsCoalescedA"]>1 \
+        or self.readCoalescedComponentsA
+    self.globalRead2PerpendicularA = kernel["NumLoadsPerpendicularA"]>1 \
+        or self.readPerpendicularComponentsA
+    self.globalReadInstructionIdxA = \
+        self.selectMemoryInstruction("GlobalRead", self.globalReadWidthA, \
+        globalReadCombine, \
+        self.globalRead2CoalescedA, self.globalRead2PerpendicularA,
+        globalReadStrideTile, globalReadStrideUnroll )
 
-    # localWriteA width
-    localWriteWidthA = 1 if (self.writeTileDimComponentsA \
+    ########################################
+    # globalReadB instruction
+    self.globalReadWidthB = kernel["VectorWidth"] if self.readTileDimVectorB  \
+        else 1
+    self.globalReadWidthB *= self.rpe
+    self.globalRead2CoalescedB = kernel["NumLoadsCoalescedB"]>1 \
+        or self.readCoalescedComponentsB
+    self.globalRead2PerpendicularB = kernel["NumLoadsPerpendicularB"]>1 \
+        or self.readPerpendicularComponentsB
+    self.globalReadInstructionIdxB = \
+        self.selectMemoryInstruction("GlobalRead", self.globalReadWidthB, \
+        globalReadCombine, \
+        self.globalRead2CoalescedB, self.globalRead2PerpendicularB,
+        globalReadStrideTile, globalReadStrideUnroll )
+
+    ########################################
+    # localWriteA instruction
+    # for local, tile->para, unroll->perp
+    self.localWriteWidthA = 1 if (self.writeTileDimComponentsA \
         or self.writeUnrollDimComponentsA) else kernel["VectorWidth"]
+    self.localWriteWidthA *= self.rpe
+    self.localWrite2CoalescedA = self.numWritesCoalescedA>1 \
+        or self.writeTileDimComponentsA
+    self.localWrite2PerpendicularA = self.numWritesPerpendicularA>1 \
+        or self.writeUnrollDimComponentsA
     # localWriteA stride tile
     if kernel["TLUA"]:
-      if writeTileDimComponentsA:
-        self.localWrite2StrideTileA = 1
-        self.localWrite2JoinTileA = "Comp"
+      if self.writeTileDimComponentsA:
+        self.localWriteStrideTileA = 1
+        self.localWriteJoinTileA = "Components"
       else:
-        self.localWrite2StrideTileA = kernel["LSCA"]
-        self.localWrite2JoinTileA = "Para"
+        self.localWriteStrideTileA = kernel["LSCA"]
+        self.localWriteJoinTileA = "Coalesced"
     else:
       if writeUnrollDimComponentsA:
-        self.localWrite2StrideTileA = 1
-        self.localWrite2JoinTileA = "Comp"
+        self.localWriteStrideTileA = 1
+        self.localWriteJoinTileA = "Components"
       else:
-        self.localWrite2StrideTileA = kernel["LSPA"]
-        self.localWrite2JoinTileA = "Perp"
+        self.localWriteStrideTileA = kernel["LSPA"]
+        self.localWriteJoinTileA = "Perpendicular"
+    self.localWriteStrideTileA *= self.rpe
     # localWriteA stride unroll
     if kernel["TLUA"]:
       if writeUnrollDimComponentsA:
-        self.localWrite2StrideUnrollA = 1
-        self.localWrite2JoinUnrollA = "Comp"
+        self.localWriteStrideUnrollA = 1*kernel["MacroTileA"]
+        self.localWriteJoinUnrollA = "Components"
       else:
-        self.localWrite2StrideUnrollA = kernel["LSCA"]
-        self.localWrite2JoinUnrollA = "Perp"
+        self.localWriteStrideUnrollA = kernel["LSCA"]*kernel["MacroTileA"]
+        self.localWriteJoinUnrollA = "Perpendicular"
     else:
-      if writeTileDimComponentsA:
-        self.localWrite2StrideUnrollA = 1
-        self.localWrite2JoinUnrollA = "Comp"
+      if self.writeTileDimComponentsA:
+        self.localWriteStrideUnrollA = 1*kernel["MacroTileA"]
+        self.localWriteJoinUnrollA = "Components"
       else:
-        self.localWrite2StrideUnrollA = kernel["LSCA"]
-        self.localWrite2JoinUnrollA = "Para"
+        self.localWriteStrideUnrollA = kernel["LSCA"]*kernel["MacroTileA"]
+        self.localWriteJoinUnrollA = "Coalesced"
+    self.localWriteStrideUnrollA *= self.rpe
+    self.localWriteInstructionIdxA = \
+        self.selectMemoryInstruction("LocalWrite", self.localWriteWidthA, \
+        globalParameters["LocalWrite2"], \
+        self.localWrite2CoalescedA, self.localWrite2PerpendicularA,
+        localWriteStrideTileA, localWriteStrideUnrollA )
 
-    # localWriteB
-    localWriteWidthB = 1 if (self.writeTileDimComponentsB \
+    ########################################
+    # localWriteB instruction
+    # for local, tile->para, unroll->perp
+    self.localWriteWidthB = 1 if (self.writeTileDimComponentsB \
         or self.writeUnrollDimComponentsB) else kernel["VectorWidth"]
+    self.localWriteWidthB *= self.rpe
+    self.localWrite2CoalescedB = self.numWritesCoalescedB>1 \
+        or self.writeTileDimComponentsB
+    self.localWrite2PerpendicularB = self.numWritesPerpendicularB>1 \
+        or self.writeUnrollDimComponentsB
     # localWriteB stride tile
     if kernel["TLUB"]:
-      if writeTileDimComponentsB:
-        self.localWrite2StrideTileB = 1
-        self.localWrite2JoinTileB = "Comp"
+      if self.writeTileDimComponentsB:
+        self.localWriteStrideTileB = 1
+        self.localWriteJoinTileB = "Components"
       else:
-        self.localWrite2StrideTileB = kernel["LSCB"]
-        self.localWrite2JoinTileB = "Para"
+        self.localWriteStrideTileB = kernel["LSCB"]
+        self.localWriteJoinTileB = "Coalesced"
     else:
       if writeUnrollDimComponentsB:
-        self.localWrite2StrideTileB = 1
-        self.localWrite2JoinTileB = "Comp"
+        self.localWriteStrideTileB = 1
+        self.localWriteJoinTileB = "Components"
       else:
-        self.localWrite2StrideTileB = kernel["LSPB"]
-        self.localWrite2JoinTileB = "Perp"
-
+        self.localWriteStrideTileB = kernel["LSPB"]
+        self.localWriteJoinTileB = "Perpendicular"
+    self.localWriteStrideTileB *= self.rpe
     # localWriteB stride unroll
     if kernel["TLUB"]:
       if writeUnrollDimComponentsB:
-        self.localWrite2StrideUnrollB = 1
-        self.localWrite2JoinUnrollB = "Comp"
+        self.localWriteStrideUnrollB = 1*kernel["MacroTileB"]
+        self.localWriteJoinUnrollB = "Components"
       else:
-        self.localWrite2StrideUnrollB = kernel["LSCB"]
-        self.localWrite2JoinUnrollB = "Perp"
+        self.localWriteStrideUnrollB = kernel["LSCB"]*kernel["MacroTileB"]
+        self.localWriteJoinUnrollB = "Perpendicular"
     else:
-      if writeTileDimComponentsB:
-        self.localWrite2StrideUnrollB = 1
-        self.localWrite2JoinUnrollB = "Comp"
+      if self.writeTileDimComponentsB:
+        self.localWriteStrideUnrollB = 1*kernel["MacroTileB"]
+        self.localWriteJoinUnrollB = "Components"
       else:
-        self.localWrite2StrideUnrollB = kernel["LSCB"]
-        self.localWrite2JoinUnrollB = "Para"
+        self.localWriteStrideUnrollB = kernel["LSCB"]*kernel["MacroTileB"]
+        self.localWriteJoinUnrollB = "Coalesced"
+    self.localWriteStrideUnrollB *= self.rpe
+    self.localWriteInstructionIdxB = \
+        self.selectMemoryInstruction("LocalWrite", self.localWriteWidthB, \
+        globalParameters["LocalWrite2"], \
+        self.localWrite2CoalescedB, self.localWrite2PerpendicularB,
+        localWriteStrideTileB, localWriteStrideUnrollB )
 
-    # localRead
-    localReadWidthA = -1
-    localRead2StrideTileA = -1
-    localReadWidthB = -1
-    localRead2StrideTileB = -1
+    ########################################
+    # localRead A
+    self.localReadWidth = kernel["VectorWidth"] * self.rpe
+    localReadStridePerpendicular = 0
+    localRead2Perpendicular = False
+    self.localReadStrideCoalescedA = kernel["ThreadTile0"] * self.rpe
+    self.localRead2CoalescedA = kernel["ThreadTile0"]/kernel["VectorWidth"] > 1
+    self.localReadInstructionIdxA = \
+        self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
+        globalParameters["LocalRead"], \
+        self.localRead2CoalescedA, localRead2Perpendicular,
+        self.localReadStrideCoalescedA, localReadStridePerpendicular)
+
+    ########################################
+    # localRead B
+    self.localReadWidth = kernel["VectorWidth"] * self.rpe
+    localReadStridePerpendicular = 0
+    localRead2Perpendicular = False
+    self.localReadStrideCoalescedB = kernel["ThreadTile1"] * self.rpe
+    self.localRead2CoalescedB = kernel["ThreadTile1"]/kernel["VectorWidth"] > 1
+    self.localReadInstructionIdxB = \
+        self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
+        globalParameters["LocalRead"], \
+        self.localRead2CoalescedB, localRead2Perpendicular,
+        self.localReadStrideCoalescedB, localReadStridePerpendicular)
+
+    self.globalReadInstructionA = self.memoryArchitecture["GlobalRead"][ \
+        self.globalReadInstructionIdxA]
+    self.globalReadInstructionB = self.memoryArchitecture["GlobalRead"][ \
+        self.globalReadInstructionIdxB]
+    self.localWriteInstructionA = self.memoryArchitecture["LocalWrite"][ \
+        self.localWriteInstructionIdxA]
+    self.localReadInstructionB = self.memoryArchitecture["LocalWrite"][ \
+        self.localWriteInstructionIdxB]
+    self.localReadInstructionA = self.memoryArchitecture["LocalRead"][ \
+        self.localReadInstructionIdxA]
+    self.localReadInstructionB = self.memoryArchitecture["LocalRead"][ \
+        self.localReadInstructionIdxB]
+    print "GlobalReadInstructionA", self.globalReadInstructionA
+    print "GlobalReadInstructionB", self.globalReadInstructionB
+    print "LocalWriteInstructionA", self.localWriteInstructionA
+    print "LocalWriteInstructionB", self.localWriteInstructionB
+    print "LocalReadInstructionA", self.localReadInstructionA
+    print "LocalReadInstructionB", self.localReadInstructionB
 
   ##############################################################################
   # Function Prefix
@@ -224,171 +388,11 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     ####################################
     self.instructions = {}
 
-    self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
-    #self.bpe = self.rpe * 32
-    #self.bpv = self.bpe * kernel["VectorWidth"] # this is how many bits
-    # wide each read/write would be without read2
-    #print1("BytesPerVector: %u"% self.pbv)
-
-    # registers per global address
-    self.rpga = 2 # 64-bit
-    # registers per local address
-    self.rpla = 1 # 32-bit
-
-    ########################################
-    # multiply-accumulate
-    numRegC = kernel["ThreadTile0"]*kernel["ThreadTile1"] * self.rpe
-    numRegValuA = kernel["ThreadTile0"] * self.rpe
-    numRegValuB = kernel["ThreadTile0"] * self.rpe
-    numRegValuBlkA = numRegValuA if kernel["PrefetchLocalRead"] else 0
-    numRegValuBlkB = numRegValuB if kernel["PrefetchLocalRead"] else 0
-
-    ########################################
-    # local read a
-    self.numLocalReadVectorsA = kernel["ThreadTile0"] / kernel["VectorWidth"]
-    self.localReadVectorStrideA = kernel["MacroTile0"] / kernel["VectorWidth"]
-    # within the same unroll
-
-    # CombineAllowed = (nLRVA > 1 and LocalRead2=-1,1)
-    combineA = self.numLocalReadVectorsA > 1 and kernel["LocalRead2"] != 0
-
-"""
-strategy:
-  what is the offset in regs from one read address to the next same iter
-  what is the max offset in regs we need (last reg address in last iter - first reg address in first iter)
-for each read instruction
-  what is the max offset in number (maxOffsetRegs/4 for b128)
-  what is the max offset supported by instruction
-  numAddresses = maxOffsetNumber / maxOffsetSupported
-  if it succeeds
-    read instruction name
-    how many different addresses will we need
-"""
-
-    # attempt ds_read_b128
-    if "ds_read_b128" in self.architecture and self.bpv >= 128:
-      self.instructions["LocalReadA"] = "ds_read_b32"
-      self.localReadBitsA = 128
-      self.localRead2A = 16
-
-  # if bpv >= 128 and instruction exists
-  # 4+x4+ microtile of float4
-  # 2+x2+ microtile of double2
-  # 2+x2+ microtile of CS2
-  # 1+x1+ microtile of CD2
-
-# attempt ds_read2_b64
-  # if (bpv > 64 or (bpv=64 and CombineAllowed)) and exists and not prior
-  # 2+x2+ microtile of floats
-
-# attempt ds_read_b64
-  # if bpv >= 64 and exists and not prior
-  # 1x1 microtile of doubles
-  # 1x1 microtile of ComplexSingles
-  # 2x2 microtile of float2's
-  # 2+x2+ microtile of doubles but LR2=0
-  # 2+x2+ microtile of ComplexSingles but LR2=0
-  # 4+x4+ microtile of float2's but LR2=0
-
-# attempt ds_read2_b32
-  # if (bpv > 32 or ( bpv=32 and CombineAllowed)) and exists and not prior
-  # 2+x2+ microtile of floats
-
-# attept ds_read_b32
-  # if exists and nor prior
-  # 1x1 microtile of floats
-  # 2+x2+ microtile of floats and LR2=0
-
-# if none assigned, FAIL
-
-
-    if kernel["LocalRead2"] and self.numLocalReadVectorsA > 1:
-      # if read stride is multiple of 64
-      if self.localReadVectorStrideA % 64 == 0:
-        if (kernel["VectorWidth"] == 1 \
-            and "ds_read2st64_b32" in self.architecture ):
-          self.instructions["LocalReadA"] = "ds_read2st64_b32"
-          self.numVectorsPerLocalReadA = 2
-        if (kernel["VectorWidth"] == 2 \
-            and "ds_read2st64_b64" in self.architecture ):
-          self.instructions["LocalReadA"] = "ds_read2st64_b64"
-          self.numVectorsPerLocalReadA = 2
-        if (kernel["VectorWidth"] == 4 \
-            and "ds_read2st64_b128" in self.architecture ):
-          self.instructions["LocalReadA"] = "ds_read2st64_b128"
-          self.numVectorsPerLocalReadA = 2
-      else:
-        # if read stride is not multiple of 64
-        if (kernel["VectorWidth"] == 1 \
-            and "ds_read2_b32" in self.architecture ):
-          self.instructions["LocalReadA"] = "ds_read2_b32"
-          self.numVectorsPerLocalReadA = 2
-        if (kernel["VectorWidth"] == 2 \
-            and "ds_read2_b64" in self.architecture ):
-          self.instructions["LocalReadA"] = "ds_read2_b64"
-          self.numVectorsPerLocalReadA = 2
-        if (kernel["VectorWidth"] == 4 \
-            and "ds_read2_b128" in self.architecture ):
-          self.instructions["LocalReadA"] = "ds_read2_b128"
-          self.numVectorsPerLocalReadA = 2
-    if "LocalReadA" not in self.instructions:
-      if (kernel["VectorWidth"] == 1 \
-          and "ds_read_b32" in self.architecture ):
-        self.instructions["LocalReadA"] = "ds_read_b32"
-        self.numVectorsPerLocalReadA = 1
-      if (kernel["VectorWidth"] == 2 \
-          and "ds_read_b64" in self.architecture ):
-        self.instructions["LocalReadA"] = "ds_read_b64"
-        self.numVectorsPerLocalReadA = 1
-      if kernel["VectorWidth"] == 4:
-        if "ds_read_b128" in self.architecture:
-          self.instructions["LocalReadA"] = "ds_read_b128"
-          self.numVectorsPerLocalReadA = 1
-        elif "ds_read2_b64" in self.architecture:
-          self.instructions["LocalReadA"] = "ds_read2_b64"
-          self.numVectorsPerLocalReadA = 1
-    if "LocalReadA" not in self.instructions:
-      printWarning("LocalReadA: no suitable instruction found")
-    numLocalReadInstructionsA = numLocalReadVectorsA / numVectorsPerLocalReadA
-    numRegLocalReadAddressesA = numLocalReadInstructionsA * self.rpla
-
-    numLocalReadAddressesA = 1 # all offsets hardcoded
-    numLocalReadAddressRegsA = numLocalReadAddressesA * self.rpla
-
-LocalRead2A = -1, 0, 1
-LocalReadIncrementA = False, True
 # TODO: option: when offset bits aren't sufficient, do we use VALU to
 # increment address or do we use extra registers to store addresses?
 # (1) read1 and aways have sufficient offset bits
 # (2) read2 and if insufficient offset bits then IncrementAndReset
 # (3) read2 and if insufficient offset bits then AllocateAdditionalAddresses
-
-    ########################################
-    # local read b
-    numLocalReadAddressesB = 1 # all offsets hardcoded
-    numLocalReadAddressRegsB = numLocalReadAddressesB * self.rpla
-
-    ########################################
-    # TODO registers used for local read increments, resets
-    # in case I don't have enough offset bits when read2
-    # do I need any, or can it be completely hardcoded
-    # hardcode the mod value, or in sgpr
-
-    ########################################
-    # local write a
-# TODO: option: when offset bits aren't sufficient, do we use VALU to
-# increment address or do we use extra registers to store addresses?
-# (1) write1 and aways have sufficient offset bits
-# (2) write2 and if insufficient offset bits then IncrementAndReset
-# (3) write2 and if insufficient offset bits then AllocateAdditionalAddresses
-
-    # CombineAllowed = (nLRVA > 1 and LocalRead2=-1,1)
-    combineA = self.numLocalReadVectorsA > 1 and kernel["LocalRead2"] != 0
-
-    # attempt ds_read_b128
-    if "ds_read_b128" in self.architecture and self.bpv >= 128:
-      self.instructions["LocalReadA"] = "ds_read_b32"
-      self.localReadBits = 128
 
   # if bpv >= 128 and instruction exists
   # 4+x4+ microtile of float4

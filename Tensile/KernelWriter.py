@@ -813,6 +813,21 @@ class KernelWriter:
     self.tileCharB = self.tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) \
         else self.tileChar1
 
+    if kernel["ProblemType"]["Tensor0"]==0:
+      kernel["ThreadTileA"] = kernel["ThreadTile0"]
+      kernel["ThreadTileB"] = kernel["ThreadTile1"]
+      kernel["SubGroupA"] = kernel["SubGroup0"]
+      kernel["SubGroupB"] = kernel["SubGroup1"]
+      kernel["MacroTileA"] = kernel["MacroTile0"]
+      kernel["MacroTileB"] = kernel["MacroTile1"]
+    else:
+      kernel["ThreadTileB"] = kernel["ThreadTile0"]
+      kernel["ThreadTileA"] = kernel["ThreadTile1"]
+      kernel["SubGroupB"] = kernel["SubGroup0"]
+      kernel["SubGroupA"] = kernel["SubGroup1"]
+      kernel["MacroTileB"] = kernel["MacroTile0"]
+      kernel["MacroTileA"] = kernel["MacroTile1"]
+
     ########################################
     # derrive global-read-coalesce-group from local in config
     if kernel["ProblemType"]["TLUA"]:
@@ -830,6 +845,8 @@ class KernelWriter:
     if kernel["ProblemType"]["TLUA"]: # NT no transpose
       self.numReadsTileA = kernel["NumLoadsCoalescedA"]
       self.numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
+      self.numWritesParametersA = kernel["NumLoadsCoalescedA"]
+      self.numWritesPerpendicularA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]:
         self.readTileDimComponentsA = False # Vector
         self.readTileDimVectorA = True # Vector
@@ -847,6 +864,8 @@ class KernelWriter:
     else:
       self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
       self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
+      self.numWritesParametersA = kernel["NumLoadsPerpendicularA"]
+      self.numWritesPerpendicularA = kernel["NumLoadsCoalescedA"]
       if kernel["GlobalReadCoalesceVectorA"]:
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
@@ -869,6 +888,17 @@ class KernelWriter:
         or self.writeUnrollDimComponentsA) else 1
     self.numReadTileVectorComponentsA = kernel["VectorWidth"] \
         if self.readTileDimComponentsA else 1 # for branches
+    # convert tile/unroll to para/perp
+    if kernel["ProblemType"]["TLUA"]:
+      self.readParametersComponentsA  = self.readTileDimComponentsA
+      self.readParametersVectorA      = self.readTileDimVectorA
+      self.readPerpendicularComponentsA  = self.readUnrollDimComponentsA
+      self.readPerpendicularVectorA      = self.readUnrollDimVectorA
+    else:
+      self.readParametersComponentsA  = self.readUnrollDimComponentsA
+      self.readParametersVectorA      = self.readUnrollDimVectorA
+      self.readPerpendicularComponentsA  = self.readTileDimComponentsA
+      self.readPerpendicularVectorA      = self.readTileDimVectorA
 
     ####################################
     # read / write vectors or vector components b
@@ -876,6 +906,8 @@ class KernelWriter:
     if kernel["ProblemType"]["TLUB"]: # NT no transpose
       self.numReadsTileB = kernel["NumLoadsCoalescedB"]
       self.numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
+      self.numWritesParametersB = kernel["NumLoadsCoalescedB"]
+      self.numWritesPerpendicularB = kernel["NumLoadsPerpendicularB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         self.readTileDimComponentsB = False # Vector
         self.readTileDimVectorB = True # Vector
@@ -893,6 +925,8 @@ class KernelWriter:
     else:
       self.numReadsTileB = kernel["NumLoadsPerpendicularB"]
       self.numReadsUnrollB = kernel["NumLoadsCoalescedB"]
+      self.numWritesParametersB = kernel["NumLoadsPerpendicularB"]
+      self.numWritesPerpendicularB = kernel["NumLoadsCoalescedB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         self.readTileDimComponentsB = False # Scalar
         self.readTileDimVectorB = False # Scalar
@@ -915,27 +949,36 @@ class KernelWriter:
         or self.writeUnrollDimComponentsB) else 1
     self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
         if self.readTileDimComponentsB else 1 # for branches
+    # convert tile/unroll to para/perp
+    if kernel["ProblemType"]["TLUB"]:
+      self.readParametersComponentsB  = self.readTileDimComponentsB
+      self.readParametersVectorB      = self.readTileDimVectorB
+      self.readPerpendicularComponentsB  = self.readUnrollDimComponentsB
+      self.readPerpendicularVectorB      = self.readUnrollDimVectorB
+    else:
+      self.readParametersComponentsB  = self.readUnrollDimComponentsB
+      self.readParametersVectorB      = self.readUnrollDimVectorB
+      self.readPerpendicularComponentsB  = self.readTileDimComponentsB
+      self.readPerpendicularVectorB      = self.readTileDimVectorB
 
     ####################################
     # load sizes
-    kStr += "/* load sizes parallel and perpendicular to coalesced */%s" \
-        % self.endLine
     if kernel["ProblemType"]["TLUA"]:
-      kernel["LSCA"] = kernel["MacroTile%s"%self.tileCharA] \
+      kernel["LSCA"] = kernel["MacroTileA"] \
           / kernel["NumLoadsCoalescedA"]
-      kernel["LSPA"] = kernel["DEPTHU"] / kernel["NumLoadsPerpendicularA"]
+      kernel["LSPA"] = kernel["DepthU"] / kernel["NumLoadsPerpendicularA"]
     else:
-      kernel["LSCA"] = kernel["DEPTHU"] / kernel["NumLoadsCoalescedA"]
-      kernel["LSPA"] = kernel["MacroTtile%s"%self.tileCharA] \
+      kernel["LSCA"] = kernel["DepthU"] / kernel["NumLoadsCoalescedA"]
+      kernel["LSPA"] = kernel["MacroTileA"] \
           / kernel["NumLoadsPerpendicularA"]
 
     if kernel["ProblemType"]["TLUB"]:
-      kernel["LSCB"] = kernel["MacroTtile%s"%self.tileCharB] \
+      kernel["LSCB"] = kernel["MacroTileB"] \
           / kernel["NumLoadsCoalescedB"]
-      kernel["LSPB"] = kernel["DEPTHU"] / kernel["NumLoadsPerpendicularB"]
+      kernel["LSPB"] = kernel["DepthU"] / kernel["NumLoadsPerpendicularB"]
     else:
-      kernel["LSCB"] = kernel["DEPTHU"] / kernel["NumLoadsCoalescedB"]
-      kerenl["LSPB"] = kernel["MacroTile%s"%self.tileCharB] \
+      kernel["LSCB"] = kernel["DepthU"] / kernel["NumLoadsCoalescedB"]
+      kernel["LSPB"] = kernel["MacroTileB"] \
           / kernel["NumLoadsPerpendicularB"]
 
     kernel["LVCA"] = kernel["LSCA"] / kernel["VectorWidth"]

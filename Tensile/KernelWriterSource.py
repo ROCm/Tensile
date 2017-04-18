@@ -92,44 +92,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
 
   ##############################################################################
-  # single line comment
-  ##############################################################################
-  def comment(self, text):
-    s = ""
-    s += self.endLine
-    s += self.indent
-    s += self.commentPrefix
-    s += " %s " % text
-    s += self.commentSuffix
-    s += self.endLine
-    return s
-
-  ##############################################################################
-  # 3-line comment
-  ##############################################################################
-  def comment3(self, text):
-    s = ""
-    s += self.endLine
-    s += self.indent
-    s += self.commentPrefix
-    s += self.commentHR
-    s += self.commentSuffix
-    s += self.endLine
-
-    s += self.indent
-    s += self.commentPrefix
-    s += " %-39s" % text
-    s += self.commentSuffix
-    s += self.endLine
-
-    s += self.indent
-    s += self.commentPrefix
-    s += self.commentHR
-    s += self.commentSuffix
-    s += self.endLine
-    return s
-
-  ##############################################################################
   # Open String
   ##############################################################################
   def openString(self, kernel):
@@ -149,6 +111,13 @@ class KernelWriterSource(KernelWriter):
       kStr += "\";\n"
       self.stringIdx += 1
     return kStr
+
+  ##############################################################################
+  # Init Kernel
+  ##############################################################################
+  def initKernel(self, kernel):
+    super(KernelWriterSource, self).initKernel( kernel )
+    pass
 
   ##############################################################################
   # Function Prefix
@@ -523,8 +492,8 @@ class KernelWriterSource(KernelWriter):
             self.endLinePP)
       """
 
-      for b in range(0, kernel["ThreadTile1"]):
-        for a in range(0, kernel["ThreadTile0"]):
+      for b in range(0, kernel["ThreadTileB"]):
+        for a in range(0, kernel["ThreadTileA"]):
           # a
           vecA = a / kernel["VectorWidth"]
           elemA = a % kernel["VectorWidth"]
@@ -2086,7 +2055,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadDoA(self, kernel, black):
     kStr = ""
-    for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+    for a in range(0, kernel["ThreadTileA"]/kernel["VectorWidth"]):
       kStr += "%srA[%d%s] = localReadA[%d*SG%s]; %s" \
           % (self.indent, a, \
           (("+TT%s/VECTOR_WIDTH"%self.tileCharA) if black else ""), \
@@ -2098,7 +2067,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadDoB(self, kernel, black):
     kStr = ""
-    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+    for b in range(0, kernel["ThreadTileB"]/kernel["VectorWidth"]):
       kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
           % (self.indent, b, \
           (("+TT%s/VECTOR_WIDTH"%self.tileCharB) if black else ""), \
