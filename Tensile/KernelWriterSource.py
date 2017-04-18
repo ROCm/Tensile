@@ -594,8 +594,13 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     kStr += self.endLine
     kStr += "  /* registers for MAC's */" + self.endLine
-    kStr += "  VECTOR_TYPE rC[TT%s*TT%s/VECTOR_WIDTH] = {0};%s" \
+    kStr += "  VECTOR_TYPE rC[TT%s*TT%s/VECTOR_WIDTH];%s" \
         % (self.tileChar0, self.tileChar1, self.endLine )
+    for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]/kernel["VectorWidth"]):
+      for s in range(0, kernel["VectorWidth"]):
+        kStr += "  rC[%u]%s = 0;%s" % (i, ((".%s"%self.vectorComponents[s]) \
+            if kernel["VectorWidth"]>1 else ""), self.endLine)
+
     kStr += "  VECTOR_TYPE rA[TT%s/VECTOR_WIDTH%s];%s" \
         % (self.tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
         self.endLine)
