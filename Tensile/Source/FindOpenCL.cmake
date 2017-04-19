@@ -69,6 +69,7 @@ find_path(OPENCL_INCLUDE_DIRS
     /usr/include
     /usr/local/include
     /usr/local/cuda/include
+    /opt/rocm/opencl/include
   DOC "OpenCL header file path"
 )
 mark_as_advanced( OPENCL_INCLUDE_DIRS )
@@ -127,6 +128,7 @@ if( LIB64 )
     PATHS
     /usr/lib
     /usr/local/cuda/lib
+    /opt/rocm/opencl/lib
   )
 else( )
   find_library( OPENCL_LIBRARIES
@@ -141,6 +143,7 @@ else( )
     PATHS
     /usr/lib
     /usr/local/cuda/lib
+    /opt/rocm/opencl/lib
   )
 endif( )
 mark_as_advanced( OPENCL_LIBRARIES )

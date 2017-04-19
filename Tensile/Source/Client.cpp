@@ -176,7 +176,7 @@ void initControls() {
 #if Tensile_RUNTIME_LANGUAGE_OCL
   // setup opencl objects
   cl_uint numPlatforms, numDevices;
-  status = clGetPlatformIDs(0, nullptr, &numPlatforms);
+  status = clGetPlatformIDs(0, NULL, &numPlatforms);
   if (platformIdx >= numPlatforms) {
     std::cout << "Platform " << platformIdx << "/" << numPlatforms << " invalid"
         << std::endl;
@@ -184,10 +184,10 @@ void initControls() {
   }
   tensileStatusCheck(status);
   cl_platform_id *platforms = new cl_platform_id[numPlatforms];
-  status = clGetPlatformIDs(numPlatforms, platforms, nullptr);
+  status = clGetPlatformIDs(numPlatforms, platforms, NULL);
   tensileStatusCheck(status);
   platform = platforms[platformIdx];
-  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, nullptr, &numDevices);
+  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 0, NULL, &numDevices);
   if (deviceIdx >= numDevices) {
     std::cout << "Device " << deviceIdx << "/" << numDevices << " invalid"
         << std::endl;
@@ -195,17 +195,17 @@ void initControls() {
   }
   tensileStatusCheck(status);
   cl_device_id *devices = new cl_device_id[numDevices];
-  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, nullptr);
+  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
   tensileStatusCheck(status);
   device = devices[deviceIdx];
   size_t nameLength;
-  status = clGetDeviceInfo( device, CL_DEVICE_NAME, 0, nullptr, &nameLength );
+  status = clGetDeviceInfo( device, CL_DEVICE_NAME, 0, NULL, &nameLength );
   tensileStatusCheck(status);
   char *deviceName = new char[nameLength+1];
   status = clGetDeviceInfo( device, CL_DEVICE_NAME, nameLength, deviceName, 0 );
   tensileStatusCheck(status);
   std::cout << "Device: \"" << deviceName << "\"" << std::endl;
-  context = clCreateContext(nullptr, 1, &device, nullptr, nullptr, &status);
+  context = clCreateContext(NULL, 1, &device, NULL, NULL, &status);
   tensileStatusCheck(status);
 
   if (measureKernelTime) {

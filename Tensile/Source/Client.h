@@ -28,6 +28,7 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <cstring>
 
 TensileTimer timer;
 TensileTimer apiTimer;
@@ -212,7 +213,7 @@ bool callLibrary(
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
         if (measureKernelTime)
 #if Tensile_RUNTIME_LANGUAGE_OCL
-            generatedCallToFunction(userSizes, alpha, beta, 0, nullptr, &l_outputEvent[syncIdx][0]);
+            generatedCallToFunction(userSizes, alpha, beta, 0, NULL, &l_outputEvent[syncIdx][0]);
 #else
             generatedCallToFunction(userSizes, alpha, beta, numEnqueuesPerSync, &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
 #endif
@@ -460,7 +461,7 @@ bool benchmarkAllSolutionsForSize(
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
           if (measureKernelTime)
 #if Tensile_RUNTIME_LANGUAGE_OCL
-              generatedCallToSolution( solutionIdx , sizes, alpha, beta, 0, nullptr, &l_outputEvent[syncIdx][0] );
+              generatedCallToSolution( solutionIdx , sizes, alpha, beta, 0, NULL, &l_outputEvent[syncIdx][0] );
 #else
               generatedCallToSolution( solutionIdx, sizes, alpha, beta, numEnqueuesPerSync, &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0] );
 #endif

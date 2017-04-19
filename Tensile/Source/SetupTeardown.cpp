@@ -50,7 +50,7 @@ TensileStatus tensileTeardown() {
       index++;
     }
     delete kernelMap;
-    kernelMap = nullptr;
+    kernelMap = NULL;
   }
 #endif
   return tensileStatusSuccess;

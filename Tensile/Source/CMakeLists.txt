@@ -64,10 +64,14 @@ else()
 endif()
 
 ###############################################################################
-# Visual Studio or not
+# Visual Studio or HIPCC
 if(MSVC)
-  # object-level build parallelism for VS, not just target-level
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" ) # parallel build
+endif()
+
+if (UNIX)
+  # the Tensile library doesn't require c++11, but client/ReferenceCPU does
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11" )
 endif()
 
 if(Tensile_MERGE_FILES)

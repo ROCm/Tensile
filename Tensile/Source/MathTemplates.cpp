@@ -23,6 +23,7 @@
 #include "MathTemplates.h"
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 
 
 /*******************************************************************************
@@ -256,13 +257,33 @@ template<> std::string tensileToString(TensileHalf v){
   return std::to_string(static_cast<float>(v)); }
 #endif
 template<> std::string tensileToString(float v){
-  return std::to_string(v); }
+  std::string s;
+  s += v;
+  return s;
+  //return std::to_string(v);
+  }
 template<> std::string tensileToString(double v){
-  return std::to_string(v); }
+  std::string s;
+  s += v;
+  return s;
+  //return std::to_string(v);
+  }
 template<> std::string tensileToString(TensileComplexFloat v){
-  return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v)); }
+  std::string s;
+  s += tensileToString(TENSILEREAL(v));
+  s += ",";
+  s += tensileToString(TENSILECOMP(v));
+  return s;
+  //return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v));
+}
 template<> std::string tensileToString(TensileComplexDouble v){
-  return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v)); }
+  std::string s;
+  s += tensileToString(TENSILEREAL(v));
+  s += ",";
+  s += tensileToString(TENSILECOMP(v));
+  return s;
+  //return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v));
+}
 
 
 
