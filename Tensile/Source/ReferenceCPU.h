@@ -24,6 +24,7 @@
 #include "TensileTypes.h"
 #include "MathTemplates.h"
 #include <vector>
+#include <type_traits>
 
 
 /*******************************************************************************

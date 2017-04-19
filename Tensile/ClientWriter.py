@@ -662,11 +662,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    DataType beta, \n"
     h += "    unsigned int numEvents = 0, \n"
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "    cl_event *event_wait_list = nullptr,\n"
-      h += "    cl_event *outputEvent = nullptr ) {\n"
+      h += "    cl_event *event_wait_list = NULL,\n"
+      h += "    cl_event *outputEvent = NULL ) {\n"
     else:
-      h += "    hipEvent_t *startEvent = nullptr,\n"
-      h += "    hipEvent_t *stopEvent = nullptr ) {\n"
+      h += "    hipEvent_t *startEvent = NULL,\n"
+      h += "    hipEvent_t *stopEvent = NULL ) {\n"
 
     h += "  // calculate parameters assuming packed data\n"
     # strides
@@ -745,11 +745,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    unsigned int numEvents = 0, \n"
 
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "    cl_event *event_wait_list = nullptr,\n"
-      h += "    cl_event *outputEvent = nullptr );\n\n"
+      h += "    cl_event *event_wait_list = NULL,\n"
+      h += "    cl_event *outputEvent = NULL );\n\n"
     else:
-      h += "    hipEvent_t *startEvent = nullptr,\n"
-      h += "    hipEvent_t *stopEvent = nullptr );\n\n"
+      h += "    hipEvent_t *startEvent = NULL,\n"
+      h += "    hipEvent_t *stopEvent = NULL );\n\n"
 
 
     for dataType in dataTypes:

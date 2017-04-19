@@ -21,6 +21,7 @@
 
 #ifndef TENSILE_H
 #define TENSILE_H
+#include <stdio.h>
 
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
