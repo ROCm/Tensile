@@ -55,7 +55,7 @@ class KernelWriterAssembly(KernelWriter):
     self.instructionIdxOffsetMultiplier = 3
     self.instructionIdxWidth = 4
     self.memoryArchitecture = {
-        ["LocalRead"]: [
+        "LocalRead": [
           ["ds_read_b128",        1, 1,   4, 4],
           ["ds_read2st64_b64",    1, 2, 128, 2],
           ["ds_read2_b64",        1, 2,   2, 2],
@@ -63,7 +63,7 @@ class KernelWriterAssembly(KernelWriter):
           ["ds_read2st64_b32",    1, 2,  64, 1],
           ["ds_read2_b32",        1, 2,   1, 1],
           ["ds_read_b32",         1, 1,   1, 1] ],
-        ["LocalWrite"]: [
+        "LocalWrite": [
           ["ds_write_b128",       1, 1,   4, 4],
           ["ds_write2st64_b64",   1, 2, 128, 2],
           ["ds_write2_b64",       1, 2,   2, 2],
@@ -71,11 +71,11 @@ class KernelWriterAssembly(KernelWriter):
           ["ds_write2st64_b32",   1, 2,  64, 1],
           ["ds_write2_b32",       1, 2,   1, 1],
           ["ds_write_b32",        1, 1,   1, 1] ],
-        ["GlobalRead"]: [
+        "GlobalRead": [
           ["flat_load_dwordx4",   1, 1,   0, 4],
           ["flat_load_dwordx2",   1, 1,   0, 2],
           ["flat_load_dword",     1, 1,   0, 1] ],
-        ["GlobalWrite"]: [
+        "GlobalWrite": [
           ["flat_store_dwordx4",  1, 1,   0, 4],
           ["flat_store_dwordx2",  1, 1,   0, 2],
           ["flat_store_dword",    1, 1,   0, 1] ]
@@ -118,10 +118,13 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
       readWidth = instruction[self.instructionIdxWidth]
       if width < readWidth:
         continue
-      if stride % offsetMultiplier != 0:
-        continue
-      if numOffsets > 1 and not combine:
-        continue
+      if combine:
+        if numOffsets > 1:
+          if stride % offsetMultiplier != 0:
+            continue
+      else:
+        if numOffsets > 1:
+          continue
       return i
     return len(instructions)
 
@@ -193,7 +196,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
   # Init Kernel
   ##############################################################################
   def initKernel(self, kernel):
-    super(KernelWriterAssembly, self).kernelInit( self, kernel)
+    super(KernelWriterAssembly, self).initKernel(kernel)
 
     # registers per element
     self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
@@ -202,9 +205,12 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     # registers per local address
     self.rpla = 1 # 32-bit
 
+    ####################################
+    # choose memory instructions
+    ####################################
+
     ########################################
-    # globalReadA instruction
-    globalReadCombine = 0
+    # globalReadA instruction; no flat_load2_*
     globalReadStrideTile = 0
     globalReadStrideUnroll = 0
     self.globalReadWidthA = kernel["VectorWidth"] if self.readTileDimVectorA \
@@ -216,12 +222,12 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         or self.readPerpendicularComponentsA
     self.globalReadInstructionIdxA = \
         self.selectMemoryInstruction("GlobalRead", self.globalReadWidthA, \
-        globalReadCombine, \
+        kernel["GlobalRead2A"], \
         self.globalRead2CoalescedA, self.globalRead2PerpendicularA,
         globalReadStrideTile, globalReadStrideUnroll )
 
     ########################################
-    # globalReadB instruction
+    # globalReadB instruction; no flat_load2_
     self.globalReadWidthB = kernel["VectorWidth"] if self.readTileDimVectorB  \
         else 1
     self.globalReadWidthB *= self.rpe
@@ -231,7 +237,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         or self.readPerpendicularComponentsB
     self.globalReadInstructionIdxB = \
         self.selectMemoryInstruction("GlobalRead", self.globalReadWidthB, \
-        globalReadCombine, \
+        kernel["GlobalRead2B"], \
         self.globalRead2CoalescedB, self.globalRead2PerpendicularB,
         globalReadStrideTile, globalReadStrideUnroll )
 
@@ -246,7 +252,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.localWrite2PerpendicularA = self.numWritesPerpendicularA>1 \
         or self.writeUnrollDimComponentsA
     # localWriteA stride tile
-    if kernel["TLUA"]:
+    if kernel["ProblemType"]["TLUA"]:
       if self.writeTileDimComponentsA:
         self.localWriteStrideTileA = 1
         self.localWriteJoinTileA = "Components"
@@ -254,7 +260,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         self.localWriteStrideTileA = kernel["LSCA"]
         self.localWriteJoinTileA = "Coalesced"
     else:
-      if writeUnrollDimComponentsA:
+      if self.writeUnrollDimComponentsA:
         self.localWriteStrideTileA = 1
         self.localWriteJoinTileA = "Components"
       else:
@@ -262,8 +268,8 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         self.localWriteJoinTileA = "Perpendicular"
     self.localWriteStrideTileA *= self.rpe
     # localWriteA stride unroll
-    if kernel["TLUA"]:
-      if writeUnrollDimComponentsA:
+    if kernel["ProblemType"]["TLUA"]:
+      if self.writeUnrollDimComponentsA:
         self.localWriteStrideUnrollA = 1*kernel["MacroTileA"]
         self.localWriteJoinUnrollA = "Components"
       else:
@@ -279,9 +285,9 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.localWriteStrideUnrollA *= self.rpe
     self.localWriteInstructionIdxA = \
         self.selectMemoryInstruction("LocalWrite", self.localWriteWidthA, \
-        globalParameters["LocalWrite2"], \
+        kernel["LocalWrite2A"], \
         self.localWrite2CoalescedA, self.localWrite2PerpendicularA,
-        localWriteStrideTileA, localWriteStrideUnrollA )
+        self.localWriteStrideTileA, self.localWriteStrideUnrollA )
 
     ########################################
     # localWriteB instruction
@@ -294,7 +300,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.localWrite2PerpendicularB = self.numWritesPerpendicularB>1 \
         or self.writeUnrollDimComponentsB
     # localWriteB stride tile
-    if kernel["TLUB"]:
+    if kernel["ProblemType"]["TLUB"]:
       if self.writeTileDimComponentsB:
         self.localWriteStrideTileB = 1
         self.localWriteJoinTileB = "Components"
@@ -302,7 +308,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         self.localWriteStrideTileB = kernel["LSCB"]
         self.localWriteJoinTileB = "Coalesced"
     else:
-      if writeUnrollDimComponentsB:
+      if self.writeUnrollDimComponentsB:
         self.localWriteStrideTileB = 1
         self.localWriteJoinTileB = "Components"
       else:
@@ -310,8 +316,8 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         self.localWriteJoinTileB = "Perpendicular"
     self.localWriteStrideTileB *= self.rpe
     # localWriteB stride unroll
-    if kernel["TLUB"]:
-      if writeUnrollDimComponentsB:
+    if kernel["ProblemType"]["TLUB"]:
+      if self.writeUnrollDimComponentsB:
         self.localWriteStrideUnrollB = 1*kernel["MacroTileB"]
         self.localWriteJoinUnrollB = "Components"
       else:
@@ -327,9 +333,9 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.localWriteStrideUnrollB *= self.rpe
     self.localWriteInstructionIdxB = \
         self.selectMemoryInstruction("LocalWrite", self.localWriteWidthB, \
-        globalParameters["LocalWrite2"], \
+        kernel["LocalWrite2B"], \
         self.localWrite2CoalescedB, self.localWrite2PerpendicularB,
-        localWriteStrideTileB, localWriteStrideUnrollB )
+        self.localWriteStrideTileB, self.localWriteStrideUnrollB )
 
     ########################################
     # localRead A
@@ -340,7 +346,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.localRead2CoalescedA = kernel["ThreadTile0"]/kernel["VectorWidth"] > 1
     self.localReadInstructionIdxA = \
         self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
-        globalParameters["LocalRead"], \
+        kernel["LocalRead2A"], \
         self.localRead2CoalescedA, localRead2Perpendicular,
         self.localReadStrideCoalescedA, localReadStridePerpendicular)
 
@@ -353,7 +359,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.localRead2CoalescedB = kernel["ThreadTile1"]/kernel["VectorWidth"] > 1
     self.localReadInstructionIdxB = \
         self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
-        globalParameters["LocalRead"], \
+        kernel["LocalRead2B"], \
         self.localRead2CoalescedB, localRead2Perpendicular,
         self.localReadStrideCoalescedB, localReadStridePerpendicular)
 
@@ -363,18 +369,62 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         self.globalReadInstructionIdxB]
     self.localWriteInstructionA = self.memoryArchitecture["LocalWrite"][ \
         self.localWriteInstructionIdxA]
-    self.localReadInstructionB = self.memoryArchitecture["LocalWrite"][ \
+    self.localWriteInstructionB = self.memoryArchitecture["LocalWrite"][ \
         self.localWriteInstructionIdxB]
     self.localReadInstructionA = self.memoryArchitecture["LocalRead"][ \
         self.localReadInstructionIdxA]
     self.localReadInstructionB = self.memoryArchitecture["LocalRead"][ \
         self.localReadInstructionIdxB]
+    print self.getKernelName(kernel)
     print "GlobalReadInstructionA", self.globalReadInstructionA
     print "GlobalReadInstructionB", self.globalReadInstructionB
     print "LocalWriteInstructionA", self.localWriteInstructionA
     print "LocalWriteInstructionB", self.localWriteInstructionB
-    print "LocalReadInstructionA", self.localReadInstructionA
-    print "LocalReadInstructionB", self.localReadInstructionB
+    print "LocalReadInstructionA ", self.localReadInstructionA
+    print "LocalReadInstructionB ", self.localReadInstructionB
+    print "\n"
+
+    ####################################
+    # register allocation
+    ####################################
+
+    ####################################
+    # num registers: valu
+    numRegValuC = kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.rpe
+    numRegValuA = kernel["ThreadTileA"]*self.rpe
+    numRegValuB = kernel["ThreadTileB"]*self.rpe
+    numRegValuBlkA = numRegA if kernel["PrefetchLocalRead"] else 0
+    numRegValuBlkB = numRegB if kernel["PrefetchLocalRead"] else 0
+
+    ####################################
+    # num registers: local read addresses
+    numRegLocalReadAddrA = 1 * self.rpla
+    numRegLocalReadAddrB = 1 * self.rpla
+
+    ####################################
+    # num registers: local write addresses
+    numLocalWriteInstructionsA = numWritesA \
+        / self.localWriteInstructionaA[self.instructionIdxNumOffsets]
+    numRegLocalWriteAddrA = numLocalWriteInstructionsA * self.rpla
+
+    ####################################
+    # num registers: global read increments
+
+    ####################################
+    # num registers: global -> local elements
+
+    ####################################
+    # num registers: global read addresses
+
+    ####################################
+    # num registers: c write address
+    # 1 address where to write first value
+    # 1 tmp address where to write current value
+
+
+    numLocalWriteInstructionsA = numLocalWriteVectorsB \
+        / numVectorsPerLocalWriteA
+    numRegLocalWriteAddressesA = numLocalWriteInstructionsA * self.rpla
 
   ##############################################################################
   # Function Prefix
@@ -432,7 +482,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
 
 
 
-
+    """
     numLocalWriteVectorsA = kernel["NumLoadsPerpendicularA"] \
         * kernel["NumLoadsCoalescedA"] * NumWriteVectorComponentsA * self.rpla
     if kernel["LocalWrite2"] < 0:
@@ -456,7 +506,8 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     numLocalWriteInstructionsA = numLocalWriteVectorsB \
         / numVectorsPerLocalWriteA
     numRegLocalWriteAddressesA = numLocalWriteInstructionsA * self.rpla
-
+    """
+    return kStr
     # registers used for global load increments
 
     # registers used for global load elements
