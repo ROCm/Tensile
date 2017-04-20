@@ -400,122 +400,202 @@ class KernelWriterAssembly(KernelWriter):
     print "LocalReadInstructionB ", self.localReadInstructionB
 
     ####################################
-    # register allocation
+    # VGPR Allocation
     ####################################
 
     ####################################
-    # num registers: valu
-    numRegValuC = kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.rpe
-    numRegValuA = kernel["ThreadTileA"]*self.rpe
-    numRegValuB = kernel["ThreadTileB"]*self.rpe
-    numRegValuBlkA = numRegValuA if kernel["PrefetchLocalRead"] else 0
-    numRegValuBlkB = numRegValuB if kernel["PrefetchLocalRead"] else 0
+    # num vgprs: valu
+    numVgprValuC = kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.rpe
+    numVgprValuA = kernel["ThreadTileA"]*self.rpe
+    numVgprValuB = kernel["ThreadTileB"]*self.rpe
+    numVgprValuBlkA = numVgprValuA if kernel["PrefetchLocalRead"] else 0
+    numVgprValuBlkB = numVgprValuB if kernel["PrefetchLocalRead"] else 0
 
     ####################################
-    # num registers: global -> local elements
-    numRegG2LA = kernel["NumLoadsCoalescedA"] \
+    # num vgprs: global -> local elements
+    numVgprG2LA = kernel["NumLoadsCoalescedA"] \
         * kernel["NumLoadsPerpendicularA"] * kernel["VectorWidth"] * self.rpe
-    numRegG2LB = kernel["NumLoadsCoalescedB"] \
+    numVgprG2LB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["VectorWidth"] * self.rpe
 
     ####################################
-    # num registers: local read addresses
-    numRegLocalReadAddressesA = 1 * self.rpla
-    numRegLocalReadAddressesB = 1 * self.rpla
+    # num vgprs: local read addresses
+    numVgprLocalReadAddressesA = 1 * self.rpla
+    numVgprLocalReadAddressesB = 1 * self.rpla
 
     ####################################
-    # num registers: local write addresses
+    # num vgprs: local write addresses
     #numLocalWritesA = kernel["NumLoadsCoalescedA"] \
     #    * kernel["NumLoadsPerpendicularA"] * self.numWriteVectorComponentsA
     #numLocalWriteInstructionsA = numLocalWritesA \
     #    / self.localWriteInstructionA[self.instructionIdxNumOffsets]
-    numRegLocalWriteAddressesA = 1 * self.rpla
+    numVgprLocalWriteAddressesA = 1 * self.rpla
 
     #numLocalWritesB = kernel["NumLoadsCoalescedB"] \
     #    * kernel["NumLoadsPerpendicularB"] * self.numWriteVectorComponentsB
     #numLocalWriteInstructionsB = numLocalWritesB \
     #    / self.localWriteInstructionB[self.instructionIdxNumOffsets]
-    numRegLocalWriteAddressesB = 1 * self.rpla
+    numVgprLocalWriteAddressesB = 1 * self.rpla
 
     ####################################
-    # num registers: global read increments
-    numRegGlobalReadIncA = kernel["ProblemType"]["NumIndicesSummation"] \
-        * self.rpga
-    numRegGlobalReadIncB = kernel["ProblemType"]["NumIndicesSummation"] \
-        * self.rpga
-
-    ####################################
-    # num registers: global read addresses
+    # num vgprs: global read addresses
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
         * kernel["NumLoadsPerpendicularA"] * kernel["VectorWidth"] \
         * self.numReadVectorComponentsA
     numGlobalReadInstructionsA = numGlobalReadsA \
         / self.globalReadInstructionA.blockWidth
-    numRegGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
+    numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["VectorWidth"] \
         * self.numReadVectorComponentsB
     numGlobalReadInstructionsB = numGlobalReadsB \
         / self.globalReadInstructionB.blockWidth
-    numRegGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
+    numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
 
     ####################################
-    # num registers: c write address
+    # num vgprs: c write address
     # 1 address where to write first value
     # 1 tmp address where to write current value
 
 
     ####################################
-    # register assignment
+    # VGPR Assignment
     ####################################
-    regIdx = 0
-    startRegValuC = regIdx; regIdx += numRegValuC
+    vgprIdx = 0
+    startVgprValuC = vgprIdx; vgprIdx += numVgprValuC
 
-    startRegValuA = regIdx; regIdx += numRegValuA
-    startRegValuBlkA = regIdx; regIdx += numRegValuBlkA
+    startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
+    startVgprValuBlkA = vgprIdx; vgprIdx += numVgprValuBlkA
     if kernel["PrefetchGlobalRead"]:
-      startRegG2LA = regIdx; regIdx += numRegG2LA
+      startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
     else: # g2l can overlap valu
-      startRegG2LA = startRegValuA
-      regIdx = startRegValuA + max(numRegValuA+numRegValuBlkA, numRegG2LA)
+      startVgprG2LA = startVgprValuA
+      vgprIdx = startVgprValuA + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
 
-    startRegValuB = regIdx; regIdx += numRegValuB
-    startRegValuBlkB = regIdx; regIdx += numRegValuBlkB
+    startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
+    startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
     if kernel["PrefetchGlobalRead"]:
-      startRegG2LB = regIdx; regIdx += numRegG2LB
+      startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
     else: # g2l can overlap valu
-      startRegG2LB = startRegValuB
-      regIdx = startRegValuB + max(numRegValuB+numRegValuBlkB, numRegG2LB)
+      startVgprG2LB = startVgprValuB
+      vgprIdx = startVgprValuB + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
 
-    startRegLocalReadAddressesA = regIdx; regIdx += numRegLocalReadAddressesA
-    startRegLocalReadAddressesB = regIdx; regIdx += numRegLocalReadAddressesB
-    startRegLocalWriteAddressesA = regIdx; regIdx += numRegLocalWriteAddressesA
-    startRegLocalWriteAddressesB = regIdx; regIdx += numRegLocalWriteAddressesB
-    startRegGlobalReadIncA = regIdx; regIdx += numRegGlobalReadIncA
-    startRegGlobalReadIncB = regIdx; regIdx += numRegGlobalReadIncB
-    startRegGlobalReadAddressesA = regIdx; regIdx += numRegGlobalReadAddressesA
-    startRegGlobalReadAddressesB = regIdx; regIdx += numRegGlobalReadAddressesB
-    totalRegisters = regIdx
+    startVgprLocalReadAddressesA = vgprIdx;
+    vgprIdx += numVgprLocalReadAddressesA
+    startVgprLocalReadAddressesB = vgprIdx;
+    vgprIdx += numVgprLocalReadAddressesB
+    startVgprLocalWriteAddressesA = vgprIdx;
+    vgprIdx += numVgprLocalWriteAddressesA
+    startVgprLocalWriteAddressesB = vgprIdx;
+    vgprIdx += numVgprLocalWriteAddressesB
+    startVgprGlobalReadAddressesA = vgprIdx;
+    vgprIdx += numVgprGlobalReadAddressesA
+    startVgprGlobalReadAddressesB = vgprIdx;
+    vgprIdx += numVgprGlobalReadAddressesB
     if True:
-      print "startRegValuC", startRegValuC
-      print "startRegValuA", startRegValuA
-      print "startRegValuBlkA", startRegValuBlkA
-      print "startRegG2LA", startRegG2LA
-      print "startRegValuB", startRegValuB
-      print "startRegValuBlkB", startRegValuBlkB
-      print "startRegG2LB", startRegG2LB
-      print "startRegLocalReadAddressesA", startRegLocalReadAddressesA
-      print "startRegLocalReadAddressesB", startRegLocalReadAddressesB
-      print "startRegLocalWriteAddressesA", startRegLocalWriteAddressesA
-      print "startRegLocalWriteAddressesB", startRegLocalWriteAddressesB
-      print "startRegGlobalReadIncA", startRegGlobalReadIncA
-      print "startRegGlobalReadIncB", startRegGlobalReadIncB
-      print "startRegGlobalReadAddressesA", startRegGlobalReadAddressesA
-      print "startRegGlobalReadAddressesB", startRegGlobalReadAddressesB
+      print "startVgprValuC", startVgprValuC
+      print "startVgprValuA", startVgprValuA
+      print "startVgprValuBlkA", startVgprValuBlkA
+      print "startVgprG2LA", startVgprG2LA
+      print "startVgprValuB", startVgprValuB
+      print "startVgprValuBlkB", startVgprValuBlkB
+      print "startVgprG2LB", startVgprG2LB
+      print "startVgprLocalReadAddressesA", startVgprLocalReadAddressesA
+      print "startVgprLocalReadAddressesB", startVgprLocalReadAddressesB
+      print "startVgprLocalWriteAddressesA", startVgprLocalWriteAddressesA
+      print "startVgprLocalWriteAddressesB", startVgprLocalWriteAddressesB
+      print "startVgprGlobalReadAddressesA", startVgprGlobalReadAddressesA
+      print "startVgprGlobalReadAddressesB", startVgprGlobalReadAddressesB
+    startVgprTmp = vgprIdx
+    vgprPerCU = 65536
+    vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
+    numWorkGroupsPerCU = vgprPerThreadPerOccupancy / startVgprTmp
+    numWavesPerWorkGroup = kernel["NumThreads"] / 64
+    numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
+    numWavesPerSimd = numWavesPerCU / 4
+    maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
+    numVgprTmp = maxVgprSameOccupancy - startVgprTmp
+    totalVgprs = maxVgprSameOccupancy
+    print "Vgpr: %u + %u = %u" % (startVgprTmp, numVgprTmp, totalVgprs)
+    print "Occ: %u waves/simd" % numWavesPerSimd
+    # TODO - how many tmp vgprs available before loop, after loop
+# before loop we can use numVgprValuC
+# after loop we can use
+#   global read addresses
+#   global read increments
+#   local read/write addresses
 
-    totalRegisters = regIdx
-    print "TotalRegisters", totalRegisters
+    ########################################
+    # SGPR Allocation
+    ########################################
+
+    ####################################
+    # num sgprs: initial kernel state
+    numSgprKernArgAddress = self.rpga
+    numSgprWorkGroup0 = 1
+    numSgprWorkGroup1 = 1
+    numSgprAddressC = self.rpga # til end
+    numSgprAddressA = self.rpga # til read offsets
+    numSgprAddressB = self.rpga # til read offsets
+    numSgprOffsetC = 1
+    numSgprOffsetA = 1
+    numSgprOffsetB = 1
+    numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
+    numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
+    numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
+    if not kernel["ProblemType"]["UseInitialStrides"]:
+      numSgprStridesC -= 1
+      numSgprStridesA -= 1
+      numSgprStridesB -= 1
+    numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
+    numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
+
+    ####################################
+    # num sgprs: global read increments
+    numSgprGlobalReadIncsA = kernel["ProblemType"]["NumIndicesSummation"] \
+        * self.rpga
+    numSgprGlobalReadIncsB = kernel["ProblemType"]["NumIndicesSummation"] \
+        * self.rpga
+    numSgprLoopCounters = 1 * kernel["ProblemType"]["NumIndicesSummation"]
+
+    numSgprLoopCountersAndIncrements = numSgprGlobalReadIncsA \
+        + numSgprGlobalReadIncsB + numSgprLoopCounters
+    numSgprFreedBeforeLoops = numSgprStridesA + numSgprStridesB \
+        + numSgprSizesFree + numSgprAddressA + numSgprAddressB \
+        + numSgprOffsetC + numSgprOffsetA + numSgprOffsetB
+    numSgprLoopPadding = max(0, numSgprFreedBeforeLoops  \
+        - numSgprLoopCountersAndIncrements)
+
+    ########################################
+    # SGPR Assignment
+    ########################################
+    sgprIdx = 0
+    startSgprKernArgAddress = sgprIdx; sgprIdx += numSgprKernArgAddress
+    startSgprWorkGroup0 = sgprIdx; sgprIdx += numSgprWorkGroup0
+    startSgprWorkGroup1 = sgprIdx; sgprIdx += numSgprWorkGroup1
+    startSgprAddressC = sgprIdx; sgprIdx += numSgprAddressC
+    startSgprStridesC = sgprIdx; sgprIdx += numSgprStridesC
+    startSgprSizesSum = sgprIdx; sgprIdx += numSgprSizesSum
+    startSgprLoopPadding = sgprIdx; sgprIdx += numSgprLoopPadding # overlap
+    startSgprStridesA = sgprIdx; sgprIdx += numSgprStridesA
+    startSgprStridesB = sgprIdx; sgprIdx += numSgprStridesB
+    startSgprSizesFree = sgprIdx; sgprIdx += numSgprSizesFree
+    startSgprAddressA = sgprIdx; sgprIdx += numSgprAddressA
+    startSgprAddressB = sgprIdx; sgprIdx += numSgprAddressB
+    startSgprOffsetC = sgprIdx; sgprIdx += numSgprOffsetC
+    startSgprOffsetA = sgprIdx; sgprIdx += numSgprOffsetA
+    startSgprOffsetB = sgprIdx; sgprIdx += numSgprOffsetB
+    totalSgprs = sgprIdx
+    print1("Sgpr: %u" % totalSgprs)
+
+    # assign loop sgprs which overlap above assignments
+    sgprIdx = startSgprLoopPadding
+    startSgprGlobalReadIncsA = sgprIdx; sgprIdx += numSgprGlobalReadIncsA
+    startSgprGlobalReadIncsB = sgprIdx; sgprIdx += numSgprGlobalReadIncsB
+    startSgprLoopCounters = sgprIdx
+
+
 
 
   ##############################################################################
