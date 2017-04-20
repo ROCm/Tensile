@@ -150,7 +150,7 @@ class KernelWriterSource(KernelWriter):
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
     kStr += self.endLine
     kStr += "/* DepthU parameters*/%s" % self.endLine
-    kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
+    kStr += "#define CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
     kStr += "#define LOCAL_SPLITU %d%s" \
         % (kernel["LocalSplitU"], self.endLine )
@@ -2262,7 +2262,7 @@ class KernelWriterSource(KernelWriter):
               % (self.tileChar0, \
               ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
               self.tileChar0)
-          kStr += "  if (globalC%s + %u*CPS < size%s) {" \
+          kStr += "  if (globalC%s + %u*CPSV < size%s) {" \
               % (self.tileChar1, b, self.tileChar1)
 
         kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
@@ -2271,7 +2271,7 @@ class KernelWriterSource(KernelWriter):
           if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
             kStr += " + %u" %s
           if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + %u*CPS" %b
+            kStr += " + %u*CPSV" %b
           if i < kernel["ProblemType"]["NumIndicesC"]-1:
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"

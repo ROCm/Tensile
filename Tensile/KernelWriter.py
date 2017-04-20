@@ -755,14 +755,22 @@ class KernelWriter:
   ##############################################################################
   # single line comment
   ##############################################################################
-  def comment(self, text):
+  def comment1(self, text):
     s = ""
-    s += self.endLine
     s += self.indent
     s += self.commentPrefix
     s += " %s " % text
     s += self.commentSuffix
     s += self.endLine
+    return s
+
+  ##############################################################################
+  # comment with prior newline
+  ##############################################################################
+  def comment(self, text):
+    s = ""
+    s += self.endLine
+    s += self.comment1(text)
     return s
 
   ##############################################################################

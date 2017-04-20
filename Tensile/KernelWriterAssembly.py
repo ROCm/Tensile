@@ -463,68 +463,46 @@ class KernelWriterAssembly(KernelWriter):
     # VGPR Assignment
     ####################################
     vgprIdx = 0
-    startVgprValuC = vgprIdx; vgprIdx += numVgprValuC
+    self.startVgprValuC = vgprIdx; vgprIdx += numVgprValuC
 
-    startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
-    startVgprValuBlkA = vgprIdx; vgprIdx += numVgprValuBlkA
+    self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
+    self.startVgprValuBlkA = vgprIdx; vgprIdx += numVgprValuBlkA
     if kernel["PrefetchGlobalRead"]:
-      startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
+      self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
     else: # g2l can overlap valu
-      startVgprG2LA = startVgprValuA
-      vgprIdx = startVgprValuA + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
+      self.startVgprG2LA = self.startVgprValuA
+      vgprIdx = self.startVgprValuA + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
 
-    startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
-    startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
+    self.startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
+    self.startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
     if kernel["PrefetchGlobalRead"]:
-      startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
+      self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
     else: # g2l can overlap valu
-      startVgprG2LB = startVgprValuB
-      vgprIdx = startVgprValuB + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
+      self.startVgprG2LB = self.startVgprValuB
+      vgprIdx = self.startVgprValuB + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
 
-    startVgprLocalReadAddressesA = vgprIdx;
+    self.startVgprLocalReadAddressesA = vgprIdx;
     vgprIdx += numVgprLocalReadAddressesA
-    startVgprLocalReadAddressesB = vgprIdx;
+    self.startVgprLocalReadAddressesB = vgprIdx;
     vgprIdx += numVgprLocalReadAddressesB
-    startVgprLocalWriteAddressesA = vgprIdx;
+    self.startVgprLocalWriteAddressesA = vgprIdx;
     vgprIdx += numVgprLocalWriteAddressesA
-    startVgprLocalWriteAddressesB = vgprIdx;
+    self.startVgprLocalWriteAddressesB = vgprIdx;
     vgprIdx += numVgprLocalWriteAddressesB
-    startVgprGlobalReadAddressesA = vgprIdx;
+    self.startVgprGlobalReadAddressesA = vgprIdx;
     vgprIdx += numVgprGlobalReadAddressesA
-    startVgprGlobalReadAddressesB = vgprIdx;
+    self.startVgprGlobalReadAddressesB = vgprIdx;
     vgprIdx += numVgprGlobalReadAddressesB
-    if True:
-      print "startVgprValuC", startVgprValuC
-      print "startVgprValuA", startVgprValuA
-      print "startVgprValuBlkA", startVgprValuBlkA
-      print "startVgprG2LA", startVgprG2LA
-      print "startVgprValuB", startVgprValuB
-      print "startVgprValuBlkB", startVgprValuBlkB
-      print "startVgprG2LB", startVgprG2LB
-      print "startVgprLocalReadAddressesA", startVgprLocalReadAddressesA
-      print "startVgprLocalReadAddressesB", startVgprLocalReadAddressesB
-      print "startVgprLocalWriteAddressesA", startVgprLocalWriteAddressesA
-      print "startVgprLocalWriteAddressesB", startVgprLocalWriteAddressesB
-      print "startVgprGlobalReadAddressesA", startVgprGlobalReadAddressesA
-      print "startVgprGlobalReadAddressesB", startVgprGlobalReadAddressesB
-    startVgprTmp = vgprIdx
+    self.startVgprTmp = vgprIdx
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
-    numWorkGroupsPerCU = vgprPerThreadPerOccupancy / startVgprTmp
+    numWorkGroupsPerCU = vgprPerThreadPerOccupancy / self.startVgprTmp
     numWavesPerWorkGroup = kernel["NumThreads"] / 64
     numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
-    numWavesPerSimd = numWavesPerCU / 4
+    self.numWavesPerSimd = numWavesPerCU / 4
     maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
-    numVgprTmp = maxVgprSameOccupancy - startVgprTmp
-    totalVgprs = maxVgprSameOccupancy
-    print "Vgpr: %u + %u = %u" % (startVgprTmp, numVgprTmp, totalVgprs)
-    print "Occ: %u waves/simd" % numWavesPerSimd
-    # TODO - how many tmp vgprs available before loop, after loop
-# before loop we can use numVgprValuC
-# after loop we can use
-#   global read addresses
-#   global read increments
-#   local read/write addresses
+    self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
+    self.totalVgprs = maxVgprSameOccupancy
 
     ########################################
     # SGPR Allocation
@@ -571,32 +549,40 @@ class KernelWriterAssembly(KernelWriter):
     # SGPR Assignment
     ########################################
     sgprIdx = 0
-    startSgprKernArgAddress = sgprIdx; sgprIdx += numSgprKernArgAddress
-    startSgprWorkGroup0 = sgprIdx; sgprIdx += numSgprWorkGroup0
-    startSgprWorkGroup1 = sgprIdx; sgprIdx += numSgprWorkGroup1
-    startSgprAddressC = sgprIdx; sgprIdx += numSgprAddressC
-    startSgprStridesC = sgprIdx; sgprIdx += numSgprStridesC
-    startSgprSizesSum = sgprIdx; sgprIdx += numSgprSizesSum
-    startSgprLoopPadding = sgprIdx; sgprIdx += numSgprLoopPadding # overlap
-    startSgprStridesA = sgprIdx; sgprIdx += numSgprStridesA
-    startSgprStridesB = sgprIdx; sgprIdx += numSgprStridesB
-    startSgprSizesFree = sgprIdx; sgprIdx += numSgprSizesFree
-    startSgprAddressA = sgprIdx; sgprIdx += numSgprAddressA
-    startSgprAddressB = sgprIdx; sgprIdx += numSgprAddressB
-    startSgprOffsetC = sgprIdx; sgprIdx += numSgprOffsetC
-    startSgprOffsetA = sgprIdx; sgprIdx += numSgprOffsetA
-    startSgprOffsetB = sgprIdx; sgprIdx += numSgprOffsetB
-    totalSgprs = sgprIdx
-    print1("Sgpr: %u" % totalSgprs)
+    self.startSgprKernArgAddress = sgprIdx; sgprIdx += numSgprKernArgAddress
+    self.startSgprWorkGroup0 = sgprIdx; sgprIdx += numSgprWorkGroup0
+    self.startSgprWorkGroup1 = sgprIdx; sgprIdx += numSgprWorkGroup1
+    self.startSgprAddressC = sgprIdx; sgprIdx += numSgprAddressC
+    self.startSgprStridesC = sgprIdx; sgprIdx += numSgprStridesC
+    self.startSgprSizesSum = sgprIdx; sgprIdx += numSgprSizesSum
+    self.startSgprLoopPadding = sgprIdx; sgprIdx += numSgprLoopPadding # overlap
+    self.startSgprStridesA = sgprIdx; sgprIdx += numSgprStridesA
+    self.startSgprStridesB = sgprIdx; sgprIdx += numSgprStridesB
+    self.startSgprSizesFree = sgprIdx; sgprIdx += numSgprSizesFree
+    self.startSgprAddressA = sgprIdx; sgprIdx += numSgprAddressA
+    self.startSgprAddressB = sgprIdx; sgprIdx += numSgprAddressB
+    self.startSgprOffsetC = sgprIdx; sgprIdx += numSgprOffsetC
+    self.startSgprOffsetA = sgprIdx; sgprIdx += numSgprOffsetA
+    self.startSgprOffsetB = sgprIdx; sgprIdx += numSgprOffsetB
+    self.totalSgprs = sgprIdx
 
     # assign loop sgprs which overlap above assignments
-    sgprIdx = startSgprLoopPadding
-    startSgprGlobalReadIncsA = sgprIdx; sgprIdx += numSgprGlobalReadIncsA
-    startSgprGlobalReadIncsB = sgprIdx; sgprIdx += numSgprGlobalReadIncsB
-    startSgprLoopCounters = sgprIdx
+    sgprIdx = self.startSgprLoopPadding
+    self.startSgprGlobalReadIncsA = sgprIdx; sgprIdx += numSgprGlobalReadIncsA
+    self.startSgprGlobalReadIncsB = sgprIdx; sgprIdx += numSgprGlobalReadIncsB
+    self.startSgprLoopCounters = sgprIdx
+
+    # TODO - what occupancy does this numSgpr limit to;
+    # it probably wouldn't matter but good to calculate and print warning
+    # if it is more limiting than vgpr limitation,
+    # also print LDS occupancy limitation even though it is explicit
 
 
 
+  ##############################################################################
+  # format macro
+  def macroRegister(self, name, value):
+    return ".set %s, %s%s" % (name, value, self.endLine)
 
   ##############################################################################
   # Function Prefix
@@ -604,91 +590,77 @@ class KernelWriterAssembly(KernelWriter):
   def functionPrefix(self, kernel):
     kStr = ""
 
-    ####################################
-    # register allocation
-    # choosing instructions
-    ####################################
-    self.instructions = {}
-
-# TODO: option: when offset bits aren't sufficient, do we use VALU to
-# increment address or do we use extra registers to store addresses?
-# (1) read1 and aways have sufficient offset bits
-# (2) read2 and if insufficient offset bits then IncrementAndReset
-# (3) read2 and if insufficient offset bits then AllocateAdditionalAddresses
-
-  # if bpv >= 128 and instruction exists
-  # 4+x4+ microtile of float4
-  # 2+x2+ microtile of double2
-  # 2+x2+ microtile of CS2
-  # 1+x1+ microtile of CD2
-
-# attempt ds_read2_b64
-  # if (bpv > 64 or (bpv=64 and CombineAllowed)) and exists and not prior
-  # 2+x2+ microtile of floats
-
-# attempt ds_read_b64
-  # if bpv >= 64 and exists and not prior
-  # 1x1 microtile of doubles
-  # 1x1 microtile of ComplexSingles
-  # 2x2 microtile of float2's
-  # 2+x2+ microtile of doubles but LR2=0
-  # 2+x2+ microtile of ComplexSingles but LR2=0
-  # 4+x4+ microtile of float2's but LR2=0
-
-# attempt ds_read2_b32
-  # if (bpv > 32 or ( bpv=32 and CombineAllowed)) and exists and not prior
-  # 2+x2+ microtile of floats
-
-# attept ds_read_b32
-  # if exists and nor prior
-  # 1x1 microtile of floats
-  # 2+x2+ microtile of floats and LR2=0
-
-# if none assigned, FAIL
+    ########################################
+    # print vgpr macros
+    kStr += self.comment3("VGPR Assignments")
+    kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
+    kStr += self.macroRegister("vgprValuA", self.startVgprValuA)
+    kStr += self.macroRegister("vgprValuBlkA", self.startVgprValuBlkA)
+    kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
+    kStr += self.macroRegister("vgprValuB", self.startVgprValuB)
+    kStr += self.macroRegister("vgprValuBlkB", self.startVgprValuBlkB)
+    kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
+    kStr += self.macroRegister("vgprLocalReadAddrA", \
+        self.startVgprLocalReadAddressesA)
+    kStr += self.macroRegister("vgprLocalReadAddrB", \
+        self.startVgprLocalReadAddressesB)
+    kStr += self.macroRegister("vgprLocalWriteAddrA", \
+        self.startVgprLocalWriteAddressesA)
+    kStr += self.macroRegister("vgprLocalWriteAddrB", \
+        self.startVgprLocalWriteAddressesB)
+    kStr += self.macroRegister("vgprGlobalReadAddrA", \
+        self.startVgprGlobalReadAddressesA)
+    kStr += self.macroRegister("vgprGlobalReadAddrB", \
+        self.startVgprGlobalReadAddressesB)
+    kStr += self.comment1("VGPRs: %u + %u = %u" \
+        % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
+    kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
 
 
+    ########################################
+    # print sgpr macros
+    kStr += self.comment3("SGPR Assignments")
+    kStr += self.macroRegister("sgprKernArgAddress", \
+        self.startSgprKernArgAddress)
+    kStr += self.macroRegister("sgprWorkGroup0", self.startSgprWorkGroup0)
+    kStr += self.macroRegister("sgprWorkGroup1", self.startSgprWorkGroup1)
+    kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
+    kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
+    kStr += self.macroRegister("sgprSizesSum", self.startSgprSizesSum)
+    kStr += self.macroRegister("sgprLoopPadding", self.startSgprLoopPadding)
+    kStr += self.macroRegister("sgprStridesA", self.startSgprStridesA)
+    kStr += self.macroRegister("sgprStridesB", self.startSgprStridesB)
+    kStr += self.macroRegister("sgprSizesFree", self.startSgprSizesFree)
+    kStr += self.macroRegister("sgprAddressA", self.startSgprAddressA)
+    kStr += self.macroRegister("sgprAddressB", self.startSgprAddressB)
+    kStr += self.macroRegister("sgprOffsetC", self.startSgprOffsetC)
+    kStr += self.macroRegister("sgprOffsetA", self.startSgprOffsetA)
+    kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
+    kStr += self.macroRegister("sgprGlobalReadIncsA", \
+        self.startSgprGlobalReadIncsA)
+    kStr += self.macroRegister("sgprGlobalReadIncsB", \
+        self.startSgprGlobalReadIncsB)
+    kStr += self.macroRegister("sgprLoopCounters", self.startSgprLoopCounters)
+    kStr += self.comment1("SGPR: %u" % self.totalSgprs)
 
-
-
-
-
-
-
-    """
-    numLocalWriteVectorsA = kernel["NumLoadsPerpendicularA"] \
-        * kernel["NumLoadsCoalescedA"] * NumWriteVectorComponentsA * self.rpla
-    if kernel["LocalWrite2"] < 0:
-      # combine local writes in tile dimension
-      self.localWriteVectorTileStrideA = -1
-      pass
-    elif kernel["LocalWrite2"] > 0:
-      # combine local writes in unroll dimension
-      self.localWriteVectorUnrollStrideA = -1
-      pass
-    else:
-      # don't combine local writes
-      if (kernel["VectorWidth"] == 1 \
-          and "ds_write_b32" in self.architecture):
-        self.instructions["LocalWriteA"] = "ds_write_b32"
-      if (kernel["VectorWidth"] == 2 \
-          and "ds_write_b64" in self.architecture):
-        self.instructions["LocalWriteA"] = "ds_write_b64"
-      numVectorsPerLocalWriteA = 1
-
-    numLocalWriteInstructionsA = numLocalWriteVectorsB \
-        / numVectorsPerLocalWriteA
-    numRegLocalWriteAddressesA = numLocalWriteInstructionsA * self.rpla
-    """
-    return kStr
-    # registers used for global load increments
-
-    # registers used for global load elements
-
-    # registers used for global load addresses
-
-    kStr += ".set vC 0%s" % self.endLine
-    kStr += ".set vA %s%s" % (numReg, self.endLine)
-
+    ########################################
+    # print mac macros
+    kStr += self.comment3("%dx%d thread-tile" \
+        % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
+    numMacs = 2 if kernel["PrefetchLocalRead"] else 1
+    for m in range(0, numMacs):
+      kStr += ".macro MAC_%ux%u" \
+          % (kernel["ThreadTile0"], kernel["ThreadTile1"])
+      if kernel["PrefetchLocalRead"]:
+        kStr += ("" if m==0 else "_BLK")
+      kStr += self.endLine
+      for b in range(0, kernel["ThreadTile1"]):
+        for a in range(0, kernel["ThreadTile0"]):
+          kStr += "v_mac_f32 v[%s+%u+%u*%u], v[%s+%u], v[%s+%u]%s" \
+              % ("vgprValuC", a, b, kernel["ThreadTile0"], \
+              "vgprValuA" if m==0 else "vgprValuBlkA", a, \
+              "vgprValuB" if m==0 else "vgprValuBlkB", b, self.endLine)
+      kStr += ".endm%s" % self.endLine
 
     ####################################
     # kernel preprocessor definitions
@@ -708,7 +680,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".set MT%s (SG%s*TT%s)%s" \
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
     kStr += self.comment("DepthU parameters")
-    kStr += ".set CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
+    kStr += ".set CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
     kStr += "#define SPLITU %d%s" \
         % (kernel["LocalSplitU"], self.endLine )
@@ -2615,7 +2587,7 @@ class KernelWriterAssembly(KernelWriter):
               % (self.tileChar0, \
               ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
               self.tileChar0)
-          kStr += "  if (globalC%s + %u*CPS < size%s) {" \
+          kStr += "  if (globalC%s + %u*CPSV < size%s) {" \
               % (self.tileChar1, b, self.tileChar1)
 
         kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
@@ -2624,7 +2596,7 @@ class KernelWriterAssembly(KernelWriter):
           if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
             kStr += " + %u" %s
           if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + %u*CPS" %b
+            kStr += " + %u*CPSV" %b
           if i < kernel["ProblemType"]["NumIndicesC"]-1:
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
