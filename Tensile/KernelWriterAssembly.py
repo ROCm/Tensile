@@ -42,9 +42,9 @@ class MemoryInstruction:
     self.totalWidth = self.blockWidth * self.numBlocks
   ########################################
   # write in assembly format
-  def asm(self, comment, *params):
+  def toSring(self, comment, *params):
     tmp = "%s %s" % (self.name, (self.formatting % params) )
-    s = "%-40s // %s" % (tmp, comment)
+    s = "%-50s // %s" % (tmp, comment)
     return s
   def __str__(self):
     return self.name
@@ -61,26 +61,15 @@ class KernelWriterAssembly(KernelWriter):
     super(KernelWriterAssembly, self).__init__( \
         kernelMinNaming, kernelSerialNaming)
 
-    self.versionMajor = int(self.language[3])
-    self.versionMinor = int(self.language[4])
-    self.versionPatch = int(self.language[5])
-    print1("Generating assembly for gfx-%u:%u:%u\n" \
-        % (self.versionMajor, self.versionMinor, self.versionPatch) )
+    # ISA version, such as 803
+    self.version = int(self.language[3:])
+    print1("KernelWriterAsssembly for gfx%u\n" % self.version )
 
     ########################################
-    # available memory instructions in order of preference
-    # name,
-    # num addresses,
-    # num offsets,
-    # offset multiplier,
-    # width in registers (of each individual read1)
-    self.instructionIdxName = 0
-    self.instructionIdxNumAddresses = 1
-    self.instructionIdxNumOffsets = 2
-    self.instructionIdxOffsetMultiplier = 3
-    self.instructionIdxWidth = 4
+    # Available Memory Instructions
+    ########################################
 
-    # TODO fix formatting
+    ########################################
     # Local Read
     ds_read_b128 = MemoryInstruction("ds_read_b128",  1, 1, 4, 4, \
         "%s, %s offset:%s" )
@@ -92,6 +81,7 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s offset0:%s offset1:%s" )
     ds_read_b32 = MemoryInstruction("ds_read_b32",    1, 1, 1, 1, \
         "%s, %s offset:%s" )
+    ########################################
     # Local Write
     ds_write_b128 = MemoryInstruction("ds_write_b128",  1, 1, 4, 4, \
         "%s, %s offset:%s" )
@@ -103,6 +93,7 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s, %s offset0:%s offset1:%s" )
     ds_write_b32 = MemoryInstruction("ds_write_b32",    1, 1, 1, 1, \
         "%s, %s, %s offset:%s" )
+    ########################################
     # Global Read
     flat_load_dwordx4 = MemoryInstruction("flat_load_dwordx4",  1, 0, 0, 4, \
         "%s, %s" )
@@ -110,6 +101,7 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s" )
     flat_load_dword = MemoryInstruction("flat_load_dword",      1, 0, 0, 1, \
         "%s, %s" )
+    ########################################
     # Global Write
     flat_store_dwordx4 = MemoryInstruction("flat_store_dwordx4",  1, 0, 0, 4, \
         "%s, %s" )
@@ -118,74 +110,26 @@ class KernelWriterAssembly(KernelWriter):
     flat_store_dword = MemoryInstruction("flat_store_dword",      1, 0, 0, 1, \
         "%s, %s" )
 
+    ########################################
+    # Available Memory Instructions per Architecture
+    # gfx701 "Hawaii"
+    # gfx801 "Carrizo"
+    # gfx802 "Tonga"
+    # gfx803 "Fiji"
+    # gfx900
+    ########################################
     self.memoryInstructions = {
-        "GFX803": {
-          "GlobalRead": [
-            flat_load_dwordx4,
-            flat_load_dwordx2,
+        803: { # Fiji
+          "GlobalRead": [ flat_load_dwordx4, flat_load_dwordx2,
             flat_load_dword ],
-          "GlobalWrite": [
-            flat_store_dwordx4,
-            flat_store_dwordx2,
+          "GlobalWrite": [ flat_store_dwordx4, flat_store_dwordx2,
             flat_store_dword ],
-          "LocalRead": [
-            ds_read_b128,
-            ds_read2_b64,
-            ds_read_b64,
-            ds_read2_b32,
-            ds_read_b32 ],
-          "LocalWrite": [
-            ds_write_b128,
-            ds_write2_b64,
-            ds_write_b64,
-            ds_write2_b32,
-            ds_write_b32 ]
-          }
+          "LocalRead": [ ds_read_b128, ds_read2_b64,
+            ds_read_b64, ds_read2_b32, ds_read_b32 ],
+          "LocalWrite": [ ds_write_b128, ds_write2_b64,
+            ds_write_b64, ds_write2_b32, ds_write_b32 ]
+          } # 803
         }
-    """
-    self.memoryArchitecture = {
-        "LocalRead": [
-          ["ds_read_b128",        1, 1,   4, 4],
-          #["ds_read2st64_b64",    1, 2, 128, 2],
-          ["ds_read2_b64",        1, 2,   2, 2],
-          ["ds_read_b64",         1, 1,   2, 2],
-          #["ds_read2st64_b32",    1, 2,  64, 1],
-          ["ds_read2_b32",        1, 2,   1, 1],
-          ["ds_read_b32",         1, 1,   1, 1] ],
-        "LocalWrite": [
-          ["ds_write_b128",       1, 1,   4, 4],
-          #["ds_write2st64_b64",   1, 2, 128, 2],
-          ["ds_write2_b64",       1, 2,   2, 2],
-          ["ds_write_b64",        1, 1,   2, 2],
-          #["ds_write2st64_b32",   1, 2,  64, 1],
-          ["ds_write2_b32",       1, 2,   1, 1],
-          ["ds_write_b32",        1, 1,   1, 1] ],
-        "GlobalRead": [
-          ["flat_load_dwordx4",   1, 0,   0, 4],
-          ["flat_load_dwordx2",   1, 0,   0, 2],
-          ["flat_load_dword",     1, 0,   0, 1] ],
-        "GlobalWrite": [
-          ["flat_store_dwordx4",  1, 0,   0, 4],
-          ["flat_store_dwordx2",  1, 0,   0, 2],
-          ["flat_store_dword",    1, 0,   0, 1] ]
-        }
-    """
-
-    # Supported AMD Graphics Architectures
-    # gfx701 - Hawaii
-    # gfx801 - Carrizo
-    # gfx802 - Tonga
-    # gfx803 - Fiji
-    # gfx900 - TBD
-    """
-    for b64, offset is how many b64's to skip, now how many b32's to skip
-ds_read_b32: read single word, 16-bit offset = 65536
-ds_read_b64: read 2 adjacent words, 16-bit offset = 65536*2
-ds_read2_b32: read 2 words diff addr, 8-it offsets = 256
-ds_read2_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
-ds_read2st64_b32: read 2 words diff addr, 8-it offsets = 256
-ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
-    """
 
     self.endLine = "\n"
     self.syncStr = "s_barrier"
@@ -194,6 +138,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     self.commentHR = "*"*40
     self.indent = ""
 
+
   ##############################################################################
   # Find Memory Instruction For Width and Stride
   ##############################################################################
@@ -201,13 +146,6 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
       instructions):
     for i in range(0, len(instructions)):
       instruction = instructions[i]
-      """
-      name = instruction[self.instructionIdxName]
-      numAddresses = instruction[self.instructionIdxNumAddresses]
-      numOffsets = instruction[self.instructionIdxNumOffsets]
-      offsetMultiplier = instruction[self.instructionIdxOffsetMultiplier]
-      readWidth = instruction[self.instructionIdxWidth]
-      """
       name = instruction.name
       numAddresses = instruction.numAddresses
       numOffsets = instruction.numOffsets
@@ -243,8 +181,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
       perp2, # NumLoadsPerp >= 2
       strides ):
     #instructions = self.memoryArchitecture[operation]
-    language = globalParameters["KernelLanguage"]
-    instructions = self.memoryInstructions[language][operation]
+    instructions = self.memoryInstructions[self.version][operation]
     # try to combine
     if (write2 == "Coalesced" and para2) \
         or (write2 == "Perpendicular" and perp2):
@@ -256,33 +193,6 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     # don't or can't combine
     return self.findMemoryInstructionForWidthStride( \
         width, strides, False, instructions)
-    """
-      if para2: # num loads > 1
-        instructionIdx = self.findMemoryInstructionForWidthStride( \
-            width, strideCoalesced, True, instructions)
-        numOffsets = instructions[instructionIdx][self.instructionIdxNumOffsets]
-        if instructionIdx < len(instructions): # found combined
-          return instructionIdx
-      # return non-combined
-      return self.findMemoryInstructionForWidthStride( \
-            width, strideCoalesced, False, instructions)
-    elif write2 == "Perpendicular": # prefer to combine perpendicular
-      if perp2: # num loads > 1
-        instructionIdx = self.findMemoryInstructionForWidthStride( \
-            width, stridePerpendicular, True, instructions)
-        numOffsets = instructions[instructionIdx][self.instructionIdxNumOffsets]
-        if instructionIdx < len(instructions): # found combined
-          return instructionIdx
-      # return non-combined
-      return self.findMemoryInstructionForWidthStride( \
-            width, stridePerpendicular, False, instructions)
-    else:
-      # return non-combined
-      return self.findMemoryInstructionForWidthStride( \
-            width, stridePerpendicular, False, instructions)
-    """
-
-
 
 # TODO: option: when offset bits aren't sufficient, do we use VALU to
 # increment address or do we use extra registers to store addresses?
@@ -295,18 +205,6 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
   #   Functions to Write Kernel Segments
   #
   ##############################################################################
-
-  ##############################################################################
-  # Open String - DONE
-  ##############################################################################
-  def openString(self, kernel):
-    return ""
-
-  ##############################################################################
-  # Close String - DONE
-  ##############################################################################
-  def closeString(self, kernel):
-    return ""
 
   ##############################################################################
   # Init Kernel
@@ -479,7 +377,7 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         self.localRead2CoalescedB, localRead2Perpendicular,
         [self.localReadStrideCoalescedB] )
 
-    instructions = self.memoryInstructions[globalParameters["KernelLanguage"]]
+    instructions = self.memoryInstructions[self.version]
     self.globalReadInstructionA = instructions["GlobalRead"][ \
         self.globalReadInstructionIdxA]
     self.globalReadInstructionB = instructions["GlobalRead"][ \
@@ -512,7 +410,13 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     numRegValuB = kernel["ThreadTileB"]*self.rpe
     numRegValuBlkA = numRegValuA if kernel["PrefetchLocalRead"] else 0
     numRegValuBlkB = numRegValuB if kernel["PrefetchLocalRead"] else 0
-    print kernel["PrefetchLocalRead"]
+
+    ####################################
+    # num registers: global -> local elements
+    numRegG2LA = kernel["NumLoadsCoalescedA"] \
+        * kernel["NumLoadsPerpendicularA"] * kernel["VectorWidth"] * self.rpe
+    numRegG2LB = kernel["NumLoadsCoalescedB"] \
+        * kernel["NumLoadsPerpendicularB"] * kernel["VectorWidth"] * self.rpe
 
     ####################################
     # num registers: local read addresses
@@ -541,13 +445,6 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
         * self.rpga
 
     ####################################
-    # num registers: global -> local elements
-    numRegGLA = kernel["NumLoadsCoalescedA"] \
-        * kernel["NumLoadsPerpendicularA"] * kernel["VectorWidth"] * self.rpe
-    numRegGLB = kernel["NumLoadsCoalescedB"] \
-        * kernel["NumLoadsPerpendicularB"] * kernel["VectorWidth"] * self.rpe
-
-    ####################################
     # num registers: global read addresses
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
         * kernel["NumLoadsPerpendicularA"] * kernel["VectorWidth"] \
@@ -574,37 +471,48 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
     ####################################
     regIdx = 0
     startRegValuC = regIdx; regIdx += numRegValuC
+
     startRegValuA = regIdx; regIdx += numRegValuA
-    startRegValuB = regIdx; regIdx += numRegValuB
     startRegValuBlkA = regIdx; regIdx += numRegValuBlkA
+    if kernel["PrefetchGlobalRead"]:
+      startRegG2LA = regIdx; regIdx += numRegG2LA
+    else: # g2l can overlap valu
+      startRegG2LA = startRegValuA
+      regIdx = startRegValuA + max(numRegValuA+numRegValuBlkA, numRegG2LA)
+
+    startRegValuB = regIdx; regIdx += numRegValuB
     startRegValuBlkB = regIdx; regIdx += numRegValuBlkB
+    if kernel["PrefetchGlobalRead"]:
+      startRegG2LB = regIdx; regIdx += numRegG2LB
+    else: # g2l can overlap valu
+      startRegG2LB = startRegValuB
+      regIdx = startRegValuB + max(numRegValuB+numRegValuBlkB, numRegG2LB)
+
     startRegLocalReadAddressesA = regIdx; regIdx += numRegLocalReadAddressesA
     startRegLocalReadAddressesB = regIdx; regIdx += numRegLocalReadAddressesB
     startRegLocalWriteAddressesA = regIdx; regIdx += numRegLocalWriteAddressesA
     startRegLocalWriteAddressesB = regIdx; regIdx += numRegLocalWriteAddressesB
     startRegGlobalReadIncA = regIdx; regIdx += numRegGlobalReadIncA
     startRegGlobalReadIncB = regIdx; regIdx += numRegGlobalReadIncB
-    startRegGLA = regIdx; regIdx += numRegGLA
-    startRegGLB = regIdx; regIdx += numRegGLB
     startRegGlobalReadAddressesA = regIdx; regIdx += numRegGlobalReadAddressesA
     startRegGlobalReadAddressesB = regIdx; regIdx += numRegGlobalReadAddressesB
     totalRegisters = regIdx
     if True:
-      print "numRegValuC", numRegValuC
-      print "numRegValuA", numRegValuA
-      print "numRegValuB", numRegValuB
-      print "numRegValuBlkA", numRegValuBlkA
-      print "numRegValuBlkB", numRegValuBlkB
-      print "numRegLocalReadAddressesA", numRegLocalReadAddressesA
-      print "numRegLocalReadAddressesB", numRegLocalReadAddressesB
-      print "numRegLocalWriteAddressesA", numRegLocalWriteAddressesA
-      print "numRegLocalWriteAddressesB", numRegLocalWriteAddressesB
-      print "numRegGlobalReadIncA", numRegGlobalReadIncA
-      print "numRegGlobalReadIncB", numRegGlobalReadIncB
-      print "numRegGLA", numRegGLA
-      print "numRegGLB", numRegGLB
-      print "numRegGlobalReadAddressesA", numRegGlobalReadAddressesA
-      print "numRegGlobalReadAddressesB", numRegGlobalReadAddressesB
+      print "startRegValuC", startRegValuC
+      print "startRegValuA", startRegValuA
+      print "startRegValuBlkA", startRegValuBlkA
+      print "startRegG2LA", startRegG2LA
+      print "startRegValuB", startRegValuB
+      print "startRegValuBlkB", startRegValuBlkB
+      print "startRegG2LB", startRegG2LB
+      print "startRegLocalReadAddressesA", startRegLocalReadAddressesA
+      print "startRegLocalReadAddressesB", startRegLocalReadAddressesB
+      print "startRegLocalWriteAddressesA", startRegLocalWriteAddressesA
+      print "startRegLocalWriteAddressesB", startRegLocalWriteAddressesB
+      print "startRegGlobalReadIncA", startRegGlobalReadIncA
+      print "startRegGlobalReadIncB", startRegGlobalReadIncB
+      print "startRegGlobalReadAddressesA", startRegGlobalReadAddressesA
+      print "startRegGlobalReadAddressesB", startRegGlobalReadAddressesB
 
     totalRegisters = regIdx
     print "TotalRegisters", totalRegisters
@@ -2834,4 +2742,16 @@ ds_read2st64_b64: read 2x2 words diff addr, 8-it offsets = 256*2 (128*unroll4)
 
     s += "\n"
     return s
+
+  ##############################################################################
+  # Open String - DONE
+  ##############################################################################
+  def openString(self, kernel):
+    return ""
+
+  ##############################################################################
+  # Close String - DONE
+  ##############################################################################
+  def closeString(self, kernel):
+    return ""
 
