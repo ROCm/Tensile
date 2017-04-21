@@ -1464,6 +1464,7 @@ class KernelWriter:
       fileString += "\n"
       if self.language == "HIP":
         fileString += "#include <hip/hip_runtime.h>\n"
+        fileString += "#include <hip/hip_fp16.h>\n"
         fileString += "\n"
       else:
         fileString += "#include <string>\n"

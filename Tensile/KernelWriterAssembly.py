@@ -1538,7 +1538,7 @@ class KernelWriterAssembly(KernelWriter):
                 (para if kernel["ProblemType"]["TLUA"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % \
-               kernel["ProblemType"]["DataType"].zeroString(self.language)
+               kernel["ProblemType"]["DataType"].zeroString(self.language, kernel["VectorWidth"])
           kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
               (("_s%u"%s) if (self.readTileDimComponentsA \
               or self.readUnrollDimComponentsA) else ""), self.endLine)
@@ -1572,7 +1572,7 @@ class KernelWriterAssembly(KernelWriter):
                 (para if kernel["ProblemType"]["TLUB"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % \
-                kernel["ProblemType"]["DataType"].zeroString(self.language)
+                kernel["ProblemType"]["DataType"].zeroString(self.language, kernel["VectorWidth"])
           kStr += "*globalReadB_%u_%u%s;%s" \
               % (para, perp, \
               (("_s%u"%s) if (self.readTileDimComponentsB \

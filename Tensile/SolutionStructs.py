@@ -48,7 +48,7 @@ class DataType:
       [ "D", 2,   "double",  "double",  "double",                "tensileDataTypeDouble"        ],
       [ "C", 2,   "float2",  "float2",  "TensileComplexFloat",   "tensileDataTypeComplexFloat"  ],
       [ "Z", 4,   "double2", "double2", "TensileComplexDouble",  "tensileDataTypeComplexDouble" ],
-      [ "H", 0.5, "ERROR",   "__fp16",  "TensileHalf",           "tensileDataTypeHalf"          ]
+      [ "H", 0.5, "ERROR",   "half",    "TensileHalf",           "tensileDataTypeHalf"          ]
   ]
 
   ########################################
@@ -85,22 +85,33 @@ class DataType:
     return self.properties[self.value][self.idxLibEnum]
 
   ########################################
-  def zeroString(self, language):
+  def zeroString(self, language, vectorWidth):
     if language == "HIP":
       if self.value == self.complexSingle:
         return "make_float2(0.f, 0.f)"
       if self.value == self.complexDouble:
         return "make_float2(0.0, 0.0)"
 
-    zeroString = "(%s)(" % self.toDevice(language)
-    if self.value == self.single or self.value == self.half:
-      zeroString += "0.f"
+    zeroString = "("
+    zeroString += self.toDevice(language)
+    if vectorWidth > 1:
+      zeroString += str(vectorWidth)
+    zeroString += ")("
+
+    """
+    if self.value == self.half:
+      single = "0"
+      vectorWidth = 1
+    elif self.value == self.single:
+      single = "0.f"
     elif self.value == self.double:
-      zeroString += "0.0"
+      single = "0.0"
     elif self.value == self.complexSingle:
-      zeroString += "0.f, 0.f"
+      single = "0.f, 0.f"
     elif self.value == self.complexDouble:
-      zeroString += "0.0, 0.0"
+      single = "0.0, 0.0"
+    """
+    zeroString += "0"
     zeroString += ")"
     return zeroString
 
