@@ -24,7 +24,7 @@
 parallel rocm_fiji: {
 
   currentBuild.result = "SUCCESS"
-  node('rocm-1.3 && fiji')
+  node('rocm-artifactory && fiji')
   {
     def scm_dir = pwd()
     def build_dir_debug = "${scm_dir}/test/debug"
@@ -65,17 +65,17 @@ parallel rocm_fiji: {
         // run jenkins tests
         dir("${build_dir_release}") {
           stage("unit tests") {
-           //sh "tensile ../../Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults"
-           //sh "tensile ../../Tensile/Configs/test_hgemm_scalar_load_patterns.yaml hgemm_scalar_load_patterns"
-           //sh "tensile ../../Tensile/Configs/test_hgemm_scalar_tile_sizes.yaml hgemm_scalar_tile_sizes"
-           //sh "tensile ../../Tensile/Configs/test_hgemm_scalar_branches.yaml hgemm_scalar_branches"
+           sh "tensile ../../Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults"
+           sh "tensile ../../Tensile/Configs/test_hgemm_scalar_load_patterns.yaml hgemm_scalar_load_patterns"
+           sh "tensile ../../Tensile/Configs/test_hgemm_scalar_tile_sizes.yaml hgemm_scalar_tile_sizes"
+           sh "tensile ../../Tensile/Configs/test_hgemm_scalar_branches.yaml hgemm_scalar_branches"
            sh "tensile ../../Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults"
            sh "tensile ../../Tensile/Configs/test_sgemm_scalar_load_patterns.yaml sgemm_scalar_load_patterns"
            sh "tensile ../../Tensile/Configs/test_sgemm_scalar_tile_sizes.yaml sgemm_scalar_tile_sizes"
            sh "tensile ../../Tensile/Configs/test_sgemm_scalar_branches.yaml sgemm_scalar_branches"
            //sh "tensile ../../Tensile/Configs/test_sgemm_vector_load_patterns.yaml sgemm_vector_load_patterns"
            //sh "tensile ../../Tensile/Configs/test_sgemm_vector_tile_sizes.yaml sgemm_vector_tile_sizes"
-           //sh "tensile ../../Tensile/Configs/test_sgemm_vector_branches.yaml sgemm_vector_branches"
+           sh "tensile ../../Tensile/Configs/test_sgemm_vector_branches.yaml sgemm_vector_branches"
            sh "tensile ../../Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults"
           }
         }

@@ -151,6 +151,11 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def functionPrefix(self, kernel):
     kStr = ""
+    if kernel["ProblemType"]["DataType"].isHalf():
+      if self.language == "OCL":
+        self.vectorComponents = ["p[0]", "p[1]"]
+      else:
+        self.vectorComponents = ["p[0]", "p[1]"]
 
     ####################################
     # kernel preprocessor definitions
@@ -234,7 +239,15 @@ class KernelWriterSource(KernelWriter):
     # layout is redA, redB, blkA, blkB
     if kernel["PrefetchGlobalRead"]:
       kStr += "#define LDS_OFFSET_BLK %u%s" \
-          % (kernel["LdsOffsetA_Blk"], self.endLine)
+         % (kernel["LdsOffsetA_Blk"], self.endLine)
+
+    # Zero
+    if not (kernel["ProblemType"]["DataType"].isHalf() \
+        and kernel["VectorWidth"] > 1 \
+        and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch")):
+      kStr += "#define ZERO %s%s" % ( kernel["ProblemType"][\
+         "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
+         self.endLine )
 
     ####################################
     # global memory indices
@@ -444,7 +457,9 @@ class KernelWriterSource(KernelWriter):
           """
           kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
               self.endLinePP)
-      kStr += "  " + self.fenceStr + self.endLine
+      if kernel["UnrollMemFence"]:
+        kStr += "  " + self.fenceStr
+      kStr += self.endLine
     kStr += self.endLine
 
     ####################################
@@ -637,6 +652,20 @@ class KernelWriterSource(KernelWriter):
     kStr += "  /* allocate local memory */" + self.endLine
     kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
+
+    ####################################
+    # zero
+    if kernel["ProblemType"]["DataType"].isHalf() \
+        and kernel["VectorWidth"] > 1 \
+        and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch"):
+      #zeroString = kernel["ProblemType"][\
+      #    "DataType"].zeroString(self.language, kernel["VectorWidth"])
+      #zeroString = "0, 0"
+      kStr += "  VECTOR_TYPE ZERO;%s" % ( self.endLine )
+      kStr += "  ZERO.p[0] = 0;%s" % self.endLine
+      kStr += "  ZERO.p[1] = 0;%s" % self.endLine
+
+
     return kStr
 
   ##############################################################################
@@ -1543,8 +1572,7 @@ class KernelWriterSource(KernelWriter):
             kStr += "( !inBoundsA_%u )" % ( \
                 (para if kernel["ProblemType"]["TLUA"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? %s : " % \
-               kernel["ProblemType"]["DataType"].zeroString(self.language)
+            kStr += " ? ZERO : "
           kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
               (("_s%u"%s) if (self.readTileDimComponentsA \
               or self.readUnrollDimComponentsA) else ""), self.endLine)
@@ -1577,8 +1605,7 @@ class KernelWriterSource(KernelWriter):
             kStr += "( !inBoundsB_%u )" % ( \
                 (para if kernel["ProblemType"]["TLUB"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? %s : " % \
-                kernel["ProblemType"]["DataType"].zeroString(self.language)
+            kStr += " ? ZERO : "
           kStr += "*globalReadB_%u_%u%s;%s" \
               % (para, perp, \
               (("_s%u"%s) if (self.readTileDimComponentsB \
@@ -2155,6 +2182,12 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
       kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
+      kStr += "#undef TYPE_MAC%s" % (self.endLine)
+      kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
+      if not (kernel["ProblemType"]["DataType"].isHalf() \
+          and kernel["VectorWidth"] > 1 \
+          and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch")):
+        kStr += "#undef ZERO%s" % self.endLine
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):
