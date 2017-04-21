@@ -878,6 +878,8 @@ class Solution:
       return
 
     # Compiler may be causing incorrect spills on ROCm1.4 from DT on 2/21/17
+    # Compiler bugs no longer issue ROCm1.5 4/21/17
+    """
     if globalParameters["KernelLanguage"] == "HIP":
 
       if state["ProblemType"]["DataType"].value == DataType.single:
@@ -1059,12 +1061,11 @@ class Solution:
       elif state["ProblemType"]["DataType"].value == DataType.double:
         if state["MacroTile0"] >= 64 or state["MacroTile1"] >= 64:
           state["Valid"] = False
-      """
       if state["ProblemType"]["DataType"].value == DataType.single:
         if state["MacroTile0"] == 128 or state["MacroTile1"] == 128:
           if state["NumLoadsCoalescedA"] != 1 and state["NumLoadsCoalescedB"] != 8:
             state["Valid"] = False
-      """
+    """
 
     state["AssignedDerivedParameters"] = True
 
