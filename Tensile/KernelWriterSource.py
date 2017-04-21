@@ -444,7 +444,9 @@ class KernelWriterSource(KernelWriter):
           """
           kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
               self.endLinePP)
-      kStr += "  " + self.fenceStr + self.endLine
+      if kernel["UnrollMemFence"]:
+        kStr += "  " + self.fenceStr
+      kStr += self.endLine
     kStr += self.endLine
 
     ####################################
