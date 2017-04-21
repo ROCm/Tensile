@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <sstream>
 
 
 /*******************************************************************************
@@ -254,18 +255,18 @@ template<> size_t tensileSizeOfType<void>() { return 0; }
  ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF
 template<> std::string tensileToString(TensileHalf v){
-  return std::to_string(static_cast<float>(v)); }
+  return tensileToString(static_cast<float>(v)); }
 #endif
 template<> std::string tensileToString(float v){
-  std::string s;
-  s += v;
-  return s;
+  std::ostringstream s;
+  s << v;
+  return s.str();
   //return std::to_string(v);
   }
 template<> std::string tensileToString(double v){
-  std::string s;
-  s += v;
-  return s;
+  std::ostringstream s;
+  s << v;
+  return s.str();
   //return std::to_string(v);
   }
 template<> std::string tensileToString(TensileComplexFloat v){
