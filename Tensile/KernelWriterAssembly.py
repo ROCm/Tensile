@@ -63,6 +63,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # ISA version, such as 803
     self.version = int(self.language[3:])
+    self.versionMajor = int(self.language[3])
+    self.versionMinor = int(self.language[4])
+    self.versionPatch = int(self.language[5])
     print1("KernelWriterAsssembly for gfx%u\n" % self.version )
 
     ########################################
@@ -211,6 +214,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initKernel(self, kernel):
     super(KernelWriterAssembly, self).initKernel(kernel)
+    self.kernelName = self.getKernelName(kernel)
 
     # registers per element
     self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
@@ -256,8 +260,6 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # localWriteA instruction
     # for local, tile->para, unroll->perp
-    # TODO needs to handle para and perp strides b/c one address
-    # can handle all writes
     self.localWriteWidthA = 1 if (self.writeTileDimComponentsA \
         or self.writeUnrollDimComponentsA) else kernel["VectorWidth"]
     self.localWriteWidthA *= self.rpe
@@ -513,12 +515,15 @@ class KernelWriterAssembly(KernelWriter):
     numSgprKernArgAddress = self.rpga
     numSgprWorkGroup0 = 1
     numSgprWorkGroup1 = 1
+    numSgprWorkGroup2 = 1 # assume batched gemm at least
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
     numSgprOffsetC = 1
     numSgprOffsetA = 1
     numSgprOffsetB = 1
+    numSgprOffsetAlpha = 1
+    numSgprOffsetBeta = 1 if kernel["ProblemType"]["UseBeta"] else 0
     numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
     numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
@@ -552,8 +557,11 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprKernArgAddress = sgprIdx; sgprIdx += numSgprKernArgAddress
     self.startSgprWorkGroup0 = sgprIdx; sgprIdx += numSgprWorkGroup0
     self.startSgprWorkGroup1 = sgprIdx; sgprIdx += numSgprWorkGroup1
+    self.startSgprWorkGroup2 = sgprIdx; sgprIdx += numSgprWorkGroup2
     self.startSgprAddressC = sgprIdx; sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx; sgprIdx += numSgprStridesC
+    self.startSgprAlpha = sgprIdx; sgprIdx += numSgprAlpha
+    self.startSgprBeta = sgprIdx; sgprIdx += numSgprBeta
     self.startSgprSizesSum = sgprIdx; sgprIdx += numSgprSizesSum
     self.startSgprLoopPadding = sgprIdx; sgprIdx += numSgprLoopPadding # overlap
     self.startSgprStridesA = sgprIdx; sgprIdx += numSgprStridesA
@@ -626,6 +634,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprWorkGroup1", self.startSgprWorkGroup1)
     kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
     kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
+    kStr += self.macroRegister("sgprAlpha", self.startSgprAlpha)
+    if kernel["ProblemType"]["UseBeta"]
+      kStr += self.macroRegister("sgprBeta", self.startSgprBeta)
     kStr += self.macroRegister("sgprSizesSum", self.startSgprSizesSum)
     kStr += self.macroRegister("sgprLoopPadding", self.startSgprLoopPadding)
     kStr += self.macroRegister("sgprStridesA", self.startSgprStridesA)
@@ -663,7 +674,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".endm%s" % self.endLine
 
     ####################################
-    # kernel preprocessor definitions
+    # macros: kernel parameters
     kStr += self.comment("tile parameters")
     kStr += ".set NUM_THREADS %3d%s" \
         % (kernel["NumThreads"], self.endLine )
@@ -693,7 +704,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".set VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
 
     ####################################
-    # num loads
+    # macros: num loads
     kStr += self.comment("num loads parallel and perpendicular to coalesced")
     kStr += ".set NLCA %d%s" % (kernel["NumLoadsCoalescedA"], self.endLine )
     kStr += ".set NLCB %d%s" % (kernel["NumLoadsCoalescedB"], \
@@ -705,7 +716,7 @@ class KernelWriterAssembly(KernelWriter):
         self.endLine )
 
     ####################################
-    # load sizes
+    # macros: load sizes
     kStr += self.comment("load sizes parallel and perpendicular to coalesced")
     if kernel["ProblemType"]["TLUA"]:
       kStr += ".set LSCA (MT%s/NLCA)%s" \
@@ -741,7 +752,7 @@ class KernelWriterAssembly(KernelWriter):
           % (kernel["LdsOffsetA_Blk"], self.endLine)
 
     ####################################
-    # global memory indices
+    # macros: global memory indices
     kStr += self.comment("global memory indices")
     # C
     kStr += ".set GLOBAL_C(IDX%s" % self.indexChars[0]
@@ -779,21 +790,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += " ))" + self.endLine
 
     ####################################
-    # data types
-    kStr += self.comment("data types")
-    kStr += ".set DATA_TYPE %s%s" \
-        % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
-        self.endLine)
-    vecStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
-    if kernel["VectorWidth"] > 1:
-      vecStr += str(kernel["VectorWidth"])
-    kStr += ".set VECTOR_TYPE %s%s" % (vecStr, self.endLine)
-
+    # macros: mac
+    kStr += self.comment("mac type")
     if self.language == "OCL":
       kStr += ".set MAD(A,B,DST) mad(A,B,DST)"
     else:
       kStr += ".set MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
+    # TODO - mac macro
 
     ####################################
     # MACs
@@ -1040,97 +1044,53 @@ class KernelWriterAssembly(KernelWriter):
     s += "," + self.endLine + "  " \
         + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
     if kernel["ProblemType"]["UseBeta"]:
-      s += "," + self.endLine + "  " \
-          + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
+      kernArgReg += 1 # beta
+    kernArgReg += 3 # offsets
+    kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
+    kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
+    kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsB"]) # strides
+    if not kernel["ProblemType"]["UseInitialStrides"]:
+      kernArgReg -= 3 # strides
+    kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
+    kernArgReg += kernel["ProblemType"]["NumIndicesC"]
+    kernArgBytes = kernArgReg * 4 # bytes/reg
+    kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
+        % (kernArgBytes, self.endLine)
+    # register allocation
+    kStr += "  workitem_vgpr_count = %u // vgprs%s" \
+        % (self.totalVgprs, self.endLine)
+    kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
+        % (self.totalSgprs, self.endLine)
+    kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
+        % ( (self.totalVgprs-1)/4, self.totalVgprs, self.endLine)
+    kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
+        % ( (self.totalSgprs-1)/8, self.totalSgprs, self.endLine)
+    # work-group dimensions
+    kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // ?%s" % self.endLine
+    kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
+    kStr += "  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x%s" % self.endLine
+    kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
+    kStr += "  compute_pgm_rsrc2_tgid_z_en = 1 // wg.z%s" % self.endLine
+    kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine
+    kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
+        % ( kernel["LdsNumElements"] \
+        * kernel["ProblemType"]["DataType"].numBytes(), self.endLine )
+    kStr += "  kernarg_segment_alignment = 4%s" % self.endLine
+    kStr += "  group_segment_alignment = 4%s" % self.endLine
+    kStr += "  private_segment_alignment = 4%s" % self.endLine
+    kStr += ".end_amd_kernel_code_t%s" % self.endLine
 
-    # offsets
-    s += ( "," + self.endLine + "  unsigned int const offsetC,"
-        + self.endLine +
-        "  unsigned int const offsetA," + self.endLine +
-        "  unsigned int const offsetB" )
-
-    # strides
-    firstStride = 1
-    if kernel["ProblemType"]["UseInitialStrides"]:
-      firstStride = 0
-    lastStrideC = kernel["ProblemType"]["NumIndicesC"]
-    lastStrideA = len(kernel["ProblemType"]["IndexAssignmentsA"])
-    lastStrideB = len(kernel["ProblemType"]["IndexAssignmentsB"])
-    for i in range(firstStride, lastStrideC):
-      s += "," + self.endLine + "  unsigned int const strideC" + self.indexChars[i]
-    for i in range(firstStride, lastStrideA):
-      s += "," + self.endLine + "  unsigned int const strideA" \
-          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-    for i in range(firstStride, lastStrideB):
-      s += "," + self.endLine + "  unsigned int const strideB" \
-          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-
-    # sizes
-    for i in range(0, kernel["ProblemType"]["TotalIndices"]):
-      s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
-    s += " )"
-    return s
-
-  ##############################################################################
-  # Function Signature Suffix
-  ##############################################################################
-  def functionSignatureSuffix(self, kernel):
-    return ""
-    s = ""
-    if self.language == "HIP":
-      s += "#pragma clang diagnostic pop" + self.endLine
-    return s
-
-  ##############################################################################
-  # Function Begin
-  ##############################################################################
-  def functionBegin(self, kernel):
-    return ""
-    s = ""
-    s += " {" + self.endLine
-    return s
-
-  ##############################################################################
-  # Allocate Resources
-  ##############################################################################
-  def allocateResources(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  VECTOR_TYPE rC[TT%s*TT%s/VECTOR_WIDTH] = {0};%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine )
-    kStr += "  VECTOR_TYPE rA[TT%s/VECTOR_WIDTH%s];%s" \
-        % (self.tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
-        self.endLine)
-    kStr += "  VECTOR_TYPE rB[TT%s/VECTOR_WIDTH%s];%s" \
-        % (self.tileChar1, ("*2" if kernel["PrefetchLocalRead"] else ""), \
-        self.endLine)
-
-    ####################################
-    # registers for global -> local load
-    kStr += "  VECTOR_TYPE "
-    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        kStr += "a_" + str(para) + "_" + str(perp)
-        if para == kernel["NumLoadsCoalescedA"]-1 \
-            and perp == kernel["NumLoadsPerpendicularA"]-1:
-          kStr += ";" + self.endLine
-        else:
-          kStr += ", "
-    kStr += "  VECTOR_TYPE "
-    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        kStr += "b_" + str(para) + "_" + str(perp)
-        if para == kernel["NumLoadsCoalescedB"]-1 \
-            and perp == kernel["NumLoadsPerpendicularB"]-1:
-          kStr += ";" + self.endLine
-        else:
-          kStr += ", "
-
-    ####################################
-    # allocate local memory
-    kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
-        % (self.sharedDeclStr, self.endLine )
     return kStr
+
+
+  ##############################################################################
+  # Function Beginning
+  ##############################################################################
+  def functionSignaturePrefix(self, kernel): return ""
+  def functionSignature(self, kernel ): return ""
+  def functionSignatureSuffix(self, kernel): return ""
+  def functionBegin(self, kernel): return ""
+  def allocateResources(self, kernel): return ""
 
   ##############################################################################
   # Global Read Addresses: Work-Group
@@ -1143,7 +1103,7 @@ class KernelWriterAssembly(KernelWriter):
           + self.getGroupIdStr + "(0);" + self.endLine
       kStr += "  unsigned int wg" + self.tileChar1 + " = " \
           + self.getGroupIdStr + "(1);" + self.endLine
-    else:
+    elif kernel["WorkGroupMapping"] == -1:
       dimCoal = (0 if kernel["WorkGroupMapping"] > 0 else 1)
       dimPerp = (1 if kernel["WorkGroupMapping"] > 0 else 0)
 
@@ -1163,7 +1123,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # if not in last super group
       kStr += "  if ( groupSerial < numWorkGroupsBeforeLastSuperGroup) {%s" \
-              % (self.endLine)
+          % (self.endLine)
       kStr += "    wg%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
           % ((self.tileChar0 if kernel["WorkGroupMapping"] > 0 else self.tileChar1), \
           self.getNumGroupsStr, dimCoal, self.endLine)

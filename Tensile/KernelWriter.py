@@ -787,7 +787,7 @@ class KernelWriter:
 
     s += self.indent
     s += self.commentPrefix
-    s += " %-39s" % text
+    s += " %-38s " % text
     s += self.commentSuffix
     s += self.endLine
 
