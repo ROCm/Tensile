@@ -2149,6 +2149,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
       kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
+      kStr += "#undef TYPE_MAC%s" % (self.endLine)
+      kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):

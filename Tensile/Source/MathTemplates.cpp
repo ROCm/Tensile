@@ -253,10 +253,6 @@ template<> size_t tensileSizeOfType<void>() { return 0; }
 /*******************************************************************************
  * ToString
  ******************************************************************************/
-#ifdef Tensile_ENABLE_HALF
-template<> std::string tensileToString(TensileHalf v){
-  return tensileToString(static_cast<float>(v)); }
-#endif
 template<> std::string tensileToString(float v){
   std::ostringstream s;
   s << v;
@@ -285,6 +281,10 @@ template<> std::string tensileToString(TensileComplexDouble v){
   return s;
   //return tensileToString(TENSILEREAL(v))+","+tensileToString(TENSILECOMP(v));
 }
+#ifdef Tensile_ENABLE_HALF
+template<> std::string tensileToString(TensileHalf v){
+  return tensileToString(static_cast<float>(v)); }
+#endif
 
 
 
