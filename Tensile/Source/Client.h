@@ -19,7 +19,6 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
-
 #include "TensileTypes.h"
 #include "Tools.h"
 #include "ReferenceCPU.h"
