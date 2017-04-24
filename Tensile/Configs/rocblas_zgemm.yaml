@@ -1,7 +1,7 @@
 GlobalParameters:
   Name: Fiji
   PrintLevel: 1
-  ForceRedoBenchmarkProblems: False
+  ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
@@ -37,6 +37,8 @@ BenchmarkProblems:
       - LoopTail: [True]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ True ]
+      - LocalWriteCoalesceGroupB: [ False ]
     ForkParameters:
       - GroupShape: [ 0, 2 ]
       - ThreadTileShape: [ 0, 2 ]
@@ -71,6 +73,8 @@ BenchmarkProblems:
       - LoopTail: [True]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ True ]
+      - LocalWriteCoalesceGroupB: [ True ]
     ForkParameters:
       - GroupShape: [ 0, 2 ]
       - ThreadTileShape: [ 0, 2 ]
@@ -105,6 +109,8 @@ BenchmarkProblems:
       - LoopTail: [True]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ False ]
+      - LocalWriteCoalesceGroupB: [ False ]
     ForkParameters:
       - GroupShape: [ 0, 2 ]
       - ThreadTileShape: [ 0, 2 ]
@@ -139,6 +145,8 @@ BenchmarkProblems:
       - LoopTail: [True]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ False ]
+      - LocalWriteCoalesceGroupB: [ True ]
     ForkParameters:
       - GroupShape: [ 0, 2 ]
       - ThreadTileShape: [ 0, 2 ]
