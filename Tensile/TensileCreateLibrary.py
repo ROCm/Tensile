@@ -284,13 +284,13 @@ def writeLogicRec(depth, indexOrder, logic, solutionNames, problemType):
       solutionIdx = rule[1]
       solutionCall = writeSolutionCall(solutionNames[solutionIdx],problemType)
       if threshold > 0:
-        s += "%sif (size%s < %u) return %s;\n" \
+        s += "%sif (size%s <= %u) return %s;\n" \
             % (indent, indexChars[indexOrder[depth]], threshold, solutionCall)
       else:
         s += "%sreturn %s;\n" % (indent, solutionCall)
     else:
       if threshold > 0:
-        s += "%sif (size%s < %u) {\n" \
+        s += "%sif (size%s <= %u) {\n" \
             % (indent, indexChars[indexOrder[depth]], threshold)
       else:
         s += "%s{\n" % (indent)

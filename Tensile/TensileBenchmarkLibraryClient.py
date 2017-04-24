@@ -34,7 +34,7 @@ def BenchmarkProblemSize(cmdPrefix, row):
     cmd += " "
     cmd += size
   cmd += " 0"
-  process = Popen(cmd, stdout=PIPE)
+  process = Popen(cmd, stdout=PIPE, shell=True)
   stdout = process.communicate()[0]
 
   # parse output
