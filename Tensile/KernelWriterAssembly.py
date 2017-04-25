@@ -23,12 +23,12 @@
 from SolutionStructs import DataType
 from Common import globalParameters
 from KernelWriter import KernelWriter
+from math import log
 import abc
 
 ################################################################################
 # Memory Instruction
 ################################################################################
-
 class MemoryInstruction:
   def __init__(self, name, numAddresses, numOffsets, \
       offsetMultiplier, blockWidth, formatting):
@@ -40,14 +40,18 @@ class MemoryInstruction:
     self.blockWidth = blockWidth
     self.numBlocks = 2 if self.numAddresses > 1 or self.numOffsets > 1 else 1
     self.totalWidth = self.blockWidth * self.numBlocks
+    self.endLine = "\n"
   ########################################
   # write in assembly format
-  def toSring(self, comment, *params):
-    tmp = "%s %s" % (self.name, (self.formatting % params) )
-    s = "%-50s // %s" % (tmp, comment)
-    return s
+  def toString(self, params, comment):
+    instStr = "%s %s" % (self.name, (self.formatting % params) )
+    line = "%-50s // %s%s" % (instStr, comment, self.endLine)
+    return line
   def __str__(self):
     return self.name
+
+
+  
 
 ################################################################################
 # Assembly Kernel
@@ -392,6 +396,8 @@ class KernelWriterAssembly(KernelWriter):
         self.localReadInstructionIdxA]
     self.localReadInstructionB = instructions["LocalRead"][ \
         self.localReadInstructionIdxB]
+    print self.getKernelName(kernel)
+    """
     print "\n"
     print self.getKernelName(kernel)
     print "GlobalReadInstructionA", self.globalReadInstructionA
@@ -400,6 +406,7 @@ class KernelWriterAssembly(KernelWriter):
     print "LocalWriteInstructionB", self.localWriteInstructionB
     print "LocalReadInstructionA ", self.localReadInstructionA
     print "LocalReadInstructionB ", self.localReadInstructionB
+    """
 
     ####################################
     # VGPR Allocation
@@ -455,6 +462,8 @@ class KernelWriterAssembly(KernelWriter):
         / self.globalReadInstructionB.blockWidth
     numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
 
+    numVgprAddressD = 1 * self.rpga
+
     ####################################
     # num vgprs: c write address
     # 1 address where to write first value
@@ -473,7 +482,8 @@ class KernelWriterAssembly(KernelWriter):
       self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
     else: # g2l can overlap valu
       self.startVgprG2LA = self.startVgprValuA
-      vgprIdx = self.startVgprValuA + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
+      vgprIdx = self.startVgprValuA \
+          + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
 
     self.startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
     self.startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
@@ -481,20 +491,23 @@ class KernelWriterAssembly(KernelWriter):
       self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
     else: # g2l can overlap valu
       self.startVgprG2LB = self.startVgprValuB
-      vgprIdx = self.startVgprValuB + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
+      vgprIdx = self.startVgprValuB \
+          + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
 
-    self.startVgprLocalReadAddressesA = vgprIdx;
+    self.startVgprLocalReadAddressesA = vgprIdx
     vgprIdx += numVgprLocalReadAddressesA
-    self.startVgprLocalReadAddressesB = vgprIdx;
+    self.startVgprLocalReadAddressesB = vgprIdx
     vgprIdx += numVgprLocalReadAddressesB
-    self.startVgprLocalWriteAddressesA = vgprIdx;
+    self.startVgprLocalWriteAddressesA = vgprIdx
     vgprIdx += numVgprLocalWriteAddressesA
-    self.startVgprLocalWriteAddressesB = vgprIdx;
+    self.startVgprLocalWriteAddressesB = vgprIdx
     vgprIdx += numVgprLocalWriteAddressesB
-    self.startVgprGlobalReadAddressesA = vgprIdx;
+    self.startVgprGlobalReadAddressesA = vgprIdx
     vgprIdx += numVgprGlobalReadAddressesA
-    self.startVgprGlobalReadAddressesB = vgprIdx;
+    self.startVgprGlobalReadAddressesB = vgprIdx
     vgprIdx += numVgprGlobalReadAddressesB
+    self.startVgprAddressD = vgprIdx
+    vgprIdx += numVgprAddressD
     self.startVgprTmp = vgprIdx
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
@@ -522,17 +535,18 @@ class KernelWriterAssembly(KernelWriter):
     numSgprOffsetC = 1
     numSgprOffsetA = 1
     numSgprOffsetB = 1
-    numSgprOffsetAlpha = 1
-    numSgprOffsetBeta = 1 if kernel["ProblemType"]["UseBeta"] else 0
-    numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
-    numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
-    numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
+    numSgprAlpha = 1
+    numSgprBeta = 1 if kernel["ProblemType"]["UseBeta"] else 0
+    self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
+    self.numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
+    self.numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
     if not kernel["ProblemType"]["UseInitialStrides"]:
-      numSgprStridesC -= 1
-      numSgprStridesA -= 1
-      numSgprStridesB -= 1
-    numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
-    numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
+      self.numSgprStridesC -= 1
+      self.numSgprStridesA -= 1
+      self.numSgprStridesB -= 1
+    self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
+    self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
+    self.numSgprAddressD = self.rpga 
 
     ####################################
     # num sgprs: global read increments
@@ -544,8 +558,8 @@ class KernelWriterAssembly(KernelWriter):
 
     numSgprLoopCountersAndIncrements = numSgprGlobalReadIncsA \
         + numSgprGlobalReadIncsB + numSgprLoopCounters
-    numSgprFreedBeforeLoops = numSgprStridesA + numSgprStridesB \
-        + numSgprSizesFree + numSgprAddressA + numSgprAddressB \
+    numSgprFreedBeforeLoops = self.numSgprStridesA + self.numSgprStridesB \
+        + self.numSgprSizesFree + numSgprAddressA + numSgprAddressB \
         + numSgprOffsetC + numSgprOffsetA + numSgprOffsetB
     numSgprLoopPadding = max(0, numSgprFreedBeforeLoops  \
         - numSgprLoopCountersAndIncrements)
@@ -559,19 +573,20 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprWorkGroup1 = sgprIdx; sgprIdx += numSgprWorkGroup1
     self.startSgprWorkGroup2 = sgprIdx; sgprIdx += numSgprWorkGroup2
     self.startSgprAddressC = sgprIdx; sgprIdx += numSgprAddressC
-    self.startSgprStridesC = sgprIdx; sgprIdx += numSgprStridesC
+    self.startSgprStridesC = sgprIdx; sgprIdx += self.numSgprStridesC
     self.startSgprAlpha = sgprIdx; sgprIdx += numSgprAlpha
     self.startSgprBeta = sgprIdx; sgprIdx += numSgprBeta
-    self.startSgprSizesSum = sgprIdx; sgprIdx += numSgprSizesSum
+    self.startSgprSizesSum = sgprIdx; sgprIdx += self.numSgprSizesSum
     self.startSgprLoopPadding = sgprIdx; sgprIdx += numSgprLoopPadding # overlap
-    self.startSgprStridesA = sgprIdx; sgprIdx += numSgprStridesA
-    self.startSgprStridesB = sgprIdx; sgprIdx += numSgprStridesB
-    self.startSgprSizesFree = sgprIdx; sgprIdx += numSgprSizesFree
+    self.startSgprStridesA = sgprIdx; sgprIdx += self.numSgprStridesA
+    self.startSgprStridesB = sgprIdx; sgprIdx += self.numSgprStridesB
+    self.startSgprSizesFree = sgprIdx; sgprIdx += self.numSgprSizesFree
     self.startSgprAddressA = sgprIdx; sgprIdx += numSgprAddressA
     self.startSgprAddressB = sgprIdx; sgprIdx += numSgprAddressB
     self.startSgprOffsetC = sgprIdx; sgprIdx += numSgprOffsetC
     self.startSgprOffsetA = sgprIdx; sgprIdx += numSgprOffsetA
     self.startSgprOffsetB = sgprIdx; sgprIdx += numSgprOffsetB
+    self.startSgprAddressD = sgprIdx; sgprIdx += self.numSgprAddressD
     self.totalSgprs = sgprIdx
 
     # assign loop sgprs which overlap above assignments
@@ -620,6 +635,8 @@ class KernelWriterAssembly(KernelWriter):
         self.startVgprGlobalReadAddressesA)
     kStr += self.macroRegister("vgprGlobalReadAddrB", \
         self.startVgprGlobalReadAddressesB)
+    kStr += self.macroRegister("vgprAddressD", \
+        self.startVgprAddressD)
     kStr += self.comment1("VGPRs: %u + %u = %u" \
         % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
     kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
@@ -635,7 +652,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
     kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
     kStr += self.macroRegister("sgprAlpha", self.startSgprAlpha)
-    if kernel["ProblemType"]["UseBeta"]
+    if kernel["ProblemType"]["UseBeta"]:
       kStr += self.macroRegister("sgprBeta", self.startSgprBeta)
     kStr += self.macroRegister("sgprSizesSum", self.startSgprSizesSum)
     kStr += self.macroRegister("sgprLoopPadding", self.startSgprLoopPadding)
@@ -647,6 +664,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprOffsetC", self.startSgprOffsetC)
     kStr += self.macroRegister("sgprOffsetA", self.startSgprOffsetA)
     kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
+    kStr += self.macroRegister("sgprAddressD", self.startSgprOffsetB)
     kStr += self.macroRegister("sgprGlobalReadIncsA", \
         self.startSgprGlobalReadIncsA)
     kStr += self.macroRegister("sgprGlobalReadIncsB", \
@@ -1090,7 +1108,98 @@ class KernelWriterAssembly(KernelWriter):
   def functionSignature(self, kernel ): return ""
   def functionSignatureSuffix(self, kernel): return ""
   def functionBegin(self, kernel): return ""
-  def allocateResources(self, kernel): return ""
+  def allocateResources(self, kernel):
+    kStr = ""
+
+    # set m0
+    kStr += inst("s_mov_b32", "m0", "0xFFFFFFFF", "TODO: LDS clamp")
+
+    ########################################
+    # load kernel args
+    kStr += self.comment("Load Kernel Args")
+    kernArgOffset = 0
+    kStr += inst("s_load_dwordx2", sgpr("AddressC", self.rpga), \
+        sgpr(0,2), hex(kernArgOffset), "load addr c" )
+    kernArgOffset += self.rpga*4
+    kStr += inst("s_load_dwordx2", sgpr("AddressA", self.rpga), \
+        sgpr(0,2), hex(kernArgOffset), "load addr a" )
+    kernArgOffset += self.rpga*4
+    kStr += inst("s_load_dwordx2", sgpr("AddressB", self.rpga), \
+        sgpr(0,2), hex(kernArgOffset), "load addr b" )
+    kernArgOffset += self.rpga*4
+    kStr += inst("s_load_dword", sgpr("Alpha"), \
+        sgpr(0,2), hex(kernArgOffset), "load alpha" )
+    kernArgOffset += 1*4
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += inst("s_load_dword", sgpr("Beta"), \
+          sgpr(0,2), hex(kernArgOffset), "load beta" )
+      kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("OffsetC"), \
+        sgpr(0,2), hex(kernArgOffset), "load offset c" )
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("OffsetA"), \
+        sgpr(0,2), hex(kernArgOffset), "load offset a" )
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("OffsetB"), \
+        sgpr(0,2), hex(kernArgOffset), "load offset b" )
+    kernArgOffset += 1*4
+    for i in range(0, self.numSgprStridesC):
+      kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
+          sgpr(0,2), hex(kernArgOffset), "load stride c %u"%i )
+      kernArgOffset += 1*4
+    for i in range(0, self.numSgprStridesA):
+      kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
+          sgpr(0,2), hex(kernArgOffset), "load stride a %u"%i )
+      kernArgOffset += 1*4
+    for i in range(0, self.numSgprStridesB):
+      kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
+          sgpr(0,2), hex(kernArgOffset), "load stride b %u"%i )
+      kernArgOffset += 1*4
+    for i in range(0, self.numSgprSizesFree):
+      kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
+          sgpr(0,2), hex(kernArgOffset), "load size free %u"%i )
+      kernArgOffset += 1*4
+    for i in range(0, self.numSgprSizesSum):
+      kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
+          sgpr(0,2), hex(kernArgOffset), "load size free %u"%i )
+      kernArgOffset += 1*4
+    kStr += inst("s_load_dwordx2", sgpr("DebugAddress", self.rpga), \
+        sgpr(0,2), hex(kernArgOffset), "load addr debug" )
+    kernArgOffset += self.rpga*4
+    kStr += inst("s_waitcnt", "lgkmcnt(0)", \
+        "wait for %u bytes of kern args" % kernArgOffset )
+
+
+    # Debug Buffer
+    kStr += self.comment("Debug Buffer")
+    nt_log2 = log2(kernel["NumThreads"])
+    # TODO: read nwg0 from sgpr
+    nwg0 = 32 # num work-groups 0
+    nipt = 4 # num integers per thread
+    v = 2
+    kStr += inst("v_mov_b32", vgpr(v), "s2", "%s=wg0"%vgpr(v) )
+    kStr += inst("v_mov_b32", vgpr(v+1), "s3", "%s=wg1"%vgpr(v+1) )
+    #tt0_log2 = log2(kernel["ThreadTile0"])
+    #tt1_log2 = log2(kernel["ThreadTile1"])
+    #kStr += self.inst("v_lshlrev_b32", "v%u"%(v+0), tt0_log2, "v%u"%(v+0), \
+    #    "v%u=wg0*tt0"%(v+0) )
+    kStr += inst("v_mul_lo_u32", vgpr(v+1), nwg0, vgpr(v+1), \
+        "%s=wg1*nwg0"%vgpr(v+1) )
+    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr(v+1), \
+        "%s=wg1*nwg0+wg0"%vgpr(v) )
+    kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
+        "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
+    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), "v0", \
+        "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
+    kStr += inst("v_mul_lo_u32", vgpr(v), (nipt*4), vgpr(v), \
+        "%s=serial*nipt*4"%vgpr(v) )
+    kStr += inst("v_mov_b32", vgpr(v+1), 0, "")
+    kStr += inst("v_add_i32", vgpr("AddressD"), "vcc", sgpr("AddressD"), \
+        vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+    kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", sgpr("AddressD+1"), \
+        vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+    
+    return kStr
 
   ##############################################################################
   # Global Read Addresses: Work-Group
@@ -2766,4 +2875,57 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def closeString(self, kernel):
     return ""
+    
+
+
+################################################################################
+# Helper Functions
+################################################################################
+
+########################################
+# Format Instruction
+########################################
+def inst(*args):
+  params = args[0:len(args)-1]
+  comment = args[len(args)-1]
+  formatting = "%s %s"
+  for i in range(0, len(params)-2):
+    formatting += ", %s"
+  instStr = formatting % (params)
+  line = "%-50s // %s\n" % (instStr, comment)
+  return line
+
+########################################
+# Format GPRs
+########################################
+def gpr(*args):
+  gprType = args[0]
+  args = args[1]
+  if isinstance(args[0], int):
+    if len(args) == 1:
+      return "%s%u"%(gprType, args[0])
+    elif len(args) == 2:
+      if args[1] == 1:
+        return "%s%u"%(gprType, args[0])
+      else:
+        return "%s[%u:%u]"%(gprType, args[0], args[0]+args[1]-1)
+  if isinstance(args[0], str):
+    if len(args) == 1:
+      return "%s[%sgpr%s]"%(gprType, gprType, args[0])
+    elif len(args) == 2:
+      if args[1] == 1:
+        return "%s[%sgpr%s]"%(gprType, gprType, args[0])
+      else:
+        return "%s[%sgpr%s:%sgpr%s+%u]"%(gprType, gprType, args[0], \
+            gprType, args[0], args[1]-1)
+def vgpr(*args):
+  return gpr("v", args)
+def sgpr(*args):
+  return gpr("s", args)
+
+########################################
+# Log 2
+########################################
+def log2(x):
+  return int(log(x, 2) + 0.5)
 
