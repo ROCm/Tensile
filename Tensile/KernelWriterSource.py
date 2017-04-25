@@ -2031,11 +2031,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def splitUGlobalWrite(self, kernel):
     kStr = ""
-    if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
-      kStr += "  float type_mac_tmp;" + self.endLine
-    if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
-      kStr += "  double type_mac_tmp;" + self.endLine
-
     for b in range(0, kernel["NumVectorsPerThread"]):
       for s in range(0, kernel["VectorWidth"]):
         if kernel["EdgeType"] != "None":
