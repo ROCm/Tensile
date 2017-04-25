@@ -31,7 +31,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -54,7 +54,7 @@ BenchmarkProblems:
     BenchmarkJoinParameters:
       - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
   # zgemm NT
   - ProblemType:
@@ -67,7 +67,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -90,7 +90,7 @@ BenchmarkProblems:
     BenchmarkJoinParameters:
       - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
   # zgemm TN
   - ProblemType:
@@ -103,7 +103,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -126,7 +126,7 @@ BenchmarkProblems:
     BenchmarkJoinParameters:
       - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
   # zgemm TT
   - ProblemType:
@@ -139,7 +139,7 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
       - LoopDoWhile: [False]
       - LoopTail: [True]
@@ -162,7 +162,7 @@ BenchmarkProblems:
     BenchmarkJoinParameters:
       - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
 LibraryLogic:
   BranchPenalty: 0
