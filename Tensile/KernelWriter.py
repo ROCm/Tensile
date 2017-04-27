@@ -647,7 +647,7 @@ class KernelWriter:
       # tail: re-init local read addresses
       if kernel["PrefetchGlobalRead"]:
         kStr += self.comment("local read reset offsets a")
-        kStr += self.localReadResetOffsetsB(kernel)
+        kStr += self.localReadResetOffsetsA(kernel)
         kStr += self.comment("local read reset offsets b")
         kStr += self.localReadResetOffsetsB(kernel)
         kStr += self.comment("local read init pointers a")
