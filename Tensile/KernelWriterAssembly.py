@@ -51,7 +51,7 @@ class MemoryInstruction:
     return self.name
 
 
-  
+
 
 ################################################################################
 # Assembly Kernel
@@ -546,7 +546,7 @@ class KernelWriterAssembly(KernelWriter):
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
     self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
-    self.numSgprAddressD = self.rpga 
+    self.numSgprAddressD = self.rpga
 
     ####################################
     # num sgprs: global read increments
@@ -691,6 +691,7 @@ class KernelWriterAssembly(KernelWriter):
               "vgprValuB" if m==0 else "vgprValuBlkB", b, self.endLine)
       kStr += ".endm%s" % self.endLine
 
+    """
     ####################################
     # macros: kernel parameters
     kStr += self.comment("tile parameters")
@@ -816,6 +817,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".set MAD(A,B,DST) DST += A*B"
     kStr += self.endLine
     # TODO - mac macro
+    """
 
     ####################################
     # MACs
@@ -1169,6 +1171,26 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_waitcnt", "lgkmcnt(0)", \
         "wait for %u bytes of kern args" % kernArgOffset )
 
+    # addressC += offsetC
+    kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
+        sgpr("AddressC"), "addrC += offsetC" )
+    kStr += inst("s_mov_u32", sgpr("OffsetC"), "0")
+    kStr += inst("s_addc_u32", sgpr("AddressC"), sgpr("OffsetC"),\
+        sgpr("AddressC"), "addrC += offsetC carry" )
+
+    # addressA += offsetA
+    kStr += inst("s_add_u32", sgpr("AddressA"), sgpr("OffsetA"), \
+        sgpr("AddressA"), "addrA += offsetA" )
+    kStr += inst("s_mov_u32", sgpr("OffsetA"), "0")
+    kStr += inst("s_addc_u32", sgpr("AddressA"), sgpr("OffsetA"),\
+        sgpr("AddressA"), "addrA += offsetA carry" )
+
+    # addressB += offsetB
+    kStr += inst("s_add_u32", sgpr("AddressB"), sgpr("OffsetB"), \
+        sgpr("AddressB"), "addrB += offsetB" )
+    kStr += inst("s_mov_u32", sgpr("OffsetB"), "0")
+    kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
+        sgpr("AddressB"), "addrB += offsetB carry" )
 
     # Debug Buffer
     kStr += self.comment("Debug Buffer")
@@ -1198,87 +1220,55 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
     kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", sgpr("AddressD+1"), \
         vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
-    
+
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Work-Group
+  # Global Read Addresses: Work-Group - DONE
   ##############################################################################
   def graWorkGroup(self, kernel):
+    # TODO: support WorkGroupMapping
     return ""
-    kStr = ""
-    if kernel["WorkGroupMapping"] == 1:
-      kStr += "  unsigned int wg" + self.tileChar0 + " = " \
-          + self.getGroupIdStr + "(0);" + self.endLine
-      kStr += "  unsigned int wg" + self.tileChar1 + " = " \
-          + self.getGroupIdStr + "(1);" + self.endLine
-    elif kernel["WorkGroupMapping"] == -1:
-      dimCoal = (0 if kernel["WorkGroupMapping"] > 0 else 1)
-      dimPerp = (1 if kernel["WorkGroupMapping"] > 0 else 0)
-
-      # work-group free indices
-      kStr += self.endLine
-      kStr += "  unsigned int wg%s, wg%s;%s" % (self.tileChar0, self.tileChar1, self.endLine)
-      kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
-          % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
-          self.getNumGroupsStr, self.endLine)
-      kStr += "  %s superGroup = groupSerial / (%s(%u)*WORK_GROUP_MAPPING);%s" \
-          % (self.uint64Str, self.getNumGroupsStr, dimCoal, self.endLine );
-      kStr += "  unsigned int lastSuperGroupWidth = %s(%u) %% WORK_GROUP_MAPPING;%s" % \
-          ( self.getNumGroupsStr, dimPerp, self.endLine )
-      kStr += "  unsigned int numWorkGroupsBeforeLastSuperGroup = (%s(%u) - lastSuperGroupWidth)*%s(%u);%s" \
-            % (self.getNumGroupsStr, dimPerp, self.getNumGroupsStr, dimCoal, \
-            self.endLine)
-
-      # if not in last super group
-      kStr += "  if ( groupSerial < numWorkGroupsBeforeLastSuperGroup) {%s" \
-          % (self.endLine)
-      kStr += "    wg%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
-          % ((self.tileChar0 if kernel["WorkGroupMapping"] > 0 else self.tileChar1), \
-          self.getNumGroupsStr, dimCoal, self.endLine)
-      kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% WORK_GROUP_MAPPING;%s" \
-          % ((self.tileChar1 if kernel["WorkGroupMapping"] > 0 else self.tileChar0), \
-          self.endLine)
-
-      # if in last super group
-      kStr += "  } else {%s" % self.endLine
-      kStr += "    wg%s = (groupSerial-numWorkGroupsBeforeLastSuperGroup)/lastSuperGroupWidth;%s" \
-          % ((self.tileChar0 if kernel["WorkGroupMapping"] > 0 else self.tileChar1), \
-          self.endLine)
-      kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
-          % ((self.tileChar1 if kernel["WorkGroupMapping"] > 0 else self.tileChar0), \
-          self.endLine)
-
-      # if in last super group
-      kStr += "  }%s" % self.endLine
-    return kStr
 
   ##############################################################################
-  # Global Read Addresses: Subgroup
+  # Global Read Addresses: Subgroup - DONE
   ##############################################################################
   def graSubgroup(self, kernel):
+    # sgId not needed until local read addresses
     return ""
-    kStr = ""
-    kStr += "  unsigned int serial = %s(0);%s" \
-        % (self.getLocalIdStr, self.endLine)
-    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine)
-    return kStr
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A
   ##############################################################################
   def graTileAssignmentA(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
-        % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
-        == kernel["ProblemType"]["TLUA"] else "/") )
+    kStr += "  unsigned int globalReadOffsetA%s = (serial" % self.tileCharA
+    # what register to store these values into
     if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
+      if kernel["GlobalReadCoalesceVectorA"]:
+        divisorName = "LVCA"
+      else:
+        divisorName = "LSCA"
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
-    kStr += ")"
+      if kernel["GlobalReadCoalesceVectorA"]:
+        divisorName = "LSPA"
+      else:
+        divisorName = "LVPA"
+    divisor = kernel[divisorName]
+    print divisorName, divisor
+
+    if self.globalReadCoalesceGroupA == kernel["ProblemType"]["TLUA"]:
+      rReg = 1 # groA-tile = serial%divisor
+      qReg = 2 # groA-unroll = serial/divisor
+    else:
+      qReg = 1 # groA-tile = serial/divisor
+      rReg = 2 # groA-unroll = serial%divisor
+    dividendReg = 0 # local serial
+    tmpVgpr = 3
+    tmpSgpr = 3
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+
     if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s*MT%s);%s" \
@@ -1299,6 +1289,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
     kStr += ")"
+
     if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s*MT%s);%s" \
@@ -2753,17 +2744,13 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Function End
+  # Function End - DONE
   ##############################################################################
   def functionEnd(self, kernel):
-    return ""
-    kStr = ""
-    kStr += self.endLine
-    kStr += "}" + self.endLine
-    return kStr
+    return inst("s_endpgm", "End Kernel")
 
   ##############################################################################
-  # Function Suffix
+  # Function Suffix - DONE
   ##############################################################################
   def functionSuffix(self, kernel):
     return ""
@@ -2831,38 +2818,16 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Kernel Body Prefix
+  # Kernel Body Prefix - DONE
   ##############################################################################
   def kernelBodyPrefix(self, kernel):
     return ""
-    s = ""
-    kernelName = self.getKernelName(kernel)
-    if not globalParameters["MergeFiles"]:
-      s += "\n"
-      s += "#include \"%s.h\"\n" % kernelName
-      s += "\n"
-
-    return s
 
   ##############################################################################
-  # Kernel Body Suffix
+  # Kernel Body Suffix - DONE
   ##############################################################################
   def kernelBodySuffix(self, kernel):
     return ""
-    s = ""
-    kernelName = self.getKernelName(kernel)
-
-    if self.language == "OCL":
-      s += "std::string %s_src_concatenated = \n  %s_src_0" \
-          % (kernelName, kernelName)
-      for i in range(1, self.stringIdx):
-        s += "\n  + %s_src_%u" % (kernelName, i)
-      s += ";\n"
-      s += "const char * const %s_src = %s_src_concatenated.c_str();" \
-          % (kernelName, kernelName)
-
-    s += "\n"
-    return s
 
   ##############################################################################
   # Open String - DONE
@@ -2875,7 +2840,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def closeString(self, kernel):
     return ""
-    
+
 
 
 ################################################################################
@@ -2888,7 +2853,9 @@ class KernelWriterAssembly(KernelWriter):
 def inst(*args):
   params = args[0:len(args)-1]
   comment = args[len(args)-1]
-  formatting = "%s %s"
+  formatting = "%s"
+  if len(params) > 1:
+    formatting += " %s"
   for i in range(0, len(params)-2):
     formatting += ", %s"
   instStr = formatting % (params)
@@ -2928,4 +2895,85 @@ def sgpr(*args):
 ########################################
 def log2(x):
   return int(log(x, 2) + 0.5)
+
+########################################
+# Divide & Remainder
+# quotient register, remainder register, divident register, divisor, tmps
+########################################
+def divideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
+  kStr = ""
+  if ((divisor & (divisor - 1)) == 0): # pow of 2
+    divisor_log2 = log2(divisor)
+    kStr += inst("v_lshlrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), \
+        "%s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
+    kStr += inst("v_and_b32", vgpr(rReg), divisor_log2, vgpr(dReg), \
+        "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
+  elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2
+    tmp = 32 + log2(divisor/3)
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "")
+    kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), tmp, vgpr(tmpVgpr,2), "")
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(tmpVgpr), divisor, "")
+    kStr += inst("v_sub_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "")
+  else:
+    printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
+  return kStr
+  """
+# mod 3 v0 -> v0
+s_mov_b32	s1 0xaaaaaaab
+v_mul_hi_u32	v2 v0 s1
+v_mul_lo_u32	v1 v0 s1
+v_lshrrev_b64	v[1:2] 33 v[1:2]
+v_mul_lo_u32	v1 v1 3
+v_sub_u32	v0 vcc v0 v1
+# mod 6
+s_mov_b32	s1 0xaaaaaaab
+v_mul_hi_u32	v2 v0 s1
+v_mul_lo_u32	v1 v0 s1
+v_lshrrev_b64	v[1:2] 34 v[1:2]
+v_mul_lo_u32	v1 v1 6
+v_sub_u32	v0 vcc v0 v1
+# mod 12
+s_mov_b32	s1 0xaaaaaaab
+v_mul_hi_u32	v2 v0 s1
+v_mul_lo_u32	v1 v0 s1
+v_lshrrev_b64	v[1:2] 35 v[1:2]
+v_mul_lo_u32	v1 v1 12
+v_sub_u32	v0 vcc v0 v1
+# mod 2
+V_AND_B32	v0 1 v0
+# mod 4
+V_AND_B32	v0 3 v0
+# mod 8
+V_AND_B32	v0 7 v0
+# mod 16
+V_AND_B32	v0 15 v0
+
+    else:
+      kStr += "/"
+# div 2
+V_LSHLREV_B32	v0 1 v0
+# div 2
+V_LSHLREV_B32	v0 2 v0
+# div 8
+V_LSHLREV_B32	v0 3 v0
+# div 16
+V_LSHLREV_B32	v0 4 v0
+# div 3
+s_mov_b32	s0 0xaaaaaaab
+v_mul_hi_u32	v3 v0 s0
+v_mul_lo_u32	v2 v0 s0
+v_lshrrev_b64	v[2:3] 33 v[2:3]
+# div 6
+s_mov_b32	s0 0xaaaaaaab
+v_mul_hi_u32	v3 v0 s0
+v_mul_lo_u32	v2 v0 s0
+v_lshrrev_b64	v[2:3] 34 v[2:3]
+# div 12
+s_mov_b32	s0 0xaaaaaaab
+v_mul_hi_u32	v3 v0 s0
+v_mul_lo_u32	v2 v0 s0
+v_lshrrev_b64	v[2:3] 35 v[2:3]
+  """
 
