@@ -1,7 +1,7 @@
 GlobalParameters:
   Name: Fiji
   PrintLevel: 1
-  ForceRedoBenchmarkProblems: False
+  ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
@@ -16,6 +16,8 @@ GlobalParameters:
   Platform: 0
   Device: 0
   DataInitType: 0
+  KernelTime: True
+  MaxMacroTileRatio: 2
 
 BenchmarkProblems:
   # zgemm NN
@@ -29,26 +31,30 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
-      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-      - GroupShape: [ 0 ]
-      - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [-1]
+      - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ True ]
+      - LocalWriteCoalesceGroupB: [ False ]
     ForkParameters:
-      - NumThreads: [64, 128, 256]
-      - ThreadTileNumElements: [4, 16, 36, 64]
+      - GroupShape: [ 0, 2 ]
+      - ThreadTileShape: [ 0, 2 ]
+      - PrefetchGlobalRead: [False, True]
+      - PrefetchLocalRead: [False, True]
+      - NumThreads: [128, 256]
+      - ThreadTileNumElements: [4, 8, 16 ]
       - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 8, 16]
+      - DepthU: [ 4, 8, 16, 32 ]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
     BenchmarkJoinParameters:
+      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
   # zgemm NT
   - ProblemType:
@@ -61,26 +67,30 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
-      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-      - ThreadTileShape: [ 0 ]
-      - NumLoadsCoalescedA: [-1]
-      - NumLoadsCoalescedB: [-1]
-      - GroupShape: [ 0 ]
+      - NumLoadsCoalescedA: [1]
+      - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ True ]
+      - LocalWriteCoalesceGroupB: [ True ]
     ForkParameters:
-      - NumThreads: [64, 128, 256]
-      - ThreadTileNumElements: [4, 16, 36, 64]
+      - GroupShape: [ 0, 2 ]
+      - ThreadTileShape: [ 0, 2 ]
+      - PrefetchGlobalRead: [False, True]
+      - PrefetchLocalRead: [False, True]
+      - NumThreads: [128, 256]
+      - ThreadTileNumElements: [4, 8, 16 ]
       - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 8, 16]
+      - DepthU: [ 4, 8, 16, 32]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
     BenchmarkJoinParameters:
+      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
   # zgemm TN
   - ProblemType:
@@ -93,26 +103,30 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
-      - WorkGroupMapping: [ 1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-      - ThreadTileShape: [ 0 ]
       - NumLoadsCoalescedA: [1]
       - NumLoadsCoalescedB: [1]
-      - GroupShape: [ 0 ]
+      - LocalWriteCoalesceGroupA: [ False ]
+      - LocalWriteCoalesceGroupB: [ False ]
     ForkParameters:
-      - NumThreads: [64, 128, 256]
-      - ThreadTileNumElements: [4, 16, 36, 64]
+      - GroupShape: [ 0, 2 ]
+      - ThreadTileShape: [ 0, 2 ]
+      - PrefetchGlobalRead: [False, True]
+      - PrefetchLocalRead: [False, True]
+      - NumThreads: [128, 256]
+      - ThreadTileNumElements: [4, 8, 16 ]
       - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 8, 16]
+      - DepthU: [ 4, 8, 16, 32]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
     BenchmarkJoinParameters:
+      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
   # zgemm TT
   - ProblemType:
@@ -125,26 +139,30 @@ BenchmarkProblems:
 
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [1536] ]
+      - ProblemSizes: [ [1536], [1536], [2], [1536] ]
       - EdgeType: ["Shift"]
-      - WorkGroupMapping: [ -1 ]
       - LoopDoWhile: [False]
       - LoopTail: [True]
-      - ThreadTileShape: [ 0 ]
       - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [-1]
-      - GroupShape: [ 0 ]
+      - NumLoadsCoalescedB: [1]
+      - LocalWriteCoalesceGroupA: [ False ]
+      - LocalWriteCoalesceGroupB: [ True ]
     ForkParameters:
-      - NumThreads: [64, 128, 256]
-      - ThreadTileNumElements: [4, 16, 36, 64]
+      - GroupShape: [ 0, 2 ]
+      - ThreadTileShape: [ 0, 2 ]
+      - PrefetchGlobalRead: [False, True]
+      - PrefetchLocalRead: [False, True]
+      - NumThreads: [128, 256]
+      - ThreadTileNumElements: [4, 16, 32 ]
       - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 8, 16]
+      - DepthU: [ 4, 8, 16, 32]
     BenchmarkForkParameters:
     JoinParameters:
       - MacroTile
     BenchmarkJoinParameters:
+      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
     BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [2], [1536] ]
+      - ProblemSizes: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
 LibraryLogic:
   BranchPenalty: 0

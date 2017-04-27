@@ -575,6 +575,12 @@ class Solution:
     if not state["Valid"]:
       return
 
+    if ( state["GroupShape"] < 0 and state["ThreadTileShape"] > 0) or \
+        (state["GroupShape"] > 0 and state["ThreadTileShape"] < 0):
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("Group and thread tiles have opposite shapes")
+      state["Valid"] = False
+
     # VectorWidth
     if state["VectorWidth"] < 1:
       state["VectorWidth"] = 4 / state["ProblemType"]["DataType"].numRegisters()
@@ -865,7 +871,7 @@ class Solution:
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
     # lds buffer size for reduction
-    ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"]
+    ldsNumElementsReduction = state["SplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["SplitU"] > 1 else 0
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction)

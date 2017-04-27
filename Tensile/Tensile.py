@@ -61,7 +61,11 @@ def executeStepsInConfig( config ):
     else:
       libraryLogicFiles = []
     if len(libraryLogicFiles) < 1 or globalParameters["ForceRedoLibraryLogic"]:
-      LibraryLogic.main( config["LibraryLogic"] )
+      if config["LibraryLogic"] != None:
+        libraryLogicConfig = config["LibraryLogic"]
+      else:
+        libraryLogicConfig = {}
+      LibraryLogic.main( libraryLogicConfig )
       print1("")
     else:
       print1("# LibraryLogic already done.")
@@ -72,7 +76,11 @@ def executeStepsInConfig( config ):
   # Write Client
   ##############################################################################
   if "LibraryClient" in config:
-    ClientWriter.main( config["LibraryClient"] )
+    if config["LibraryClient"] != None:
+      libraryClientConfig = config["LibraryClient"]
+    else:
+      libraryClientConfig = {}
+    ClientWriter.main( libraryClientConfig )
     print1("")
 
 

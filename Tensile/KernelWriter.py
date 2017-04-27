@@ -703,7 +703,8 @@ class KernelWriter:
     ####################################
     # SplitU reduction
     ####################################
-    if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
+    #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
+    if kernel["SplitU"] > 1:
       kStr += self.comment3("SplitU Reduction")
       kStr += self.indent + self.syncStr + self.endLine
 

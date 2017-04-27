@@ -241,14 +241,6 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define LDS_OFFSET_BLK %u%s" \
          % (kernel["LdsOffsetA_Blk"], self.endLine)
 
-    # Zero
-    if not (kernel["ProblemType"]["DataType"].isHalf() \
-        and kernel["VectorWidth"] > 1 \
-        and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch")):
-      kStr += "#define ZERO %s%s" % ( kernel["ProblemType"][\
-         "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
-         self.endLine )
-
     ####################################
     # global memory indices
     kStr += self.endLine
@@ -664,6 +656,14 @@ class KernelWriterSource(KernelWriter):
       kStr += "  VECTOR_TYPE ZERO;%s" % ( self.endLine )
       kStr += "  ZERO.p[0] = 0;%s" % self.endLine
       kStr += "  ZERO.p[1] = 0;%s" % self.endLine
+    elif kernel["ProblemType"]["DataType"].isComplex():
+      kStr += "  DATA_TYPE ZERO;%s" % ( self.endLine )
+      kStr += "  ZERO.s0 = 0;%s" % self.endLine
+      kStr += "  ZERO.s1 = 0;%s" % self.endLine
+    else:
+      kStr += "#define ZERO %s%s" % ( kernel["ProblemType"][\
+         "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
+         self.endLine )
 
 
     return kStr
@@ -2031,11 +2031,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def splitUGlobalWrite(self, kernel):
     kStr = ""
-    if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
-      kStr += "  float type_mac_tmp;" + self.endLine
-    if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
-      kStr += "  double type_mac_tmp;" + self.endLine
-
     for b in range(0, kernel["NumVectorsPerThread"]):
       for s in range(0, kernel["VectorWidth"]):
         if kernel["EdgeType"] != "None":
@@ -2184,10 +2179,15 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
       kStr += "#undef TYPE_MAC%s" % (self.endLine)
       kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
-      if not (kernel["ProblemType"]["DataType"].isHalf() \
+      # zero
+      if kernel["ProblemType"]["DataType"].isHalf() \
           and kernel["VectorWidth"] > 1 \
-          and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch")):
-        kStr += "#undef ZERO%s" % self.endLine
+          and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch"):
+        pass
+      elif kernel["ProblemType"]["DataType"].isComplex():
+        pass
+      else:
+        kStr += "#undef ZERO%s" % (self.endLine )
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):
