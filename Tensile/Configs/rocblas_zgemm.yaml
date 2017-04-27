@@ -137,6 +137,9 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
+    InitialSolutionParameters:
+      - WorkGroupMapping: [-1]
+
     # keep benchmark as single list to make easier to modify in future
     BenchmarkCommonParameters:
       - ProblemSizes: [ [1536], [1536], [2], [1536] ]
