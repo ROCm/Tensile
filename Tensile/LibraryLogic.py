@@ -257,7 +257,6 @@ class LogicAnalyzer:
     if rowIdx < 2:
       printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
           % (dataFileName, rowIdx) )
-    print self.data
 
 
   ##############################################################################

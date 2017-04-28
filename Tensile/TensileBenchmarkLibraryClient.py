@@ -78,6 +78,7 @@ def TensileBenchmarkLibraryClient(userArgs):
   numIndices = -1
   for row in csvFile:
     numIndices = len(row)
+    firstRow = row
     break
   output = ""
   for i in range(0, numIndices):
@@ -94,6 +95,30 @@ def TensileBenchmarkLibraryClient(userArgs):
   cmdPrefix += " "
   cmdPrefix += args.FunctionIdx
   cmdPrefix += " "
+
+  # benchmark each problem size
+  for row in [firstRow]:
+    gflopList = []
+    msList = []
+    for i in range(0, N):
+      (gflops, ms) = BenchmarkProblemSize(cmdPrefix, row)
+      gflopList.append(gflops)
+      msList.append(ms)
+    meanGFlops = mean(gflopList)
+    meanMs = mean(msList)
+    medianGFlops = median(gflopList)
+    medianMs = median(msList)
+    stddevGFlops = stddev(gflopList)
+    stddevMs = stddev(msList)
+
+    # format output
+    output = ""
+    for size in row:
+      output += "%6u, " % int(size)
+    output += "%9.3f, %9.3f, " % (medianGFlops, medianMs)
+    output += "%9.3f, %9.3f, " % (meanGFlops, meanMs)
+    output += "%9.3f, %9.3f" % (stddevGFlops, stddevMs)
+    print output
 
   # benchmark each problem size
   for row in csvFile:
@@ -136,5 +161,10 @@ def stddev(lst):
     total += pow((lst[i]-mn),2)
   return (total/len(lst))**0.5
 
-if __name__ == "__main__":
+# installed "tensileBenchmarkLibraryClient" command
+def main():
   TensileBenchmarkLibraryClient(sys.argv[1:])
+
+if __name__ == "__main__":
+  main()
+
