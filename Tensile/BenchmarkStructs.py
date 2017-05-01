@@ -32,24 +32,25 @@ class BenchmarkProcess:
   ##############################################################################
   # Init
   ##############################################################################
-  def __init__(self, config):
+  #def __init__(self, config):
+  def __init__(self, problemTypeConfig, problemSizeGroupConfig ):
     # read problem type
-    if "ProblemType" in config:
-      problemTypeConfig = config["ProblemType"]
-    else:
-      problemTypeConfig = {}
-      print2("No ProblemType in config: %s; using defaults." % str(config) )
+    #if "ProblemType" in config:
+    #  problemTypeConfig = config["ProblemType"]
+    #else:
+    #  problemTypeConfig = {}
+    #  print2("No ProblemType in config: %s; using defaults." % str(config) )
     self.problemType = ProblemType(problemTypeConfig)
     print2("# BenchmarkProcess beginning %s" % str(self.problemType))
 
     # read initial solution parameters
     self.initialSolutionParameters = { "ProblemType": problemTypeConfig }
     self.initialSolutionParameters.update(defaultSolution)
-    if "InitialSolutionParameters" not in config:
+    if "InitialSolutionParameters" not in problemSizeGroupConfig:
       print2("No InitialSolutionParameters; using defaults.")
     else:
-      if config["InitialSolutionParameters"] != None:
-        for paramDict in config["InitialSolutionParameters"]:
+      if problemSizeGroupConfig["InitialSolutionParameters"] != None:
+        for paramDict in problemSizeGroupConfig["InitialSolutionParameters"]:
           for paramName in paramDict:
             paramValueList = paramDict[paramName]
             if isinstance(paramValueList, list):
@@ -72,7 +73,7 @@ class BenchmarkProcess:
     self.singleValueParameters = {}
 
     # (I)
-    self.fillInMissingStepsWithDefaults(config)
+    self.fillInMissingStepsWithDefaults(problemSizeGroupConfig)
 
     # convert list of parameters to list of steps
     self.currentProblemSizes = []

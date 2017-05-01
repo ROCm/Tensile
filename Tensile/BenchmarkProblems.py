@@ -41,7 +41,10 @@ import YAMLIO
 ################################################################################
 # Benchmark Problem Type
 ################################################################################
-def benchmarkProblemType( config ):
+def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
+    problemSizeGroupIdx ):
+  #  resultsFileBase = benchmarkProblemType(problemTypeConfig, \
+  #      problemSizeGroupConfig, problemSizeGroupIdx)
 
   # convert config to full benchmark process (resolves defaults)
   print1("")
@@ -49,10 +52,12 @@ def benchmarkProblemType( config ):
   print1("# Converting Config to BenchmarkProcess Object")
   print1(HR)
   print1("")
-  benchmarkProcess = BenchmarkProcess(config)
+  benchmarkProcess = BenchmarkProcess( problemTypeConfig, \
+      problemSizeGroupConfig )
 
   problemTypeName = str(benchmarkProcess.problemType)
-  pushWorkingPath(problemTypeName)
+  problemSizeGroupName = "%s_%02u" % (problemTypeName, problemSizeGroupIdx)
+  pushWorkingPath(problemSizeGroupName)
   ensurePath(os.path.join(globalParameters["WorkingPath"],"Data"))
 
   totalBenchmarkSteps = len(benchmarkProcess)
@@ -77,7 +82,7 @@ def benchmarkProblemType( config ):
     shortName = benchmarkStep.abbreviation()
     print1("\n")
     print1(HR)
-    print1("# %s\n# %s" % (problemTypeName, stepName))
+    print1("# %s\n# %s" % (problemSizeGroupName, stepName))
     print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
     print1("# BenchmarkParameters:")
     for paramName in benchmarkStep.benchmarkParameters:
@@ -298,7 +303,7 @@ def benchmarkProblemType( config ):
     # End Iteration
     popWorkingPath() # stepName
     print1("%s\n# %s\n# %s: End\n%s\n" \
-        % (HR, problemTypeName, shortName, HR))
+        % (HR, problemSizeGroupName, shortName, HR))
 
   popWorkingPath() # ProblemType
   return resultsFileBase
@@ -596,23 +601,35 @@ def main( config ):
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
   ensurePath(dataPath)
   for benchmarkProblemTypeConfig in config:
-    problemTypeConfig = benchmarkProblemTypeConfig["ProblemType"]
-    print2("ProblemTypeConfig: %s" % problemTypeConfig)
-    problemTypeObj = ProblemType(problemTypeConfig)
-    globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
-
-    # Benchmark Problem Type
-    if benchmarkProblemTypeConfig is None:
-      resultsFileBase = benchmarkProblemType({})
+    #problemTypeConfig = benchmarkProblemTypeConfig["ProblemType"]
+    problemTypeConfig = benchmarkProblemTypeConfig[0]
+    print "problemTypeConfig", problemTypeConfig
+    if len(benchmarkProblemTypeConfig) < 2:
+      problemSizeGroupConfigs = [{}]
     else:
-      resultsFileBase = benchmarkProblemType(benchmarkProblemTypeConfig)
+      problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
+    for problemSizeGroupIdx in range(0, len(problemSizeGroupConfigs)):
+      problemSizeGroupConfig = problemSizeGroupConfigs[problemSizeGroupIdx]
+      print "  problemSizeGroupConfig", problemSizeGroupConfig
+      print2("ProblemTypeConfig: %s" % problemTypeConfig)
+      problemTypeObj = ProblemType(problemTypeConfig)
+      globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
-    # Copy Data
-    resultsFileName = resultsFileBase + ".csv"
-    solutionsFileName = resultsFileBase + ".yaml"
-    newResultsFileName = os.path.join(dataPath, "%s.csv" % str(problemTypeObj))
-    newSolutionsFileName = os.path.join(dataPath, "%s.yaml" % str(problemTypeObj))
-    shutil_copy( resultsFileName, newResultsFileName )
-    shutil_copy( solutionsFileName, newSolutionsFileName )
+      # Benchmark Problem Size Group
+      #if benchmarkProblemTypeConfig is None:
+      #  resultsFileBase = benchmarkProblemType({}, {})
+      #else:
+      resultsFileBase = benchmarkProblemType(problemTypeConfig, \
+          problemSizeGroupConfig, problemSizeGroupIdx)
+
+      # Copy Data
+      resultsFileName = "%s.csv" % (resultsFileBase)
+      solutionsFileName = "%s.yaml" % (resultsFileBase)
+      newResultsFileName = os.path.join(dataPath, "%s_%02u.csv" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
+      newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
+      shutil_copy( resultsFileName, newResultsFileName )
+      shutil_copy( solutionsFileName, newSolutionsFileName )
 
   popWorkingPath()
