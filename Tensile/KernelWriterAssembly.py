@@ -1191,6 +1191,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_u32", sgpr("OffsetB"), "0")
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
+    # now sgpr OffsetC,A,B are freed up for arithmetic
 
     # Debug Buffer
     kStr += self.comment("Debug Buffer")
@@ -1242,7 +1243,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graTileAssignmentA(self, kernel):
     kStr = ""
-    kStr += "  unsigned int globalReadOffsetA%s = (serial" % self.tileCharA
+    #kStr += "  unsigned int globalReadOffsetA%s = (serial" % self.tileCharA
     # what register to store these values into
     if self.globalReadCoalesceGroupA:
       if kernel["GlobalReadCoalesceVectorA"]:
@@ -1260,19 +1261,38 @@ class KernelWriterAssembly(KernelWriter):
     if self.globalReadCoalesceGroupA == kernel["ProblemType"]["TLUA"]:
       rReg = 1 # groA-tile = serial%divisor
       qReg = 2 # groA-unroll = serial/divisor
+      tReg = rReg
+      uReg = qReg
+      tOpStr = "%"
+      uOpStr = "/"
     else:
       qReg = 1 # groA-tile = serial/divisor
       rReg = 2 # groA-unroll = serial%divisor
+      tReg = qReg
+      uReg = rReg
+      tOpStr = "/"
+      uOpStr = "%"
+    kStr += self.comment("%s = groA-tile = serial%s%s + (wgA*MTA);" \
+        % (vgpr(tReg), tOpStr, divisorName) )
+    kStr += selc.comment("%s = groA-unroll = serial%s;%s" \
+        % (vgpr(uReg), uOpStr, divisorName) )
     dividendReg = 0 # local serial
     tmpVgpr = 3
-    tmpSgpr = 3
+    tmpSgpr = self.startSgprOffsetC
     kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
 
-    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += " + (wg%s*MT%s);%s" \
-        % (self.tileCharA, self.tileCharA, self.endLine)
+    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"] \
+        and kernel["VectorWidth"] > 1:
+      kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
+          vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+    kStr += inst("v_lshlrev_v32", vgpr(tmpVgpr), log2(kernel["SubGroupA"]), \
+        vgpr("WorkGroupA"), "%s = wgA * MTA"%vgpr(tmpSgpr) )
+    kStr += inst("v_add_u32", vgpr(tReg), vgpr(tmpVgpr), \
+        vgpr(tReg), "groA-tile = serial%s%s*VW + (wgA*MTA)" \
+        % (tOpStr, divisorName) )
+    #kStr += "groA-tile = (wg%s*MT%s);%s" \
+    #    % (self.tileCharA, self.tileCharA, self.endLine)
     return kStr
 
   ##############################################################################
