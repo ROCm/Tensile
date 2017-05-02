@@ -213,9 +213,12 @@ def writeLogic(outputPath, logicList, solutionWriter ):
     if not globalParameters["MergeFiles"]:
       filePrefix   = "Tensile_%s_%s" % (scheduleName, problemType)
       #s = "#include \"%s.h\"" % filePrefix
-      s = "#include \"Tensile.h\""
+      s = "#include \"Tensile.h\"\n"
       for solutionName in solutionNames:
-        h += "#include \"%s.h\"\n" % solutionName
+        s += "#include \"%s.h\"\n" % solutionName
+      # removing solution names from public API
+      #for solutionName in solutionNames:
+      #  h += "#include \"%s.h\"\n" % solutionName
 
     # function argument list
     argList = solutionWriter.getArgList(solutions[0])
