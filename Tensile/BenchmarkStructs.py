@@ -108,10 +108,10 @@ class BenchmarkProcess:
     configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] \
         if "BenchmarkJoinParameters" in config \
         else []
-    configBenchmarkFinalParameters = config["BenchmarkFinalParameters"][0] \
+    configBenchmarkFinalParameters = config["BenchmarkFinalParameters"] \
         if "BenchmarkFinalParameters" in config and config["BenchmarkFinalParameters"] != None \
         and len(config["BenchmarkFinalParameters"]) > 0 \
-        else {"ProblemSizes": defaultBenchmarkFinalProblemSizes}
+        else [{"ProblemSizes": defaultBenchmarkFinalProblemSizes}]
 
     ############################################################################
     # Ensure only valid solution parameters were requested
@@ -509,17 +509,19 @@ class BenchmarkProcess:
     print2("")
     print2("####################################################################")
     print1("# Benchmark Final")
-    self.currentProblemSizes = ProblemSizes(self.problemType, \
-        self.benchmarkFinalParameters["ProblemSizes"])
-    currentBenchmarkParameters = {}
-    benchmarkStep = BenchmarkStep(
-        self.hardcodedParameters,
-        currentBenchmarkParameters,
-        self.initialSolutionParameters,
-        self.currentProblemSizes,
-        self.benchmarkStepIdx )
-    self.benchmarkSteps.append(benchmarkStep)
-    self.benchmarkStepIdx+=1
+    for problemSizesDict in self.benchmarkFinalParameters:
+      problemSizes = problemSizesDict["ProblemSizes"]
+      self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
+          #self.benchmarkFinalParameters["ProblemSizes"])
+      currentBenchmarkParameters = {}
+      benchmarkStep = BenchmarkStep(
+          self.hardcodedParameters,
+          currentBenchmarkParameters,
+          self.initialSolutionParameters,
+          self.currentProblemSizes,
+          self.benchmarkStepIdx )
+      self.benchmarkSteps.append(benchmarkStep)
+      self.benchmarkStepIdx+=1
 
 
   ##############################################################################
@@ -619,23 +621,27 @@ class BenchmarkStep:
         % ( len(benchmarkParameters), len(hardcodedParameters), \
         problemSizes.totalProblemSizes))
 
+  def isFinal(self):
+    return len(self.benchmarkParameters) == 0
+
   def abbreviation(self):
     string = "%02u" % self.stepIdx
-    if len(self.benchmarkParameters) > 0:
+    if self.isFinal():
+      string += "_Final"
+    else:
       for param in self.benchmarkParameters:
         string += "_%s" % Solution.getParameterNameAbbreviation(param)
-    else:
-      string += "_Final"
     return string
 
   def __str__(self):
     string = "%02u" % self.stepIdx
-    if len(self.benchmarkParameters) > 0:
+    if self.isFinal():
+      string += "_Final"
+    else:
       for param in self.benchmarkParameters:
         string += "_%s" % str(param)
-    else:
-      string += "_Final"
     return string
+
   def __repr__(self):
     return self.__str__()
 
