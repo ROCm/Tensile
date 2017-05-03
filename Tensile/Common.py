@@ -33,7 +33,7 @@ from collections import OrderedDict
 ################################################################################
 globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
-globalParameters["Name"] = "Tensile"
+#globalParameters["Name"] = "Tensile"
 if os.name == "nt":
   globalParameters["RuntimeLanguage"] = "OCL"
   globalParameters["KernelLanguage"] = "OCL"
@@ -185,6 +185,8 @@ defaultBenchmarkFinalProblemSizes = [
 # Default Analysis Parameters
 ################################################################################
 defaultAnalysisParameters = {
+    "ScheduleName":       "Default",
+    "DeviceNames":  ["Unspecified"],
     "InitialSolutionWindow":      1,
     "BranchPenalty":              0, # microseconds / kernel
     "SmoothOutliers":         False, # enforce monotonic data

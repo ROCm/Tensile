@@ -1084,12 +1084,14 @@ def main(  config ):
       #  problemTypeTuples.append(problemTypeTuple)
 
   # Run Analysis
-  schedulePrefix = globalParameters["Name"]
+  #schedulePrefix = globalParameters["Name"]
+  schedulePrefix = config["ScheduleName"]
+  deviceNamesForSchedule = config["DeviceNames"]
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
         analysisParameters )
-    YAMLIO.writeLibraryLogicForProblemType(globalParameters["WorkingPath"], \
-        schedulePrefix, logicTuple)
+    YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
+        schedulePrefix, deviceNamesForSchedule, logicTuple)
 
   popWorkingPath()
 

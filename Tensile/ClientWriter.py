@@ -81,8 +81,9 @@ def main( config ):
   functionNames = []
   enableHalf = False
   for logicFileName in logicFiles:
-    (scheduleName, problemType, solutionsForType, indexOrder, logic) \
-        = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    (scheduleName, deviceNames, problemType, solutionsForType, \
+        indexOrder, logic) \
+        = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
@@ -555,7 +556,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "\n"
     # Solution Ptrs
     h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
-    argList = solutionWriter.getArgList(solutions[0])
+    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True)
     for i in range(0, len(argList)):
       h += "  %s%s" % (argList[i], ",\n" if i < len(argList)-1 else ");\n\n")
     h += "const SolutionFunctionPointer solutions[numSolutions] = {\n"

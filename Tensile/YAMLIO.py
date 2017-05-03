@@ -113,7 +113,8 @@ def readSolutions( filename ):
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################
-def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
+def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
+    logicTuple):
   problemType   = logicTuple[0]
   solutions     = logicTuple[1]
   indexOrder    = logicTuple[2]
@@ -125,8 +126,10 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
   data = []
   # Tensile version
   data.append(__version__)
-  # logic name
-  data.append(globalParameters["Name"])
+  # schedule name
+  data.append(schedulePrefix)
+  # schedule device names
+  data.append(deviceNames)
   # problem type
   problemTypeState = problemType.state
   problemTypeState["DataType"] = \
@@ -155,7 +158,7 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
   except IOError:
     printExit("Cannot open file: %s" % filename)
 
-def readLibraryLogicForProblemType( filename ):
+def readLibraryLogicForSchedule( filename ):
   print1("# Reading Library Logic: %s" % ( filename ))
   try:
     stream = open(filename, "r")
@@ -171,10 +174,11 @@ def readLibraryLogicForProblemType( filename ):
   # parse out objects
   version           = data[0]
   scheduleName      = data[1]
-  problemTypeState  = data[2]
-  solutionStates    = data[3]
-  indexOrder        = data[4]
-  logic             = data[5]
+  deviceNames       = data[2]
+  problemTypeState  = data[3]
+  solutionStates    = data[4]
+  indexOrder        = data[5]
+  logic             = data[6]
 
   # does version match
   if version != __version__:
@@ -193,4 +197,4 @@ def readLibraryLogicForProblemType( filename ):
           % (problemType, solutionObject["ProblemType"]))
     solutions.append(solutionObject)
 
-  return (scheduleName, problemType, solutions, indexOrder, logic )
+  return (scheduleName, deviceNames, problemType, solutions, indexOrder, logic )

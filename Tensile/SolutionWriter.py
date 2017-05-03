@@ -343,58 +343,60 @@ class SolutionWriter:
 
   ########################################
   # get solution arguments
-  def getArgList(self, solution):
+  def getArgList(self, problemType, includeDataAndEvents, includeStream):
     self.strideList = []
     self.sizeList = []
     argList = []
 
     # data ptrs
-    typeName = solution["ProblemType"]["DataType"].toCpp()
-    if self.language == "HIP":
-      argList.append("%s *dataC" % (typeName))
-      argList.append("const %s *dataA" % (typeName))
-      argList.append("const %s *dataB" % (typeName))
-    else:
-      argList.append("cl_mem dataC")
-      argList.append("cl_mem dataA")
-      argList.append("cl_mem dataB")
-    argList.append("%s alpha" % (typeName))
-    if solution["ProblemType"]["UseBeta"]:
-      argList.append("%s beta" % typeName)
-    argList.append("unsigned int offsetC")
-    argList.append("unsigned int offsetA")
-    argList.append("unsigned int offsetB")
+    if includeDataAndEvents:
+      typeName = problemType["DataType"].toCpp()
+      if self.language == "HIP":
+        argList.append(("%s *"%typeName, "dataC"))
+        argList.append(("const %s *"%typeName, "dataA"))
+        argList.append(("const %s *"%typeName, "dataB"))
+      else:
+        argList.append(("cl_mem", "dataC"))
+        argList.append(("cl_mem", "dataA"))
+        argList.append(("cl_mem", "dataB"))
+      argList.append((typeName, "alpha"))
+      if problemType["UseBeta"]:
+        argList.append((typeName, "beta"))
+      argList.append(("unsigned int", "offsetC"))
+      argList.append(("unsigned int", "offsetA"))
+      argList.append(("unsigned int", "offsetB"))
 
     # initial strides ?
     firstStride = 1
-    if solution["ProblemType"]["UseInitialStrides"]:
+    if problemType["UseInitialStrides"]:
       firstStride = 0
-    lastStrideC = solution["ProblemType"]["NumIndicesC"]
-    lastStrideA = len(solution["ProblemType"]["IndexAssignmentsA"])
-    lastStrideB = len(solution["ProblemType"]["IndexAssignmentsB"])
+    lastStrideC = problemType["NumIndicesC"]
+    lastStrideA = len(problemType["IndexAssignmentsA"])
+    lastStrideB = len(problemType["IndexAssignmentsB"])
     # c strides
     for i in range(firstStride,lastStrideC):
       self.strideList.append("strideC%u%s" % (i, self.indexChars[i]))
     # a strides
     for i in range(firstStride,lastStrideA):
       self.strideList.append("strideA%u%s" % (i, \
-          self.indexChars[solution["ProblemType"]["IndexAssignmentsA"][i]]))
+          self.indexChars[problemType["IndexAssignmentsA"][i]]))
     # b strides
     for i in range(firstStride,lastStrideB):
       self.strideList.append("strideB%u%s" % (i, \
-          self.indexChars[solution["ProblemType"]["IndexAssignmentsB"][i]]))
+          self.indexChars[problemType["IndexAssignmentsB"][i]]))
     # c sizes
-    for i in range(0,solution["ProblemType"]["TotalIndices"]):
+    for i in range(0,problemType["TotalIndices"]):
       self.sizeList.append("size%s" % self.indexChars[i])
     for stride in self.strideList:
-      argList.append("unsigned int %s" % stride)
+      argList.append(("unsigned int",stride))
     for size in self.sizeList:
-      argList.append("unsigned int %s" % size)
-
-    argList.append("%s stream" % self.streamName)
-    argList.append("unsigned int numInputEvents")
-    argList.append("%s *inputEvents" % self.eventName)
-    argList.append("%s *outputEvent" % self.eventName)
+      argList.append(("unsigned int", size))
+    if includeStream:
+      argList.append((self.streamName, "stream"))
+    if includeDataAndEvents:
+      argList.append(("unsigned int", "numInputEvents"))
+      argList.append(("%s *"%self.eventName, "inputEvents"))
+      argList.append(("%s *"%self.eventName, "outputEvent"))
     return argList
 
   ########################################
@@ -405,9 +407,9 @@ class SolutionWriter:
     solutionName = self.getSolutionName(solution)
     s += "%s%s %s(\n" % (t, self.statusName, solutionName)
     t += "    "
-    argList = self.getArgList(solution)
+    argList = self.getArgList(solution["ProblemType"], True, True)
     for i in range(0, len(argList)):
-      argString = argList[i]
+      argString = "%s %s" % argList[i]
       s += "%s%s%s" % (t, argString, ",\n" if i < len(argList)-1 else ")" )
     return s
 
