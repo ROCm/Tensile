@@ -87,7 +87,7 @@ def main( config ):
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
-    functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+    functionNames.append("tensile_%s" % (problemType))
   globalParameters["EnableHalf"] = enableHalf
 
   ##############################################################################
@@ -586,7 +586,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for dataType in dataTypes:
       for problemType in problemTypesForDataType[dataType]:
         for scheduleName in schedulesForProblemType[problemType]:
-          functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+          #functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+          functionNames.append("tensile_%s" % (problemType))
     h += "const char *functionNames[numFunctions] = {\n"
     for functionIdx in range(0, len(functionNames)):
       functionName = functionNames[functionIdx]
@@ -841,7 +842,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
         # function call
         h += "    // call solution function\n"
-        h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
+        h += "    return tensile_%s(\n" % (problemType)
         if globalParameters["RuntimeLanguage"] == "OCL":
           h += "        static_cast<cl_mem>(deviceC),\n"
           h += "        static_cast<cl_mem>(deviceA),\n"

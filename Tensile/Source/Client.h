@@ -297,7 +297,7 @@ bool callLibrary(
       << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " " << (numChecked-numInvalids) << "/" << numChecked;
-    std::cout << " | api:" << std::setw(6) << std::fixed
+    std::cout << " | api:" << std::setw(7) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
     std::cout << std::endl;
   } else {
@@ -314,7 +314,7 @@ bool callLibrary(
     if (newFastest) {
       std::cout << "*";
     }
-    std::cout << " | api:" << std::setw(6) << std::fixed
+    std::cout << " | api:" << std::setw(7) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
     std::cout << std::endl;
   }

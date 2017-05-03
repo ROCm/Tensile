@@ -25,6 +25,8 @@
 #include <iostream>
 #include <iomanip>
 
+const unsigned int numLibraryCalls = 16;
+
 /*******************************************************************************
  * main
  ******************************************************************************/
@@ -59,8 +61,10 @@ int main( int argc, char *argv[] ) {
     invalids = benchmarkProblemSizes(initialC_float, initialA_float, initialB_float,
         alpha_float, beta_float, referenceC_float, deviceOnHostC_float);
 #else
-    invalids = callLibrary(initialC_float, initialA_float, initialB_float, alpha_float,
-        beta_float, referenceC_float, deviceOnHostC_float);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_float, initialA_float, initialB_float, alpha_float,
+          beta_float, referenceC_float, deviceOnHostC_float);
+    }
 #endif
     destroyData(initialC_float, initialA_float, initialB_float,
         referenceC_float, deviceOnHostC_float);
@@ -82,8 +86,10 @@ int main( int argc, char *argv[] ) {
     invalids = benchmarkProblemSizes(initialC_double, initialA_double, initialB_double,
         alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
 #else
-    invalids = callLibrary(initialC_double, initialA_double, initialB_double,
-        alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_double, initialA_double, initialB_double,
+          alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
+    }
 #endif
     destroyData(initialC_double, initialA_double, initialB_double,
         referenceC_double, deviceOnHostC_double);
@@ -105,8 +111,10 @@ int main( int argc, char *argv[] ) {
     invalids = benchmarkProblemSizes(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
         beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
 #else
-    invalids = callLibrary(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
-        beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
+          beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
+    }
 #endif
     destroyData(initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
         deviceOnHostC_TCF);
@@ -128,8 +136,10 @@ int main( int argc, char *argv[] ) {
     invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
         beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
 #else
-    invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
-        referenceC_TCD, deviceOnHostC_TCD_TCD);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
+          referenceC_TCD, deviceOnHostC_TCD_TCD);
+    }
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
         deviceOnHostC_TCD);
@@ -151,8 +161,10 @@ int main( int argc, char *argv[] ) {
     invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
         beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
 #else
-    invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
-        referenceC_TCD, deviceOnHostC_TCD_TCD);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
+          referenceC_TCD, deviceOnHostC_TCD_TCD);
+    }
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
         deviceOnHostC_TCD);
