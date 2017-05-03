@@ -51,24 +51,21 @@ unsigned int fastestIdx = 0;
 ******************************************************************************/
 cl_ulong getEventDeltaTime(cl_event event)
 {
-    cl_ulong start, end = 0;
-    cl_int cl_error = CL_SUCCESS;
+  cl_ulong start, end = 0;
+  cl_int cl_error = CL_SUCCESS;
 
-    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL) != CL_SUCCESS)
-    {
-        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+  if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_START, sizeof(cl_ulong), &start, NULL) != CL_SUCCESS)
+  {
+    std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+    start = 0;
+  }
 
-        start = 0;
-    }
-
-    if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL) != CL_SUCCESS)
-    {
-        std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
-
-        end = 0;
-    }
-
-    return (end - start);
+  if (cl_error = ::clGetEventProfilingInfo(event, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), &end, NULL) != CL_SUCCESS)
+  {
+    std::cout << "::clGetEventProfilingInfo error code: " << cl_error << std::endl;
+    end = 0;
+  }
+  return (end - start);
 }
 #else
 /*******************************************************************************
@@ -110,8 +107,8 @@ bool callLibrary(
   // copy data to device
   size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
 #if Tensile_RUNTIME_LANGUAGE_OCL
-  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-      sizeToCopy, initialC, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE,
+      0, sizeToCopy, initialC, 0, NULL, NULL);
 #else
   status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
 #endif
@@ -197,10 +194,10 @@ bool callLibrary(
   hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
   hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
-      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-          hipEventCreateWithFlags(&l_eventStart[syncIdx][enqIdx], hipEventDefault);
-          hipEventCreateWithFlags(&l_eventStop[syncIdx][enqIdx], hipEventDefault);
-      }
+    for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+      hipEventCreateWithFlags(&l_eventStart[syncIdx][enqIdx], hipEventDefault);
+      hipEventCreateWithFlags(&l_eventStop[syncIdx][enqIdx], hipEventDefault);
+    }
   }
 #endif
 
@@ -210,14 +207,17 @@ bool callLibrary(
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        if (measureKernelTime)
+      if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-            generatedCallToFunction(userSizes, alpha, beta, 0, NULL, &l_outputEvent[syncIdx][0]);
+        generatedCallToFunction(userSizes, alpha, beta, 0, NULL,
+            &l_outputEvent[syncIdx][0]);
 #else
-            generatedCallToFunction(userSizes, alpha, beta, numEnqueuesPerSync, &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
+        generatedCallToFunction(userSizes, alpha, beta, numEnqueuesPerSync,
+            &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
 #endif
-        else
-            generatedCallToFunction(userSizes, alpha, beta);
+      } else {
+        generatedCallToFunction(userSizes, alpha, beta);
+      }
     }
 
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
@@ -236,38 +236,40 @@ bool callLibrary(
   double timeNs = 0.0;
 #if Tensile_RUNTIME_LANGUAGE_OCL
   if (measureKernelTime) {
-      // Loop through the multi-dimensional event array and collect kernel performance data
-      // Release events when done with them
-      cl_ulong kernel_time_sum = 0;
-      for (auto& event_array : l_outputEvent) {
-          for (auto event : event_array) {
-              // getEventDeltaTime returns unsigned long in nano-seconds on opencl
-              kernel_time_sum += getEventDeltaTime(event);
-              ::clReleaseEvent(event);
-          }
+    // Loop through the event array and collect kernel performance data
+    // Release events when done with them
+    cl_ulong kernel_time_sum = 0;
+    for (auto& event_array : l_outputEvent) {
+      for (auto event : event_array) {
+        // getEventDeltaTime returns unsigned long in nano-seconds on opencl
+        kernel_time_sum += getEventDeltaTime(event);
+        ::clReleaseEvent(event);
       }
-      timeNs = static_cast<double>(kernel_time_sum);
+    }
+    timeNs = static_cast<double>(kernel_time_sum);
   }
   else {
-      timeNs = timer.elapsed_ns();
+    timeNs = timer.elapsed_ns();
   }
 #else
   if (measureKernelTime) {
-      // Loop through the multi-dimensional event array and collect kernel performance data
-      // Release events when done with them
-      float kernel_time_sum = 0;
-      for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
-          for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-              // getEventDeltaTime returns unsigned long in milli-seconds on hip
-              kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx], l_eventStop[syncIdx][enqIdx]);
-              ::hipEventDestroy(l_eventStart[syncIdx][enqIdx]);
-              ::hipEventDestroy(l_eventStop[syncIdx][enqIdx]);
-          }
+    // Loop through the event array and collect kernel performance data
+    // Release events when done with them
+    float kernel_time_sum = 0;
+    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+        // getEventDeltaTime returns unsigned long in milli-seconds on hip
+        kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
+            l_eventStop[syncIdx][enqIdx]);
+        ::hipEventDestroy(l_eventStart[syncIdx][enqIdx]);
+        ::hipEventDestroy(l_eventStop[syncIdx][enqIdx]);
       }
-      timeNs = static_cast<double>(kernel_time_sum) * TensileTimer::million;  // convert to nano-seconds
+    }
+    // convert to nano-seconds
+    timeNs = static_cast<double>(kernel_time_sum) * TensileTimer::million;
   }
   else {
-      timeNs = timer.elapsed_ns();
+    timeNs = timer.elapsed_ns();
   }
 
 #endif
@@ -294,7 +296,8 @@ bool callLibrary(
       std::cout << " ";
     }
     std::cout << " |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million
+      << std::setw(9) << std::fixed << std::setprecision(3)
+      << timeNs * TensileTimer::reciprical_million
       << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
       << " " << (numChecked-numInvalids) << "/" << numChecked;
     std::cout << " | api:" << std::setw(7) << std::fixed
@@ -310,7 +313,8 @@ bool callLibrary(
       std::cout << " ";
     }
     std::cout << " |"
-      << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million << " ms";
+      << std::setw(9) << std::fixed << std::setprecision(3)
+      << timeNs * TensileTimer::reciprical_million << " ms";
     if (newFastest) {
       std::cout << "*";
     }
@@ -431,7 +435,8 @@ bool benchmarkAllSolutionsForSize(
               std::cout << "  Device | Reference" << std::endl;
               firstPrint = false;
             }
-            std::cout << "[" << (numChecked-1) << "] " << i << ": " << tensileToString(deviceOnHostC[i])
+            std::cout << "[" << (numChecked-1) << "] " << i << ": "
+              << tensileToString(deviceOnHostC[i])
               << (equal ? "==" : "!=") << tensileToString(referenceC[i])
               << std::endl;
             printIdx++;
@@ -447,10 +452,12 @@ bool benchmarkAllSolutionsForSize(
     hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
     hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
-        for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-            hipEventCreateWithFlags( &l_eventStart[syncIdx][enqIdx], hipEventDefault );
-            hipEventCreateWithFlags( &l_eventStop[syncIdx][enqIdx], hipEventDefault );
-        }
+      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+        hipEventCreateWithFlags( &l_eventStart[syncIdx][enqIdx],
+            hipEventDefault );
+        hipEventCreateWithFlags( &l_eventStop[syncIdx][enqIdx],
+            hipEventDefault );
+      }
     }
 #endif
 
@@ -458,14 +465,18 @@ bool benchmarkAllSolutionsForSize(
     timer.start();
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-          if (measureKernelTime)
+        if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-              generatedCallToSolution( solutionIdx , sizes, alpha, beta, 0, NULL, &l_outputEvent[syncIdx][0] );
+          generatedCallToSolution( solutionIdx , sizes, alpha, beta,
+              0, NULL, &l_outputEvent[syncIdx][0] );
 #else
-              generatedCallToSolution( solutionIdx, sizes, alpha, beta, numEnqueuesPerSync, &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0] );
+          generatedCallToSolution( solutionIdx, sizes, alpha, beta,
+              numEnqueuesPerSync, &l_eventStart[syncIdx][0],
+              &l_eventStop[syncIdx][0] );
 #endif
-          else
-            generatedCallToSolution( solutionIdx, sizes, alpha, beta );
+        } else {
+          generatedCallToSolution( solutionIdx, sizes, alpha, beta );
+        }
       }
       // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -479,37 +490,38 @@ bool benchmarkAllSolutionsForSize(
     double timeNs = 0.0;
 #if Tensile_RUNTIME_LANGUAGE_OCL
     if (measureKernelTime) {
-        // Loop through the multi-dimensional event array and collect kernel performance data
-        // Release events when done with them
-        cl_ulong kernel_time_sum = 0;
-        for (auto& event_array : l_outputEvent) {
-            for (auto event : event_array) {
-                // getEventDeltaTime returns unsigned long in nano-seconds on opencl
-                kernel_time_sum += getEventDeltaTime(event);
-                ::clReleaseEvent(event);
-            }
+      // Loop through the multi-dimensional event array and collect kernel performance data
+      // Release events when done with them
+      cl_ulong kernel_time_sum = 0;
+      for (auto& event_array : l_outputEvent) {
+        for (auto event : event_array) {
+          // getEventDeltaTime returns unsigned long in nano-seconds on opencl
+          kernel_time_sum += getEventDeltaTime(event);
+          ::clReleaseEvent(event);
         }
-        timeNs = static_cast<double>(kernel_time_sum);
+      }
+      timeNs = static_cast<double>(kernel_time_sum);
     } else {
-        timeNs = timer.elapsed_ns();
+      timeNs = timer.elapsed_ns();
     }
 #else
     if (measureKernelTime) {
-        // Loop through the multi-dimensional event array and collect kernel performance data
-        // Release events when done with them
-        float kernel_time_sum = 0;
-        for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
-            for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-                // getEventDeltaTime returns unsigned long in milli-seconds on hip
-                kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx], l_eventStop[syncIdx][enqIdx] );
-                ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
-                ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
-            }
+      // Loop through the event array and collect kernel performance data
+      // Release events when done with them
+      float kernel_time_sum = 0;
+      for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
+        for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+          // getEventDeltaTime returns unsigned long in milli-seconds on hip
+          kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
+              l_eventStop[syncIdx][enqIdx] );
+          ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
+          ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
         }
-        timeNs = static_cast<double>(kernel_time_sum) * TensileTimer::million;  // convert to nano-seconds
-    }
-    else {
-        timeNs = timer.elapsed_ns();
+      }
+      timeNs = static_cast<double>(kernel_time_sum)
+        * TensileTimer::million;  // convert to nano-seconds
+    } else {
+      timeNs = timer.elapsed_ns();
     }
 
 #endif
@@ -526,7 +538,8 @@ bool benchmarkAllSolutionsForSize(
 
 
     if (numElementsToValidate) {
-      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/" << numSolutions << "]:"
+      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/"
+        << numSolutions << "]:"
         << std::setw(10) << std::fixed << std::setprecision(3)
         << gflops << " GFlop/s";
       if (newFastest) {
@@ -535,7 +548,9 @@ bool benchmarkAllSolutionsForSize(
         std::cout << " ";
       }
       std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million << " ms | v: " << (numInvalids ? "FAILED" : "PASSED")
+        << std::setw(9) << std::fixed << std::setprecision(3)
+        << timeNs * TensileTimer::reciprical_million << " ms | v: "
+        << (numInvalids ? "FAILED" : "PASSED")
         << " " << (numChecked-numInvalids) << "/" << numChecked;
       if (numInvalids > 0) {
         std::cout << " - " << solutionNames[solutionIdx];
@@ -551,7 +566,8 @@ bool benchmarkAllSolutionsForSize(
         std::cout << " ";
       }
       std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3) << timeNs * TensileTimer::reciprical_million << " ms" << std::endl;
+        << std::setw(9) << std::fixed << std::setprecision(3)
+        << timeNs * TensileTimer::reciprical_million << " ms" << std::endl;
     }
     if (numInvalids > 0) {
       gflops = -1.0;
@@ -703,7 +719,8 @@ void initData(
     DataType *beta,
     DataType **referenceC,
     DataType **deviceOnHostC) {
-  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", " << maxSizeB << ")" << std::endl;
+  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
+    << maxSizeB << ")" << std::endl;
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
@@ -712,7 +729,9 @@ void initData(
     *beta = tensileGetZero<DataType>();
   }
 
-  std::cout << "Initializing " << (bytesPerElement[dataTypeIdx]*(maxSizeC+maxSizeA+maxSizeB)/1000000) << " MBytes";
+  std::cout << "Initializing "
+    << (bytesPerElement[dataTypeIdx]*(maxSizeC+maxSizeA+maxSizeB)/1000000)
+    << " MBytes";
   std::cout << ".";
 
   // initial and reference buffers
@@ -773,12 +792,12 @@ void initData(
       maxSizeB*bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
     std::cout << ".";
-  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceA), CL_TRUE, 0,
-      maxSizeA*bytesPerElement[dataTypeIdx], *initialA, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceA), CL_TRUE,
+      0, maxSizeA*bytesPerElement[dataTypeIdx], *initialA, 0, NULL, NULL);
   tensileStatusCheck(status);
     std::cout << ".";
-  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceB), CL_TRUE, 0,
-      maxSizeB*bytesPerElement[dataTypeIdx], *initialB, 0, NULL, NULL);
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceB), CL_TRUE,
+      0, maxSizeB*bytesPerElement[dataTypeIdx], *initialB, 0, NULL, NULL);
   tensileStatusCheck(status);
     std::cout << ".";
 #else
@@ -791,8 +810,10 @@ void initData(
   status = hipMalloc( &deviceB, maxSizeB*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMemcpy(deviceA, *initialA, maxSizeA*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
-  status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx], hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceA, *initialA, maxSizeA*bytesPerElement[dataTypeIdx],
+      hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx],
+      hipMemcpyHostToDevice);
 #endif
   std::cout << std::endl;
 }
@@ -828,7 +849,9 @@ void destroyData(
 #if Tensile_CLIENT_LIBRARY
 unsigned int defaultNumElementsToValidate = 128;
 void printLibraryClientUsage(std::string executableName) {
-  std::cout << "Usage: " << executableName << " FunctionIdx SizeI SizeJ SizeK [SizeL ...] [NumElementsToValidate=" << defaultNumElementsToValidate << "]" << std::endl;
+  std::cout << "Usage: " << executableName
+    << " FunctionIdx SizeI SizeJ SizeK [SizeL ...] [NumElementsToValidate="
+    << defaultNumElementsToValidate << "]" << std::endl;
   std::cout << "Functions:" << std::endl;
   for (unsigned int i = 0; i < numFunctions; i++) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
@@ -853,20 +876,24 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   try {
     functionIdx = static_cast<unsigned int>(atoi(argv[1]));
     if (functionIdx >= numFunctions) {
-      std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= " << "NumFunctions=" << numFunctions << std::endl;
+      std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= "
+        << "NumFunctions=" << numFunctions << std::endl;
     }
     std::cout << "FunctionIdx: " << functionIdx << std::endl;
     dataTypeIdx = functionInfo[functionIdx][0];
     problemTypeIdx = functionInfo[functionIdx][2];
     if (static_cast<unsigned int>(argc - 2) < totalIndices[problemTypeIdx]) {
-      std::cout << "FATAL ERROR: " << totalIndices[problemTypeIdx] << " sizes required for function[" << functionIdx << "]; only " << static_cast<unsigned int>(argc - 2) << " provided." << std::endl;
+      std::cout << "FATAL ERROR: " << totalIndices[problemTypeIdx]
+        << " sizes required for function[" << functionIdx << "]; only "
+        << static_cast<unsigned int>(argc - 2) << " provided." << std::endl;
       printLibraryClientUsage(executableName);
       exit(0);
     }
 
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
       userSizes[i] = static_cast<unsigned int>(atoi(argv[2+i]));
-      std::cout << "  Size" << indexChars[i] << ": " << userSizes[i] << std::endl;
+      std::cout << "  Size" << indexChars[i] << ": " << userSizes[i]
+        << std::endl;
     }
     if (static_cast<unsigned int>(argc) > 2+totalIndices[problemTypeIdx]) {
       numElementsToValidate = static_cast<unsigned int>(

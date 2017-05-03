@@ -33,7 +33,6 @@ from collections import OrderedDict
 ################################################################################
 globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
-#globalParameters["Name"] = "Tensile"
 if os.name == "nt":
   globalParameters["RuntimeLanguage"] = "OCL"
   globalParameters["KernelLanguage"] = "OCL"
@@ -253,14 +252,8 @@ def print2(message):
     print message
 
 def printWarning(message):
-  #f = inspect.currentframe().f_back.f_code
-  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  #print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
   print "Tensile::WARNING: %s" % message
 def printExit(message):
-  #f = inspect.currentframe().f_back.f_code
-  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  #print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
   print "Tensile::FATAL: %s" % message
   sys.exit(-1)
 

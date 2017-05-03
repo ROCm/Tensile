@@ -42,7 +42,6 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  #solutionFileNames = []
   kernelNames = []
   kernels = []
 
@@ -165,15 +164,24 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     ensurePath(os.path.join(outputPath, "Logic"))
   indexChars = globalParameters["IndexChars"]
 
-  # the header will always be merged into "Tensile.h"
-  # includes for merged files
-  s = ""
+  # Tensile.h
   h = ""
   h += "#pragma once\n"
   h += "#include \"TensileTypes.h\"\n"
-  #h += "\nTensileStatus tensileSetup();\n"
-  #h += "\nTensileStatus tensileTeardown();\n"
+  h += "\nTensileStatus tensileSetup();\n"
+  h += "\nTensileStatus tensileTeardown();\n"
+
+  # TensileInternal.h
+  ih = ""
+  ih += "#include \"Tensile.h\"\n"
+  ih += "#include \"SolutionHelper.h\"\n"
+  ih += "#include <map>\n"
+  ih += "#include <tuple>\n"
+
+  # Tensile.cpp
+  s = ""
   s += "#include \"Tensile.h\"\n"
+  s += "#include \"TensileInternal.h\"\n"
   s += "#include \"Solutions.h\"\n"
 
   ########################################
@@ -245,11 +253,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     if not globalParameters["MergeFiles"]:
       filePrefix = "Tensile_%s" % (problemType)
       s = "#include \"Tensile.h\"\n"
+      s += "#include \"TensileInternal.h\"\n"
       for solutionName in solutionNamesForProblemType:
         s += "#include \"%s.h\"\n" % solutionName
-
-
-
 
     ########################################
     # implement per-Schedule functions in source
@@ -307,9 +313,11 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         if globalParameters["RuntimeLanguage"] == "OCL" else "hipStream_t")
     for i in range(0, problemType["TotalIndices"]):
       problemTypeTemplate += ", unsigned int"
-    s += "typedef std::tuple<%s> Key_%s;\n" % (problemTypeTemplate, problemType)
-    s += "typedef std::map<Key_%s, TensileSolutionPointer_%s> Map_%s;\n" \
+    ih += "typedef std::tuple<%s> Key_%s;\n" \
+        % (problemTypeTemplate, problemType)
+    ih += "typedef std::map<Key_%s, TensileSolutionPointer_%s> Map_%s;\n" \
         % (problemType, problemType, problemType)
+    ih += "extern Map_%s *solutionMap_%s;\n" % (problemType, problemType)
 
     # implement tensileGetSolutionPointerUncached_ProblemType
     for ptr in [True, False]:
@@ -375,8 +383,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           % (argListStream[i][0], argListStream[i][1], \
           ",\n" if i < len(argListStream)-1 else ") {\n")
     # init map
-    s += "  if (!solutionMap_%s) {solutionMap_%s = new Map_%s(); }\n" \
-        % (problemType, problemType, problemType)
+    #s += "  if (!solutionMap_%s) {solutionMap_%s = new Map_%s(); }\n" \
+    #    % (problemType, problemType, problemType)
     # create key
     s += "Key_%s key = std::make_tuple(stream" % (problemType)
     for i in range(0, problemType["TotalIndices"]):
@@ -423,17 +431,52 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       logicSourceFile.write(s)
       logicSourceFile.close()
 
+  if not globalParameters["MergeFiles"]:
+    s = ""
+    s += "#include \"Tensile.h\"\n"
+    s += "#include \"TensileInternal.h\"\n"
+    #s += "#include \"Solutions.h\"\n"
+
+  # setup and teardown
+  s += "\nTensileStatus tensileSetup() {\n"
+  for problemType in logicData:
+    s += "  solutionMap_%s = new Map_%s();\n" % (problemType, problemType)
+  s += "  return tensileStatusSuccess;\n"
+  s += "}\n"
+
+  s += "\nTensileStatus tensileTeardown() {\n"
+  for problemType in logicData:
+    s += "  if (solutionMap_%s) {\n" % problemType
+    s += "    delete solutionMap_%s;\n" % problemType
+    s += "    solutionMap_%s = NULL;\n" % problemType
+    s += "  }\n"
+  if globalParameters["RuntimeLanguage"] == "OCL":
+    s += "  if (kernelMap) {\n"
+    s += "    for ( KernelMap::iterator i = kernelMap->begin(); i != kernelMap->end(); i++) {\n"
+    s += "      clReleaseKernel(i->second);\n"
+    s += "    }\n"
+    s += "    delete kernelMap;\n"
+    s += "    kernelMap = NULL;\n"
+    s += "  }\n"
+
+  s += "  return tensileStatusSuccess;\n"
+  s += "}\n"
+
   # close merged files
-  if globalParameters["MergeFiles"]:
-    logicSourceFile = open(os.path.join(outputPath, \
-        "TensileFunctions.cpp"), "w")
-    logicSourceFile.write(s)
-    logicSourceFile.close()
+  logicSourceFile = open(os.path.join(outputPath, \
+      "Tensile.cpp"), "w")
+  logicSourceFile.write(s)
+  logicSourceFile.close()
 
   logicHeaderFile = open(os.path.join(outputPath, \
       "Tensile.h"), "w")
   logicHeaderFile.write(h)
   logicHeaderFile.close()
+
+  internalHeaderFile = open(os.path.join(outputPath, \
+      "TensileInternal.h"), "w")
+  internalHeaderFile.write(ih)
+  internalHeaderFile.close()
 
 ################################################################################
 # Write Logic Recursive
@@ -452,7 +495,6 @@ def writeLogicRec(depth, indexOrder, logic, solutionNames, problemType, ptr):
       solutionIdx = rule[1]
       solutionName = solutionNames[solutionIdx]
       if ptr:
-        #returnValue = writeSolutionCall(solutionName, problemType)
         returnValue = solutionName
       else:
         returnValue = "\"%s\"" % solutionName
@@ -538,7 +580,6 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
-  #generatedFile.write("set( ClientName %s)\n\n" % clientName )
   generatedFile.write("set( TensileClient_SOLUTIONS\n")
 
   # write solution names
@@ -681,7 +722,6 @@ def TensileCreateLibrary():
   writeSolutionsAndKernels(outputPath, solutions, solutionWriter, kernelWriter)
 
   libraryStaticFiles = [
-      "SetupTeardown.cpp",
       "TensileTypes.h",
       "SolutionHelper.cpp",
       "SolutionHelper.h",

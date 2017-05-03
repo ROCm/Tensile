@@ -33,7 +33,6 @@ except ImportError:
 # Read Benchmark Config from YAML Files
 ################################################################################
 def readConfig( filename ):
-  #print "Tensile::YAMLIO::readConfig( %s )" % ( filename )
   try:
     stream = open(filename, "r")
   except IOError:
@@ -47,7 +46,6 @@ def readConfig( filename ):
 # Write List of Solutions to YAML File
 ################################################################################
 def writeSolutions( filename, problemSizes, solutions ):
-  #print "Tensile::YAMLIO::writeSolutions( %s, %u )" % ( filename, len(solutions) )
   # convert objects to nested dictionaries
   solutionStates = []
   for hardcoded in solutions:
@@ -72,7 +70,6 @@ def writeSolutions( filename, problemSizes, solutions ):
 # Read List of Solutions from YAML File
 ################################################################################
 def readSolutions( filename ):
-  #print "Tensile::YAMLIO::readSolutions( %s )" % ( filename )
   try:
     stream = open(filename, "r")
   except IOError:
@@ -100,11 +97,6 @@ def readSolutions( filename ):
     solutions.append(solutionObject)
   problemType = solutions[0]["ProblemType"]
   problemSizes = ProblemSizes(problemType, problemSizesConfig)
-  #print problemType
-  #print problemType.state
-  #print problemSizesConfig
-  #print problemSizes
-
   return (problemSizes, solutions)
 
 
@@ -152,7 +144,6 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   # open & write file
   try:
     stream = open(filename, "w")
-    #yaml.dump(data, stream, default_flow_style=False)
     yaml.dump(data, stream)
     stream.close()
   except IOError:
