@@ -317,7 +317,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         % (problemTypeTemplate, problemType)
     ih += "typedef std::map<Key_%s, TensileSolutionPointer_%s> Map_%s;\n" \
         % (problemType, problemType, problemType)
-    ih += "extern Map_%s *solutionMap_%s;\n" % (problemType, problemType)
+    ih += "extern Map_%s solutionMap_%s;\n" % (problemType, problemType)
 
     # implement tensileGetSolutionPointerUncached_ProblemType
     for ptr in [True, False]:
@@ -375,7 +375,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # implement tensileGetSolutionPointer_ProblemType
     s += "\n// return solution pointer; user calls it\n"
-    s += "Map_%s *solutionMap_%s = NULL;\n" % (problemType, problemType)
+    s += "Map_%s solutionMap_%s;\n" % (problemType, problemType)
     s += "TensileSolutionPointer_%s tensileGetSolutionPointer_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
@@ -391,9 +391,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += ", size%s" % globalParameters["IndexChars"][i]
     s += ");\n"
     # check for key in map
-    s += "  Map_%s::iterator iter = solutionMap_%s->find(key);\n" \
+    s += "  Map_%s::iterator iter = solutionMap_%s.find(key);\n" \
         % (problemType, problemType)
-    s += "  if (iter != solutionMap_%s->end()) {\n" % problemType
+    s += "  if (iter != solutionMap_%s.end()) {\n" % problemType
     s += "    return iter->second;\n"
     s += "  } else {\n"
     s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointerUncached_%s(\n" \
@@ -401,7 +401,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     for i in range(0, len(argListStream)):
       s += "%s%s" \
           % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");\n")
-    s += "    (*solutionMap_%s)[key] = ptr;\n" % problemType
+    s += "    solutionMap_%s[key] = ptr;\n" % problemType
     s += "    return ptr;\n"
     s += "  }\n"
     s += "}\n"
@@ -439,17 +439,17 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
   # setup and teardown
   s += "\nTensileStatus tensileSetup() {\n"
-  for problemType in logicData:
-    s += "  solutionMap_%s = new Map_%s();\n" % (problemType, problemType)
+  #for problemType in logicData:
+  #  s += "  solutionMap_%s = new Map_%s();\n" % (problemType, problemType)
   s += "  return tensileStatusSuccess;\n"
   s += "}\n"
 
   s += "\nTensileStatus tensileTeardown() {\n"
-  for problemType in logicData:
-    s += "  if (solutionMap_%s) {\n" % problemType
-    s += "    delete solutionMap_%s;\n" % problemType
-    s += "    solutionMap_%s = NULL;\n" % problemType
-    s += "  }\n"
+  #for problemType in logicData:
+  #  s += "  if (solutionMap_%s) {\n" % problemType
+  #  s += "    delete solutionMap_%s;\n" % problemType
+  #  s += "    solutionMap_%s = NULL;\n" % problemType
+  #  s += "  }\n"
   if globalParameters["RuntimeLanguage"] == "OCL":
     s += "  if (kernelMap) {\n"
     s += "    for ( KernelMap::iterator i = kernelMap->begin(); i != kernelMap->end(); i++) {\n"
