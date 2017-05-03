@@ -168,8 +168,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   h = ""
   h += "#pragma once\n"
   h += "#include \"TensileTypes.h\"\n"
-  h += "\nTensileStatus tensileSetup();\n"
-  h += "\nTensileStatus tensileTeardown();\n"
 
   # TensileInternal.h
   ih = ""
@@ -360,7 +358,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
               % ( returnType, scheduleName, problemType)
           for i in range(0, len(argListSizes)):
             s += "%s%s" \
-                % (argListSizes[i][1], ", " if i < len(argListSizes)-1 else ");\n")
+                % (argListSizes[i][1],
+                    ", " if i < len(argListSizes)-1 else ");\n")
             s += "}"
       else: # == 1
         schedule = schedules[0]
@@ -369,7 +368,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
             % ( returnType, scheduleName, problemType)
         for i in range(0, len(argListSizes)):
           s += "%s%s" \
-              % (argListSizes[i][1], ", " if i < len(argListSizes)-1 else ");\n")
+              % (argListSizes[i][1],
+                  ", " if i < len(argListSizes)-1 else ");\n")
       s += "\n}\n"
 
 
@@ -382,9 +382,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += "    %s %s%s" \
           % (argListStream[i][0], argListStream[i][1], \
           ",\n" if i < len(argListStream)-1 else ") {\n")
-    # init map
-    #s += "  if (!solutionMap_%s) {solutionMap_%s = new Map_%s(); }\n" \
-    #    % (problemType, problemType, problemType)
     # create key
     s += "Key_%s key = std::make_tuple(stream" % (problemType)
     for i in range(0, problemType["TotalIndices"]):
@@ -431,42 +428,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       logicSourceFile.write(s)
       logicSourceFile.close()
 
-  if not globalParameters["MergeFiles"]:
-    s = ""
-    s += "#include \"Tensile.h\"\n"
-    s += "#include \"TensileInternal.h\"\n"
-    #s += "#include \"Solutions.h\"\n"
-
-  # setup and teardown
-  s += "\nTensileStatus tensileSetup() {\n"
-  #for problemType in logicData:
-  #  s += "  solutionMap_%s = new Map_%s();\n" % (problemType, problemType)
-  s += "  return tensileStatusSuccess;\n"
-  s += "}\n"
-
-  s += "\nTensileStatus tensileTeardown() {\n"
-  #for problemType in logicData:
-  #  s += "  if (solutionMap_%s) {\n" % problemType
-  #  s += "    delete solutionMap_%s;\n" % problemType
-  #  s += "    solutionMap_%s = NULL;\n" % problemType
-  #  s += "  }\n"
-  if globalParameters["RuntimeLanguage"] == "OCL":
-    s += "  if (kernelMap) {\n"
-    s += "    for ( KernelMap::iterator i = kernelMap->begin(); i != kernelMap->end(); i++) {\n"
-    s += "      clReleaseKernel(i->second);\n"
-    s += "    }\n"
-    s += "    delete kernelMap;\n"
-    s += "    kernelMap = NULL;\n"
-    s += "  }\n"
-
-  s += "  return tensileStatusSuccess;\n"
-  s += "}\n"
-
   # close merged files
-  logicSourceFile = open(os.path.join(outputPath, \
-      "Tensile.cpp"), "w")
-  logicSourceFile.write(s)
-  logicSourceFile.close()
+  if globalParameters["MergeFiles"]:
+    logicSourceFile = open(os.path.join(outputPath, \
+        "Tensile.cpp"), "w")
+    logicSourceFile.write(s)
+    logicSourceFile.close()
 
   logicHeaderFile = open(os.path.join(outputPath, \
       "Tensile.h"), "w")

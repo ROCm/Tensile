@@ -41,7 +41,6 @@ int main( int argc, char *argv[] ) {
 
   // init runtime controls
   initControls();
-  tensileSetup();
 
   // init data
   unsigned int dataTypeIdx = 0;
@@ -203,7 +202,6 @@ int main( int argc, char *argv[] ) {
   } else {
     return EXIT_SUCCESS;
   }
-  tensileTeardown();
 } // main
 
 

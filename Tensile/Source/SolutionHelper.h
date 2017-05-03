@@ -25,27 +25,20 @@
 #include "TensileTypes.h"
 #include <map>
 #include <string>
+#include <tuple>
 
 /*******************************************************************************
  * OpenCL Kernel Cache
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
-typedef struct KernelMapKey_ {
-  cl_command_queue queue;
-  const char *kernelSource; // address of kernel source
-} KernelMapKey;
-
+typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
-bool operator<(const KernelMapKey & l, const KernelMapKey & r);
 
 #ifdef WIN32
-__declspec(thread) extern KernelMap *kernelMap;
+__declspec(thread) extern KernelMap kernelMap;
 #else
-extern __thread KernelMap *kernelMap;
+extern __thread KernelMap kernelMap;
 #endif
-
-#elif Tensile_RUNTIME_LANGUAGE_HIP
-// HIP doesn't need kernel cache
 #endif
 
 
