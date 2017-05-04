@@ -64,6 +64,7 @@ BenchmarkProblems:
         - ProblemSizes: [ [1760, 800, 2560], [16, 16, 128], [1], 0 ]
         - ProblemSizes: [ [3072], [16, 16, 128], [1], [1024] ]
         - ProblemSizes: [ [7680], [16, 16, 128], [1], [2560] ]
+        - ProblemSizes: [ [1025, 1024, 8193], [32, 32, 32, 4000], [1], [1025, 1024, 8193] ]
 
   ########################################
   # NN - 4kB
@@ -95,7 +96,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [1024, 1024, 8192], [1024, 1024, 8192], [1], [1024, 1024, 8192] ]
+        - ProblemSizes: [ [1024, 1024, 8192], [32, 32, 32, 4000], [1], [1024, 1024, 8192] ]
         - ProblemSizes: [ [35], [8457], [1], [2048, 2048, 4096] ]
         - ProblemSizes: [ [5124], [9124], [1], [2048, 2048, 4096] ]
         - ProblemSizes: [ [2048, 2048, 4096], [16, 16, 128], [1], 0 ]
@@ -142,6 +143,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+        - ProblemSizes: [ [1025, 1024, 8193], [1025, 1024, 8193], [1], [256, 256, 256, 2880] ]
 
   ########################################
   # NT - 4kB
@@ -173,7 +175,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [1024, 1024, 8192], [1024, 1024, 8192], [1], [1024, 1024, 8192] ]
+        - ProblemSizes: [ [1024, 1024, 8192], [1024, 1024, 8192], [1], [256, 256, 256, 2880] ]
         - ProblemSizes: [ [2048, 2048, 4096], [6574, 559, 1243, 8935], [1], 0 ]
 
 
@@ -221,6 +223,7 @@ BenchmarkProblems:
         - ProblemSizes: [ [1760, 800, 2560], [16, 16, 128], [1], 0 ]
         - ProblemSizes: [ [3072], [16, 16, 128], [1], [1024] ]
         - ProblemSizes: [ [7680], [16, 16, 128], [1], [2560] ]
+        - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [1025, 1024, 8193] ]
 
   ########################################
   # TN - 4kB
@@ -252,7 +255,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [1024, 1024, 8192], [1024, 1024, 8192], [1], [1024, 1024, 8192] ]
+        - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [1024, 1024, 8192] ]
         - ProblemSizes: [ [35], [8457], [1], [2048, 2048, 4096] ]
         - ProblemSizes: [ [2048, 2048, 4096], [16, 16, 128], [1], 0 ]
         - ProblemSizes: [ [2048, 2048, 4096], [7000], [1], 0 ]
@@ -299,6 +302,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
+        - ProblemSizes: [ [32, 32, 32, 4000], [1025, 1024, 8193], [1], [1025, 1024, 8193] ]
 
   ########################################
   # TT - 4kB
@@ -331,7 +335,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [1024, 1024, 8192], [1024, 1024, 8192], [1], [1024, 1024, 8192] ]
+        - ProblemSizes: [ [32, 32, 32, 4000], [1024, 1024, 8192], [1], [1024, 1024, 8192] ]
 
 LibraryLogic:
   ScheduleName: Fiji
