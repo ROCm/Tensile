@@ -1,5 +1,4 @@
 GlobalParameters:
-  Name: Fiji
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -20,8 +19,8 @@ GlobalParameters:
   MaxMacroTileRatio: 2
 
 BenchmarkProblems:
-  # sgemm NN
-  - ProblemType:
+  - # sgemm NN
+    - # ProblemType
       OperationType: GEMM
       DataType: h
       TransposeA: False
@@ -29,36 +28,37 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    # keep benchmark as single list to make easier to modify in future
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [512] ]
-      - EdgeType: ["Shift"]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-      - LocalWriteCoalesceGroupA: [ True ]
-      - LocalWriteCoalesceGroupB: [ False ]
-    ForkParameters:
-      - GroupShape: [ 0, 2 ]
-      - ThreadTileShape: [ 0, 2 ]
-      - PrefetchGlobalRead: [False, True]
-      - PrefetchLocalRead: [False, True]
-      - NumThreads: [128, 256]
-      - ThreadTileNumElements: [16, 32, 64]
-      - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 4, 8, 16, 32 ]
-    BenchmarkForkParameters:
-    JoinParameters:
-      - MacroTile
-    BenchmarkJoinParameters:
-      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [2880], [2880], [2], [512] ]
+        - EdgeType: ["Shift"]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+        - LocalWriteCoalesceGroupA: [ True ]
+        - LocalWriteCoalesceGroupB: [ False ]
+      ForkParameters:
+        - GroupShape: [ 0, 2 ]
+        - ThreadTileShape: [ 0, 2 ]
+        - PrefetchGlobalRead: [False, True]
+        - PrefetchLocalRead: [False, True]
+        - NumThreads: [128, 256]
+        - ThreadTileNumElements: [16, 32, 64]
+        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - DepthU: [ 4, 8, 16, 32 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+      BenchmarkJoinParameters:
+        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
-  # sgemm NT
-  - ProblemType:
+  - # sgemm NT
+    - # ProblemType
       OperationType: GEMM
       DataType: h
       TransposeA: False
@@ -66,36 +66,37 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    # keep benchmark as single list to make easier to modify in future
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [512] ]
-      - EdgeType: ["Shift"]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-      - LocalWriteCoalesceGroupA: [ True ]
-      - LocalWriteCoalesceGroupB: [ True ]
-    ForkParameters:
-      - GroupShape: [ 0, 2 ]
-      - ThreadTileShape: [ 0, 2 ]
-      - PrefetchGlobalRead: [False, True]
-      - PrefetchLocalRead: [False, True]
-      - NumThreads: [128, 256]
-      - ThreadTileNumElements: [16, 32, 64]
-      - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 4, 8, 16, 32 ]
-    BenchmarkForkParameters:
-    JoinParameters:
-      - MacroTile
-    BenchmarkJoinParameters:
-      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [2880], [2880], [2], [512] ]
+        - EdgeType: ["Shift"]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+        - LocalWriteCoalesceGroupA: [ True ]
+        - LocalWriteCoalesceGroupB: [ True ]
+      ForkParameters:
+        - GroupShape: [ 0, 2 ]
+        - ThreadTileShape: [ 0, 2 ]
+        - PrefetchGlobalRead: [False, True]
+        - PrefetchLocalRead: [False, True]
+        - NumThreads: [128, 256]
+        - ThreadTileNumElements: [16, 32, 64]
+        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - DepthU: [ 4, 8, 16, 32 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+      BenchmarkJoinParameters:
+        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
-  # sgemm TN
-  - ProblemType:
+  - # sgemm TN
+    - # ProblemType
       OperationType: GEMM
       DataType: h
       TransposeA: True
@@ -103,36 +104,37 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    # keep benchmark as single list to make easier to modify in future
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [512] ]
-      - EdgeType: ["Shift"]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-      - LocalWriteCoalesceGroupA: [ False ]
-      - LocalWriteCoalesceGroupB: [ False ]
-    ForkParameters:
-      - GroupShape: [ 0, 2 ]
-      - ThreadTileShape: [ 0, 2 ]
-      - PrefetchGlobalRead: [False, True]
-      - PrefetchLocalRead: [False, True]
-      - NumThreads: [128, 256]
-      - ThreadTileNumElements: [16, 32, 64]
-      - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 4, 8, 16, 32 ]
-    BenchmarkForkParameters:
-    JoinParameters:
-      - MacroTile
-    BenchmarkJoinParameters:
-      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [2880], [2880], [2], [512] ]
+        - EdgeType: ["Shift"]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+        - LocalWriteCoalesceGroupA: [ False ]
+        - LocalWriteCoalesceGroupB: [ False ]
+      ForkParameters:
+        - GroupShape: [ 0, 2 ]
+        - ThreadTileShape: [ 0, 2 ]
+        - PrefetchGlobalRead: [False, True]
+        - PrefetchLocalRead: [False, True]
+        - NumThreads: [128, 256]
+        - ThreadTileNumElements: [16, 32, 64]
+        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - DepthU: [ 4, 8, 16, 32 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+      BenchmarkJoinParameters:
+        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
-  # sgemm TT
-  - ProblemType:
+  - # sgemm TT
+    - # ProblemType
       OperationType: GEMM
       DataType: h
       TransposeA: True
@@ -140,38 +142,39 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    InitialSolutionParameters:
-      - WorkGroupMapping: [-1]
-
-    # keep benchmark as single list to make easier to modify in future
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [2880], [2880], [2], [512] ]
-      - EdgeType: ["Shift"]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-      - LocalWriteCoalesceGroupA: [ False ]
-      - LocalWriteCoalesceGroupB: [ True ]
-    ForkParameters:
-      - GroupShape: [ 0, 2 ]
-      - ThreadTileShape: [ 0, 2 ]
-      - PrefetchGlobalRead: [False, True]
-      - PrefetchLocalRead: [False, True]
-      - NumThreads: [128, 256]
-      - ThreadTileNumElements: [16, 32, 64]
-      - SplitU: [ 1, 2, 4, 8, 16 ]
-      - DepthU: [ 4, 8, 16, 32 ]
-    BenchmarkForkParameters:
-    JoinParameters:
-      - MacroTile
-    BenchmarkJoinParameters:
-      - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+        - WorkGroupMapping: [-1]
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [2880], [2880], [2], [512] ]
+        - EdgeType: ["Shift"]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+        - LocalWriteCoalesceGroupA: [ False ]
+        - LocalWriteCoalesceGroupB: [ True ]
+      ForkParameters:
+        - GroupShape: [ 0, 2 ]
+        - ThreadTileShape: [ 0, 2 ]
+        - PrefetchGlobalRead: [False, True]
+        - PrefetchLocalRead: [False, True]
+        - NumThreads: [128, 256]
+        - ThreadTileNumElements: [16, 32, 64]
+        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - DepthU: [ 4, 8, 16, 32 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+      BenchmarkJoinParameters:
+        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
 
 LibraryLogic:
+  ScheduleName: Fiji
+  DeviceNames: ["Fiji Nano"]
   BranchPenalty: 0
 
 LibraryClient:
