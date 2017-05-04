@@ -45,6 +45,11 @@ int main( int argc, char *argv[] ) {
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
+  std::cout << "Columns: GFlops, SolIdx, KernelMs, "
+#if Tensile_CLIENT_LIBRARY
+    << "EnqueueUs, "
+#endif
+    << "Valid/Total, Idx/Total" << std::endl;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {

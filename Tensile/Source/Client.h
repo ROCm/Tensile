@@ -151,7 +151,7 @@ bool callLibrary(
         alpha, beta);
 
     // call device function
-    generatedCallToFunction( userSizes, alpha, beta);
+    generatedCallTo_tensile( userSizes, alpha, beta);
 
     // copy data back to host
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -209,17 +209,16 @@ bool callLibrary(
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
       if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-        generatedCallToFunction(userSizes, alpha, beta, 0, NULL,
+        generatedCallTo_tensile(userSizes, alpha, beta, 0, NULL,
             &l_outputEvent[syncIdx][0]);
 #else
-        generatedCallToFunction(userSizes, alpha, beta, numEnqueuesPerSync,
+        generatedCallTo_tensile(userSizes, alpha, beta, numEnqueuesPerSync,
             &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
 #endif
       } else {
-        generatedCallToFunction(userSizes, alpha, beta);
+        generatedCallTo_tensile(userSizes, alpha, beta);
       }
     }
-
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
     // sync
@@ -285,6 +284,25 @@ bool callLibrary(
     newFastest = true;
   }
 
+  const char * solutionName = generatedCallTo_tensileGetSolutionName(
+      userSizes, alpha, beta);
+
+  std::cout << std::setw(10) << std::fixed << std::setprecision(3)
+      << gflops << ", "
+      << solutionName << (newFastest ? "*" : " ") << ", "
+      << std::setw(9) << std::fixed << std::setprecision(3)
+      << timeNs * TensileTimer::reciprical_million << ", "
+      << std::setw(7) << std::fixed << std::setprecision(3)
+      << apiTimeUs << ", ";
+  if (numElementsToValidate) {
+    std::cout << (numInvalids ? "FAILED" : "PASSED")
+      << ": " << (numChecked-numInvalids) << "/" << numChecked;
+  }
+  std::cout << functionIdx << "/" << numFunctions;
+  std::cout << std::endl;
+
+
+#if 0
   if (numElementsToValidate) {
     std::cout << "Function[" << std::setw(2) << functionIdx << "/"
       << numFunctions << "]:"
@@ -302,6 +320,7 @@ bool callLibrary(
       << " " << (numChecked-numInvalids) << "/" << numChecked;
     std::cout << " | api:" << std::setw(7) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
+    std::cout << " | " << solutionName;
     std::cout << std::endl;
   } else {
     std::cout << "Function[" << functionIdx << "/" << numFunctions << "]:"
@@ -320,8 +339,10 @@ bool callLibrary(
     }
     std::cout << " | api:" << std::setw(7) << std::fixed
       << std::setprecision(3) << apiTimeUs << " us";
+    std::cout << " | " << solutionName;
     std::cout << std::endl;
   }
+#endif
   return (numInvalids > 0);
 } // callLibrary
 #endif
@@ -536,39 +557,20 @@ bool benchmarkAllSolutionsForSize(
       newFastest = true;
     }
 
-
+    // print results to stdout
+    std::cout << std::setw(10) << std::fixed << std::setprecision(3)
+        << gflops << ", "
+        << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
+        << std::setw(9) << std::fixed << std::setprecision(3)
+        << timeNs * TensileTimer::reciprical_million << ", ";
     if (numElementsToValidate) {
-      std::cout << "  Solution[" << std::setw(2) << solutionIdx << "/"
-        << numSolutions << "]:"
-        << std::setw(10) << std::fixed << std::setprecision(3)
-        << gflops << " GFlop/s";
-      if (newFastest) {
-        std::cout << "*";
-      } else {
-        std::cout << " ";
-      }
-      std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3)
-        << timeNs * TensileTimer::reciprical_million << " ms | v: "
-        << (numInvalids ? "FAILED" : "PASSED")
-        << " " << (numChecked-numInvalids) << "/" << numChecked;
-      if (numInvalids > 0) {
-        std::cout << " - " << solutionNames[solutionIdx];
-      }
-      std::cout << std::endl;
-    } else {
-      std::cout << "  Solution[" << solutionIdx << "/" << numSolutions << "]:"
-        << std::setw(10) << std::fixed << std::setprecision(3)
-        << gflops << " GFlop/s";
-      if (newFastest) {
-        std::cout << "*";
-      } else {
-        std::cout << " ";
-      }
-      std::cout << " |"
-        << std::setw(9) << std::fixed << std::setprecision(3)
-        << timeNs * TensileTimer::reciprical_million << " ms" << std::endl;
+      std::cout << (numInvalids ? "FAILED" : "PASSED")
+        << ": " << (numChecked-numInvalids) << "/" << numChecked;
     }
+    std::cout << solutionIdx << "/" << numSolutions << ", "
+    std::cout << std::endl;
+
+    // write results to file
     if (numInvalids > 0) {
       gflops = -1.0;
       invalidSolutions[numInvalidSolutions++] = solutionIdx;
