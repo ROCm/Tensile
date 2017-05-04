@@ -218,7 +218,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # declare tensileName_
     h += "// get solution name\n"
-    h += "char* tensileGetSolutionName_%s(\n" \
+    h += "const char * tensileGetSolutionName_%s(\n" \
         % (problemType)
     for i in range(0, len(argListStream)):
       h += "    %s %s%s" \
@@ -293,7 +293,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
       # function tensileGetSolutionName_Schedule_ProblemType
       s += "\n// get solution name for problem size\n"
-      s += "char * tensileGetSolutionName_%s_%s(\n" \
+      s += "const char * tensileGetSolutionName_%s_%s(\n" \
           % (scheduleName, problemType)
       for i in range(0, len(argListSizes)):
         s += "    %s %s%s" \
@@ -323,7 +323,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     for ptr in [True, False]:
       returnType = "PointerUncached" if ptr else "Name"
       s += "\n// return solution %s\n" % returnType
-      s += ("TensileSolutionPointer_%s "%problemType) if ptr else "char *"
+      s += ("TensileSolutionPointer_%s "%problemType) if ptr else "const char *"
       s += "tensileGetSolution%s_%s(\n" \
           % (returnType, problemType)
       for i in range(0, len(argListStream)):
