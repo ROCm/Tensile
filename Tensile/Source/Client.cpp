@@ -24,7 +24,6 @@
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
-#include "Tensile.h"
 
 const unsigned int numLibraryCalls = 16;
 

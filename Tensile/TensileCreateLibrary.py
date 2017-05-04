@@ -233,18 +233,19 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       for solution in solutionsForSchedule:
         if solution not in solutionsForProblemType:
           solutionsForProblemType.append(solution)
-    if globalParameters["ShortNames"]:
-      solutionSerialNaming = Solution.getSerialNaming(solutionsForProblemType)
-    else:
-      solutionMinNaming = Solution.getMinNaming(solutionsForProblemType)
+    #if globalParameters["ShortNames"]:
+    #  solutionSerialNaming = Solution.getSerialNaming(solutionsForProblemType)
+    #else:
+    #  solutionMinNaming = Solution.getMinNaming(solutionsForProblemType)
 
     # solution names for problem type
     solutionNamesForProblemType = []
     for solution in solutionsForProblemType:
-      if globalParameters["ShortNames"]:
-        solutionName = Solution.getNameSerial(solution, solutionSerialNaming)
-      else:
-        solutionName = Solution.getNameMin(solution, solutionMinNaming)
+      #if globalParameters["ShortNames"]:
+      #  solutionName = Solution.getNameSerial(solution, solutionSerialNaming)
+      #else:
+      #  solutionName = Solution.getNameMin(solution, solutionMinNaming)
+      solutionName = solutionWriter.getSolutionName(solution)
       solutionNamesForProblemType.append(solutionName)
 
     # reset problemType source
@@ -270,10 +271,11 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       # solution names for schedule
       solutionNamesForSchedule = []
       for solution in solutionsForSchedule:
-        if globalParameters["ShortNames"]:
-          solutionName = Solution.getNameSerial(solution, solutionSerialNaming)
-        else:
-          solutionName = Solution.getNameMin(solution, solutionMinNaming)
+        #if globalParameters["ShortNames"]:
+        #  solutionName = Solution.getNameSerial(solution, solutionSerialNaming)
+        #else:
+        #  solutionName = Solution.getNameMin(solution, solutionMinNaming)
+        solutionName = solutionWriter.getSolutionName(solution)
         solutionNamesForSchedule.append(solutionName)
 
       # function tensileGetSolutionPointerUncached_Schedule_ProblemType

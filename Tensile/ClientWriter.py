@@ -556,9 +556,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "\n"
     # Solution Ptrs
     h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
-    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True)
+    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True)
     for i in range(0, len(argList)):
-      h += "  %s%s" % (argList[i], ",\n" if i < len(argList)-1 else ");\n\n")
+      h += "  %s %s%s" % (argList[i][0], argList[i][1], \
+          ",\n" if i < len(argList)-1 else ");\n\n")
     h += "const SolutionFunctionPointer solutions[numSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
