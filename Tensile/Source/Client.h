@@ -296,7 +296,7 @@ bool callLibrary(
       << apiTimeUs << ", ";
   if (numElementsToValidate) {
     std::cout << (numInvalids ? "FAILED" : "PASSED")
-      << ": " << (numChecked-numInvalids) << "/" << numChecked;
+      << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
   }
   std::cout << functionIdx << "/" << numFunctions;
   std::cout << std::endl;
@@ -565,9 +565,9 @@ bool benchmarkAllSolutionsForSize(
         << timeNs * TensileTimer::reciprical_million << ", ";
     if (numElementsToValidate) {
       std::cout << (numInvalids ? "FAILED" : "PASSED")
-        << ": " << (numChecked-numInvalids) << "/" << numChecked;
+        << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
     }
-    std::cout << solutionIdx << "/" << numSolutions << ", "
+    std::cout << solutionIdx << "/" << numSolutions << ", ";
     std::cout << std::endl;
 
     // write results to file

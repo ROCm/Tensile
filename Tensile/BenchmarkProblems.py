@@ -128,10 +128,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], f),
           globalParameters["WorkingPath"] )
-    #shutil_copy(
-    #    os.path.join(globalParameters["SourcePath"], \
-    #    "TensileBenchmark_CMakeLists.txt"),
-    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
     if globalParameters["RuntimeLanguage"] == "OCL":
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
@@ -345,8 +341,6 @@ def getResults(resultsFileName, solutions):
             % (resultsFileName, rowIdx, rowLength) )
         break
       idx = startIdx
-      #for i in range(0, len(numBenchmarksPerHardcoded)):
-      #  for j in range(0, numBenchmarksPerHardcoded[i]):
       for i in range(0, len(solutions)):
         solutionsForHardcoded = solutions[i]
         for j in range(0, len(solutionsForHardcoded)):
@@ -601,24 +595,18 @@ def main( config ):
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
   ensurePath(dataPath)
   for benchmarkProblemTypeConfig in config:
-    #problemTypeConfig = benchmarkProblemTypeConfig["ProblemType"]
     problemTypeConfig = benchmarkProblemTypeConfig[0]
-    print "problemTypeConfig", problemTypeConfig
     if len(benchmarkProblemTypeConfig) < 2:
       problemSizeGroupConfigs = [{}]
     else:
       problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
     for problemSizeGroupIdx in range(0, len(problemSizeGroupConfigs)):
       problemSizeGroupConfig = problemSizeGroupConfigs[problemSizeGroupIdx]
-      print "  problemSizeGroupConfig", problemSizeGroupConfig
       print2("ProblemTypeConfig: %s" % problemTypeConfig)
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
       # Benchmark Problem Size Group
-      #if benchmarkProblemTypeConfig is None:
-      #  resultsFileBase = benchmarkProblemType({}, {})
-      #else:
       resultsFileBaseList = benchmarkProblemType(problemTypeConfig, \
           problemSizeGroupConfig, problemSizeGroupIdx)
 

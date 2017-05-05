@@ -45,7 +45,7 @@ int main( int argc, char *argv[] ) {
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
-  std::cout << "Columns: GFlops, SolIdx, KernelMs, "
+  std::cout << "Columns: GFlops, SolName, KernelMs, "
 #if Tensile_CLIENT_LIBRARY
     << "EnqueueUs, "
 #endif

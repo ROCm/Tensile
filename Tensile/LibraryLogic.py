@@ -45,9 +45,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     dataFileName = problemSizeGroup[1]
     dataFileNameList.append(dataFileName)
     solutionsFileName = problemSizeGroup[2]
-    print "  problemSizes:", problemSizes
-    print "  dataFileName:", dataFileName
-    print "  solutionsFileName:", solutionsFileName
+    #print "  problemSizes:", problemSizes
+    #print "  dataFileName:", dataFileName
+    #print "  solutionsFileName:", solutionsFileName
 
     ######################################
     # Read Solutions
@@ -272,7 +272,7 @@ class LogicAnalyzer:
       dataFileName = dataFileNameList[fileIdx]
       self.addFromCSV(dataFileName, self.numSolutionsPerGroup[fileIdx], \
           self.solutionGroupMap[fileIdx])
-    print self.data
+    #print self.data
 
 
   ##############################################################################
@@ -313,7 +313,7 @@ class LogicAnalyzer:
         for i in range(0, self.numIndices):
           problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
         serialIdx = self.indicesToSerial(0, problemIndices)
-        print "problemSizes: ", problemSize, "; problemIndices: ", problemIndices, "; serialIdx: ", serialIdx
+        #print "problemSizes: ", problemSize, "; problemIndices: ", problemIndices, "; serialIdx: ", serialIdx
 
         # data
         solutionIdx = 0
