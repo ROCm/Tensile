@@ -34,7 +34,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - SplitU: [1]
+        - IntraSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -68,7 +68,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - SplitU: [1]
+        - IntraSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -102,7 +102,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - SplitU: [1]
+        - IntraSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -136,7 +136,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [-1]
-        - SplitU: [1]
+        - IntraSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]

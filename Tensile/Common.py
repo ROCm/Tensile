@@ -100,7 +100,8 @@ validParameters = {
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
-    "SplitU":                     [ 1, 2, 4, 8, 16, 32, 64 ],
+    "IntraSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
+    "InterSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
     "NumThreads":                 [ 64, 128, 256 ],
     "VectorWidth":                [ -1, 1, 2, 4 ],
     "LdsPad":                     [ 0, 1 ],
@@ -126,6 +127,8 @@ defaultBenchmarkCommonParameters = [
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
     {"ThreadTileShape":           [ 0 ] },
+    {"IntraSplitU":               [ 1 ] },
+    {"InterSplitU":               [ 1 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
@@ -133,7 +136,6 @@ defaultForkParameters = [
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
     {"DepthU":                  [ 4, 8, 16 ] },
-    {"SplitU":                  [ 1, 2, 4 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [

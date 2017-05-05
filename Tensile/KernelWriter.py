@@ -701,46 +701,46 @@ class KernelWriter:
 
 
     ####################################
-    # SplitU reduction
+    # IntraSplitU reduction
     ####################################
     #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
-    if kernel["SplitU"] > 1:
-      kStr += self.comment3("SplitU Reduction")
+    if kernel["IntraSplitU"] > 1:
+      kStr += self.comment3("IntraSplitU Reduction")
       kStr += self.indent + self.syncStr + self.endLine
 
-      # SplitU: local write
-      kStr += self.comment("SplitU: local write")
+      # IntraSplitU: local write
+      kStr += self.comment("IntraSplitU: local write")
       kStr += self.splitULocalWrite(kernel)
 
-      # SplitU: local read
-      kStr += self.comment("SplitU: local read")
+      # IntraSplitU: local read
+      kStr += self.comment("IntraSplitU: local read")
       kStr += self.splitULocalRead(kernel)
 
-      # SplitU: local read
-      kStr += self.comment("SplitU: reduction")
+      # IntraSplitU: local read
+      kStr += self.comment("IntraSplitU: reduction")
       kStr += self.splitUReduction(kernel)
 
-      # SplitU: global write indices
-      kStr += self.comment("SplitU: global write indices")
+      # IntraSplitU: global write indices
+      kStr += self.comment("IntraSplitU: global write indices")
       kStr += self.splitUGlobalWriteIndices(kernel)
 
-      # SplitU: global write
-      kStr += self.comment("SplitU: global write")
+      # IntraSplitU: global write
+      kStr += self.comment("IntraSplitU: global write")
       kStr += self.splitUGlobalWrite(kernel)
 
 
     else:
       ####################################
-      # NOT SplitU
+      # NOT IntraSplitU
       ####################################
 
       # global write indices
-      kStr += self.comment("not-SplitU: global write indices")
-      kStr += self.notSplitUGlobalWriteIndices(kernel)
+      kStr += self.comment("not-IntraSplitU: global write indices")
+      kStr += self.notIntraSplitUGlobalWriteIndices(kernel)
 
       # global write
-      kStr += self.comment("not-SplitU: global write")
-      kStr += self.notSplitUGlobalWrite(kernel)
+      kStr += self.comment("not-IntraSplitU: global write")
+      kStr += self.notIntraSplitUGlobalWrite(kernel)
 
     # function suffix
     kStr += self.functionEnd(kernel)
@@ -1347,52 +1347,52 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # SplitU: Local Write
+  # IntraSplitU: Local Write
   ##############################################################################
   @abc.abstractmethod
   def splitULocalWrite(self, kernel):
     return ""
 
   ##############################################################################
-  # SplitU: Local Read
+  # IntraSplitU: Local Read
   ##############################################################################
   @abc.abstractmethod
   def splitULocalRead(self, kernel):
     return ""
 
   ##############################################################################
-  # SplitU: Reduction
+  # IntraSplitU: Reduction
   ##############################################################################
   @abc.abstractmethod
   def splitUReduction(self, kernel):
     return ""
 
   ##############################################################################
-  # SplitU: Global Write Indices
+  # IntraSplitU: Global Write Indices
   ##############################################################################
   @abc.abstractmethod
   def splitUGlobalWriteIndices(self, kernel):
     return ""
 
   ##############################################################################
-  # SplitU: Global Write
+  # IntraSplitU: Global Write
   ##############################################################################
   @abc.abstractmethod
   def splitUGlobalWrite(self, kernel):
     return ""
 
   ##############################################################################
-  # Not SplitU: Global Write Indices
+  # Not IntraSplitU: Global Write Indices
   ##############################################################################
   @abc.abstractmethod
-  def notSplitUGlobalWriteIndices(self, kernel):
+  def notIntraSplitUGlobalWriteIndices(self, kernel):
     return ""
 
   ##############################################################################
-  # Not SplitU: Global Write
+  # Not IntraSplitU: Global Write
   ##############################################################################
   @abc.abstractmethod
-  def notSplitUGlobalWrite(self, kernel):
+  def notIntraSplitUGlobalWrite(self, kernel):
     return ""
 
   ##############################################################################

@@ -22,7 +22,7 @@ BenchmarkProblems:
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
         - DepthU: [ 8 ]
-        - SplitU: [ 2 ]
+        - IntraSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]
@@ -53,7 +53,7 @@ BenchmarkProblems:
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
         - DepthU: [ 8 ]
-        - SplitU: [ 2 ]
+        - IntraSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]
@@ -83,7 +83,7 @@ BenchmarkProblems:
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
         - DepthU: [ 8 ]
-        - SplitU: [ 2 ]
+        - IntraSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]
@@ -113,7 +113,7 @@ BenchmarkProblems:
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
         - DepthU: [ 8 ]
-        - SplitU: [ 2 ]
+        - IntraSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]

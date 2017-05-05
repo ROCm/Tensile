@@ -31,7 +31,7 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes: [ [512], [512], [512] ]
-        - SplitU: [ 1 ]
+        - IntraSplitU: [ 1 ]
         - EdgeType: ["Branch"]
         - WorkGroupMapping: [ 1 ]
         - LoopDoWhile: [False]

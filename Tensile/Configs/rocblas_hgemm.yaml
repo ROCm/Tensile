@@ -47,7 +47,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 64]
-        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -85,7 +85,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 64]
-        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -123,7 +123,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 64]
-        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -162,7 +162,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 64]
-        - SplitU: [ 1, 2, 4, 8, 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
