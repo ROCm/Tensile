@@ -159,6 +159,8 @@ class SolutionWriter:
     s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
     s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
     s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    if solution["GlobalSplitU"] > 1:
+      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
 
     s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.language == "OCL" else "")
     s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.language == "OCL" else "")
