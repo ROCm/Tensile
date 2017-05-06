@@ -623,6 +623,12 @@ class Solution:
               % (state["NumThreads"], state["MacroTile0"]))
         state["Valid"] = False
         return
+    if state["ProblemType"]["UseBeta"] and state["GlobalSplitU"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("GlobalSplitU not compatible with UseBeta" \
+            % (state["NumThreads"], state["MacroTile0"]))
+      state["Valid"] = False
+
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:

@@ -781,8 +781,10 @@ class KernelWriterSource(KernelWriter):
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
-    kStr += " + (wg%s*MT%s);%s" \
-        % (self.tileCharA, self.tileCharA, self.endLine)
+    kStr += " + (wg%s" % (self.tileCharA)
+    if kernel["ProblemType"]["Tensor0"]==1 and kernel["GlobalSplitU"] > 1:
+      kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
+    kStr += ")*MT%s;%s" % (self.tileCharA, self.endLine)
     return kStr
 
   ##############################################################################
@@ -800,8 +802,10 @@ class KernelWriterSource(KernelWriter):
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
-    kStr += " + (wg%s*MT%s);%s" \
-        % (self.tileCharB, self.tileCharB, self.endLine)
+    kStr += " + (wg%s" % (self.tileCharB)
+    if kernel["ProblemType"]["Tensor0"]==0 and kernel["GlobalSplitU"] > 1:
+      kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
+    kStr += ")*MT%s;%s" % (self.tileCharB, self.endLine)
     return kStr
 
   ##############################################################################
@@ -817,7 +821,7 @@ class KernelWriterSource(KernelWriter):
     else:
       kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
     if kernel["GlobalSplitU"] > 1:
-      kStr += " + LOCAL_DEPTHU*(wg%s %% (%s(1)/GLOBAL_SPLITU))" \
+      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
           % (self.tileChar1, self.getNumGroupsStr)
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
@@ -838,7 +842,7 @@ class KernelWriterSource(KernelWriter):
     else:
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
     if kernel["GlobalSplitU"] > 1:
-      kStr += " + LOCAL_DEPTHU*(wg%s %% (%s(1)/GLOBAL_SPLITU))" \
+      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
           % (self.tileChar1, self.getNumGroupsStr)
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
