@@ -1423,7 +1423,6 @@ class KernelWriter:
   def kernelBodySuffix(self, kernel):
     return ""
 
-
   ##############################################################################
   #
   #   Entry Functions
@@ -1477,4 +1476,42 @@ class KernelWriter:
 
     return fileString
 
+  ##############################################################################
+  # Beta-Only Kernels (for use before atomic kernels)
+  # kernel dictionary has ProblemType for indices and Beta=True/False
+  ##############################################################################
+  def getKernelNameBetaOnly(self, kernel)
+    return "%s_B%u" % (kernel["ProblemType"], 1 if kernel["UseBeta"] else 0)
 
+  @abc.abstractmethod
+  def functionSignatureBetaOnly(kernel):
+    return ""
+
+  @abc.abstractmethod
+  def kernelBodyBetaOnly( self, kernel ):
+    return ""
+
+  def getSourceFileStringBetaOnly(self, kernel):
+    fileString = ""
+    fileString += self.kernelBodyBetaOnly( kernel )
+    return fileString
+
+  def getHeaderFileStringBetaOnly(self, kernel):
+    kernelName = self.getKernelNameBetaOnly(kernel)
+    fileString = "" # CHeader
+    if not globalParameters["MergeFiles"]:
+      fileString += "#pragma once\n\n"
+      fileString += "\n"
+      if self.language == "HIP":
+        fileString += "#include <hip/hip_runtime.h>\n"
+        fileString += "#include <hip/hip_fp16.h>\n"
+        fileString += "\n"
+      else:
+        fileString += "#include <string>\n"
+    if self.language == "OCL":
+      fileString += "extern const char * const %s_src;\n" % kernelName
+    else:
+      fileString += self.functionSignatureBetaOnly(kernel)
+      fileString += ";\n"
+
+    return fileString

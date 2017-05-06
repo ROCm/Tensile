@@ -2293,31 +2293,202 @@ class KernelWriterSource(KernelWriter):
   # Kernel Body Prefix
   ##############################################################################
   def kernelBodyPrefix(self, kernel):
-    s = ""
+    kStr = ""
     kernelName = self.getKernelName(kernel)
     if not globalParameters["MergeFiles"]:
-      s += "\n"
-      s += "#include \"%s.h\"\n" % kernelName
-      s += "\n"
+      kStr += "\n"
+      kStr += "#include \"%s.h\"\n" % kernelName
+      kStr += "\n"
 
-    return s
+    return kStr
 
   ##############################################################################
   # Kernel Body Suffix
   ##############################################################################
   def kernelBodySuffix(self, kernel):
-    s = ""
+    kStr = ""
     kernelName = self.getKernelName(kernel)
 
     if self.language == "OCL":
-      s += "std::string %s_src_concatenated = \n  %s_src_0" \
+      kStr += "std::string %s_src_concatenated = \n  %s_src_0" \
           % (kernelName, kernelName)
       for i in range(1, self.stringIdx):
-        s += "\n  + %s_src_%u" % (kernelName, i)
-      s += ";\n"
-      s += "const char * const %s_src = %s_src_concatenated.c_str();" \
+        kStr += "\n  + %s_src_%u" % (kernelName, i)
+      kStr += ";\n"
+      kStr += "const char * const %s_src = %s_src_concatenated.c_str();" \
           % (kernelName, kernelName)
 
-    s += "\n"
-    return s
+    kStr += "\n"
+    return kStr
 
+  ##############################################################################
+  # Beta-Only Kernel
+  ##############################################################################
+  def functionSignatureBetaOnly(self, kernel):
+
+    # determine chars for fast access
+    self.indexChars = []
+    for i in range(0, len(globalParameters["IndexChars"])):
+      self.indexChars.append(globalParameters["IndexChars"][i])
+    self.indexChars[kernel["ProblemType"]["Index0"]] \
+        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.indexChars[kernel["ProblemType"]["Index1"]] \
+        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
+    self.tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
+    self.tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
+
+    kStr = ""
+    # kernel name
+    if self.language == "OCL":
+      kStr += "__attribute__((reqd_work_group_size(8,8,1)))"
+      kStr += self.endLine
+      kStr += "__kernel "
+    else:
+      kStr += "extern \"C\"\n"
+      kStr += "__global__ "
+    kStr += "void %s" % ( kernelName )
+    kStr += "(" + self.endLine
+    # pointers
+    globalStr = "__global "
+    if self.language == "HIP":
+      kStr += "  hipLaunchParm lp," + self.endLine
+      globalStr = ""
+    restrictStr = "restrict"
+    if self.language == "HIP":
+      restrictStr = "__restrict__"
+    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
+    kStr += "  " + globalStr + ptrStr \
+        + " *C,"
+    kStr += self.endLine
+
+    # beta
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += "  %s const beta,%s" \
+          % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
+          self.endLine )
+
+    # offsets
+    kStr += "  unsigned int const offsetC,%s" % (self.endLine)
+
+    # strides
+    firstStride = 1
+    if kernel["ProblemType"]["UseInitialStrides"]:
+      firstStride = 0
+    lastStrideC = kernel["ProblemType"]["NumIndicesC"]
+    for i in range(firstStride, lastStrideC):
+      kStr += "  unsigned int const strideC%s,%s" \
+          % (self.indexChars[i], self.endLine)
+
+    # sizes
+    for i in range(0, kernel["ProblemType"]["TotalIndices"]):
+      kStr += "  unsigned int const size%s" % self.indexChars[i]
+      if i < kernel["ProblemType"]["TotalIndices"]-1:
+        kStr += ",%s" % self.endLine
+      else:
+        kStr += ")%s" % self.endLine
+  return kStr
+
+  def kernelBodyBetaOnly(self, kernel):
+    kStr = ""
+    kStr += "{%s" % self.endLine
+
+    ########################################
+    # defined initial strides
+    firstStride = 0
+    if kernel["ProblemType"]["UseInitialStrides"]:
+      # no strides #defined
+      lastStrideC = 0
+    else:
+      # #define initial stride
+      kStr += "/* hard-coded initial strides */%s" \
+          % self.endLine
+      lastStrideC = 1
+    for i in range(firstStride, lastStrideC):
+      kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
+
+    ########################################
+    # GLOBAL_C()
+    kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
+    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
+    kStr += " ))" + self.endLine
+
+    ########################################
+    # wg d0, d1
+    kStr += "  unsigned int wg" + self.tileChar0 + " = " \
+        + self.getGroupIdStr + "(0);" + self.endLine
+    kStr += "  unsigned int wg" + self.tileChar1 + " = " \
+        + self.getGroupIdStr + "(1);" + self.endLine
+    ########################################
+    # wg other
+    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
+    nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
+    nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
+    for i in range(0, len(nonTileFreeIndices)):
+      index = nonTileFreeIndices[i]
+      kStr += "  unsigned int wg" + self.indexChars[index] \
+          + " = ( " + self.getGroupIdStr + "(2)"
+      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
+        index2 = nonTileFreeIndices[j]
+        kStr += " / size" + self.indexChars[index2]
+      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
+
+    ########################################
+    # C indices
+    kStr += "  unsigned int serial = %s(0);%s" \
+        % (self.getLocalIdStr, self.endLine)
+# wg0=64, wg1=1
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += "  unsigned int globalC" + self.indexChars[i] \
+          + " = (wg" + self.indexChars[i]
+      kStr += ")"
+      if i == kernel["ProblemType"]["Index0"] \
+        kStr += "*8 + %s(%u)" % (self.getLocalIdStr, \
+            kernel["ProblemType"]["Index0"])
+      if i == kernel["ProblemType"]["Index1"] \
+        kStr += "*8 + %s(%u)" % (self.getLocalIdStr, \
+            kernel["ProblemType"]["Index1"])
+      kStr += ";" + self.endLine
+
+    ########################################
+    # C index
+    kStr += "  %s idx = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += " globalC%s" % self.indexChars[i]
+      if i < kernel["ProblemType"]["NumIndicesC"]-1:
+        kStr += ", "
+    kStr += ");%s" % (self.endLine)
+    kStr += "  if (globalC%s < size%s && globalC%s < size%s) {%s" \
+        % (self.tileChar0, self.tileChar0, self.tileChar1, self.tileChar1, \
+	self.endLine )
+    kStr += "}%s" % self.endLine
+
+    ########################################
+    # zero
+    if kernel["ProblemType"]["DataType"].isComplex():
+      kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
+      kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
+      kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
+    else:
+      kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
+         "DataType"].zeroString(self.language, 1), \
+         self.endLine )
+
+    ########################################
+    # zero
+    kStr += "C[idx]"
+    if kernel["UseBeta"]:
+      kStr += " *= beta;%s" % self.endLine
+    else:
+      kStr += " = SCALAR_ZERO;%s" % (self.endLine)
+    kStr += "}"
+
+    ########################################
+    # end
+    kStr += "}%s" % self.endLine
+  return ""

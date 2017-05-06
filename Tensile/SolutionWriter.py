@@ -197,6 +197,9 @@ class SolutionWriter:
     s += "%sTensileStatus status;\n" % (t)
     s += "\n"
 
+    if solution["GlobalSplitU"] > 1:
+      s += "%s// enqueue Beta-Only kernel\n" % (t)
+
     #enqueue the kernels
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
