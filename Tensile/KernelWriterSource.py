@@ -820,12 +820,12 @@ class KernelWriterSource(KernelWriter):
       kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
     else:
       kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
-    if kernel["GlobalSplitU"] > 1:
-      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-          % (self.tileChar1, self.getNumGroupsStr)
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
+    if kernel["GlobalSplitU"] > 1:
+      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
+          % (self.tileChar1, self.getNumGroupsStr)
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -841,12 +841,12 @@ class KernelWriterSource(KernelWriter):
       kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
     else:
       kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    if kernel["GlobalSplitU"] > 1:
-      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-          % (self.tileChar1, self.getNumGroupsStr)
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
+    if kernel["GlobalSplitU"] > 1:
+      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
+          % (self.tileChar1, self.getNumGroupsStr)
     kStr += ";%s" % self.endLine
     return kStr
 
