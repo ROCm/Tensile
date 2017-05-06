@@ -689,16 +689,21 @@ class KernelWriterSource(KernelWriter):
       #zeroString = kernel["ProblemType"][\
       #    "DataType"].zeroString(self.language, kernel["VectorWidth"])
       #zeroString = "0, 0"
-      kStr += "  VECTOR_TYPE ZERO;%s" % ( self.endLine )
-      kStr += "  ZERO.p[0] = 0;%s" % self.endLine
-      kStr += "  ZERO.p[1] = 0;%s" % self.endLine
+      kStr += "  VECTOR_TYPE VECTOR_ZERO;%s" % ( self.endLine )
+      kStr += "  VECTOR_ZERO.p[0] = 0;%s" % self.endLine
+      kStr += "  VECTOR_ZERO.p[1] = 0;%s" % self.endLine
+      kStr += "#define SCALAR_ZERO 0%s" % self.endLine
     elif kernel["ProblemType"]["DataType"].isComplex():
-      kStr += "  DATA_TYPE ZERO;%s" % ( self.endLine )
-      kStr += "  ZERO.s0 = 0;%s" % self.endLine
-      kStr += "  ZERO.s1 = 0;%s" % self.endLine
+      kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
+      kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
+      kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
+      kStr += "#define SCALAR_ZERO VECTOR_ZERO%s" % self.endLine
     else:
-      kStr += "#define ZERO %s%s" % ( kernel["ProblemType"][\
+      kStr += "#define VECTOR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
+         self.endLine )
+      kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
+         "DataType"].zeroString(self.language, 1), \
          self.endLine )
 
 
@@ -1626,7 +1631,8 @@ class KernelWriterSource(KernelWriter):
             kStr += "( !inBoundsA_%u )" % ( \
                 (para if kernel["ProblemType"]["TLUA"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? ZERO : "
+            kStr += " ? %s : " % ("SCALAR_ZERO" if (self.readTileDimComponentsA\
+              or self.readUnrollDimComponentsA) else "VECTOR_ZERO")
           kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
               (("_s%u"%s) if (self.readTileDimComponentsA \
               or self.readUnrollDimComponentsA) else ""), self.endLine)
@@ -1659,7 +1665,8 @@ class KernelWriterSource(KernelWriter):
             kStr += "( !inBoundsB_%u )" % ( \
                 (para if kernel["ProblemType"]["TLUB"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? ZERO : "
+            kStr += " ? %s : " % ("SCALAR_ZERO" if (self.readTileDimComponentsB\
+              or self.readUnrollDimComponentsB) else "VECTOR_ZERO")
           kStr += "*globalReadB_%u_%u%s;%s" \
               % (para, perp, \
               (("_s%u"%s) if (self.readTileDimComponentsB \
@@ -2249,7 +2256,8 @@ class KernelWriterSource(KernelWriter):
       elif kernel["ProblemType"]["DataType"].isComplex():
         pass
       else:
-        kStr += "#undef ZERO%s" % (self.endLine )
+        kStr += "#undef VECTOR_ZERO%s" % (self.endLine )
+        kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):
