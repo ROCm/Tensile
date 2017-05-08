@@ -333,7 +333,7 @@ class KernelWriterSource(KernelWriter):
           % (self.endLine)
       kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
       kStr += "}%s" % (self.endLine)
-    
+
 
     ####################################
     # MACs
@@ -2322,10 +2322,16 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Beta-Only Kernel
+  #
+  #   Beta-Only Kernel
+  #
+  ##############################################################################
+
+  ##############################################################################
+  # Function Signature
   ##############################################################################
   def functionSignatureBetaOnly(self, kernel):
-
+    kernelName = self.getKernelNameBetaOnly(kernel)
     # determine chars for fast access
     self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
@@ -2361,12 +2367,6 @@ class KernelWriterSource(KernelWriter):
         + " *C,"
     kStr += self.endLine
 
-    # beta
-    if kernel["ProblemType"]["UseBeta"]:
-      kStr += "  %s const beta,%s" \
-          % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
-          self.endLine )
-
     # offsets
     kStr += "  unsigned int const offsetC,%s" % (self.endLine)
 
@@ -2380,17 +2380,28 @@ class KernelWriterSource(KernelWriter):
           % (self.indexChars[i], self.endLine)
 
     # sizes
-    for i in range(0, kernel["ProblemType"]["TotalIndices"]):
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s" % self.indexChars[i]
-      if i < kernel["ProblemType"]["TotalIndices"]-1:
-        kStr += ",%s" % self.endLine
+      if i < kernel["ProblemType"]["NumIndicesC"]-1 \
+          or kernel["ProblemType"]["UseBeta"]:
+        kStr += ","
       else:
-        kStr += ")%s" % self.endLine
-  return kStr
+        kStr += ")"
+      kStr += self.endLine
+    # beta
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += "  %s const beta)%s" \
+          % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
+          self.endLine )
+    return kStr
 
+  ##############################################################################
+  # Kernel Body Beta-Only
+  ##############################################################################
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
     kStr += "{%s" % self.endLine
+    kStr += "  C += offsetC;%s" % self.endLine
 
     ########################################
     # defined initial strides
@@ -2420,10 +2431,10 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # wg d0, d1
-    kStr += "  unsigned int wg" + self.tileChar0 + " = " \
-        + self.getGroupIdStr + "(0);" + self.endLine
-    kStr += "  unsigned int wg" + self.tileChar1 + " = " \
-        + self.getGroupIdStr + "(1);" + self.endLine
+    #kStr += "  unsigned int wg" + self.tileChar0 + " = " \
+    #    + self.getGroupIdStr + "(0);" + self.endLine
+    #kStr += "  unsigned int wg" + self.tileChar1 + " = " \
+    #    + self.getGroupIdStr + "(1);" + self.endLine
     ########################################
     # wg other
     nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
@@ -2440,19 +2451,19 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # C indices
-    kStr += "  unsigned int serial = %s(0);%s" \
-        % (self.getLocalIdStr, self.endLine)
-# wg0=64, wg1=1
+    #kStr += "  unsigned int serial = %s(0);%s" \
+    #    % (self.getLocalIdStr, self.endLine)
+    # wg=8x8
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int globalC" + self.indexChars[i] \
-          + " = (wg" + self.indexChars[i]
-      kStr += ")"
-      if i == kernel["ProblemType"]["Index0"] \
-        kStr += "*8 + %s(%u)" % (self.getLocalIdStr, \
+      kStr += "  unsigned int globalC%s = " % self.indexChars[i]
+      if i == kernel["ProblemType"]["Index0"]:
+        kStr += "%s(%u)" % (self.getGlobalIdStr, \
             kernel["ProblemType"]["Index0"])
-      if i == kernel["ProblemType"]["Index1"] \
-        kStr += "*8 + %s(%u)" % (self.getLocalIdStr, \
+      elif i == kernel["ProblemType"]["Index1"]:
+        kStr += "%s(%u)" % (self.getGlobalIdStr, \
             kernel["ProblemType"]["Index1"])
+      else:
+        kStr += "wg%s" % self.indexChars[i]
       kStr += ";" + self.endLine
 
     ########################################
@@ -2463,10 +2474,10 @@ class KernelWriterSource(KernelWriter):
       if i < kernel["ProblemType"]["NumIndicesC"]-1:
         kStr += ", "
     kStr += ");%s" % (self.endLine)
+    #kStr += "printf(\\\"%%09llu\\\\n\\\", idx);%s" % (self.endLine)
     kStr += "  if (globalC%s < size%s && globalC%s < size%s) {%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar1, self.tileChar1, \
-	self.endLine )
-    kStr += "}%s" % self.endLine
+	      self.endLine )
 
     ########################################
     # zero
@@ -2481,14 +2492,14 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # zero
-    kStr += "C[idx]"
-    if kernel["UseBeta"]:
+    kStr += "    C[idx]"
+    if kernel["ProblemType"]["UseBeta"]:
       kStr += " *= beta;%s" % self.endLine
     else:
       kStr += " = SCALAR_ZERO;%s" % (self.endLine)
-    kStr += "}"
+    kStr += "  }%s" % self.endLine
 
     ########################################
     # end
     kStr += "}%s" % self.endLine
-  return ""
+    return kStr

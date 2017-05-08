@@ -669,9 +669,6 @@ class KernelWriter:
       kStr += self.macIter(kernel, False )
 
       # tail: close
-      # TODO if we have outer summation indices,
-      # then do we need to do some incrementing here
-      # since we subtract strides for outer loops?
       kStr += self.closeLoop(kernel, self.unrollIdx)
 
     # extra summation loops: global increment and close
@@ -1477,11 +1474,26 @@ class KernelWriter:
     return fileString
 
   ##############################################################################
-  # Beta-Only Kernels (for use before atomic kernels)
+  #
+  #   Beta-Only Kernels
+  #
   # kernel dictionary has ProblemType for indices and Beta=True/False
   ##############################################################################
-  def getKernelNameBetaOnly(self, kernel)
-    return "%s_B%u" % (kernel["ProblemType"], 1 if kernel["UseBeta"] else 0)
+
+  ##############################################################################
+  # Get Name
+  ##############################################################################
+  def getKernelNameBetaOnly(self, kernel):
+    indexChars = globalParameters["IndexChars"]
+    # C dimensions
+    name = "C"
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      name += indexChars[i].lower()
+    name += "_"
+    name += kernel["ProblemType"]["DataType"].toChar()
+    if kernel["ProblemType"]["UseBeta"]: name += "B"
+    if kernel["ProblemType"]["UseInitialStrides"]: name += "I"
+    return name
 
   @abc.abstractmethod
   def functionSignatureBetaOnly(kernel):
@@ -1493,7 +1505,11 @@ class KernelWriter:
 
   def getSourceFileStringBetaOnly(self, kernel):
     fileString = ""
+    kernelName = self.getKernelNameBetaOnly(kernel)
+    fileString += "const char * const %s_src = \"\"\n\"" % kernelName
+    fileString += self.functionSignatureBetaOnly( kernel )
     fileString += self.kernelBodyBetaOnly( kernel )
+    fileString += "\";"
     return fileString
 
   def getHeaderFileStringBetaOnly(self, kernel):

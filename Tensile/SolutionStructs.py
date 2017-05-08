@@ -499,6 +499,28 @@ class Solution:
     kernels.append(kernel)
     return kernels
 
+  ########################################
+  # get a list of kernel parameters for this solution
+  def getKernelsBetaOnly(self):
+    kernels = []
+    if self["GlobalSplitU"] < 2:
+      return kernels
+    betas = [False]
+    if self["ProblemType"]["UseBeta"]:
+      betas.append(True)
+    for beta in betas:
+      kernel = {}
+      kernel["ProblemType"] = {}
+      kernel["ProblemType"]["UseBeta"] = beta
+      kernel["ProblemType"]["DataType"] = self["ProblemType"]["DataType"]
+      kernel["ProblemType"]["Index0"] = self["ProblemType"]["Index0"]
+      kernel["ProblemType"]["Index1"] = self["ProblemType"]["Index1"]
+      kernel["ProblemType"]["UseInitialStrides"] = \
+          self["ProblemType"]["UseInitialStrides"]
+      kernel["ProblemType"]["NumIndicesC"] = self["ProblemType"]["NumIndicesC"]
+      kernels.append(kernel)
+    return kernels
+
 
   ########################################
   # assign tile sizes
@@ -623,11 +645,11 @@ class Solution:
               % (state["NumThreads"], state["MacroTile0"]))
         state["Valid"] = False
         return
-    if state["ProblemType"]["UseBeta"] and state["GlobalSplitU"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("GlobalSplitU not compatible with UseBeta" \
-            % (state["NumThreads"], state["MacroTile0"]))
-      state["Valid"] = False
+    #if state["ProblemType"]["UseBeta"] and state["GlobalSplitU"]:
+    #  if globalParameters["PrintSolutionRejectionReason"]:
+    #    print1("GlobalSplitU not compatible with UseBeta" \
+    #        % (state["NumThreads"], state["MacroTile0"]))
+    #  state["Valid"] = False
 
 
     # how many elements to load
