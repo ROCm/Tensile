@@ -835,11 +835,15 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     if kernel["GlobalSplitU"] > 1:
-      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-        kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-            % (self.tileChar1, self.getNumGroupsStr)
+      if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
+        offset = "LOCAL_DEPTHU"
       else:
-        kStr += " + LOCAL_DEPTHU*(wg%s %% GLOBAL_SPLITU)" % (self.tileChar1)
+        offset = "(size%s/GLOBAL_SPLITU)" % self.unrollChar
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += " + %s*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
+            % (offset, self.tileChar1, self.getNumGroupsStr)
+      else:
+        kStr += " + %s*(wg%s %% GLOBAL_SPLITU)" % (offset, self.tileChar1)
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -859,11 +863,15 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     if kernel["GlobalSplitU"] > 1:
-      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-        kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-            % (self.tileChar1, self.getNumGroupsStr)
+      if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
+        offset = "LOCAL_DEPTHU"
       else:
-        kStr += " + LOCAL_DEPTHU*(wg%s %% GLOBAL_SPLITU)" % (self.tileChar1)
+        offset = "(size%s/GLOBAL_SPLITU)" % self.unrollChar
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += " + %s*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
+            % (offset, self.tileChar1, self.getNumGroupsStr)
+      else:
+        kStr += " + %s*(wg%s %% GLOBAL_SPLITU)" % (offset, self.tileChar1)
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -1187,7 +1195,8 @@ class KernelWriterSource(KernelWriter):
         self.int64Str, loopChar)
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
       kStr += "*LOCAL_DEPTHU"
-      if kernel["GlobalSplitU"] > 1:
+      if kernel["GlobalSplitU"] > 1 \
+          and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
       for j in range(i+1, \
@@ -1210,7 +1219,8 @@ class KernelWriterSource(KernelWriter):
         self.int64Str, loopChar)
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
       kStr += "*LOCAL_DEPTHU"
-      if kernel["GlobalSplitU"] > 1:
+      if kernel["GlobalSplitU"] > 1 \
+          and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += "*GLOBAL_SPLITU"
     else:
       for j in range(i+1, \
