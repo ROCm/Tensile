@@ -297,13 +297,13 @@ class SolutionWriter:
 
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
-        s += "%s  hipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
+        s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
         s += "%shipLaunchKernel(\n" % (t)
         t += "  "
-        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNameBetaOnly[0])
+        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
         s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
         s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
         s += "%s0, // groupMemBytes\n" % (t)
@@ -315,13 +315,13 @@ class SolutionWriter:
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
         for i in range(0, solution["ProblemType"]["NumIndicesC"]):
-          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"] else ");\n")
+          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
 
         if solution["ProblemType"]["UseBeta"]:
           s += "%s} else {\n" % (t)
           s += "%shipLaunchKernel(\n" % (t)
           t += "  "
-          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNameBetaOnly[0])
+          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
           s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
           s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
@@ -335,6 +335,7 @@ class SolutionWriter:
           for i in range(0, solution["ProblemType"]["NumIndicesC"]):
             s += "%ssize%s,\n" % (t, self.indexChars[i])
           s += "%sbeta);\n" % (t)
+        s += "%s}\n" % (t)
 
 
     #enqueue the kernels

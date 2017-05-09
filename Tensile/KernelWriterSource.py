@@ -59,6 +59,8 @@ class KernelWriterSource(KernelWriter):
       self.int64Str = "long"
       self.uint64Str = "unsigned long"
       self.vectorComponents = ["s0", "s1", "s2", "s3"]
+      self.atomicCasStr = "atomic_cmpxchg"
+      self.volatileStr = "volatile "
     else:
       self.getGroupIdStr = "hc_get_group_id"
       self.getNumGroupsStr = "hc_get_num_groups"
@@ -74,6 +76,8 @@ class KernelWriterSource(KernelWriter):
       self.int64Str = "int64_t"
       self.uint64Str = "uint64_t"
       self.vectorComponents = ["x", "y", "z", "w"]
+      self.atomicCasStr = "atomicCAS"
+      self.volatileStr = ""
 
     self.commentPrefix = "/*"
     self.commentSuffix = "*/"
@@ -314,25 +318,30 @@ class KernelWriterSource(KernelWriter):
 
     if kernel["GlobalSplitU"] > 1:
       kStr += self.comment("atomic add float")
+      kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
+      kStr += "#define ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       kStr += "typedef union {%s" % (self.endLine)
       kStr += "  unsigned int ui;%s" % (self.endLine)
       kStr += "  float f;%s" % (self.endLine)
       kStr += "} AtomicFloat;%s" % (self.endLine)
       kStr += self.endLine
-      kStr += "void atomicAdd(volatile %sfloat *fPtr, const float operand) {%s" \
-          % (self.globalPtrStr, self.endLine)
+      kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+          % ("__device__ " if self.language == "HIP" else "", \
+          self.volatileStr, self.globalPtrStr, self.endLine)
       kStr += "  AtomicFloat newVal;%s" % (self.endLine)
       kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
-      kStr += "  volatile %sunsigned int *uPtr = (volatile %sunsigned int *)fPtr;%s" \
-          % (self.globalPtrStr, self.globalPtrStr, self.endLine)
+      kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
+          % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
+          self.globalPtrStr, self.endLine)
       kStr += "  unsigned int prevReturn;%s" % (self.endLine)
       kStr += "  do {%s" % (self.endLine)
       kStr += "    prevVal.f = *fPtr;%s" % (self.endLine)
       kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
-      kStr += "    prevReturn = atomic_cmpxchg(uPtr, prevVal.ui, newVal.ui);%s" \
-          % (self.endLine)
+      kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+          % (self.atomicCasStr, self.endLine)
       kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
       kStr += "}%s" % (self.endLine)
+      kStr += "#endif%s" % self.endLine
 
 
     ####################################
@@ -343,7 +352,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
           + "DST = MAD(MULA,MULB,DST);" + self.endLine
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
-        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAdd(&(DST), (ALPHA)*(REG));"
+        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
@@ -2270,6 +2279,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
       kStr += "#undef TYPE_MAC%s" % (self.endLine)
       kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
+      kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
       # zero
       if kernel["ProblemType"]["DataType"].isHalf() \
           and kernel["VectorWidth"] > 1 \

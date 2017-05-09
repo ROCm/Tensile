@@ -1506,10 +1506,12 @@ class KernelWriter:
   def getSourceFileStringBetaOnly(self, kernel):
     fileString = ""
     kernelName = self.getKernelNameBetaOnly(kernel)
-    fileString += "const char * const %s_src = \"\"\n\"" % kernelName
+    if self.language == "OCL":
+      fileString += "const char * const %s_src = \"\"\n\"" % kernelName
     fileString += self.functionSignatureBetaOnly( kernel )
     fileString += self.kernelBodyBetaOnly( kernel )
-    fileString += "\";"
+    if self.language == "OCL":
+      fileString += "\";"
     return fileString
 
   def getHeaderFileStringBetaOnly(self, kernel):
