@@ -93,6 +93,8 @@ validParameters = {
     "PrefetchGlobalRead":         [ False, True ],
     "PrefetchLocalRead":          [ False, True ],
     "UnrollMemFence":             [ False, True ],
+    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
+    "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
     "GroupShape":                 [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
@@ -130,6 +132,8 @@ defaultBenchmarkCommonParameters = [
     {"ThreadTileShape":           [ 0 ] },
     {"LocalSplitU":               [ 1 ] },
     {"GlobalSplitU":              [ 1 ] },
+    {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
+    {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [

@@ -787,8 +787,11 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s" % (self.tileCharA)
-    if kernel["ProblemType"]["Tensor0"]==1 and kernel["GlobalSplitU"] > 1:
-      kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
+    if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==1:
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
+      else:
+        kStr += "/GLOBAL_SPLITU"
     kStr += ")*MT%s;%s" % (self.tileCharA, self.endLine)
     return kStr
 
@@ -808,8 +811,11 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + (wg%s" % (self.tileCharB)
-    if kernel["ProblemType"]["Tensor0"]==0 and kernel["GlobalSplitU"] > 1:
-      kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
+    if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==0:
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
+      else:
+        kStr += "/GLOBAL_SPLITU"
     kStr += ")*MT%s;%s" % (self.tileCharB, self.endLine)
     return kStr
 
@@ -829,8 +835,11 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     if kernel["GlobalSplitU"] > 1:
-      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-          % (self.tileChar1, self.getNumGroupsStr)
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
+            % (self.tileChar1, self.getNumGroupsStr)
+      else:
+        kStr += " + LOCAL_DEPTHU*(wg%s %% GLOBAL_SPLITU)" % (self.tileChar1)
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -850,8 +859,11 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     if kernel["GlobalSplitU"] > 1:
-      kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-          % (self.tileChar1, self.getNumGroupsStr)
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += " + LOCAL_DEPTHU*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
+            % (self.tileChar1, self.getNumGroupsStr)
+      else:
+        kStr += " + LOCAL_DEPTHU*(wg%s %% GLOBAL_SPLITU)" % (self.tileChar1)
     kStr += ";%s" % self.endLine
     return kStr
 
