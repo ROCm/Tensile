@@ -645,11 +645,14 @@ class Solution:
               % (state["NumThreads"], state["MacroTile0"]))
         state["Valid"] = False
         return
-    #if state["ProblemType"]["UseBeta"] and state["GlobalSplitU"]:
-    #  if globalParameters["PrintSolutionRejectionReason"]:
-    #    print1("GlobalSplitU not compatible with UseBeta" \
-    #        % (state["NumThreads"], state["MacroTile0"]))
-    #  state["Valid"] = False
+
+    # GlobalSplitU doesn't work with
+    if state["GlobalSplitU"] > 1:
+      if not state["GlobalSplitUSummationAssignmentRoundRobin"] \
+          and state["LoopTail"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
+        state["Valid"] = False
 
 
     # how many elements to load

@@ -1533,22 +1533,30 @@ class KernelWriterSource(KernelWriter):
     if tailLoop:
       kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + SPLITU - 1) / SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-      if kernel["GlobalSplitU"] > 1:
-        kStr += "unsigned int numIterPerWg = numIter%s / LOCAL_DEPTHU;%s" \
-            % (self.unrollChar, self.endLine)
-        kStr += "unsigned int numIterPerWgRemainder = numIter%s %% LOCAL_DEPTHU;%s" \
-            % (self.unrollChar, self.endLine)
-        kStr += " numIterPerWgRemainder = numIter%s %% LOCAL_DEPTHU;%s" \
-            % (self.unrollChar, self.endLine)
-
     else:
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
       if loopIdx == self.unrollIdx:
         kStr += " / LOCAL_DEPTHU"
-        if kernel["GlobalSplitU"] > 1:
-          kStr += " / GLOBAL_SPLITU"
+        #if kernel["GlobalSplitU"] > 1:
+        #  kStr += " / GLOBAL_SPLITU"
       kStr += ";%s" % self.endLine
+
+      if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
+        kStr += "%sunsigned int numIterMyWg = numIter%s / GLOBAL_SPLITU;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+        kStr += "%sunsigned int numIterPerWgRemainder = numIter%s %% GLOBAL_SPLITU;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+        kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
+            % (self.indent, self.endLine)
+        kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
+        kStr += "%s}%s" % (self.indent, self.endLine)
+        kStr += "%snumIter%s = numIterMyWg;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+
+
+
+
     if kernel["LoopDoWhile"]:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
     else:
