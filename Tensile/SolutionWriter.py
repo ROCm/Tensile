@@ -81,6 +81,7 @@ class SolutionWriter:
     if not globalParameters["MergeFiles"]:
       solutionName = self.getSolutionName(solution)
       s += "#include \"%s.h\"\n" % solutionName
+      s += "#include \"MathTemplates.h\"\n"
       s += "\n"
 
     # solution function signature
@@ -289,9 +290,9 @@ class SolutionWriter:
         #s += "%sreturn tensileStatusSuccess;\n" % (t)
         s += "%sstatus = clFinish(stream);\n" % (t)
         s += "%stensileStatusCheck(status);\n" % (t)
-        s += " float tmp[128*128];\n"
-        s += "clEnqueueReadBuffer(stream, dataC, CL_TRUE, 0, 128*128*sizeof(float), tmp, 0, NULL, NULL);\n"
-        s += "for (unsigned int i = 0; i < 128*128; i++) { printf(\"%f\\n\", tmp[i]); }\n"
+        #s += " float tmp[128*128];\n"
+        #s += "clEnqueueReadBuffer(stream, dataC, CL_TRUE, 0, 128*128*sizeof(float), tmp, 0, NULL, NULL);\n"
+        #s += "for (unsigned int i = 0; i < 128*128; i++) { printf(\"%f\\n\", tmp[i]); }\n"
 
 
       else:

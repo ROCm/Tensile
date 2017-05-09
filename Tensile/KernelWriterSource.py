@@ -312,14 +312,14 @@ class KernelWriterSource(KernelWriter):
 #dst, alpha, reg, beta
 #          "#define TYPE_MAC_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
 
-    if kernel["GlobalSplitU"] > 0:
+    if kernel["GlobalSplitU"] > 1:
       kStr += self.comment("atomic add float")
       kStr += "typedef union {%s" % (self.endLine)
       kStr += "  unsigned int ui;%s" % (self.endLine)
       kStr += "  float f;%s" % (self.endLine)
       kStr += "} AtomicFloat;%s" % (self.endLine)
       kStr += self.endLine
-      kStr += "void atomicAddFloat(volatile %sfloat *fPtr, const float operand) {%s" \
+      kStr += "void atomicAdd(volatile %sfloat *fPtr, const float operand) {%s" \
           % (self.globalPtrStr, self.endLine)
       kStr += "  AtomicFloat newVal;%s" % (self.endLine)
       kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
@@ -342,13 +342,13 @@ class KernelWriterSource(KernelWriter):
       # real data
       kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
           + "DST = MAD(MULA,MULB,DST);" + self.endLine
-      if kernel["ProblemType"]["UseBeta"]:
-        # dst = alpha*reg + beta*dst
-        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
-            + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
+      if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
+        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAdd(&(DST), (ALPHA)*(REG));"
       else:
-        if kernel["GlobalSplitU"] > 0:
-          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddFloat(&(DST), (ALPHA)*(REG));"
+        if kernel["ProblemType"]["UseBeta"]:
+          # dst = alpha*reg + dst*beta
+          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
+              + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
         else:
           # dst = alpha*reg
           kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) " \
