@@ -81,7 +81,7 @@ class SolutionWriter:
     if not globalParameters["MergeFiles"]:
       solutionName = self.getSolutionName(solution)
       s += "#include \"%s.h\"\n" % solutionName
-      s += "#include \"MathTemplates.h\"\n"
+      #s += "#include \"MathTemplates.h\"\n"
       s += "\n"
 
     # solution function signature
@@ -286,7 +286,8 @@ class SolutionWriter:
         s += "%s&kernelEventBetaOnly );\n" % (t)
         t = t[2:]
         s += "%stensileStatusCheck(status);\n" % (t)
-        s += "%sbeta = tensileGetOne<%s>();\n" % (t, typeName)
+        if solution["ProblemType"]["UseBeta"]:
+          s += "%sbeta = %s;\n" % (t, solution["ProblemType"]["DataType"].zeroString(self.language, 1) )
         #s += "%sreturn tensileStatusSuccess;\n" % (t)
         s += "%sstatus = clFinish(stream);\n" % (t)
         s += "%stensileStatusCheck(status);\n" % (t)

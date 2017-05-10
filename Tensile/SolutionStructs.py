@@ -90,7 +90,7 @@ class DataType:
       if self.value == self.complexSingle:
         return "make_float2(0.f, 0.f)"
       if self.value == self.complexDouble:
-        return "make_float2(0.0, 0.0)"
+        return "make_double2(0.0, 0.0)"
 
     zeroString = "("
     zeroString += self.toDevice(language)

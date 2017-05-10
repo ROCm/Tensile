@@ -786,7 +786,6 @@ class KernelWriterSource(KernelWriter):
         kStr += "  unsigned int gsuSumIdx = wg%s / (%s(1)/GLOBAL_SPLITU);%s" \
             % (self.tileChar1, self.getNumGroupsStr, self.endLine)
       else:
-      # this code failing
         kStr += "  unsigned int gsuWgIdx = wg%s / GLOBAL_SPLITU;%s" \
             % (self.tileChar1, self.endLine)
         kStr += "  unsigned int gsuSumIdx = wg%s %% GLOBAL_SPLITU;%s" \
@@ -809,16 +808,11 @@ class KernelWriterSource(KernelWriter):
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
-    #kStr += " + (wg%s" % (self.tileCharA)
     kStr += " + ("
     if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==1:
       kStr += "gsuWgIdx"
     else:
       kStr += "wg%s" % (self.tileCharA)
-      #if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-      #  kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
-      #else:
-      #  kStr += "/GLOBAL_SPLITU"
     kStr += ")*MT%s;%s" % (self.tileCharA, self.endLine)
     return kStr
 
@@ -837,16 +831,11 @@ class KernelWriterSource(KernelWriter):
     kStr += ")"
     if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
-    #kStr += " + (wg%s" % (self.tileCharB)
     kStr += " + ("
     if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==0:
       kStr += "gsuWgIdx"
     else:
       kStr += "wg%s" % (self.tileCharB)
-      #if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-      #  kStr += "%%(%s(1)/GLOBAL_SPLITU)" % (self.getNumGroupsStr)
-      #else:
-      #  kStr += "/GLOBAL_SPLITU"
     kStr += ")*MT%s;%s" % (self.tileCharB, self.endLine)
     return kStr
 
@@ -871,11 +860,6 @@ class KernelWriterSource(KernelWriter):
       else:
         kStr += " + (size%s/GLOBAL_SPLITU)*" % self.unrollChar
       kStr += "gsuSumIdx"
-      #if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-      #  kStr += " + %s*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-      #      % (offset, self.tileChar1, self.getNumGroupsStr)
-      #else:
-      #  kStr += " + %s*(wg%s %% GLOBAL_SPLITU)" % (offset, self.tileChar1)
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -900,11 +884,6 @@ class KernelWriterSource(KernelWriter):
       else:
         kStr += " + (size%s/GLOBAL_SPLITU)*" % self.unrollChar
       kStr += "gsuSumIdx"
-      #if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-      #  kStr += " + %s*(wg%s / (%s(1)/GLOBAL_SPLITU))" \
-      #      % (offset, self.tileChar1, self.getNumGroupsStr)
-      #else:
-      #  kStr += " + %s*(wg%s %% GLOBAL_SPLITU)" % (offset, self.tileChar1)
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -1533,13 +1512,19 @@ class KernelWriterSource(KernelWriter):
     if tailLoop:
       kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + SPLITU - 1) / SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
+      #kStr += "if (serial==0) printf(\\\"wg0:%u, wg1:%u, gsuWg:%u, gsuSum:%u, numIter:%u, r:%u\\\\n\\\", wg0I, wg1J, gsuWgIdx, gsuSumIdx, numIterK, numIterPerWgRemainder);" + self.endLine
+      if kernel["GlobalSplitU"] > 1:
+        kStr += "%sif (gsuSumIdx != numIterPerWgRemainder) {%s" \
+            % (self.indent, self.endLine)
+        kStr += "%s  numIter%s = 0;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+        kStr += "%s}%s" % (self.indent, self.endLine)
+        #kStr += "if (serial==0) printf(\\\"n:%u\\\\n\\\", numIterK);" + self.endLine
     else:
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
       if loopIdx == self.unrollIdx:
         kStr += " / LOCAL_DEPTHU"
-        #if kernel["GlobalSplitU"] > 1:
-        #  kStr += " / GLOBAL_SPLITU"
       kStr += ";%s" % self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
@@ -1690,11 +1675,12 @@ class KernelWriterSource(KernelWriter):
               or self.readUnrollDimComponentsA) else "") )
           # guard around K
           if guardK:
-            kStr += "( globalReadOffsetA%s_%u%s >= (size%s %% LOCAL_DEPTHU) )" \
+            kStr += "( globalReadOffsetA%s_%u%s%s >= (size%s %% LOCAL_DEPTHU) )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUA"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsA else ""), \
-                self.unrollChar)
+                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
+                else ""), self.unrollChar)
           # guard around edge
           if kernel["EdgeType"] == "Branch":
             if guardK:
@@ -1724,11 +1710,12 @@ class KernelWriterSource(KernelWriter):
               else "") )
           # guard around k
           if guardK:
-            kStr += "( globalReadOffsetB%s_%u%s >= (size%s %% LOCAL_DEPTHU) )" \
+            kStr += "( globalReadOffsetB%s_%u%s%s >= (size%s %% LOCAL_DEPTHU) )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUB"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsB else ""), \
-                self.unrollChar)
+                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
+                else ""), self.unrollChar)
           # guard around edge
           if kernel["EdgeType"] == "Branch":
             if guardK:

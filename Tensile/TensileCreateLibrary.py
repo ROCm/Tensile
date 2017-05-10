@@ -78,7 +78,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     solutionHeaderFile = open(os.path.join(outputPath, \
         "Solutions.h"), "w")
     solutionSourceFile.write("#include \"Solutions.h\"\n")
-    solutionSourceFile.write("#include \"MathTemplates.h\"\n")
+    #solutionSourceFile.write("#include \"MathTemplates.h\"\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
