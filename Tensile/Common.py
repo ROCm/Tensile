@@ -74,7 +74,8 @@ globalParameters["MergeFiles"] = True
 globalParameters["NumElementsToValidate"] = 128
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
+globalParameters["DataInitTypeAB"] = 0 # 0=rand, 1=1, 2=serial, 3=0
+globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
@@ -92,6 +93,8 @@ validParameters = {
     "PrefetchGlobalRead":         [ False, True ],
     "PrefetchLocalRead":          [ False, True ],
     "UnrollMemFence":             [ False, True ],
+    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
+    "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
     "GroupShape":                 [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
@@ -100,8 +103,8 @@ validParameters = {
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
-    "IntraSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
-    "InterSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
+    "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
+    "GlobalSplitU":               [ 1, 2, 4, 8, 16, 32, 64 ],
     "NumThreads":                 [ 64, 128, 256 ],
     "VectorWidth":                [ -1, 1, 2, 4 ],
     "LdsPad":                     [ 0, 1 ],
@@ -127,8 +130,10 @@ defaultBenchmarkCommonParameters = [
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
     {"ThreadTileShape":           [ 0 ] },
-    {"IntraSplitU":               [ 1 ] },
-    {"InterSplitU":               [ 1 ] },
+    {"LocalSplitU":               [ 1 ] },
+    {"GlobalSplitU":              [ 1 ] },
+    {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
+    {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [

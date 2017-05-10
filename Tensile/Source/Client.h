@@ -726,7 +726,7 @@ void initData(
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
-    *beta = tensileGetOne<DataType>();
+    *beta = tensileGetTypeForInt<DataType>(2);
   } else {
     *beta = tensileGetZero<DataType>();
   }
@@ -746,39 +746,59 @@ void initData(
   *initialB = new DataType[maxSizeB];
   std::cout << ".";
 
-  // initialize buffers
-  if (dataInitType == 0) {
+  // initialize buffers C
+  if (dataInitTypeC == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
+  } else if (dataInitTypeC == 1) {
+    for (size_t i = 0; i < maxSizeC; i++) {
+      (*initialC)[i] = tensileGetOne<DataType>(); }
+    std::cout << ".";
+  } else if (dataInitTypeC == 2) {
+    for (size_t i = 0; i < maxSizeC; i++) {
+      (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
+    std::cout << ".";
+  } else {
+    for (size_t i = 0; i < maxSizeC; i++) {
+      (*initialC)[i] = tensileGetZero<DataType>(); }
+    std::cout << ".";
+  }
+
+  // initialize buffers
+  if (dataInitTypeAB == 0) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
-  } else if (dataInitType == 1) {
-    for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetOne<DataType>(); }
-    std::cout << ".";
+  } else if (dataInitTypeAB == 1) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetOne<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetOne<DataType>(); }
     std::cout << ".";
-  } else {
-    for (size_t i = 0; i < maxSizeC; i++) {
-      //(*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
-      (*initialC)[i] = tensileGetZero<DataType>(); }
-    std::cout << ".";
+  } else if (dataInitTypeAB == 2) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
+  } else {
+    for (size_t i = 0; i < maxSizeA; i++) {
+      (*initialA)[i] = tensileGetZero<DataType>(); }
+    std::cout << ".";
+    for (size_t i = 0; i < maxSizeB; i++) {
+      (*initialB)[i] = tensileGetZero<DataType>(); }
+    std::cout << ".";
   }
+
+
+
+
 
   // create device buffers and copy data
 #if Tensile_RUNTIME_LANGUAGE_OCL

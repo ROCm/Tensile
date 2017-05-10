@@ -669,9 +669,6 @@ class KernelWriter:
       kStr += self.macIter(kernel, False )
 
       # tail: close
-      # TODO if we have outer summation indices,
-      # then do we need to do some incrementing here
-      # since we subtract strides for outer loops?
       kStr += self.closeLoop(kernel, self.unrollIdx)
 
     # extra summation loops: global increment and close
@@ -701,46 +698,46 @@ class KernelWriter:
 
 
     ####################################
-    # IntraSplitU reduction
+    # LocalSplitU reduction
     ####################################
     #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
-    if kernel["IntraSplitU"] > 1:
-      kStr += self.comment3("IntraSplitU Reduction")
+    if kernel["LocalSplitU"] > 1:
+      kStr += self.comment3("LocalSplitU Reduction")
       kStr += self.indent + self.syncStr + self.endLine
 
-      # IntraSplitU: local write
-      kStr += self.comment("IntraSplitU: local write")
-      kStr += self.splitULocalWrite(kernel)
+      # LocalSplitU: local write
+      kStr += self.comment("LocalSplitU: local write")
+      kStr += self.localSplitULocalWrite(kernel)
 
-      # IntraSplitU: local read
-      kStr += self.comment("IntraSplitU: local read")
-      kStr += self.splitULocalRead(kernel)
+      # LocalSplitU: local read
+      kStr += self.comment("LocalSplitU: local read")
+      kStr += self.localSplitULocalRead(kernel)
 
-      # IntraSplitU: local read
-      kStr += self.comment("IntraSplitU: reduction")
-      kStr += self.splitUReduction(kernel)
+      # LocalSplitU: local read
+      kStr += self.comment("LocalSplitU: reduction")
+      kStr += self.localSplitUReduction(kernel)
 
-      # IntraSplitU: global write indices
-      kStr += self.comment("IntraSplitU: global write indices")
-      kStr += self.splitUGlobalWriteIndices(kernel)
+      # LocalSplitU: global write indices
+      kStr += self.comment("LocalSplitU: global write indices")
+      kStr += self.localSplitUGlobalWriteIndices(kernel)
 
-      # IntraSplitU: global write
-      kStr += self.comment("IntraSplitU: global write")
-      kStr += self.splitUGlobalWrite(kernel)
+      # LocalSplitU: global write
+      kStr += self.comment("LocalSplitU: global write")
+      kStr += self.localSplitUGlobalWrite(kernel)
 
 
     else:
       ####################################
-      # NOT IntraSplitU
+      # NOT LocalSplitU
       ####################################
 
       # global write indices
-      kStr += self.comment("not-IntraSplitU: global write indices")
-      kStr += self.notIntraSplitUGlobalWriteIndices(kernel)
+      kStr += self.comment("not-LocalSplitU: global write indices")
+      kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
 
       # global write
-      kStr += self.comment("not-IntraSplitU: global write")
-      kStr += self.notIntraSplitUGlobalWrite(kernel)
+      kStr += self.comment("not-LocalSplitU: global write")
+      kStr += self.notLocalSplitUGlobalWrite(kernel)
 
     # function suffix
     kStr += self.functionEnd(kernel)
@@ -1347,52 +1344,52 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # IntraSplitU: Local Write
+  # LocalSplitU: Local Write
   ##############################################################################
   @abc.abstractmethod
-  def splitULocalWrite(self, kernel):
+  def localSplitULocalWrite(self, kernel):
     return ""
 
   ##############################################################################
-  # IntraSplitU: Local Read
+  # LocalSplitU: Local Read
   ##############################################################################
   @abc.abstractmethod
-  def splitULocalRead(self, kernel):
+  def localSplitULocalRead(self, kernel):
     return ""
 
   ##############################################################################
-  # IntraSplitU: Reduction
+  # LocalSplitU: Reduction
   ##############################################################################
   @abc.abstractmethod
-  def splitUReduction(self, kernel):
+  def localSplitUReduction(self, kernel):
     return ""
 
   ##############################################################################
-  # IntraSplitU: Global Write Indices
+  # LocalSplitU: Global Write Indices
   ##############################################################################
   @abc.abstractmethod
-  def splitUGlobalWriteIndices(self, kernel):
+  def localSplitUGlobalWriteIndices(self, kernel):
     return ""
 
   ##############################################################################
-  # IntraSplitU: Global Write
+  # LocalSplitU: Global Write
   ##############################################################################
   @abc.abstractmethod
-  def splitUGlobalWrite(self, kernel):
+  def localSplitUGlobalWrite(self, kernel):
     return ""
 
   ##############################################################################
-  # Not IntraSplitU: Global Write Indices
+  # Not LocalSplitU: Global Write Indices
   ##############################################################################
   @abc.abstractmethod
-  def notIntraSplitUGlobalWriteIndices(self, kernel):
+  def notLocalSplitUGlobalWriteIndices(self, kernel):
     return ""
 
   ##############################################################################
-  # Not IntraSplitU: Global Write
+  # Not LocalSplitU: Global Write
   ##############################################################################
   @abc.abstractmethod
-  def notIntraSplitUGlobalWrite(self, kernel):
+  def notLocalSplitUGlobalWrite(self, kernel):
     return ""
 
   ##############################################################################
@@ -1422,7 +1419,6 @@ class KernelWriter:
   @abc.abstractmethod
   def kernelBodySuffix(self, kernel):
     return ""
-
 
   ##############################################################################
   #
@@ -1477,4 +1473,63 @@ class KernelWriter:
 
     return fileString
 
+  ##############################################################################
+  #
+  #   Beta-Only Kernels
+  #
+  # kernel dictionary has ProblemType for indices and Beta=True/False
+  ##############################################################################
 
+  ##############################################################################
+  # Get Name
+  ##############################################################################
+  def getKernelNameBetaOnly(self, kernel):
+    indexChars = globalParameters["IndexChars"]
+    # C dimensions
+    name = "C"
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      name += indexChars[i].lower()
+    name += "_"
+    name += kernel["ProblemType"]["DataType"].toChar()
+    if kernel["ProblemType"]["UseBeta"]: name += "B"
+    if kernel["ProblemType"]["UseInitialStrides"]: name += "I"
+    return name
+
+  @abc.abstractmethod
+  def functionSignatureBetaOnly(kernel):
+    return ""
+
+  @abc.abstractmethod
+  def kernelBodyBetaOnly( self, kernel ):
+    return ""
+
+  def getSourceFileStringBetaOnly(self, kernel):
+    fileString = ""
+    kernelName = self.getKernelNameBetaOnly(kernel)
+    if self.language == "OCL":
+      fileString += "const char * const %s_src = \"\"\n\"" % kernelName
+    fileString += self.functionSignatureBetaOnly( kernel )
+    fileString += self.kernelBodyBetaOnly( kernel )
+    if self.language == "OCL":
+      fileString += "\";"
+    return fileString
+
+  def getHeaderFileStringBetaOnly(self, kernel):
+    kernelName = self.getKernelNameBetaOnly(kernel)
+    fileString = "" # CHeader
+    if not globalParameters["MergeFiles"]:
+      fileString += "#pragma once\n\n"
+      fileString += "\n"
+      if self.language == "HIP":
+        fileString += "#include <hip/hip_runtime.h>\n"
+        fileString += "#include <hip/hip_fp16.h>\n"
+        fileString += "\n"
+      else:
+        fileString += "#include <string>\n"
+    if self.language == "OCL":
+      fileString += "extern const char * const %s_src;\n" % kernelName
+    else:
+      fileString += self.functionSignatureBetaOnly(kernel)
+      fileString += ";\n"
+
+    return fileString

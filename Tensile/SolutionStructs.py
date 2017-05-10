@@ -90,7 +90,7 @@ class DataType:
       if self.value == self.complexSingle:
         return "make_float2(0.f, 0.f)"
       if self.value == self.complexDouble:
-        return "make_float2(0.0, 0.0)"
+        return "make_double2(0.0, 0.0)"
 
     zeroString = "("
     zeroString += self.toDevice(language)
@@ -499,6 +499,28 @@ class Solution:
     kernels.append(kernel)
     return kernels
 
+  ########################################
+  # get a list of kernel parameters for this solution
+  def getKernelsBetaOnly(self):
+    kernels = []
+    if self["GlobalSplitU"] < 2:
+      return kernels
+    betas = [False]
+    if self["ProblemType"]["UseBeta"]:
+      betas.append(True)
+    for beta in betas:
+      kernel = {}
+      kernel["ProblemType"] = {}
+      kernel["ProblemType"]["UseBeta"] = beta
+      kernel["ProblemType"]["DataType"] = self["ProblemType"]["DataType"]
+      kernel["ProblemType"]["Index0"] = self["ProblemType"]["Index0"]
+      kernel["ProblemType"]["Index1"] = self["ProblemType"]["Index1"]
+      kernel["ProblemType"]["UseInitialStrides"] = \
+          self["ProblemType"]["UseInitialStrides"]
+      kernel["ProblemType"]["NumIndicesC"] = self["ProblemType"]["NumIndicesC"]
+      kernels.append(kernel)
+    return kernels
+
 
   ########################################
   # assign tile sizes
@@ -512,24 +534,24 @@ class Solution:
       state["Valid"] = True
 
     if "NumThreads" in state \
-        and "IntraSplitU" in state \
+        and "LocalSplitU" in state \
         and "GroupShape" in state \
         and "ThreadTileNumElements" in state \
         and "ThreadTileShape" in state:
       (subGroup0, subGroup1, threadTile0, threadTile1) \
-          = Solution.tileSizes(state["NumThreads"], state["IntraSplitU"], \
+          = Solution.tileSizes(state["NumThreads"], state["LocalSplitU"], \
           state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
     else:
-      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, IntraSplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
+      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, LocalSplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
 
     state["SubGroup0"] = subGroup0
     state["SubGroup1"] = subGroup1
     state["ThreadTile0"] = threadTile0
     state["ThreadTile1"] = threadTile1
     if state["SubGroup0"]*state["SubGroup1"] \
-        != state["NumThreads"]/state["IntraSplitU"]:
+        != state["NumThreads"]/state["LocalSplitU"]:
       if globalParameters["PrintSolutionRejectionReason"]:
-        print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["IntraSplitU"]))
+        print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["LocalSplitU"]))
       state["Valid"] = False
     #print "Group:", state["SubGroup0"], state["SubGroup1"]
 
@@ -544,9 +566,9 @@ class Solution:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
     if "SubGroup1" in state and "ThreadTile1" in state:
       state["MacroTile1"] = state["SubGroup1"]*state["ThreadTile1"]
-    if "IntraSplitU" in state and "DepthU" in state:
-      state["LoopUnroll"] = state["DepthU"] / state["IntraSplitU"]
-    if state["LoopUnroll"] * state["IntraSplitU"] != state["DepthU"]:
+    if "LocalSplitU" in state and "DepthU" in state:
+      state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
+    if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
         state["Valid"] = False
 
     # tile shape
@@ -596,15 +618,15 @@ class Solution:
             state["VectorWidth"]))
       state["Valid"] = False
 
-    # IntraSplitU too large?
+    # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
     state["NumVectorsPerThread"] = numElementsPerWorkGroup / \
         state["NumThreads"] / state["VectorWidth"]
     if state["NumVectorsPerThread"] * state["NumThreads"] \
         * state["VectorWidth"] != numElementsPerWorkGroup:
       if globalParameters["PrintSolutionRejectionReason"]:
-        print1("IntraSplitU %u too large; less than 1 vector per thread" \
-            % (state["IntraSplitU"]))
+        print1("LocalSplitU %u too large; less than 1 vector per thread" \
+            % (state["LocalSplitU"]))
       state["Valid"] = False
       return
 
@@ -615,14 +637,23 @@ class Solution:
             % (state["LoopUnroll"]))
       state["Valid"] = False
 
-    # IntraSplitU but can't NumThreads%MacroTile doesn't support sideways load
-    if state["IntraSplitU"] > 1:
+    # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways load
+    if state["LocalSplitU"] > 1:
       if state["NumThreads"] % state["MacroTile0"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("IntraSplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
+          print1("LocalSplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
               % (state["NumThreads"], state["MacroTile0"]))
         state["Valid"] = False
         return
+
+    # GlobalSplitU doesn't work with
+    if state["GlobalSplitU"] > 1:
+      if not state["GlobalSplitUSummationAssignmentRoundRobin"] \
+          and state["LoopTail"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
+        state["Valid"] = False
+
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
@@ -871,7 +902,7 @@ class Solution:
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
     # lds buffer size for reduction
-    ldsNumElementsReduction = state["IntraSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["IntraSplitU"] > 1 else 0
+    ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction)
