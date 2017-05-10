@@ -21,6 +21,7 @@
 import os.path
 import sys
 import inspect
+from __init__ import __version__
 from collections import OrderedDict
 
 # print level
@@ -79,6 +80,7 @@ globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
+globalParameters["MinimumRequiredVersion"] = "0.0.0"
 
 ################################################################################
 # Default Benchmark Parameters
@@ -272,6 +274,11 @@ def printExit(message):
 def assignGlobalParameters( config ):
   global globalParameters
 
+  if "MinimumRequiredVersion" in config:
+    if not versionIsCompatible(config["MinimumRequiredVersion"]):
+      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+          % (config["MinimumRequiredVersion"], __version__) )
+
   print2("GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
@@ -322,6 +329,24 @@ def ensurePath( path ):
   if not os.path.exists(path):
     os.makedirs(path)
 
+################################################################################
+# Is query version compatible with current version
+################################################################################
+def versionIsCompatible(queryVersionString):
+  (qMajor, qMinor, qPatch) = queryVersionString.split(".")
+  (tMajor, tMinor, tPatch) = __version__.split(".")
+
+  # major version must match exactly
+  if qMajor != tMajor:
+    return False
+
+  # minor.patch version must be >=
+  if qMinor > tMinor:
+    return False
+  if qMinor == tMinor:
+    if qPatch > tPatch:
+      return False
+  return True
 
 # TODO
 CMakeHeader = "# Header\n\n"
