@@ -37,7 +37,7 @@ typedef std::map<KernelMapKey, cl_kernel> KernelMap;
 #ifdef WIN32
 __declspec(thread) extern KernelMap kernelMap;
 #else
-extern __thread KernelMap kernelMap;
+extern thread_local KernelMap kernelMap;
 #endif
 #endif
 
