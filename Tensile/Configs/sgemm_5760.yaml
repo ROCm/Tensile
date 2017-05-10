@@ -1,5 +1,6 @@
 # benchmark fastest kernels for the 5760 size
 GlobalParameters:
+  MinimumRequiredVersion: 3.0.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True

@@ -61,7 +61,7 @@ def writeSolutions( filename, problemSizes, solutions ):
     stream = open(filename, "w")
   except IOError:
     printExit("Cannot open file: %s" % filename)
-  stream.write("- Version: %s\n" % __version__ )
+  stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
   stream.write("- ProblemSizes: %s\n" % str(problemSizes))
   yaml.dump(solutionStates, stream, default_flow_style=False)
   stream.close()
@@ -81,7 +81,7 @@ def readSolutions( filename ):
   # verify
   if len(solutionStates) < 2:
     printExit("len(%s) %u < 2" % (filename, len(solutionStates)))
-  versionString = solutionStates[0]["Version"]
+  versionString = solutionStates[0]["MinimumRequiredVersion"]
   if not versionIsCompatible(versionString):
     printWarning("File \"%s\" version=%s does not match current Tensile version=%s" \
         % (filename, versionString, __version__) )
@@ -118,7 +118,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
 
   data = []
   # Tensile version
-  data.append({"Version":__version__})
+  data.append({"MinimumRequiredVersion":__version__})
   # schedule name
   data.append(schedulePrefix)
   # schedule device names
@@ -167,7 +167,7 @@ def readLibraryLogicForSchedule( filename ):
     printExit("len(%s) %u < 7" % (filename, len(data)))
 
   # parse out objects
-  version           = data[0]["Version"]
+  version           = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
   deviceNames       = data[2]
   problemTypeState  = data[3]

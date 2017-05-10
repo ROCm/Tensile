@@ -1,4 +1,5 @@
 GlobalParameters:
+  MinimumRequiredVersion: 3.0.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True

@@ -1,5 +1,6 @@
 # test load patterns
 GlobalParameters:
+  MinimumRequiredVersion: 3.0.0
   NumElementsToValidate: -1
   ValidationMaxToPrint: 4
 
