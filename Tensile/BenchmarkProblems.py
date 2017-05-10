@@ -41,7 +41,8 @@ import YAMLIO
 ################################################################################
 # Benchmark Problem Type
 ################################################################################
-def benchmarkProblemType( config ):
+def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
+    problemSizeGroupIdx ):
 
   # convert config to full benchmark process (resolves defaults)
   print1("")
@@ -49,13 +50,16 @@ def benchmarkProblemType( config ):
   print1("# Converting Config to BenchmarkProcess Object")
   print1(HR)
   print1("")
-  benchmarkProcess = BenchmarkProcess(config)
+  benchmarkProcess = BenchmarkProcess( problemTypeConfig, \
+      problemSizeGroupConfig )
 
   problemTypeName = str(benchmarkProcess.problemType)
-  pushWorkingPath(problemTypeName)
+  problemSizeGroupName = "%s_%02u" % (problemTypeName, problemSizeGroupIdx)
+  pushWorkingPath(problemSizeGroupName)
   ensurePath(os.path.join(globalParameters["WorkingPath"],"Data"))
 
   totalBenchmarkSteps = len(benchmarkProcess)
+  resultsFileBaseList = []
   winners = WinningParameterDict()
   print1("# NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   print1("")
@@ -77,7 +81,7 @@ def benchmarkProblemType( config ):
     shortName = benchmarkStep.abbreviation()
     print1("\n")
     print1(HR)
-    print1("# %s\n# %s" % (problemTypeName, stepName))
+    print1("# %s\n# %s" % (problemSizeGroupName, stepName))
     print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
     print1("# BenchmarkParameters:")
     for paramName in benchmarkStep.benchmarkParameters:
@@ -112,7 +116,6 @@ def benchmarkProblemType( config ):
         "CMakeLists.txt",
         "MathTemplates.cpp",
         "MathTemplates.h",
-        "SetupTeardown.cpp",
         "TensileTypes.h",
         "ReferenceCPU.h",
         "SolutionHelper.cpp",
@@ -125,10 +128,6 @@ def benchmarkProblemType( config ):
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], f),
           globalParameters["WorkingPath"] )
-    #shutil_copy(
-    #    os.path.join(globalParameters["SourcePath"], \
-    #    "TensileBenchmark_CMakeLists.txt"),
-    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt" ) )
     if globalParameters["RuntimeLanguage"] == "OCL":
       shutil_copy(
           os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
@@ -257,6 +256,8 @@ def benchmarkProblemType( config ):
     ############################################################################
     resultsFileBase = os.path.normpath(os.path.join( \
         globalParameters["WorkingPath"], "../Data", shortName))
+    if benchmarkStep.isFinal():
+      resultsFileBaseList.append(resultsFileBase)
     resultsFileName = resultsFileBase + ".csv"
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
@@ -298,10 +299,10 @@ def benchmarkProblemType( config ):
     # End Iteration
     popWorkingPath() # stepName
     print1("%s\n# %s\n# %s: End\n%s\n" \
-        % (HR, problemTypeName, shortName, HR))
+        % (HR, problemSizeGroupName, shortName, HR))
 
   popWorkingPath() # ProblemType
-  return resultsFileBase
+  return resultsFileBaseList
 # End benchmarkProblemType()
 
 
@@ -340,8 +341,6 @@ def getResults(resultsFileName, solutions):
             % (resultsFileName, rowIdx, rowLength) )
         break
       idx = startIdx
-      #for i in range(0, len(numBenchmarksPerHardcoded)):
-      #  for j in range(0, numBenchmarksPerHardcoded[i]):
       for i in range(0, len(solutions)):
         solutionsForHardcoded = solutions[i]
         for j in range(0, len(solutionsForHardcoded)):
@@ -596,23 +595,31 @@ def main( config ):
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
   ensurePath(dataPath)
   for benchmarkProblemTypeConfig in config:
-    problemTypeConfig = benchmarkProblemTypeConfig["ProblemType"]
-    print2("ProblemTypeConfig: %s" % problemTypeConfig)
-    problemTypeObj = ProblemType(problemTypeConfig)
-    globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
-
-    # Benchmark Problem Type
-    if benchmarkProblemTypeConfig is None:
-      resultsFileBase = benchmarkProblemType({})
+    problemTypeConfig = benchmarkProblemTypeConfig[0]
+    if len(benchmarkProblemTypeConfig) < 2:
+      problemSizeGroupConfigs = [{}]
     else:
-      resultsFileBase = benchmarkProblemType(benchmarkProblemTypeConfig)
+      problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
+    for problemSizeGroupIdx in range(0, len(problemSizeGroupConfigs)):
+      problemSizeGroupConfig = problemSizeGroupConfigs[problemSizeGroupIdx]
+      print2("ProblemTypeConfig: %s" % problemTypeConfig)
+      problemTypeObj = ProblemType(problemTypeConfig)
+      globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
-    # Copy Data
-    resultsFileName = resultsFileBase + ".csv"
-    solutionsFileName = resultsFileBase + ".yaml"
-    newResultsFileName = os.path.join(dataPath, "%s.csv" % str(problemTypeObj))
-    newSolutionsFileName = os.path.join(dataPath, "%s.yaml" % str(problemTypeObj))
-    shutil_copy( resultsFileName, newResultsFileName )
-    shutil_copy( solutionsFileName, newSolutionsFileName )
+      # Benchmark Problem Size Group
+      resultsFileBaseList = benchmarkProblemType(problemTypeConfig, \
+          problemSizeGroupConfig, problemSizeGroupIdx)
+
+      # Copy Data
+      for resultsFileIdx in range(0, len(resultsFileBaseList)):
+        resultsFileBase = resultsFileBaseList[resultsFileIdx]
+        resultsFileName = "%s.csv" % (resultsFileBase)
+        solutionsFileName = "%s.yaml" % (resultsFileBase)
+        newResultsFileName = os.path.join(dataPath, "%s_%02u_%02u.csv" \
+            % (str(problemTypeObj), problemSizeGroupIdx, resultsFileIdx) )
+        newSolutionsFileName = os.path.join(dataPath, "%s_%02u_%02u.yaml" \
+            % (str(problemTypeObj), problemSizeGroupIdx, resultsFileIdx) )
+        shutil_copy( resultsFileName, newResultsFileName )
+        shutil_copy( solutionsFileName, newSolutionsFileName )
 
   popWorkingPath()

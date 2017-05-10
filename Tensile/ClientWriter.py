@@ -81,12 +81,13 @@ def main( config ):
   functionNames = []
   enableHalf = False
   for logicFileName in logicFiles:
-    (scheduleName, problemType, solutionsForType, indexOrder, logic) \
-        = YAMLIO.readLibraryLogicForProblemType(logicFileName)
+    (scheduleName, deviceNames, problemType, solutionsForType, \
+        indexOrder, logic) \
+        = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
-    functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+    functionNames.append("tensile_%s" % (problemType))
   globalParameters["EnableHalf"] = enableHalf
 
   ##############################################################################
@@ -555,9 +556,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "\n"
     # Solution Ptrs
     h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
-    argList = solutionWriter.getArgList(solutions[0])
+    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True)
     for i in range(0, len(argList)):
-      h += "  %s%s" % (argList[i], ",\n" if i < len(argList)-1 else ");\n\n")
+      h += "  %s %s%s" % (argList[i][0], argList[i][1], \
+          ",\n" if i < len(argList)-1 else ");\n\n")
     h += "const SolutionFunctionPointer solutions[numSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
@@ -585,7 +587,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for dataType in dataTypes:
       for problemType in problemTypesForDataType[dataType]:
         for scheduleName in schedulesForProblemType[problemType]:
-          functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+          #functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
+          functionNames.append("tensile_%s" % (problemType))
     h += "const char *functionNames[numFunctions] = {\n"
     for functionIdx in range(0, len(functionNames)):
       functionName = functionNames[functionIdx]
@@ -756,122 +759,130 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     ############################################################################
     # Generated Call to Function
     ############################################################################
-    h += "/* generated call to function */\n"
-    h += "template<typename DataType>\n"
-    h += "TensileStatus generatedCallToFunction(\n"
-    h += "    unsigned int *sizes,\n"
-    h += "    DataType alpha,\n"
-    h += "    DataType beta, \n"
-    h += "    unsigned int numEvents = 0, \n"
-
-    if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "    cl_event *event_wait_list = NULL,\n"
-      h += "    cl_event *outputEvent = NULL );\n\n"
-    else:
-      h += "    hipEvent_t *startEvent = NULL,\n"
-      h += "    hipEvent_t *stopEvent = NULL );\n\n"
-
-
-    for dataType in dataTypes:
-      typeName = dataType.toCpp()
-      functionsForDataType = []
-      for problemType in problemTypesForDataType[dataType]:
-        for scheduleName in schedulesForProblemType[problemType]:
-          functionsForDataType.append([scheduleName, problemType])
-      h += "template<>\n"
-      h += "inline TensileStatus generatedCallToFunction<%s>(\n" % typeName
+    for enqueue in [True, False]:
+      functionName = "tensile" if enqueue else "tensileGetSolutionName"
+      returnName = "TensileStatus" if enqueue else "const char *"
+      h += "/* generated call to function */\n"
+      h += "template<typename DataType>\n"
+      h += "%s generatedCallTo_%s(\n" % (returnName, functionName)
       h += "    unsigned int *sizes,\n"
-      h += "    %s alpha,\n" % typeName
-      h += "    %s beta,\n" % typeName
-      h += "    unsigned int numEvents, \n"
+      h += "    DataType alpha,\n"
+      h += "    DataType beta, \n"
+      h += "    unsigned int numEvents = 0, \n"
 
       if globalParameters["RuntimeLanguage"] == "OCL":
-        h += "    cl_event *event_wait_list,\n"
-        h += "    cl_event *outputEvent ) {\n\n"
+        h += "    cl_event *event_wait_list = NULL,\n"
+        h += "    cl_event *outputEvent = NULL );\n\n"
       else:
-        h += "    hipEvent_t *startEvent,\n"
-        h += "    hipEvent_t *stopEvent ) {\n\n"
+        h += "    hipEvent_t *startEvent = NULL,\n"
+        h += "    hipEvent_t *stopEvent = NULL );\n\n"
 
-      h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
 
-      for functionIdx in range(0, len(functionsForDataType)):
-        function = functionsForDataType[functionIdx]
-        scheduleName = function[0]
-        problemType = function[1]
-        if len(functionsForDataType)> 1:
-          if functionIdx == 0:
-            h += "  if (functionIdxForDataType == %u) {\n" % functionIdx
-          elif functionIdx == len(functionsForDataType)-1:
-            h += "  } else {\n"
-          else:
-            h += "  } else if (functionIdxForDataType == %u) {\n" % functionIdx
+      for dataType in dataTypes:
+        typeName = dataType.toCpp()
+        functionsForDataType = []
+        for problemType in problemTypesForDataType[dataType]:
+          for scheduleName in schedulesForProblemType[problemType]:
+            functionsForDataType.append([scheduleName, problemType])
+        h += "template<>\n"
+        h += "inline %s generatedCallTo_%s<%s>(\n" \
+            % (returnName, functionName, typeName)
+        h += "    unsigned int *sizes,\n"
+        h += "    %s alpha,\n" % typeName
+        h += "    %s beta,\n" % typeName
+        h += "    unsigned int numEvents, \n"
 
-        # strides
-        indexChars = globalParameters["IndexChars"]
-        firstStride = 1
-        if problemType["UseInitialStrides"]:
-          firstStride = 0
-        lastStrideC = problemType["NumIndicesC"]
-        lastStrideA = len(problemType["IndexAssignmentsA"])
-        lastStrideB = len(problemType["IndexAssignmentsB"])
-
-        # calculate strides
-        for i in range(0,lastStrideC):
-          h += "    unsigned int strideC%u%s = 1" % (i, indexChars[i])
-          for j in range(0, i):
-            h += "*sizes[%i]" % j
-          h += ";\n"
-        for i in range(0,lastStrideA):
-          h += "    unsigned int strideA%u%s = 1" % (i, \
-              indexChars[problemType["IndexAssignmentsA"][i]])
-          for j in range(0, i):
-            h += "*sizes[%i]" % \
-              problemType["IndexAssignmentsA"][j]
-          h += ";\n"
-        for i in range(0,lastStrideB):
-          h += "    unsigned int strideB%u%s = 1" % (i, \
-              indexChars[problemType["IndexAssignmentsB"][i]])
-          for j in range(0, i):
-            h += "*sizes[%i]" % \
-              problemType["IndexAssignmentsB"][j]
-          h += ";\n"
-        for i in range(0, problemType["TotalIndices"]):
-          h += "    unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
-
-        # function call
-        h += "    // call solution function\n"
-        h += "    return tensile_%s_%s(\n" % (scheduleName, problemType)
         if globalParameters["RuntimeLanguage"] == "OCL":
-          h += "        static_cast<cl_mem>(deviceC),\n"
-          h += "        static_cast<cl_mem>(deviceA),\n"
-          h += "        static_cast<cl_mem>(deviceB),\n"
+          h += "    cl_event *event_wait_list,\n"
+          h += "    cl_event *outputEvent ) {\n\n"
         else:
-          h += "        static_cast<%s *>(deviceC),\n" % typeName
-          h += "        static_cast<%s *>(deviceA),\n" % typeName
-          h += "        static_cast<%s *>(deviceB),\n" % typeName
-        h += "        alpha,\n"
-        if problemType["UseBeta"]:
-          h += "        beta,\n"
-        h += "        0, 0, 0, // offsets\n"
-        for i in range(firstStride,lastStrideC):
-          h += "        strideC%u%s,\n" % (i, indexChars[i])
-        for i in range(firstStride,lastStrideA):
-          h += "        strideA%u%s,\n" % (i, \
-              indexChars[problemType["IndexAssignmentsA"][i]])
-        for i in range(firstStride,lastStrideB):
-          h += "        strideB%u%s,\n" % (i, \
-              indexChars[problemType["IndexAssignmentsB"][i]])
-        for i in range(0, problemType["TotalIndices"]):
-          h += "        size%s,\n" % indexChars[i]
-        h += "        stream,\n"
-        if globalParameters["RuntimeLanguage"] == "OCL":
-           h += "        numEvents, event_wait_list, outputEvent); // events\n"
-        else:
-           h += "        numEvents, startEvent, stopEvent); // events\n"
+          h += "    hipEvent_t *startEvent,\n"
+          h += "    hipEvent_t *stopEvent ) {\n\n"
 
-      if len(functionsForDataType) > 1:
-        h += "  }\n" # close last if
-      h += "};\n" # close callToFunction
+        h += "  unsigned int functionIdxForDataType = functionInfo[functionIdx][4];\n"
+
+        for functionIdx in range(0, len(functionsForDataType)):
+          function = functionsForDataType[functionIdx]
+          scheduleName = function[0]
+          problemType = function[1]
+          if len(functionsForDataType)> 1:
+            if functionIdx == 0:
+              h += "  if (functionIdxForDataType == %u) {\n" % functionIdx
+            elif functionIdx == len(functionsForDataType)-1:
+              h += "  } else {\n"
+            else:
+              h += "  } else if (functionIdxForDataType == %u) {\n" \
+                  % functionIdx
+
+          # strides
+          indexChars = globalParameters["IndexChars"]
+          firstStride = 1
+          if problemType["UseInitialStrides"]:
+            firstStride = 0
+          lastStrideC = problemType["NumIndicesC"]
+          lastStrideA = len(problemType["IndexAssignmentsA"])
+          lastStrideB = len(problemType["IndexAssignmentsB"])
+
+          # calculate strides
+          for i in range(0,lastStrideC):
+            h += "    unsigned int strideC%u%s = 1" % (i, indexChars[i])
+            for j in range(0, i):
+              h += "*sizes[%i]" % j
+            h += ";\n"
+          for i in range(0,lastStrideA):
+            h += "    unsigned int strideA%u%s = 1" % (i, \
+                indexChars[problemType["IndexAssignmentsA"][i]])
+            for j in range(0, i):
+              h += "*sizes[%i]" % \
+                problemType["IndexAssignmentsA"][j]
+            h += ";\n"
+          for i in range(0,lastStrideB):
+            h += "    unsigned int strideB%u%s = 1" % (i, \
+                indexChars[problemType["IndexAssignmentsB"][i]])
+            for j in range(0, i):
+              h += "*sizes[%i]" % \
+                problemType["IndexAssignmentsB"][j]
+            h += ";\n"
+          for i in range(0, problemType["TotalIndices"]):
+            h += "    unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
+
+          # function call
+          h += "    // call solution function\n"
+          h += "    return %s_%s(\n" % (functionName, problemType)
+          if enqueue:
+            if globalParameters["RuntimeLanguage"] == "OCL":
+              h += "        static_cast<cl_mem>(deviceC),\n"
+              h += "        static_cast<cl_mem>(deviceA),\n"
+              h += "        static_cast<cl_mem>(deviceB),\n"
+            else:
+              h += "        static_cast<%s *>(deviceC),\n" % typeName
+              h += "        static_cast<%s *>(deviceA),\n" % typeName
+              h += "        static_cast<%s *>(deviceB),\n" % typeName
+            h += "        alpha,\n"
+            if problemType["UseBeta"]:
+              h += "        beta,\n"
+            h += "        0, 0, 0, // offsets\n"
+          for i in range(firstStride,lastStrideC):
+            h += "        strideC%u%s,\n" % (i, indexChars[i])
+          for i in range(firstStride,lastStrideA):
+            h += "        strideA%u%s,\n" % (i, \
+                indexChars[problemType["IndexAssignmentsA"][i]])
+          for i in range(firstStride,lastStrideB):
+            h += "        strideB%u%s,\n" % (i, \
+                indexChars[problemType["IndexAssignmentsB"][i]])
+          for i in range(0, problemType["TotalIndices"]):
+            h += "        size%s,\n" % indexChars[i]
+          h += "        stream"
+          if enqueue:
+            if globalParameters["RuntimeLanguage"] == "OCL":
+               h += ",\n        numEvents, event_wait_list, outputEvent"
+            else:
+               h += ",\n        numEvents, startEvent, stopEvent"
+          h += ");\n"
+
+        if len(functionsForDataType) > 1:
+          h += "  }\n" # close last if
+        h += "};\n" # close callToFunction
 
   ##############################################################################
   # Results File Name

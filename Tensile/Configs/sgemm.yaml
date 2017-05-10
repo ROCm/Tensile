@@ -1,6 +1,6 @@
 GlobalParameters:
   PrintLevel: 1
-  ForceRedoBenchmarkProblems: False
+  ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
@@ -18,8 +18,8 @@ GlobalParameters:
   KernelTime: True
 
 BenchmarkProblems:
-  # sgemm NN
-  - ProblemType:
+  - # sgemm NN
+    - # ProblemType
       OperationType: GEMM
       DataType: s
       TransposeA: False
@@ -27,28 +27,31 @@ BenchmarkProblems:
       UseBeta: True
       Batched: False
 
-    # keep benchmark as single list to make easier to modify in future
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [512], [512], [512] ]
-      - SplitU: [ 1 ]
-      - EdgeType: ["Branch"]
-      - WorkGroupMapping: [ 1 ]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - GroupShape: [ 0 ]
-      - ThreadTileShape: [ 0 ]
-    ForkParameters:
-      - NumThreads: [64, 256]
-      - ThreadTileNumElements: [4, 16, 64]
-      - DepthU: [8, 16]
-    BenchmarkForkParameters:
-    JoinParameters:
-      - MacroTile
-    BenchmarkJoinParameters:
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [16, 128], [16, 128], [256] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [512], [512], [512] ]
+        - IntraSplitU: [ 1 ]
+        - EdgeType: ["Branch"]
+        - WorkGroupMapping: [ 1 ]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - GroupShape: [ 0 ]
+        - ThreadTileShape: [ 0 ]
+      ForkParameters:
+        - NumThreads: [64, 256]
+        - ThreadTileNumElements: [4, 16, 64]
+        - DepthU: [8, 16]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [16, 128], [16, 128], [256] ]
 
 LibraryLogic:
+  ScheduleName: Fiji
+  DeviceNames: ["Fiji Nano"]
   BranchPenalty: 0
 
 LibraryClient:

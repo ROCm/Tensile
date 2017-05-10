@@ -33,7 +33,6 @@ from collections import OrderedDict
 ################################################################################
 globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
-globalParameters["Name"] = "Tensile"
 if os.name == "nt":
   globalParameters["RuntimeLanguage"] = "OCL"
   globalParameters["KernelLanguage"] = "OCL"
@@ -101,7 +100,8 @@ validParameters = {
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
-    "SplitU":                     [ 1, 2, 4, 8, 16, 32, 64 ],
+    "IntraSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
+    "InterSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
     "NumThreads":                 [ 64, 128, 256 ],
     "VectorWidth":                [ -1, 1, 2, 4 ],
     "LdsPad":                     [ 0, 1 ],
@@ -127,6 +127,8 @@ defaultBenchmarkCommonParameters = [
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
     {"ThreadTileShape":           [ 0 ] },
+    {"IntraSplitU":               [ 1 ] },
+    {"InterSplitU":               [ 1 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
@@ -134,7 +136,6 @@ defaultForkParameters = [
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
     {"DepthU":                  [ 4, 8, 16 ] },
-    {"SplitU":                  [ 1, 2, 4 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
@@ -185,6 +186,8 @@ defaultBenchmarkFinalProblemSizes = [
 # Default Analysis Parameters
 ################################################################################
 defaultAnalysisParameters = {
+    "ScheduleName":       "Default",
+    "DeviceNames":  ["Unspecified"],
     "InitialSolutionWindow":      1,
     "BranchPenalty":              0, # microseconds / kernel
     "SmoothOutliers":         False, # enforce monotonic data
@@ -251,14 +254,8 @@ def print2(message):
     print message
 
 def printWarning(message):
-  #f = inspect.currentframe().f_back.f_code
-  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  #print "Tensile::%s::%s - WARNING - %s" % (filebase, f.co_name, message)
   print "Tensile::WARNING: %s" % message
 def printExit(message):
-  #f = inspect.currentframe().f_back.f_code
-  #filebase = os.path.splitext(os.path.basename(f.co_filename))[0]
-  #print "Tensile::%s::%s - FATAL - %s" % (filebase, f.co_name, message)
   print "Tensile::FATAL: %s" % message
   sys.exit(-1)
 

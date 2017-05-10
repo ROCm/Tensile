@@ -4,124 +4,130 @@ GlobalParameters:
   ValidationMaxToPrint: 4
 
 BenchmarkProblems:
-  # sgemm NT
-  - ProblemType:
+  - # sgemm NT
+    - # ProblemType
       OperationType: GEMM
       DataType: s
       TransposeA: False
       TransposeB: True
       UseBeta: False
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - EdgeType: ["Shift"]
-      - LocalWriteCoalesceGroupA: [True]
-      - LocalWriteCoalesceGroupB: [True]
-      - GlobalReadCoalesceVectorA: [True]
-      - GlobalReadCoalesceVectorB: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-    ForkParameters:
-      - GroupShape: [ 0, 2 ]
-      - NumThreads: [128, 256 ]
-      - ThreadTileShape: [0, 2]
-      - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
-      - DepthU: [ 16 ]
-      - SplitU: [ 1, 2, 4, 8 ]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - EdgeType: ["Shift"]
+        - LocalWriteCoalesceGroupA: [True]
+        - LocalWriteCoalesceGroupB: [True]
+        - GlobalReadCoalesceVectorA: [True]
+        - GlobalReadCoalesceVectorB: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+      ForkParameters:
+        - GroupShape: [ 0, 2 ]
+        - NumThreads: [128, 256 ]
+        - ThreadTileShape: [0, 2]
+        - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
+        - DepthU: [ 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8 ]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
 
-  # sgemm NN
-  - ProblemType:
+  - # sgemm NN
+    - # ProblemType
       OperationType: GEMM
       DataType: s
       TransposeA: False
       TransposeB: False
       UseBeta: True
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - EdgeType: ["Shift"]
-      - LocalWriteCoalesceGroupA: [True]
-      - LocalWriteCoalesceGroupB: [True]
-      - GlobalReadCoalesceVectorA: [True]
-      - GlobalReadCoalesceVectorB: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-    ForkParameters:
-      - GroupShape: [ 0, 2 ]
-      - NumThreads: [128, 256 ]
-      - ThreadTileShape: [0, 2]
-      - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
-      - DepthU: [ 16 ]
-      - SplitU: [ 1, 2, 4, 8 ]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - EdgeType: ["Shift"]
+        - LocalWriteCoalesceGroupA: [True]
+        - LocalWriteCoalesceGroupB: [True]
+        - GlobalReadCoalesceVectorA: [True]
+        - GlobalReadCoalesceVectorB: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+      ForkParameters:
+        - GroupShape: [ 0, 2 ]
+        - NumThreads: [128, 256 ]
+        - ThreadTileShape: [0, 2]
+        - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
+        - DepthU: [ 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8 ]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
-  # sgemm TN
-  - ProblemType:
+  - # sgemm TN
+    - # ProblemType
       OperationType: GEMM
       DataType: s
       TransposeA: True
       TransposeB: False
       UseBeta: True
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - EdgeType: ["Shift"]
-      - LocalWriteCoalesceGroupA: [True]
-      - LocalWriteCoalesceGroupB: [True]
-      - GlobalReadCoalesceVectorA: [True]
-      - GlobalReadCoalesceVectorB: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-    ForkParameters:
-      - GroupShape: [ 0, -2 ]
-      - NumThreads: [128, 256 ]
-      - ThreadTileShape: [0, -2]
-      - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
-      - DepthU: [ 16 ]
-      - SplitU: [ 1, 2, 4, 8 ]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - EdgeType: ["Shift"]
+        - LocalWriteCoalesceGroupA: [True]
+        - LocalWriteCoalesceGroupB: [True]
+        - GlobalReadCoalesceVectorA: [True]
+        - GlobalReadCoalesceVectorB: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+      ForkParameters:
+        - GroupShape: [ 0, -2 ]
+        - NumThreads: [128, 256 ]
+        - ThreadTileShape: [0, -2]
+        - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
+        - DepthU: [ 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8 ]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
-  # sgemm TT
-  - ProblemType:
+  - # sgemm TT
+    - # ProblemType
       OperationType: GEMM
       DataType: s
       TransposeA: True
       TransposeB: True
       UseBeta: True
-    BenchmarkCommonParameters:
-      - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
-      - LoopDoWhile: [False]
-      - LoopTail: [True]
-      - EdgeType: ["Shift"]
-      - LocalWriteCoalesceGroupA: [True]
-      - LocalWriteCoalesceGroupB: [True]
-      - GlobalReadCoalesceVectorA: [True]
-      - GlobalReadCoalesceVectorB: [True]
-      - NumLoadsCoalescedA: [1]
-      - NumLoadsCoalescedB: [1]
-      - VectorWidth: [1]
-    ForkParameters:
-      - GroupShape: [ 0, -2 ]
-      - NumThreads: [128, 256 ]
-      - ThreadTileShape: [0, -2]
-      - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
-      - DepthU: [ 16 ]
-      - SplitU: [ 1, 2, 4, 8 ]
-    BenchmarkFinalParameters:
-      - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+    - # BenchmarkProblemSizeGroup - Standard
+      BenchmarkCommonParameters:
+        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+        - EdgeType: ["Shift"]
+        - LocalWriteCoalesceGroupA: [True]
+        - LocalWriteCoalesceGroupB: [True]
+        - GlobalReadCoalesceVectorA: [True]
+        - GlobalReadCoalesceVectorB: [True]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - VectorWidth: [1]
+      ForkParameters:
+        - GroupShape: [ 0, -2 ]
+        - NumThreads: [128, 256 ]
+        - ThreadTileShape: [0, -2]
+        - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
+        - DepthU: [ 16 ]
+        - IntraSplitU: [ 1, 2, 4, 8 ]
+      BenchmarkFinalParameters:
+        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
 LibraryLogic:
+  ScheduleName: Fiji
+  DeviceNames: ["Fiji Nano"]
   BranchPenalty: 100
 
 LibraryClient:

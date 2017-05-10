@@ -18,8 +18,9 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import globalParameters, print1, print2, printExit
+from Common import globalParameters, print1, print2, printExit, printWarning
 from SolutionStructs import Solution, ProblemSizes, ProblemType
+from __init__ import __version__
 
 import os
 try:
@@ -32,7 +33,6 @@ except ImportError:
 # Read Benchmark Config from YAML Files
 ################################################################################
 def readConfig( filename ):
-  #print "Tensile::YAMLIO::readConfig( %s )" % ( filename )
   try:
     stream = open(filename, "r")
   except IOError:
@@ -46,7 +46,6 @@ def readConfig( filename ):
 # Write List of Solutions to YAML File
 ################################################################################
 def writeSolutions( filename, problemSizes, solutions ):
-  #print "Tensile::YAMLIO::writeSolutions( %s, %u )" % ( filename, len(solutions) )
   # convert objects to nested dictionaries
   solutionStates = []
   for hardcoded in solutions:
@@ -61,6 +60,7 @@ def writeSolutions( filename, problemSizes, solutions ):
     stream = open(filename, "w")
   except IOError:
     printExit("Cannot open file: %s" % filename)
+  stream.write("- %s\n" % __version__ )
   stream.write("- ProblemSizes: %s\n" % str(problemSizes))
   yaml.dump(solutionStates, stream, default_flow_style=False)
   stream.close()
@@ -70,7 +70,6 @@ def writeSolutions( filename, problemSizes, solutions ):
 # Read List of Solutions from YAML File
 ################################################################################
 def readSolutions( filename ):
-  #print "Tensile::YAMLIO::readSolutions( %s )" % ( filename )
   try:
     stream = open(filename, "r")
   except IOError:
@@ -81,22 +80,23 @@ def readSolutions( filename ):
   # verify
   if len(solutionStates) < 2:
     printExit("len(%s) %u < 2" % (filename, len(solutionStates)))
-  if "ProblemSizes" not in solutionStates[0]:
+  version = solutionStates[0]
+  if version != __version__:
+    printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
+        % (filename, version, __version__) )
+
+  if "ProblemSizes" not in solutionStates[1]:
     printExit("%s doesn't begin with ProblemSizes" % filename)
+  else:
+    problemSizesConfig = solutionStates[1]["ProblemSizes"]
 
   solutions = []
-  for i in range(1, len(solutionStates)):
+  for i in range(2, len(solutionStates)):
     solutionState = solutionStates[i]
     solutionObject = Solution(solutionState)
     solutions.append(solutionObject)
   problemType = solutions[0]["ProblemType"]
-  #print problemType
-  #print problemType.state
-  problemSizesConfig = solutionStates[0]["ProblemSizes"]
-  #print problemSizesConfig
   problemSizes = ProblemSizes(problemType, problemSizesConfig)
-  #print problemSizes
-
   return (problemSizes, solutions)
 
 
@@ -105,7 +105,8 @@ def readSolutions( filename ):
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################
-def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
+def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
+    logicTuple):
   problemType   = logicTuple[0]
   solutions     = logicTuple[1]
   indexOrder    = logicTuple[2]
@@ -115,8 +116,12 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
   print2("# writeLogic( %s )" % ( filename ))
 
   data = []
-  # logic name
-  data.append(globalParameters["Name"])
+  # Tensile version
+  data.append(__version__)
+  # schedule name
+  data.append(schedulePrefix)
+  # schedule device names
+  data.append(deviceNames)
   # problem type
   problemTypeState = problemType.state
   problemTypeState["DataType"] = \
@@ -139,38 +144,12 @@ def writeLibraryLogicForProblemType( filePath, schedulePrefix, logicTuple):
   # open & write file
   try:
     stream = open(filename, "w")
-    #yaml.dump(data, stream, default_flow_style=False)
     yaml.dump(data, stream)
     stream.close()
   except IOError:
     printExit("Cannot open file: %s" % filename)
 
-  """
-  #data = [ globalParameters["Name"], problemTypeState, [], [], [] ]
-  # write problem type
-  problemTypeState = problemType.state
-  problemTypeState["DataType"] = \
-      problemTypeState["DataType"].value
-  for solution in solutions:
-    solutionState = solution.state
-    solutionState["ProblemType"] = solutionState["ProblemType"].state
-    solutionState["ProblemType"]["DataType"] = \
-        solutionState["ProblemType"]["DataType"].value
-    data[2].append(solutionState)
-  for rule in skinnyLogic0:
-    data[3].append(rule)
-  for rule in skinnyLogic1:
-    data[4].append(rule)
-  for rule in diagonalLogic:
-    data[5].append(rule)
-
-  #stream.write(data)
-  yaml.dump(data, stream, default_flow_style=False)
-  stream.close()
-  """
-
-
-def readLibraryLogicForProblemType( filename ):
+def readLibraryLogicForSchedule( filename ):
   print1("# Reading Library Logic: %s" % ( filename ))
   try:
     stream = open(filename, "r")
@@ -180,15 +159,22 @@ def readLibraryLogicForProblemType( filename ):
   stream.close()
 
   # verify
-  if len(data) < 5:
-    printExit("len(%s) %u < 6" % (filename, len(data)))
+  if len(data) < 6:
+    printExit("len(%s) %u < 7" % (filename, len(data)))
 
   # parse out objects
-  scheduleName = data[0]
-  problemTypeState = data[1]
-  solutionStates = data[2]
-  indexOrder = data[3]
-  logic = data[4]
+  version           = data[0]
+  scheduleName      = data[1]
+  deviceNames       = data[2]
+  problemTypeState  = data[3]
+  solutionStates    = data[4]
+  indexOrder        = data[5]
+  logic             = data[6]
+
+  # does version match
+  if version != __version__:
+    printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
+        % (filename, version, __version__) )
 
   # unpack problemType
   problemType = ProblemType(problemTypeState)
@@ -202,4 +188,4 @@ def readLibraryLogicForProblemType( filename ):
           % (problemType, solutionObject["ProblemType"]))
     solutions.append(solutionObject)
 
-  return (scheduleName, problemType, solutions, indexOrder, logic )
+  return (scheduleName, deviceNames, problemType, solutions, indexOrder, logic )

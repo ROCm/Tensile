@@ -33,32 +33,41 @@ import YAMLIO
 ################################################################################
 # Analyze Problem Type
 ################################################################################
-def analyzeProblemType( problemTypeTuple, inputParameters ):
-  problemType = problemTypeTuple[0]
-  problemSizes = problemTypeTuple[1]
-  dataFileName = problemTypeTuple[2]
-  solutionsFileName = problemTypeTuple[3]
+def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print2(HR)
   print1("# %s" % problemType)
 
-  ######################################
-  # Read Solutions
-  (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
-  print2("# ProblemSizes: %s" % problemSizes)
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  print2("# Solutions:")
-  solutionIdx = 0
-  for solution in solutions:
-    print2("#  (%u) %s" % (solutionIdx, Solution.getNameMin(solution, \
-        solutionMinNaming)))
-    solutionIdx += 1
-  print2(HR)
+  solutionsList = []
+  problemSizesList = []
+  dataFileNameList = []
+  for problemSizeGroup in problemSizeGroups:
+    problemSizes = problemSizeGroup[0]
+    dataFileName = problemSizeGroup[1]
+    dataFileNameList.append(dataFileName)
+    solutionsFileName = problemSizeGroup[2]
+    #print "  problemSizes:", problemSizes
+    #print "  dataFileName:", dataFileName
+    #print "  solutionsFileName:", solutionsFileName
+
+    ######################################
+    # Read Solutions
+    (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
+    problemSizesList.append(problemSizes)
+    solutionsList.append(solutions)
+    print2("# ProblemSizes: %s" % problemSizes)
+    solutionMinNaming = Solution.getMinNaming(solutions)
+    print2("# Solutions:")
+    solutionIdx = 0
+    for solution in solutions:
+      print2("#  (%u) %s" % (solutionIdx, Solution.getNameMin(solution, \
+          solutionMinNaming)))
+      solutionIdx += 1
+    print2(HR)
 
   ######################################
-  # Read Data From CSV
-  logicAnalyzer = LogicAnalyzer( \
-      problemType, problemSizes, solutions, inputParameters)
-  logicAnalyzer.populateFromCSV(dataFileName)
+  # Create Logic Analyzer
+  logicAnalyzer = LogicAnalyzer( problemType, problemSizesList, solutionsList, \
+      dataFileNameList, inputParameters)
 
   ######################################
   # Remove invalid solutions
@@ -133,33 +142,81 @@ class LogicAnalyzer:
   ##############################################################################
   # ENTRY: Init
   ##############################################################################
-  def __init__(self, problemType, problemSizes, solutions, inputParameters):
-    self.problemType = problemType
-    self.problemSizes = problemSizes
+  def __init__(self, problemType, problemSizesList, solutionsList, \
+      dataFileNameList, inputParameters):
+
+    # parameters
     self.parameters = inputParameters
-    print2("ProblemSizes: %s" % self.problemSizes)
-    # TODO verify that data is symmetric for diagonal
-    #if self.problemSizes[self.problemType["Index0"]] \
-    #    != self.problemSizes[self.problemType["Index1"]]:
-    #  printExit("d0 / d1 must be symmetric for analysis.")
-    self.numProblemSizes = problemSizes.numProblemSizes # native order
-    print1("NumProblemSizes: %s" % self.numProblemSizes)
-    self.numIndices = len(self.numProblemSizes)
-    self.solutions = solutions
+
+    # problem type
+    self.problemType = problemType
+    self.idx0 = self.problemType["Index0"]
+    self.idx1 = self.problemType["Index1"]
+    self.idxU = self.problemType["IndexUnroll"]
+
+    # merge solutions from size groups
+    # solutions needs to be a set, and offset needs to be mapping
+    self.numSolutionsPerGroup = []
+    self.solutionGroupMap = []
+    self.solutions = []
+    for solutionGroupIdx in range(0, len(solutionsList)):
+      solutionGroup = solutionsList[solutionGroupIdx]
+      self.numSolutionsPerGroup.append(len(solutionGroup))
+      self.solutionGroupMap.append({})
+      for solutionIdx in range(0, len(solutionGroup)):
+        solution = solutionGroup[solutionIdx]
+        if solution not in self.solutions:
+          self.solutions.append(solution)
+      sIdx = self.solutions.index(solution)
+      self.solutionGroupMap[solutionGroupIdx][solutionIdx] = sIdx
     self.numSolutions = len(self.solutions)
-    self.solutionMinNaming = Solution.getMinNaming(solutions)
+    self.solutionMinNaming = Solution.getMinNaming(self.solutions)
     self.solutionNames = []
     self.solutionTiles = []
     for solution in self.solutions:
       self.solutionNames.append(Solution.getNameMin(solution, \
           self.solutionMinNaming))
-      self.solutionTiles.append("%ux%u"%(solution["MacroTile0"], solution["MacroTile1"]))
+      self.solutionTiles.append("%ux%u"%(solution["MacroTile0"], \
+          solution["MacroTile1"]))
     self.flopsPerMac = self.problemType["DataType"].flopsPerMac()
 
-    # special indices
-    self.idx0 = self.problemType["Index0"]
-    self.idx1 = self.problemType["Index1"]
-    self.idxU = self.problemType["IndexUnroll"]
+    # merge problem sizes from size groups
+    self.numIndices = len(problemSizesList[0].numProblemSizes)
+    unifiedProblemSizes = []
+    for i in range(0, self.numIndices):
+      unifiedProblemSizes.append(set())
+    for problemSizes in problemSizesList:
+      sizedIdx = 0
+      for i in range(0, self.numIndices):
+        if problemSizes.indexIsSized[i]:
+          index = problemSizes.indicesSized[sizedIdx]
+          sizedIdx += 1
+        else:
+          index = problemSizes.indicesSized[ \
+            problemSizes.indicesMapped[mappedIdx]]
+        currentSize = index[0]
+        currentStride = index[1]
+        while currentSize <= index[3]:
+          unifiedProblemSizes[i].add(currentSize)
+          currentSize += currentStride
+          currentStride += index[2]
+    for i in range(0, len(unifiedProblemSizes)):
+      unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
+    print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
+
+    # problem size index <-> size
+    self.problemSizeToIndex = []
+    self.problemIndexToSize = []
+    self.numProblemSizes = []
+    for i in range(0, self.numIndices):
+      self.problemSizeToIndex.append({})
+      self.problemIndexToSize.append([])
+      for j in range(0, len(unifiedProblemSizes[i])):
+        size = unifiedProblemSizes[i][j]
+        self.problemSizeToIndex[i][size] = j
+        self.problemIndexToSize[i].append(size)
+      self.numProblemSizes.append(len(unifiedProblemSizes[i]))
+    print1("NumProblemSizes: %s" % self.numProblemSizes)
 
     # total size of data array
     self.totalProblems = 1
@@ -169,8 +226,9 @@ class LogicAnalyzer:
     print2("TotalProblems: %u" % self.totalProblems)
     print2("TotalSolutions: %u" % self.numSolutions)
     print2("TotalSize: %u" % self.totalSize)
-    self.data = array.array('f', [0]*self.totalSize)
+    self.data = array.array('f', [-2]*self.totalSize)
 
+    """
     # map problem sizes -> index
     self.problemSizeToIndex = []
     self.problemIndexToSize = []
@@ -195,9 +253,10 @@ class LogicAnalyzer:
         currentSize += currentStride
         currentStride += index[2]
         idx += 1
-    self.rangeIndicesFree = range(0, self.problemType["NumIndicesC"])
-    self.rangeIndicesSummation = range(self.problemType["NumIndicesC"], \
-        self.problemType["TotalIndices"])
+    """
+    #self.rangeIndicesFree = range(0, self.problemType["NumIndicesC"])
+    #self.rangeIndicesSummation = range(self.problemType["NumIndicesC"], \
+    #    self.problemType["TotalIndices"])
     self.indexOrder = self.recommendedIndexOrder()
     print2("IndexOrder: %s" % self.indexOrder)
     self.globalIndexRange = []
@@ -207,12 +266,19 @@ class LogicAnalyzer:
         = self.problemIndicesForRange(self.globalIndexRange)
     self.tab = [""]*self.numIndices
 
+    ######################################
+    # Read Data From CSV
+    for fileIdx in range(0, len(dataFileNameList)):
+      dataFileName = dataFileNameList[fileIdx]
+      self.addFromCSV(dataFileName, self.numSolutionsPerGroup[fileIdx], \
+          self.solutionGroupMap[fileIdx])
+    #print self.data
 
 
   ##############################################################################
-  # ENTRY: Read In CSV
+  # ENTRY: Add From CSV
   ##############################################################################
-  def populateFromCSV(self, dataFileName):
+  def addFromCSV(self, dataFileName, numSolutions, solutionMap):
 
     # open file
     try:
@@ -225,7 +291,7 @@ class LogicAnalyzer:
     problemSizeStartIdx = 1
     totalSizeIdx = problemSizeStartIdx + self.numIndices
     solutionStartIdx = totalSizeIdx + 1
-    rowLength = solutionStartIdx + self.numSolutions
+    rowLength = solutionStartIdx + numSolutions
 
     # iterate over rows
     rowIdx = 0
@@ -234,10 +300,10 @@ class LogicAnalyzer:
       if rowIdx == 1:
         continue
       else:
-        if len(row) < rowLength:
-          printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
-              % (dataFileName, rowIdx, rowLength) )
-          break
+        #if len(row) < rowLength:
+        #  printWarning("CSV File %s row %u doesn't have %u elements; ignoring remainer of file." \
+        #      % (dataFileName, rowIdx, rowLength) )
+        #  break
 
         # get problem size
         problemSize = []
@@ -247,6 +313,7 @@ class LogicAnalyzer:
         for i in range(0, self.numIndices):
           problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
         serialIdx = self.indicesToSerial(0, problemIndices)
+        #print "problemSizes: ", problemSize, "; problemIndices: ", problemIndices, "; serialIdx: ", serialIdx
 
         # data
         solutionIdx = 0
@@ -257,7 +324,6 @@ class LogicAnalyzer:
     if rowIdx < 2:
       printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
           % (dataFileName, rowIdx) )
-    print self.data
 
 
   ##############################################################################
@@ -910,20 +976,20 @@ class LogicAnalyzer:
 
   ##############################################################################
   # Get Size Free
-  def getSizeFree(self, problemIndices):
-    sizeFree = 1
-    for i in self.rangeIndicesFree:
-      sizeFree *= self.problemIndexToSize[i][problemIndices[i]]
-    return sizeFree
+  #def getSizeFree(self, problemIndices):
+  #  sizeFree = 1
+  #  for i in self.rangeIndicesFree:
+  #    sizeFree *= self.problemIndexToSize[i][problemIndices[i]]
+  #  return sizeFree
 
 
   ##############################################################################
   # Get Size Summation
-  def getSizeSummation(self, problemIndices):
-    sizeSummation = 1
-    for i in self.rangeIndicesSummation:
-      sizeSummation *= self.problemIndexToSize[i][problemIndices[i]]
-    return sizeSummation
+  #def getSizeSummation(self, problemIndices):
+  #  sizeSummation = 1
+  #  for i in self.rangeIndicesSummation:
+  #    sizeSummation *= self.problemIndexToSize[i][problemIndices[i]]
+  #  return sizeSummation
 
 
   ##############################################################################
@@ -991,7 +1057,8 @@ def main(  config ):
   ##############################################################################
   # Determine Which Problem Types
   ##############################################################################
-  problemTypeTuples = []
+  #problemTypeTuples = []
+  problemTypes = {}
   if not os.path.exists(benchmarkDataPath):
     printExit("Path doesn't exist: %s" % benchmarkDataPath)
   for fileName in os.listdir(benchmarkDataPath):
@@ -1009,25 +1076,22 @@ def main(  config ):
       if len(solutions) == 0:
         printExit("%s doesn't contains any solutions." % (solutionsFileName) )
       problemType = solutions[0]["ProblemType"]
-      problemTypeTuple = ( problemType, problemSizes, \
-          dataFileName, solutionsFileName)
-      if problemTypeTuple not in problemTypeTuples:
-        problemTypeTuples.append(problemTypeTuple)
+      if problemType not in problemTypes:
+        problemTypes[problemType] = []
+      problemTypes[problemType].append( (problemSizes, \
+          dataFileName, solutionsFileName) )
+      #if problemTypeTuple not in problemTypeTuples:
+      #  problemTypeTuples.append(problemTypeTuple)
 
   # Run Analysis
-  schedulePrefix = globalParameters["Name"]
-  for problemTypeTuple in problemTypeTuples:
-    logicTuple = analyzeProblemType( problemTypeTuple, analysisParameters )
-    YAMLIO.writeLibraryLogicForProblemType(globalParameters["WorkingPath"], \
-        schedulePrefix, logicTuple)
+  #schedulePrefix = globalParameters["Name"]
+  schedulePrefix = config["ScheduleName"]
+  deviceNamesForSchedule = config["DeviceNames"]
+  for problemType in problemTypes:
+    logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
+        analysisParameters )
+    YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
+        schedulePrefix, deviceNamesForSchedule, logicTuple)
 
   popWorkingPath()
 
-########################################
-# TODO
-# - different weights for different levels?
-#   are there pairs of weights that would result in same logic complexity but better score?
-
-########################################
-# TODO problems which this algorithm
-# - barrier to switching may not always be amortised on next step, need to calculate several steps into future to see if net win; process needs to be a search tree. 32x32 search only takes 1 second

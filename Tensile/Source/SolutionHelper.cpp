@@ -24,17 +24,10 @@
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #ifdef WIN32
-__declspec(thread) KernelMap *kernelMap = 0;
+__declspec(thread) KernelMap kernelMap;
 #else
-__thread KernelMap *kernelMap = 0;
+__thread KernelMap kernelMap;
 #endif
-bool operator<(const KernelMapKey & l, const KernelMapKey & r) {
-  if (l.kernelSource < r.kernelSource) { return true; }
-  else if (r.kernelSource < l.kernelSource) { return false; }
-  if (l.queue < r.queue ) { return true; }
-  else if (r.queue < l.queue) { return false; }
-  return false;
-}
 #endif
 
 /*******************************************************************************
@@ -46,17 +39,12 @@ void tensileGetCompiledOpenCLKernel(
   const char *kernelSource,
   cl_command_queue queue,
   const char *sourceBuildOptions) {
-  // initialize kernel map
-  if (!kernelMap) { kernelMap = new KernelMap(); }
 
   // is kernel already compiled?
-  KernelMapKey key;
-  key.queue = queue;
-  key.kernelSource = kernelSource;
-  KernelMap::iterator idx = kernelMap->find(key); // < 1 microsecond
-  if (idx != kernelMap->end()) {
+  KernelMapKey key = std::make_tuple(queue, kernelSource);
+  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
+  if (idx != kernelMap.end()) {
     *kernel = idx->second;
-    //printf("kernel already compiled %p %p\n", kernel, *kernel);
     return;
   }
 
@@ -71,7 +59,6 @@ void tensileGetCompiledOpenCLKernel(
         sizeof(clDevice), &clDevice, NULL);
   tensileStatusCheck(status)
 
-  //printf("building kernel\n");
   cl_program clProgram;
   clProgram = clCreateProgramWithSource(
     clContext,
@@ -91,9 +78,11 @@ void tensileGetCompiledOpenCLKernel(
     printf("%s\n", kernelSource);
 
     size_t len = 0;
-    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &len);
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG,
+        0, NULL, &len);
     char* buildLog = new char[len];
-    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG, len*sizeof(char), buildLog, 0);
+    clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG,
+        len*sizeof(char), buildLog, 0);
     printf("\n\n\nBuild Log:\n\n");
     printf("%s\n", buildLog);
     printf("\n");
@@ -108,7 +97,7 @@ void tensileGetCompiledOpenCLKernel(
   tensileStatusCheck(status)
 
   // put kernel in map
-  (*kernelMap)[key] = *kernel;
+  kernelMap[key] = *kernel;
 }
 #endif
 

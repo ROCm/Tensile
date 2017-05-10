@@ -36,6 +36,7 @@ setup(
   entry_points={"console_scripts": [
     # user runs a benchmark
     "tensile = Tensile.Tensile:main",
+    "tensileBenchmarkLibraryClient = Tensile.TensileBenchmarkLibraryClient:main",
     # CMake calls this to create Tensile.lib
     "TensileCreateLibrary = Tensile.TensileCreateLibrary:TensileCreateLibrary",
     # automatic benchmarking for rocblas

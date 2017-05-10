@@ -25,6 +25,8 @@
 #include <iostream>
 #include <iomanip>
 
+const unsigned int numLibraryCalls = 16;
+
 /*******************************************************************************
  * main
  ******************************************************************************/
@@ -43,6 +45,11 @@ int main( int argc, char *argv[] ) {
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
+  std::cout << "Columns: GFlops, SolName, KernelMs, "
+#if Tensile_CLIENT_LIBRARY
+    << "EnqueueUs, "
+#endif
+    << "Valid/Total, Idx/Total" << std::endl;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
@@ -56,11 +63,14 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_float, &initialA_float, &initialB_float, &alpha_float,
         &beta_float, &referenceC_float, &deviceOnHostC_float);
 #if Tensile_CLIENT_BENCHMARK
-    invalids = benchmarkProblemSizes(initialC_float, initialA_float, initialB_float,
-        alpha_float, beta_float, referenceC_float, deviceOnHostC_float);
+    invalids = benchmarkProblemSizes(initialC_float, initialA_float,
+        initialB_float, alpha_float, beta_float, referenceC_float,
+        deviceOnHostC_float);
 #else
-    invalids = callLibrary(initialC_float, initialA_float, initialB_float, alpha_float,
-        beta_float, referenceC_float, deviceOnHostC_float);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_float, initialA_float, initialB_float,
+          alpha_float, beta_float, referenceC_float, deviceOnHostC_float);
+    }
 #endif
     destroyData(initialC_float, initialA_float, initialB_float,
         referenceC_float, deviceOnHostC_float);
@@ -79,11 +89,14 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_double, &initialA_double, &initialB_double,
         &alpha_double, &beta_double, &referenceC_double, &deviceOnHostC_double);
 #if Tensile_CLIENT_BENCHMARK
-    invalids = benchmarkProblemSizes(initialC_double, initialA_double, initialB_double,
-        alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
+    invalids = benchmarkProblemSizes(initialC_double, initialA_double,
+        initialB_double, alpha_double, beta_double, referenceC_double,
+        deviceOnHostC_double);
 #else
-    invalids = callLibrary(initialC_double, initialA_double, initialB_double,
-        alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_double, initialA_double, initialB_double,
+          alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
+    }
 #endif
     destroyData(initialC_double, initialA_double, initialB_double,
         referenceC_double, deviceOnHostC_double);
@@ -102,11 +115,13 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_TCF, &initialA_TCF, &initialB_TCF, &alpha_TCF,
         &beta_TCF, &referenceC_TCF, &deviceOnHostC_TCF);
 #if Tensile_CLIENT_BENCHMARK
-    invalids = benchmarkProblemSizes(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
-        beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
+    invalids = benchmarkProblemSizes(initialC_TCF, initialA_TCF, initialB_TCF,
+        alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
 #else
-    invalids = callLibrary(initialC_TCF, initialA_TCF, initialB_TCF, alpha_TCF,
-        beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_TCF, initialA_TCF, initialB_TCF,
+          alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
+    }
 #endif
     destroyData(initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
         deviceOnHostC_TCF);
@@ -125,11 +140,13 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
         &beta_TCD, &referenceC_TCD, &deviceOnHostC_TCD);
 #if Tensile_CLIENT_BENCHMARK
-    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
-        beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
+    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD,
+        alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
 #else
-    invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
-        referenceC_TCD, deviceOnHostC_TCD_TCD);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD,
+          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD_TCD);
+    }
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
         deviceOnHostC_TCD);
@@ -148,11 +165,13 @@ int main( int argc, char *argv[] ) {
     initData(&initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
         &beta_TCD, &referenceC_TCD, &deviceOnHostC_TCD);
 #if Tensile_CLIENT_BENCHMARK
-    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD,
-        beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
+    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD,
+        alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
 #else
-    invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD, alpha_TCD, beta_TCD,
-        referenceC_TCD, deviceOnHostC_TCD_TCD);
+    for (unsigned int i = 0; i < numLibraryCalls; i++) {
+      invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD,
+          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD_TCD);
+    }
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
         deviceOnHostC_TCD);
@@ -167,7 +186,8 @@ int main( int argc, char *argv[] ) {
 
   // cleanup
   destroyControls();
-  std::cout << std::endl << "Fastest: " << fastestGFlops << " GFlop/s by (" << fastestIdx << ") ";
+  std::cout << std::endl << "Fastest: " << fastestGFlops << " GFlop/s by ("
+      << fastestIdx << ") ";
 #if Tensile_CLIENT_BENCHMARK
   std::cout << solutionNames[fastestIdx];
 #else
@@ -178,7 +198,8 @@ int main( int argc, char *argv[] ) {
 #if Tensile_CLIENT_BENCHMARK
     printf("\nInvalid Solutions: %u/%u\n", numInvalidSolutions, numSolutions);
     for (unsigned int i = 0; i < numInvalidSolutions; i++) {
-      printf("[%2u] %s\n", invalidSolutions[i], solutionNames[invalidSolutions[i]]);
+      printf("[%2u] %s\n", invalidSolutions[i],
+          solutionNames[invalidSolutions[i]]);
     }
 #endif
     return EXIT_FAILURE;
@@ -215,7 +236,8 @@ void initControls() {
   }
   tensileStatusCheck(status);
   cl_device_id *devices = new cl_device_id[numDevices];
-  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices, NULL);
+  status = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, numDevices, devices,
+      NULL);
   tensileStatusCheck(status);
   device = devices[deviceIdx];
   size_t nameLength;
@@ -229,9 +251,9 @@ void initControls() {
   tensileStatusCheck(status);
 
   if (measureKernelTime) {
-      stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE, &status);
-  }
-  else {
+      stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE,
+          &status);
+  } else {
       stream = clCreateCommandQueue(context, device, 0x0, &status);
   }
   tensileStatusCheck(status);
