@@ -50,7 +50,8 @@ def main( config ):
       "MathTemplates.h",
       "Tools.h",
       "CMakeLists.txt",
-      "TensileConfig.cmake"
+      "TensileConfig.cmake",
+      "TensileConfigVersion.cmake"
       ]
 
   for f in filesToCopy:
