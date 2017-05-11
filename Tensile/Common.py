@@ -23,6 +23,9 @@ import sys
 import inspect
 from __init__ import __version__
 from collections import OrderedDict
+import time
+
+startTime = time.time()
 
 # print level
 # 0 - user wants no printing
@@ -79,6 +82,7 @@ globalParameters["DataInitTypeAB"] = 0 # 0=rand, 1=1, 2=serial, 3=0
 globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
+globalParameters["DeviceLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
 globalParameters["MinimumRequiredVersion"] = "0.0.0"
 
@@ -99,6 +103,7 @@ validParameters = {
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
+    "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
     "GroupShape":                 [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
     "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
     "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
@@ -120,6 +125,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
     {"LdsPad":                    [ 0 ] },
+    {"MaxOccupancy":              [ 10 ] },
     {"VectorWidth":               [ 1 ] }, # =2 once fixed
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },

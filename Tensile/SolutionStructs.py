@@ -904,8 +904,12 @@ class Solution:
     # lds buffer size for reduction
     ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
+    # lds max occupancy
+    ldsSizeOccupancy = globalParameters["DeviceLDS"] / state["MaxOccupancy"]
+    ldsNumElementsOccupancy = ldsSizeOccupancy / state["ProblemType"]["DataType"].numBytes()
+
     # lds size is the greater of the two
-    ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction)
+    ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
     state["LdsNumElements"] = ldsNumElements
     ldsSize = ldsNumElements * state["ProblemType"]["DataType"].numBytes()
     if ldsSize > globalParameters["MaxLDS"]:

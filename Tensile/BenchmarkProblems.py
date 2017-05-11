@@ -26,9 +26,10 @@ from shutil import copy as shutil_copy
 from shutil import rmtree
 import csv
 from subprocess import Popen
+import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
@@ -81,7 +82,9 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     shortName = benchmarkStep.abbreviation()
     print1("\n")
     print1(HR)
-    print1("# BenchmarkStep: %s - %s" % (problemSizeGroupName, stepName))
+    currentTime = time.time()
+    elapsedTime = currentTime - startTime
+    print1("# BenchmarkStep: %s - %s %.3fs" % (problemSizeGroupName, stepName, elapsedTime))
     print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
     print1("# BenchmarkParameters:")
     for paramName in benchmarkStep.benchmarkParameters:
