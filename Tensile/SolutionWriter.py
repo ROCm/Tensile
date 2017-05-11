@@ -81,6 +81,7 @@ class SolutionWriter:
     if not globalParameters["MergeFiles"]:
       solutionName = self.getSolutionName(solution)
       s += "#include \"%s.h\"\n" % solutionName
+      #s += "#include \"MathTemplates.h\"\n"
       s += "\n"
 
     # solution function signature
@@ -110,8 +111,19 @@ class SolutionWriter:
       s += "%s      buildOptions);\n" % (t)
       s += "%s}\n" % (t)
 
+      if solution["GlobalSplitU"] > 1:
+        for beta in solution.getKernelsBetaOnly():
+          kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
+          s += "%scl_kernel kernel_%s;\n" % (t, kernelName)
+          s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
+          s += "%s      &kernel_%s,\n" % (t, kernelName)
+          s += "%s      %s_src,\n" % (t, kernelName)
+          s += "%s      stream,\n" % (t)
+          s += "%s      buildOptions);\n" % (t)
+
     else:
       pass
+    typeName = solution["ProblemType"]["DataType"].toCpp()
 
     # index assignments
     s += "\n%s/* index assignments */\n" % (t)
@@ -159,6 +171,8 @@ class SolutionWriter:
     s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
     s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
     s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    if solution["GlobalSplitU"] > 1:
+      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
 
     s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.language == "OCL" else "")
     s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.language == "OCL" else "")
@@ -195,13 +209,142 @@ class SolutionWriter:
     s += "%sTensileStatus status;\n" % (t)
     s += "\n"
 
+    # Beta-Only kernel
+    if solution["GlobalSplitU"] > 1:
+      kernelNamesBetaOnly = []
+      numStridesC = solution["ProblemType"]["NumIndicesC"] - \
+          1 if solution["ProblemType"]["UseInitialStrides"] else 1
+      for beta in solution.getKernelsBetaOnly():
+        kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
+        kernelNamesBetaOnly.append(kernelName)
+      s += "%s// enqueue Beta-Only kernel\n" % (t)
+
+      # grid sizes
+      s += "%ssize_t localWorkSizeBetaOnly[3] = { 8, 8, 1};\n" % (t)
+      s += "%ssize_t globalWorkSizeBetaOnly[3];\n" % (t)
+      #s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
+      #    self.indexChars[solution["ProblemType"]["Index0"]])
+      #s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
+      #    self.indexChars[solution["ProblemType"]["Index1"]])
+      s += "%ssize_t totalWorkGroupsBetaOnly0 = sizeOfC0 / localWorkSizeBetaOnly[0];\n" % (t)
+      s += "%ssize_t totalWorkGroupsBetaOnly1 = sizeOfC1 / localWorkSizeBetaOnly[1];\n" % (t)
+      s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
+      s += "%sif (totalWorkGroupsBetaOnly0*localWorkSizeBetaOnly[0] < sizeOfC0) { totalWorkGroupsBetaOnly0++; }\n" % (t)
+      s += "%sif (totalWorkGroupsBetaOnly1*localWorkSizeBetaOnly[1] < sizeOfC1) { totalWorkGroupsBetaOnly1++; }\n" % (t)
+      s += "%sglobalWorkSizeBetaOnly[0] = totalWorkGroupsBetaOnly0%s;\n" % (t, "*localWorkSizeBetaOnly[0]" if self.language == "OCL" else "")
+      s += "%sglobalWorkSizeBetaOnly[1] = totalWorkGroupsBetaOnly1%s;\n" % (t, "*localWorkSizeBetaOnly[1]" if self.language == "OCL" else "")
+      s += "%sglobalWorkSizeBetaOnly[2] = 1;\n" % (t)
+      for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+        if i != solution["ProblemType"]["Index0"] and i != solution["ProblemType"]["Index1"]:
+          s += "%sglobalWorkSizeBetaOnly[2] *= size%s;\n" % (t, self.indexChars[i])
+
+      if solution["ProblemType"]["UseBeta"]:
+        s += "%sbool betaZero = beta == 0;\n" % (t)
+      if self.language == "OCL":
+        if solution["ProblemType"]["UseBeta"]:
+          s += "%scl_kernel kernelBetaOnly = betaZero ? kernel_%s : kernel_%s;\n" \
+              % (t, kernelNamesBetaOnly[0], kernelNamesBetaOnly[1])
+        else:
+          #s += "%sbool betaZero = true;\n" % (t)
+          s += "%scl_kernel kernelBetaOnly = kernel_%s;\n" \
+              % (t, kernelNamesBetaOnly[0])
+        argIdx = 0
+        s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, argIdx); argIdx+=1
+        s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &offsetC ); tensileStatusCheck(status);\n" % (t, argIdx); argIdx+=1
+        # strides
+        for i in range(0,numStridesC):
+          s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.strideList[i]); argIdx+=1
+        # sizes
+        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+          s += "%sstatus = clSetKernelArg( kernelBetaOnly, %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[i]); argIdx+=1
+        # beta
+        if solution["ProblemType"]["UseBeta"]:
+          s += "%sif (!betaZero) {\n" % (t)
+          s += "%s  status = clSetKernelArg( kernelBetaOnly, %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, argIdx, typeName); argIdx+=1
+          s += "%s}\n" % (t)
+        # enqueue
+        """
+        s += "printf(\"%u\\\\n\", globalWorkSizeBetaOnly[0]);\n"
+        s += "printf(\"%u\\\\n\", globalWorkSizeBetaOnly[1]);\n"
+        s += "printf(\"%u\\\\n\", globalWorkSizeBetaOnly[2]);\n"
+        s += "printf(\"%u\\\\n\", localWorkSizeBetaOnly[0]);\n"
+        s += "printf(\"%u\\\\n\", localWorkSizeBetaOnly[1]);\n"
+        s += "printf(\"%u\\\\n\", localWorkSizeBetaOnly[2]);\n"
+        """
+        s += "%scl_event kernelEventBetaOnly;\n" % (t)
+        s += "%sstatus = clEnqueueNDRangeKernel(\n" % (t)
+        t += "  "
+        s += "%sstream,\n" % (t)
+        s += "%skernelBetaOnly,\n" % (t)
+        s += "%sworkDim,\n" % (t)
+        s += "%sNULL, // globalWorkOffset\n" % (t)
+        s += "%sglobalWorkSizeBetaOnly,\n" % (t)
+        s += "%slocalWorkSizeBetaOnly,\n" % (t)
+        s += "%snumInputEvents,\n" % (t)
+        s += "%sinputEvents,\n" % (t)
+        #s += "%soutputEvent );\n" % (t)
+        s += "%s&kernelEventBetaOnly );\n" % (t)
+        t = t[2:]
+        s += "%stensileStatusCheck(status);\n" % (t)
+        if solution["ProblemType"]["UseBeta"]:
+          s += "%sbeta = %s;\n" % (t, solution["ProblemType"]["DataType"].zeroString(self.language, 1) )
+        #s += "%sreturn tensileStatusSuccess;\n" % (t)
+        s += "%sstatus = clFinish(stream);\n" % (t)
+        s += "%stensileStatusCheck(status);\n" % (t)
+        #s += " float tmp[128*128];\n"
+        #s += "clEnqueueReadBuffer(stream, dataC, CL_TRUE, 0, 128*128*sizeof(float), tmp, 0, NULL, NULL);\n"
+        #s += "for (unsigned int i = 0; i < 128*128; i++) { printf(\"%f\\n\", tmp[i]); }\n"
+
+
+      else:
+        s += "%sif( inputEvents != NULL )\n" % (t)
+        s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+        if solution["ProblemType"]["UseBeta"]:
+          s += "%sif (betaZero) {\n" % (t)
+          t += "  "
+        s += "%shipLaunchKernel(\n" % (t)
+        t += "  "
+        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
+        s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
+        s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
+        s += "%s0, // groupMemBytes\n" % (t)
+        s += "%sstream,\n" % (t)
+        s += "%sdataC,\n" % (t)
+        s += "%soffsetC,\n" % (t)
+        # strides
+        for i in range(0,numStridesC):
+          s += "%s%s,\n" % (t, self.strideList[i])
+        # sizes
+        for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < solution["ProblemType"]["NumIndicesC"]-1 else ");\n")
+
+        if solution["ProblemType"]["UseBeta"]:
+          s += "%s} else {\n" % (t)
+          s += "%shipLaunchKernel(\n" % (t)
+          t += "  "
+          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
+          s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
+          s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
+          s += "%s0, // groupMemBytes\n" % (t)
+          s += "%sstream,\n" % (t)
+          s += "%sdataC,\n" % (t)
+          s += "%soffsetC,\n" % (t)
+          # strides
+          for i in range(0,numStridesC):
+            s += "%s%s,\n" % (t, self.strideList[i])
+          # sizes
+          for i in range(0, solution["ProblemType"]["NumIndicesC"]):
+            s += "%ssize%s,\n" % (t, self.indexChars[i])
+          s += "%sbeta);\n" % (t)
+        s += "%s}\n" % (t)
+
+
     #enqueue the kernels
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
       kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)
-      typeName = solution["ProblemType"]["DataType"].toCpp()
       if self.language == "OCL":
         # set kernel args same for all enqueues
         s += "%s// kernel args same for all enqueues\n" % (t)
@@ -265,8 +408,12 @@ class SolutionWriter:
         s += "%sNULL, // globalWorkOffset\n" % (t)
         s += "%sglobalWorkSize[kernelIdx],\n" % (t)
         s += "%slocalWorkSize,\n" % (t)
-        s += "%snumInputEvents,\n" % (t)
-        s += "%sinputEvents,\n" % (t)
+        if False: # solution["GlobalSplitU"] > 1:
+          s += "%s1,\n" % (t)
+          s += "%s&kernelEventBetaOnly,\n" % (t)
+        else:
+          s += "%snumInputEvents,\n" % (t)
+          s += "%sinputEvents,\n" % (t)
         s += "%soutputEvent );\n" % (t)
         s += "%stensileStatusCheck(status);\n" % (t)
 
@@ -332,6 +479,10 @@ class SolutionWriter:
         if kernel != None:
           kernelName = self.kernelWriter.getKernelName(kernel)
           s += "#include \"" + kernelName + ".h\"\n"
+      for kernel in solution.getKernelsBeta():
+        kernelName = self.kernelWriter.getKernelNameBetaOnly(kernel)
+        s += "#include \"" + kernelName + ".h\"\n"
+
       s += "\n"
 
     # function declaration

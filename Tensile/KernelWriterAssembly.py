@@ -175,7 +175,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
     kStr += "#define SPLITU %d%s" \
-        % (kernel["IntraSplitU"], self.endLine )
+        % (kernel["LocalSplitU"], self.endLine )
     kStr += "#define UNROLL %d%s" \
         % (kernel["LoopUnroll"], self.endLine )
     kStr += "#define DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
@@ -1925,16 +1925,16 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # IntraSplitU: Local Write
+  # LocalSplitU: Local Write
   ##############################################################################
-  def splitULocalWrite(self, kernel):
+  def localSplitULocalWrite(self, kernel):
     kStr = ""
-    kStr += "  %sVECTOR_TYPE *localIntraSplitU = (%sVECTOR_TYPE *)(localMemory);%s" \
+    kStr += "  %sVECTOR_TYPE *localLocalSplitU = (%sVECTOR_TYPE *)(localMemory);%s" \
         % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
     for j in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "%slocalIntraSplitU[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s];%s" \
+          kStr += "%slocalLocalSplitU[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s];%s" \
               % (self.indent, self.tileChar0, i, self.tileChar0, \
               self.tileChar0, self.tileChar1, \
               s, self.tileChar1, j, self.tileChar0, self.tileChar1, i, s, \
@@ -1943,39 +1943,39 @@ class KernelWriterAssembly(KernelWriter):
     """
     kStr += "    /* print Local state */" + self.endLine
     kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*SPLITU; i+=NUM_THREADS) {%s" % self.endLine
-    kStr += "      printf(\\\"localIntraSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, localIntraSplitU[i], localIntraSplitU[i]);%s" \
+    kStr += "      printf(\\\"localLocalSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, localLocalSplitU[i], localLocalSplitU[i]);%s" \
         % self.endLine
     kStr += "    }" + self.endLine
     """
     return kStr
 
   ##############################################################################
-  # IntraSplitU: Local Read
+  # LocalSplitU: Local Read
   ##############################################################################
-  def splitULocalRead(self, kernel):
+  def localSplitULocalRead(self, kernel):
     kStr = ""
     for i in range(0, kernel["NumVectorsPerThread"]):
-      kStr += "  rC[%3u] = localIntraSplitU[serial+%u*NUM_THREADS];%s" \
+      kStr += "  rC[%3u] = localLocalSplitU[serial+%u*NUM_THREADS];%s" \
           % (i, i, self.endLine)
     kStr += self.endLine
     return kStr
 
   ##############################################################################
-  # IntraSplitU: Reduction
+  # LocalSplitU: Reduction
   ##############################################################################
-  def splitUReduction(self, kernel):
+  def localSplitUReduction(self, kernel):
     kStr = ""
-    for s in range(1, kernel["IntraSplitU"]):
+    for s in range(1, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumVectorsPerThread"]):
-        kStr += "  rC[%3u] += localIntraSplitU[serial+%u*NUM_THREADS + %u*(MT%s*MT%s/VECTOR_WIDTH)];%s" \
+        kStr += "  rC[%3u] += localLocalSplitU[serial+%u*NUM_THREADS + %u*(MT%s*MT%s/VECTOR_WIDTH)];%s" \
             % (i, i, s, self.tileChar0, self.tileChar1, self.endLine)
       kStr += self.endLine
     return kStr
 
   ##############################################################################
-  # IntraSplitU: Global Write Indices
+  # LocalSplitU: Global Write Indices
   ##############################################################################
-  def splitUGlobalWriteIndices(self, kernel):
+  def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
     kStr += "  unsigned int localC%s = (serial %% (MT%s/VECTOR_WIDTH))*VECTOR_WIDTH;%s" \
         % (self.tileChar0, self.tileChar0, self.endLine)
@@ -1994,9 +1994,9 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # IntraSplitU: Global Write
+  # LocalSplitU: Global Write
   ##############################################################################
-  def splitUGlobalWrite(self, kernel):
+  def localSplitUGlobalWrite(self, kernel):
     kStr = ""
     if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
       kStr += "  float type_mac_tmp;" + self.endLine
@@ -2038,9 +2038,9 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Not IntraSplitU: Global Write Indices
+  # Not LocalSplitU: Global Write Indices
   ##############################################################################
-  def notIntraSplitUGlobalWriteIndices(self, kernel):
+  def notLocalSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC" + self.indexChars[i] \
@@ -2055,9 +2055,9 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Not IntraSplitU: Global Write
+  # Not LocalSplitU: Global Write
   ##############################################################################
-  def notIntraSplitUGlobalWrite(self, kernel):
+  def notLocalSplitUGlobalWrite(self, kernel):
     kStr = ""
     for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):

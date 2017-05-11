@@ -24,7 +24,7 @@
 parallel rocm_fiji: {
 
   currentBuild.result = "SUCCESS"
-  node('rocm-artifactory && fiji')
+  node('rocm-1.5&& fiji')
   {
     def scm_dir = pwd()
     def build_dir_debug = "${scm_dir}/test/debug"

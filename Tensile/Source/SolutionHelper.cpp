@@ -26,7 +26,7 @@
 #ifdef WIN32
 __declspec(thread) KernelMap kernelMap;
 #else
-__thread KernelMap kernelMap;
+thread_local KernelMap kernelMap;
 #endif
 #endif
 

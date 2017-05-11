@@ -18,7 +18,8 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import globalParameters, print1, print2, printExit, printWarning
+from Common import globalParameters, print1, print2, printExit, printWarning, \
+    versionIsCompatible
 from SolutionStructs import Solution, ProblemSizes, ProblemType
 from __init__ import __version__
 
@@ -60,7 +61,7 @@ def writeSolutions( filename, problemSizes, solutions ):
     stream = open(filename, "w")
   except IOError:
     printExit("Cannot open file: %s" % filename)
-  stream.write("- %s\n" % __version__ )
+  stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
   stream.write("- ProblemSizes: %s\n" % str(problemSizes))
   yaml.dump(solutionStates, stream, default_flow_style=False)
   stream.close()
@@ -80,10 +81,10 @@ def readSolutions( filename ):
   # verify
   if len(solutionStates) < 2:
     printExit("len(%s) %u < 2" % (filename, len(solutionStates)))
-  version = solutionStates[0]
-  if version != __version__:
-    printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
-        % (filename, version, __version__) )
+  versionString = solutionStates[0]["MinimumRequiredVersion"]
+  if not versionIsCompatible(versionString):
+    printWarning("File \"%s\" version=%s does not match current Tensile version=%s" \
+        % (filename, versionString, __version__) )
 
   if "ProblemSizes" not in solutionStates[1]:
     printExit("%s doesn't begin with ProblemSizes" % filename)
@@ -117,7 +118,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
 
   data = []
   # Tensile version
-  data.append(__version__)
+  data.append({"MinimumRequiredVersion":__version__})
   # schedule name
   data.append(schedulePrefix)
   # schedule device names
@@ -149,6 +150,9 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   except IOError:
     printExit("Cannot open file: %s" % filename)
 
+################################################################################
+# Read Library Logic from YAML
+################################################################################
 def readLibraryLogicForSchedule( filename ):
   print1("# Reading Library Logic: %s" % ( filename ))
   try:
@@ -163,7 +167,7 @@ def readLibraryLogicForSchedule( filename ):
     printExit("len(%s) %u < 7" % (filename, len(data)))
 
   # parse out objects
-  version           = data[0]
+  version           = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
   deviceNames       = data[2]
   problemTypeState  = data[3]

@@ -42,8 +42,10 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  kernelNames = []
+  #kernelNames = []
   kernels = []
+  kernelsBetaOnly = []
+  #kernelNamesBetaOnly = []
 
   ##############################################################################
   # Min Naming
@@ -53,6 +55,10 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
+    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
+    for kernel in solutionKernelsBetaOnly:
+      if kernel not in kernelsBetaOnly:
+        kernelsBetaOnly.append(kernel)
 
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
     solutionSerialNaming = Solution.getSerialNaming(solutions)
@@ -72,6 +78,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     solutionHeaderFile = open(os.path.join(outputPath, \
         "Solutions.h"), "w")
     solutionSourceFile.write("#include \"Solutions.h\"\n")
+    #solutionSourceFile.write("#include \"MathTemplates.h\"\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
@@ -123,6 +130,8 @@ def writeSolutionsAndKernels(outputPath, solutions, \
       kernelHeaderFile.write("#include <hip/hip_fp16.h>\n")
     else:
       kernelHeaderFile.write("#include <string>\n")
+
+  # tensor contraction kernels
   for kernel in kernels:
     # get kernel name
     if not globalParameters["MergeFiles"]:
@@ -130,7 +139,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
         kernelName = Solution.getNameSerial(kernel, kernelSerialNaming)
       else:
         kernelName = Solution.getNameMin(kernel, kernelMinNaming)
-      kernelNames.append(kernelName)
+      #kernelNames.append(kernelName)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -149,6 +158,31 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
+
+  # beta-only kernels
+  for kernel in kernelsBetaOnly:
+    # get kernel name
+    kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
+    #kernelNamesBetaOnly.append(kernelName)
+
+    # write kernel.cpp
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".cpp"), "w")
+    kernelSourceFile.write(CHeader)
+    kernelSourceFile.write( kernelWriter.getSourceFileStringBetaOnly(kernel))
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
+
+    # write kernel.h
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName + ".h"), "w")
+    kernelHeaderFile.write(CHeader)
+    kernelHeaderFile.write( kernelWriter.getHeaderFileStringBetaOnly(kernel))
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
+
   # close merged
   if globalParameters["MergeFiles"]:
     kernelHeaderFile.close()

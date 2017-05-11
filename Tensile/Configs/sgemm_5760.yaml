@@ -1,12 +1,13 @@
 # benchmark fastest kernels for the 5760 size
 GlobalParameters:
+  MinimumRequiredVersion: 3.0.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
+  SyncsPerBenchmark: 2
   LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 4
@@ -34,7 +35,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -68,7 +69,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -102,7 +103,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -136,7 +137,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [-1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]

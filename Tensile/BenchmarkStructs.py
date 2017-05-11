@@ -422,8 +422,8 @@ class BenchmarkProcess:
             threadTileNumElementsValues = getParamValues("ThreadTileNumElements", paramList)
           if hasParam("ThreadTileShape", paramList):
             threadTileShapeValues = getParamValues("ThreadTileShape", paramList)
-          if hasParam("SplitU", paramList):
-            splitUValues = getParamValues("SplitU", paramList)
+          if hasParam("LocalSplitU", paramList):
+            splitUValues = getParamValues("LocalSplitU", paramList)
         macroTilePermutations = len(numThreadsValues) \
             * len(groupShapeValues) * len(threadTileNumElementsValues) \
             * len(threadTileShapeValues) * len(splitUValues)

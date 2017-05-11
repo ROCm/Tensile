@@ -21,7 +21,11 @@
 import os.path
 import sys
 import inspect
+from __init__ import __version__
 from collections import OrderedDict
+import time
+
+startTime = time.time()
 
 # print level
 # 0 - user wants no printing
@@ -74,10 +78,13 @@ globalParameters["MergeFiles"] = True
 globalParameters["NumElementsToValidate"] = 128
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitType"] = 0 # 0=rand, 1=1, 2=serial
+globalParameters["DataInitTypeAB"] = 0 # 0=rand, 1=1, 2=serial, 3=0
+globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
+globalParameters["DeviceLDS"] = 32768
 globalParameters["MaxMacroTileRatio"] = 4
+globalParameters["MinimumRequiredVersion"] = "0.0.0"
 
 ################################################################################
 # Default Benchmark Parameters
@@ -92,16 +99,19 @@ validParameters = {
     "PrefetchGlobalRead":         [ False, True ],
     "PrefetchLocalRead":          [ False, True ],
     "UnrollMemFence":             [ False, True ],
+    "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
+    "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
+    "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
     "GroupShape":                 [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
     "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
     "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
-    "IntraSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
-    "InterSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
+    "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
+    "GlobalSplitU":               [ 1, 2, 4, 8, 16, 32, 64 ],
     "NumThreads":                 [ 64, 128, 256 ],
     "VectorWidth":                [ -1, 1, 2, 4 ],
     "LdsPad":                     [ 0, 1 ],
@@ -115,6 +125,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
     {"LdsPad":                    [ 0 ] },
+    {"MaxOccupancy":              [ 10 ] },
     {"VectorWidth":               [ 1 ] }, # =2 once fixed
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
@@ -127,8 +138,10 @@ defaultBenchmarkCommonParameters = [
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
     {"ThreadTileShape":           [ 0 ] },
-    {"IntraSplitU":               [ 1 ] },
-    {"InterSplitU":               [ 1 ] },
+    {"LocalSplitU":               [ 1 ] },
+    {"GlobalSplitU":              [ 1 ] },
+    {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
+    {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
@@ -267,6 +280,11 @@ def printExit(message):
 def assignGlobalParameters( config ):
   global globalParameters
 
+  if "MinimumRequiredVersion" in config:
+    if not versionIsCompatible(config["MinimumRequiredVersion"]):
+      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+          % (config["MinimumRequiredVersion"], __version__) )
+
   print2("GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
@@ -317,6 +335,24 @@ def ensurePath( path ):
   if not os.path.exists(path):
     os.makedirs(path)
 
+################################################################################
+# Is query version compatible with current version
+################################################################################
+def versionIsCompatible(queryVersionString):
+  (qMajor, qMinor, qPatch) = queryVersionString.split(".")
+  (tMajor, tMinor, tPatch) = __version__.split(".")
+
+  # major version must match exactly
+  if qMajor != tMajor:
+    return False
+
+  # minor.patch version must be >=
+  if qMinor > tMinor:
+    return False
+  if qMinor == tMinor:
+    if qPatch > tPatch:
+      return False
+  return True
 
 # TODO
 CMakeHeader = "# Header\n\n"

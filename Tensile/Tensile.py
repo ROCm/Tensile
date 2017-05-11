@@ -23,7 +23,8 @@ import os
 import sys
 import argparse
 
-from Common import globalParameters, print1, ensurePath, assignGlobalParameters
+from Common import globalParameters, print1, ensurePath, \
+    assignGlobalParameters, HR
 import YAMLIO
 import BenchmarkProblems
 import LibraryLogic
@@ -88,6 +89,13 @@ def executeStepsInConfig( config ):
 # Tensile - below entry points call here
 ################################################################################
 def Tensile(userArgs):
+  print1("")
+  print1(HR)
+  print1("#")
+  print1("#  Tensile v%s" % (__version__) )
+  print1("#")
+  print1(HR)
+  print1("")
 
   # setup argument parser
   argParser = argparse.ArgumentParser()
