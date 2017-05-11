@@ -6,7 +6,7 @@ GlobalParameters:
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 8
+  SyncsPerBenchmark: 2
   LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 4
@@ -15,7 +15,6 @@ GlobalParameters:
   MergeFiles: True
   Platform: 0
   Device: 0
-  DataInitType: 0
   KernelTime: True
   MaxMacroTileRatio: 2
 
@@ -47,7 +46,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [8, 16, 32 ]
-        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
+        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -84,7 +83,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [8, 16, 32 ]
-        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
+        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -121,7 +120,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [8, 16, 32 ]
-        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
+        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -159,7 +158,7 @@ BenchmarkProblems:
         - PrefetchLocalRead: [False, True]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [8, 16, 32 ]
-        - IntraSplitU: [ 1, 2, 4, 8, 16 ]
+        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:

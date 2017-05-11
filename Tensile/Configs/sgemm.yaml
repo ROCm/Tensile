@@ -6,7 +6,7 @@ GlobalParameters:
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
+  SyncsPerBenchmark: 2
   LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 4
@@ -15,7 +15,6 @@ GlobalParameters:
   MergeFiles: True
   Platform: 0
   Device: 0
-  DataInitType: 0
   KernelTime: True
 
 BenchmarkProblems:
@@ -32,7 +31,7 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes: [ [512], [512], [512] ]
-        - IntraSplitU: [ 1 ]
+        - LocalSplitU: [ 1 ]
         - EdgeType: ["Branch"]
         - WorkGroupMapping: [ 1 ]
         - LoopDoWhile: [False]

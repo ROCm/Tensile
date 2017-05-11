@@ -7,7 +7,7 @@ GlobalParameters:
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
+  SyncsPerBenchmark: 2
   LibraryPrintDebug: False
   NumElementsToValidate: 128
   ValidationMaxToPrint: 4
@@ -35,7 +35,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -69,7 +69,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -103,7 +103,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
@@ -137,7 +137,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [-1]
-        - IntraSplitU: [1]
+        - LocalSplitU: [1]
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]

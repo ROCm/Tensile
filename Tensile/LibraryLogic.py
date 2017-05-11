@@ -187,6 +187,7 @@ class LogicAnalyzer:
       unifiedProblemSizes.append(set())
     for problemSizes in problemSizesList:
       sizedIdx = 0
+      mappedIdx = 0
       for i in range(0, self.numIndices):
         if problemSizes.indexIsSized[i]:
           index = problemSizes.indicesSized[sizedIdx]
@@ -194,6 +195,7 @@ class LogicAnalyzer:
         else:
           index = problemSizes.indicesSized[ \
             problemSizes.indicesMapped[mappedIdx]]
+          mappedIdx += 1
         currentSize = index[0]
         currentStride = index[1]
         while currentSize <= index[3]:

@@ -31,7 +31,7 @@ BenchmarkProblems:
         - ThreadTileShape: [0, 2]
         - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
         - DepthU: [ 16 ]
-        - IntraSplitU: [ 1, 2, 4, 8 ]
+        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
@@ -62,7 +62,7 @@ BenchmarkProblems:
         - ThreadTileShape: [0, 2]
         - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
         - DepthU: [ 16 ]
-        - IntraSplitU: [ 1, 2, 4, 8 ]
+        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
@@ -92,7 +92,7 @@ BenchmarkProblems:
         - ThreadTileShape: [0, -2]
         - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
         - DepthU: [ 16 ]
-        - IntraSplitU: [ 1, 2, 4, 8 ]
+        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 
@@ -122,7 +122,7 @@ BenchmarkProblems:
         - ThreadTileShape: [0, -2]
         - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
         - DepthU: [ 16 ]
-        - IntraSplitU: [ 1, 2, 4, 8 ]
+        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
 

@@ -81,7 +81,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     shortName = benchmarkStep.abbreviation()
     print1("\n")
     print1(HR)
-    print1("# %s\n# %s" % (problemSizeGroupName, stepName))
+    print1("# BenchmarkStep: %s - %s" % (problemSizeGroupName, stepName))
     print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
     print1("# BenchmarkParameters:")
     for paramName in benchmarkStep.benchmarkParameters:
@@ -176,7 +176,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
         solution.update(benchmarkPermutation)
         solution.update(hardcodedParamDict)
-	if benchmarkStepIdx > 0:
+        if benchmarkStepIdx > 0:
           winningParameters = winners[hardcodedParamDict]
           if winningParameters == None:
             # this is a joined parameter that didn't have a winner, that's okay
