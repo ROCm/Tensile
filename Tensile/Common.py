@@ -201,10 +201,9 @@ defaultBenchmarkFinalProblemSizes = [
 defaultAnalysisParameters = {
     "ScheduleName":       "Default",
     "DeviceNames":  ["Unspecified"],
-    "InitialSolutionWindow":      1,
     "BranchPenalty":              0, # microseconds / kernel
     "SmoothOutliers":         False, # enforce monotonic data
-    "SolutionImportanceMin":   0.01, # = 1%
+    "SolutionImportanceMin":      0, # = keep all solutions 0.01=1% of wins
     }
 
 

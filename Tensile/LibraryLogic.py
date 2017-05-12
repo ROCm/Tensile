@@ -275,7 +275,7 @@ class LogicAnalyzer:
       dataFileName = dataFileNameList[fileIdx]
       self.addFromCSV(dataFileName, self.numSolutionsPerGroup[fileIdx], \
           self.solutionGroupMap[fileIdx])
-    print self.data
+    #print self.data
 
 
   ##############################################################################
@@ -362,6 +362,8 @@ class LogicAnalyzer:
       (lisIdx, lisPercSaved, lisPercWins, lisPercExec) \
           = self.leastImportantSolution()
       if lisPercSaved < self.parameters["SolutionImportanceMin"]:
+        print1("# Removing Unimportant Solution: %u %s" \
+            % (lisIdx, self.solutionNames[lisIdx]) )
         self.removeSolution(lisIdx)
         continue
       else:
@@ -472,6 +474,8 @@ class LogicAnalyzer:
       # this is last index, so just return fastest solution
       if isLastIndex:
         winnerIdx = self.winnerForRange(currentIndexRange)
+        if winnerIdx < 0:
+          return None
         ruleList.append([-1, winnerIdx])
         if globalParameters["PrintLevel"] == 1:
           stdout.write("%")
@@ -481,7 +485,10 @@ class LogicAnalyzer:
       else:
         #print2("%sreturning early enRule(%s)" \
         #    % (tab, nextIndexRange) )
-        rule = [ -1, self.enRule(nextIndexIndex, nextIndexRange) ]
+        nextRule = self.enRule(nextIndexIndex, nextIndexRange)
+        if nextRule == None:
+          return None
+        rule = [ -1, nextRule ]
         ruleList.append(rule)
         if globalParameters["PrintLevel"] == 1:
           stdout.write("%")
@@ -504,10 +511,24 @@ class LogicAnalyzer:
           initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
           if winnerIdx >= 0:
             break
+          # print initial winner
+        if winnerIdx < 0:
+          return None
+        """
+        print2("Winner@ %u, %u, %u, %u is S[%u]: %s" % ( \
+            self.problemIndexToSize[0][nextIndexRange[0][0]], \
+            self.problemIndexToSize[1][nextIndexRange[1][0]], \
+            self.problemIndexToSize[2][nextIndexRange[2][0]], \
+            self.problemIndexToSize[3][nextIndexRange[3][0]], \
+            winnerIdx, \
+            self.solutionNames[winnerIdx] ) )
+        """
       else:
         #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
-        initialRule = [ currentIndexRange[currentIndex][0], \
-            self.enRule(nextIndexIndex, nextIndexRange) ]
+        nextRule = self.enRule(nextIndexIndex, nextIndexRange)
+        if nextRule == None:
+          return None
+        initialRule = [ currentIndexRange[currentIndex][0], nextRule ]
         #print2("%sinitialRule(%s) DONE" % (tab, nextIndexRange))
       ruleList.append(initialRule)
       if globalParameters["PrintLevel"] == 1:
@@ -527,7 +548,7 @@ class LogicAnalyzer:
         if isLastIndex:
           winnerIdx = self.winnerForRange(nextIndexRange)
           # if so solutions benchmarked for this problem size, continue
-          if winnerIdx >= 0:
+          if winnerIdx < 0:
             ruleList[len(ruleList)-1][0] = problemIndex
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
@@ -535,8 +556,13 @@ class LogicAnalyzer:
           else:
             candidateRule = [ problemIndex, winnerIdx]
         else:
-          candidateRule = [ problemIndex, self.enRule(nextIndexIndex, \
-              nextIndexRange) ]
+          nextRule = self.enRule(nextIndexIndex, nextIndexRange)
+          if nextRule == None:
+            ruleList[len(ruleList)-1][0] = problemIndex
+            if globalParameters["PrintLevel"] == 1:
+              stdout.write(" ")
+            continue
+          candidateRule = [ problemIndex, nextRule ]
 
         ########################################
         # candidate same as prior
