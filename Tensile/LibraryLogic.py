@@ -46,7 +46,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     dataFileNameList.append(dataFileName)
     solutionsFileName = problemSizeGroup[2]
     #print "  problemSizes:", problemSizes
-    #print "  dataFileName:", dataFileName
+    print "# DataFileName:", dataFileName
     #print "  solutionsFileName:", solutionsFileName
 
     ######################################
@@ -167,8 +167,9 @@ class LogicAnalyzer:
         solution = solutionGroup[solutionIdx]
         if solution not in self.solutions:
           self.solutions.append(solution)
-      sIdx = self.solutions.index(solution)
-      self.solutionGroupMap[solutionGroupIdx][solutionIdx] = sIdx
+        sIdx = self.solutions.index(solution)
+        self.solutionGroupMap[solutionGroupIdx][solutionIdx] = sIdx
+    # print "SolutionGroupMap", self.solutionGroupMap
     self.numSolutions = len(self.solutions)
     self.solutionMinNaming = Solution.getMinNaming(self.solutions)
     self.solutionNames = []
@@ -321,7 +322,7 @@ class LogicAnalyzer:
         solutionIdx = 0
         for i in range(solutionStartIdx, rowLength):
           gflops = float(row[i])
-          self.data[serialIdx+solutionIdx] = gflops
+          self.data[serialIdx+solutionMap[solutionIdx]] = gflops
           solutionIdx += 1
     if rowIdx < 2:
       printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
@@ -498,6 +499,7 @@ class LogicAnalyzer:
       nextIndexRange[currentIndex][1] = initialSize
       if isLastIndex:
         winnerIdx = self.winnerForRange(nextIndexRange)
+        print winnerIdx
         initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
       else:
         #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
@@ -550,6 +552,7 @@ class LogicAnalyzer:
           # score candidate
           candidateRuleScore = self.scoreRangeForLogic(nextIndexRange, \
               [candidateRule])
+          #print "CRS", candidateRuleScore
           logicComplexity = [0]*self.numIndices
           self.scoreLogicComplexity( \
               [candidateRule], logicComplexity)
@@ -822,8 +825,11 @@ class LogicAnalyzer:
       totalFlops = self.totalFlopsForProblemIndices(problemIndices)
       solutionIdx = self.getSolutionForProblemIndicesUsingLogic( \
           problemIndices, logic)
-      gflops = self.data[problemSerial + solutionIdx]
-      timeUs = totalFlops / gflops / 1000
+      gflops = max(0, self.data[problemSerial + solutionIdx])
+      if gflops == 0:
+        timeUs = 1E6
+      else:
+        timeUs = totalFlops / gflops / 1000
       score += timeUs
     return score
 
@@ -869,6 +875,7 @@ class LogicAnalyzer:
       if solutionGFlops > winnerGFlops:
         winnerIdx = solutionIdx
         winnerGFlops = solutionGFlops
+    # print "Winner %u %f" % (winnerIdx, winnerGFlops)
     return (winnerIdx, winnerGFlops)
 
 
@@ -1063,7 +1070,9 @@ def main(  config ):
   problemTypes = {}
   if not os.path.exists(benchmarkDataPath):
     printExit("Path doesn't exist: %s" % benchmarkDataPath)
-  for fileName in os.listdir(benchmarkDataPath):
+  fileNames = os.listdir(benchmarkDataPath)
+  fileNames = sorted(fileNames)
+  for fileName in fileNames:
     if os.path.splitext(fileName)[1] == ".csv":
       fileBase = os.path.splitext( \
           os.path.join(benchmarkDataPath, \

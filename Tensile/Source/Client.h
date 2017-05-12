@@ -607,7 +607,7 @@ bool benchmarkProblemSizes(
   }
   std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
-  file << "Milliseconds ";
+  file << "GFlops";
   for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     file << ", Size" << indexChars[i];
   }
