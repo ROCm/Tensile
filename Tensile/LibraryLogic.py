@@ -46,7 +46,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     dataFileNameList.append(dataFileName)
     solutionsFileName = problemSizeGroup[2]
     #print "  problemSizes:", problemSizes
-    print "# DataFileName:", dataFileName
+    #print "# DataFileName:", dataFileName
     #print "  solutionsFileName:", solutionsFileName
 
     ######################################
@@ -275,7 +275,7 @@ class LogicAnalyzer:
       dataFileName = dataFileNameList[fileIdx]
       self.addFromCSV(dataFileName, self.numSolutionsPerGroup[fileIdx], \
           self.solutionGroupMap[fileIdx])
-    #print self.data
+    print self.data
 
 
   ##############################################################################
@@ -474,7 +474,7 @@ class LogicAnalyzer:
         winnerIdx = self.winnerForRange(currentIndexRange)
         ruleList.append([-1, winnerIdx])
         if globalParameters["PrintLevel"] == 1:
-          stdout.write("#")
+          stdout.write("%")
 
       ########################################
       # this isn't last index, so just recursively return next index
@@ -484,23 +484,26 @@ class LogicAnalyzer:
         rule = [ -1, self.enRule(nextIndexIndex, nextIndexRange) ]
         ruleList.append(rule)
         if globalParameters["PrintLevel"] == 1:
-          stdout.write("#")
+          stdout.write("%")
 
     ########################################
     # full iterative rule list
     ########################################
     else:
+      #print tab, "Initial Rule"
 
       ########################################
       # create initial rule
-      initialSize = min(currentIndexRange[currentIndex][0] \
-          + self.parameters["InitialSolutionWindow"], \
-          self.numProblemSizes[currentIndex])
-      nextIndexRange[currentIndex][1] = initialSize
       if isLastIndex:
-        winnerIdx = self.winnerForRange(nextIndexRange)
-        print winnerIdx
-        initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
+        for problemIndex in range(currentIndexRange[currentIndex][0], \
+            currentIndexRange[currentIndex][1]):
+          nextIndexRange[currentIndex][0] = problemIndex
+          nextIndexRange[currentIndex][1] = problemIndex+1
+          winnerIdx = self.winnerForRange(nextIndexRange)
+          #print "InitialWinner:", winnerIdx, " @ ", problemIndex
+          initialRule = [ currentIndexRange[currentIndex][0], winnerIdx]
+          if winnerIdx >= 0:
+            break
       else:
         #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
         initialRule = [ currentIndexRange[currentIndex][0], \
@@ -512,6 +515,7 @@ class LogicAnalyzer:
 
       ########################################
       # for all problem indices in this index
+      #print tab, "Improve Rule"
       for problemIndex in range(currentIndexRange[currentIndex][0]+1, \
           currentIndexRange[currentIndex][1]):
         nextIndexRange[currentIndex][0] = problemIndex
@@ -522,7 +526,14 @@ class LogicAnalyzer:
 
         if isLastIndex:
           winnerIdx = self.winnerForRange(nextIndexRange)
-          candidateRule = [ problemIndex, winnerIdx]
+          # if so solutions benchmarked for this problem size, continue
+          if winnerIdx >= 0:
+            ruleList[len(ruleList)-1][0] = problemIndex
+            if globalParameters["PrintLevel"] == 1:
+              stdout.write(" ")
+            continue
+          else:
+            candidateRule = [ problemIndex, winnerIdx]
         else:
           candidateRule = [ problemIndex, self.enRule(nextIndexIndex, \
               nextIndexRange) ]
@@ -825,11 +836,9 @@ class LogicAnalyzer:
       totalFlops = self.totalFlopsForProblemIndices(problemIndices)
       solutionIdx = self.getSolutionForProblemIndicesUsingLogic( \
           problemIndices, logic)
-      gflops = max(0, self.data[problemSerial + solutionIdx])
-      if gflops == 0:
-        timeUs = 1E6
-      else:
-        timeUs = totalFlops / gflops / 1000
+      solutionGFlops = self.data[problemSerial + solutionIdx]
+      solutionGFlops = max(1E-9, solutionGFlops)
+      timeUs = totalFlops / solutionGFlops / 1000
       score += timeUs
     return score
 
@@ -872,6 +881,7 @@ class LogicAnalyzer:
     for solutionIdx in range(0, self.numSolutions):
       solutionSerialIdx = problemSerial + solutionIdx
       solutionGFlops = self.data[solutionSerialIdx]
+      solutionGFlops = max(1E-9, solutionGFlops)
       if solutionGFlops > winnerGFlops:
         winnerIdx = solutionIdx
         winnerGFlops = solutionGFlops
@@ -880,14 +890,25 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # Winner For Range
+  # Winner For Range, -1 if nothing benchmarked
   def winnerForRange(self, indexRange):
-    scores = self.scoreRangeForSolutions(indexRange)
-    winnerIdx = 0
-    for solutionIdx in range(1, self.numSolutions):
-      if scores[solutionIdx] < scores[winnerIdx]:
-        winnerIdx = solutionIdx
-    return winnerIdx
+    if self.numSolutions == 1:
+      return 0
+    else:
+      scores = self.scoreRangeForSolutions(indexRange)
+      # print "WinnerForRange", indexRange, scores
+      winnerIdx = 0
+      hasWinner = False
+      for solutionIdx in range(1, self.numSolutions):
+        if scores[solutionIdx] < scores[winnerIdx]:
+          winnerIdx = solutionIdx
+          hasWinner = True
+        elif scores[solutionIdx] > scores[winnerIdx]:
+          hasWinner = True
+        else:
+          pass # still no winner
+
+      return winnerIdx if hasWinner else -1
 
 
   ##############################################################################
@@ -899,6 +920,7 @@ class LogicAnalyzer:
       totalFlops = self.totalFlopsForProblemIndices(problemIndices)
       for solutionIdx in range(0, self.numSolutions):
         gflops = self.data[problemSerial+solutionIdx]
+        gflops = max(1E-9, gflops)
         timeUs = totalFlops / gflops / 1000
         scores[solutionIdx] += timeUs
     return scores
