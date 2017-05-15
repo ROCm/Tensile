@@ -514,7 +514,6 @@ class LogicAnalyzer:
           # print initial winner
         if winnerIdx < 0:
           return None
-        """
         print2("Winner@ %u, %u, %u, %u is S[%u]: %s" % ( \
             self.problemIndexToSize[0][nextIndexRange[0][0]], \
             self.problemIndexToSize[1][nextIndexRange[1][0]], \
@@ -522,7 +521,7 @@ class LogicAnalyzer:
             self.problemIndexToSize[3][nextIndexRange[3][0]], \
             winnerIdx, \
             self.solutionNames[winnerIdx] ) )
-        """
+        print "InitialRule", initialRule
       else:
         #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
         nextRule = self.enRule(nextIndexIndex, nextIndexRange)
@@ -531,6 +530,7 @@ class LogicAnalyzer:
         initialRule = [ currentIndexRange[currentIndex][0], nextRule ]
         #print2("%sinitialRule(%s) DONE" % (tab, nextIndexRange))
       ruleList.append(initialRule)
+      print tab, ruleList
       if globalParameters["PrintLevel"] == 1:
         stdout.write("#")
 
@@ -547,9 +547,10 @@ class LogicAnalyzer:
 
         if isLastIndex:
           winnerIdx = self.winnerForRange(nextIndexRange)
-          # if so solutions benchmarked for this problem size, continue
+          # if no solutions benchmarked for this problem size, continue
           if winnerIdx < 0:
-            ruleList[len(ruleList)-1][0] = problemIndex
+            ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
+            print tab, ruleList, "Updating b/c None"
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -558,17 +559,20 @@ class LogicAnalyzer:
         else:
           nextRule = self.enRule(nextIndexIndex, nextIndexRange)
           if nextRule == None:
-            ruleList[len(ruleList)-1][0] = problemIndex
+            ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
+            print tab, ruleList, "Updating b/c None"
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
-          candidateRule = [ problemIndex, nextRule ]
+          else:
+            candidateRule = [ problemIndex, nextRule ]
 
         ########################################
         # candidate same as prior
         if candidateRule[1] == priorRule[1]:
           #print2("%sP[%2u]: same" % (tab, problemIndex))
-          ruleList[len(ruleList)-1][0] = problemIndex
+          ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
+          print tab, ruleList, "Updating b/c Same"
           if globalParameters["PrintLevel"] == 1:
             stdout.write(" ")
           continue
@@ -579,6 +583,8 @@ class LogicAnalyzer:
           #print2("%sScoring P:%s for Prior=%s, Cand=%s" \
           #    % ( tab, nextIndexRange, priorRuleForSize, candidateRule))
           # score prior
+
+          """
           priorRuleScore = self.scoreRangeForLogic(nextIndexRange, \
               [priorRuleForSize])
           logicComplexity = [0]*self.numIndices
@@ -601,22 +607,26 @@ class LogicAnalyzer:
               "wins" if candidateFaster else "same", \
               candidateRule, candidateRuleScore, priorRuleForSize, \
               priorRuleScore ))
+          """
 
           ########################################
           # candidate wins
-          if candidateRuleScore < priorRuleScore:
+          if True: # or candidateRuleScore < priorRuleScore:
             ruleList.append(candidateRule)
+            print tab, ruleList, "Appending b/c Different"
             if globalParameters["PrintLevel"] == 1:
               stdout.write("#")
 
           ########################################
           # prior wins
           else:
+            print "PRIOR_WINS"
             if globalParameters["PrintLevel"] == 1:
               stdout.write(".")
-            ruleList[len(ruleList)-1][0] = problemIndex
+            ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
+            print tab, ruleList
 
-    #print2("%sReturning RuleList: %s" % (tab, ruleList))
+    print2("%sReturning RuleList: %s" % (tab, ruleList))
     return ruleList
 
 

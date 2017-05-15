@@ -37,16 +37,34 @@ def BenchmarkProblemSize(cmdPrefix, row):
   process = Popen(cmd, stdout=PIPE, shell=True)
   stdout = process.communicate()[0]
 
-  # parse output
-  functionIdx = stdout.find("Function[")
-  colonIdx = stdout.find(":", functionIdx)
-  gflopsIdx = stdout.find("GFlop", colonIdx)
-  barIdx = stdout.find("|", colonIdx)
-  msIdx = stdout.find("ms", barIdx)
+  # find beginning of data
+  initializingIdx = stdout.find("Initializing")
+  newLineIdx = stdout.find("\n", initializingIdx)
+  stdout = stdout[newLineIdx+1:]
 
-  # print results
-  gflops =  float(stdout[colonIdx+1:gflopsIdx])
-  ms = float(stdout[barIdx+1:msIdx])
+  totalGFlops = 0
+  totalMs = 0
+  numSamples = 0
+  # parse every line of data
+  while "\n" in stdout:
+    newLineIdx = stdout.find("\n")
+    lineString = stdout[:newLineIdx]
+    splits = lineString.split(",")
+    if len(splits) < 3:
+      break
+    gflopsString = splits[0].lstrip()
+    msString = splits[2].lstrip()
+    gflops = float(gflopsString)
+    ms = float(msString)
+    totalGFlops += gflops
+    totalMs += ms
+    numSamples += 1
+    
+    # next line
+    stdout = stdout[newLineIdx+1:]
+
+  gflops = totalGFlops / numSamples
+  ms = totalMs / numSamples
   return (gflops, ms)
 
 ################################################################################
