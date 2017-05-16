@@ -213,7 +213,7 @@ class SolutionWriter:
     if solution["GlobalSplitU"] > 1:
       kernelNamesBetaOnly = []
       numStridesC = solution["ProblemType"]["NumIndicesC"] - \
-          1 if solution["ProblemType"]["UseInitialStrides"] else 1
+          (0 if solution["ProblemType"]["UseInitialStrides"] else 1)
       for beta in solution.getKernelsBetaOnly():
         kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
         kernelNamesBetaOnly.append(kernelName)
