@@ -691,10 +691,14 @@ class Solution:
 
     # tile shape
     if state["Valid"]:
-      if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
-          or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
+      macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
+          state["MacroTile1"]/state["MacroTile0"])
+      if macroTileShape > state["MacroTileShapeMax"] \
+          or macroTileShape < state["MacroTileShapeMin"]:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
+          print1("rejecting ratio %u:%u for range %u:%u" \
+              % (state["MacroTile0"], state["MacroTile1"], \
+              state["MacroTileShapeMin"], state["MacroTileShapeMax"]))
         state["Valid"] = False
 
     # done
@@ -715,8 +719,8 @@ class Solution:
     if not state["Valid"]:
       return
 
-    if ( state["GroupShape"] < 0 and state["ThreadTileShape"] > 0) or \
-        (state["GroupShape"] > 0 and state["ThreadTileShape"] < 0):
+    if ( state["GroupShape"] < 1 and state["ThreadTileShape"] > 1) or \
+        (state["GroupShape"] > 1 and state["ThreadTileShape"] < 1):
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("Group and thread tiles have opposite shapes")
       state["Valid"] = False
@@ -1046,28 +1050,28 @@ class Solution:
 
     # group sizes
     subGroupSize = numThreads / splitU
-    if groupShape == 0:
+    if groupShape == 1:
       subGroup0 = int(subGroupSize**0.5)
       subGroup1 = int(subGroupSize**0.5)
-    elif groupShape > 0:
+    elif groupShape > 1:
       subGroup0 = int((subGroupSize \
           / abs(groupShape))**0.5)
       subGroup1 = subGroup0 * abs(groupShape)
-    elif groupShape < 0:
+    elif groupShape < 1:
       subGroup1 = int((subGroupSize \
           / abs(groupShape))**0.5)
       subGroup0 = subGroup1 * abs(groupShape)
 
     # thread-tile sizes
-    if threadTileShape == 0:
+    if threadTileShape == 1:
       threadTile0 = int(threadTileNumElements**0.5)
       threadTile1 = int(threadTileNumElements**0.5)
-    elif threadTileShape > 0:
+    elif threadTileShape > 1:
       threadTile0 = int((threadTileNumElements \
           / abs(threadTileShape))**0.5)
       threadTile1 = threadTile0 \
           * abs(threadTileShape)
-    elif threadTileShape < 0:
+    elif threadTileShape < 1:
       threadTile1 = int((threadTileNumElements \
           / abs(threadTileShape))**0.5)
       threadTile0 = threadTile1 \

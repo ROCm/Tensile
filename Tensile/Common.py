@@ -83,7 +83,6 @@ globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768
-globalParameters["MaxMacroTileRatio"] = 4
 globalParameters["MinimumRequiredVersion"] = "0.0.0"
 
 ################################################################################
@@ -104,8 +103,8 @@ validParameters = {
 
     "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
     "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
-    "GroupShape":                 [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
-    "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,0,2,4,8,16,32,64],
+    "GroupShape":                 [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
+    "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
     "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
@@ -115,6 +114,8 @@ validParameters = {
     "NumThreads":                 [ 64, 128, 256 ],
     "VectorWidth":                [ -1, 1, 2, 4 ],
     "LdsPad":                     [ 0, 1 ],
+    "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],
+    "MacroTileShapeMax":          [ 1, 2, 4, 8, 16, 32, 64 ],
 
     "EdgeType":                   [ "Branch", "Shift", "None" ],
 
@@ -132,16 +133,17 @@ defaultBenchmarkCommonParameters = [
     {"LocalWriteCoalesceGroupA":  [ True ] },
     {"LocalWriteCoalesceGroupB":  [ True ] },
     {"NumThreads":                [ 16*16] },
-    {"GroupShape":                [ 0 ] },
-    {"ThreadTileShape":           [ 0 ] },
+    {"GroupShape":                [ 1 ] },
+    {"ThreadTileShape":           [ 1 ] },
     {"PrefetchGlobalRead":        [ False ] },
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
-    {"ThreadTileShape":           [ 0 ] },
     {"LocalSplitU":               [ 1 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
+    {"MacroTileShapeMin":          [ 1 ] },
+    {"MacroTileShapeMax":          [ 4 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
