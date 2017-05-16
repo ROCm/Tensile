@@ -62,7 +62,11 @@ def writeSolutions( filename, problemSizes, solutions ):
   except IOError:
     printExit("Cannot open file: %s" % filename)
   stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
-  stream.write("- ProblemSizes: %s\n" % str(problemSizes))
+  stream.write("- ProblemSizes:\n")
+  for sizeRange in problemSizes.ranges:
+    stream.write("  - Range: %s\n" % sizeRange)
+  for sizeExact in problemSizes.exacts:
+    stream.write("  - Exact: %s\n" % list(sizeExact))
   yaml.dump(solutionStates, stream, default_flow_style=False)
   stream.close()
 

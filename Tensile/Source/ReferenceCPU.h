@@ -38,7 +38,7 @@ TensileStatus tensileReferenceCPU(
     Type alpha,
     Type beta,
     unsigned int totalIndices,
-    unsigned int *sizes,
+    const unsigned int *sizes,
     unsigned int numIndicesC,
     unsigned int numIndicesAB,
     const unsigned int *indexAssignmentsA,
