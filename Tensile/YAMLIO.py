@@ -185,7 +185,8 @@ def readLibraryLogicForSchedule( filename ):
   problemTypeState  = data[3]
   solutionStates    = data[4]
   indexOrder        = data[5]
-  logic             = data[6]
+  exactLogic        = data[6]
+  rangeLogic        = data[7]
 
   # does version match
   if version != __version__:
@@ -204,4 +205,5 @@ def readLibraryLogicForSchedule( filename ):
           % (problemType, solutionObject["ProblemType"]))
     solutions.append(solutionObject)
 
-  return (scheduleName, deviceNames, problemType, solutions, indexOrder, logic )
+  return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
+      exactLogic, rangeLogic )
