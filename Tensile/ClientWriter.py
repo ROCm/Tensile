@@ -83,7 +83,7 @@ def main( config ):
   enableHalf = False
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
-        indexOrder, logic) \
+        indexOrder, exactLogic, rangeLogic) \
         = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
@@ -473,9 +473,29 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   for problemTypeIdx in range(1, numProblemTypes):
       h += ", %u" % problemTypes[problemTypeIdx]["TotalIndices"]
   h += " };\n"
-  h += "unsigned int userSizes[maxNumIndices];\n"
+  if forBenchmark:
+    h += "const unsigned int numProblems = %u;\n" \
+        % problemSizes.totalProblemSizes
+    h += "const unsigned int problemSizes[numProblems][%u] = {\n" \
+        % problemTypes[0]["TotalIndices"]
+    for i in range(0, problemSizes.totalProblemSizes):
+      line = "  {%5u" %problemSizes.sizes[i][0]
+      for j in range(1, problemTypes[0]["TotalIndices"]):
+        line += ",%5u" % problemSizes.sizes[i][j]
+      line += " }"
+      h += line
+      if i < problemSizes.totalProblemSizes-1:
+        h += ","
+      else:
+        h += "};"
+      h += "\n"
+
+  else:
+    h += "unsigned int userSizes[maxNumIndices];\n"
+
   if forBenchmark:
     h += "/* problem sizes */\n"
+    """
     h += "const bool indexIsSized[maxNumIndices] = {"
     for i in range(0, problemSizes.totalIndices):
       h += " %s" % ("true" if problemSizes.indexIsSized[i] else "false")
@@ -507,26 +527,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += " };\n"
     else:
       h += "#define Tensile_INDICES_MAPPED 0\n"
-  #else:
-  #  h += "const unsigned int indicesMapped[1] = { 0 }; // dummy\n"
+    """
 
   ##############################################################################
   # Max Problem Sizes
   ##############################################################################
   if forBenchmark:
-    sizeC = 1
-    sizeA = 1
-    sizeB = 1
-    problemType = problemTypes[0]
-    for idx in range(0, problemType["NumIndicesC"]):
-      sizeC *= problemSizes.indexMax[idx]
-    for idx in problemType["IndexAssignmentsA"]:
-      sizeA *= problemSizes.indexMax[idx]
-    for idx in problemType["IndexAssignmentsB"]:
-      sizeB *= problemSizes.indexMax[idx]
-    h += "size_t maxSizeC = %u;\n" % (sizeC)
-    h += "size_t maxSizeA = %u;\n" % (sizeA)
-    h += "size_t maxSizeB = %u;\n" % (sizeB)
+    h += "size_t maxSizeC = %u;\n" % (problemSizes.maxC)
+    h += "size_t maxSizeA = %u;\n" % (problemSizes.maxC)
+    h += "size_t maxSizeB = %u;\n" % (problemSizes.maxC)
     h += "\n"
   else:
     h += "size_t maxSizeC;\n"
@@ -538,12 +547,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Current Problem Size
   ##############################################################################
   h += "/* current problem size */\n"
-  h += "unsigned int fullSizes[maxNumIndices];\n"
-  if forBenchmark:
-    h += "const unsigned int numProblems = %u;\n" \
-        % problemSizes.totalProblemSizes
-    h += "unsigned int currentSizedIndexSizes[numIndicesSized];\n"
-    h += "unsigned int currentSizedIndexIncrements[numIndicesSized];\n"
+  #h += "unsigned int fullSizes[maxNumIndices];\n"
+    #h += "unsigned int currentSizedIndexSizes[numIndicesSized];\n"
+    #h += "unsigned int currentSizedIndexIncrements[numIndicesSized];\n"
   h += "\n"
 
   ##############################################################################
@@ -649,7 +655,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "/* generated call to reference */\n"
   h += "template<typename DataType>\n"
   h += "TensileStatus generatedCallToReferenceCPU(\n"
-  h += "    unsigned int *sizes,\n"
+  h += "    const unsigned int *sizes,\n"
   h += "    DataType *referenceC,\n"
   h += "    DataType *initialA,\n"
   h += "    DataType *initialB,\n"
@@ -682,7 +688,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "template<typename DataType>\n"
     h += "void generatedCallToSolution(\n"
     h += "    unsigned int solutionIdx,\n"
-    h += "    unsigned int *sizes,\n"
+    h += "    const unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
     h += "    DataType beta, \n"
     h += "    unsigned int numEvents = 0, \n"

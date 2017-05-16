@@ -62,7 +62,11 @@ def writeSolutions( filename, problemSizes, solutions ):
   except IOError:
     printExit("Cannot open file: %s" % filename)
   stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
-  stream.write("- ProblemSizes: %s\n" % str(problemSizes))
+  stream.write("- ProblemSizes:\n")
+  for sizeRange in problemSizes.ranges:
+    stream.write("  - Range: %s\n" % sizeRange)
+  for sizeExact in problemSizes.exacts:
+    stream.write("  - Exact: %s\n" % list(sizeExact))
   yaml.dump(solutionStates, stream, default_flow_style=False)
   stream.close()
 
@@ -111,7 +115,8 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   problemType   = logicTuple[0]
   solutions     = logicTuple[1]
   indexOrder    = logicTuple[2]
-  logic         = logicTuple[3]
+  exactLogic    = logicTuple[3]
+  rangeLogic    = logicTuple[4]
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
   print2("# writeLogic( %s )" % ( filename ))
@@ -139,8 +144,15 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   data.append(solutionList)
   # index order
   data.append(indexOrder)
-  # logic
-  data.append(logic)
+
+  # exactLogic
+  exactLogicList = []
+  for key in exactLogic:
+    exactLogicList.append([list(key), exactLogic[key]])
+  data.append(exactLogicList)
+
+  # rangeLogic
+  data.append(rangeLogic)
 
   # open & write file
   try:
@@ -173,7 +185,8 @@ def readLibraryLogicForSchedule( filename ):
   problemTypeState  = data[3]
   solutionStates    = data[4]
   indexOrder        = data[5]
-  logic             = data[6]
+  exactLogic        = data[6]
+  rangeLogic        = data[7]
 
   # does version match
   if version != __version__:
@@ -192,4 +205,5 @@ def readLibraryLogicForSchedule( filename ):
           % (problemType, solutionObject["ProblemType"]))
     solutions.append(solutionObject)
 
-  return (scheduleName, deviceNames, problemType, solutions, indexOrder, logic )
+  return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
+      exactLogic, rangeLogic )

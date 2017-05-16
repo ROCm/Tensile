@@ -112,6 +112,9 @@ class BenchmarkProcess:
         if "BenchmarkFinalParameters" in config and config["BenchmarkFinalParameters"] != None \
         and len(config["BenchmarkFinalParameters"]) > 0 \
         else [{"ProblemSizes": defaultBenchmarkFinalProblemSizes}]
+    print "cBFP", configBenchmarkFinalParameters
+    #print "DPS", defaultProblemSizes
+    #print "DBFPS", defaultBenchmarkFinalProblemSizes
 
     ############################################################################
     # Ensure only valid solution parameters were requested
@@ -317,7 +320,7 @@ class BenchmarkProcess:
     for step in self.benchmarkJoinParameters:
       print2("    %s" % step)
     # benchmarkJoinParameters
-    print2("BenchmarkfinalParameters:")
+    print2("BenchmarkFinalParameters:")
     for step in self.benchmarkFinalParameters:
       print2("    %s" % step)
 
@@ -509,8 +512,10 @@ class BenchmarkProcess:
     print2("")
     print2("####################################################################")
     print1("# Benchmark Final")
+    print "sbfp", self.benchmarkFinalParameters
     for problemSizesDict in self.benchmarkFinalParameters:
       problemSizes = problemSizesDict["ProblemSizes"]
+      print "creating ProblemSizes", problemSizes
       self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
           #self.benchmarkFinalParameters["ProblemSizes"])
       currentBenchmarkParameters = {}
