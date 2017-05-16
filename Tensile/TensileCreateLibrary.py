@@ -503,7 +503,8 @@ def writeExactLogic(exactLogic, solutionNames, ptr):
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
     problemSize = rule[0]
-    solutionIdx = rule[1]
+    solutionIdx = rule[1][0]
+    solutionGFlops = rule[1][1]
     s += indent
     if ruleIdx > 0:
       s += "else "
@@ -517,7 +518,7 @@ def writeExactLogic(exactLogic, solutionNames, ptr):
       returnValue = solutionName
     else:
       returnValue = "\"%s~\"" % solutionName
-    s += ") return %s;\n" % returnValue
+    s += ") return %s; // %.0f GFlop/s\n" % (returnValue, solutionGFlops)
   return s
 
 

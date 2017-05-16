@@ -349,7 +349,11 @@ class LogicAnalyzer:
               winnerIdx = solutionIdx
               winnerGFlops = gflops
             solutionIdx += 1
-          self.exactWinners[problemSize] = solutionMap[winnerIdx]
+          if problemSize in self.exactWinners:
+            if winnerGFlops > self.exactWinners[problemSize][1]:
+              self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
+          else:
+            self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
 
         # Range Problem Size
         elif problemSize in self.rangeProblemSizes:
