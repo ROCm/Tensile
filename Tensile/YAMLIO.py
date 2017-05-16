@@ -115,7 +115,8 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   problemType   = logicTuple[0]
   solutions     = logicTuple[1]
   indexOrder    = logicTuple[2]
-  logic         = logicTuple[3]
+  exactLogic    = logicTuple[3]
+  rangeLogic    = logicTuple[4]
   filename = os.path.join(filePath, "%s_%s.yaml" \
       % (schedulePrefix, str(problemType)))
   print2("# writeLogic( %s )" % ( filename ))
@@ -143,8 +144,15 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   data.append(solutionList)
   # index order
   data.append(indexOrder)
-  # logic
-  data.append(logic)
+
+  # exactLogic
+  exactLogicList = []
+  for key in exactLogic:
+    exactLogicList.append([list(key), exactLogic[key]])
+  data.append(exactLogicList)
+
+  # rangeLogic
+  data.append(rangeLogic)
 
   # open & write file
   try:
