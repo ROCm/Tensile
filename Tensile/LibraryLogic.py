@@ -109,20 +109,26 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     logicAnalyzer.print2D(permutation)
 
   ######################################
-  # Create Rules
-  logic = logicAnalyzer.enRule(0, logicAnalyzer.globalIndexRange)
-  print2("# Final Logic:")
-  print2(logic)
+  # Range Logic
+  rangeLogic = logicAnalyzer.enRule(0, logicAnalyzer.globalIndexRange)
+  print2("# Final Range Logic:")
+  print2(rangeLogic)
   logicComplexity = [0]*logicAnalyzer.numIndices
-  logicAnalyzer.scoreLogicComplexity(logic, logicComplexity)
-  print2("Logic Complexity: %s" % logicComplexity)
+  logicAnalyzer.scoreLogicComplexity(rangeLogic, logicComplexity)
+  print2("# Range Logic Complexity: %s" % logicComplexity)
   score = logicAnalyzer.scoreRangeForLogic( \
-      logicAnalyzer.globalIndexRange, logic)
-  print1("\nScore: %.0f ms" % (score/1000))
+      logicAnalyzer.globalIndexRange, rangeLogic)
+  print1("\n# Score: %.0f ms" % (score/1000))
+  logicAnalyzer.prepareLogic(rangeLogic) # convert indices to sizes, -1
 
-  logicAnalyzer.prepareLogic(logic)
+  ######################################
+  # Range Logic
+  exactLogic = logicAnalyzer.exactWinners
+  print1("# Exact Logic:\n")
+  print1("%s"%exactLogic)
 
-  return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, logic)
+  return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
+       exactLogic, rangeLogic )
 
 
 
@@ -182,30 +188,42 @@ class LogicAnalyzer:
     self.flopsPerMac = self.problemType["DataType"].flopsPerMac()
 
     # merge problem sizes from size groups
-    self.numIndices = len(problemSizesList[0].numProblemSizes)
+    #self.numIndices = len(problemSizesList[0].numProblemSizes)
+    self.numIndices = self.problemType["TotalIndices"]
     unifiedProblemSizes = []
     for i in range(0, self.numIndices):
       unifiedProblemSizes.append(set())
+    self.exactProblemSizes = set()
+    self.rangeProblemSizes = set()
     for problemSizes in problemSizesList:
-      sizedIdx = 0
-      mappedIdx = 0
-      for i in range(0, self.numIndices):
-        if problemSizes.indexIsSized[i]:
-          index = problemSizes.indicesSized[sizedIdx]
-          sizedIdx += 1
-        else:
-          index = problemSizes.indicesSized[ \
-            problemSizes.indicesMapped[mappedIdx]]
-          mappedIdx += 1
-        currentSize = index[0]
-        currentStride = index[1]
-        while currentSize <= index[3]:
-          unifiedProblemSizes[i].add(currentSize)
-          currentSize += currentStride
-          currentStride += index[2]
+      # add exacts
+      for exactSize in problemSizes.exacts:
+        self.exactProblemSizes.add(tuple(exactSize))
+
+      # add ranges
+      self.rangeProblemSizes.update(problemSizes.sizes)
+      for rangeSize in problemSizes.ranges:
+        sizedIdx = 0
+        mappedIdx = 0
+        for i in range(0, self.numIndices):
+          if rangeSize.indexIsSized[i]:
+            index = rangeSize.indicesSized[sizedIdx]
+            sizedIdx += 1
+          else:
+            index = rangeSize.indicesSized[ \
+              rangeSize.indicesMapped[mappedIdx]]
+            mappedIdx += 1
+          currentSize = index[0]
+          currentStride = index[1]
+          while currentSize <= index[3]:
+            unifiedProblemSizes[i].add(currentSize)
+            currentSize += currentStride
+            currentStride += index[2]
     for i in range(0, len(unifiedProblemSizes)):
       unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
     print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
+    print2("ExactProblemSizes: %s" % self.exactProblemSizes)
+    print2("RangeProblemSizes: %s" % self.rangeProblemSizes)
 
     # problem size index <-> size
     self.problemSizeToIndex = []
@@ -230,6 +248,7 @@ class LogicAnalyzer:
     print2("TotalSolutions: %u" % self.numSolutions)
     print2("TotalSize: %u" % self.totalSize)
     self.data = array.array('f', [-2]*self.totalSize)
+    self.exactWinners = {}
 
     """
     # map problem sizes -> index
@@ -275,7 +294,10 @@ class LogicAnalyzer:
       dataFileName = dataFileNameList[fileIdx]
       self.addFromCSV(dataFileName, self.numSolutionsPerGroup[fileIdx], \
           self.solutionGroupMap[fileIdx])
+
     #print self.data
+    # map exact problem sizes to solutions
+    print "ExactWinners", self.exactWinners
 
 
   ##############################################################################
@@ -312,21 +334,45 @@ class LogicAnalyzer:
         problemSize = []
         for i in range(problemSizeStartIdx, totalSizeIdx):
           problemSize.append(int(row[i]))
-        problemIndices = []
-        for i in range(0, self.numIndices):
-          problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
-        serialIdx = self.indicesToSerial(0, problemIndices)
-        #print "problemSizes: ", problemSize, "; problemIndices: ", problemIndices, "; serialIdx: ", serialIdx
+        problemSize = tuple(problemSize)
 
-        # data
-        solutionIdx = 0
-        for i in range(solutionStartIdx, rowLength):
-          gflops = float(row[i])
-          self.data[serialIdx+solutionMap[solutionIdx]] = gflops
-          solutionIdx += 1
+        # Exact Problem Size
+        if problemSize in self.exactProblemSizes:
+          print "hi"
+          # solution gflops
+          solutionIdx = 0
+          winnerIdx = -1
+          winnerGFlops = -1
+          for i in range(solutionStartIdx, rowLength):
+            gflops = float(row[i])
+            if gflops > winnerGFlops:
+              winnerIdx = solutionIdx
+              winnerGFlops = gflops
+            solutionIdx += 1
+          self.exactWinners[problemSize] = solutionMap[winnerIdx]
+
+        # Range Problem Size
+        elif problemSize in self.rangeProblemSizes:
+          problemIndices = []
+          for i in range(0, self.numIndices):
+            problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
+          print problemIndices
+          serialIdx = self.indicesToSerial(0, problemIndices)
+          # solution gflops
+          solutionIdx = 0
+          for i in range(solutionStartIdx, rowLength):
+            gflops = float(row[i])
+            self.data[serialIdx+solutionMap[solutionIdx]] = gflops
+            solutionIdx += 1
+
+        # Unknown Problem Size
+        else:
+          printExit("Huh? %s has ProblemSize %s which isn't in its yaml" \
+              % ( dataFileName, list(problemSize)) )
     if rowIdx < 2:
       printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
           % (dataFileName, rowIdx) )
+    print self.data
 
 
   ##############################################################################
@@ -359,14 +405,18 @@ class LogicAnalyzer:
   def removeLeastImportantSolutions(self):
     # Remove least important solutions
     while len(self.solutions) > 1:
-      (lisIdx, lisPercSaved, lisPercWins, lisPercExec) \
-          = self.leastImportantSolution()
-      if lisPercSaved < self.parameters["SolutionImportanceMin"]:
-        print1("# Removing Unimportant Solution: %u %s" \
-            % (lisIdx, self.solutionNames[lisIdx]) )
-        self.removeSolution(lisIdx)
-        continue
-      else:
+      lisTuple = self.leastImportantSolution()
+      if lisTuple != None:
+        lisIdx = lisTuple[0]
+        lisPercSaved = lisTuple[1]
+        if lisPercSaved < self.parameters["SolutionImportanceMin"]:
+          print1("# Removing Unimportant Solution: %u %s" \
+              % (lisIdx, self.solutionNames[lisIdx]) )
+          self.removeSolution(lisIdx)
+          continue
+        else:
+          break
+      else: # no more lis, remainders are exact winner
         break
 
 
@@ -514,6 +564,7 @@ class LogicAnalyzer:
           # print initial winner
         if winnerIdx < 0:
           return None
+        """
         print2("Winner@ %u, %u, %u, %u is S[%u]: %s" % ( \
             self.problemIndexToSize[0][nextIndexRange[0][0]], \
             self.problemIndexToSize[1][nextIndexRange[1][0]], \
@@ -521,6 +572,7 @@ class LogicAnalyzer:
             self.problemIndexToSize[3][nextIndexRange[3][0]], \
             winnerIdx, \
             self.solutionNames[winnerIdx] ) )
+        """
         print "InitialRule", initialRule
       else:
         #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
@@ -805,11 +857,22 @@ class LogicAnalyzer:
       totalSavedMs += secondTimeMs - winnerTimeMs
       totalExecMs += winnerTimeMs
       totalWins += 1
+    totalSavedMs = max(1, totalSavedMs)
     solutionImportance.sort(key=lambda x: x[1])
-    return ( solutionImportance[0][0], \
-        solutionImportance[0][1] / totalSavedMs, \
-        solutionImportance[0][2] / totalWins, \
-        solutionImportance[0][3] / totalExecMs )
+    for i in range(0, self.numSolutions):
+      solutionIdx = solutionImportance[0][0]
+      canRemove = True
+      for j in self.exactWinners:
+        winnerIdx = self.exactWinners[j]
+        if solutionIdx == winnerIdx: # exact winners are important
+          canRemove = False
+          break
+      if canRemove:
+        return ( solutionImportance[0][0], \
+            solutionImportance[0][1] / totalSavedMs, \
+            solutionImportance[0][2] / totalWins, \
+            solutionImportance[0][3] / totalExecMs )
+    return None
 
 
   ##############################################################################
