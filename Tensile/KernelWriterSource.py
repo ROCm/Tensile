@@ -333,9 +333,9 @@ class KernelWriterSource(KernelWriter):
       kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
           % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
           self.globalPtrStr, self.endLine)
-      kStr += "  unsigned int prevReturn;%s" % (self.endLine)
+      kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
       kStr += "  do {%s" % (self.endLine)
-      kStr += "    prevVal.ui = *uPtr;%s" % (self.endLine)
+      kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
       kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
       kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
           % (self.atomicCasStr, self.endLine)
