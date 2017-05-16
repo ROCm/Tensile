@@ -458,10 +458,6 @@ class ProblemSizeRange:
         else:
           problemSize[i] = problemSize[indicesMapped[currentMappedIdx]]
           currentMappedIdx+=1
-
-      # print size
-      #print "Problem[%s/%s]: %s" % (problemIdx, self.totalProblemSizes, \
-      #    problemSize)
       self.problemSizes.append(tuple(problemSize))
 
       #/ increment sizes for next benchmark
@@ -510,19 +506,16 @@ class ProblemSizes:
 
   ########################################
   def __init__(self, problemType, config):
-    print config
     self.problemType = problemType
     self.ranges = []
     self.exacts = []
     for dictionary in config:
-      print dictionary
       for sizeTypeKey in dictionary:
         if sizeTypeKey == "Range":
           psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
           self.ranges.append( psr )
         elif sizeTypeKey == "Exact":
           e = dictionary[sizeTypeKey]
-          print e
           if len(e) != problemType["TotalIndices"]:
             printExit("ExactSize %s doesn't match indices of ProblemType %s" \
                 % (e, problemType) )
@@ -530,8 +523,6 @@ class ProblemSizes:
             self.exacts.append(tuple(e))
         else:
           printExit("ProblemSize Type %u not supported"%sizeTypeKey)
-    print "PS", self.ranges
-    print "PS", self.exacts
 
     self.sizes = set()
     for sizeRange in self.ranges:
@@ -682,13 +673,11 @@ class Solution:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["LocalSplitU"]))
       state["Valid"] = False
-    #print "Group:", state["SubGroup0"], state["SubGroup1"]
 
     if state["ThreadTile0"]*state["ThreadTile1"] != state["ThreadTileNumElements"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("ThreadTile %u * %u != %u" % (state["ThreadTile0"], state["ThreadTile1"], state["ThreadTileNumElements"]))
       state["Valid"] = False
-    #print "ThreadTile:", state["ThreadTile0"], state["ThreadTile1"]
 
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
@@ -828,7 +817,6 @@ class Solution:
       return
     else:
       state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
-    #print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
