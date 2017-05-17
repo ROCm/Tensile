@@ -343,6 +343,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
         kStr += "}%s" % (self.endLine)
       else:
+        """
         kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
             % ("__device__ " if self.language == "HIP" else "", \
             self.volatileStr, self.globalPtrStr, self.endLine)
@@ -358,6 +359,19 @@ class KernelWriterSource(KernelWriter):
         kStr += "    old = %s(uPtr, assumed, newValue);%s" \
             % (self.atomicCasStr, self.endLine)
         kStr += "  } while (assumed != old);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        """
+        kStr += self.endLine
+        kStr += "__device__ void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % (self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  std::atomic<float> *aPtr = reinterpret_cast<std::atomic<float>*>(fPtr);%s" % (self.endLine)
+        kStr += "  float oldValue, newValue;%s" % (self.endLine)
+        kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
+        #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+        #    % (self.atomicCasStr, self.endLine)
+        kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
         kStr += "}%s" % (self.endLine)
 
       kStr += "#endif%s" % self.endLine
