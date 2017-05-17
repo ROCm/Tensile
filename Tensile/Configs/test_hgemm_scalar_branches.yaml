@@ -14,7 +14,8 @@ BenchmarkProblems:
       UseBeta: False
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
@@ -27,13 +28,14 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [1]
       ForkParameters:
-        - GroupShape: [ 0, 2 ]
+        - GroupShape: [ 1, 2 ]
         - NumThreads: [128, 256 ]
-        - ThreadTileShape: [0, 2]
+        - ThreadTileShape: [1, 2]
         - ThreadTileNumElements: [16, 32, 36]
         - LocalSplitU: [ 1, 2 ]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
 
   - # sgemm NN
@@ -45,7 +47,8 @@ BenchmarkProblems:
       UseBeta: True
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
@@ -58,13 +61,14 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [1]
       ForkParameters:
-        - GroupShape: [ 0, -2 ]
+        - GroupShape: [ 1, -2 ]
         - NumThreads: [128, 256 ]
-        - ThreadTileShape: [0, -2]
+        - ThreadTileShape: [1, -2]
         - ThreadTileNumElements: [16, 32, 36]
         - LocalSplitU: [ 1, 2 ]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
   - # sgemm TN
     - # ProblemType
@@ -75,7 +79,8 @@ BenchmarkProblems:
       UseBeta: True
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
@@ -88,13 +93,14 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [1]
       ForkParameters:
-        - GroupShape: [ 0, -2 ]
+        - GroupShape: [ 1, -2 ]
         - NumThreads: [128, 256 ]
-        - ThreadTileShape: [0, 2]
+        - ThreadTileShape: [1, 2]
         - ThreadTileNumElements: [16, 32, 36]
         - LocalSplitU: [ 1, 2 ]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
   - # sgemm TT
     - # ProblemType
@@ -105,7 +111,8 @@ BenchmarkProblems:
       UseBeta: True
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [8, 32, 0, 75], [8, 32, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
@@ -118,13 +125,14 @@ BenchmarkProblems:
         - DepthU: [ 16 ]
         - VectorWidth: [1]
       ForkParameters:
-        - GroupShape: [ 0, 2 ]
+        - GroupShape: [ 1, 2 ]
         - NumThreads: [128, 256 ]
-        - ThreadTileShape: [0, -2]
+        - ThreadTileShape: [1, -2]
         - ThreadTileNumElements: [16, 32, 36]
         - LocalSplitU: [ 1, 2 ]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
 LibraryLogic:
   ScheduleName: Fiji

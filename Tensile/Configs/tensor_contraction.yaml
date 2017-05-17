@@ -29,14 +29,15 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [512], [512], [2], [512] ]
+        - ProblemSizes:
+          - Range: [ [512], [512], [2], [512] ]
         - LocalSplitU: [ 1 ]
         - EdgeType: ["Branch"]
         - WorkGroupMapping: [ 1 ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - GroupShape: [ 0 ]
-        - ThreadTileShape: [ 0 ]
+        - GroupShape: [ 1 ]
+        - ThreadTileShape: [ 1 ]
       ForkParameters:
         - NumThreads: [64, 256]
         - ThreadTileNumElements: [4, 16, 64]
@@ -47,7 +48,8 @@ BenchmarkProblems:
         - DepthU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [16, 128], [16, 128], [2, 2, 4], [256] ]
+        - ProblemSizes:
+          - Range: [ [16, 128], [16, 128], [2, 2, 4], [256] ]
 
 LibraryLogic:
   ScheduleName: Fiji

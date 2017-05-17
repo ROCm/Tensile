@@ -690,13 +690,14 @@ class Solution:
         state["Valid"] = False
 
     # tile shape
-    if state["Valid"]:
+    if state["Valid"] and "MacroTileShapeMax" in state \
+        and "MacroTileShapeMin" in state:
       macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
           state["MacroTile1"]/state["MacroTile0"])
       if macroTileShape > state["MacroTileShapeMax"] \
           or macroTileShape < state["MacroTileShapeMin"]:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("rejecting ratio %u:%u for range %u:%u" \
+          print1("rejecting MacroTile Shape %u:%u for Min:Max %u:%u" \
               % (state["MacroTile0"], state["MacroTile1"], \
               state["MacroTileShapeMin"], state["MacroTileShapeMax"]))
         state["Valid"] = False

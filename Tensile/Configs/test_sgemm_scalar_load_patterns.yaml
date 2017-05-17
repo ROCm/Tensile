@@ -14,11 +14,12 @@ BenchmarkProblems:
       UseBeta: False
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 0 ]
+        - GroupShape: [ 1 ]
         - NumThreads: [128 ]
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
@@ -33,7 +34,8 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1, -1]
         - NumLoadsCoalescedB: [1, -1]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
 
   - # sgemm NN
@@ -45,11 +47,12 @@ BenchmarkProblems:
       UseBeta: True
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 0 ]
+        - GroupShape: [ 1 ]
         - NumThreads: [128 ]
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
@@ -64,7 +67,8 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1, -1]
         - NumLoadsCoalescedB: [1, -1]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
   - # sgemm TN
     - # ProblemType
@@ -75,11 +79,12 @@ BenchmarkProblems:
       UseBeta: True
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 0 ]
+        - GroupShape: [ 1 ]
         - NumThreads: [128 ]
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
@@ -94,7 +99,8 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1, -1]
         - NumLoadsCoalescedB: [1, -1]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
   - # sgemm TT
     - # ProblemType
@@ -105,11 +111,12 @@ BenchmarkProblems:
       UseBeta: True
     - # BenchmarkProblemSizeGroup - Standard
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
+        - ProblemSizes:
+          - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 0 ]
+        - GroupShape: [ 1 ]
         - NumThreads: [128 ]
         - ThreadTileShape: [2]
         - ThreadTileNumElements: [32]
@@ -124,7 +131,8 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1, -1]
         - NumLoadsCoalescedB: [1, -1]
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [128, 128, 256], [128, 128, 256], [64] ]
+        - ProblemSizes:
+          - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
 
 LibraryLogic:
   ScheduleName: Fiji

@@ -85,8 +85,10 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   ######################################
   # Correct outliers
+  """
   if inputParameters["SmoothOutliers"]:
     logicAnalyzer.smoothOutliers()
+  """
   numProblemSizes = logicAnalyzer.numProblemSizes
   # print all 2D
   numPermutations = 1
@@ -424,6 +426,7 @@ class LogicAnalyzer:
         break
 
 
+  """
   ##############################################################################
   # ENTRY: Smooth Outliers
   ##############################################################################
@@ -462,6 +465,7 @@ class LogicAnalyzer:
           s += "%f -> %f" % (old, new)
           self.data[problemSerial+solutionIdx] \
               = sum(neighborGFlops)/len(neighborGFlops)
+  """
 
 
   ##############################################################################

@@ -203,9 +203,9 @@ defaultBenchmarkFinalProblemSizes = """[{Range:[
 defaultAnalysisParameters = {
     "ScheduleName":       "Default",
     "DeviceNames":  ["Unspecified"],
-    "BranchPenalty":              0, # microseconds / kernel
-    "SmoothOutliers":         False, # enforce monotonic data
-    "SolutionImportanceMin":      0, # = keep all solutions 0.01=1% of wins
+    #"BranchPenalty":              0, # microseconds / kernel
+    #"SmoothOutliers":         False, # enforce monotonic data
+    "SolutionImportanceMin":      0.01, # = keep range solutions; 0.01=1% wins
     }
 
 
