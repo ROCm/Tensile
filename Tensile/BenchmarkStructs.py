@@ -144,7 +144,7 @@ class BenchmarkProcess:
         if "ProblemSizes" in configBenchmarkCommonParameters[0]:
           # user specified, so use it, remove it from config and insert later
           currentProblemSizes = \
-          configBenchmarkCommonParameters[0]["ProblemSizes"]
+            configBenchmarkCommonParameters[0]["ProblemSizes"]
           del configBenchmarkCommonParameters[0]
     # into common we put in all Dcommon that
     # don't show up in Ccommon/Cfork/CBfork/Cjoin/CBjoin
@@ -264,7 +264,7 @@ class BenchmarkProcess:
       for paramDict in copy(stepList):
         for paramName in copy(paramDict):
           paramValues = paramDict[paramName]
-          if len(paramValues) < 2:
+          if len(paramValues) < 2 and paramName != "ProblemSizes":
             paramDict.pop(paramName)
             #self.benchmarkCommonParameters.insert(0, {paramName: paramValues })
             self.hardcodedParameters[0][paramName] = paramValues[0]
@@ -317,7 +317,7 @@ class BenchmarkProcess:
     for step in self.benchmarkJoinParameters:
       print2("    %s" % step)
     # benchmarkJoinParameters
-    print2("BenchmarkfinalParameters:")
+    print2("BenchmarkFinalParameters:")
     for step in self.benchmarkFinalParameters:
       print2("    %s" % step)
 
@@ -490,9 +490,9 @@ class BenchmarkProcess:
           joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
           #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
     #self.hardcodedParameters.append(joinPermutations)
-    print2("JoinPermutations: ")
-    for perm in joinPermutations:
-      print2(perm)
+    #print2("JoinPermutations: ")
+    #for perm in joinPermutations:
+    #  print2(perm)
     if len(joinPermutations) > 0:
       self.joinHardcodedParameters(joinPermutations)
 

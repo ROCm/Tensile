@@ -300,9 +300,13 @@ class KernelWriterSource(KernelWriter):
     kStr += "#define VECTOR_TYPE %s%s" % (vecStr, self.endLine)
 
     if self.language == "OCL":
-      kStr += "#define MAD(A,B,DST) mad(A,B,DST)"
+      kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
     else:
-      kStr += "#define MAD(A,B,DST) DST += A*B"
+      # TODO convert to always using hfma2 since we always have even number of fma's, half2*=rC
+      if kernel["ProblemType"]["DataType"].isHalf():
+        kStr += "#define MAC(A,B,DST) DST = __hfma(A,B,DST)"
+      else:
+        kStr += "#define MAC(A,B,DST) DST += A*B"
     kStr += self.endLine
 
     if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
@@ -312,10 +316,6 @@ class KernelWriterSource(KernelWriter):
 
     ####################################
     # Atomic Global MAC
-#dst, alpha, reg
-#dst, alpha, reg, beta
-#          "#define TYPE_MAC_WRITE( DST, ALPHA, REG, BETA ) "+self.endLinePP +
-
     if kernel["GlobalSplitU"] > 1:
       kStr += self.comment("atomic add float")
       kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
@@ -333,9 +333,9 @@ class KernelWriterSource(KernelWriter):
       kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
           % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
           self.globalPtrStr, self.endLine)
-      kStr += "  unsigned int prevReturn;%s" % (self.endLine)
+      kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
       kStr += "  do {%s" % (self.endLine)
-      kStr += "    prevVal.f = *fPtr;%s" % (self.endLine)
+      kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
       kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
       kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
           % (self.atomicCasStr, self.endLine)
@@ -350,7 +350,7 @@ class KernelWriterSource(KernelWriter):
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
       kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
-          + "DST = MAD(MULA,MULB,DST);" + self.endLine
+          + "DST = MAC(MULA,MULB,DST);" + self.endLine
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
         kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
       else:
@@ -368,34 +368,34 @@ class KernelWriterSource(KernelWriter):
         # neither conjugate
         kStr += (
           "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
+          "  DST.s0 = MAC(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAC( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAC(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAC(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
         # A conjugate (negate imaginary A.s1)
         kStr += (
           "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = MAD( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
+          "  DST.s0 = MAC(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAC(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAC(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAC( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
       elif not kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]:
         # B conjugate (negate imaginary B.s1)
         kStr += (
           "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
+          "  DST.s0 = MAC(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAC( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAC(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAC(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       else:
         # A & B conjugate (negate imaginary .s1)
         kStr += (
           "#define TYPE_MAC(MULA,MULB,DST) " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
-          "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
-          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
-          "  DST.s1 = MAD( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
+          "  DST.s0 = MAC(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLinePP +
+          "  DST.s0 = MAC(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLinePP +
+          "  DST.s1 = MAC(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLinePP +
+          "  DST.s1 = MAC( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
       if kernel["ProblemType"]["UseBeta"]:
         # dst = alpha*reg + beta*dst
         kStr += (
@@ -403,14 +403,14 @@ class KernelWriterSource(KernelWriter):
           "  /* (1) */ " + self.endLinePP +
           "  type_mac_tmp = REG.s0; " + self.endLinePP +
           "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
           "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
+          "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
           "  /* (2) */ " + self.endLinePP +
-          "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
-          "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
-          "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
-          "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+          "  REG.s0 = MAC(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+          "  REG.s0 = MAC( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 = MAC(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
+          "  REG.s1 = MAC(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
           "  /* (3) */ " + self.endLinePP +
           "  DST = REG;" + self.endLine )
       else:
@@ -420,9 +420,9 @@ class KernelWriterSource(KernelWriter):
           "  /* (1) */ " + self.endLinePP +
           "  type_mac_tmp = REG.s0; " + self.endLinePP +
           "  REG.s0 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
+          "  REG.s0 = MAC( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLinePP +
           "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
-          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
+          "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
           "  /* (3) */ " + self.endLinePP +
           "  DST = REG;" + self.endLine )
 
@@ -724,10 +724,18 @@ class KernelWriterSource(KernelWriter):
   def graWorkGroup(self, kernel):
     kStr = ""
     if kernel["WorkGroupMapping"] == 1:
-      kStr += "  unsigned int wg" + self.tileChar0 + " = " \
-          + self.getGroupIdStr + "(0);" + self.endLine
-      kStr += "  unsigned int wg" + self.tileChar1 + " = " \
-          + self.getGroupIdStr + "(1);" + self.endLine
+      kStr += "  unsigned int wg%s = %s(0);%s" \
+	  % ( self.tileChar0, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int wg%s = %s(1);%s" \
+	  % ( self.tileChar1, self.getGroupIdStr, self.endLine)
+    elif kernel["WorkGroupMapping"] == -1:
+      kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
+          % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
+          self.getNumGroupsStr, self.endLine)
+      kStr += "  unsigned int wg%s = groupSerial %% %s(0);%s" \
+          % (self.tileChar0, self.getNumGroupsStr, self.endLine)
+      kStr += "  unsigned int wg%s = groupSerial / %s(0);%s" \
+          % (self.tileChar1, self.getNumGroupsStr, self.endLine)
     else:
       dimCoal = (0 if kernel["WorkGroupMapping"] > 0 else 1)
       dimPerp = (1 if kernel["WorkGroupMapping"] > 0 else 0)

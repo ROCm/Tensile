@@ -366,21 +366,16 @@ class ProblemType:
 
 
 ################################################################################
-# ProblemSizes
+# ProblemSizeRange
 ################################################################################
-class ProblemSizes:
+class ProblemSizeRange:
 
   ########################################
   def __init__(self, problemType, config):
     self.totalIndices = 1+max(problemType["IndexAssignmentsA"])
     if len(config) < self.totalIndices:
-      #printDefault("SizeRange config (%s) has too few elements (%u < %u) than required by ProblemType (%s); appending defaults." \
-          #% ( str(config), len(config), self.totalIndices, problemType ))
       for i in range(len(config), self.totalIndices):
         config.append(0)
-    #if len(config) < self.totalIndices:
-      #printDefault("SizeRange config (%s) has too many elements (%u > %u) than required by ProblemType (%s); ignoring remainder." \
-          # % ( str(config), len(config), self.totalIndices, problemType ))
     self.indexMax = []
     self.indexIsSized = []
     self.indicesSized = []
@@ -405,7 +400,8 @@ class ProblemSizes:
       elif isinstance(dim, int):
         self.indicesMapped.append(dim)
         self.indexIsSized.append(False)
-        self.indexMax.append(self.indicesSized[self.indicesMapped[len(self.indicesMapped)-1]][3])
+        self.indexMax.append(self.indicesSized[self.indicesMapped[ \
+            len(self.indicesMapped)-1]][3])
 
     # max num elements in each tensor
     self.maxNumElements = [ 1, 1, 1 ]
@@ -438,6 +434,52 @@ class ProblemSizes:
         self.numProblemSizes.append(1)
       self.totalProblemSizes *= self.numProblemSizes[i]
 
+    ########################################
+    # enumerate problem sizes
+    currentSizedIndexSizes = []
+    currentSizedIndexIncrements = []
+    for i in range(0, len(self.indicesSized)):
+      currentSizedIndexSizes.append(self.indicesSized[i][0])
+      currentSizedIndexIncrements.append(self.indicesSized[i][1])
+
+    # iterate over all problem sizes
+    self.problemSizes = []
+    moreProblemSizes = True
+    problemIdx = 0
+    problemSize = [0]*self.totalIndices
+    while moreProblemSizes:
+      #/ convert current sized and mapped indices to full sizes
+      currentSizedIdx = 0
+      currentMappedIdx = 0
+      for i in range(0, self.totalIndices):
+        if self.indexIsSized[i]:
+          problemSize[i] = currentSizedIndexSizes[currentSizedIdx]
+          currentSizedIdx+=1
+        else:
+          problemSize[i] = problemSize[self.indicesMapped[currentMappedIdx]]
+          currentMappedIdx+=1
+      self.problemSizes.append(tuple(problemSize))
+
+      #/ increment sizes for next benchmark
+      currentSizedIndexSizes[0] += currentSizedIndexIncrements[0]
+      currentSizedIndexIncrements[0] += self.indicesSized[0][2]
+      for i in range(1, len(self.indicesSized)+1):
+        # if prior index past max, reset to min and increment next index
+        if currentSizedIndexSizes[i-1] > self.indicesSized[i-1][3]:
+          #/ reset prior index
+          currentSizedIndexSizes[i-1] = self.indicesSized[i-1][0]
+          currentSizedIndexIncrements[i-1] = self.indicesSized[i-1][1]
+          # increment next index
+          if i >= len(self.indicesSized):
+            moreProblemSizes = False
+          else:
+            currentSizedIndexSizes[i] += currentSizedIndexIncrements[i]
+            currentSizedIndexIncrements[i] += self.indicesSized[i][2]
+
+      problemIdx+=1
+
+  ########################################
+  # YAML format
   def __str__(self):
     state = "[ "
     sizedIdx = 0
@@ -445,7 +487,8 @@ class ProblemSizes:
     for i in range(0, len(self.indexIsSized)):
       if self.indexIsSized[i]:
         indices = self.indicesSized[sizedIdx]
-        state += "[ %u, %u, %u, %u ]" % (indices[0], indices[1], indices[2], indices[3])
+        state += "[ %u, %u, %u, %u ]" \
+            % (indices[0], indices[1], indices[2], indices[3])
         sizedIdx += 1
       else:
         indices = self.indicesSized[self.indicesMapped[mappedIdx]]
@@ -455,6 +498,83 @@ class ProblemSizes:
         state += ", "
     state += " ]"
     return state
+
+################################################################################
+# ProblemSizes
+################################################################################
+class ProblemSizes:
+
+  ########################################
+  def __init__(self, problemType, config):
+    self.problemType = problemType
+    self.ranges = []
+    self.exacts = []
+    for dictionary in config:
+      for sizeTypeKey in dictionary:
+        if sizeTypeKey == "Range":
+          psr = ProblemSizeRange(problemType, dictionary[sizeTypeKey])
+          self.ranges.append( psr )
+        elif sizeTypeKey == "Exact":
+          e = dictionary[sizeTypeKey]
+          if len(e) != problemType["TotalIndices"]:
+            printExit("ExactSize %s doesn't match indices of ProblemType %s" \
+                % (e, problemType) )
+          else:
+            self.exacts.append(tuple(e))
+        else:
+          printExit("ProblemSize Type %s not supported"%sizeTypeKey)
+
+    self.sizes = set()
+    for sizeRange in self.ranges:
+      self.sizes.update(sizeRange.problemSizes)
+    self.sizes.update(self.exacts)
+    self.sizes = sorted( list( self.sizes ) )
+    self.totalProblemSizes = len(self.sizes)
+
+    # max sizes
+    self.maxC = 0
+    self.maxA = 0
+    self.maxB = 0
+    for problemSize in self.sizes:
+      sizeC = 1
+      sizeA = 1
+      sizeB = 1
+      for i in range(0, problemType["NumIndicesC"]):
+        sizeC *= problemSize[i]
+      for i in self.problemType["IndexAssignmentsA"]:
+        sizeA *= problemSize[i]
+      for i in self.problemType["IndexAssignmentsB"]:
+        sizeB *= problemSize[i]
+      self.maxC = max(self.maxC, sizeC)
+      self.maxA = max(self.maxA, sizeA)
+      self.maxB = max(self.maxB, sizeB)
+
+
+
+  def __str__(self):
+    s = "ProblemSizes\n"
+    for sizeRange in self.ranges:
+      s += "  %s" % sizeRange
+    return s
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -553,13 +673,11 @@ class Solution:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["LocalSplitU"]))
       state["Valid"] = False
-    #print "Group:", state["SubGroup0"], state["SubGroup1"]
 
     if state["ThreadTile0"]*state["ThreadTile1"] != state["ThreadTileNumElements"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("ThreadTile %u * %u != %u" % (state["ThreadTile0"], state["ThreadTile1"], state["ThreadTileNumElements"]))
       state["Valid"] = False
-    #print "ThreadTile:", state["ThreadTile0"], state["ThreadTile1"]
 
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
@@ -572,11 +690,16 @@ class Solution:
         state["Valid"] = False
 
     # tile shape
-    if state["Valid"]:
-      if state["MacroTile0"]/state["MacroTile1"] > globalParameters["MaxMacroTileRatio"] \
-          or state["MacroTile1"]/state["MacroTile0"] > globalParameters["MaxMacroTileRatio"]:
+    if state["Valid"] and "MacroTileShapeMax" in state \
+        and "MacroTileShapeMin" in state:
+      macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
+          state["MacroTile1"]/state["MacroTile0"])
+      if macroTileShape > state["MacroTileShapeMax"] \
+          or macroTileShape < state["MacroTileShapeMin"]:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("rejecting ratio %u : %u" % (state["MacroTile0"], state["MacroTile1"]))
+          print1("rejecting MacroTile Shape %u:%u for Min:Max %u:%u" \
+              % (state["MacroTile0"], state["MacroTile1"], \
+              state["MacroTileShapeMin"], state["MacroTileShapeMax"]))
         state["Valid"] = False
 
     # done
@@ -597,8 +720,8 @@ class Solution:
     if not state["Valid"]:
       return
 
-    if ( state["GroupShape"] < 0 and state["ThreadTileShape"] > 0) or \
-        (state["GroupShape"] > 0 and state["ThreadTileShape"] < 0):
+    if ( state["GroupShape"] < 1 and state["ThreadTileShape"] > 1) or \
+        (state["GroupShape"] > 1 and state["ThreadTileShape"] < 1):
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("Group and thread tiles have opposite shapes")
       state["Valid"] = False
@@ -699,7 +822,6 @@ class Solution:
       return
     else:
       state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
-    #print "NumLoads:", state["NumLoadsA"], state["NumLoadsB"]
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
@@ -929,28 +1051,28 @@ class Solution:
 
     # group sizes
     subGroupSize = numThreads / splitU
-    if groupShape == 0:
+    if groupShape == 1:
       subGroup0 = int(subGroupSize**0.5)
       subGroup1 = int(subGroupSize**0.5)
-    elif groupShape > 0:
+    elif groupShape > 1:
       subGroup0 = int((subGroupSize \
           / abs(groupShape))**0.5)
       subGroup1 = subGroup0 * abs(groupShape)
-    elif groupShape < 0:
+    elif groupShape < 1:
       subGroup1 = int((subGroupSize \
           / abs(groupShape))**0.5)
       subGroup0 = subGroup1 * abs(groupShape)
 
     # thread-tile sizes
-    if threadTileShape == 0:
+    if threadTileShape == 1:
       threadTile0 = int(threadTileNumElements**0.5)
       threadTile1 = int(threadTileNumElements**0.5)
-    elif threadTileShape > 0:
+    elif threadTileShape > 1:
       threadTile0 = int((threadTileNumElements \
           / abs(threadTileShape))**0.5)
       threadTile1 = threadTile0 \
           * abs(threadTileShape)
-    elif threadTileShape < 0:
+    elif threadTileShape < 1:
       threadTile1 = int((threadTileNumElements \
           / abs(threadTileShape))**0.5)
       threadTile0 = threadTile1 \

@@ -300,7 +300,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       deviceNames   = scheduleTuple[1]
       solutionsForSchedule = scheduleTuple[2]
       indexOrder    = scheduleTuple[3]
-      logic         = scheduleTuple[4]
+      exactLogic    = scheduleTuple[4]
+      rangeLogic    = scheduleTuple[5]
 
       # solution names for schedule
       solutionNamesForSchedule = []
@@ -320,9 +321,16 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-      logicStr = writeLogicRec(0, indexOrder, logic, solutionNamesForSchedule, \
-          problemType, True)
-      s += logicStr
+
+      exactLogicStr = writeExactLogic(exactLogic, \
+          solutionNamesForSchedule, True)
+
+      rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
+          solutionNamesForSchedule, problemType, True)
+      s += "  /* exact mappings */\n"
+      s += exactLogicStr
+      s += "\n  /* range mappings */\n"
+      s += rangeLogicStr
       s += "\n}\n"
 
       # function tensileGetSolutionName_Schedule_ProblemType
@@ -333,9 +341,14 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-      logicStr = writeLogicRec(0, indexOrder, logic, solutionNamesForSchedule, \
-          problemType, False)
-      s += logicStr
+      exactLogicStr = writeExactLogic(exactLogic, \
+          solutionNamesForSchedule, False)
+      rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
+          solutionNamesForSchedule, problemType, False)
+      s += "  /* exact mappings */\n"
+      s += exactLogicStr
+      s += "\n  /* range mappings */\n"
+      s += rangeLogicStr
       s += "\n}\n"
 
     ########################################
@@ -482,17 +495,46 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.close()
 
 ################################################################################
-# Write Logic Recursive
+# Write Range Logic Recursive
 ################################################################################
-def writeLogicRec(depth, indexOrder, logic, solutionNames, problemType, ptr):
+def writeExactLogic(exactLogic, solutionNames, ptr):
+  s = ""
+  indent = "  "
+  for ruleIdx in range(0, len(exactLogic)):
+    rule = exactLogic[ruleIdx]
+    problemSize = rule[0]
+    solutionIdx = rule[1][0]
+    solutionGFlops = rule[1][1]
+    s += indent
+    if ruleIdx > 0:
+      s += "else "
+    s += "if ("
+    s += " size%s == %u " % (globalParameters["IndexChars"][0], problemSize[0])
+    for i in range(1, len(problemSize)):
+      s += "&& size%s == %u " % (globalParameters["IndexChars"][i], \
+          problemSize[i])
+    solutionName = solutionNames[solutionIdx]
+    if ptr:
+      returnValue = solutionName
+    else:
+      returnValue = "\"%s~\"" % solutionName
+    s += ") return %s; // %.0f GFlop/s\n" % (returnValue, solutionGFlops)
+  return s
+
+
+################################################################################
+# Write Range Logic Recursive
+################################################################################
+def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
+    problemType, ptr):
   indexChars = globalParameters["IndexChars"]
   indent = "  "
   indent += "  "*depth
   s = ""
   lowestLevel = depth == len(indexOrder)-1
-  numRules = len(logic)
+  numRules = len(rangeLogic)
   for ruleIdx in range(0, numRules):
-    rule = logic[ruleIdx]
+    rule = rangeLogic[ruleIdx]
     threshold = rule[0]
     if lowestLevel:
       solutionIdx = rule[1]
@@ -512,7 +554,7 @@ def writeLogicRec(depth, indexOrder, logic, solutionNames, problemType, ptr):
             % (indent, indexChars[indexOrder[depth]], threshold)
       else:
         s += "%s{\n" % (indent)
-      s += writeLogicRec(depth+1, indexOrder, rule[1], solutionNames, \
+      s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionNames, \
           problemType, ptr)
       s += "%s}\n" % (indent)
   return s
@@ -690,12 +732,12 @@ def TensileCreateLibrary():
   logicData = {} # keys are problemTypes, values are schedules
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-        indexOrder, logic) \
+        indexOrder, exactLogic, rangeLogic) \
         = YAMLIO.readLibraryLogicForSchedule(logicFileName)
     if problemType not in logicData:
       logicData[problemType] = []
     logicData[problemType].append((scheduleName, deviceNames, \
-        solutionsForSchedule, indexOrder, logic ))
+        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
     for solution in solutionsForSchedule:
       if solution not in solutions:
         solutions.append(solution)

@@ -30,7 +30,8 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
@@ -39,8 +40,8 @@ BenchmarkProblems:
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [0, 2]
-        - ThreadTileShape: [0, 2]
+        - GroupShape: [1, 2]
+        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
@@ -50,7 +51,8 @@ BenchmarkProblems:
         - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
 
   - # sgemm NT
     - # ProblemType
@@ -64,7 +66,8 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
@@ -73,8 +76,8 @@ BenchmarkProblems:
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [0, 2]
-        - ThreadTileShape: [0, 2]
+        - GroupShape: [1, 2]
+        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
@@ -84,7 +87,8 @@ BenchmarkProblems:
         - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
 
   - # sgemm TN
     - # ProblemType
@@ -98,7 +102,8 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
@@ -107,8 +112,8 @@ BenchmarkProblems:
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [0, 2]
-        - ThreadTileShape: [0, 2]
+        - GroupShape: [1, 2]
+        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
@@ -118,7 +123,8 @@ BenchmarkProblems:
         - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
 
   - # sgemm TT
     - # ProblemType
@@ -132,7 +138,8 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
@@ -141,8 +148,8 @@ BenchmarkProblems:
       ForkParameters:
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [0, 2]
-        - ThreadTileShape: [0, 2]
+        - GroupShape: [1, 2]
+        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
         - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
@@ -152,5 +159,6 @@ BenchmarkProblems:
         - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
-        - ProblemSizes: [ [5760], 0, 0 ]
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
 

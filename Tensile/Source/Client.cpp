@@ -145,7 +145,7 @@ int main( int argc, char *argv[] ) {
 #else
     for (unsigned int i = 0; i < numLibraryCalls; i++) {
       invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD_TCD);
+          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
     }
 #endif
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
@@ -155,26 +155,26 @@ int main( int argc, char *argv[] ) {
 #endif
 #ifdef Tensile_DATA_TYPE_TENSILEHALF
   case enum_TensileHalf: {
-    TensileHalf *initialC_TCD;
-    TensileHalf *initialA_TCD;
-    TensileHalf *initialB_TCD;
-    TensileHalf alpha_TCD;
-    TensileHalf beta_TCD;
-    TensileHalf *referenceC_TCD;
-    TensileHalf *deviceOnHostC_TCD;
-    initData(&initialC_TCD, &initialA_TCD, &initialB_TCD, &alpha_TCD,
-        &beta_TCD, &referenceC_TCD, &deviceOnHostC_TCD);
+    TensileHalf *initialC_TH;
+    TensileHalf *initialA_TH;
+    TensileHalf *initialB_TH;
+    TensileHalf alpha_TH;
+    TensileHalf beta_TH;
+    TensileHalf *referenceC_TH;
+    TensileHalf *deviceOnHostC_TH;
+    initData(&initialC_TH, &initialA_TH, &initialB_TH, &alpha_TH,
+        &beta_TH, &referenceC_TH, &deviceOnHostC_TH);
 #if Tensile_CLIENT_BENCHMARK
-    invalids = benchmarkProblemSizes(initialC_TCD, initialA_TCD, initialB_TCD,
-        alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
+    invalids = benchmarkProblemSizes(initialC_TH, initialA_TH, initialB_TH,
+        alpha_TH, beta_TH, referenceC_TH, deviceOnHostC_TH);
 #else
     for (unsigned int i = 0; i < numLibraryCalls; i++) {
-      invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD_TCD);
+      invalids = callLibrary(initialC_TH, initialA_TH, initialB_TH,
+          alpha_TH, beta_TH, referenceC_TH, deviceOnHostC_TH);
     }
 #endif
-    destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
-        deviceOnHostC_TCD);
+    destroyData(initialC_TH, initialA_TH, initialB_TH, referenceC_TH,
+        deviceOnHostC_TH);
     }
     break;
 #endif

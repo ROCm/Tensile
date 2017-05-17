@@ -618,10 +618,12 @@ def main( config ):
         resultsFileBase = resultsFileBaseList[resultsFileIdx]
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
-        newResultsFileName = os.path.join(dataPath, "%s_%02u_%02u.csv" \
-            % (str(problemTypeObj), problemSizeGroupIdx, resultsFileIdx) )
-        newSolutionsFileName = os.path.join(dataPath, "%s_%02u_%02u.yaml" \
-            % (str(problemTypeObj), problemSizeGroupIdx, resultsFileIdx) )
+        resultsIdxStr = "_%02u"%resultsFileIdx if len(resultsFileBaseList)>1 \
+            else ""
+        newResultsFileName = os.path.join(dataPath, "%s_%02u%s.csv" \
+            % (str(problemTypeObj), problemSizeGroupIdx, resultsIdxStr) )
+        newSolutionsFileName = os.path.join(dataPath, "%s_%02u%s.yaml" \
+            % (str(problemTypeObj), problemSizeGroupIdx, resultsIdxStr) )
         shutil_copy( resultsFileName, newResultsFileName )
         shutil_copy( solutionsFileName, newSolutionsFileName )
 
