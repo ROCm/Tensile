@@ -320,27 +320,46 @@ class KernelWriterSource(KernelWriter):
       kStr += self.comment("atomic add float")
       kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       kStr += "#define ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
-      kStr += "typedef union {%s" % (self.endLine)
-      kStr += "  unsigned int ui;%s" % (self.endLine)
-      kStr += "  float f;%s" % (self.endLine)
-      kStr += "} AtomicFloat;%s" % (self.endLine)
-      kStr += self.endLine
-      kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
-          % ("__device__ " if self.language == "HIP" else "", \
-          self.volatileStr, self.globalPtrStr, self.endLine)
-      kStr += "  AtomicFloat newVal;%s" % (self.endLine)
-      kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
-      kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
-          % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
-          self.globalPtrStr, self.endLine)
-      kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
-      kStr += "  do {%s" % (self.endLine)
-      kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
-      kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
-      kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
-          % (self.atomicCasStr, self.endLine)
-      kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
-      kStr += "}%s" % (self.endLine)
+      if self.language == "OCL":
+        kStr += "typedef union {%s" % (self.endLine)
+        kStr += "  unsigned int ui;%s" % (self.endLine)
+        kStr += "  float f;%s" % (self.endLine)
+        kStr += "} AtomicFloat;%s" % (self.endLine)
+        kStr += self.endLine
+        kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % ("__device__ " if self.language == "HIP" else "", \
+            self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  AtomicFloat newVal;%s" % (self.endLine)
+        kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
+        kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
+            % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
+            self.globalPtrStr, self.endLine)
+        kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
+        kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
+        kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+            % (self.atomicCasStr, self.endLine)
+        kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+      else:
+        kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % ("__device__ " if self.language == "HIP" else "", \
+            self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
+            % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
+            self.globalPtrStr, self.endLine)
+        #kStr += "  unsigned int old = *uPtr;%s" % (self.endLine)
+        kStr += "  unsigned int old = atomicAdd(uPtr, 0); // atomic read%s" % (self.endLine)
+        kStr += "  unsigned int assumed, newValue;%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    assumed = old;%s" % (self.endLine)
+        kStr += "    newValue = __float_as_uint(operand + __uint_as_float(assumed));%s" % (self.endLine)
+        kStr += "    old = %s(uPtr, assumed, newValue);%s" \
+            % (self.atomicCasStr, self.endLine)
+        kStr += "  } while (assumed != old);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+
       kStr += "#endif%s" % self.endLine
 
 
