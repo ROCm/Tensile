@@ -190,11 +190,9 @@ defaultProblemType = {
     "NumDimensionsC":           2,
     "DataType":                 0,
     }
-defaultProblemSizes = "[{Range:[ [2880], 0, 0 ]}]"
-defaultBenchmarkFinalProblemSizes = """[{Range:[
-    [64, 64, 64, 2880],
-    [64, 64, 64, 2880],
-    [64, 64, 64, 2880] ]}]"""
+defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
+defaultBenchmarkFinalProblemSizes = [{"Range": [
+    [64, 64, 64, 512], 0, 0 ]}]
 
 
 ################################################################################

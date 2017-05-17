@@ -456,7 +456,7 @@ class ProblemSizeRange:
           problemSize[i] = currentSizedIndexSizes[currentSizedIdx]
           currentSizedIdx+=1
         else:
-          problemSize[i] = problemSize[indicesMapped[currentMappedIdx]]
+          problemSize[i] = problemSize[self.indicesMapped[currentMappedIdx]]
           currentMappedIdx+=1
       self.problemSizes.append(tuple(problemSize))
 
@@ -522,7 +522,7 @@ class ProblemSizes:
           else:
             self.exacts.append(tuple(e))
         else:
-          printExit("ProblemSize Type %u not supported"%sizeTypeKey)
+          printExit("ProblemSize Type %s not supported"%sizeTypeKey)
 
     self.sizes = set()
     for sizeRange in self.ranges:
