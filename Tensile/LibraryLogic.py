@@ -378,7 +378,7 @@ class LogicAnalyzer:
     if rowIdx < 2:
       printExit("CSV File %s only has %u row(s); prior benchmark must not have run long enough to produce data." \
           % (dataFileName, rowIdx) )
-    print self.data
+    #print self.data
 
 
   ##############################################################################
@@ -581,7 +581,7 @@ class LogicAnalyzer:
             winnerIdx, \
             self.solutionNames[winnerIdx] ) )
         """
-        print "InitialRule", initialRule
+        #print "InitialRule", initialRule
       else:
         #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
         nextRule = self.enRule(nextIndexIndex, nextIndexRange)
@@ -590,7 +590,7 @@ class LogicAnalyzer:
         initialRule = [ currentIndexRange[currentIndex][0], nextRule ]
         #print2("%sinitialRule(%s) DONE" % (tab, nextIndexRange))
       ruleList.append(initialRule)
-      print tab, ruleList
+      # print tab, ruleList
       if globalParameters["PrintLevel"] == 1:
         stdout.write("#")
 
@@ -610,7 +610,7 @@ class LogicAnalyzer:
           # if no solutions benchmarked for this problem size, continue
           if winnerIdx < 0:
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            print tab, ruleList, "Updating b/c None"
+            #print tab, ruleList, "Updating b/c None"
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -620,7 +620,7 @@ class LogicAnalyzer:
           nextRule = self.enRule(nextIndexIndex, nextIndexRange)
           if nextRule == None:
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            print tab, ruleList, "Updating b/c None"
+            # print tab, ruleList, "Updating b/c None"
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -632,7 +632,7 @@ class LogicAnalyzer:
         if candidateRule[1] == priorRule[1]:
           #print2("%sP[%2u]: same" % (tab, problemIndex))
           ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-          print tab, ruleList, "Updating b/c Same"
+          # print tab, ruleList, "Updating b/c Same"
           if globalParameters["PrintLevel"] == 1:
             stdout.write(" ")
           continue
@@ -673,18 +673,18 @@ class LogicAnalyzer:
           # candidate wins
           if True: # or candidateRuleScore < priorRuleScore:
             ruleList.append(candidateRule)
-            print tab, ruleList, "Appending b/c Different"
+            # print tab, ruleList, "Appending b/c Different"
             if globalParameters["PrintLevel"] == 1:
               stdout.write("#")
 
           ########################################
           # prior wins
           else:
-            print "PRIOR_WINS"
+            # print "PRIOR_WINS"
             if globalParameters["PrintLevel"] == 1:
               stdout.write(".")
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            print tab, ruleList
+            # print tab, ruleList
 
     print2("%sReturning RuleList: %s" % (tab, ruleList))
     return ruleList
