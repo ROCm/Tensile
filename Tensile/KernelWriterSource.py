@@ -724,10 +724,18 @@ class KernelWriterSource(KernelWriter):
   def graWorkGroup(self, kernel):
     kStr = ""
     if kernel["WorkGroupMapping"] == 1:
-      kStr += "  unsigned int wg" + self.tileChar0 + " = " \
-          + self.getGroupIdStr + "(0);" + self.endLine
-      kStr += "  unsigned int wg" + self.tileChar1 + " = " \
-          + self.getGroupIdStr + "(1);" + self.endLine
+      kStr += "  unsigned int wg%s = %s(0);%s" \
+	  % ( self.tileChar0, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int wg%s = %s(1);%s" \
+	  % ( self.tileChar1, self.getGroupIdStr, self.endLine)
+    elif kernel["WorkGroupMapping"] == -1:
+      kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
+          % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
+          self.getNumGroupsStr, self.endLine)
+      kStr += "  unsigned int wg%s = groupSerial %% %s(0);%s" \
+          % (self.tileChar0, self.getNumGroupsStr, self.endLine)
+      kStr += "  unsigned int wg%s = groupSerial / %s(0);%s" \
+          % (self.tileChar1, self.getNumGroupsStr, self.endLine)
     else:
       dimCoal = (0 if kernel["WorkGroupMapping"] > 0 else 1)
       dimPerp = (1 if kernel["WorkGroupMapping"] > 0 else 0)
