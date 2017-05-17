@@ -534,8 +534,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   if forBenchmark:
     h += "size_t maxSizeC = %u;\n" % (problemSizes.maxC)
-    h += "size_t maxSizeA = %u;\n" % (problemSizes.maxC)
-    h += "size_t maxSizeB = %u;\n" % (problemSizes.maxC)
+    h += "size_t maxSizeA = %u;\n" % (problemSizes.maxA)
+    h += "size_t maxSizeB = %u;\n" % (problemSizes.maxB)
     h += "\n"
   else:
     h += "size_t maxSizeC;\n"
