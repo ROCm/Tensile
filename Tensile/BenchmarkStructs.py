@@ -389,10 +389,11 @@ class BenchmarkProcess:
         # count permutations
         for param in self.forkParameters:
           for name in param: # only 1
-            values = param[name]
-            localPermutations = len(values)
-            print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
-            totalPermutations *= localPermutations
+            if name == joinName:
+              values = param[name]
+              localPermutations = len(values)
+              print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
+              totalPermutations *= localPermutations
 
       ##########################################################################
       # (II-4.2) Join MacroTile
