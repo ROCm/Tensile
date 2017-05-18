@@ -452,8 +452,10 @@ class BenchmarkProcess:
           (subGroup0, subGroup1, threadTile0, threadTile1) \
               = Solution.tileSizes(numThreads, splitU, \
               groupShape, threadTileNumElements, threadTileShape)
-          macroTile0 = subGroup0*threadTile0
-          macroTile1 = subGroup1*threadTile1
+          if threadTile0*threadTile1 == threadTileNumElements \
+              and subGroup0*subGroup1*splitU == numThreads:
+            macroTile0 = subGroup0*threadTile0
+            macroTile1 = subGroup1*threadTile1
 
           macroTileJoinSet.add((macroTile0, macroTile1))
         totalPermutations *=len(macroTileJoinSet)
