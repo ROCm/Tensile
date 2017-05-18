@@ -88,6 +88,11 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
+validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
+validMacroTiles = []
+for i in validMacroTileSides:
+  for j in validMacroTileSides:
+    validMacroTiles.append([i, j])
 validParameters = {
     "LoopDoWhile":                [ False, True ],
     "LoopTail":                   [ False, True ],
@@ -118,6 +123,7 @@ validParameters = {
     "MacroTileShapeMax":          [ 1, 2, 4, 8, 16, 32, 64 ],
 
     "EdgeType":                   [ "Branch", "Shift", "None" ],
+    "MacroTile":                  validMacroTiles,
 
     }
 # same parameter for all solution b/c depends only on compiler

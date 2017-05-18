@@ -688,6 +688,11 @@ class Solution:
       state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
         state["Valid"] = False
+    if "MacroTile" in state:
+      if state["MacroTile0"] != state["MacroTile"][0] \
+          or state["MacroTile1"] != state["MacroTile"][1]:
+        state["Valid"] = False
+
 
     # tile shape
     if state["Valid"] and "MacroTileShapeMax" in state \
