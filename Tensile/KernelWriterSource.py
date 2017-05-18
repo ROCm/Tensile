@@ -183,11 +183,11 @@ class KernelWriterSource(KernelWriter):
     kStr += "/* DepthU parameters*/%s" % self.endLine
     kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
-    kStr += "#define SPLITU %d%s" \
+    kStr += "#define LOCAL_SPLITU %d%s" \
         % (kernel["LocalSplitU"], self.endLine )
     kStr += "#define UNROLL %d%s" \
         % (kernel["LoopUnroll"], self.endLine )
-    kStr += "#define LOCAL_DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
+    kStr += "#define LOCAL_DEPTHU (LOCAL_SPLITU*UNROLL)%s" % (self.endLine )
     if kernel["GlobalSplitU"] > 1:
       kStr += "#define GLOBAL_SPLITU %u%s" \
           % (kernel["GlobalSplitU"], self.endLine )
@@ -1549,7 +1549,7 @@ class KernelWriterSource(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if tailLoop:
-      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       #kStr += "if (serial==0) printf(\\\"wg0:%u, wg1:%u, gsuWg:%u, gsuSum:%u, numIter:%u, r:%u\\\\n\\\", wg0I, wg1J, gsuWgIdx, gsuSumIdx, numIterK, numIterPerWgRemainder);" + self.endLine
       if kernel["GlobalSplitU"] > 1:
@@ -1639,7 +1639,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def tailLoopNumIter(self, kernel):
     kStr = ""
-    kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+    kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
     return kStr
 
@@ -2005,7 +2005,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadIncA(self, kernel):
     kStr = ""
-    kStr += "%slocalReadA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "%slocalReadA += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar0, self.endLine)
     return kStr
 
@@ -2014,7 +2014,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadIncB(self, kernel):
     kStr = ""
-    kStr += "%slocalReadB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "%slocalReadB += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar1, self.endLine)
     return kStr
 
@@ -2133,7 +2133,7 @@ class KernelWriterSource(KernelWriter):
     kStr += self.indent + self.syncStr + self.endLine
     """
     kStr += "    /* print Local state */" + self.endLine
-    kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*SPLITU; i+=NUM_THREADS) {%s" % self.endLine
+    kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*LOCAL_SPLITU; i+=NUM_THREADS) {%s" % self.endLine
     kStr += "      printf(\\\"localLocalSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, localLocalSplitU[i], localLocalSplitU[i]);%s" \
         % self.endLine
     kStr += "    }" + self.endLine
@@ -2318,7 +2318,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     if globalParameters["MergeFiles"] and self.language == "HIP":
       kStr += "#undef UNROLL%s" % self.endLine
-      kStr += "#undef SPLITU%s" % self.endLine
+      kStr += "#undef LOCAL_SPLITU%s" % self.endLine
       kStr += "#undef LOCAL_DEPTHU%s" % self.endLine
       kStr += "#undef SG%s%s" % (self.tileChar0, self.endLine)
       kStr += "#undef SG%s%s" % (self.tileChar1, self.endLine)
