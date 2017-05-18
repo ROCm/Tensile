@@ -312,7 +312,6 @@ class KernelWriterSource(KernelWriter):
     if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
       kStr += "#define s0 x" + self.endLine
       kStr += "#define s1 y" + self.endLine
-    kStr += self.endLine
 
     ####################################
     # Atomic Global MAC
@@ -346,6 +345,7 @@ class KernelWriterSource(KernelWriter):
 
     ####################################
     # MACs
+    kStr += self.endLine
     kStr += "/* MAC's */" + self.endLine
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
@@ -497,7 +497,6 @@ class KernelWriterSource(KernelWriter):
       if kernel["UnrollMemFence"]:
         kStr += "  " + self.fenceStr
       kStr += self.endLine
-    kStr += self.endLine
 
     ####################################
     # preprocessor definitions of kernel arguments
@@ -525,7 +524,6 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define strideB" \
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
           + " 1" + self.endLine
-    kStr += self.endLine
     return kStr
 
 

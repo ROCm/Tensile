@@ -340,7 +340,6 @@ class LogicAnalyzer:
 
         # Exact Problem Size
         if problemSize in self.exactProblemSizes:
-          print "hi"
           # solution gflops
           solutionIdx = 0
           winnerIdx = -1
@@ -390,6 +389,7 @@ class LogicAnalyzer:
     while not allSolutionValid:
       moreProblems = True
       invalidIdx = -1
+      print self.problemIndicesForGlobalRange
       for problemIndices in self.problemIndicesForGlobalRange:
         problemSerial = self.indicesToSerial(0, problemIndices)
         for solutionIdx in range(0, self.numSolutions):
@@ -560,6 +560,7 @@ class LogicAnalyzer:
       ########################################
       # create initial rule
       if isLastIndex:
+        winnerIdx = -1
         for problemIndex in range(currentIndexRange[currentIndex][0], \
             currentIndexRange[currentIndex][1]):
           nextIndexRange[currentIndex][0] = problemIndex
@@ -867,19 +868,32 @@ class LogicAnalyzer:
       totalWins += 1
     totalSavedMs = max(1, totalSavedMs)
     solutionImportance.sort(key=lambda x: x[1])
+    print self.exactWinners
     for i in range(0, self.numSolutions):
       solutionIdx = solutionImportance[0][0]
+      print solutionIdx
       canRemove = True
-      for j in self.exactWinners:
-        winnerIdx = self.exactWinners[j]
+      for exactProblem in self.exactWinners:
+        winnerIdx = self.exactWinners[exactProblem][0]
+        print winnerIdx, solutionIdx
         if solutionIdx == winnerIdx: # exact winners are important
           canRemove = False
           break
       if canRemove:
-        return ( solutionImportance[0][0], \
-            solutionImportance[0][1] / totalSavedMs, \
-            solutionImportance[0][2] / totalWins, \
-            solutionImportance[0][3] / totalExecMs )
+        idx = solutionImportance[0][0]
+        if totalSavedMs > 0:
+          percSaved = solutionImportance[0][1] / totalSavedMs
+        else:
+          percSaved = 0
+        if totalWins > 0:
+          percWins = solutionImportance[0][2] / totalWins
+        else:
+          percWins = 0
+        if totalExecMs > 0:
+          percTime = solutionImportance[0][3] / totalExecMs
+        else:
+          percTime = 0
+        return ( idx, percSaved, percWins, percTime )
     return None
 
 
@@ -920,6 +934,10 @@ class LogicAnalyzer:
               = oldData[problemIndex*oldNumSolutions+oldSolutionIdx]
           newSolutionIdx += 1
 
+    # update exact Winners
+    for problemSize in self.exactWinners:
+      if self.exactWinners[problemSize][0] >= removeSolutionIdx:
+        self.exactWinners[problemSize][0] -= 1
 
   ##############################################################################
   # Score Range For Logic
@@ -1091,6 +1109,10 @@ class LogicAnalyzer:
   # Problem Indices For Range
   def problemIndicesForRange(self, indexRange):
     problemIndexList = []
+    # early return for empty set
+    for i in range(0, self.numIndices):
+      if indexRange[i][0] == indexRange[i][1]:
+        return []
     problemIndices = []
     for idx in indexRange:
       problemIndices.append(idx[0])
