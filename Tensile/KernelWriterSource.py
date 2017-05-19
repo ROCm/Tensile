@@ -58,7 +58,7 @@ class KernelWriterSource(KernelWriter):
       self.macDStr = "mad"
       self.int64Str = "long"
       self.uint64Str = "unsigned long"
-      self.vectorComponents = ["s0", "s1", "s2", "s3"]
+      self.vectorComponents = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
       self.atomicCasStr = "atomic_cmpxchg"
       self.volatileStr = "volatile "
     else:
@@ -320,6 +320,22 @@ class KernelWriterSource(KernelWriter):
       kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       kStr += "#define ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       if self.language == "OCL":
+        """
+        kStr += self.endLine
+        kStr += "void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % (self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  volatile atomic_float *aPtr = (atomic_float*)(fPtr);%s" % (self.endLine)
+        kStr += "  float oldValue, newValue;%s" % (self.endLine)
+        kStr += "  oldValue = atomic_load_explicit(aPtr, memory_order_relaxed, memory_scope_device);%s" % (self.endLine)
+        #kStr += "  oldValue = atomic_load(aPtr);%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
+        #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+        #    % (self.atomicCasStr, self.endLine)
+        kStr += "  } while ( !atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, memory_order_relaxed, memory_order_relaxed) );%s" % (self.endLine)
+        #kStr += "  } while ( !atomic_compare_exchange_weak(aPtr, &oldValue, newValue) );%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        """
         kStr += "typedef union {%s" % (self.endLine)
         kStr += "  unsigned int ui;%s" % (self.endLine)
         kStr += "  float f;%s" % (self.endLine)
@@ -370,7 +386,8 @@ class KernelWriterSource(KernelWriter):
         kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
         #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
         #    % (self.atomicCasStr, self.endLine)
-        kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
+        #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
+        kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_relaxed, std::memory_order_release) );%s" % (self.endLine)
         kStr += "}%s" % (self.endLine)
 
       kStr += "#endif%s" % self.endLine

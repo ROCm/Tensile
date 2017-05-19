@@ -456,8 +456,7 @@ class BenchmarkProcess:
               and subGroup0*subGroup1*splitU == numThreads:
             macroTile0 = subGroup0*threadTile0
             macroTile1 = subGroup1*threadTile1
-
-          macroTileJoinSet.add((macroTile0, macroTile1))
+            macroTileJoinSet.add((macroTile0, macroTile1))
         totalPermutations *=len(macroTileJoinSet)
         print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
 

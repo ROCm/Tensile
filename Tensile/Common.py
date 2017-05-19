@@ -106,7 +106,7 @@ validParameters = {
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
-    "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
+    "WorkGroupMapping":           range(-1024,1025),
     "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
     "GroupShape":                 [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
     "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
@@ -115,9 +115,9 @@ validParameters = {
     "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
     "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
-    "GlobalSplitU":               [ 1, 2, 4, 8, 16, 32, 64 ],
+    "GlobalSplitU":               range(1, 64),
     "NumThreads":                 [ 64, 128, 256 ],
-    "VectorWidth":                [ -1, 1, 2, 4 ],
+    "VectorWidth":                [ -1, 1, 2, 4, 8 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],
     "MacroTileShapeMax":          [ 1, 2, 4, 8, 16, 32, 64 ],

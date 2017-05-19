@@ -171,6 +171,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     sys.stdout.write("# Enumerating Solutions")
     solutionSet = set() # avoid duplicates for nlca=-1, 1
+    if globalParameters["PrintLevel"] >= 1:
+      printIdx = 0
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
@@ -208,6 +210,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           elif globalParameters["PrintLevel"] >= 1:
             sys.stdout.write(".")
         if globalParameters["PrintLevel"] >= 1:
+          printIdx += 1
+          if printIdx % 100 == 0:
+            sys.stdout.write(" %u /%u/%u\n" \
+                % (len(solutionSet), printIdx, maxPossibleSolutions) )
           sys.stdout.flush()
     if globalParameters["PrintLevel"] >= 1:
       sys.stdout.write("\n")
@@ -494,10 +500,14 @@ class WinningParameterDict:
       for newHardcodedParameters in newHardcodedParameterList:
         self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
     else:
+      if globalParameters["PrintLevel"] >= 1:
+        sys.stdout.write("# Updating Winners\n")
+        printIdx = 0
       for newHardcodedParameters in newHardcodedParameterList:
         #(oldHardcodedParameters, winningParameters, score) = \
         matches = WinningParameterDict.get(newHardcodedParameters, oldWinners)
         if len(matches) == 1: # plain update
+          sys.stdout.write(".")
           hardcodedFrozen = matches[0][0]
           winningParameters = matches[0][1]
           score = matches[0][2]
@@ -506,6 +516,7 @@ class WinningParameterDict:
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ winningParameters, score ]
         elif len(matches) > 1: # join
+          sys.stdout.write("|")
           fastestScore = -1
           fastestHardcodedParameters = {}
           fastestWinningParameters = {}
@@ -521,6 +532,13 @@ class WinningParameterDict:
           newHardcodedParameters.update(fastestHardcodedParameters)
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ fastestWinningParameters, fastestScore ]
+        if globalParameters["PrintLevel"] >= 1:
+          printIdx += 1
+          if printIdx % 100 == 0:
+            sys.stdout.write("%u/%u\n" \
+                % (printIdx, len(newHardcodedParameterList)) )
+          sys.stdout.flush()
+
 
     # return resulting hardcodedParameterList
     returnHardcodedParameterList = []
