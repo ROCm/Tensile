@@ -361,7 +361,6 @@ class LogicAnalyzer:
           problemIndices = []
           for i in range(0, self.numIndices):
             problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
-          print problemIndices
           serialIdx = self.indicesToSerial(0, problemIndices)
           # solution gflops
           solutionIdx = 0
@@ -389,7 +388,6 @@ class LogicAnalyzer:
     while not allSolutionValid:
       moreProblems = True
       invalidIdx = -1
-      print self.problemIndicesForGlobalRange
       for problemIndices in self.problemIndicesForGlobalRange:
         problemSerial = self.indicesToSerial(0, problemIndices)
         for solutionIdx in range(0, self.numSolutions):
@@ -868,14 +866,11 @@ class LogicAnalyzer:
       totalWins += 1
     totalSavedMs = max(1, totalSavedMs)
     solutionImportance.sort(key=lambda x: x[1])
-    print self.exactWinners
     for i in range(0, self.numSolutions):
       solutionIdx = solutionImportance[0][0]
-      print solutionIdx
       canRemove = True
       for exactProblem in self.exactWinners:
         winnerIdx = self.exactWinners[exactProblem][0]
-        print winnerIdx, solutionIdx
         if solutionIdx == winnerIdx: # exact winners are important
           canRemove = False
           break

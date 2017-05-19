@@ -88,6 +88,12 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8]
+validThreadTiles = []
+for i in validThreadTileSides:
+  for j in validThreadTileSides:
+    validThreadTiles.append([i, j])
+
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 for i in validMacroTileSides:
@@ -109,10 +115,9 @@ validParameters = {
     "WorkGroupMapping":           range(-1024,1025),
     "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
     "GroupShape":                 [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
-    "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
+    "ThreadTile":                 validThreadTiles,
     "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
-    "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
     "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
     "GlobalSplitU":               range(1, 64),
@@ -140,7 +145,6 @@ defaultBenchmarkCommonParameters = [
     {"LocalWriteCoalesceGroupB":  [ True ] },
     {"NumThreads":                [ 16*16] },
     {"GroupShape":                [ 1 ] },
-    {"ThreadTileShape":           [ 1 ] },
     {"PrefetchGlobalRead":        [ False ] },
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
@@ -153,7 +157,7 @@ defaultBenchmarkCommonParameters = [
     ]
 # benchmark these solution independently
 defaultForkParameters = [
-    {"ThreadTileNumElements":   [ 4*4, 2*2, 6*6, 8*8 ] },
+    {"ThreadTile":   [ [4,4], [4,8], [8,8] ] },
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
     {"DepthU":                  [ 4, 8, 16 ] },

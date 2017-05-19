@@ -404,8 +404,7 @@ class BenchmarkProcess:
         #workGroupEdgeValues = []
         numThreadsValues = []
         groupShapeValues = []
-        threadTileNumElementsValues = []
-        threadTileShapeValues = []
+        threadTileValues = []
         splitUValues = []
         # todo having MacroTile as join parameter causes trouble if
         # one parameter is benchmarked rather than forked
@@ -419,15 +418,12 @@ class BenchmarkProcess:
             numThreadsValues = getParamValues("NumThreads", paramList)
           if hasParam("GroupShape", paramList):
             groupShapeValues = getParamValues("GroupShape", paramList)
-          if hasParam("ThreadTileNumElements", paramList):
-            threadTileNumElementsValues = getParamValues("ThreadTileNumElements", paramList)
-          if hasParam("ThreadTileShape", paramList):
-            threadTileShapeValues = getParamValues("ThreadTileShape", paramList)
+          if hasParam("ThreadTile", paramList):
+            threadTileValues = getParamValues("ThreadTile", paramList)
           if hasParam("LocalSplitU", paramList):
             splitUValues = getParamValues("LocalSplitU", paramList)
         macroTilePermutations = len(numThreadsValues) \
-            * len(groupShapeValues) * len(threadTileNumElementsValues) \
-            * len(threadTileShapeValues) * len(splitUValues)
+            * len(groupShapeValues) * len(threadTileValues) * len(splitUValues)
         print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
 
         # enumerate permutations
@@ -437,27 +433,22 @@ class BenchmarkProcess:
           pIdx /= len(numThreadsValues)
           groupShapeIdx = pIdx % len(groupShapeValues)
           pIdx /= len(groupShapeValues)
-          threadTileNumElementsIdx = pIdx % len(threadTileNumElementsValues)
-          pIdx /= len(threadTileNumElementsValues)
-          threadTileShapeIdx = pIdx % len(threadTileShapeValues)
-          pIdx /= len(threadTileShapeValues)
+          threadTileIdx = pIdx % len(threadTileValues)
+          pIdx /= len(threadTileValues)
           splitUIdx = pIdx % len(splitUValues)
 
           numThreads = numThreadsValues[numThreadsIdx]
           groupShape = groupShapeValues[groupShapeIdx]
-          threadTileNumElements = threadTileNumElementsValues[threadTileNumElementsIdx]
-          threadTileShape = threadTileShapeValues[threadTileShapeIdx]
+          threadTile = threadTileValues[threadTileIdx]
           splitU = splitUValues[splitUIdx]
 
-          (subGroup0, subGroup1, threadTile0, threadTile1) \
-              = Solution.tileSizes(numThreads, splitU, \
-              groupShape, threadTileNumElements, threadTileShape)
-          if threadTile0*threadTile1 == threadTileNumElements \
-              and subGroup0*subGroup1*splitU == numThreads:
-            macroTile0 = subGroup0*threadTile0
-            macroTile1 = subGroup1*threadTile1
+          (subGroup0, subGroup1) = Solution.tileSizes(numThreads, \
+              splitU, groupShape)
+          if subGroup0*subGroup1*splitU == numThreads:
+            macroTile0 = subGroup0*threadTile[0]
+            macroTile1 = subGroup1*threadTile[1]
             macroTileJoinSet.add((macroTile0, macroTile1))
-        totalPermutations *=len(macroTileJoinSet)
+        totalPermutations *= len(macroTileJoinSet)
         print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
 
       # invalid join parameter
@@ -491,10 +482,6 @@ class BenchmarkProcess:
           joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
           joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
           #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
-    #self.hardcodedParameters.append(joinPermutations)
-    #print2("JoinPermutations: ")
-    #for perm in joinPermutations:
-    #  print2(perm)
     if len(joinPermutations) > 0:
       self.joinHardcodedParameters(joinPermutations)
 
@@ -514,7 +501,6 @@ class BenchmarkProcess:
     for problemSizesDict in self.benchmarkFinalParameters:
       problemSizes = problemSizesDict["ProblemSizes"]
       self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
-          #self.benchmarkFinalParameters["ProblemSizes"])
       currentBenchmarkParameters = {}
       benchmarkStep = BenchmarkStep(
           self.hardcodedParameters,
