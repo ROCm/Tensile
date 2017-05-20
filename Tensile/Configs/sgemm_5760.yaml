@@ -38,12 +38,14 @@ BenchmarkProblems:
         - WorkGroupMapping: [1]
         - LocalSplitU: [1]
       ForkParameters:
+        - ThreadTile:
+          - [ 8, 8 ]
+          - [ 4, 8 ]
+          - [ 4, 4 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
         - GroupShape: [1, 2]
-        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
-        - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -74,12 +76,14 @@ BenchmarkProblems:
         - WorkGroupMapping: [1]
         - LocalSplitU: [1]
       ForkParameters:
+        - ThreadTile:
+          - [ 8, 8 ]
+          - [ 4, 8 ]
+          - [ 4, 4 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
         - GroupShape: [1, 2]
-        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
-        - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -110,12 +114,14 @@ BenchmarkProblems:
         - WorkGroupMapping: [1]
         - LocalSplitU: [1]
       ForkParameters:
+        - ThreadTile:
+          - [ 8, 8 ]
+          - [ 4, 8 ]
+          - [ 4, 4 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
         - GroupShape: [1, 2]
-        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
-        - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -146,12 +152,14 @@ BenchmarkProblems:
         - WorkGroupMapping: [-1]
         - LocalSplitU: [1]
       ForkParameters:
+        - ThreadTile:
+          - [ 8, 8 ]
+          - [ 4, 8 ]
+          - [ 4, 4 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
         - GroupShape: [1, 2]
-        - ThreadTileShape: [1, 2]
         - NumThreads: [128, 256]
-        - ThreadTileNumElements: [16, 32, 36, 64]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:

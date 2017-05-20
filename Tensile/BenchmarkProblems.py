@@ -230,6 +230,9 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
     if removesExist:
       winners.update( benchmarkStep.hardcodedParameters )
+      if globalParameters["PrintLevel"] >= 1:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
       for solutionList in shallowcopy(solutions):

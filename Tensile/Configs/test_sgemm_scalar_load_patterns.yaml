@@ -21,8 +21,7 @@ BenchmarkProblems:
         - EdgeType: ["Shift"]
         - GroupShape: [ 1 ]
         - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - ThreadTile: [ [4, 8] ]
         - DepthU: [ 8 ]
         - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
@@ -54,8 +53,7 @@ BenchmarkProblems:
         - EdgeType: ["Shift"]
         - GroupShape: [ 1 ]
         - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - ThreadTile: [ [4, 8] ]
         - DepthU: [ 8 ]
         - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
@@ -86,8 +84,7 @@ BenchmarkProblems:
         - EdgeType: ["Shift"]
         - GroupShape: [ 1 ]
         - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - ThreadTile: [ [4, 8] ]
         - DepthU: [ 8 ]
         - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
@@ -118,8 +115,7 @@ BenchmarkProblems:
         - EdgeType: ["Shift"]
         - GroupShape: [ 1 ]
         - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - ThreadTile: [ [4, 8] ]
         - DepthU: [ 8 ]
         - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
@@ -136,7 +132,6 @@ BenchmarkProblems:
 
 LibraryLogic:
   ScheduleName: Fiji
-  DeviceNames: ["Fiji Nano"]
-  BranchPenalty: 100
+  DeviceNames: ["R9 Nano"]
 
 LibraryClient:

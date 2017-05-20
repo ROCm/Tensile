@@ -37,10 +37,12 @@ BenchmarkProblems:
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - GroupShape: [ 1 ]
-        - ThreadTileShape: [ 1 ]
       ForkParameters:
+        - ThreadTile:
+          - [ 8, 8 ]
+          - [ 4, 8 ]
+          - [ 4, 4 ]
         - NumThreads: [64, 256]
-        - ThreadTileNumElements: [4, 16, 64]
         - DepthU: [8, 16]
       BenchmarkForkParameters:
       JoinParameters:
@@ -53,7 +55,6 @@ BenchmarkProblems:
 
 LibraryLogic:
   ScheduleName: Fiji
-  DeviceNames: ["Fiji Nano"]
-  BranchPenalty: 0
+  DeviceNames: ["R9 Nano"]
 
 LibraryClient:
