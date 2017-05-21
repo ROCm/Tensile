@@ -754,7 +754,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
       kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
       kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
-      kStr += "#define SCALAR_ZERO VECTOR_ZERO%s" % self.endLine
+      kStr += "#define VECTOR_ZERO SCALAR_ZERO%s" % self.endLine
     else:
       kStr += "#define VECTOR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
