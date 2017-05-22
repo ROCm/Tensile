@@ -653,25 +653,13 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    if "NumThreads" in state \
-        and "LocalSplitU" in state \
-        and "GroupShape" in state:
-      (subGroup0, subGroup1) \
-          = Solution.tileSizes(state["NumThreads"], state["LocalSplitU"], \
-          state["GroupShape"])
-    else:
-      print state
-      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, LocalSplitU, GroupShape, and ThreadTile?")
+    state["SubGroup0"] = state["WorkGroup"][0]
+    state["SubGroup1"] = state["WorkGroup"][1]
+    state["LocalSplitU"] = state["WorkGroup"][2]
+    state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
-    state["SubGroup0"] = subGroup0
-    state["SubGroup1"] = subGroup1
     state["ThreadTile0"] = state["ThreadTile"][0]
     state["ThreadTile1"] = state["ThreadTile"][1]
-    if state["SubGroup0"]*state["SubGroup1"] \
-        != state["NumThreads"]/state["LocalSplitU"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["LocalSplitU"]))
-      state["Valid"] = False
 
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
@@ -688,7 +676,6 @@ class Solution:
         state["Valid"] = False
 
 
-    # tile shape
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
       macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
@@ -1005,28 +992,6 @@ class Solution:
       return
 
     state["AssignedDerivedParameters"] = True
-
-
-  ########################################
-  # compute tile sizes
-  @staticmethod
-  def tileSizes(numThreads, splitU, groupShape):
-
-    # group sizes
-    subGroupSize = numThreads / splitU
-    if groupShape == 1:
-      subGroup0 = int(subGroupSize**0.5)
-      subGroup1 = int(subGroupSize**0.5)
-    elif groupShape > 1:
-      subGroup0 = int((subGroupSize \
-          / abs(groupShape))**0.5)
-      subGroup1 = subGroup0 * abs(groupShape)
-    elif groupShape < 1:
-      subGroup1 = int((subGroupSize \
-          / abs(groupShape))**0.5)
-      subGroup0 = subGroup1 * abs(groupShape)
-
-    return (subGroup0, subGroup1)
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name

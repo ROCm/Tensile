@@ -45,12 +45,15 @@ BenchmarkProblems:
           - [ 4, 8 ]
           - [ 4, 4 ]
           - [ 2, 4 ]
-        - GroupShape: [ 1, 2 ]
+        - WorkGroup:
+          - [  4,  4, 16 ]
+          - [  4,  8,  8 ]
+          - [  8,  8,  4 ]
+          - [  8, 16,  2 ]
+          - [ 16, 16,  1 ]
+        - DepthU: [ 4, 8, 16, 32 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
-        - NumThreads: [128, 256]
-        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
-        - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -86,11 +89,14 @@ BenchmarkProblems:
           - [ 4, 8 ]
           - [ 4, 4 ]
           - [ 2, 4 ]
-        - GroupShape: [ 1, 2 ]
+        - WorkGroup:
+          - [  4,  4, 16 ]
+          - [  4,  8,  8 ]
+          - [  8,  8,  4 ]
+          - [  8, 16,  2 ]
+          - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
-        - NumThreads: [128, 256]
-        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -127,11 +133,14 @@ BenchmarkProblems:
           - [ 4, 8 ]
           - [ 4, 4 ]
           - [ 2, 4 ]
-        - GroupShape: [ 1, 2 ]
+        - WorkGroup:
+          - [  4,  4, 16 ]
+          - [  4,  8,  8 ]
+          - [  8,  8,  4 ]
+          - [  8, 16,  2 ]
+          - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
-        - NumThreads: [128, 256]
-        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
@@ -169,11 +178,14 @@ BenchmarkProblems:
           - [ 4, 8 ]
           - [ 4, 4 ]
           - [ 2, 4 ]
-        - GroupShape: [ 1, 2 ]
+        - WorkGroup:
+          - [  4,  4, 16 ]
+          - [  4,  8,  8 ]
+          - [  8,  8,  4 ]
+          - [  8, 16,  2 ]
+          - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
-        - NumThreads: [128, 256]
-        - LocalSplitU: [ 1, 2, 4, 8, 16 ]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:

@@ -36,16 +36,16 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - LocalSplitU: [1]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
+        - WorkGroup:
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [1, 2]
-        - NumThreads: [128, 256]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -74,16 +74,16 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - LocalSplitU: [1]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
+        - WorkGroup:
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [1, 2]
-        - NumThreads: [128, 256]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -112,16 +112,16 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [-1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
-        - LocalSplitU: [1]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
+        - WorkGroup:
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [1, 2]
-        - NumThreads: [128, 256]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -150,16 +150,16 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [-1]
-        - LocalSplitU: [1]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
+        - WorkGroup:
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
         - LoopTail: [False, True]
         - EdgeType: ["None", "Branch", "Shift"]
-        - GroupShape: [1, 2]
-        - NumThreads: [128, 256]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:

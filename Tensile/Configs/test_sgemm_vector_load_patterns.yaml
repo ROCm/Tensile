@@ -19,12 +19,11 @@ BenchmarkProblems:
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
+        - WorkGroup:
+          - [  8,  8, 2 ]
         - ThreadTile:
           - [4, 8]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]
@@ -52,12 +51,11 @@ BenchmarkProblems:
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
+        - WorkGroup:
+          - [  8,  8, 2 ]
         - ThreadTile:
           - [4, 8]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]
@@ -84,12 +82,11 @@ BenchmarkProblems:
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
+        - WorkGroup:
+          - [  8,  8, 2 ]
         - ThreadTile:
           - [4, 8]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]
@@ -116,12 +113,11 @@ BenchmarkProblems:
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
+        - WorkGroup:
+          - [  8,  8, 2 ]
         - ThreadTile:
           - [4, 8]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
         - LocalWriteCoalesceGroupB: [False, True]

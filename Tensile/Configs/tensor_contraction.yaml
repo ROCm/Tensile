@@ -31,18 +31,18 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Range: [ [512], [512], [2], [512] ]
-        - LocalSplitU: [ 1 ]
         - EdgeType: ["Branch"]
         - WorkGroupMapping: [ 1 ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - GroupShape: [ 1 ]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
-        - NumThreads: [64, 256]
+        - WorkGroup:
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
         - DepthU: [8, 16]
       BenchmarkForkParameters:
       JoinParameters:

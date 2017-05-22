@@ -32,9 +32,10 @@ BenchmarkProblems:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
-        - GroupShape: [ 1, 2 ]
-        - NumThreads: [128, 256 ]
-        - LocalSplitU: [ 1, 2 ]
+        - WorkGroup:
+          - [  8, 16, 1 ]
+          - [  8, 16, 2 ]
+          - [ 16, 16, 1 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
@@ -67,9 +68,10 @@ BenchmarkProblems:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
-        - GroupShape: [ 1, -2 ]
-        - NumThreads: [128, 256 ]
-        - LocalSplitU: [ 1, 2 ]
+        - WorkGroup:
+          - [  8, 16, 1 ]
+          - [  8, 16, 2 ]
+          - [ 16, 16, 1 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
@@ -101,9 +103,10 @@ BenchmarkProblems:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
-        - GroupShape: [ 1, -2 ]
-        - NumThreads: [128, 256 ]
-        - LocalSplitU: [ 1, 2 ]
+        - WorkGroup:
+          - [  8, 16, 1 ]
+          - [  8, 16, 2 ]
+          - [ 16, 16, 1 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
@@ -135,9 +138,10 @@ BenchmarkProblems:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
-        - GroupShape: [ 1, 2 ]
-        - NumThreads: [128, 256 ]
-        - LocalSplitU: [ 1, 2 ]
+        - WorkGroup:
+          - [  8, 16, 1 ]
+          - [  8, 16, 2 ]
+          - [ 16, 16, 1 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]

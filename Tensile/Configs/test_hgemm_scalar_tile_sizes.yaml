@@ -40,10 +40,15 @@ BenchmarkProblems:
           - [7, 5]
           - [8, 2]
           - [8, 6]
-        - GroupShape: [ 1, 2 ]
-        - NumThreads: [128, 256 ]
+        - WorkGroup:
+          - [  4,  8, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 2 ]
+          - [  8, 16, 1 ]
+          - [ 16, 16, 1 ]
         - DepthU: [ 16 ]
-        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
@@ -85,10 +90,15 @@ BenchmarkProblems:
           - [8, 3]
           - [8, 7]
           - [8, 8]
-        - GroupShape: [ 1, 2 ]
-        - NumThreads: [128, 256 ]
+        - WorkGroup:
+          - [  4,  8, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 2 ]
+          - [  8, 16, 1 ]
+          - [ 16, 16, 1 ]
         - DepthU: [ 16 ]
-        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
@@ -128,10 +138,15 @@ BenchmarkProblems:
           - [7, 3]
           - [7, 7]
           - [8, 4]
-        - GroupShape: [ 1, -2 ]
-        - NumThreads: [128, 256 ]
+        - WorkGroup:
+          - [  8,  4, 8 ]
+          - [  8,  4, 4 ]
+          - [  8,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [ 16,  8, 2 ]
+          - [ 16,  8, 1 ]
+          - [ 16, 16, 1 ]
         - DepthU: [ 16 ]
-        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]
@@ -171,10 +186,15 @@ BenchmarkProblems:
           - [7, 4]
           - [7, 8]
           - [8, 5]
-        - GroupShape: [ 1, -2 ]
-        - NumThreads: [128, 256 ]
+        - WorkGroup:
+          - [  8,  4, 8 ]
+          - [  8,  4, 4 ]
+          - [  8,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [ 16,  8, 2 ]
+          - [ 16,  8, 1 ]
+          - [ 16, 16, 1 ]
         - DepthU: [ 16 ]
-        - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128, 128, 256], [128, 128, 256], [64] ]

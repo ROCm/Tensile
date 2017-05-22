@@ -118,6 +118,7 @@ bool callLibrary(
   size_t numChecked = 0;
 
   // do validation
+  bool solutionIsValid = true;
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
     // calculate validation stride
@@ -145,7 +146,6 @@ bool callLibrary(
         validationStride = 0;
       }
     }
-    bool solutionIsValid = true;
 
     // call reference function
     TensileStatus referenceStatus = generatedCallToReferenceCPU( userSizes, referenceC,

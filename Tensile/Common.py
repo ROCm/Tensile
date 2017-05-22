@@ -88,6 +88,16 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
+validWorkGroups = []
+for numThreads in range(64, 1025, 64):
+  for nsg in [ 1, 2, 4, 8, 16, 32, 64 ]:
+    for sg0 in range(1, numThreads/nsg):
+      sg1 = numThreads/nsg/sg0
+      if sg0*sg1*nsg == numThreads:
+          workGroup = [sg0, sg1, nsg]
+          validWorkGroups.append(workGroup)
+
+
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8]
 validThreadTiles = []
 for i in validThreadTileSides:
@@ -112,16 +122,14 @@ validParameters = {
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
-    "WorkGroupMapping":           range(-1024,1025),
+    "WorkGroupMapping":           range(-1024,1024+1),
     "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
-    "GroupShape":                 [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
+    "WorkGroup":                  validWorkGroups,
     "ThreadTile":                 validThreadTiles,
     "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
-    "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
-    "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
-    "GlobalSplitU":               range(1, 64),
-    "NumThreads":                 range(64, 1025, 64),
+    "DepthU":                     range(2, 256+1, 2),
+    "GlobalSplitU":               range(1, 64+1),
     "VectorWidth":                [ -1, 1, 2, 4, 8 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],
@@ -143,12 +151,9 @@ defaultBenchmarkCommonParameters = [
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"LocalWriteCoalesceGroupA":  [ True ] },
     {"LocalWriteCoalesceGroupB":  [ True ] },
-    {"NumThreads":                [ 16*16] },
-    {"GroupShape":                [ 1 ] },
     {"PrefetchGlobalRead":        [ False ] },
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
-    {"LocalSplitU":               [ 1 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -158,6 +163,7 @@ defaultBenchmarkCommonParameters = [
 # benchmark these solution independently
 defaultForkParameters = [
     {"ThreadTile":   [ [4,4], [4,8], [8,8] ] },
+    {"WorkGroup":    [ [16,16,1]] },
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
     {"DepthU":                  [ 4, 8, 16 ] },
