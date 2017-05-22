@@ -16,7 +16,6 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  MaxMacroTileRatio: 2
 
 BenchmarkProblems:
   - # dgemm NN

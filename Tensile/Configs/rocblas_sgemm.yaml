@@ -16,7 +16,6 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  MaxMacroTileRatio: 2
 
 BenchmarkProblems:
   ########################################
@@ -51,31 +50,64 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
+        - GlobalSplitU: [1, 2, 3, 4, 5, 6, 7, 8]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
-         - ProblemSizes:
-           - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
-        # Skinny
-           - Range: [ [35], [8457], [1], [1760, 800, 2560] ]
-           - Range: [ [1760, 800, 2560], [16, 16, 128], [1], 0 ]
-           - Range: [ [3072], [16, 16, 128], [1], [1024] ]
-           - Range: [ [7680], [16, 16, 128], [1], [2560] ]
-           - Range: [ [1025, 1024, 8193], [32, 32, 32, 4000], [1], [1025, 1024, 8193] ]
+        - ProblemSizes:
+          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [2880] ]
+          - Exact: [  35, 8457, 1, 1760 ]
+          - Exact: [  35, 8457, 1, 2048 ]
+          - Exact: [  35, 8457, 1, 2560 ]
+          - Exact: [  35, 8457, 1, 4096 ]
+          - Exact: [1760,   16, 1, 1760 ]
+          - Exact: [1760,   32, 1, 1760 ]
+          - Exact: [1760,   64, 1, 1760 ]
+          - Exact: [1760,  128, 1, 1760 ]
+          - Exact: [1760, 7000, 1, 1760 ]
+          - Exact: [2048,   16, 1, 2048 ]
+          - Exact: [2048,   32, 1, 2048 ]
+          - Exact: [2048,   64, 1, 2048 ]
+          - Exact: [2048,  128, 1, 2048 ]
+          - Exact: [2048, 7000, 1, 2048 ]
+          - Exact: [2560,   16, 1, 2560 ]
+          - Exact: [2560,   32, 1, 2560 ]
+          - Exact: [2560,   64, 1, 2560 ]
+          - Exact: [2560,  128, 1, 2560 ]
+          - Exact: [2560, 7000, 1, 2560 ]
+          - Exact: [3072,   16, 1, 1024 ]
+          - Exact: [3072,   32, 1, 1024 ]
+          - Exact: [3072,   64, 1, 1024 ]
+          - Exact: [3072,  128, 1, 1024 ]
+          - Exact: [4096,   16, 1, 4096 ]
+          - Exact: [4096,   32, 1, 4096 ]
+          - Exact: [4096,   64, 1, 4096 ]
+          - Exact: [4096,  128, 1, 4096 ]
+          - Exact: [4096, 7000, 1, 4096 ]
+          - Exact: [5124, 9124, 1, 1760 ]
+          - Exact: [5124, 9124, 1, 2048 ]
+          - Exact: [5124, 9124, 1, 2560 ]
+          - Exact: [5124, 9124, 1, 4096 ]
+          - Exact: [7680,   16, 1, 2560 ]
+          - Exact: [7680,   32, 1, 2560 ]
+          - Exact: [7680,   64, 1, 2560 ]
+          - Exact: [7680,  128, 1, 2560 ]
 
   ########################################
   # NN - 4kB
@@ -100,29 +132,63 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
+        - MaxOccupancy: [ 1, 10 ]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024, 1024, 8192], [32, 32, 32, 4000], [1], [1024, 1024, 8192] ]
-          - Range: [ [35], [8457], [1], [2048, 2048, 4096] ]
-          - Range: [ [5124], [9124], [1], [2048, 2048, 4096] ]
-          - Range: [ [2048, 2048, 4096], [16, 16, 128], [1], 0 ]
-          - Range: [ [2048, 2048, 4096], [7000], [1], 0 ]
+          - Exact: [  35, 8457, 1, 1760 ]
+          - Exact: [  35, 8457, 1, 2048 ]
+          - Exact: [  35, 8457, 1, 2560 ]
+          - Exact: [  35, 8457, 1, 4096 ]
+          - Exact: [1760,   16, 1, 1760 ]
+          - Exact: [1760,   32, 1, 1760 ]
+          - Exact: [1760,   64, 1, 1760 ]
+          - Exact: [1760,  128, 1, 1760 ]
+          - Exact: [1760, 7000, 1, 1760 ]
+          - Exact: [2048,   16, 1, 2048 ]
+          - Exact: [2048,   32, 1, 2048 ]
+          - Exact: [2048,   64, 1, 2048 ]
+          - Exact: [2048,  128, 1, 2048 ]
+          - Exact: [2048, 7000, 1, 2048 ]
+          - Exact: [2560,   16, 1, 2560 ]
+          - Exact: [2560,   32, 1, 2560 ]
+          - Exact: [2560,   64, 1, 2560 ]
+          - Exact: [2560,  128, 1, 2560 ]
+          - Exact: [2560, 7000, 1, 2560 ]
+          - Exact: [3072,   16, 1, 1024 ]
+          - Exact: [3072,   32, 1, 1024 ]
+          - Exact: [3072,   64, 1, 1024 ]
+          - Exact: [3072,  128, 1, 1024 ]
+          - Exact: [4096,   16, 1, 4096 ]
+          - Exact: [4096,   32, 1, 4096 ]
+          - Exact: [4096,   64, 1, 4096 ]
+          - Exact: [4096,  128, 1, 4096 ]
+          - Exact: [4096, 7000, 1, 4096 ]
+          - Exact: [5124, 9124, 1, 1760 ]
+          - Exact: [5124, 9124, 1, 2048 ]
+          - Exact: [5124, 9124, 1, 2560 ]
+          - Exact: [5124, 9124, 1, 4096 ]
+          - Exact: [7680,   16, 1, 2560 ]
+          - Exact: [7680,   32, 1, 2560 ]
+          - Exact: [7680,   64, 1, 2560 ]
+          - Exact: [7680,  128, 1, 2560 ]
 
 
   ########################################
@@ -157,13 +223,14 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
@@ -171,12 +238,18 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
-          - Range: [ [1025, 1024, 8193], [1025, 1024, 8193], [1], [256, 256, 256, 2880] ]
+          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [2880] ]
+          - Exact: [1760, 7133, 1, 1760 ]
+          - Exact: [2048, 7133, 1, 2048 ]
+          - Exact: [2560, 7133, 1, 2560 ]
+          - Exact: [3072, 7435, 1, 1024 ]
+          - Exact: [4096, 7133, 1, 4096 ]
+          - Exact: [7680, 5481, 1, 2560 ]
 
   ########################################
   # NT - 4kB
@@ -201,26 +274,33 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
+        - MaxOccupancy: [ 1, 10 ]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024, 1024, 8192], [1024, 1024, 8192], [1], [256, 256, 256, 2880] ]
-          - Range: [ [2048, 2048, 4096], [6574, 559, 1243, 8935], [1], 0 ]
+          - Exact: [1760, 7133, 1, 1760 ]
+          - Exact: [2048, 7133, 1, 2048 ]
+          - Exact: [2560, 7133, 1, 2560 ]
+          - Exact: [3072, 7435, 1, 1024 ]
+          - Exact: [4096, 7133, 1, 4096 ]
+          - Exact: [7680, 5481, 1, 2560 ]
 
 
   ########################################
@@ -255,13 +335,14 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
@@ -269,16 +350,48 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
-          - Range: [ [35], [8457], [1], [1760, 800, 2560] ]
-          - Range: [ [1760, 800, 2560], [16, 16, 128], [1], 0 ]
-          - Range: [ [3072], [16, 16, 128], [1], [1024] ]
-          - Range: [ [7680], [16, 16, 128], [1], [2560] ]
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [1025, 1024, 8193] ]
+          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [2880] ]
+          - Exact: [  35, 8457, 1, 1760 ]
+          - Exact: [  35, 8457, 1, 2048 ]
+          - Exact: [  35, 8457, 1, 2560 ]
+          - Exact: [  35, 8457, 1, 4096 ]
+          - Exact: [1760,   16, 1, 1760 ]
+          - Exact: [1760,   32, 1, 1760 ]
+          - Exact: [1760,   64, 1, 1760 ]
+          - Exact: [1760,  128, 1, 1760 ]
+          - Exact: [1760, 7000, 1, 1760 ]
+          - Exact: [2048,   16, 1, 2048 ]
+          - Exact: [2048,   32, 1, 2048 ]
+          - Exact: [2048,   64, 1, 2048 ]
+          - Exact: [2048,  128, 1, 2048 ]
+          - Exact: [2048, 7000, 1, 2048 ]
+          - Exact: [2560,   16, 1, 2560 ]
+          - Exact: [2560,   32, 1, 2560 ]
+          - Exact: [2560,   64, 1, 2560 ]
+          - Exact: [2560,  128, 1, 2560 ]
+          - Exact: [2560, 7000, 1, 2560 ]
+          - Exact: [3072,   16, 1, 1024 ]
+          - Exact: [3072,   32, 1, 1024 ]
+          - Exact: [3072,   64, 1, 1024 ]
+          - Exact: [3072,  128, 1, 1024 ]
+          - Exact: [4096,   16, 1, 4096 ]
+          - Exact: [4096,   32, 1, 4096 ]
+          - Exact: [4096,   64, 1, 4096 ]
+          - Exact: [4096,  128, 1, 4096 ]
+          - Exact: [4096, 7000, 1, 4096 ]
+          - Exact: [5124, 9124, 1, 1760 ]
+          - Exact: [5124, 9124, 1, 2048 ]
+          - Exact: [5124, 9124, 1, 2560 ]
+          - Exact: [5124, 9124, 1, 4096 ]
+          - Exact: [7680,   16, 1, 2560 ]
+          - Exact: [7680,   32, 1, 2560 ]
+          - Exact: [7680,   64, 1, 2560 ]
+          - Exact: [7680,  128, 1, 2560 ]
 
   ########################################
   # TN - 4kB
@@ -303,29 +416,63 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
+        - MaxOccupancy: [ 1, 10 ]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [1024, 1024, 8192] ]
-          - Range: [ [35], [8457], [1], [2048, 2048, 4096] ]
-          - Range: [ [2048, 2048, 4096], [16, 16, 128], [1], 0 ]
-          - Range: [ [2048, 2048, 4096], [7000], [1], 0 ]
-          - Range: [ [5124], [9124], [1], [2048, 2048, 4096] ]
+          - Exact: [  35, 8457, 1, 1760 ]
+          - Exact: [  35, 8457, 1, 2048 ]
+          - Exact: [  35, 8457, 1, 2560 ]
+          - Exact: [  35, 8457, 1, 4096 ]
+          - Exact: [1760,   16, 1, 1760 ]
+          - Exact: [1760,   32, 1, 1760 ]
+          - Exact: [1760,   64, 1, 1760 ]
+          - Exact: [1760,  128, 1, 1760 ]
+          - Exact: [1760, 7000, 1, 1760 ]
+          - Exact: [2048,   16, 1, 2048 ]
+          - Exact: [2048,   32, 1, 2048 ]
+          - Exact: [2048,   64, 1, 2048 ]
+          - Exact: [2048,  128, 1, 2048 ]
+          - Exact: [2048, 7000, 1, 2048 ]
+          - Exact: [2560,   16, 1, 2560 ]
+          - Exact: [2560,   32, 1, 2560 ]
+          - Exact: [2560,   64, 1, 2560 ]
+          - Exact: [2560,  128, 1, 2560 ]
+          - Exact: [2560, 7000, 1, 2560 ]
+          - Exact: [3072,   16, 1, 1024 ]
+          - Exact: [3072,   32, 1, 1024 ]
+          - Exact: [3072,   64, 1, 1024 ]
+          - Exact: [3072,  128, 1, 1024 ]
+          - Exact: [4096,   16, 1, 4096 ]
+          - Exact: [4096,   32, 1, 4096 ]
+          - Exact: [4096,   64, 1, 4096 ]
+          - Exact: [4096,  128, 1, 4096 ]
+          - Exact: [4096, 7000, 1, 4096 ]
+          - Exact: [5124, 9124, 1, 1760 ]
+          - Exact: [5124, 9124, 1, 2048 ]
+          - Exact: [5124, 9124, 1, 2560 ]
+          - Exact: [5124, 9124, 1, 4096 ]
+          - Exact: [7680,   16, 1, 2560 ]
+          - Exact: [7680,   32, 1, 2560 ]
+          - Exact: [7680,   64, 1, 2560 ]
+          - Exact: [7680,  128, 1, 2560 ]
 
   ########################################
   # TT - standard
@@ -360,13 +507,14 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [  2,  4,16 ]
+          - [  4,  4, 8 ]
+          - [  4,  8, 4 ]
+          - [  8,  8, 2 ]
+          - [  8, 16, 1 ]
           - [  4,  4,16 ]
           - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
           - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
           - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
           - [ 16, 16, 1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
@@ -374,56 +522,12 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 256, 2880] ]
-          - Range: [ [32, 32, 32, 4000], [1025, 1024, 8193], [1], [1025, 1024, 8193] ]
-
-  ########################################
-  # TT - 4kB
-  ########################################
-    - # BenchmarkProblemSizeGroup - 4kB
-      InitialSolutionParameters:
-        - WorkGroupMapping: [-1]
-      BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 4096, 4096, 1, 4096 ]
-        - EdgeType: ["Shift"]
-        - LoopDoWhile: [False]
-        - LoopTail: [True]
-        - NumLoadsCoalescedA: [1]
-        - NumLoadsCoalescedB: [1]
-        - VectorWidth: [1]
-        - LocalWriteCoalesceGroupA: [ False ]
-        - LocalWriteCoalesceGroupB: [ True ]
-      ForkParameters:
-        - ThreadTile:
-          - [ 8, 8 ]
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-        - WorkGroup:
-          - [  2,  4,16 ]
-          - [  4,  4,16 ]
-          - [  4,  8, 8 ]
-          - [  4,  8, 4 ]
-          - [  8,  8, 4 ]
-          - [  8,  8, 2 ]
-          - [  8, 16, 2 ]
-          - [  8, 16, 1 ]
-          - [ 16, 16, 1 ]
-        - PrefetchGlobalRead: [False, True]
-        - PrefetchLocalRead: [False, True]
-        - DepthU: [ 4, 8, 16, 32 ]
-      BenchmarkForkParameters:
-      JoinParameters:
-        - MacroTile
-      BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [1024, 1024, 8192], [1], [1024, 1024, 8192] ]
+          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [2880] ]
 
 LibraryLogic:
   ScheduleName: Fiji
