@@ -420,6 +420,8 @@ class SolutionWriter:
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
         s += "%s  hipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
+        s += "%stry {\n" % (t)
+        t += "  "
         s += "%shipLaunchKernel(\n" % (t)
         t += "  "
         s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -445,6 +447,13 @@ class SolutionWriter:
           s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
               % (t, i, "" if lastParam else "," )
         s += "    );\n"
+        t = t[2:]
+        s += "%s} catch (const std::exception& e) {\n" % (t)
+        s += "#ifdef DEBUG\n"
+        s += "#%s  std::cerr << e.what() << std::endl;\n" % (t)
+        s += "#endif\n"
+        s += "%s  return tensileStatusFailure;\n" % (t)
+        s += "%s}\n" % (t)
         s += "%sif( outputEvent != NULL )\n" % (t)
         s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
       s += "  }\n"

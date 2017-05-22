@@ -660,6 +660,7 @@ class Solution:
           = Solution.tileSizes(state["NumThreads"], state["LocalSplitU"], \
           state["GroupShape"])
     else:
+      print state
       printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, LocalSplitU, GroupShape, and ThreadTile?")
 
     state["SubGroup0"] = subGroup0

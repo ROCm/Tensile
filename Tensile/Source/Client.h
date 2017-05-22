@@ -145,13 +145,18 @@ bool callLibrary(
         validationStride = 0;
       }
     }
+    bool solutionIsValid = true;
+
     // call reference function
-    generatedCallToReferenceCPU( userSizes, referenceC,
+    TensileStatus referenceStatus = generatedCallToReferenceCPU( userSizes, referenceC,
         initialA, initialB,
         alpha, beta);
 
     // call device function
-    generatedCallTo_tensile( userSizes, alpha, beta);
+    TensileStatus tensileStatus = generatedCallTo_tensile( userSizes, alpha, beta);
+    if (tensileStatus == tensileStatusFailure) {
+      solutionIsValid = false;
+    }
 
     // copy data back to host
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -187,6 +192,9 @@ bool callLibrary(
       }
     } // compare loop
   } // if validate
+  if (numInvalids) {
+    solutionIsValid = false;
+  }
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
   cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
@@ -275,7 +283,7 @@ bool callLibrary(
 
   timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
 
-  double gflops = totalFlops / timeNs;
+  double gflops = solutionIsValid ? totalFlops / timeNs : 0;
 
   bool newFastest = false;
   if (gflops > fastestGFlops) {
@@ -413,6 +421,7 @@ bool benchmarkAllSolutionsForSize(
 
   }
   for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
+    bool solutionIsValid = true;
 
     // copy data in language
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -465,7 +474,10 @@ bool benchmarkAllSolutionsForSize(
           }
         }
       } // compare loop
-      if (numInvalids) returnInvalids = true;
+      if (numInvalids) {
+        returnInvalids = true;
+        solutionIsValid = false;
+      }
     } // if numElementsToValidate > 0
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -489,13 +501,16 @@ bool benchmarkAllSolutionsForSize(
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
         if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-          generatedCallToSolution( solutionIdx , sizes, alpha, beta,
+          TensileStatus status = generatedCallToSolution( solutionIdx , sizes, alpha, beta,
               0, NULL, &l_outputEvent[syncIdx][0] );
 #else
-          generatedCallToSolution( solutionIdx, sizes, alpha, beta,
+          TensileStatus status = generatedCallToSolution( solutionIdx, sizes, alpha, beta,
               numEnqueuesPerSync, &l_eventStart[syncIdx][0],
               &l_eventStop[syncIdx][0] );
 #endif
+          if (status == tensileStatusFailure) {
+            solutionIsValid = false;
+          }
         } else {
           generatedCallToSolution( solutionIdx, sizes, alpha, beta );
         }
@@ -550,7 +565,7 @@ bool benchmarkAllSolutionsForSize(
 
     timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
 
-    double gflops = totalFlops / timeNs;
+    double gflops = solutionIsValid ? totalFlops / timeNs : 0;
     bool newFastest = false;
     if (gflops > fastestGFlops) {
       fastestGFlops = gflops;

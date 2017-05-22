@@ -121,7 +121,7 @@ validParameters = {
     "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
     "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
     "GlobalSplitU":               range(1, 64),
-    "NumThreads":                 [ 64, 128, 256 ],
+    "NumThreads":                 range(64, 1025, 64),
     "VectorWidth":                [ -1, 1, 2, 4, 8 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],

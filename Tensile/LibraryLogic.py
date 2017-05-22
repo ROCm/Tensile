@@ -26,7 +26,7 @@ from sys import stdout
 
 from copy import deepcopy
 
-from Common import print1, print2, printWarning, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault
+from Common import print1, print2, printWarning, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime
 from SolutionStructs import Solution
 import YAMLIO
 
@@ -1201,7 +1201,9 @@ def main(  config ):
 
   print1("")
   print1(HR)
-  print1("# Analysing data in %s" % globalParameters["BenchmarkDataPath"])
+  currentTime = time.time()
+  elapsedTime = currentTime - startTime
+  print1("# Analysing data in %s - %.3fs" % (globalParameters["BenchmarkDataPath"], elapsedTime) )
   for parameter in analysisParameters:
     print2("#   %s: %s" % (parameter, analysisParameters[parameter]))
   print1(HR)

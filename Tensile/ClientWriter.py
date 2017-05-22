@@ -686,7 +686,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
     h += "template<typename DataType>\n"
-    h += "void generatedCallToSolution(\n"
+    h += "TensileStatus generatedCallToSolution(\n"
     h += "    unsigned int solutionIdx,\n"
     h += "    const unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
@@ -736,10 +736,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # function call
     h += "  // call solution function\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
-      h += "  solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+      h += "  return solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (typeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
