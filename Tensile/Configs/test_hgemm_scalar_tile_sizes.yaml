@@ -42,8 +42,6 @@ BenchmarkProblems:
           - [8, 6]
         - GroupShape: [ 1, 2 ]
         - NumThreads: [128, 256 ]
-        - ThreadTileShape: [1, 2]
-        - ThreadTileNumElements: [4, 8, 16, 32, 36, 64]
         - DepthU: [ 16 ]
         - LocalSplitU: [ 1, 2, 4, 8 ]
       BenchmarkFinalParameters:
