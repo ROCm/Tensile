@@ -27,11 +27,15 @@ BenchmarkProblems:
         - NumLoadsCoalescedB: [1]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GroupShape: [ 1, 2 ]
-        - NumThreads: [128, 256 ]
-        - ThreadTileShape: [1, 2]
-        - ThreadTileNumElements: [16, 32, 36]
-        - LocalSplitU: [ 1, 2 ]
+        - ThreadTile:
+          - [8, 8]
+          - [4, 8]
+          - [4, 4]
+        - WorkGroup:
+          - [  8,  8, 2 ]
+          - [  8, 16, 2 ]
+          - [  8, 16, 1 ]
+          - [ 16, 16, 1 ]
         - VectorWidth: [2, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -60,11 +64,15 @@ BenchmarkProblems:
         - NumLoadsCoalescedB: [1]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GroupShape: [ 1, -2 ]
-        - NumThreads: [128, 256 ]
-        - ThreadTileShape: [1, -2]
-        - ThreadTileNumElements: [16, 32, 36]
-        - LocalSplitU: [ 1, 2 ]
+        - ThreadTile:
+          - [8, 8]
+          - [4, 8]
+          - [4, 4]
+        - WorkGroup:
+          - [  8,  8, 2 ]
+          - [  8, 16, 2 ]
+          - [  8, 16, 1 ]
+          - [ 16, 16, 1 ]
         - VectorWidth: [2, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -92,11 +100,15 @@ BenchmarkProblems:
         - NumLoadsCoalescedB: [-1]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GroupShape: [ 1, -2 ]
-        - NumThreads: [128, 256 ]
-        - ThreadTileShape: [1, 2]
-        - ThreadTileNumElements: [16, 32, 36]
-        - LocalSplitU: [ 1, 2 ]
+        - ThreadTile:
+          - [8, 8]
+          - [4, 8]
+          - [4, 4]
+        - WorkGroup:
+          - [  8,  8, 2 ]
+          - [  8, 16, 2 ]
+          - [  8, 16, 1 ]
+          - [ 16, 16, 1 ]
         - VectorWidth: [2, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -124,11 +136,15 @@ BenchmarkProblems:
         - NumLoadsCoalescedB: [1]
         - DepthU: [ 16 ]
       ForkParameters:
-        - GroupShape: [ 1, 2 ]
-        - NumThreads: [128, 256 ]
-        - ThreadTileShape: [1, -2]
-        - ThreadTileNumElements: [16, 32, 36]
-        - LocalSplitU: [ 1, 2 ]
+        - ThreadTile:
+          - [8, 8]
+          - [4, 8]
+          - [4, 4]
+        - WorkGroup:
+          - [  8,  8, 2 ]
+          - [  8, 16, 2 ]
+          - [  8, 16, 1 ]
+          - [ 16, 16, 1 ]
         - VectorWidth: [2, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -136,7 +152,6 @@ BenchmarkProblems:
 
 LibraryLogic:
   ScheduleName: Fiji
-  DeviceNames: ["Fiji Nano"]
-  BranchPenalty: 100
+  DeviceNames: ["R9 Nano"]
 
 LibraryClient:

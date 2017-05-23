@@ -137,8 +137,9 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
     runScriptFile.write("#!/bin/sh\n")
-  runScriptFile.write("%s & echo %s & echo # Configuring CMake for Client & echo %s\n" \
-      % (echoLine, HR, HR))
+  q = "" if os.name == "nt" else "\""
+  runScriptFile.write("%s & echo %s%s%s & echo %s# Configuring CMake for Client%s & echo %s%s%s\n" \
+      % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake")
   # runtime and kernel language
   runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" \
@@ -172,8 +173,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
       % ("ON" if globalParameters["MergeFiles"] else "OFF"))
   runScriptFile.write(" ../source\n")
-  runScriptFile.write("%s & echo %s & echo # Building Client & echo %s\n" \
-      % (echoLine, HR, HR))
+  runScriptFile.write("%s & echo %s%s%s & echo %s# Building Client%s & echo %s%s%s\n" \
+      % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
       if os.name != "nt" else "") )
@@ -198,8 +199,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
           "client.exe")
     else:
       executablePath = os.path.join(executablePath, "client")
-    runScriptFile.write("%s & echo %s & echo # Library Client Path: & echo %s\n" \
-        % (echoLine, HR, executablePath) )
+    runScriptFile.write("%s & echo %s%s%s & echo %s# Library Client Path:%s & echo %s\n" \
+        % (echoLine, q, HR, q, q, q, executablePath) )
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)
@@ -686,7 +687,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
     h += "template<typename DataType>\n"
-    h += "void generatedCallToSolution(\n"
+    h += "TensileStatus generatedCallToSolution(\n"
     h += "    unsigned int solutionIdx,\n"
     h += "    const unsigned int *sizes,\n"
     h += "    DataType alpha,\n"
@@ -736,10 +737,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # function call
     h += "  // call solution function\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
-      h += "  solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+      h += "  return solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (typeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:

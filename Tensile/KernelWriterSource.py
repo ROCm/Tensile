@@ -58,7 +58,7 @@ class KernelWriterSource(KernelWriter):
       self.macDStr = "mad"
       self.int64Str = "long"
       self.uint64Str = "unsigned long"
-      self.vectorComponents = ["s0", "s1", "s2", "s3"]
+      self.vectorComponents = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
       self.atomicCasStr = "atomic_cmpxchg"
       self.volatileStr = "volatile "
     else:
@@ -183,11 +183,11 @@ class KernelWriterSource(KernelWriter):
     kStr += "/* DepthU parameters*/%s" % self.endLine
     kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
-    kStr += "#define SPLITU %d%s" \
+    kStr += "#define LOCAL_SPLITU %d%s" \
         % (kernel["LocalSplitU"], self.endLine )
     kStr += "#define UNROLL %d%s" \
         % (kernel["LoopUnroll"], self.endLine )
-    kStr += "#define LOCAL_DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
+    kStr += "#define LOCAL_DEPTHU (LOCAL_SPLITU*UNROLL)%s" % (self.endLine )
     if kernel["GlobalSplitU"] > 1:
       kStr += "#define GLOBAL_SPLITU %u%s" \
           % (kernel["GlobalSplitU"], self.endLine )
@@ -312,7 +312,6 @@ class KernelWriterSource(KernelWriter):
     if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
       kStr += "#define s0 x" + self.endLine
       kStr += "#define s1 y" + self.endLine
-    kStr += self.endLine
 
     ####################################
     # Atomic Global MAC
@@ -320,32 +319,83 @@ class KernelWriterSource(KernelWriter):
       kStr += self.comment("atomic add float")
       kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       kStr += "#define ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
-      kStr += "typedef union {%s" % (self.endLine)
-      kStr += "  unsigned int ui;%s" % (self.endLine)
-      kStr += "  float f;%s" % (self.endLine)
-      kStr += "} AtomicFloat;%s" % (self.endLine)
-      kStr += self.endLine
-      kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
-          % ("__device__ " if self.language == "HIP" else "", \
-          self.volatileStr, self.globalPtrStr, self.endLine)
-      kStr += "  AtomicFloat newVal;%s" % (self.endLine)
-      kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
-      kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
-          % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
-          self.globalPtrStr, self.endLine)
-      kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
-      kStr += "  do {%s" % (self.endLine)
-      kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
-      kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
-      kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
-          % (self.atomicCasStr, self.endLine)
-      kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
-      kStr += "}%s" % (self.endLine)
+      if self.language == "OCL":
+        """
+        kStr += self.endLine
+        kStr += "void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % (self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  volatile atomic_float *aPtr = (atomic_float*)(fPtr);%s" % (self.endLine)
+        kStr += "  float oldValue, newValue;%s" % (self.endLine)
+        kStr += "  oldValue = atomic_load_explicit(aPtr, memory_order_relaxed, memory_scope_device);%s" % (self.endLine)
+        #kStr += "  oldValue = atomic_load(aPtr);%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
+        #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+        #    % (self.atomicCasStr, self.endLine)
+        kStr += "  } while ( !atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, memory_order_relaxed, memory_order_relaxed) );%s" % (self.endLine)
+        #kStr += "  } while ( !atomic_compare_exchange_weak(aPtr, &oldValue, newValue) );%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        """
+        kStr += "typedef union {%s" % (self.endLine)
+        kStr += "  unsigned int ui;%s" % (self.endLine)
+        kStr += "  float f;%s" % (self.endLine)
+        kStr += "} AtomicFloat;%s" % (self.endLine)
+        kStr += self.endLine
+        kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % ("__device__ " if self.language == "HIP" else "", \
+            self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  AtomicFloat newVal;%s" % (self.endLine)
+        kStr += "  AtomicFloat prevVal;%s" % (self.endLine)
+        kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
+            % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
+            self.globalPtrStr, self.endLine)
+        kStr += "  unsigned int prevReturn = *uPtr;%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    prevVal.ui = prevReturn;%s" % (self.endLine)
+        kStr += "    newVal.f = prevVal.f + operand;%s" % (self.endLine)
+        kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+            % (self.atomicCasStr, self.endLine)
+        kStr += "  } while (prevVal.ui != prevReturn);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+      else:
+        """
+        kStr += "%svoid atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % ("__device__ " if self.language == "HIP" else "", \
+            self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  %s%sunsigned int *uPtr = (%s%sunsigned int *)fPtr;%s" \
+            % (self.volatileStr, self.globalPtrStr, self.volatileStr, \
+            self.globalPtrStr, self.endLine)
+        #kStr += "  unsigned int old = *uPtr;%s" % (self.endLine)
+        kStr += "  unsigned int old = atomicAdd(uPtr, 0); // atomic read%s" % (self.endLine)
+        kStr += "  unsigned int assumed, newValue;%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    assumed = old;%s" % (self.endLine)
+        kStr += "    newValue = __float_as_uint(operand + __uint_as_float(assumed));%s" % (self.endLine)
+        kStr += "    old = %s(uPtr, assumed, newValue);%s" \
+            % (self.atomicCasStr, self.endLine)
+        kStr += "  } while (assumed != old);%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+        """
+        kStr += self.endLine
+        kStr += "__device__ void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+            % (self.volatileStr, self.globalPtrStr, self.endLine)
+        kStr += "  std::atomic<float> *aPtr = reinterpret_cast<std::atomic<float>*>(fPtr);%s" % (self.endLine)
+        kStr += "  float oldValue, newValue;%s" % (self.endLine)
+        kStr += "  oldValue = aPtr->load(std::memory_order_relaxed);%s" % (self.endLine)
+        kStr += "  do {%s" % (self.endLine)
+        kStr += "    newValue = oldValue + operand;%s" % (self.endLine)
+        #kStr += "    prevReturn = %s(uPtr, prevVal.ui, newVal.ui);%s" \
+        #    % (self.atomicCasStr, self.endLine)
+        #kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_acq_rel, std::memory_order_release) );%s" % (self.endLine)
+        kStr += "  } while ( !std::atomic_compare_exchange_weak_explicit(aPtr, &oldValue, newValue, std::memory_order_relaxed, std::memory_order_release) );%s" % (self.endLine)
+        kStr += "}%s" % (self.endLine)
+
       kStr += "#endif%s" % self.endLine
 
 
     ####################################
     # MACs
+    kStr += self.endLine
     kStr += "/* MAC's */" + self.endLine
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
@@ -497,7 +547,6 @@ class KernelWriterSource(KernelWriter):
       if kernel["UnrollMemFence"]:
         kStr += "  " + self.fenceStr
       kStr += self.endLine
-    kStr += self.endLine
 
     ####################################
     # preprocessor definitions of kernel arguments
@@ -525,7 +574,6 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define strideB" \
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
           + " 1" + self.endLine
-    kStr += self.endLine
     return kStr
 
 
@@ -706,7 +754,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
       kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
       kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
-      kStr += "#define SCALAR_ZERO VECTOR_ZERO%s" % self.endLine
+      kStr += "#define VECTOR_ZERO SCALAR_ZERO%s" % self.endLine
     else:
       kStr += "#define VECTOR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
@@ -1518,7 +1566,7 @@ class KernelWriterSource(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if tailLoop:
-      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       #kStr += "if (serial==0) printf(\\\"wg0:%u, wg1:%u, gsuWg:%u, gsuSum:%u, numIter:%u, r:%u\\\\n\\\", wg0I, wg1J, gsuWgIdx, gsuSumIdx, numIterK, numIterPerWgRemainder);" + self.endLine
       if kernel["GlobalSplitU"] > 1:
@@ -1608,7 +1656,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def tailLoopNumIter(self, kernel):
     kStr = ""
-    kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+    kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
     return kStr
 
@@ -1974,7 +2022,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadIncA(self, kernel):
     kStr = ""
-    kStr += "%slocalReadA += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "%slocalReadA += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar0, self.endLine)
     return kStr
 
@@ -1983,7 +2031,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadIncB(self, kernel):
     kStr = ""
-    kStr += "%slocalReadB += SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "%slocalReadB += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar1, self.endLine)
     return kStr
 
@@ -2102,7 +2150,7 @@ class KernelWriterSource(KernelWriter):
     kStr += self.indent + self.syncStr + self.endLine
     """
     kStr += "    /* print Local state */" + self.endLine
-    kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*SPLITU; i+=NUM_THREADS) {%s" % self.endLine
+    kStr += "    for (unsigned int i = serial; i < MT0I*MT1J*LOCAL_SPLITU; i+=NUM_THREADS) {%s" % self.endLine
     kStr += "      printf(\\\"localLocalSplitU[%%06u] = %%10.0f, %%10.0f\\\\n\\\", i, localLocalSplitU[i], localLocalSplitU[i]);%s" \
         % self.endLine
     kStr += "    }" + self.endLine
@@ -2233,7 +2281,7 @@ class KernelWriterSource(KernelWriter):
                   % (self.tileChar0, a, self.tileChar0, self.tileChar0)
               kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                   % (self.tileChar1, b, self.tileChar1, self.tileChar1)
-            elif kernel["EdgeType"] == "Shift":
+            elif kernel["EdgeType"] == "ShiftPtr":
               kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                   % (self.tileChar0, \
                   ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
@@ -2287,7 +2335,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     if globalParameters["MergeFiles"] and self.language == "HIP":
       kStr += "#undef UNROLL%s" % self.endLine
-      kStr += "#undef SPLITU%s" % self.endLine
+      kStr += "#undef LOCAL_SPLITU%s" % self.endLine
       kStr += "#undef LOCAL_DEPTHU%s" % self.endLine
       kStr += "#undef SG%s%s" % (self.tileChar0, self.endLine)
       kStr += "#undef SG%s%s" % (self.tileChar1, self.endLine)

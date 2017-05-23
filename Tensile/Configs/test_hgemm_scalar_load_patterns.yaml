@@ -18,13 +18,12 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - EdgeType: ["ShiftPtr"]
+        - WorkGroup:
+          - [  8, 16, 2 ]
+        - ThreadTile:
+          - [ 4, 8 ]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
@@ -51,13 +50,12 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - EdgeType: ["ShiftPtr"]
+        - WorkGroup:
+          - [  8, 16, 2 ]
+        - ThreadTile:
+          - [ 4, 8 ]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
@@ -83,13 +81,12 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - EdgeType: ["ShiftPtr"]
+        - WorkGroup:
+          - [  8, 16, 2 ]
+        - ThreadTile:
+          - [ 4, 8 ]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
@@ -115,13 +112,12 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
-        - GroupShape: [ 1 ]
-        - NumThreads: [128 ]
-        - ThreadTileShape: [2]
-        - ThreadTileNumElements: [32]
+        - EdgeType: ["ShiftPtr"]
+        - WorkGroup:
+          - [  8, 16, 2 ]
+        - ThreadTile:
+          - [ 4, 8 ]
         - DepthU: [ 8 ]
-        - LocalSplitU: [ 2 ]
         - VectorWidth: [1]
       ForkParameters:
         - LocalWriteCoalesceGroupA: [False, True]
@@ -136,7 +132,6 @@ BenchmarkProblems:
 
 LibraryLogic:
   ScheduleName: Fiji
-  DeviceNames: ["Fiji Nano"]
-  BranchPenalty: 100
+  DeviceNames: ["R9 Nano"]
 
 LibraryClient:

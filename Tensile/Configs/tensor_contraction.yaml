@@ -31,16 +31,18 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Range: [ [512], [512], [2], [512] ]
-        - LocalSplitU: [ 1 ]
         - EdgeType: ["Branch"]
         - WorkGroupMapping: [ 1 ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - GroupShape: [ 1 ]
-        - ThreadTileShape: [ 1 ]
       ForkParameters:
-        - NumThreads: [64, 256]
-        - ThreadTileNumElements: [4, 16, 64]
+        - ThreadTile:
+          - [ 8, 8 ]
+          - [ 4, 8 ]
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [  8, 16,  1 ]
+          - [ 16, 16,  1 ]
         - DepthU: [8, 16]
       BenchmarkForkParameters:
       JoinParameters:
@@ -53,7 +55,6 @@ BenchmarkProblems:
 
 LibraryLogic:
   ScheduleName: Fiji
-  DeviceNames: ["Fiji Nano"]
-  BranchPenalty: 0
+  DeviceNames: ["R9 Nano"]
 
 LibraryClient:

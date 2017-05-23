@@ -88,6 +88,27 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
+validWorkGroups = []
+for numThreads in range(64, 1025, 64):
+  for nsg in [ 1, 2, 4, 8, 16, 32, 64 ]:
+    for sg0 in range(1, numThreads/nsg):
+      sg1 = numThreads/nsg/sg0
+      if sg0*sg1*nsg == numThreads:
+          workGroup = [sg0, sg1, nsg]
+          validWorkGroups.append(workGroup)
+
+
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8]
+validThreadTiles = []
+for i in validThreadTileSides:
+  for j in validThreadTileSides:
+    validThreadTiles.append([i, j])
+
+validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
+validMacroTiles = []
+for i in validMacroTileSides:
+  for j in validMacroTileSides:
+    validMacroTiles.append([i, j])
 validParameters = {
     "LoopDoWhile":                [ False, True ],
     "LoopTail":                   [ False, True ],
@@ -101,23 +122,21 @@ validParameters = {
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
-    "WorkGroupMapping":           [1]+range(-1024,0)+range(2,1025),
+    "WorkGroupMapping":           range(-1024,1024+1),
     "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
-    "GroupShape":                 [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
-    "ThreadTileShape":            [ -64, -32, -16, -8, -4, -2,1,2,4,8,16,32,64],
+    "WorkGroup":                  validWorkGroups,
+    "ThreadTile":                 validThreadTiles,
     "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
     "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
-    "ThreadTileNumElements":      [ 1, 2, 4, 8, 16, 32, 64, 36],
-    "DepthU":                     [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ],
-    "LocalSplitU":                [ 1, 2, 4, 8, 16, 32, 64 ],
-    "GlobalSplitU":               [ 1, 2, 4, 8, 16, 32, 64 ],
-    "NumThreads":                 [ 64, 128, 256 ],
-    "VectorWidth":                [ -1, 1, 2, 4 ],
+    "DepthU":                     range(2, 256+1, 2),
+    "GlobalSplitU":               range(1, 64+1),
+    "VectorWidth":                [ -1, 1, 2, 4, 8 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],
     "MacroTileShapeMax":          [ 1, 2, 4, 8, 16, 32, 64 ],
 
-    "EdgeType":                   [ "Branch", "Shift", "None" ],
+    "EdgeType":                   [ "Branch", "ShiftPtr", "None" ],
+    "MacroTile":                  validMacroTiles,
 
     }
 # same parameter for all solution b/c depends only on compiler
@@ -132,13 +151,9 @@ defaultBenchmarkCommonParameters = [
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"LocalWriteCoalesceGroupA":  [ True ] },
     {"LocalWriteCoalesceGroupB":  [ True ] },
-    {"NumThreads":                [ 16*16] },
-    {"GroupShape":                [ 1 ] },
-    {"ThreadTileShape":           [ 1 ] },
     {"PrefetchGlobalRead":        [ False ] },
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
-    {"LocalSplitU":               [ 1 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -147,7 +162,8 @@ defaultBenchmarkCommonParameters = [
     ]
 # benchmark these solution independently
 defaultForkParameters = [
-    {"ThreadTileNumElements":   [ 4*4, 2*2, 6*6, 8*8 ] },
+    {"ThreadTile":   [ [4,4], [4,8], [8,8] ] },
+    {"WorkGroup":    [ [16,16,1]] },
     {"NumLoadsCoalescedA":      [ 1, -1 ] },
     {"NumLoadsCoalescedB":      [ 1, -1 ] },
     {"DepthU":                  [ 4, 8, 16 ] },
@@ -352,6 +368,38 @@ def versionIsCompatible(queryVersionString):
     if qPatch > tPatch:
       return False
   return True
+
+class ProgressBar:
+  def __init__(self, maxValue, width=80):
+    self.char = '|'
+    self.maxValue = maxValue
+    self.width = width
+    self.maxTicks = self.width - 7
+
+
+    self.priorValue = 0
+    self.fraction = 0
+    self.numTicks = 0
+
+  def increment(self):
+    self.update(self.priorValue+1)
+
+  def update(self, value):
+    currentFraction = 1.0 * value / self.maxValue
+    currentNumTicks = int(currentFraction * self.maxTicks)
+    if currentNumTicks > self.numTicks:
+      self.numTicks = currentNumTicks
+      self.fraction = currentFraction
+      self.printStatus()
+    self.priorValue = value
+
+  def printStatus(self):
+    sys.stdout.write("\r")
+    sys.stdout.write("[%-*s] %3d%%" \
+        % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
+    if self.numTicks == self.maxTicks:
+      sys.stdout.write("\n")
+    sys.stdout.flush()
 
 # TODO
 CMakeHeader = "# Header\n\n"

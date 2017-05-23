@@ -389,10 +389,11 @@ class BenchmarkProcess:
         # count permutations
         for param in self.forkParameters:
           for name in param: # only 1
-            values = param[name]
-            localPermutations = len(values)
-            print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
-            totalPermutations *= localPermutations
+            if name == joinName:
+              values = param[name]
+              localPermutations = len(values)
+              print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
+              totalPermutations *= localPermutations
 
       ##########################################################################
       # (II-4.2) Join MacroTile
@@ -400,12 +401,8 @@ class BenchmarkProcess:
         print2("JoinParam: MacroTile")
         # get possible WorkGroupEdges from forked
         print2("currentForkParameters = %s" % str(self.forkParameters))
-        #workGroupEdgeValues = []
-        numThreadsValues = []
-        groupShapeValues = []
-        threadTileNumElementsValues = []
-        threadTileShapeValues = []
-        splitUValues = []
+        threadTileValues = []
+        workGroupValues = []
         # todo having MacroTile as join parameter causes trouble if
         # one parameter is benchmarked rather than forked
         # however, this may still be the right way to do it
@@ -414,48 +411,27 @@ class BenchmarkProcess:
         for paramList in [self.benchmarkCommonParameters, \
             self.forkParameters, self.benchmarkForkParameters, \
             self.benchmarkJoinParameters, self.singleValueParameters ]:
-          if hasParam("NumThreads", paramList):
-            numThreadsValues = getParamValues("NumThreads", paramList)
-          if hasParam("GroupShape", paramList):
-            groupShapeValues = getParamValues("GroupShape", paramList)
-          if hasParam("ThreadTileNumElements", paramList):
-            threadTileNumElementsValues = getParamValues("ThreadTileNumElements", paramList)
-          if hasParam("ThreadTileShape", paramList):
-            threadTileShapeValues = getParamValues("ThreadTileShape", paramList)
-          if hasParam("LocalSplitU", paramList):
-            splitUValues = getParamValues("LocalSplitU", paramList)
-        macroTilePermutations = len(numThreadsValues) \
-            * len(groupShapeValues) * len(threadTileNumElementsValues) \
-            * len(threadTileShapeValues) * len(splitUValues)
+          if hasParam("ThreadTile", paramList):
+            threadTileValues = getParamValues("ThreadTile", paramList)
+          if hasParam("WorkGroup", paramList):
+            workGroupValues = getParamValues("WorkGroup", paramList)
+        macroTilePermutations = len(workGroupValues) * len(threadTileValues)
         print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
 
         # enumerate permutations
         for i in range(0, macroTilePermutations):
           pIdx = i
-          numThreadsIdx = pIdx % len(numThreadsValues)
-          pIdx /= len(numThreadsValues)
-          groupShapeIdx = pIdx % len(groupShapeValues)
-          pIdx /= len(groupShapeValues)
-          threadTileNumElementsIdx = pIdx % len(threadTileNumElementsValues)
-          pIdx /= len(threadTileNumElementsValues)
-          threadTileShapeIdx = pIdx % len(threadTileShapeValues)
-          pIdx /= len(threadTileShapeValues)
-          splitUIdx = pIdx % len(splitUValues)
+          workGroupIdx = pIdx % len(workGroupValues)
+          pIdx /= len(workGroupValues)
+          threadTileIdx = pIdx % len(threadTileValues)
 
-          numThreads = numThreadsValues[numThreadsIdx]
-          groupShape = groupShapeValues[groupShapeIdx]
-          threadTileNumElements = threadTileNumElementsValues[threadTileNumElementsIdx]
-          threadTileShape = threadTileShapeValues[threadTileShapeIdx]
-          splitU = splitUValues[splitUIdx]
+          workGroup = workGroupValues[workGroupIdx]
+          threadTile = threadTileValues[threadTileIdx]
 
-          (subGroup0, subGroup1, threadTile0, threadTile1) \
-              = Solution.tileSizes(numThreads, splitU, \
-              groupShape, threadTileNumElements, threadTileShape)
-          macroTile0 = subGroup0*threadTile0
-          macroTile1 = subGroup1*threadTile1
-
+          macroTile0 = workGroup[0]*threadTile[0]
+          macroTile1 = workGroup[1]*threadTile[1]
           macroTileJoinSet.add((macroTile0, macroTile1))
-        totalPermutations *=len(macroTileJoinSet)
+        totalPermutations *= len(macroTileJoinSet)
         print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
 
       # invalid join parameter
@@ -488,11 +464,6 @@ class BenchmarkProcess:
           pIdx /= len(macroTiles)
           joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
           joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
-          #Solution.assignDimsFromEdgeAndShape(joinPermutations[i])
-    #self.hardcodedParameters.append(joinPermutations)
-    #print2("JoinPermutations: ")
-    #for perm in joinPermutations:
-    #  print2(perm)
     if len(joinPermutations) > 0:
       self.joinHardcodedParameters(joinPermutations)
 
@@ -512,7 +483,6 @@ class BenchmarkProcess:
     for problemSizesDict in self.benchmarkFinalParameters:
       problemSizes = problemSizesDict["ProblemSizes"]
       self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
-          #self.benchmarkFinalParameters["ProblemSizes"])
       currentBenchmarkParameters = {}
       benchmarkStep = BenchmarkStep(
           self.hardcodedParameters,

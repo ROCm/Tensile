@@ -653,31 +653,13 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
-    if "NumThreads" in state \
-        and "LocalSplitU" in state \
-        and "GroupShape" in state \
-        and "ThreadTileNumElements" in state \
-        and "ThreadTileShape" in state:
-      (subGroup0, subGroup1, threadTile0, threadTile1) \
-          = Solution.tileSizes(state["NumThreads"], state["LocalSplitU"], \
-          state["GroupShape"], state["ThreadTileNumElements"], state["ThreadTileShape"])
-    else:
-      printExit("AssignProblemIndependentDerivedParameters without necessary initial state. Are you \"joining\" MacroTile but you didn't pre-determine NumThreads, LocalSplitU, GroupShape, ThreadTileNumElements and ThreadTileShape?")
+    state["SubGroup0"] = state["WorkGroup"][0]
+    state["SubGroup1"] = state["WorkGroup"][1]
+    state["LocalSplitU"] = state["WorkGroup"][2]
+    state["NumThreads"] = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
 
-    state["SubGroup0"] = subGroup0
-    state["SubGroup1"] = subGroup1
-    state["ThreadTile0"] = threadTile0
-    state["ThreadTile1"] = threadTile1
-    if state["SubGroup0"]*state["SubGroup1"] \
-        != state["NumThreads"]/state["LocalSplitU"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("GroupSize %u * %u != %u / %u" % (state["SubGroup0"], state["SubGroup1"], state["NumThreads"], state["LocalSplitU"]))
-      state["Valid"] = False
-
-    if state["ThreadTile0"]*state["ThreadTile1"] != state["ThreadTileNumElements"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("ThreadTile %u * %u != %u" % (state["ThreadTile0"], state["ThreadTile1"], state["ThreadTileNumElements"]))
-      state["Valid"] = False
+    state["ThreadTile0"] = state["ThreadTile"][0]
+    state["ThreadTile1"] = state["ThreadTile"][1]
 
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
@@ -688,8 +670,12 @@ class Solution:
       state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
         state["Valid"] = False
+    if "MacroTile" in state:
+      if state["MacroTile0"] != state["MacroTile"][0] \
+          or state["MacroTile1"] != state["MacroTile"][1]:
+        state["Valid"] = False
 
-    # tile shape
+
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
       macroTileShape = max(state["MacroTile0"]/state["MacroTile1"], \
@@ -719,12 +705,6 @@ class Solution:
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
       return
-
-    if ( state["GroupShape"] < 1 and state["ThreadTileShape"] > 1) or \
-        (state["GroupShape"] > 1 and state["ThreadTileShape"] < 1):
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("Group and thread tiles have opposite shapes")
-      state["Valid"] = False
 
     # VectorWidth
     if state["VectorWidth"] < 1:
@@ -798,9 +778,7 @@ class Solution:
 
     # convert elements to vectors based on VectorWidth
     totalVectorsCoalescedA = totalElementsCoalescedA / state["VectorWidth"]
-    #totalVectorsPerpA = totalElementsPerpA / state["VectorWidth"]
     totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
-    #totalVectorsPerpB = totalElementsPerpB / state["VectorWidth"]
     totalVectorsA = totalElementsA / state["VectorWidth"]
     totalVectorsB = totalElementsB / state["VectorWidth"]
 
@@ -973,33 +951,6 @@ class Solution:
         state["Valid"] = False
         return
 
-    # Vector Width & NLCB
-    # only filteres out extreme cases (such as wg=4x16, tt=8x2) which
-    # don't support complicated VW grB indexing and they happen to
-    # be sollutions which should never be fastest b/c work-group and
-    # thread tile are of opposite shape - DT
-    """
-    if state["VectorWidth"] > 1:
-      if state["ProblemType"]["TLUB"] and state["GlobalReadCoalesceGroupB"]:
-        if state["NumLoadsCoalescedB"] * state["VectorWidth"] \
-            > state["ThreadTile1"]:
-          if globalParameters["PrintSolutionRejectionReason"]:
-            print1("NLCB %u * VW %u > TT1 %u" \
-              % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
-              state["ThreadTile1"]))
-          state["Valid"] = False
-          return
-      else:
-        if state["NumLoadsPerpendicularB"] * state["VectorWidth"] \
-            > state["ThreadTile1"] and not state["GlobalReadCoalesceGroup"]:
-          if globalParameters["PrintSolutionRejectionReason"]:
-            print1("NLCB %u * VW %u * TT1 %u > DU %u" \
-              % (state["NumLoadsCoalescedB"], state["VectorWidth"], \
-              state["ThreadTile1"], state["DepthU"]))
-          state["Valid"] = False
-          return
-    """
-
     # lds buffer size for A, B
     ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
@@ -1041,44 +992,6 @@ class Solution:
       return
 
     state["AssignedDerivedParameters"] = True
-
-
-  ########################################
-  # compute tile sizes
-  @staticmethod
-  def tileSizes(numThreads, splitU, groupShape, \
-      threadTileNumElements, threadTileShape):
-
-    # group sizes
-    subGroupSize = numThreads / splitU
-    if groupShape == 1:
-      subGroup0 = int(subGroupSize**0.5)
-      subGroup1 = int(subGroupSize**0.5)
-    elif groupShape > 1:
-      subGroup0 = int((subGroupSize \
-          / abs(groupShape))**0.5)
-      subGroup1 = subGroup0 * abs(groupShape)
-    elif groupShape < 1:
-      subGroup1 = int((subGroupSize \
-          / abs(groupShape))**0.5)
-      subGroup0 = subGroup1 * abs(groupShape)
-
-    # thread-tile sizes
-    if threadTileShape == 1:
-      threadTile0 = int(threadTileNumElements**0.5)
-      threadTile1 = int(threadTileNumElements**0.5)
-    elif threadTileShape > 1:
-      threadTile0 = int((threadTileNumElements \
-          / abs(threadTileShape))**0.5)
-      threadTile1 = threadTile0 \
-          * abs(threadTileShape)
-    elif threadTileShape < 1:
-      threadTile1 = int((threadTileNumElements \
-          / abs(threadTileShape))**0.5)
-      threadTile0 = threadTile1 \
-          * abs(threadTileShape)
-
-    return (subGroup0, subGroup1, threadTile0, threadTile1)
 
   ########################################
   # create a dictionary with booleans on whether to include parameter in name

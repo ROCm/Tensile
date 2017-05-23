@@ -23,10 +23,11 @@ import os.path
 import array
 import csv
 from sys import stdout
+import time
 
 from copy import deepcopy
 
-from Common import print1, print2, printWarning, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault
+from Common import print1, print2, printWarning, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime
 from SolutionStructs import Solution
 import YAMLIO
 
@@ -340,7 +341,6 @@ class LogicAnalyzer:
 
         # Exact Problem Size
         if problemSize in self.exactProblemSizes:
-          print "hi"
           # solution gflops
           solutionIdx = 0
           winnerIdx = -1
@@ -362,7 +362,6 @@ class LogicAnalyzer:
           problemIndices = []
           for i in range(0, self.numIndices):
             problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
-          print problemIndices
           serialIdx = self.indicesToSerial(0, problemIndices)
           # solution gflops
           solutionIdx = 0
@@ -560,6 +559,7 @@ class LogicAnalyzer:
       ########################################
       # create initial rule
       if isLastIndex:
+        winnerIdx = -1
         for problemIndex in range(currentIndexRange[currentIndex][0], \
             currentIndexRange[currentIndex][1]):
           nextIndexRange[currentIndex][0] = problemIndex
@@ -870,16 +870,26 @@ class LogicAnalyzer:
     for i in range(0, self.numSolutions):
       solutionIdx = solutionImportance[0][0]
       canRemove = True
-      for j in self.exactWinners:
-        winnerIdx = self.exactWinners[j]
+      for exactProblem in self.exactWinners:
+        winnerIdx = self.exactWinners[exactProblem][0]
         if solutionIdx == winnerIdx: # exact winners are important
           canRemove = False
           break
       if canRemove:
-        return ( solutionImportance[0][0], \
-            solutionImportance[0][1] / totalSavedMs, \
-            solutionImportance[0][2] / totalWins, \
-            solutionImportance[0][3] / totalExecMs )
+        idx = solutionImportance[0][0]
+        if totalSavedMs > 0:
+          percSaved = solutionImportance[0][1] / totalSavedMs
+        else:
+          percSaved = 0
+        if totalWins > 0:
+          percWins = solutionImportance[0][2] / totalWins
+        else:
+          percWins = 0
+        if totalExecMs > 0:
+          percTime = solutionImportance[0][3] / totalExecMs
+        else:
+          percTime = 0
+        return ( idx, percSaved, percWins, percTime )
     return None
 
 
@@ -920,6 +930,10 @@ class LogicAnalyzer:
               = oldData[problemIndex*oldNumSolutions+oldSolutionIdx]
           newSolutionIdx += 1
 
+    # update exact Winners
+    for problemSize in self.exactWinners:
+      if self.exactWinners[problemSize][0] >= removeSolutionIdx:
+        self.exactWinners[problemSize][0] -= 1
 
   ##############################################################################
   # Score Range For Logic
@@ -1091,6 +1105,10 @@ class LogicAnalyzer:
   # Problem Indices For Range
   def problemIndicesForRange(self, indexRange):
     problemIndexList = []
+    # early return for empty set
+    for i in range(0, self.numIndices):
+      if indexRange[i][0] == indexRange[i][1]:
+        return []
     problemIndices = []
     for idx in indexRange:
       problemIndices.append(idx[0])
@@ -1184,7 +1202,9 @@ def main(  config ):
 
   print1("")
   print1(HR)
-  print1("# Analysing data in %s" % globalParameters["BenchmarkDataPath"])
+  currentTime = time.time()
+  elapsedTime = currentTime - startTime
+  print1("# Analysing data in %s - %.3fs" % (globalParameters["BenchmarkDataPath"], elapsedTime) )
   for parameter in analysisParameters:
     print2("#   %s: %s" % (parameter, analysisParameters[parameter]))
   print1(HR)

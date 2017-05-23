@@ -29,7 +29,7 @@ from subprocess import Popen
 import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
@@ -169,7 +169,9 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
-    sys.stdout.write("# Enumerating Solutions")
+    print1("# Enumerating Solutions")
+    if globalParameters["PrintLevel"] >= 1:
+      progressBar = ProgressBar(maxPossibleSolutions)
     solutionSet = set() # avoid duplicates for nlca=-1, 1
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
@@ -197,21 +199,13 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           if solutionObject not in solutionSet:
             solutionSet.add(solutionObject)
             solutions[hardcodedIdx].append(solutionObject)
-            if globalParameters["PrintLevel"] >= 1:
-              sys.stdout.write("|")
-          else:
-            if globalParameters["PrintLevel"] >= 1:
-              sys.stdout.write(":")
         else:
           if globalParameters["PrintSolutionRejectionReason"]:
             print1("rejecting solution %s" % str(solutionObject))
-          elif globalParameters["PrintLevel"] >= 1:
-            sys.stdout.write(".")
         if globalParameters["PrintLevel"] >= 1:
-          sys.stdout.flush()
-    if globalParameters["PrintLevel"] >= 1:
-      sys.stdout.write("\n")
-      sys.stdout.flush()
+          progressBar.increment()
+    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
+        maxPossibleSolutions ))
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = []
@@ -222,8 +216,12 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     removesExist = len(removeHardcoded) > 0
     for hardcodedParam in removeHardcoded:
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
+
     if removesExist:
       winners.update( benchmarkStep.hardcodedParameters )
+      if globalParameters["PrintLevel"] >= 1:
+        sys.stdout.write("\n")
+        sys.stdout.flush()
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
       for solutionList in shallowcopy(solutions):
@@ -231,8 +229,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           solutions.remove(solutionList)
 
 
-    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
-        maxPossibleSolutions ))
     # create linear list
     solutionList = []
     for i in range(0, len(solutions)):
@@ -301,8 +297,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # End Iteration
     popWorkingPath() # stepName
-    print1("%s\n# %s\n# %s: End\n%s\n" \
-        % (HR, problemSizeGroupName, shortName, HR))
+    currentTime = time.time()
+    elapsedTime = currentTime - startTime
+    print1("%s\n# %s\n# %s: End - %.3fs\n%s\n" \
+        % (HR, problemSizeGroupName, shortName, elapsedTime, HR))
 
   popWorkingPath() # ProblemType
   return resultsFileBaseList
@@ -494,6 +492,9 @@ class WinningParameterDict:
       for newHardcodedParameters in newHardcodedParameterList:
         self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
     else:
+      if globalParameters["PrintLevel"] >= 1:
+        sys.stdout.write("# Updating Winners\n")
+        progressBar = ProgressBar(len(newHardcodedParameterList))
       for newHardcodedParameters in newHardcodedParameterList:
         #(oldHardcodedParameters, winningParameters, score) = \
         matches = WinningParameterDict.get(newHardcodedParameters, oldWinners)
@@ -521,6 +522,9 @@ class WinningParameterDict:
           newHardcodedParameters.update(fastestHardcodedParameters)
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ fastestWinningParameters, fastestScore ]
+        if globalParameters["PrintLevel"] >= 1:
+          progressBar.increment()
+
 
     # return resulting hardcodedParameterList
     returnHardcodedParameterList = []

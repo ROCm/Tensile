@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
@@ -59,6 +59,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     for kernel in solutionKernelsBetaOnly:
       if kernel not in kernelsBetaOnly:
         kernelsBetaOnly.append(kernel)
+  progressBar = ProgressBar(len(solutions)+len(kernels))
 
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
     solutionSerialNaming = Solution.getSerialNaming(solutions)
@@ -111,6 +112,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
         solutionWriter.getHeaderFileString(solution))
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
+    progressBar.increment()
   # close merged
   if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
@@ -158,6 +160,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
+    progressBar.increment()
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
@@ -292,7 +295,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     ########################################
     # implement per-Schedule functions in source
-    s += "// per-schedule functions\n"
+    s += "/*******************************************************************************\n * Per-Schedule Functions\n *******************************************************************************/"
     for scheduleTuple in logicData[problemType]:
 
       # get logic parameters for problem type
@@ -324,9 +327,11 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
       exactLogicStr = writeExactLogic(exactLogic, \
           solutionNamesForSchedule, True)
-
-      rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-          solutionNamesForSchedule, problemType, True)
+      if rangeLogic != None:
+        rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
+            solutionNamesForSchedule, problemType, True)
+      else:
+        rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
       s += exactLogicStr
       s += "\n  /* range mappings */\n"
@@ -343,8 +348,11 @@ def writeLogic(outputPath, logicData, solutionWriter ):
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
       exactLogicStr = writeExactLogic(exactLogic, \
           solutionNamesForSchedule, False)
-      rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-          solutionNamesForSchedule, problemType, False)
+      if rangeLogic != None:
+        rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
+            solutionNamesForSchedule, problemType, False)
+      else:
+        rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
       s += exactLogicStr
       s += "\n  /* range mappings */\n"
@@ -353,7 +361,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     ########################################
     # implement problem-type functions in source
-    s += "// per-problemType functions\n"
+    s += "/*******************************************************************************\n * Per-ProblemType Functions\n *******************************************************************************/"
 
     # problem type templates
     problemTypeTemplate = "%s" % ("cl_command_queue" \
@@ -432,7 +440,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           % (argListStream[i][0], argListStream[i][1], \
           ",\n" if i < len(argListStream)-1 else ") {\n")
     # create key
-    s += "Key_%s key = std::make_tuple(stream" % (problemType)
+    s += "  Key_%s key = std::make_tuple(stream" % (problemType)
     for i in range(0, problemType["TotalIndices"]):
       s += ", size%s" % globalParameters["IndexChars"][i]
     s += ");\n"
@@ -445,8 +453,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointerUncached_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
-      s += "%s%s" \
-          % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");\n")
+      s += "        %s%s" \
+          % (argListStream[i][1], "," if i < len(argListStream)-1 else ");")
+      s += "\n"
     s += "    solutionMap_%s[key] = ptr;\n" % problemType
     s += "    return ptr;\n"
     s += "  }\n"
@@ -462,12 +471,17 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointer_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
-      s += "%s%s" \
-          % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");\n")
-    s += "    return ptr("
+      s += "        %s%s" \
+          % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");")
+      s += "\n"
+    s += "    if ( ptr ) {\n"
+    s += "      return ptr("
     for i in range(0, len(argListData)):
       s += "%s%s" \
           % (argListData[i][1], ", " if i < len(argListData)-1 else ");\n")
+    s += "    } else {\n"
+    s += "      return tensileStatusFailure; // no solution found\n"
+    s += "    }\n"
     s += "}\n"
 
     # open and close problemType files
