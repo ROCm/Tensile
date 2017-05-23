@@ -204,6 +204,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
             print1("rejecting solution %s" % str(solutionObject))
         if globalParameters["PrintLevel"] >= 1:
           progressBar.increment()
+    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
+        maxPossibleSolutions ))
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = []
@@ -227,8 +229,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           solutions.remove(solutionList)
 
 
-    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
-        maxPossibleSolutions ))
     # create linear list
     solutionList = []
     for i in range(0, len(solutions)):
