@@ -18,7 +18,7 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - WorkGroup:
           - [  8, 16, 2 ]
         - ThreadTile:
@@ -50,7 +50,7 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - WorkGroup:
           - [  8, 16, 2 ]
         - ThreadTile:
@@ -81,7 +81,7 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - WorkGroup:
           - [  8, 16, 2 ]
         - ThreadTile:
@@ -112,7 +112,7 @@ BenchmarkProblems:
           - Range: [ [4, 23, 0, 75], [4, 13, 0, 75], [63, 1, 64] ]
         - LoopDoWhile: [False]
         - LoopTail: [True]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - WorkGroup:
           - [  8, 16, 2 ]
         - ThreadTile:

@@ -32,7 +32,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 1536 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -76,7 +76,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 1536 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -120,7 +120,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 1536 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -165,7 +165,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 1536 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]

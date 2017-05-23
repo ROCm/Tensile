@@ -135,7 +135,7 @@ validParameters = {
     "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],
     "MacroTileShapeMax":          [ 1, 2, 4, 8, 16, 32, 64 ],
 
-    "EdgeType":                   [ "Branch", "Shift", "None" ],
+    "EdgeType":                   [ "Branch", "ShiftPtr", "None" ],
     "MacroTile":                  validMacroTiles,
 
     }

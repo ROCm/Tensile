@@ -310,8 +310,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # End Iteration
     popWorkingPath() # stepName
-    print1("%s\n# %s\n# %s: End\n%s\n" \
-        % (HR, problemSizeGroupName, shortName, HR))
+    currentTime = time.time()
+    elapsedTime = currentTime - startTime
+    print1("%s\n# %s\n# %s: End - %.3fs\n%s\n" \
+        % (HR, problemSizeGroupName, shortName, elapsedTime, HR))
 
   popWorkingPath() # ProblemType
   return resultsFileBaseList

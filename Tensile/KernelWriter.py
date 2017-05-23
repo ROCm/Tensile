@@ -244,7 +244,7 @@ class KernelWriter:
     kStr += self.graUnrollOffsetsB(kernel)
 
     # tile edges
-    if kernel["EdgeType"] == "Shift":
+    if kernel["EdgeType"] == "ShiftPtr":
       kStr += self.comment("global read addresses: shift a")
       kStr += self.graShiftA(kernel)
       kStr += self.comment("global read addresses: shift b")
@@ -683,7 +683,7 @@ class KernelWriter:
     ####################################
     # Shift Vector Components
     ####################################
-    if kernel["EdgeType"] == "Shift" and kernel["VectorWidth"] > 1:
+    if kernel["EdgeType"] == "ShiftPtr" and kernel["VectorWidth"] > 1:
       # shift vector components d0
       if self.readTileDimVectorA:
         kStr += self.comment("shift vector components d0")

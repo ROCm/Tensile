@@ -2281,7 +2281,7 @@ class KernelWriterSource(KernelWriter):
                   % (self.tileChar0, a, self.tileChar0, self.tileChar0)
               kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                   % (self.tileChar1, b, self.tileChar1, self.tileChar1)
-            elif kernel["EdgeType"] == "Shift":
+            elif kernel["EdgeType"] == "ShiftPtr":
               kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
                   % (self.tileChar0, \
                   ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \

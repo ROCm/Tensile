@@ -45,7 +45,7 @@ BenchmarkProblems:
           - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
         - LoopTail: [False, True]
-        - EdgeType: ["None", "Branch", "Shift"]
+        - EdgeType: ["None", "Branch", "ShiftPtr"]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -83,7 +83,7 @@ BenchmarkProblems:
           - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
         - LoopTail: [False, True]
-        - EdgeType: ["None", "Branch", "Shift"]
+        - EdgeType: ["None", "Branch", "ShiftPtr"]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -121,7 +121,7 @@ BenchmarkProblems:
           - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
         - LoopTail: [False, True]
-        - EdgeType: ["None", "Branch", "Shift"]
+        - EdgeType: ["None", "Branch", "ShiftPtr"]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:
@@ -159,7 +159,7 @@ BenchmarkProblems:
           - [  8, 16,  1 ]
           - [ 16, 16,  1 ]
         - LoopTail: [False, True]
-        - EdgeType: ["None", "Branch", "Shift"]
+        - EdgeType: ["None", "Branch", "ShiftPtr"]
         - DepthU: [ 8, 16]
         - VectorWidth: [1, 2, 4]
       BenchmarkForkParameters:

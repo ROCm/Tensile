@@ -35,7 +35,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 2880 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -117,7 +117,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 4096, 4096, 1, 4096 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -148,7 +148,6 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
@@ -208,7 +207,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 2880 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -238,7 +237,6 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
@@ -259,7 +257,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 4096, 4096, 1, 4096 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -290,7 +288,6 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
@@ -320,7 +317,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 2880 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -347,6 +344,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
+        - GlobalSplitU: [1, 2, 3, 4, 5, 6, 7, 8]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -401,7 +399,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 4096, 4096, 1, 4096 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -432,7 +430,6 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
@@ -492,7 +489,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 2880 ]
-        - EdgeType: ["Shift"]
+        - EdgeType: ["ShiftPtr"]
         - LoopDoWhile: [False]
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
@@ -522,7 +519,6 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
         - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
