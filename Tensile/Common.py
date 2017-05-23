@@ -369,6 +369,38 @@ def versionIsCompatible(queryVersionString):
       return False
   return True
 
+class ProgressBar:
+  def __init__(self, maxValue, width=80):
+    self.char = '|'
+    self.maxValue = maxValue
+    self.width = width
+    self.maxTicks = self.width - 7
+
+
+    self.priorValue = 0
+    self.fraction = 0
+    self.numTicks = 0
+
+  def increment(self):
+    self.update(self.priorValue+1)
+
+  def update(self, value):
+    currentFraction = 1.0 * value / self.maxValue
+    currentNumTicks = int(currentFraction * self.maxTicks)
+    if currentNumTicks > self.numTicks:
+      self.numTicks = currentNumTicks
+      self.fraction = currentFraction
+      self.printStatus()
+    self.priorValue = value
+
+  def printStatus(self):
+    sys.stdout.write("\r")
+    sys.stdout.write("[%-*s] %3d%%" \
+        % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
+    if self.numTicks == self.maxTicks:
+      sys.stdout.write("\n")
+    sys.stdout.flush()
+
 # TODO
 CMakeHeader = "# Header\n\n"
 CHeader = "// Header\n\n"

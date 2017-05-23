@@ -29,7 +29,7 @@ from subprocess import Popen
 import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
@@ -169,10 +169,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
-    sys.stdout.write("# Enumerating Solutions")
-    solutionSet = set() # avoid duplicates for nlca=-1, 1
+    print1("# Enumerating Solutions")
     if globalParameters["PrintLevel"] >= 1:
-      printIdx = 0
+      progressBar = ProgressBar(maxPossibleSolutions)
+    solutionSet = set() # avoid duplicates for nlca=-1, 1
     for hardcodedIdx in range(0, numHardcoded):
       solutions.append([])
       hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
@@ -199,25 +199,11 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           if solutionObject not in solutionSet:
             solutionSet.add(solutionObject)
             solutions[hardcodedIdx].append(solutionObject)
-            if globalParameters["PrintLevel"] >= 1:
-              sys.stdout.write("|")
-          else:
-            if globalParameters["PrintLevel"] >= 1:
-              sys.stdout.write(":")
         else:
           if globalParameters["PrintSolutionRejectionReason"]:
             print1("rejecting solution %s" % str(solutionObject))
-          elif globalParameters["PrintLevel"] >= 1:
-            sys.stdout.write(".")
         if globalParameters["PrintLevel"] >= 1:
-          printIdx += 1
-          if printIdx % 100 == 0:
-            sys.stdout.write(" %u /%u/%u\n" \
-                % (len(solutionSet), printIdx, maxPossibleSolutions) )
-          sys.stdout.flush()
-    if globalParameters["PrintLevel"] >= 1:
-      sys.stdout.write("\n")
-      sys.stdout.flush()
+          progressBar.increment()
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = []
@@ -228,6 +214,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     removesExist = len(removeHardcoded) > 0
     for hardcodedParam in removeHardcoded:
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
+
     if removesExist:
       winners.update( benchmarkStep.hardcodedParameters )
       if globalParameters["PrintLevel"] >= 1:
@@ -507,12 +494,11 @@ class WinningParameterDict:
     else:
       if globalParameters["PrintLevel"] >= 1:
         sys.stdout.write("# Updating Winners\n")
-        printIdx = 0
+        progressBar = ProgressBar(len(newHardcodedParameterList))
       for newHardcodedParameters in newHardcodedParameterList:
         #(oldHardcodedParameters, winningParameters, score) = \
         matches = WinningParameterDict.get(newHardcodedParameters, oldWinners)
         if len(matches) == 1: # plain update
-          sys.stdout.write(".")
           hardcodedFrozen = matches[0][0]
           winningParameters = matches[0][1]
           score = matches[0][2]
@@ -521,7 +507,6 @@ class WinningParameterDict:
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ winningParameters, score ]
         elif len(matches) > 1: # join
-          sys.stdout.write("|")
           fastestScore = -1
           fastestHardcodedParameters = {}
           fastestWinningParameters = {}
@@ -538,11 +523,7 @@ class WinningParameterDict:
           self.winners[FrozenDictionary(newHardcodedParameters)] = \
               [ fastestWinningParameters, fastestScore ]
         if globalParameters["PrintLevel"] >= 1:
-          printIdx += 1
-          if printIdx % 100 == 0:
-            sys.stdout.write("%u/%u\n" \
-                % (printIdx, len(newHardcodedParameterList)) )
-          sys.stdout.flush()
+          progressBar.increment()
 
 
     # return resulting hardcodedParameterList

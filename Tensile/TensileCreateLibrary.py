@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
@@ -59,6 +59,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     for kernel in solutionKernelsBetaOnly:
       if kernel not in kernelsBetaOnly:
         kernelsBetaOnly.append(kernel)
+  progressBar = ProgressBar(len(solutions)+len(kernels))
 
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
     solutionSerialNaming = Solution.getSerialNaming(solutions)
@@ -111,6 +112,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
         solutionWriter.getHeaderFileString(solution))
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
+    progressBar.increment()
   # close merged
   if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
@@ -158,6 +160,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
+    progressBar.increment()
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
