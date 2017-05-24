@@ -19,9 +19,9 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from SolutionStructs import Solution, DataType
+from SolutionStructs import Solution
 from KernelWriterSource import KernelWriterSource
-from Common import globalParameters, print2
+from Common import globalParameters
 
 ################################################################################
 # SolutionWriter

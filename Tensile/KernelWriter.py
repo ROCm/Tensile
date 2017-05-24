@@ -48,7 +48,6 @@ class KernelWriter:
   # Kernel Body
   ##############################################################################
   def kernelBody( self, kernel ):
-    kernelName = self.getKernelName(kernel)
 
     ########################################
     # determine index chars
@@ -72,6 +71,7 @@ class KernelWriter:
 
     ########################################
     # derrive global-read-coalesce-group from local in config
+    """
     if kernel["ProblemType"]["TLUA"]:
       self.globalReadCoalesceGroupA = kernel["LocalWriteCoalesceGroupA"]
     else:
@@ -80,6 +80,9 @@ class KernelWriter:
       self.globalReadCoalesceGroupB = kernel["LocalWriteCoalesceGroupB"]
     else:
       self.globalReadCoalesceGroupB = not kernel["LocalWriteCoalesceGroupB"]
+    """
+    self.globalReadCoalesceGroupA = kernel["GlobalReadCoalesceGroupA"]
+    self.globalReadCoalesceGroupB = kernel["GlobalReadCoalesceGroupB"]
 
     ########################################
     # read / write vectors or vector components
@@ -673,7 +676,6 @@ class KernelWriter:
 
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
-      loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
       kStr += self.comment("global read inc a")
       kStr += self.globalReadIncrementA(kernel, i)
       kStr += self.comment("global read inc b")

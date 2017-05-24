@@ -18,7 +18,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import sys
 import os
 from copy import deepcopy
 from copy import copy as shallowcopy
@@ -204,7 +203,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
             print1("rejecting solution %s" % str(solutionObject))
         if globalParameters["PrintLevel"] >= 1:
           progressBar.increment()
-    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
+    print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
 
     # remove hardcoded that don't have any valid benchmarks
@@ -220,8 +219,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if removesExist:
       winners.update( benchmarkStep.hardcodedParameters )
       if globalParameters["PrintLevel"] >= 1:
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+        print1("")
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
       for solutionList in shallowcopy(solutions):
@@ -493,7 +491,7 @@ class WinningParameterDict:
         self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
     else:
       if globalParameters["PrintLevel"] >= 1:
-        sys.stdout.write("# Updating Winners\n")
+        print1("# Updating Solution Database")
         progressBar = ProgressBar(len(newHardcodedParameterList))
       for newHardcodedParameters in newHardcodedParameterList:
         #(oldHardcodedParameters, winningParameters, score) = \

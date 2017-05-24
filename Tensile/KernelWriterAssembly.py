@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from SolutionStructs import Solution, DataType
+from SolutionStructs import DataType
 from Common import globalParameters
 from KernelWriter import KernelWriter
 
@@ -438,7 +438,7 @@ class KernelWriterAssembly(KernelWriter):
           strC = "rC[%d+%d*TT%s/VECTOR_WIDTH]" % (vecA, b, self.tileChar0 )
           elemC = elemA
           if kernel["VectorWidth"] > 1:
-            strC += ".%s" % self.vectorComponents[elemA]
+            strC += ".%s" % self.vectorComponents[elemC]
           """
           kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
           """
@@ -1090,7 +1090,7 @@ class KernelWriterAssembly(KernelWriter):
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
       kStr += "*DEPTHU"
     else:
-      for j in range(i+1, \
+      for j in range(loopIdx+1, \
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][j]]
@@ -1111,7 +1111,7 @@ class KernelWriterAssembly(KernelWriter):
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
       kStr += "*DEPTHU"
     else:
-      for j in range(i+1, \
+      for j in range(loopIdx+1, \
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][j]]

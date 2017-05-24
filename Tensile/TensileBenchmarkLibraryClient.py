@@ -29,7 +29,6 @@ from subprocess import Popen, PIPE
 ################################################################################
 def BenchmarkProblemSize(cmdPrefix, row):
   cmd = cmdPrefix
-  output = ""
   for size in row:
     cmd += " "
     cmd += size

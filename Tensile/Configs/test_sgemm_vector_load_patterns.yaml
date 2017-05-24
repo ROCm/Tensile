@@ -25,8 +25,8 @@ BenchmarkProblems:
           - [4, 8]
         - DepthU: [ 8 ]
       ForkParameters:
-        - LocalWriteCoalesceGroupA: [False, True]
-        - LocalWriteCoalesceGroupB: [False, True]
+        - GlobalReadCoalesceGroupA: [False, True]
+        - GlobalReadCoalesceGroupB: [False, True]
         - GlobalReadCoalesceVectorA: [False, True]
         - GlobalReadCoalesceVectorB: [False, True]
         - NumLoadsCoalescedA: [1, -1]
@@ -57,8 +57,8 @@ BenchmarkProblems:
           - [4, 8]
         - DepthU: [ 8 ]
       ForkParameters:
-        - LocalWriteCoalesceGroupA: [False, True]
-        - LocalWriteCoalesceGroupB: [False, True]
+        - GlobalReadCoalesceGroupA: [False, True]
+        - GlobalReadCoalesceGroupB: [False, True]
         - GlobalReadCoalesceVectorA: [False, True]
         - GlobalReadCoalesceVectorB: [False, True]
         - NumLoadsCoalescedA: [1, -1]
@@ -88,8 +88,8 @@ BenchmarkProblems:
           - [4, 8]
         - DepthU: [ 8 ]
       ForkParameters:
-        - LocalWriteCoalesceGroupA: [False, True]
-        - LocalWriteCoalesceGroupB: [False, True]
+        - GlobalReadCoalesceGroupA: [False, True]
+        - GlobalReadCoalesceGroupB: [False, True]
         - GlobalReadCoalesceVectorA: [False, True]
         - GlobalReadCoalesceVectorB: [False, True]
         - NumLoadsCoalescedA: [1, -1]
@@ -119,8 +119,8 @@ BenchmarkProblems:
           - [4, 8]
         - DepthU: [ 8 ]
       ForkParameters:
-        - LocalWriteCoalesceGroupA: [False, True]
-        - LocalWriteCoalesceGroupB: [False, True]
+        - GlobalReadCoalesceGroupA: [False, True]
+        - GlobalReadCoalesceGroupB: [False, True]
         - GlobalReadCoalesceVectorA: [False, True]
         - GlobalReadCoalesceVectorB: [False, True]
         - NumLoadsCoalescedA: [1, -1]

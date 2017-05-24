@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1, print2
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
 
 ################################################################################

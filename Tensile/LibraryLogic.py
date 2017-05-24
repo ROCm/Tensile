@@ -27,7 +27,7 @@ import time
 
 from copy import deepcopy
 
-from Common import print1, print2, printWarning, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime
+from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime
 from SolutionStructs import Solution
 import YAMLIO
 
@@ -204,8 +204,10 @@ class LogicAnalyzer:
         self.exactProblemSizes.add(tuple(exactSize))
 
       # add ranges
+      print "ProblemSizes", problemSizes.sizes
       self.rangeProblemSizes.update(problemSizes.sizes)
       for rangeSize in problemSizes.ranges:
+        print "RangeSize", rangeSize
         sizedIdx = 0
         mappedIdx = 0
         for i in range(0, self.numIndices):
@@ -387,7 +389,6 @@ class LogicAnalyzer:
     #problemIndices = [0]*self.numIndices
     allSolutionValid = False
     while not allSolutionValid:
-      moreProblems = True
       invalidIdx = -1
       for problemIndices in self.problemIndicesForGlobalRange:
         problemSerial = self.indicesToSerial(0, problemIndices)
@@ -840,19 +841,16 @@ class LogicAnalyzer:
       if self.data[problemSerial+0] > self.data[problemSerial+1]:
         winnerIdx = 0
         winnerGFlops = self.data[problemSerial+0]
-        secondIdx = 1
         secondGFlops = self.data[problemSerial+1]
       else:
         winnerIdx = 1
         winnerGFlops = self.data[problemSerial+1]
-        secondIdx = 0
         secondGFlops = self.data[problemSerial+0]
 
       for solutionIdx in range(2, self.numSolutions):
         solutionSerialIdx = problemSerial + solutionIdx
         solutionGFlops = self.data[solutionSerialIdx]
         if solutionGFlops > winnerGFlops:
-          secondIdx = winnerIdx
           secondGFlops = winnerGFlops
           winnerIdx = solutionIdx
           winnerGFlops = solutionGFlops
@@ -902,7 +900,6 @@ class LogicAnalyzer:
     oldSolutions = self.solutions
     oldNumSolutions = self.numSolutions
     oldData = self.data
-    oldTotalSize = self.totalSize
 
     # update solutions
     self.solutions = []
@@ -1053,7 +1050,6 @@ class LogicAnalyzer:
     depth = self.getLogicDepth(logic)
     if depth == 0: return
     depth = self.numIndices - depth
-    currentLogic = logic
     for i in range(0, len(logic)):
       logicComplexity[depth] += 1
       self.scoreLogicComplexity(logic[i][1], logicComplexity)

@@ -37,8 +37,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
-        - LocalWriteCoalesceGroupA: [ True ]
-        - LocalWriteCoalesceGroupB: [ False ]
       ForkParameters:
         - ThreadTile:
           - [ 4, 4 ]
@@ -81,8 +79,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
-        - LocalWriteCoalesceGroupA: [ True ]
-        - LocalWriteCoalesceGroupB: [ True ]
       ForkParameters:
         - ThreadTile:
           - [ 4, 4 ]
@@ -125,8 +121,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
-        - LocalWriteCoalesceGroupA: [ False ]
-        - LocalWriteCoalesceGroupB: [ False ]
       ForkParameters:
         - ThreadTile:
           - [ 4, 4 ]
@@ -170,8 +164,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
-        - LocalWriteCoalesceGroupA: [ False ]
-        - LocalWriteCoalesceGroupB: [ True ]
       ForkParameters:
         - ThreadTile:
           - [ 4, 4 ]

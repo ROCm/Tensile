@@ -20,7 +20,6 @@
 ################################################################################
 import os.path
 import sys
-import inspect
 from __init__ import __version__
 from collections import OrderedDict
 import time
@@ -112,8 +111,8 @@ for i in validMacroTileSides:
 validParameters = {
     "LoopDoWhile":                [ False, True ],
     "LoopTail":                   [ False, True ],
-    "LocalWriteCoalesceGroupA":   [ False, True ],
-    "LocalWriteCoalesceGroupB":   [ False, True ],
+    "GlobalReadCoalesceGroupA":   [ False, True ],
+    "GlobalReadCoalesceGroupB":   [ False, True ],
     "GlobalReadCoalesceVectorA":  [ False, True ],
     "GlobalReadCoalesceVectorB":  [ False, True ],
     "PrefetchGlobalRead":         [ False, True ],
@@ -149,8 +148,8 @@ defaultBenchmarkCommonParameters = [
     {"VectorWidth":               [ 1 ] }, # =2 once fixed
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"LocalWriteCoalesceGroupA":  [ True ] },
-    {"LocalWriteCoalesceGroupB":  [ True ] },
+    {"GlobalReadCoalesceGroupA":  [ True ] },
+    {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ False ] },
     {"PrefetchLocalRead":         [ False ] },
     {"UnrollMemFence":            [ False ] },
@@ -277,14 +276,18 @@ def getParamValues( name, structure ):
 def print1(message):
   if globalParameters["PrintLevel"] >= 1:
     print message
+    sys.stdout.flush()
 def print2(message):
   if globalParameters["PrintLevel"] >= 2:
     print message
+    sys.stdout.flush()
 
 def printWarning(message):
   print "Tensile::WARNING: %s" % message
+  sys.stdout.flush()
 def printExit(message):
   print "Tensile::FATAL: %s" % message
+  sys.stdout.flush()
   sys.exit(-1)
 
 
