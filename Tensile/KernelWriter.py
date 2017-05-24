@@ -176,7 +176,6 @@ class KernelWriter:
     self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
         if self.readTileDimComponentsB else 1 # for branches
 
-
     ####################################
     # Begin String
     kStr = ""

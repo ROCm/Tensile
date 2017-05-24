@@ -536,11 +536,17 @@ class WinningParameterDict:
   @staticmethod
   def get( lookupHardcodedParameters, winners ):
     matches = []
+
+    # only 1 winner, when benchmarking 1 solution
+    if len(winners) == 1:
+      hardcodedFrozen = winners.keys()[0]
+      winningParameters = winners[hardcodedFrozen][0]
+      score = winners[hardcodedFrozen][1]
+      matches.append([hardcodedFrozen, winningParameters, score])
+      return matches
+
     for hardcodedFrozen in winners:
       winningParameters = winners[hardcodedFrozen][0]
-      #    % (Solution.getNameFull(lookupHardcodedParameters), \
-      #    Solution.getNameFull(hardcodedFrozen.parameters), \
-      #    Solution.getNameFull(winningParameters))
       score = winners[hardcodedFrozen][1]
       frozenMatch = True
       # a match if no key in hardcoded has a different value than lookup
@@ -548,8 +554,6 @@ class WinningParameterDict:
         if paramName in lookupHardcodedParameters:
           if lookupHardcodedParameters[paramName] != \
               hardcodedFrozen[paramName]:
-            #    % (paramName, \
-            #    lookupHardcodedParameters[paramName], hardcodedFrozen[paramName])
             frozenMatch = False
             break
       if frozenMatch:
@@ -560,9 +564,6 @@ class WinningParameterDict:
         if "MacroTile0" in lookupHardcodedParameters:
           lookupMacroTile0 = lookupHardcodedParameters["MacroTile0"]
           lookupMacroTile1 = lookupHardcodedParameters["MacroTile1"]
-          #for paramName in hardcodedFrozen:
-          #  paramValue = hardcodedFrozen[paramName]
-          #  matchUnion[paramName] = paramValue
           Solution.assignProblemIndependentDerivedParameters(matchUnion)
           Solution.assignProblemIndependentDerivedParameters(hardcodedFrozen.parameters)
           if matchUnion["MacroTile0"] != lookupMacroTile0 \

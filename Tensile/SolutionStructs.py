@@ -783,20 +783,25 @@ class Solution:
     totalVectorsB = totalElementsB / state["VectorWidth"]
 
     # how many load instructions
-    if totalVectorsA % state["NumThreads"] != 0:
+    #if totalVectorsA % state["NumThreads"] != 0 or totalVectorsA < state["NumThreads"]:
+    if totalVectorsA % state["NumThreads"] != 0 or totalVectorsA < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("totalVectorsA %u %% NumThreads %u != 0" \
             % (totalVectorsA, state["NumThreads"]))
       state["Valid"] = False
+      print state
       return
     else:
       state["NumLoadsA"] = totalVectorsA / state["NumThreads"]
 
-    if totalVectorsB % state["NumThreads"] != 0:
+    #print totalVectorsB < state["NumThreads"]
+    #if totalVectorsB % state["NumThreads"] != 0 or totalVectorsB < state["NumThreads"]:
+    if totalVectorsB % state["NumThreads"] != 0 or totalVectorsB < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("totalVectorsB %u %% NumThreads %u != 0" \
             % (totalVectorsB, state["NumThreads"]))
       state["Valid"] = False
+      print state
       return
     else:
       state["NumLoadsB"] = totalVectorsB / state["NumThreads"]

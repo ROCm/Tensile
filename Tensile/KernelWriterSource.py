@@ -773,9 +773,9 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     if kernel["WorkGroupMapping"] == 1:
       kStr += "  unsigned int wg%s = %s(0);%s" \
-	  % ( self.tileChar0, self.getGroupIdStr, self.endLine)
+          % ( self.tileChar0, self.getGroupIdStr, self.endLine)
       kStr += "  unsigned int wg%s = %s(1);%s" \
-	  % ( self.tileChar1, self.getGroupIdStr, self.endLine)
+          % ( self.tileChar1, self.getGroupIdStr, self.endLine)
     elif kernel["WorkGroupMapping"] == -1:
       kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
           % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
@@ -1084,12 +1084,13 @@ class KernelWriterSource(KernelWriter):
   def graShiftA(self, kernel):
     kStr = ""
     for l in range(0, self.numReadsTileA):
-      gro = "globalReadOffsetA%s_%u%s" % (self.tileCharA, l, \
-          ("_s0" if self.readTileDimComponentsA else "") )
-      limit = "(size%s-%s)" % (self.tileCharA, \
-          ("VECTOR_WIDTH" if self.readTileDimVectorA else "1") )
-      kStr += "  %s = (%s > %s) ? %s : %s;%s" \
-          % (gro, gro, limit, limit, gro, self.endLine)
+      for s in range(0, self.numReadVectorComponentsA):
+        gro = "globalReadOffsetA%s_%u%s" % (self.tileCharA, l, \
+            (("_s%u"%s) if self.readTileDimComponentsA else "") )
+        limit = "(size%s-%s)" % (self.tileCharA, \
+            ("VECTOR_WIDTH" if self.readTileDimVectorA else "1") )
+        kStr += "  %s = (%s > %s) ? %s : %s;%s" \
+            % (gro, gro, limit, limit, gro, self.endLine)
     return kStr
 
   ##############################################################################
@@ -1098,12 +1099,13 @@ class KernelWriterSource(KernelWriter):
   def graShiftB(self, kernel):
     kStr = ""
     for l in range(0, self.numReadsTileB):
-      gro = "globalReadOffsetB%s_%u%s" % (self.tileCharB, l, \
-          ("_s0" if self.readTileDimComponentsB else ""))
-      limit = "(size%s-%s)" % (self.tileCharB, \
-          ("VECTOR_WIDTH" if self.readTileDimVectorB else "1") )
-      kStr += "  %s = (%s > %s) ? %s : %s;%s" \
-          % (gro, gro, limit, limit, gro, self.endLine)
+      for s in range(0, self.numReadVectorComponentsB):
+        gro = "globalReadOffsetB%s_%u%s" % (self.tileCharB, l, \
+            (("_s%u"%s) if self.readTileDimComponentsB else ""))
+        limit = "(size%s-%s)" % (self.tileCharB, \
+            ("VECTOR_WIDTH" if self.readTileDimVectorB else "1") )
+        kStr += "  %s = (%s > %s) ? %s : %s;%s" \
+            % (gro, gro, limit, limit, gro, self.endLine)
     return kStr
 
   ##############################################################################
@@ -1723,20 +1725,27 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def globalReadDoA(self, kernel, guardK):
     kStr = ""
+    guardUnrolledComponents = self.readUnrollDimVectorA and guardK \
+        and kernel["VectorWidth"]>1
+    numUnrollVectorComponents = kernel["VectorWidth"] \
+        if guardUnrolledComponents else self.numReadVectorComponentsA
+
+
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numReadVectorComponentsA):
+        for s in range(0, numUnrollVectorComponents):
           kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
               ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsA\
-              or self.readUnrollDimComponentsA) else "") )
+              or self.readUnrollDimComponentsA or guardUnrolledComponents) else "") )
           # guard around K
           if guardK:
-            kStr += "( globalReadOffsetA%s_%u%s%s >= (size%s %% LOCAL_DEPTHU) )" \
+            kStr += "( globalReadOffsetA%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU) )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUA"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsA else ""), \
                 (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
-                else ""), self.unrollChar)
+                else ""), "+%u"%s if guardUnrolledComponents else "", \
+                self.unrollChar)
           # guard around edge
           if kernel["EdgeType"] == "Branch":
             if guardK:
@@ -1745,10 +1754,13 @@ class KernelWriterSource(KernelWriter):
                 (para if kernel["ProblemType"]["TLUA"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % ("SCALAR_ZERO" if (self.readTileDimComponentsA\
-              or self.readUnrollDimComponentsA) else "VECTOR_ZERO")
-          kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsA \
-              or self.readUnrollDimComponentsA) else ""), self.endLine)
+              or self.readUnrollDimComponentsA or guardUnrolledComponents) else "VECTOR_ZERO")
+          kStr += "*(%sglobalReadA_%u_%u%s%s);%s" \
+              % ("((DATA_TYPE*)" if guardUnrolledComponents else "", \
+              para, perp, (("_s%u"%s) if (self.readTileDimComponentsA \
+              or self.readUnrollDimComponentsA) else ""), \
+              ")+%u"%s if guardUnrolledComponents else "", \
+              self.endLine)
     return kStr
 
   ##############################################################################
@@ -1756,22 +1768,26 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def globalReadDoB(self, kernel, guardK):
     kStr = ""
-    # global read B
+    guardUnrolledComponents = self.readUnrollDimVectorB and guardK \
+        and kernel["VectorWidth"]>1
+    numUnrollVectorComponents = kernel["VectorWidth"] \
+        if guardUnrolledComponents else self.numReadVectorComponentsB
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numReadVectorComponentsB):
+        for s in range(0, numUnrollVectorComponents):
           kStr += "%sb_%u_%u%s = " % (self.indent, para, perp, \
               ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsB\
-              or self.readUnrollDimComponentsB) \
+              or self.readUnrollDimComponentsB or guardUnrolledComponents) \
               else "") )
           # guard around k
           if guardK:
-            kStr += "( globalReadOffsetB%s_%u%s%s >= (size%s %% LOCAL_DEPTHU) )" \
+            kStr += "( globalReadOffsetB%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU) )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUB"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsB else ""), \
                 (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
-                else ""), self.unrollChar)
+                else ""), "+%u"%s if guardUnrolledComponents else "", \
+                self.unrollChar)
           # guard around edge
           if kernel["EdgeType"] == "Branch":
             if guardK:
@@ -1780,11 +1796,13 @@ class KernelWriterSource(KernelWriter):
                 (para if kernel["ProblemType"]["TLUB"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % ("SCALAR_ZERO" if (self.readTileDimComponentsB\
-              or self.readUnrollDimComponentsB) else "VECTOR_ZERO")
-          kStr += "*globalReadB_%u_%u%s;%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsB \
-              or self.readUnrollDimComponentsB) else ""), self.endLine)
+              or self.readUnrollDimComponentsB or guardUnrolledComponents) else "VECTOR_ZERO")
+          kStr += "*(%sglobalReadB_%u_%u%s%s);%s" \
+              % ("((DATA_TYPE*)" if guardUnrolledComponents else "", \
+              para, perp, (("_s%u"%s) if (self.readTileDimComponentsB \
+              or self.readUnrollDimComponentsB) else ""), \
+              ")+%u"%s if guardUnrolledComponents else "", \
+              self.endLine)
     return kStr
 
   ##############################################################################
@@ -2094,8 +2112,9 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def shiftVectorComponents1(self, kernel):
     kStr = ""
-    kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
-        % (self.tileChar1, self.tileChar1, self.tileChar1, \
+    kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
+        % (self.tileChar1, self.tileChar1, "gsuWgIdx" \
+        if kernel["GlobalSplitU"]>1 else ("wg%s"%self.tileChar1), \
         self.tileChar1, self.endLine)
     kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
         %(self.tileChar1, self.tileChar1, self.tileChar1, \
