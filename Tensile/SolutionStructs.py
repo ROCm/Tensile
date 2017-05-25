@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1, print2
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
 
 ################################################################################
@@ -783,7 +783,7 @@ class Solution:
     totalVectorsB = totalElementsB / state["VectorWidth"]
 
     # how many load instructions
-    if totalVectorsA % state["NumThreads"] != 0:
+    if totalVectorsA % state["NumThreads"] != 0 or totalVectorsA < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("totalVectorsA %u %% NumThreads %u != 0" \
             % (totalVectorsA, state["NumThreads"]))
@@ -792,7 +792,7 @@ class Solution:
     else:
       state["NumLoadsA"] = totalVectorsA / state["NumThreads"]
 
-    if totalVectorsB % state["NumThreads"] != 0:
+    if totalVectorsB % state["NumThreads"] != 0 or totalVectorsB < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
         print1("totalVectorsB %u %% NumThreads %u != 0" \
             % (totalVectorsB, state["NumThreads"]))
@@ -990,6 +990,45 @@ class Solution:
         print1("Kernel Uses %u > %u bytes of LDS" % ( ldsSize, globalParameters["MaxLDS"]))
       state["Valid"] = False
       return
+
+    # compiler trips over these configurations
+    if globalParameters["KernelLanguage"] == "HIP" \
+        and state["VectorWidth"] == 2 \
+        and state["ProblemType"]["TLUA"] \
+        and state["ProblemType"]["TLUB"] \
+        and state["GlobalReadCoalesceVectorA"] \
+        and state["GlobalReadCoalesceVectorB"]:
+      if state["ThreadTile0"] == 4 and state["ThreadTile1"] == 8 \
+          or state["ThreadTile0"] == 6 and state["ThreadTile1"] == 2\
+          or state["ThreadTile0"] == 6 and state["ThreadTile1"] == 8:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("compiler bug")
+        state["Valid"] = False
+
+    if globalParameters["KernelLanguage"] == "HIP" \
+        and state["VectorWidth"] == 4 \
+        and state["ProblemType"]["TLUA"] \
+        and state["ProblemType"]["TLUB"] \
+        and state["GlobalReadCoalesceVectorA"] \
+        and state["GlobalReadCoalesceVectorB"] \
+        and state["ThreadTile0"] == 8 and state["ThreadTile1"] == 8:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("compiler bug")
+      state["Valid"] = False
+
+    if globalParameters["KernelLanguage"] == "OCL" \
+        and state["VectorWidth"] == 2 \
+        and state["ProblemType"]["TLUA"] \
+        and state["ProblemType"]["TLUB"] \
+        and state["GlobalReadCoalesceVectorA"] \
+        and state["GlobalReadCoalesceVectorB"]:
+      if state["ThreadTile0"] == 4 and state["ThreadTile1"] == 8 \
+          or state["ThreadTile0"] == 8 and state["ThreadTile1"] == 4\
+          or state["ThreadTile0"] == 8 and state["ThreadTile1"] == 4:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("compiler bug")
+        state["Valid"] = False
+
 
     state["AssignedDerivedParameters"] = True
 

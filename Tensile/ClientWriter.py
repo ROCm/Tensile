@@ -18,7 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printExit, printWarning
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO

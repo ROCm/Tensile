@@ -48,7 +48,6 @@ class KernelWriter:
   # Kernel Body
   ##############################################################################
   def kernelBody( self, kernel ):
-    kernelName = self.getKernelName(kernel)
 
     ########################################
     # determine index chars
@@ -72,6 +71,7 @@ class KernelWriter:
 
     ########################################
     # derrive global-read-coalesce-group from local in config
+    """
     if kernel["ProblemType"]["TLUA"]:
       self.globalReadCoalesceGroupA = kernel["LocalWriteCoalesceGroupA"]
     else:
@@ -80,6 +80,9 @@ class KernelWriter:
       self.globalReadCoalesceGroupB = kernel["LocalWriteCoalesceGroupB"]
     else:
       self.globalReadCoalesceGroupB = not kernel["LocalWriteCoalesceGroupB"]
+    """
+    self.globalReadCoalesceGroupA = kernel["GlobalReadCoalesceGroupA"]
+    self.globalReadCoalesceGroupB = kernel["GlobalReadCoalesceGroupB"]
 
     ########################################
     # read / write vectors or vector components
@@ -172,7 +175,6 @@ class KernelWriter:
         or self.writeUnrollDimComponentsB) else 1
     self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
         if self.readTileDimComponentsB else 1 # for branches
-
 
     ####################################
     # Begin String
@@ -354,13 +356,14 @@ class KernelWriter:
     # summations loops: open
     ###########################################################################
 
-    # declare loop iterators
-    kStr += self.comment("declare loop iterators")
-    kStr += self.declareLoopIterators(kernel)
+    # declare loop num iter
+    kStr += self.comment("declare loop num iterations")
+    kStr += self.declareLoopNumIter(kernel)
 
     # open non-unrolled summation loops
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
       kStr += self.comment("summation loop %u"%i)
+      kStr += self.calculateLoopNumIter(kernel, i)
       kStr += self.openLoop(kernel, i)
 
     ####################################
@@ -408,6 +411,7 @@ class KernelWriter:
 
     # open unrolled summation loop
     kStr += self.comment("unrolled summation loop")
+    kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
     kStr += self.openLoop(kernel, self.unrollIdx)
 
     # unrolled loop: global read A, B
@@ -622,6 +626,7 @@ class KernelWriter:
       kStr += self.comment3("Tail Loop")
 
       # tail: global read
+      kStr += self.calculateLoopNumIter(kernel, -1)
       kStr += self.comment("global read a")
       kStr += self.globalReadDoA(kernel, True)
       kStr += self.comment("global read b")
@@ -673,7 +678,6 @@ class KernelWriter:
 
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
-      loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][i]]
       kStr += self.comment("global read inc a")
       kStr += self.globalReadIncrementA(kernel, i)
       kStr += self.comment("global read inc b")
@@ -1123,10 +1127,17 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Declare Loop Iterators
+  # Declare Loop Num Iterations
   ##############################################################################
   @abc.abstractmethod
-  def declareLoopIterators(self, kernel):
+  def declareLoopNumIter(self, kernel):
+    return ""
+
+  ##############################################################################
+  # Calculate Loop Num Iter
+  ##############################################################################
+  @abc.abstractmethod
+  def calculateLoopNumIter(self, kernel, loopIdx):
     return ""
 
   ##############################################################################

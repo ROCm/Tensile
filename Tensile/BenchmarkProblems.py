@@ -18,7 +18,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import sys
 import os
 from copy import deepcopy
 from copy import copy as shallowcopy
@@ -204,8 +203,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
             print1("rejecting solution %s" % str(solutionObject))
         if globalParameters["PrintLevel"] >= 1:
           progressBar.increment()
-    print1("# ActualSolutions: %u / %u" % ( len(solutions), \
-        maxPossibleSolutions ))
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = []
@@ -220,13 +217,14 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if removesExist:
       winners.update( benchmarkStep.hardcodedParameters )
       if globalParameters["PrintLevel"] >= 1:
-        sys.stdout.write("\n")
-        sys.stdout.flush()
+        print1("")
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
       for solutionList in shallowcopy(solutions):
         if len(solutionList) == 0:
           solutions.remove(solutionList)
+    print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
+        maxPossibleSolutions ))
 
 
     # create linear list
@@ -493,7 +491,7 @@ class WinningParameterDict:
         self.winners[FrozenDictionary(newHardcodedParameters)] = [{},-1]
     else:
       if globalParameters["PrintLevel"] >= 1:
-        sys.stdout.write("# Updating Winners\n")
+        print1("# Updating Solution Database")
         progressBar = ProgressBar(len(newHardcodedParameterList))
       for newHardcodedParameters in newHardcodedParameterList:
         #(oldHardcodedParameters, winningParameters, score) = \
@@ -538,11 +536,17 @@ class WinningParameterDict:
   @staticmethod
   def get( lookupHardcodedParameters, winners ):
     matches = []
+
+    # only 1 winner, when benchmarking 1 solution
+    if len(winners) == 1:
+      hardcodedFrozen = winners.keys()[0]
+      winningParameters = winners[hardcodedFrozen][0]
+      score = winners[hardcodedFrozen][1]
+      matches.append([hardcodedFrozen, winningParameters, score])
+      return matches
+
     for hardcodedFrozen in winners:
       winningParameters = winners[hardcodedFrozen][0]
-      #    % (Solution.getNameFull(lookupHardcodedParameters), \
-      #    Solution.getNameFull(hardcodedFrozen.parameters), \
-      #    Solution.getNameFull(winningParameters))
       score = winners[hardcodedFrozen][1]
       frozenMatch = True
       # a match if no key in hardcoded has a different value than lookup
@@ -550,8 +554,6 @@ class WinningParameterDict:
         if paramName in lookupHardcodedParameters:
           if lookupHardcodedParameters[paramName] != \
               hardcodedFrozen[paramName]:
-            #    % (paramName, \
-            #    lookupHardcodedParameters[paramName], hardcodedFrozen[paramName])
             frozenMatch = False
             break
       if frozenMatch:
@@ -562,9 +564,6 @@ class WinningParameterDict:
         if "MacroTile0" in lookupHardcodedParameters:
           lookupMacroTile0 = lookupHardcodedParameters["MacroTile0"]
           lookupMacroTile1 = lookupHardcodedParameters["MacroTile1"]
-          #for paramName in hardcodedFrozen:
-          #  paramValue = hardcodedFrozen[paramName]
-          #  matchUnion[paramName] = paramValue
           Solution.assignProblemIndependentDerivedParameters(matchUnion)
           Solution.assignProblemIndependentDerivedParameters(hardcodedFrozen.parameters)
           if matchUnion["MacroTile0"] != lookupMacroTile0 \

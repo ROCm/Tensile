@@ -199,7 +199,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Logic"))
-  indexChars = globalParameters["IndexChars"]
 
   # Tensile.h
   h = ""

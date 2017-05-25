@@ -20,7 +20,6 @@
 ################################################################################
 import os.path
 import sys
-import inspect
 from __init__ import __version__
 from collections import OrderedDict
 import time
@@ -112,8 +111,8 @@ for i in validMacroTileSides:
 validParameters = {
     "LoopDoWhile":                [ False, True ],
     "LoopTail":                   [ False, True ],
-    "LocalWriteCoalesceGroupA":   [ False, True ],
-    "LocalWriteCoalesceGroupB":   [ False, True ],
+    "GlobalReadCoalesceGroupA":   [ False, True ],
+    "GlobalReadCoalesceGroupB":   [ False, True ],
     "GlobalReadCoalesceVectorA":  [ False, True ],
     "GlobalReadCoalesceVectorB":  [ False, True ],
     "PrefetchGlobalRead":         [ False, True ],
@@ -123,17 +122,17 @@ validParameters = {
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
     "WorkGroupMapping":           range(-1024,1024+1),
-    "MaxOccupancy":               [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ], # wg / CU
+    "MaxOccupancy":               range(1, 40+1), # wg / CU
     "WorkGroup":                  validWorkGroups,
     "ThreadTile":                 validThreadTiles,
-    "NumLoadsCoalescedA":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
-    "NumLoadsCoalescedB":         [ -1, 1, 2, 3, 4, 6, 8, 16, 32, 64 ],
+    "NumLoadsCoalescedA":         range(-1, 64+1),
+    "NumLoadsCoalescedB":         range(-1, 64+1),
     "DepthU":                     range(2, 256+1, 2),
     "GlobalSplitU":               range(1, 64+1),
     "VectorWidth":                [ -1, 1, 2, 4, 8 ],
     "LdsPad":                     [ 0, 1 ],
-    "MacroTileShapeMin":          [ 1, 2, 4, 8, 16, 32, 64 ],
-    "MacroTileShapeMax":          [ 1, 2, 4, 8, 16, 32, 64 ],
+    "MacroTileShapeMin":          range(1, 64+1),
+    "MacroTileShapeMax":          range(1, 64+1),
 
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ],
     "MacroTile":                  validMacroTiles,
@@ -149,28 +148,28 @@ defaultBenchmarkCommonParameters = [
     {"VectorWidth":               [ 1 ] }, # =2 once fixed
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"LocalWriteCoalesceGroupA":  [ True ] },
-    {"LocalWriteCoalesceGroupB":  [ True ] },
-    {"PrefetchGlobalRead":        [ False ] },
-    {"PrefetchLocalRead":         [ False ] },
+    {"GlobalReadCoalesceGroupA":  [ True ] },
+    {"GlobalReadCoalesceGroupB":  [ True ] },
+    {"PrefetchGlobalRead":        [ True ] },
+    {"PrefetchLocalRead":         [ True ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
-    {"MacroTileShapeMin":          [ 1 ] },
-    {"MacroTileShapeMax":          [ 4 ] },
+    {"MacroTileShapeMin":         [ 1 ] },
+    {"MacroTileShapeMax":         [ 4 ] },
+    {"NumLoadsCoalescedA":        [ 1 ] },
+    {"NumLoadsCoalescedB":        [ 1 ] },
+    {"WorkGroup":                 [ [16,16,1]] },
+    {"WorkGroupMapping":          [ 1 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = [
-    {"ThreadTile":   [ [4,4], [4,8], [8,8] ] },
-    {"WorkGroup":    [ [16,16,1]] },
-    {"NumLoadsCoalescedA":      [ 1, -1 ] },
-    {"NumLoadsCoalescedB":      [ 1, -1 ] },
-    {"DepthU":                  [ 4, 8, 16 ] },
+    {"ThreadTile":                [ [4,4], [4,8], [8,8] ] },
+    {"DepthU":                    [ 4, 8, 16 ] },
     ]
 # keep one winner per solution and it affects which will win
 defaultBenchmarkForkParameters = [
-    {"WorkGroupMapping":        [ 1 ] },
     ]
 # final list of solutions
 defaultJoinParameters = [
@@ -277,14 +276,18 @@ def getParamValues( name, structure ):
 def print1(message):
   if globalParameters["PrintLevel"] >= 1:
     print message
+    sys.stdout.flush()
 def print2(message):
   if globalParameters["PrintLevel"] >= 2:
     print message
+    sys.stdout.flush()
 
 def printWarning(message):
   print "Tensile::WARNING: %s" % message
+  sys.stdout.flush()
 def printExit(message):
   print "Tensile::FATAL: %s" % message
+  sys.stdout.flush()
   sys.exit(-1)
 
 
