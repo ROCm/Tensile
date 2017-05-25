@@ -2097,12 +2097,23 @@ class KernelWriterSource(KernelWriter):
         % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
     for r0 in range(1, kernel["VectorWidth"]):
       kStr += "    if (r%s == %u) {%s" % (self.tileChar0, r0, self.endLine)
-      for tt1 in range(0, kernel["ThreadTile1"]):
-        for s in range(0, r0):
-          kStr += "      rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s = rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
-            % (self.tileChar0, tt1, self.tileChar0, self.vectorComponents[s],  \
-            self.tileChar0, tt1, self.tileChar0, \
-            self.vectorComponents[s+kernel["VectorWidth"]-r0], self.endLine)
+      numVectors = kernel["ThreadTile1"]/kernel["VectorWidth"]
+      for vIdx in range(0, numVectors):
+        if vIdx == 0:
+          kStr += "      "
+        else:
+          kStr += " else "
+        kStr += "if (s%s == %u) " % (self.tileChar0, vIdx)
+        kStr += "{%s" % self.endLine
+        for tt1 in range(0, kernel["ThreadTile1"]):
+          for s in range(0, r0):
+            kStr += "        rC[%u+%u*(TT%s/VECTOR_WIDTH)].%s = rC[%u+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
+              % (vIdx, tt1, self.tileChar0, self.vectorComponents[s],  \
+              vIdx, tt1, self.tileChar0, \
+              self.vectorComponents[s+kernel["VectorWidth"]-r0], self.endLine)
+        kStr += "      }"
+        if vIdx == numVectors-1:
+          kStr += self.endLine
       kStr += "    }%s" % self.endLine
     kStr += "  }%s" % self.endLine
     return kStr
@@ -2129,12 +2140,26 @@ class KernelWriterSource(KernelWriter):
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
     for r1 in range(1, kernel["VectorWidth"]):
       kStr += "    if (r%s == %u) {%s" % (self.tileChar1, r1, self.endLine)
-      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-        for s in range(0, r1):
-          kStr += "      rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)] = rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)];%s" \
-            % (tt0, self.tileChar1, self.tileChar0, s, self.tileChar0, \
-            tt0, self.tileChar1, self.tileChar0, \
-            s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
+      numVectors = kernel["ThreadTile1"]/kernel["VectorWidth"]
+      for vIdx in range(0, numVectors):
+        if vIdx == 0:
+          kStr += "      "
+        else:
+          kStr += " else "
+        kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
+        kStr += "{%s" % self.endLine
+
+        for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+          for s in range(0, r1):
+            kStr += "        rC[%u+%u*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)] = rC[%u+%u*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)];%s" \
+              % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
+              tt0, vIdx, self.tileChar0, \
+              s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
+
+        kStr += "      }"
+        if vIdx == numVectors-1:
+          kStr += self.endLine
+
       kStr += "    }%s" % self.endLine
     kStr += "  }%s" % self.endLine
     return kStr
