@@ -1364,15 +1364,21 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Declare Loop Iterators
+  # Declare Loop Num Iterations
   ##############################################################################
-  def declareLoopIterators(self, kernel):
+  def declareLoopNumIterators(self, kernel):
     kStr = ""
     for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
       loopChar = self.indexChars[loopIdx]
       kStr += "%sunsigned int sumIter%s;%s" \
           % (self.indent, loopChar, self.endLine)
     return kStr
+
+  ##############################################################################
+  # Calculate Loop Num Iter
+  ##############################################################################
+  def calculateLoopNumIter(self, kernel, loopIdx):
+    return ""
 
   ##############################################################################
   # Open Loop

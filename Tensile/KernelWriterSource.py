@@ -1546,9 +1546,9 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Declare Loop Iterators
+  # Declare Loop Num Iterations
   ##############################################################################
-  def declareLoopIterators(self, kernel):
+  def declareLoopNumIter(self, kernel):
     kStr = ""
     for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
       loopChar = self.indexChars[loopIdx]
@@ -1557,9 +1557,9 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Open Loop
+  # Calculate Loop Num Iterations
   ##############################################################################
-  def openLoop(self, kernel, loopIdx):
+  def calculateLoopNumIter(self, kernel, loopIdx):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -1596,10 +1596,21 @@ class KernelWriterSource(KernelWriter):
         kStr += "%s}%s" % (self.indent, self.endLine)
         kStr += "%snumIter%s = numIterMyWg;%s" \
             % (self.indent, self.unrollChar, self.endLine)
+    return kStr
 
 
 
+  ##############################################################################
+  # Open Loop
+  ##############################################################################
+  def openLoop(self, kernel, loopIdx):
+    tailLoop = loopIdx < 0
+    if tailLoop:
+      loopIdx = self.unrollIdx
 
+    kStr = ""
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if kernel["LoopDoWhile"]:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
     else:
@@ -1739,13 +1750,14 @@ class KernelWriterSource(KernelWriter):
               or self.readUnrollDimComponentsA or guardUnrolledComponents) else "") )
           # guard around K
           if guardK:
-            kStr += "( globalReadOffsetA%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU) )" \
+            kStr += "( globalReadOffsetA%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU)%s )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUA"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsA else ""), \
-                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
-                else ""), "+%u"%s if guardUnrolledComponents else "", \
-                self.unrollChar)
+                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
+                "+%u"%s if guardUnrolledComponents else "", \
+                self.unrollChar, \
+                (" || !numIter%s"%self.unrollChar) if kernel["GlobalSplitU"] > 1 else "")
           # guard around edge
           if kernel["EdgeType"] == "Branch":
             if guardK:
@@ -1781,13 +1793,14 @@ class KernelWriterSource(KernelWriter):
               else "") )
           # guard around k
           if guardK:
-            kStr += "( globalReadOffsetB%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU) )" \
+            kStr += "( globalReadOffsetB%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU)%s )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUB"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsB else ""), \
-                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
-                else ""), "+%u"%s if guardUnrolledComponents else "", \
-                self.unrollChar)
+                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
+                "+%u"%s if guardUnrolledComponents else "", \
+                self.unrollChar, \
+                (" || !numIter%s"%self.unrollChar) if kernel["GlobalSplitU"] > 1 else "")
           # guard around edge
           if kernel["EdgeType"] == "Branch":
             if guardK:
@@ -2103,7 +2116,8 @@ class KernelWriterSource(KernelWriter):
           kStr += "      "
         else:
           kStr += " else "
-        kStr += "if (s%s == %u) " % (self.tileChar0, vIdx)
+        if vIdx < numVectors-1:
+          kStr += "if (s%s == %u) " % (self.tileChar0, vIdx)
         kStr += "{%s" % self.endLine
         for tt1 in range(0, kernel["ThreadTile1"]):
           for s in range(0, r0):
@@ -2147,7 +2161,8 @@ class KernelWriterSource(KernelWriter):
           kStr += "      "
         else:
           kStr += " else "
-        kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
+        if vIdx < numVectors-1:
+          kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
         kStr += "{%s" % self.endLine
 
         for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
