@@ -365,7 +365,7 @@ class BenchmarkProcess:
       self.forkHardcodedParameters(forkPermutations)
 
     ############################################################################
-    # (II-3) benchmark common parameters
+    # (II-3) benchmark fork parameters
     print2("")
     print2("####################################################################")
     print1("# Benchmark Fork Parameters")
@@ -380,92 +380,92 @@ class BenchmarkProcess:
     print1("# Join Parameters")
     macroTileJoinSet = set()
     totalPermutations = 1
-    for joinName in self.joinParameters:
-      # joining a parameter with only a single value
-      if hasParam(joinName, self.singleValueParameters):
-        pass
-
-      elif hasParam(joinName, self.forkParameters):
-        # count permutations
-        for param in self.forkParameters:
-          for name in param: # only 1
-            if name == joinName:
-              values = param[name]
-              localPermutations = len(values)
-              print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
-              totalPermutations *= localPermutations
-
-      ##########################################################################
-      # (II-4.2) Join MacroTile
-      elif joinName == "MacroTile":
-        print2("JoinParam: MacroTile")
-        # get possible WorkGroupEdges from forked
-        print2("currentForkParameters = %s" % str(self.forkParameters))
-        threadTileValues = []
-        workGroupValues = []
-        # todo having MacroTile as join parameter causes trouble if
-        # one parameter is benchmarked rather than forked
-        # however, this may still be the right way to do it
-
-        # count permutations
-        for paramList in [self.benchmarkCommonParameters, \
-            self.forkParameters, self.benchmarkForkParameters, \
-            self.benchmarkJoinParameters, self.singleValueParameters ]:
-          if hasParam("ThreadTile", paramList):
-            threadTileValues = getParamValues("ThreadTile", paramList)
-          if hasParam("WorkGroup", paramList):
-            workGroupValues = getParamValues("WorkGroup", paramList)
-        macroTilePermutations = len(workGroupValues) * len(threadTileValues)
-        print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
-
-        # enumerate permutations
-        for i in range(0, macroTilePermutations):
-          pIdx = i
-          workGroupIdx = pIdx % len(workGroupValues)
-          pIdx /= len(workGroupValues)
-          threadTileIdx = pIdx % len(threadTileValues)
-
-          workGroup = workGroupValues[workGroupIdx]
-          threadTile = threadTileValues[threadTileIdx]
-
-          macroTile0 = workGroup[0]*threadTile[0]
-          macroTile1 = workGroup[1]*threadTile[1]
-          macroTileJoinSet.add((macroTile0, macroTile1))
-        totalPermutations *= len(macroTileJoinSet)
-        print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
-
-      # invalid join parameter
-      else:
-        validJoinNames = ["MacroTile", "DepthU"]
-        for validParam in self.forkParameters:
-          for validName in validParam: # only 1
-            validJoinNames.append(validName)
-        printExit("JoinParameter \"%s\" not in %s" % (joinName, validJoinNames) )
-
-    ############################################################################
-    # (II-4.4) Enumerate Permutations Other * MacroTile * DepthU
-    macroTiles = list(macroTileJoinSet)
-    print2("# TotalJoinPermutations = %u" % ( totalPermutations) )
-    joinPermutations = []
-    for i in range(0, totalPermutations):
-      joinPermutations.append({})
-      pIdx = i
+    if len(self.joinParameters) > 1:
       for joinName in self.joinParameters:
-        if hasParam(joinName, self.forkParameters):
-          for paramDict in self.forkParameters: # hardcodedPermutations
-            if joinName in paramDict:
-              paramValues = paramDict[joinName]
-              valueIdx = pIdx % len(paramValues)
-              joinPermutations[i][joinName] = paramValues[valueIdx]
-              pIdx /= len(paramValues)
-              break
+        # joining a parameter with only a single value
+        if hasParam(joinName, self.singleValueParameters):
+          pass
+        elif hasParam(joinName, self.forkParameters):
+          # count permutations
+          for param in self.forkParameters:
+            for name in param: # only 1
+              if name == joinName:
+                values = param[name]
+                localPermutations = len(values)
+                print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
+                totalPermutations *= localPermutations
+
+        ##########################################################################
+        # (II-4.2) Join MacroTile
         elif joinName == "MacroTile":
-          valueIdx = pIdx % len(macroTiles)
-          pIdx /= len(macroTiles)
-          joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
-          joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
-    if len(joinPermutations) > 0:
-      self.joinHardcodedParameters(joinPermutations)
+          print2("JoinParam: MacroTile")
+          # get possible WorkGroupEdges from forked
+          print2("currentForkParameters = %s" % str(self.forkParameters))
+          threadTileValues = []
+          workGroupValues = []
+          # todo having MacroTile as join parameter causes trouble if
+          # one parameter is benchmarked rather than forked
+          # however, this may still be the right way to do it
+
+          # count permutations
+          for paramList in [self.benchmarkCommonParameters, \
+              self.forkParameters, self.benchmarkForkParameters, \
+              self.benchmarkJoinParameters, self.singleValueParameters ]:
+            if hasParam("ThreadTile", paramList):
+              threadTileValues = getParamValues("ThreadTile", paramList)
+            if hasParam("WorkGroup", paramList):
+              workGroupValues = getParamValues("WorkGroup", paramList)
+          macroTilePermutations = len(workGroupValues) * len(threadTileValues)
+          print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
+
+          # enumerate permutations
+          for i in range(0, macroTilePermutations):
+            pIdx = i
+            workGroupIdx = pIdx % len(workGroupValues)
+            pIdx /= len(workGroupValues)
+            threadTileIdx = pIdx % len(threadTileValues)
+
+            workGroup = workGroupValues[workGroupIdx]
+            threadTile = threadTileValues[threadTileIdx]
+
+            macroTile0 = workGroup[0]*threadTile[0]
+            macroTile1 = workGroup[1]*threadTile[1]
+            macroTileJoinSet.add((macroTile0, macroTile1))
+          totalPermutations *= len(macroTileJoinSet)
+          print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
+
+        # invalid join parameter
+        else:
+          validJoinNames = ["MacroTile"]
+          for validParam in self.forkParameters:
+            for validName in validParam: # only 1
+              validJoinNames.append(validName)
+          printExit("JoinParameter \"%s\" not in %s" % (joinName, validJoinNames) )
+
+      ############################################################################
+      # (II-4.4) Enumerate Permutations Other * MacroTile * DepthU
+      macroTiles = list(macroTileJoinSet)
+      print2("# TotalJoinPermutations = %u" % ( totalPermutations) )
+      joinPermutations = []
+      for i in range(0, totalPermutations):
+        joinPermutations.append({})
+        pIdx = i
+        for joinName in self.joinParameters:
+          if hasParam(joinName, self.forkParameters):
+            for paramDict in self.forkParameters: # hardcodedPermutations
+              if joinName in paramDict:
+                paramValues = paramDict[joinName]
+                valueIdx = pIdx % len(paramValues)
+                joinPermutations[i][joinName] = paramValues[valueIdx]
+                pIdx /= len(paramValues)
+                break
+          elif joinName == "MacroTile":
+            valueIdx = pIdx % len(macroTiles)
+            pIdx /= len(macroTiles)
+            joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
+            joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
+      if len(joinPermutations) > 0:
+        self.joinHardcodedParameters(joinPermutations)
 
 
     ############################################################################

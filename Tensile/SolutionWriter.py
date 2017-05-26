@@ -299,6 +299,7 @@ class SolutionWriter:
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
         s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+        s += "%stry {\n" % (t)
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
@@ -336,6 +337,13 @@ class SolutionWriter:
           for i in range(0, solution["ProblemType"]["NumIndicesC"]):
             s += "%ssize%s,\n" % (t, self.indexChars[i])
           s += "%sbeta);\n" % (t)
+          s += "%s}\n" % (t)
+
+        s += "%s} catch (const std::exception& e) {\n" % (t)
+        s += "#ifdef DEBUG\n"
+        s += "%s  std::cerr << e.what() << std::endl;\n" % (t)
+        s += "#endif\n"
+        s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
 
 
@@ -450,7 +458,7 @@ class SolutionWriter:
         t = t[2:]
         s += "%s} catch (const std::exception& e) {\n" % (t)
         s += "#ifdef DEBUG\n"
-        s += "#%s  std::cerr << e.what() << std::endl;\n" % (t)
+        s += "%s  std::cerr << e.what() << std::endl;\n" % (t)
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
@@ -488,7 +496,7 @@ class SolutionWriter:
         if kernel != None:
           kernelName = self.kernelWriter.getKernelName(kernel)
           s += "#include \"" + kernelName + ".h\"\n"
-      for kernel in solution.getKernelsBeta():
+      for kernel in solution.getKernelsBetaOnly():
         kernelName = self.kernelWriter.getKernelNameBetaOnly(kernel)
         s += "#include \"" + kernelName + ".h\"\n"
 

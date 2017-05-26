@@ -66,7 +66,7 @@ globalParameters["ForceRedoBenchmarkProblems"] = True
 globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
-globalParameters["SyncsPerBenchmark"] = 4
+globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
 
@@ -162,21 +162,14 @@ defaultBenchmarkCommonParameters = [
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
     {"WorkGroupMapping":          [ 1 ] },
+    {"ThreadTile":                [ [4,4] ] },
+    {"DepthU":                    [ 16 ] },
     ]
 # benchmark these solution independently
-defaultForkParameters = [
-    {"ThreadTile":                [ [4,4], [4,8], [8,8] ] },
-    {"DepthU":                    [ 4, 8, 16 ] },
-    ]
-# keep one winner per solution and it affects which will win
-defaultBenchmarkForkParameters = [
-    ]
-# final list of solutions
-defaultJoinParameters = [
-    "MacroTile" ]
-# keep one winner per solution and it would affect which solutions fastest
-defaultBenchmarkJoinParameters = [
-    ]
+defaultForkParameters = []
+defaultBenchmarkForkParameters = []
+defaultJoinParameters = []
+defaultBenchmarkJoinParameters = []
 
 # dictionary of defaults comprised for 1st option for each parameter
 defaultSolution = {}
