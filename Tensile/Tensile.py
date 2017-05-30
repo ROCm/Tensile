@@ -39,17 +39,8 @@ def executeStepsInConfig( config ):
   benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
   if "BenchmarkProblems" in config:
-    if os.path.exists(benchmarkDataPath):
-      resultFiles = os.listdir(benchmarkDataPath)
-    else:
-      resultFiles = []
-
-    if len(resultFiles) < 2* len(config["BenchmarkProblems"]) \
-            or globalParameters["ForceRedoBenchmarkProblems"]:
-      BenchmarkProblems.main( config["BenchmarkProblems"] )
-      print1("")
-    else:
-      print1("# Benchmarking already done.")
+    BenchmarkProblems.main( config["BenchmarkProblems"] )
+    print1("")
 
   ##############################################################################
   # Library Logic

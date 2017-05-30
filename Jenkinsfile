@@ -72,7 +72,6 @@ parallel rocm_fiji: {
            sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_hgemm.yaml hgemm"
            sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_sgemm.yaml sgemm"
 
-           sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors"
            sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
 
            //sh "tensile ../../Tensile/Configs/test_hgemm_scalar_load_patterns.yaml hgemm_scalar_load_patterns"
