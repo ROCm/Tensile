@@ -277,6 +277,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       if process.returncode:
         printWarning("Benchmark Process exited with code %u" % process.returncode)
       popWorkingPath() # build
+    else:
+      print1("# Already benchmarked; skipping.")
 
 
     ############################################################################
@@ -437,6 +439,9 @@ class WinningParameterDict:
   # Add Winning Parameters For Hardcoded Parameters
   def addResults( self, hardcodedParameterList, benchmarkPermutations, \
       solutions, results):
+    if globalParameters["PrintLevel"] >= 1:
+      print1("# Adding Results to Solution Database")
+      progressBar = ProgressBar(len(results))
     for hardcodedIdx in range(0, len(results)):
       hardcodedResults = results[hardcodedIdx]
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
@@ -463,6 +468,8 @@ class WinningParameterDict:
       #oldScore = matches[0][2]
       self.winners[hardcodedParametersKey][0].update(winningParameters)
       self.winners[hardcodedParametersKey][1] = winningScore
+      if globalParameters["PrintLevel"] >= 1:
+        progressBar.increment()
 
 
   ##########################################################

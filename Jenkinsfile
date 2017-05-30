@@ -66,17 +66,14 @@ parallel rocm_fiji: {
         dir("${build_dir_release}") {
           stage("unit tests") {
            sh "tensile ../../Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults"
-           sh "tensile ../../Tensile/Configs/test_hgemm_scalar_load_patterns.yaml hgemm_scalar_load_patterns"
-           sh "tensile ../../Tensile/Configs/test_hgemm_scalar_tile_sizes.yaml hgemm_scalar_tile_sizes"
-           sh "tensile ../../Tensile/Configs/test_hgemm_scalar_branches.yaml hgemm_scalar_branches"
            sh "tensile ../../Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults"
-           sh "tensile ../../Tensile/Configs/test_sgemm_scalar_load_patterns.yaml sgemm_scalar_load_patterns"
-           sh "tensile ../../Tensile/Configs/test_sgemm_scalar_tile_sizes.yaml sgemm_scalar_tile_sizes"
-           sh "tensile ../../Tensile/Configs/test_sgemm_scalar_branches.yaml sgemm_scalar_branches"
-           //sh "tensile ../../Tensile/Configs/test_sgemm_vector_load_patterns.yaml sgemm_vector_load_patterns"
-           //sh "tensile ../../Tensile/Configs/test_sgemm_vector_tile_sizes.yaml sgemm_vector_tile_sizes"
-           sh "tensile ../../Tensile/Configs/test_sgemm_vector_branches.yaml sgemm_vector_branches"
            sh "tensile ../../Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults"
+
+           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_hgemm.yaml hgemm"
+           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_sgemm.yaml sgemm"
+
+           // TODO re-enable when jenkins supports opencl
+           //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
           }
         }
       }

@@ -124,10 +124,9 @@ class DataType:
   def isComplex(self):
     return not self.isReal()
   def isDouble(self):
-    if self.value == self.double or self.value == self.complexDouble:
-      return True
-    else:
-      return False
+    return self.value == self.double or self.value == self.complexDouble
+  def isSingle(self):
+    return self.value == self.single
   def isHalf(self):
     return self.value == self.half
 
@@ -755,6 +754,10 @@ class Solution:
           and state["LoopTail"]:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
+        state["Valid"] = False
+      if not state["ProblemType"]["DataType"].isSingle():
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("GlobalSplitU only compatible with single precision")
         state["Valid"] = False
 
 

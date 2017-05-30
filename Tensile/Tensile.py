@@ -39,17 +39,8 @@ def executeStepsInConfig( config ):
   benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])
   if "BenchmarkProblems" in config:
-    if os.path.exists(benchmarkDataPath):
-      resultFiles = os.listdir(benchmarkDataPath)
-    else:
-      resultFiles = []
-
-    if len(resultFiles) < 2* len(config["BenchmarkProblems"]) \
-            or globalParameters["ForceRedoBenchmarkProblems"]:
-      BenchmarkProblems.main( config["BenchmarkProblems"] )
-      print1("")
-    else:
-      print1("# Benchmarking already done.")
+    BenchmarkProblems.main( config["BenchmarkProblems"] )
+    print1("")
 
   ##############################################################################
   # Library Logic
@@ -114,9 +105,13 @@ def Tensile(userArgs):
   argParser.add_argument("--kernel-language", dest="KernelLanguage", \
       choices=["HIP", "OCL"], help="override which kernel language to use")
   argParser.add_argument("-v", "--verbose", action="store_true", \
-      help="set PrintLevel=2 and LibraryPrintDebug=True")
-  argParser.add_argument("--debug", action="store_true", \
-      help="set PrintLevel=2, LibraryPrintDebug=True and CMakeBuildType=Debug")
+      help="set PrintLevel=2")
+  argParser.add_argument("--debug", dest="debug", action="store_true", \
+      help="set PrintLevel=2 and CMakeBuildType=Debug")
+  argParser.add_argument("--short-names", dest="shortNames", action="store_true", \
+      help="use serial kernel and solution names")
+  argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
+      help="kernels and solutions written to individual files")
 
   # parse arguments
   args = argParser.parse_args(userArgs)
@@ -148,12 +143,15 @@ def Tensile(userArgs):
   if args.verbose:
     print1("# Command-line override: PrintLevel")
     globalParameters["PrintLevel"] = 2
-    globalParameters["LibraryPrintDebug"] = True
   if args.debug:
     print1("# Command-line override: Debug")
     globalParameters["PrintLevel"] = 2
-    globalParameters["LibraryPrintDebug"] = True
     globalParameters["CMakeBuildType"] = "Debug"
+  if args.shortNames:
+    globalParameters["ShortNames"] = True
+  if args.noMergeFiles:
+    globalParameters["MergeFiles"] = False
+
 
   print1("")
   executeStepsInConfig( config )

@@ -361,9 +361,9 @@ class KernelWriter:
     kStr += self.declareLoopNumIter(kernel)
 
     # open non-unrolled summation loops
+    kStr += self.calculateLoopNumIter(kernel, i)
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
       kStr += self.comment("summation loop %u"%i)
-      kStr += self.calculateLoopNumIter(kernel, i)
       kStr += self.openLoop(kernel, i)
 
     ####################################
@@ -411,7 +411,6 @@ class KernelWriter:
 
     # open unrolled summation loop
     kStr += self.comment("unrolled summation loop")
-    kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
     kStr += self.openLoop(kernel, self.unrollIdx)
 
     # unrolled loop: global read A, B
@@ -1517,6 +1516,10 @@ class KernelWriter:
   def getSourceFileStringBetaOnly(self, kernel):
     fileString = ""
     kernelName = self.getKernelNameBetaOnly(kernel)
+    if not globalParameters["MergeFiles"]:
+      fileString += "\n"
+      fileString += "#include \"%s.h\"\n" % kernelName
+      fileString += "\n"
     if self.language == "OCL":
       fileString += "const char * const %s_src = \"\"\n\"" % kernelName
     fileString += self.functionSignatureBetaOnly( kernel )

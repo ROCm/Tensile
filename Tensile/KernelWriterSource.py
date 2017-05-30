@@ -377,7 +377,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "}%s" % (self.endLine)
         """
         kStr += self.endLine
-        kStr += "__device__ void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
+        kStr += "__device__ inline void atomicAddType(%s%sfloat *fPtr, float operand) {%s" \
             % (self.volatileStr, self.globalPtrStr, self.endLine)
         kStr += "  std::atomic<float> *aPtr = reinterpret_cast<std::atomic<float>*>(fPtr);%s" % (self.endLine)
         kStr += "  float oldValue, newValue;%s" % (self.endLine)
@@ -401,8 +401,13 @@ class KernelWriterSource(KernelWriter):
       # real data
       kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
           + "DST = MAC(MULA,MULB,DST);" + self.endLine
+      # GSU
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
-        kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
+        if kernel["ProblemType"]["UseBeta"]:
+          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
+        else:
+          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
+
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
@@ -1577,7 +1582,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "%s  numIter%s = 0;%s" \
             % (self.indent, self.unrollChar, self.endLine)
         kStr += "%s}%s" % (self.indent, self.endLine)
-        #kStr += "if (serial==0) printf(\\\"n:%u\\\\n\\\", numIterK);" + self.endLine
+        #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
@@ -1596,6 +1601,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "%s}%s" % (self.indent, self.endLine)
         kStr += "%snumIter%s = numIterMyWg;%s" \
             % (self.indent, self.unrollChar, self.endLine)
+        #kStr += "if (serial==0) printf(\\\"WG%u_%u UK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     return kStr
 
 
@@ -1619,6 +1625,10 @@ class KernelWriterSource(KernelWriter):
           (1 if (kernel["PrefetchGlobalRead"] and loopIdx == self.unrollIdx \
           and not tailLoop) else 0), self.endLine)
     self.indent += "  "
+    #if tailLoop:
+    #  kStr += "if (serial==0) printf(\\\"WG%u_%u: ti=%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
+    #else:
+    #  kStr += "if (serial==0) printf(\\\"WG%u_%u: ui=%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     return kStr
 
   ##############################################################################
@@ -1635,6 +1645,7 @@ class KernelWriterSource(KernelWriter):
           (1 if kernel["PrefetchGlobalRead"] else 0), self.endLine )
     else:
       kStr += "%s}%s" % (self.indent, self.endLine)
+    #kStr += "if (serial==0) printf(\\\"WG%u_%u: rc0=%.0f\\\\n\\\", get_group_id(0), get_group_id(1), rC[0]);" + self.endLine
     return kStr
 
   ##############################################################################
@@ -1654,8 +1665,12 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def openSumAtLeastUnroll(self, kernel):
     kStr = ""
-    kStr += "%sif (size%s >= LOCAL_DEPTHU) {%s" \
-        % (self.indent, self.unrollChar, self.endLine)
+    if kernel["GlobalSplitU"] > 1:
+      kStr += "%sif (numIterMyWg >= 1) {%s" \
+          % (self.indent, self.endLine)
+    else:
+      kStr += "%sif (size%s >= LOCAL_DEPTHU) {%s" \
+          % (self.indent, self.unrollChar, self.endLine)
     self.indent += "  "
     return kStr
   def closeSumAtLeastUnroll(self, kernel):
@@ -1750,13 +1765,13 @@ class KernelWriterSource(KernelWriter):
               or self.readUnrollDimComponentsA or guardUnrolledComponents) else "") )
           # guard around K
           if guardK:
-            kStr += "( globalReadOffsetA%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU)%s )" \
+            kStr += "( globalReadOffsetA%s_%u%s%s >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUA"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsA else ""), \
-                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
                 "+%u"%s if guardUnrolledComponents else "", \
                 self.unrollChar, \
+                (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
                 (" || !numIter%s"%self.unrollChar) if kernel["GlobalSplitU"] > 1 else "")
           # guard around edge
           if kernel["EdgeType"] == "Branch":
@@ -1793,13 +1808,13 @@ class KernelWriterSource(KernelWriter):
               else "") )
           # guard around k
           if guardK:
-            kStr += "( globalReadOffsetB%s_%u%s%s%s >= (size%s %% LOCAL_DEPTHU)%s )" \
+            kStr += "( globalReadOffsetB%s_%u%s%s >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                 % (self.unrollChar, \
                 (perp if kernel["ProblemType"]["TLUB"] else para), \
                 (("_s%u"%s) if self.readUnrollDimComponentsB else ""), \
-                (" - LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
                 "+%u"%s if guardUnrolledComponents else "", \
                 self.unrollChar, \
+                (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
                 (" || !numIter%s"%self.unrollChar) if kernel["GlobalSplitU"] > 1 else "")
           # guard around edge
           if kernel["EdgeType"] == "Branch":

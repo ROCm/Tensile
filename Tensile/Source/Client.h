@@ -420,6 +420,7 @@ bool benchmarkAllSolutionsForSize(
         alpha, beta);
 
   }
+  fastestGFlops = 0;
   for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
 

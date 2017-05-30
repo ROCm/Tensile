@@ -47,11 +47,51 @@ BenchmarkProblems:
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
-        - DepthU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [16, 128], [16, 128], [2, 2, 4], [256] ]
+
+  - # 7-D Image Convolution
+    - # ProblemType
+      OperationType: TensorContraction
+      DataType: s
+      UseBeta: True
+      NumIndicesC: 4
+      IndexAssignmentsA: [6, 5, 0, 1, 4, 3]
+      IndexAssignmentsB: [6, 5, 1, 4, 2, 3]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes:
+          - Exact: [ 32, 32, 32, 100,  3, 5, 5 ] # caffe layer 1
+          - Exact: [ 16, 16, 32, 100, 32, 5, 5 ] # caffe layer 2
+          - Exact: [  8,  8, 64, 100, 32, 5, 5 ] # caffe layer 3
+        - EdgeType: ["ShiftPtr"]
+        - WorkGroupMapping: [ 1 ]
+        - LoopDoWhile: [False]
+        - LoopTail: [True]
+      ForkParameters:
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [  4,  8,  2 ]
+          - [  8,  8,  1 ]
+          - [ 16, 16,  1 ]
+        - DepthU: [2, 4]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 32, 32, 32, 100,  3, 5, 5 ] # caffe layer 1
+          - Exact: [ 16, 16, 32, 100, 32, 5, 5 ] # caffe layer 2
+          - Exact: [  8,  8, 64, 100, 32, 5, 5 ] # caffe layer 3
+
+
 
 LibraryLogic:
   ScheduleName: Fiji
