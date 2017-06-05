@@ -1577,47 +1577,41 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Increments A - TODO
+  # Global Read Addresses: Increments A - DONE
   ##############################################################################
   def graIncrementsA(self, kernel, loopIdx):
-    return ""
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    kStr += "%s%s globalReadIncA%s = (%s)strideA%s" \
-        % (self.indent, self.int64Str, loopChar, \
-        self.int64Str, loopChar)
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-      kStr += "*DEPTHU"
+      kStr += inst("s_mul_i32", sgpr("GlobalReadIncsA+0"), \
+          hex(kernel["DepthU"]*4), sgpr("StridesA"), \
+          "incr = stride*%u*4bytes"%kernel["DepthU"] )
+      kStr += inst("s_addc_u32", \
+          sgpr("GlobalReadIncsA+1"), \
+          hex(0), \
+          sgpr("GlobalReadIncsA+1"), \
+          "(carry)")
     else:
-      for j in range(loopIdx+1, \
-          min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-        tmpChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][j]]
-        kStr += " - strideA%s*size%s" % (tmpChar, tmpChar)
-    kStr += ";" + self.endLine
+      printExit("NumIndicesSummation=%u not yet supported in assembly" \
+          % kernel["ProblemType"]["NumIndicesSummation"] )
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Increments B - TODO
+  # Global Read Addresses: Increments B - DONE
   ##############################################################################
   def graIncrementsB(self, kernel, loopIdx):
-    return ""
     kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    kStr += "%s%s globalReadIncB%s = (%s)strideB%s" \
-        % (self.indent, self.int64Str, loopChar, \
-        self.int64Str, loopChar)
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-      kStr += "*DEPTHU"
+      kStr += inst("s_mul_i32", sgpr("GlobalReadIncsB+0"), \
+          hex(kernel["DepthU"]*4), sgpr("StridesB"), \
+          "incr = stride*%u*4bytes"%kernel["DepthU"] )
+      kStr += inst("s_addc_u32", \
+          sgpr("GlobalReadIncBs+1"), \
+          hex(0), \
+          sgpr("GlobalReadIncBs+1"), \
+          "(carry)")
     else:
-      for j in range(loopIdx+1, \
-          min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-        tmpChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][j]]
-        kStr += " - strideB%s*size%s" % (tmpChar, tmpChar)
-    kStr += ";" + self.endLine
+      printExit("NumIndicesSummation=%u not yet supported in assembly" \
+          % kernel["ProblemType"]["NumIndicesSummation"] )
     return kStr
 
   ##############################################################################
