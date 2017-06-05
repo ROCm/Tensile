@@ -1077,7 +1077,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         divisorName = "LVPA"
     divisor = kernel[divisorName]
-    print divisorName, divisor
 
     if self.globalReadCoalesceGroupA == kernel["ProblemType"]["TLUA"]:
       rReg = self.vgprScratch.checkOut(1) # groA-tile = serial%divisor
@@ -1102,6 +1101,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.startSgprOffsetC
     kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
+    tReg2 = self.vgprScratch.checkOut(1)
 
     if kernel["VectorWidth"] > 1:
       if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
@@ -1112,10 +1112,11 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(lReg), "%s *= VW"%vgpr(uReg) )
     kStr += inst("v_lshlrev_v32", vgpr(tmpVgpr), log2(kernel["SubGroupA"]), \
         vgpr("WorkGroupA"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
-    kStr += inst("v_add_u32", vgpr(tReg), vgpr(tmpVgpr), \
+    kStr += inst("v_add_u32", vgpr(tReg2), vgpr(tmpVgpr), \
         vgpr(tReg), "groA-tile = serial%s%s*VW + (wgA*MTA)" \
         % (tOpStr, divisorName) )
-    self.tRegA = tReg
+    self.lwoTA = tReg
+    self.tRegA = tReg2
     self.uRegA = uReg
     self.vgprScratch.checkIn(tmpVgpr)
     #kStr += "groA-tile = (wg%s*MT%s);%s" \
@@ -1141,7 +1142,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         divisorName = "LVPB"
     divisor = kernel[divisorName]
-    print divisorName, divisor
 
     if self.globalReadCoalesceGroupB == kernel["ProblemType"]["TLUB"]:
       rReg = self.vgprScratch.checkOut(1) # groB-tile = serial%divisor
@@ -1166,6 +1166,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.startSgprOffsetC
     kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
+    tReg2 = self.vgprScratch.checkOut(1)
 
     if kernel["VectorWidth"] > 1:
       if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
@@ -1177,9 +1178,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_lshlrev_v32", vgpr(tmpVgpr), log2(kernel["SubGroupB"]), \
         vgpr("WorkGroupB"), "%s = wgB * MTB"%vgpr(tmpVgpr) )
     kStr += inst("v_add_u32", vgpr(tReg), vgpr(tmpVgpr), \
-        vgpr(tReg), "groB-tile = serial%s%s*VW + (wgB*MTB)" \
+        vgpr(tReg2), "groB-tile = serial%s%s*VW + (wgB*MTB)" \
         % (tOpStr, divisorName) )
-    self.tRegB = tReg
+    self.lwoTB = tReg
+    self.tRegB = tReg2
     self.uRegB = uReg
     self.vgprScratch.checkIn(tmpVgpr)
     #kStr += "groB-tile = (wg%s*MT%s);%s" \
@@ -1615,206 +1617,166 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment A - TODO
+  # Local Write Addresses: Tile Assignment A - DONE
   ##############################################################################
   def lwaTileAssignmentA(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  unsigned int lwA%s = (serial%s" \
-        % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
-        == kernel["ProblemType"]["TLUA"] else "/") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
-    else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
-    kStr += ")";
-    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
+    return self.comment1("lwaTileA = %s" % vgpr(self.lwoTA))
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment B - TODO
+  # Local Write Addresses: Tile Assignment B - DONE
   ##############################################################################
   def lwaTileAssignmentB(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  unsigned int lwB%s = (serial%s" \
-        % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
-        == kernel["ProblemType"]["TLUB"] else "/") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
-    else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
+    return self.comment1("lwaTileB = %s" % vgpr(self.lwoTB))
 
   ##############################################################################
-  # Local Write Addresses: Unroll Assignment A - TODO
+  # Local Write Addresses: Unroll Assignment A - DONE
   ##############################################################################
   def lwaUnrollAssignmentA(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  unsigned int lwA%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
-        == kernel["ProblemType"]["TLUA"] else "%") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
-    else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
-    kStr += ")";
-    if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
+    return self.comment1("lwaUnrollA = %s" % vgpr(self.uRegA))
 
   ##############################################################################
-  # Local Write Addresses: Unroll Assignment B - TODO
+  # Local Write Addresses: Unroll Assignment B - DONE
   ##############################################################################
   def lwaUnrollAssignmentB(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  unsigned int lwB%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
-        == kernel["ProblemType"]["TLUB"] else "%") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
-    else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
+    return self.comment1("lwaUnrollB = %s" % vgpr(self.uRegB))
 
   ##############################################################################
-  # Local Write Addresses: First Offset A - TODO
+  # Local Write Addresses: First Offset A - DONE
   ##############################################################################
   def lwaFirstOffsetA(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int localWriteFirstOffsetA = lwA%s + lwA%s*(MT%s+PAD);%s" \
-        % (self.tileCharA, self.unrollChar, self.tileCharA, self.endLine)
+    "lwFOA = lwA%s + lwA%s*MT%s" \
+        % (self.tileCharA, self.unrollChar, self.tileCharA)
+    kStr += inst("v_mul_u32_u24", \
+        vgpr("LocalWriteAddrA"), \
+        hex(kernel["MacroTileA"]), \
+        vgpr(self.uRegA), \
+        "lwA%s*MTA"%self.unrollChar)
+    kStr += inst("v_add_u32", \
+        vgpr("LocalWriteAddrA"), \
+        vgpr(self.lwoTA), \
+        vgpr("LocalWriteAddrA"), \
+        "lwFOA = lwA%s + lwA%s*MT%s" \
+        % (self.tileCharA, self.unrollChar, self.tileCharA) )
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: First Offset B - TODO
+  # Local Write Addresses: First Offset B - DONE
   ##############################################################################
   def lwaFirstOffsetB(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int localWriteFirstOffsetB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
-        % (self.tileCharB, self.unrollChar, self.tileCharB, self.endLine)
+    "lwFOB = lwB%s + lwB%s*MT%s" \
+        % (self.tileCharB, self.unrollChar, self.tileCharB)
+    kStr += inst("v_mul_u32_u24", \
+        vgpr("LocalWriteAddrB"), \
+        hex(kernel["MacroTileB"]), \
+        vgpr(self.uRegB), \
+        "lwB%s*MTB"%self.unrollChar)
+    kStr += inst("v_add_u32", \
+        vgpr("LocalWriteAddrB"), \
+        vgpr(self.lwoTB), \
+        vgpr("LocalWriteAddrB"), \
+        "lwFOB = lwB%s + lwB%s*MT%s" \
+        % (self.tileCharB, self.unrollChar, self.tileCharB) )
+    kStr += inst("v_add_u32", \
+        vgpr("LocalWriteAddrB"), \
+        hex(kernel["LdsOffsetB"]), \
+        vgpr("LocalWriteAddrB"), \
+        "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u" % (self.tileCharB, \
+        self.unrollChar, self.tileCharB, kernel["LdsOffsetB"]) )
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Final Offsets A - TODO
+  # Local Write Addresses: Final Offsets A - DONE
+  # initially assume write offsets fit into 8-bits
   ##############################################################################
   def lwaFinalOffsetsA(self, kernel):
-    return ""
+    self.localWriteOffsetsA = []
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numWriteVectorComponentsA):
-          kStr += "  unsigned int localWriteOffsetA_%u_%u%s = localWriteFirstOffsetA + (%s%d*%s)" \
-              % (para, perp, \
+          lsca = para * kernel["LSCA"]
+          lspa = perp * kernel["LSPA"]
+          if self.writeTileDimComponentsA:
+            lsca += s
+          elif self.writeUnrollDimComponentsA:
+            lspa += s
+          if kernel["ProblemType"]["TLUA"]:
+            lspa *= kernel["MacroTileA"]
+          else:
+            lsca *= kernel["MacroTileA"]
+          offset = lspa + lsca
+          offset /= self.localWriteInstructionA.offsetMultiplier
+          self.localWriteOffsetsA.append(offset)
+
+          kStr += "%slwoA_%u_%u%s = (%s%d*%s)" \
+              % (self.commentPrefix, para, perp, \
               (("_s%u"%s) if (self.writeTileDimComponentsA \
               or self.writeUnrollDimComponentsA) else ""), \
               (("%u + "%s) if self.writeTileDimComponentsA else ""), \
-              para, ("LSCA" if not kernel["ProblemType"]["TLUA"] else "LSCA") )
+              para, "LSCA" )
           if not kernel["ProblemType"]["TLUA"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharA)
+            kStr += "*MT%s" % (self.tileCharA)
           kStr += " + (%s%d*%s)" % (
               (("%u + "%s) if self.writeUnrollDimComponentsA else ""), perp, \
-              ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSPA") )
+              "LSPA")
           if kernel["ProblemType"]["TLUA"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharA)
-          kStr += ";%s" % self.endLine
-          """
-          kStr += "  printf(\\\"LWA T[%%02u] lWOA_%u_%u%s = %%4u\\\\n\\\", serial, localWriteOffsetA_%u_%u%s);%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.endLine )
-          """
+            kStr += "*MT%s" % (self.tileCharA)
+          kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Final Offsets B - TODO
+  # Local Write Addresses: Final Offsets B - DONE
+  # initially assume write offsets fit into 8-bits
   ##############################################################################
   def lwaFinalOffsetsB(self, kernel):
-    return ""
+    self.localWriteOffsetsB = []
     kStr = ""
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
-          kStr += "  unsigned int localWriteOffsetB_%u_%u%s = localWriteFirstOffsetB + (%s%d*%s)" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              (("%u + "%s) if self.writeTileDimComponentsB else ""), para, \
-              ("LSCB" if not kernel["ProblemType"]["TLUB"] else "LSCB") )
-          if not kernel["ProblemType"]["TLUB"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharB)
-          kStr += " + (%s%d*%s)" % ( \
-              (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
-              ("LSPB" if not kernel["ProblemType"]["TLUB"] else "LSPB") )
+          lscb = para * kernel["LSCB"]
+          lspb = perp * kernel["LSPB"]
+          if self.writeTileDimComponentsB:
+            lscb += s
+          elif self.writeUnrollDimComponentsB:
+            lspb += s
           if kernel["ProblemType"]["TLUB"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharB)
-          kStr += ";%s" % self.endLine
-          """
-          kStr += "  printf(\\\"LWB T[%%02u] lWOB_%u_%u%s = %%4u\\\\n\\\", serial, localWriteOffsetB_%u_%u%s);%s" \
-             % (para, perp,
+            lspb *= kernel["MacroTileB"]
+          else:
+            lscb *= kernel["MacroTileB"]
+          offset = lspb + lscb
+          offset /= self.localWriteInstructionB.offsetMultiplier
+          self.localWriteOffsetsB.append(offset)
+
+          kStr += "%slwoB_%u_%u%s = (%s%d*%s)" \
+              % (self.commentPrefix, para, perp, \
               (("_s%u"%s) if (self.writeTileDimComponentsB \
               or self.writeUnrollDimComponentsB) else ""), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.endLine )
-          """
+              (("%u + "%s) if self.writeTileDimComponentsB else ""), \
+              para, "LSCB" )
+          if not kernel["ProblemType"]["TLUB"]:
+            kStr += "*MT%s" % (self.tileCharB)
+          kStr += " + (%s%d*%s)" % (
+              (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
+              "LSPB")
+          if kernel["ProblemType"]["TLUB"]:
+            kStr += "*MT%s" % (self.tileCharB)
+          kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Declare Addresses A - TODO
+  # Local Write Addresses: Declare Addresses A - DONE
   ##############################################################################
   def lwaDeclareAddressesA(self, kernel):
-    return ""
-    kStr = ""
-    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numWriteVectorComponentsA):
-          kStr += "  %s%s *localWriteA_%u_%u%s;%s"\
-              % (self.sharedPtrStr, \
-              ("DATA_TYPE" if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), self.endLine )
-    return kStr
+    return self.comment1("N/A")
 
   ##############################################################################
-  # Local Write Addresses: Declare Addresses B - TODO
+  # Local Write Addresses: Declare Addresses B - DONE
   ##############################################################################
   def lwaDeclareAddressesB(self, kernel):
-    return ""
-    kStr = ""
-    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numWriteVectorComponentsB):
-          kStr += "  %s%s *localWriteB_%u_%u%s;%s"\
-              % (self.sharedPtrStr, ("DATA_TYPE" \
-              if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), self.endLine )
-    return kStr
+    return self.comment1("N/A")
 
   ##############################################################################
   # Local Read Addresses: Tile Assignment A - TODO
@@ -2200,46 +2162,16 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Local Write: Init Pointers A - TODO
+  # Local Write: Init Pointers A - DONE
   ##############################################################################
   def localWriteInitPointersA(self, kernel):
-    return ""
-    kStr = ""
-    for perp in range(0, kernel["NumLoadsPerpendicularA"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numWriteVectorComponentsA):
-          kStr += "%slocalWriteA_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetA_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.endLine)
-    return kStr
+    return self.comment1("N/A")
 
   ##############################################################################
-  # Local Write: Init Pointers B - TODO
+  # Local Write: Init Pointers B - DONE
   ##############################################################################
   def localWriteInitPointersB(self, kernel):
-    return ""
-    kStr = ""
-    for perp in range(0, kernel["NumLoadsPerpendicularB"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numWriteVectorComponentsB):
-          kStr += "%slocalWriteB_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetB_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.endLine)
-    return kStr
+    return self.comment1("N/A")
 
 
 
