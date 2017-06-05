@@ -1779,23 +1779,47 @@ class KernelWriterAssembly(KernelWriter):
     return self.comment1("N/A")
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment A - TODO
+  # Local Read Addresses: Tile Assignment A - DONE
   ##############################################################################
   def lraTileAssignmentA(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
-        % (self.tileChar0, self.tileChar0, self.endLine)
+    kStr += "%slr%s = serial %% SG%s%s%s" \
+        % (self.commentPrefix, self.tileChar0, self.tileChar0, \
+        self.commentSuffix, self.endLine)
+
+    divisor = kernel["SubGroup0"]
+    qReg = self.vgprScratch.checkOut(1) # quotient
+    rReg = self.vgprScratch.checkOut(1) # remainder
+    dividendReg = 0 # local serial
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    tmpSgpr = self.startSgprOffsetC
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+    self.lroA = qReg
+    self.lroB = rReg
+    self.vgprScratch.checkIn(tmpVgpr)
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment B - TODO
+  # Local Read Addresses: Tile Assignment B - DONE
   ##############################################################################
   def lraTileAssignmentB(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
-        % (self.tileChar1, self.tileChar0, self.tileChar1, self.endLine)
+    kStr += "%slr%s = (serial / SG%s) %% SG%s%s%s" \
+        % (self.commentPrefix, self.tileChar1, self.tileChar0, \
+        self.tileChar1, self.commentSuffix, self.endLine)
+    divisor = kernel["SubGroup1"]
+    qReg = self.vgprScratch.checkOut(1) # quotient
+    rReg = self.vgprScratch.checkOut(1) # remainder
+    dividendReg = self.lroB
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    tmpSgpr = self.startSgprOffsetC
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+    self.vgprScratch.checkIn(self.lroB) # old
+    self.lroB = qReg
+    self.vgprScratch.checkIn(rReg)
+    self.vgprScratch.checkIn(tmpVgpr)
     return kStr
 
   ##############################################################################
