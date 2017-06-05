@@ -28,7 +28,7 @@ from subprocess import Popen
 import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar, kernelLanguageIsSource
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource

@@ -838,14 +838,19 @@ class KernelWriter:
 
     ########################################
     # derrive global-read-coalesce-group from local in config
+    """
     if kernel["ProblemType"]["TLUA"]:
       self.globalReadCoalesceGroupA = kernel["LocalWriteCoalesceGroupA"]
     else:
       self.globalReadCoalesceGroupA = not kernel["LocalWriteCoalesceGroupA"]
+
     if kernel["ProblemType"]["TLUB"]:
       self.globalReadCoalesceGroupB = kernel["LocalWriteCoalesceGroupB"]
     else:
       self.globalReadCoalesceGroupB = not kernel["LocalWriteCoalesceGroupB"]
+    """
+    self.globalReadCoalesceGroupA = kernel["GlobalReadCoalesceGroupA"]
+    self.globalReadCoalesceGroupB = kernel["GlobalReadCoalesceGroupB"]
 
     ########################################
     # read / write vectors or vector components

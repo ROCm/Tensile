@@ -21,7 +21,7 @@
 
 
 from SolutionStructs import DataType
-from Common import globalParameters
+from Common import globalParameters, kernelLanguageIsSource, print1
 from KernelWriter import KernelWriter
 from math import log
 import abc
@@ -50,6 +50,52 @@ class MemoryInstruction:
   def __str__(self):
     return self.name
 
+################################################################################
+# ScratchRegisters
+# [start, stop)
+################################################################################
+class ScratchRegisters:
+  def __init__(self, start, size):
+    self.start = start
+    self.size = size
+    self.available = [True]*self.size
+    self.checkOutSize = {}
+
+  ########################################
+  # Check Out
+  def checkOut(self, size):
+    found = -1
+    for i in range(0, self.size):
+      valid = True
+      for j in range(0, size):
+        if not self.available[i+j]:
+          valid = False
+          i = j+1
+          break
+      if valid:
+        found = i
+        break
+      else:
+        continue
+
+    if found > -1:
+      for i in range(found, found+size):
+        self.available[i] = False
+      self.checkOutSize[found] = size
+      return (found+self.start)
+    else:
+      printExit("Ran out of scratch registers.")
+
+  ########################################
+  # Check Out
+  def checkIn(self, start):
+    start -= self.start
+    if start in self.checkOutSize:
+      size = self.checkOutSize[start]
+      for i in range(start, start+size):
+        self.available[i] = True
+    else:
+      printExit("Checking in registers @ %i that weren't checked out"%start)
 
 
 
@@ -520,6 +566,13 @@ class KernelWriterAssembly(KernelWriter):
     self.totalVgprs = maxVgprSameOccupancy
 
     ########################################
+    # Pre Loop Scratch Vgprs
+    ########################################
+    self.vgprSerial = 0
+    self.vgprScratch = ScratchRegisters(self.startVgprValuC+1, \
+        self.startVgprLocalReadAddressesA - (self.startVgprValuC+1))
+
+    ########################################
     # SGPR Allocation
     ########################################
 
@@ -608,13 +661,14 @@ class KernelWriterAssembly(KernelWriter):
     return ".set %s, %s%s" % (name, value, self.endLine)
 
   ##############################################################################
-  # Function Prefix
+  # Function Prefix - DONE
   ##############################################################################
   def functionPrefix(self, kernel):
     kStr = ""
 
     ########################################
-    # print vgpr macros
+    # VGPR Macros
+    ########################################
     kStr += self.comment3("VGPR Assignments")
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
     kStr += self.macroRegister("vgprValuA", self.startVgprValuA)
@@ -643,7 +697,8 @@ class KernelWriterAssembly(KernelWriter):
 
 
     ########################################
-    # print sgpr macros
+    # SGPR Macros
+    ########################################
     kStr += self.comment3("SGPR Assignments")
     kStr += self.macroRegister("sgprKernArgAddress", \
         self.startSgprKernArgAddress)
@@ -673,7 +728,54 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("SGPR: %u" % self.totalSgprs)
 
     ########################################
-    # print mac macros
+    # Global Offsets
+    ########################################
+    for (tensorChar, indices) in [ \
+        ("C", range(0, kernel["ProblemType"]["NumDimensionsC"])), \
+        ("A", kernel["ProblemType"]["IndexAssignmentsA"]), \
+        ("B", kernel["ProblemType"]["IndexAssignmentsA"]) ]:
+      kStr += self.comment("Global Offset %s"%tensorChar)
+      numDim = len(indices)
+      idxChars = []
+      for i in indices:
+        idxChars.append(self.indexChars[i])
+      kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tensorChar
+      for i in range(0, numDim):
+        kStr += " vgprOffset%s" % idxChars[i]
+      kStr += " vgprTmp%s" % self.endLine
+      # d0
+      kStr += inst("s_mov_b32", vgpr("Addr+0"), vgpr("Offset%s" \
+          % idxChars[0]), "d0 lower")
+      kStr += inst("s_mov_b32", vgpr("Addr+1"), hex(0), "d0 upper" )
+      # d1+
+      for i in range(1, numDim):
+        kStr += inst("s_mul_lo_u32", \
+            vgpr("Tmp+0"), \
+            vgpr("Offset%s" % idxChars[i]),  \
+            sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+            "mul d%u lower"%i)
+        kStr += inst("s_mov_b32", \
+            vgpr("Tmp+1"), \
+            "vcc",  \
+            "mul d%u upper"%i)
+        kStr += inst("s_add_i32", \
+            vgpr("Addr+0"), \
+            "vcc", \
+            vgpr("Addr+0"),  \
+            vgpr("Tmp+0"), \
+            "accumulate d%u lower"%i)
+        kStr += inst("s_addc_u32", \
+            vgpr("Addr+1"), \
+            "vcc", \
+            vgpr("Addr+1"),  \
+            hex(0), \
+            "vcc", \
+            "accumulate d%u lower"%i)
+        kStr += ".endm%s" % self.endLine
+
+
+    ########################################
+    # MACs
     kStr += self.comment3("%dx%d thread-tile" \
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
     numMacs = 2 if kernel["PrefetchLocalRead"] else 1
@@ -690,287 +792,6 @@ class KernelWriterAssembly(KernelWriter):
               "vgprValuA" if m==0 else "vgprValuBlkA", a, \
               "vgprValuB" if m==0 else "vgprValuBlkB", b, self.endLine)
       kStr += ".endm%s" % self.endLine
-
-    """
-    ####################################
-    # macros: kernel parameters
-    kStr += self.comment("tile parameters")
-    kStr += ".set NUM_THREADS %3d%s" \
-        % (kernel["NumThreads"], self.endLine )
-    kStr += ".set SG%s %d%s" \
-        % (self.tileChar0, kernel["SubGroup0"], self.endLine )
-    kStr += ".set SG%s %d%s" \
-        % (self.tileChar1, kernel["SubGroup1"], self.endLine )
-    kStr += ".set TT%s %d%s" \
-        % (self.tileChar0, kernel["ThreadTile0"], self.endLine )
-    kStr += ".set TT%s %d%s" \
-        % (self.tileChar1, kernel["ThreadTile1"], self.endLine )
-    kStr += ".set MT%s (SG%s*TT%s)%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine )
-    kStr += ".set MT%s (SG%s*TT%s)%s" \
-        % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
-    kStr += self.comment("DepthU parameters")
-    kStr += ".set CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
-        % (self.tileChar0, self.endLine)
-    kStr += "#define SPLITU %d%s" \
-        % (kernel["LocalSplitU"], self.endLine )
-    kStr += "#define UNROLL %d%s" \
-        % (kernel["LoopUnroll"], self.endLine )
-    kStr += ".set DEPTHU (SPLITU*UNROLL)%s" % (self.endLine )
-    kStr += self.comment("other")
-    kStr += ".set PAD %u%s" % (kernel["LdsPad"], self.endLine)
-    kStr += ".set WORK_GROUP_MAPPING %u%s" % (abs(kernel["WorkGroupMapping"]), self.endLine)
-    kStr += ".set VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
-
-    ####################################
-    # macros: num loads
-    kStr += self.comment("num loads parallel and perpendicular to coalesced")
-    kStr += ".set NLCA %d%s" % (kernel["NumLoadsCoalescedA"], self.endLine )
-    kStr += ".set NLCB %d%s" % (kernel["NumLoadsCoalescedB"], \
-        self.endLine )
-
-    kStr += ".set NLPA %d%s" % (kernel["NumLoadsPerpendicularA"], \
-        self.endLine )
-    kStr += ".set NLPB %d%s" % (kernel["NumLoadsPerpendicularB"], \
-        self.endLine )
-
-    ####################################
-    # macros: load sizes
-    kStr += self.comment("load sizes parallel and perpendicular to coalesced")
-    if kernel["ProblemType"]["TLUA"]:
-      kStr += ".set LSCA (MT%s/NLCA)%s" \
-          % (self.tileCharA, self.endLine)
-      kStr += ".set LSPA (DEPTHU/NLPA)" + self.endLine
-    else:
-      kStr += ".set LSCA (DEPTHU/NLCA)%s" \
-          % (self.endLine)
-      kStr += ".set LSPA (MT%s/NLPA)%s" \
-          % ( self.tileCharA, self.endLine)
-    if kernel["ProblemType"]["TLUB"]:
-      kStr += ".set LSCB (MT%s/NLCB)%s" \
-          % (self.tileCharB, self.endLine)
-      kStr += ".set LSPB (DEPTHU/NLPB)" + self.endLine
-    else:
-      kStr += ".set LSCB (DEPTHU/NLCB)%s" \
-          % (self.endLine)
-      kStr += ".set LSPB (MT%s/NLPB)%s" % (self.tileCharB, self.endLine)
-    kStr += ".set LVCA (LSCA/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += ".set LVCB (LSCB/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += ".set LVPA (LSPA/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += ".set LVPB (LSPB/VECTOR_WIDTH)%s" % (self.endLine)
-
-    # local buffer size
-    kStr += ".set LDS_OFFSET_B %u%s" % (kernel["LdsOffsetB"], self.endLine)
-    kStr += ".set LDS_NUM_ELEMENTS %u%s" % (kernel["LdsNumElements"], \
-        self.endLine)
-
-    # prefetch local buffer offsets
-    # layout is redA, redB, blkA, blkB
-    if kernel["PrefetchGlobalRead"]:
-      kStr += ".set LDS_OFFSET_BLK %u%s" \
-          % (kernel["LdsOffsetA_Blk"], self.endLine)
-
-    ####################################
-    # macros: global memory indices
-    kStr += self.comment("global memory indices")
-    # C
-    kStr += ".set GLOBAL_C(IDX%s" % self.indexChars[0]
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += ", IDX%s" % self.indexChars[i]
-    indexChar = self.indexChars[0]
-    kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
-    for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
-      indexChar = self.indexChars[i]
-      kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
-    kStr += " ))" + self.endLine
-    # A non-vector
-    kStr += ".set GLOBAL_OFFSET_A(IDX%s" \
-        % self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
-    for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
-      kStr += ", IDX%s" \
-          % self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-    indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][0]]
-    kStr += ") (( (IDX%s)*strideA%s" % (indexChar, indexChar)
-    for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsA"])):
-      indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]]
-      kStr += " + (IDX%s)*strideA%s" % (indexChar, indexChar)
-    kStr += " ))%s" % self.endLine
-    # B non-vector
-    kStr += ".set GLOBAL_OFFSET_B(IDX%s" \
-        % self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
-    for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
-      kStr += ", IDX%s" \
-          % self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-    indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][0]]
-    kStr += ") (( (IDX%s)*strideB%s" % (indexChar, indexChar)
-    for i in range(1, len(kernel["ProblemType"]["IndexAssignmentsB"])):
-      indexChar = self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]]
-      kStr += " + (IDX%s)*strideB%s" % (indexChar, indexChar)
-    kStr += " ))" + self.endLine
-
-    ####################################
-    # macros: mac
-    kStr += self.comment("mac type")
-    if self.language == "OCL":
-      kStr += ".set MAD(A,B,DST) mad(A,B,DST)"
-    else:
-      kStr += ".set MAD(A,B,DST) DST += A*B"
-    kStr += self.endLine
-    # TODO - mac macro
-    """
-
-    ####################################
-    # MACs
-    """
-    kStr += self.comment("MAC's")
-    if kernel["ProblemType"]["DataType"].isReal():
-      # real data
-      kStr += ".set TYPE_MAC(MULA,MULB,DST) " \
-          + "DST = MAD(MULA,MULB,DST);" + self.endLine
-      if kernel["ProblemType"]["UseBeta"]:
-        # dst = alpha*reg + beta*dst
-        kStr += ".set TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
-            + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
-      else:
-        # dst = alpha*reg
-        kStr += ".set TYPE_MAC_WRITE(DST,ALPHA,REG) " \
-            + "DST = (ALPHA)*(REG);" + self.endLine
-    else:
-      # complex data
-      if not kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
-        # neither conjugate
-        kStr += (
-          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
-          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLine +
-          "  DST.s0 = MAD( -MULA.s1, MULB.s1, DST.s0 ); " + self.endLine +
-          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLine +
-          "  DST.s1 = MAD(  MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
-      elif kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]:
-        # A conjugate (negate imaginary A.s1)
-        kStr += (
-          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
-          "  DST.s0 = MAD(  MULA.s0, MULB.s0, DST.s0 ); " + self.endLine +
-          "  DST.s0 = MAD(  MULA.s1, MULB.s1, DST.s0 ); " + self.endLine +
-          "  DST.s1 = MAD(  MULA.s0, MULB.s1, DST.s1 ); " + self.endLine +
-          "  DST.s1 = MAD( -MULA.s1, MULB.s0, DST.s1 );" + self.endLine )
-      elif not kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]:
-        # B conjugate (negate imaginary B.s1)
-        kStr += (
-          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
-          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLine +
-          "  DST.s0 = MAD( -MULA.s1, -MULB.s1, DST.s0 ); " + self.endLine +
-          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLine +
-          "  DST.s1 = MAD(  MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      else:
-        # A & B conjugate (negate imaginary .s1)
-        kStr += (
-          ".set TYPE_MAC(MULA,MULB,DST) " + self.endLine +
-          "  DST.s0 = MAD(  MULA.s0,  MULB.s0, DST.s0 ); " + self.endLine +
-          "  DST.s0 = MAD(  MULA.s1, -MULB.s1, DST.s0 ); " + self.endLine +
-          "  DST.s1 = MAD(  MULA.s0, -MULB.s1, DST.s1 ); " + self.endLine +
-          "  DST.s1 = MAD( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
-      if kernel["ProblemType"]["UseBeta"]:
-        # dst = alpha*reg + beta*dst
-        kStr += (
-          ".set TYPE_MAC_WRITE( DST, ALPHA, REG, BETA ) "+self.endLine +
-          "  /* (1) */ " + self.endLine +
-          "  type_mac_tmp = REG.s0; " + self.endLine +
-          "  REG.s0 *= ALPHA.s0; " + self.endLine +
-          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLine +
-          "  REG.s1 *= ALPHA.s0; " + self.endLine +
-          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLine+
-          "  /* (2) */ " + self.endLine +
-          "  REG.s0 = MAD(  BETA.s0, DST.s0, REG.s0 ); " + self.endLine +
-          "  REG.s0 = MAD( -BETA.s1, DST.s1, REG.s0 ); " + self.endLine +
-          "  REG.s1 = MAD(  BETA.s1, DST.s0, REG.s1 ); " + self.endLine +
-          "  REG.s1 = MAD(  BETA.s0, DST.s1, REG.s1 ); " + self.endLine +
-          "  /* (3) */ " + self.endLine +
-          "  DST = REG;" + self.endLine )
-      else:
-        # dst = alpha*reg
-        kStr += (
-          ".set TYPE_MAC_WRITE( DST, ALPHA, REG ) "+self.endLine+
-          "  /* (1) */ " + self.endLine +
-          "  type_mac_tmp = REG.s0; " + self.endLine +
-          "  REG.s0 *= ALPHA.s0; " + self.endLine +
-          "  REG.s0 = MAD( -ALPHA.s1, REG.s1, REG.s0 ); " + self.endLine +
-          "  REG.s1 *= ALPHA.s0; " + self.endLine +
-          "  REG.s1 = MAD(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLine+
-          "  /* (3) */ " + self.endLine +
-          "  DST = REG;" + self.endLine )
-    """
-
-    ####################################
-    # sumation unroll
-    kStr += self.comment("%dx%d micro-tile" \
-        % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
-    numMacs = 2 if kernel["PrefetchLocalRead"] else 1
-
-    for m in range(0, numMacs):
-      kStr += ".set MAC_%ux%u" \
-          % (kernel["ThreadTile0"], kernel["ThreadTile1"])
-      if kernel["PrefetchLocalRead"]:
-        kStr += ("" if m==0 else "_BLK")
-      kStr += self.endLine
-
-      """
-    if False:
-      if kernel["VectorWidth"] == 1:
-        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0], rA[1], rA[2], rA[3], rA[4], rA[5], rA[6], rA[7], rB[0], rB[1], rB[2], rB[3], rB[4], rB[5], rB[6], rB[7]); %s" % (self.endLine)
-      if kernel["VectorWidth"] == 2:
-        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].%s, rA[0].%s, rA[1].%s, rA[1].%s, rA[2].%s, rA[2].%s, rA[3].%s, rA[3].%s, rB[0].%s, rB[0].%s, rB[1].%s, rB[1].%s, rB[2].%s, rB[2].%s, rB[3].%s, rB[3].%s); %s" % ( \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.endLine)
-      if kernel["VectorWidth"] == 4:
-        kStr += "  printf(\\\"MAC: T[%%02u]: %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f; %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f, %%.0f\\\\n\\\", serial, rA[0].%s, rA[0].%s, rA[0].%s, rA[0].%s, rA[1].%s, rA[1].%s, rA[1].%s, rA[1].%s, rB[0].%s, rB[0].%s, rB[0].%s, rB[0].%s, rB[1].%s, rB[1].%s, rB[1].%s, rB[1].%s); %s" % ( \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[2], self.vectorComponents[3], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[2], self.vectorComponents[3], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[2], self.vectorComponents[3], \
-            self.vectorComponents[0], self.vectorComponents[1], \
-            self.vectorComponents[2], self.vectorComponents[3], \
-            self.endLine)
-      """
-
-      """
-      for b in range(0, kernel["ThreadTile1"]):
-        for a in range(0, kernel["ThreadTile0"]):
-          # a
-          vecA = a / kernel["VectorWidth"]
-          elemA = a % kernel["VectorWidth"]
-          strA = "rA[%d%s]" % (vecA, ("+TT%s/VECTOR_WIDTH"%self.tileCharA) \
-              if m>0 else "")
-          if kernel["VectorWidth"] > 1:
-            strA += ".%s" % self.vectorComponents[elemA]
-          # b
-          vecB = b / kernel["VectorWidth"]
-          elemB = b % kernel["VectorWidth"]
-          strB = "rB[%d%s]" % (vecB, ("+TT%s/VECTOR_WIDTH"%self.tileCharB) \
-              if m>0 else "")
-          if kernel["VectorWidth"] > 1:
-            strB += ".%s" % self.vectorComponents[elemB]
-          # c
-          strC = "rC[%d+%d*TT%s/VECTOR_WIDTH]" % (vecA, b, self.tileChar0 )
-          elemC = elemA
-          if kernel["VectorWidth"] > 1:
-            strC += ".%s" % self.vectorComponents[elemC]
-          """
-          kStr += "  printf(\\\"T[%%u,%u,%u]: %s:%%.0f += %s:%%.0f * %s:%%.0f\\\\n\\\", serial, %s, %s, %s); %s" % (a, b, strC, strA, strB, strC, strA, strB, self.endLinePP)
-          """
-          kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
-              self.endLine)
-      kStr += "  " + self.fenceStr + self.endLine
-    kStr += self.endLine
-      """
 
     ####################################
     # preprocessor definitions of kernel arguments
@@ -998,71 +819,70 @@ class KernelWriterAssembly(KernelWriter):
           + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
           + " 1" + self.endLine
     kStr += self.endLine
+
+    ####################################
+    # scalar macros
+    kStr += self.comment("kernel parameter macros")
+    vw = kernel["VectorWidth"]
+    mt0 = kernel["MacroTile0"]
+    mt1 = kernel["MacroTile1"]
+    du = kernel["DepthU"]
+    if kernel["ProblemType"]["Tensor0"]==0:
+      mtA = mt0
+      mtB = mt1
+    else:
+      mtA = mt1
+      mtB = mt0
+    nlca = kernel["NumLoadsCoalescedA"]
+    nlcb = kernel["NumLoadsCoalescedB"]
+    nlpa = kernel["NumLoadsPerpendicularA"]
+    nlpb = kernel["NumLoadsPerpendicularB"]
+    kStr += ".set NLCA %u%s" % (nlca, self.endLine)
+    kStr += ".set NLCB %u%s" % (nlcb, self.endLine)
+    kStr += ".set NLPA %u%s" % (nlpa, self.endLine)
+    kStr += ".set NLPB %u%s" % (nlpb, self.endLine)
+
+    if kernel["ProblemType"]["TLUA"]:
+      lsca = mtA/nlpa
+      lspa = du/nlpa
+    else:
+      lsca = du/nlpa
+      lspa = mtA/nlpa
+    if kernel["ProblemType"]["TLUB"]:
+      lscb = mtB/nlpb
+      lspb = du/nlpb
+    else:
+      lscb = du/nlpb
+      lspb = mtB/nlpb
+
+    kStr += ".set LSCA %u%s" % (lsca, self.endLine)
+    kStr += ".set LSPA %u%s" % (lspa, self.endLine)
+    kStr += ".set LSCB %u%s" % (lscb, self.endLine)
+    kStr += ".set LSPB %u%s" % (lspb, self.endLine)
+
+    kStr += ".set LVCA %u%s" % (lsca/vw, self.endLine)
+    kStr += ".set LVCB %u%s" % (lscb/vw, self.endLine)
+    kStr += ".set LVPA %u%s" % (lspa/vw, self.endLine)
+    kStr += ".set LVPB %u%s" % (lspb/vw, self.endLine)
+
     return kStr
 
 
   ##############################################################################
-  # Function Signature Prefix
+  # Function Signature Prefix - DONE
   ##############################################################################
   def functionSignaturePrefix(self, kernel):
     return ""
-    s = ""
-    if self.language == "HIP":
-      s += "#pragma clang diagnostic push" + self.endLine
-      s += "#pragma clang diagnostic ignored \"-Wunused-parameter\"" + self.endLine
-    return s
 
 
   ##############################################################################
-  # Function Signature
+  # Function Signature - DONE
   ##############################################################################
   def functionSignature(self, kernel ):
-    return ""
-    kernelName = self.getKernelName(kernel)
-
-    # determine chars for fast access
-    self.indexChars = []
-    for i in range(0, len(globalParameters["IndexChars"])):
-      self.indexChars.append(globalParameters["IndexChars"][i])
-    self.indexChars[kernel["ProblemType"]["Index0"]] \
-        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
-    self.indexChars[kernel["ProblemType"]["Index1"]] \
-        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
-    self.tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
-    self.tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
-
-    s = ""
-    # kernel name
-    if self.language == "OCL":
-      s += "__attribute__((reqd_work_group_size(NUM_THREADS,1,1)))"
-      s += self.endLine
-      s += "__kernel "
-    else:
-      s += "extern \"C\"\n"
-      s += "__global__ "
-    s += "void %s" % ( kernelName )
-    s += "(" + self.endLine
-    # pointers
-    globalStr = "__global "
-    if self.language == "HIP":
-      s += "  hipLaunchParm lp," + self.endLine
-      globalStr = ""
-    restrictStr = "restrict"
-    if self.language == "HIP":
-      restrictStr = "__restrict__"
-    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
-    s += "  " + globalStr + ptrStr \
-        + " *C,"
-    s += self.endLine
-    s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " A,"
-    s += self.endLine
-    s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " B"
-
-    # alpha & beta
-    s += "," + self.endLine + "  " \
-        + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
+    kStr = ""
+    kernArgReg = 0
+    kernArgReg += 3*self.rpa
+    kernArgReg += 1 # alpha
     if kernel["ProblemType"]["UseBeta"]:
       kernArgReg += 1 # beta
     kernArgReg += 3 # offsets
@@ -1171,24 +991,25 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_waitcnt", "lgkmcnt(0)", \
         "wait for %u bytes of kern args" % kernArgOffset )
 
+    kStr += self.comment("User Offsets")
     # addressC += offsetC
     kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
         sgpr("AddressC"), "addrC += offsetC" )
-    kStr += inst("s_mov_u32", sgpr("OffsetC"), "0")
+    kStr += inst("s_mov_u32", sgpr("OffsetC"), 0, "")
     kStr += inst("s_addc_u32", sgpr("AddressC"), sgpr("OffsetC"),\
         sgpr("AddressC"), "addrC += offsetC carry" )
 
     # addressA += offsetA
     kStr += inst("s_add_u32", sgpr("AddressA"), sgpr("OffsetA"), \
         sgpr("AddressA"), "addrA += offsetA" )
-    kStr += inst("s_mov_u32", sgpr("OffsetA"), "0")
+    kStr += inst("s_mov_u32", sgpr("OffsetA"), 0, "")
     kStr += inst("s_addc_u32", sgpr("AddressA"), sgpr("OffsetA"),\
         sgpr("AddressA"), "addrA += offsetA carry" )
 
     # addressB += offsetB
     kStr += inst("s_add_u32", sgpr("AddressB"), sgpr("OffsetB"), \
         sgpr("AddressB"), "addrB += offsetB" )
-    kStr += inst("s_mov_u32", sgpr("OffsetB"), "0")
+    kStr += inst("s_mov_u32", sgpr("OffsetB"), 0, "")
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
@@ -1199,7 +1020,7 @@ class KernelWriterAssembly(KernelWriter):
     # TODO: read nwg0 from sgpr
     nwg0 = 32 # num work-groups 0
     nipt = 4 # num integers per thread
-    v = 2
+    v = self.vgprScratch.checkOut(2)
     kStr += inst("v_mov_b32", vgpr(v), "s2", "%s=wg0"%vgpr(v) )
     kStr += inst("v_mov_b32", vgpr(v+1), "s3", "%s=wg1"%vgpr(v+1) )
     #tt0_log2 = log2(kernel["ThreadTile0"])
@@ -1221,25 +1042,25 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
     kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", sgpr("AddressD+1"), \
         vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+    self.vgprScratch.checkIn(v)
 
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Work-Group - DONE
+  # Global Read Addresses: Work-Group - LATER
   ##############################################################################
   def graWorkGroup(self, kernel):
-    # TODO: support WorkGroupMapping
-    return ""
+    return self.comment1("  N/A")
 
   ##############################################################################
   # Global Read Addresses: Subgroup - DONE
   ##############################################################################
   def graSubgroup(self, kernel):
-    # sgId not needed until local read addresses
-    return ""
+    return self.comment1("  not needed until local read addresses")
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment A
+  # Global Read Addresses: Tile Assignment A - DONE
+  # stores to v1,2
   ##############################################################################
   def graTileAssignmentA(self, kernel):
     kStr = ""
@@ -1259,125 +1080,136 @@ class KernelWriterAssembly(KernelWriter):
     print divisorName, divisor
 
     if self.globalReadCoalesceGroupA == kernel["ProblemType"]["TLUA"]:
-      rReg = 1 # groA-tile = serial%divisor
-      qReg = 2 # groA-unroll = serial/divisor
+      rReg = self.vgprScratch.checkOut(1) # groA-tile = serial%divisor
+      qReg = self.vgprScratch.checkOut(1) # groA-unroll = serial/divisor
       tReg = rReg
       uReg = qReg
       tOpStr = "%"
       uOpStr = "/"
     else:
-      qReg = 1 # groA-tile = serial/divisor
-      rReg = 2 # groA-unroll = serial%divisor
+      qReg = self.vgprScratch.checkOut(1) # groA-tile = serial/divisor
+      rReg = self.vgprScratch.checkOut(1) # groA-unroll = serial%divisor
       tReg = qReg
       uReg = rReg
       tOpStr = "/"
       uOpStr = "%"
-    kStr += self.comment("%s = groA-tile = serial%s%s + (wgA*MTA);" \
+    kStr += self.comment1("%s = groA-tile = serial%s%s + (wgA*MTA);" \
         % (vgpr(tReg), tOpStr, divisorName) )
-    kStr += selc.comment("%s = groA-unroll = serial%s;%s" \
+    kStr += self.comment1("%s = groA-unroll = serial%s%s;" \
         % (vgpr(uReg), uOpStr, divisorName) )
     dividendReg = 0 # local serial
-    tmpVgpr = 3
+    tmpVgpr = self.vgprScratch.checkOut(1)
     tmpSgpr = self.startSgprOffsetC
     kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
 
-    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"] \
-        and kernel["VectorWidth"] > 1:
-      kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
-          vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+    if kernel["VectorWidth"] > 1:
+      if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
+        kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
+            vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+      else:
+        kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
+            vgpr(lReg), "%s *= VW"%vgpr(uReg) )
     kStr += inst("v_lshlrev_v32", vgpr(tmpVgpr), log2(kernel["SubGroupA"]), \
-        vgpr("WorkGroupA"), "%s = wgA * MTA"%vgpr(tmpSgpr) )
+        vgpr("WorkGroupA"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
     kStr += inst("v_add_u32", vgpr(tReg), vgpr(tmpVgpr), \
         vgpr(tReg), "groA-tile = serial%s%s*VW + (wgA*MTA)" \
         % (tOpStr, divisorName) )
+    self.tRegA = tReg
+    self.uRegA = uReg
+    self.vgprScratch.checkIn(tmpVgpr)
     #kStr += "groA-tile = (wg%s*MT%s);%s" \
     #    % (self.tileCharA, self.tileCharA, self.endLine)
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment B
+  # Global Read Addresses: Tile Assignment B - DONE
+  # stores to v3,4
   ##############################################################################
   def graTileAssignmentB(self, kernel):
-    return ""
+    #kStr += "  unsigned int globalReadOffsetB%s = (serial" % self.tileCharB
+    # what register to store these values into
     kStr = ""
-    kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
-        % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
-        == kernel["ProblemType"]["TLUB"] else "/") )
     if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
+      if kernel["GlobalReadCoalesceVectorB"]:
+        divisorName = "LVCB"
+      else:
+        divisorName = "LSCB"
     else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
+      if kernel["GlobalReadCoalesceVectorB"]:
+        divisorName = "LSPB"
+      else:
+        divisorName = "LVPB"
+    divisor = kernel[divisorName]
+    print divisorName, divisor
 
-    if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += " + (wg%s*MT%s);%s" \
-        % (self.tileCharB, self.tileCharB, self.endLine)
+    if self.globalReadCoalesceGroupB == kernel["ProblemType"]["TLUB"]:
+      rReg = self.vgprScratch.checkOut(1) # groB-tile = serial%divisor
+      qReg = self.vgprScratch.checkOut(1) # groB-unroll = serial/divisor
+      tReg = rReg
+      uReg = qReg
+      tOpStr = "%"
+      uOpStr = "/"
+    else:
+      qReg = self.vgprScratch.checkOut(1) # groB-tile = serial/divisor
+      rReg = self.vgprScratch.checkOut(1) # groB-unroll = serial%divisor
+      tReg = qReg
+      uReg = rReg
+      tOpStr = "/"
+      uOpStr = "%"
+    kStr += self.comment1("%s = groB-tile = serial%s%s + (wgB*MTB);" \
+        % (vgpr(tReg), tOpStr, divisorName) )
+    kStr += self.comment1("%s = groB-unroll = serial%s%s;" \
+        % (vgpr(uReg), uOpStr, divisorName) )
+    dividendReg = 0 # local serial
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    tmpSgpr = self.startSgprOffsetC
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+
+    if kernel["VectorWidth"] > 1:
+      if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
+        kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
+            vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+      else:
+        kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
+            vgpr(uReg), "%s *= VW"%vgpr(uReg) )
+    kStr += inst("v_lshlrev_v32", vgpr(tmpVgpr), log2(kernel["SubGroupB"]), \
+        vgpr("WorkGroupB"), "%s = wgB * MTB"%vgpr(tmpVgpr) )
+    kStr += inst("v_add_u32", vgpr(tReg), vgpr(tmpVgpr), \
+        vgpr(tReg), "groB-tile = serial%s%s*VW + (wgB*MTB)" \
+        % (tOpStr, divisorName) )
+    self.tRegB = tReg
+    self.uRegB = uReg
+    self.vgprScratch.checkIn(tmpVgpr)
+    #kStr += "groB-tile = (wg%s*MT%s);%s" \
+    #    % (self.tileCharB, self.tileCharB, self.endLine)
     return kStr
 
+
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment A
+  # Global Read Addresses: Unroll Assignment A - DONE
   ##############################################################################
   def graUnrollAssignmentA(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
-        == kernel["ProblemType"]["TLUA"] else "%") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
-    else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
+    return self.comment1(vgpr(self.uRegA))
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment B
+  # Global Read Addresses: Unroll Assignment B - DONE
   ##############################################################################
   def graUnrollAssignmentB(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
-        == kernel["ProblemType"]["TLUB"] else "%") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
-    else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
+    return self.comment1(vgpr(self.uRegB))
 
   ##############################################################################
-  # Global Read Addresses: Other Free Assignments
+  # Global Read Addresses: Other Free Assignments - LATER
   ##############################################################################
   def graOtherFreeAssignments(self, kernel):
-    return ""
-    kStr = ""
-    nonTileFreeIndices = range(0, kernel["ProblemType"]["NumIndicesC"])
-    nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
-    nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
-    for i in range(0, len(nonTileFreeIndices)):
-      index = nonTileFreeIndices[i]
-      kStr += "  unsigned int wg" + self.indexChars[index] \
-          + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed( range( i+1, len(nonTileFreeIndices)) ):
-        index2 = nonTileFreeIndices[j]
-        kStr += " / size" + self.indexChars[index2]
-      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
-    return kStr
+    # LATER: support more dimensions that just batched
+    return self.comment1(sgpr("WorkGroup2"))
 
   ##############################################################################
-  # Global Read Addresses: Other Summation Assignments
+  # Global Read Addresses: Other Summation Assignments - DONE
   ##############################################################################
   def graOtherSummationAssignments(self, kernel):
-    return ""
     kStr = ""
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
       index = i
@@ -1388,117 +1220,168 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Tile Offsets A
+  # Global Read Addresses: Tile Offsets A - DONE
   ##############################################################################
   def graTileOffsetsA(self, kernel):
-    return ""
+    numTileOffsetsA = self.numReadsTileA
+    if self.readTileDimComponentsA:
+      numTileOffsetsA *= kernel["VectorWidth"]
+    self.vgprTileOffsetsA = self.vgprScratch.checkOut(numTileOffsetsA)
+    v = self.vgprTileOffsetsA
+    stride = "LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"
     kStr = ""
-    for l in range(0, self.numReadsTileA):
-      if self.readTileDimComponentsA:
+    if self.readTileDimComponentsA:
+      # l=0, s=0
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.tRegA), "groA%s_%u_s%u"%(self.tileCharA, 0, 0) )
+      # l=0, s>0
+      for s in range(1, kernel["VectorWidth"]):
+        kStr += inst("v_add_u32", vgpr(v+s), 1, \
+            vgpr(v+s-1), "groA%s_%u_s%u"%(self.tileCharA, 0, s) )
+      for l in range(1, self.numReadsTileA):
+        # l>0, s=0
+        kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), stride, \
+            vgpr(v+(l-1)*kernel["VectorWidth"]), \
+            "groA%s_%u_s%u"%(self.tileCharA, l, 0) )
+        # l>0, s>0
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetA%s_%u_s%u = globalReadOffsetA%s + %u + %d*%s;%s" \
-              % (self.tileCharA, l, s, self.tileCharA, s, l, \
-              ("LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"), \
-              self.endLine)
-      else:
-        kStr += "  unsigned int globalReadOffsetA%s_%u = globalReadOffsetA%s + %d*%s;%s" \
-            % (self.tileCharA, l, self.tileCharA, l, \
-            ("LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"), \
-            self.endLine)
+          kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), \
+              1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
+              "groA%s_%u_s%u"%(self.tileCharA, 0, s) )
+    else:
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.tRegA), "groA%s_%u"%(self.tileCharA, 0) )
+      for l in range(1, self.numReadsTileA):
+        kStr += inst("v_add_u32", vgpr(v+l), stride, \
+            vgpr(v+l-1), "groA%s_%u"%(self.tileCharA, l) )
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Tile Offsets B
+  # Global Read Addresses: Tile Offsets B - DONE
   ##############################################################################
   def graTileOffsetsB(self, kernel):
-    return ""
+    numTileOffsetsB = self.numReadsTileB
+    if self.readTileDimComponentsB:
+      numTileOffsetsB *= kernel["VectorWidth"]
+    self.vgprTileOffsetsB = self.vgprScratch.checkOut(numTileOffsetsB)
+    v = self.vgprTileOffsetsB
+    stride = "LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"
     kStr = ""
-    for l in range(0, self.numReadsTileB):
-      if self.readTileDimComponentsB:
+    if self.readTileDimComponentsB:
+      # l=0, s=0
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.tRegB), "groB%s_%u_s%u"%(self.tileCharB, 0, 0) )
+      # l=0, s>0
+      for s in range(1, kernel["VectorWidth"]):
+        kStr += inst("v_add_u32", vgpr(v+s), 1, \
+            vgpr(v+s-1), "groB%s_%u_s%u"%(self.tileCharB, 0, s) )
+      for l in range(1, self.numReadsTileB):
+        # l>0, s=0
+        kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), stride, \
+            vgpr(v+(l-1)*kernel["VectorWidth"]), \
+            "groB%s_%u_s%u"%(self.tileCharB, l, 0) )
+        # l>0, s>0
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetB%s_%u_s%u = globalReadOffsetB%s + %u + %d*%s;%s" \
-              % (self.tileCharB, l, s, self.tileCharB, s, l, \
-              ("LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"), \
-              self.endLine)
-      else:
-        kStr += "  unsigned int globalReadOffsetB%s_%u = globalReadOffsetB%s + %d*%s;%s" \
-            % (self.tileCharB, l, self.tileCharB, l, \
-            ("LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"), \
-            self.endLine)
+          kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), \
+              1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
+              "groB%s_%u_s%u"%(self.tileCharB, 0, s) )
+    else:
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.tRegB), "groB%s_%u"%(self.tileCharB, 0) )
+      for l in range(1, self.numReadsTileB):
+        kStr += inst("v_add_u32", vgpr(v+l), stride, \
+            vgpr(v+l-1), "groB%s_%u"%(self.tileCharB, l) )
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Unroll Offsets A
+  # Global Read Addresses: Unroll Offsets A - DONE
   ##############################################################################
   def graUnrollOffsetsA(self, kernel):
-    return ""
+    numUnrollOffsetsA = self.numReadsUnrollA
+    if self.readUnrollDimComponentsA:
+      numUnrollOffsetsA *= kernel["VectorWidth"]
+    self.vgprUnrollOffsetsA = self.vgprScratch.checkOut(numUnrollOffsetsA)
+    v = self.vgprUnrollOffsetsA
     kStr = ""
-    for l in range(0, self.numReadsUnrollA):
-      if self.readUnrollDimComponentsA:
+    stride = ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA")
+    if self.readUnrollDimComponentsA:
+      # l=0, s=0
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.uRegA), "groA%s_%u_s%u"%(self.unrollChar, 0, 0) )
+      # l=0, s>0
+      for s in range(1, kernel["VectorWidth"]):
+        kStr += inst("v_add_u32", vgpr(v+s), 1, \
+            vgpr(v+s-1), "groA%s_%u_s%u"%(self.unrollChar, 0, s) )
+      for l in range(1, self.numReadsUnrollA):
+        # l>0, s=0
+        kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), stride, \
+            vgpr(v+(l-1)*kernel["VectorWidth"]), \
+            "groA%s_%u_s%u"%(self.unrollChar, l, 0) )
+        # l>0, s>0
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetA%s_%u_s%u = globalReadOffsetA%s + %u + %d*%s;%s" \
-              % (self.unrollChar, l, s, self.unrollChar, s, l, \
-              ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA"), \
-              self.endLine)
-      else:
-        kStr += "  unsigned int globalReadOffsetA%s_%u = globalReadOffsetA%s + %d*%s;%s" \
-            % (self.unrollChar, l, self.unrollChar, l, \
-            ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA"), \
-            self.endLine)
+          kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), \
+              1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
+              "groA%s_%u_s%u"%(self.unrollChar, 0, s) )
+    else:
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.uRegA), "groA%s_%u"%(self.unrollChar, 0) )
+      for l in range(1, self.numReadsUnrollA):
+        kStr += inst("v_add_u32", vgpr(v+l), stride, \
+            vgpr(v+l-1), "groA%s_%u"%(self.unrollChar, l) )
     return kStr
 
+
   ##############################################################################
-  # Global Read Addresses: Unroll Offsets B
+  # Global Read Addresses: Unroll Offsets B - DONE
   ##############################################################################
   def graUnrollOffsetsB(self, kernel):
-    return ""
+    numUnrollOffsetsB = self.numReadsUnrollB
+    if self.readUnrollDimComponentsB:
+      numUnrollOffsetsB *= kernel["VectorWidth"]
+    self.vgprUnrollOffsetsB = self.vgprScratch.checkOut(numUnrollOffsetsB)
+    v = self.vgprUnrollOffsetsB
     kStr = ""
-    for l in range(0, self.numReadsUnrollB):
-      if self.readUnrollDimComponentsB:
+    stride = ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB")
+    if self.readUnrollDimComponentsB:
+      # l=0, s=0
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.uRegB), "groB%s_%u_s%u"%(self.unrollChar, 0, 0) )
+      # l=0, s>0
+      for s in range(1, kernel["VectorWidth"]):
+        kStr += inst("v_add_u32", vgpr(v+s), 1, \
+            vgpr(v+s-1), "groB%s_%u_s%u"%(self.unrollChar, 0, s) )
+      for l in range(1, self.numReadsUnrollB):
+        # l>0, s=0
+        kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), stride, \
+            vgpr(v+(l-1)*kernel["VectorWidth"]), \
+            "groB%s_%u_s%u"%(self.unrollChar, l, 0) )
+        # l>0, s>0
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetB%s_%u_s%u = globalReadOffsetB%s + %u + %d*%s;%s" \
-              % (self.unrollChar, l, s, self.unrollChar, s, l, \
-              ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
-              self.endLine)
-      else:
-        kStr += "  unsigned int globalReadOffsetB%s_%u = globalReadOffsetB%s + %d*%s;%s" \
-            % (self.unrollChar, l, self.unrollChar, l, \
-            ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
-            self.endLine)
+          kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), \
+              1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
+              "groB%s_%u_s%u"%(self.unrollChar, 0, s) )
+    else:
+      kStr += inst("v_mov_u32", vgpr(v), \
+          vgpr(self.uRegB), "groB%s_%u"%(self.unrollChar, 0) )
+      for l in range(1, self.numReadsUnrollB):
+        kStr += inst("v_add_u32", vgpr(v+l), stride, \
+            vgpr(v+l-1), "groB%s_%u"%(self.unrollChar, l) )
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Branch A
+  # Global Read Addresses: Branch A - SKIP
   ##############################################################################
   def graBranchA(self, kernel):
     return ""
-    kStr = ""
-    for l in range(0, self.numReadsTileA):
-      gro = "(globalReadOffsetA%s_%u%s)" % (self.tileCharA, l, \
-          ("_s0 + (VECTOR_WIDTH-1)" if self.readTileDimComponentsA else "") )
-      limit = "size%s" % (self.tileCharA)
-      kStr += "  bool inBoundsA_%u = %s < %s;%s" \
-          % (l, gro, \
-          limit, self.endLine)
-    return kStr
 
   ##############################################################################
-  # Global Read Addresses: Branch B
+  # Global Read Addresses: Branch B - SKIP
   ##############################################################################
   def graBranchB(self, kernel):
     return ""
-    kStr = ""
-    for l in range(0, self.numReadsTileB):
-        gro = "(globalReadOffsetB%s_%u%s)" % (self.tileCharB, l, \
-            ("_s0 + (VECTOR_WIDTH-1)" if self.readTileDimComponentsB else ""))
-        limit = "size%s" % self.tileCharB
-        kStr += "  bool inBoundsB_%u = %s < %s;%s" \
-            % (l, gro, \
-            limit, self.endLine)
-    return kStr
 
   ##############################################################################
-  # Global Read Addresses: Shift A
+  # Global Read Addresses: Shift A - SKIP
   ##############################################################################
   def graShiftA(self, kernel):
     return ""
@@ -1513,7 +1396,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Shift B
+  # Global Read Addresses: Shift B - SKIP
   ##############################################################################
   def graShiftB(self, kernel):
     return ""
@@ -1528,157 +1411,173 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Final Offsets A
+  # Global Read Addresses: Final Offsets A - DONE
   ##############################################################################
   def graFinalOffsetsA(self, kernel):
-    return ""
+    tVW = 1
+    tVS = 0
+    uVW = 1
+    uVS = 0
+    if self.readTileDimComponentsA:
+      tVW = kernel["VectorWidth"]
+      tVS = 1
+    elif self.readUnrollDimComponentsA:
+      uVW = kernel["VectorWidth"]
+      uVS = 1
+    tmp = self.vgprScratch.checkOut(2)
     kStr = ""
+    graIdxA = 0
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
-          kStr += "  %s globalReadOffsetA_%u_%u%s = GLOBAL_OFFSET_A( " \
-              % (self.uint64Str, para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsA \
-              or self.readUnrollDimComponentsA) else ""))
-          for i in range(0, len(kernel["ProblemType"]["IndexAssignmentsA"])):
-            index = kernel["ProblemType"]["IndexAssignmentsA"][i]
-            if index < kernel["ProblemType"]["NumIndicesC"]:
-              if index == kernel["ProblemType"]["TileA"]:
-                kStr += "globalReadOffsetA%s_%u%s" \
-                    % (self.tileCharA, \
-                    (para if kernel["ProblemType"]["TLUA"] else perp), \
-                    (("_s%u"%s) if self.readTileDimComponentsA else "") )
+          # vgpr assignments
+          if kernel["ProblemType"]["TLUA"]:
+            vgprTile   = self.vgprTileOffsetsA   + para*tVW + s*tVS
+            vgprUnroll = self.vgprUnrollOffsetsA + perp*uVW + s*uVS
+          else:
+            vgprTile   = self.vgprTileOffsetsA   + perp*tVW + s*tVS
+            vgprUnroll = self.vgprUnrollOffsetsA + para*uVW + s*uVS
+          # global offset macro
+          kStr += "GLOBAL_OFFSET_A( vgprGlobalReadAddrA+%u"%graIdxA
+          for i in kernel["ProblemType"]["IndexAssignmentsA"]:
+            if i < kernel["ProblemType"]["NumIndicesC"]:
+              if i == kernel["ProblemType"]["TileA"]:
+                kStr += ", %2u" % vgprTile
               else: # just a group index
-                kStr += "wg" + self.indexChars[index]
+                kStr += ", %s" % sgpr("WorkGroup+%u"%i)
             else: # summation index
-              if index == kernel["ProblemType"]["IndexUnroll"]:
-                kStr += "globalReadOffsetA%s_%u%s" \
-                    % (self.unrollChar, \
-                    (perp if kernel["ProblemType"]["TLUA"] else para), \
-                    (("_s%u"%s) if self.readUnrollDimComponentsA else "") )
+              if i == kernel["ProblemType"]["IndexUnroll"]:
+                kStr += ", %2u" % vgprUnroll
               else:
-                kStr += "globalReadOffsetA%s" % self.indexChars[index]
-            if i < len(kernel["ProblemType"]["IndexAssignmentsA"])-1:
-              kStr += ", "
-          kStr += " );%s" % self.endLine
-          """
-          kStr += "  printf(\\\"GRA T[%%02u] gROA_%u_%u%s = %%4u\\\\n\\\", serial, globalReadOffsetA_%u_%u%s);%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsA \
-              or self.readUnrollDimComponentsA) else ""), \
-              para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsA \
-              or self.readUnrollDimComponentsA) else ""), \
-              self.endLine )
-          """
+                kStr += "globalReadOffsetA%s" % self.indexChars[i]
+          kStr += ", %u ) // gROA_%u_%u%s%s" % (tmp, para, perp, \
+              "_%u"%s if self.numReadVectorComponentsA>1 else "", self.endLine)
+          graIdxA += self.rpga
+
+    self.vgprScratch.checkIn(self.vgprTileOffsetsA)
+    self.vgprScratch.checkIn(self.vgprUnrollOffsetsA)
+    self.vgprScratch.checkIn(tmp)
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Final Offsets B
+  # Global Read Addresses: Final Offsets B - DONE
   ##############################################################################
   def graFinalOffsetsB(self, kernel):
-    return ""
+    tVW = 1
+    tVS = 0
+    uVW = 1
+    uVS = 0
+    if self.readTileDimComponentsB:
+      tVW = kernel["VectorWidth"]
+      tVS = 1
+    elif self.readUnrollDimComponentsB:
+      uVW = kernel["VectorWidth"]
+      uVS = 1
+    tmp = self.vgprScratch.checkOut(2)
     kStr = ""
+    graIdxB = 0
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numReadVectorComponentsB):
-          kStr += "  %s globalReadOffsetB_%u_%u%s = GLOBAL_OFFSET_B( " \
-              % (self.uint64Str, para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsB \
-              or self.readUnrollDimComponentsB) else ""))
-          for i in range(0, len(kernel["ProblemType"]["IndexAssignmentsB"])):
-            index = kernel["ProblemType"]["IndexAssignmentsB"][i]
-            if index < kernel["ProblemType"]["NumIndicesC"]:
-              if index == kernel["ProblemType"]["TileB"]:
-                kStr += "globalReadOffsetB%s_%u%s" \
-                    % (self.tileCharB, \
-                    (para if kernel["ProblemType"]["TLUB"] else perp), \
-                    (("_s%u"%s) if self.readTileDimComponentsB else "") )
+          # vgpr assignments
+          if kernel["ProblemType"]["TLUB"]:
+            vgprTile   = self.vgprTileOffsetsB   + para*tVW + s*tVS
+            vgprUnroll = self.vgprUnrollOffsetsB + perp*uVW + s*uVS
+          else:
+            vgprTile   = self.vgprTileOffsetsB   + perp*tVW + s*tVS
+            vgprUnroll = self.vgprUnrollOffsetsB + para*uVW + s*uVS
+          # global offset macro
+          kStr += "GLOBAL_OFFSET_B( vgprGlobalReadAddrB+%u"%graIdxB
+          for i in kernel["ProblemType"]["IndexAssignmentsB"]:
+            if i < kernel["ProblemType"]["NumIndicesC"]:
+              if i == kernel["ProblemType"]["TileB"]:
+                kStr += ", %2u" % vgprTile
               else: # just a group index
-                kStr += "wg" + self.indexChars[index]
+                kStr += ", %s" % sgpr("WorkGroup+%u"%i)
             else: # summation index
-              if index == kernel["ProblemType"]["IndexUnroll"]:
-                kStr += "globalReadOffsetB%s_%u%s" \
-                    % (self.unrollChar, \
-                    (perp if kernel["ProblemType"]["TLUB"] else para), \
-                    (("_s%u"%s) if self.readUnrollDimComponentsB else "") )
+              if i == kernel["ProblemType"]["IndexUnroll"]:
+                kStr += ", %2u" % vgprUnroll
               else:
-                kStr += "globalReadOffsetB%s" % self.indexChars[index]
-            if i < len(kernel["ProblemType"]["IndexAssignmentsB"])-1:
-              kStr += ", "
-          kStr += " );%s" % self.endLine
-          """
-          kStr += "  printf(\\\"GRB T[%%02u] gROB_%u_%u%s = %%4u\\\\n\\\", serial, globalReadOffsetB_%u_%u%s);%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsB \
-              or self.readUnrollDimComponentsB) else ""), \
-              para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsB \
-              or self.readUnrollDimComponentsB) else ""), \
-              self.endLine )
-          """
+                kStr += "globalReadOffsetB%s" % self.indexChars[i]
+          kStr += ", %u ) // gROB_%u_%u%s%s" % (tmp, para, perp, \
+              "_%u"%s if self.numReadVectorComponentsB>1 else "", self.endLine)
+          graIdxB += self.rpga
+
+    self.vgprScratch.checkIn(self.vgprTileOffsetsB)
+    self.vgprScratch.checkIn(self.vgprUnrollOffsetsB)
+    self.vgprScratch.checkIn(tmp)
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Apply User Offsets
+  # Global Read Addresses: Apply User Offsets - DONE
   ##############################################################################
   def graApplyUserOffsets(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  C += offsetC;%s" % self.endLine
-    kStr += "  A += offsetA;%s" % self.endLine
-    kStr += "  B += offsetB;%s" % self.endLine
+    kStr += self.comment1("moved earlier")
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Addresses A
+  # Global Read Addresses: Addresses A - DONE
   ##############################################################################
   def graAddressesA(self, kernel):
-    return ""
     kStr = ""
+    graIdxA = 0
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
-        if self.readTileDimComponentsA or self.readUnrollDimComponentsA:
-          for s in range(0, self.numReadVectorComponentsA):
-            kStr += "  %sDATA_TYPE const *globalReadA_%u_%u%s = A + globalReadOffsetA_%u_%u%s;%s" \
-                % (self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else ""), \
-                para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else ""), \
-                self.endLine)
-        else:
-            kStr += "  %sVECTOR_TYPE const *globalReadA_%u_%u = (%sVECTOR_TYPE const *)(A + globalReadOffsetA_%u_%u);%s" \
-                % (self.globalPtrStr, para, perp, self.globalPtrStr, \
-                para, perp, self.endLine)
+        for s in range(0, self.numReadVectorComponentsA):
+
+          comment = "gRAA_%u_%u%s = addrA+grOA_%u_%u%s" % (para, perp, \
+              "_%u"%s if self.numReadVectorComponentsA>1 else "", para, perp, \
+              "_%u"%s if self.numReadVectorComponentsA>1 else "", )
+
+          kStr += inst("s_add_i32 ", \
+              vgpr("GlobalReadAddr+%u+0"%graIdxA), \
+              "vcc", \
+              vgpr("GlobalReadAddr+%u+0"%graIdxA),  \
+              sgpr("AddressA+0"), \
+              comment+" (lower)")
+          kStr += inst("s_addc_u32", \
+              vgpr("GlobalReadAddr+%u+1"%graIdxA), \
+              "vcc", \
+              vgpr("GlobalREadAddr+%u+1"%graIdxA), \
+              hex(0), \
+              "vcc", \
+              comment+" (upper)")
+        graIdxA += self.rpga
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Addresses B
+  # Global Read Addresses: Addresses B - DONE
   ##############################################################################
   def graAddressesB(self, kernel):
-    return ""
     kStr = ""
+    graIdxB = 0
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
-        if self.readTileDimComponentsB or self.readUnrollDimComponentsB:
-          for s in range(0, self.numReadVectorComponentsB):
-            kStr += "  %sDATA_TYPE const *globalReadB_%u_%u%s = B + globalReadOffsetB_%u_%u%s;%s" \
-                % (self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else ""), \
-                para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else ""), self.endLine)
-        else:
-            kStr += "  %sVECTOR_TYPE const *globalReadB_%u_%u = (%sVECTOR_TYPE const *)(B + globalReadOffsetB_%u_%u);%s" \
-                % (self.globalPtrStr, para, perp, self.globalPtrStr, \
-                para, perp, self.endLine)
+        for s in range(0, self.numReadVectorComponentsB):
+
+          comment = "gRAB_%u_%u%s = addrB+grOB_%u_%u%s" % (para, perp, \
+              "_%u"%s if self.numReadVectorComponentsB>1 else "", para, perp, \
+              "_%u"%s if self.numReadVectorComponentsB>1 else "", )
+
+          kStr += inst("s_add_i32 ", \
+              vgpr("GlobalReadAddr+%u+0"%graIdxB), \
+              "vcc", \
+              vgpr("GlobalReadAddr+%u+0"%graIdxB),  \
+              sgpr("AddressB+0"), \
+              comment+" (lower)")
+          kStr += inst("s_addc_u32", \
+              vgpr("GlobalReadAddr+%u+1"%graIdxB), \
+              "vcc", \
+              vgpr("GlobalREadAddr+%u+1"%graIdxB), \
+              hex(0), \
+              "vcc", \
+              comment+" (upper)")
+        graIdxB += self.rpga
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Increments A
+  # Global Read Addresses: Increments A - TODO
   ##############################################################################
   def graIncrementsA(self, kernel, loopIdx):
     return ""
@@ -1700,7 +1599,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Increments B
+  # Global Read Addresses: Increments B - TODO
   ##############################################################################
   def graIncrementsB(self, kernel, loopIdx):
     return ""
@@ -1722,7 +1621,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment A
+  # Local Write Addresses: Tile Assignment A - TODO
   ##############################################################################
   def lwaTileAssignmentA(self, kernel):
     return ""
@@ -1741,7 +1640,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment B
+  # Local Write Addresses: Tile Assignment B - TODO
   ##############################################################################
   def lwaTileAssignmentB(self, kernel):
     return ""
@@ -1760,7 +1659,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Unroll Assignment A
+  # Local Write Addresses: Unroll Assignment A - TODO
   ##############################################################################
   def lwaUnrollAssignmentA(self, kernel):
     return ""
@@ -1779,7 +1678,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Unroll Assignment B
+  # Local Write Addresses: Unroll Assignment B - TODO
   ##############################################################################
   def lwaUnrollAssignmentB(self, kernel):
     return ""
@@ -1798,7 +1697,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: First Offset A
+  # Local Write Addresses: First Offset A - TODO
   ##############################################################################
   def lwaFirstOffsetA(self, kernel):
     return ""
@@ -1808,7 +1707,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: First Offset B
+  # Local Write Addresses: First Offset B - TODO
   ##############################################################################
   def lwaFirstOffsetB(self, kernel):
     return ""
@@ -1818,7 +1717,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Final Offsets A
+  # Local Write Addresses: Final Offsets A - TODO
   ##############################################################################
   def lwaFinalOffsetsA(self, kernel):
     return ""
@@ -1853,7 +1752,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Final Offsets B
+  # Local Write Addresses: Final Offsets B - TODO
   ##############################################################################
   def lwaFinalOffsetsB(self, kernel):
     return ""
@@ -1888,7 +1787,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Declare Addresses A
+  # Local Write Addresses: Declare Addresses A - TODO
   ##############################################################################
   def lwaDeclareAddressesA(self, kernel):
     return ""
@@ -1906,7 +1805,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Declare Addresses B
+  # Local Write Addresses: Declare Addresses B - TODO
   ##############################################################################
   def lwaDeclareAddressesB(self, kernel):
     return ""
@@ -1924,7 +1823,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment A
+  # Local Read Addresses: Tile Assignment A - TODO
   ##############################################################################
   def lraTileAssignmentA(self, kernel):
     return ""
@@ -1934,7 +1833,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment B
+  # Local Read Addresses: Tile Assignment B - TODO
   ##############################################################################
   def lraTileAssignmentB(self, kernel):
     return ""
@@ -1944,7 +1843,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Final Offset A
+  # Local Read Addresses: Final Offset A - TODO
   ##############################################################################
   def lraFinalOffsetA(self, kernel):
     return ""
@@ -1954,7 +1853,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Final Offset B
+  # Local Read Addresses: Final Offset B - TODO
   ##############################################################################
   def lraFinalOffsetB(self, kernel):
     return ""
@@ -1964,7 +1863,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Declare Addresses A
+  # Local Read Addresses: Declare Addresses A - TODO
   ##############################################################################
   def lraDeclareAddressesA(self, kernel):
     return ""
@@ -1973,7 +1872,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Declare Addresses B
+  # Local Read Addresses: Declare Addresses B - TODO
   ##############################################################################
   def lraDeclareAddressesB(self, kernel):
     return ""
@@ -1982,24 +1881,25 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Declare Loop Num Iterations
+  # Declare Loop Num Iterations - TODO
   ##############################################################################
-  def declareLoopNumIterators(self, kernel):
+  def declareLoopNumIter(self, kernel):
     kStr = ""
     for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
       loopChar = self.indexChars[loopIdx]
-      kStr += "%sunsigned int sumIter%s;%s" \
+      kStr += "%sunsigned int numIter%s;%s" \
           % (self.indent, loopChar, self.endLine)
     return kStr
 
+
   ##############################################################################
-  # Calculate Loop Num Iter
+  # Calculate Loop Num Iter - TODO
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx):
     return ""
 
   ##############################################################################
-  # Open Loop
+  # Open Loop - TODO
   ##############################################################################
   def openLoop(self, kernel, loopIdx):
     return ""
@@ -2028,7 +1928,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Close Loop
+  # Close Loop - TODO
   ##############################################################################
   def closeLoop(self, kernel, loopIdx):
     return ""
@@ -2045,7 +1945,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # MAC Iteration
+  # MAC Iteration - TODO
   ##############################################################################
   def macIter(self, kernel, black):
     return ""
@@ -2058,7 +1958,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # At Least 1 Unroll
+  # At Least 1 Unroll - TODO
   ##############################################################################
   def openSumAtLeastUnroll(self, kernel):
     return ""
@@ -2075,7 +1975,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Tail Loop: Num Iter
+  # Tail Loop: Num Iter - TODO
   ##############################################################################
   def tailLoopNumIter(self, kernel):
     return ""
@@ -2085,7 +1985,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Increment A
+  # Global Read: Increment A - TODO
   ##############################################################################
   def globalReadIncrementA(self, kernel, loopIdx):
     return ""
@@ -2115,7 +2015,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Increment B
+  # Global Read: Increment B - TODO
   ##############################################################################
   def globalReadIncrementB(self, kernel, loopIdx):
     return ""
@@ -2145,7 +2045,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Do It A
+  # Global Read: Do It A - TODO
   ##############################################################################
   def globalReadDoA(self, kernel, guardK):
     return ""
@@ -2179,7 +2079,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Gead: Do It B
+  # Global Gead: Do It B - TODO
   ##############################################################################
   def globalReadDoB(self, kernel, guardK):
     return ""
@@ -2216,7 +2116,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write: Swap Offsets A
+  # Local Write: Swap Offsets A - TODO
   ##############################################################################
   def localWriteSwapOffsetsA(self, kernel):
     return ""
@@ -2245,7 +2145,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write: Swap Offsets B
+  # Local Write: Swap Offsets B - TODO
   ##############################################################################
   def localWriteSwapOffsetsB(self, kernel):
     return ""
@@ -2274,7 +2174,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write: Reset Offsets A
+  # Local Write: Reset Offsets A - TODO
   ##############################################################################
   def localWriteResetOffsetsA(self, kernel):
     return ""
@@ -2289,7 +2189,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write: Reset Offsets B
+  # Local Write: Reset Offsets B - TODO
   ##############################################################################
   def localWriteResetOffsetsB(self, kernel):
     return ""
@@ -2306,7 +2206,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Local Write: Init Pointers A
+  # Local Write: Init Pointers A - TODO
   ##############################################################################
   def localWriteInitPointersA(self, kernel):
     return ""
@@ -2327,7 +2227,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write: Init Pointers B
+  # Local Write: Init Pointers B - TODO
   ##############################################################################
   def localWriteInitPointersB(self, kernel):
     return ""
@@ -2350,7 +2250,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Local Write: Do It A
+  # Local Write: Do It A - TODO
   ##############################################################################
   def localWriteDoA(self, kernel):
     return ""
@@ -2375,7 +2275,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write: Do It B
+  # Local Write: Do It B - TODO
   ##############################################################################
   def localWriteDoB(self, kernel):
     return ""
@@ -2400,7 +2300,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Swap Offsets A
+  # Local Read: Swap Offsets A - TODO
   ##############################################################################
   def localReadSwapOffsetsA(self, kernel):
     return ""
@@ -2410,7 +2310,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Wwap Offsets B
+  # Local Read: Wwap Offsets B - TODO
   ##############################################################################
   def localReadSwapOffsetsB(self, kernel):
     return ""
@@ -2420,7 +2320,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Reset Offsets A
+  # Local Read: Reset Offsets A - TODO
   ##############################################################################
   def localReadResetOffsetsA(self, kernel):
     return ""
@@ -2430,7 +2330,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Reset Offsets B
+  # Local Read: Reset Offsets B - TODO
   ##############################################################################
   def localReadResetOffsetsB(self, kernel):
     return ""
@@ -2440,7 +2340,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Init Pointers A
+  # Local Read: Init Pointers A - TODO
   ##############################################################################
   def localReadInitPointersA(self, kernel):
     return ""
@@ -2450,7 +2350,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Init Pointers B
+  # Local Read: Init Pointers B - TODO
   ##############################################################################
   def localReadInitPointersB(self, kernel):
     return ""
@@ -2460,7 +2360,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Increment A
+  # Local Read: Increment A - TODO
   ##############################################################################
   def localReadIncA(self, kernel):
     return ""
@@ -2470,7 +2370,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Increment B
+  # Local Read: Increment B - TODO
   ##############################################################################
   def localReadIncB(self, kernel):
     return ""
@@ -2480,7 +2380,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Do It A
+  # Local Read: Do It A - TODO
   ##############################################################################
   def localReadDoA(self, kernel, black):
     return ""
@@ -2493,7 +2393,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Do It B
+  # Local Read: Do It B - TODO
   ##############################################################################
   def localReadDoB(self, kernel, black):
     return ""
@@ -2506,7 +2406,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Shift Vector Components d0
+  # Shift Vector Components d0 - TODO
   ##############################################################################
   def shiftVectorComponents0(self, kernel):
     return ""
@@ -2537,7 +2437,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Shift Vectors Components d1
+  # Shift Vectors Components d1 - TODO
   ##############################################################################
   def shiftVectorComponents1(self, kernel):
     return ""
@@ -2569,7 +2469,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Complex Declare Tmp Registers
+  # Complex Declare Tmp Registers - TODO
   ##############################################################################
   def complexDeclareTmpRegisters(self, kernel):
     return ""
@@ -2582,7 +2482,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # LocalSplitU: Local Write
+  # LocalSplitU: Local Write - TODO
   ##############################################################################
   def localSplitULocalWrite(self, kernel):
     kStr = ""
@@ -2607,7 +2507,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # LocalSplitU: Local Read
+  # LocalSplitU: Local Read - TODO
   ##############################################################################
   def localSplitULocalRead(self, kernel):
     kStr = ""
@@ -2618,7 +2518,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # LocalSplitU: Reduction
+  # LocalSplitU: Reduction - TODO
   ##############################################################################
   def localSplitUReduction(self, kernel):
     kStr = ""
@@ -2630,7 +2530,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # LocalSplitU: Global Write Indices
+  # LocalSplitU: Global Write Indices - TODO
   ##############################################################################
   def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
@@ -2651,7 +2551,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # LocalSplitU: Global Write
+  # LocalSplitU: Global Write - TODO
   ##############################################################################
   def localSplitUGlobalWrite(self, kernel):
     kStr = ""
@@ -2695,7 +2595,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Not LocalSplitU: Global Write Indices
+  # Not LocalSplitU: Global Write Indices - TODO
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
@@ -2712,55 +2612,10 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Not LocalSplitU: Global Write
+  # Not LocalSplitU: Global Write - TODO
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     kStr = ""
-    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-        for s1 in range(0, kernel["VectorWidth"]):
-          for s0 in range(0, kernel["VectorWidth"]):
-            if kernel["EdgeType"] == "Branch":
-              kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (self.tileChar0, a, self.tileChar0, self.tileChar0)
-              kStr += "  if (globalC%s + (VECTOR_WIDTH-1) + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (self.tileChar1, b, self.tileChar1, self.tileChar1)
-            elif kernel["EdgeType"] == "ShiftPtr":
-              kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (self.tileChar0, \
-                  ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
-                  a, self.tileChar0, self.tileChar0)
-              kStr += "  if (globalC%s%s + %u*SG%s*VECTOR_WIDTH < size%s) {" \
-                  % (self.tileChar1, \
-                  ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
-                  b, self.tileChar1, self.tileChar1)
-
-            kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
-            for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-              kStr += " globalC%s" % self.indexChars[i]
-              if i == kernel["ProblemType"]["Index0"]:
-                kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                    ((" + %u"%s0) if kernel["VectorWidth"]>1 else ""), \
-                    a, self.tileChar0)
-              if i == kernel["ProblemType"]["Index1"]:
-                kStr += "%s + %u*SG%s*VECTOR_WIDTH" % (\
-                    ((" + %u"%s1) if kernel["VectorWidth"]>1 else ""), \
-                    b, self.tileChar1)
-              if i < kernel["ProblemType"]["NumIndicesC"]-1:
-                kStr += ", (%s)" % self.uint64Str
-            kStr += ") ]"
-            kStr += ", alpha"
-            kStr += ", rC[%d+%d*(TT%s/VECTOR_WIDTH)+%d*TT%s]%s" \
-                % (a, s1, self.tileChar0, b, self.tileChar0, \
-                ((".%s"%self.vectorComponents[s0]) if kernel["VectorWidth"]>1\
-                else "") )
-            if kernel["ProblemType"]["UseBeta"]:
-              kStr += ", beta"
-            kStr += ")"
-
-            if kernel["EdgeType"] != "None":
-              kStr += " } }"
-            kStr += self.endLine
     return kStr
 
   ##############################################################################
@@ -2861,6 +2716,25 @@ class KernelWriterAssembly(KernelWriter):
   def closeString(self, kernel):
     return ""
 
+  ##############################################################################
+  #
+  #   Beta-Only Kernel
+  #
+  ##############################################################################
+
+  ##############################################################################
+  # Function Signature - TODO
+  ##############################################################################
+  def functionSignatureBetaOnly(self, kernel):
+    kStr = ""
+    return kStr
+
+  ##############################################################################
+  # Kernel Body Beta-Only - TODO
+  ##############################################################################
+  def kernelBodyBetaOnly(self, kernel):
+    kStr = ""
+    return kStr
 
 
 ################################################################################
@@ -2868,7 +2742,7 @@ class KernelWriterAssembly(KernelWriter):
 ################################################################################
 
 ########################################
-# Format Instruction
+# Format Instruction - DONE
 ########################################
 def inst(*args):
   params = args[0:len(args)-1]
@@ -2883,7 +2757,7 @@ def inst(*args):
   return line
 
 ########################################
-# Format GPRs
+# Format GPRs - DONE
 ########################################
 def gpr(*args):
   gprType = args[0]
@@ -2911,7 +2785,7 @@ def sgpr(*args):
   return gpr("s", args)
 
 ########################################
-# Log 2
+# Log 2 - DONE
 ########################################
 def log2(x):
   return int(log(x, 2) + 0.5)
@@ -2941,59 +2815,58 @@ def divideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
   return kStr
   """
 # mod 3 v0 -> v0
-s_mov_b32	s1 0xaaaaaaab
-v_mul_hi_u32	v2 v0 s1
-v_mul_lo_u32	v1 v0 s1
-v_lshrrev_b64	v[1:2] 33 v[1:2]
-v_mul_lo_u32	v1 v1 3
-v_sub_u32	v0 vcc v0 v1
+s_mov_b32  s1 0xaaaaaaab
+v_mul_hi_u32  v2 v0 s1
+v_mul_lo_u32  v1 v0 s1
+v_lshrrev_b64  v[1:2] 33 v[1:2]
+v_mul_lo_u32  v1 v1 3
+v_sub_u32  v0 vcc v0 v1
 # mod 6
-s_mov_b32	s1 0xaaaaaaab
-v_mul_hi_u32	v2 v0 s1
-v_mul_lo_u32	v1 v0 s1
-v_lshrrev_b64	v[1:2] 34 v[1:2]
-v_mul_lo_u32	v1 v1 6
-v_sub_u32	v0 vcc v0 v1
+s_mov_b32  s1 0xaaaaaaab
+v_mul_hi_u32  v2 v0 s1
+v_mul_lo_u32  v1 v0 s1
+v_lshrrev_b64  v[1:2] 34 v[1:2]
+v_mul_lo_u32  v1 v1 6
+v_sub_u32  v0 vcc v0 v1
 # mod 12
-s_mov_b32	s1 0xaaaaaaab
-v_mul_hi_u32	v2 v0 s1
-v_mul_lo_u32	v1 v0 s1
-v_lshrrev_b64	v[1:2] 35 v[1:2]
-v_mul_lo_u32	v1 v1 12
-v_sub_u32	v0 vcc v0 v1
+s_mov_b32  s1 0xaaaaaaab
+v_mul_hi_u32  v2 v0 s1
+v_mul_lo_u32  v1 v0 s1
+v_lshrrev_b64  v[1:2] 35 v[1:2]
+v_mul_lo_u32  v1 v1 12
+v_sub_u32  v0 vcc v0 v1
 # mod 2
-V_AND_B32	v0 1 v0
+V_AND_B32  v0 1 v0
 # mod 4
-V_AND_B32	v0 3 v0
+V_AND_B32  v0 3 v0
 # mod 8
-V_AND_B32	v0 7 v0
+V_AND_B32  v0 7 v0
 # mod 16
-V_AND_B32	v0 15 v0
+V_AND_B32  v0 15 v0
 
     else:
       kStr += "/"
 # div 2
-V_LSHLREV_B32	v0 1 v0
+V_LSHLREV_B32  v0 1 v0
 # div 2
-V_LSHLREV_B32	v0 2 v0
+V_LSHLREV_B32  v0 2 v0
 # div 8
-V_LSHLREV_B32	v0 3 v0
+V_LSHLREV_B32  v0 3 v0
 # div 16
-V_LSHLREV_B32	v0 4 v0
+V_LSHLREV_B32  v0 4 v0
 # div 3
-s_mov_b32	s0 0xaaaaaaab
-v_mul_hi_u32	v3 v0 s0
-v_mul_lo_u32	v2 v0 s0
-v_lshrrev_b64	v[2:3] 33 v[2:3]
+s_mov_b32  s0 0xaaaaaaab
+v_mul_hi_u32  v3 v0 s0
+v_mul_lo_u32  v2 v0 s0
+v_lshrrev_b64  v[2:3] 33 v[2:3]
 # div 6
-s_mov_b32	s0 0xaaaaaaab
-v_mul_hi_u32	v3 v0 s0
-v_mul_lo_u32	v2 v0 s0
-v_lshrrev_b64	v[2:3] 34 v[2:3]
+s_mov_b32  s0 0xaaaaaaab
+v_mul_hi_u32  v3 v0 s0
+v_mul_lo_u32  v2 v0 s0
+v_lshrrev_b64  v[2:3] 34 v[2:3]
 # div 12
-s_mov_b32	s0 0xaaaaaaab
-v_mul_hi_u32	v3 v0 s0
-v_mul_lo_u32	v2 v0 s0
-v_lshrrev_b64	v[2:3] 35 v[2:3]
+s_mov_b32  s0 0xaaaaaaab
+v_mul_hi_u32  v3 v0 s0
+v_mul_lo_u32  v2 v0 s0
+v_lshrrev_b64  v[2:3] 35 v[2:3]
   """
-
