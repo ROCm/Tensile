@@ -2109,18 +2109,31 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Do It A - TODO
+  # Global Read: Do It A - DONE
   ##############################################################################
   def globalReadDoA(self, kernel, guardK):
-    return ""
     kStr = ""
-    return kStr
+    graIdxA = 0
+    g2lIdxA = 0
+    loadWidth = self.globalReadInstructionA.totalWidth
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
-          kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsA\
-              or self.readUnrollDimComponentsA) else "") )
+          kStr += self.globalReadInstructionA.toString( \
+              (vgpr("G2LA+%u:G2LA+%u"%(g2lIdxA, g2lIdxA+loadWidth-1)), \
+              vgpr("GlobalReadAddrA+%u+0:GlobalReadAddrA+%u+1" \
+              % (graIdxA,graIdxA))), \
+              "G -> Reg %u_%u%s"%(para, perp, \
+              "_%u"%s if self.numReadVectorComponentsA>1 else "") )
+          graIdxA += self.rpga
+          g2lIdxA += loadWidth
+    return kStr
+    # SKIP branches
+    """
+          #kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
+          #    ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsA\
+          #    or self.readUnrollDimComponentsA) else "") )
+          # SKIP branches and tail loop guarded loads
           # guard around K
           if guardK:
             kStr += "( globalReadOffsetA%s_%u%s >= (size%s %% DEPTHU) )" \
@@ -2137,46 +2150,31 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % \
                kernel["ProblemType"]["DataType"].zeroString(self.language, kernel["VectorWidth"])
-          kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsA \
-              or self.readUnrollDimComponentsA) else ""), self.endLine)
-    return kStr
+          #kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
+          #    (("_s%u"%s) if (self.readTileDimComponentsA \
+          #    or self.readUnrollDimComponentsA) else ""), self.endLine)
+    """
 
   ##############################################################################
-  # Global Gead: Do It B - TODO
+  # Global Gead: Do It B - DONE
   ##############################################################################
   def globalReadDoB(self, kernel, guardK):
-    return ""
     kStr = ""
-    return kStr
-    # global read B
+    graIdxB = 0
+    g2lIdxB = 0
+    loadWidth = self.globalReadInstructionB.totalWidth
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numReadVectorComponentsB):
-          kStr += "%sb_%u_%u%s = " % (self.indent, para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (self.readTileDimComponentsB\
-              or self.readUnrollDimComponentsB) \
-              else "") )
-          # guard around k
-          if guardK:
-            kStr += "( globalReadOffsetB%s_%u%s >= (size%s %% DEPTHU) )" \
-                % (self.unrollChar, \
-                (perp if kernel["ProblemType"]["TLUB"] else para), \
-                (("_s%u"%s) if self.readUnrollDimComponentsB else ""), \
-                self.unrollChar)
-          # guard around edge
-          if kernel["EdgeType"] == "Branch":
-            if guardK:
-              kStr += " || "
-            kStr += "( !inBoundsB_%u )" % ( \
-                (para if kernel["ProblemType"]["TLUB"] else perp) )
-          if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? %s : " % \
-                kernel["ProblemType"]["DataType"].zeroString(self.language, kernel["VectorWidth"])
-          kStr += "*globalReadB_%u_%u%s;%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.readTileDimComponentsB \
-              or self.readUnrollDimComponentsB) else ""), self.endLine)
+          kStr += self.globalReadInstructionB.toString( \
+              (vgpr("G2LB+%u:G2LB+%u"%(g2lIdxB, g2lIdxB+loadWidth-1)), \
+              vgpr("GlobalReadAddrB+%u+0:GlobalReadAddrB+%u+1" \
+              % (graIdxB,graIdxB))), \
+              "G -> Reg %u_%u%s"%(para, perp, \
+              "_%u"%s if self.numReadVectorComponentsB>1 else "") )
+          graIdxB += self.rpga
+          g2lIdxB += loadWidth
+    # SKIP branches
     return kStr
 
   ##############################################################################
