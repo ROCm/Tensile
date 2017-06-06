@@ -1542,15 +1542,15 @@ class KernelWriterAssembly(KernelWriter):
               "_%u"%s if self.numReadVectorComponentsA>1 else "", )
 
           kStr += inst("s_add_i32 ", \
-              vgpr("GlobalReadAddr+%u+0"%graIdxA), \
+              vgpr("GlobalReadAddrA+%u+0"%graIdxA), \
               "vcc", \
-              vgpr("GlobalReadAddr+%u+0"%graIdxA),  \
+              vgpr("GlobalReadAddrA+%u+0"%graIdxA),  \
               sgpr("AddressA+0"), \
               comment+" (lower)")
           kStr += inst("s_addc_u32", \
-              vgpr("GlobalReadAddr+%u+1"%graIdxA), \
+              vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
               "vcc", \
-              vgpr("GlobalREadAddr+%u+1"%graIdxA), \
+              vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
               hex(0), \
               "vcc", \
               comment+" (upper)")
@@ -1572,15 +1572,15 @@ class KernelWriterAssembly(KernelWriter):
               "_%u"%s if self.numReadVectorComponentsB>1 else "", )
 
           kStr += inst("s_add_i32 ", \
-              vgpr("GlobalReadAddr+%u+0"%graIdxB), \
+              vgpr("GlobalReadAddrB+%u+0"%graIdxB), \
               "vcc", \
-              vgpr("GlobalReadAddr+%u+0"%graIdxB),  \
+              vgpr("GlobalReadAddrB+%u+0"%graIdxB),  \
               sgpr("AddressB+0"), \
               comment+" (lower)")
           kStr += inst("s_addc_u32", \
-              vgpr("GlobalReadAddr+%u+1"%graIdxB), \
+              vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
               "vcc", \
-              vgpr("GlobalREadAddr+%u+1"%graIdxB), \
+              vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
               hex(0), \
               "vcc", \
               comment+" (upper)")
@@ -2027,20 +2027,18 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # MAC Iteration - TODO
+  # MAC Iteration - DONE
   ##############################################################################
   def macIter(self, kernel, black):
-    return ""
     kStr = ""
-    kStr += "%sMAC_%ux%u" % (self.indent, \
-        kernel["ThreadTile0"],kernel["ThreadTile1"])
+    kStr += "MAC_%ux%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"])
     if black:
       kStr += "_BLK"
     kStr += self.endLine
     return kStr
 
   ##############################################################################
-  # At Least 1 Unroll - TODO
+  # At Least 1 Unroll - SKIP
   ##############################################################################
   def openSumAtLeastUnroll(self, kernel):
     return ""
@@ -2057,63 +2055,57 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Increment A - TODO
+  # Global Read: Increment A - DONE
   ##############################################################################
   def globalReadIncrementA(self, kernel, loopIdx):
-    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    graIdxA = 0
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
-          if self.readTileDimVectorA or self.readUnrollDimVectorA:
-            kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadA_%u_%u%s) + globalReadIncA%s);%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else ""), \
-                self.globalPtrStr, self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else ""), \
-                loopChar, self.endLine)
-          else:
-            kStr += "%sglobalReadA_%u_%u%s += globalReadIncA%s%s;%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else ""), \
-                loopChar, "" if (self.readTileDimComponentsA \
-                or self.readUnrollDimComponentsA) else "/VECTOR_WIDTH", \
-                self.endLine)
+          kStr += inst("s_add_i32 ", \
+              vgpr("GlobalReadAddrA+%u+0"%graIdxA), \
+              "vcc", \
+              vgpr("GlobalReadAddrA+%u+0"%graIdxA),  \
+              sgpr("GlobalReadIncsA+%u+0"%graIdxA), \
+              "gra += incA%s (lower)"%loopChar)
+          kStr += inst("s_addc_u32", \
+              vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
+              "vcc", \
+              vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
+              sgpr("GlobalReadIncsA+%u+1"%graIdxA), \
+              "vcc", \
+              "gra += incA%s (upper)"%loopChar)
+          graIdxA += self.rpga
     return kStr
 
   ##############################################################################
-  # Global Read: Increment B - TODO
+  # Global Read: Increment B - DONE
   ##############################################################################
   def globalReadIncrementB(self, kernel, loopIdx):
-    return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    graIdxB = 0
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numReadVectorComponentsB):
-          if self.readTileDimVectorB or self.readUnrollDimVectorB:
-            kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + globalReadIncB%s);%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else ""), \
-                self.globalPtrStr, self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else ""), \
-                loopChar, self.endLine )
-          else:
-            kStr += "%sglobalReadB_%u_%u%s += globalReadIncB%s%s;%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else ""), \
-                loopChar, "" if (self.readTileDimComponentsB \
-                or self.readUnrollDimComponentsB) else "/VECTOR_WIDTH", \
-                self.endLine)
+          kStr += inst("s_add_i32 ", \
+              vgpr("GlobalReadAddrB+%u+0"%graIdxB), \
+              "vcc", \
+              vgpr("GlobalReadAddrB+%u+0"%graIdxB),  \
+              sgpr("GlobalReadIncsB+%u+0"%graIdxB), \
+              "gra += incB%s (lower)"%loopChar)
+          kStr += inst("s_addc_u32", \
+              vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
+              "vcc", \
+              vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
+              sgpr("GlobalReadIncsB+%u+1"%graIdxB), \
+              "vcc", \
+              "gra += incB%s (upper)"%loopChar)
+          graIdxB += self.rpga
     return kStr
 
   ##############################################################################
