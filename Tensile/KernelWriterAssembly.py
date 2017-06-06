@@ -99,6 +99,7 @@ class ScratchRegisters:
 
 
 
+
 ################################################################################
 # Assembly Kernel
 ################################################################################
@@ -190,7 +191,15 @@ class KernelWriterAssembly(KernelWriter):
     self.commentSuffix = "*/"
     self.commentHR = "*"*40
     self.indent = ""
+    self.labels = {}
 
+
+  ########################################
+  # Get Label
+  def getLabel(self, name):
+    if name not in self.labels:
+      self.labels[name] = len(self.labels)
+    return self.labels[name]
 
   ##############################################################################
   # Find Memory Instruction For Width and Stride
@@ -1823,105 +1832,198 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Final Offset A - TODO
+  # Local Read Addresses: Final Offset A - DONE
   ##############################################################################
   def lraFinalOffsetA(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD);%s" \
-        % ( self.tileChar0, self.tileChar0, self.endLine)
+    divisor = kernel["NumThreads"]
+    qReg = self.vgprScratch.checkOut(1) # quotient
+    rReg = self.vgprScratch.checkOut(1) # remainder
+    dividendReg = 0
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    tmpSgpr = self.startSgprOffsetC
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+    sgid = qReg
+    kStr += inst("v_mul_lo_u32", \
+        sgid, \
+        hex(kernel["MacroTile0"]), \
+        sgid, \
+        "sgid*sgid*MT0" )
+    if kernel["VectorWidth"] > 1:
+      kStr += inst("v_lshlrev_32", \
+          vgpr(self.lroA), \
+          log2(kernel["VectorWidth"]), \
+          vgpr(self.lroA), \
+          "lroA *= VW" )
+    kStr += inst("v_add_u32", \
+        vgpr(self.lroA), \
+        sgid, \
+        "vcc", \
+        vgpr(self.lroA), \
+        "o = lroA*VW+sgid*MT0" )
+    self.vgprScratch.checkIn(tmpVgpr)
+    self.vgprScratch.checkIn(qReg)
+    self.vgprScratch.checkIn(rReg)
+
+    #kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*MT%s;%s" \
+    #    % ( self.tileChar0, self.tileChar0, self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Final Offset B - TODO
+  # Local Read Addresses: Final Offset B - DONE
   ##############################################################################
   def lraFinalOffsetB(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
-        % (self.tileChar1, self.tileChar1, self.endLine)
+    divisor = kernel["NumThreads"]
+    qReg = self.vgprScratch.checkOut(1) # quotient
+    rReg = self.vgprScratch.checkOut(1) # remainder
+    dividendReg = 0
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    tmpSgpr = self.startSgprOffsetC
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+    sgid = qReg
+    kStr += inst("v_mul_lo_u32", \
+        sgid, \
+        hex(kernel["MacroTile1"]), \
+        sgid, \
+        "sgid*sgid*MT1" )
+    if kernel["VectorWidth"] > 1:
+      kStr += inst("v_lshlrev_32", \
+          vgpr(self.lroB), \
+          log2(kernel["VectorWidth"]), \
+          vgpr(self.lroB), \
+          "lroB *= VW" )
+    kStr += inst("v_add_u32", \
+        vgpr(self.lroB), \
+        sgid, \
+        "vcc", \
+        vgpr(self.lroB), \
+        "o = lroB*VW+sgid*MT1" )
+    self.vgprScratch.checkIn(tmpVgpr)
+    self.vgprScratch.checkIn(qReg)
+    self.vgprScratch.checkIn(rReg)
+    #kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
+    #    % (self.tileChar1, self.tileChar1, self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Declare Addresses A - TODO
+  # Local Read Addresses: Declare Addresses A - DONE
   ##############################################################################
   def lraDeclareAddressesA(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  %sVECTOR_TYPE *localReadA;%s" % (self.sharedPtrStr, self.endLine)
-    return kStr
+    return self.comment1("N/A")
 
   ##############################################################################
-  # Local Read Addresses: Declare Addresses B - TODO
+  # Local Read Addresses: Declare Addresses B - DONE
   ##############################################################################
   def lraDeclareAddressesB(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "  %sVECTOR_TYPE *localReadB;%s" % (self.sharedPtrStr, self.endLine)
-    return kStr
+    return self.comment1("N/A")
 
   ##############################################################################
-  # Declare Loop Num Iterations - TODO
+  # Declare Loop Num Iterations - DONE
   ##############################################################################
   def declareLoopNumIter(self, kernel):
-    kStr = ""
-    for loopIdx in kernel["ProblemType"]["IndicesSummation"]:
-      loopChar = self.indexChars[loopIdx]
-      kStr += "%sunsigned int numIter%s;%s" \
-          % (self.indent, loopChar, self.endLine)
-    return kStr
+    return self.comment1("N/A")
 
 
   ##############################################################################
-  # Calculate Loop Num Iter - TODO
+  # Calculate Loop Num Iter - DONE
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx):
-    return ""
-
-  ##############################################################################
-  # Open Loop - TODO
-  ##############################################################################
-  def openLoop(self, kernel, loopIdx):
-    return ""
+    kStr = ""
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
-
-    kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if tailLoop:
-      kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
+      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
+      if kernel["GlobalSplitU"] > 1:
+        # SKIP
+        printExit("Asm GSU>1 not yet supported")
+        kStr += "%sif (gsuSumIdx != numIterPerWgRemainder) {%s" \
+            % (self.indent, self.endLine)
+        kStr += "%s  numIter%s = 0;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+        kStr += "%s}%s" % (self.indent, self.endLine)
     else:
-      kStr += "%ssumIter%s = size%s%s;%s" \
-          % (self.indent, loopChar, loopChar, \
-          (" / DEPTHU" if loopIdx == self.unrollIdx else ""), self.endLine)
-    if kernel["LoopDoWhile"]:
-      kStr += "%sdo {%s" % (self.indent, self.endLine)
-    else:
-      kStr += "%swhile (sumIter%s-- > %u) {%s" \
-          % (self.indent, loopChar, \
-          (1 if (kernel["PrefetchGlobalRead"] and loopIdx == self.unrollIdx \
-          and not tailLoop) else 0), self.endLine)
-    self.indent += "  "
+      if loopIdx == self.unrollIdx:
+        kStr += inst("s_lshrrev_b32", \
+            sgpr("LoopCounters+%u"%loopIdx), \
+            log2(kernel["DepthU"]), \
+            sgpr("SizesSum+%u"%loopIdx), \
+            "numIter%s = size%s / DU"%(loopChar, loopChar) )
+        kStr += inst("s_sub_u32", \
+            sgpr("LoopCounters+%u"%loopIdx), \
+            hex(0), \
+            sgpr("LoopCounters+%u"%loopIdx), \
+            "counter%s = -size%s"%(loopChar, loopChar) )
+      else:
+        # SKIP
+        printExit("Asm GSU>1 not yet supported")
+        kStr += "%snumIter%s = size%s;" \
+            % (self.indent, loopChar, loopChar)
+
+      if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
+        # SKIP
+        printExit("Asm GSU>1 not yet supported")
+        kStr += "%sunsigned int numIterMyWg = numIter%s / GLOBAL_SPLITU;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+        kStr += "%sunsigned int numIterPerWgRemainder = numIter%s %% GLOBAL_SPLITU;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
+        kStr += "%sif (gsuSumIdx < numIterPerWgRemainder) {%s" \
+            % (self.indent, self.endLine)
+        kStr += "%s  numIterMyWg++;%s" % (self.indent, self.endLine)
+        kStr += "%s}%s" % (self.indent, self.endLine)
+        kStr += "%snumIter%s = numIterMyWg;%s" \
+            % (self.indent, self.unrollChar, self.endLine)
     return kStr
 
   ##############################################################################
-  # Close Loop - TODO
+  # Open Loop - DONE
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx):
-    return ""
+  def openLoop(self, kernel, loopIdx):
     kStr = ""
+    tailLoop = loopIdx < 0
+    if tailLoop:
+      loopIdx = self.unrollIdx
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    self.indent = self.indent[2:]
-    if kernel["LoopDoWhile"]:
-      kStr += "%s} while (--sumIter%s > %u);%s" \
-          % (self.indent, loopChar, \
-          (1 if kernel["PrefetchGlobalRead"] else 0), self.endLine )
-    else:
-      kStr += "%s}%s" % (self.indent, self.endLine)
+    loopLabelBegin = self.getLabel("LoopBegin%s"%loopChar)
+    loopLabelEnd = self.getLabel("LoopEnd%s"%loopChar)
+    kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
+    return kStr
+
+
+  ##############################################################################
+  # Close Loop - DONE
+  ##############################################################################
+  def closeLoop(self, kernel, loopIdx):
+    kStr = ""
+    tailLoop = loopIdx < 0
+    if tailLoop:
+      loopIdx = self.unrollIdx
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    loopLabelBegin = self.getLabel("LoopBegin%s"%loopChar)
+    loopLabelEnd = self.getLabel("LoopEnd%s"%loopChar)
+
+    kStr += inst("s_add_u32", \
+        sgpr("LoopCounters+%u"%loopIdx), \
+        sgpr("LoopCounters+%u"%loopIdx), \
+        hex(1), \
+        "counter%s++"%(loopChar) )
+    kStr += inst("s_cmp_eq_i32", \
+        sgpr("LoopCounters+%u"%loopIdx), \
+        hex(0), \
+        "counter%s==0"%(loopChar) )
+    kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
+        "exit Loop%s"%loopChar )
+    kStr += inst("s_branch label_%04u"%loopLabelBegin, \
+        "restart Loop%s"%loopChar )
+    kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
     return kStr
 
   ##############################################################################
@@ -1952,16 +2054,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s}%s" % (self.indent, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Tail Loop: Num Iter - TODO
-  ##############################################################################
-  def tailLoopNumIter(self, kernel):
-    return ""
-    kStr = ""
-    kStr += "%ssumIter%s = (((size%s %% DEPTHU) + SPLITU - 1) / SPLITU);%s" \
-          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
     return kStr
 
   ##############################################################################

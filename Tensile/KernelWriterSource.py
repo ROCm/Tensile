@@ -1649,15 +1649,6 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Tail Loop: Num Iter
-  ##############################################################################
-  def tailLoopNumIter(self, kernel):
-    kStr = ""
-    kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
-          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-    return kStr
-
-  ##############################################################################
   # Global Read: Increment A
   ##############################################################################
   def globalReadIncrementA(self, kernel, loopIdx):
