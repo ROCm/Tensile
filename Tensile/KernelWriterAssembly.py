@@ -192,6 +192,8 @@ class KernelWriterAssembly(KernelWriter):
     self.commentHR = "*"*40
     self.indent = ""
     self.labels = {}
+    self.localReadOffsetA = 0
+    self.localReadOffsetB = 0
 
 
   ########################################
@@ -2390,11 +2392,15 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localReadResetOffsetsA(self, kernel):
     kStr = ""
-    kStr += inst("v_and_b32", \
-        vgpr("LocalReadAddrA"), \
-        hex(kernel["LdsOffsetA_Blk"]-1), \
-        vgpr("LocalReadAddrA"), \
-        "reset Red,Blk -> Red")
+    if self.localReadInstructionA.numOffsets == 1:
+      self.localReadOffsetA = 0
+      kStr += self.comment1("N/A")
+    else:
+      kStr += inst("v_and_b32", \
+          vgpr("LocalReadAddrA"), \
+          hex(kernel["LdsOffsetA_Blk"]-1), \
+          vgpr("LocalReadAddrA"), \
+          "reset Red,Blk -> Red")
     #kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
     #    % (self.indent, self.endLine)
     return kStr
@@ -2404,11 +2410,15 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localReadResetOffsetsB(self, kernel):
     kStr = ""
-    kStr += inst("v_and_b32", \
-        vgpr("LocalReadAddrB"), \
-        hex(kernel["LdsOffsetA_Blk"]-1), \
-        vgpr("LocalReadAddrB"), \
-        "reset Red,Blk -> Red")
+    if self.localReadInstructionB.numOffsets == 1:
+      self.localReadOffsetB = 0
+      kStr += self.comment1("N/A")
+    else:
+      kStr += inst("v_and_b32", \
+          vgpr("LocalReadAddrB"), \
+          hex(kernel["LdsOffsetA_Blk"]-1), \
+          vgpr("LocalReadAddrB"), \
+          "reset Red,Blk -> Red")
     return kStr
 
   ##############################################################################
@@ -2428,13 +2438,17 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localReadIncA(self, kernel):
     kStr = ""
-    inc = kernel["LocalSplitU"]*kernel["MacroTile0"]
-    kStr += inst("v_add_i32", \
-        vgpr("LocalReadAddrA"), \
-        "vcc", \
-        vgpr("LocalReadAddrA"), \
-        hex(inc), \
-        "lrA += %u"%inc )
+    if self.localReadInstructionA.numOffsets == 1:
+      self.localReadOffsetA += kernel["LocalSplitU"]*kernel["MacroTile0"]
+      kStr += self.comment1("N/A")
+    else:
+      inc = kernel["LocalSplitU"]*kernel["MacroTile0"]
+      kStr += inst("v_add_i32", \
+          vgpr("LocalReadAddrA"), \
+          "vcc", \
+          vgpr("LocalReadAddrA"), \
+          hex(inc), \
+          "lrA += %u"%inc )
     return kStr
 
   ##############################################################################
@@ -2442,17 +2456,21 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localReadIncB(self, kernel):
     kStr = ""
-    inc = kernel["LocalSplitU"]*kernel["MacroTile1"]
-    kStr += inst("v_add_i32", \
-        vgpr("LocalReadAddrB"), \
-        "vcc", \
-        vgpr("LocalReadAddrB"), \
-        hex(inc), \
-        "lrB += %u"%inc )
+    if self.localReadInstructionB.numOffsets == 1:
+      self.localReadOffsetB += kernel["LocalSplitU"]*kernel["MacroTile1"]
+      kStr += self.comment1("N/A")
+    else:
+      inc = kernel["LocalSplitU"]*kernel["MacroTile1"]
+      kStr += inst("v_add_i32", \
+          vgpr("LocalReadAddrB"), \
+          "vcc", \
+          vgpr("LocalReadAddrB"), \
+          hex(inc), \
+          "lrB += %u"%inc )
     return kStr
 
   ##############################################################################
-  # Local Read: Do It A - TODO
+  # Local Read: Do It A - DONE
   ##############################################################################
   def localReadDoA(self, kernel, black):
     kStr = ""
@@ -2471,7 +2489,8 @@ class KernelWriterAssembly(KernelWriter):
             blockWidth))
       paramList.append(vgpr("LocalReadAddrA"))
       for oIdx in range(0, numOffsets):
-        paramList.append(kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx))
+        paramList.append(kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx) \
+            + self.localReadOffsetA)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
       kStr += instruction.toString(paramTuple, comment)
@@ -2479,7 +2498,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read: Do It B - TODO
+  # Local Read: Do It B - DONE
   ##############################################################################
   def localReadDoB(self, kernel, black):
     kStr = ""
@@ -2498,25 +2517,14 @@ class KernelWriterAssembly(KernelWriter):
             blockWidth))
       paramList.append(vgpr("LocalReadAddrB"))
       for oIdx in range(0, numOffsets):
-        paramList.append(kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx))
+        paramList.append(kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx) \
+            + self.localReadOffsetB)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
       kStr += instruction.toString(paramTuple, comment)
       valuIdx += blockWidth
     return kStr
 
-
-    return ""
-    kStr = ""
-    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
-          % (self.indent, b, \
-          (("+TT%s/VECTOR_WIDTH"%self.tileCharB) if black else ""), \
-          b, self.tileChar1, self.endLine)
-# blackness goes into which destination registers
-# get instruction like global read instruction
-
-    return kStr
 
   ##############################################################################
   # Shift Vector Components d0 - SKIP
