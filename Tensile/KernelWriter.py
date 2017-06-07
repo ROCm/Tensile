@@ -500,13 +500,13 @@ class KernelWriter:
       kStr += self.localReadInitPointersA(kernel)
       kStr += self.comment("local read init pointers b")
       kStr += self.localReadInitPointersB(kernel)
-      kStr += self.comment("local read swap offsets a")
+      kStr += self.comment("local write swap offsets a")
       kStr += self.localWriteSwapOffsetsA(kernel)
-      kStr += self.comment("local read swap offsets b")
+      kStr += self.comment("local write swap offsets b")
       kStr += self.localWriteSwapOffsetsB(kernel)
-      kStr += self.comment("local read init pointers a")
+      kStr += self.comment("local write init pointers a")
       kStr += self.localWriteInitPointersA(kernel)
-      kStr += self.comment("local read init pointers b")
+      kStr += self.comment("local write init pointers b")
       kStr += self.localWriteInitPointersB(kernel)
     else:
       # local read
