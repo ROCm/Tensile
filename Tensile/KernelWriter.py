@@ -677,6 +677,8 @@ class KernelWriter:
       kStr += self.globalReadIncrementB(kernel, i)
       kStr += self.closeLoop(kernel, self.unrollIdx)
 
+    kStr += self.endSummation()
+
     ####################################
     # Shift Vector Components
     ####################################
@@ -1356,6 +1358,13 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def closeLoop(self, kernel, loopIdx):
+    return ""
+
+  ##############################################################################
+  # End Summation
+  ##############################################################################
+  @abc.abstractmethod
+  def endSummation(self):
     return ""
 
   ##############################################################################

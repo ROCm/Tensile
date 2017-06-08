@@ -19,6 +19,19 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+# TODO
+# (1) explicit and implicit incrementing of global/local offsets to handle
+# to handle when implicit offset spills, attach offsets to a register, when
+# we increment that offset and it spills, then it automatically triggers an
+# explicit increment and the implicit increment resets
+# Address class, request explicit or implicit increment, request reset
+#  32,64-bit, which registers, pass into MemoryInstruction class
+# (2) MemoryPool to handle all allocations
+# (3) Dictionary of gpr names?
+# (4) Will I need to use fewer sgprs?
+# (5) Divide-only, Remainder-only, Divide&Remainder
+# (6) Add and multiply functions, compile time known, handles carrying, only need to debug in one place
+
 
 from SolutionStructs import DataType
 from Common import globalParameters, kernelLanguageIsSource, print1
@@ -52,7 +65,6 @@ class MemoryInstruction:
 
 ################################################################################
 # ScratchRegisters
-# [start, stop)
 ################################################################################
 class ScratchRegisters:
   def __init__(self, start, size):
@@ -518,6 +530,7 @@ class KernelWriterAssembly(KernelWriter):
     numGlobalReadInstructionsB = numGlobalReadsB \
         / self.globalReadInstructionB.blockWidth
     numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
+    numVgprSerial = 1
 
     numVgprAddressD = 1 * self.rpga
 
@@ -565,6 +578,9 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += numVgprGlobalReadAddressesB
     self.startVgprAddressD = vgprIdx
     vgprIdx += numVgprAddressD
+    self.startVgprSerial = vgprIdx
+    vgprIdx += numVgprSerial
+    print1("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     self.startVgprTmp = vgprIdx
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
@@ -579,9 +595,8 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Pre Loop Scratch Vgprs
     ########################################
-    self.vgprSerial = 0
-    self.vgprScratch = ScratchRegisters(self.startVgprValuC+1, \
-        self.startVgprLocalReadAddressesA - (self.startVgprValuC+1))
+    self.vgprScratch = ScratchRegisters(self.startVgprValuC, \
+        self.startVgprLocalReadAddressesA - self.startVgprValuC)
 
     ########################################
     # SGPR Allocation
@@ -702,6 +717,8 @@ class KernelWriterAssembly(KernelWriter):
         self.startVgprGlobalReadAddressesB)
     kStr += self.macroRegister("vgprAddressD", \
         self.startVgprAddressD)
+    kStr += self.macroRegister("vgprSerial", \
+        self.startVgprSerial)
     kStr += self.comment1("VGPRs: %u + %u = %u" \
         % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
     kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
@@ -783,6 +800,41 @@ class KernelWriterAssembly(KernelWriter):
             "vcc", \
             "accumulate d%u lower"%i)
         kStr += ".endm%s" % self.endLine
+
+    ####################################
+    # Global Write Macro
+    ####################################
+    kStr += self.comment3("Global Write")
+    kStr += ".macro GLOBAL_WRITE d0 d1%s" % self.endLine
+    kStr += ".set idx, %u+\d1*%u+\d0 %s" \
+        % (self.startVgprValuC, kernel["ThreadTile0"], self.endLine )
+    vgprBaseAddr = self.totalVgprs-4
+    vgprAddr = self.totalVgprs-6
+    vgprValue = self.totalVgprs-7
+    kStr += inst("v_mov_b32", vgpr(vgprAddr), sgpr("StrideC"), \
+        "%s = StrideC"%vgpr(vgprAddr))
+    kStr += inst("v_mov_b32", vgpr(vgprAddr+1), hex(0x0), \
+        "%s = 0"%vgpr(vgprAddr+1) )
+    kStr += inst("v_mul_u32_u24", vgpr(vgprAddr), "\d1", vgpr(vgprAddr), \
+        "%s = StrideC*d1"%vgpr(vgprAddr) )
+    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", "\d0", vgpr(vgprAddr), \
+        "%s = StrideC1J*d1+d0"%vgpr(vgprAddr) )
+    kStr += inst("v_lshlrev_b64", vgpr(vgprAddr,2), hex(kernel["SubGroup0"]*4), \
+        vgpr(vgprAddr,2), "%s = 16*(strideC1J*d1+d0)*4"%vgpr(vgprAddr) )
+    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", vgpr(vgprBaseAddr), \
+        vgpr(vgprAddr), "%s = base + 16*(strideC1J*d1+d0)"%vgpr(vgprAddr) )
+    kStr += inst("v_addc_u32", vgpr(vgprAddr+1), "vcc", vgpr(vgprBaseAddr),  \
+        vgpr(vgprAddr+1), "vcc", "%s = base + 16*(strideC1J*d1+d0)"%vgpr(vgprAddr+1))
+    kStr += inst("flat_load_dword", vgpr(vgprValue), vgpr(vgprAddr,2), \
+        "load C" )
+    kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+    kStr += inst("v_mul_f32", vgpr(vgprValue), sgpr("Beta"), vgpr(vgprValue), \
+        "%s = C*beta"%vgpr(vgprValue) )
+    kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
+    kStr += inst("v_add_f32", "v[idx]", vgpr(vgprValue), "v[idx]", \
+        "v[idx] = sum*alpha + C*beta" )
+    kStr += inst("flat_store_dword", vgpr(vgprAddr,2), "v[idx]", "store C" )
+    kStr += ".endm%s"%self.endLine
 
 
     ########################################
@@ -876,6 +928,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".set LVPA %u%s" % (lspa/vw, self.endLine)
     kStr += ".set LVPB %u%s" % (lspb/vw, self.endLine)
 
+
+
+
     return kStr
 
 
@@ -946,6 +1001,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # set m0
     kStr += inst("s_mov_b32", "m0", "0xFFFFFFFF", "TODO: LDS clamp")
+    kStr += inst("s_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
     ########################################
     # load kernel args
@@ -1044,7 +1100,7 @@ class KernelWriterAssembly(KernelWriter):
         "%s=wg1*nwg0+wg0"%vgpr(v) )
     kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
         "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
-    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), "v0", \
+    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr("Serial"), \
         "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
     kStr += inst("v_mul_lo_u32", vgpr(v), (nipt*4), vgpr(v), \
         "%s=serial*nipt*4"%vgpr(v) )
@@ -1107,7 +1163,7 @@ class KernelWriterAssembly(KernelWriter):
         % (vgpr(tReg), tOpStr, divisorName) )
     kStr += self.comment1("%s = groA-unroll = serial%s%s;" \
         % (vgpr(uReg), uOpStr, divisorName) )
-    dividendReg = 0 # local serial
+    dividendReg = self.startVgprSerial # local serial
     tmpVgpr = self.vgprScratch.checkOut(1)
     tmpSgpr = self.startSgprOffsetC
     kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
@@ -2029,6 +2085,14 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  # End Summation
+  ##############################################################################
+  def endSummation(self):
+    self.vgprScratch = ScratchRegisters(self.startVgprValuA, \
+        self.startVgprSerial - self.startVgprValuA)
+    return ""
+
+  ##############################################################################
   # MAC Iteration - DONE
   ##############################################################################
   def macIter(self, kernel, black):
@@ -2720,6 +2784,117 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
+    # 3 scratch sgprs
+    s0 = self.startSgprAddressA
+    s1 = s0+1
+    s2 = self.startSgprAddressB
+    s3 = s2+1
+    kStr += inst("s_lshl_b32", \
+        sgpr("StrideC"), \
+        sgpr("StrideC"), \
+        log2(4), \
+        "StrideC *= 4bytes")
+    kStr += inst("s_mul_i32", \
+        sgpr(s0), \
+        hex(kernel["MacroTile0"]*4), \
+        sgpr("WorkGroup0"), \
+        "%s = wg0*MT0*4"%sgpr(s0))
+    kStr += inst("s_mul_i32", \
+        sgpr(s1), \
+        hex(kernel["MacroTile1"]), \
+        sgpr("WorkGroup1"), \
+        "%s = wg1*MT1"%sgpr(s1))
+    kStr += inst("s_mul_i32", \
+        sgpr(s1), \
+        sgpr("StridesC+0"), \
+        sgpr(s1), \
+        "%s = wg1*MT1*4*StrideC0"%sgpr(s1))
+    kStr += inst("s_add_u32", \
+        sgpr(s2), \
+        sgpr("AddressC+0"), \
+        sgpr(s0), \
+        "%s = C + wg0*MT0*4 (lower)"%sgpr(s2))
+    kStr += inst("s_addc_u32", \
+        sgpr(s3), \
+        hex(0), \
+        sgpr("AddressC+1"), \
+        "%s = C + wg0*MT0*4 (upper)"%sgpr(s3))
+    kStr += inst("s_add_u32", \
+        sgpr(s2), \
+        sgpr("AddressC+0"), \
+        sgpr(s1), \
+        "%s = C + wg0*MT0*4 + wg1*MT1*4*StrideC0 (lower)"%sgpr(s2))
+    kStr += inst("s_addc_u32", \
+        sgpr(s3), \
+        hex(0), \
+        sgpr("AddressC+1"), \
+        "%s = C + wg0*MT0*4 + wg1*MT1*4*StrideC0 (upper)"%sgpr(s3))
+    self.globalWriteAddrC = self.totalVgprs-4 # match macro
+    kStr += inst("v_mov_b32", \
+        vgpr(self.globalWriteAddrC+0), \
+        sgpr(s2), \
+        "move work-group offset into vgpr (lower)")
+    kStr += inst("v_mov_b32", \
+        vgpr(self.globalWriteAddrC+1), \
+        sgpr(s3), \
+        "move work-group offset into vgpr (upper)")
+
+    # thread id 0,1
+    self.local01 = self.vgprScratch.checkOut(2)
+    dividendReg = self.startVgprSerial # local serial
+    rReg = self.local01 + 0
+    qReg = self.local01 + 1
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    tmpSgpr = s0
+    divisor = kernel["SubGroup0"]
+    kStr += divideAndRemainder(qReg, rReg, dividendReg, divisor, \
+        tmpVgpr, tmpSgpr)
+    tid0 = rReg
+    tid1 = qReg
+    kStr += inst("v_mul_lo_u32", \
+        vgpr(tid1), \
+        vgpr("StridesC+0"), \
+        vgpr(tid1), \
+        "%s = tid1*StrideC"%sgpr(tid1))
+    kStr += inst("v_add_u32", \
+        vgpr(self.globalWriteAddrC+0), \
+        vgpr(tid1), \
+        vgpr(self.globalWriteAddrC+0), \
+        "C += tid1*StrideC (lower)")
+    kStr += inst("v_add_u32", \
+        vgpr(self.globalWriteAddrC+1), \
+        "vcc", \
+        hex(0), \
+        vgpr(self.globalWriteAddrC+1), \
+        "vcc", \
+        "C += tid1*StrideC (upper)")
+    kStr += inst("v_add_u32", \
+        vgpr(self.globalWriteAddrC+0), \
+        vgpr(tid0), \
+        vgpr(self.globalWriteAddrC+0), \
+        "C += tid0 (lower)")
+    kStr += inst("v_add_u32", \
+        vgpr(self.globalWriteAddrC+1), \
+        "vcc", \
+        hex(0), \
+        vgpr(self.globalWriteAddrC+1), \
+        "vcc", \
+        "C += tid0 (upper)")
+
+    """
+    kStr += "GLOBAL_OFFSET_C( vgprGlobalReadAddrA+%u"%graIdxA
+      for i in kernel["ProblemType"]["NumIndicesC"]:
+        if i == kernel["ProblemType"]["Dim0"]:
+          kStr += ", %2u" % vgprDim0
+        if i == kernel["ProblemType"]["Dim1"]:
+          kStr += ", %2u" % vgprDim1
+        else: # just a group index
+          kStr += ", %s" % sgpr("WorkGroup+%u"%i)
+        kStr += ")%s" % self.endLine
+    """
+
+
+    """
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC" + self.indexChars[i] \
           + " = wg" + self.indexChars[i]
@@ -2730,13 +2905,17 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "*MT%s + (serial / SG%s)*VECTOR_WIDTH" \
             % (self.tileChar1, self.tileChar0)
       kStr += ";" + self.endLine
+    """
     return kStr
 
   ##############################################################################
-  # Not LocalSplitU: Global Write - TODO
+  # Not LocalSplitU: Global Write - DONE
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     kStr = ""
+    for tt1 in range(0, kernel["ThreadTile1"]):
+      for tt0 in range(0, kernel["ThreadTile0"]):
+        kStr += "GLOBAL_WRITE %u %u%s" % (tt0, tt1, self.endLine)
     return kStr
 
   ##############################################################################
