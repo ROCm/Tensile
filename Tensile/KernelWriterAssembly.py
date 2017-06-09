@@ -782,10 +782,19 @@ class KernelWriterAssembly(KernelWriter):
             "v[\\vgprOffset%s]" % idxChars[i],  \
             sgpr("Strides%s+%u"%(tensorChar,i-1)), \
             "mul d%u lower"%i)
+
         kStr += inst("v_mov_b32", \
+            "v[\\vgprTmp+2]", \
+            hex(0),  \
+            "mul d%u upper"%i)
+        kStr += inst("v_addc_u32", \
             "v[\\vgprTmp+1]", \
             "vcc",  \
+            hex(0), \
+            "v[\\vgprTmp+2]", \
+            "vcc",  \
             "mul d%u upper"%i)
+
         kStr += inst("v_add_i32", \
             "v[\\vgprAddr+0]", \
             "vcc", \
@@ -1015,18 +1024,27 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # load kernel args
+    # TODO revert to s_load_dwordx2
     kStr += self.comment("Load Kernel Args")
     kernArgOffset = 0
-    #kStr += inst("s_load_dwordx2", sgpr("AddressC", self.rpga), \
-    kStr += inst("s_load_dwordx2", sgpr(5, self.rpga), \
+    kStr += inst("s_load_dword", sgpr("AddressC"), \
         sgpr(0,2), hex(kernArgOffset), "load addr c" )
-    kernArgOffset += self.rpga*4
-    kStr += inst("s_load_dwordx2", sgpr("AddressA", self.rpga), \
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressC+1"), \
+        sgpr(0,2), hex(kernArgOffset), "load addr c" )
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressA"), \
         sgpr(0,2), hex(kernArgOffset), "load addr a" )
-    kernArgOffset += self.rpga*4
-    kStr += inst("s_load_dwordx2", sgpr("AddressB", self.rpga), \
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressA+1"), \
+        sgpr(0,2), hex(kernArgOffset), "load addr a" )
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressB"), \
         sgpr(0,2), hex(kernArgOffset), "load addr b" )
-    kernArgOffset += self.rpga*4
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressB+1"), \
+        sgpr(0,2), hex(kernArgOffset), "load addr b" )
+    kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("Alpha"), \
         sgpr(0,2), hex(kernArgOffset), "load alpha" )
     kernArgOffset += 1*4
@@ -1063,9 +1081,12 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
           sgpr(0,2), hex(kernArgOffset), "load size free %u"%i )
       kernArgOffset += 1*4
-    kStr += inst("s_load_dwordx2", sgpr("AddressD", self.rpga), \
+    kStr += inst("s_load_dword", sgpr("AddressD"), \
         sgpr(0,2), hex(kernArgOffset), "load addr debug" )
-    kernArgOffset += self.rpga*4
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressD+1"), \
+        sgpr(0,2), hex(kernArgOffset), "load addr debug" )
+    kernArgOffset += 1*4
     kStr += inst("s_waitcnt", "lgkmcnt(0)", \
         "wait for %u bytes of kern args" % kernArgOffset )
 
@@ -2154,23 +2175,33 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     graIdxA = 0
+    tmp = self.vgprScratch.checkOut(1)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
+          kStr += inst("v_mov_b32 ", \
+              vgpr(tmp), \
+              sgpr("GlobalReadIncsA+%u+0"%graIdxA), \
+              "vgpr GlobalReadIncsA")
           kStr += inst("v_add_i32 ", \
               vgpr("GlobalReadAddrA+%u+0"%graIdxA), \
               "vcc", \
               vgpr("GlobalReadAddrA+%u+0"%graIdxA),  \
-              sgpr("GlobalReadIncsA+%u+0"%graIdxA), \
+              vgpr(tmp), \
               "gra += incA%s (lower)"%loopChar)
+          kStr += inst("v_mov_b32 ", \
+              vgpr(tmp), \
+              sgpr("GlobalReadIncsA+%u+1"%graIdxA), \
+              "vgpr GlobalReadIncsA")
           kStr += inst("v_addc_u32", \
               vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
               "vcc", \
               vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
-              sgpr("GlobalReadIncsA+%u+1"%graIdxA), \
+              vgpr(tmp), \
               "vcc", \
               "gra += incA%s (upper)"%loopChar)
           graIdxA += self.rpga
+    self.vgprScratch.checkIn(tmp)
     return kStr
 
   ##############################################################################
@@ -2181,23 +2212,33 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     graIdxB = 0
+    tmp = self.vgprScratch.checkOut(1)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numReadVectorComponentsB):
+          kStr += inst("v_mov_b32 ", \
+              vgpr(tmp), \
+              sgpr("GlobalReadIncsB+%u+0"%graIdxB), \
+              "vgpr GlobalReadIncsB")
           kStr += inst("v_add_i32 ", \
               vgpr("GlobalReadAddrB+%u+0"%graIdxB), \
               "vcc", \
               vgpr("GlobalReadAddrB+%u+0"%graIdxB),  \
-              sgpr("GlobalReadIncsB+%u+0"%graIdxB), \
+              vgpr(tmp), \
               "gra += incB%s (lower)"%loopChar)
+          kStr += inst("v_mov_b32 ", \
+              vgpr(tmp), \
+              sgpr("GlobalReadIncsB+%u+1"%graIdxB), \
+              "vgpr GlobalReadIncsB")
           kStr += inst("v_addc_u32", \
               vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
               "vcc", \
               vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
-              sgpr("GlobalReadIncsB+%u+1"%graIdxB), \
+              vgpr(tmp), \
               "vcc", \
               "gra += incB%s (upper)"%loopChar)
           graIdxB += self.rpga
+    self.vgprScratch.checkIn(tmp)
     return kStr
 
   ##############################################################################
