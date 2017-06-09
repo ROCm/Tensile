@@ -20,8 +20,10 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters
+from Common import globalParameters, kernelLanguageIsSource, pushWorkingPath, printWarning, printExit, print1, print2, HR
 import abc
+from os import path
+from subprocess import Popen
 
 ################################################################################
 # Make OpenCL Kernel String
@@ -1659,12 +1661,51 @@ class KernelWriter:
   # source file string
   ##############################################################################
   def getSourceFileString(self, kernel):
+
     fileString = ""
     self.initKernel(kernel)
     fileString += self.kernelBodyPrefix( kernel )
     self.stringIdx = 0
     fileString += self.kernelBody( kernel )
     fileString += self.kernelBodySuffix( kernel )
+
+    if not kernelLanguageIsSource():
+      # write assembly file to assembly directory
+      pushWorkingPath("assembly")
+      kernelName = self.getKernelName(kernel)
+      fileBase = path.join(globalParameters["WorkingPath"], kernelName )
+      assemblyFileName = "%s.s" % fileBase
+      objectFileName = "%s.o" % fileBase
+      codeObjectFileName = "%s.o" % fileBase
+      assemblyFile = open(assemblyFileName, "w")
+      assemblyFile.write(fileString)
+      assemblyFile.close()
+
+      # run assembler
+      assemblerCommand = [globalParameters["AssemblerPath"], \
+          "-x", "assembler", \
+          "-target", "amdgcn--amdhsa", \
+          "-mcpu=fiji", "-c", "-o", objectFileName, assemblyFileName]
+      print1("\n%s\n# Assembling %s:\n# %s\n%s\n" % (HR, kernelName, assemblerCommand, HR) )
+      assemblerProcess = Popen(assemblerCommand, cwd=globalParameters["WorkingPath"] )
+      assemblerProcess.communicate()
+      if assemblerProcess.returncode:
+        printExit("Assembler process returned with code %u" % assemblerProcess.returncode)
+
+      # run linker
+      linkerCommand = [globalParameters["AssemblerPath"], \
+          "-target", "amdgcn--amdhsa", \
+          objectFileName, "-o", codeObjectFileName ]
+      print1("\n%s\n# Linking %s:\n# %s\n%s\n" % (HR, kernelName, linkerCommand, HR) )
+      linkerProcess = Popen(linkerCommand, cwd=globalParameters["WorkingPath"] )
+      linkerProcess.communicate()
+      if linkerProcess.returncode:
+        printExit("Linking process returned with code %u" % linkerProcess.returncode)
+      popWorkingPath()
+
+
+      # read code-object file and convert to c++ representable uchar*
+      # return string of code-object byte array 
     return fileString
 
 

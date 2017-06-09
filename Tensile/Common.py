@@ -69,6 +69,7 @@ globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
+globalParameters["AssemblerPath"] = "/usr/bin/clang"
 
 # file heirarchy
 globalParameters["ShortNames"] = False
