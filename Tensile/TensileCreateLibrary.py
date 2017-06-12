@@ -224,9 +224,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   for problemType in logicData:
 
     # function argument list
-    argListSizes = solutionWriter.getArgList(problemType, False, False)
-    argListStream = solutionWriter.getArgList(problemType, False, True)
-    argListData = solutionWriter.getArgList(problemType, True, True)
+    argListSizes = solutionWriter.getArgList(problemType, False, False, False)
+    argListStream = solutionWriter.getArgList(problemType, False, False, True)
+    argListData = solutionWriter.getArgList(problemType, True, True, True)
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"

@@ -1672,6 +1672,7 @@ class KernelWriter:
     if not kernelLanguageIsSource():
       # write assembly file to assembly directory
       pushWorkingPath("assembly")
+      pushWorkingPath(globalParameters["KernelLanguage"])
       kernelName = self.getKernelName(kernel)
       fileBase = path.join(globalParameters["WorkingPath"], kernelName )
       assemblyFileName = "%s.s" % fileBase
@@ -1701,7 +1702,14 @@ class KernelWriter:
       linkerProcess.communicate()
       if linkerProcess.returncode:
         printExit("Linking process returned with code %u" % linkerProcess.returncode)
-      popWorkingPath()
+
+      # return code object filename
+      fileString = ""
+      fileString += self.comment("code object file name")
+      fileString += "const char * const %s_cofn = \"%s\";\n" % (kernelName, codeObjectFileName)
+      
+      popWorkingPath() # arch
+      popWorkingPath() # assembly
 
 
       # read code-object file and convert to c++ representable uchar*
@@ -1715,20 +1723,24 @@ class KernelWriter:
   def getHeaderFileString(self, kernel):
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
-    if not globalParameters["MergeFiles"]:
-      fileString += "#pragma once\n\n"
-      fileString += "\n"
-      if self.language == "HIP":
-        fileString += "#include <hip/hip_runtime.h>\n"
-        fileString += "#include <hip/hip_fp16.h>\n"
-        fileString += "\n"
+    if kernelLanguageIsSource():
+      if not globalParameters["MergeFiles"]:
+        fileString += "#pragma once\n\n"
+        if self.language == "HIP":
+          fileString += "#include <hip/hip_runtime.h>\n"
+          fileString += "#include <hip/hip_fp16.h>\n"
+          fileString += "\n"
+        else:
+          fileString += "#include <string>\n"
+      if self.language == "OCL":
+        fileString += "extern const char * const %s_src;\n" % kernelName
       else:
-        fileString += "#include <string>\n"
-    if self.language == "OCL":
-      fileString += "extern const char * const %s_src;\n" % kernelName
+        fileString += self.functionSignature(kernel)
+        fileString += ";\n"
     else:
-      fileString += self.functionSignature(kernel)
-      fileString += ";\n"
+      if not globalParameters["MergeFiles"]:
+        fileString += "#pragma once\n\n"
+      fileString += "extern const char * const %s_cofn; // code object file name\n" % kernelName
 
     return fileString
 

@@ -1090,6 +1090,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_waitcnt", "lgkmcnt(0)", \
         "wait for %u bytes of kern args" % kernArgOffset )
 
+    # test debug buffer
+    v = self.vgprScratch.checkOut(3)
+    kStr += inst("v_mov_b32", vgpr(v), sgpr("AddressD"), "" )
+    kStr += inst("v_mov_b32", vgpr(v+1), sgpr("AddressD+1"), "" )
+    kStr += inst("v_mov_b32", vgpr(v+2), hex(3), "" )
+    kStr += inst("flat_store_dword", vgpr(v, 2), vgpr(v+2), "debug serial" )
+    kStr += "s_endpgm\n"
+
     kStr += self.comment("User Offsets")
     # addressC += offsetC
     kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
@@ -1153,7 +1161,11 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Work-Group - LATER
   ##############################################################################
   def graWorkGroup(self, kernel):
-    return self.comment1("  N/A")
+    kStr = ""
+    kStr += self.comment1("  N/A")
+    #kStr = inst("flat_store_dword", vgpr("AddressD", 2), vgpr("Serial"), "debug serial" )
+    kStr += "s_endpgm%s" % self.endLine
+    return kStr
 
   ##############################################################################
   # Global Read Addresses: Subgroup - DONE
