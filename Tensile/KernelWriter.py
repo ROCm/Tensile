@@ -379,6 +379,7 @@ class KernelWriter:
       kStr += self.comment("global read inc b")
       kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
       # local write
+      kStr += self.wait(0, 0)
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
@@ -395,6 +396,7 @@ class KernelWriter:
       kStr += self.localWriteInitPointersB(kernel)
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
+        kStr += self.wait(0, 0)
         kStr += self.comment("local read prefetch a")
         kStr += self.localReadDoA(kernel, False)
         kStr += self.comment("local read prefetch b")
@@ -406,7 +408,7 @@ class KernelWriter:
       kStr += self.closeSumAtLeastUnroll(kernel)
 
     # open unrolled summation loop
-    kStr += self.comment("unrolled summation loop")
+    kStr += self.comment3("Uunrolled Loop - Begin")
     kStr += self.openLoop(kernel, self.unrollIdx)
 
     # unrolled loop: global read A, B
@@ -425,6 +427,7 @@ class KernelWriter:
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
       kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.wait(0, 0)
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
@@ -441,6 +444,7 @@ class KernelWriter:
 
     # unrolled loop: prefetch local
     if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
+      kStr += self.wait(0, 0)
       kStr += self.comment("prefetch local a")
       kStr += self.localReadDoA(kernel, False)
       kStr += self.comment("prefetch local b")
@@ -460,6 +464,7 @@ class KernelWriter:
      # local read
       kStr += self.comment("iter %u"%u)
       readBlk = kernel["PrefetchLocalRead"] and u%2==0
+      kStr += self.wait(0, 0)
       kStr += self.comment("local read a")
       kStr += self.localReadDoA(kernel, readBlk)
       kStr += self.comment("local read b")
@@ -468,6 +473,7 @@ class KernelWriter:
       kStr += self.localReadIncA(kernel)
       kStr += self.comment("local read increment b")
       kStr += self.localReadIncB(kernel)
+      kStr += self.wait(0, 0)
       kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
 
     kStr += self.closeString(kernel)
@@ -483,6 +489,7 @@ class KernelWriter:
     kStr += self.comment("iter %u"%unrollIter)
     if kernel["PrefetchLocalRead"] and kernel["PrefetchGlobalRead"]:
       # local read for last unroll
+      kStr += self.wait(0, 0)
       kStr += self.comment("local read a")
       kStr += self.localReadDoA(kernel, True)
       kStr += self.comment("local read b")
@@ -513,6 +520,7 @@ class KernelWriter:
     else:
       # local read
       readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+      kStr += self.wait(0, 0)
       kStr += self.comment("local read a")
       kStr += self.localReadDoA(kernel, readBlk)
       kStr += self.comment("local read b")
@@ -529,6 +537,7 @@ class KernelWriter:
         kStr += self.localReadIncA(kernel)
         kStr += self.comment("local read inc b")
         kStr += self.localReadIncB(kernel)
+    kStr += self.wait(0, 0)
     kStr += self.macIter(kernel, False)
 
     ####################################
@@ -541,6 +550,7 @@ class KernelWriter:
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
       # local read
       readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+      kStr += self.wait(0, 0)
       kStr += self.comment("local read a")
       kStr += self.localReadDoA(kernel, readBlk)
       kStr += self.comment("local read b")
@@ -553,6 +563,7 @@ class KernelWriter:
       kStr += self.localReadIncB(kernel)
     elif kernel["PrefetchGlobalRead"]:
       # local write
+      kStr += self.wait(0, 0)
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
@@ -581,9 +592,11 @@ class KernelWriter:
       kStr += self.localReadInitPointersA(kernel)
       kStr += self.comment("local read init pointers b")
       kStr += self.localReadInitPointersB(kernel)
+    kStr += self.wait(0, 0)
     kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
 
     # close unrolled loop
+    kStr += self.comment3("Uunrolled Loop - End")
     kStr += self.closeLoop(kernel, self.unrollIdx)
 
     # prefetch: unrolled loop suffix
@@ -591,6 +604,7 @@ class KernelWriter:
       kStr += self.comment("prefetch: last unrolled iteration")
       kStr += self.openSumAtLeastUnroll(kernel)
       if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
+        kStr += self.wait(0, 0)
         kStr += self.comment("prefetch local read a")
         kStr += self.localReadDoA(kernel, False)
         kStr += self.comment("prefetch local read b")
@@ -603,6 +617,7 @@ class KernelWriter:
         kStr += self.comment("iter %u"%u)
         readBlk = kernel["PrefetchLocalRead"] and u%2==0
         if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+          kStr += self.wait(0, 0)
           kStr += self.comment("local read a")
           kStr += self.localReadDoA(kernel, readBlk)
           kStr += self.comment("local read b")
@@ -611,6 +626,7 @@ class KernelWriter:
           kStr += self.localReadIncA(kernel)
           kStr += self.comment("local read inc b")
           kStr += self.localReadIncB(kernel)
+        kStr += self.wait(0, 0)
         kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
       kStr += self.closeSumAtLeastUnroll(kernel)
 
@@ -1637,6 +1653,13 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def kernelBodySuffix(self, kernel):
+    return ""
+
+  ##############################################################################
+  # WaitCnt
+  ##############################################################################
+  @abc.abstractmethod
+  def wait(self, lgkmcnt, vmcnt):
     return ""
 
   ##############################################################################
