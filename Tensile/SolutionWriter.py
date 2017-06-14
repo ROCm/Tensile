@@ -497,7 +497,7 @@ class SolutionWriter:
           s += "    );\n"
         else:
 
-          s += "%sunsigned int debugBufferElementsPerThread = 4;\n" % t
+          s += "%sunsigned int debugBufferElementsPerThread = 8;\n" % t
           s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
           s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][0];\n" % (t)
           s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][1];\n" % (t)
