@@ -1765,13 +1765,13 @@ class KernelWriterAssembly(KernelWriter):
     else:
       printExit("NumIndicesSummation=%u not yet supported in assembly" \
           % kernel["ProblemType"]["NumIndicesSummation"] )
-    tmp = self.vgprScratch.checkOut(2)
-    kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsB+0"), "" )
-    kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsB+1"), "" )
-    kStr += debug(vgpr(tmp+0))
-    kStr += debug(vgpr(tmp+1))
-    self.vgprScratch.checkIn(tmp)
-    kStr += "s_endpgm\n"
+    #tmp = self.vgprScratch.checkOut(2)
+    #kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsB+0"), "" )
+    #kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsB+1"), "" )
+    #kStr += debug(vgpr(tmp+0))
+    #kStr += debug(vgpr(tmp+1))
+    #self.vgprScratch.checkIn(tmp)
+    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -1810,6 +1810,7 @@ class KernelWriterAssembly(KernelWriter):
         hex(kernel["MacroTileA"]), \
         vgpr(self.uRegA), \
         "lwA%s*MTA"%self.unrollChar)
+    #kStr += debug(vgpr("LocalWriteAddrA"))
     kStr += inst("v_add_u32", \
         vgpr("LocalWriteAddrA"), \
         "vcc", \
@@ -1817,6 +1818,8 @@ class KernelWriterAssembly(KernelWriter):
         vgpr("LocalWriteAddrA"), \
         "lwFOA = lwA%s + lwA%s*MT%s" \
         % (self.tileCharA, self.unrollChar, self.tileCharA) )
+    #kStr += debug(vgpr("LocalWriteAddrA"))
+    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -1831,6 +1834,7 @@ class KernelWriterAssembly(KernelWriter):
         hex(kernel["MacroTileB"]), \
         vgpr(self.uRegB), \
         "lwB%s*MTB"%self.unrollChar)
+    #kStr += debug(vgpr("LocalWriteAddrB"))
     kStr += inst("v_add_u32", \
         vgpr("LocalWriteAddrB"), \
         "vcc", \
@@ -1838,6 +1842,7 @@ class KernelWriterAssembly(KernelWriter):
         vgpr("LocalWriteAddrB"), \
         "lwFOB = lwB%s + lwB%s*MT%s" \
         % (self.tileCharB, self.unrollChar, self.tileCharB) )
+    #kStr += debug(vgpr("LocalWriteAddrB"))
     kStr += inst("v_add_u32", \
         vgpr("LocalWriteAddrB"), \
         "vcc", \
@@ -1845,6 +1850,8 @@ class KernelWriterAssembly(KernelWriter):
         vgpr("LocalWriteAddrB"), \
         "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u" % (self.tileCharB, \
         self.unrollChar, self.tileCharB, kernel["LdsOffsetB"]) )
+    #kStr += debug(vgpr("LocalWriteAddrB"))
+    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -1951,12 +1958,16 @@ class KernelWriterAssembly(KernelWriter):
     divisor = kernel["SubGroup0"]
     qReg = self.vgprScratch.checkOut(1) # quotient
     rReg = self.vgprScratch.checkOut(1) # remainder
-    dividendReg = 0 # local serial
+    dividendReg = "Serial" # local serial
     tmpVgpr = self.vgprScratch.checkOut(1)
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
+    #kStr += debug(vgpr(rReg))
+    #kStr += debug(vgpr(qReg))
+    #kStr += "s_endpgm\n"
     self.lroA = qReg
+    #kStr += debug(vgpr(self.lroA))
     self.lroB = rReg
     self.vgprScratch.checkIn(tmpVgpr)
     return kStr
@@ -1977,9 +1988,13 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
+    #kStr += debug(vgpr(rReg))
+    #kStr += debug(vgpr(qReg))
+    #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(self.lroB) # old
-    self.lroB = qReg
-    self.vgprScratch.checkIn(rReg)
+    self.lroB = rReg
+    #kStr += debug(vgpr(self.lroB))
+    self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(tmpVgpr)
     return kStr
 
@@ -1997,6 +2012,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
     sgid = qReg
+    kStr += debug(vgpr(self.lroA))
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
         hex(kernel["MacroTile0"]), \
@@ -2006,22 +2022,26 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         "sgid*sgid*MT0" )
+    #kStr += debug(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
       kStr += inst("v_lshlrev_b32", \
           vgpr(self.lroA), \
           log2(kernel["VectorWidth"]), \
           vgpr(self.lroA), \
           "lroA *= VW" )
+      #kStr += debug(vgpr(self.lroA))
     kStr += inst("v_add_u32", \
-        vgpr(self.lroA), \
+        vgpr("LocalReadAddrA"), \
         "vcc", \
         vgpr(sgid), \
         vgpr(self.lroA), \
         "o = lroA*VW+sgid*MT0" )
+    kStr += debug(vgpr("LocalReadAddrA"))
+    #kStr += "s_endpgm\n"
+
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(rReg)
-
     #kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*MT%s;%s" \
     #    % ( self.tileChar0, self.tileChar0, self.endLine)
     return kStr
@@ -2040,6 +2060,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
     sgid = qReg
+    kStr += debug(vgpr(self.lroB))
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
         hex(kernel["MacroTile1"]), \
@@ -2049,18 +2070,22 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         "sgid*sgid*MT1" )
+    #kStr += debug(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
       kStr += inst("v_lshlrev_b32", \
           vgpr(self.lroB), \
           log2(kernel["VectorWidth"]), \
           vgpr(self.lroB), \
           "lroB *= VW" )
+      #kStr += debug(vgpr(self.lroB))
     kStr += inst("v_add_u32", \
-        vgpr(self.lroB), \
+        vgpr("LocalReadAddrB"), \
         "vcc", \
         vgpr(sgid), \
         vgpr(self.lroB), \
         "o = lroB*VW+sgid*MT1" )
+    kStr += debug(vgpr("LocalReadAddrB"))
+    kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(rReg)
