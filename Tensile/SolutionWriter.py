@@ -96,15 +96,19 @@ class SolutionWriter:
       s += "/* module function args */\n"
       s += "%sstruct {\n" % t
       t += "  "
+      s += "%sunsigned int *debugBuffer;\n" % t
       solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
       for arg in solutionArgs:
         s += "%s%s %s;\n" % (t, arg[0], arg[1])
-      s += "%sunsigned int *debugBuffer;\n" % t
+      s += "%sunsigned int pad;\n" % t
       t = t[2:]
       s += "%s} hipFunctionArgs;\n" % t
+      s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
       s += "%ssize_t hipFunctionArgsSize = sizeof(hipFunctionArgs);\n" % t
-    s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
-
+      s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
+      s += "%sprintf(\"size: %%lu\\n\", sizeof(unsigned int));\n" % t
+      s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
+    # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
 
 
     # kernels
@@ -505,7 +509,7 @@ class SolutionWriter:
           s += "%ssize_t debugBufferSize = debugBufferNumElem * sizeof(unsigned int);\n" % (t)
           s += "%shipDevice_t device;\n" % t
           s += "%shipDeviceGet(&device, 0);\n" % t
-          s += "%shipMalloc((void**)&hipFunctionArgs.debugBuffer, debugBufferSize);\n" % t
+          s += "%shipMalloc(&(hipFunctionArgs.debugBuffer), debugBufferSize);\n" % t
           s += "%sunsigned int *debugBufferHostPtr = new unsigned int[debugBufferNumElem];\n" % (t)
           s += "%smemset(debugBufferHostPtr,0,debugBufferSize);\n" % (t)
           s += "%shipMemcpyHtoD(hipFunctionArgs.debugBuffer, debugBufferHostPtr, debugBufferSize);\n" % (t)
@@ -541,12 +545,11 @@ class SolutionWriter:
           s += "%slocalWorkSize[2],\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
-          #s += "%sNULL,\n" % (t)
-          #s += "%s(void**)hipLaunchParams);\n" % (t)
-          s += "%s(void**)hipLaunchParams,\n" % (t)
-          s += "%sNULL);\n" % (t)
+          s += "%sNULL,\n" % (t)
+          s += "%s(void**)hipLaunchParams);\n" % (t)
+          #s += "%s(void**)hipLaunchParams,\n" % (t)
+          #s += "%sNULL);\n" % (t)
           t = t[2:]
-
           # copy debug buffer
           s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
           s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)

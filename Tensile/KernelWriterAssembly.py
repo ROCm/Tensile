@@ -747,7 +747,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprOffsetC", self.startSgprOffsetC)
     kStr += self.macroRegister("sgprOffsetA", self.startSgprOffsetA)
     kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
-    kStr += self.macroRegister("sgprAddressD", self.startSgprOffsetB)
+    kStr += self.macroRegister("sgprAddressD", self.startSgprAddressD)
     kStr += self.macroRegister("sgprGlobalReadIncsA", \
         self.startSgprGlobalReadIncsA)
     kStr += self.macroRegister("sgprGlobalReadIncsB", \
@@ -978,6 +978,8 @@ class KernelWriterAssembly(KernelWriter):
       kernArgReg -= 3 # strides
     kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
     kernArgReg += kernel["ProblemType"]["NumIndicesC"]
+    kernArgReg += self.rpga # debug buffer
+
     kernArgBytes = kernArgReg * 4 # bytes/reg
     kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
         % (kernArgBytes, self.endLine)
@@ -1027,77 +1029,110 @@ class KernelWriterAssembly(KernelWriter):
     # TODO revert to s_load_dwordx2
     kStr += self.comment("Load Kernel Args")
     kernArgOffset = 0
+    kStr += inst("s_load_dword", sgpr("AddressD"), \
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
+    kernArgOffset += 1*4
+    kStr += inst("s_load_dword", sgpr("AddressD+1"), \
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
+    kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("AddressC"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr c" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("AddressC+1"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr c" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("AddressA"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr a" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("AddressA+1"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr a" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("AddressB"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr b" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("AddressB+1"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr b" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("Alpha"), \
-        sgpr(0,2), hex(kernArgOffset), "load alpha" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
     kernArgOffset += 1*4
     if kernel["ProblemType"]["UseBeta"]:
       kStr += inst("s_load_dword", sgpr("Beta"), \
-          sgpr(0,2), hex(kernArgOffset), "load beta" )
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
       kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("OffsetC"), \
-        sgpr(0,2), hex(kernArgOffset), "load offset c" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("OffsetA"), \
-        sgpr(0,2), hex(kernArgOffset), "load offset a" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset a" )
     kernArgOffset += 1*4
     kStr += inst("s_load_dword", sgpr("OffsetB"), \
-        sgpr(0,2), hex(kernArgOffset), "load offset b" )
+        sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset b" )
     kernArgOffset += 1*4
     for i in range(0, self.numSgprStridesC):
       kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
-          sgpr(0,2), hex(kernArgOffset), "load stride c %u"%i )
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprStridesA):
       kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
-          sgpr(0,2), hex(kernArgOffset), "load stride a %u"%i )
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride a %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprStridesB):
       kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
-          sgpr(0,2), hex(kernArgOffset), "load stride b %u"%i )
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride b %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprSizesFree):
       kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
-          sgpr(0,2), hex(kernArgOffset), "load size free %u"%i )
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprSizesSum):
       kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
-          sgpr(0,2), hex(kernArgOffset), "load size free %u"%i )
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
       kernArgOffset += 1*4
-    kStr += inst("s_load_dword", sgpr("AddressD"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr debug" )
-    kernArgOffset += 1*4
-    kStr += inst("s_load_dword", sgpr("AddressD+1"), \
-        sgpr(0,2), hex(kernArgOffset), "load addr debug" )
-    kernArgOffset += 1*4
     kStr += inst("s_waitcnt", "lgkmcnt(0)", \
         "wait for %u bytes of kern args" % kernArgOffset )
 
     # test debug buffer
+    #v = self.vgprScratch.checkOut(3)
+    #kStr += inst("v_mov_b32", vgpr(v), sgpr("AddressC"), "" )
+    #kStr += inst("v_mov_b32", vgpr(v+1), sgpr("AddressC+1"), "" )
+    #kStr += inst("v_mov_b32", vgpr(v+2), hex(3), "" )
+    #kStr += inst("flat_store_dword", vgpr(v, 2), vgpr(v+2), "debug serial" )
+    #kStr += "s_endpgm\n"
+
+    ########################################
+    # Debug Buffer
+    kStr += self.comment("Debug Buffer")
+    nt_log2 = log2(kernel["NumThreads"])
+    # TODO: read nwg0 from sgpr
+    nwg0 = 32 # num work-groups 0
+    self.nipt = 4 # num integers per thread
     v = self.vgprScratch.checkOut(3)
-    kStr += inst("v_mov_b32", vgpr(v), sgpr("AddressD"), "" )
-    kStr += inst("v_mov_b32", vgpr(v+1), sgpr("AddressD+1"), "" )
-    kStr += inst("v_mov_b32", vgpr(v+2), hex(3), "" )
-    kStr += inst("flat_store_dword", vgpr(v, 2), vgpr(v+2), "debug serial" )
+    kStr += inst("v_mov_b32", vgpr(v), "s2", "%s=wg0"%vgpr(v) )
+    kStr += inst("v_mov_b32", vgpr(v+1), "s3", "%s=wg1"%vgpr(v+1) )
+    kStr += inst("v_mul_lo_u32", vgpr(v+1), vgpr(v+1), hex(nwg0), \
+        "%s=wg1*nwg0"%vgpr(v+1) )
+    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr(v+1), \
+        "%s=wg1*nwg0+wg0"%vgpr(v) )
+    kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
+        "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
+    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr("Serial"), \
+        "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
+    kStr += inst("v_mul_lo_u32", vgpr(v), hex(self.nipt*4), vgpr(v), \
+        "%s=serial*nipt*4"%vgpr(v) )
+    kStr += inst("v_mov_b32", vgpr(v+1), 0, "")
+    kStr += inst("v_add_i32", vgpr("AddressD"), "vcc", sgpr("AddressD"), \
+        vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+    kStr += inst("v_mov_b32", vgpr(v+2), sgpr("AddressD+1"), "%s=AddressD1"%vgpr(v+2) )
+    kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
+        vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+    self.vgprScratch.checkIn(v)
+    kStr += self.storeDebug(vgpr("Serial"))
+    kStr += self.storeDebug(vgpr("Serial"))
     kStr += "s_endpgm\n"
 
+    ########################################
+    # Apply User Offsets
     kStr += self.comment("User Offsets")
     # addressC += offsetC
     kStr += inst("s_add_u32", sgpr("AddressC"), sgpr("OffsetC"), \
@@ -1121,39 +1156,6 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
 
-    # Debug Buffer
-    kStr += self.comment("Debug Buffer")
-    nt_log2 = log2(kernel["NumThreads"])
-    # TODO: read nwg0 from sgpr
-    nwg0 = 32 # num work-groups 0
-    nipt = 4 # num integers per thread
-    v = self.vgprScratch.checkOut(4)
-    kStr += inst("v_mov_b32", vgpr(v), "s2", "%s=wg0"%vgpr(v) )
-    kStr += inst("v_mov_b32", vgpr(v+1), "s3", "%s=wg1"%vgpr(v+1) )
-    kStr += inst("v_mov_b32", vgpr(v+2), sgpr("AddressD+0"), "%s=AddressD0"%vgpr(v+2) )
-    kStr += inst("v_mov_b32", vgpr(v+3), sgpr("AddressD+1"), "%s=AddressD1"%vgpr(v+3) )
-    #tt0_log2 = log2(kernel["ThreadTile0"])
-    #tt1_log2 = log2(kernel["ThreadTile1"])
-    #kStr += self.inst("v_lshlrev_b32", "v%u"%(v+0), tt0_log2, "v%u"%(v+0), \
-    #    "v%u=wg0*tt0"%(v+0) )
-    kStr += inst("v_mul_lo_u32", vgpr(v+1), vgpr(v+1), nwg0, \
-        "%s=wg1*nwg0"%vgpr(v+1) )
-    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr(v+1), \
-        "%s=wg1*nwg0+wg0"%vgpr(v) )
-    kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
-        "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
-    kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr("Serial"), \
-        "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
-    kStr += inst("v_mul_lo_u32", vgpr(v), (nipt*4), vgpr(v), \
-        "%s=serial*nipt*4"%vgpr(v) )
-    kStr += inst("v_mov_b32", vgpr(v+1), 0, "")
-    #kStr += inst("v_add_i32", vgpr("AddressD"), "vcc", sgpr("AddressD"), \
-    kStr += inst("v_add_i32", vgpr(self.startVgprAddressD), "vcc", vgpr(v+2), \
-        vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
-    #kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", sgpr("AddressD+1"), \
-    kStr += inst("v_addc_u32", vgpr(self.startVgprAddressD+1), "vcc", vgpr(v+3), \
-        vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
-    self.vgprScratch.checkIn(v)
 
     return kStr
 
@@ -3115,6 +3117,16 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
+    return kStr
+  
+  ##############################################################################
+  # Store to Debug Buffer - DONE
+  ##############################################################################
+  def storeDebug(self, vgprStore):
+    kStr = ""
+    kStr += inst("flat_store_dword", vgpr("AddressD", 2), vgprStore, "debug store" )
+    kStr += inst("v_add_i32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
+        hex(4), "debug inc" )
     return kStr
 
 
