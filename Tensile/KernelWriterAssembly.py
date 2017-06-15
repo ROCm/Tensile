@@ -591,6 +591,7 @@ class KernelWriterAssembly(KernelWriter):
     maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
+    self.globalWriteAddrC = self.totalVgprs-4 # match macro
 
     ########################################
     # Pre Loop Scratch Vgprs
@@ -814,6 +815,11 @@ class KernelWriterAssembly(KernelWriter):
             hex(0), \
             "vcc", \
             "accumulate d%u lower"%i)
+      kStr += inst("v_lshlrev_b64", \
+          "v[\\vgprAddr+0:\\vgprAddr+1]", \
+          hex(log2(kernel["ProblemType"]["DataType"].numBytes())), \
+          "v[\\vgprAddr+0:\\vgprAddr+1]", \
+          "offset *= bytes/element")
       #kStr += "s_endpgm\n"
       kStr += ".endm%s" % self.endLine
 
@@ -821,38 +827,62 @@ class KernelWriterAssembly(KernelWriter):
     # Global Write Macro
     ####################################
     kStr += self.comment3("Global Write")
-    kStr += ".macro GLOBAL_WRITE d0 d1%s" % self.endLine
-    kStr += ".set idx, %u+\d1*%u+\d0 %s" \
-        % (self.startVgprValuC, kernel["ThreadTile0"], self.endLine )
-    kStr += dump("v[idx]")
-    kStr += "s_endpgm\n"
+    kStr += ".macro GLOBAL_WRITE vc d0 d1%s" % self.endLine
+    kStr += ".set idx, %u + \\vc + \\d0*%u + \\d1*%u %s" \
+        % (self.startVgprValuC, kernel["VectorWidth"], kernel["ThreadTile0"], \
+        self.endLine )
+    kStr += ".set vgprTmp, %u%s" % ( self.totalVgprs-8, self.endLine)
+    #kStr += dump(vgpr(self.globalWriteAddrC+0))
+    #kStr += dump(vgpr(self.globalWriteAddrC+1))
+    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Alpha"), "")
+    #kStr += dump(vgpr(65))
+    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Beta"), "")
+    #kStr += dump(vgpr(65))
+    #kStr += dump("v[idx]")
     # static tmps b/c 
-    vgprBaseAddr = self.totalVgprs-4
     vgprAddr = self.totalVgprs-6
     vgprValue = self.totalVgprs-7
     kStr += inst("v_mov_b32", vgpr(vgprAddr), sgpr("StridesC"), \
         "%s = StridesC"%vgpr(vgprAddr))
     kStr += inst("v_mov_b32", vgpr(vgprAddr+1), hex(0x0), \
         "%s = 0"%vgpr(vgprAddr+1) )
-    kStr += inst("v_mul_u32_u24", vgpr(vgprAddr), "\d1", vgpr(vgprAddr), \
+    #addr += (d1*strideC + d0*VW + vc)*4bytes
+    # d1*stride
+    kStr += inst("v_mul_u32_u24", vgpr(vgprAddr), "\\d1", vgpr(vgprAddr), \
         "%s = StridesC*d1"%vgpr(vgprAddr) )
-    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", "\d0", vgpr(vgprAddr), \
-        "%s = StridesC1J*d1+d0"%vgpr(vgprAddr) )
-    kStr += inst("v_lshlrev_b64", vgpr(vgprAddr,2), hex(kernel["SubGroup0"]*4), \
+
+    kStr += inst("v_lshlrev_b32", vgpr("Tmp"), hex(log2(kernel["VectorWidth"])), "\\d0", \
+        "tmp = d0*VW" )
+    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", vgpr("Tmp"), vgpr(vgprAddr), \
+        "%s = StridesC1J*d1+d0*VW"%vgpr(vgprAddr) )
+
+    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", "\\vc", vgpr(vgprAddr), \
+        "%s = StridesC1J*d1+d0*VW+vc"%vgpr(vgprAddr) )
+
+    kStr += inst("v_lshlrev_b64", vgpr(vgprAddr,2), hex(log2(kernel["SubGroup0"]*4)), \
         vgpr(vgprAddr,2), "%s = 16*(strideC1J*d1+d0)*4"%vgpr(vgprAddr) )
-    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", vgpr(vgprBaseAddr), \
+
+    kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", vgpr(self.globalWriteAddrC+0), \
         vgpr(vgprAddr), "%s = base + 16*(strideC1J*d1+d0)"%vgpr(vgprAddr) )
-    kStr += inst("v_addc_u32", vgpr(vgprAddr+1), "vcc", vgpr(vgprBaseAddr),  \
+    kStr += inst("v_addc_u32", vgpr(vgprAddr+1), "vcc", vgpr(self.globalWriteAddrC+1), \
         vgpr(vgprAddr+1), "vcc", "%s = base + 16*(strideC1J*d1+d0)"%vgpr(vgprAddr+1))
     kStr += inst("flat_load_dword", vgpr(vgprValue), vgpr(vgprAddr,2), \
         "load C" )
     kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+    #kStr += dump(vgpr(vgprValue))
     kStr += inst("v_mul_f32", vgpr(vgprValue), sgpr("Beta"), vgpr(vgprValue), \
         "%s = C*beta"%vgpr(vgprValue) )
+    #kStr += dump(vgpr(vgprValue))
+
     kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
+    #kStr += dump("v[idx]")
     kStr += inst("v_add_f32", "v[idx]", vgpr(vgprValue), "v[idx]", \
         "v[idx] = sum*alpha + C*beta" )
     kStr += inst("flat_store_dword", vgpr(vgprAddr,2), "v[idx]", "store C" )
+    #kStr += dump(vgpr(vgprAddr+0))
+    #kStr += dump(vgpr(vgprAddr+1))
+    #kStr += dump("v[idx]")
+    #kStr += "s_endpgm\n"
     kStr += ".endm%s"%self.endLine
 
 
@@ -869,10 +899,15 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.endLine
       for b in range(0, kernel["ThreadTile1"]):
         for a in range(0, kernel["ThreadTile0"]):
-          kStr += "v_mac_f32 v[%s+%u+%u*%u], v[%s+%u], v[%s+%u]%s" \
-              % ("vgprValuC", a, b, kernel["ThreadTile0"], \
-              "vgprValuA" if m==0 else "vgprValuBlkA", a, \
-              "vgprValuB" if m==0 else "vgprValuBlkB", b, self.endLine)
+          cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
+          aStr = "v[%s+%u]" \
+              % ("vgprValuA" if m==0 else "vgprValuBlkA", a)
+          bStr = "v[%s+%u]" \
+              % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
+          #if a==7 and b==7:
+          #  kStr += dump(cStr)
+
+          kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
       kStr += ".endm%s" % self.endLine
 
     ####################################
@@ -1031,7 +1066,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     # set m0
-    kStr += inst("s_mov_b32", "m0", "0xFFFFFFFF", "TODO: LDS clamp")
+    kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
+        * kernel["ProblemType"]["DataType"].numBytes()), "LDS clamp at %u bytes" \
+        %(kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()) )
+        
     kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
     ########################################
@@ -1851,10 +1889,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_add_u32", \
         vgpr("LocalWriteAddrB"), \
         "vcc", \
-        hex(kernel["LdsOffsetB"]), \
+        hex(kernel["LdsOffsetB"]*kernel["ProblemType"]["DataType"].numBytes()), \
         vgpr("LocalWriteAddrB"), \
-        "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u" % (self.tileCharB, \
-        self.unrollChar, self.tileCharB, kernel["LdsOffsetB"]) )
+        "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (self.tileCharB, \
+        self.unrollChar, self.tileCharB, kernel["LdsOffsetB"], \
+        kernel["ProblemType"]["DataType"].numBytes()) )
     #kStr += dump(vgpr("LocalWriteAddrB"))
     #kStr += "s_endpgm\n"
     return kStr
@@ -2112,7 +2151,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_add_u32", \
         vgpr("LocalReadAddrB+0"), \
         "vcc", \
-        hex(kernel["LdsOffsetB"]), \
+        hex(kernel["LdsOffsetB"]*kernel["ProblemType"]["DataType"].numBytes()), \
         vgpr("LocalReadAddrB+0"), \
         " += LdsOffsetB (lower)")
     #kStr += dump(vgpr("LocalReadAddrB"))
@@ -2384,10 +2423,12 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += "s_endpgm\n"
           graIdxA += self.rpga
           g2lIdxA += loadWidth
+    kStr += self.wait(0,0)
     #kStr += dump(vgpr("GlobalReadAddrA+0"))
-    kStr += dump(vgpr("G2LA+0"))
-    kStr += dump(vgpr("G2LA+1"))
-    kStr += "s_endpgm\n"
+    #kStr += dump(vgpr("GlobalReadAddrA+1"))
+    #kStr += dump(vgpr("G2LA+0"))
+    #kStr += dump(vgpr("G2LA+1"))
+    #kStr += "s_endpgm\n"
     return kStr
     # SKIP branches
     """
@@ -2450,7 +2491,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalWriteAddrA"), \
-        hex(kernel["LdsOffsetA_Blk"]), \
+        hex(kernel["LdsOffsetA_Blk"]*kernel["ProblemType"]["DataType"].numBytes()), \
         vgpr("LocalWriteAddrA"), \
         "swap Red Blk")
     return kStr
@@ -2462,7 +2503,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalWriteAddrB"), \
-        hex(kernel["LdsOffsetA_Blk"]), \
+        hex(kernel["LdsOffsetA_Blk"]*kernel["ProblemType"]["DataType"].numBytes()), \
         vgpr("LocalWriteAddrB"), \
         "swap Red Blk")
     return kStr
@@ -2635,7 +2676,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddrA"), \
-        hex(kernel["LdsOffsetA_Blk"]), \
+        hex(kernel["LdsOffsetA_Blk"]*kernel["ProblemType"]["DataType"].numBytes()), \
         vgpr("LocalReadAddrA"), \
         "swap Red Blk")
     return kStr
@@ -2647,7 +2688,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddrB"), \
-        hex(kernel["LdsOffsetA_Blk"]), \
+        hex(kernel["LdsOffsetA_Blk"]*kernel["ProblemType"]["DataType"].numBytes()), \
         vgpr("LocalReadAddrB"), \
         "swap Red Blk")
     return kStr
@@ -2664,7 +2705,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += inst("v_and_b32", \
           vgpr("LocalReadAddrA"), \
-          hex(kernel["LdsOffsetA_Blk"]-1), \
+          hex(kernel["LdsOffsetA_Blk"]*kernel["ProblemType"]["DataType"].numBytes()-1), \
           vgpr("LocalReadAddrA"), \
           "reset Red,Blk -> Red")
     #kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
@@ -2682,7 +2723,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += inst("v_and_b32", \
           vgpr("LocalReadAddrB"), \
-          hex(kernel["LdsOffsetA_Blk"]-1), \
+          hex(kernel["LdsOffsetA_Blk"]*kernel["ProblemType"]["DataType"].numBytes()-1), \
           vgpr("LocalReadAddrB"), \
           "reset Red,Blk -> Red")
     return kStr
@@ -2744,6 +2785,7 @@ class KernelWriterAssembly(KernelWriter):
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
+    offsetMultiplier = instruction.offsetMultiplier
     totalReads = (kernel["ThreadTile0"]/kernel["VectorWidth"]) / numOffsets
     valuIdx = 0
     for lrIdx in range(0, totalReads):
@@ -2755,8 +2797,8 @@ class KernelWriterAssembly(KernelWriter):
             blockWidth))
       paramList.append(vgpr("LocalReadAddrA"))
       for oIdx in range(0, numOffsets):
-        paramList.append(kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx) \
-            + self.localReadOffsetA)
+        paramList.append((kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx) \
+            + self.localReadOffsetA)/offsetMultiplier)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
       kStr += instruction.toString(paramTuple, comment)
@@ -2772,6 +2814,7 @@ class KernelWriterAssembly(KernelWriter):
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
+    offsetMultiplier = instruction.offsetMultiplier
     totalReads = (kernel["ThreadTile1"]/kernel["VectorWidth"]) / numOffsets
     valuIdx = 0
     for lrIdx in range(0, totalReads):
@@ -2783,8 +2826,8 @@ class KernelWriterAssembly(KernelWriter):
             blockWidth))
       paramList.append(vgpr("LocalReadAddrB"))
       for oIdx in range(0, numOffsets):
-        paramList.append(kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx) \
-            + self.localReadOffsetB)
+        paramList.append((kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx) \
+            + self.localReadOffsetB)/offsetMultiplier)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
       kStr += instruction.toString(paramTuple, comment)
@@ -2982,20 +3025,25 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Not LocalSplitU: Global Write Indices - TODO
+  # Not LocalSplitU: Global Write Indices - DONE
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
+    tmp = self.vgprScratch.checkOut(2)
+    kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressC+0"), "" )
+    kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressC+1"), "" )
+    #kStr += dump(vgpr(tmp+0))
+    #kStr += dump(vgpr(tmp+1))
     # 3 scratch sgprs
     s0 = self.startSgprAddressA
     s1 = s0+1
     s2 = self.startSgprAddressB
     s3 = s2+1
-    kStr += inst("s_lshl_b32", \
-        sgpr("StridesC"), \
-        sgpr("StridesC"), \
-        log2(4), \
-        "StridesC *= 4bytes")
+    #kStr += inst("s_lshl_b32", \
+    #    sgpr("StridesC"), \
+    #    sgpr("StridesC"), \
+    #    log2(4), \
+    #    "StridesC *= 4bytes")
     kStr += inst("s_mul_i32", \
         sgpr(s0), \
         hex(kernel["MacroTile0"]*4), \
@@ -3031,7 +3079,6 @@ class KernelWriterAssembly(KernelWriter):
         hex(0), \
         sgpr("AddressC+1"), \
         "%s = C + wg0*MT0*4 + wg1*MT1*4*StrideC0 (upper)"%sgpr(s3))
-    self.globalWriteAddrC = self.totalVgprs-4 # match macro
     kStr += inst("v_mov_b32", \
         vgpr(self.globalWriteAddrC+0), \
         sgpr(s2), \
@@ -3040,10 +3087,12 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(self.globalWriteAddrC+1), \
         sgpr(s3), \
         "move work-group offset into vgpr (upper)")
+    #kStr += dump(vgpr(self.globalWriteAddrC+0))
+    #kStr += dump(vgpr(self.globalWriteAddrC+1))
 
     # thread id 0,1
     self.local01 = self.vgprScratch.checkOut(2)
-    dividendReg = self.startVgprSerial # local serial
+    dividendReg = "Serial" # local serial
     rReg = self.local01 + 0
     qReg = self.local01 + 1
     tmpVgpr = self.vgprScratch.checkOut(1)
@@ -3053,11 +3102,22 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
     tid0 = rReg
     tid1 = qReg
+    kStr += inst("v_lshlrev_b32", \
+        vgpr(tid0), \
+        log2(kernel["ProblemType"]["DataType"].numBytes()), \
+        vgpr(tid0), \
+        "*= %u bytes/element"%kernel["ProblemType"]["DataType"].numBytes())
+    kStr += inst("v_lshlrev_b32", \
+        vgpr(tid1), \
+        log2(kernel["ProblemType"]["DataType"].numBytes()), \
+        vgpr(tid1), \
+        "*= %u bytes/element"%kernel["ProblemType"]["DataType"].numBytes())
+
     kStr += inst("v_mul_lo_u32", \
         vgpr(tid1), \
         sgpr("StridesC+0"), \
         vgpr(tid1), \
-        "%s = tid1*StridesC"%sgpr(tid1))
+        "%s = tid1*StridesC"%vgpr(tid1))
     kStr += inst("v_add_u32", \
         vgpr(self.globalWriteAddrC+0), \
         "vcc", \
@@ -3084,6 +3144,8 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(self.globalWriteAddrC+1), \
         "vcc", \
         "C += tid0 (upper)")
+    #kStr += dump(vgpr(self.globalWriteAddrC+0))
+    #kStr += dump(vgpr(self.globalWriteAddrC+1))
 
     """
     kStr += "GLOBAL_OFFSET_C( vgprGlobalReadAddrA+%u"%graIdxA
@@ -3117,9 +3179,12 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     kStr = ""
+    kStr += self.comment1("GLOBAL_WRITE vc tt0 tt1%s" % (self.endLine) )
+    #kStr += "GLOBAL_WRITE 0 1 0%s" % (self.endLine)
     for tt1 in range(0, kernel["ThreadTile1"]):
-      for tt0 in range(0, kernel["ThreadTile0"]):
-        kStr += "GLOBAL_WRITE %u %u%s" % (tt0, tt1, self.endLine)
+      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+        for vc in range(0, kernel["VectorWidth"]):
+          kStr += "GLOBAL_WRITE %u %u %u%s" % (vc, tt0, tt1, self.endLine)
     return kStr
 
   ##############################################################################

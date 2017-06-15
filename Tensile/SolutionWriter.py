@@ -555,10 +555,10 @@ class SolutionWriter:
           s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
           s += "%s  printf(\"%%04i\", i);\n" % (t)
           s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
-          if False:
+          if True:
             s += "%s    printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
           else:
-            s += "%s    printf(\",%%4f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
+            s += "%s    printf(\",%%8f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
  
           s += "%s  }\n" % (t)
           s += "%s  printf(\"\\n\");\n" % (t)
