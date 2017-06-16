@@ -408,7 +408,7 @@ class KernelWriter:
       kStr += self.closeSumAtLeastUnroll(kernel)
 
     # open unrolled summation loop
-    kStr += self.comment3("Uunrolled Loop - Begin")
+    kStr += self.comment3("Unrolled Loop - Begin")
     kStr += self.openLoop(kernel, self.unrollIdx)
 
     # unrolled loop: global read A, B
@@ -596,7 +596,7 @@ class KernelWriter:
     kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
 
     # close unrolled loop
-    kStr += self.comment3("Uunrolled Loop - End")
+    kStr += self.comment3("Unrolled Loop - End")
     kStr += self.closeLoop(kernel, self.unrollIdx)
 
     # prefetch: unrolled loop suffix
