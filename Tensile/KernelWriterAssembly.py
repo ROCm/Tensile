@@ -925,7 +925,7 @@ class KernelWriterAssembly(KernelWriter):
           bStr = "v[%s+%u]" \
               % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
           kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-          #if a==2 and b==2:
+          #if a==2 and b==0:
           #  kStr += dump(aStr)
       kStr += ".endm%s" % self.endLine
 
@@ -2038,11 +2038,11 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
     #kStr += dump(vgpr(rReg))
     #kStr += dump(vgpr(qReg))
-    #kStr += "s_endpgm\n"
-    self.lroA = qReg
+    self.lroA = rReg
     #kStr += dump(vgpr(self.lroA))
-    self.lroB = rReg
+    self.lroB = qReg
     self.vgprScratch.checkIn(tmpVgpr)
+    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -2069,6 +2069,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(self.lroB))
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(tmpVgpr)
+    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
