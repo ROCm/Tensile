@@ -763,7 +763,7 @@ class KernelWriterAssembly(KernelWriter):
     for (tensorChar, indices) in [ \
         ("C", range(0, kernel["ProblemType"]["NumDimensionsC"])), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"]), \
-        ("B", kernel["ProblemType"]["IndexAssignmentsA"]) ]:
+        ("B", kernel["ProblemType"]["IndexAssignmentsB"]) ]:
       kStr += self.comment("Global Offset %s"%tensorChar)
       numDim = len(indices)
       idxChars = []
@@ -925,8 +925,8 @@ class KernelWriterAssembly(KernelWriter):
           bStr = "v[%s+%u]" \
               % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
           kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-          #if a==2 and b==0:
-          #  kStr += dump(aStr)
+          #if a==0 and b==2:
+          #  kStr += dump(cStr)
       kStr += ".endm%s" % self.endLine
 
     ####################################
@@ -1172,7 +1172,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment("Debug Buffer")
     nt_log2 = log2(kernel["NumThreads"])
     # TODO: read nwg0 from sgpr
-    nwg0 = 32 # num work-groups 0
+    nwg0 = 1 # num work-groups 0
     self.nipt = 8 # num integers per thread
     v = self.vgprScratch.checkOut(3)
     kStr += inst("v_mov_b32", vgpr(v), "s2", "%s=wg0"%vgpr(v) )
@@ -1286,8 +1286,9 @@ class KernelWriterAssembly(KernelWriter):
       else:
         kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
             vgpr(lReg), "%s *= VW"%vgpr(uReg) )
-    kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["SubGroupA"]), \
+    kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileA"]), \
         sgpr("WorkGroup0"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
+    #kStr += dump(vgpr(tmpVgpr))
     kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
         vgpr(tReg), "groA-tile = serial%s%s*VW + (wgA*MTA)" \
         % (tOpStr, divisorName) )
@@ -1352,8 +1353,9 @@ class KernelWriterAssembly(KernelWriter):
       else:
         kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
             vgpr(uReg), "%s *= VW"%vgpr(uReg) )
-    kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["SubGroupB"]), \
+    kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileB"]), \
         sgpr("WorkGroup1"), "%s = wgB * MTB"%vgpr(tmpVgpr) )
+    #kStr += dump(vgpr(tmpVgpr))
     kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
         vgpr(tReg), "groB-tile = serial%s%s*VW + (wgB*MTB)" \
         % (tOpStr, divisorName) )
@@ -1361,7 +1363,7 @@ class KernelWriterAssembly(KernelWriter):
     self.tRegB = tReg2
     self.uRegB = uReg
     self.vgprScratch.checkIn(tmpVgpr)
-    #kStr += dump(vgpr(tReg2))
+    #kStr += dump(vgpr("Serial"))
     #kStr += dump(vgpr(uReg))
     #kStr += "s_endpgm\n"
     return kStr
@@ -3133,6 +3135,8 @@ class KernelWriterAssembly(KernelWriter):
     s1 = s0+1
     s2 = self.startSgprAddressB
     s3 = s2+1
+    #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup1"), "" )
+    #kStr += dump(vgpr(tmp))
 
     # work-group offset
     kStr += inst("s_mul_i32", \
@@ -3142,7 +3146,7 @@ class KernelWriterAssembly(KernelWriter):
         "%s = wg0*MT0*4"%sgpr(s0))
     kStr += inst("s_mul_i32", \
         sgpr(s1), \
-        hex(kernel["MacroTile1"]), \
+        hex(kernel["MacroTile1"]*4), \
         sgpr("WorkGroup1"), \
         "%s = wg1*MT1"%sgpr(s1))
     kStr += inst("s_mul_i32", \
@@ -3150,6 +3154,10 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("StridesC+0"), \
         sgpr(s1), \
         "%s = wg1*MT1*4*StrideC0"%sgpr(s1))
+
+    #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(s1), "" )
+    #kStr += dump(vgpr(tmp))
+
     if False: # add address C here
       kStr += inst("s_add_u32", \
           sgpr(s2), \
