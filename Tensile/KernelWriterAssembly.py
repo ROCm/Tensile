@@ -925,8 +925,8 @@ class KernelWriterAssembly(KernelWriter):
           bStr = "v[%s+%u]" \
               % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
           kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-          if a==2 and b==2:
-            kStr += dump(cStr)
+          #if a==2 and b==2:
+          #  kStr += dump(aStr)
       kStr += ".endm%s" % self.endLine
 
     ####################################
@@ -2890,7 +2890,7 @@ class KernelWriterAssembly(KernelWriter):
             blockWidth))
       paramList.append(vgpr("LocalReadAddrA"))
       for oIdx in range(0, numOffsets):
-        paramList.append((kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx) \
+        paramList.append((kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
             + self.localReadOffsetA)*self.bpe/offsetMultiplier)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
@@ -2919,7 +2919,7 @@ class KernelWriterAssembly(KernelWriter):
             blockWidth))
       paramList.append(vgpr("LocalReadAddrB"))
       for oIdx in range(0, numOffsets):
-        paramList.append((kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx) \
+        paramList.append((kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
             + self.localReadOffsetB)*self.bpe/offsetMultiplier)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
@@ -3303,8 +3303,8 @@ class KernelWriterAssembly(KernelWriter):
   def notLocalSplitUGlobalWrite(self, kernel):
     kStr = ""
     kStr += self.comment1("GLOBAL_WRITE vc0 vc1 tt0 tt1%s" % (self.endLine) )
-    kStr += "GLOBAL_WRITE 0 0 1 1%s" % (self.endLine)
-    kStr += "s_endpgm\n"
+    #kStr += "GLOBAL_WRITE 0 0 1 1%s" % (self.endLine)
+    #kStr += "s_endpgm\n"
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
