@@ -34,7 +34,7 @@
 
 
 from SolutionStructs import DataType
-from Common import globalParameters, kernelLanguageIsSource, print1
+from Common import globalParameters, kernelLanguageIsSource, print1, print2
 from KernelWriter import KernelWriter
 from math import log
 import abc
@@ -126,9 +126,9 @@ class KernelWriterAssembly(KernelWriter):
 
     self.do = {}
     self.do["GlobalRead"] = True
-    self.do["GlobalInc"]  = False
-    self.do["LocalWrite"] = False
-    self.do["LocalRead"]  = False
+    self.do["GlobalInc"]  = True
+    self.do["LocalWrite"] = True
+    self.do["LocalRead"]  = True
     self.do["Wait"]       = True
     self.do["MAC"]        = True
 
@@ -474,7 +474,7 @@ class KernelWriterAssembly(KernelWriter):
         self.localReadInstructionIdxA]
     self.localReadInstructionB = instructions["LocalRead"][ \
         self.localReadInstructionIdxB]
-    print self.getKernelName(kernel)
+    #print self.getKernelName(kernel)
     """
     print "\n"
     print self.getKernelName(kernel)
@@ -589,7 +589,7 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += numVgprAddressD
     self.startVgprSerial = vgprIdx
     vgprIdx += numVgprSerial
-    print1("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
+    print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     self.startVgprTmp = vgprIdx
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
@@ -2864,7 +2864,6 @@ class KernelWriterAssembly(KernelWriter):
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
     offsetMultiplier = 1 # instruction.offsetMultiplier
-    print "lrda oM: %u" % offsetMultiplier
     totalReads = (kernel["ThreadTile0"]/kernel["VectorWidth"]) / numOffsets
     valuIdx = 0
     for lrIdx in range(0, totalReads):
