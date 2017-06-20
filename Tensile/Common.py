@@ -45,6 +45,7 @@ else:
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
+globalParameters["DebugKernel"] = False
 globalParameters["PrintSolutionRejectionReason"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))

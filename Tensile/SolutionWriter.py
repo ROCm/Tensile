@@ -96,7 +96,8 @@ class SolutionWriter:
       s += "/* module function args */\n"
       s += "%sstruct {\n" % t
       t += "  "
-      s += "%sunsigned int *debugBuffer;\n" % t
+      if globalParameters["DebugKernel"]:
+        s += "%sunsigned int *debugBuffer;\n" % t
       solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
       for arg in solutionArgs:
         s += "%s%s %s;\n" % (t, arg[0], arg[1])
@@ -497,25 +498,26 @@ class SolutionWriter:
           s += "    );\n"
         else:
 
-          s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
-          s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
-          s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][0];\n" % (t)
-          s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][1];\n" % (t)
-          s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][2];\n" % (t)
-          s += "%sdebugBufferNumElem *= localWorkSize[0];\n" % (t)
-          s += "%sdebugBufferNumElem *= localWorkSize[1];\n" % (t)
-          s += "%sdebugBufferNumElem *= localWorkSize[2];\n" % (t)
-          s += "%s  printf(\"debugBufferNumElem: %%04i: \\n\", debugBufferNumElem);\n" % (t)
-          s += "%ssize_t debugBufferSize = debugBufferNumElem * sizeof(unsigned int);\n" % (t)
-          s += "%shipDevice_t device;\n" % t
-          s += "%shipDeviceGet(&device, 0);\n" % t
-          s += "%shipMalloc(&(hipFunctionArgs.debugBuffer), debugBufferSize);\n" % t
-          s += "%sunsigned int *debugBufferHostPtr = new unsigned int[debugBufferNumElem];\n" % (t)
-          s += "%smemset(debugBufferHostPtr,0,debugBufferSize);\n" % (t)
-          s += "%shipMemcpyHtoD(hipFunctionArgs.debugBuffer, debugBufferHostPtr, debugBufferSize);\n" % (t)
-          s += "%smemset(debugBufferHostPtr,1,debugBufferSize);\n" % (t)
+          if globalParameters["DebugKernel"]:
+            s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
+            s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
+            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][0];\n" % (t)
+            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][1];\n" % (t)
+            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][2];\n" % (t)
+            s += "%sdebugBufferNumElem *= localWorkSize[0];\n" % (t)
+            s += "%sdebugBufferNumElem *= localWorkSize[1];\n" % (t)
+            s += "%sdebugBufferNumElem *= localWorkSize[2];\n" % (t)
+            s += "%s  printf(\"debugBufferNumElem: %%04i: \\n\", debugBufferNumElem);\n" % (t)
+            s += "%ssize_t debugBufferSize = debugBufferNumElem * sizeof(unsigned int);\n" % (t)
+            s += "%shipDevice_t device;\n" % t
+            s += "%shipDeviceGet(&device, 0);\n" % t
+            s += "%shipMalloc(&(hipFunctionArgs.debugBuffer), debugBufferSize);\n" % t
+            s += "%sunsigned int *debugBufferHostPtr = new unsigned int[debugBufferNumElem];\n" % (t)
+            s += "%smemset(debugBufferHostPtr,0,debugBufferSize);\n" % (t)
+            s += "%shipMemcpyHtoD(hipFunctionArgs.debugBuffer, debugBufferHostPtr, debugBufferSize);\n" % (t)
+            s += "%smemset(debugBufferHostPtr,1,debugBufferSize);\n" % (t)
 
-        # hip assembly function
+          # hip assembly function
           s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
@@ -547,23 +549,22 @@ class SolutionWriter:
           s += "%sstream,\n" % (t)
           s += "%sNULL,\n" % (t)
           s += "%s(void**)hipLaunchParams);\n" % (t)
-          #s += "%s(void**)hipLaunchParams,\n" % (t)
-          #s += "%sNULL);\n" % (t)
           t = t[2:]
-          # copy debug buffer
-          s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
-          s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
-          s += "%s  printf(\"%%04i\", i);\n" % (t)
-          #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
-          s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
-          #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t) 
-          s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
-          s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
-          s += "%s else printf(\",%%4.0f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
+          if globalParameters["DebugKernel"]:
+            # copy debug buffer
+            s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
+            s += "%sfor(unsigned int i = 0; i < 0*debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
+            s += "%s  printf(\"%%04i\", i);\n" % (t)
+            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
+            s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
+            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t) 
+            s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
+            s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
+            s += "%s else printf(\",%%4.0f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
  
-          s += "%s  }\n" % (t)
-          s += "%s  printf(\"\\n\");\n" % (t)
-          s += "%s}\n" % (t)
+            s += "%s  }\n" % (t)
+            s += "%s  printf(\"\\n\");\n" % (t)
+            s += "%s}\n" % (t)
 
 
         t = t[2:]
