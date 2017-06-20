@@ -705,7 +705,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", \
       choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("KernelLanguage", help="Which kernel language?", \
-      choices=["OCL", "HIP", "ASM"])
+      choices=["OCL", "HIP", "gfx803"])
   argParser.add_argument("--merge-files", dest="MergeFiles", \
       action="store_true")
   argParser.add_argument("--no-merge-files", dest="MergeFiles", \

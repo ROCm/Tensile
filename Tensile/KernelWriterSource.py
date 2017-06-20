@@ -2482,7 +2482,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # WaitCnt
   ##############################################################################
-  def wait(self, lgkmcnt, vmcnt):
+  def wait(self, kernel, globalRead, localWrite, localRead, comment):
     return ""
 
   ##############################################################################

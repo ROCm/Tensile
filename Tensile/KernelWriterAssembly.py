@@ -124,6 +124,14 @@ class KernelWriterAssembly(KernelWriter):
     super(KernelWriterAssembly, self).__init__( \
         kernelMinNaming, kernelSerialNaming)
 
+    self.do = {}
+    self.do["GlobalRead"] = True
+    self.do["GlobalInc"]  = False
+    self.do["LocalWrite"] = False
+    self.do["LocalRead"]  = False
+    self.do["Wait"]       = True
+    self.do["MAC"]        = True
+
     # ISA version, such as 803
     self.version = int(self.language[3:])
     self.versionMajor = int(self.language[3])
@@ -2355,6 +2363,7 @@ class KernelWriterAssembly(KernelWriter):
   # MAC Iteration - DONE
   ##############################################################################
   def macIter(self, kernel, black):
+    if not self.do["MAC"]: return ""
     kStr = ""
     kStr += "MAC_%ux%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"])
     if black:
@@ -2383,6 +2392,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Increment A - DONE
   ##############################################################################
   def globalReadIncrementA(self, kernel, loopIdx):
+    if not self.do["GlobalInc"]: return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -2422,6 +2432,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Increment B - DONE
   ##############################################################################
   def globalReadIncrementB(self, kernel, loopIdx):
+    if not self.do["GlobalInc"]: return ""
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -2463,6 +2474,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Do It A - DONE
   ##############################################################################
   def globalReadDoA(self, kernel, guardK):
+    if not self.do["GlobalRead"]: return ""
     kStr = ""
     graIdxA = 0
     g2lIdxA = 0
@@ -2521,6 +2533,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Gead: Do It B - DONE
   ##############################################################################
   def globalReadDoB(self, kernel, guardK):
+    if not self.do["GlobalRead"]: return ""
     kStr = ""
     graIdxB = 0
     g2lIdxB = 0
@@ -2631,6 +2644,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Do It A - DONE
   ##############################################################################
   def localWriteDoA(self, kernel):
+    if not self.do["LocalWrite"]: return ""
     kStr = ""
     instruction = self.localWriteInstructionA
     numBlocks = instruction.numBlocks
@@ -2671,6 +2685,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write: Do It B - DONE
   ##############################################################################
   def localWriteDoB(self, kernel):
+    if not self.do["LocalWrite"]: return ""
     kStr = ""
     instruction = self.localWriteInstructionB
     numBlocks = instruction.numBlocks
@@ -2842,6 +2857,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Do It A - DONE
   ##############################################################################
   def localReadDoA(self, kernel, black):
+    if not self.do["LocalRead"]: return ""
     kStr = ""
     instruction = self.localReadInstructionA
     numBlocks = instruction.numBlocks
@@ -2872,6 +2888,7 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Do It B - DONE
   ##############################################################################
   def localReadDoB(self, kernel, black):
+    if not self.do["LocalRead"]: return ""
     kStr = ""
     instruction = self.localReadInstructionB
     numBlocks = instruction.numBlocks
@@ -3392,6 +3409,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def wait(self, kernel, skipGlobalRead, skipLocalWrite, \
       skipLocalRead, comment):
+    if not self.do["Wait"]: return ""
     # skip = -1 -> ignore
     # skip =  n -> waitcnt(n*num)
 
