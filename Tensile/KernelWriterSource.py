@@ -2486,6 +2486,12 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
+  # SyncThreads
+  ##############################################################################
+  def syncThreads(self):
+    return self.indent + self.syncStr + self.endLine
+
+  ##############################################################################
   #
   #   Beta-Only Kernel
   #

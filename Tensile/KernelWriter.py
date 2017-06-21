@@ -384,7 +384,7 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
       # swap local ptrs
       kStr += self.comment("local write swap a")
       kStr += self.localWriteSwapOffsetsA(kernel)
@@ -426,12 +426,12 @@ class KernelWriter:
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
       # debug Local state
       """
       kStr += "    /* print Local state */" + self.endLine
@@ -461,6 +461,7 @@ class KernelWriter:
     for u in range(0, kernel["LoopUnroll"]-2):
      # local read
       kStr += self.comment("iter %u"%u)
+      #if u == 2: kStr += self.syncStr + self.endLine
       readBlk = kernel["PrefetchLocalRead"] and u%2==0
       #kStr += self.wait(kernel, -1, -1, 1, "UNNECESSARY: wait for local write")
       kStr += self.comment("local read a")
@@ -498,7 +499,7 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
       # swap read and write pointers
       kStr += self.comment("local read swap offsets a")
       kStr += self.localReadSwapOffsetsA(kernel)
@@ -565,7 +566,7 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
       # swap read and write
       kStr += self.comment("local read swap offsets a")
       kStr += self.localReadSwapOffsetsA(kernel)
@@ -652,12 +653,12 @@ class KernelWriter:
       kStr += self.localWriteInitPointersA(kernel)
       kStr += self.comment("local write init pointers b")
       kStr += self.localWriteInitPointersB(kernel)
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
 
       # tail: re-init local read addresses
       if kernel["PrefetchGlobalRead"]:
@@ -719,7 +720,7 @@ class KernelWriter:
     #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
     if kernel["LocalSplitU"] > 1:
       kStr += self.comment3("LocalSplitU Reduction")
-      kStr += self.indent + self.syncStr + self.endLine
+      kStr += self.syncThreads()
 
       # LocalSplitU: local write
       kStr += self.comment("LocalSplitU: local write")
@@ -1660,6 +1661,13 @@ class KernelWriter:
   @abc.abstractmethod
   def wait(self, kernel, globalRead, localWrite, localRead, comment):
     return ""
+
+  ##############################################################################
+  # SyncThreads
+  ##############################################################################
+  @abc.abstractmethod
+  def syncThreads(self):
+    return self.indent + self.syncStr + self.endLine
 
   ##############################################################################
   #
