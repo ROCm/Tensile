@@ -127,20 +127,22 @@ class KernelWriterAssembly(KernelWriter):
     self.do = {}
 
     self.do["MAC"]        = True
-    self.do["PrePostLoop"]= True
+    self.do["PreLoop"]    = True
+    self.do["PostLoop"]   = True
     self.do["Wait"]       = True
     self.do["Sync"]       = True
     self.do["LocalRead"]  = True
     self.do["LocalWrite"] = True
     self.do["GlobalInc"]  = True
     self.do["GlobalRead"] = True
+    self.globalReadIncsUseVgpr = True # slightly fewer [v_mov] instructions but extra registers
 
     # ISA version, such as 803
     self.version = int(self.language[3:])
     self.versionMajor = int(self.language[3])
     self.versionMinor = int(self.language[4])
     self.versionPatch = int(self.language[5])
-    print1("KernelWriterAsssembly for gfx%u\n" % self.version )
+    print1("KernelWriterAsssembly targeting gfx%u\n" % self.version )
 
     ########################################
     # Available Memory Instructions
@@ -217,7 +219,6 @@ class KernelWriterAssembly(KernelWriter):
     self.labels = {}
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
-    self.globalReadIncsUseVgpr = True
 
 
   ########################################
@@ -617,6 +618,7 @@ class KernelWriterAssembly(KernelWriter):
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
     self.globalWriteAddrC = self.totalVgprs-4 # match macro
+    #self.globalWriteAddrC = self.startVgprSerial-4 # match macro
 
     ########################################
     # Pre Loop Scratch Vgprs
@@ -1122,11 +1124,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     # set m0
-    if self.do["PrePostLoop"]: kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
+    if self.do["PreLoop"]: kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
         * self.bpe), "LDS clamp at %u bytes" \
         %(kernel["LdsNumElements"] * self.bpe) )
         
-    if self.do["PrePostLoop"]: kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
+    if self.do["PreLoop"]: kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
     ########################################
     # load kernel args
@@ -1134,60 +1136,60 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment("Load Kernel Args")
     kernArgOffset = 0
     if globalParameters["DebugKernel"]:
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressD"), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressD"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
       kernArgOffset += 1*4
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressD+1"), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressD+1"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
       kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressC"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressC"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressC+1"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressC+1"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressA"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressA"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressA+1"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressA+1"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressB"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressB"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("AddressB+1"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressB+1"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("Alpha"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("Alpha"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
     kernArgOffset += 1*4
     if kernel["ProblemType"]["UseBeta"]:
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("Beta"), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("Beta"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
       kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("OffsetC"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("OffsetC"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("OffsetA"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("OffsetA"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset a" )
     kernArgOffset += 1*4
-    if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("OffsetB"), \
+    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("OffsetB"), \
         sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset b" )
     kernArgOffset += 1*4
     for i in range(0, self.numSgprStridesC):
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprStridesA):
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride a %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprStridesB):
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride b %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprSizesFree):
-      if self.do["PrePostLoop"]: kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
+      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
       kernArgOffset += 1*4
     for i in range(0, self.numSgprSizesSum):
@@ -1196,7 +1198,7 @@ class KernelWriterAssembly(KernelWriter):
       kernArgOffset += 1*4
     kStr += inst("s_waitcnt", "lgkmcnt(0)", \
         "wait for %u bytes of kern args" % kernArgOffset )
-    if not self.do["PrePostLoop"]:
+    if not self.do["PreLoop"]:
       kStr += ".if 0\n"
 
     # test debug buffer
@@ -2302,7 +2304,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx):
     kStr = ""
-    if not self.do["PrePostLoop"]: kStr += ".endif\n"
+    if not self.do["PreLoop"]: kStr += ".endif\n"
 
     tmp = self.vgprScratch.checkOut(1)
     tailLoop = loopIdx < 0
@@ -2557,7 +2559,7 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr(tmp), \
                 "vcc", \
                 "gra += incB%s (upper)"%loopChar)
-            graIdx += self.rpga
+          graIdx += self.rpga
     #kStr += dump(vgpr("GlobalReadAddrB+0"))
     #kStr += dump(vgpr("GlobalReadAddrB+1"))
     #kStr += "s_endpgm\n"
@@ -3210,7 +3212,7 @@ class KernelWriterAssembly(KernelWriter):
   # Not LocalSplitU: Global Write Indices - DONE
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
-    if not self.do["PrePostLoop"]: return ""
+    if not self.do["PostLoop"]: return ""
     kStr = ""
     tmp = self.vgprScratch.checkOut(2)
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressC+0"), "" )
@@ -3397,7 +3399,7 @@ class KernelWriterAssembly(KernelWriter):
   # Not LocalSplitU: Global Write - DONE
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
-    if not self.do["PrePostLoop"]: return ""
+    if not self.do["PostLoop"]: return ""
     kStr = ""
     kStr += self.comment1("GLOBAL_WRITE vc0 vc1 tt0 tt1%s" % (self.endLine) )
     #kStr += "s_endpgm\n"

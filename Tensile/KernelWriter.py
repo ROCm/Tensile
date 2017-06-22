@@ -499,7 +499,7 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.syncThreads()
+      #kStr += self.syncThreads()
       # swap read and write pointers
       kStr += self.comment("local read swap offsets a")
       kStr += self.localReadSwapOffsetsA(kernel)
@@ -546,6 +546,7 @@ class KernelWriter:
     # if not prefetch-local: read for current unroll of current iter
     unrollIter = kernel["LoopUnroll"]-1
     kStr += self.comment("iter %u"%unrollIter)
+    kStr += self.syncThreads()
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
       kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
       # local read
