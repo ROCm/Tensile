@@ -938,8 +938,8 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr("v[\\tmp]")
       kStr += inst("v_add_f32", "v[idx]", "v[\\tmp]", "v[idx]", \
           "v[idx] = sum*alpha + C*beta" )
-    #kStr += dump(vgpr(vgprAddr+0))
-    #kStr += dump(vgpr(vgprAddr+1))
+    #kStr += dump("v[addr+0]")
+    #kStr += dump("v[addr+1]")
     #kStr += dump("v[idx]")
     #kStr += "s_endpgm\n"
 
@@ -1239,8 +1239,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
           vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
       self.vgprScratch.checkIn(v)
-    #kStr += dump(vgpr("Serial"))
-    #kStr += "s_endpgm\n"
+      #kStr += dump(vgpr("Serial"))
+      #kStr += "s_endpgm\n"
 
     ########################################
     # Apply User Offsets
