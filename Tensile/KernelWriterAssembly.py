@@ -3553,6 +3553,8 @@ class KernelWriterAssembly(KernelWriter):
       if lgkmcnt > -1:
         lgkmcnt += skipGlobalRead * (numA + numB)
 
+    if False:
+      return "s_waitcnt lgkmcnt(0) & vmcnt(0) // debug%s" % self.endLine
 
     kStr = ""
     kStr += "s_waitcnt "

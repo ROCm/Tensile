@@ -742,6 +742,8 @@ void initData(
     DataType *beta,
     DataType **referenceC,
     DataType **deviceOnHostC) {
+  int seed = time(NULL);
+  srand(seed);
   std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
     << maxSizeB << ")" << std::endl;
 
