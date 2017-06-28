@@ -426,11 +426,13 @@ class KernelWriter:
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
-      kStr += self.syncThreads()
+      kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+      kStr += self.syncThreads() # prior iter done reading lds
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
+      kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
       kStr += self.syncThreads()
       # debug Local state
       """
@@ -472,8 +474,7 @@ class KernelWriter:
       kStr += self.localReadIncA(kernel)
       kStr += self.comment("local read increment b")
       kStr += self.localReadIncB(kernel)
-      kStr += self.wait(kernel, 1 if u==0 else -1, -1, 1, "wait for prior local read")
-      #kStr += self.wait(kernel, -1, -1, 1, "wait for prior local read")
+      kStr += self.wait(kernel, 1 if (u==0 and kernel["PrefetchGlobalRead"]) else -1, -1, 1, "wait for prior local read")
       kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
 
     kStr += self.closeString(kernel)
@@ -537,6 +538,7 @@ class KernelWriter:
         kStr += self.localReadIncA(kernel)
         kStr += self.comment("local read inc b")
         kStr += self.localReadIncB(kernel)
+      kStr += self.wait(kernel, -1, -1, 1, "wait for prior local read")
     kStr += self.macIter(kernel, False)
 
     ####################################
@@ -591,6 +593,8 @@ class KernelWriter:
       kStr += self.localReadInitPointersA(kernel)
       kStr += self.comment("local read init pointers b")
       kStr += self.localReadInitPointersB(kernel)
+    elif not kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
+      kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
     #kStr += self.wait(kernel, -1, 1, 1, "UNNECESSARY wait for prior local read")

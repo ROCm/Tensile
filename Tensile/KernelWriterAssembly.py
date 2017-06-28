@@ -34,7 +34,7 @@
 
 
 from SolutionStructs import DataType
-from Common import globalParameters, kernelLanguageIsSource, print1, print2
+from Common import globalParameters, kernelLanguageIsSource, print1, print2, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log
 import abc
@@ -79,6 +79,10 @@ class ScratchRegisters:
     found = -1
     for i in range(0, self.size):
       valid = True
+      if i + size > self.size:
+        #print i, size, self.size
+        valid = False
+        break
       for j in range(0, size):
         if not self.available[i+j]:
           valid = False
@@ -94,20 +98,26 @@ class ScratchRegisters:
       for i in range(found, found+size):
         self.available[i] = False
       self.checkOutSize[found] = size
+      #print "checkOut(%u,%u)"% (found+self.start, size)
       return (found+self.start)
     else:
-      printExit("Ran out of scratch registers.")
+      printWarning("Ran out of scratch registers.")
+      #for a in self.available:
+      #  print a
+      return (0+self.start)
 
   ########################################
-  # Check Out
+  # Check In
   def checkIn(self, start):
     start -= self.start
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
+      #print "checkIn(%u,%u)"% (start+self.start, size)
       for i in range(start, start+size):
         self.available[i] = True
+      self.checkOutSize.pop(start)
     else:
-      printExit("Checking in registers @ %i that weren't checked out"%start)
+      printWarning("Checking in registers @ %i that weren't checked out"%start)
 
 
 
@@ -1485,6 +1495,7 @@ class KernelWriterAssembly(KernelWriter):
       for l in range(1, self.numReadsTileA):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
             vgpr(v+l-1), "groA%s_%u"%(self.tileCharA, l) )
+    self.vgprScratch.checkIn(self.tRegA) # CHECKIN
     return kStr
 
   ##############################################################################
@@ -1523,6 +1534,7 @@ class KernelWriterAssembly(KernelWriter):
       for l in range(1, self.numReadsTileB):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
             vgpr(v+l-1), "groB%s_%u"%(self.tileCharB, l) )
+    self.vgprScratch.checkIn(self.tRegB) # CHECKIN
     return kStr
 
   ##############################################################################
@@ -1561,6 +1573,7 @@ class KernelWriterAssembly(KernelWriter):
       for l in range(1, self.numReadsUnrollA):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
             vgpr(v+l-1), "groA%s_%u"%(self.unrollChar, l) )
+    #self.vgprScratch.checkIn(self.uRegA)
     return kStr
 
 
@@ -1600,6 +1613,7 @@ class KernelWriterAssembly(KernelWriter):
       for l in range(1, self.numReadsUnrollB):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
             vgpr(v+l-1), "groB%s_%u"%(self.unrollChar, l) )
+    #self.vgprScratch.checkIn(self.uRegB)
     return kStr
 
   ##############################################################################
@@ -1658,7 +1672,7 @@ class KernelWriterAssembly(KernelWriter):
     elif self.readUnrollDimComponentsA:
       uVW = kernel["VectorWidth"]
       uVS = 1
-    tmp = self.vgprScratch.checkOut(2)
+    tmp = self.vgprScratch.checkOut(3)
     kStr = ""
     graIdxA = 0
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
@@ -1710,7 +1724,7 @@ class KernelWriterAssembly(KernelWriter):
     elif self.readUnrollDimComponentsB:
       uVW = kernel["VectorWidth"]
       uVS = 1
-    tmp = self.vgprScratch.checkOut(2)
+    tmp = self.vgprScratch.checkOut(3)
     kStr = ""
     graIdxB = 0
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
@@ -1979,6 +1993,8 @@ class KernelWriterAssembly(KernelWriter):
         hex(log2(self.bpe)), \
         vgpr("LocalWriteAddrA"), \
         " *= bytes/element" )
+    self.vgprScratch.checkIn(self.lwoTA)
+    self.vgprScratch.checkIn(self.uRegA)
     #kStr += dump(vgpr("LocalWriteAddrA"))
     #kStr += "s_endpgm\n"
     return kStr
@@ -2017,6 +2033,9 @@ class KernelWriterAssembly(KernelWriter):
         "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (self.tileCharB, \
         self.unrollChar, self.tileCharB, kernel["LdsOffsetB"], \
         self.bpe) )
+    self.vgprScratch.checkIn(self.lwoTB)
+    self.vgprScratch.checkIn(self.uRegB)
+    print "HERE"
     #kStr += dump(vgpr("LocalWriteAddrB"))
     #kStr += "s_endpgm\n"
     return kStr
@@ -2217,6 +2236,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(rReg)
+    self.vgprScratch.checkIn(self.lroA)
     #kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*MT%s;%s" \
     #    % ( self.tileChar0, self.tileChar0, self.endLine)
     return kStr
@@ -2269,6 +2289,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(rReg)
+    self.vgprScratch.checkIn(self.lroB)
     #kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
     #    % (self.tileChar1, self.tileChar1, self.endLine)
     return kStr
@@ -2475,7 +2496,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     graIdx = 0
-    tmp = self.startVgprSerial + 1
+    tmp = self.startVgprSerial - 1
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
@@ -2526,7 +2547,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     graIdx = 0
-    tmp = self.startVgprSerial + 1
+    tmp = self.startVgprSerial - 1
     #kStr += dump(vgpr("GlobalReadAddrB+0"))
     #kStr += dump(vgpr("GlobalReadAddrB+1"))
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
@@ -3217,6 +3238,7 @@ class KernelWriterAssembly(KernelWriter):
   # Not LocalSplitU: Global Write Indices - DONE
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
+    #print "GlobalWriteIndices"
     if not self.do["PostLoop"]: return ""
     kStr = ""
     tmp = self.vgprScratch.checkOut(2)
@@ -3361,11 +3383,11 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("AddressC+0"), \
         vgpr(self.globalWriteAddrC+0), \
         "%s += C (lower)"%vgpr(self.globalWriteAddrC))
-    kStr += inst("v_mov_b32", vgpr(tmp), sgpr("AddressC+1"), "" )
+    #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("AddressC+1"), "" )
     kStr += inst("v_addc_u32", \
         vgpr(self.globalWriteAddrC+1), \
         "vcc", \
-        vgpr(tmp), \
+        vgpr(tmp+1), \
         vgpr(self.globalWriteAddrC+1), \
         "vcc", \
         "%s += C (upper)"%vgpr(self.globalWriteAddrC+1))
@@ -3376,6 +3398,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(tmp)
+    self.vgprScratch.checkIn(self.local01)
     self.globalWriteTmp = self.vgprScratch.checkOut(4)
 
     """
@@ -3421,6 +3444,7 @@ class KernelWriterAssembly(KernelWriter):
           for vc0 in range(0, kernel["VectorWidth"]):
             kStr += "GLOBAL_WRITE %u %u %u %u %u %u%s" % (vc0, vc1, tt0, tt1, \
                 self.globalWriteAddrC, self.globalWriteTmp, self.endLine)
+    self.vgprScratch.checkIn(self.globalWriteTmp)
     return kStr
 
   ##############################################################################
@@ -3601,6 +3625,8 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(tmpAddr) + " offset:%u"%(i*256*4), "dump lds")
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "dump" )
       kStr += dump(vgpr(tmp))
+    self.vgprScratch.checkIn(tmp)
+    self.vgprScratch.checkIn(tmpAddr)
     return kStr
 
   ##############################################################################
@@ -3725,11 +3751,11 @@ def staticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
   kStr = staticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False)
   return kStr
 
-def staticRemainder(rReg, dReg, divisor, tmpVgpr, tmpSgpr):
-  qReg = self.vgprScratch.checkOut(1)
-  kStr = staticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr)
-  self.vgprScratch.checkIn(qReg)
-  return kStr
+#def staticRemainder(rReg, dReg, divisor, tmpVgpr, tmpSgpr):
+#  qReg = self.vgprScratch.checkOut(1)
+#  kStr = staticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr)
+#  self.vgprScratch.checkIn(qReg)
+#  return kStr
 
   """
 # mod 3 v0 -> v0
