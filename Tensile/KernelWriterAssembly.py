@@ -617,8 +617,10 @@ class KernelWriterAssembly(KernelWriter):
     maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
-    self.globalWriteAddrC = self.totalVgprs-4 # match macro
-    #self.globalWriteAddrC = self.startVgprSerial-4 # match macro
+
+    self.startVgprSerial = self.totalVgprs-1
+    #self.globalWriteAddrC = self.totalVgprs-4 # match macro
+    self.globalWriteAddrC = self.startVgprSerial-4 # match macro
 
     ########################################
     # Pre Loop Scratch Vgprs
@@ -1083,7 +1085,8 @@ class KernelWriterAssembly(KernelWriter):
       kernArgReg -= 3 # strides
     kernArgReg += kernel["ProblemType"]["NumIndicesSummation"]
     kernArgReg += kernel["ProblemType"]["NumIndicesC"]
-    kernArgReg += self.rpga # debug buffer
+    if globalParameters["DebugKernel"]:
+      kernArgReg += self.rpga # debug buffer
 
     kernArgBytes = kernArgReg * 4 # bytes/reg
     kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
@@ -1096,7 +1099,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
         % ( (self.totalVgprs-1)/4, self.totalVgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
-        % ( (self.totalSgprs-1)/8, self.totalSgprs, self.endLine)
+        % ( 1+(self.totalSgprs-1)/8, self.totalSgprs, self.endLine)
     # work-group dimensions
     kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // ?%s" % self.endLine
     kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
@@ -3555,6 +3558,9 @@ class KernelWriterAssembly(KernelWriter):
 
     if False:
       return "s_waitcnt lgkmcnt(0) & vmcnt(0) // debug%s" % self.endLine
+
+    lgkmcnt = min(lgkmcnt, 15)
+    vmcnt = min(vmcnt, 15)
 
     kStr = ""
     kStr += "s_waitcnt "

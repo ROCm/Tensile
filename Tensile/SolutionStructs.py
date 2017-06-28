@@ -970,9 +970,7 @@ class Solution:
         + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + state["LdsNumElementsAlignedB"]
-      print "OLD OFFSET", offsetBlk
       offsetBlk = int(2**(ceil(log(offsetBlk, 2))))
-      print "NEW OFFSET", offsetBlk
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] \
