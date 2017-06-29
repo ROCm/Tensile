@@ -396,7 +396,7 @@ class KernelWriter:
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
         kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-        kStr += self.syncThreads()
+        kStr += self.syncThreads(kernel)
         kStr += self.comment("local read prefetch a")
         kStr += self.localReadDoA(kernel, False)
         kStr += self.comment("local read prefetch b")
@@ -425,19 +425,19 @@ class KernelWriter:
 
     if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       kStr += self.wait(kernel, 1, 0, -1, "wait for local write")
-      kStr += self.syncThreads()
+      kStr += self.syncThreads(kernel)
 
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
       kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
-      kStr += self.syncThreads() # prior iter done reading lds
+      kStr += self.syncThreads(kernel) # prior iter done reading lds
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
       kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-      kStr += self.syncThreads()
+      kStr += self.syncThreads(kernel)
       # debug Local state
       """
       kStr += "    /* print Local state */" + self.endLine
@@ -461,9 +461,9 @@ class KernelWriter:
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
 
-    ####################################
+    ############################################################################
     # unrolled loop: mac iterations
-    ####################################
+    ############################################################################
     for u in range(0, kernel["LoopUnroll"]-2):
      # local read
       kStr += self.comment("iter %u"%u)
@@ -504,7 +504,7 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      #kStr += self.syncThreads()
+      #kStr += self.syncThreads(kernel)
       # swap read and write pointers
       kStr += self.comment("local read swap offsets a")
       kStr += self.localReadSwapOffsetsA(kernel)
@@ -554,7 +554,7 @@ class KernelWriter:
     kStr += self.comment("iter %u"%unrollIter)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-      kStr += self.syncThreads()
+      kStr += self.syncThreads(kernel)
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
       # local read
       readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
@@ -576,7 +576,7 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      #kStr += self.syncThreads()
+      #kStr += self.syncThreads(kernel)
       # swap read and write
       kStr += self.comment("local read swap offsets a")
       kStr += self.localReadSwapOffsetsA(kernel)
@@ -616,6 +616,10 @@ class KernelWriter:
     if kernel["PrefetchGlobalRead"]:
       kStr += self.comment("prefetch: last unrolled iteration")
       kStr += self.openSumAtLeastUnroll(kernel)
+      if not kernel["PrefetchLocalRead"]:
+        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+        kStr += self.syncThreads(kernel)
+      """
       if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
         kStr += self.comment("prefetch local read a")
         kStr += self.localReadDoA(kernel, False)
@@ -625,6 +629,7 @@ class KernelWriter:
         kStr += self.localReadIncA(kernel)
         kStr += self.comment("prefetch local read inc b")
         kStr += self.localReadIncB(kernel)
+      """
       for u in range(0, kernel["LoopUnroll"]):
         kStr += self.comment("iter %u"%u)
         readBlk = kernel["PrefetchLocalRead"] and u%2==0
@@ -638,7 +643,7 @@ class KernelWriter:
           kStr += self.comment("local read inc b")
           kStr += self.localReadIncB(kernel)
         kStr += self.wait(kernel, -1, -1, \
-            1 if u < kernel["LoopUnroll"]-1 else 0, "wait for local read")
+            1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
         kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
       kStr += self.closeSumAtLeastUnroll(kernel)
 
@@ -665,12 +670,12 @@ class KernelWriter:
       kStr += self.localWriteInitPointersA(kernel)
       kStr += self.comment("local write init pointers b")
       kStr += self.localWriteInitPointersB(kernel)
-      kStr += self.syncThreads()
+      kStr += self.syncThreads(kernel)
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.syncThreads()
+      kStr += self.syncThreads(kernel)
 
       # tail: re-init local read addresses
       if kernel["PrefetchGlobalRead"]:
@@ -732,7 +737,7 @@ class KernelWriter:
     #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
     if kernel["LocalSplitU"] > 1:
       kStr += self.comment3("LocalSplitU Reduction")
-      kStr += self.syncThreads()
+      kStr += self.syncThreads(kernel)
 
       # LocalSplitU: local write
       kStr += self.comment("LocalSplitU: local write")
@@ -1678,7 +1683,7 @@ class KernelWriter:
   # SyncThreads
   ##############################################################################
   @abc.abstractmethod
-  def syncThreads(self):
+  def syncThreads(self, kernel):
     return self.indent + self.syncStr + self.endLine
 
   ##############################################################################
@@ -1729,7 +1734,7 @@ class KernelWriter:
           "-x", "assembler", \
           "-target", "amdgcn--amdhsa", \
           "-mcpu=fiji", "-c", "-o", objectFileName, assemblyFileName]
-      print1("\n%s\n# Assembling %s:\n# %s\n%s\n" % (HR, kernelName, assemblerCommand, HR) )
+      print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()
       if assemblerProcess.returncode:
@@ -1739,7 +1744,7 @@ class KernelWriter:
       linkerCommand = [globalParameters["AssemblerPath"], \
           "-target", "amdgcn--amdhsa", \
           objectFileName, "-o", codeObjectFileName ]
-      print1("\n%s\n# Linking %s:\n# %s\n%s\n" % (HR, kernelName, linkerCommand, HR) )
+      print2("# Linking %s: %s" % (kernelName, linkerCommand) )
       linkerProcess = Popen(linkerCommand, cwd=globalParameters["WorkingPath"] )
       linkerProcess.communicate()
       if linkerProcess.returncode:

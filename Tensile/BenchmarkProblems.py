@@ -235,6 +235,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       for j in range(0, len(solutionsForHardcoded)):
         solution = solutionsForHardcoded[j]
         solutionList.append(solution)
+    if len(solutionList) == 0:
+        printExit("Your parameters resulted in 0 valid solutions.\nYou should re-run with \"PrintSolutionRejectionReason: True\" to see why each parameter combination was rejected.")
     if globalParameters["PrintLevel"] >= 1:
       for i in range(0, len(solutions)):
         solutionsForHardcoded = solutions[i]

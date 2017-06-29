@@ -264,6 +264,8 @@ class BenchmarkProcess:
       for paramDict in copy(stepList):
         for paramName in copy(paramDict):
           paramValues = paramDict[paramName]
+          if paramValues == None:
+            printExit("You must specify value for parameters \"%s\"" % paramName )
           if len(paramValues) < 2 and paramName != "ProblemSizes":
             paramDict.pop(paramName)
             #self.benchmarkCommonParameters.insert(0, {paramName: paramValues })

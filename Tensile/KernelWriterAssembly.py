@@ -72,15 +72,17 @@ class ScratchRegisters:
     self.size = size
     self.available = [True]*self.size
     self.checkOutSize = {}
+    self.overflowedState = False
 
   ########################################
   # Check Out
   def checkOut(self, size):
+    if self.overflowedState: return self.start
+
     found = -1
     for i in range(0, self.size):
       valid = True
       if i + size > self.size:
-        #print i, size, self.size
         valid = False
         break
       for j in range(0, size):
@@ -101,14 +103,17 @@ class ScratchRegisters:
       #print "checkOut(%u,%u)"% (found+self.start, size)
       return (found+self.start)
     else:
-      printWarning("Ran out of scratch registers.")
+      self.overflowedState = True
+      printWarning("Scratch register overflow!")
       #for a in self.available:
       #  print a
-      return (0+self.start)
+      return self.start
 
   ########################################
   # Check In
   def checkIn(self, start):
+    if self.overflowedState: return
+
     start -= self.start
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
@@ -118,6 +123,11 @@ class ScratchRegisters:
       self.checkOutSize.pop(start)
     else:
       printWarning("Checking in registers @ %i that weren't checked out"%start)
+
+  ########################################
+  # Overflowed ?
+  def overflowed(self):
+    return self.overflowedState
 
 
 
@@ -1233,6 +1243,7 @@ class KernelWriterAssembly(KernelWriter):
       nwg0 = 1 # num work-groups 0
       self.nipt = 16 # num integers per thread
       v = self.vgprScratch.checkOut(3)
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       kStr += inst("v_mov_b32", vgpr(v), "s2", "%s=wg0"%vgpr(v) )
       kStr += inst("v_mov_b32", vgpr(v+1), "s3", "%s=wg1"%vgpr(v+1) )
       kStr += inst("v_mul_lo_u32", vgpr(v+1), vgpr(v+1), hex(nwg0), \
@@ -1314,25 +1325,31 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.globalReadCoalesceGroupA == kernel["ProblemType"]["TLUA"]:
       rReg = self.vgprScratch.checkOut(1) # groA-tile = serial%divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       qReg = self.vgprScratch.checkOut(1) # groA-unroll = serial/divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       tReg = rReg
       uReg = qReg
       tOpStr = "%"
       uOpStr = "/"
     else:
       qReg = self.vgprScratch.checkOut(1) # groA-tile = serial/divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       rReg = self.vgprScratch.checkOut(1) # groA-unroll = serial%divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       tReg = qReg
       uReg = rReg
       tOpStr = "/"
       uOpStr = "%"
     tReg2 = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += self.comment1("%s = groA-tile = serial%s%s + (wgA*MTA);" \
         % (vgpr(tReg2), tOpStr, divisorName) )
     kStr += self.comment1("%s = groA-unroll = serial%s%s;" \
         % (vgpr(uReg), uOpStr, divisorName) )
     dividendReg = "Serial" # local serial
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
@@ -1381,25 +1398,31 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.globalReadCoalesceGroupB == kernel["ProblemType"]["TLUB"]:
       rReg = self.vgprScratch.checkOut(1) # groB-tile = serial%divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       qReg = self.vgprScratch.checkOut(1) # groB-unroll = serial/divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       tReg = rReg
       uReg = qReg
       tOpStr = "%"
       uOpStr = "/"
     else:
       qReg = self.vgprScratch.checkOut(1) # groB-tile = serial/divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       rReg = self.vgprScratch.checkOut(1) # groB-unroll = serial%divisor
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       tReg = qReg
       uReg = rReg
       tOpStr = "/"
       uOpStr = "%"
     tReg2 = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += self.comment1("%s = groB-tile = serial%s%s + (wgB*MTB);" \
         % (vgpr(tReg2), tOpStr, divisorName) )
     kStr += self.comment1("%s = groB-unroll = serial%s%s;" \
         % (vgpr(uReg), uOpStr, divisorName) )
     dividendReg = "Serial" # local serial
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
@@ -1467,6 +1490,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.readTileDimComponentsA:
       numTileOffsetsA *= kernel["VectorWidth"]
     self.vgprTileOffsetsA = self.vgprScratch.checkOut(numTileOffsetsA)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     v = self.vgprTileOffsetsA
     stride = "LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"
     stride = kernel[stride]
@@ -1506,6 +1530,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.readTileDimComponentsB:
       numTileOffsetsB *= kernel["VectorWidth"]
     self.vgprTileOffsetsB = self.vgprScratch.checkOut(numTileOffsetsB)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     v = self.vgprTileOffsetsB
     stride = "LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"
     stride = kernel[stride]
@@ -1545,6 +1570,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.readUnrollDimComponentsA:
       numUnrollOffsetsA *= kernel["VectorWidth"]
     self.vgprUnrollOffsetsA = self.vgprScratch.checkOut(numUnrollOffsetsA)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     v = self.vgprUnrollOffsetsA
     kStr = ""
     stride = ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA")
@@ -1585,6 +1611,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.readUnrollDimComponentsB:
       numUnrollOffsetsB *= kernel["VectorWidth"]
     self.vgprUnrollOffsetsB = self.vgprScratch.checkOut(numUnrollOffsetsB)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     v = self.vgprUnrollOffsetsB
     kStr = ""
     stride = ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB")
@@ -1662,6 +1689,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Final Offsets A - DONE
   ##############################################################################
   def graFinalOffsetsA(self, kernel):
+    kStr = ""
     tVW = 1
     tVS = 0
     uVW = 1
@@ -1673,7 +1701,7 @@ class KernelWriterAssembly(KernelWriter):
       uVW = kernel["VectorWidth"]
       uVS = 1
     tmp = self.vgprScratch.checkOut(3)
-    kStr = ""
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     graIdxA = 0
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
@@ -1714,6 +1742,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Final Offsets B - DONE
   ##############################################################################
   def graFinalOffsetsB(self, kernel):
+    kStr = ""
     tVW = 1
     tVS = 0
     uVW = 1
@@ -1725,7 +1754,7 @@ class KernelWriterAssembly(KernelWriter):
       uVW = kernel["VectorWidth"]
       uVS = 1
     tmp = self.vgprScratch.checkOut(3)
-    kStr = ""
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     graIdxB = 0
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
@@ -1777,6 +1806,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     graIdxA = 0
     tmp = self.vgprScratch.checkOut(2)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressA+0"), "" )
     kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressA+1"), "" )
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
@@ -1818,6 +1848,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     graIdxB = 0
     tmp = self.vgprScratch.checkOut(2)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressB+0"), "" )
     kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressB+1"), "" )
     #kStr += dump(vgpr(tmp+0))
@@ -2144,9 +2175,12 @@ class KernelWriterAssembly(KernelWriter):
 
     divisor = kernel["SubGroup0"]
     qReg = self.vgprScratch.checkOut(1) # quotient
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     rReg = self.vgprScratch.checkOut(1) # remainder
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     dividendReg = "Serial" # local serial
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
@@ -2169,9 +2203,12 @@ class KernelWriterAssembly(KernelWriter):
         self.tileChar1, self.commentSuffix, self.endLine)
     divisor = kernel["SubGroup1"]
     qReg = self.vgprScratch.checkOut(1) # quotient
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     rReg = self.vgprScratch.checkOut(1) # remainder
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     dividendReg = self.lroB
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
@@ -2193,9 +2230,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     divisor = kernel["NumThreads"]
     qReg = self.vgprScratch.checkOut(1) # quotient
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     rReg = self.vgprScratch.checkOut(1) # remainder
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     dividendReg = 0
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
@@ -2247,9 +2287,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     divisor = kernel["NumThreads"]
     qReg = self.vgprScratch.checkOut(1) # quotient
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     rReg = self.vgprScratch.checkOut(1) # remainder
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     dividendReg = 0
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
@@ -2332,6 +2375,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PreLoop"]: kStr += ".endif\n"
 
     tmp = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -3241,6 +3285,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     tmp = self.vgprScratch.checkOut(2)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressC+0"), "" )
     kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressC+1"), "" )
     #kStr += dump(vgpr(tmp+0))
@@ -3320,10 +3365,12 @@ class KernelWriterAssembly(KernelWriter):
 
     # thread id 0,1
     self.local01 = self.vgprScratch.checkOut(2)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     dividendReg = "Serial" # local serial
     rReg = self.local01 + 0
     qReg = self.local01 + 1
     tmpVgpr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = s0
     divisor = kernel["SubGroup0"]
     kStr += staticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
@@ -3399,6 +3446,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(tmp)
     self.vgprScratch.checkIn(self.local01)
     self.globalWriteTmp = self.vgprScratch.checkOut(4)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
 
     """
     kStr += "GLOBAL_OFFSET_C( vgprGlobalReadAddrA+%u"%graIdxA
@@ -3600,9 +3648,11 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # SyncThreads
   ##############################################################################
-  def syncThreads(self):
-    if not self.do["Sync"]: return ""
-    return self.indent + self.syncStr + self.endLine
+  def syncThreads(self, kernel):
+    if kernel["NumThreads"] > 64 and self.do["Sync"]:
+      return self.indent + self.syncStr + self.endLine
+    else:
+      return ""
 
 
   ########################################
@@ -3613,7 +3663,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_barrier", "" )
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
     tmp = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpAddr = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_lshlrev_b32", \
         vgpr(tmpAddr), \
         hex(log2(self.bpe)), \
