@@ -384,7 +384,6 @@ class KernelWriter:
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.syncThreads()
       # swap local ptrs
       kStr += self.comment("local write swap a")
       kStr += self.localWriteSwapOffsetsA(kernel)
@@ -397,6 +396,7 @@ class KernelWriter:
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
         kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+        kStr += self.syncThreads()
         kStr += self.comment("local read prefetch a")
         kStr += self.localReadDoA(kernel, False)
         kStr += self.comment("local read prefetch b")
@@ -422,6 +422,10 @@ class KernelWriter:
     kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
     kStr += self.comment("global read inc b")
     kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
+
+    if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
+      kStr += self.wait(kernel, 1, 0, -1, "wait for local write")
+      kStr += self.syncThreads()
 
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
@@ -474,7 +478,7 @@ class KernelWriter:
       kStr += self.localReadIncA(kernel)
       kStr += self.comment("local read increment b")
       kStr += self.localReadIncB(kernel)
-      kStr += self.wait(kernel, 1 if (u==0 and kernel["PrefetchGlobalRead"]) else -1, -1, 1, "wait for prior local read")
+      kStr += self.wait(kernel, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
       kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
 
     kStr += self.closeString(kernel)
@@ -538,7 +542,7 @@ class KernelWriter:
         kStr += self.localReadIncA(kernel)
         kStr += self.comment("local read inc b")
         kStr += self.localReadIncB(kernel)
-      kStr += self.wait(kernel, -1, -1, 1, "wait for prior local read")
+      kStr += self.wait(kernel, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
     kStr += self.macIter(kernel, False)
 
     ####################################
@@ -548,9 +552,10 @@ class KernelWriter:
     # if not prefetch-local: read for current unroll of current iter
     unrollIter = kernel["LoopUnroll"]-1
     kStr += self.comment("iter %u"%unrollIter)
-    kStr += self.syncThreads()
-    if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
+    if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+      kStr += self.syncThreads()
+    if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
       # local read
       readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
       kStr += self.comment("local read a")
@@ -563,13 +568,15 @@ class KernelWriter:
       kStr += self.localReadIncA(kernel)
       kStr += self.comment("local read inc b")
       kStr += self.localReadIncB(kernel)
+      #kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
     elif kernel["PrefetchGlobalRead"]:
       # local write
+      kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
       kStr += self.comment("local write a")
       kStr += self.localWriteDoA(kernel)
       kStr += self.comment("local write b")
       kStr += self.localWriteDoB(kernel)
-      kStr += self.syncThreads()
+      #kStr += self.syncThreads()
       # swap read and write
       kStr += self.comment("local read swap offsets a")
       kStr += self.localReadSwapOffsetsA(kernel)
@@ -587,17 +594,18 @@ class KernelWriter:
       kStr += self.localWriteInitPointersA(kernel)
       kStr += self.comment("local write init pointers b")
       kStr += self.localWriteInitPointersB(kernel)
+      kStr += self.wait(kernel, -1, 1, 0, "wait for local read")
     elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       # local read init ptrs
       kStr += self.comment("local read init pointers a")
       kStr += self.localReadInitPointersA(kernel)
       kStr += self.comment("local read init pointers b")
       kStr += self.localReadInitPointersB(kernel)
-    elif not kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
+      kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
+    else:
       kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
-    #kStr += self.wait(kernel, -1, 1, 1, "UNNECESSARY wait for prior local read")
     kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
 
     # close unrolled loop
@@ -621,7 +629,6 @@ class KernelWriter:
         kStr += self.comment("iter %u"%u)
         readBlk = kernel["PrefetchLocalRead"] and u%2==0
         if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
-          #kStr += self.wait(kernel, -1, -1, 1, "wait for prior local read")
           kStr += self.comment("local read a")
           kStr += self.localReadDoA(kernel, readBlk)
           kStr += self.comment("local read b")

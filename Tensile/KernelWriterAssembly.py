@@ -2035,7 +2035,6 @@ class KernelWriterAssembly(KernelWriter):
         self.bpe) )
     self.vgprScratch.checkIn(self.lwoTB)
     self.vgprScratch.checkIn(self.uRegB)
-    print "HERE"
     #kStr += dump(vgpr("LocalWriteAddrB"))
     #kStr += "s_endpgm\n"
     return kStr
