@@ -382,7 +382,7 @@ class BenchmarkProcess:
     print1("# Join Parameters")
     macroTileJoinSet = set()
     totalPermutations = 1
-    if len(self.joinParameters) > 1:
+    if len(self.joinParameters) > 0:
       for joinName in self.joinParameters:
         # joining a parameter with only a single value
         if hasParam(joinName, self.singleValueParameters):

@@ -1566,13 +1566,13 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Unroll Offsets A - DONE
   ##############################################################################
   def graUnrollOffsetsA(self, kernel):
+    kStr = ""
     numUnrollOffsetsA = self.numReadsUnrollA
     if self.readUnrollDimComponentsA:
       numUnrollOffsetsA *= kernel["VectorWidth"]
     self.vgprUnrollOffsetsA = self.vgprScratch.checkOut(numUnrollOffsetsA)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     v = self.vgprUnrollOffsetsA
-    kStr = ""
     stride = ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA")
     stride = kernel[stride]
     if self.readUnrollDimComponentsA:
@@ -1607,13 +1607,13 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Unroll Offsets B - DONE
   ##############################################################################
   def graUnrollOffsetsB(self, kernel):
+    kStr = ""
     numUnrollOffsetsB = self.numReadsUnrollB
     if self.readUnrollDimComponentsB:
       numUnrollOffsetsB *= kernel["VectorWidth"]
     self.vgprUnrollOffsetsB = self.vgprScratch.checkOut(numUnrollOffsetsB)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     v = self.vgprUnrollOffsetsB
-    kStr = ""
     stride = ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB")
     stride = kernel[stride]
     if self.readUnrollDimComponentsB:
