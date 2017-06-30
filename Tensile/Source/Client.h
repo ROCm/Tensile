@@ -772,7 +772,7 @@ void initData(
   // initialize buffers C
   if (dataInitTypeC == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetRandom<DataType>(); }
+      (*initialC)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
   } else if (dataInitTypeC == 1) {
     for (size_t i = 0; i < maxSizeC; i++) {
@@ -784,17 +784,17 @@ void initData(
     std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetZero<DataType>(); }
+      (*initialC)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
   }
 
   // initialize buffers
   if (dataInitTypeAB == 0) {
     for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetRandom<DataType>(); }
+      (*initialA)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetRandom<DataType>(); }
+      (*initialB)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
   } else if (dataInitTypeAB == 1) {
     for (size_t i = 0; i < maxSizeA; i++) {
@@ -812,10 +812,10 @@ void initData(
     std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetZero<DataType>(); }
+      (*initialA)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetZero<DataType>(); }
+      (*initialB)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
   }
 

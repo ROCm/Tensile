@@ -1508,17 +1508,17 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(v+(l-1)*kernel["VectorWidth"]), \
             "groA%s_%u_s%u"%(self.tileCharA, l, 0) )
         # l>0, s>0
-        for s in range(0, kernel["VectorWidth"]):
+        for s in range(1, kernel["VectorWidth"]):
           kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), "vcc", \
               1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
-              "groA%s_%u_s%u"%(self.tileCharA, 0, s) )
+              "groA%s_%u_s%u"%(self.tileCharA, l, s) )
     else:
       kStr += inst("v_mov_b32", vgpr(v), \
           vgpr(self.tRegA), "groA%s_%u"%(self.tileCharA, 0) )
       for l in range(1, self.numReadsTileA):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
             vgpr(v+l-1), "groA%s_%u"%(self.tileCharA, l) )
-    self.vgprScratch.checkIn(self.tRegA) # CHECKIN
+    self.vgprScratch.checkIn(self.tRegA)
     return kStr
 
   ##############################################################################
@@ -1548,17 +1548,17 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(v+(l-1)*kernel["VectorWidth"]), \
             "groB%s_%u_s%u"%(self.tileCharB, l, 0) )
         # l>0, s>0
-        for s in range(0, kernel["VectorWidth"]):
+        for s in range(1, kernel["VectorWidth"]):
           kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), "vcc", \
               1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
-              "groB%s_%u_s%u"%(self.tileCharB, 0, s) )
+              "groB%s_%u_s%u"%(self.tileCharB, l, s) )
     else:
       kStr += inst("v_mov_b32", vgpr(v), \
           vgpr(self.tRegB), "groB%s_%u"%(self.tileCharB, 0) )
       for l in range(1, self.numReadsTileB):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
             vgpr(v+l-1), "groB%s_%u"%(self.tileCharB, l) )
-    self.vgprScratch.checkIn(self.tRegB) # CHECKIN
+    self.vgprScratch.checkIn(self.tRegB)
     return kStr
 
   ##############################################################################
@@ -1731,7 +1731,13 @@ class KernelWriterAssembly(KernelWriter):
     if False:
       kStr += dump(vgpr("GlobalReadAddrA+0"))
       kStr += dump(vgpr("GlobalReadAddrA+2"))
-      #kStr += "s_endpgm\n"
+      kStr += dump(vgpr("GlobalReadAddrA+4"))
+      kStr += dump(vgpr("GlobalReadAddrA+6"))
+      kStr += dump(vgpr("GlobalReadAddrA+8"))
+      kStr += dump(vgpr("GlobalReadAddrA+10"))
+      kStr += dump(vgpr("GlobalReadAddrA+12"))
+      kStr += dump(vgpr("GlobalReadAddrA+14"))
+      kStr += "s_endpgm\n"
 
     self.vgprScratch.checkIn(self.vgprTileOffsetsA)
     self.vgprScratch.checkIn(self.vgprUnrollOffsetsA)
@@ -1838,7 +1844,7 @@ class KernelWriterAssembly(KernelWriter):
               comment+" (upper)")
           #kStr += dump(vgpr("GlobalReadAddrA+%u+0"%graIdxA))
           #kStr += dump(vgpr("GlobalReadAddrA+%u+1"%graIdxA))
-        graIdxA += self.rpga
+          graIdxA += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
     return kStr
@@ -1882,7 +1888,7 @@ class KernelWriterAssembly(KernelWriter):
               comment+" (upper)")
           #kStr += dump(vgpr("GlobalReadAddrB+%u+0"%graIdxB))
           #kStr += dump(vgpr("GlobalReadAddrB+%u+1"%graIdxB))
-        graIdxB += self.rpga
+          graIdxB += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
     return kStr
@@ -2040,6 +2046,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     "lwFOA = lwA%s + lwA%s*MT%s" \
         % (self.tileCharA, self.unrollChar, self.tileCharA)
+
     kStr += inst("v_mul_u32_u24", \
         vgpr("LocalWriteAddrA"), \
         hex(kernel["MacroTileA"]), \
@@ -2121,9 +2128,12 @@ class KernelWriterAssembly(KernelWriter):
           elif self.writeUnrollDimComponentsA:
             lspa += s # * VW could go here, check transpose options
           if kernel["ProblemType"]["TLUA"]:
-            lspa *= kernel["MacroTileA"] * kernel["VectorWidth"]
+            lspa *= kernel["MacroTileA"]
+            #lspa *= kernel["VectorWidth"]
           else:
             lsca *= kernel["MacroTileA"]
+          if kernel["ProblemType"]["TLUA"] == kernel["GlobalReadCoalesceVectorA"]:
+            lspa *= kernel["VectorWidth"]
           offset = lspa + lsca
           offset *= self.bpe
           offset /= self.localWriteInstructionA.offsetMultiplier
@@ -2162,9 +2172,12 @@ class KernelWriterAssembly(KernelWriter):
           elif self.writeUnrollDimComponentsB:
             lspb += s
           if kernel["ProblemType"]["TLUB"]:
-            lspb *= kernel["MacroTileB"] * kernel["VectorWidth"]
+            lspb *= kernel["MacroTileB"]
+            #lspb *= kernel["VectorWidth"]
           else:
             lscb *= kernel["MacroTileB"]
+          if kernel["ProblemType"]["TLUB"] == kernel["GlobalReadCoalesceVectorB"]:
+            lspb *= kernel["VectorWidth"]
           offset = lspb + lscb
           offset *= self.bpe
           offset /= self.localWriteInstructionB.offsetMultiplier
@@ -2928,7 +2941,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # dump lds state
-    #kStr += self.dumpLds(kernel, 8, 8)
+    #kStr += self.dumpLds(kernel, 0, 8)
 
     return kStr
 
