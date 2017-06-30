@@ -29,7 +29,6 @@
 # (2) MemoryPool to handle all allocations
 # (3) Dictionary of gpr names?
 # (4) Will I need to use fewer sgprs?
-# (5) Divide-only, Remainder-only, Divide&Remainder
 # (6) Add and multiply functions, compile time known, handles carrying, only need to debug in one place
 
 
@@ -146,15 +145,15 @@ class KernelWriterAssembly(KernelWriter):
 
     self.do = {}
 
-    self.do["MAC"]        = True
     self.do["PreLoop"]    = True
-    self.do["PostLoop"]   = True
+    self.do["GlobalRead"] = True
+    self.do["GlobalInc"]  = True
+    self.do["LocalWrite"] = True
+    self.do["LocalRead"]  = True
     self.do["Wait"]       = True
     self.do["Sync"]       = True
-    self.do["LocalRead"]  = True
-    self.do["LocalWrite"] = True
-    self.do["GlobalInc"]  = True
-    self.do["GlobalRead"] = True
+    self.do["MAC"]        = True
+    self.do["PostLoop"]   = True
     self.globalReadIncsUseVgpr = True # slightly fewer [v_mov] instructions but extra registers
 
     # ISA version, such as 803
@@ -338,8 +337,8 @@ class KernelWriterAssembly(KernelWriter):
     # globalReadA instruction; no flat_load2_*
     #globalReadStrideTile = 0
     #globalReadStrideUnroll = 0
-    self.globalReadWidthA = kernel["VectorWidth"] if self.readTileDimVectorA \
-        else 1
+    self.globalReadWidthA = kernel["VectorWidth"] if (self.readTileDimVectorA \
+        or self.readUnrollDimVectorA) else 1
     self.globalReadWidthA *= self.rpe
     self.globalRead2CoalescedA = kernel["NumLoadsCoalescedA"]>1 \
         or self.readCoalescedComponentsA
@@ -352,8 +351,8 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadB instruction; no flat_load2_
-    self.globalReadWidthB = kernel["VectorWidth"] if self.readTileDimVectorB  \
-        else 1
+    self.globalReadWidthB = kernel["VectorWidth"] if (self.readTileDimVectorB \
+        or self.readUnrollDimVectorB) else 1
     self.globalReadWidthB *= self.rpe
     self.globalRead2CoalescedB = kernel["NumLoadsCoalescedB"]>1 \
         or self.readCoalescedComponentsB
@@ -1360,7 +1359,7 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(tReg), "%s *= VW"%vgpr(tReg) )
       else:
         kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
-            vgpr(lReg), "%s *= VW"%vgpr(uReg) )
+            vgpr(uReg), "%s *= VW"%vgpr(uReg) )
     kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileA"]), \
         sgpr("WorkGroup0"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
     #kStr += dump(vgpr(tmpVgpr))
@@ -1526,6 +1525,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Tile Offsets B - DONE
   ##############################################################################
   def graTileOffsetsB(self, kernel):
+    kStr = ""
     numTileOffsetsB = self.numReadsTileB
     if self.readTileDimComponentsB:
       numTileOffsetsB *= kernel["VectorWidth"]
@@ -1534,7 +1534,6 @@ class KernelWriterAssembly(KernelWriter):
     v = self.vgprTileOffsetsB
     stride = "LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"
     stride = kernel[stride]
-    kStr = ""
     if self.readTileDimComponentsB:
       # l=0, s=0
       kStr += inst("v_mov_b32", vgpr(v), \
@@ -1729,9 +1728,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += ", %u // gROA_%u_%u%s%s" % (tmp, para, perp, \
               "_%u"%s if self.numReadVectorComponentsA>1 else "", self.endLine)
           graIdxA += self.rpga
-    #kStr += dump(vgpr("GlobalReadAddrA+0"))
-    #kStr += dump(vgpr("GlobalReadAddrA+2"))
-    #kStr += "s_endpgm\n"
+    if False:
+      kStr += dump(vgpr("GlobalReadAddrA+0"))
+      kStr += dump(vgpr("GlobalReadAddrA+2"))
+      #kStr += "s_endpgm\n"
 
     self.vgprScratch.checkIn(self.vgprTileOffsetsA)
     self.vgprScratch.checkIn(self.vgprUnrollOffsetsA)
@@ -1783,9 +1783,11 @@ class KernelWriterAssembly(KernelWriter):
               "_%u"%s if self.numReadVectorComponentsB>1 else "", self.endLine)
           graIdxB += self.rpga
 
-    #kStr += dump(vgpr("GlobalReadAddrB+0"))
-    #kStr += dump(vgpr("GlobalReadAddrB+2"))
-    #kStr += "s_endpgm\n"
+    if False:
+      kStr += dump(vgpr("GlobalReadAddrB+0"))
+      kStr += dump(vgpr("GlobalReadAddrB+2"))
+      kStr += "s_endpgm\n"
+
     self.vgprScratch.checkIn(self.vgprTileOffsetsB)
     self.vgprScratch.checkIn(self.vgprUnrollOffsetsB)
     self.vgprScratch.checkIn(tmp)
@@ -1834,8 +1836,8 @@ class KernelWriterAssembly(KernelWriter):
               vgpr(tmp+1), \
               "vcc", \
               comment+" (upper)")
-          #kStr += dump(vgpr("GlobalReadAddrA+0"))
-          #kStr += dump(vgpr("GlobalReadAddrA+1"))
+          #kStr += dump(vgpr("GlobalReadAddrA+%u+0"%graIdxA))
+          #kStr += dump(vgpr("GlobalReadAddrA+%u+1"%graIdxA))
         graIdxA += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
@@ -1878,8 +1880,8 @@ class KernelWriterAssembly(KernelWriter):
               vgpr(tmp+1), \
               "vcc", \
               comment+" (upper)")
-          #kStr += dump(vgpr("GlobalReadAddrB+0"))
-          #kStr += dump(vgpr("GlobalReadAddrB+1"))
+          #kStr += dump(vgpr("GlobalReadAddrB+%u+0"%graIdxB))
+          #kStr += dump(vgpr("GlobalReadAddrB+%u+1"%graIdxB))
         graIdxB += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
@@ -1891,42 +1893,58 @@ class KernelWriterAssembly(KernelWriter):
   def graIncrementsA(self, kernel, loopIdx):
     kStr = ""
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-      if self.globalReadIncsUseVgpr:
-        tmpSgpr = self.startSgprOffsetC
-        kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-            hex(kernel["DepthU"]*4), sgpr("StridesA"), \
-            "incr = stride*%u*4bytes"%kernel["DepthU"] )
-        kStr += inst("s_addc_u32", \
-            sgpr(tmpSgpr+1), \
-            hex(0), \
-            hex(0), \
-            "(carry)")
-        kStr += inst("v_mov_b32", \
-            vgpr("GlobalReadIncsA+0"), \
-            sgpr(tmpSgpr+0), \
-            "" )
-        kStr += inst("v_mov_b32", \
-            vgpr("GlobalReadIncsA+1"), \
-            sgpr(tmpSgpr+1), \
-            "" )
-      else:
-        kStr += inst("s_mul_i32", sgpr("GlobalReadIncsA+0"), \
-            hex(kernel["DepthU"]*4), sgpr("StridesA"), \
-            "incr = stride*%u*4bytes"%kernel["DepthU"] )
-        kStr += inst("s_addc_u32", \
-            sgpr("GlobalReadIncsA+1"), \
-            hex(0), \
-            hex(0), \
-            "(carry)")
+      if kernel["ProblemType"]["TLUA"]:
+        if self.globalReadIncsUseVgpr:
+          tmpSgpr = self.startSgprOffsetC
+          kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
+              hex(kernel["DepthU"]*4), sgpr("StridesA"), \
+              "incr = stride*%u*4bytes"%kernel["DepthU"] )
+          kStr += inst("s_addc_u32", \
+              sgpr(tmpSgpr+1), \
+              hex(0), \
+              hex(0), \
+              "(carry)")
+          kStr += inst("v_mov_b32", \
+              vgpr("GlobalReadIncsA+0"), \
+              sgpr(tmpSgpr+0), \
+              "" )
+          kStr += inst("v_mov_b32", \
+              vgpr("GlobalReadIncsA+1"), \
+              sgpr(tmpSgpr+1), \
+              "" )
+        else:
+          kStr += inst("s_mul_i32", sgpr("GlobalReadIncsA+0"), \
+              hex(kernel["DepthU"]*4), sgpr("StridesA"), \
+              "incr = stride*%u*4bytes"%kernel["DepthU"] )
+          kStr += inst("s_addc_u32", \
+              sgpr("GlobalReadIncsA+1"), \
+              hex(0), \
+              hex(0), \
+              "(carry)")
+        #tmp = self.vgprScratch.checkOut(2)
+        #kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsA+0"), "" )
+        #kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsA+1"), "" )
+        #kStr += dump(vgpr(tmp+0))
+        #kStr += dump(vgpr(tmp+1))
+        #self.vgprScratch.checkIn(tmp)
+      else: # transposed
+        if self.globalReadIncsUseVgpr:
+          kStr += inst("v_mov_b32", vgpr("GlobalReadIncsA+0"), \
+              hex(kernel["DepthU"]*4), \
+              "incr = %u*4bytes"%kernel["DepthU"] )
+          kStr += inst("v_mov_b32", vgpr("GlobalReadIncsA+1"), \
+              hex(0), "incr = %u*4bytes (upper)"%kernel["DepthU"] )
+        else:
+          kStr += inst("s_mov_b32", sgpr("GlobalReadIncsA+0"), \
+              hex(kernel["DepthU"]*4), \
+              "incr = %u*4bytes"%kernel["DepthU"] )
+          kStr += inst("s_mov_b32", sgpr("GlobalReadIncsA+1"), \
+              hex(0), "incr = %u*4bytes (upper)"%kernel["DepthU"] )
     else:
       printExit("NumIndicesSummation=%u not yet supported in assembly" \
           % kernel["ProblemType"]["NumIndicesSummation"] )
-    #tmp = self.vgprScratch.checkOut(2)
-    #kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsA+0"), "" )
-    #kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsA+1"), "" )
-    #kStr += dump(vgpr(tmp+0))
-    #kStr += dump(vgpr(tmp+1))
-    #self.vgprScratch.checkIn(tmp)
+    #kStr += dump(vgpr("GlobalReadIncsA+0"))
+    #kStr += dump(vgpr("GlobalReadIncsA+1"))
     #kStr += "s_endpgm\n"
     return kStr
 
@@ -1936,42 +1954,58 @@ class KernelWriterAssembly(KernelWriter):
   def graIncrementsB(self, kernel, loopIdx):
     kStr = ""
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-      if self.globalReadIncsUseVgpr:
-        tmpSgpr = self.startSgprOffsetC
-        kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-            hex(kernel["DepthU"]*4), sgpr("StridesB"), \
-            "incr = stride*%u*4bytes"%kernel["DepthU"] )
-        kStr += inst("s_addc_u32", \
-            sgpr(tmpSgpr+1), \
-            hex(0), \
-            hex(0), \
-            "(carry)")
-        kStr += inst("v_mov_b32", \
-            vgpr("GlobalReadIncsB+0"), \
-            sgpr(tmpSgpr+0), \
-            "" )
-        kStr += inst("v_mov_b32", \
-            vgpr("GlobalReadIncsB+1"), \
-            sgpr(tmpSgpr+1), \
-            "" )
+      if kernel["ProblemType"]["TLUB"]:
+        if self.globalReadIncsUseVgpr:
+          tmpSgpr = self.startSgprOffsetC
+          kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
+              hex(kernel["DepthU"]*4), sgpr("StridesB"), \
+              "incr = stride*%u*4bytes"%kernel["DepthU"] )
+          kStr += inst("s_addc_u32", \
+              sgpr(tmpSgpr+1), \
+              hex(0), \
+              hex(0), \
+              "(carry)")
+          kStr += inst("v_mov_b32", \
+              vgpr("GlobalReadIncsB+0"), \
+              sgpr(tmpSgpr+0), \
+              "" )
+          kStr += inst("v_mov_b32", \
+              vgpr("GlobalReadIncsB+1"), \
+              sgpr(tmpSgpr+1), \
+              "" )
+        else:
+          kStr += inst("s_mul_i32", sgpr("GlobalReadIncsB+0"), \
+              hex(kernel["DepthU"]*4), sgpr("StridesB"), \
+              "incr = stride*%u*4bytes"%kernel["DepthU"] )
+          kStr += inst("s_addc_u32", \
+              sgpr("GlobalReadIncsB+1"), \
+              hex(0), \
+              hex(0), \
+              "(carry)")
+          #tmp = self.vgprScratch.checkOut(2)
+          #kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsB+0"), "" )
+          #kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsB+1"), "" )
+          #kStr += dump(vgpr(tmp+0))
+          #kStr += dump(vgpr(tmp+1))
+          #self.vgprScratch.checkIn(tmp)
       else:
-        kStr += inst("s_mul_i32", sgpr("GlobalReadIncsB+0"), \
-            hex(kernel["DepthU"]*4), sgpr("StridesB"), \
-            "incr = stride*%u*4bytes"%kernel["DepthU"] )
-        kStr += inst("s_addc_u32", \
-            sgpr("GlobalReadIncsB+1"), \
-            hex(0), \
-            hex(0), \
-            "(carry)")
+        if self.globalReadIncsUseVgpr:
+          kStr += inst("v_mov_b32", vgpr("GlobalReadIncsB+0"), \
+              hex(kernel["DepthU"]*4), \
+              "incr = %u*4bytes"%kernel["DepthU"] )
+          kStr += inst("v_mov_b32", vgpr("GlobalReadIncsB+1"), \
+              hex(0), "incr = %u*4bytes (upper)"%kernel["DepthU"] )
+        else:
+          kStr += inst("s_mov_b32", sgpr("GlobalReadIncsB+0"), \
+              hex(kernel["DepthU"]*4), \
+              "incr = %u*4bytes"%kernel["DepthU"] )
+          kStr += inst("s_mov_b32", sgpr("GlobalReadIncsB+1"), \
+              hex(0), "incr = %u*4bytes (upper)"%kernel["DepthU"] )
     else:
       printExit("NumIndicesSummation=%u not yet supported in assembly" \
           % kernel["ProblemType"]["NumIndicesSummation"] )
-    #tmp = self.vgprScratch.checkOut(2)
-    #kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsB+0"), "" )
-    #kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsB+1"), "" )
-    #kStr += dump(vgpr(tmp+0))
-    #kStr += dump(vgpr(tmp+1))
-    #self.vgprScratch.checkIn(tmp)
+    #kStr += dump(vgpr("GlobalReadIncsB+0"))
+    #kStr += dump(vgpr("GlobalReadIncsB+1"))
     #kStr += "s_endpgm\n"
     return kStr
 
@@ -2085,13 +2119,13 @@ class KernelWriterAssembly(KernelWriter):
           if self.writeTileDimComponentsA:
             lsca += s
           elif self.writeUnrollDimComponentsA:
-            lspa += s
+            lspa += s # * VW could go here, check transpose options
           if kernel["ProblemType"]["TLUA"]:
-            lspa *= kernel["MacroTileA"]
+            lspa *= kernel["MacroTileA"] * kernel["VectorWidth"]
           else:
             lsca *= kernel["MacroTileA"]
           offset = lspa + lsca
-          offset *= self.bpe * kernel["VectorWidth"]
+          offset *= self.bpe
           offset /= self.localWriteInstructionA.offsetMultiplier
           self.localWriteOffsetsA.append(offset)
 
@@ -2128,11 +2162,11 @@ class KernelWriterAssembly(KernelWriter):
           elif self.writeUnrollDimComponentsB:
             lspb += s
           if kernel["ProblemType"]["TLUB"]:
-            lspb *= kernel["MacroTileB"]
+            lspb *= kernel["MacroTileB"] * kernel["VectorWidth"]
           else:
             lscb *= kernel["MacroTileB"]
           offset = lspb + lscb
-          offset *= self.bpe * kernel["VectorWidth"]
+          offset *= self.bpe
           offset /= self.localWriteInstructionB.offsetMultiplier
           self.localWriteOffsetsB.append(offset)
 
@@ -2490,7 +2524,7 @@ class KernelWriterAssembly(KernelWriter):
         "restart Loop%s"%loopChar )
     kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
     #kStr += "s_endpgm\n"
-    #kStr += self.dumpLds(8, 16)
+    #kStr += self.dumpLds(8, 8)
     return kStr
 
   ##############################################################################
@@ -2656,15 +2690,19 @@ class KernelWriterAssembly(KernelWriter):
           g2lIdxA += loadWidth
     if False:
       kStr += "s_waitcnt vmcnt(0)\n"
-      kStr += dump(vgpr("GlobalReadAddrA+0"))
-      kStr += dump(vgpr("GlobalReadAddrA+1"))
+      #kStr += dump(vgpr("GlobalReadAddrA+0"))
+      #kStr += dump(vgpr("GlobalReadAddrA+1"))
       kStr += dump(vgpr("G2LA+0"))
       kStr += dump(vgpr("G2LA+1"))
-      kStr += dump(vgpr("GlobalReadAddrA+2"))
-      kStr += dump(vgpr("GlobalReadAddrA+3"))
+      #kStr += dump(vgpr("GlobalReadAddrA+2"))
+      #kStr += dump(vgpr("GlobalReadAddrA+3"))
       kStr += dump(vgpr("G2LA+2"))
       kStr += dump(vgpr("G2LA+3"))
-      kStr += "s_endpgm\n"
+      kStr += dump(vgpr("G2LA+4"))
+      kStr += dump(vgpr("G2LA+5"))
+      kStr += dump(vgpr("G2LA+6"))
+      kStr += dump(vgpr("G2LA+7"))
+      #kStr += "s_endpgm\n"
     return kStr
     # SKIP branches
     """
@@ -2717,15 +2755,19 @@ class KernelWriterAssembly(KernelWriter):
           g2lIdxB += loadWidth
     if False:
       kStr += "s_waitcnt vmcnt(0)\n"
-      kStr += dump(vgpr("GlobalReadAddrB+0"))
-      kStr += dump(vgpr("GlobalReadAddrB+1"))
+      #kStr += dump(vgpr("GlobalReadAddrB+0"))
+      #kStr += dump(vgpr("GlobalReadAddrB+1"))
       kStr += dump(vgpr("G2LB+0"))
       kStr += dump(vgpr("G2LB+1"))
-      kStr += dump(vgpr("GlobalReadAddrB+2"))
-      kStr += dump(vgpr("GlobalReadAddrB+3"))
+      #kStr += dump(vgpr("GlobalReadAddrB+2"))
+      #kStr += dump(vgpr("GlobalReadAddrB+3"))
       kStr += dump(vgpr("G2LB+2"))
       kStr += dump(vgpr("G2LB+3"))
-      #kStr += "s_endpgm\n"
+      kStr += dump(vgpr("G2LB+4"))
+      kStr += dump(vgpr("G2LB+5"))
+      kStr += dump(vgpr("G2LB+6"))
+      kStr += dump(vgpr("G2LB+7"))
+      kStr += "s_endpgm\n"
     #kStr += dump(vgpr("GlobalReadAddrB+0"))
     #kStr += "s_endpgm\n"
     # RESUME
@@ -2886,7 +2928,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # dump lds state
-    #kStr += self.dumpLds(8, 16)
+    #kStr += self.dumpLds(kernel, 8, 8)
 
     return kStr
 
@@ -3658,7 +3700,7 @@ class KernelWriterAssembly(KernelWriter):
   ########################################
   # dump lds state
   ########################################
-  def dumpLds(self, startU, stopU):
+  def dumpLds(self, kernel, startU, numU):
     kStr = self.comment("dump lds state")
     kStr += inst("s_barrier", "" )
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
@@ -3671,9 +3713,9 @@ class KernelWriterAssembly(KernelWriter):
         hex(log2(self.bpe)), \
         vgpr("Serial"), \
         "dump lds")
-    for i in range(startU, stopU):
+    for i in range(startU, startU+numU):
       kStr += inst("ds_read_b32", vgpr(tmp), \
-          vgpr(tmpAddr) + " offset:%u"%(i*256*4), "dump lds")
+          vgpr(tmpAddr) + " offset:%u"%(i*kernel["NumThreads"]*4), "dump lds")
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "dump" )
       kStr += dump(vgpr(tmp))
     self.vgprScratch.checkIn(tmp)
