@@ -22,12 +22,10 @@
 #include "SolutionHelper.h"
 #include "Tools.h"
 
-#if Tensile_RUNTIME_LANGUAGE_OCL
 #ifdef WIN32
 __declspec(thread) KernelMap kernelMap;
 #else
 thread_local KernelMap kernelMap;
-#endif
 #endif
 
 /*******************************************************************************
@@ -98,6 +96,38 @@ void tensileGetCompiledOpenCLKernel(
 
   // put kernel in map
   kernelMap[key] = *kernel;
+}
+#endif
+
+/*******************************************************************************
+ * Get Assembly Kernels for HIP
+ ******************************************************************************/
+#if Tensile_RUNTIME_LANGUAGE_HIP
+void tensileGetHipFunctionFromCodeObjectFile(
+  hipFunction_t *function,
+  const char *functionName,
+  const char *cofn, // code object file name
+  hipStream_t stream ) {
+
+  // is function already loaded?
+  KernelMapKey key = std::make_tuple(stream, functionName);
+  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
+  if (idx != kernelMap.end()) {
+    *function = idx->second;
+    return;
+  }
+
+  // load function
+  TensileStatus status;
+  hipModule_t module;
+  status = hipModuleLoad(&module, cofn);
+  tensileStatusCheck(status);
+
+  hipModuleGetFunction(function, module, functionName);
+  tensileStatusCheck(status);
+
+  // store in map
+  kernelMap[key] = *function;
 }
 #endif
 

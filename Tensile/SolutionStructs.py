@@ -22,6 +22,7 @@
 
 from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
 from copy import deepcopy
+from math import ceil, log
 
 ################################################################################
 # Data Type
@@ -967,12 +968,14 @@ class Solution:
       state["LdsOffsetA"] = 0
       state["LdsOffsetB"] = state["LdsOffsetA"] \
         + state["LdsNumElementsAlignedA"]
-      state["LdsOffsetA_Blk"] = state["LdsOffsetB"] \
-        + state["LdsNumElementsAlignedB"]
+
+      offsetBlk = state["LdsOffsetB"] + state["LdsNumElementsAlignedB"]
+      offsetBlk = int(2**(ceil(log(offsetBlk, 2))))
+
+      state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] \
-        + state["LdsNumElementsAlignedB"]
-      ldsNumElementsAB = ldsNumElementsAlignedA*2 \
-          + ldsNumElementsAlignedB + ldsNumElementsB
+        + state["LdsNumElementsAlignedA"]
+      ldsNumElementsAB = state["LdsOffsetB_Blk"]+ ldsNumElementsB
     else:
       state["LdsOffsetB"] = ldsNumElementsAlignedA
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
@@ -995,6 +998,7 @@ class Solution:
       return
 
     # compiler trips over these configurations
+    """
     if globalParameters["KernelLanguage"] == "HIP" \
         and state["VectorWidth"] == 2 \
         and state["ProblemType"]["TLUA"] \
@@ -1031,6 +1035,7 @@ class Solution:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("compiler bug")
         state["Valid"] = False
+    """
 
 
     state["AssignedDerivedParameters"] = True

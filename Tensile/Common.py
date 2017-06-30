@@ -45,6 +45,7 @@ else:
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
+globalParameters["DebugKernel"] = False
 globalParameters["PrintSolutionRejectionReason"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
@@ -69,6 +70,7 @@ globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
+globalParameters["AssemblerPath"] = "/usr/bin/clang"
 
 # file heirarchy
 globalParameters["ShortNames"] = False
@@ -77,8 +79,8 @@ globalParameters["MergeFiles"] = True
 globalParameters["NumElementsToValidate"] = 128
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitTypeAB"] = 0 # 0=rand, 1=1, 2=serial, 3=0
-globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
+globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand
+globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768
@@ -120,6 +122,12 @@ validParameters = {
     "UnrollMemFence":             [ False, True ],
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
+    "GlobalRead2A":               [ False, True ],
+    "GlobalRead2B":               [ False, True ],
+    "LocalWrite2A":               [ False, True ],
+    "LocalWrite2B":               [ False, True ],
+    "LocalRead2A":                [ False, True ],
+    "LocalRead2B":                [ False, True ],
 
     "WorkGroupMapping":           range(-1024,1024+1),
     "MaxOccupancy":               range(1, 40+1), # wg / CU
@@ -153,6 +161,12 @@ defaultBenchmarkCommonParameters = [
     {"PrefetchGlobalRead":        [ True ] },
     {"PrefetchLocalRead":         [ True ] },
     {"UnrollMemFence":            [ False ] },
+    {"GlobalRead2A":              [ True ] },
+    {"GlobalRead2B":              [ True ] },
+    {"LocalWrite2A":              [ True ] },
+    {"LocalWrite2B":              [ True ] },
+    {"LocalRead2A":               [ True ] },
+    {"LocalRead2B":               [ True ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -214,6 +228,13 @@ defaultAnalysisParameters = {
     "SolutionImportanceMin":      0.01, # = keep range solutions; 0.01=1% wins
     }
 
+
+################################################################################
+# Kernel Language Belongs to Source or Assembly?
+################################################################################
+def kernelLanguageIsSource():
+  return globalParameters["KernelLanguage"] \
+      in ["OCL", "HIP"]
 
 ################################################################################
 # Searching Nested Lists / Dictionaries

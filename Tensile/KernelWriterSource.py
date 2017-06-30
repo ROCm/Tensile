@@ -92,44 +92,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
 
   ##############################################################################
-  # single line comment
-  ##############################################################################
-  def comment(self, text):
-    s = ""
-    s += self.endLine
-    s += self.indent
-    s += self.commentPrefix
-    s += " %s " % text
-    s += self.commentSuffix
-    s += self.endLine
-    return s
-
-  ##############################################################################
-  # 3-line comment
-  ##############################################################################
-  def comment3(self, text):
-    s = ""
-    s += self.endLine
-    s += self.indent
-    s += self.commentPrefix
-    s += self.commentHR
-    s += self.commentSuffix
-    s += self.endLine
-
-    s += self.indent
-    s += self.commentPrefix
-    s += " %-39s" % text
-    s += self.commentSuffix
-    s += self.endLine
-
-    s += self.indent
-    s += self.commentPrefix
-    s += self.commentHR
-    s += self.commentSuffix
-    s += self.endLine
-    return s
-
-  ##############################################################################
   # Open String
   ##############################################################################
   def openString(self, kernel):
@@ -149,6 +111,13 @@ class KernelWriterSource(KernelWriter):
       kStr += "\";\n"
       self.stringIdx += 1
     return kStr
+
+  ##############################################################################
+  # Init Kernel
+  ##############################################################################
+  def initKernel(self, kernel):
+    super(KernelWriterSource, self).initKernel( kernel )
+    pass
 
   ##############################################################################
   # Function Prefix
@@ -181,7 +150,7 @@ class KernelWriterSource(KernelWriter):
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
     kStr += self.endLine
     kStr += "/* DepthU parameters*/%s" % self.endLine
-    kStr += "#define CPS (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
+    kStr += "#define CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
         % (self.tileChar0, self.endLine)
     kStr += "#define LOCAL_SPLITU %d%s" \
         % (kernel["LocalSplitU"], self.endLine )
@@ -523,8 +492,8 @@ class KernelWriterSource(KernelWriter):
             self.endLinePP)
       """
 
-      for b in range(0, kernel["ThreadTile1"]):
-        for a in range(0, kernel["ThreadTile0"]):
+      for b in range(0, kernel["ThreadTileB"]):
+        for a in range(0, kernel["ThreadTileA"]):
           # a
           vecA = a / kernel["VectorWidth"]
           elemA = a % kernel["VectorWidth"]
@@ -1649,6 +1618,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # End Summation
+  ##############################################################################
+  def endSummation(self):
+    return ""
+
+  ##############################################################################
   # MAC Iteration
   ##############################################################################
   def macIter(self, kernel, black):
@@ -1677,15 +1652,6 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s}%s" % (self.indent, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Tail Loop: Num Iter
-  ##############################################################################
-  def tailLoopNumIter(self, kernel):
-    kStr = ""
-    kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
-          % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
     return kStr
 
   ##############################################################################
@@ -2086,7 +2052,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadDoA(self, kernel, black):
     kStr = ""
-    for a in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+    for a in range(0, kernel["ThreadTileA"]/kernel["VectorWidth"]):
       kStr += "%srA[%d%s] = localReadA[%d*SG%s]; %s" \
           % (self.indent, a, \
           (("+TT%s/VECTOR_WIDTH"%self.tileCharA) if black else ""), \
@@ -2098,7 +2064,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadDoB(self, kernel, black):
     kStr = ""
-    for b in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+    for b in range(0, kernel["ThreadTileB"]/kernel["VectorWidth"]):
       kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
           % (self.indent, b, \
           (("+TT%s/VECTOR_WIDTH"%self.tileCharB) if black else ""), \
@@ -2293,7 +2259,7 @@ class KernelWriterSource(KernelWriter):
               % (self.tileChar0, \
               ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
               self.tileChar0)
-          kStr += "  if (globalC%s + %u*CPS < size%s) {" \
+          kStr += "  if (globalC%s + %u*CPSV < size%s) {" \
               % (self.tileChar1, b, self.tileChar1)
 
         kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
@@ -2302,7 +2268,7 @@ class KernelWriterSource(KernelWriter):
           if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
             kStr += " + %u" %s
           if i == kernel["ProblemType"]["Index1"]:
-            kStr += " + %u*CPS" %b
+            kStr += " + %u*CPSV" %b
           if i < kernel["ProblemType"]["NumIndicesC"]-1:
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
@@ -2512,6 +2478,18 @@ class KernelWriterSource(KernelWriter):
 
     kStr += "\n"
     return kStr
+
+  ##############################################################################
+  # WaitCnt
+  ##############################################################################
+  def wait(self, kernel, globalRead, localWrite, localRead, comment):
+    return ""
+
+  ##############################################################################
+  # SyncThreads
+  ##############################################################################
+  def syncThreads(self, kernel):
+    return self.indent + self.syncStr + self.endLine
 
   ##############################################################################
   #

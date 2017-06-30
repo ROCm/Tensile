@@ -264,6 +264,8 @@ class BenchmarkProcess:
       for paramDict in copy(stepList):
         for paramName in copy(paramDict):
           paramValues = paramDict[paramName]
+          if paramValues == None:
+            printExit("You must specify value for parameters \"%s\"" % paramName )
           if len(paramValues) < 2 and paramName != "ProblemSizes":
             paramDict.pop(paramName)
             #self.benchmarkCommonParameters.insert(0, {paramName: paramValues })
@@ -380,7 +382,7 @@ class BenchmarkProcess:
     print1("# Join Parameters")
     macroTileJoinSet = set()
     totalPermutations = 1
-    if len(self.joinParameters) > 1:
+    if len(self.joinParameters) > 0:
       for joinName in self.joinParameters:
         # joining a parameter with only a single value
         if hasParam(joinName, self.singleValueParameters):
