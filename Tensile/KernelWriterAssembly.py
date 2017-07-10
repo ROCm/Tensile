@@ -633,6 +633,9 @@ class KernelWriterAssembly(KernelWriter):
     numWavesPerWorkGroup = kernel["NumThreads"] / 64
     numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
     self.numWavesPerSimd = numWavesPerCU / 4
+    self.spills = self.numWavesPerSimd < 1
+    #if self.numWavesPerSimd < 1:
+    #  printExit("waves/simd: %u; %u vgprs" % (self.numWavesPerSimd, self.startVgprTmp) )
     maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
@@ -640,6 +643,17 @@ class KernelWriterAssembly(KernelWriter):
     self.startVgprSerial = self.totalVgprs-1
     #self.globalWriteAddrC = self.totalVgprs-4 # match macro
     self.globalWriteAddrC = self.startVgprSerial-4 # match macro
+    if self.spills:
+      self.do["PreLoop"]    = False
+      self.do["GlobalRead"] = False
+      self.do["GlobalInc"]  = False
+      self.do["LocalWrite"] = False
+      self.do["LocalRead"]  = False
+      self.do["Wait"]       = False
+      self.do["Sync"]       = False
+      self.do["MAC"]        = False
+      self.do["PostLoop"]   = False
+      self.totalVgprs = 1
 
     ########################################
     # Pre Loop Scratch Vgprs
@@ -915,18 +929,21 @@ class KernelWriterAssembly(KernelWriter):
     #addr += (d1*strideC + d0*VW + vc)*4bytes
 
     # tmp1 = strideC*(vc1 + d1*16*vw)
-    kStr += inst("v_lshlrev_b32", "v[\\tmp+1]", \
-        hex(log2(kernel["SubGroup1"]*kernel["VectorWidth"])), \
-        "\\d1", "tmp1 = d1*sg1*VW" )
+    #kStr += inst("v_lshlrev_b32", "v[\\tmp+1]", \
+    #    hex(log2(kernel["SubGroup1"]*kernel["VectorWidth"])), \
+    #    "\\d1", "tmp1 = d1*sg1*VW" )
+    kStr += staticMultiply("v[\\tmp+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
+
     kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "\\vc1", "v[\\tmp+1]", \
         "tmp1 = vc1 + d1*sg1*VW")
     kStr += inst("v_mul_u32_u24", "v[\\tmp+1]", "v[\\tmp+1]", "v[addr+0]", \
         "%s = StridesC*(vc1+d1*sg1*VW)"%"v[\\tmp+1]" )
 
     # tmp0 = c0 + d0*16*vw
-    kStr += inst("v_lshlrev_b32", "v[\\tmp+0]", \
-        hex(log2(kernel["SubGroup0"]*kernel["VectorWidth"])), "\\d0", \
-        "tmp0 = d0*sg0*VW" )
+    #kStr += inst("v_lshlrev_b32", "v[\\tmp+0]", \
+    #    hex(log2(kernel["SubGroup0"]*kernel["VectorWidth"])), "\\d0", \
+    #    "tmp0 = d0*sg0*VW" )
+    kStr += staticMultiply("v[\\tmp+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
     kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "\\vc0", "v[\\tmp+0]", \
         "tmp0 = vc0 + d0*sg0*VW")
     #kStr += dump(vgpr("Tmp"))
@@ -1355,13 +1372,16 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["VectorWidth"] > 1:
       if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
-        kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
-            vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+        #kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
+        #    vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+        kStr += staticMultiply(vgpr(tReg), vgpr(tReg), kernel["VectorWidth"])
       else:
-        kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
-            vgpr(uReg), "%s *= VW"%vgpr(uReg) )
-    kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileA"]), \
-        sgpr("WorkGroup0"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
+        #kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
+        #    vgpr(uReg), "%s *= VW"%vgpr(uReg) )
+        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["VectorWidth"])
+    #kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileA"]), \
+    #    sgpr("WorkGroup0"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
+    kStr += staticMultiply(vgpr(tmpVgpr), sgpr("WorkGroup0"), kernel["MacroTileA"])
     #kStr += dump(vgpr(tmpVgpr))
     kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
         vgpr(tReg), "groA-tile = serial%s%s*VW + (wgA*MTA)" \
@@ -1428,13 +1448,16 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["VectorWidth"] > 1:
       if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
-        kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
-            vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+        #kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
+        #    vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+        kStr += staticMultiply(vgpr(tReg), vgpr(tReg), kernel["VectorWidth"])
       else:
-        kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
-            vgpr(uReg), "%s *= VW"%vgpr(uReg) )
-    kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileB"]), \
-        sgpr("WorkGroup1"), "%s = wgB * MTB"%vgpr(tmpVgpr) )
+        #kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
+        #    vgpr(uReg), "%s *= VW"%vgpr(uReg) )
+        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["VectorWidth"])
+    #kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileB"]), \
+    #    sgpr("WorkGroup1"), "%s = wgB * MTB"%vgpr(tmpVgpr) )
+    kStr += staticMultiply(vgpr(tmpVgpr), sgpr("WorkGroup1"), kernel["MacroTileB"])
     #kStr += dump(vgpr(tmpVgpr))
     kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
         vgpr(tReg), "groB-tile = serial%s%s*VW + (wgB*MTB)" \
@@ -2299,11 +2322,12 @@ class KernelWriterAssembly(KernelWriter):
         "sgid*sgid*MT0" )
     #kStr += dump(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
-      kStr += inst("v_lshlrev_b32", \
-          vgpr(self.lroA), \
-          log2(kernel["VectorWidth"]), \
-          vgpr(self.lroA), \
-          "lroA *= VW" )
+      #kStr += inst("v_lshlrev_b32", \
+      #    vgpr(self.lroA), \
+      #    log2(kernel["VectorWidth"]), \
+      #    vgpr(self.lroA), \
+      #    "lroA *= VW" )
+      kStr += staticMultiply(vgpr(self.lroA), vgpr(self.lroA), kernel["VectorWidth"])
       #kStr += dump(vgpr(self.lroA))
     kStr += inst("v_add_u32", \
         vgpr("LocalReadAddrA"), \
@@ -2356,11 +2380,12 @@ class KernelWriterAssembly(KernelWriter):
         "sgid*sgid*MT1" )
     #kStr += dump(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
-      kStr += inst("v_lshlrev_b32", \
-          vgpr(self.lroB), \
-          log2(kernel["VectorWidth"]), \
-          vgpr(self.lroB), \
-          "lroB *= VW" )
+      #kStr += inst("v_lshlrev_b32", \
+      #    vgpr(self.lroB), \
+      #    log2(kernel["VectorWidth"]), \
+      #    vgpr(self.lroB), \
+      #    "lroB *= VW" )
+      kStr += staticMultiply(vgpr(self.lroB), vgpr(self.lroB), kernel["VectorWidth"])
       #kStr += dump(vgpr(self.lroB))
     kStr += inst("v_add_u32", \
         vgpr("LocalReadAddrB"), \
@@ -2445,11 +2470,13 @@ class KernelWriterAssembly(KernelWriter):
         #    sgpr("SizesSum+0"), "" )
         #kStr += dump(vgpr(tmp))
 
+        # TODO doesn't support DU non-pow2
         kStr += inst("s_lshr_b32", \
             sgpr("LoopCounters+%u"%loopIdx), \
             sgpr("SizesSum+%u"%loopIdx), \
             log2(kernel["DepthU"]), \
             "numIter%s = size%s / DU"%(loopChar, loopChar) )
+
 
         #kStr += inst("v_mov_b32", vgpr(tmp), \
         #    sgpr("LoopCounters+0"), "" )
@@ -3432,16 +3459,18 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
     tid0 = rReg
     tid1 = qReg
-    kStr += inst("v_lshlrev_b32", \
-        vgpr(tid0), \
-        log2(self.bpe*kernel["VectorWidth"]), \
-        vgpr(tid0), \
-        "*= %u VW*bytes/element"%(self.bpe*kernel["VectorWidth"]))
-    kStr += inst("v_lshlrev_b32", \
-        vgpr(tid1), \
-        log2(self.bpe*kernel["VectorWidth"]), \
-        vgpr(tid1), \
-        "*= %u VW*bytes/element"%(self.bpe*kernel["VectorWidth"]))
+    #kStr += inst("v_lshlrev_b32", \
+    #    vgpr(tid0), \
+    #    log2(self.bpe*kernel["VectorWidth"]), \
+    #    vgpr(tid0), \
+    #    "*= %u VW*bytes/element"%(self.bpe*kernel["VectorWidth"]))
+    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), (self.bpe*kernel["VectorWidth"]))
+    #kStr += inst("v_lshlrev_b32", \
+    #    vgpr(tid1), \
+    #    log2(self.bpe*kernel["VectorWidth"]), \
+    #    vgpr(tid1), \
+    #    "*= %u VW*bytes/element"%(self.bpe*kernel["VectorWidth"]))
+    kStr += staticMultiply(vgpr(tid1), vgpr(tid1), (self.bpe*kernel["VectorWidth"]))
 
     kStr += inst("v_mul_lo_u32", \
         vgpr(tid1), \
@@ -3826,6 +3855,7 @@ def log2(x):
 ########################################
 # Divide & Remainder
 # quotient register, remainder register, dividend register, divisor, tmps
+# TODO change to static vector divide and remainder
 ########################################
 def staticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, \
     doRemainder=True):
@@ -3840,12 +3870,14 @@ def staticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, \
           "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
       #kStr += dump(vgpr(rReg))
   elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2
-    tmp = 32 + log2(divisor/3)
+    shift = 32 + log2(divisor/3)
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "")
     kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
-    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), tmp, vgpr(tmpVgpr,2), "")
-    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(tmpVgpr), divisor, "")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), tmpSgpr, vgpr(tmpVgpr,2), "")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "")
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(tmpVgpr), sgpr(tmpSgpr), "")
     if doRemainder:
       kStr += inst("v_sub_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "")
   else:
@@ -3862,6 +3894,40 @@ def staticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
 #  kStr = staticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr)
 #  self.vgprScratch.checkIn(qReg)
 #  return kStr
+
+########################################
+# Multiply
+# product register, operand register, multiplier
+# TODO clarify support of sgpr and constant operand/multipliers
+########################################
+def staticMultiply(product, operand, multiplier):
+  if ((multiplier & (multiplier - 1)) == 0): # pow of 2
+    multiplier_log2 = log2(multiplier)
+    return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
+        "%s = %s * %u"%(product, operand, multiplier) )
+  else:
+    if True: # operand.startswith("s["):
+      kStr = ""
+      kStr += inst("v_mov_b32", product, multiplier, \
+        "%s = %u"%(product, multiplier) )
+      kStr += inst("v_mul_lo_u32", product, product, operand, \
+        "%s *= %s"%(product, operand) )
+      return kStr
+    else:
+      return inst("v_mul_u32_u24", product, operand, hex(multiplier), \
+          "%s = %s * %u"%(product, operand, multiplier) )
+    """
+    VOP3 (cannot use literal constant)
+    v_mul_lo_u32
+    v_mul_hi_u32
+    v_mul_hi_i32
+    VOP2
+    v_mul_i32_i24
+    v_mul_u32_u24
+    v_mul_hi_i32_i24
+    v_mul_hi_u32_u24
+
+    """
 
   """
 # mod 3 v0 -> v0
