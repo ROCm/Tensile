@@ -163,8 +163,8 @@ class KernelWriterSource(KernelWriter):
     kStr += self.endLine
     kStr += "/* other */%s" % self.endLine
     kStr += "#define PAD %u%s" % (kernel["LdsPad"], self.endLine)
-    kStr += "#define WORK_GROUP_MAPPING%u%s" \
-        % (kernel["WorkGroupMapping"], self.endLine)
+    kStr += "#define WORK_GROUP_MAPPING %u%s" \
+        % (abs(kernel["WorkGroupMapping"]), self.endLine)
     kStr += "#define VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
     kStr += self.endLine
 
