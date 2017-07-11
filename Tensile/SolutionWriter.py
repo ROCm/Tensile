@@ -200,6 +200,17 @@ class SolutionWriter:
       s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
       s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
       s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    if kernel["WorkGroupMappingType"] == "Z":
+      s += "%sunsigned int totalWorkGroupsPow2 = max(totalWorkGroups0, totalWorkGroups1);\n" % (t)
+      s += "%stotalWorkGroupsPow2--;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 1;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 2;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 4;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 8;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 16;\n" % (t)
+      s += "%stotalWorkGroupsPow2++;\n" % (t)
+      s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
+      s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
     if solution["GlobalSplitU"] > 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
 
@@ -557,11 +568,11 @@ class SolutionWriter:
             s += "%s  printf(\"%%04i\", i);\n" % (t)
             #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
             s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
-            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t) 
+            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t)
             s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
             s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
             s += "%s else printf(\",%%4.0f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
- 
+
             s += "%s  }\n" % (t)
             s += "%s  printf(\"\\n\");\n" % (t)
             s += "%s}\n" % (t)
