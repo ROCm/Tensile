@@ -21,7 +21,7 @@
 
 
 from SolutionStructs import DataType
-from Common import globalParameters
+from Common import globalParameters, printExit
 from KernelWriter import KernelWriter
 
 ################################################################################
@@ -61,6 +61,7 @@ class KernelWriterSource(KernelWriter):
       self.vectorComponents = ["s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7"]
       self.atomicCasStr = "atomic_cmpxchg"
       self.volatileStr = "volatile "
+      self.deviceFunctionStr = ""
     else:
       self.getGroupIdStr = "hc_get_group_id"
       self.getNumGroupsStr = "hc_get_num_groups"
@@ -78,6 +79,7 @@ class KernelWriterSource(KernelWriter):
       self.vectorComponents = ["x", "y", "z", "w"]
       self.atomicCasStr = "atomicCAS"
       self.volatileStr = ""
+      self.deviceFunctionStr = "__device__ "
 
     self.commentPrefix = "/*"
     self.commentSuffix = "*/"
@@ -223,7 +225,9 @@ class KernelWriterSource(KernelWriter):
     # z-ordering
     if True:
       kStr += self.endLine
-      kStr += "void z_order(%s" % self.endLine
+      kStr += "#ifndef Z_ORDER_FUNCTIONS%s" % self.endLine
+      kStr += "#define Z_ORDER_FUNCTIONS%s" % self.endLine
+      kStr += "%svoid z_order(%s" % (self.deviceFunctionStr, self.endLine)
       kStr += "    unsigned int *z0, // 16-bits output%s" % self.endLine
       kStr += "    unsigned int *z1, // 16-bits output%s" % self.endLine
       kStr += "    unsigned int serial ) { // 32-bits input%s" % self.endLine
@@ -249,7 +253,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  *z1 &= 0x0000ffff;%s"  % (self.endLine)
       kStr += "}%s" % self.endLine
       kStr += self.endLine
-      kStr += "unsigned int round_down_power_of_2( unsigned int d0, unsigned int d1) {%s" % self.endLine
+      kStr += "%sunsigned int round_down_power_of_2( unsigned int d0, unsigned int d1) {%s" % (self.deviceFunctionStr, self.endLine)
       kStr += "  unsigned int pow2 = min(d0, d1);%s" % self.endLine
       kStr += "  pow2 = pow2 | (pow2 >> 1);%s" % self.endLine
       kStr += "  pow2 = pow2 | (pow2 >> 2);%s" % self.endLine
@@ -260,7 +264,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  return pow2;%s" % self.endLine
       kStr += "}%s" % self.endLine
       kStr += self.endLine
-      kStr += "void generalized_z_order(%s" % self.endLine
+      kStr += "%svoid generalized_z_order(%s" % (self.deviceFunctionStr, self.endLine)
       kStr += "    unsigned int *z0,%s" % self.endLine
       kStr += "    unsigned int *z1,%s" % self.endLine
       kStr += "    unsigned int d0,%s" % self.endLine
@@ -301,6 +305,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "  *z1 |= offset1;%s" % self.endLine
       #kStr += "  if (get_local_id(0)==0) printf(\\\"%%u, %%u -> %%u, %%u\\\\n\\\", d0, d1, (*z0), (*z1));%s" % self.endLine
       kStr += "}%s" % self.endLine
+      kStr += "#endif%s" % self.endLine
 
     ####################################
     # global memory indices
@@ -913,10 +918,6 @@ class KernelWriterSource(KernelWriter):
     elif kernel["WorkGroupMappingType"] == "Z":
       wg0 = "wg%s" % self.tileChar0
       wg1 = "wg%s" % self.tileChar1
-      #zg0 = "zg%s" % self.tileChar0
-      #zg1 = "zg%s" % self.tileChar1
-      #zsg0 = "zsg%s" % self.tileChar0
-      #zsg1 = "zsg%s" % self.tileChar1
 
       ########################################
       # wg0,1 -> zg0,1
@@ -929,19 +930,19 @@ class KernelWriterSource(KernelWriter):
       kStr += "  unsigned int nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
 
-      if abs(kernel["WorkGroupMapping"]) == 2: # Z-Group round down
+      if abs(kernel["WorkGroupMapping"]) == 1: # Generalized Z-Order
         kStr += "generalized_z_order(&%s, &%s, %s, %s, 0, nwg0, nwg1);%s" \
             % ( wg0, wg1, wg0, wg1, self.endLine)
 
-      elif abs(kernel["WorkGroupMapping"]) == 1: # Z-Order round up
-        kStr += "  unsigned int serial = %s + %s * nwg0;%s" % (wg0, wg1, self.endLine)
-        kStr += "  z_order(&%s, &%s, zgSerial);%" % (wg0, wg1, self.endLine)
+      elif abs(kernel["WorkGroupMapping"]) == 2: # Z-Order round up and return early
+        kStr += "  unsigned int wgSerial = %s + %s * %s(0);%s" % (wg0, wg1, self.getNumGroupsStr, self.endLine)
+        kStr += "  z_order(&%s, &%s, wgSerial);%s" % (wg0, wg1, self.endLine)
         kStr += "  if (%s >= nwg0 || %s >= nwg1) return; // wg mapped out of bounds after z-ordering%s" \
             % (wg0, wg1, self.endLine)
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
 
-      #kStr += "  if (%s(0)==0) printf(\\\"wg[%%u,%%u] -(%%u)-> z[%%u,%%u]\\\\n\\\", %s(0), %s(1), zgSerial, %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+      #kStr += "  if (%s(0)==0) printf(\\\"wg[%%u,%%u] -(%%u)-> z[%%u,%%u]\\\\n\\\", %s(0), %s(1), serial, %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
 
 
     return kStr

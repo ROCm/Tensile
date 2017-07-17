@@ -688,6 +688,12 @@ class Solution:
               state["MacroTileShapeMin"], state["MacroTileShapeMax"]))
         state["Valid"] = False
 
+    if state["WorkGroupMappingType"] == "Z":
+      if abs(state["WorkGroupMapping"]) > 2:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("WorkGroupMappingType=Z only supports WorkGroupMapping=1, 2")
+        state["Valid"] = False
+
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
 
@@ -1036,6 +1042,7 @@ class Solution:
           print1("compiler bug")
         state["Valid"] = False
     """
+
 
 
     state["AssignedDerivedParameters"] = True

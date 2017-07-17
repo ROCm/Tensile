@@ -200,8 +200,8 @@ class SolutionWriter:
       s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
       s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
       s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
-    if kernel["WorkGroupMappingType"] == "Z":
-      s += "%sunsigned int totalWorkGroupsPow2 = max(totalWorkGroups0, totalWorkGroups1);\n" % (t)
+    if kernel["WorkGroupMappingType"] == "Z" and abs(kernel["WorkGroupMapping"]) == 2:
+      s += "%sunsigned int totalWorkGroupsPow2 = totalWorkGroups0 > totalWorkGroups1 ? totalWorkGroups0 : totalWorkGroups1;\n" % (t)
       s += "%stotalWorkGroupsPow2--;\n" % (t)
       s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 1;\n" % (t)
       s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 2;\n" % (t)
