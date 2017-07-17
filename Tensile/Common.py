@@ -176,7 +176,6 @@ defaultBenchmarkCommonParameters = [
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
-    {"WorkGroupMappingType":      [ "D" ] },
     {"WorkGroupMapping":          [ 1 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"DepthU":                    [ 16 ] },

@@ -219,6 +219,89 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define LDS_OFFSET_BLK %u%s" \
          % (kernel["LdsOffsetA_Blk"], self.endLine)
 
+    ########################################
+    # z-ordering
+    if True:
+      kStr += self.endLine
+      kStr += "void z_order(%s" % self.endLine
+      kStr += "    unsigned int *z0, // 16-bits output%s" % self.endLine
+      kStr += "    unsigned int *z1, // 16-bits output%s" % self.endLine
+      kStr += "    unsigned int serial ) { // 32-bits input%s" % self.endLine
+      kStr += "  *z0 = serial;%s" % (self.endLine)
+      kStr += "  *z1 = (serial >> 1);%s" % (self.endLine)
+      kStr += "  *z0 &= 0x55555555;%s"  % (self.endLine)
+      kStr += "  *z1 &= 0x55555555;%s"  % (self.endLine)
+      kStr += "  *z0 |= ( (*z0) >> 1 );%s" % (self.endLine)
+      kStr += "  *z1 |= ( (*z1) >> 1 );%s" % (self.endLine)
+      kStr += "  *z0 &= 0x33333333;%s"  % (self.endLine)
+      kStr += "  *z1 &= 0x33333333;%s"  % (self.endLine)
+      kStr += "  *z0 |= ( (*z0) >> 2 );%s" % (self.endLine)
+      kStr += "  *z1 |= ( (*z1) >> 2 );%s" % (self.endLine)
+      kStr += "  *z0 &= 0x0f0f0f0f; %s" % (self.endLine)
+      kStr += "  *z1 &= 0x0f0f0f0f;%s"  % (self.endLine)
+      kStr += "  *z0 |= ( (*z0) >> 4 );%s" % (self.endLine)
+      kStr += "  *z1 |= ( (*z1) >> 4 );%s" % (self.endLine)
+      kStr += "  *z0 &= 0x00ff00ff;%s"  % (self.endLine)
+      kStr += "  *z1 &= 0x00ff00ff;%s"  % (self.endLine)
+      kStr += "  *z0 |= ( (*z0) >> 8 );%s" % (self.endLine)
+      kStr += "  *z1 |= ( (*z1) >> 8 );%s" % (self.endLine)
+      kStr += "  *z0 &= 0x0000ffff;%s"  % (self.endLine)
+      kStr += "  *z1 &= 0x0000ffff;%s"  % (self.endLine)
+      kStr += "}%s" % self.endLine
+      kStr += self.endLine
+      kStr += "unsigned int round_down_power_of_2( unsigned int d0, unsigned int d1) {%s" % self.endLine
+      kStr += "  unsigned int pow2 = min(d0, d1);%s" % self.endLine
+      kStr += "  pow2 = pow2 | (pow2 >> 1);%s" % self.endLine
+      kStr += "  pow2 = pow2 | (pow2 >> 2);%s" % self.endLine
+      kStr += "  pow2 = pow2 | (pow2 >> 4);%s" % self.endLine
+      kStr += "  pow2 = pow2 | (pow2 >> 8);%s" % self.endLine
+      kStr += "  pow2 = pow2 | (pow2 >> 16);%s" % self.endLine
+      kStr += "  pow2 = pow2 - (pow2 >> 1);%s" % self.endLine
+      kStr += "  return pow2;%s" % self.endLine
+      kStr += "}%s" % self.endLine
+      kStr += self.endLine
+      kStr += "void generalized_z_order(%s" % self.endLine
+      kStr += "    unsigned int *z0,%s" % self.endLine
+      kStr += "    unsigned int *z1,%s" % self.endLine
+      kStr += "    unsigned int d0,%s" % self.endLine
+      kStr += "    unsigned int d1,%s" % self.endLine
+      kStr += "    unsigned int maxPow2,%s" % self.endLine
+      kStr += "    unsigned int max0,%s" % self.endLine
+      kStr += "    unsigned int max1 ) {%s" % self.endLine
+      kStr += "  if (! maxPow2) maxPow2 = round_down_power_of_2( max0, max1 );%s" % self.endLine
+      kStr += "  // determine which tile wg is in and relative coord in tile%s" % self.endLine
+      kStr += "  unsigned int offset0 = 0; // coord of tile%s" % self.endLine
+      kStr += "  unsigned int offset1 = 0; // coord of tile%s" % self.endLine
+      kStr += "  unsigned int start0 = 0;%s" % self.endLine
+      kStr += "  unsigned int start1 = 0;%s" % self.endLine
+      kStr += "  unsigned int tile = maxPow2;%s" % self.endLine
+      kStr += "  unsigned int tilem1 = tile - 1;%s" % self.endLine
+      kStr += "  for ( unsigned int i = 0; i < 16; i++ ) {%s" % self.endLine
+      kStr += "    start0 = d0 & ~tilem1; // (d0 / tile) * tile;%s" % self.endLine
+      kStr += "    start1 = d1 & ~tilem1; // (d1 / tile) * tile;%s" % self.endLine
+      kStr += "    offset0 |= start0; // +=%s" % self.endLine
+      kStr += "    offset1 |= start1;%s" % self.endLine
+      kStr += "    d0 &= ~start0; // -=%s" % self.endLine
+      kStr += "    d1 &= ~start1;%s" % self.endLine
+      kStr += "    unsigned int end0 = start0 + tile; // cant be | b/c evals to 0+4->4 or 4+4->8%s" % self.endLine
+      kStr += "    unsigned int end1 = start1 + tile;%s" % self.endLine
+      kStr += "    if ( end0 <= max0 && end1 <= max1 ) break; // both end and max can be non-pow2%s" % self.endLine
+      kStr += "    max0 -= start0; // cant be &~ b/c max0 doesnt necessarily have multiple of start0 to turn off%s" % self.endLine
+      kStr += "    max1 -= start1;%s" % self.endLine
+      kStr += "    tile >>= 1;%s" % self.endLine
+      kStr += "    tilem1 >>= 1;%s" % self.endLine
+      kStr += "  }%s" % self.endLine
+      kStr += "  // d0, d1 is relative coord within tile%s" % self.endLine
+      kStr += self.endLine
+      kStr += "  // z-order relative coord%s" % self.endLine
+      kStr += "  unsigned int serial = d0 + d1 * tile;%s" % self.endLine
+      kStr += "  z_order( z0, z1, serial );%s" % self.endLine
+      kStr += "  // add tile offset onto z-ordered index%s" % self.endLine
+      kStr += "  *z0 |= offset0;%s" % self.endLine
+      kStr += "  *z1 |= offset1;%s" % self.endLine
+      #kStr += "  if (get_local_id(0)==0) printf(\\\"%%u, %%u -> %%u, %%u\\\\n\\\", d0, d1, (*z0), (*z1));%s" % self.endLine
+      kStr += "}%s" % self.endLine
+
     ####################################
     # global memory indices
     kStr += self.endLine
@@ -806,6 +889,21 @@ class KernelWriterSource(KernelWriter):
         kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
             % ((self.tileChar1 if coal0 else self.tileChar0), \
             self.endLine)
+        """
+        [ [c0, c1], [c0', c1'], [c0", c1"], ...]
+        serial = wg0 + wg1 * nwg0;
+        g0 = serial / (nwg0*c0); // super group 0
+        wg0 = g0 * c0 + serial % c0;
+        l0 = nwg0 % c0; // last super group 0 size
+        nwgblsg = (nwg0 - l0)*nwg1; // num work groups before last super group
+        if (serial < nwgblsg) {
+          wg1 = (serial/c0) % nwg1;
+        } else {
+          wg1 = (serial - nwgblsg) / l0;
+        }
+
+
+        """
 
         # if in last super group
         kStr += "  }%s" % self.endLine
@@ -813,57 +911,37 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # Z-Order
     elif kernel["WorkGroupMappingType"] == "Z":
-
-      if kernel["WorkGroupMappingType"] > 0:
-        kStr += "  %s groupSerial = %s(0) + (%s(1) * %s(0));%s" \
-            % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
-            self.getNumGroupsStr, self.endLine)
-      else:
-        kStr += "  %s groupSerial = %s(1) + (%s(0) * %s(1));%s" \
-            % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
-            self.getNumGroupsStr, self.endLine)
       wg0 = "wg%s" % self.tileChar0
       wg1 = "wg%s" % self.tileChar1
-      kStr += "  unsigned int %s = groupSerial;%s" % (wg0, self.endLine)
-      kStr += "  unsigned int %s = (groupSerial >> 1);%s" % (wg1, self.endLine)
-      kStr += "  %s &= 0x55555555; // 01010101010101010101010101010101%s" \
-          % (wg0, self.endLine)
-      kStr += "  %s &= 0x55555555;%s" % (wg1, self.endLine)
-      kStr += "  %s |= ( %s >> 1 );%s" % (wg0, wg0, self.endLine)
-      kStr += "  %s |= ( %s >> 1 );%s" % (wg1, wg1, self.endLine)
-      kStr += "  %s &= 0x33333333; // 00110011001100110011001100110011%s" \
-          % (wg0, self.endLine)
-      kStr += "  %s &= 0x33333333;%s" % (wg1, self.endLine)
-      kStr += "  %s |= ( %s >> 2 );%s" % (wg0, wg0, self.endLine)
-      kStr += "  %s |= ( %s >> 2 );%s" % (wg1, wg1, self.endLine)
-      kStr += "  %s &= 0x0f0f0f0f; // 00001111000011110000111100001111%s" \
-          % (wg0, self.endLine)
-      kStr += "  %s &= 0x0f0f0f0f;%s" % (wg1, self.endLine)
-      kStr += "  %s |= ( %s >> 4 );%s" % (wg0, wg0, self.endLine)
-      kStr += "  %s |= ( %s >> 4 );%s" % (wg1, wg1, self.endLine)
-      kStr += "  %s &= 0x00ff00ff; // 00000000111111110000000011111111%s" \
-          % (wg0, self.endLine)
-      kStr += "  %s &= 0x00ff00ff;%s" % (wg1, self.endLine)
-      kStr += "  %s |= ( %s >> 8 );%s" % (wg0, wg0, self.endLine)
-      kStr += "  %s |= ( %s >> 8 );%s" % (wg1, wg1, self.endLine)
-      kStr += "  %s &= 0x0000ffff; // 0000000000000001111111111111111%s" \
-          % (wg0, self.endLine)
-      kStr += "  %s &= 0x0000ffff;%s" % (wg1, self.endLine)
+      #zg0 = "zg%s" % self.tileChar0
+      #zg1 = "zg%s" % self.tileChar1
+      #zsg0 = "zsg%s" % self.tileChar0
+      #zsg1 = "zsg%s" % self.tileChar1
 
-      kStr += "  unsigned int numValidWg0 = size%s / MT%s;%s" \
-          % (self.tileChar0, self.tileChar0, self.endLine)
-      kStr += "  unsigned int numValidWg1 = size%s / MT%s;%s" \
-          % (self.tileChar1, self.tileChar1, self.endLine)
-      if kernel["EdgeType"] != "None":
-        s += "  if (numValidWg0*MT%s < size%s) numValidWg0++;\n" \
-            % (self.tileChar0, self.tileChar0)
-        s += "  if (numValidWg1*MT%s < size%s) numValidWg1++;\n" \
-            % (self.tileChar1, self.tileChar1)
+      ########################################
+      # wg0,1 -> zg0,1
+      kStr += "  unsigned int %s = %s(0);%s" \
+          % (wg0, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int %s = %s(1);%s" \
+          % (wg1, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
+          % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
+      kStr += "  unsigned int nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
+          % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
 
-      kStr += "  if (%s >= numValidWg0 || %s >= numValidWg1) return; // this wg mapped out of bounds after z-ordering%s" \
-          % (wg0, wg1, self.endLine)
+      if abs(kernel["WorkGroupMapping"]) == 2: # Z-Group round down
+        kStr += "generalized_z_order(&%s, &%s, %s, %s, 0, nwg0, nwg1);%s" \
+            % ( wg0, wg1, wg0, wg1, self.endLine)
 
-      #kStr += "  if (%s(0)==0) printf(\\\"wg[%%u,%%u] -(%%u)-> z[%%u,%%u]\\\\n\\\", %s(0), %s(1), groupSerial, %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+      elif abs(kernel["WorkGroupMapping"]) == 1: # Z-Order round up
+        kStr += "  unsigned int serial = %s + %s * nwg0;%s" % (wg0, wg1, self.endLine)
+        kStr += "  z_order(&%s, &%s, zgSerial);%" % (wg0, wg1, self.endLine)
+        kStr += "  if (%s >= nwg0 || %s >= nwg1) return; // wg mapped out of bounds after z-ordering%s" \
+            % (wg0, wg1, self.endLine)
+      else:
+        printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
+
+      #kStr += "  if (%s(0)==0) printf(\\\"wg[%%u,%%u] -(%%u)-> z[%%u,%%u]\\\\n\\\", %s(0), %s(1), zgSerial, %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
 
 
     return kStr
