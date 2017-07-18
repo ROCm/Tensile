@@ -1241,8 +1241,14 @@ def main(  config ):
 
   # Run Analysis
   #schedulePrefix = globalParameters["Name"]
-  schedulePrefix = config["ScheduleName"]
-  deviceNamesForSchedule = config["DeviceNames"]
+  if "ScheduleName" in config:
+    schedulePrefix = config["ScheduleName"]
+  else:
+    schedulePrefix = "Tensile"
+  if "DeviceNames" in config:
+    deviceNamesForSchedule = config["DeviceNames"]
+  else:
+    deviceNamesForSchedule = "default"
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
         analysisParameters )
