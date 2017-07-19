@@ -846,7 +846,7 @@ class KernelWriterSource(KernelWriter):
             % ( self.tileChar1, self.getGroupIdStr, self.endLine)
 
       elif kernel["WorkGroupMapping"] == -1:
-        kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
+        kStr += "  %s groupSerial = %s(1) + %s(0) * %s(1);%s" \
             % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
             self.getNumGroupsStr, self.endLine)
         kStr += "  unsigned int wg%s = groupSerial %% %s(0);%s" \
