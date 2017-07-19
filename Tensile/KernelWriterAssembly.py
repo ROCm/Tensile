@@ -903,7 +903,7 @@ class KernelWriterAssembly(KernelWriter):
     ####################################
     kStr += self.comment3("Global Write")
     kStr += ".macro GLOBAL_WRITE vc0 vc1 d0 d1 base tmp%s"%self.endLine
-    
+
     kStr += ".set idx, %u + \\vc0 + \\d0*%u + \\vc1*%u + \\d1*%u*%u %s" \
         % (self.startVgprValuC, \
         kernel["VectorWidth"], \
@@ -919,7 +919,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += inst("v_mov_b32", vgpr(65), sgpr("Beta"), "")
     #kStr += dump(vgpr(65))
     #kStr += dump("v[idx]")
-    # static tmps b/c 
+    # static tmps b/c
     #vgprAddr = self.totalVgprs-6
     #vgprValue = self.totalVgprs-7
     kStr += inst("v_mov_b32", "v[addr+0]", sgpr("StridesC"), \
@@ -984,6 +984,38 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("flat_store_dword", "v[addr:addr+1]", "v[idx]", "store C" )
     kStr += ".endm%s"%self.endLine
 
+    ########################################
+    # Dynamic Scalar Divide
+    kStr += self.comment3("Dynamic Scalar Divide: vQuotient=sDividend/sDivisor; vRemainder=sDivident%sDivisor;")
+    kStr += ".macro DYNAMIC_SCALAR_DIVIDE vQuotient vRemainder sDividend sDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
+    kStr += inst("v_cvt_f32_u32", "v[\\vQuotient]", "s[\\sDividend]", "" )
+    kStr += inst("v_rcp_f32", "v[\\vQuotient]", "v[\\vQuotient]", "" )
+    kStr += inst("v_mul_f32", "v[\\vQuotient]", "0x4f800000", "v[\\vQuotient]", "" )
+    kStr += inst("v_cvt_u32_f32", "v[\\vQuotient]", "v[\\vQuotient]", "" )
+    kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "s[\\sDividend]", "v[\\vQuotient]", "" )
+    kStr += inst("v_mul_hi_u32", "v[\\vTmp0]", "s[\\sDividend]", "v[\\vQuotient]", "" )
+    kStr += inst("v_sub_u32", "v[\\vTmp1]", "vcc", hex(0), "v[\\vRemainder]", "" )
+    kStr += inst("v_cmp_ne_i32", "s[\\sTmp:\\sTmp+1]", hex(0), "v[\\vTmp0]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]", "v[\\vRemainder]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_mul_hi_u32", "v[\\vRemainder]", "v[\\vRemainder]", "v[\\vQuotient]", "" )
+    kStr += inst("v_sub_u32", "v[\\vTmp0]", "vcc", "v[\\vQuotient]", "v[\\vRemainder]", "" )
+    kStr += inst("V_add_u32", "v[\\vQuotient]", "vcc", "v[\\vQuotient]", "v[\\vRemainder]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", "v[\\vQuotient]", "v[\\vTmp0]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_mul_hi_u32", "v[\\vQuotient]", "v[\\vQuotient]", "s[\\sDividend]", "" )
+    kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "v[\\vQuotient]", "s[\\sDividend]", "" )
+    kStr += inst("v_sub_u32", "v[\\vTmp0]", "vcc", "s[\\sDividend]", "v[\\vRemainder]", "" )
+    kStr += inst("v_cmp_ge_u32", "s[\\sTmp:\\sTmp+1]", "s[\\sDividend]", "v[\\vRemainder]", "" )
+    kStr += inst("V_add_u32", "v[\\vRemainder]", "vcc", hex(1), "v[\\vQuotient]", "" )
+    kStr += inst("V_add_u32", "v[\\vTmp1]", "vcc", -1, "v[\\vQuotient]", "" )
+    kStr += inst("v_cmp_le_u32", "vcc", "s[\\sDividend]", "v[\\vTmp0]", "" )
+    kStr += inst("S_and_b64 vcc", "s[\\sTmp:\\sTmp+1]", "vcc", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", "v[\\vQuotient]", "v[\\vRemainder]", "vcc", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", "v[\\vTmp1]", "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cmp_ne_i32", "vcc", hex(0), "s[\\sDividend]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", -1, "v[\\vQuotient]", "vcc", "final result" )
+    kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "v[\\vQuotient]", "s[\\sDividend]", "" )
+    kStr += inst("v_sub_u32", "v[\\vRemainder]", "vcc", "s[\\sDividend]", "v[\\vRemainder]", "final result" )
+    kStr += ".endm%s" % self.endLine
 
     ########################################
     # MACs
@@ -1168,7 +1200,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.do["PreLoop"]: kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
         * self.bpe), "LDS clamp at %u bytes" \
         %(kernel["LdsNumElements"] * self.bpe) )
-        
+
     if self.do["PreLoop"]: kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
     ########################################
@@ -3783,7 +3815,7 @@ class KernelWriterAssembly(KernelWriter):
   def kernelBodyBetaOnly(self, kernel):
     kStr = ""
     return kStr
-  
+
 
 
 ################################################################################
