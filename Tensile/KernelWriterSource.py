@@ -837,158 +837,49 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     wg0 = "wg%s" % self.tileChar0
     wg1 = "wg%s" % self.tileChar1
-    kernel["TransposeWorkGroupGrid"] = kernel["WorkGroupMapping"] < 0
-    nwgg = not kernel["TransposeWorkGroupGrid"] # normal work-group grid
+    nwgg = kernel["WorkGroupMapping"] > 0
 
     ########################################
     # Dimension WorkGroups
     if kernel["WorkGroupMappingType"] == "D":
-      if kernel["WorkGroupMapping"] == 1:
+      if abs(kernel["WorkGroupMapping"]) == 1:
         kStr += "  unsigned int %s = %s(%u);%s" \
             % ( wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
         kStr += "  unsigned int %s = %s(%u);%s" \
             % ( wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
 
-      elif kernel["WorkGroupMapping"] == -1:
-        kStr += "  %s wgSerial = %s(%u) + %s(%u) * %s(%u);%s" \
-            % (self.uint64Str, self.getGroupIdStr, 1 if nwgg else 0, self.getGroupIdStr, 0 if nwgg else 0, \
-            self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
-        kStr += "  unsigned int %s = wgSerial %% %s(%u);%s" \
-            % (wg0, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
-        kStr += "  unsigned int %s = wgSerial / %s(%u);%s" \
-            % (wg1, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
-
       ########################################
       # Blocked rows or columns
-      elif kernel["WorkGroupMappingType"] == "D":
-        if (kernel["WorkGroupMapping"] > 0) == (not kernel["TransposeWorkGroupGrid"]):
-          coal0 = kernel["WorkGroupMapping"] > 0
-          dimCoal = (0 if coal0 else 1) # meaning the block is a column going down d0
-          dimPerp = (1 if coal0 else 0)
-          """
-          not trans
-          nwgg=true
-          wgm>0
-          coal0=true # misnomer!
-          dimCoal if nwgg else dimPerp -> dimCoal = 0
-          dimPerp if nwgg else dimCoal -> dimPerp = 1
-
-          yes trans
-          nwgg=false
-          wgm<0
-          coal0=false
-          dimCoal if nwgg else dimPerp -> dimPerp = 0
-          dimPerp if nwgg else dimCoal -> dimCoal = 1
-
-          WGB>0 and NoTrans
-          block  = wg1/WGB
-          blockR = wg1%WGB # wg1 & log2(WGB)
-          sIB = wg0 + blockR*ng0 # serial in block
-          if (before last block) {
-            wg0 = sIB/WGB
-            wg1 = sIB%WGB + block*WGB
-          } else {
-            lBW = ng1%WGB # last block width
-            wg0 = sIB/lBW
-            wg1 = sIB%lBW + block*WGB
-          }
-          """
-
-          # work-group free indices
-          kStr += self.endLine
-          kStr += "  unsigned int %s, %s;%s" \
-              % (wg0, wg1, self.endLine)
-          kStr += "  %s wgSerial = %s(%u) + (%s(%u)%%WORK_GROUP_MAPPING) * %s(%u);%s" \
-              % (self.uint64Str, self.getGroupIdStr, 0 if True else 1, self.getGroupIdStr, 1 if True else 0, \
-              self.getNumGroupsStr, 0 if True else 1, self.endLine)
-          kStr += "  unsigned int block = %s(%u)/WORK_GROUP_MAPPING;%s" \
-              % (self.getGroupIdStr, 1 if True else 0, self.endLine );
-          kStr += "  unsigned int blockRemainder = %s(1) %% WORK_GROUP_MAPPING;%s" % \
-              ( self.getNumGroupsStr, self.endLine )
-          for blockRemainder in range(0, abs(kernel["WorkGroupMapping"])):
-            blockWidth = abs(kernel["WorkGroupMapping"]) if blockRemainder==0 else blockRemainder
-            if blockRemainder > 0:
-              kStr += " else "
-            else:
-              kStr += "  "
-            if blockRemainder < abs(kernel["WorkGroupMapping"])-1:
-              kStr += "if ( blockRemainder == %u) " % (blockRemainder)
-            kStr += "{%s" % self.endLine
-            kStr += "    %s = wgSerial / %u;%s" \
-                % ((wg0 if nwgg else wg1), blockWidth, self.endLine)
-            kStr += "    %s = wgSerial %% %u + block*WORK_GROUP_MAPPING;%s" \
-                % ((wg1 if nwgg else wg0), blockWidth, self.endLine)
-            kStr += "  }"
-          kStr += "%s" % self.endLine
-          #kStr += "if (get_local_id(0)==0) printf(\\\"%%3u: %%2u, %%2u\\\\n\\\", (get_group_id(0)+get_group_id(1)*get_num_groups(0)), %s, %s); return;%s" % (wg0, wg1, self.endLine)
-
-
-          """
-          # if not in last super group
-          kStr += "  if ( wgSerial < numWorkGroupsBeforeLastBlock) {%s" \
-                  % (self.endLine)
-          kStr += "    %s = (wgSerial/WORK_GROUP_MAPPING) %% %s(0);%s" \
-              % ((wg0 if nwgg else wg1), \
-              self.getNumGroupsStr, self.endLine)
-          kStr += "    %s = block*WORK_GROUP_MAPPING + wgSerial %% WORK_GROUP_MAPPING;%s" \
-              % ((wg1 if nwgg else wg0), \
-              self.endLine)
-
-         # if in last super group
-          kStr += "  } else {%s" % self.endLine
-          kStr += "    %s = (wgSerial-numWorkGroupsBeforeLastBlock)/lastBlockWidth;%s" \
-              % ((wg0 if nwgg else wg1), \
-              self.endLine)
-          kStr += "    %s = block*WORK_GROUP_MAPPING + wgSerial %% lastBlockWidth;%s" \
-              % ((wg1 if nwgg else wg0), \
-              self.endLine)
-
-          # if in last super group
-          kStr += "  }%s" % self.endLine
-          """
-        else: # slow case
-          coal0 = kernel["WorkGroupMapping"] > 0
-          dimCoal = (0 if coal0 else 1)
-          dimPerp = (1 if coal0 else 0)
-
-          # work-group free indices
-          kStr += self.endLine
-          kStr += "  unsigned int %s, %s;%s" \
-              % (wg0, wg1, self.endLine)
-          kStr += "  %s wgSerial = %s(%u) + %s(%u) * %s(%u);%s" \
-              % (self.uint64Str, self.getGroupIdStr, 0 if nwgg else 1, self.getGroupIdStr, 1 if nwgg else 0, \
-              self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
-          kStr += "  %s block = wgSerial / (%s(%u)*WORK_GROUP_MAPPING);%s" \
-              % (self.uint64Str, self.getNumGroupsStr, dimCoal if nwgg else dimPerp, self.endLine );
-          kStr += "  unsigned int lastBlockWidth = %s(%u) %% WORK_GROUP_MAPPING;%s" % \
-              ( self.getNumGroupsStr, dimPerp if nwgg else dimCoal, self.endLine )
-          kStr += "  unsigned int numWorkGroupsBeforeLastBlock = (%s(%u) - lastBlockWidth)*%s(%u);%s" \
-              % (self.getNumGroupsStr, dimPerp if nwgg else dimCoal, self.getNumGroupsStr, dimCoal if nwgg else dimPerp, \
-              self.endLine)
-
-          # if not in last super group
-          kStr += "  if ( wgSerial < numWorkGroupsBeforeLastBlock) {%s" \
-              % (self.endLine)
-          kStr += "    %s = (wgSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
-              % ((wg0 if coal0 else wg1), \
-              self.getNumGroupsStr, dimCoal if nwgg else dimPerp, self.endLine)
-          kStr += "    %s = block*WORK_GROUP_MAPPING + wgSerial %% WORK_GROUP_MAPPING;%s" \
-              % ((wg1 if coal0 else wg0), \
-              self.endLine)
-
-          # if in last super group
-          kStr += "  } else {%s" % self.endLine
-          kStr += "    %s = (wgSerial-numWorkGroupsBeforeLastBlock)/lastBlockWidth;%s" \
-              % ((wg0 if coal0 else wg1), \
-              self.endLine)
-          kStr += "    %s = block*WORK_GROUP_MAPPING + wgSerial %% lastBlockWidth;%s" \
-              % ((wg1 if coal0 else wg0), \
-              self.endLine)
-
-          # if in last super group
-          kStr += "  }%s" % self.endLine
-
-
+      else:
+        coal0 = kernel["WorkGroupMapping"] > 0
+        dimCoal = (0 if coal0 else 1) # meaning the block is a column going down d0
+        dimPerp = (1 if coal0 else 0)
+        kStr += self.endLine
+        kStr += "  unsigned int %s, %s;%s" \
+            % (wg0, wg1, self.endLine)
+        kStr += "  %s wgSerial = %s(%u) + (%s(%u)%%WORK_GROUP_MAPPING) * %s(%u);%s" \
+            % (self.uint64Str, self.getGroupIdStr, 0, self.getGroupIdStr, 1, \
+            self.getNumGroupsStr, 0, self.endLine)
+        kStr += "  unsigned int block = %s(%u)/WORK_GROUP_MAPPING;%s" \
+            % (self.getGroupIdStr, 1, self.endLine );
+        kStr += "  unsigned int blockRemainder = (%s(1) < %s(1)-%s(1) %% WORK_GROUP_MAPPING ) ? 0 : %s(1) %% WORK_GROUP_MAPPING;%s" % \
+            ( self.getGroupIdStr, self.getNumGroupsStr, self.getNumGroupsStr, self.getNumGroupsStr, self.endLine )
+        for blockRemainder in range(0, abs(kernel["WorkGroupMapping"])):
+          blockWidth = abs(kernel["WorkGroupMapping"]) if blockRemainder==0 else blockRemainder
+          if blockRemainder > 0:
+            kStr += " else "
+          else:
+            kStr += "  "
+          if blockRemainder < abs(kernel["WorkGroupMapping"])-1:
+            kStr += "if ( blockRemainder == %u) " % (blockRemainder)
+          kStr += "{%s" % self.endLine
+          kStr += "    %s = wgSerial / %u;%s" \
+              % ((wg0 if nwgg else wg1), blockWidth, self.endLine)
+          kStr += "    %s = wgSerial %% %u + block*WORK_GROUP_MAPPING;%s" \
+              % ((wg1 if nwgg else wg0), blockWidth, self.endLine)
+          kStr += "  }"
+        kStr += "%s" % self.endLine
+        #kStr += "if (get_local_id(0)==0) printf(\\\"%%3u: %%2u, %%2u\\\\n\\\", (get_group_id(0)+get_group_id(1)*get_num_groups(0)), %s, %s); return;%s" % (wg0, wg1, self.endLine)
 
     ########################################
     # Z-Order
@@ -1026,8 +917,7 @@ class KernelWriterSource(KernelWriter):
   # Global Read Addresses: Subgroup
   ##############################################################################
   def graSubgroup(self, kernel):
-    #nwgg = (kernel["WorkGroupMapping"] > 0) # not kernel["TransposeWorkGroupGrid"] # normal work-group grid
-    nwgg = not kernel["TransposeWorkGroupGrid"] # normal work-group grid
+    nwgg = kernel["WorkGroupMapping"] > 0
     kStr = ""
     kStr += "  unsigned int serial = %s(0);%s" \
         % (self.getLocalIdStr, self.endLine)
