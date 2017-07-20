@@ -128,6 +128,7 @@ validParameters = {
     "LocalWrite2B":               [ False, True ],
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
+    "TransposeWorkGroupGrid":     [ False, True ],
 
     "WorkGroupMapping":           range(-1024,1024+1),
     "WorkGroupMappingType":       ["D", "Z"], # dimension, z-order
@@ -168,6 +169,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
+    {"TransposeWorkGroupGrid":    [ False ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },

@@ -212,10 +212,13 @@ class SolutionWriter:
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
     if solution["GlobalSplitU"] > 1:
-      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
+      if not solution["TransposeWorkGroupGrid"]:
+        s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
+      else:
+        s += "%stotalWorkGroups0 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
 
-    s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.language == "OCL" else "")
-    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.language == "OCL" else "")
+    s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if not kernel["TransposeWorkGroupGrid"] else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
+    s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if not kernel["TransposeWorkGroupGrid"] else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
 
 
     # offsets

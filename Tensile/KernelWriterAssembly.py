@@ -1343,7 +1343,101 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Work-Group - LATER
   ##############################################################################
   def graWorkGroup(self, kernel):
-    return self.comment1("  N/A")
+    kStr = ""
+    ########################################
+    # Dimension WorkGroups
+    if kernel["WorkGroupMappingType"] == "D":
+      if kernel["WorkGroupMapping"] == 1:
+        kStr += self.comment1("use assigned work-group indices")
+
+      elif kernel["WorkGroupMapping"] == -1:
+        # ng1
+        ng = self.vgprScratch.checkOut(1)
+        kStr += inst("v_mov_b32", vgpr(ng), sgpr("Sizes+1"), "Size1")
+        kStr += inst("v_add_u32", vgpr(ng), hex((kernel["MacroTile1"]-1)), vgpr(ng), "Size1+MT1-1")
+        tmpVgpr = self.vgprScratch.checkOut(2)
+        tmpSgpr = self.startSgprOffsetC
+        kStr += staticDivide(ng, ng, hex(kernel["MacroTile1"]), tmpVgpr, tmpSgpr) # ng1 = (size1+MT1-1)/MT1
+
+        # wgSerial = wg1+wg0*ng1
+        serial = self.vgprScratch.checkOut(2)
+        kStr += inst("v_mul_lo_u32", vgpr(serial+0), vgpr("WorkGroup0"), ng, \
+            "wgSerial = wg0 * ng1" )
+        kStr += inst("v_mov_b32", vgpr(serial+1), hex(0), "")
+        kStr += inst("v_addc_u32", vgpr(serial+1), "vcc", vgpr("WorkGroup1"), vgpr(serial+1), \
+            "wgSerial = wg1 + wg0 * ng1" )
+
+        # ng0
+        kStr += inst("v_mov_b32", vgpr(ng), sgpr("Sizes+0"), "size0")
+        kStr += inst("v_add_u32", vgpr(ng), hex((kernel["MacroTile0"]-1)), vgpr(ng), "size0+MT0-1")
+        kStr += staticDivide(ng, ng, hex(kernel["MacroTile0"]), tmpVgpr, tmpSgpr) # ng0 = (size0+MT0-1)/MT0
+
+        # wg0 = serial % ng0
+
+        # wg1 = serial / ng0
+        kStr += "DYNAMIC_SCALAR_DIVIDE vQuotient vRemainder sDividend sDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
+
+        kStr += "  %s groupSerial = %s(1) + %s(0) * %s(1);%s" \
+            % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
+            self.getNumGroupsStr, self.endLine)
+        kStr += "  unsigned int wg%s = groupSerial %% %s(0);%s" \
+            % (self.tileChar0, self.getNumGroupsStr, self.endLine)
+        kStr += "  unsigned int wg%s = groupSerial / %s(0);%s" \
+            % (self.tileChar1, self.getNumGroupsStr, self.endLine)
+
+      ########################################
+      # Blocked rows or columns
+      else:
+        coal0 = kernel["WorkGroupMapping"] > 0
+        dimCoal = (0 if coal0 else 1)
+        dimPerp = (1 if coal0 else 0)
+
+        # work-group free indices
+        kStr += self.endLine
+        kStr += "  unsigned int wg%s, wg%s;%s" \
+            % (self.tileChar0, self.tileChar1, self.endLine)
+        kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
+            % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
+            self.getNumGroupsStr, self.endLine)
+        kStr += "  %s superGroup = groupSerial / (%s(%u)*WORK_GROUP_MAPPING);%s" \
+            % (self.uint64Str, self.getNumGroupsStr, dimCoal, self.endLine );
+        kStr += "  unsigned int lastSuperGroupWidth = %s(%u) %% WORK_GROUP_MAPPING;%s" % \
+            ( self.getNumGroupsStr, dimPerp, self.endLine )
+        kStr += "  unsigned int numWorkGroupsBeforeLastSuperGroup = (%s(%u) - lastSuperGroupWidth)*%s(%u);%s" \
+              % (self.getNumGroupsStr, dimPerp, self.getNumGroupsStr, dimCoal, \
+              self.endLine)
+
+        # if not in last super group
+        kStr += "  if ( groupSerial < numWorkGroupsBeforeLastSuperGroup) {%s" \
+                % (self.endLine)
+        kStr += "    wg%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
+            % ((self.tileChar0 if coal0 else self.tileChar1), \
+            self.getNumGroupsStr, dimCoal, self.endLine)
+        kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% WORK_GROUP_MAPPING;%s" \
+            % ((self.tileChar1 if coal0 else self.tileChar0), \
+            self.endLine)
+
+        # if in last super group
+        kStr += "  } else {%s" % self.endLine
+        kStr += "    wg%s = (groupSerial-numWorkGroupsBeforeLastSuperGroup)/lastSuperGroupWidth;%s" \
+            % ((self.tileChar0 if coal0 else self.tileChar1), \
+            self.endLine)
+        kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
+            % ((self.tileChar1 if coal0 else self.tileChar0), \
+            self.endLine)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   ##############################################################################
   # Global Read Addresses: Subgroup - DONE
