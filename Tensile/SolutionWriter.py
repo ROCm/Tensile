@@ -211,6 +211,7 @@ class SolutionWriter:
       s += "%stotalWorkGroupsPow2++;\n" % (t)
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
+    kernel["TransposeWorkGroupGrid"] = kernel["WorkGroupMapping"] < 0
     if solution["GlobalSplitU"] > 1:
       if not solution["TransposeWorkGroupGrid"]:
         s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])

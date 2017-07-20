@@ -837,6 +837,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     wg0 = "wg%s" % self.tileChar0
     wg1 = "wg%s" % self.tileChar1
+    kernel["TransposeWorkGroupGrid"] = kernel["WorkGroupMapping"] < 0
     nwgg = not kernel["TransposeWorkGroupGrid"] # normal work-group grid
 
     ########################################
@@ -898,10 +899,10 @@ class KernelWriterSource(KernelWriter):
           kStr += "  unsigned int %s, %s;%s" \
               % (wg0, wg1, self.endLine)
           kStr += "  %s wgSerial = %s(%u) + (%s(%u)%%WORK_GROUP_MAPPING) * %s(%u);%s" \
-              % (self.uint64Str, self.getGroupIdStr, 0 if nwgg else 1, self.getGroupIdStr, 1 if nwgg else 0, \
-              self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
+              % (self.uint64Str, self.getGroupIdStr, 0 if True else 1, self.getGroupIdStr, 1 if True else 0, \
+              self.getNumGroupsStr, 0 if True else 1, self.endLine)
           kStr += "  unsigned int block = %s(%u)/WORK_GROUP_MAPPING;%s" \
-              % (self.getGroupIdStr, 1 if nwgg else 0, self.endLine );
+              % (self.getGroupIdStr, 1 if True else 0, self.endLine );
           kStr += "  unsigned int blockRemainder = %s(1) %% WORK_GROUP_MAPPING;%s" % \
               ( self.getNumGroupsStr, self.endLine )
           for blockRemainder in range(0, abs(kernel["WorkGroupMapping"])):
@@ -914,12 +915,12 @@ class KernelWriterSource(KernelWriter):
               kStr += "if ( blockRemainder == %u) " % (blockRemainder)
             kStr += "{%s" % self.endLine
             kStr += "    %s = wgSerial / %u;%s" \
-                % ((wg0 if True else wg1), blockWidth, self.endLine)
+                % ((wg0 if nwgg else wg1), blockWidth, self.endLine)
             kStr += "    %s = wgSerial %% %u + block*WORK_GROUP_MAPPING;%s" \
-                % ((wg1 if True else wg0), blockWidth, self.endLine)
+                % ((wg1 if nwgg else wg0), blockWidth, self.endLine)
             kStr += "  }"
           kStr += "%s" % self.endLine
-          #kStr += "if (get_local_id(0)==0) printf(\\\"%%u, %%u\\\\n\\\", %s, %s); return;%s" % (wg0, wg1, self.endLine)
+          #kStr += "if (get_local_id(0)==0) printf(\\\"%%3u: %%2u, %%2u\\\\n\\\", (get_group_id(0)+get_group_id(1)*get_num_groups(0)), %s, %s); return;%s" % (wg0, wg1, self.endLine)
 
 
           """
