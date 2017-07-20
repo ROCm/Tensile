@@ -212,7 +212,7 @@ class SolutionWriter:
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
     if solution["GlobalSplitU"] > 1:
-      if kernel["WorkGroupMapping"] > 0:
+      if True or kernel["WorkGroupMapping"] > 0:
         s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
       else:
         s += "%stotalWorkGroups0 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])

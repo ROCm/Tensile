@@ -927,7 +927,7 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
         kStr += "  unsigned int gsuWgIdx = wg%s %% (%s(%u)/GLOBAL_SPLITU);%s" \
-            % (self.tileChar1, self.getNumGroupsStr, 1 if nwgg else 0, ifself.endLine)
+            % (self.tileChar1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
         kStr += "  unsigned int gsuSumIdx = wg%s / (%s(%u)/GLOBAL_SPLITU);%s" \
             % (self.tileChar1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
       else:
