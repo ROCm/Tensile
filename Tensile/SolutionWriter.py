@@ -212,8 +212,11 @@ class SolutionWriter:
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
 
+    if solution["GlobalSplitU"] > 1:
+      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"]) # correct
     s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
     s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
+    """
     if solution["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
         if kernel["WorkGroupMapping"] > 0:
@@ -225,6 +228,7 @@ class SolutionWriter:
           s += "%sglobalWorkSize[0][1] *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"]) # 
         else:
           s += "%sglobalWorkSize[0][0] *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
+    """
 
 
     # offsets
