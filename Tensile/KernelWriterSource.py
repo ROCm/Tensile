@@ -896,31 +896,18 @@ class KernelWriterSource(KernelWriter):
             % (wg1, blockWidth, self.endLine)
         kStr += "  }"
       kStr += "%s" % self.endLine
-      #kStr += "if (get_local_id(0)==0) printf(\\\"%%3u: %%2u, %%2u\\\\n\\\", (get_group_id(0)+get_group_id(1)*get_num_groups(0)), %s, %s); return;%s" % (wg0, wg1, self.endLine)
 
     ########################################
-    # Z-Order
+    # Generalized Z-Order
     elif kernel["WorkGroupMappingType"] == "Z":
 
-      ########################################
-      # wg0,1 -> zg0,1
-      #if kernel["WorkGroupMapping"] == 1:
-      #  pass
-      #elif kernel["WorkGroupMapping"] == -1:
-        #kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
-        #kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
-        #kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
-      #kStr += "  %s = %s(%u);%s" \
-      #    % (wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
-      #kStr += "  %s = %s(%u);%s" \
-      #    % (wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
       kStr += "  unsigned int nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
       kStr += "  unsigned int nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
 
       if abs(kernel["WorkGroupMapping"]) == 1: # Generalized Z-Order
-        kStr += "generalized_z_order(&%s, &%s, %s, %s, 0, nwg0, nwg1);%s" \
+        kStr += "  generalized_z_order(&%s, &%s, %s, %s, 0, nwg0, nwg1);%s" \
             % ( wg0, wg1, wg0, wg1, self.endLine)
 
       elif abs(kernel["WorkGroupMapping"]) == 2: # Z-Order round up and return early
@@ -954,9 +941,6 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + ("
-    #if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==1:
-    #  kStr += "gsuWgIdx"
-    #else:
     kStr += "wg%s" % (self.tileCharA)
     kStr += ")*MT%s;%s" % (self.tileCharA, self.endLine)
     return kStr
@@ -977,9 +961,6 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + ("
-    #if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==0:
-    #  kStr += "gsuWgIdx"
-    #else:
     kStr += "wg%s" % (self.tileCharB)
     kStr += ")*MT%s;%s" % (self.tileCharB, self.endLine)
     return kStr
@@ -1659,7 +1640,6 @@ class KernelWriterSource(KernelWriter):
     if tailLoop:
       kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-      #kStr += "if (serial==0) printf(\\\"wg0:%u, wg1:%u, gsuWg:%u, gsuSum:%u, numIter:%u, r:%u\\\\n\\\", wg0I, wg1J, gsuWgIdx, gsuSumIdx, numIterK, numIterPerWgRemainder);" + self.endLine
       if kernel["GlobalSplitU"] > 1:
         kStr += "%sif (gsuSumIdx != numIterPerWgRemainder) {%s" \
             % (self.indent, self.endLine)
@@ -2234,10 +2214,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def shiftVectorComponents1(self, kernel):
     kStr = ""
-    #kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
-    #    % (self.tileChar1, self.tileChar1, "gsuWgIdx" \
-    #    if kernel["GlobalSplitU"]>1 else ("wg%s"%self.tileChar1), \
-    #    self.tileChar1, self.endLine)
     kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
         % (self.tileChar1, self.tileChar1, "wg%s"%self.tileChar1, \
         self.tileChar1, self.endLine)
@@ -2351,9 +2327,6 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC%s = (" \
           % (self.indexChars[i])
-      #if i == kernel["ProblemType"]["Index1"] and kernel["GlobalSplitU"] > 1:
-      #  kStr += "gsuWgIdx"
-      #else:
       kStr += "wg%s" % self.indexChars[i]
       kStr += ")"
       if i == kernel["ProblemType"]["Index0"]:
@@ -2412,9 +2385,6 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC" + self.indexChars[i] \
           + " = ("
-      #if i == kernel["ProblemType"]["Index1"] and kernel["GlobalSplitU"] > 1:
-      #  kStr += "gsuWgIdx"
-      #else:
       kStr += "wg%s" % self.indexChars[i]
       kStr += ")"
       if i == kernel["ProblemType"]["Index0"]:
