@@ -843,36 +843,28 @@ class KernelWriterSource(KernelWriter):
     kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
         % (self.tileChar0, self.tileChar1, self.endLine)
 
-    kStr += "  unsigned int %s = %s(0);%s" \
-        % ( wg0, self.getGroupIdStr, self.endLine)
-    kStr += "  unsigned int %s = %s(1);%s" \
-        % ( wg1, self.getGroupIdStr, self.endLine)
-    kStr += "  unsigned int n%s = %s(0);%s" \
-        % ( wg0, self.getNumGroupsStr, self.endLine)
-    kStr += "  unsigned int n%s = %s(1);%s" \
-        % ( wg1, self.getNumGroupsStr, self.endLine)
+    kStr += "  unsigned int %s = %s(%u);%s" \
+        % ( wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
+    kStr += "  unsigned int %s = %s(%u);%s" \
+        % ( wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
+    kStr += "  unsigned int n%s = %s(%u);%s" \
+        % ( wg0, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
+    kStr += "  unsigned int n%s = %s(%u);%s" \
+        % ( wg1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
 
     if kernel["GlobalSplitU"] > 1:
       kStr += "n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
       kStr += "  unsigned int gsuSumIdx;%s" % self.endLine
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-        if kernel["WorkGroupMapping"] > 0:
-          wg = wg1
-        else:
-          wg = wg0
         kStr += "  gsuSumIdx = %s / n%s;%s" \
-            % (wg, wg, self.endLine)
+            % (wg1, wg1, self.endLine)
         kStr += "  %s = %s %% n%s;%s" \
-            % (wg, wg, wg, self.endLine)
+            % (wg1, wg1, wg1, self.endLine)
       else:
-        if kernel["WorkGroupMapping"] > 0:
-          wg = wg0
-        else:
-          wg = wg1
         kStr += "  gsuSumIdx = %s %% GLOBAL_SPLITU;%s" \
-            % (wg, self.endLine)
+            % (wg1, self.endLine)
         kStr += "  %s = %s / GLOBAL_SPLITU;%s" \
-            % (wg, wg, self.endLine)
+            % (wg1, wg1, self.endLine)
 
     return kStr
 
@@ -891,13 +883,14 @@ class KernelWriterSource(KernelWriter):
       if kernel["WorkGroupMapping"] == 1:
         pass
       elif kernel["WorkGroupMapping"] == -1:
-        kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
-        kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
-        kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
+        pass
+        #kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
+        #kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
+        #kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
 
-        kStr += "  tmp = n%s;%s" % (wg1, self.endLine)
-        kStr += "  n%s = n%s;%s" % ( wg1, wg0, self.endLine)
-        kStr += "  n%s = tmp;%s" % ( wg0, self.endLine)
+        #kStr += "  tmp = n%s;%s" % (wg1, self.endLine)
+        #kStr += "  n%s = n%s;%s" % ( wg1, wg0, self.endLine)
+        #kStr += "  n%s = tmp;%s" % ( wg0, self.endLine)
 
       ########################################
       # Blocked rows or columns
@@ -923,9 +916,9 @@ class KernelWriterSource(KernelWriter):
             kStr += "if ( blockRemainder == %u) " % (blockRemainder)
           kStr += "{%s" % self.endLine
           kStr += "    %s = wgSerial / %u;%s" \
-              % ((wg0 if nwgg else wg1), blockWidth, self.endLine)
+              % ((wg0 if True else wg1), blockWidth, self.endLine)
           kStr += "    %s = wgSerial %% %u + block*WORK_GROUP_MAPPING;%s" \
-              % ((wg1 if nwgg else wg0), blockWidth, self.endLine)
+              % ((wg1 if True else wg0), blockWidth, self.endLine)
           kStr += "  }"
         kStr += "%s" % self.endLine
         #kStr += "if (get_local_id(0)==0) printf(\\\"%%3u: %%2u, %%2u\\\\n\\\", (get_group_id(0)+get_group_id(1)*get_num_groups(0)), %s, %s); return;%s" % (wg0, wg1, self.endLine)
@@ -936,12 +929,12 @@ class KernelWriterSource(KernelWriter):
 
       ########################################
       # wg0,1 -> zg0,1
-      if kernel["WorkGroupMapping"] == 1:
-        pass
-      elif kernel["WorkGroupMapping"] == -1:
-        kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
-        kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
-        kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
+      #if kernel["WorkGroupMapping"] == 1:
+      #  pass
+      #elif kernel["WorkGroupMapping"] == -1:
+        #kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
+        #kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
+        #kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
       #kStr += "  %s = %s(%u);%s" \
       #    % (wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
       #kStr += "  %s = %s(%u);%s" \
@@ -963,8 +956,9 @@ class KernelWriterSource(KernelWriter):
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
 
-    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u,%%u]\\\\n\\\", %s(0), %s(1), %s, %s, gsuSumIdx); return;%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
-    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u]\\\\n\\\", %s(0), %s(1), %s, %s); return;%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u,%%u]\\\\n\\\", %s(0), %s(1), %s, %s, gsuSumIdx);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+    kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u]\\\\n\\\", %s(0), %s(1), %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+    #kStr += "  return;%s" % (self.endLine)
 
 
     return kStr
