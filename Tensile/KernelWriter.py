@@ -211,13 +211,13 @@ class KernelWriter:
       ####################################
       kStr += self.comment3("Global Read Addresses")
 
-      # work-group assignments
-      kStr += self.comment("global read addresses: work-group")
-      kStr += self.graWorkGroup(kernel)
-
       # subgroup assignments
       kStr += self.comment("global read addresses: subgroup")
       kStr += self.graSubgroup(kernel)
+
+      # work-group assignments
+      kStr += self.comment("global read addresses: work-group")
+      kStr += self.graWorkGroup(kernel)
 
       # tile assignments
       kStr += self.comment("global read addresses: tile offset assignment a")

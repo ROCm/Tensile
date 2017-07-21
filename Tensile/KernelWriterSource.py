@@ -831,6 +831,52 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Global Read Addresses: Subgroup
+  ##############################################################################
+  def graSubgroup(self, kernel):
+    nwgg = kernel["WorkGroupMapping"] > 0
+    wg0 = "wg%s" % self.tileChar0
+    wg1 = "wg%s" % self.tileChar1
+    kStr = ""
+    kStr += "  unsigned int serial = %s(0);%s" \
+        % (self.getLocalIdStr, self.endLine)
+    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
+        % (self.tileChar0, self.tileChar1, self.endLine)
+
+    kStr += "  unsigned int %s = %s(0);%s" \
+        % ( wg0, self.getGroupIdStr, self.endLine)
+    kStr += "  unsigned int %s = %s(1);%s" \
+        % ( wg1, self.getGroupIdStr, self.endLine)
+    kStr += "  unsigned int n%s = %s(0);%s" \
+        % ( wg0, self.getNumGroupsStr, self.endLine)
+    kStr += "  unsigned int n%s = %s(1);%s" \
+        % ( wg1, self.getNumGroupsStr, self.endLine)
+
+    if kernel["GlobalSplitU"] > 1:
+      kStr += "n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
+      kStr += "  unsigned int gsuSumIdx;%s" % self.endLine
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        if kernel["WorkGroupMapping"] > 0:
+          wg = wg1
+        else:
+          wg = wg0
+        kStr += "  gsuSumIdx = %s / n%s;%s" \
+            % (wg, wg, self.endLine)
+        kStr += "  %s = %s %% n%s;%s" \
+            % (wg, wg, wg, self.endLine)
+      else:
+        if kernel["WorkGroupMapping"] > 0:
+          wg = wg0
+        else:
+          wg = wg1
+        kStr += "  gsuSumIdx = %s %% GLOBAL_SPLITU;%s" \
+            % (wg, self.endLine)
+        kStr += "  %s = %s / GLOBAL_SPLITU;%s" \
+            % (wg, wg, self.endLine)
+
+    return kStr
+
+  ##############################################################################
   # Global Read Addresses: Work-Group
   ##############################################################################
   def graWorkGroup(self, kernel):
@@ -842,11 +888,16 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # Dimension WorkGroups
     if kernel["WorkGroupMappingType"] == "D":
-      if abs(kernel["WorkGroupMapping"]) == 1:
-        kStr += "  unsigned int %s = %s(%u);%s" \
-            % ( wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
-        kStr += "  unsigned int %s = %s(%u);%s" \
-            % ( wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
+      if kernel["WorkGroupMapping"] == 1:
+        pass
+      elif kernel["WorkGroupMapping"] == -1:
+        kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
+        kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
+        kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
+
+        kStr += "  tmp = n%s;%s" % (wg1, self.endLine)
+        kStr += "  n%s = n%s;%s" % ( wg1, wg0, self.endLine)
+        kStr += "  n%s = tmp;%s" % ( wg0, self.endLine)
 
       ########################################
       # Blocked rows or columns
@@ -855,15 +906,13 @@ class KernelWriterSource(KernelWriter):
         dimCoal = (0 if coal0 else 1) # meaning the block is a column going down d0
         dimPerp = (1 if coal0 else 0)
         kStr += self.endLine
-        kStr += "  unsigned int %s, %s;%s" \
-            % (wg0, wg1, self.endLine)
-        kStr += "  %s wgSerial = %s(%u) + (%s(%u)%%WORK_GROUP_MAPPING) * %s(%u);%s" \
-            % (self.uint64Str, self.getGroupIdStr, 0, self.getGroupIdStr, 1, \
-            self.getNumGroupsStr, 0, self.endLine)
-        kStr += "  unsigned int block = %s(%u)/WORK_GROUP_MAPPING;%s" \
-            % (self.getGroupIdStr, 1, self.endLine );
-        kStr += "  unsigned int blockRemainder = (%s(1) < %s(1)-%s(1) %% WORK_GROUP_MAPPING ) ? 0 : %s(1) %% WORK_GROUP_MAPPING;%s" % \
-            ( self.getGroupIdStr, self.getNumGroupsStr, self.getNumGroupsStr, self.getNumGroupsStr, self.endLine )
+        kStr += "  %s wgSerial = %s + (%s %% WORK_GROUP_MAPPING) * n%s;%s" \
+            % (self.uint64Str, wg0, wg1, \
+            wg0, self.endLine)
+        kStr += "  unsigned int block = %s / WORK_GROUP_MAPPING;%s" \
+            % (wg1, self.endLine );
+        kStr += "  unsigned int blockRemainder = (%s < n%s-(n%s %% WORK_GROUP_MAPPING) ) ? 0 : n%s %% WORK_GROUP_MAPPING;%s" % \
+            ( wg1, wg1, wg1, wg1, self.endLine )
         for blockRemainder in range(0, abs(kernel["WorkGroupMapping"])):
           blockWidth = abs(kernel["WorkGroupMapping"]) if blockRemainder==0 else blockRemainder
           if blockRemainder > 0:
@@ -887,10 +936,16 @@ class KernelWriterSource(KernelWriter):
 
       ########################################
       # wg0,1 -> zg0,1
-      kStr += "  unsigned int %s = %s(%u);%s" \
-          % (wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
-      kStr += "  unsigned int %s = %s(%u);%s" \
-          % (wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
+      if kernel["WorkGroupMapping"] == 1:
+        pass
+      elif kernel["WorkGroupMapping"] == -1:
+        kStr += "  unsigned int tmp = %s;%s" % (wg1, self.endLine)
+        kStr += "  %s = %s;%s" % ( wg1, wg0, self.endLine)
+        kStr += "  %s = tmp;%s" % ( wg0, self.endLine)
+      #kStr += "  %s = %s(%u);%s" \
+      #    % (wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
+      #kStr += "  %s = %s(%u);%s" \
+      #    % (wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
       kStr += "  unsigned int nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
       kStr += "  unsigned int nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
@@ -901,40 +956,16 @@ class KernelWriterSource(KernelWriter):
             % ( wg0, wg1, wg0, wg1, self.endLine)
 
       elif abs(kernel["WorkGroupMapping"]) == 2: # Z-Order round up and return early
-        kStr += "  unsigned int wgSerial = %s + %s * %s(%u);%s" % (wg0, wg1, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
+        kStr += "  unsigned int wgSerial = %s + %s * n%s;%s" % (wg0, wg1, wg0 if nwgg else wg1, self.endLine)
         kStr += "  z_order(&%s, &%s, wgSerial);%s" % (wg0, wg1, self.endLine)
         kStr += "  if (%s >= nwg0 || %s >= nwg1) return; // wg mapped out of bounds after z-ordering%s" \
             % (wg0, wg1, self.endLine)
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
 
-    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -(%%u)-> wg[%%2u,%%2u]\\\\n\\\", %s(0), %s(1), wgSerial, %s, %s); return;%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u,%%u]\\\\n\\\", %s(0), %s(1), %s, %s, gsuSumIdx); return;%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
+    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u]\\\\n\\\", %s(0), %s(1), %s, %s); return;%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
 
-
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Subgroup
-  ##############################################################################
-  def graSubgroup(self, kernel):
-    nwgg = kernel["WorkGroupMapping"] > 0
-    kStr = ""
-    kStr += "  unsigned int serial = %s(0);%s" \
-        % (self.getLocalIdStr, self.endLine)
-    kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine)
-
-    if kernel["GlobalSplitU"] > 1:
-      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
-        kStr += "  unsigned int gsuWgIdx = wg%s %% (%s(%u)/GLOBAL_SPLITU);%s" \
-            % (self.tileChar1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
-        kStr += "  unsigned int gsuSumIdx = wg%s / (%s(%u)/GLOBAL_SPLITU);%s" \
-            % (self.tileChar1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
-      else:
-        kStr += "  unsigned int gsuWgIdx = wg%s / GLOBAL_SPLITU;%s" \
-            % (self.tileChar1, self.endLine)
-        kStr += "  unsigned int gsuSumIdx = wg%s %% GLOBAL_SPLITU;%s" \
-            % (self.tileChar1, self.endLine)
 
     return kStr
 
@@ -954,10 +985,10 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + ("
-    if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==1:
-      kStr += "gsuWgIdx"
-    else:
-      kStr += "wg%s" % (self.tileCharA)
+    #if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==1:
+    #  kStr += "gsuWgIdx"
+    #else:
+    kStr += "wg%s" % (self.tileCharA)
     kStr += ")*MT%s;%s" % (self.tileCharA, self.endLine)
     return kStr
 
@@ -977,10 +1008,10 @@ class KernelWriterSource(KernelWriter):
     if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
       kStr += "*VECTOR_WIDTH"
     kStr += " + ("
-    if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==0:
-      kStr += "gsuWgIdx"
-    else:
-      kStr += "wg%s" % (self.tileCharB)
+    #if kernel["GlobalSplitU"] > 1 and kernel["ProblemType"]["Tensor0"]==0:
+    #  kStr += "gsuWgIdx"
+    #else:
+    kStr += "wg%s" % (self.tileCharB)
     kStr += ")*MT%s;%s" % (self.tileCharB, self.endLine)
     return kStr
 
@@ -2234,9 +2265,12 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def shiftVectorComponents1(self, kernel):
     kStr = ""
+    #kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
+    #    % (self.tileChar1, self.tileChar1, "gsuWgIdx" \
+    #    if kernel["GlobalSplitU"]>1 else ("wg%s"%self.tileChar1), \
+    #    self.tileChar1, self.endLine)
     kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
-        % (self.tileChar1, self.tileChar1, "gsuWgIdx" \
-        if kernel["GlobalSplitU"]>1 else ("wg%s"%self.tileChar1), \
+        % (self.tileChar1, self.tileChar1, "wg%s"%self.tileChar1, \
         self.tileChar1, self.endLine)
     kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
         %(self.tileChar1, self.tileChar1, self.tileChar1, \
@@ -2348,10 +2382,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC%s = (" \
           % (self.indexChars[i])
-      if i == kernel["ProblemType"]["Index1"] and kernel["GlobalSplitU"] > 1:
-        kStr += "gsuWgIdx"
-      else:
-        kStr += "wg%s" % self.indexChars[i]
+      #if i == kernel["ProblemType"]["Index1"] and kernel["GlobalSplitU"] > 1:
+      #  kStr += "gsuWgIdx"
+      #else:
+      kStr += "wg%s" % self.indexChars[i]
       kStr += ")"
       if i == kernel["ProblemType"]["Index0"]:
         kStr += "*MT%s + localC%s" \
@@ -2409,10 +2443,10 @@ class KernelWriterSource(KernelWriter):
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC" + self.indexChars[i] \
           + " = ("
-      if i == kernel["ProblemType"]["Index1"] and kernel["GlobalSplitU"] > 1:
-        kStr += "gsuWgIdx"
-      else:
-        kStr += "wg%s" % self.indexChars[i]
+      #if i == kernel["ProblemType"]["Index1"] and kernel["GlobalSplitU"] > 1:
+      #  kStr += "gsuWgIdx"
+      #else:
+      kStr += "wg%s" % self.indexChars[i]
       kStr += ")"
       if i == kernel["ProblemType"]["Index0"]:
         kStr += "*MT%s + (serial %% SG%s)*VECTOR_WIDTH" \
