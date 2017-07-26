@@ -160,7 +160,7 @@ class KernelWriterAssembly(KernelWriter):
     self.version = int(self.language[3:])
     self.versionMajor = int(self.language[3])
     self.versionMinor = int(self.language[4])
-    self.versionPatch = int(self.language[5])
+    self.versionStep  = int(self.language[5])
     print1("KernelWriterAsssembly targeting gfx%u\n" % self.version )
 
     ########################################
@@ -226,7 +226,17 @@ class KernelWriterAssembly(KernelWriter):
             ds_read_b64, ds_read2_b32, ds_read_b32 ],
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32 ]
-          } # 803
+          }, # 803
+        900: {
+          "GlobalRead": [ flat_load_dwordx4, flat_load_dwordx2,
+            flat_load_dword ],
+          "GlobalWrite": [ flat_store_dwordx4, flat_store_dwordx2,
+            flat_store_dword ],
+          "LocalRead": [ ds_read_b128, ds_read2_b64,
+            ds_read_b64, ds_read2_b32, ds_read_b32 ],
+          "LocalWrite": [ ds_write_b128, ds_write2_b64,
+            ds_write_b64, ds_write2_b32, ds_write_b32 ]
+          } # 900
         }
 
     self.endLine = "\n"
@@ -1129,7 +1139,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     kStr += ".hsa_code_object_version 2,0%s" % self.endLine
-    kStr += ".hsa_code_object_isa 8, 0, 3, \"AMD\", \"AMDGPU\" %s" % self.endLine
+    kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
+        % (self.versionMajor, self.versionMinor, self.versionStep, self.endLine)
     kStr += ".text%s" % self.endLine
     kStr += ".p2align 8%s" % self.endLine
     kStr += ".amdgpu_hsa_kernel %s%s" % (self.kernelName, self.endLine)
@@ -1344,6 +1355,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graWorkGroup(self, kernel):
     kStr = ""
+    return kStr
     ########################################
     # Dimension WorkGroups
     if kernel["WorkGroupMappingType"] == "D":

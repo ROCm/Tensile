@@ -1781,7 +1781,8 @@ class KernelWriter:
       assemblerCommand = [globalParameters["AssemblerPath"], \
           "-x", "assembler", \
           "-target", "amdgcn--amdhsa", \
-          "-mcpu=fiji", "-c", "-o", objectFileName, assemblyFileName]
+          "-mcpu=gfx%u%u%u"%(self.versionMajor, self.versionMinor, self.versionStep), \
+          "-c", "-o", objectFileName, assemblyFileName]
       print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()
