@@ -814,8 +814,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("SGPR Assignments")
     kStr += self.macroRegister("sgprKernArgAddress", \
         self.startSgprKernArgAddress)
-    kStr += self.macroRegister("sgprWorkGroup0", self.startSgprWorkGroup0)
-    kStr += self.macroRegister("sgprWorkGroup1", self.startSgprWorkGroup1)
+    kStr += self.macroRegister("sgprWorkGroup%u"%(0 if kernel["WorkGroupMapping"]>0 else 1), self.startSgprWorkGroup0)
+    kStr += self.macroRegister("sgprWorkGroup%u"%(1 if kernel["WorkGroupMapping"]>0 else 0), self.startSgprWorkGroup1)
     kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
     kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
     kStr += self.macroRegister("sgprAlpha", self.startSgprAlpha)
@@ -996,6 +996,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Dynamic Scalar Divide
+    """
     kStr += self.comment3("Dynamic Scalar Divide: vQuotient=sDividend/sDivisor; vRemainder=sDivident%sDivisor;")
     kStr += ".macro DYNAMIC_SCALAR_DIVIDE vQuotient vRemainder sDividend sDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
     kStr += inst("v_cvt_f32_u32", "v[\\vQuotient]", "s[\\sDividend]", "" )
@@ -1026,6 +1027,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "v[\\vQuotient]", "s[\\sDividend]", "" )
     kStr += inst("v_sub_u32", "v[\\vRemainder]", "vcc", "s[\\sDividend]", "v[\\vRemainder]", "final result" )
     kStr += ".endm%s" % self.endLine
+    """
 
     ########################################
     # MACs
@@ -1356,88 +1358,66 @@ class KernelWriterAssembly(KernelWriter):
   def graWorkGroup(self, kernel):
     kStr = ""
     return kStr
+    # transpose work-group grid
+    nwgg = kernel["WorkGroupMapping"] > 0
+    # transposed by macro
+    #kStr += "  unsigned int %s = %s(%u);%s" \
+    #    % ( wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
+    #kStr += "  unsigned int %s = %s(%u);%s" \
+    #    % ( wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
+    kStr += "  unsigned int n%s = %s(%u);%s" \
+        % ( wg0, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
+    kStr += "  unsigned int n%s = %s(%u);%s" \
+        % ( wg1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
+
+    kStr += "  unsigned int nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
+        % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
+    kStr += "  unsigned int nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
+        % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
+
     ########################################
-    # Dimension WorkGroups
-    if kernel["WorkGroupMappingType"] == "D":
-      if kernel["WorkGroupMapping"] == 1:
-        kStr += self.comment1("use assigned work-group indices")
-
-      elif kernel["WorkGroupMapping"] == -1:
-        # ng1
-        ng = self.vgprScratch.checkOut(1)
-        kStr += inst("v_mov_b32", vgpr(ng), sgpr("Sizes+1"), "Size1")
-        kStr += inst("v_add_u32", vgpr(ng), hex((kernel["MacroTile1"]-1)), vgpr(ng), "Size1+MT1-1")
-        tmpVgpr = self.vgprScratch.checkOut(2)
-        tmpSgpr = self.startSgprOffsetC
-        kStr += staticDivide(ng, ng, hex(kernel["MacroTile1"]), tmpVgpr, tmpSgpr) # ng1 = (size1+MT1-1)/MT1
-
-        # wgSerial = wg1+wg0*ng1
-        serial = self.vgprScratch.checkOut(2)
-        kStr += inst("v_mul_lo_u32", vgpr(serial+0), vgpr("WorkGroup0"), ng, \
-            "wgSerial = wg0 * ng1" )
-        kStr += inst("v_mov_b32", vgpr(serial+1), hex(0), "")
-        kStr += inst("v_addc_u32", vgpr(serial+1), "vcc", vgpr("WorkGroup1"), vgpr(serial+1), \
-            "wgSerial = wg1 + wg0 * ng1" )
-
-        # ng0
-        kStr += inst("v_mov_b32", vgpr(ng), sgpr("Sizes+0"), "size0")
-        kStr += inst("v_add_u32", vgpr(ng), hex((kernel["MacroTile0"]-1)), vgpr(ng), "size0+MT0-1")
-        kStr += staticDivide(ng, ng, hex(kernel["MacroTile0"]), tmpVgpr, tmpSgpr) # ng0 = (size0+MT0-1)/MT0
-
-        # wg0 = serial % ng0
-
-        # wg1 = serial / ng0
-        kStr += "DYNAMIC_SCALAR_DIVIDE vQuotient vRemainder sDividend sDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
-
-        kStr += "  %s groupSerial = %s(1) + %s(0) * %s(1);%s" \
-            % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
-            self.getNumGroupsStr, self.endLine)
-        kStr += "  unsigned int wg%s = groupSerial %% %s(0);%s" \
-            % (self.tileChar0, self.getNumGroupsStr, self.endLine)
-        kStr += "  unsigned int wg%s = groupSerial / %s(0);%s" \
-            % (self.tileChar1, self.getNumGroupsStr, self.endLine)
-
-      ########################################
-      # Blocked rows or columns
+    # split up work-group grid
+    if kernel["GlobalSplitU"] > 1:
+      kStr += "n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
+      kStr += "  unsigned int gsuSumIdx;%s" % self.endLine
+      if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
+        kStr += "  gsuSumIdx = %s / n%s;%s" \
+            % (wg1, wg1, self.endLine)
+        kStr += "  %s = %s %% n%s;%s" \
+            % (wg1, wg1, wg1, self.endLine)
       else:
-        coal0 = kernel["WorkGroupMapping"] > 0
-        dimCoal = (0 if coal0 else 1)
-        dimPerp = (1 if coal0 else 0)
+        kStr += "  gsuSumIdx = %s %% GLOBAL_SPLITU;%s" \
+            % (wg1, self.endLine)
+        kStr += "  %s = %s / GLOBAL_SPLITU;%s" \
+            % (wg1, wg1, self.endLine)
 
-        # work-group free indices
-        kStr += self.endLine
-        kStr += "  unsigned int wg%s, wg%s;%s" \
-            % (self.tileChar0, self.tileChar1, self.endLine)
-        kStr += "  %s groupSerial = %s(0) + %s(1) * %s(0);%s" \
-            % (self.uint64Str, self.getGroupIdStr, self.getGroupIdStr, \
-            self.getNumGroupsStr, self.endLine)
-        kStr += "  %s superGroup = groupSerial / (%s(%u)*WORK_GROUP_MAPPING);%s" \
-            % (self.uint64Str, self.getNumGroupsStr, dimCoal, self.endLine );
-        kStr += "  unsigned int lastSuperGroupWidth = %s(%u) %% WORK_GROUP_MAPPING;%s" % \
-            ( self.getNumGroupsStr, dimPerp, self.endLine )
-        kStr += "  unsigned int numWorkGroupsBeforeLastSuperGroup = (%s(%u) - lastSuperGroupWidth)*%s(%u);%s" \
-              % (self.getNumGroupsStr, dimPerp, self.getNumGroupsStr, dimCoal, \
-              self.endLine)
-
-        # if not in last super group
-        kStr += "  if ( groupSerial < numWorkGroupsBeforeLastSuperGroup) {%s" \
-                % (self.endLine)
-        kStr += "    wg%s = (groupSerial/WORK_GROUP_MAPPING) %% %s(%s);%s" \
-            % ((self.tileChar0 if coal0 else self.tileChar1), \
-            self.getNumGroupsStr, dimCoal, self.endLine)
-        kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% WORK_GROUP_MAPPING;%s" \
-            % ((self.tileChar1 if coal0 else self.tileChar0), \
-            self.endLine)
-
-        # if in last super group
-        kStr += "  } else {%s" % self.endLine
-        kStr += "    wg%s = (groupSerial-numWorkGroupsBeforeLastSuperGroup)/lastSuperGroupWidth;%s" \
-            % ((self.tileChar0 if coal0 else self.tileChar1), \
-            self.endLine)
-        kStr += "    wg%s = superGroup*WORK_GROUP_MAPPING + groupSerial %% lastSuperGroupWidth;%s" \
-            % ((self.tileChar1 if coal0 else self.tileChar0), \
-            self.endLine)
-
+    ########################################
+    # Blocked rows or columns
+    if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
+      kStr += self.endLine
+      kStr += "  %s wgSerial = %s + (%s %% WORK_GROUP_MAPPING) * n%s;// within block%s" \
+          % (self.uint64Str, wg0, wg1, wg0, self.endLine)
+      kStr += "  unsigned int block = %s / WORK_GROUP_MAPPING;%s" \
+          % (wg1, self.endLine );
+      kStr += "  unsigned int blockRemainder = (%s < n%s-(n%s %% WORK_GROUP_MAPPING) ) ? 0 : n%s %% WORK_GROUP_MAPPING;%s" % \
+          ( wg1, wg1, wg1, wg1, self.endLine )
+      for blockRemainder in range(0, abs(kernel["WorkGroupMapping"])):
+        blockWidth = abs(kernel["WorkGroupMapping"]) if blockRemainder==0 else blockRemainder
+        if blockRemainder > 0:
+          kStr += " else "
+        else:
+          kStr += "  "
+        if blockRemainder < abs(kernel["WorkGroupMapping"])-1:
+          kStr += "if ( blockRemainder == %u) " % (blockRemainder)
+        kStr += "{%s" % self.endLine
+        kStr += "    %s = wgSerial / %u;%s" \
+            % (wg0, blockWidth, self.endLine)
+        kStr += "    %s = wgSerial %% %u + block*WORK_GROUP_MAPPING;%s" \
+            % (wg1, blockWidth, self.endLine)
+        kStr += "  }"
+      kStr += "%s" % self.endLine
+    else:
+      printExit("Assembly doesn't yet support z-order")
 
 
 
@@ -2592,7 +2572,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     if tailLoop:
-      kStr += "%snumIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
+      kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
       if kernel["GlobalSplitU"] > 1:
         # SKIP
@@ -2664,8 +2644,8 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = self.unrollIdx
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    loopLabelBegin = self.getLabel("LoopBegin%s"%loopChar)
-    loopLabelEnd = self.getLabel("LoopEnd%s"%loopChar)
+    loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
     kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
     #kStr += self.indent + self.syncStr + self.endLine
     return kStr
@@ -2683,8 +2663,8 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = self.unrollIdx
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    loopLabelBegin = self.getLabel("LoopBegin%s"%loopChar)
-    loopLabelEnd = self.getLabel("LoopEnd%s"%loopChar)
+    loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
+    loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
     endCounter = -1 if kernel["PrefetchGlobalRead"] else 0
 
     kStr += inst("s_add_u32", \

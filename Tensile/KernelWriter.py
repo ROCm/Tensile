@@ -749,7 +749,7 @@ class KernelWriter:
         kStr += self.macIter(kernel, False )
 
       # tail: close
-      kStr += self.closeLoop(kernel, self.unrollIdx)
+      kStr += self.closeLoop(kernel, -1)
 
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
@@ -757,7 +757,7 @@ class KernelWriter:
       kStr += self.globalReadIncrementA(kernel, i)
       kStr += self.comment("global read inc b")
       kStr += self.globalReadIncrementB(kernel, i)
-      kStr += self.closeLoop(kernel, self.unrollIdx)
+      kStr += self.closeLoop(kernel, i)
 
     kStr += self.endSummation()
     if self.enable["PostLoop"]:

@@ -873,7 +873,7 @@ class KernelWriterSource(KernelWriter):
 
       ########################################
       # Blocked rows or columns
-    if kernel["WorkGroupMappingType"] == "D" and abs(kernel["WorkGroupMapping"]) > 1:
+    if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       kStr += self.endLine
       kStr += "  %s wgSerial = %s + (%s %% WORK_GROUP_MAPPING) * n%s;// within block%s" \
           % (self.uint64Str, wg0, wg1, wg0, self.endLine)
