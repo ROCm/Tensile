@@ -99,7 +99,7 @@ for numThreads in range(64, 1025, 64):
           validWorkGroups.append(workGroup)
 
 
-validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8]
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 8, 12, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
   for j in validThreadTileSides:
@@ -130,6 +130,7 @@ validParameters = {
     "LocalRead2B":                [ False, True ],
 
     "WorkGroupMapping":           range(-1024,1024+1),
+    "WorkGroupMappingType":       ["B", "Z"], # Blocking, S-order
     "MaxOccupancy":               range(1, 40+1), # wg / CU
     "WorkGroup":                  validWorkGroups,
     "ThreadTile":                 validThreadTiles,
@@ -175,6 +176,7 @@ defaultBenchmarkCommonParameters = [
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
+    {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 1 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"DepthU":                    [ 16 ] },

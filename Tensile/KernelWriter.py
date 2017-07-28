@@ -39,6 +39,17 @@ class KernelWriter:
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
 
+    self.enable = {}
+    self.enable["PreLoop"]        = True
+    self.enable["GlobalRead"]     = True
+    self.enable["GlobalReadInc"]  = True
+    self.enable["LocalWrite"]     = True
+    self.enable["LocalRead"]      = True
+    self.enable["Wait"]           = True
+    self.enable["Sync"]           = True
+    self.enable["MAC"]            = True
+    self.enable["PostLoop"]       = True
+
 
   ##############################################################################
   # Kernel Body
@@ -194,159 +205,160 @@ class KernelWriter:
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
 
-    ####################################
-    # Global Read Addresses
-    ####################################
-    kStr += self.comment3("Global Read Addresses")
+    if self.enable["PreLoop"]:
+      ####################################
+      # Global Read Addresses
+      ####################################
+      kStr += self.comment3("Global Read Addresses")
 
-    # work-group assignments
-    kStr += self.comment("global read addresses: work-group")
-    kStr += self.graWorkGroup(kernel)
+      # subgroup assignments
+      kStr += self.comment("global read addresses: subgroup")
+      kStr += self.graSubgroup(kernel)
 
-    # subgroup assignments
-    kStr += self.comment("global read addresses: subgroup")
-    kStr += self.graSubgroup(kernel)
+      # work-group assignments
+      kStr += self.comment("global read addresses: work-group")
+      kStr += self.graWorkGroup(kernel)
 
-    # tile assignments
-    kStr += self.comment("global read addresses: tile offset assignment a")
-    kStr += self.graTileAssignmentA(kernel)
-    kStr += self.comment("global read addresses: tile offset assignment b")
-    kStr += self.graTileAssignmentB(kernel)
+      # tile assignments
+      kStr += self.comment("global read addresses: tile offset assignment a")
+      kStr += self.graTileAssignmentA(kernel)
+      kStr += self.comment("global read addresses: tile offset assignment b")
+      kStr += self.graTileAssignmentB(kernel)
 
-    # unroll assignments
-    kStr += self.comment("global read addresses: unroll assignment a")
-    kStr += self.graUnrollAssignmentA(kernel)
-    kStr += self.comment("global read addresses: unroll assignment b")
-    kStr += self.graUnrollAssignmentB(kernel)
+      # unroll assignments
+      kStr += self.comment("global read addresses: unroll assignment a")
+      kStr += self.graUnrollAssignmentA(kernel)
+      kStr += self.comment("global read addresses: unroll assignment b")
+      kStr += self.graUnrollAssignmentB(kernel)
 
-    # other free indices
-    if kernel["ProblemType"]["NumIndicesC"] > 2:
-      kStr += self.comment("global read addresses: other free assignments")
-      kStr += self.graOtherFreeAssignments(kernel)
+      # other free indices
+      if kernel["ProblemType"]["NumIndicesC"] > 2:
+        kStr += self.comment("global read addresses: other free assignments")
+        kStr += self.graOtherFreeAssignments(kernel)
 
-    # other summation indices
-    if kernel["ProblemType"]["NumIndicesSummation"] > 1:
-      kStr += self.comment("global read addresses: other summation assignments")
-      kStr += self.graOtherSummationAssignments(kernel)
+      # other summation indices
+      if kernel["ProblemType"]["NumIndicesSummation"] > 1:
+        kStr += self.comment("global read addresses: other summation assignments")
+        kStr += self.graOtherSummationAssignments(kernel)
 
-    # tile offsets
-    kStr += self.comment("global read addresses: tile offsets a")
-    kStr += self.graTileOffsetsA(kernel)
-    kStr += self.comment("global read addresses: tile offsets a")
-    kStr += self.graTileOffsetsB(kernel)
+      # tile offsets
+      kStr += self.comment("global read addresses: tile offsets a")
+      kStr += self.graTileOffsetsA(kernel)
+      kStr += self.comment("global read addresses: tile offsets a")
+      kStr += self.graTileOffsetsB(kernel)
 
-    # unroll offsets
-    kStr += self.comment("global read addresses: unroll offsets a")
-    kStr += self.graUnrollOffsetsA(kernel)
-    kStr += self.comment("global read addresses: unroll offsets b")
-    kStr += self.graUnrollOffsetsB(kernel)
+      # unroll offsets
+      kStr += self.comment("global read addresses: unroll offsets a")
+      kStr += self.graUnrollOffsetsA(kernel)
+      kStr += self.comment("global read addresses: unroll offsets b")
+      kStr += self.graUnrollOffsetsB(kernel)
 
-    # tile edges
-    if kernel["EdgeType"] == "ShiftPtr":
-      kStr += self.comment("global read addresses: shift a")
-      kStr += self.graShiftA(kernel)
-      kStr += self.comment("global read addresses: shift b")
-      kStr += self.graShiftB(kernel)
-    elif kernel["EdgeType"] == "Branch":
-      kStr += self.comment("global read addresses: branch a")
-      kStr += self.graBranchA(kernel)
-      kStr += self.comment("global read addresses: branch b")
-      kStr += self.graBranchB(kernel)
+      # tile edges
+      if kernel["EdgeType"] == "ShiftPtr":
+        kStr += self.comment("global read addresses: shift a")
+        kStr += self.graShiftA(kernel)
+        kStr += self.comment("global read addresses: shift b")
+        kStr += self.graShiftB(kernel)
+      elif kernel["EdgeType"] == "Branch":
+        kStr += self.comment("global read addresses: branch a")
+        kStr += self.graBranchA(kernel)
+        kStr += self.comment("global read addresses: branch b")
+        kStr += self.graBranchB(kernel)
 
-    # final offsets
-    kStr += self.comment("global read addresses: final offsets a")
-    kStr += self.graFinalOffsetsA(kernel)
-    kStr += self.comment("global read addresses: final offsets b")
-    kStr += self.graFinalOffsetsB(kernel)
+      # final offsets
+      kStr += self.comment("global read addresses: final offsets a")
+      kStr += self.graFinalOffsetsA(kernel)
+      kStr += self.comment("global read addresses: final offsets b")
+      kStr += self.graFinalOffsetsB(kernel)
 
-    # user offsets
-    kStr += self.comment("global read addresses: apply user offsets")
-    kStr += self.graApplyUserOffsets(kernel)
+      # user offsets
+      kStr += self.comment("global read addresses: apply user offsets")
+      kStr += self.graApplyUserOffsets(kernel)
 
-    # addresses
-    kStr += self.comment("global read addresses: addresses a")
-    kStr += self.graAddressesA(kernel)
-    kStr += self.comment("global read addresses: addresses b")
-    kStr += self.graAddressesB(kernel)
+      # addresses
+      kStr += self.comment("global read addresses: addresses a")
+      kStr += self.graAddressesA(kernel)
+      kStr += self.comment("global read addresses: addresses b")
+      kStr += self.graAddressesB(kernel)
 
-    # increments
-    kStr += self.comment("global read addresses: increments a")
-    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-      kStr += self.graIncrementsA(kernel, i)
-    kStr += self.comment("global read addresses: increments b")
-    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-      kStr += self.graIncrementsB(kernel, i)
+      # increments
+      kStr += self.comment("global read addresses: increments a")
+      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+        kStr += self.graIncrementsA(kernel, i)
+      kStr += self.comment("global read addresses: increments b")
+      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
+        kStr += self.graIncrementsB(kernel, i)
 
-    ####################################
-    # Local Write Addresses
-    ####################################
-    kStr += self.comment3("Local Write Addresses")
+      ####################################
+      # Local Write Addresses
+      ####################################
+      kStr += self.comment3("Local Write Addresses")
 
-    # tile assignments
-    kStr += self.comment("local write addresses: tile assignment a")
-    kStr += self.lwaTileAssignmentA(kernel)
-    kStr += self.comment("local write addresses: tile assignment b")
-    kStr += self.lwaTileAssignmentB(kernel)
+      # tile assignments
+      kStr += self.comment("local write addresses: tile assignment a")
+      kStr += self.lwaTileAssignmentA(kernel)
+      kStr += self.comment("local write addresses: tile assignment b")
+      kStr += self.lwaTileAssignmentB(kernel)
 
-    # unroll assignments
-    kStr += self.comment("local write addresses: unroll assignment a")
-    kStr += self.lwaUnrollAssignmentA(kernel)
-    kStr += self.comment("local write addresses: unroll assignment b")
-    kStr += self.lwaUnrollAssignmentB(kernel)
+      # unroll assignments
+      kStr += self.comment("local write addresses: unroll assignment a")
+      kStr += self.lwaUnrollAssignmentA(kernel)
+      kStr += self.comment("local write addresses: unroll assignment b")
+      kStr += self.lwaUnrollAssignmentB(kernel)
 
-    # first offsets
-    kStr += self.comment("local write addresses: first offset a")
-    kStr += self.lwaFirstOffsetA(kernel)
-    kStr += self.comment("local write addresses: first offset b")
-    kStr += self.lwaFirstOffsetB(kernel)
+      # first offsets
+      kStr += self.comment("local write addresses: first offset a")
+      kStr += self.lwaFirstOffsetA(kernel)
+      kStr += self.comment("local write addresses: first offset b")
+      kStr += self.lwaFirstOffsetB(kernel)
 
-    # final offsets
-    kStr += self.comment("local write addresses: final offsets a")
-    kStr += self.lwaFinalOffsetsA(kernel)
-    kStr += self.comment("local write addresses: final offsets b")
-    kStr += self.lwaFinalOffsetsB(kernel)
+      # final offsets
+      kStr += self.comment("local write addresses: final offsets a")
+      kStr += self.lwaFinalOffsetsA(kernel)
+      kStr += self.comment("local write addresses: final offsets b")
+      kStr += self.lwaFinalOffsetsB(kernel)
 
-    # declare addresses
-    kStr += self.comment("local write addresses: declare addresses a")
-    kStr += self.lwaDeclareAddressesA(kernel)
-    kStr += self.comment("local write addresses: declare addresses b")
-    kStr += self.lwaDeclareAddressesB(kernel)
+      # declare addresses
+      kStr += self.comment("local write addresses: declare addresses a")
+      kStr += self.lwaDeclareAddressesA(kernel)
+      kStr += self.comment("local write addresses: declare addresses b")
+      kStr += self.lwaDeclareAddressesB(kernel)
 
-    # init pointers
-    kStr += self.comment("local write addresses: init pointers a")
-    kStr += self.localWriteInitPointersA(kernel)
-    kStr += self.comment("local write addresses: init pointers b")
-    kStr += self.localWriteInitPointersB(kernel)
+      # init pointers
+      kStr += self.comment("local write addresses: init pointers a")
+      kStr += self.localWriteInitPointersA(kernel)
+      kStr += self.comment("local write addresses: init pointers b")
+      kStr += self.localWriteInitPointersB(kernel)
 
-    ####################################
-    # Local Read Addresses
-    ####################################
-    kStr += self.comment3("Local Read Addresses")
+      ####################################
+      # Local Read Addresses
+      ####################################
+      kStr += self.comment3("Local Read Addresses")
 
-    # tile assignments
-    kStr += self.comment("local read addresses: tile assignments a")
-    kStr += self.lraTileAssignmentA(kernel)
-    kStr += self.comment("local read addresses: tile assignments b")
-    kStr += self.lraTileAssignmentB(kernel)
+      # tile assignments
+      kStr += self.comment("local read addresses: tile assignments a")
+      kStr += self.lraTileAssignmentA(kernel)
+      kStr += self.comment("local read addresses: tile assignments b")
+      kStr += self.lraTileAssignmentB(kernel)
 
 
-    # final offsets
-    kStr += self.comment("local read addresses: final offsets a")
-    kStr += self.lraFinalOffsetA(kernel)
-    kStr += self.comment("local read addresses: final offsets b")
-    kStr += self.lraFinalOffsetB(kernel)
+      # final offsets
+      kStr += self.comment("local read addresses: final offsets a")
+      kStr += self.lraFinalOffsetA(kernel)
+      kStr += self.comment("local read addresses: final offsets b")
+      kStr += self.lraFinalOffsetB(kernel)
 
-    # declare addresses
-    kStr += self.comment("local read addresses: declare addresses a")
-    kStr += self.lraDeclareAddressesA(kernel)
-    kStr += self.comment("local read addresses: declare addresses b")
-    kStr += self.lraDeclareAddressesB(kernel)
+      # declare addresses
+      kStr += self.comment("local read addresses: declare addresses a")
+      kStr += self.lraDeclareAddressesA(kernel)
+      kStr += self.comment("local read addresses: declare addresses b")
+      kStr += self.lraDeclareAddressesB(kernel)
 
-    # init pointers
-    kStr += self.comment("local read addresses: init pointers a")
-    kStr += self.localReadInitPointersA(kernel)
-    kStr += self.comment("local read addresses: init pointers b")
-    kStr += self.localReadInitPointersB(kernel)
+      # init pointers
+      kStr += self.comment("local read addresses: init pointers a")
+      kStr += self.localReadInitPointersA(kernel)
+      kStr += self.comment("local read addresses: init pointers b")
+      kStr += self.localReadInitPointersB(kernel)
 
     ###########################################################################
     # summations loops: open
@@ -368,95 +380,112 @@ class KernelWriter:
     if kernel["PrefetchGlobalRead"]:
       kStr += self.comment("prefetch: global -> local")
       kStr += self.openSumAtLeastUnroll(kernel)
-      # global read
-      kStr += self.comment("global read a")
-      kStr += self.globalReadDoA(kernel, False)
-      kStr += self.comment("global read b")
-      kStr += self.globalReadDoB(kernel, False)
-      # increment global
-      kStr += self.comment("global read inc a")
-      kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
-      kStr += self.comment("global read inc b")
-      kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
-      # local write
-      kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
-      kStr += self.comment("local write a")
-      kStr += self.localWriteDoA(kernel)
-      kStr += self.comment("local write b")
-      kStr += self.localWriteDoB(kernel)
-      # swap local ptrs
-      kStr += self.comment("local write swap a")
-      kStr += self.localWriteSwapOffsetsA(kernel)
-      kStr += self.comment("local write swap b")
-      kStr += self.localWriteSwapOffsetsB(kernel)
-      kStr += self.comment("local write init pointers a")
-      kStr += self.localWriteInitPointersA(kernel)
-      kStr += self.comment("local write init pointers b")
-      kStr += self.localWriteInitPointersB(kernel)
+      if self.enable["GlobalRead"]:
+        # global read
+        kStr += self.comment("global read a")
+        kStr += self.globalReadDoA(kernel, False)
+        kStr += self.comment("global read b")
+        kStr += self.globalReadDoB(kernel, False)
+      if self.enable["GlobalReadInc"]:
+        # increment global
+        kStr += self.comment("global read inc a")
+        kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
+        kStr += self.comment("global read inc b")
+        kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+      if self.enable["LocalWrite"]:
+        # local write
+        kStr += self.comment("local write a")
+        kStr += self.localWriteDoA(kernel)
+        kStr += self.comment("local write b")
+        kStr += self.localWriteDoB(kernel)
+        # swap local ptrs
+        kStr += self.comment("local write swap a")
+        kStr += self.localWriteSwapOffsetsA(kernel)
+        kStr += self.comment("local write swap b")
+        kStr += self.localWriteSwapOffsetsB(kernel)
+        kStr += self.comment("local write init pointers a")
+        kStr += self.localWriteInitPointersA(kernel)
+        kStr += self.comment("local write init pointers b")
+        kStr += self.localWriteInitPointersB(kernel)
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
-        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-        kStr += self.syncThreads(kernel)
-        kStr += self.comment("local read prefetch a")
-        kStr += self.localReadDoA(kernel, False)
-        kStr += self.comment("local read prefetch b")
-        kStr += self.localReadDoB(kernel, False)
-        kStr += self.comment("local read inc a")
-        kStr += self.localReadIncA(kernel)
-        kStr += self.comment("local read inc b")
-        kStr += self.localReadIncB(kernel)
+        if self.enable["Wait"]:
+          kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+        if self.enable["Sync"]:
+          kStr += self.syncThreads(kernel)
+        if self.enable["LocalRead"]:
+          kStr += self.comment("local read prefetch a")
+          kStr += self.localReadDoA(kernel, False)
+          kStr += self.comment("local read prefetch b")
+          kStr += self.localReadDoB(kernel, False)
+          kStr += self.comment("local read inc a")
+          kStr += self.localReadIncA(kernel)
+          kStr += self.comment("local read inc b")
+          kStr += self.localReadIncB(kernel)
       kStr += self.closeSumAtLeastUnroll(kernel)
 
     # open unrolled summation loop
     kStr += self.comment3("Unrolled Loop - Begin")
     kStr += self.openLoop(kernel, self.unrollIdx)
 
-    # unrolled loop: global read A, B
-    kStr += self.comment("global read a")
-    kStr += self.globalReadDoA(kernel, False)
-    kStr += self.comment("global read b")
-    kStr += self.globalReadDoB(kernel, False)
+    if self.enable["GlobalRead"]:
+      # unrolled loop: global read A, B
+      kStr += self.comment("global read a")
+      kStr += self.globalReadDoA(kernel, False)
+      kStr += self.comment("global read b")
+      kStr += self.globalReadDoB(kernel, False)
 
-    # unrolled loop: increment global read addresses
-    kStr += self.comment("global read inc a")
-    kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
-    kStr += self.comment("global read inc b")
-    kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
+    if self.enable["GlobalReadInc"]:
+      # unrolled loop: increment global read addresses
+      kStr += self.comment("global read inc a")
+      kStr += self.globalReadIncrementA(kernel, self.unrollIdx)
+      kStr += self.comment("global read inc b")
+      kStr += self.globalReadIncrementB(kernel, self.unrollIdx)
 
     if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
-      kStr += self.wait(kernel, 1, 0, -1, "wait for local write")
-      kStr += self.syncThreads(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, 1, 0, -1, "wait for local write")
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
 
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
-      kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
-      kStr += self.syncThreads(kernel) # prior iter done reading lds
-      kStr += self.comment("local write a")
-      kStr += self.localWriteDoA(kernel)
-      kStr += self.comment("local write b")
-      kStr += self.localWriteDoB(kernel)
-      kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-      kStr += self.syncThreads(kernel)
-      # debug Local state
-      """
-      kStr += "    /* print Local state */" + self.endLine
-      kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
-      kStr += "      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" \
-          % self.endLine
-      kStr += "    }" + self.endLine
-      """
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel) # prior iter done reading lds
+      if self.enable["LocalWrite"]:
+        kStr += self.comment("local write a")
+        kStr += self.localWriteDoA(kernel)
+        kStr += self.comment("local write b")
+        kStr += self.localWriteDoB(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
+        # debug Local state
+        """
+        kStr += "    /* print Local state */" + self.endLine
+        kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
+        kStr += "      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" \
+            % self.endLine
+        kStr += "    }" + self.endLine
+        """
 
     # unrolled loop: prefetch local
     if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
-      kStr += self.comment("prefetch local a")
-      kStr += self.localReadDoA(kernel, False)
-      kStr += self.comment("prefetch local b")
-      kStr += self.localReadDoB(kernel, False)
-      kStr += self.comment("local read increment a")
-      kStr += self.localReadIncA(kernel)
-      kStr += self.comment("local read increment b")
-      kStr += self.localReadIncB(kernel)
+      if self.enable["LocalRead"]:
+        kStr += self.comment("prefetch local a")
+        kStr += self.localReadDoA(kernel, False)
+        kStr += self.comment("prefetch local b")
+        kStr += self.localReadDoB(kernel, False)
+        kStr += self.comment("local read increment a")
+        kStr += self.localReadIncA(kernel)
+        kStr += self.comment("local read increment b")
+        kStr += self.localReadIncB(kernel)
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
@@ -467,19 +496,20 @@ class KernelWriter:
     for u in range(0, kernel["LoopUnroll"]-2):
      # local read
       kStr += self.comment("iter %u"%u)
-      #if u == 2: kStr += self.syncStr + self.endLine
       readBlk = kernel["PrefetchLocalRead"] and u%2==0
-      #kStr += self.wait(kernel, -1, -1, 1, "UNNECESSARY: wait for local write")
-      kStr += self.comment("local read a")
-      kStr += self.localReadDoA(kernel, readBlk)
-      kStr += self.comment("local read b")
-      kStr += self.localReadDoB(kernel, readBlk)
-      kStr += self.comment("local read increment a")
-      kStr += self.localReadIncA(kernel)
-      kStr += self.comment("local read increment b")
-      kStr += self.localReadIncB(kernel)
-      kStr += self.wait(kernel, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
-      kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
+      if self.enable["LocalRead"]:
+        kStr += self.comment("local read a")
+        kStr += self.localReadDoA(kernel, readBlk)
+        kStr += self.comment("local read b")
+        kStr += self.localReadDoB(kernel, readBlk)
+        kStr += self.comment("local read increment a")
+        kStr += self.localReadIncA(kernel)
+        kStr += self.comment("local read increment b")
+        kStr += self.localReadIncB(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
+      if self.enable["MAC"]:
+        kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
@@ -493,57 +523,64 @@ class KernelWriter:
     unrollIter = kernel["LoopUnroll"]-2
     kStr += self.comment("iter %u"%unrollIter)
     if kernel["PrefetchLocalRead"] and kernel["PrefetchGlobalRead"]:
-      # local read for last unroll
-      kStr += self.comment("local read a")
-      kStr += self.localReadDoA(kernel, True)
-      kStr += self.comment("local read b")
-      kStr += self.localReadDoB(kernel, True)
-      # local write for next iter
-      kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
-      kStr += self.comment("local write a")
-      kStr += self.localWriteDoA(kernel)
-      kStr += self.comment("local write b")
-      kStr += self.localWriteDoB(kernel)
-      #kStr += self.syncThreads(kernel)
-      # swap read and write pointers
-      kStr += self.comment("local read swap offsets a")
-      kStr += self.localReadSwapOffsetsA(kernel)
-      kStr += self.comment("local read swap offsets b")
-      kStr += self.localReadSwapOffsetsB(kernel)
-      kStr += self.comment("local read init pointers a")
-      kStr += self.localReadInitPointersA(kernel)
-      kStr += self.comment("local read init pointers b")
-      kStr += self.localReadInitPointersB(kernel)
-      kStr += self.comment("local write swap offsets a")
-      kStr += self.localWriteSwapOffsetsA(kernel)
-      kStr += self.comment("local write swap offsets b")
-      kStr += self.localWriteSwapOffsetsB(kernel)
-      kStr += self.comment("local write init pointers a")
-      kStr += self.localWriteInitPointersA(kernel)
-      kStr += self.comment("local write init pointers b")
-      kStr += self.localWriteInitPointersB(kernel)
-      kStr += self.wait(kernel, -1, 1, 1, "wait for prior local read")
-    else:
-      # local read
-      readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
-      kStr += self.comment("local read a")
-      kStr += self.localReadDoA(kernel, readBlk)
-      kStr += self.comment("local read b")
-      kStr += self.localReadDoB(kernel, readBlk)
-      if kernel["PrefetchLocalRead"]:
-        # local read init ptrs
+      if self.enable["LocalRead"]:
+        # local read for last unroll
+        kStr += self.comment("local read a")
+        kStr += self.localReadDoA(kernel, True)
+        kStr += self.comment("local read b")
+        kStr += self.localReadDoB(kernel, True)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+      if self.enable["LocalWrite"]:
+        # local write for next iter
+        kStr += self.comment("local write a")
+        kStr += self.localWriteDoA(kernel)
+        kStr += self.comment("local write b")
+        kStr += self.localWriteDoB(kernel)
+        kStr += self.comment("local write swap offsets a")
+        kStr += self.localWriteSwapOffsetsA(kernel)
+        kStr += self.comment("local write swap offsets b")
+        kStr += self.localWriteSwapOffsetsB(kernel)
+        kStr += self.comment("local write init pointers a")
+        kStr += self.localWriteInitPointersA(kernel)
+        kStr += self.comment("local write init pointers b")
+        kStr += self.localWriteInitPointersB(kernel)
+      if self.enable["LocalRead"]:
+        # swap read and write pointers
+        kStr += self.comment("local read swap offsets a")
+        kStr += self.localReadSwapOffsetsA(kernel)
+        kStr += self.comment("local read swap offsets b")
+        kStr += self.localReadSwapOffsetsB(kernel)
         kStr += self.comment("local read init pointers a")
         kStr += self.localReadInitPointersA(kernel)
         kStr += self.comment("local read init pointers b")
         kStr += self.localReadInitPointersB(kernel)
-      else:
-        # local read inc
-        kStr += self.comment("local read inc a")
-        kStr += self.localReadIncA(kernel)
-        kStr += self.comment("local read inc b")
-        kStr += self.localReadIncB(kernel)
-      kStr += self.wait(kernel, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
-    kStr += self.macIter(kernel, False)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, 1, 1, "wait for prior local read")
+    else:
+      if self.enable["LocalRead"]:
+        # local read
+        readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+        kStr += self.comment("local read a")
+        kStr += self.localReadDoA(kernel, readBlk)
+        kStr += self.comment("local read b")
+        kStr += self.localReadDoB(kernel, readBlk)
+        if kernel["PrefetchLocalRead"]:
+          # local read init ptrs
+          kStr += self.comment("local read init pointers a")
+          kStr += self.localReadInitPointersA(kernel)
+          kStr += self.comment("local read init pointers b")
+          kStr += self.localReadInitPointersB(kernel)
+        else:
+          # local read inc
+          kStr += self.comment("local read inc a")
+          kStr += self.localReadIncA(kernel)
+          kStr += self.comment("local read inc b")
+          kStr += self.localReadIncB(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
+    if self.enable["MAC"]:
+      kStr += self.macIter(kernel, False)
 
     ####################################
     # unrolled loop: last summation iter
@@ -553,60 +590,70 @@ class KernelWriter:
     unrollIter = kernel["LoopUnroll"]-1
     kStr += self.comment("iter %u"%unrollIter)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
-      kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-      kStr += self.syncThreads(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
-      # local read
-      readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
-      kStr += self.comment("local read a")
-      kStr += self.localReadDoA(kernel, readBlk)
-      kStr += self.comment("local read b")
-      kStr += self.localReadDoB(kernel, readBlk)
+      if self.enable["LocalRead"]:
+        # local read
+        readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+        kStr += self.comment("local read a")
+        kStr += self.localReadDoA(kernel, readBlk)
+        kStr += self.comment("local read b")
+        kStr += self.localReadDoB(kernel, readBlk)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
-      # local read inc
-      kStr += self.comment("local read inc a")
-      kStr += self.localReadIncA(kernel)
-      kStr += self.comment("local read inc b")
-      kStr += self.localReadIncB(kernel)
-      #kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
+      if self.enable["LocalRead"]:
+        # local read inc
+        kStr += self.comment("local read inc a")
+        kStr += self.localReadIncA(kernel)
+        kStr += self.comment("local read inc b")
+        kStr += self.localReadIncB(kernel)
     elif kernel["PrefetchGlobalRead"]:
-      # local write
-      kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
-      kStr += self.comment("local write a")
-      kStr += self.localWriteDoA(kernel)
-      kStr += self.comment("local write b")
-      kStr += self.localWriteDoB(kernel)
-      #kStr += self.syncThreads(kernel)
-      # swap read and write
-      kStr += self.comment("local read swap offsets a")
-      kStr += self.localReadSwapOffsetsA(kernel)
-      kStr += self.comment("local read swap offsets b")
-      kStr += self.localReadSwapOffsetsB(kernel)
-      kStr += self.comment("local read init pointers a")
-      kStr += self.localReadInitPointersA(kernel)
-      kStr += self.comment("local read init pointers b")
-      kStr += self.localReadInitPointersB(kernel)
-      kStr += self.comment("local write swap offsets a")
-      kStr += self.localWriteSwapOffsetsA(kernel)
-      kStr += self.comment("local write swap offsets b")
-      kStr += self.localWriteSwapOffsetsB(kernel)
-      kStr += self.comment("local write init pointers a")
-      kStr += self.localWriteInitPointersA(kernel)
-      kStr += self.comment("local write init pointers b")
-      kStr += self.localWriteInitPointersB(kernel)
-      kStr += self.wait(kernel, -1, 1, 0, "wait for local read")
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+      if self.enable["LocalWrite"]:
+        # local write
+        kStr += self.comment("local write a")
+        kStr += self.localWriteDoA(kernel)
+        kStr += self.comment("local write b")
+        kStr += self.localWriteDoB(kernel)
+        kStr += self.comment("local write swap offsets a")
+        kStr += self.localWriteSwapOffsetsA(kernel)
+        kStr += self.comment("local write swap offsets b")
+        kStr += self.localWriteSwapOffsetsB(kernel)
+        kStr += self.comment("local write init pointers a")
+        kStr += self.localWriteInitPointersA(kernel)
+        kStr += self.comment("local write init pointers b")
+        kStr += self.localWriteInitPointersB(kernel)
+      if self.enable["LocalRead"]:
+        # swap read and write
+        kStr += self.comment("local read swap offsets a")
+        kStr += self.localReadSwapOffsetsA(kernel)
+        kStr += self.comment("local read swap offsets b")
+        kStr += self.localReadSwapOffsetsB(kernel)
+        kStr += self.comment("local read init pointers a")
+        kStr += self.localReadInitPointersA(kernel)
+        kStr += self.comment("local read init pointers b")
+        kStr += self.localReadInitPointersB(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, 1, 0, "wait for local read")
     elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
-      # local read init ptrs
-      kStr += self.comment("local read init pointers a")
-      kStr += self.localReadInitPointersA(kernel)
-      kStr += self.comment("local read init pointers b")
-      kStr += self.localReadInitPointersB(kernel)
-      kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
+      if self.enable["LocalRead"]:
+        # local read init ptrs
+        kStr += self.comment("local read init pointers a")
+        kStr += self.localReadInitPointersA(kernel)
+        kStr += self.comment("local read init pointers b")
+        kStr += self.localReadInitPointersB(kernel)
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
     else:
-      kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
+      if self.enable["Wait"]:
+        kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
-    kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
+    if self.enable["MAC"]:
+      kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
 
     # close unrolled loop
     kStr += self.comment3("Unrolled Loop - End")
@@ -617,34 +664,28 @@ class KernelWriter:
       kStr += self.comment("prefetch: last unrolled iteration")
       kStr += self.openSumAtLeastUnroll(kernel)
       if not kernel["PrefetchLocalRead"]:
-        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
-        kStr += self.syncThreads(kernel)
-      """
-      if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
-        kStr += self.comment("prefetch local read a")
-        kStr += self.localReadDoA(kernel, False)
-        kStr += self.comment("prefetch local read b")
-        kStr += self.localReadDoB(kernel, False)
-        kStr += self.comment("prefetch local read inc a")
-        kStr += self.localReadIncA(kernel)
-        kStr += self.comment("prefetch local read inc b")
-        kStr += self.localReadIncB(kernel)
-      """
+        if self.enable["Wait"]:
+          kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+        if self.enable["Sync"]:
+          kStr += self.syncThreads(kernel)
       for u in range(0, kernel["LoopUnroll"]):
         kStr += self.comment("iter %u"%u)
         readBlk = kernel["PrefetchLocalRead"] and u%2==0
-        if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
-          kStr += self.comment("local read a")
-          kStr += self.localReadDoA(kernel, readBlk)
-          kStr += self.comment("local read b")
-          kStr += self.localReadDoB(kernel, readBlk)
-          kStr += self.comment("local read inc a")
-          kStr += self.localReadIncA(kernel)
-          kStr += self.comment("local read inc b")
-          kStr += self.localReadIncB(kernel)
-        kStr += self.wait(kernel, -1, -1, \
-            1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
-        kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
+        if self.enable["LocalRead"]:
+          if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+            kStr += self.comment("local read a")
+            kStr += self.localReadDoA(kernel, readBlk)
+            kStr += self.comment("local read b")
+            kStr += self.localReadDoB(kernel, readBlk)
+            kStr += self.comment("local read inc a")
+            kStr += self.localReadIncA(kernel)
+            kStr += self.comment("local read inc b")
+            kStr += self.localReadIncB(kernel)
+        if self.enable["Wait"]:
+          kStr += self.wait(kernel, -1, -1, \
+              1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
+        if self.enable["MAC"]:
+          kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
       kStr += self.closeSumAtLeastUnroll(kernel)
 
     ########################################
@@ -653,29 +694,33 @@ class KernelWriter:
     if kernel["LoopTail"]:
       kStr += self.comment3("Tail Loop")
 
-      # tail: global read
-      kStr += self.calculateLoopNumIter(kernel, -1)
-      kStr += self.comment("global read a")
-      kStr += self.globalReadDoA(kernel, True)
-      kStr += self.comment("global read b")
-      kStr += self.globalReadDoB(kernel, True)
+      if self.enable["GlobalRead"]:
+        # tail: global read
+        kStr += self.calculateLoopNumIter(kernel, -1)
+        kStr += self.comment("global read a")
+        kStr += self.globalReadDoA(kernel, True)
+        kStr += self.comment("global read b")
+        kStr += self.globalReadDoB(kernel, True)
 
-      # tail: local write
-      if kernel["PrefetchGlobalRead"]:
-        kStr += self.comment("local write reset offsets a")
-        kStr += self.localWriteResetOffsetsA(kernel)
-        kStr += self.comment("local write reset offsets b")
-        kStr += self.localWriteResetOffsetsB(kernel)
-      kStr += self.comment("local write init pointers a")
-      kStr += self.localWriteInitPointersA(kernel)
-      kStr += self.comment("local write init pointers b")
-      kStr += self.localWriteInitPointersB(kernel)
-      kStr += self.syncThreads(kernel)
-      kStr += self.comment("local write a")
-      kStr += self.localWriteDoA(kernel)
-      kStr += self.comment("local write b")
-      kStr += self.localWriteDoB(kernel)
-      kStr += self.syncThreads(kernel)
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
+      if self.enable["LocalWrite"]:
+        # tail: local write
+        if kernel["PrefetchGlobalRead"]:
+          kStr += self.comment("local write reset offsets a")
+          kStr += self.localWriteResetOffsetsA(kernel)
+          kStr += self.comment("local write reset offsets b")
+          kStr += self.localWriteResetOffsetsB(kernel)
+        kStr += self.comment("local write init pointers a")
+        kStr += self.localWriteInitPointersA(kernel)
+        kStr += self.comment("local write init pointers b")
+        kStr += self.localWriteInitPointersB(kernel)
+        kStr += self.comment("local write a")
+        kStr += self.localWriteDoA(kernel)
+        kStr += self.comment("local write b")
+        kStr += self.localWriteDoB(kernel)
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
 
       # tail: re-init local read addresses
       if kernel["PrefetchGlobalRead"]:
@@ -691,18 +736,20 @@ class KernelWriter:
       # tail: macs
       kStr += self.comment("tail loop: macs")
       kStr += self.openLoop(kernel, -1)
-      kStr += self.comment("local read a")
-      kStr += self.localReadDoA(kernel, False)
-      kStr += self.comment("local read b")
-      kStr += self.localReadDoB(kernel, False)
-      kStr += self.comment("local read inc a")
-      kStr += self.localReadIncA(kernel)
-      kStr += self.comment("local read inc b")
-      kStr += self.localReadIncB(kernel)
-      kStr += self.macIter(kernel, False )
+      if self.enable["LocalRead"]:
+        kStr += self.comment("local read a")
+        kStr += self.localReadDoA(kernel, False)
+        kStr += self.comment("local read b")
+        kStr += self.localReadDoB(kernel, False)
+        kStr += self.comment("local read inc a")
+        kStr += self.localReadIncA(kernel)
+        kStr += self.comment("local read inc b")
+        kStr += self.localReadIncB(kernel)
+      if self.enable["MAC"]:
+        kStr += self.macIter(kernel, False )
 
       # tail: close
-      kStr += self.closeLoop(kernel, self.unrollIdx)
+      kStr += self.closeLoop(kernel, -1)
 
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
@@ -710,68 +757,69 @@ class KernelWriter:
       kStr += self.globalReadIncrementA(kernel, i)
       kStr += self.comment("global read inc b")
       kStr += self.globalReadIncrementB(kernel, i)
-      kStr += self.closeLoop(kernel, self.unrollIdx)
+      kStr += self.closeLoop(kernel, i)
 
     kStr += self.endSummation()
+    if self.enable["PostLoop"]:
 
-    ####################################
-    # Shift Vector Components
-    ####################################
-    if kernel["EdgeType"] == "ShiftPtr" and kernel["VectorWidth"] > 1:
-      # shift vector components d0
-      if self.readTileDimVectorA:
-        kStr += self.comment("shift vector components d0")
-        kStr += self.shiftVectorComponents0(kernel)
-      # shift vector components d1
-      if self.readTileDimVectorB:
-        kStr += self.comment("shift vector components d1")
-        kStr += self.shiftVectorComponents1(kernel)
-
-    # complex declare tmp registers
-    kStr += self.complexDeclareTmpRegisters(kernel)
-
-
-    ####################################
-    # LocalSplitU reduction
-    ####################################
-    #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
-    if kernel["LocalSplitU"] > 1:
-      kStr += self.comment3("LocalSplitU Reduction")
-      kStr += self.syncThreads(kernel)
-
-      # LocalSplitU: local write
-      kStr += self.comment("LocalSplitU: local write")
-      kStr += self.localSplitULocalWrite(kernel)
-
-      # LocalSplitU: local read
-      kStr += self.comment("LocalSplitU: local read")
-      kStr += self.localSplitULocalRead(kernel)
-
-      # LocalSplitU: local read
-      kStr += self.comment("LocalSplitU: reduction")
-      kStr += self.localSplitUReduction(kernel)
-
-      # LocalSplitU: global write indices
-      kStr += self.comment("LocalSplitU: global write indices")
-      kStr += self.localSplitUGlobalWriteIndices(kernel)
-
-      # LocalSplitU: global write
-      kStr += self.comment("LocalSplitU: global write")
-      kStr += self.localSplitUGlobalWrite(kernel)
-
-
-    else:
       ####################################
-      # NOT LocalSplitU
+      # Shift Vector Components
       ####################################
+      if kernel["EdgeType"] == "ShiftPtr" and kernel["VectorWidth"] > 1:
+        # shift vector components d0
+        if self.readTileDimVectorA:
+          kStr += self.comment("shift vector components d0")
+          kStr += self.shiftVectorComponents0(kernel)
+        # shift vector components d1
+        if self.readTileDimVectorB:
+          kStr += self.comment("shift vector components d1")
+          kStr += self.shiftVectorComponents1(kernel)
 
-      # global write indices
-      kStr += self.comment("not-LocalSplitU: global write indices")
-      kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
+      # complex declare tmp registers
+      kStr += self.complexDeclareTmpRegisters(kernel)
 
-      # global write
-      kStr += self.comment("not-LocalSplitU: global write")
-      kStr += self.notLocalSplitUGlobalWrite(kernel)
+      ####################################
+      # LocalSplitU reduction
+      ####################################
+      #if kernel["NumThreads"]%kernel["MacroTile0"] == 0:
+      if kernel["LocalSplitU"] > 1:
+        kStr += self.comment3("LocalSplitU Reduction")
+        if self.enable["Sync"]:
+          kStr += self.syncThreads(kernel)
+
+        # LocalSplitU: local write
+        kStr += self.comment("LocalSplitU: local write")
+        kStr += self.localSplitULocalWrite(kernel)
+
+        # LocalSplitU: local read
+        kStr += self.comment("LocalSplitU: local read")
+        kStr += self.localSplitULocalRead(kernel)
+
+        # LocalSplitU: local read
+        kStr += self.comment("LocalSplitU: reduction")
+        kStr += self.localSplitUReduction(kernel)
+
+        # LocalSplitU: global write indices
+        kStr += self.comment("LocalSplitU: global write indices")
+        kStr += self.localSplitUGlobalWriteIndices(kernel)
+
+        # LocalSplitU: global write
+        kStr += self.comment("LocalSplitU: global write")
+        kStr += self.localSplitUGlobalWrite(kernel)
+
+
+      else:
+        ####################################
+        # NOT LocalSplitU
+        ####################################
+
+        # global write indices
+        kStr += self.comment("not-LocalSplitU: global write indices")
+        kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
+
+        # global write
+        kStr += self.comment("not-LocalSplitU: global write")
+        kStr += self.notLocalSplitUGlobalWrite(kernel)
 
     # function suffix
     kStr += self.functionEnd(kernel)
@@ -1733,7 +1781,8 @@ class KernelWriter:
       assemblerCommand = [globalParameters["AssemblerPath"], \
           "-x", "assembler", \
           "-target", "amdgcn--amdhsa", \
-          "-mcpu=fiji", "-c", "-o", objectFileName, assemblyFileName]
+          "-mcpu=gfx%u%u%u"%(self.versionMajor, self.versionMinor, self.versionStep), \
+          "-c", "-o", objectFileName, assemblyFileName]
       print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()

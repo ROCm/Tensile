@@ -72,8 +72,6 @@ void tensileGetCompiledOpenCLKernel(
   // print build failure
   if (status != CL_SUCCESS) {
     printf("clBuildProgram Failed with status = %d\n", status);
-    printf("\nKernel Source:\n\n");
-    printf("%s\n", kernelSource);
 
     size_t len = 0;
     clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG,
@@ -84,6 +82,8 @@ void tensileGetCompiledOpenCLKernel(
     printf("\n\n\nBuild Log:\n\n");
     printf("%s\n", buildLog);
     printf("\n");
+    printf("\nKernel Source:\n\n");
+    printf("%s\n", kernelSource);
     delete[] buildLog;
   }
   status = clCreateKernelsInProgram(

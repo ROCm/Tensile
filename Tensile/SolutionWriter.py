@@ -200,12 +200,22 @@ class SolutionWriter:
       s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
       s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
       s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    if kernel["WorkGroupMappingType"] == "Z" and abs(kernel["WorkGroupMapping"]) == 2:
+      s += "%sunsigned int totalWorkGroupsPow2 = totalWorkGroups0 > totalWorkGroups1 ? totalWorkGroups0 : totalWorkGroups1;\n" % (t)
+      s += "%stotalWorkGroupsPow2--;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 1;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 2;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 4;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 8;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 16;\n" % (t)
+      s += "%stotalWorkGroupsPow2++;\n" % (t)
+      s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
+      s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
+
     if solution["GlobalSplitU"] > 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
-
-    s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.language == "OCL" else "")
-    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.language == "OCL" else "")
-
+    s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
+    s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
 
     # offsets
     s += "\n%s/* offsets */\n" % (t)
@@ -557,11 +567,11 @@ class SolutionWriter:
             s += "%s  printf(\"%%04i\", i);\n" % (t)
             #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
             s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
-            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t) 
+            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t)
             s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
             s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
             s += "%s else printf(\",%%4.0f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
- 
+
             s += "%s  }\n" % (t)
             s += "%s  printf(\"\\n\");\n" % (t)
             s += "%s}\n" % (t)
