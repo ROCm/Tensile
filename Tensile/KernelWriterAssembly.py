@@ -681,6 +681,12 @@ class KernelWriterAssembly(KernelWriter):
     numSgprWorkGroup0 = 1
     numSgprWorkGroup1 = 1
     numSgprWorkGroup2 = 1 # assume batched gemm at least
+    if abs(kernel["WorkGroupMapping"]) > 1:
+      numSgprWorkGroupCount0 = 1
+      numSgprWorkGroupCount1 = 1
+    else:
+      numSgprWorkGroupCount0 = 0
+      numSgprWorkGroupCount1 = 0
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
@@ -729,6 +735,8 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprWorkGroup0 = sgprIdx; sgprIdx += numSgprWorkGroup0
     self.startSgprWorkGroup1 = sgprIdx; sgprIdx += numSgprWorkGroup1
     self.startSgprWorkGroup2 = sgprIdx; sgprIdx += numSgprWorkGroup2
+    self.startSgprWorkGroupCount0 = sgprIdx; sgprIdx += numSgprWorkGroupCount0
+    self.startSgprWorkGroupCount1 = sgprIdx; sgprIdx += numSgprWorkGroupCount1
     self.startSgprAddressC = sgprIdx; sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx; sgprIdx += self.numSgprStridesC
     self.startSgprAlpha = sgprIdx; sgprIdx += numSgprAlpha
@@ -816,6 +824,9 @@ class KernelWriterAssembly(KernelWriter):
         self.startSgprKernArgAddress)
     kStr += self.macroRegister("sgprWorkGroup%u"%(0 if kernel["WorkGroupMapping"]>0 else 1), self.startSgprWorkGroup0)
     kStr += self.macroRegister("sgprWorkGroup%u"%(1 if kernel["WorkGroupMapping"]>0 else 0), self.startSgprWorkGroup1)
+    if abs(kernel["WorkGroupMapping"]) > 1:
+      kStr += self.macroRegister("sgprWorkGroupCount%u"%(0 if kernel["WorkGroupMapping"]>0 else 1), self.startSgprWorkGroupCount0)
+      kStr += self.macroRegister("sgprWorkGroupCount%u"%(1 if kernel["WorkGroupMapping"]>0 else 0), self.startSgprWorkGroupCount1)
     kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
     kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
     kStr += self.macroRegister("sgprAlpha", self.startSgprAlpha)
@@ -1140,6 +1151,7 @@ class KernelWriterAssembly(KernelWriter):
   def functionSignature(self, kernel ):
     kStr = ""
 
+    # begin kernel descriptor
     kStr += ".hsa_code_object_version 2,0%s" % self.endLine
     kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
         % (self.versionMajor, self.versionMinor, self.versionStep, self.endLine)
@@ -1148,11 +1160,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".amdgpu_hsa_kernel %s%s" % (self.kernelName, self.endLine)
     kStr += "%s:%s" % (self.kernelName, self.endLine)
     kStr += ".amd_kernel_code_t%s" % self.endLine
-
     kStr += "  is_ptr64 = 1%s" % self.endLine
     kStr += "  enable_sgpr_kernarg_segment_ptr = 1%s" % self.endLine
 
-
+    # kern arg size
     kernArgReg = 0
     kernArgReg += 3*self.rpga
     kernArgReg += 1 # alpha
@@ -1168,10 +1179,10 @@ class KernelWriterAssembly(KernelWriter):
     kernArgReg += kernel["ProblemType"]["NumIndicesC"]
     if globalParameters["DebugKernel"]:
       kernArgReg += self.rpga # debug buffer
-
     kernArgBytes = kernArgReg * 4 # bytes/reg
     kStr += "  kernarg_segment_byte_size = %u // bytes of kern args%s" \
         % (kernArgBytes, self.endLine)
+
     # register allocation
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
         % (self.totalVgprs, self.endLine)
@@ -1181,17 +1192,27 @@ class KernelWriterAssembly(KernelWriter):
         % ( (self.totalVgprs-1)/4, self.totalVgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
         % ( 1+(self.totalSgprs-1)/8, self.totalSgprs, self.endLine)
+
     # work-group dimensions
-    kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // ?%s" % self.endLine
     kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
+
+    # grid dimensions
     kStr += "  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x%s" % self.endLine
     kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
     if kernel["ProblemType"]["NumIndicesC"] > 2:
       kStr += "  compute_pgm_rsrc2_tgid_z_en = %u // wg.z%s" % (1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0, self.endLine)
+    if abs(kernel["WorkGroupMapping"]) > 1:
+      kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
+      kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
+
+    # lds size
     kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine
     kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
         % ( kernel["LdsNumElements"] \
         * self.bpe, self.endLine )
+
+    # other
+    kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // ?%s" % self.endLine
     kStr += "  kernarg_segment_alignment = 4%s" % self.endLine
     kStr += "  group_segment_alignment = 4%s" % self.endLine
     kStr += "  private_segment_alignment = 4%s" % self.endLine
@@ -1369,6 +1390,7 @@ class KernelWriterAssembly(KernelWriter):
         % ( wg0, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
     kStr += "  unsigned int n%s = %s(%u);%s" \
         % ( wg1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
+    sgpr("WorkGroupCount0")
 
     kStr += "  unsigned int nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
