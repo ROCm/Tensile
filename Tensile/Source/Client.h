@@ -749,7 +749,8 @@ void initData(
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
-    *beta = tensileGetTypeForInt<DataType>(2);
+//  *beta = tensileGetTypeForInt<DataType>(2);
+    *beta = tensileGetZero<DataType>();
   } else {
     *beta = tensileGetZero<DataType>();
   }
@@ -782,9 +783,13 @@ void initData(
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
-  } else {
+  } else if (dataInitTypeC == 3) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetRandom<DataType>(); }
+    std::cout << ".";
+  } else {
+    for (size_t i = 0; i < maxSizeC; i++) {
+      (*initialC)[i] = tensileGetNaN<DataType>(); }
     std::cout << ".";
   }
 
