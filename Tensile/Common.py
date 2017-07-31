@@ -79,8 +79,8 @@ globalParameters["MergeFiles"] = True
 globalParameters["NumElementsToValidate"] = 128
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitTypeAB"] = 0 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
-globalParameters["DataInitTypeC"]  = 4 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768

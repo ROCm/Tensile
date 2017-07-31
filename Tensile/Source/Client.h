@@ -749,8 +749,7 @@ void initData(
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
-//  *beta = tensileGetTypeForInt<DataType>(2);
-    *beta = tensileGetZero<DataType>();
+    *beta = tensileGetTypeForInt<DataType>(2);
   } else {
     *beta = tensileGetZero<DataType>();
   }
