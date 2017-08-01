@@ -778,8 +778,12 @@ def TensileCreateLibrary():
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
   writeSolutionsAndKernels(outputPath, solutions, solutionWriter, kernelWriter)

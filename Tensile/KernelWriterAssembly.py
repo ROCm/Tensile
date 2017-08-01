@@ -1007,38 +1007,36 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Dynamic Scalar Divide
-    """
-    kStr += self.comment3("Dynamic Scalar Divide: vQuotient=sDividend/sDivisor; vRemainder=sDivident%sDivisor;")
-    kStr += ".macro DYNAMIC_SCALAR_DIVIDE vQuotient vRemainder sDividend sDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
-    kStr += inst("v_cvt_f32_u32", "v[\\vQuotient]", "s[\\sDividend]", "" )
-    kStr += inst("v_rcp_f32", "v[\\vQuotient]", "v[\\vQuotient]", "" )
-    kStr += inst("v_mul_f32", "v[\\vQuotient]", "0x4f800000", "v[\\vQuotient]", "" )
-    kStr += inst("v_cvt_u32_f32", "v[\\vQuotient]", "v[\\vQuotient]", "" )
-    kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "s[\\sDividend]", "v[\\vQuotient]", "" )
-    kStr += inst("v_mul_hi_u32", "v[\\vTmp0]", "s[\\sDividend]", "v[\\vQuotient]", "" )
-    kStr += inst("v_sub_u32", "v[\\vTmp1]", "vcc", hex(0), "v[\\vRemainder]", "" )
-    kStr += inst("v_cmp_ne_i32", "s[\\sTmp:\\sTmp+1]", hex(0), "v[\\vTmp0]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]", "v[\\vRemainder]", "s[\\sTmp:\\sTmp+1]", "" )
-    kStr += inst("v_mul_hi_u32", "v[\\vRemainder]", "v[\\vRemainder]", "v[\\vQuotient]", "" )
-    kStr += inst("v_sub_u32", "v[\\vTmp0]", "vcc", "v[\\vQuotient]", "v[\\vRemainder]", "" )
-    kStr += inst("V_add_u32", "v[\\vQuotient]", "vcc", "v[\\vQuotient]", "v[\\vRemainder]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", "v[\\vQuotient]", "v[\\vTmp0]", "s[\\sTmp:\\sTmp+1]", "" )
-    kStr += inst("v_mul_hi_u32", "v[\\vQuotient]", "v[\\vQuotient]", "s[\\sDividend]", "" )
-    kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "v[\\vQuotient]", "s[\\sDividend]", "" )
-    kStr += inst("v_sub_u32", "v[\\vTmp0]", "vcc", "s[\\sDividend]", "v[\\vRemainder]", "" )
-    kStr += inst("v_cmp_ge_u32", "s[\\sTmp:\\sTmp+1]", "s[\\sDividend]", "v[\\vRemainder]", "" )
-    kStr += inst("V_add_u32", "v[\\vRemainder]", "vcc", hex(1), "v[\\vQuotient]", "" )
-    kStr += inst("V_add_u32", "v[\\vTmp1]", "vcc", -1, "v[\\vQuotient]", "" )
-    kStr += inst("v_cmp_le_u32", "vcc", "s[\\sDividend]", "v[\\vTmp0]", "" )
-    kStr += inst("S_and_b64 vcc", "s[\\sTmp:\\sTmp+1]", "vcc", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", "v[\\vQuotient]", "v[\\vRemainder]", "vcc", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", "v[\\vTmp1]", "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
-    kStr += inst("v_cmp_ne_i32", "vcc", hex(0), "s[\\sDividend]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]", -1, "v[\\vQuotient]", "vcc", "final result" )
-    kStr += inst("v_mul_lo_u32", "v[\\vRemainder]", "v[\\vQuotient]", "s[\\sDividend]", "" )
-    kStr += inst("v_sub_u32", "v[\\vRemainder]", "vcc", "s[\\sDividend]", "v[\\vRemainder]", "final result" )
+    kStr += self.comment3("Dynamic Scalar Divide: vQuotient=vDividend/vDivisor; vRemainder=vDividend%vDivisor;")
+    kStr += ".macro DYNAMIC_VECTOR_DIVIDE vQuotient vRemainder vDividend vDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
+    kStr += inst("v_cvt_f32_u32", "v[\\vQuotient]",  "v[\\vDivisor]",  "" )
+    kStr += inst("v_rcp_f32",     "v[\\vQuotient]",  "v[\\vQuotient]", "" )
+    kStr += inst("v_mul_f32",     "v[\\vQuotient]",  "0x4f800000",     "v[\\vQuotient]", "" )
+    kStr += inst("v_cvt_u32_f32", "v[\\vQuotient]",  "v[\\vQuotient]", "" )
+    kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vDivisor]", "v[\\vQuotient]", "" )
+    kStr += inst("v_mul_hi_u32",  "v[\\vTmp0]",      "v[\\vDivisor]", "v[\\vQuotient]", "" )
+    kStr += inst("v_sub_u32",     "v[\\vTmp1]",      "vcc", hex(0),    "v[\\vRemainder]", "" )
+    kStr += inst("v_cmp_ne_i32",  "s[\\sTmp:\\sTmp+1]", hex(0),        "v[\\vTmp0]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]",     "v[\\vRemainder]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_mul_hi_u32",  "v[\\vRemainder]", "v[\\vRemainder]", "v[\\vQuotient]", "" )
+    kStr += inst("v_sub_u32",     "v[\\vTmp0]",      "vcc",            "v[\\vQuotient]", "v[\\vRemainder]", "" )
+    kStr += inst("V_add_u32",     "v[\\vQuotient]",  "vcc",            "v[\\vQuotient]", "v[\\vRemainder]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vTmp0]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_mul_hi_u32",  "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vDividend]", "" )
+    kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
+    kStr += inst("v_sub_u32",     "v[\\vTmp0]",      "vcc",            "v[\\vDividend]", "v[\\vRemainder]", "" )
+    kStr += inst("v_cmp_ge_u32",  "s[\\sTmp:\\sTmp+1]", "v[\\vDividend]", "v[\\vRemainder]", "" )
+    kStr += inst("V_add_u32",     "v[\\vRemainder]", "vcc",            hex(1), "v[\\vQuotient]", "" )
+    kStr += inst("V_add_u32",     "v[\\vTmp1]",      "vcc", -1,        "v[\\vQuotient]", "" )
+    kStr += inst("v_cmp_le_u32",  "vcc",             "v[\\vDivisor]", "v[\\vTmp0]", "" )
+    kStr += inst("S_and_b64 vcc", "s[\\sTmp:\\sTmp+1]",                "vcc", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vRemainder]", "vcc", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cmp_ne_i32",  "vcc", hex(0),     "v[\\vDivisor]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  -1, "v[\\vQuotient]", "vcc", "final result" )
+    kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
+    kStr += inst("v_sub_u32",     "v[\\vRemainder]", "vcc",            "v[\\vDividend]", "v[\\vRemainder]", "final result" )
     kStr += ".endm%s" % self.endLine
-    """
 
     ########################################
     # MACs
@@ -1308,44 +1306,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PreLoop"]:
       kStr += ".if 0\n"
 
-    # test debug buffer
-    #v = self.vgprScratch.checkOut(3)
-    #kStr += inst("v_mov_b32", vgpr(v), sgpr("AddressC"), "" )
-    #kStr += inst("v_mov_b32", vgpr(v+1), sgpr("AddressC+1"), "" )
-    #kStr += inst("v_mov_b32", vgpr(v+2), hex(3), "" )
-    #kStr += inst("flat_store_dword", vgpr(v, 2), vgpr(v+2), "debug serial" )
-    #kStr += "s_endpgm\n"
-
-    ########################################
-    # Debug Buffer
-    if globalParameters["DebugKernel"]:
-      kStr += self.comment("Debug Buffer")
-      nt_log2 = log2(kernel["NumThreads"])
-      # TODO: read nwg0 from sgpr
-      nwg0 = 2 # num work-groups 0
-      self.nipt = 16 # num integers per thread
-      v = self.vgprScratch.checkOut(3)
-      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      kStr += inst("v_mov_b32", vgpr(v), sgpr("WorkGroup0"), "%s=wg0"%vgpr(v) )
-      kStr += inst("v_mov_b32", vgpr(v+1), sgpr("WorkGroup1"), "%s=wg1"%vgpr(v+1) )
-      kStr += inst("v_mul_lo_u32", vgpr(v+1), vgpr(v+1), hex(nwg0), \
-          "%s=wg1*nwg0"%vgpr(v+1) )
-      kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr(v+1), \
-          "%s=wg1*nwg0+wg0"%vgpr(v) )
-      kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
-          "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
-      kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr("Serial"), \
-          "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
-      kStr += inst("v_mul_lo_u32", vgpr(v), hex(self.nipt*4), vgpr(v), \
-          "%s=serial*nipt*4"%vgpr(v) )
-      kStr += inst("v_mov_b32", vgpr(v+1), 0, "")
-      kStr += inst("v_add_i32", vgpr("AddressD"), "vcc", sgpr("AddressD"), \
-          vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
-      kStr += inst("v_mov_b32", vgpr(v+2), sgpr("AddressD+1"), "%s=AddressD1"%vgpr(v+2) )
-      kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
-          vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
-      self.vgprScratch.checkIn(v)
-
     ########################################
     # Apply User Offsets
     kStr += self.comment("User Offsets")
@@ -1365,9 +1325,53 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
-    #kStr += dump(vgpr("Serial"))
+
+    # test debug buffer
+    #v = self.vgprScratch.checkOut(3)
+    #kStr += inst("v_mov_b32", vgpr(v), sgpr("AddressC"), "" )
+    #kStr += inst("v_mov_b32", vgpr(v+1), sgpr("AddressC+1"), "" )
+    #kStr += inst("v_mov_b32", vgpr(v+2), hex(3), "" )
+    #kStr += inst("flat_store_dword", vgpr(v, 2), vgpr(v+2), "debug serial" )
     #kStr += "s_endpgm\n"
 
+    ########################################
+    # Debug Buffer
+    if globalParameters["DebugKernel"]:
+      kStr += self.comment("Debug Buffer")
+      nt_log2 = log2(kernel["NumThreads"])
+
+      # nwg0
+      nwg0 = self.vgprScratch.checkOut(1)
+      tmpVgpr = self.vgprScratch.checkOut(1)
+      tmpSgpr = self.startSgprOffsetC
+      kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
+          % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
+      kStr += inst("v_add_u32", vgpr(nwg0), "vcc", sgpr("SizesFree+0"), \
+          hex(kernel["MacroTile0"]-1), "%s = size0+MT0-1"%vgpr(nwg0))
+      kStr += vectorStaticDivide(nwg0, nwg0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
+      tmpVgpr = self.vgprScratch.checkIn(tmpVgpr)
+      self.nipt = 16 # num integers per thread
+      v = self.vgprScratch.checkOut(3)
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
+      kStr += inst("v_mov_b32", vgpr(v), sgpr("WorkGroup0"), "%s=wg0"%vgpr(v) )
+      kStr += inst("v_mov_b32", vgpr(v+1), sgpr("WorkGroup1"), "%s=wg1"%vgpr(v+1) )
+      kStr += inst("v_mul_u32_u24", vgpr(v+1), vgpr(v+1), vgpr(nwg0), \
+          "%s=wg1*nwg0"%vgpr(v+1) )
+      kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr(v+1), \
+          "%s=wg1*nwg0+wg0"%vgpr(v) )
+      kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
+          "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
+      kStr += inst("v_add_i32", vgpr(v), "vcc", vgpr(v), vgpr("Serial"), \
+          "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
+      kStr += inst("v_mul_lo_u32", vgpr(v), hex(self.nipt*4), vgpr(v), \
+          "%s=serial*nipt*4"%vgpr(v) )
+      kStr += inst("v_mov_b32", vgpr(v+1), 0, "")
+      kStr += inst("v_add_i32", vgpr("AddressD"), "vcc", sgpr("AddressD"), \
+          vgpr(v), "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+      kStr += inst("v_mov_b32", vgpr(v+2), sgpr("AddressD+1"), "%s=AddressD1"%vgpr(v+2) )
+      kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
+          vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+      self.vgprScratch.checkIn(v)
 
     return kStr
 
@@ -1376,60 +1380,151 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graWorkGroup(self, kernel):
     kStr = ""
-    tmp = self.vgprScratch.checkOut(1)
+    tmpVgpr = self.vgprScratch.checkOut(2)
 
     ########################################
     # Blocked rows or columns
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       # nwg0
-      nwg0 = self.startSgprOffsetC
+      nwg0 = self.vgprScratch.checkOut(1)
       tmpSgpr = self.startSgprWorkGroupCount0
       kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
-      kStr += inst("s_add_u32", sgpr(nwg0), sgpr("SizesFree+0"), \
-          hex(kernel["MacroTile0"]-1), "%s = size0+MT0-1"%sgpr(nwg0))
-      kStr += scalarStaticDivideAndRemainder(nwg0, None, nwg0, \
-          kernel["MacroTile0"], tmpSgpr, False)
-      kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup0"), "")
-      kStr += dump(vgpr(tmp))
+      kStr += inst("v_add_u32", vgpr(nwg0), "vcc", sgpr("SizesFree+0"), \
+          hex(kernel["MacroTile0"]-1), "%s = size0+MT0-1"%vgpr(nwg0))
+      kStr += vectorStaticDivide(nwg0, nwg0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
+      #kStr += dump(vgpr(nwg0))
 
       # nwg1
-      nwg1 = self.startSgprOffsetC + 1 # size1 / MT1
-      #rwg1 = self.startSgprOffsetC + 2 # size1 % MT1
+      nwg1 = self.vgprScratch.checkOut(1)
       kStr += "// nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-      kStr += inst("s_add_u32", sgpr(nwg1), sgpr("SizesFree+1"), \
-          hex(kernel["MacroTile1"]-1), "%s = size1+MT1-1"%sgpr(nwg1))
-      kStr += scalarStaticDivideAndRemainder(nwg1, None, nwg1, \
-          kernel["MacroTile1"], tmpSgpr, False)
-      kStr += self.endLine
-      kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup1"), "")
-      kStr += dump(vgpr(tmp))
+      kStr += inst("v_add_u32", vgpr(nwg1), "vcc", sgpr("SizesFree+1"), \
+          hex(kernel["MacroTile1"]-1), "%s = size1+MT1-1"%vgpr(nwg1))
+      kStr += vectorStaticDivide(nwg1, nwg1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
+      #kStr += dump(vgpr(nwg1))
 
-      # serial within block
-      wgSerial = self.startSgprOffsetC + 2
-      kStr += scalarStaticDivideAndRemainder(wgSerial, wgSerial, self.startSgprWorkGroup1, \
-          kernel["MacroTile1"], tmpSgpr, True) # remainder overwrites quotient
-      kStr += inst("s_mul_i32", sgpr(wgSerial), sgpr(wgSerial), \
-          sgpr(nwg0), "(wg1 % WGM)*nwg0")
-      kStr += inst("s_add_u32", sgpr(wgSerial), sgpr(wgSerial), \
+      # blockId and serial within block
+      blockId = self.vgprScratch.checkOut(1) 
+      wgSerial = self.vgprScratch.checkOut(1)
+      wg1 = self.vgprScratch.checkOut(1) 
+      kStr += inst("v_mov_b32", vgpr(wg1), sgpr("WorkGroup1"), "wg1")
+      #kStr += dump(vgpr(wg1))
+      kStr += vectorStaticDivideAndRemainder(blockId, wgSerial, wg1, \
+          abs(kernel["WorkGroupMapping"]), tmpVgpr, tmpSgpr)
+      #kStr += dump(vgpr(wgSerial))
+      kStr += inst("v_mul_u32_u24", vgpr(wgSerial), vgpr(wgSerial), \
+          vgpr(nwg0), "(wg1 % WGM)*nwg0")
+      self.vgprScratch.checkIn(nwg0) 
+      #kStr += dump(vgpr(wgSerial))
+      kStr += inst("v_add_u32", vgpr(wgSerial), "vcc", vgpr(wgSerial), \
           sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
-      # done with nwg0
-      kStr += inst("v_mov_b32", vgpr(tmp), sgpr(wgSerial), "")
-      kStr += dump(vgpr(tmp))
+      #kStr += "s_endpgm\n"
+      #return kStr
 
-      # block id
-      #kStr += "  u32 block = wg1 / WORK_GROUP_MAPPING;%s" \
-      #    % (wg1, self.endLine );
-      blockId = self.startSgprOffsetC
-      kStr += scalarStaticDivideAndRemainder(blockId, None, self.startSgprWorkGroup1, \
-          kernel["WorkGroupMapping"], tmpSgpr, False) # remainder overwrites quotient
-      kStr += inst("v_mov_b32", vgpr(tmp), sgpr(blockId), "")
-      kStr += dump(vgpr(tmp))
+
+      """
+      # num blocks
+      numBlocks = self.vgprScratch.checkOut(1)
+      kStr += "// numBlocks = (nwg1 + WGM - 1) / WGM;%s" % (self.endLine)
+      kStr += inst("v_add_u32", vgpr(numBlocks), "vcc", vgpr(nwg1), \
+          hex(kernel["WorkGroupMapping"]-1), "%s = nwg1+WGM-1"%vgpr(numBlocks))
+      blockRemainder = self.vgprScratch.checkOut(1)
+      kStr += vectorStaticDivideAndRemainder(numBlocks, blockRemainder, \
+          numBlocks, kernel["WorkGroupMapping"], tmpVgpr, tmpSgpr)
+      # lastBlockWidth = blockRemainder + 1
+      """
+
+      # num full blocks
+      numFullBlocks = self.vgprScratch.checkOut(1)
+      kStr += "// numFullBlocks = (nwg1) / WGM;%s" % (self.endLine)
+      blockRemainder = self.vgprScratch.checkOut(1)
+      kStr += vectorStaticDivideAndRemainder(numFullBlocks, blockRemainder, \
+          nwg1, abs(kernel["WorkGroupMapping"]), tmpVgpr, tmpSgpr)
+      self.vgprScratch.checkIn(nwg1)
+
+      kStr += dump(vgpr(blockId))
+      kStr += dump(vgpr(numFullBlocks))
+      #kStr += dump(vgpr(wgSerial))
+      #kStr += dump(vgpr(blockRemainder))
+      # lastBlockWidth = blockRemainder
+
+      # my block's width
+      """
+      if (blockId < numFullBlocks) {
+        lastBlockWidth = WGM;
+      } else {
+        lastBlockWidth = blockRemainder;
+      }
+      """
+      kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(111), "")
+      kStr += dump(vgpr(tmpVgpr))
+      kStr += inst("v_cmp_lt_u32", "vcc", vgpr(numFullBlocks), vgpr(blockId), "blockId < numFullBlocks" )
+      """
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(0), "")
+      kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr(tmpSgpr), "")
+      kStr += inst("v_addc_u32", \
+          vgpr(tmpVgpr), \
+          "vcc", \
+          vgpr(tmpVgpr), \
+          vgpr(tmpVgpr), \
+          "vcc", \
+          "")
+      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr(tmpSgpr), "")
+      kStr += dump(vgpr(tmpVgpr))
+      """
+      blockWidth = self.vgprScratch.checkOut(1)
+      kStr += inst("v_cndmask_b32", vgpr(blockWidth), hex(abs(kernel["WorkGroupMapping"])), vgpr(blockRemainder), "vcc", "blockWidth = (blockId < numFullBlocks) ? WGM : remainder" )
+      kStr += inst("s_nop", 4, "")
+      kStr += dump(vgpr(blockWidth))
+
+      # dynamic divide and remainder
+      # wg0 = wgSerialInBlock / myBlockWidth
+      # wg1 = wgSerialInBlock % myBlockWidth 
+      wg0 = self.vgprScratch.checkOut(1)
+      wg1 = self.vgprScratch.checkOut(1)
+      kStr += "DYNAMIC_VECTOR_DIVIDE %s %s %s %s %s %s %s %s" % ( wg0, wg1, wgSerial, blockWidth, tmpVgpr, tmpVgpr+1, tmpSgpr, self.endLine )
+      # wg1 += blockId * WGM
+      kStr += inst("v_mul_u32_u24", vgpr(blockId), vgpr(blockId), \
+          abs(kernel["WorkGroupMapping"]), "blockId * WGM")
+      kStr += inst("v_add_u32", vgpr(wg1), "vcc", vgpr(wg1), \
+          vgpr(blockId), "wg1 += blockId * WGM")
+      kStr += dump(vgpr(wg1))
+      kStr += dump(vgpr(wg0))
+      kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(999), "")
+      kStr += dump(vgpr(tmpVgpr))
+
+      # move wg0,1 in vgprs into sgprs
+      kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup0"), vgpr(wg0), "")
+      kStr += inst("v_readfirstlane_b32", sgpr("WorkGroup1"), vgpr(wg1), "")
+      #kStr += inst("s_nop", 0, "")
+
+      # checkin scratch registers
+      self.vgprScratch.checkIn(wg0)
+      self.vgprScratch.checkIn(wg1)
+      self.vgprScratch.checkIn(blockWidth)
+      self.vgprScratch.checkIn(tmpVgpr)
+
+      kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup0"), "")
+      kStr += dump(vgpr(tmpVgpr))
+      kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup1"), "")
+      kStr += dump(vgpr(tmpVgpr))
       kStr += "s_endpgm\n"
-      return kStr
+      
 
-      # block remainder
+      #kStr += self.comment3("Dynamic Scalar Divide: vQuotient=sDividend/sDivisor; vRemainder=sDivident%sDivisor;")
+      #kStr += ".macro DYNAMIC_SCALAR_DIVIDE vQuotient vRemainder sDividend sDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
+
+      #return kStr
+
+      # last block width
+      #numBlocks = self.vgprScratch.checkOut(1) 
+      #blockRemainder = self.vgprScratch.checkOut(1) 
+      #kStr += vectorStaticDivideAndRemainder(numBlocks, blockRemainder, nwg1, \
+      #    kernel["WorkGroupMapping"], tmpVgpr, tmpSgpr, True)
+
+
+      """
       kStr += "  unsigned int blockRemainder = (%s < n%s-(n%s %% WORK_GROUP_MAPPING) ) ? 0 : n%s %% WORK_GROUP_MAPPING;%s" % \
           ( wg1, wg1, wg1, wg1, self.endLine )
       for blockRemainder in range(0, abs(kernel["WorkGroupMapping"])):
@@ -1463,6 +1558,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mov_b32", vgpr(tmp), sgpr(nwg1), "")
     kStr += dump(vgpr(tmp))
     kStr += "s_endpgm\n"
+      """
     return kStr
 
 
@@ -4019,8 +4115,7 @@ def log2(x):
 
 ########################################
 # Divide & Remainder
-# quotient register, remainder register, dividend register, divisor, tmps
-# TODO change to static vector divide and remainder
+# quotient register, remainder register, dividend register, divisor, tmpVgprx2, tmpSgpr
 ########################################
 def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, \
     doRemainder=True):
@@ -4029,23 +4124,28 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     divisor_log2 = log2(divisor)
     kStr += inst("v_lshrrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), \
         "%s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
-    #kStr += dump(vgpr(qReg))
     if doRemainder:
       kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
           "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
-      #kStr += dump(vgpr(rReg))
+
   elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2
-    shift = 32 + log2(divisor/3)
+    shift = 33 + log2(divisor/3)
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "")
     kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
-    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), tmpSgpr, vgpr(tmpVgpr,2), "")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "")
-    #kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(tmpVgpr), sgpr(tmpSgpr), "")
-    kStr += inst("v_mul_lo_u32", vgpr(qReg), vgpr(tmpVgpr), sgpr(tmpSgpr), "")
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
+    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "quotient")
+    #kStr += dump(vgpr(qReg))
     if doRemainder:
-      kStr += inst("v_sub_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "")
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
+      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr(tmpSgpr), "")
+      #kStr += dump(vgpr(tmpVgpr))
+      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "product = quotient * divisor")
+      #kStr += dump(vgpr(tmpVgpr))
+      kStr += inst("v_sub_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "remainder = dividend - product")
+      #kStr += dump(vgpr(rReg))
+
   else:
     printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
   return kStr
