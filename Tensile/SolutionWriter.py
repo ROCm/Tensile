@@ -146,10 +146,10 @@ class SolutionWriter:
 
     elif not kernelLanguageIsSource():
       s += "%shipFunction_t %s_hipFunction;\n" % (t, kernelName)
-      s += "%s  tensileGetHipFunctionFromCodeObjectFile(\n" % (t)
+      s += "%s  tensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
       s += "%s      &%s_hipFunction,\n" % (t, kernelName)
       s += "%s      \"%s\",\n" % (t, kernelName)
-      s += "%s      %s_cofn, // code object file name\n" % (t, kernelName)
+      s += "%s      %s_coba, // code object byte array\n" % (t, kernelName)
       s += "%s      stream);\n" % (t)
     typeName = solution["ProblemType"]["DataType"].toCpp()
 

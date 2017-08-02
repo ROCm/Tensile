@@ -22,7 +22,7 @@
 from SolutionStructs import Solution
 from Common import globalParameters, kernelLanguageIsSource, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
 import abc
-from os import path
+from os import path, chmod
 from subprocess import Popen
 
 ################################################################################
@@ -1777,36 +1777,48 @@ class KernelWriter:
       assemblyFile.write(fileString)
       assemblyFile.close()
 
+      # assembler script
+      assemblerFileName = path.join(globalParameters["WorkingPath"], "asm.sh")
+      if not path.isfile(assemblerFileName):
+        assemblerFile = open(assemblerFileName, "w")
+        assemblerFile.write("#!/bin/sh\n")
+        assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
+        assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa -mcpu=gfx%u%u%u -c -o $1.o $1.s\n"%(self.versionMajor, self.versionMinor, self.versionStep))
+        assemblerFile.write("${ASM} -target amdgcn--amdhsa $1.o -o $1.co\n")
+        assemblerFile.close()
+        chmod(assemblerFileName, 0777)
+
+
       # run assembler
-      assemblerCommand = [globalParameters["AssemblerPath"], \
-          "-x", "assembler", \
-          "-target", "amdgcn--amdhsa", \
-          "-mcpu=gfx%u%u%u"%(self.versionMajor, self.versionMinor, self.versionStep), \
-          "-c", "-o", objectFileName, assemblyFileName]
+      assemblerCommand = [assemblerFileName, kernelName]
       print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()
       if assemblerProcess.returncode:
         printExit("Assembler process returned with code %u" % assemblerProcess.returncode)
 
-      # run linker
-      linkerCommand = [globalParameters["AssemblerPath"], \
-          "-target", "amdgcn--amdhsa", \
-          objectFileName, "-o", codeObjectFileName ]
-      print2("# Linking %s: %s" % (kernelName, linkerCommand) )
-      linkerProcess = Popen(linkerCommand, cwd=globalParameters["WorkingPath"] )
-      linkerProcess.communicate()
-      if linkerProcess.returncode:
-        printExit("Linking process returned with code %u" % linkerProcess.returncode)
-
-      # return code object filename
+      # read code object file
       fileString = ""
-      fileString += self.comment("code object file name")
-      fileString += "const char * const %s_cofn = \"%s\";\n" % (kernelName, codeObjectFileName)
+      codeObjectFile = open(codeObjectFileName, "r")
+      codeObjectByteArray = bytearray(codeObjectFile.read())
+      codeObjectFile.close()
+
+      # write code object byte array
+      fileString += self.comment("code object byte array")
+      fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
+      for byteIdx in range(0, len(codeObjectByteArray)):
+        byte = codeObjectByteArray[byteIdx]
+        fileString += "0x%02x" % byte
+        if byteIdx < len(codeObjectByteArray)-1:
+          fileString += ","
+        else:
+          fileString += "};\n"
+        if byteIdx % 16 == 15:
+          fileString += "\n"
+
       
       popWorkingPath() # arch
       popWorkingPath() # assembly
-
 
       # read code-object file and convert to c++ representable uchar*
       # return string of code-object byte array 
@@ -1836,7 +1848,7 @@ class KernelWriter:
     else:
       if not globalParameters["MergeFiles"]:
         fileString += "#pragma once\n\n"
-      fileString += "extern const char * const %s_cofn; // code object file name\n" % kernelName
+      fileString += "extern const unsigned char %s_coba[]; // code object byte array\n" % kernelName
 
     return fileString
 

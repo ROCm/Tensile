@@ -54,10 +54,10 @@ void tensileGetCompiledOpenCLKernel(
   cl_command_queue queue,
   const char *sourceBuildOptions);
 #else
-void tensileGetHipFunctionFromCodeObjectFile(
+void tensileGetHipFunctionFromCodeObjectByteArray(
   hipFunction_t *function,
   const char *functionName,
-  const char *cofn, // code object file name
+  const unsigned char *coba, // code object byte array
   hipStream_t stream );
 #endif
 

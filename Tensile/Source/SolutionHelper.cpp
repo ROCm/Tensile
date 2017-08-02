@@ -103,10 +103,10 @@ void tensileGetCompiledOpenCLKernel(
  * Get Assembly Kernels for HIP
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_HIP
-void tensileGetHipFunctionFromCodeObjectFile(
+void tensileGetHipFunctionFromCodeObjectByteArray(
   hipFunction_t *function,
   const char *functionName,
-  const char *cofn, // code object file name
+  const unsigned char *coba, // code object byte array
   hipStream_t stream ) {
 
   // is function already loaded?
@@ -120,7 +120,7 @@ void tensileGetHipFunctionFromCodeObjectFile(
   // load function
   TensileStatus status;
   hipModule_t module;
-  status = hipModuleLoad(&module, cofn);
+  status = hipModuleLoadData(&module, coba);
   tensileStatusCheck(status);
 
   hipModuleGetFunction(function, module, functionName);
