@@ -116,7 +116,7 @@ template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size
  * NaN Templates
  ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF
-template<> TensileHalf tensileGetNaN<TensileHalf>() { return std::numeric_limits<half>::quiet_NaN(); }
+template<> TensileHalf tensileGetNaN<TensileHalf>() { return std::numeric_limits<TensileHalf>::quiet_NaN(); }
 #endif
 template<> float tensileGetNaN<float>() { return std::numeric_limits<float>::quiet_NaN(); }
 template<> double tensileGetNaN<double>() { return std::numeric_limits<double>::quiet_NaN(); }
