@@ -1188,9 +1188,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y%s" % self.endLine
     if kernel["ProblemType"]["NumIndicesC"] > 2:
       kStr += "  compute_pgm_rsrc2_tgid_z_en = %u // wg.z%s" % (1 if kernel["ProblemType"]["NumIndicesC"] > 2 else 0, self.endLine)
-    if abs(kernel["WorkGroupMapping"]) > 1:
-      kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
-      kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
+    #if abs(kernel["WorkGroupMapping"]) > 1:
+    #  kStr += "  enable_sgpr_grid_workgroup_count_x = 1 // nwg0%s" % self.endLine
+    #  kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
 
     # lds size
     kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine
@@ -1379,8 +1379,10 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = self.startSgprOffsetC
       kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
-      kStr += inst("v_add_u32", vgpr(nwg0), "vcc", sgpr("SizesFree+0"), \
-          hex(kernel["MacroTile0"]-1), "%s = size0+MT0-1"%vgpr(nwg0))
+      kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("SizesFree+0"), "")
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "")
+      kStr += inst("v_add_u32", vgpr(nwg0), "vcc", vgpr(nwg0), \
+          sgpr(tmpSgpr), "%s = size0+MT0-1"%vgpr(nwg0))
       kStr += vectorStaticDivide(nwg0, nwg0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(nwg0))
 
@@ -1388,8 +1390,10 @@ class KernelWriterAssembly(KernelWriter):
       nwg1 = self.vgprScratch.checkOut(1)
       kStr += "// nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-      kStr += inst("v_add_u32", vgpr(nwg1), "vcc", sgpr("SizesFree+1"), \
-          hex(kernel["MacroTile1"]-1), "%s = size1+MT1-1"%vgpr(nwg1))
+      kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
+      kStr += inst("v_add_u32", vgpr(nwg1), "vcc", vgpr(nwg1), \
+          sgpr(tmpSgpr), "%s = size1+MT1-1"%vgpr(nwg1))
       kStr += vectorStaticDivide(nwg1, nwg1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(nwg1))
 
