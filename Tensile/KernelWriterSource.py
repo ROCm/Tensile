@@ -957,9 +957,9 @@ class KernelWriterSource(KernelWriter):
     kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
         % (tensorChar, tileChar, ("%" if grcg == tlu else "/") )
     if grcg:
-      kStr += (lvc if kernel["GlobalReadCoalesceVectorA"] else lsc)
+      kStr += (lvc if grcv else lsc)
     else:
-      kStr += (lsp if kernel["GlobalReadCoalesceVectorA"] else lvp)
+      kStr += (lsp if grcv else lvp)
     kStr += ")"
     if grcv == tlu:
       kStr += "*VECTOR_WIDTH"
@@ -970,43 +970,20 @@ class KernelWriterSource(KernelWriter):
 
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment A
+  # Global Read Addresses: Unroll Assignment
   ##############################################################################
-  def graUnrollAssignmentA(self, kernel):
+  def graUnrollAssignment(self, kernel, tA):
     kStr = ""
-    kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
-        == kernel["ProblemType"]["TLUA"] else "%") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
+    ( tensorChar, tileChar, lsc, lsp, lvc, lvp, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
+    kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
+        % (tensorChar, self.unrollChar, ("/" if grcg == tlu else "%") )
+    if grcg:
+      kStr += (lvc if grcv else lsc)
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
+      kStr += (lsp if grcv else lvp)
     kStr += ")"
-    if kernel["GlobalReadCoalesceVectorA"] != kernel["ProblemType"]["TLUA"]:
-      kStr += "*VECTOR_WIDTH"
-    if kernel["GlobalSplitU"] > 1:
-      if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
-        kStr += " + LOCAL_DEPTHU*"
-      else:
-        kStr += " + (size%s/GLOBAL_SPLITU)*" % self.unrollChar
-      kStr += "gsuSumIdx"
-    kStr += ";%s" % self.endLine
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Unroll Assignment B
-  ##############################################################################
-  def graUnrollAssignmentB(self, kernel):
-    kStr = ""
-    kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
-        == kernel["ProblemType"]["TLUB"] else "%") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
-    else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] != kernel["ProblemType"]["TLUB"]:
+    if grcv != tlu:
       kStr += "*VECTOR_WIDTH"
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:

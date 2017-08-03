@@ -229,9 +229,9 @@ class KernelWriter:
 
       # unroll assignments
       kStr += self.comment("global read addresses: unroll assignment a")
-      kStr += self.graUnrollAssignmentA(kernel)
+      kStr += self.graUnrollAssignment(kernel, TensorA)
       kStr += self.comment("global read addresses: unroll assignment b")
-      kStr += self.graUnrollAssignmentB(kernel)
+      kStr += self.graUnrollAssignment(kernel, TensorB)
 
       # other free indices
       if kernel["ProblemType"]["NumIndicesC"] > 2:
@@ -1159,36 +1159,17 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment A
+  # Global Read Addresses: Tile Assignment
   ##############################################################################
   @abc.abstractmethod
   def graTileAssignment(self, kernel, tA):
     return ""
-  """
-  @abc.abstractmethod
-  def graTileAssignmentA(self, kernel):
-    return ""
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment B
+  # Global Read Addresses: Unroll Assignment
   ##############################################################################
   @abc.abstractmethod
-  def graTileAssignmentB(self, kernel):
-    return ""
-  """
-
-  ##############################################################################
-  # Global Read Addresses: Unroll Assignment A
-  ##############################################################################
-  @abc.abstractmethod
-  def graUnrollAssignmentA(self, kernel):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Unroll Assignment B
-  ##############################################################################
-  @abc.abstractmethod
-  def graUnrollAssignmentB(self, kernel):
+  def graUnrollAssignment(self, kernel, tA):
     return ""
 
   ##############################################################################

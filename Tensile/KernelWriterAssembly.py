@@ -1573,16 +1573,13 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment A - DONE
+  # Global Read Addresses: Unroll Assignment
   ##############################################################################
-  def graUnrollAssignmentA(self, kernel):
-    return self.comment1(vgpr(self.uRegA))
-
-  ##############################################################################
-  # Global Read Addresses: Unroll Assignment B - DONE
-  ##############################################################################
-  def graUnrollAssignmentB(self, kernel):
-    return self.comment1(vgpr(self.uRegB))
+  def graUnrollAssignment(self, kernel, tA):
+    if tA:
+      return self.comment1(vgpr(self.uRegA))
+    else:
+      return self.comment1(vgpr(self.uRegB))
 
   ##############################################################################
   # Global Read Addresses: Other Free Assignments - LATER
