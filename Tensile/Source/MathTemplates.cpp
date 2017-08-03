@@ -111,6 +111,29 @@ template<> TensileComplexDouble tensileGetTypeForInt<TensileComplexDouble>( size
   return d;
 }
 
+
+/*******************************************************************************
+ * NaN Templates
+ ******************************************************************************/
+#ifdef Tensile_ENABLE_HALF
+template<> TensileHalf tensileGetNaN<TensileHalf>() { return std::numeric_limits<TensileHalf>::quiet_NaN(); }
+#endif
+template<> float tensileGetNaN<float>() { return std::numeric_limits<float>::quiet_NaN(); }
+template<> double tensileGetNaN<double>() { return std::numeric_limits<double>::quiet_NaN(); }
+template<> TensileComplexFloat tensileGetNaN<TensileComplexFloat>() {
+  TensileComplexFloat nan_value;
+  TENSILEREAL(nan_value) = std::numeric_limits<float>::quiet_NaN();
+  TENSILECOMP(nan_value) = std::numeric_limits<float>::quiet_NaN();
+  return nan_value;
+}
+template<> TensileComplexDouble tensileGetNaN<TensileComplexDouble>() {
+  TensileComplexDouble nan_value;
+  TENSILEREAL(nan_value) = std::numeric_limits<double>::quiet_NaN();
+  TENSILECOMP(nan_value) = std::numeric_limits<double>::quiet_NaN();
+  return nan_value;
+}
+
+
 /*******************************************************************************
  * tensileMultiply Templates
  ******************************************************************************/
@@ -189,7 +212,7 @@ TensileComplexDouble tensileAdd( TensileComplexDouble a, TensileComplexDouble b 
 }
 
 /*******************************************************************************
-* Floating-Point Equals
+* Floating-Point Almost Equals
 ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF
 template< >
@@ -216,6 +239,33 @@ template< >
 bool tensileAlmostEqual(TensileComplexDouble a, TensileComplexDouble b) {
   return tensileAlmostEqual(TENSILEREAL(a), TENSILEREAL(b)) && tensileAlmostEqual(TENSILECOMP(a), TENSILECOMP(b));
 }
+
+/*******************************************************************************
+* Floating-Point Equals
+******************************************************************************/
+#ifdef Tensile_ENABLE_HALF
+template< >
+bool tensileEqual(TensileHalf a, TensileHalf b) {
+  return a == b;
+}
+#endif
+template< >
+bool tensileEqual(float a, float b) {
+  return a == b;
+}
+template< >
+bool tensileEqual(double a, double b) {
+  return a == b;
+}
+template< >
+bool tensileEqual( TensileComplexFloat a, TensileComplexFloat b) {
+  return tensileEqual(TENSILEREAL(a), TENSILEREAL(b)) && tensileEqual(TENSILECOMP(a), TENSILECOMP(b));
+}
+template< >
+bool tensileEqual(TensileComplexDouble a, TensileComplexDouble b) {
+  return tensileEqual(TENSILEREAL(a), TENSILEREAL(b)) && tensileEqual(TENSILECOMP(a), TENSILECOMP(b));
+}
+
 
 /*******************************************************************************
 * Complex Conjugate

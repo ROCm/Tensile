@@ -178,8 +178,10 @@ TensileStatus tensileReferenceCPU(
       serialIdxC += freeCoord[i]*stridesC[i];
     }
     sumC = tensileMultiply<Type>(alpha,sumC);
-    Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
-    sumC = tensileAdd<Type>(tmp,sumC);
+    if (!tensileIsZero(beta)) {
+      Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
+      sumC = tensileAdd<Type>(tmp,sumC);
+    }
 
     dataC[serialIdxC] = sumC;
 

@@ -471,7 +471,7 @@ class KernelWriterSource(KernelWriter):
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
           kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG,BETA) " \
-              + "DST = (ALPHA)*(REG) + (BETA)*(DST);" + self.endLine
+              + "DST = 0 != (BETA) ? (ALPHA)*(REG) + (BETA)*(DST) : (ALPHA)*(REG);" + self.endLine
         else:
           # dst = alpha*reg
           kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) " \
@@ -521,10 +521,14 @@ class KernelWriterSource(KernelWriter):
           "  REG.s1 *= ALPHA.s0; " + self.endLinePP +
           "  REG.s1 = MAC(  ALPHA.s1, type_mac_tmp, REG.s1 ); "+self.endLinePP+
           "  /* (2) */ " + self.endLinePP +
+          "  if(BETA.s0 != 0) { " + self.endLinePP +
           "  REG.s0 = MAC(  BETA.s0, DST.s0, REG.s0 ); " + self.endLinePP +
+          "  REG.s1 = MAC(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+          "  } " + self.endLinePP +
+          "  if (BETA.s1 != 0) { " + self.endLinePP +
           "  REG.s0 = MAC( -BETA.s1, DST.s1, REG.s0 ); " + self.endLinePP +
           "  REG.s1 = MAC(  BETA.s1, DST.s0, REG.s1 ); " + self.endLinePP +
-          "  REG.s1 = MAC(  BETA.s0, DST.s1, REG.s1 ); " + self.endLinePP +
+          "  } " + self.endLinePP +
           "  /* (3) */ " + self.endLinePP +
           "  DST = REG;" + self.endLine )
       else:

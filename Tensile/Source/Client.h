@@ -782,9 +782,13 @@ void initData(
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
-  } else {
+  } else if (dataInitTypeC == 3) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetRandom<DataType>(); }
+    std::cout << ".";
+  } else {
+    for (size_t i = 0; i < maxSizeC; i++) {
+      (*initialC)[i] = tensileGetNaN<DataType>(); }
     std::cout << ".";
   }
 
