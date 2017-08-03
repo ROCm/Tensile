@@ -146,10 +146,10 @@ class SolutionWriter:
 
     elif not kernelLanguageIsSource():
       s += "%shipFunction_t %s_hipFunction;\n" % (t, kernelName)
-      s += "%s  tensileGetHipFunctionFromCodeObjectFile(\n" % (t)
+      s += "%s  tensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
       s += "%s      &%s_hipFunction,\n" % (t, kernelName)
       s += "%s      \"%s\",\n" % (t, kernelName)
-      s += "%s      %s_cofn, // code object file name\n" % (t, kernelName)
+      s += "%s      %s_coba, // code object byte array\n" % (t, kernelName)
       s += "%s      stream);\n" % (t)
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
@@ -565,8 +565,8 @@ class SolutionWriter:
             s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
             s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
             s += "%s  printf(\"%%04i\", i);\n" % (t)
-            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
-            s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
+            s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
+            #s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
             #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t)
             s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
             s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)

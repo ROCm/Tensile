@@ -705,7 +705,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", \
       choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("KernelLanguage", help="Which kernel language?", \
-      choices=["OCL", "HIP", "gfx803"])
+      choices=["OCL", "HIP", "gfx803", "gfx900"])
   argParser.add_argument("--merge-files", dest="MergeFiles", \
       action="store_true")
   argParser.add_argument("--no-merge-files", dest="MergeFiles", \
@@ -778,8 +778,12 @@ def TensileCreateLibrary():
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
   writeSolutionsAndKernels(outputPath, solutions, solutionWriter, kernelWriter)

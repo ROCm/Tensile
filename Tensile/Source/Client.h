@@ -41,6 +41,8 @@ unsigned int numInvalidSolutions = 0;
 void initControls();
 void destroyControls();
 
+double globalFastestGFlops = 0.0;
+unsigned int globalFastestIdx = 0;
 double fastestGFlops = 0.0;
 unsigned int fastestIdx = 0;
 
@@ -290,6 +292,10 @@ bool callLibrary(
     fastestGFlops = gflops;
     fastestIdx = functionIdx;
     newFastest = true;
+    if (fastestGFlops > globalFastestGFlops) {
+      globalFastestGFlops = fastestGFlops;
+      globalFastestIdx = fastestIdx;
+    }
   }
 
   const char * solutionName = generatedCallTo_tensileGetSolutionName(
@@ -572,6 +578,10 @@ bool benchmarkAllSolutionsForSize(
       fastestGFlops = gflops;
       fastestIdx = solutionIdx;
       newFastest = true;
+      if (fastestGFlops > globalFastestGFlops) {
+        globalFastestGFlops = fastestGFlops;
+        globalFastestIdx = fastestIdx;
+      }
     }
 
     // print results to stdout
@@ -596,6 +606,7 @@ bool benchmarkAllSolutionsForSize(
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
   file << std::endl;
+
   return returnInvalids;
 } // benchmark solutions
 #endif // benchmark client
