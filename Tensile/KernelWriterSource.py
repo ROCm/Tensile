@@ -86,6 +86,9 @@ class KernelWriterSource(KernelWriter):
     self.commentHR = "*"*40
     self.indent = "  "
 
+  def getParamsForTensor(self, kernel, tA):
+      return super(KernelWriterSource, self).getParamsForTensor(kernel, tA)
+
 
   ##############################################################################
   #
@@ -925,34 +928,15 @@ class KernelWriterSource(KernelWriter):
     #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u,%%u]\\\\n\\\", %s(0), %s(1), %s, %s, gsuSumIdx);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
     #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u]\\\\n\\\", %s(0), %s(1), %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
     #kStr += "  return;%s" % (self.endLine)
-
-
     return kStr
 
-  ##############################################################################
-  # Get Params For Tensor A/B
-  ##############################################################################
-  # ( tensorChar, tileChar, lsc, lsp, lvc, lvp, grcg, grcv, tlu )
-  def getParamsForTensor(self, kernel, tA):
-    if tA: # A
-      return ("A", self.tileCharA,
-      "LSCA", "LSPA", "LVCA", "LVPA",
-      self.globalReadCoalesceGroupA, kernel["GlobalReadCoalesceVectorA"],
-      kernel["ProblemType"]["TLUA"] )
-    else: # B
-      return ("B", self.tileCharB,
-      "LSCB", "LSPB", "LVCB", "LVPB",
-      self.globalReadCoalesceGroupB, kernel["GlobalReadCoalesceVectorB"],
-      kernel["ProblemType"]["TLUB"] )
-
-
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment
+  # Global Read Addresses: Tile Assignment A/B
   ##############################################################################
   def graTileAssignment(self, kernel, tA):
     kStr = ""
-    ( tensorChar, tileChar, lsc, lsp, lvc, lvp, grcg, grcv, tlu ) \
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
         = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
         % (tensorChar, tileChar, ("%" if grcg == tlu else "/") )
@@ -970,11 +954,11 @@ class KernelWriterSource(KernelWriter):
 
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment
+  # Global Read Addresses: Unroll Assignment A/B
   ##############################################################################
   def graUnrollAssignment(self, kernel, tA):
     kStr = ""
-    ( tensorChar, tileChar, lsc, lsp, lvc, lvp, grcg, grcv, tlu ) \
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
         = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
         % (tensorChar, self.unrollChar, ("/" if grcg == tlu else "%") )
@@ -1026,40 +1010,24 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Tile Offsets A
+  # Global Read Addresses: Tile Offsets A/B
   ##############################################################################
-  def graTileOffsetsA(self, kernel):
+  def graTileOffsets(self, kernel, tA):
     kStr = ""
-    for l in range(0, self.numReadsTileA):
-      if self.readTileDimComponentsA:
-        for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetA%s_%u_s%u = globalReadOffsetA%s + %u + %d*%s;%s" \
-              % (self.tileCharA, l, s, self.tileCharA, s, l, \
-              ("LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"), \
-              self.endLine)
-      else:
-        kStr += "  unsigned int globalReadOffsetA%s_%u = globalReadOffsetA%s + %d*%s;%s" \
-            % (self.tileCharA, l, self.tileCharA, l, \
-            ("LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"), \
-            self.endLine)
-    return kStr
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
 
-  ##############################################################################
-  # Global Read Addresses: Tile Offsets B
-  ##############################################################################
-  def graTileOffsetsB(self, kernel):
-    kStr = ""
-    for l in range(0, self.numReadsTileB):
-      if self.readTileDimComponentsB:
+    for l in range(0, nrt):
+      if rtc:
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetB%s_%u_s%u = globalReadOffsetB%s + %u + %d*%s;%s" \
-              % (self.tileCharB, l, s, self.tileCharB, s, l, \
-              ("LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"), \
+          kStr += "  unsigned int globalReadOffset%s%s_%u_s%u = globalReadOffset%s%s + %u + %d*%s;%s" \
+              % (tensorChar, tileChar, l, s, tensorChar, tileChar, s, l, \
+              (lsc if tlu else lsp), \
               self.endLine)
       else:
-        kStr += "  unsigned int globalReadOffsetB%s_%u = globalReadOffsetB%s + %d*%s;%s" \
-            % (self.tileCharB, l, self.tileCharB, l, \
-            ("LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"), \
+        kStr += "  unsigned int globalReadOffset%s%s_%u = globalReadOffset%s%s + %d*%s;%s" \
+            % (tensorChar, tileChar, l, tensorChar, tileChar, l, \
+            (lsc if tlu else lsp), \
             self.endLine)
     return kStr
 

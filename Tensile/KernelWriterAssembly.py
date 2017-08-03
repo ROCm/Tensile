@@ -249,6 +249,9 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
 
+  def getParamsForTensor(self, kernel, tA):
+      return super(KernelWriterAssembly, self).getParamsForTensor(kernel, tA)
+
 
   ########################################
   # Get Label
@@ -1479,31 +1482,14 @@ class KernelWriterAssembly(KernelWriter):
   def graSubgroup(self, kernel):
     return self.comment1("  not needed until local read addresses")
 
-  ##############################################################################
-  # Get Params For Tensor A/B
-  ##############################################################################
-  # ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, wg, tt, mt, grcg, grcv, tlu )
-  def getParamsForTensor(self, kernel, tA):
-    if tA: # A
-      return ("A", 0, self.tileCharA,
-      "LSCA", "LSPA", "LVCA", "LVPA",
-      "WorkGroup0", "ThreadTile0", "MacroTile0",
-      self.globalReadCoalesceGroupA, kernel["GlobalReadCoalesceVectorA"],
-      kernel["ProblemType"]["TLUA"] )
-    else: # B
-      return ("B", 1, self.tileCharB,
-      "LSCB", "LSPB", "LVCB", "LVPB",
-      "WorkGroup1", "ThreadTile1", "MacroTile1",
-      self.globalReadCoalesceGroupB, kernel["GlobalReadCoalesceVectorB"],
-      kernel["ProblemType"]["TLUB"] )
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment A - DONE
+  # Global Read Addresses: Tile Assignment A/B
   # stores to v1,2
   ##############################################################################
   def graTileAssignment(self, kernel, tA):
     kStr = ""
-    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, wg, tt, mt, grcg, grcv, tlu ) \
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
         = self.getParamsForTensor(kernel, tA)
     if grcg:
       if grcv:
@@ -1573,7 +1559,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment
+  # Global Read Addresses: Unroll Assignment A/B
   ##############################################################################
   def graUnrollAssignment(self, kernel, tA):
     if tA:
@@ -1602,84 +1588,54 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Tile Offsets A - DONE
+  # Global Read Addresses: Tile Offsets A/B
   ##############################################################################
-  def graTileOffsetsA(self, kernel):
-    numTileOffsetsA = self.numReadsTileA
-    if self.readTileDimComponentsA:
-      numTileOffsetsA *= kernel["VectorWidth"]
-    self.vgprTileOffsetsA = self.vgprScratch.checkOut(numTileOffsetsA)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    v = self.vgprTileOffsetsA
-    stride = "LSCA" if kernel["ProblemType"]["TLUA"] else "LSPA"
-    stride = kernel[stride]
+  def graTileOffsets(self, kernel, tA):
     kStr = ""
-    if self.readTileDimComponentsA:
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
+    numTileOffsets = nrt
+    if rtc:
+      numTileOffsets *= kernel["VectorWidth"]
+    if tA:
+      self.vgprTileOffsetsA = self.vgprScratch.checkOut(numTileOffsets)
+      v = self.vgprTileOffsetsA
+    else:
+      self.vgprTileOffsetsB = self.vgprScratch.checkOut(numTileOffsets)
+      v = self.vgprTileOffsetsB
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
+    stride = lsc if tlu else lsp 
+    stride = kernel[stride]
+    if rtc:
       # l=0, s=0
       kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.tRegA), "groA%s_%u_s%u"%(self.tileCharA, 0, 0) )
+          vgpr(self.tRegA if tA else self.tRegB), "gro%s%s_%u_s%u"%(tensorChar, tileChar, 0, 0) )
       # l=0, s>0
       for s in range(1, kernel["VectorWidth"]):
         kStr += inst("v_add_u32", vgpr(v+s), "vcc", 1, \
-            vgpr(v+s-1), "groA%s_%u_s%u"%(self.tileCharA, 0, s) )
-      for l in range(1, self.numReadsTileA):
+            vgpr(v+s-1), "gro%s%s_%u_s%u"%(tensorChar, tileChar, 0, s) )
+      for l in range(1, nrt):
         # l>0, s=0
         kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), "vcc", stride, \
             vgpr(v+(l-1)*kernel["VectorWidth"]), \
-            "groA%s_%u_s%u"%(self.tileCharA, l, 0) )
+            "gro%s%s_%u_s%u"%(tensorChar, tileChar, l, 0) )
         # l>0, s>0
         for s in range(1, kernel["VectorWidth"]):
           kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), "vcc", \
               1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
-              "groA%s_%u_s%u"%(self.tileCharA, l, s) )
+              "gro%s%s_%u_s%u"%(tensorChar, tileChar, l, s) )
     else:
       kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.tRegA), "groA%s_%u"%(self.tileCharA, 0) )
-      for l in range(1, self.numReadsTileA):
+          vgpr(self.tRegA if tA else self.tRegB), "gro%s%s_%u"%(tensorChar, tileChar, 0) )
+      for l in range(1, nrt):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
-            vgpr(v+l-1), "groA%s_%u"%(self.tileCharA, l) )
-    self.vgprScratch.checkIn(self.tRegA)
+            vgpr(v+l-1), "gro%s%s_%u"%(tensorChar, tileChar, l) )
+    if tA:
+      self.vgprScratch.checkIn(self.tRegA)
+    else:
+      self.vgprScratch.checkIn(self.tRegB)
     return kStr
 
-  ##############################################################################
-  # Global Read Addresses: Tile Offsets B - DONE
-  ##############################################################################
-  def graTileOffsetsB(self, kernel):
-    kStr = ""
-    numTileOffsetsB = self.numReadsTileB
-    if self.readTileDimComponentsB:
-      numTileOffsetsB *= kernel["VectorWidth"]
-    self.vgprTileOffsetsB = self.vgprScratch.checkOut(numTileOffsetsB)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    v = self.vgprTileOffsetsB
-    stride = "LSCB" if kernel["ProblemType"]["TLUB"] else "LSPB"
-    stride = kernel[stride]
-    if self.readTileDimComponentsB:
-      # l=0, s=0
-      kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.tRegB), "groB%s_%u_s%u"%(self.tileCharB, 0, 0) )
-      # l=0, s>0
-      for s in range(1, kernel["VectorWidth"]):
-        kStr += inst("v_add_u32", vgpr(v+s), "vcc", 1, \
-            vgpr(v+s-1), "groB%s_%u_s%u"%(self.tileCharB, 0, s) )
-      for l in range(1, self.numReadsTileB):
-        # l>0, s=0
-        kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), "vcc", stride, \
-            vgpr(v+(l-1)*kernel["VectorWidth"]), \
-            "groB%s_%u_s%u"%(self.tileCharB, l, 0) )
-        # l>0, s>0
-        for s in range(1, kernel["VectorWidth"]):
-          kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), "vcc", \
-              1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
-              "groB%s_%u_s%u"%(self.tileCharB, l, s) )
-    else:
-      kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.tRegB), "groB%s_%u"%(self.tileCharB, 0) )
-      for l in range(1, self.numReadsTileB):
-        kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
-            vgpr(v+l-1), "groB%s_%u"%(self.tileCharB, l) )
-    self.vgprScratch.checkIn(self.tRegB)
-    return kStr
 
   ##############################################################################
   # Global Read Addresses: Unroll Offsets A - DONE

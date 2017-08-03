@@ -245,9 +245,9 @@ class KernelWriter:
 
       # tile offsets
       kStr += self.comment("global read addresses: tile offsets a")
-      kStr += self.graTileOffsetsA(kernel)
-      kStr += self.comment("global read addresses: tile offsets a")
-      kStr += self.graTileOffsetsB(kernel)
+      kStr += self.graTileOffsets(kernel, TensorA)
+      kStr += self.comment("global read addresses: tile offsets b")
+      kStr += self.graTileOffsets(kernel, TensorB)
 
       # unroll offsets
       kStr += self.comment("global read addresses: unroll offsets a")
@@ -1159,14 +1159,36 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment
+  # Get Params For Tensor A/B
+  ##############################################################################
+  # ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu )
+  def getParamsForTensor(self, kernel, tA):
+    if tA: # A
+      return ("A", 0, self.tileCharA,
+      "LSCA", "LSPA", "LVCA", "LVPA",
+      self.numReadsTileA, self.numReadsUnrollA,
+      self.readTileDimComponentsA, self.readUnrollDimComponentsA,
+      "WorkGroup0", "ThreadTile0", "MacroTile0",
+      self.globalReadCoalesceGroupA, kernel["GlobalReadCoalesceVectorA"],
+      kernel["ProblemType"]["TLUA"] )
+    else: # B
+      return ("B", 1, self.tileCharB,
+      "LSCB", "LSPB", "LVCB", "LVPB",
+      self.numReadsTileB, self.numReadsUnrollB,
+      self.readTileDimComponentsB, self.readUnrollDimComponentsB,
+      "WorkGroup1", "ThreadTile1", "MacroTile1",
+      self.globalReadCoalesceGroupB, kernel["GlobalReadCoalesceVectorB"],
+      kernel["ProblemType"]["TLUB"] )
+
+  ##############################################################################
+  # Global Read Addresses: Tile Assignment A/B
   ##############################################################################
   @abc.abstractmethod
   def graTileAssignment(self, kernel, tA):
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment
+  # Global Read Addresses: Unroll Assignment A/B
   ##############################################################################
   @abc.abstractmethod
   def graUnrollAssignment(self, kernel, tA):
@@ -1187,17 +1209,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Tile Offsets A
+  # Global Read Addresses: Tile Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def graTileOffsetsA(self, kernel):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Tile Offsets B
-  ##############################################################################
-  @abc.abstractmethod
-  def graTileOffsetsB(self, kernel):
+  def graTileOffsets(self, kernel, tA):
     return ""
 
   ##############################################################################
