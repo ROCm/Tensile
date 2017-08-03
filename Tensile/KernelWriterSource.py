@@ -1055,8 +1055,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Branch A
   ##############################################################################
-  def graBranchA(self, kernel):
+  def graBranchA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for l in range(0, self.numReadsTileA):
       gro = "(globalReadOffsetA%s_%u%s)" % (self.tileCharA, l, \
           ("_s0 + (VECTOR_WIDTH-1)" if self.readTileDimComponentsA else "") )
@@ -1069,8 +1071,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Branch B
   ##############################################################################
-  def graBranchB(self, kernel):
+  def graBranchB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for l in range(0, self.numReadsTileB):
         gro = "(globalReadOffsetB%s_%u%s)" % (self.tileCharB, l, \
             ("_s0 + (VECTOR_WIDTH-1)" if self.readTileDimComponentsB else ""))
@@ -1083,8 +1087,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Shift A
   ##############################################################################
-  def graShiftA(self, kernel):
+  def graShiftA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for l in range(0, self.numReadsTileA):
       for s in range(0, self.numReadVectorComponentsA):
         gro = "globalReadOffsetA%s_%u%s" % (self.tileCharA, l, \
@@ -1098,8 +1104,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Shift B
   ##############################################################################
-  def graShiftB(self, kernel):
+  def graShiftB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for l in range(0, self.numReadsTileB):
       for s in range(0, self.numReadVectorComponentsB):
         gro = "globalReadOffsetB%s_%u%s" % (self.tileCharB, l, \
@@ -1113,8 +1121,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Final Offsets A
   ##############################################################################
-  def graFinalOffsetsA(self, kernel):
+  def graFinalOffsetsA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numReadVectorComponentsA):
@@ -1158,8 +1168,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Final Offsets B
   ##############################################################################
-  def graFinalOffsetsB(self, kernel):
+  def graFinalOffsetsB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numReadVectorComponentsB):
@@ -1213,8 +1225,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Addresses A
   ##############################################################################
-  def graAddressesA(self, kernel):
+  def graAddressesA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         if self.readTileDimComponentsA or self.readUnrollDimComponentsA:
@@ -1236,8 +1250,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Addresses B
   ##############################################################################
-  def graAddressesB(self, kernel):
+  def graAddressesB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         if self.readTileDimComponentsB or self.readUnrollDimComponentsB:
@@ -1258,8 +1274,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Increments A
   ##############################################################################
-  def graIncrementsA(self, kernel, loopIdx):
+  def graIncrementsA(self, kernel, loopIdx, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     kStr += "%s%s globalReadIncA%s = (%s)strideA%s" \
@@ -1282,8 +1300,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Increments B
   ##############################################################################
-  def graIncrementsB(self, kernel, loopIdx):
+  def graIncrementsB(self, kernel, loopIdx, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     kStr += "%s%s globalReadIncB%s = (%s)strideB%s" \
@@ -1306,8 +1326,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Tile Assignment A
   ##############################################################################
-  def lwaTileAssignmentA(self, kernel):
+  def lwaTileAssignmentA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int lwA%s = (serial%s" \
         % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
         == kernel["ProblemType"]["TLUA"] else "/") )
@@ -1324,8 +1346,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Tile Assignment B
   ##############################################################################
-  def lwaTileAssignmentB(self, kernel):
+  def lwaTileAssignmentB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int lwB%s = (serial%s" \
         % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
         == kernel["ProblemType"]["TLUB"] else "/") )
@@ -1342,8 +1366,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Unroll Assignment A
   ##############################################################################
-  def lwaUnrollAssignmentA(self, kernel):
+  def lwaUnrollAssignmentA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int lwA%s = (serial%s" \
         % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
         == kernel["ProblemType"]["TLUA"] else "%") )
@@ -1360,8 +1386,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Unroll Assignment B
   ##############################################################################
-  def lwaUnrollAssignmentB(self, kernel):
+  def lwaUnrollAssignmentB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int lwB%s = (serial%s" \
         % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
         == kernel["ProblemType"]["TLUB"] else "%") )
@@ -1378,8 +1406,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: First Offset A
   ##############################################################################
-  def lwaFirstOffsetA(self, kernel):
+  def lwaFirstOffsetA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int localWriteFirstOffsetA = lwA%s + lwA%s*(MT%s+PAD);%s" \
         % (self.tileCharA, self.unrollChar, self.tileCharA, self.endLine)
     return kStr
@@ -1387,8 +1417,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: First Offset B
   ##############################################################################
-  def lwaFirstOffsetB(self, kernel):
+  def lwaFirstOffsetB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int localWriteFirstOffsetB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (self.tileCharB, self.unrollChar, self.tileCharB, self.endLine)
     return kStr
@@ -1396,8 +1428,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Final Offsets A
   ##############################################################################
-  def lwaFinalOffsetsA(self, kernel):
+  def lwaFinalOffsetsA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numWriteVectorComponentsA):
@@ -1430,8 +1464,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Final Offsets B
   ##############################################################################
-  def lwaFinalOffsetsB(self, kernel):
+  def lwaFinalOffsetsB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
@@ -1464,8 +1500,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Declare Addresses A
   ##############################################################################
-  def lwaDeclareAddressesA(self, kernel):
+  def lwaDeclareAddressesA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numWriteVectorComponentsA):
@@ -1481,8 +1519,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: Declare Addresses B
   ##############################################################################
-  def lwaDeclareAddressesB(self, kernel):
+  def lwaDeclareAddressesB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
@@ -1498,8 +1538,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Tile Assignment A
   ##############################################################################
-  def lraTileAssignmentA(self, kernel):
+  def lraTileAssignmentA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
         % (self.tileChar0, self.tileChar0, self.endLine)
     return kStr
@@ -1507,8 +1549,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Tile Assignment B
   ##############################################################################
-  def lraTileAssignmentB(self, kernel):
+  def lraTileAssignmentB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
         % (self.tileChar1, self.tileChar0, self.tileChar1, self.endLine)
     return kStr
@@ -1516,8 +1560,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Final Offset A
   ##############################################################################
-  def lraFinalOffsetA(self, kernel):
+  def lraFinalOffsetA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD);%s" \
         % ( self.tileChar0, self.tileChar0, self.endLine)
     return kStr
@@ -1525,8 +1571,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Final Offset B
   ##############################################################################
-  def lraFinalOffsetB(self, kernel):
+  def lraFinalOffsetB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
         % (self.tileChar1, self.tileChar1, self.endLine)
     return kStr
@@ -1534,16 +1582,20 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Declare Addresses A
   ##############################################################################
-  def lraDeclareAddressesA(self, kernel):
+  def lraDeclareAddressesA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  %sVECTOR_TYPE *localReadA;%s" % (self.sharedPtrStr, self.endLine)
     return kStr
 
   ##############################################################################
   # Local Read Addresses: Declare Addresses B
   ##############################################################################
-  def lraDeclareAddressesB(self, kernel):
+  def lraDeclareAddressesB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "  %sVECTOR_TYPE *localReadB;%s" % (self.sharedPtrStr, self.endLine)
     return kStr
 
@@ -1684,8 +1736,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Increment A
   ##############################################################################
-  def globalReadIncrementA(self, kernel, loopIdx):
+  def globalReadIncrementA(self, kernel, loopIdx, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
@@ -1713,8 +1767,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Increment B
   ##############################################################################
-  def globalReadIncrementB(self, kernel, loopIdx):
+  def globalReadIncrementB(self, kernel, loopIdx, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
@@ -1742,8 +1798,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Do It A
   ##############################################################################
-  def globalReadDoA(self, kernel, guardK):
+  def globalReadDoA(self, kernel, guardK, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     guardUnrolledComponents = self.readUnrollDimVectorA and guardK \
         and kernel["VectorWidth"]>1
     numUnrollVectorComponents = kernel["VectorWidth"] \
@@ -1786,8 +1844,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Gead: Do It B
   ##############################################################################
-  def globalReadDoB(self, kernel, guardK):
+  def globalReadDoB(self, kernel, guardK, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     guardUnrolledComponents = self.readUnrollDimVectorB and guardK \
         and kernel["VectorWidth"]>1
     numUnrollVectorComponents = kernel["VectorWidth"] \
@@ -1829,8 +1889,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Swap Offsets A
   ##############################################################################
-  def localWriteSwapOffsetsA(self, kernel):
+  def localWriteSwapOffsetsA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numWriteVectorComponentsA):
@@ -1857,8 +1919,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Swap Offsets B
   ##############################################################################
-  def localWriteSwapOffsetsB(self, kernel):
+  def localWriteSwapOffsetsB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
@@ -1885,8 +1949,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Reset Offsets A
   ##############################################################################
-  def localWriteResetOffsetsA(self, kernel):
+  def localWriteResetOffsetsA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numWriteVectorComponentsA):
@@ -1899,8 +1965,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Reset Offsets B
   ##############################################################################
-  def localWriteResetOffsetsB(self, kernel):
+  def localWriteResetOffsetsB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
@@ -1915,8 +1983,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Init Pointers A
   ##############################################################################
-  def localWriteInitPointersA(self, kernel):
+  def localWriteInitPointersA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularA"]):
       for para in range(0, kernel["NumLoadsCoalescedA"]):
         for s in range(0, self.numWriteVectorComponentsA):
@@ -1935,8 +2005,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Init Pointers B
   ##############################################################################
-  def localWriteInitPointersB(self, kernel):
+  def localWriteInitPointersB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for perp in range(0, kernel["NumLoadsPerpendicularB"]):
       for para in range(0, kernel["NumLoadsCoalescedB"]):
         for s in range(0, self.numWriteVectorComponentsB):
@@ -1957,8 +2029,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Do It A
   ##############################################################################
-  def localWriteDoA(self, kernel):
+  def localWriteDoA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
@@ -1981,8 +2055,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Do It B
   ##############################################################################
-  def localWriteDoB(self, kernel):
+  def localWriteDoB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
@@ -2005,8 +2081,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Swap Offsets A
   ##############################################################################
-  def localReadSwapOffsetsA(self, kernel):
+  def localReadSwapOffsetsA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadOffsetA = (localReadOffsetA + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
     return kStr
@@ -2014,8 +2092,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Wwap Offsets B
   ##############################################################################
-  def localReadSwapOffsetsB(self, kernel):
+  def localReadSwapOffsetsB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadOffsetB = (localReadOffsetB + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
         % (self.indent, self.endLine)
     return kStr
@@ -2023,8 +2103,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Reset Offsets A
   ##############################################################################
-  def localReadResetOffsetsA(self, kernel):
+  def localReadResetOffsetsA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
         % (self.indent, self.endLine)
     return kStr
@@ -2032,8 +2114,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Reset Offsets B
   ##############################################################################
-  def localReadResetOffsetsB(self, kernel):
+  def localReadResetOffsetsB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadOffsetB %%= LDS_OFFSET_BLK;%s" \
         % (self.indent, self.endLine)
     return kStr
@@ -2041,8 +2125,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Init Pointers A
   ##############################################################################
-  def localReadInitPointersA(self, kernel):
+  def localReadInitPointersA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadA = (%sVECTOR_TYPE *)(localMemory + localReadOffsetA);%s" \
         % (self.indent, self.sharedPtrStr, self.endLine)
     return kStr
@@ -2050,8 +2136,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Init Pointers B
   ##############################################################################
-  def localReadInitPointersB(self, kernel):
+  def localReadInitPointersB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadB = (%sVECTOR_TYPE *)(localMemory + localReadOffsetB);%s" \
         % (self.indent, self.sharedPtrStr, self.endLine)
     return kStr
@@ -2059,8 +2147,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Increment A
   ##############################################################################
-  def localReadIncA(self, kernel):
+  def localReadIncA(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadA += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar0, self.endLine)
     return kStr
@@ -2068,8 +2158,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Increment B
   ##############################################################################
-  def localReadIncB(self, kernel):
+  def localReadIncB(self, kernel, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     kStr += "%slocalReadB += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
         % (self.indent, self.tileChar1, self.endLine)
     return kStr
@@ -2077,8 +2169,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Do It A
   ##############################################################################
-  def localReadDoA(self, kernel, black):
+  def localReadDoA(self, kernel, black, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for a in range(0, kernel["ThreadTileA"]/kernel["VectorWidth"]):
       kStr += "%srA[%d%s] = localReadA[%d*SG%s]; %s" \
           % (self.indent, a, \
@@ -2089,8 +2183,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Do It B
   ##############################################################################
-  def localReadDoB(self, kernel, black):
+  def localReadDoB(self, kernel, black, tA):
     kStr = ""
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
     for b in range(0, kernel["ThreadTileB"]/kernel["VectorWidth"]):
       kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
           % (self.indent, b, \
