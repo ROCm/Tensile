@@ -1480,38 +1480,56 @@ class KernelWriterAssembly(KernelWriter):
     return self.comment1("  not needed until local read addresses")
 
   ##############################################################################
+  # Get Params For Tensor A/B
+  ##############################################################################
+  # ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, wg, tt, mt, grcg, grcv, tlu )
+  def getParamsForTensor(self, kernel, tA):
+    if tA: # A
+      return ("A", 0, self.tileCharA,
+      "LSCA", "LSPA", "LVCA", "LVPA",
+      "WorkGroup0", "ThreadTile0", "MacroTile0",
+      self.globalReadCoalesceGroupA, kernel["GlobalReadCoalesceVectorA"],
+      kernel["ProblemType"]["TLUA"] )
+    else: # B
+      return ("B", 1, self.tileCharB,
+      "LSCB", "LSPB", "LVCB", "LVPB",
+      "WorkGroup1", "ThreadTile1", "MacroTile1",
+      self.globalReadCoalesceGroupB, kernel["GlobalReadCoalesceVectorB"],
+      kernel["ProblemType"]["TLUB"] )
+
+  ##############################################################################
   # Global Read Addresses: Tile Assignment A - DONE
   # stores to v1,2
   ##############################################################################
-  def graTileAssignmentA(self, kernel):
+  def graTileAssignment(self, kernel, tA):
     kStr = ""
-    #kStr += "  unsigned int globalReadOffsetA%s = (serial" % self.tileCharA
-    # what register to store these values into
-    if self.globalReadCoalesceGroupA:
-      if kernel["GlobalReadCoalesceVectorA"]:
-        divisorName = "LVCA"
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
+    if grcg:
+      if grcv:
+        divisorName = lvc
       else:
-        divisorName = "LSCA"
+        divisorName = lsc
     else:
-      if kernel["GlobalReadCoalesceVectorA"]:
-        divisorName = "LSPA"
+      if grcv:
+        divisorName = lsp
       else:
-        divisorName = "LVPA"
+        divisorName = lvp
     divisor = kernel[divisorName]
 
-    if self.globalReadCoalesceGroupA == kernel["ProblemType"]["TLUA"]:
-      rReg = self.vgprScratch.checkOut(1) # groA-tile = serial%divisor
+    if grcg == tlu:
+      rReg = self.vgprScratch.checkOut(1) # gro-tile = serial%divisor
       if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      qReg = self.vgprScratch.checkOut(1) # groA-unroll = serial/divisor
+      qReg = self.vgprScratch.checkOut(1) # gro-unroll = serial/divisor
       if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       tReg = rReg
       uReg = qReg
       tOpStr = "%"
       uOpStr = "/"
     else:
-      qReg = self.vgprScratch.checkOut(1) # groA-tile = serial/divisor
+      qReg = self.vgprScratch.checkOut(1) # gro-tile = serial/divisor
       if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      rReg = self.vgprScratch.checkOut(1) # groA-unroll = serial%divisor
+      rReg = self.vgprScratch.checkOut(1) # gro-unroll = serial%divisor
       if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       tReg = qReg
       uReg = rReg
@@ -1519,10 +1537,10 @@ class KernelWriterAssembly(KernelWriter):
       uOpStr = "%"
     tReg2 = self.vgprScratch.checkOut(1)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    kStr += self.comment1("%s = groA-tile = serial%s%s + (wgA*MTA);" \
-        % (vgpr(tReg2), tOpStr, divisorName) )
-    kStr += self.comment1("%s = groA-unroll = serial%s%s;" \
-        % (vgpr(uReg), uOpStr, divisorName) )
+    kStr += self.comment1("%s = gro%s-tile = serial%s%s + (wg%s*MT%s);" \
+        % (vgpr(tReg2), tensorChar, tOpStr, divisorName, tensorChar, tensorChar) )
+    kStr += self.comment1("%s = gro%s-unroll = serial%s%s;" \
+        % (vgpr(uReg), tensorChar, uOpStr, divisorName) )
     dividendReg = "Serial" # local serial
     tmpVgpr = self.vgprScratch.checkOut(1)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
@@ -1531,107 +1549,28 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
 
     if kernel["VectorWidth"] > 1:
-      if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
-        #kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
-        #    vgpr(tReg), "%s *= VW"%vgpr(tReg) )
+      if grcv == tlu:
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), kernel["VectorWidth"])
       else:
-        #kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
-        #    vgpr(uReg), "%s *= VW"%vgpr(uReg) )
         kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["VectorWidth"])
-    #kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileA"]), \
-    #    sgpr("WorkGroup0"), "%s = wgA * MTA"%vgpr(tmpVgpr) )
-    kStr += staticMultiply(vgpr(tmpVgpr), sgpr("WorkGroup0"), kernel["MacroTileA"])
-    #kStr += dump(vgpr(tmpVgpr))
+    kStr += staticMultiply(vgpr(tmpVgpr), sgpr(wg), kernel[mt])
     kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
-        vgpr(tReg), "groA-tile = serial%s%s*VW + (wgA*MTA)" \
-        % (tOpStr, divisorName) )
-    self.lwoTA = tReg
-    self.tRegA = tReg2
-    self.uRegA = uReg
+        vgpr(tReg), "gro%s-tile = serial%s%s*VW + (wg%s*MT%s)" \
+        % (tensorChar, tOpStr, divisorName, tensorChar, tensorChar) )
+    if tA:
+      self.lwoTA = tReg
+      self.tRegA = tReg2
+      self.uRegA = uReg
+    else:
+      self.lwoTB = tReg
+      self.tRegB = tReg2
+      self.uRegB = uReg
     self.vgprScratch.checkIn(tmpVgpr)
     #kStr += dump(vgpr("Serial"))
     #kStr += dump(vgpr(tReg2))
     #kStr += dump(vgpr(uReg))
     #kStr += "s_endpgm\n"
     return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Tile Assignment B - DONE
-  # stores to v3,4
-  ##############################################################################
-  def graTileAssignmentB(self, kernel):
-    #kStr += "  unsigned int globalReadOffsetB%s = (serial" % self.tileCharB
-    # what register to store these values into
-    kStr = ""
-    if self.globalReadCoalesceGroupB:
-      if kernel["GlobalReadCoalesceVectorB"]:
-        divisorName = "LVCB"
-      else:
-        divisorName = "LSCB"
-    else:
-      if kernel["GlobalReadCoalesceVectorB"]:
-        divisorName = "LSPB"
-      else:
-        divisorName = "LVPB"
-    divisor = kernel[divisorName]
-
-    if self.globalReadCoalesceGroupB == kernel["ProblemType"]["TLUB"]:
-      rReg = self.vgprScratch.checkOut(1) # groB-tile = serial%divisor
-      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      qReg = self.vgprScratch.checkOut(1) # groB-unroll = serial/divisor
-      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      tReg = rReg
-      uReg = qReg
-      tOpStr = "%"
-      uOpStr = "/"
-    else:
-      qReg = self.vgprScratch.checkOut(1) # groB-tile = serial/divisor
-      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      rReg = self.vgprScratch.checkOut(1) # groB-unroll = serial%divisor
-      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      tReg = qReg
-      uReg = rReg
-      tOpStr = "/"
-      uOpStr = "%"
-    tReg2 = self.vgprScratch.checkOut(1)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    kStr += self.comment1("%s = groB-tile = serial%s%s + (wgB*MTB);" \
-        % (vgpr(tReg2), tOpStr, divisorName) )
-    kStr += self.comment1("%s = groB-unroll = serial%s%s;" \
-        % (vgpr(uReg), uOpStr, divisorName) )
-    dividendReg = "Serial" # local serial
-    tmpVgpr = self.vgprScratch.checkOut(1)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    tmpSgpr = self.startSgprOffsetC
-    kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
-        tmpVgpr, tmpSgpr)
-
-    if kernel["VectorWidth"] > 1:
-      if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
-        #kStr += inst("v_lshlrev_b32", vgpr(tReg), log2(kernel["VectorWidth"]), \
-        #    vgpr(tReg), "%s *= VW"%vgpr(tReg) )
-        kStr += staticMultiply(vgpr(tReg), vgpr(tReg), kernel["VectorWidth"])
-      else:
-        #kStr += inst("v_lshlrev_b32", vgpr(uReg), log2(kernel["VectorWidth"]), \
-        #    vgpr(uReg), "%s *= VW"%vgpr(uReg) )
-        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["VectorWidth"])
-    #kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(kernel["MacroTileB"]), \
-    #    sgpr("WorkGroup1"), "%s = wgB * MTB"%vgpr(tmpVgpr) )
-    kStr += staticMultiply(vgpr(tmpVgpr), sgpr("WorkGroup1"), kernel["MacroTileB"])
-    #kStr += dump(vgpr(tmpVgpr))
-    kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
-        vgpr(tReg), "groB-tile = serial%s%s*VW + (wgB*MTB)" \
-        % (tOpStr, divisorName) )
-    self.lwoTB = tReg
-    self.tRegB = tReg2
-    self.uRegB = uReg
-    self.vgprScratch.checkIn(tmpVgpr)
-    #kStr += dump(vgpr(tReg2))
-    #kStr += dump(vgpr(uReg))
-    #kStr += "s_endpgm\n"
-    return kStr
-
 
   ##############################################################################
   # Global Read Addresses: Unroll Assignment A - DONE

@@ -930,44 +930,44 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment A
+  # Get Params For Tensor A/B
   ##############################################################################
-  def graTileAssignmentA(self, kernel):
-    kStr = ""
-    kStr += "  unsigned int globalReadOffsetA%s = (serial%s" \
-        % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
-        == kernel["ProblemType"]["TLUA"] else "/") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
-    else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorA"] == kernel["ProblemType"]["TLUA"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += " + ("
-    kStr += "wg%s" % (self.tileCharA)
-    kStr += ")*MT%s;%s" % (self.tileCharA, self.endLine)
-    return kStr
+  # ( tensorChar, tileChar, lsc, lsp, lvc, lvp, grcg, grcv, tlu )
+  def getParamsForTensor(self, kernel, tA):
+    if tA: # A
+      return ("A", self.tileCharA,
+      "LSCA", "LSPA", "LVCA", "LVPA",
+      self.globalReadCoalesceGroupA, kernel["GlobalReadCoalesceVectorA"],
+      kernel["ProblemType"]["TLUA"] )
+    else: # B
+      return ("B", self.tileCharB,
+      "LSCB", "LSPB", "LVCB", "LVPB",
+      self.globalReadCoalesceGroupB, kernel["GlobalReadCoalesceVectorB"],
+      kernel["ProblemType"]["TLUB"] )
+
+
 
   ##############################################################################
-  # Global Read Addresses: Tile Assignment B
+  # Global Read Addresses: Tile Assignment
   ##############################################################################
-  def graTileAssignmentB(self, kernel):
+  def graTileAssignment(self, kernel, tA):
     kStr = ""
-    kStr += "  unsigned int globalReadOffsetB%s = (serial%s" \
-        % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
-        == kernel["ProblemType"]["TLUB"] else "/") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
+    ( tensorChar, tileChar, lsc, lsp, lvc, lvp, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
+    kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
+        % (tensorChar, tileChar, ("%" if grcg == tlu else "/") )
+    if grcg:
+      kStr += (lvc if kernel["GlobalReadCoalesceVectorA"] else lsc)
     else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
+      kStr += (lsp if kernel["GlobalReadCoalesceVectorA"] else lvp)
     kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] == kernel["ProblemType"]["TLUB"]:
+    if grcv == tlu:
       kStr += "*VECTOR_WIDTH"
     kStr += " + ("
-    kStr += "wg%s" % (self.tileCharB)
-    kStr += ")*MT%s;%s" % (self.tileCharB, self.endLine)
+    kStr += "wg%s" % (tileChar)
+    kStr += ")*MT%s;%s" % (tileChar, self.endLine)
     return kStr
+
 
   ##############################################################################
   # Global Read Addresses: Unroll Assignment A

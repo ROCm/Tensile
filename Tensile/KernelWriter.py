@@ -204,6 +204,8 @@ class KernelWriter:
 
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
+    TensorA = True
+    TensorB = False
 
     if self.enable["PreLoop"]:
       ####################################
@@ -221,9 +223,9 @@ class KernelWriter:
 
       # tile assignments
       kStr += self.comment("global read addresses: tile offset assignment a")
-      kStr += self.graTileAssignmentA(kernel)
+      kStr += self.graTileAssignment(kernel, TensorA)
       kStr += self.comment("global read addresses: tile offset assignment b")
-      kStr += self.graTileAssignmentB(kernel)
+      kStr += self.graTileAssignment(kernel, TensorB)
 
       # unroll assignments
       kStr += self.comment("global read addresses: unroll assignment a")
@@ -1160,6 +1162,10 @@ class KernelWriter:
   # Global Read Addresses: Tile Assignment A
   ##############################################################################
   @abc.abstractmethod
+  def graTileAssignment(self, kernel, tA):
+    return ""
+  """
+  @abc.abstractmethod
   def graTileAssignmentA(self, kernel):
     return ""
 
@@ -1169,6 +1175,7 @@ class KernelWriter:
   @abc.abstractmethod
   def graTileAssignmentB(self, kernel):
     return ""
+  """
 
   ##############################################################################
   # Global Read Addresses: Unroll Assignment A
