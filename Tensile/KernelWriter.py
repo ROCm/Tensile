@@ -251,9 +251,9 @@ class KernelWriter:
 
       # unroll offsets
       kStr += self.comment("global read addresses: unroll offsets a")
-      kStr += self.graUnrollOffsetsA(kernel)
+      kStr += self.graUnrollOffsets(kernel, TensorA)
       kStr += self.comment("global read addresses: unroll offsets b")
-      kStr += self.graUnrollOffsetsB(kernel)
+      kStr += self.graUnrollOffsets(kernel, TensorB)
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
@@ -1216,17 +1216,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Unroll Offsets A
+  # Global Read Addresses: Unroll Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def graUnrollOffsetsA(self, kernel):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Unroll Offsets B
-  ##############################################################################
-  @abc.abstractmethod
-  def graUnrollOffsetsB(self, kernel):
+  def graUnrollOffsets(self, kernel, tA):
     return ""
 
   ##############################################################################

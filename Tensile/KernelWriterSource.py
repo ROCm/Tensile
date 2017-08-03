@@ -1016,7 +1016,6 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
         = self.getParamsForTensor(kernel, tA)
-
     for l in range(0, nrt):
       if rtc:
         for s in range(0, kernel["VectorWidth"]):
@@ -1032,42 +1031,26 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Unroll Offsets A
+  # Global Read Addresses: Unroll Offsets A/B
   ##############################################################################
-  def graUnrollOffsetsA(self, kernel):
+  def graUnrollOffsets(self, kernel, tA):
     kStr = ""
-    for l in range(0, self.numReadsUnrollA):
-      if self.readUnrollDimComponentsA:
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
+    for l in range(0, nru):
+      if ruc:
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetA%s_%u_s%u = globalReadOffsetA%s + %u + %d*%s;%s" \
-              % (self.unrollChar, l, s, self.unrollChar, s, l, \
-              ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA"), \
+          kStr += "  unsigned int globalReadOffset%s%s_%u_s%u = globalReadOffset%s%s + %u + %d*%s;%s" \
+              % (tensorChar, self.unrollChar, l, s, tensorChar, self.unrollChar, s, l, \
+              (lsp if tlu else lsc), \
               self.endLine)
       else:
-        kStr += "  unsigned int globalReadOffsetA%s_%u = globalReadOffsetA%s + %d*%s;%s" \
-            % (self.unrollChar, l, self.unrollChar, l, \
-            ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA"), \
+        kStr += "  unsigned int globalReadOffset%s%s_%u = globalReadOffset%s%s + %d*%s;%s" \
+            % (tensorChar, self.unrollChar, l, tensorChar, self.unrollChar, l, \
+            (lsp if tlu else lsc), \
             self.endLine)
     return kStr
 
-  ##############################################################################
-  # Global Read Addresses: Unroll Offsets B
-  ##############################################################################
-  def graUnrollOffsetsB(self, kernel):
-    kStr = ""
-    for l in range(0, self.numReadsUnrollB):
-      if self.readUnrollDimComponentsB:
-        for s in range(0, kernel["VectorWidth"]):
-          kStr += "  unsigned int globalReadOffsetB%s_%u_s%u = globalReadOffsetB%s + %u + %d*%s;%s" \
-              % (self.unrollChar, l, s, self.unrollChar, s, l, \
-              ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
-              self.endLine)
-      else:
-        kStr += "  unsigned int globalReadOffsetB%s_%u = globalReadOffsetB%s + %d*%s;%s" \
-            % (self.unrollChar, l, self.unrollChar, l, \
-            ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB"), \
-            self.endLine)
-    return kStr
 
   ##############################################################################
   # Global Read Addresses: Branch A

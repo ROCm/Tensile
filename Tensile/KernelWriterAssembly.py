@@ -1638,85 +1638,51 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Global Read Addresses: Unroll Offsets A - DONE
+  # Global Read Addresses: Unroll Offsets A/B
   ##############################################################################
-  def graUnrollOffsetsA(self, kernel):
+  def graUnrollOffsets(self, kernel, tA):
     kStr = ""
-    numUnrollOffsetsA = self.numReadsUnrollA
-    if self.readUnrollDimComponentsA:
-      numUnrollOffsetsA *= kernel["VectorWidth"]
-    self.vgprUnrollOffsetsA = self.vgprScratch.checkOut(numUnrollOffsetsA)
+    ( tensorChar, tensorIdx, tileChar, lsc, lsp, lvc, lvp, nrt, nru, rtc, ruc, wg, tt, mt, grcg, grcv, tlu ) \
+        = self.getParamsForTensor(kernel, tA)
+    numUnrollOffsets = nru
+    if ruc:
+      numUnrollOffsets *= kernel["VectorWidth"]
+    if tA:
+      self.vgprUnrollOffsetsA = self.vgprScratch.checkOut(numUnrollOffsets)
+      v = self.vgprUnrollOffsetsA
+    else:
+      self.vgprUnrollOffsetsB = self.vgprScratch.checkOut(numUnrollOffsets)
+      v = self.vgprUnrollOffsetsB
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    v = self.vgprUnrollOffsetsA
-    stride = ("LSPA" if kernel["ProblemType"]["TLUA"] else "LSCA")
+    stride = (lsp if tlu else lsc)
     stride = kernel[stride]
-    if self.readUnrollDimComponentsA:
+    if ruc:
       # l=0, s=0
       kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.uRegA), "groA%s_%u_s%u"%(self.unrollChar, 0, 0) )
+          vgpr(self.uRegA if tA else self.uRegB), "gro%s%s_%u_s%u"%(tensorChar, self.unrollChar, 0, 0) )
       # l=0, s>0
       for s in range(1, kernel["VectorWidth"]):
         kStr += inst("v_add_u32", vgpr(v+s), "vcc", 1, \
-            vgpr(v+s-1), "groA%s_%u_s%u"%(self.unrollChar, 0, s) )
-      for l in range(1, self.numReadsUnrollA):
+            vgpr(v+s-1), "gro%s%s_%u_s%u"%(tensorChar, self.unrollChar, 0, s) )
+      for l in range(1, nru):
         # l>0, s=0
         kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), "vcc", stride, \
             vgpr(v+(l-1)*kernel["VectorWidth"]), \
-            "groA%s_%u_s%u"%(self.unrollChar, l, 0) )
+            "gro%s%s_%u_s%u"%(tensorChar, self.unrollChar, l, 0) )
         # l>0, s>0
         for s in range(0, kernel["VectorWidth"]):
           kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), "vcc", \
               1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
-              "groA%s_%u_s%u"%(self.unrollChar, 0, s) )
+              "gro%s%s_%u_s%u"%(tensorChar, self.unrollChar, 0, s) )
     else:
       kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.uRegA), "groA%s_%u"%(self.unrollChar, 0) )
-      for l in range(1, self.numReadsUnrollA):
+          vgpr(self.uRegA if tA else self.uRegB), "gro%s%s_%u"%(tensorChar, self.unrollChar, 0) )
+      for l in range(1, nru):
         kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
-            vgpr(v+l-1), "groA%s_%u"%(self.unrollChar, l) )
+            vgpr(v+l-1), "gro%s%s_%u"%(tensorChar, self.unrollChar, l) )
     #self.vgprScratch.checkIn(self.uRegA)
     return kStr
 
-
-  ##############################################################################
-  # Global Read Addresses: Unroll Offsets B - DONE
-  ##############################################################################
-  def graUnrollOffsetsB(self, kernel):
-    kStr = ""
-    numUnrollOffsetsB = self.numReadsUnrollB
-    if self.readUnrollDimComponentsB:
-      numUnrollOffsetsB *= kernel["VectorWidth"]
-    self.vgprUnrollOffsetsB = self.vgprScratch.checkOut(numUnrollOffsetsB)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    v = self.vgprUnrollOffsetsB
-    stride = ("LSPB" if kernel["ProblemType"]["TLUB"] else "LSCB")
-    stride = kernel[stride]
-    if self.readUnrollDimComponentsB:
-      # l=0, s=0
-      kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.uRegB), "groB%s_%u_s%u"%(self.unrollChar, 0, 0) )
-      # l=0, s>0
-      for s in range(1, kernel["VectorWidth"]):
-        kStr += inst("v_add_u32", vgpr(v+s), "vcc", 1, \
-            vgpr(v+s-1), "groB%s_%u_s%u"%(self.unrollChar, 0, s) )
-      for l in range(1, self.numReadsUnrollB):
-        # l>0, s=0
-        kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]), "vcc", stride, \
-            vgpr(v+(l-1)*kernel["VectorWidth"]), \
-            "groB%s_%u_s%u"%(self.unrollChar, l, 0) )
-        # l>0, s>0
-        for s in range(0, kernel["VectorWidth"]):
-          kStr += inst("v_add_u32", vgpr(v+l*kernel["VectorWidth"]+s), "vcc", \
-              1, vgpr(v+l*kernel["VectorWidth"]+(s-1)), \
-              "groB%s_%u_s%u"%(self.unrollChar, 0, s) )
-    else:
-      kStr += inst("v_mov_b32", vgpr(v), \
-          vgpr(self.uRegB), "groB%s_%u"%(self.unrollChar, 0) )
-      for l in range(1, self.numReadsUnrollB):
-        kStr += inst("v_add_u32", vgpr(v+l), "vcc", stride, \
-            vgpr(v+l-1), "groB%s_%u"%(self.unrollChar, l) )
-    #self.vgprScratch.checkIn(self.uRegB)
-    return kStr
 
   ##############################################################################
   # Global Read Addresses: Branch A - SKIP
