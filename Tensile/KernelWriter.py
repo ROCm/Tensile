@@ -1164,6 +1164,8 @@ class KernelWriter:
   def getTensorParameters(self, kernel, tA):
     tP = {}
     if tA: # A
+      tP["isA"] = True
+      tP["isB"] = False
       tP["tensorChar"] = "A"
       tP["tensorIdx"] = 0
       tP["tileChar"] = self.tileCharA
@@ -1181,7 +1183,11 @@ class KernelWriter:
       tP["grcg"] = self.globalReadCoalesceGroupA
       tP["grcv"] = kernel["GlobalReadCoalesceVectorA"]
       tP["tlu"] = kernel["ProblemType"]["TLUA"]
+      tP["nlc"] = kernel["NumLoadsCoalescedA"]
+      tP["nlp"] = kernel["NumLoadsPerpendicularA"]
     else: # B
+      tP["isA"] = False
+      tP["isB"] = True
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
@@ -1199,6 +1205,8 @@ class KernelWriter:
       tP["grcg"] = self.globalReadCoalesceGroupB
       tP["grcv"] = kernel["GlobalReadCoalesceVectorB"]
       tP["tlu"] = kernel["ProblemType"]["TLUB"]
+      tP["nlc"] = kernel["NumLoadsCoalescedB"]
+      tP["nlp"] = kernel["NumLoadsPerpendicularB"]
     return tP
 
   ##############################################################################
