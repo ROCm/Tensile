@@ -1125,48 +1125,24 @@ class KernelWriterSource(KernelWriter):
 
 #RESUME
   ##############################################################################
-  # Global Read Addresses: Addresses A
+  # Global Read Addresses: Addresses A/B
   ##############################################################################
-  def graAddressesA(self, kernel, tP):
+  def graAddresses(self, kernel, tP):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         if tP["rtc"] or tP["ruc"]:
           for s in range(0, tP["nlvc"]):
-            kStr += "  %sDATA_TYPE const *globalReadA_%u_%u%s = A + globalReadOffsetA_%u_%u%s;%s" \
-                % (self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
+            kStr += "  %sDATA_TYPE const *globalRead%s_%u_%u%s = %s + globalReadOffset%s_%u_%u%s;%s" \
+                % (self.globalPtrStr, tP["tensorChar"], para, perp, \
+                (("_s%u"%s) if (tP["rtc"] or tP["ruc"]) else ""), \
+                tP["tensorChar"], tP["tensorChar"], para, perp, \
+                (("_s%u"%s) if (tP["rtc"] or tP["ruc"]) else ""), \
                 self.endLine)
         else:
-            kStr += "  %sVECTOR_TYPE const *globalReadA_%u_%u = (%sVECTOR_TYPE const *)(A + globalReadOffsetA_%u_%u);%s" \
-                % (self.globalPtrStr, para, perp, self.globalPtrStr, \
-                para, perp, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Addresses B
-  ##############################################################################
-  def graAddressesB(self, kernel, tP):
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        if tP["rtc"] or tP["ruc"]:
-          for s in range(0, tP["nlvc"]):
-            kStr += "  %sDATA_TYPE const *globalReadB_%u_%u%s = B + globalReadOffsetB_%u_%u%s;%s" \
-                % (self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), self.endLine)
-        else:
-            kStr += "  %sVECTOR_TYPE const *globalReadB_%u_%u = (%sVECTOR_TYPE const *)(B + globalReadOffsetB_%u_%u);%s" \
-                % (self.globalPtrStr, para, perp, self.globalPtrStr, \
-                para, perp, self.endLine)
+            kStr += "  %sVECTOR_TYPE const *globalRead%s_%u_%u = (%sVECTOR_TYPE const *)(%s + globalReadOffset%s_%u_%u);%s" \
+                % (self.globalPtrStr, tP["tensorChar"], para, perp, self.globalPtrStr, \
+                tP["tensorChar"], tP["tensorChar"], para, perp, self.endLine)
     return kStr
 
   ##############################################################################

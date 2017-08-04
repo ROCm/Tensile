@@ -279,9 +279,9 @@ class KernelWriter:
 
       # addresses
       kStr += self.comment("global read addresses: addresses a")
-      kStr += self.graAddressesA(kernel, tensorParametersA)
+      kStr += self.graAddresses(kernel, tensorParametersA)
       kStr += self.comment("global read addresses: addresses b")
-      kStr += self.graAddressesB(kernel, tensorParametersB)
+      kStr += self.graAddresses(kernel, tensorParametersB)
 
       # increments
       kStr += self.comment("global read addresses: increments a")
@@ -1262,31 +1262,17 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Branch A
+  # Global Read Addresses: Branch A/B
   ##############################################################################
   @abc.abstractmethod
   def graBranch(self, kernel, tA):
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Branch B
-  ##############################################################################
-  @abc.abstractmethod
-  def graBranchB(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Shift A
+  # Global Read Addresses: Shift A/B
   ##############################################################################
   @abc.abstractmethod
   def graShift(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Shift B
-  ##############################################################################
-  @abc.abstractmethod
-  def graShiftB(self, kernel, tA):
     return ""
 
   ##############################################################################
@@ -1304,17 +1290,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Addresses A
+  # Global Read Addresses: Addresses A/B
   ##############################################################################
   @abc.abstractmethod
-  def graAddressesA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Addresses B
-  ##############################################################################
-  @abc.abstractmethod
-  def graAddressesB(self, kernel, tA):
+  def graAddresses(self, kernel, tA):
     return ""
 
   ##############################################################################

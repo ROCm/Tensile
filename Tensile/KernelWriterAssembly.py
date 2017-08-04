@@ -1771,21 +1771,21 @@ class KernelWriterAssembly(KernelWriter):
 
 # RESUME
   ##############################################################################
-  # Global Read Addresses: Addresses A - DONE
+  # Global Read Addresses: Addresses A/B - DONE
   ##############################################################################
-  def graAddressesA(self, kernel, tP):
+  def graAddresses(self, kernel, tP):
     kStr = ""
     graIdx = 0
     tmp = self.vgprScratch.checkOut(2)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressA+0"), "" )
-    kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressA+1"), "" )
+    kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("Address%s+0"%tP["tensorChar"]), "" )
+    kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("Address%s+1"%tP["tensorChar"]), "" )
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nlvc"]):
 
-          comment = "gRAA_%u_%u%s = addrA+grOA_%u_%u%s" % (para, perp, \
-              "_%u"%s if tP["nlvc"]>1 else "", para, perp, \
+          comment = "gRA%s_%u_%u%s = addr%s+grO%s_%u_%u%s" % (tP["tensorChar"], para, perp, \
+              "_%u"%s if tP["nlvc"]>1 else "", tP["tensorChar"], tP["tensorChar"], para, perp, \
               "_%u"%s if tP["nlvc"]>1 else "", )
           #kStr += dump(vgpr("GlobalReadAddrA+0"))
           #kStr += dump(vgpr("GlobalReadAddrA+1"))
@@ -1793,64 +1793,20 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += dump(vgpr(tmp+1))
 
           kStr += inst("v_add_i32", \
-              vgpr("GlobalReadAddrA+%u+0"%graIdx), \
+              vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
               "vcc", \
-              vgpr("GlobalReadAddrA+%u+0"%graIdx),  \
+              vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
               vgpr(tmp+0), \
               comment+" (lower)")
           kStr += inst("v_addc_u32", \
-              vgpr("GlobalReadAddrA+%u+1"%graIdx), \
+              vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
               "vcc", \
-              vgpr("GlobalReadAddrA+%u+1"%graIdx), \
+              vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
               vgpr(tmp+1), \
               "vcc", \
               comment+" (upper)")
           #kStr += dump(vgpr("GlobalReadAddrA+%u+0"%graIdx))
           #kStr += dump(vgpr("GlobalReadAddrA+%u+1"%graIdx))
-          graIdx += self.rpga
-    #kStr += "s_endpgm\n"
-    self.vgprScratch.checkIn(tmp)
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Addresses B - DONE
-  ##############################################################################
-  def graAddressesB(self, kernel, tP):
-    kStr = ""
-    graIdx = 0
-    tmp = self.vgprScratch.checkOut(2)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressB+0"), "" )
-    kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressB+1"), "" )
-    #kStr += dump(vgpr(tmp+0))
-    #kStr += dump(vgpr(tmp+1))
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nlvc"]):
-
-          comment = "gRAB_%u_%u%s = addrB+grOB_%u_%u%s" % (para, perp, \
-              "_%u"%s if tP["nlvc"]>1 else "", para, perp, \
-              "_%u"%s if tP["nlvc"]>1 else "", )
-          #kStr += dump(vgpr("GlobalReadAddrB+0"))
-          #kStr += dump(vgpr("GlobalReadAddrB+1"))
-          #kStr += dump(vgpr(tmp+0))
-          #kStr += dump(vgpr(tmp+1))
-
-          kStr += inst("v_add_i32 ", \
-              vgpr("GlobalReadAddrB+%u+0"%graIdx), \
-              "vcc", \
-              vgpr("GlobalReadAddrB+%u+0"%graIdx),  \
-              vgpr(tmp+0), \
-              comment+" (lower)")
-          kStr += inst("v_addc_u32", \
-              vgpr("GlobalReadAddrB+%u+1"%graIdx), \
-              "vcc", \
-              vgpr("GlobalReadAddrB+%u+1"%graIdx), \
-              vgpr(tmp+1), \
-              "vcc", \
-              comment+" (upper)")
-          #kStr += dump(vgpr("GlobalReadAddrB+%u+0"%graIdx))
-          #kStr += dump(vgpr("GlobalReadAddrB+%u+1"%graIdx))
           graIdx += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
