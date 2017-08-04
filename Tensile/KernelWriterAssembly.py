@@ -1676,21 +1676,15 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Global Read Addresses: Branch A - SKIP
+  # Global Read Addresses: Branch A/B - SKIP
   ##############################################################################
-  def graBranchA(self, kernel, tP):
+  def graBranch(self, kernel, tP):
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Branch B - SKIP
+  # Global Read Addresses: Shift A/B - SKIP
   ##############################################################################
-  def graBranchB(self, kernel, tP):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Shift A - SKIP
-  ##############################################################################
-  def graShiftA(self, kernel, tP):
+  def graShift(self, kernel, tP):
     return ""
     kStr = ""
     for l in range(0, tP["nrt"]):
@@ -1702,22 +1696,6 @@ class KernelWriterAssembly(KernelWriter):
           % (gro, gro, limit, limit, gro, self.endLine)
     return kStr
 
-  ##############################################################################
-  # Global Read Addresses: Shift B - SKIP
-  ##############################################################################
-  def graShiftB(self, kernel, tP):
-    return ""
-    kStr = ""
-    for l in range(0, tP["nrt"]):
-      gro = "globalReadOffset%s%s_%u%s" % (tP["tensorChar"], tP["tileChar"], l, \
-          ("_s0" if tP["rtc"] else ""))
-      limit = "(size%s-%s)" % (tP["tileChar"], \
-          ("VECTOR_WIDTH" if tP["rtv"] else "1") )
-      kStr += "  %s = (%s > %s) ? %s : %s;%s" \
-          % (gro, gro, limit, limit, gro, self.endLine)
-    return kStr
-
-# RESUME
   ##############################################################################
   # Global Read Addresses: Final Offsets A/B
   ##############################################################################
@@ -1791,6 +1769,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("moved earlier")
     return kStr
 
+# RESUME
   ##############################################################################
   # Global Read Addresses: Addresses A - DONE
   ##############################################################################

@@ -1041,64 +1041,33 @@ class KernelWriterSource(KernelWriter):
 
 
   ##############################################################################
-  # Global Read Addresses: Branch A
+  # Global Read Addresses: Branch A/B
   ##############################################################################
-  def graBranchA(self, kernel, tP):
+  def graBranch(self, kernel, tP):
     kStr = ""
     for l in range(0, tP["nrt"]):
-      gro = "(globalReadOffsetA%s_%u%s)" % (self.tileCharA, l, \
+      gro = "(globalReadOffset%s%s_%u%s)" % (tP["tensorChar"], tP["tileChar"], l, \
           ("_s0 + (VECTOR_WIDTH-1)" if tP["rtc"] else "") )
-      limit = "size%s" % (self.tileCharA)
-      kStr += "  bool inBoundsA_%u = %s < %s;%s" \
-          % (l, gro, \
-          limit, self.endLine)
+      limit = "size%s" % (tP["tileChar"])
+      kStr += "  bool inBounds%s_%u = %s < %s;%s" \
+          % (tP["tensorChar"], l, gro, limit, self.endLine)
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Branch B
+  # Global Read Addresses: Shift A/B
   ##############################################################################
-  def graBranchB(self, kernel, tP):
-    kStr = ""
-    for l in range(0, tP["nrt"]):
-        gro = "(globalReadOffsetB%s_%u%s)" % (self.tileCharB, l, \
-            ("_s0 + (VECTOR_WIDTH-1)" if tP["rtc"] else ""))
-        limit = "size%s" % self.tileCharB
-        kStr += "  bool inBoundsB_%u = %s < %s;%s" \
-            % (l, gro, \
-            limit, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Shift A
-  ##############################################################################
-  def graShiftA(self, kernel, tP):
+  def graShift(self, kernel, tP):
     kStr = ""
     for l in range(0, tP["nrt"]):
       for s in range(0, tP["nlvc"]):
-        gro = "globalReadOffsetA%s_%u%s" % (self.tileCharA, l, \
-            (("_s%u"%s) if tP["rtc"] else "") )
-        limit = "(size%s-%s)" % (self.tileCharA, \
+        gro = "globalReadOffset%s%s_%u%s" % (tP["tensorChar"], tP["tileChar"], \
+            l, (("_s%u"%s) if tP["rtc"] else "") )
+        limit = "(size%s-%s)" % (tP["tileChar"], \
             ("VECTOR_WIDTH" if tP["rtv"] else "1") )
         kStr += "  %s = (%s > %s) ? %s : %s;%s" \
             % (gro, gro, limit, limit, gro, self.endLine)
     return kStr
 
-  ##############################################################################
-  # Global Read Addresses: Shift B
-  ##############################################################################
-  def graShiftB(self, kernel, tP):
-    kStr = ""
-    for l in range(0, tP["nrt"]):
-      for s in range(0, tP["nlvc"]):
-        gro = "globalReadOffsetB%s_%u%s" % (self.tileCharB, l, \
-            (("_s%u"%s) if tP["rtc"] else ""))
-        limit = "(size%s-%s)" % (self.tileCharB, \
-            ("VECTOR_WIDTH" if tP["rtv"] else "1") )
-        kStr += "  %s = (%s > %s) ? %s : %s;%s" \
-            % (gro, gro, limit, limit, gro, self.endLine)
-    return kStr
-
-#RESUME
   ##############################################################################
   # Global Read Addresses: Final Offsets A/B
   ##############################################################################
@@ -1154,6 +1123,7 @@ class KernelWriterSource(KernelWriter):
     kStr += "  B += offsetB;%s" % self.endLine
     return kStr
 
+#RESUME
   ##############################################################################
   # Global Read Addresses: Addresses A
   ##############################################################################

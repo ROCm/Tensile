@@ -258,14 +258,14 @@ class KernelWriter:
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
         kStr += self.comment("global read addresses: shift a")
-        kStr += self.graShiftA(kernel, tensorParametersA)
+        kStr += self.graShift(kernel, tensorParametersA)
         kStr += self.comment("global read addresses: shift b")
-        kStr += self.graShiftB(kernel, tensorParametersB)
+        kStr += self.graShift(kernel, tensorParametersB)
       elif kernel["EdgeType"] == "Branch":
         kStr += self.comment("global read addresses: branch a")
-        kStr += self.graBranchA(kernel, tensorParametersA)
+        kStr += self.graBranch(kernel, tensorParametersA)
         kStr += self.comment("global read addresses: branch b")
-        kStr += self.graBranchB(kernel, tensorParametersB)
+        kStr += self.graBranch(kernel, tensorParametersB)
 
       # final offsets
       kStr += self.comment("global read addresses: final offsets a")
@@ -1265,7 +1265,7 @@ class KernelWriter:
   # Global Read Addresses: Branch A
   ##############################################################################
   @abc.abstractmethod
-  def graBranchA(self, kernel, tA):
+  def graBranch(self, kernel, tA):
     return ""
 
   ##############################################################################
@@ -1279,7 +1279,7 @@ class KernelWriter:
   # Global Read Addresses: Shift A
   ##############################################################################
   @abc.abstractmethod
-  def graShiftA(self, kernel, tA):
+  def graShift(self, kernel, tA):
     return ""
 
   ##############################################################################
