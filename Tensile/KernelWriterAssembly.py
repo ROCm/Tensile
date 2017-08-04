@@ -1693,11 +1693,11 @@ class KernelWriterAssembly(KernelWriter):
   def graShiftA(self, kernel, tP):
     return ""
     kStr = ""
-    for l in range(0, self.numReadsTileA):
-      gro = "globalReadOffsetA%s_%u%s" % (tP["tileChar"], l, \
+    for l in range(0, tP["nrt"]):
+      gro = "globalReadOffset%s%s_%u%s" % (tP["tensorChar"], tP["tileChar"], l, \
           ("_s0" if tP["rtc"] else "") )
       limit = "(size%s-%s)" % (tP["tileChar"], \
-          ("VECTOR_WIDTH" if self.readTileDimVectorA else "1") )
+          ("VECTOR_WIDTH" if tP["rtv"] else "1") )
       kStr += "  %s = (%s > %s) ? %s : %s;%s" \
           % (gro, gro, limit, limit, gro, self.endLine)
     return kStr
@@ -1708,19 +1708,20 @@ class KernelWriterAssembly(KernelWriter):
   def graShiftB(self, kernel, tP):
     return ""
     kStr = ""
-    for l in range(0, self.numReadsTileB):
-      gro = "globalReadOffsetB%s_%u%s" % (tP["tileChar"], l, \
+    for l in range(0, tP["nrt"]):
+      gro = "globalReadOffset%s%s_%u%s" % (tP["tensorChar"], tP["tileChar"], l, \
           ("_s0" if tP["rtc"] else ""))
       limit = "(size%s-%s)" % (tP["tileChar"], \
-          ("VECTOR_WIDTH" if self.readTileDimVectorB else "1") )
+          ("VECTOR_WIDTH" if tP["rtv"] else "1") )
       kStr += "  %s = (%s > %s) ? %s : %s;%s" \
           % (gro, gro, limit, limit, gro, self.endLine)
     return kStr
 
+# RESUME
   ##############################################################################
-  # Global Read Addresses: Final Offsets A - DONE
+  # Global Read Addresses: Final Offsets A/B
   ##############################################################################
-  def graFinalOffsetsA(self, kernel, tP):
+  def graFinalOffsets(self, kernel, tP):
     kStr = ""
     tVW = 1
     tVS = 0
@@ -1732,24 +1733,30 @@ class KernelWriterAssembly(KernelWriter):
     elif tP["ruc"]:
       uVW = kernel["VectorWidth"]
       uVS = 1
+    if tP["isA"]:
+      tileOffsets = self.vgprTileOffsetsA
+      unrollOffsets = self.vgprUnrollOffsetsA
+    else:
+      tileOffsets = self.vgprTileOffsetsB
+      unrollOffsets = self.vgprUnrollOffsetsB
     tmp = self.vgprScratch.checkOut(3)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    graIdxA = 0
+    graIdx = 0
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numReadVectorComponentsA):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
           # vgpr assignments
           if tP["tlu"]:
-            vgprTile   = self.vgprTileOffsetsA   + para*tVW + s*tVS
-            vgprUnroll = self.vgprUnrollOffsetsA + perp*uVW + s*uVS
+            vgprTile   = tileOffsets   + para*tVW + s*tVS
+            vgprUnroll = unrollOffsets + perp*uVW + s*uVS
           else:
-            vgprTile   = self.vgprTileOffsetsA   + perp*tVW + s*tVS
-            vgprUnroll = self.vgprUnrollOffsetsA + para*uVW + s*uVS
+            vgprTile   = tileOffsets   + perp*tVW + s*tVS
+            vgprUnroll = unrollOffsets + para*uVW + s*uVS
           # global offset macro
-          kStr += "GLOBAL_OFFSET_A vgprGlobalReadAddrA+%u"%graIdxA
-          for i in kernel["ProblemType"]["IndexAssignmentsA"]:
+          kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
+          for i in tP["ia"]:
             if i < kernel["ProblemType"]["NumIndicesC"]:
-              if i == kernel["ProblemType"]["TileA"]:
+              if i == tP["tileIdx"]:
                 kStr += ", %2u" % vgprTile
               else: # just a group index
                 kStr += ", %s" % sgpr("WorkGroup+%u"%i)
@@ -1757,10 +1764,10 @@ class KernelWriterAssembly(KernelWriter):
               if i == kernel["ProblemType"]["IndexUnroll"]:
                 kStr += ", %2u" % vgprUnroll
               else:
-                kStr += "globalReadOffsetA%s" % self.indexChars[i]
-          kStr += ", %u // gROA_%u_%u%s%s" % (tmp, para, perp, \
-              "_%u"%s if self.numReadVectorComponentsA>1 else "", self.endLine)
-          graIdxA += self.rpga
+                kStr += "globalReadOffset%s%s" % (tP["tensorChar"], self.indexChars[i] )
+          kStr += ", %u // gRO%s_%u_%u%s%s" % (tmp, tP["tensorChar"], para, perp, \
+              "_%u"%s if tP["nlvc"]>1 else "", self.endLine)
+          graIdx += self.rpga
     if False:
       kStr += dump(vgpr("GlobalReadAddrA+0"))
       #kStr += dump(vgpr("GlobalReadAddrA+2"))
@@ -1771,63 +1778,8 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr("GlobalReadAddrA+12"))
       #kStr += dump(vgpr("GlobalReadAddrA+14"))
 
-    self.vgprScratch.checkIn(self.vgprTileOffsetsA)
-    self.vgprScratch.checkIn(self.vgprUnrollOffsetsA)
-    self.vgprScratch.checkIn(tmp)
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Final Offsets B - DONE
-  ##############################################################################
-  def graFinalOffsetsB(self, kernel, tP):
-    kStr = ""
-    tVW = 1
-    tVS = 0
-    uVW = 1
-    uVS = 0
-    if tP["rtc"]:
-      tVW = kernel["VectorWidth"]
-      tVS = 1
-    elif tP["ruc"]:
-      uVW = kernel["VectorWidth"]
-      uVS = 1
-    tmp = self.vgprScratch.checkOut(3)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    graIdxB = 0
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numReadVectorComponentsB):
-          # vgpr assignments
-          if tP["tlu"]:
-            vgprTile   = self.vgprTileOffsetsB   + para*tVW + s*tVS
-            vgprUnroll = self.vgprUnrollOffsetsB + perp*uVW + s*uVS
-          else:
-            vgprTile   = self.vgprTileOffsetsB   + perp*tVW + s*tVS
-            vgprUnroll = self.vgprUnrollOffsetsB + para*uVW + s*uVS
-          # global offset macro
-          kStr += "GLOBAL_OFFSET_B vgprGlobalReadAddrB+%u"%graIdxB
-          for i in kernel["ProblemType"]["IndexAssignmentsB"]:
-            if i < kernel["ProblemType"]["NumIndicesC"]:
-              if i == kernel["ProblemType"]["TileB"]:
-                kStr += ", %2u" % vgprTile
-              else: # just a group index
-                kStr += ", %s" % sgpr("WorkGroup+%u"%i)
-            else: # summation index
-              if i == kernel["ProblemType"]["IndexUnroll"]:
-                kStr += ", %2u" % vgprUnroll
-              else:
-                kStr += "globalReadOffsetB%s" % self.indexChars[i]
-          kStr += ", %u // gROB_%u_%u%s%s" % (tmp, para, perp, \
-              "_%u"%s if self.numReadVectorComponentsB>1 else "", self.endLine)
-          graIdxB += self.rpga
-
-    if False:
-      kStr += dump(vgpr("GlobalReadAddrB+0"))
-      #kStr += dump(vgpr("GlobalReadAddrB+2"))
-      #kStr += "s_endpgm\n"
-
-    self.vgprScratch.checkIn(self.vgprTileOffsetsB)
-    self.vgprScratch.checkIn(self.vgprUnrollOffsetsB)
+    self.vgprScratch.checkIn(tileOffsets)
+    self.vgprScratch.checkIn(unrollOffsets)
     self.vgprScratch.checkIn(tmp)
     return kStr
 
@@ -1844,39 +1796,39 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graAddressesA(self, kernel, tP):
     kStr = ""
-    graIdxA = 0
+    graIdx = 0
     tmp = self.vgprScratch.checkOut(2)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressA+0"), "" )
     kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("AddressA+1"), "" )
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numReadVectorComponentsA):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
 
           comment = "gRAA_%u_%u%s = addrA+grOA_%u_%u%s" % (para, perp, \
-              "_%u"%s if self.numReadVectorComponentsA>1 else "", para, perp, \
-              "_%u"%s if self.numReadVectorComponentsA>1 else "", )
+              "_%u"%s if tP["nlvc"]>1 else "", para, perp, \
+              "_%u"%s if tP["nlvc"]>1 else "", )
           #kStr += dump(vgpr("GlobalReadAddrA+0"))
           #kStr += dump(vgpr("GlobalReadAddrA+1"))
           #kStr += dump(vgpr(tmp+0))
           #kStr += dump(vgpr(tmp+1))
 
           kStr += inst("v_add_i32", \
-              vgpr("GlobalReadAddrA+%u+0"%graIdxA), \
+              vgpr("GlobalReadAddrA+%u+0"%graIdx), \
               "vcc", \
-              vgpr("GlobalReadAddrA+%u+0"%graIdxA),  \
+              vgpr("GlobalReadAddrA+%u+0"%graIdx),  \
               vgpr(tmp+0), \
               comment+" (lower)")
           kStr += inst("v_addc_u32", \
-              vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
+              vgpr("GlobalReadAddrA+%u+1"%graIdx), \
               "vcc", \
-              vgpr("GlobalReadAddrA+%u+1"%graIdxA), \
+              vgpr("GlobalReadAddrA+%u+1"%graIdx), \
               vgpr(tmp+1), \
               "vcc", \
               comment+" (upper)")
-          #kStr += dump(vgpr("GlobalReadAddrA+%u+0"%graIdxA))
-          #kStr += dump(vgpr("GlobalReadAddrA+%u+1"%graIdxA))
-          graIdxA += self.rpga
+          #kStr += dump(vgpr("GlobalReadAddrA+%u+0"%graIdx))
+          #kStr += dump(vgpr("GlobalReadAddrA+%u+1"%graIdx))
+          graIdx += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
     return kStr
@@ -1886,7 +1838,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graAddressesB(self, kernel, tP):
     kStr = ""
-    graIdxB = 0
+    graIdx = 0
     tmp = self.vgprScratch.checkOut(2)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressB+0"), "" )
@@ -1894,33 +1846,33 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(tmp+0))
     #kStr += dump(vgpr(tmp+1))
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numReadVectorComponentsB):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
 
           comment = "gRAB_%u_%u%s = addrB+grOB_%u_%u%s" % (para, perp, \
-              "_%u"%s if self.numReadVectorComponentsB>1 else "", para, perp, \
-              "_%u"%s if self.numReadVectorComponentsB>1 else "", )
+              "_%u"%s if tP["nlvc"]>1 else "", para, perp, \
+              "_%u"%s if tP["nlvc"]>1 else "", )
           #kStr += dump(vgpr("GlobalReadAddrB+0"))
           #kStr += dump(vgpr("GlobalReadAddrB+1"))
           #kStr += dump(vgpr(tmp+0))
           #kStr += dump(vgpr(tmp+1))
 
           kStr += inst("v_add_i32 ", \
-              vgpr("GlobalReadAddrB+%u+0"%graIdxB), \
+              vgpr("GlobalReadAddrB+%u+0"%graIdx), \
               "vcc", \
-              vgpr("GlobalReadAddrB+%u+0"%graIdxB),  \
+              vgpr("GlobalReadAddrB+%u+0"%graIdx),  \
               vgpr(tmp+0), \
               comment+" (lower)")
           kStr += inst("v_addc_u32", \
-              vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
+              vgpr("GlobalReadAddrB+%u+1"%graIdx), \
               "vcc", \
-              vgpr("GlobalReadAddrB+%u+1"%graIdxB), \
+              vgpr("GlobalReadAddrB+%u+1"%graIdx), \
               vgpr(tmp+1), \
               "vcc", \
               comment+" (upper)")
-          #kStr += dump(vgpr("GlobalReadAddrB+%u+0"%graIdxB))
-          #kStr += dump(vgpr("GlobalReadAddrB+%u+1"%graIdxB))
-          graIdxB += self.rpga
+          #kStr += dump(vgpr("GlobalReadAddrB+%u+0"%graIdx))
+          #kStr += dump(vgpr("GlobalReadAddrB+%u+1"%graIdx))
+          graIdx += self.rpga
     #kStr += "s_endpgm\n"
     self.vgprScratch.checkIn(tmp)
     return kStr
@@ -2175,7 +2127,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     self.localWriteOffsetsA = []
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
+      for para in range(0, tP["nlc"]):
         for s in range(0, self.numWriteVectorComponentsA):
           lscaOffset = para * kernel[tP["lsc"]]
           lspaOffset = perp * kernel[tP["lsp"]]
@@ -2219,7 +2171,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     self.localWriteOffsetsB = []
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
+      for para in range(0, tP["nlc"]):
         for s in range(0, self.numWriteVectorComponentsB):
           lscbOffset = para * kernel[tP["lsc"]]
           lspbOffset = perp * kernel[tP["lsp"]]
@@ -2648,8 +2600,8 @@ class KernelWriterAssembly(KernelWriter):
     graIdx = 0
     tmp = self.startVgprSerial - 1
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numReadVectorComponentsA):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
           if self.globalReadIncsUseVgpr:
             kStr += inst("v_add_i32 ", \
                 vgpr("GlobalReadAddrA+%u+0"%graIdx), \
@@ -2701,8 +2653,8 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr("GlobalReadAddrB+0"))
     #kStr += dump(vgpr("GlobalReadAddrB+1"))
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numReadVectorComponentsB):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
           if self.globalReadIncsUseVgpr:
             kStr += inst("v_add_i32 ", \
                 vgpr("GlobalReadAddrB+%u+0"%graIdx), \
@@ -2747,19 +2699,19 @@ class KernelWriterAssembly(KernelWriter):
   def globalReadDoA(self, kernel, guardK, tP):
     if not self.do["GlobalRead"]: return ""
     kStr = ""
-    graIdxA = 0
+    graIdx = 0
     g2lIdxA = 0
     loadWidth = self.globalReadInstructionA.totalWidth
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
-        for s in range(0, self.numReadVectorComponentsA):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
           kStr += self.globalReadInstructionA.toString( \
               (vgpr("G2LA+%u"%g2lIdxA, loadWidth), \
-              vgpr("GlobalReadAddrA+%u"%graIdxA,2)), \
+              vgpr("GlobalReadAddrA+%u"%graIdx,2)), \
               "G -> Reg %u_%u%s"%(para, perp, \
-              "_%u"%s if self.numReadVectorComponentsA>1 else "") )
+              "_%u"%s if tP["nlvc"]>1 else "") )
           #kStr += "s_endpgm\n"
-          graIdxA += self.rpga
+          graIdx += self.rpga
           g2lIdxA += loadWidth
     if False:
       kStr += "s_waitcnt vmcnt(0)\n"
@@ -2810,21 +2762,21 @@ class KernelWriterAssembly(KernelWriter):
   def globalReadDoB(self, kernel, guardK, tP):
     if not self.do["GlobalRead"]: return ""
     kStr = ""
-    graIdxB = 0
+    graIdx = 0
     g2lIdxB = 0
     loadWidth = self.globalReadInstructionB.totalWidth
     #kStr += dump(vgpr("GlobalReadAddrB+0"))
     #kStr += dump(vgpr("GlobalReadAddrB+1"))
     #kStr += "s_endpgm\n"
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
-        for s in range(0, self.numReadVectorComponentsB):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
           kStr += self.globalReadInstructionB.toString( \
               (vgpr("G2LB+%u"%g2lIdxB, loadWidth), \
-              vgpr("GlobalReadAddrB+%u"%graIdxB, 2)), \
+              vgpr("GlobalReadAddrB+%u"%graIdx, 2)), \
               "G -> Reg %u_%u%s"%(para, perp, \
-              "_%u"%s if self.numReadVectorComponentsB>1 else "") )
-          graIdxB += self.rpga
+              "_%u"%s if tP["nlvc"]>1 else "") )
+          graIdx += self.rpga
           g2lIdxB += loadWidth
     if False:
       kStr += "s_waitcnt vmcnt(0)\n"
@@ -2881,7 +2833,7 @@ class KernelWriterAssembly(KernelWriter):
     return ""
     kStr = ""
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedA"]):
+      for para in range(0, tP["nlc"]):
         for s in range(0, self.numWriteVectorComponentsA):
           kStr += "%slocalWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, \
@@ -2897,7 +2849,7 @@ class KernelWriterAssembly(KernelWriter):
     return ""
     kStr = ""
     for perp in range(0, tP["nlp"]):
-      for para in range(0, kernel["NumLoadsCoalescedB"]):
+      for para in range(0, tP["nlc"]):
         for s in range(0, self.numWriteVectorComponentsB):
           kStr += "%slocalWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, para, perp, \
@@ -3566,7 +3518,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
 
     """
-    kStr += "GLOBAL_OFFSET_C( vgprGlobalReadAddrA+%u"%graIdxA
+    kStr += "GLOBAL_OFFSET_C( vgprGlobalReadAddrA+%u"%graIdx
       for i in kernel["ProblemType"]["NumIndicesC"]:
         if i == kernel["ProblemType"]["Dim0"]:
           kStr += ", %2u" % vgprDim0

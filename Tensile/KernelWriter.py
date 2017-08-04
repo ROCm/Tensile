@@ -269,9 +269,9 @@ class KernelWriter:
 
       # final offsets
       kStr += self.comment("global read addresses: final offsets a")
-      kStr += self.graFinalOffsetsA(kernel, tensorParametersA)
+      kStr += self.graFinalOffsets(kernel, tensorParametersA)
       kStr += self.comment("global read addresses: final offsets b")
-      kStr += self.graFinalOffsetsB(kernel, tensorParametersB)
+      kStr += self.graFinalOffsets(kernel, tensorParametersB)
 
       # user offsets
       kStr += self.comment("global read addresses: apply user offsets")
@@ -1169,6 +1169,7 @@ class KernelWriter:
       tP["tensorChar"] = "A"
       tP["tensorIdx"] = 0
       tP["tileChar"] = self.tileCharA
+      tP["tileIdx"] = kernel["ProblemType"]["TileA"]
       tP["lsc"] = "LSCA"
       tP["lsp"] = "LSPA"
       tP["lvc"] = "LVCA"
@@ -1185,12 +1186,17 @@ class KernelWriter:
       tP["tlu"] = kernel["ProblemType"]["TLUA"]
       tP["nlc"] = kernel["NumLoadsCoalescedA"]
       tP["nlp"] = kernel["NumLoadsPerpendicularA"]
+      tP["rtv"] = self.readTileDimVectorA 
+      tP["ruv"] = self.readUnrollDimVectorA 
+      tP["ia"] = kernel["ProblemType"]["IndexAssignmentsA"]
+      tP["nlvc"] = self.numReadVectorComponentsA
     else: # B
       tP["isA"] = False
       tP["isB"] = True
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
+      tP["tileIdx"] = kernel["ProblemType"]["TileB"]
       tP["lsc"] = "LSCB"
       tP["lsp"] = "LSPB"
       tP["lvc"] = "LVCB"
@@ -1207,6 +1213,10 @@ class KernelWriter:
       tP["tlu"] = kernel["ProblemType"]["TLUB"]
       tP["nlc"] = kernel["NumLoadsCoalescedB"]
       tP["nlp"] = kernel["NumLoadsPerpendicularB"]
+      tP["rtv"] = self.readTileDimVectorB 
+      tP["ruv"] = self.readUnrollDimVectorB 
+      tP["ia"] = kernel["ProblemType"]["IndexAssignmentsB"]
+      tP["nlvc"] = self.numReadVectorComponentsB
     return tP
 
   ##############################################################################
@@ -1280,17 +1290,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Final Offsets A
+  # Global Read Addresses: Final Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def graFinalOffsetsA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Final Offsets B
-  ##############################################################################
-  @abc.abstractmethod
-  def graFinalOffsetsB(self, kernel, tA):
+  def graFinalOffsets(self, kernel, tA):
     return ""
 
   ##############################################################################
