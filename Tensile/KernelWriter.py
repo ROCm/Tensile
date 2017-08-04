@@ -286,10 +286,10 @@ class KernelWriter:
       # increments
       kStr += self.comment("global read addresses: increments a")
       for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-        kStr += self.graIncrementsA(kernel, i, tensorParametersA)
+        kStr += self.graIncrements(kernel, i, tensorParametersA)
       kStr += self.comment("global read addresses: increments b")
       for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]):
-        kStr += self.graIncrementsB(kernel, i, tensorParametersB)
+        kStr += self.graIncrements(kernel, i, tensorParametersB)
 
       ####################################
       # Local Write Addresses
@@ -1297,17 +1297,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read Addresses: Increments A
+  # Global Read Addresses: Increments A/B
   ##############################################################################
   @abc.abstractmethod
-  def graIncrementsA(self, kernel, loopIdx, tA):
-    return ""
-
-  ##############################################################################
-  # Global Read Addresses: Increments B
-  ##############################################################################
-  @abc.abstractmethod
-  def graIncrementsB(self, kernel, loopIdx, tA):
+  def graIncrements(self, kernel, loopIdx, tA):
     return ""
 
   ##############################################################################

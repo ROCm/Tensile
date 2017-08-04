@@ -1123,7 +1123,6 @@ class KernelWriterSource(KernelWriter):
     kStr += "  B += offsetB;%s" % self.endLine
     return kStr
 
-#RESUME
   ##############################################################################
   # Global Read Addresses: Addresses A/B
   ##############################################################################
@@ -1145,16 +1144,17 @@ class KernelWriterSource(KernelWriter):
                 tP["tensorChar"], tP["tensorChar"], para, perp, self.endLine)
     return kStr
 
+#RESUME
   ##############################################################################
-  # Global Read Addresses: Increments A
+  # Global Read Addresses: Increments A/B
   ##############################################################################
-  def graIncrementsA(self, kernel, loopIdx, tP):
+  def graIncrements(self, kernel, loopIdx, tP):
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    kStr += "%s%s globalReadIncA%s = (%s)strideA%s" \
-        % (self.indent, self.int64Str, loopChar, \
-        self.int64Str, loopChar)
+    kStr += "%s%s globalReadInc%s%s = (%s)stride%s%s" \
+        % (self.indent, self.int64Str, tP["tensorChar"], loopChar, \
+        self.int64Str, tP["tensorChar"], loopChar)
     if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
       kStr += "*LOCAL_DEPTHU"
       if kernel["GlobalSplitU"] > 1 \
@@ -1165,31 +1165,7 @@ class KernelWriterSource(KernelWriter):
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][j]]
-        kStr += " - strideA%s*size%s" % (tmpChar, tmpChar)
-    kStr += ";" + self.endLine
-    return kStr
-
-  ##############################################################################
-  # Global Read Addresses: Increments B
-  ##############################################################################
-  def graIncrementsB(self, kernel, loopIdx, tP):
-    kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    kStr += "%s%s globalReadIncB%s = (%s)strideB%s" \
-        % (self.indent, self.int64Str, loopChar, \
-        self.int64Str, loopChar)
-    if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
-      kStr += "*LOCAL_DEPTHU"
-      if kernel["GlobalSplitU"] > 1 \
-          and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
-        kStr += "*GLOBAL_SPLITU"
-    else:
-      for j in range(loopIdx+1, \
-          min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
-        tmpChar = self.indexChars[ \
-            kernel["ProblemType"]["IndicesSummation"][j]]
-        kStr += " - strideB%s*size%s" % (tmpChar, tmpChar)
+        kStr += " - stride%s%s*size%s" % (tP["tensorChar"], tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
