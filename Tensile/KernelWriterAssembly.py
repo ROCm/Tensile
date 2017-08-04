@@ -1811,7 +1811,6 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(tmp)
     return kStr
 
-# RESUME
   ##############################################################################
   # Global Read Addresses: Increments A/B - DONE
   ##############################################################################
@@ -1886,29 +1885,18 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment A - DONE
+  # Local Write Addresses: Tile Assignment A/B - DONE
   ##############################################################################
-  def lwaTileAssignmentA(self, kernel, tP):
-    return self.comment1("lwaTileA = %s" % vgpr(self.lwoTA))
+  def lwaTileAssignment(self, kernel, tP):
+    return self.comment1("lwaTile%s = %s" % (tP["tensorChar"], vgpr(self.lwoTA if tP["isA"] else self.lwoTB)))
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment B - DONE
+  # Local Write Addresses: Unroll Assignment A/B - DONE
   ##############################################################################
-  def lwaTileAssignmentB(self, kernel, tP):
-    return self.comment1("lwaTileB = %s" % vgpr(self.lwoTB))
+  def lwaUnrollAssignment(self, kernel, tP):
+    return self.comment1("lwaUnroll%s = %s" % (tP["tensorChar"], vgpr(self.uRegA if tP["isA"] else self.uRegB)))
 
-  ##############################################################################
-  # Local Write Addresses: Unroll Assignment A - DONE
-  ##############################################################################
-  def lwaUnrollAssignmentA(self, kernel, tP):
-    return self.comment1("lwaUnrollA = %s" % vgpr(self.uRegA))
-
-  ##############################################################################
-  # Local Write Addresses: Unroll Assignment B - DONE
-  ##############################################################################
-  def lwaUnrollAssignmentB(self, kernel, tP):
-    return self.comment1("lwaUnrollB = %s" % vgpr(self.uRegB))
-
+# RESUME
   ##############################################################################
   # Local Write Addresses: First Offset A - DONE
   ##############################################################################

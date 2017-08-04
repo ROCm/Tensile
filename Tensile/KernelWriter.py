@@ -298,15 +298,15 @@ class KernelWriter:
 
       # tile assignments
       kStr += self.comment("local write addresses: tile assignment a")
-      kStr += self.lwaTileAssignmentA(kernel, tensorParametersA)
+      kStr += self.lwaTileAssignment(kernel, tensorParametersA)
       kStr += self.comment("local write addresses: tile assignment b")
-      kStr += self.lwaTileAssignmentB(kernel, tensorParametersB)
+      kStr += self.lwaTileAssignment(kernel, tensorParametersB)
 
       # unroll assignments
       kStr += self.comment("local write addresses: unroll assignment a")
-      kStr += self.lwaUnrollAssignmentA(kernel, tensorParametersA)
+      kStr += self.lwaUnrollAssignment(kernel, tensorParametersA)
       kStr += self.comment("local write addresses: unroll assignment b")
-      kStr += self.lwaUnrollAssignmentB(kernel, tensorParametersB)
+      kStr += self.lwaUnrollAssignment(kernel, tensorParametersB)
 
       # first offsets
       kStr += self.comment("local write addresses: first offset a")
@@ -1304,31 +1304,17 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment A
+  # Local Write Addresses: Tile Assignment A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaTileAssignmentA(self, kernel, tA):
+  def lwaTileAssignment(self, kernel, tA):
     return ""
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment B
+  # Local Write Addresses: Unroll Assignment A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaTileAssignmentB(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Write Addresses: Unroll Assignment A
-  ##############################################################################
-  @abc.abstractmethod
-  def lwaUnrollAssignmentA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Write Addresses: Unroll Assignment B
-  ##############################################################################
-  @abc.abstractmethod
-  def lwaUnrollAssignmentB(self, kernel, tA):
+  def lwaUnrollAssignment(self, kernel, tA):
     return ""
 
   ##############################################################################

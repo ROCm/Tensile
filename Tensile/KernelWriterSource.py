@@ -1144,7 +1144,6 @@ class KernelWriterSource(KernelWriter):
                 tP["tensorChar"], tP["tensorChar"], para, perp, self.endLine)
     return kStr
 
-#RESUME
   ##############################################################################
   # Global Read Addresses: Increments A/B
   ##############################################################################
@@ -1170,77 +1169,42 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment A
+  # Local Write Addresses: Tile Assignment A/B
   ##############################################################################
-  def lwaTileAssignmentA(self, kernel, tP):
+  def lwaTileAssignment(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int lwA%s = (serial%s" \
-        % (self.tileCharA, ("%" if self.globalReadCoalesceGroupA \
+    kStr += "  unsigned int lw%s%s = (serial%s" \
+        % (tP["tensorChar"], tP["tileChar"], ("%" if tP["grcg"] \
         == tP["tlu"] else "/") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
+    if tP["grcg"]:
+      kStr += (tP["lvc"] if tP["grcv"] else tP["lsc"])
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
+      kStr += (tP["lsp"] if tP["grcv"] else tP["lvp"])
     kStr += ")";
-    if kernel["GlobalReadCoalesceVectorA"] == tP["tlu"]:
+    if tP["grcv"] == tP["tlu"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
     return kStr
 
   ##############################################################################
-  # Local Write Addresses: Tile Assignment B
+  # Local Write Addresses: Unroll Assignment A/B
   ##############################################################################
-  def lwaTileAssignmentB(self, kernel, tP):
+  def lwaUnrollAssignment(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int lwB%s = (serial%s" \
-        % (self.tileCharB, ("%" if self.globalReadCoalesceGroupB \
-        == tP["tlu"] else "/") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
-    else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] == tP["tlu"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
-
-  ##############################################################################
-  # Local Write Addresses: Unroll Assignment A
-  ##############################################################################
-  def lwaUnrollAssignmentA(self, kernel, tP):
-    kStr = ""
-    kStr += "  unsigned int lwA%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupA \
+    kStr += "  unsigned int lw%s%s = (serial%s" \
+        % (tP["tensorChar"], self.unrollChar, ("/" if tP["grcg"] \
         == tP["tlu"] else "%") )
-    if self.globalReadCoalesceGroupA:
-      kStr += ("LVCA" if kernel["GlobalReadCoalesceVectorA"] else "LSCA")
+    if tP["grcg"]:
+      kStr += (tP["lvc"] if tP["grcv"] else tP["lsc"])
     else:
-      kStr += ("LSPA" if kernel["GlobalReadCoalesceVectorA"] else "LVPA")
+      kStr += (tP["lsp"] if tP["grcv"] else tP["lvp"])
     kStr += ")";
-    if kernel["GlobalReadCoalesceVectorA"] != tP["tlu"]:
+    if tP["grcv"] != tP["tlu"]:
       kStr += "*VECTOR_WIDTH"
     kStr += ";%s" % self.endLine
     return kStr
 
-  ##############################################################################
-  # Local Write Addresses: Unroll Assignment B
-  ##############################################################################
-  def lwaUnrollAssignmentB(self, kernel, tP):
-    kStr = ""
-    kStr += "  unsigned int lwB%s = (serial%s" \
-        % (self.unrollChar, ("/" if self.globalReadCoalesceGroupB \
-        == tP["tlu"] else "%") )
-    if self.globalReadCoalesceGroupB:
-      kStr += ("LVCB" if kernel["GlobalReadCoalesceVectorB"] else "LSCB")
-    else:
-      kStr += ("LSPB" if kernel["GlobalReadCoalesceVectorB"] else "LVPB")
-    kStr += ")"
-    if kernel["GlobalReadCoalesceVectorB"] != tP["tlu"]:
-      kStr += "*VECTOR_WIDTH"
-    kStr += ";%s" % self.endLine
-    return kStr
-
+#RESUME
   ##############################################################################
   # Local Write Addresses: First Offset A
   ##############################################################################
@@ -1272,12 +1236,12 @@ class KernelWriterSource(KernelWriter):
               (("_s%u"%s) if (self.writeTileDimComponentsA \
               or self.writeUnrollDimComponentsA) else ""), \
               (("%u + "%s) if self.writeTileDimComponentsA else ""), \
-              para, ("LSCA" if not tP["tlu"] else "LSCA") )
+              para, (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
           if not tP["tlu"]:
             kStr += "*(MT%s+PAD)" % (self.tileCharA)
           kStr += " + (%s%d*%s)" % (
               (("%u + "%s) if self.writeUnrollDimComponentsA else ""), perp, \
-              ("LSPA" if tP["tlu"] else "LSPA") )
+              (tP["lsp"] if tP["tlu"] else tP["lsp"]) )
           if tP["tlu"]:
             kStr += "*(MT%s+PAD)" % (self.tileCharA)
           kStr += ";%s" % self.endLine
@@ -1306,12 +1270,12 @@ class KernelWriterSource(KernelWriter):
               (("_s%u"%s) if (self.writeTileDimComponentsB \
               or self.writeUnrollDimComponentsB) else ""), \
               (("%u + "%s) if self.writeTileDimComponentsB else ""), para, \
-              ("LSCB" if not tP["tlu"] else "LSCB") )
+              (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
           if not tP["tlu"]:
             kStr += "*(MT%s+PAD)" % (self.tileCharB)
           kStr += " + (%s%d*%s)" % ( \
               (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
-              ("LSPB" if not tP["tlu"] else "LSPB") )
+              (tP["lsp"] if not tP["tlu"] else tP["lsp"]) )
           if tP["tlu"]:
             kStr += "*(MT%s+PAD)" % (self.tileCharB)
           kStr += ";%s" % self.endLine
