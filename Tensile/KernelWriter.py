@@ -23,6 +23,7 @@ from SolutionStructs import Solution
 from Common import globalParameters, kernelLanguageIsSource, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
 import abc
 from os import path, chmod
+from os import name as osname
 from subprocess import Popen
 
 ################################################################################
@@ -1186,8 +1187,8 @@ class KernelWriter:
       tP["tlu"] = kernel["ProblemType"]["TLUA"]
       tP["nlc"] = kernel["NumLoadsCoalescedA"]
       tP["nlp"] = kernel["NumLoadsPerpendicularA"]
-      tP["rtv"] = self.readTileDimVectorA 
-      tP["ruv"] = self.readUnrollDimVectorA 
+      tP["rtv"] = self.readTileDimVectorA
+      tP["ruv"] = self.readUnrollDimVectorA
       tP["ia"] = kernel["ProblemType"]["IndexAssignmentsA"]
       tP["nlvc"] = self.numReadVectorComponentsA
     else: # B
@@ -1213,8 +1214,8 @@ class KernelWriter:
       tP["tlu"] = kernel["ProblemType"]["TLUB"]
       tP["nlc"] = kernel["NumLoadsCoalescedB"]
       tP["nlp"] = kernel["NumLoadsPerpendicularB"]
-      tP["rtv"] = self.readTileDimVectorB 
-      tP["ruv"] = self.readUnrollDimVectorB 
+      tP["rtv"] = self.readTileDimVectorB
+      tP["ruv"] = self.readUnrollDimVectorB
       tP["ia"] = kernel["ProblemType"]["IndexAssignmentsB"]
       tP["nlvc"] = self.numReadVectorComponentsB
     return tP
@@ -1764,24 +1765,32 @@ class KernelWriter:
       assemblyFile.close()
 
       # assembler script
-      assemblerFileName = path.join(globalParameters["WorkingPath"], "asm.sh")
+      assemblerFileName = path.join(globalParameters["WorkingPath"], \
+          "asm.%s"%("bat" if osname=="nt" else "sh"))
       if not path.isfile(assemblerFileName):
         assemblerFile = open(assemblerFileName, "w")
-        assemblerFile.write("#!/bin/sh\n")
-        assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
-        assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa -mcpu=gfx%u%u%u -c -o $1.o $1.s\n"%(self.versionMajor, self.versionMinor, self.versionStep))
-        assemblerFile.write("${ASM} -target amdgcn--amdhsa $1.o -o $1.co\n")
+        if osname == "nt":
+          assemblerFile.write("echo Windows: Copying instead of Assembling\n")
+          assemblerFile.write("copy %1.s %1.o\n")
+          assemblerFile.write("copy %1.o %1.co\n")
+        else:
+          assemblerFile.write("#!/bin/sh\n")
+          assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
+          assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa -mcpu=gfx%u%u%u -c -o $1.o $1.s\n" \
+              % (self.versionMajor, self.versionMinor, self.versionStep))
+          assemblerFile.write("${ASM} -target amdgcn--amdhsa $1.o -o $1.co\n")
         assemblerFile.close()
         chmod(assemblerFileName, 0777)
-
 
       # run assembler
       assemblerCommand = [assemblerFileName, kernelName]
       print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
-      assemblerProcess = Popen(assemblerCommand, cwd=globalParameters["WorkingPath"] )
+      assemblerProcess = Popen(assemblerCommand, \
+          cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()
       if assemblerProcess.returncode:
-        printExit("Assembler process returned with code %u" % assemblerProcess.returncode)
+        printExit("Assembler process returned with code %u" \
+            % assemblerProcess.returncode)
 
       # read code object file
       fileString = ""
@@ -1802,12 +1811,12 @@ class KernelWriter:
         if byteIdx % 16 == 15:
           fileString += "\n"
 
-      
+
       popWorkingPath() # arch
       popWorkingPath() # assembly
 
       # read code-object file and convert to c++ representable uchar*
-      # return string of code-object byte array 
+      # return string of code-object byte array
     return fileString
 
 
