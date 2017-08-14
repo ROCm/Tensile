@@ -1398,9 +1398,9 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr(nwg1))
 
       # blockId and serial within block
-      blockId = self.vgprScratch.checkOut(1) 
+      blockId = self.vgprScratch.checkOut(1)
       wgSerial = self.vgprScratch.checkOut(1)
-      wg1 = self.vgprScratch.checkOut(1) 
+      wg1 = self.vgprScratch.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(wg1), sgpr("WorkGroup1"), "wg1")
 
       #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("WorkGroup0"), "wg0")
@@ -1412,7 +1412,7 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr(wgSerial))
       kStr += inst("v_mul_u32_u24", vgpr(wgSerial), vgpr(wgSerial), \
           vgpr(nwg0), "(wg1 % WGM)*nwg0")
-      self.vgprScratch.checkIn(nwg0) 
+      self.vgprScratch.checkIn(nwg0)
       #kStr += dump(vgpr(wgSerial))
       kStr += inst("v_add_u32", vgpr(wgSerial), "vcc", vgpr(wgSerial), \
           sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
@@ -1470,7 +1470,7 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr(tmpVgpr))
       self.vgprScratch.checkIn(tmpVgpr)
       #kStr += "s_endpgm\n"
-      
+
     return kStr
 
   ##############################################################################
@@ -1597,7 +1597,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprTileOffsetsB = self.vgprScratch.checkOut(numTileOffsets)
       v = self.vgprTileOffsetsB
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    stride = tP["lsc"] if tP["tlu"] else tP["lsp"] 
+    stride = tP["lsc"] if tP["tlu"] else tP["lsp"]
     stride = kernel[stride]
     if tP["rtc"]:
       # l=0, s=0
@@ -1898,74 +1898,35 @@ class KernelWriterAssembly(KernelWriter):
 
 # RESUME
   ##############################################################################
-  # Local Write Addresses: First Offset A - DONE
+  # Local Write Addresses: First Offset A/B - DONE
   ##############################################################################
-  def lwaFirstOffsetA(self, kernel, tP):
+  def lwaFirstOffset(self, kernel, tP):
     kStr = ""
-    "lwFOA = lwA%s + lwA%s*MT%s" \
-        % (tP["tileChar"], self.unrollChar, tP["tileChar"])
+    #"lwFOA = lwA%s + lwA%s*MT%s" \
+    #    % (tP["tileChar"], self.unrollChar, tP["tileChar"])
 
     kStr += inst("v_mul_u32_u24", \
-        vgpr("LocalWriteAddrA"), \
-        hex(kernel["MacroTileA"]), \
-        vgpr(self.uRegA), \
-        "lwA%s*MTA"%self.unrollChar)
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        hex(kernel["MacroTile%s"%tP["tensorChar"]]), \
+        vgpr(self.uRegA if tP["isA"] else self.uRegB), \
+        "lw%s%s*MT%s"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
     #kStr += dump(vgpr("LocalWriteAddrA"))
     kStr += inst("v_add_u32", \
-        vgpr("LocalWriteAddrA"), \
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "vcc", \
-        vgpr(self.lwoTA), \
-        vgpr("LocalWriteAddrA"), \
-        "lwFOA = lwA%s + lwA%s*MT%s" \
-        % (tP["tileChar"], self.unrollChar, tP["tileChar"]) )
+        vgpr(self.lwoTA if tP["isA"] else self.lwoTB), \
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        "lwFO%s = l%sw%s + lw%s%s*MT%s" \
+        % (tP["tensorChar"], tP["tileChar"], tP["tensorChar"], \
+        self.unrollChar, tP["tensorChar"], tP["tileChar"]) )
     kStr += inst("v_lshlrev_b32", \
-        vgpr("LocalWriteAddrA"), \
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         hex(log2(self.bpe)), \
-        vgpr("LocalWriteAddrA"), \
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         " *= bytes/element" )
-    self.vgprScratch.checkIn(self.lwoTA)
-    self.vgprScratch.checkIn(self.uRegA)
+    self.vgprScratch.checkIn(self.lwoTA if tP["isA"] else self.lwoTB)
+    self.vgprScratch.checkIn(self.uRegA if tP["isA"] else self.uRegB)
     #kStr += dump(vgpr("LocalWriteAddrA"))
-    #kStr += "s_endpgm\n"
-    return kStr
-
-  ##############################################################################
-  # Local Write Addresses: First Offset B - DONE
-  ##############################################################################
-  def lwaFirstOffsetB(self, kernel, tP):
-    kStr = ""
-    "lwFOB = lwB%s + lwB%s*MT%s" \
-        % (tP["tileChar"], self.unrollChar, tP["tileChar"])
-    kStr += inst("v_mul_u32_u24", \
-        vgpr("LocalWriteAddrB"), \
-        hex(kernel["MacroTileB"]), \
-        vgpr(self.uRegB), \
-        "lwB%s*MTB"%self.unrollChar)
-    #kStr += dump(vgpr("LocalWriteAddrB"))
-    kStr += inst("v_add_u32", \
-        vgpr("LocalWriteAddrB"), \
-        "vcc", \
-        vgpr(self.lwoTB), \
-        vgpr("LocalWriteAddrB"), \
-        "lwFOB = lwB%s + lwB%s*MT%s" \
-        % (tP["tileChar"], self.unrollChar, tP["tileChar"]) )
-    kStr += inst("v_lshlrev_b32", \
-        vgpr("LocalWriteAddrB"), \
-        hex(log2(self.bpe)), \
-        vgpr("LocalWriteAddrB"), \
-        " *= bytes/element" )
-    #kStr += dump(vgpr("LocalWriteAddrB"))
-    kStr += inst("v_add_u32", \
-        vgpr("LocalWriteAddrB"), \
-        "vcc", \
-        hex(kernel["LdsOffsetB"]*self.bpe), \
-        vgpr("LocalWriteAddrB"), \
-        "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (tP["tileChar"], \
-        self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], \
-        self.bpe) )
-    self.vgprScratch.checkIn(self.lwoTB)
-    self.vgprScratch.checkIn(self.uRegB)
-    #kStr += dump(vgpr("LocalWriteAddrB"))
     #kStr += "s_endpgm\n"
     return kStr
 

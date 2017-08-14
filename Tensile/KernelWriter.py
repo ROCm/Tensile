@@ -311,9 +311,9 @@ class KernelWriter:
 
       # first offsets
       kStr += self.comment("local write addresses: first offset a")
-      kStr += self.lwaFirstOffsetA(kernel, tensorParametersA)
+      kStr += self.lwaFirstOffset(kernel, tensorParametersA)
       kStr += self.comment("local write addresses: first offset b")
-      kStr += self.lwaFirstOffsetB(kernel, tensorParametersB)
+      kStr += self.lwaFirstOffset(kernel, tensorParametersB)
 
       # final offsets
       kStr += self.comment("local write addresses: final offsets a")
@@ -1319,17 +1319,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Local Write Addresses: First Offset A
+  # Local Write Addresses: First Offset A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaFirstOffsetA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Write Addresses: First Offset B
-  ##############################################################################
-  @abc.abstractmethod
-  def lwaFirstOffsetB(self, kernel, tA):
+  def lwaFirstOffset(self, kernel, tA):
     return ""
 
   ##############################################################################

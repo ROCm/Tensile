@@ -1206,21 +1206,13 @@ class KernelWriterSource(KernelWriter):
 
 #RESUME
   ##############################################################################
-  # Local Write Addresses: First Offset A
+  # Local Write Addresses: First Offset A/B
   ##############################################################################
-  def lwaFirstOffsetA(self, kernel, tP):
+  def lwaFirstOffset(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int localWriteFirstOffsetA = lwA%s + lwA%s*(MT%s+PAD);%s" \
-        % (self.tileCharA, self.unrollChar, self.tileCharA, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Write Addresses: First Offset B
-  ##############################################################################
-  def lwaFirstOffsetB(self, kernel, tP):
-    kStr = ""
-    kStr += "  unsigned int localWriteFirstOffsetB = lwB%s + lwB%s*(MT%s+PAD) + LDS_OFFSET_B;%s" \
-        % (self.tileCharB, self.unrollChar, self.tileCharB, self.endLine)
+    kStr += "  unsigned int localWriteFirstOffset%s = lw%s%s + lw%s%s*(MT%s+PAD);%s" \
+        % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
+        tP["tensorChar"], self.unrollChar, tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1238,12 +1230,12 @@ class KernelWriterSource(KernelWriter):
               (("%u + "%s) if self.writeTileDimComponentsA else ""), \
               para, (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
           if not tP["tlu"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharA)
+            kStr += "*(MT%s+PAD)" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % (
               (("%u + "%s) if self.writeUnrollDimComponentsA else ""), perp, \
               (tP["lsp"] if tP["tlu"] else tP["lsp"]) )
           if tP["tlu"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharA)
+            kStr += "*(MT%s+PAD)" % (tP["tileChar"])
           kStr += ";%s" % self.endLine
           """
           kStr += "  printf(\\\"LWA T[%%02u] lWOA_%u_%u%s = %%4u\\\\n\\\", serial, localWriteOffsetA_%u_%u%s);%s" \
@@ -1272,12 +1264,12 @@ class KernelWriterSource(KernelWriter):
               (("%u + "%s) if self.writeTileDimComponentsB else ""), para, \
               (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
           if not tP["tlu"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharB)
+            kStr += "*(MT%s+PAD)" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % ( \
               (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
               (tP["lsp"] if not tP["tlu"] else tP["lsp"]) )
           if tP["tlu"]:
-            kStr += "*(MT%s+PAD)" % (self.tileCharB)
+            kStr += "*(MT%s+PAD)" % (tP["tileChar"])
           kStr += ";%s" % self.endLine
           """
           kStr += "  printf(\\\"LWB T[%%02u] lWOB_%u_%u%s = %%4u\\\\n\\\", serial, localWriteOffsetB_%u_%u%s);%s" \
@@ -1331,7 +1323,7 @@ class KernelWriterSource(KernelWriter):
   def lraTileAssignmentA(self, kernel, tP):
     kStr = ""
     kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
-        % (self.tileChar0, self.tileChar0, self.endLine)
+        % (tP["tileChar"], self.tileChar0, self.endLine)
     return kStr
 
   ##############################################################################
@@ -1340,7 +1332,7 @@ class KernelWriterSource(KernelWriter):
   def lraTileAssignmentB(self, kernel, tP):
     kStr = ""
     kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
-        % (self.tileChar1, self.tileChar0, self.tileChar1, self.endLine)
+        % (tP["tileChar"], self.tileChar0, self.tileChar1, self.endLine)
     return kStr
 
   ##############################################################################
@@ -1349,7 +1341,7 @@ class KernelWriterSource(KernelWriter):
   def lraFinalOffsetA(self, kernel, tP):
     kStr = ""
     kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD);%s" \
-        % ( self.tileChar0, self.tileChar0, self.endLine)
+        % ( tP["tileChar"], tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1892,7 +1884,7 @@ class KernelWriterSource(KernelWriter):
   def localReadIncA(self, kernel, tP):
     kStr = ""
     kStr += "%slocalReadA += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
-        % (self.indent, self.tileChar0, self.endLine)
+        % (self.indent, tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1901,7 +1893,7 @@ class KernelWriterSource(KernelWriter):
   def localReadIncB(self, kernel, tP):
     kStr = ""
     kStr += "%slocalReadB += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
-        % (self.indent, self.tileChar1, self.endLine)
+        % (self.indent, tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1912,8 +1904,8 @@ class KernelWriterSource(KernelWriter):
     for a in range(0, kernel["ThreadTileA"]/kernel["VectorWidth"]):
       kStr += "%srA[%d%s] = localReadA[%d*SG%s]; %s" \
           % (self.indent, a, \
-          (("+TT%s/VECTOR_WIDTH"%self.tileCharA) if black else ""), \
-          a, self.tileChar0, self.endLine)
+          (("+TT%s/VECTOR_WIDTH"%tP["tileChar"]) if black else ""), \
+          a, tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1924,8 +1916,8 @@ class KernelWriterSource(KernelWriter):
     for b in range(0, kernel["ThreadTileB"]/kernel["VectorWidth"]):
       kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
           % (self.indent, b, \
-          (("+TT%s/VECTOR_WIDTH"%self.tileCharB) if black else ""), \
-          b, self.tileChar1, self.endLine)
+          (("+TT%s/VECTOR_WIDTH"%tP["tileChar"]) if black else ""), \
+          b, tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
