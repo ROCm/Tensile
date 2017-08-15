@@ -1574,7 +1574,6 @@ class KernelWriterSource(KernelWriter):
       kStr += "#pragma clang diagnostic pop" + self.endLine
     return kStr
 
-#RESUME
   ##############################################################################
   # Local Read: Swap Offsets A/B
   ##############################################################################
