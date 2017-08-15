@@ -195,9 +195,9 @@ class KernelWriter:
 
       # declare addresses
       kStr += self.comment("local write addresses: declare addresses a")
-      kStr += self.lwaDeclareAddressesA(kernel, tensorParametersA)
+      kStr += self.lwaDeclareAddresses(kernel, tensorParametersA)
       kStr += self.comment("local write addresses: declare addresses b")
-      kStr += self.lwaDeclareAddressesB(kernel, tensorParametersB)
+      kStr += self.lwaDeclareAddresses(kernel, tensorParametersB)
 
       # init pointers
       kStr += self.comment("local write addresses: init pointers a")
@@ -219,15 +219,15 @@ class KernelWriter:
 
       # final offsets
       kStr += self.comment("local read addresses: final offsets a")
-      kStr += self.lraFinalOffsetA(kernel, tensorParametersA)
+      kStr += self.lraFinalOffset(kernel, tensorParametersA)
       kStr += self.comment("local read addresses: final offsets b")
-      kStr += self.lraFinalOffsetB(kernel, tensorParametersB)
+      kStr += self.lraFinalOffset(kernel, tensorParametersB)
 
       # declare addresses
       kStr += self.comment("local read addresses: declare addresses a")
-      kStr += self.lraDeclareAddressesA(kernel, tensorParametersA)
+      kStr += self.lraDeclareAddresses(kernel, tensorParametersA)
       kStr += self.comment("local read addresses: declare addresses b")
-      kStr += self.lraDeclareAddressesB(kernel, tensorParametersB)
+      kStr += self.lraDeclareAddresses(kernel, tensorParametersB)
 
       # init pointers
       kStr += self.comment("local read addresses: init pointers a")
@@ -1211,17 +1211,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Local Write Addresses: Declare Addresses A
+  # Local Write Addresses: Declare Addresses A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaDeclareAddressesA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Write Addresses: Declare Addresses B
-  ##############################################################################
-  @abc.abstractmethod
-  def lwaDeclareAddressesB(self, kernel, tA):
+  def lwaDeclareAddresses(self, kernel, tP):
     return ""
 
   ##############################################################################
@@ -1235,35 +1228,21 @@ class KernelWriter:
   # Local Read Addresses: Tile Assignment B
   ##############################################################################
   @abc.abstractmethod
-  def lraTileAssignmentB(self, kernel, tA):
+  def lraTileAssignmentB(self, kernel, tB):
     return ""
 
   ##############################################################################
-  # Local Read Addresses: Final Offset A
+  # Local Read Addresses: Final Offset A/B
   ##############################################################################
   @abc.abstractmethod
-  def lraFinalOffsetA(self, kernel, tA):
+  def lraFinalOffset(self, kernel, tA):
     return ""
 
   ##############################################################################
-  # Local Read Addresses: Final Offset B
+  # Local Read Addresses: Declare Addresses A/B
   ##############################################################################
   @abc.abstractmethod
-  def lraFinalOffsetB(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read Addresses: Declare Addresses A
-  ##############################################################################
-  @abc.abstractmethod
-  def lraDeclareAddressesA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read Addresses: Declare Addresses B
-  ##############################################################################
-  @abc.abstractmethod
-  def lraDeclareAddressesB(self, kernel, tA):
+  def lraDeclareAddresses(self, kernel, tP):
     return ""
 
   ##############################################################################

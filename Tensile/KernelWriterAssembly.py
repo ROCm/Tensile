@@ -760,9 +760,11 @@ class KernelWriterAssembly(KernelWriter):
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["localWriteOffsets"] = []
     tPA["localWriteInstruction"] = self.localWriteInstructionA
+    tPA["gpr"] = {}
 
     tPB["localWriteOffsets"] = []
     tPB["localWriteInstruction"] = self.localWriteInstructionB
+    tPB["gpr"] = {}
 
 
 
@@ -1987,17 +1989,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
     return kStr
 
-# RESUME
   ##############################################################################
-  # Local Write Addresses: Declare Addresses A - DONE
+  # Local Write Addresses: Declare Addresses A/B - DONE
   ##############################################################################
-  def lwaDeclareAddressesA(self, kernel, tP):
-    return self.comment1("N/A")
-
-  ##############################################################################
-  # Local Write Addresses: Declare Addresses B - DONE
-  ##############################################################################
-  def lwaDeclareAddressesB(self, kernel, tP):
+  def lwaDeclareAddresses(self, kernel, tP):
     return self.comment1("N/A")
 
   ##############################################################################
@@ -2022,9 +2017,9 @@ class KernelWriterAssembly(KernelWriter):
         tmpVgpr, tmpSgpr)
     #kStr += dump(vgpr(rReg))
     #kStr += dump(vgpr(qReg))
-    self.lroA = rReg
-    #kStr += dump(vgpr(self.lroA))
-    self.lroB = qReg
+    tP["gpr"]["lro"] = rReg
+    #kStr += dump(vgpr(tP["gpr"]["lro"]))
+    self.tmplroB = qReg
     self.vgprScratch.checkIn(tmpVgpr)
     #kStr += "s_endpgm\n"
     return kStr
@@ -2042,7 +2037,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     rReg = self.vgprScratch.checkOut(1) # remainder
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    dividendReg = self.lroB
+    dividendReg = self.tmplroB
     tmpVgpr = self.vgprScratch.checkOut(1)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     tmpSgpr = self.startSgprOffsetC
@@ -2051,18 +2046,18 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(rReg))
     #kStr += dump(vgpr(qReg))
     #kStr += "s_endpgm\n"
-    self.vgprScratch.checkIn(self.lroB) # old
-    self.lroB = rReg
-    #kStr += dump(vgpr(self.lroB))
+    self.vgprScratch.checkIn(self.tmplroB) # old
+    tP["gpr"]["lro"] = rReg
+    #kStr += dump(vgpr(tP["gpr"]["lro"]))
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(tmpVgpr)
     #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Final Offset A - DONE
+  # Local Read Addresses: Final Offset A/B - DONE
   ##############################################################################
-  def lraFinalOffsetA(self, kernel, tP):
+  def lraFinalOffset(self, kernel, tP):
     kStr = ""
     divisor = kernel["NumThreads"]
     qReg = self.vgprScratch.checkOut(1) # quotient
@@ -2076,7 +2071,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
     sgid = qReg
-    #kStr += dump(vgpr(self.lroA))
+    #kStr += dump(vgpr(tP["gpr"]["lro"]))
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
         hex(kernel["MacroTile0"]), \
@@ -2089,34 +2084,40 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
       #kStr += inst("v_lshlrev_b32", \
-      #    vgpr(self.lroA), \
+      #    vgpr(tP["gpr"]["lro"]), \
       #    log2(kernel["VectorWidth"]), \
-      #    vgpr(self.lroA), \
+      #    vgpr(tP["gpr"]["lro"]), \
       #    "lroA *= VW" )
-      kStr += staticMultiply(vgpr(self.lroA), vgpr(self.lroA), kernel["VectorWidth"])
-      #kStr += dump(vgpr(self.lroA))
+      kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), kernel["VectorWidth"])
+      #kStr += dump(vgpr(tP["gpr"]["lro"]))
     kStr += inst("v_add_u32", \
-        vgpr("LocalReadAddrA"), \
+        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "vcc", \
         vgpr(sgid), \
-        vgpr(self.lroA), \
+        vgpr(tP["gpr"]["lro"]), \
         "o = lroA*VW+sgid*MT0" )
     kStr += inst("v_lshlrev_b32", \
-        vgpr("LocalReadAddrA"), \
+        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         hex(log2(self.bpe)), \
-        vgpr("LocalReadAddrA"), \
+        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "*= bytes/element" )
+    if tP["isB"]:
+      kStr += inst("v_lshlrev_b32", \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          hex(log2(self.bpe)), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          "*= bytes/element" )
     #kStr += dump(vgpr("LocalReadAddrA"))
     #kStr += "s_endpgm\n"
 
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(rReg)
-    self.vgprScratch.checkIn(self.lroA)
+    self.vgprScratch.checkIn(tP["gpr"]["lro"])
     #kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*MT%s;%s" \
     #    % ( tP["tileChar"], tP["tileChar"], self.endLine)
     return kStr
-
+  """
   ##############################################################################
   # Local Read Addresses: Final Offset B - DONE
   ##############################################################################
@@ -2134,7 +2135,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
     sgid = qReg
-    #kStr += dump(vgpr(self.lroB))
+    #kStr += dump(vgpr(tP["gpr"]["lro"]))
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
         hex(kernel["MacroTile1"]), \
@@ -2147,17 +2148,17 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
       #kStr += inst("v_lshlrev_b32", \
-      #    vgpr(self.lroB), \
+      #    vgpr(tP["gpr"]["lro"]), \
       #    log2(kernel["VectorWidth"]), \
-      #    vgpr(self.lroB), \
+      #    vgpr(tP["gpr"]["lro"]), \
       #    "lroB *= VW" )
-      kStr += staticMultiply(vgpr(self.lroB), vgpr(self.lroB), kernel["VectorWidth"])
-      #kStr += dump(vgpr(self.lroB))
+      kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), kernel["VectorWidth"])
+      #kStr += dump(vgpr(tP["gpr"]["lro"]))
     kStr += inst("v_add_u32", \
         vgpr("LocalReadAddrB"), \
         "vcc", \
         vgpr(sgid), \
-        vgpr(self.lroB), \
+        vgpr(tP["gpr"]["lro"]), \
         "o = lroB*VW+sgid*MT1" )
     kStr += inst("v_lshlrev_b32", \
         vgpr("LocalReadAddrB"), \
@@ -2169,31 +2170,25 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(tmpVgpr)
     self.vgprScratch.checkIn(qReg)
     self.vgprScratch.checkIn(rReg)
-    self.vgprScratch.checkIn(self.lroB)
+    self.vgprScratch.checkIn(tP["gpr"]["lro"])
     #kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
     #    % (tP["tileChar"], tP["tileChar"], self.endLine)
     return kStr
+  """
 
   ##############################################################################
-  # Local Read Addresses: Declare Addresses A - DONE
+  # Local Read Addresses: Declare Addresses A/B - DONE
   ##############################################################################
-  def lraDeclareAddressesA(self, kernel, tP):
-    return self.comment1("N/A")
-
-  ##############################################################################
-  # Local Read Addresses: Declare Addresses B - DONE
-  ##############################################################################
-  def lraDeclareAddressesB(self, kernel, tP):
-    kStr = ""
-    kStr += inst("v_add_u32", \
-        vgpr("LocalReadAddrB+0"), \
-        "vcc", \
-        hex(kernel["LdsOffsetB"]*self.bpe), \
-        vgpr("LocalReadAddrB+0"), \
-        " += LdsOffsetB (lower)")
-    #kStr += dump(vgpr("LocalReadAddrB"))
-    #kStr += "s_endpgm\n"
-    return kStr
+  def lraDeclareAddresses(self, kernel, tP):
+    if tP["isA"]:
+      return self.comment1("N/A")
+    else:
+      return inst("v_add_u32", \
+          vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
+          "vcc", \
+          hex(kernel["LdsOffset%s"%tP["tensorChar"]]*self.bpe), \
+          vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
+          " += LdsOffset%s (lower)"%tP["tensorChar"])
 
   ##############################################################################
   # Declare Loop Num Iterations - DONE
@@ -2370,6 +2365,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "%s}%s" % (self.indent, self.endLine)
     return kStr
 
+# RESUME
   ##############################################################################
   # Global Read: Increment A - DONE
   ##############################################################################

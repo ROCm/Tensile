@@ -1239,37 +1239,19 @@ class KernelWriterSource(KernelWriter):
           kStr += ";%s" % self.endLine
     return kStr
 
-#RESUME
   ##############################################################################
-  # Local Write Addresses: Declare Addresses A
+  # Local Write Addresses: Declare Addresses A/B
   ##############################################################################
-  def lwaDeclareAddressesA(self, kernel, tP):
+  def lwaDeclareAddresses(self, kernel, tP):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nwvc"]):
-          kStr += "  %s%s *localWriteA_%u_%u%s;%s"\
+          kStr += "  %s%s *localWrite%s_%u_%u%s;%s"\
               % (self.sharedPtrStr, \
               ("DATA_TYPE" if (tP["wtc"] \
               or tP["wuc"]) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), self.endLine )
-    return kStr
-
-  ##############################################################################
-  # Local Write Addresses: Declare Addresses B
-  ##############################################################################
-  def lwaDeclareAddressesB(self, kernel, tP):
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "  %s%s *localWriteB_%u_%u%s;%s"\
-              % (self.sharedPtrStr, ("DATA_TYPE" \
-              if (tP["wtc"] \
-              or tP["wuc"]) else "VECTOR_TYPE"), \
-              para, perp, \
+              tP["tensorChar"], para, perp, \
               (("_s%u"%s) if (tP["wtc"] \
               or tP["wuc"]) else ""), self.endLine )
     return kStr
@@ -1295,35 +1277,20 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses: Final Offset A
   ##############################################################################
-  def lraFinalOffsetA(self, kernel, tP):
+  def lraFinalOffset(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD);%s" \
-        % ( tP["tileChar"], tP["tileChar"], self.endLine)
+    kStr += "  unsigned int localReadOffset%s = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD)%s;%s" \
+        % ( tP["tensorChar"], tP["tileChar"], tP["tileChar"], \
+        " + LDS_OFFSET_B" if tP["isB"] else "", self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Final Offset B
+  # Local Read Addresses: Declare Addresses A/B
   ##############################################################################
-  def lraFinalOffsetB(self, kernel, tP):
+  def lraDeclareAddresses(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int localReadOffsetB = lr%s*VECTOR_WIDTH + sgId*(MT%s+PAD) + LDS_OFFSET_B;%s" \
-        % (self.tileChar1, self.tileChar1, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read Addresses: Declare Addresses A
-  ##############################################################################
-  def lraDeclareAddressesA(self, kernel, tP):
-    kStr = ""
-    kStr += "  %sVECTOR_TYPE *localReadA;%s" % (self.sharedPtrStr, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read Addresses: Declare Addresses B
-  ##############################################################################
-  def lraDeclareAddressesB(self, kernel, tP):
-    kStr = ""
-    kStr += "  %sVECTOR_TYPE *localReadB;%s" % (self.sharedPtrStr, self.endLine)
+    kStr += "  %sVECTOR_TYPE *localRead%s;%s" % (self.sharedPtrStr, \
+        tP["tensorChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1460,6 +1427,7 @@ class KernelWriterSource(KernelWriter):
     kStr += "%s}%s" % (self.indent, self.endLine)
     return kStr
 
+#RESUME
   ##############################################################################
   # Global Read: Increment A
   ##############################################################################
