@@ -1896,7 +1896,6 @@ class KernelWriterAssembly(KernelWriter):
   def lwaUnrollAssignment(self, kernel, tP):
     return self.comment1("lwaUnroll%s = %s" % (tP["tensorChar"], vgpr(self.uRegA if tP["isA"] else self.uRegB)))
 
-# RESUME
   ##############################################################################
   # Local Write Addresses: First Offset A/B - DONE
   ##############################################################################
@@ -1938,6 +1937,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_endpgm\n"
     return kStr
 
+# RESUME
   ##############################################################################
   # Local Write Addresses: Final Offsets A - DONE
   # initially assume write offsets fit into 8-bits
@@ -1947,12 +1947,12 @@ class KernelWriterAssembly(KernelWriter):
     self.localWriteOffsetsA = []
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP[nwvc]):
           lscaOffset = para * kernel[tP["lsc"]]
           lspaOffset = perp * kernel[tP["lsp"]]
-          if self.writeTileDimComponentsA:
+          if tP[wtc]:
             lscaOffset += s
-          elif self.writeUnrollDimComponentsA:
+          elif tP[wuc]:
             lspaOffset += s # * VW could go here, check transpose options
           if tP["tlu"]:
             lspaOffset *= kernel["MacroTileA"]
@@ -1968,14 +1968,14 @@ class KernelWriterAssembly(KernelWriter):
 
           kStr += "%slwoA_%u_%u%s = (%s%d*%s)" \
               % (self.commentPrefix, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              (("%u + "%s) if self.writeTileDimComponentsA else ""), \
+              (("_s%u"%s) if (tP[wtc] \
+              or tP[wuc]) else ""), \
+              (("%u + "%s) if tP[wtc] else ""), \
               para, tP["lsc"] )
           if not tP["tlu"]:
             kStr += "*MT%s" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % (
-              (("%u + "%s) if self.writeUnrollDimComponentsA else ""), perp, \
+              (("%u + "%s) if tP[wuc] else ""), perp, \
               tP["lsp"])
           if tP["tlu"]:
             kStr += "*MT%s" % (tP["tileChar"])
@@ -1991,12 +1991,12 @@ class KernelWriterAssembly(KernelWriter):
     self.localWriteOffsetsB = []
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP[nwvc]):
           lscbOffset = para * kernel[tP["lsc"]]
           lspbOffset = perp * kernel[tP["lsp"]]
-          if self.writeTileDimComponentsB:
+          if tP[wtc]:
             lscbOffset += s
-          elif self.writeUnrollDimComponentsB:
+          elif tP[wuc]:
             lspbOffset += s
           if tP["tlu"]:
             lspbOffset *= kernel["MacroTileB"]
@@ -2012,14 +2012,14 @@ class KernelWriterAssembly(KernelWriter):
 
           kStr += "%slwoB_%u_%u%s = (%s%d*%s)" \
               % (self.commentPrefix, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              (("%u + "%s) if self.writeTileDimComponentsB else ""), \
+              (("_s%u"%s) if (tP[wtc] \
+              or tP[wuc]) else ""), \
+              (("%u + "%s) if tP[wtc] else ""), \
               para, tP["lsc"] )
           if not tP["tlu"]:
             kStr += "*MT%s" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % (
-              (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
+              (("%u + "%s) if tP[wuc] else ""), perp, \
               tP["lsp"])
           if tP["tlu"]:
             kStr += "*MT%s" % (tP["tileChar"])
@@ -2653,11 +2653,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP[nwvc]):
           kStr += "%slocalWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), self.endLine )
+              para, perp, (("_s%u"%s) if (tP[wtc] \
+              or tP[wuc]) else ""), self.endLine )
     return kStr
 
   ##############################################################################
@@ -2669,11 +2669,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP[nwvc]):
           kStr += "%slocalWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), self.endLine )
+              (("_s%u"%s) if (tP[wtc] \
+              or tP[wuc]) else ""), self.endLine )
     return kStr
 
 

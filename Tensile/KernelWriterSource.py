@@ -1204,7 +1204,6 @@ class KernelWriterSource(KernelWriter):
     kStr += ";%s" % self.endLine
     return kStr
 
-#RESUME
   ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
@@ -1216,72 +1215,29 @@ class KernelWriterSource(KernelWriter):
         " + LDS_OFFSET_B" if tP["isB"] else "", self.endLine)
     return kStr
 
+#RESUME
   ##############################################################################
-  # Local Write Addresses: Final Offsets A
+  # Local Write Addresses: Final Offsets A/B
   ##############################################################################
-  def lwaFinalOffsetsA(self, kernel, tP):
+  def lwaFinalOffsets(self, kernel, tP):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
-          kStr += "  unsigned int localWriteOffsetA_%u_%u%s = localWriteFirstOffsetA + (%s%d*%s)" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              (("%u + "%s) if self.writeTileDimComponentsA else ""), \
+        for s in range(0, tP["nwvc"]):
+          kStr += "  unsigned int localWriteOffset%s_%u_%u%s = localWriteFirstOffset%s + (%s%d*%s)" \
+              % (tP["tensorChar"], para, perp, \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), tP["tensorChar"], \
+              (("%u + "%s) if tP["wtc"] else ""), \
               para, (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
           if not tP["tlu"]:
             kStr += "*(MT%s+PAD)" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % (
-              (("%u + "%s) if self.writeUnrollDimComponentsA else ""), perp, \
+              (("%u + "%s) if tP["wuc"] else ""), perp, \
               (tP["lsp"] if tP["tlu"] else tP["lsp"]) )
           if tP["tlu"]:
             kStr += "*(MT%s+PAD)" % (tP["tileChar"])
           kStr += ";%s" % self.endLine
-          """
-          kStr += "  printf(\\\"LWA T[%%02u] lWOA_%u_%u%s = %%4u\\\\n\\\", serial, localWriteOffsetA_%u_%u%s);%s" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.endLine )
-          """
-    return kStr
-
-  ##############################################################################
-  # Local Write Addresses: Final Offsets B
-  ##############################################################################
-  def lwaFinalOffsetsB(self, kernel, tP):
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
-          kStr += "  unsigned int localWriteOffsetB_%u_%u%s = localWriteFirstOffsetB + (%s%d*%s)" \
-              % (para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              (("%u + "%s) if self.writeTileDimComponentsB else ""), para, \
-              (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
-          if not tP["tlu"]:
-            kStr += "*(MT%s+PAD)" % (tP["tileChar"])
-          kStr += " + (%s%d*%s)" % ( \
-              (("%u + "%s) if self.writeUnrollDimComponentsB else ""), perp, \
-              (tP["lsp"] if not tP["tlu"] else tP["lsp"]) )
-          if tP["tlu"]:
-            kStr += "*(MT%s+PAD)" % (tP["tileChar"])
-          kStr += ";%s" % self.endLine
-          """
-          kStr += "  printf(\\\"LWB T[%%02u] lWOB_%u_%u%s = %%4u\\\\n\\\", serial, localWriteOffsetB_%u_%u%s);%s" \
-             % (para, perp,
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.endLine )
-          """
     return kStr
 
   ##############################################################################
@@ -1291,14 +1247,14 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP["nwvc"]):
           kStr += "  %s%s *localWriteA_%u_%u%s;%s"\
               % (self.sharedPtrStr, \
-              ("DATA_TYPE" if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
+              ("DATA_TYPE" if (tP["wtc"] \
+              or tP["wuc"]) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), self.endLine )
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
     return kStr
 
   ##############################################################################
@@ -1308,14 +1264,14 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP["nwvc"]):
           kStr += "  %s%s *localWriteB_%u_%u%s;%s"\
               % (self.sharedPtrStr, ("DATA_TYPE" \
-              if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
+              if (tP["wtc"] \
+              or tP["wuc"]) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), self.endLine )
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
     return kStr
 
   ##############################################################################
@@ -1656,23 +1612,23 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteOffsetA_%u_%u%s = (localWriteOffsetA_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
               % (self.indent, \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), self.endLine )
+              para, perp, (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              para, perp, (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
           """
           kStr += "%slocalWriteA_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetA_%u_%u%s);%s"\
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
+              or tP["wuc"]) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
               self.endLine)
           """
     return kStr
@@ -1684,23 +1640,23 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteOffsetB_%u_%u%s = (localWriteOffsetB_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), self.endLine )
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              para, perp, (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
           """
           kStr += "%slocalWriteB_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetB_%u_%u%s);%s"\
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
+              or tP["wuc"]) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
               self.endLine)
           """
     return kStr
@@ -1712,11 +1668,11 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, \
-              para, perp, (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), self.endLine )
+              para, perp, (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
     return kStr
 
   ##############################################################################
@@ -1726,11 +1682,11 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), self.endLine )
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
     return kStr
 
 
@@ -1742,16 +1698,16 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteA_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetA_%u_%u%s);%s"\
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "VECTOR_TYPE"), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
+              or tP["wuc"]) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else ""), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
               self.endLine)
     return kStr
 
@@ -1762,16 +1718,16 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteB_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetB_%u_%u%s);%s"\
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "VECTOR_TYPE"), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
+              or tP["wuc"]) else "VECTOR_TYPE"), \
               para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else ""), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
               self.endLine)
     return kStr
 
@@ -1787,15 +1743,15 @@ class KernelWriterSource(KernelWriter):
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsA):
+        for s in range(0, tP["nwvc"]):
           kStr += "%s*localWriteA_%u_%u%s = a_%u_%u%s;%s" \
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "" ), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else "" ), \
               para, perp, \
               ((".%s"%self.vectorComponents[s]) \
-              if (self.writeTileDimComponentsA \
-              or self.writeUnrollDimComponentsA) else "" ), \
+              if (tP["wtc"] \
+              or tP["wuc"]) else "" ), \
               self.endLine)
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
@@ -1811,15 +1767,15 @@ class KernelWriterSource(KernelWriter):
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, self.numWriteVectorComponentsB):
+        for s in range(0, tP["nwvc"]):
           kStr += "%s*localWriteB_%u_%u%s = b_%u_%u%s;%s" \
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "" ), \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else "" ), \
               para, perp, \
               ((".%s"%self.vectorComponents[s]) \
-              if (self.writeTileDimComponentsB \
-              or self.writeUnrollDimComponentsB) else "" ), \
+              if (tP["wtc"] \
+              or tP["wuc"]) else "" ), \
               self.endLine)
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine

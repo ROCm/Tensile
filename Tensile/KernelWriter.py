@@ -317,9 +317,9 @@ class KernelWriter:
 
       # final offsets
       kStr += self.comment("local write addresses: final offsets a")
-      kStr += self.lwaFinalOffsetsA(kernel, tensorParametersA)
+      kStr += self.lwaFinalOffsets(kernel, tensorParametersA)
       kStr += self.comment("local write addresses: final offsets b")
-      kStr += self.lwaFinalOffsetsB(kernel, tensorParametersB)
+      kStr += self.lwaFinalOffsets(kernel, tensorParametersB)
 
       # declare addresses
       kStr += self.comment("local write addresses: declare addresses a")
@@ -1179,6 +1179,8 @@ class KernelWriter:
       tP["nru"] = self.numReadsUnrollA
       tP["rtc"] = self.readTileDimComponentsA
       tP["ruc"] = self.readUnrollDimComponentsA
+      tP["wtc"] = self.writeTileDimComponentsA
+      tP["wuc"] = self.writeUnrollDimComponentsA
       tP["wg"] = "WorkGroup0"
       tP["tt"] = "ThreadTile0"
       tP["mt"] = "MacroTile0"
@@ -1191,6 +1193,7 @@ class KernelWriter:
       tP["ruv"] = self.readUnrollDimVectorA
       tP["ia"] = kernel["ProblemType"]["IndexAssignmentsA"]
       tP["nlvc"] = self.numReadVectorComponentsA
+      tP["nwvc"] = self.numWriteVectorComponentsA
     else: # B
       tP["isA"] = False
       tP["isB"] = True
@@ -1206,6 +1209,8 @@ class KernelWriter:
       tP["nru"] = self.numReadsUnrollB
       tP["rtc"] = self.readTileDimComponentsB
       tP["ruc"] = self.readUnrollDimComponentsB
+      tP["wtc"] = self.writeTileDimComponentsB
+      tP["wuc"] = self.writeUnrollDimComponentsB
       tP["wg"] = "WorkGroup1"
       tP["tt"] = "ThreadTile1"
       tP["mt"] = "MacroTile1"
@@ -1218,20 +1223,21 @@ class KernelWriter:
       tP["ruv"] = self.readUnrollDimVectorB
       tP["ia"] = kernel["ProblemType"]["IndexAssignmentsB"]
       tP["nlvc"] = self.numReadVectorComponentsB
+      tP["nwvc"] = self.numWriteVectorComponentsB
     return tP
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
   ##############################################################################
   @abc.abstractmethod
-  def graTileAssignment(self, kernel, tA):
+  def graTileAssignment(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Global Read Addresses: Unroll Assignment A/B
   ##############################################################################
   @abc.abstractmethod
-  def graUnrollAssignment(self, kernel, tA):
+  def graUnrollAssignment(self, kernel, tP):
     return ""
 
   ##############################################################################
@@ -1252,35 +1258,35 @@ class KernelWriter:
   # Global Read Addresses: Tile Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def graTileOffsets(self, kernel, tA):
+  def graTileOffsets(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Global Read Addresses: Unroll Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def graUnrollOffsets(self, kernel, tA):
+  def graUnrollOffsets(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Global Read Addresses: Branch A/B
   ##############################################################################
   @abc.abstractmethod
-  def graBranch(self, kernel, tA):
+  def graBranch(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Global Read Addresses: Shift A/B
   ##############################################################################
   @abc.abstractmethod
-  def graShift(self, kernel, tA):
+  def graShift(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Global Read Addresses: Final Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def graFinalOffsets(self, kernel, tA):
+  def graFinalOffsets(self, kernel, tP):
     return ""
 
   ##############################################################################
@@ -1294,49 +1300,42 @@ class KernelWriter:
   # Global Read Addresses: Addresses A/B
   ##############################################################################
   @abc.abstractmethod
-  def graAddresses(self, kernel, tA):
+  def graAddresses(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Global Read Addresses: Increments A/B
   ##############################################################################
   @abc.abstractmethod
-  def graIncrements(self, kernel, loopIdx, tA):
+  def graIncrements(self, kernel, loopIdx, tP):
     return ""
 
   ##############################################################################
   # Local Write Addresses: Tile Assignment A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaTileAssignment(self, kernel, tA):
+  def lwaTileAssignment(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Local Write Addresses: Unroll Assignment A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaUnrollAssignment(self, kernel, tA):
+  def lwaUnrollAssignment(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaFirstOffset(self, kernel, tA):
+  def lwaFirstOffset(self, kernel, tP):
     return ""
 
   ##############################################################################
-  # Local Write Addresses: Final Offsets A
+  # Local Write Addresses: Final Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def lwaFinalOffsetsA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Write Addresses: Final Offsets B
-  ##############################################################################
-  @abc.abstractmethod
-  def lwaFinalOffsetsB(self, kernel, tA):
+  def lwaFinalOffsets(self, kernel, tP):
     return ""
 
   ##############################################################################
