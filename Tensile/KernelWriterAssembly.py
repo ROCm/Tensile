@@ -2365,11 +2365,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "%s}%s" % (self.indent, self.endLine)
     return kStr
 
-# RESUME
   ##############################################################################
-  # Global Read: Increment A - DONE
+  # Global Read: Increment A/B - DONE
   ##############################################################################
-  def globalReadIncrementA(self, kernel, loopIdx, tP):
+  def globalReadIncrement(self, kernel, loopIdx, tP):
     if not self.do["GlobalInc"]: return ""
     kStr = ""
     loopChar = self.indexChars[ \
@@ -2381,95 +2380,43 @@ class KernelWriterAssembly(KernelWriter):
         for s in range(0, tP["nlvc"]):
           if self.globalReadIncsUseVgpr:
             kStr += inst("v_add_i32 ", \
-                vgpr("GlobalReadAddrA+%u+0"%graIdx), \
+                vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                 "vcc", \
-                vgpr("GlobalReadAddrA+%u+0"%graIdx),  \
-                vgpr("GlobalReadIncsA+%u+0"%loopIdx), \
-                "gra += incA%s (lower)"%loopChar)
+                vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                vgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
+                "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
             kStr += inst("v_addc_u32", \
-                vgpr("GlobalReadAddrA+%u+1"%graIdx), \
+                vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
                 "vcc", \
-                vgpr("GlobalReadAddrA+%u+1"%graIdx), \
-                vgpr("GlobalReadIncsA+%u+1"%loopIdx), \
+                vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                vgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
                 "vcc", \
-                "gra += incA%s (upper)"%loopChar)
+                "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
           else:
             kStr += inst("v_add_i32 ", \
-                vgpr("GlobalReadAddrA+%u+0"%graIdx), \
+                vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                 "vcc", \
-                vgpr("GlobalReadAddrA+%u+0"%graIdx),  \
-                sgpr("GlobalReadIncsA+%u+0"%loopIdx), \
-                "gra += incA%s (lower)"%loopChar)
+                vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                sgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
+                "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
             kStr += inst("v_mov_b32 ", \
                 vgpr(tmp), \
-                sgpr("GlobalReadIncsA+%u+1"%loopIdx), \
-                "vgpr GlobalReadIncsA")
+                sgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
+                "vgpr GlobalReadIncs%s"%tP["tensorChar"] )
             kStr += inst("v_addc_u32", \
-                vgpr("GlobalReadAddrA+%u+1"%graIdx), \
+                vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
                 "vcc", \
-                vgpr("GlobalReadAddrA+%u+1"%graIdx), \
+                vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
                 vgpr(tmp), \
                 "vcc", \
-                "gra += incA%s (upper)"%loopChar)
+                "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
           graIdx += self.rpga
     #kStr += dump(vgpr("GlobalReadAddrA+0"))
     #kStr += dump(vgpr("GlobalReadAddrA+1"))
     #kStr += "s_endpgm\n"
     return kStr
 
-  ##############################################################################
-  # Global Read: Increment B - DONE
-  ##############################################################################
-  def globalReadIncrementB(self, kernel, loopIdx, tP):
-    if not self.do["GlobalInc"]: return ""
-    kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    graIdx = 0
-    tmp = self.startVgprSerial - 1
-    #kStr += dump(vgpr("GlobalReadAddrB+0"))
-    #kStr += dump(vgpr("GlobalReadAddrB+1"))
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nlvc"]):
-          if self.globalReadIncsUseVgpr:
-            kStr += inst("v_add_i32 ", \
-                vgpr("GlobalReadAddrB+%u+0"%graIdx), \
-                "vcc", \
-                vgpr("GlobalReadAddrB+%u+0"%graIdx),  \
-                vgpr("GlobalReadIncsB+%u+0"%loopIdx), \
-                "gra += incB%s (lower)"%loopChar)
-            kStr += inst("v_addc_u32", \
-                vgpr("GlobalReadAddrB+%u+1"%graIdx), \
-                "vcc", \
-                vgpr("GlobalReadAddrB+%u+1"%graIdx), \
-                vgpr("GlobalReadIncsB+%u+1"%loopIdx), \
-                "vcc", \
-                "gra += incB%s (upper)"%loopChar)
-          else:
-            kStr += inst("v_add_i32 ", \
-                vgpr("GlobalReadAddrB+%u+0"%graIdx), \
-                "vcc", \
-                vgpr("GlobalReadAddrB+%u+0"%graIdx),  \
-                sgpr("GlobalReadIncsB+%u+0"%loopIdx), \
-                "gra += incB%s (lower)"%loopChar)
-            kStr += inst("v_mov_b32 ", \
-                vgpr(tmp), \
-                sgpr("GlobalReadIncsB+%u+1"%loopIdx), \
-                "vgpr GlobalReadIncsB")
-            kStr += inst("v_addc_u32", \
-                vgpr("GlobalReadAddrB+%u+1"%graIdx), \
-                "vcc", \
-                vgpr("GlobalReadAddrB+%u+1"%graIdx), \
-                vgpr(tmp), \
-                "vcc", \
-                "gra += incB%s (upper)"%loopChar)
-          graIdx += self.rpga
-    #kStr += dump(vgpr("GlobalReadAddrB+0"))
-    #kStr += dump(vgpr("GlobalReadAddrB+1"))
-    #kStr += "s_endpgm\n"
-    return kStr
-
+# RESUME
   ##############################################################################
   # Global Read: Do It A - DONE
   ##############################################################################

@@ -1427,65 +1427,36 @@ class KernelWriterSource(KernelWriter):
     kStr += "%s}%s" % (self.indent, self.endLine)
     return kStr
 
+  ##############################################################################
+  # Global Read: Increment A/B
+  ##############################################################################
+  def globalReadIncrement(self, kernel, loopIdx, tP):
+    kStr = ""
+    loopChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    for perp in range(0, tP["nlp"]):
+      for para in range(0, tP["nlc"]):
+        for s in range(0, tP["nlvc"]):
+          if tP["rtv"] or tP["ruv"]:
+            kStr += "%sglobalRead%s_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalRead%s_%u_%u%s) + globalReadInc%s%s);%s" \
+                % (self.indent, tP["tensorChar"], para, perp, \
+                (("_s%u"%s) if (tP["rtc"] \
+                or tP["ruc"]) else ""), \
+                self.globalPtrStr, self.globalPtrStr, tP["tensorChar"], para, perp, \
+                (("_s%u"%s) if (tP["rtc"] \
+                or tP["ruc"]) else ""), \
+                tP["tensorChar"], loopChar, self.endLine)
+          else:
+            kStr += "%sglobalRead%s_%u_%u%s += globalReadInc%s%s%s;%s" \
+                % (self.indent, tP["tensorChar"], para, perp, \
+                (("_s%u"%s) if (tP["rtc"] \
+                or tP["ruc"]) else ""), \
+                tP["tensorChar"], loopChar, "" if (tP["rtc"] \
+                or tP["ruc"]) else "/VECTOR_WIDTH", \
+                self.endLine)
+    return kStr
+
 #RESUME
-  ##############################################################################
-  # Global Read: Increment A
-  ##############################################################################
-  def globalReadIncrementA(self, kernel, loopIdx, tP):
-    kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nlvc"]):
-          if tP["rtv"] or tP["ruv"]:
-            kStr += "%sglobalReadA_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadA_%u_%u%s) + globalReadIncA%s);%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                self.globalPtrStr, self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                loopChar, self.endLine)
-          else:
-            kStr += "%sglobalReadA_%u_%u%s += globalReadIncA%s%s;%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                loopChar, "" if (tP["rtc"] \
-                or tP["ruc"]) else "/VECTOR_WIDTH", \
-                self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Global Read: Increment B
-  ##############################################################################
-  def globalReadIncrementB(self, kernel, loopIdx, tP):
-    kStr = ""
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nlvc"]):
-          if tP["rtv"] or tP["ruv"]:
-            kStr += "%sglobalReadB_%u_%u%s = (%sVECTOR_TYPE const *)( ((%sDATA_TYPE const *)globalReadB_%u_%u%s) + globalReadIncB%s);%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                self.globalPtrStr, self.globalPtrStr, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                loopChar, self.endLine )
-          else:
-            kStr += "%sglobalReadB_%u_%u%s += globalReadIncB%s%s;%s" \
-                % (self.indent, para, perp, \
-                (("_s%u"%s) if (tP["rtc"] \
-                or tP["ruc"]) else ""), \
-                loopChar, "" if (tP["rtc"] \
-                or tP["ruc"]) else "/VECTOR_WIDTH", \
-                self.endLine)
-    return kStr
-
   ##############################################################################
   # Global Read: Do It A
   ##############################################################################

@@ -264,9 +264,11 @@ class KernelWriter:
       if self.enable["GlobalReadInc"]:
         # increment global
         kStr += self.comment("global read inc a")
-        kStr += self.globalReadIncrementA(kernel, self.unrollIdx, tensorParametersA)
+        kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
+            tensorParametersA)
         kStr += self.comment("global read inc b")
-        kStr += self.globalReadIncrementB(kernel, self.unrollIdx, tensorParametersB)
+        kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
+            tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["LocalWrite"]:
@@ -315,9 +317,11 @@ class KernelWriter:
     if self.enable["GlobalReadInc"]:
       # unrolled loop: increment global read addresses
       kStr += self.comment("global read inc a")
-      kStr += self.globalReadIncrementA(kernel, self.unrollIdx, tensorParametersA)
+      kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
+          tensorParametersA)
       kStr += self.comment("global read inc b")
-      kStr += self.globalReadIncrementB(kernel, self.unrollIdx, tensorParametersB)
+      kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
+          tensorParametersB)
 
     if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       if self.enable["Wait"]:
@@ -629,9 +633,9 @@ class KernelWriter:
     # extra summation loops: global increment and close
     for i in reversed(range(0,kernel["ProblemType"]["NumIndicesSummation"]-1)):
       kStr += self.comment("global read inc a")
-      kStr += self.globalReadIncrementA(kernel, i, tensorParametersA)
+      kStr += self.globalReadIncrement(kernel, i, tensorParametersA)
       kStr += self.comment("global read inc b")
-      kStr += self.globalReadIncrementB(kernel, i, tensorParametersB)
+      kStr += self.globalReadIncrement(kernel, i, tensorParametersB)
       kStr += self.closeLoop(kernel, i)
 
     kStr += self.endSummation()
@@ -1299,17 +1303,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Global Read: Increment A
+  # Global Read: Increment A/B
   ##############################################################################
   @abc.abstractmethod
-  def globalReadIncrementA(self, kernel, loopIdx, tA):
-    return ""
-
-  ##############################################################################
-  # Global Read: Increment B
-  ##############################################################################
-  @abc.abstractmethod
-  def globalReadIncrementB(self, kernel, loopIdx, tA):
+  def globalReadIncrement(self, kernel, loopIdx, tP):
     return ""
 
   ##############################################################################
