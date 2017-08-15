@@ -1907,9 +1907,9 @@ class KernelWriterAssembly(KernelWriter):
         "vcc", \
         vgpr(tP["gpr"]["lwoT"]), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        "lwFO%s = l%sw%s + lw%s%s*MT%s" \
-        % (tP["tensorChar"], tP["tileChar"], tP["tensorChar"], \
-        self.unrollChar, tP["tensorChar"], tP["tileChar"]) )
+        "lwFO%s = lw%s%s + lw%s%s*MT%s" \
+        % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
+        tP["tensorChar"], self.unrollChar, tP["tileChar"]) )
     kStr += inst("v_lshlrev_b32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         hex(log2(self.bpe)), \
@@ -2057,13 +2057,13 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(tP["gpr"]["lro"]))
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
-        hex(kernel["MacroTile0"]), \
-        "MT0" )
+        hex(kernel["MacroTile%u"%tP["tensorIdx"]]), \
+        "MT%u"%tP["tensorIdx"] )
     kStr += inst("v_mul_lo_u32", \
         vgpr(sgid), \
         vgpr(sgid), \
         sgpr(tmpSgpr), \
-        "sgid*sgid*MT0" )
+        "sgid*sgid*MT%u"%tP["tensorIdx"] )
     #kStr += dump(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
       #kStr += inst("v_lshlrev_b32", \
@@ -2078,7 +2078,7 @@ class KernelWriterAssembly(KernelWriter):
         "vcc", \
         vgpr(sgid), \
         vgpr(tP["gpr"]["lro"]), \
-        "o = lroA*VW+sgid*MT0" )
+        "o = lro%s*VW+sgid*MT%u"%(tP["tensorChar"], tP["tensorIdx"]) )
     kStr += inst("v_lshlrev_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         hex(log2(self.bpe)), \
@@ -2478,10 +2478,10 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead"]: return ""
     kStr = ""
     if tP["localReadInstruction"].numOffsets == 1:
-      tP["localReadOffset"] += kernel["LocalSplitU"]*kernel["MacroTile0"]
+      tP["localReadOffset"] += kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
       kStr += self.comment1("N/A")
     else:
-      inc = kernel["LocalSplitU"]*kernel["MacroTile0"]
+      inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
       kStr += inst("v_add_i32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "vcc", \
@@ -2501,7 +2501,7 @@ class KernelWriterAssembly(KernelWriter):
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
     offsetMultiplier = 1 # instruction.offsetMultiplier
-    totalReads = (kernel["ThreadTile0"]/kernel["VectorWidth"]) / numOffsets
+    totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"]) / numOffsets
     valuIdx = 0
     for lrIdx in range(0, totalReads):
       paramList = []
