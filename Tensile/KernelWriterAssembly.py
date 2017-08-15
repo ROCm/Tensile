@@ -1924,6 +1924,14 @@ class KernelWriterAssembly(KernelWriter):
         hex(log2(self.bpe)), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         " *= bytes/element" )
+    if tP["isB"]:
+      kStr += inst("v_add_u32", \
+          vgpr("LocalWriteAddrB"), \
+          "vcc", \
+          hex(kernel["LdsOffsetB"]*self.bpe), \
+          vgpr("LocalWriteAddrB"), \
+          "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (tP["tileChar"], \
+          self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpe) )
     self.vgprScratch.checkIn(self.lwoTA if tP["isA"] else self.lwoTB)
     self.vgprScratch.checkIn(self.uRegA if tP["isA"] else self.uRegB)
     #kStr += dump(vgpr("LocalWriteAddrA"))

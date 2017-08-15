@@ -1210,9 +1210,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def lwaFirstOffset(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int localWriteFirstOffset%s = lw%s%s + lw%s%s*(MT%s+PAD);%s" \
+    kStr += "  unsigned int localWriteFirstOffset%s = lw%s%s + lw%s%s*(MT%s+PAD)%s;%s" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
-        tP["tensorChar"], self.unrollChar, tP["tileChar"], self.endLine)
+        tP["tensorChar"], self.unrollChar, tP["tileChar"], \
+        " + LDS_OFFSET_B" if tP["isB"] else "", self.endLine)
     return kStr
 
   ##############################################################################
