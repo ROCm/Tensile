@@ -2084,12 +2084,14 @@ class KernelWriterAssembly(KernelWriter):
         hex(log2(self.bpe)), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "*= bytes/element" )
+    """
     if tP["isB"]:
       kStr += inst("v_lshlrev_b32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           hex(log2(self.bpe)), \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "*= bytes/element" )
+    """
     #kStr += dump(vgpr("LocalReadAddrA"))
     #kStr += "s_endpgm\n"
 
@@ -2371,7 +2373,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe), \
+        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "swap Red Blk")
     return kStr
@@ -2429,7 +2431,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe), \
+        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "swap Red Blk")
     return kStr
