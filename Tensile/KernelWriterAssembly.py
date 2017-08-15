@@ -759,11 +759,15 @@ class KernelWriterAssembly(KernelWriter):
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["localWriteOffsets"] = []
+    tPA["globalReadInstruction"] = self.globalReadInstructionA
     tPA["localWriteInstruction"] = self.localWriteInstructionA
+    tPA["localReadInstruction"] = self.localReadInstructionA
     tPA["gpr"] = {}
 
     tPB["localWriteOffsets"] = []
+    tPB["globalReadInstruction"] = self.globalReadInstructionB
     tPB["localWriteInstruction"] = self.localWriteInstructionB
+    tPB["localReadInstruction"] = self.localReadInstructionB
     tPB["gpr"] = {}
 
 
@@ -2416,190 +2420,58 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_endpgm\n"
     return kStr
 
-# RESUME
   ##############################################################################
-  # Global Read: Do It A - DONE
+  # Global Read: Do It A/B - DONE
   ##############################################################################
-  def globalReadDoA(self, kernel, guardK, tP):
+  def globalReadDo(self, kernel, guardK, tP):
     if not self.do["GlobalRead"]: return ""
     kStr = ""
     graIdx = 0
-    g2lIdxA = 0
-    loadWidth = self.globalReadInstructionA.totalWidth
+    g2lIdx = 0
+    loadWidth = tP["globalReadInstruction"].totalWidth
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nlvc"]):
-          kStr += self.globalReadInstructionA.toString( \
-              (vgpr("G2LA+%u"%g2lIdxA, loadWidth), \
-              vgpr("GlobalReadAddrA+%u"%graIdx,2)), \
+          kStr += tP["globalReadInstruction"].toString( \
+              (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
+              vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
               "G -> Reg %u_%u%s"%(para, perp, \
               "_%u"%s if tP["nlvc"]>1 else "") )
           #kStr += "s_endpgm\n"
           graIdx += self.rpga
-          g2lIdxA += loadWidth
-    if False:
-      kStr += "s_waitcnt vmcnt(0)\n"
-      #kStr += dump(vgpr("GlobalReadAddrA+0"))
-      #kStr += dump(vgpr("GlobalReadAddrA+1"))
-      kStr += dump(vgpr("G2LA+0"))
-      kStr += dump(vgpr("G2LA+1"))
-      #kStr += dump(vgpr("GlobalReadAddrA+2"))
-      #kStr += dump(vgpr("GlobalReadAddrA+3"))
-      kStr += dump(vgpr("G2LA+2"))
-      kStr += dump(vgpr("G2LA+3"))
-      kStr += dump(vgpr("G2LA+4"))
-      kStr += dump(vgpr("G2LA+5"))
-      kStr += dump(vgpr("G2LA+6"))
-      kStr += dump(vgpr("G2LA+7"))
-      #kStr += "s_endpgm\n"
-    return kStr
-    # SKIP branches
-    """
-          #kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
-          #    ((".%s"%self.vectorComponents[s]) if (tP["rtc"]\
-          #    or ruc) else "") )
-          # SKIP branches and tail loop guarded loads
-          # guard around K
-          if guardK:
-            kStr += "( globalReadOffsetA%s_%u%s >= (size%s %% DEPTHU) )" \
-                % (self.unrollChar, \
-                (perp if tP["tlu"] else para), \
-                (("_s%u"%s) if ruc else ""), \
-                self.unrollChar)
-          # guard around edge
-          if kernel["EdgeType"] == "Branch":
-            if guardK:
-              kStr += " || "
-            kStr += "( !inBoundsA_%u )" % ( \
-                (para if tP["tlu"] else perp) )
-          if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? %s : " % \
-               kernel["ProblemType"]["DataType"].zeroString(self.language, kernel["VectorWidth"])
-          #kStr += "*globalReadA_%u_%u%s;%s" % (para, perp, \
-          #    (("_s%u"%s) if (tP["rtc"] \
-          #    or ruc) else ""), self.endLine)
-    """
-
-  ##############################################################################
-  # Global Gead: Do It B - DONE
-  ##############################################################################
-  def globalReadDoB(self, kernel, guardK, tP):
-    if not self.do["GlobalRead"]: return ""
-    kStr = ""
-    graIdx = 0
-    g2lIdxB = 0
-    loadWidth = self.globalReadInstructionB.totalWidth
-    #kStr += dump(vgpr("GlobalReadAddrB+0"))
-    #kStr += dump(vgpr("GlobalReadAddrB+1"))
-    #kStr += "s_endpgm\n"
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nlvc"]):
-          kStr += self.globalReadInstructionB.toString( \
-              (vgpr("G2LB+%u"%g2lIdxB, loadWidth), \
-              vgpr("GlobalReadAddrB+%u"%graIdx, 2)), \
-              "G -> Reg %u_%u%s"%(para, perp, \
-              "_%u"%s if tP["nlvc"]>1 else "") )
-          graIdx += self.rpga
-          g2lIdxB += loadWidth
-    if False:
-      kStr += "s_waitcnt vmcnt(0)\n"
-      #kStr += dump(vgpr("GlobalReadAddrB+0"))
-      #kStr += dump(vgpr("GlobalReadAddrB+1"))
-      kStr += dump(vgpr("G2LB+0"))
-      kStr += dump(vgpr("G2LB+1"))
-      #kStr += dump(vgpr("GlobalReadAddrB+2"))
-      #kStr += dump(vgpr("GlobalReadAddrB+3"))
-      kStr += dump(vgpr("G2LB+2"))
-      kStr += dump(vgpr("G2LB+3"))
-      kStr += dump(vgpr("G2LB+4"))
-      kStr += dump(vgpr("G2LB+5"))
-      kStr += dump(vgpr("G2LB+6"))
-      kStr += dump(vgpr("G2LB+7"))
-      kStr += "s_endpgm\n"
-    #kStr += dump(vgpr("GlobalReadAddrB+0"))
-    #kStr += "s_endpgm\n"
-    # SKIP branches
+          g2lIdx += loadWidth
     return kStr
 
   ##############################################################################
-  # Local Write: Swap Offsets A - DONE
+  # Local Write: Swap Offsets A/B - DONE
   ##############################################################################
-  def localWriteSwapOffsetsA(self, kernel, tP):
+  def localWriteSwapOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
     kStr += inst("v_xor_b32", \
-        vgpr("LocalWriteAddrA"), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
-        vgpr("LocalWriteAddrA"), \
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe), \
+        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "swap Red Blk")
     return kStr
 
   ##############################################################################
-  # Local Write: Swap Offsets B - DONE
-  ##############################################################################
-  def localWriteSwapOffsetsB(self, kernel, tP):
-    if not self.do["LocalWrite"]: return ""
-    kStr = ""
-    kStr += inst("v_xor_b32", \
-        vgpr("LocalWriteAddrB"), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
-        vgpr("LocalWriteAddrB"), \
-        "swap Red Blk")
-    return kStr
-
-  ##############################################################################
-  # Local Write: Reset Offsets A - SKIP
+  # Local Write: Reset Offsets A/B - SKIP
   # used for global-read + tail-loop to reset to writing in red
   ##############################################################################
-  def localWriteResetOffsetsA(self, kernel, tP):
+  def localWriteResetOffsets(self, kernel, tP):
     return ""
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
-              % (self.indent, \
-              para, perp, (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), self.endLine )
-    return kStr
 
   ##############################################################################
-  # Local Write: Reset Offsets B - SKIP
-  # used for global-read + tail-loop to reset to writing in red
+  # Local Write: Init Pointers A/B - DONE
   ##############################################################################
-  def localWriteResetOffsetsB(self, kernel, tP):
-    return ""
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), self.endLine )
-    return kStr
-
-
-
-  ##############################################################################
-  # Local Write: Init Pointers A - DONE
-  ##############################################################################
-  def localWriteInitPointersA(self, kernel, tP):
+  def localWriteInitPointers(self, kernel, tP):
     return self.comment1("N/A")
 
   ##############################################################################
-  # Local Write: Init Pointers B - DONE
+  # Local Write: Do It A/B - DONE
   ##############################################################################
-  def localWriteInitPointersB(self, kernel, tP):
-    return self.comment1("N/A")
-
-
-
-  ##############################################################################
-  # Local Write: Do It A - DONE
-  ##############################################################################
-  def localWriteDoA(self, kernel, tP):
+  def localWriteDo(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
     instruction = tP["localWriteInstruction"]
@@ -2609,16 +2481,15 @@ class KernelWriterAssembly(KernelWriter):
     totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
-
     for graIdx in range(0, totalWrites):
-
       paramList = []
-      paramList.append(vgpr("LocalWriteAddrA"))
+      paramList.append(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
       for blockIdx in range(0, numBlocks):
         if blockWidth == 1:
-          paramList.append(vgpr("G2LA+%u"%g2lIdx))
+          paramList.append(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
         else:
-          paramList.append( vgpr("G2LA+%u"%g2lIdx,blockWidth))
+          paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
+              blockWidth))
       for oIdx in range(0, numOffsets):
         paramList.append(tP["localWriteOffsets"][graIdx*numOffsets+oIdx])
 
@@ -2627,59 +2498,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
       graIdx += 1
       g2lIdx += blockWidth
-
-    #kStr += dump(vgpr("LocalWriteAddrA"))
-    #kStr += dump(vgpr("G2LA+0"))
-    #kStr += dump(vgpr("G2LA+1"))
-    #kStr += dump(vgpr("G2LA+2"))
-    #kStr += dump(vgpr("G2LA+3"))
-    #kStr += "s_endpgm\n"
-
     return kStr
 
-  ##############################################################################
-  # Local Write: Do It B - DONE
-  ##############################################################################
-  def localWriteDoB(self, kernel, tP):
-    if not self.do["LocalWrite"]: return ""
-    kStr = ""
-    instruction = tP["localWriteInstruction"]
-    numBlocks = instruction.numBlocks
-    numOffsets = instruction.numOffsets
-    blockWidth = instruction.blockWidth
-    totalWrites = len(tP["localWriteOffsets"])/numOffsets
-    g2lIdx = 0
-    graIdx = 0
-
-    for graIdx in range(0, totalWrites):
-
-      paramList = []
-      paramList.append(vgpr("LocalWriteAddrB"))
-      for blockIdx in range(0, numBlocks):
-        if blockWidth == 1:
-          paramList.append(vgpr("G2LB+%u"%g2lIdx))
-        else:
-          paramList.append( vgpr("G2LB+%u"%g2lIdx,blockWidth))
-      for oIdx in range(0, numOffsets):
-        paramList.append(tP["localWriteOffsets"][graIdx*numOffsets+oIdx])
-
-      paramTuple = tuple(paramList)
-      comment = "Reg -> L %u"%graIdx
-      kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
-      graIdx += 1
-      g2lIdx += blockWidth
-    #kStr += dump(vgpr("LocalWriteAddrB"))
-    #kStr += dump(vgpr("G2LB+0"))
-    #kStr += dump(vgpr("G2LB+1"))
-    #kStr += dump(vgpr("G2LB+2"))
-    #kStr += dump(vgpr("G2LB+3"))
-
-    ########################################
-    # dump lds state
-    #kStr += self.dumpLds(kernel, 0, 8)
-
-    return kStr
-
+# RESUME
   ##############################################################################
   # Local Read: Swap Offsets A - DONE
   ##############################################################################

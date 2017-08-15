@@ -1456,11 +1456,10 @@ class KernelWriterSource(KernelWriter):
                 self.endLine)
     return kStr
 
-#RESUME
   ##############################################################################
-  # Global Read: Do It A
+  # Global Read: Do It A/B
   ##############################################################################
-  def globalReadDoA(self, kernel, guardK, tP):
+  def globalReadDo(self, kernel, guardK, tP):
     kStr = ""
     guardUnrolledComponents = tP["ruv"] and guardK \
         and kernel["VectorWidth"]>1
@@ -1471,13 +1470,13 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, numUnrollVectorComponents):
-          kStr += "%sa_%u_%u%s = " % (self.indent, para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (tP["rtc"]\
+          kStr += "%s%s_%u_%u%s = " % (self.indent, tP["tensorChar"].lower(), \
+              para, perp, ((".%s"%self.vectorComponents[s]) if (tP["rtc"]\
               or tP["ruc"] or guardUnrolledComponents) else "") )
           # guard around K
           if guardK:
-            kStr += "( globalReadOffsetA%s_%u%s%s >= (size%s %% LOCAL_DEPTHU%s)%s )" \
-                % (self.unrollChar, \
+            kStr += "( globalReadOffset%s%s_%u%s%s >= (size%s %% LOCAL_DEPTHU%s)%s )" \
+                % (tP["tensorChar"], self.unrollChar, \
                 (perp if tP["tlu"] else para), \
                 (("_s%u"%s) if tP["ruc"] else ""), \
                 "+%u"%s if guardUnrolledComponents else "", \
@@ -1488,194 +1487,73 @@ class KernelWriterSource(KernelWriter):
           if kernel["EdgeType"] == "Branch":
             if guardK:
               kStr += " || "
-            kStr += "( !inBoundsA_%u )" % ( \
-                (para if tP["tlu"] else perp) )
+            kStr += "( !inBounds%s_%u )" % ( \
+                (tP["tensorChar"], para if tP["tlu"] else perp) )
           if kernel["EdgeType"] == "Branch" or guardK:
             kStr += " ? %s : " % ("SCALAR_ZERO" if (tP["rtc"]\
               or tP["ruc"] or guardUnrolledComponents) else "VECTOR_ZERO")
-          kStr += "*(%sglobalReadA_%u_%u%s%s);%s" \
+          kStr += "*(%sglobalRead%s_%u_%u%s%s);%s" \
               % ("((DATA_TYPE*)" if guardUnrolledComponents else "", \
-              para, perp, (("_s%u"%s) if (tP["rtc"] \
+              tP["tensorChar"], para, perp, (("_s%u"%s) if (tP["rtc"] \
               or tP["ruc"]) else ""), \
               ")+%u"%s if guardUnrolledComponents else "", \
               self.endLine)
     return kStr
 
   ##############################################################################
-  # Global Gead: Do It B
+  # Local Write: Swap Offsets A/B
   ##############################################################################
-  def globalReadDoB(self, kernel, guardK, tP):
-    kStr = ""
-    guardUnrolledComponents = tP["ruv"] and guardK \
-        and kernel["VectorWidth"]>1
-    numUnrollVectorComponents = kernel["VectorWidth"] \
-        if guardUnrolledComponents else tP["nlvc"]
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, numUnrollVectorComponents):
-          kStr += "%sb_%u_%u%s = " % (self.indent, para, perp, \
-              ((".%s"%self.vectorComponents[s]) if (tP["rtc"]\
-              or tP["ruc"] or guardUnrolledComponents) \
-              else "") )
-          # guard around k
-          if guardK:
-            kStr += "( globalReadOffsetB%s_%u%s%s >= (size%s %% LOCAL_DEPTHU%s)%s )" \
-                % (self.unrollChar, \
-                (perp if tP["tlu"] else para), \
-                (("_s%u"%s) if tP["ruc"] else ""), \
-                "+%u"%s if guardUnrolledComponents else "", \
-                self.unrollChar, \
-                (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 else ""), \
-                (" || !numIter%s"%self.unrollChar) if kernel["GlobalSplitU"] > 1 else "")
-          # guard around edge
-          if kernel["EdgeType"] == "Branch":
-            if guardK:
-              kStr += " || "
-            kStr += "( !inBoundsB_%u )" % ( \
-                (para if tP["tlu"] else perp) )
-          if kernel["EdgeType"] == "Branch" or guardK:
-            kStr += " ? %s : " % ("SCALAR_ZERO" if (tP["rtc"]\
-              or tP["ruc"] or guardUnrolledComponents) else "VECTOR_ZERO")
-          kStr += "*(%sglobalReadB_%u_%u%s%s);%s" \
-              % ("((DATA_TYPE*)" if guardUnrolledComponents else "", \
-              para, perp, (("_s%u"%s) if (tP["rtc"] \
-              or tP["ruc"]) else ""), \
-              ")+%u"%s if guardUnrolledComponents else "", \
-              self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Write: Swap Offsets A
-  ##############################################################################
-  def localWriteSwapOffsetsA(self, kernel, tP):
+  def localWriteSwapOffsets(self, kernel, tP):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteOffsetA_%u_%u%s = (localWriteOffsetA_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
-              % (self.indent, \
+          kStr += "%slocalWriteOffset%s_%u_%u%s = (localWriteOffset%s_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
+              % (self.indent, tP["tensorChar"], \
               para, perp, (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              para, perp, (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), self.endLine )
-          """
-          kStr += "%slocalWriteA_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetA_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
-              or tP["wuc"]) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              self.endLine)
-          """
-    return kStr
-
-  ##############################################################################
-  # Local Write: Swap Offsets B
-  ##############################################################################
-  def localWriteSwapOffsetsB(self, kernel, tP):
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteOffsetB_%u_%u%s = (localWriteOffsetB_%u_%u%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              para, perp, (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), self.endLine )
-          """
-          kStr += "%slocalWriteB_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetB_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
-              or tP["wuc"]) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              self.endLine)
-          """
-    return kStr
-
-  ##############################################################################
-  # Local Write: Reset Offsets A
-  ##############################################################################
-  def localWriteResetOffsetsA(self, kernel, tP):
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
-              % (self.indent, \
+              or tP["wuc"]) else ""), tP["tensorChar"], \
               para, perp, (("_s%u"%s) if (tP["wtc"] \
               or tP["wuc"]) else ""), self.endLine )
     return kStr
 
   ##############################################################################
-  # Local Write: Reset Offsets B
+  # Local Write: Reset Offsets A/B
   ##############################################################################
-  def localWriteResetOffsetsB(self, kernel, tP):
+  def localWriteResetOffsets(self, kernel, tP):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
+          kStr += "%slocalWriteOffset%s_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
+              % (self.indent, tP["tensorChar"], \
+              para, perp, (("_s%u"%s) if (tP["wtc"] \
               or tP["wuc"]) else ""), self.endLine )
     return kStr
 
-
-
   ##############################################################################
-  # Local Write: Init Pointers A
+  # Local Write: Init Pointers A/B
   ##############################################################################
-  def localWriteInitPointersA(self, kernel, tP):
+  def localWriteInitPointers(self, kernel, tP):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteA_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetA_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
+          kStr += "%slocalWrite%s_%u_%u%s = (%s%s *)(localMemory + localWriteOffset%s_%u_%u%s);%s"\
+              % (self.indent, tP["tensorChar"], para, perp, \
               (("_s%u"%s) if (tP["wtc"] \
               or tP["wuc"]) else ""), \
               self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
               or tP["wuc"]) else "VECTOR_TYPE"), \
-              para, perp, \
+              tP["tensorChar"], para, perp, \
               (("_s%u"%s) if (tP["wtc"] \
               or tP["wuc"]) else ""), \
               self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Write: Init Pointers B
+  # Local Write: Do It A/B
   ##############################################################################
-  def localWriteInitPointersB(self, kernel, tP):
-    kStr = ""
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "%slocalWriteB_%u_%u%s = (%s%s *)(localMemory + localWriteOffsetB_%u_%u%s);%s"\
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              self.sharedPtrStr, ("DATA_TYPE" if (tP["wtc"] \
-              or tP["wuc"]) else "VECTOR_TYPE"), \
-              para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else ""), \
-              self.endLine)
-    return kStr
-
-
-
-  ##############################################################################
-  # Local Write: Do It A
-  ##############################################################################
-  def localWriteDoA(self, kernel, tP):
+  def localWriteDo(self, kernel, tP):
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
@@ -1683,11 +1561,11 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
         for s in range(0, tP["nwvc"]):
-          kStr += "%s*localWriteA_%u_%u%s = a_%u_%u%s;%s" \
-              % (self.indent, para, perp, \
+          kStr += "%s*localWrite%s_%u_%u%s = %s_%u_%u%s;%s" \
+              % (self.indent, tP["tensorChar"], para, perp, \
               (("_s%u"%s) if (tP["wtc"] \
               or tP["wuc"]) else "" ), \
-              para, perp, \
+              tP["tensorChar"].lower(), para, perp, \
               ((".%s"%self.vectorComponents[s]) \
               if (tP["wtc"] \
               or tP["wuc"]) else "" ), \
@@ -1696,30 +1574,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#pragma clang diagnostic pop" + self.endLine
     return kStr
 
-  ##############################################################################
-  # Local Write: Do It B
-  ##############################################################################
-  def localWriteDoB(self, kernel, tP):
-    kStr = ""
-    if self.language == "HIP":
-      kStr += "#pragma clang diagnostic push" + self.endLine
-      kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP["nwvc"]):
-          kStr += "%s*localWriteB_%u_%u%s = b_%u_%u%s;%s" \
-              % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP["wtc"] \
-              or tP["wuc"]) else "" ), \
-              para, perp, \
-              ((".%s"%self.vectorComponents[s]) \
-              if (tP["wtc"] \
-              or tP["wuc"]) else "" ), \
-              self.endLine)
-    if self.language == "HIP":
-      kStr += "#pragma clang diagnostic pop" + self.endLine
-    return kStr
-
+#RESUME
   ##############################################################################
   # Local Read: Swap Offsets A
   ##############################################################################
