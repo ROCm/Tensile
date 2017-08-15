@@ -1576,99 +1576,51 @@ class KernelWriterSource(KernelWriter):
 
 #RESUME
   ##############################################################################
-  # Local Read: Swap Offsets A
+  # Local Read: Swap Offsets A/B
   ##############################################################################
-  def localReadSwapOffsetsA(self, kernel, tP):
+  def localReadSwapOffsets(self, kernel, tP):
     kStr = ""
-    kStr += "%slocalReadOffsetA = (localReadOffsetA + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
-        % (self.indent, self.endLine)
+    kStr += "%slocalReadOffset%s = (localReadOffset%s + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
+        % (self.indent, tP["tensorChar"], tP["tensorChar"], self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read: Wwap Offsets B
+  # Local Read: Reset Offsets A/B
   ##############################################################################
-  def localReadSwapOffsetsB(self, kernel, tP):
+  def localReadResetOffsets(self, kernel, tP):
     kStr = ""
-    kStr += "%slocalReadOffsetB = (localReadOffsetB + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
-        % (self.indent, self.endLine)
+    kStr += "%slocalReadOffset%s %%= LDS_OFFSET_BLK;%s" \
+        % (self.indent, tP["tensorChar"], self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read: Reset Offsets A
+  # Local Read: Init Pointers A/B
   ##############################################################################
-  def localReadResetOffsetsA(self, kernel, tP):
+  def localReadInitPointers(self, kernel, tP):
     kStr = ""
-    kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
-        % (self.indent, self.endLine)
+    kStr += "%slocalRead%s = (%sVECTOR_TYPE *)(localMemory + localReadOffset%s);%s" \
+        % (self.indent, tP["tensorChar"], self.sharedPtrStr, tP["tensorChar"], self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read: Reset Offsets B
+  # Local Read: Increment A/B
   ##############################################################################
-  def localReadResetOffsetsB(self, kernel, tP):
+  def localReadInc(self, kernel, tP):
     kStr = ""
-    kStr += "%slocalReadOffsetB %%= LDS_OFFSET_BLK;%s" \
-        % (self.indent, self.endLine)
+    kStr += "%slocalRead%s += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+        % (self.indent, tP["tensorChar"], tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
-  # Local Read: Init Pointers A
+  # Local Read: Do It A/B
   ##############################################################################
-  def localReadInitPointersA(self, kernel, tP):
+  def localReadDo(self, kernel, black, tP):
     kStr = ""
-    kStr += "%slocalReadA = (%sVECTOR_TYPE *)(localMemory + localReadOffsetA);%s" \
-        % (self.indent, self.sharedPtrStr, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Init Pointers B
-  ##############################################################################
-  def localReadInitPointersB(self, kernel, tP):
-    kStr = ""
-    kStr += "%slocalReadB = (%sVECTOR_TYPE *)(localMemory + localReadOffsetB);%s" \
-        % (self.indent, self.sharedPtrStr, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Increment A
-  ##############################################################################
-  def localReadIncA(self, kernel, tP):
-    kStr = ""
-    kStr += "%slocalReadA += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
-        % (self.indent, tP["tileChar"], self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Increment B
-  ##############################################################################
-  def localReadIncB(self, kernel, tP):
-    kStr = ""
-    kStr += "%slocalReadB += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
-        % (self.indent, tP["tileChar"], self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Do It A
-  ##############################################################################
-  def localReadDoA(self, kernel, black, tP):
-    kStr = ""
-    for a in range(0, kernel["ThreadTileA"]/kernel["VectorWidth"]):
-      kStr += "%srA[%d%s] = localReadA[%d*SG%s]; %s" \
-          % (self.indent, a, \
+    for r in range(0, kernel[tP["tt"]]/kernel["VectorWidth"]):
+      kStr += "%sr%s[%d%s] = localRead%s[%d*SG%s]; %s" \
+          % (self.indent, tP["tensorChar"], r, \
           (("+TT%s/VECTOR_WIDTH"%tP["tileChar"]) if black else ""), \
-          a, tP["tileChar"], self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Do It B
-  ##############################################################################
-  def localReadDoB(self, kernel, black, tP):
-    kStr = ""
-    for b in range(0, kernel["ThreadTileB"]/kernel["VectorWidth"]):
-      kStr += "%srB[%d%s] = localReadB[%d*SG%s]; %s" \
-          % (self.indent, b, \
-          (("+TT%s/VECTOR_WIDTH"%tP["tileChar"]) if black else ""), \
-          b, tP["tileChar"], self.endLine)
+          tP["tensorChar"], r, tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################

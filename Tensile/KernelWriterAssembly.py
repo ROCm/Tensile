@@ -2502,149 +2502,79 @@ class KernelWriterAssembly(KernelWriter):
 
 # RESUME
   ##############################################################################
-  # Local Read: Swap Offsets A - DONE
+  # Local Read: Swap Offsets A/B - DONE
   ##############################################################################
-  def localReadSwapOffsetsA(self, kernel, tP):
+  def localReadSwapOffsets(self, kernel, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
     kStr += inst("v_xor_b32", \
-        vgpr("LocalReadAddrA"), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
-        vgpr("LocalReadAddrA"), \
+        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+        hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe), \
+        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "swap Red Blk")
     return kStr
 
   ##############################################################################
-  # Local Read: Wwap Offsets B - DONE
-  ##############################################################################
-  def localReadSwapOffsetsB(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
-    kStr = ""
-    kStr += inst("v_xor_b32", \
-        vgpr("LocalReadAddrB"), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
-        vgpr("LocalReadAddrB"), \
-        "swap Red Blk")
-    return kStr
-
-  ##############################################################################
-  # Local Read: Reset Offsets A - DONE
+  # Local Read: Reset Offsets A/B - DONE
   # x % n == n & (n-1) for n power of 2
   ##############################################################################
-  def localReadResetOffsetsA(self, kernel, tP):
+  def localReadResetOffsets(self, kernel, tP):
+    if not self.do["LocalRead"]: return ""
+    kStr = ""
+    if tP["localReadInstruction"].numOffsets == 1:
+      tP["localReadOffset"] = 0
+      kStr += self.comment1("N/A")
+    else:
+      kStr += inst("v_and_b32", \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe-1), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          "reset Red,Blk -> Red")
+    return kStr
+
+  ##############################################################################
+  # Local Read: Init Pointers A/B - DONE
+  ##############################################################################
+  def localReadInitPointers(self, kernel, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
     if self.localReadInstructionA.numOffsets == 1:
-      self.localReadOffsetA = 0
+      tP["localReadOffset"] = 0
       kStr += self.comment1("N/A")
     else:
       kStr += inst("v_and_b32", \
-          vgpr("LocalReadAddrA"), \
-          hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
-          vgpr("LocalReadAddrA"), \
-          "reset Red,Blk -> Red")
-    #kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
-    #    % (self.indent, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Reset Offsets B - DONE
-  ##############################################################################
-  def localReadResetOffsetsB(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
-    kStr = ""
-    if self.localReadInstructionB.numOffsets == 1:
-      self.localReadOffsetB = 0
-      kStr += self.comment1("N/A")
-    else:
-      kStr += inst("v_and_b32", \
-          vgpr("LocalReadAddrB"), \
-          hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
-          vgpr("LocalReadAddrB"), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe-1), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "reset Red,Blk -> Red")
     return kStr
 
   ##############################################################################
-  # Local Read: Init Pointers A - DONE
+  # Local Read: Increment A/B - DONE
   ##############################################################################
-  def localReadInitPointersA(self, kernel, tP):
+  def localReadInc(self, kernel, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
-    if self.localReadInstructionA.numOffsets == 1:
-      self.localReadOffsetA = 0
-      kStr += self.comment1("N/A")
-    else:
-      kStr += inst("v_and_b32", \
-          vgpr("LocalReadAddrA"), \
-          hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
-          vgpr("LocalReadAddrA"), \
-          "reset Red,Blk -> Red")
-    #kStr += "%slocalReadOffsetA %%= LDS_OFFSET_BLK;%s" \
-    #    % (self.indent, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read: Init Pointers B - DONE
-  ##############################################################################
-  def localReadInitPointersB(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
-    kStr = ""
-    if self.localReadInstructionB.numOffsets == 1:
-      self.localReadOffsetB = 0
-      kStr += self.comment1("N/A")
-    else:
-      kStr += inst("v_and_b32", \
-          vgpr("LocalReadAddrB"), \
-          hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
-          vgpr("LocalReadAddrB"), \
-          "reset Red,Blk -> Red")
-    return kStr
-
-  ##############################################################################
-  # Local Read: Increment A - DONE
-  ##############################################################################
-  def localReadIncA(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
-    kStr = ""
-    if self.localReadInstructionA.numOffsets == 1:
-      self.localReadOffsetA += kernel["LocalSplitU"]*kernel["MacroTile0"]
+    if tP["localReadInstruction"].numOffsets == 1:
+      tP["localReadOffset"] += kernel["LocalSplitU"]*kernel["MacroTile0"]
       kStr += self.comment1("N/A")
     else:
       inc = kernel["LocalSplitU"]*kernel["MacroTile0"]
       kStr += inst("v_add_i32", \
-          vgpr("LocalReadAddrA"), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "vcc", \
-          vgpr("LocalReadAddrA"), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           hex(inc), \
-          "lrA += %u"%inc )
+          "lr%s += %u"%(tP["tensorChar"], inc) )
     return kStr
 
   ##############################################################################
-  # Local Read: Increment B - DONE
+  # Local Read: Do It A/B - DONE
   ##############################################################################
-  def localReadIncB(self, kernel, tP):
+  def localReadDo(self, kernel, black, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
-    if self.localReadInstructionB.numOffsets == 1:
-      self.localReadOffsetB += kernel["LocalSplitU"]*kernel["MacroTile1"]
-      kStr += self.comment1("N/A")
-    else:
-      inc = kernel["LocalSplitU"]*kernel["MacroTile1"]
-      kStr += inst("v_add_i32", \
-          vgpr("LocalReadAddrB"), \
-          "vcc", \
-          vgpr("LocalReadAddrB"), \
-          hex(inc), \
-          "lrB += %u"%inc )
-    return kStr
-
-  ##############################################################################
-  # Local Read: Do It A - DONE
-  ##############################################################################
-  def localReadDoA(self, kernel, black, tP):
-    if not self.do["LocalRead"]: return ""
-    kStr = ""
-    instruction = self.localReadInstructionA
+    instruction = tP["localReadInstruction"]
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
@@ -2654,50 +2584,21 @@ class KernelWriterAssembly(KernelWriter):
     for lrIdx in range(0, totalReads):
       paramList = []
       if blockWidth == 1:
-        paramList.append(vgpr("Valu%sA+%u"%("Blk" if black else "", valuIdx)))
+        paramList.append(vgpr("Valu%s%s+%u"%(tP["tensorChar"], \
+            "Blk" if black else "", valuIdx)))
       else:
-        paramList.append( vgpr("Valu%sA+%u"%("Blk" if black else "", valuIdx), \
+        paramList.append( vgpr("Valu%s%s+%u"%(tP["tensorChar"], \
+            "Blk" if black else "", valuIdx), \
             blockWidth))
-      paramList.append(vgpr("LocalReadAddrA"))
+      paramList.append(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
       for oIdx in range(0, numOffsets):
         paramList.append((kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-            + self.localReadOffsetA)*self.bpe/offsetMultiplier)
+            + tP["localReadOffset"])*self.bpe/offsetMultiplier)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
       kStr += instruction.toString(paramTuple, comment)
       valuIdx += blockWidth
     return kStr
-
-  ##############################################################################
-  # Local Read: Do It B - DONE
-  ##############################################################################
-  def localReadDoB(self, kernel, black, tP):
-    if not self.do["LocalRead"]: return ""
-    kStr = ""
-    instruction = self.localReadInstructionB
-    numBlocks = instruction.numBlocks
-    numOffsets = instruction.numOffsets
-    blockWidth = instruction.blockWidth
-    offsetMultiplier = 1 # instruction.offsetMultiplier
-    totalReads = (kernel["ThreadTile1"]/kernel["VectorWidth"]) / numOffsets
-    valuIdx = 0
-    for lrIdx in range(0, totalReads):
-      paramList = []
-      if blockWidth == 1:
-        paramList.append(vgpr("Valu%sB+%u"%("Blk" if black else "", valuIdx)))
-      else:
-        paramList.append( vgpr("Valu%sB+%u"%("Blk" if black else "", valuIdx), \
-            blockWidth))
-      paramList.append(vgpr("LocalReadAddrB"))
-      for oIdx in range(0, numOffsets):
-        paramList.append((kernel["SubGroup1"]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-            + self.localReadOffsetB)*self.bpe/offsetMultiplier)
-      paramTuple = tuple(paramList)
-      comment = "L -> Reg %u"%lrIdx
-      kStr += instruction.toString(paramTuple, comment)
-      valuIdx += blockWidth
-    return kStr
-
 
   ##############################################################################
   # Shift Vector Components d0 - SKIP

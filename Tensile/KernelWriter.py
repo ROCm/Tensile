@@ -231,9 +231,9 @@ class KernelWriter:
 
       # init pointers
       kStr += self.comment("local read addresses: init pointers a")
-      kStr += self.localReadInitPointersA(kernel, tensorParametersA)
+      kStr += self.localReadInitPointers(kernel, tensorParametersA)
       kStr += self.comment("local read addresses: init pointers b")
-      kStr += self.localReadInitPointersB(kernel, tensorParametersB)
+      kStr += self.localReadInitPointers(kernel, tensorParametersB)
 
     ###########################################################################
     # summations loops: open
@@ -294,13 +294,13 @@ class KernelWriter:
           kStr += self.syncThreads(kernel)
         if self.enable["LocalRead"]:
           kStr += self.comment("local read prefetch a")
-          kStr += self.localReadDoA(kernel, False, tensorParametersA)
+          kStr += self.localReadDo(kernel, False, tensorParametersA)
           kStr += self.comment("local read prefetch b")
-          kStr += self.localReadDoB(kernel, False, tensorParametersB)
+          kStr += self.localReadDo(kernel, False, tensorParametersB)
           kStr += self.comment("local read inc a")
-          kStr += self.localReadIncA(kernel, tensorParametersA)
+          kStr += self.localReadInc(kernel, tensorParametersA)
           kStr += self.comment("local read inc b")
-          kStr += self.localReadIncB(kernel, tensorParametersB)
+          kStr += self.localReadInc(kernel, tensorParametersB)
       kStr += self.closeSumAtLeastUnroll(kernel)
 
     # open unrolled summation loop
@@ -358,13 +358,13 @@ class KernelWriter:
     if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
       if self.enable["LocalRead"]:
         kStr += self.comment("prefetch local a")
-        kStr += self.localReadDoA(kernel, False, tensorParametersA)
+        kStr += self.localReadDo(kernel, False, tensorParametersA)
         kStr += self.comment("prefetch local b")
-        kStr += self.localReadDoB(kernel, False, tensorParametersB)
+        kStr += self.localReadDo(kernel, False, tensorParametersB)
         kStr += self.comment("local read increment a")
-        kStr += self.localReadIncA(kernel, tensorParametersA)
+        kStr += self.localReadInc(kernel, tensorParametersA)
         kStr += self.comment("local read increment b")
-        kStr += self.localReadIncB(kernel, tensorParametersB)
+        kStr += self.localReadInc(kernel, tensorParametersB)
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
@@ -378,13 +378,13 @@ class KernelWriter:
       readBlk = kernel["PrefetchLocalRead"] and u%2==0
       if self.enable["LocalRead"]:
         kStr += self.comment("local read a")
-        kStr += self.localReadDoA(kernel, readBlk, tensorParametersA)
+        kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
         kStr += self.comment("local read b")
-        kStr += self.localReadDoB(kernel, readBlk, tensorParametersB)
+        kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
         kStr += self.comment("local read increment a")
-        kStr += self.localReadIncA(kernel, tensorParametersA)
+        kStr += self.localReadInc(kernel, tensorParametersA)
         kStr += self.comment("local read increment b")
-        kStr += self.localReadIncB(kernel, tensorParametersB)
+        kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
       if self.enable["MAC"]:
@@ -405,9 +405,9 @@ class KernelWriter:
       if self.enable["LocalRead"]:
         # local read for last unroll
         kStr += self.comment("local read a")
-        kStr += self.localReadDoA(kernel, True, tensorParametersA)
+        kStr += self.localReadDo(kernel, True, tensorParametersA)
         kStr += self.comment("local read b")
-        kStr += self.localReadDoB(kernel, True, tensorParametersB)
+        kStr += self.localReadDo(kernel, True, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["LocalWrite"]:
@@ -427,13 +427,13 @@ class KernelWriter:
       if self.enable["LocalRead"]:
         # swap read and write pointers
         kStr += self.comment("local read swap offsets a")
-        kStr += self.localReadSwapOffsetsA(kernel, tensorParametersA)
+        kStr += self.localReadSwapOffsets(kernel, tensorParametersA)
         kStr += self.comment("local read swap offsets b")
-        kStr += self.localReadSwapOffsetsB(kernel, tensorParametersB)
+        kStr += self.localReadSwapOffsets(kernel, tensorParametersB)
         kStr += self.comment("local read init pointers a")
-        kStr += self.localReadInitPointersA(kernel, tensorParametersA)
+        kStr += self.localReadInitPointers(kernel, tensorParametersA)
         kStr += self.comment("local read init pointers b")
-        kStr += self.localReadInitPointersB(kernel, tensorParametersB)
+        kStr += self.localReadInitPointers(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 1, "wait for prior local read")
     else:
@@ -441,21 +441,21 @@ class KernelWriter:
         # local read
         readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
         kStr += self.comment("local read a")
-        kStr += self.localReadDoA(kernel, readBlk, tensorParametersA)
+        kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
         kStr += self.comment("local read b")
-        kStr += self.localReadDoB(kernel, readBlk, tensorParametersB)
+        kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
         if kernel["PrefetchLocalRead"]:
           # local read init ptrs
           kStr += self.comment("local read init pointers a")
-          kStr += self.localReadInitPointersA(kernel, tensorParametersA)
+          kStr += self.localReadInitPointers(kernel, tensorParametersA)
           kStr += self.comment("local read init pointers b")
-          kStr += self.localReadInitPointersB(kernel, tensorParametersB)
+          kStr += self.localReadInitPointers(kernel, tensorParametersB)
         else:
           # local read inc
           kStr += self.comment("local read inc a")
-          kStr += self.localReadIncA(kernel, tensorParametersA)
+          kStr += self.localReadInc(kernel, tensorParametersA)
           kStr += self.comment("local read inc b")
-          kStr += self.localReadIncB(kernel, tensorParametersB)
+          kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
     if self.enable["MAC"]:
@@ -478,16 +478,16 @@ class KernelWriter:
         # local read
         readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
         kStr += self.comment("local read a")
-        kStr += self.localReadDoA(kernel, readBlk, tensorParametersA)
+        kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
         kStr += self.comment("local read b")
-        kStr += self.localReadDoB(kernel, readBlk, tensorParametersB)
+        kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       if self.enable["LocalRead"]:
         # local read inc
         kStr += self.comment("local read inc a")
-        kStr += self.localReadIncA(kernel, tensorParametersA)
+        kStr += self.localReadInc(kernel, tensorParametersA)
         kStr += self.comment("local read inc b")
-        kStr += self.localReadIncB(kernel, tensorParametersB)
+        kStr += self.localReadInc(kernel, tensorParametersB)
     elif kernel["PrefetchGlobalRead"]:
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
@@ -508,22 +508,22 @@ class KernelWriter:
       if self.enable["LocalRead"]:
         # swap read and write
         kStr += self.comment("local read swap offsets a")
-        kStr += self.localReadSwapOffsetsA(kernel, tensorParametersA)
+        kStr += self.localReadSwapOffsets(kernel, tensorParametersA)
         kStr += self.comment("local read swap offsets b")
-        kStr += self.localReadSwapOffsetsB(kernel, tensorParametersB)
+        kStr += self.localReadSwapOffsets(kernel, tensorParametersB)
         kStr += self.comment("local read init pointers a")
-        kStr += self.localReadInitPointersA(kernel, tensorParametersA)
+        kStr += self.localReadInitPointers(kernel, tensorParametersA)
         kStr += self.comment("local read init pointers b")
-        kStr += self.localReadInitPointersB(kernel, tensorParametersB)
+        kStr += self.localReadInitPointers(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, "wait for local read")
     elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       if self.enable["LocalRead"]:
         # local read init ptrs
         kStr += self.comment("local read init pointers a")
-        kStr += self.localReadInitPointersA(kernel, tensorParametersA)
+        kStr += self.localReadInitPointers(kernel, tensorParametersA)
         kStr += self.comment("local read init pointers b")
-        kStr += self.localReadInitPointersB(kernel, tensorParametersB)
+        kStr += self.localReadInitPointers(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "wait for local read")
     else:
@@ -553,13 +553,13 @@ class KernelWriter:
         if self.enable["LocalRead"]:
           if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
             kStr += self.comment("local read a")
-            kStr += self.localReadDoA(kernel, readBlk, tensorParametersA)
+            kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
             kStr += self.comment("local read b")
-            kStr += self.localReadDoB(kernel, readBlk, tensorParametersB)
+            kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
             kStr += self.comment("local read inc a")
-            kStr += self.localReadIncA(kernel, tensorParametersA)
+            kStr += self.localReadInc(kernel, tensorParametersA)
             kStr += self.comment("local read inc b")
-            kStr += self.localReadIncB(kernel, tensorParametersB)
+            kStr += self.localReadInc(kernel, tensorParametersB)
         if self.enable["Wait"]:
           kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
               1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
@@ -604,26 +604,26 @@ class KernelWriter:
       # tail: re-init local read addresses
       if kernel["PrefetchGlobalRead"]:
         kStr += self.comment("local read reset offsets a")
-        kStr += self.localReadResetOffsetsA(kernel, tensorParametersA)
+        kStr += self.localReadResetOffsets(kernel, tensorParametersA)
         kStr += self.comment("local read reset offsets b")
-        kStr += self.localReadResetOffsetsB(kernel, tensorParametersB)
+        kStr += self.localReadResetOffsets(kernel, tensorParametersB)
         kStr += self.comment("local read init pointers a")
-        kStr += self.localReadInitPointersA(kernel, tensorParametersA)
+        kStr += self.localReadInitPointers(kernel, tensorParametersA)
         kStr += self.comment("local read init pointers b")
-        kStr += self.localReadInitPointersB(kernel, tensorParametersB)
+        kStr += self.localReadInitPointers(kernel, tensorParametersB)
 
       # tail: macs
       kStr += self.comment("tail loop: macs")
       kStr += self.openLoop(kernel, -1)
       if self.enable["LocalRead"]:
         kStr += self.comment("local read a")
-        kStr += self.localReadDoA(kernel, False, tensorParametersA)
+        kStr += self.localReadDo(kernel, False, tensorParametersA)
         kStr += self.comment("local read b")
-        kStr += self.localReadDoB(kernel, False, tensorParametersB)
+        kStr += self.localReadDo(kernel, False, tensorParametersB)
         kStr += self.comment("local read inc a")
-        kStr += self.localReadIncA(kernel, tensorParametersA)
+        kStr += self.localReadInc(kernel, tensorParametersA)
         kStr += self.comment("local read inc b")
-        kStr += self.localReadIncB(kernel, tensorParametersB)
+        kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["MAC"]:
         kStr += self.macIter(kernel, False )
 
@@ -1345,73 +1345,38 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Local Read: Swap Offsets A
+  # Local Read: Swap Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadSwapOffsetsA(self, kernel, tA):
+  def localReadSwapOffsets(self, kernel, tP):
     return ""
 
   ##############################################################################
-  # Local Read: Wwap Offsets B
+  # Local Read: Reset Offsets A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadSwapOffsetsB(self, kernel, tA):
+  def localReadResetOffsets(self, kernel, tP):
     return ""
 
   ##############################################################################
-  # Local Read: Reset Offsets A
+  # Local Read: Init Pointers A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadResetOffsetsA(self, kernel, tA):
+  def localReadInitPointers(self, kernel, tP):
     return ""
 
   ##############################################################################
-  # Local Read: Reset Offsets B
+  # Local Read: Increment A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadResetOffsetsB(self, kernel, tA):
+  def localReadInc(self, kernel, tP):
     return ""
 
   ##############################################################################
-  # Local Read: Init Pointers A
+  # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadInitPointersA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read: Init Pointers B
-  ##############################################################################
-  @abc.abstractmethod
-  def localReadInitPointersB(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read: Increment A
-  ##############################################################################
-  @abc.abstractmethod
-  def localReadIncA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read: Increment B
-  ##############################################################################
-  @abc.abstractmethod
-  def localReadIncB(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read: Do It A
-  ##############################################################################
-  @abc.abstractmethod
-  def localReadDoA(self, kernel, black, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read: Do It B
-  ##############################################################################
-  @abc.abstractmethod
-  def localReadDoB(self, kernel, black, tA):
+  def localReadDo(self, kernel, black, tP):
     return ""
 
   ##############################################################################
