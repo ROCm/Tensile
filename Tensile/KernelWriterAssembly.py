@@ -2504,15 +2504,15 @@ class KernelWriterAssembly(KernelWriter):
     for lrIdx in range(0, totalReads):
       paramList = []
       if blockWidth == 1:
-        paramList.append(vgpr("Valu%s%s+%u"%(tP["tensorChar"], \
-            "Blk" if black else "", valuIdx)))
+        paramList.append(vgpr("Valu%s%s+%u"%( \
+            "Blk" if black else "", tP["tensorChar"], valuIdx)))
       else:
-        paramList.append( vgpr("Valu%s%s+%u"%(tP["tensorChar"], \
-            "Blk" if black else "", valuIdx), \
+        paramList.append( vgpr("Valu%s%s+%u"%( \
+            "Blk" if black else "", tP["tensorChar"],valuIdx), \
             blockWidth))
       paramList.append(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
       for oIdx in range(0, numOffsets):
-        paramList.append((kernel["SubGroup0"]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+        paramList.append((kernel["SubGroup%u"%tP["tensorIdx"]]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
             + tP["localReadOffset"])*self.bpe/offsetMultiplier)
       paramTuple = tuple(paramList)
       comment = "L -> Reg %u"%lrIdx
