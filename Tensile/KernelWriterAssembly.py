@@ -327,8 +327,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Init Kernel
   ##############################################################################
-  def initKernel(self, kernel):
-    super(KernelWriterAssembly, self).initKernel(kernel)
+  def initKernel(self, kernel, tPA, tPB ):
+    super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
     self.kernelName = self.getKernelName(kernel)
 
     # registers per element
@@ -756,6 +756,13 @@ class KernelWriterAssembly(KernelWriter):
     # it probably wouldn't matter but good to calculate and print warning
     # if it is more limiting than vgpr limitation,
     # also print LDS occupancy limitation even though it is explicit
+
+    # place any of these gpr inst values into tPA, tPB for later reference
+    tPA["localWriteOffsets"] = []
+    tPA["localWriteInstruction"] = self.localWriteInstructionA
+
+    tPB["localWriteOffsets"] = []
+    tPB["localWriteInstruction"] = self.localWriteInstructionB
 
 
 
@@ -1937,95 +1944,50 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_endpgm\n"
     return kStr
 
-# RESUME
   ##############################################################################
   # Local Write Addresses: Final Offsets A - DONE
   # initially assume write offsets fit into 8-bits
   ##############################################################################
-  def lwaFinalOffsetsA(self, kernel, tP):
+  def lwaFinalOffsets(self, kernel, tP):
     kStr = ""
-    self.localWriteOffsetsA = []
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, tP[nwvc]):
+        for s in range(0, tP["nwvc"]):
           lscaOffset = para * kernel[tP["lsc"]]
           lspaOffset = perp * kernel[tP["lsp"]]
-          if tP[wtc]:
+          if tP["wtc"]:
             lscaOffset += s
-          elif tP[wuc]:
+          elif tP["wuc"]:
             lspaOffset += s # * VW could go here, check transpose options
           if tP["tlu"]:
-            lspaOffset *= kernel["MacroTileA"]
+            lspaOffset *= kernel[tP["mt"]]
             #lspa *= kernel["VectorWidth"]
           else:
-            lscaOffset *= kernel["MacroTileA"]
-          if tP["tlu"] == kernel["GlobalReadCoalesceVectorA"]:
+            lscaOffset *= kernel[tP["mt"]]
+          if tP["tlu"] == tP["grcv"]:
             lspaOffset *= kernel["VectorWidth"]
           offset = lspaOffset + lscaOffset
           offset *= self.bpe
-          offset /= self.localWriteInstructionA.offsetMultiplier
-          self.localWriteOffsetsA.append(offset)
+          offset /= tP["localWriteInstruction"].offsetMultiplier
+          tP["localWriteOffsets"].append(offset)
 
-          kStr += "%slwoA_%u_%u%s = (%s%d*%s)" \
-              % (self.commentPrefix, para, perp, \
-              (("_s%u"%s) if (tP[wtc] \
-              or tP[wuc]) else ""), \
-              (("%u + "%s) if tP[wtc] else ""), \
+          kStr += "%slwo%s_%u_%u%s = (%s%d*%s)" \
+              % (self.commentPrefix, tP["tensorChar"], para, perp, \
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), \
+              (("%u + "%s) if tP["wtc"] else ""), \
               para, tP["lsc"] )
           if not tP["tlu"]:
             kStr += "*MT%s" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % (
-              (("%u + "%s) if tP[wuc] else ""), perp, \
+              (("%u + "%s) if tP["wuc"] else ""), perp, \
               tP["lsp"])
           if tP["tlu"]:
             kStr += "*MT%s" % (tP["tileChar"])
           kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
     return kStr
 
-  ##############################################################################
-  # Local Write Addresses: Final Offsets B - DONE
-  # initially assume write offsets fit into 8-bits
-  ##############################################################################
-  def lwaFinalOffsetsB(self, kernel, tP):
-    kStr = ""
-    self.localWriteOffsetsB = []
-    for perp in range(0, tP["nlp"]):
-      for para in range(0, tP["nlc"]):
-        for s in range(0, tP[nwvc]):
-          lscbOffset = para * kernel[tP["lsc"]]
-          lspbOffset = perp * kernel[tP["lsp"]]
-          if tP[wtc]:
-            lscbOffset += s
-          elif tP[wuc]:
-            lspbOffset += s
-          if tP["tlu"]:
-            lspbOffset *= kernel["MacroTileB"]
-            #lspb *= kernel["VectorWidth"]
-          else:
-            lscbOffset *= kernel["MacroTileB"]
-          if tP["tlu"] == kernel["GlobalReadCoalesceVectorB"]:
-            lspbOffset *= kernel["VectorWidth"]
-          offset = lspbOffset + lscbOffset
-          offset *= self.bpe
-          offset /= self.localWriteInstructionB.offsetMultiplier
-          self.localWriteOffsetsB.append(offset)
-
-          kStr += "%slwoB_%u_%u%s = (%s%d*%s)" \
-              % (self.commentPrefix, para, perp, \
-              (("_s%u"%s) if (tP[wtc] \
-              or tP[wuc]) else ""), \
-              (("%u + "%s) if tP[wtc] else ""), \
-              para, tP["lsc"] )
-          if not tP["tlu"]:
-            kStr += "*MT%s" % (tP["tileChar"])
-          kStr += " + (%s%d*%s)" % (
-              (("%u + "%s) if tP[wuc] else ""), perp, \
-              tP["lsp"])
-          if tP["tlu"]:
-            kStr += "*MT%s" % (tP["tileChar"])
-          kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
-    return kStr
-
+# RESUME
   ##############################################################################
   # Local Write Addresses: Declare Addresses A - DONE
   ##############################################################################
@@ -2614,7 +2576,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "s_endpgm\n"
     #kStr += dump(vgpr("GlobalReadAddrB+0"))
     #kStr += "s_endpgm\n"
-    # RESUME
     # SKIP branches
     return kStr
 
@@ -2653,11 +2614,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, tP[nwvc]):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteOffsetA_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, \
-              para, perp, (("_s%u"%s) if (tP[wtc] \
-              or tP[wuc]) else ""), self.endLine )
+              para, perp, (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
     return kStr
 
   ##############################################################################
@@ -2669,11 +2630,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     for perp in range(0, tP["nlp"]):
       for para in range(0, tP["nlc"]):
-        for s in range(0, tP[nwvc]):
+        for s in range(0, tP["nwvc"]):
           kStr += "%slocalWriteOffsetB_%u_%u%s %%= LDS_OFFSET_BLK;%s" \
               % (self.indent, para, perp, \
-              (("_s%u"%s) if (tP[wtc] \
-              or tP[wuc]) else ""), self.endLine )
+              (("_s%u"%s) if (tP["wtc"] \
+              or tP["wuc"]) else ""), self.endLine )
     return kStr
 
 
@@ -2698,11 +2659,11 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteDoA(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
-    instruction = self.localWriteInstructionA
+    instruction = tP["localWriteInstruction"]
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
-    totalWrites = len(self.localWriteOffsetsA)/numOffsets
+    totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
 
@@ -2716,11 +2677,11 @@ class KernelWriterAssembly(KernelWriter):
         else:
           paramList.append( vgpr("G2LA+%u"%g2lIdx,blockWidth))
       for oIdx in range(0, numOffsets):
-        paramList.append(self.localWriteOffsetsA[graIdx*numOffsets+oIdx])
+        paramList.append(tP["localWriteOffsets"][graIdx*numOffsets+oIdx])
 
       paramTuple = tuple(paramList)
       comment = "Reg -> L %u"%graIdx
-      kStr += self.localWriteInstructionA.toString(paramTuple, comment)
+      kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
       graIdx += 1
       g2lIdx += blockWidth
 
@@ -2739,11 +2700,11 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteDoB(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
-    instruction = self.localWriteInstructionB
+    instruction = tP["localWriteInstruction"]
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
-    totalWrites = len(self.localWriteOffsetsB)/numOffsets
+    totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
 
@@ -2757,11 +2718,11 @@ class KernelWriterAssembly(KernelWriter):
         else:
           paramList.append( vgpr("G2LB+%u"%g2lIdx,blockWidth))
       for oIdx in range(0, numOffsets):
-        paramList.append(self.localWriteOffsetsB[graIdx*numOffsets+oIdx])
+        paramList.append(tP["localWriteOffsets"][graIdx*numOffsets+oIdx])
 
       paramTuple = tuple(paramList)
       comment = "Reg -> L %u"%graIdx
-      kStr += self.localWriteInstructionB.toString(paramTuple, comment)
+      kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
       graIdx += 1
       g2lIdx += blockWidth
     #kStr += dump(vgpr("LocalWriteAddrB"))
@@ -3459,13 +3420,13 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Kernel Body Prefix - DONE
   ##############################################################################
-  def kernelBodyPrefix(self, kernel):
+  def kernelBodyPrefix(self, kernel, tPA, tPB ):
     return ""
 
   ##############################################################################
   # Kernel Body Suffix - DONE
   ##############################################################################
-  def kernelBodySuffix(self, kernel):
+  def kernelBodySuffix(self, kernel, tPA, tPB ):
     return ""
 
   ##############################################################################
@@ -3483,7 +3444,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # WaitCnt- DONE
   ##############################################################################
-  def wait(self, kernel, skipGlobalRead, skipLocalWrite, \
+  def wait(self, kernel, tPA, tPB, skipGlobalRead, skipLocalWrite, \
       skipLocalRead, comment):
     if not self.do["Wait"]: return ""
     # skip = -1 -> ignore
@@ -3493,10 +3454,10 @@ class KernelWriterAssembly(KernelWriter):
 
     if skipLocalWrite > -1 or skipLocalRead > -1:
       if skipLocalWrite > -1:
-        numA = len(self.localWriteOffsetsA) \
-            / self.localWriteInstructionA.numOffsets
-        numB = len(self.localWriteOffsetsB) \
-            / self.localWriteInstructionB.numOffsets
+        numA = len(tPA["localWriteOffsets"]) \
+            / tPA["localWriteInstruction"].numOffsets
+        numB = len(tPB["localWriteOffsets"]) \
+            / tPB["localWriteInstruction"].numOffsets
         lgkmcnt += skipLocalWrite * (numA + numB)
       if skipLocalRead > -1:
         numA = (kernel["ThreadTile0"] / kernel["VectorWidth"]) \

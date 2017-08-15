@@ -116,8 +116,8 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Init Kernel
   ##############################################################################
-  def initKernel(self, kernel):
-    super(KernelWriterSource, self).initKernel( kernel )
+  def initKernel(self, kernel, tPA, tPB ):
+    super(KernelWriterSource, self).initKernel( kernel, tPA, tPB )
     pass
 
   ##############################################################################
@@ -1215,7 +1215,6 @@ class KernelWriterSource(KernelWriter):
         " + LDS_OFFSET_B" if tP["isB"] else "", self.endLine)
     return kStr
 
-#RESUME
   ##############################################################################
   # Local Write Addresses: Final Offsets A/B
   ##############################################################################
@@ -1240,6 +1239,7 @@ class KernelWriterSource(KernelWriter):
           kStr += ";%s" % self.endLine
     return kStr
 
+#RESUME
   ##############################################################################
   # Local Write Addresses: Declare Addresses A
   ##############################################################################
@@ -2249,7 +2249,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Kernel Body Prefix
   ##############################################################################
-  def kernelBodyPrefix(self, kernel):
+  def kernelBodyPrefix(self, kernel, tPA, tPB ):
     kStr = ""
     kernelName = self.getKernelName(kernel)
     if not globalParameters["MergeFiles"]:
@@ -2262,7 +2262,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Kernel Body Suffix
   ##############################################################################
-  def kernelBodySuffix(self, kernel):
+  def kernelBodySuffix(self, kernel, tPA, tPB ):
     kStr = ""
     kernelName = self.getKernelName(kernel)
 
@@ -2281,7 +2281,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # WaitCnt
   ##############################################################################
-  def wait(self, kernel, globalRead, localWrite, localRead, comment):
+  def wait(self, kernel, tPA, tPB, globalRead, localWrite, localRead, comment):
     return ""
 
   ##############################################################################

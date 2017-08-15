@@ -55,134 +55,8 @@ class KernelWriter:
   ##############################################################################
   # Kernel Body
   ##############################################################################
-  def kernelBody( self, kernel ):
+  def kernelBody( self, kernel, tensorParametersA, tensorParametersB ):
 
-    ########################################
-    # determine index chars
-    self.indexChars = []
-    for i in range(0, len(globalParameters["IndexChars"])):
-      self.indexChars.append(globalParameters["IndexChars"][i])
-    self.indexChars[kernel["ProblemType"]["Index0"]] \
-        = "0" + self.indexChars[kernel["ProblemType"]["Index0"]]
-    self.indexChars[kernel["ProblemType"]["Index1"]] \
-        = "1" + self.indexChars[kernel["ProblemType"]["Index1"]]
-    self.unrollIdx = kernel["ProblemType"]["NumIndicesSummation"]-1
-    self.unrollChar = \
-        self.indexChars[kernel["ProblemType"]["IndicesSummation"][\
-        self.unrollIdx]]
-    self.tileChar0 = self.indexChars[kernel["ProblemType"]["Index0"]]
-    self.tileChar1 = self.indexChars[kernel["ProblemType"]["Index1"]]
-    self.tileCharA = self.tileChar0 if (kernel["ProblemType"]["Tensor0"]==0) \
-        else self.tileChar1
-    self.tileCharB = self.tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) \
-        else self.tileChar1
-
-    ########################################
-    # derrive global-read-coalesce-group from local in config
-    """
-    if kernel["ProblemType"]["TLUA"]:
-      self.globalReadCoalesceGroupA = kernel["LocalWriteCoalesceGroupA"]
-    else:
-      self.globalReadCoalesceGroupA = not kernel["LocalWriteCoalesceGroupA"]
-    if kernel["ProblemType"]["TLUB"]:
-      self.globalReadCoalesceGroupB = kernel["LocalWriteCoalesceGroupB"]
-    else:
-      self.globalReadCoalesceGroupB = not kernel["LocalWriteCoalesceGroupB"]
-    """
-    self.globalReadCoalesceGroupA = kernel["GlobalReadCoalesceGroupA"]
-    self.globalReadCoalesceGroupB = kernel["GlobalReadCoalesceGroupB"]
-
-    ########################################
-    # read / write vectors or vector components
-    ########################################
-    if kernel["ProblemType"]["TLUA"]: # NT no transpose
-      self.numReadsTileA = kernel["NumLoadsCoalescedA"]
-      self.numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
-      if kernel["GlobalReadCoalesceVectorA"]:
-        self.readTileDimComponentsA = False # Vector
-        self.readTileDimVectorA = True # Vector
-        self.readUnrollDimComponentsA = False # Scalar
-        self.readUnrollDimVectorA = False # Scalar
-        self.writeTileDimComponentsA = False # Vector
-        self.writeUnrollDimComponentsA = False # Scalar
-      else:
-        self.readTileDimComponentsA = False # Scalar
-        self.readTileDimVectorA = False # Scalar
-        self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
-        self.readUnrollDimVectorA = False # Components
-        self.writeTileDimComponentsA = False # Scalar
-        self.writeUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
-    else:
-      self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
-      self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      if kernel["GlobalReadCoalesceVectorA"]:
-        self.readTileDimComponentsA = False # Scalar
-        self.readTileDimVectorA = False # Scalar
-        self.readUnrollDimComponentsA = False # Vector
-        self.readUnrollDimVectorA = True # Vector
-        self.writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
-        self.writeUnrollDimComponentsA = False # Scalar
-      else:
-        self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
-        self.readTileDimVectorA = False # Components
-        self.readUnrollDimComponentsA = False # Scalar
-        self.readUnrollDimVectorA = False # Scalar
-        self.writeTileDimComponentsA = False # Vector
-        self.writeUnrollDimComponentsA = False # Scalar
-    self.numReadVectorComponentsA = kernel["VectorWidth"] \
-        if (self.readTileDimComponentsA \
-        or self.readUnrollDimComponentsA) else 1
-    self.numWriteVectorComponentsA = kernel["VectorWidth"] \
-        if (self.writeTileDimComponentsA \
-        or self.writeUnrollDimComponentsA) else 1
-    self.numReadTileVectorComponentsA = kernel["VectorWidth"] \
-        if self.readTileDimComponentsA else 1 # for branches
-
-    ####################################
-    # read / write vectors or vector components b
-    ####################################
-    if kernel["ProblemType"]["TLUB"]: # NT no transpose
-      self.numReadsTileB = kernel["NumLoadsCoalescedB"]
-      self.numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
-      if kernel["GlobalReadCoalesceVectorB"]:
-        self.readTileDimComponentsB = False # Vector
-        self.readTileDimVectorB = True # Vector
-        self.readUnrollDimComponentsB = False # Scalar
-        self.readUnrollDimVectorB = False # Scalar
-        self.writeTileDimComponentsB = False # Vector
-        self.writeUnrollDimComponentsB = False # Scalar
-      else:
-        self.readTileDimComponentsB = False # Scalar
-        self.readTileDimVectorB = False # Scalar
-        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        self.readUnrollDimVectorB = False # Components
-        self.writeTileDimComponentsB = False # Scalar
-        self.writeUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
-    else:
-      self.numReadsTileB = kernel["NumLoadsPerpendicularB"]
-      self.numReadsUnrollB = kernel["NumLoadsCoalescedB"]
-      if kernel["GlobalReadCoalesceVectorB"]:
-        self.readTileDimComponentsB = False # Scalar
-        self.readTileDimVectorB = False # Scalar
-        self.readUnrollDimComponentsB = False # Vector
-        self.readUnrollDimVectorB = True # Vector
-        self.writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        self.writeUnrollDimComponentsB = False # Scalar
-      else:
-        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
-        self.readTileDimVectorB = False # Components
-        self.readUnrollDimComponentsB = False # Scalar
-        self.readUnrollDimVectorB = False # Scalar
-        self.writeTileDimComponentsB = False # Vector
-        self.writeUnrollDimComponentsB = False # Scalar
-    self.numReadVectorComponentsB = kernel["VectorWidth"] \
-        if (self.readTileDimComponentsB \
-        or self.readUnrollDimComponentsB) else 1
-    self.numWriteVectorComponentsB = kernel["VectorWidth"] \
-        if (self.writeTileDimComponentsB \
-        or self.writeUnrollDimComponentsB) else 1
-    self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
-        if self.readTileDimComponentsB else 1 # for branches
 
     ####################################
     # Begin String
@@ -205,8 +79,6 @@ class KernelWriter:
 
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
-    tensorParametersA = self.getTensorParameters(kernel, True)
-    tensorParametersB = self.getTensorParameters(kernel, False)
 
     if self.enable["PreLoop"]:
       ####################################
@@ -396,7 +268,7 @@ class KernelWriter:
         kStr += self.comment("global read inc b")
         kStr += self.globalReadIncrementB(kernel, self.unrollIdx, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["LocalWrite"]:
         # local write
         kStr += self.comment("local write a")
@@ -415,7 +287,7 @@ class KernelWriter:
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
         if self.enable["Sync"]:
           kStr += self.syncThreads(kernel)
         if self.enable["LocalRead"]:
@@ -449,7 +321,7 @@ class KernelWriter:
 
     if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, 1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
 
@@ -457,7 +329,7 @@ class KernelWriter:
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel) # prior iter done reading lds
       if self.enable["LocalWrite"]:
@@ -466,7 +338,7 @@ class KernelWriter:
         kStr += self.comment("local write b")
         kStr += self.localWriteDoB(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
         # debug Local state
@@ -510,7 +382,7 @@ class KernelWriter:
         kStr += self.comment("local read increment b")
         kStr += self.localReadIncB(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
       if self.enable["MAC"]:
         kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
 
@@ -533,7 +405,7 @@ class KernelWriter:
         kStr += self.comment("local read b")
         kStr += self.localReadDoB(kernel, True, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["LocalWrite"]:
         # local write for next iter
         kStr += self.comment("local write a")
@@ -559,7 +431,7 @@ class KernelWriter:
         kStr += self.comment("local read init pointers b")
         kStr += self.localReadInitPointersB(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, 1, 1, "wait for prior local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 1, "wait for prior local read")
     else:
       if self.enable["LocalRead"]:
         # local read
@@ -581,7 +453,7 @@ class KernelWriter:
           kStr += self.comment("local read inc b")
           kStr += self.localReadIncB(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
     if self.enable["MAC"]:
       kStr += self.macIter(kernel, False)
 
@@ -594,7 +466,7 @@ class KernelWriter:
     kStr += self.comment("iter %u"%unrollIter)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
@@ -614,7 +486,7 @@ class KernelWriter:
         kStr += self.localReadIncB(kernel, tensorParametersB)
     elif kernel["PrefetchGlobalRead"]:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["LocalWrite"]:
         # local write
         kStr += self.comment("local write a")
@@ -640,7 +512,7 @@ class KernelWriter:
         kStr += self.comment("local read init pointers b")
         kStr += self.localReadInitPointersB(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, 1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, "wait for local read")
     elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       if self.enable["LocalRead"]:
         # local read init ptrs
@@ -649,10 +521,10 @@ class KernelWriter:
         kStr += self.comment("local read init pointers b")
         kStr += self.localReadInitPointersB(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "wait for local read")
     else:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, -1, -1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "wait for local read")
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
     if self.enable["MAC"]:
@@ -668,7 +540,7 @@ class KernelWriter:
       kStr += self.openSumAtLeastUnroll(kernel)
       if not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          kStr += self.wait(kernel, -1, 0, -1, "wait for local write")
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
         if self.enable["Sync"]:
           kStr += self.syncThreads(kernel)
       for u in range(0, kernel["LoopUnroll"]):
@@ -685,7 +557,7 @@ class KernelWriter:
             kStr += self.comment("local read inc b")
             kStr += self.localReadIncB(kernel, tensorParametersB)
         if self.enable["Wait"]:
-          kStr += self.wait(kernel, -1, -1, \
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
               1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
         if self.enable["MAC"]:
           kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
@@ -890,7 +762,7 @@ class KernelWriter:
   # Init Kernel
   ##############################################################################
   @abc.abstractmethod
-  def initKernel(self, kernel):
+  def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
     self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
       self.indexChars.append(globalParameters["IndexChars"][i])
@@ -1087,6 +959,8 @@ class KernelWriter:
     kernel["LVPA"] = kernel["LSPA"] / kernel["VectorWidth"]
     kernel["LVPB"] = kernel["LSPB"] / kernel["VectorWidth"]
 
+    self.getTensorParameters(tensorParametersA, kernel, True)
+    self.getTensorParameters(tensorParametersB, kernel, False)
 
 
   ##############################################################################
@@ -1162,8 +1036,7 @@ class KernelWriter:
   ##############################################################################
   # Get Params For Tensor A/B
   ##############################################################################
-  def getTensorParameters(self, kernel, tA):
-    tP = {}
+  def getTensorParameters(self, tP, kernel, tA):
     if tA: # A
       tP["isA"] = True
       tP["isB"] = False
@@ -1224,7 +1097,6 @@ class KernelWriter:
       tP["ia"] = kernel["ProblemType"]["IndexAssignmentsB"]
       tP["nlvc"] = self.numReadVectorComponentsB
       tP["nwvc"] = self.numWriteVectorComponentsB
-    return tP
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
@@ -1689,21 +1561,21 @@ class KernelWriter:
   # Kernel Body Prefix
   ##############################################################################
   @abc.abstractmethod
-  def kernelBodyPrefix(self, kernel):
+  def kernelBodyPrefix(self, kernel, tPA, tPB ):
     return ""
 
   ##############################################################################
   # Kernel Body Suffix
   ##############################################################################
   @abc.abstractmethod
-  def kernelBodySuffix(self, kernel):
+  def kernelBodySuffix(self, kernel, tPA, tPB ):
     return ""
 
   ##############################################################################
   # WaitCnt
   ##############################################################################
   @abc.abstractmethod
-  def wait(self, kernel, globalRead, localWrite, localRead, comment):
+  def wait(self, kernel, tPA, tPB, globalRead, localWrite, localRead, comment):
     return ""
 
   ##############################################################################
@@ -1737,11 +1609,15 @@ class KernelWriter:
   def getSourceFileString(self, kernel):
 
     fileString = ""
-    self.initKernel(kernel)
-    fileString += self.kernelBodyPrefix( kernel )
+    tensorParametersA = {}
+    tensorParametersB = {}
+    self.initKernel(kernel, tensorParametersA, tensorParametersB )
+    fileString += self.kernelBodyPrefix( kernel, tensorParametersA, \
+        tensorParametersB )
     self.stringIdx = 0
-    fileString += self.kernelBody( kernel )
-    fileString += self.kernelBodySuffix( kernel )
+    fileString += self.kernelBody( kernel, tensorParametersA, tensorParametersB)
+    fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
+        tensorParametersB )
 
     if not kernelLanguageIsSource():
       # write assembly file to assembly directory
