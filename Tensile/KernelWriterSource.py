@@ -1244,12 +1244,12 @@ class KernelWriterSource(KernelWriter):
           for sPara in range(0, tP["nwcv"]):
             kStr += "  unsigned int localWriteOffset%s_%u_%u_%u_%u = localWriteFirstOffset%s + (%u + %d*%s)" \
                 % (tP["tensorChar"], para, sPara, perp, sPerp, \
-                tP["tensorChar"], sPerp, para, \
+                tP["tensorChar"], sPara if tP["tlu"] else sPerp, para, \
                 (tP["lsc"] if not tP["tlu"] else tP["lsc"]) )
             if not tP["tlu"]:
               kStr += "*(MT%s+PAD)" % (tP["tileChar"])
             kStr += " + (%u + %d*%s)" % (
-                sPara, perp, \
+                sPerp if tP["tlu"] else sPara, perp, \
                 (tP["lsp"] if tP["tlu"] else tP["lsp"]) )
             if tP["tlu"]:
               kStr += "*(MT%s+PAD)" % (tP["tileChar"])
