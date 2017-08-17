@@ -149,6 +149,11 @@ class KernelWriterSource(KernelWriter):
         % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine )
     kStr += "#define MT%s (SG%s*TT%s)%s" \
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
+    kStr += "#define VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
+    kStr += "#define LOAD_VECTOR_WIDTH_A %u%s" \
+        % (kernel["VectorWidth"], self.endLine)
+    kStr += "#define LOAD_VECTOR_WIDTH_B %u%s" \
+        % (kernel["VectorWidth"], self.endLine)
     kStr += self.endLine
     kStr += "/* DepthU parameters*/%s" % self.endLine
     kStr += "#define CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
@@ -166,11 +171,6 @@ class KernelWriterSource(KernelWriter):
     kStr += "#define PAD %u%s" % (kernel["LdsPad"], self.endLine)
     kStr += "#define WORK_GROUP_MAPPING %u%s" \
         % (abs(kernel["WorkGroupMapping"]), self.endLine)
-    kStr += "#define VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
-    kStr += "#define LOAD_VECTOR_WIDTH_A %u%s" \
-        % (kernel["VectorWidth"], self.endLine)
-    kStr += "#define LOAD_VECTOR_WIDTH_B %u%s" \
-        % (kernel["VectorWidth"], self.endLine)
     kStr += self.endLine
 
     ####################################
@@ -1956,6 +1956,8 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
       kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
+      kStr += "#undef LOAD_VECTOR_WIDTH_A%s" % (self.endLine)
+      kStr += "#undef LOAD_VECTOR_WIDTH_B%s" % (self.endLine)
       kStr += "#undef TYPE_MAC%s" % (self.endLine)
       kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
       kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
