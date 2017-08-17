@@ -1660,10 +1660,10 @@ class KernelWriterSource(KernelWriter):
         kStr += "{%s" % self.endLine
         for tt1 in range(0, kernel["ThreadTile1"]):
           for s in range(0, r0):
-            kStr += "        rC[%u+%u*(TT%s/VECTOR_WIDTH)].%s = rC[%u+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
-              % (vIdx, tt1, self.tileChar0, self.vectorComponents[s],  \
-              vIdx, tt1, self.tileChar0, \
-              self.vectorComponents[s+kernel["VectorWidth"]-r0], self.endLine)
+            kStr += "        rC[%u+%u*VECTOR_WIDTH+%u*TT%s] = rC[%u+%u*VECTOR_WIDTH+%u*TT%s];%s" \
+              % (s, vIdx, tt1, self.tileChar0, \
+              s+kernel["VectorWidth"]-r0, vIdx, tt1, self.tileChar0, \
+              self.endLine)
         #kStr += "printf(\\\"sv %u %u\\\");%s" % (r0, vIdx, self.endLine)
         kStr += "      }"
         if vIdx == numVectors-1:
