@@ -1737,9 +1737,9 @@ class KernelWriterSource(KernelWriter):
           kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
         kStr += "{%s" % self.endLine
 
-        for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-          for s in range(0, r1):
-            kStr += "        rC[%u+%u*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)] = rC[%u+%u*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)];%s" \
+        for s in range(0, r1):
+          for tt0 in range(0, kernel["ThreadTile0"]):
+            kStr += "        rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s] = rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s];%s" \
               % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
               tt0, vIdx, self.tileChar0, \
               s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
