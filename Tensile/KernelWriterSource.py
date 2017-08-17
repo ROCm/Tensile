@@ -1774,7 +1774,7 @@ class KernelWriterSource(KernelWriter):
     for j in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for s in range(0, kernel["VectorWidth"]):
-          kStr += "%slocalLocalSplitU[lr%s + %u*SG%s + (MT%s/VECTOR_WIDTH)*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s/VECTOR_WIDTH)*sgId] = rC[%u+%u*(TT%s/VECTOR_WIDTH)+%u*TT%s];%s" \
+          kStr += "%slocalLocalSplitU[lr%s + %u*SG%s + MT%s*(lr%s*VECTOR_WIDTH + %u + SG%s*VECTOR_WIDTH*%u) + (MT%s*MT%s)*sgId] = rC[%u+%u*TT%s+%u*TT%s*VECTOR_WIDTH];%s" \
               % (self.indent, self.tileChar0, i, self.tileChar0, \
               self.tileChar0, self.tileChar1, \
               s, self.tileChar1, j, self.tileChar0, self.tileChar1, i, s, \
@@ -1795,8 +1795,9 @@ class KernelWriterSource(KernelWriter):
   def localSplitULocalRead(self, kernel):
     kStr = ""
     for i in range(0, kernel["NumVectorsPerThread"]):
-      kStr += "  rC[%3u] = localLocalSplitU[serial+%u*NUM_THREADS];%s" \
-          % (i, i, self.endLine)
+      for s in range(0, kernel["VectorWidth"]):
+        kStr += "  rC[%u + %3u*VECTOR_WIDTH] = localLocalSplitU[%u + (serial+%u*NUM_THREADS)*VECTOR_WIDTH];%s" \
+            % (s, i, s, i, self.endLine)
     kStr += self.endLine
     return kStr
 
@@ -1805,10 +1806,11 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitUReduction(self, kernel):
     kStr = ""
-    for s in range(1, kernel["LocalSplitU"]):
+    for r in range(1, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumVectorsPerThread"]):
-        kStr += "  rC[%3u] += localLocalSplitU[serial+%u*NUM_THREADS + %u*(MT%s*MT%s/VECTOR_WIDTH)];%s" \
-            % (i, i, s, self.tileChar0, self.tileChar1, self.endLine)
+        for s in range(0, kernel["VectorWidth"]):
+          kStr += "  rC[%u + %3u*VECTOR_WIDTH] += localLocalSplitU[(%u + serial*VECTOR_WIDTH+%u*NUM_THREADS*VECTOR_WIDTH + %u*MT%s*MT%s)];%s" \
+              % (s, i, i, s, r, self.tileChar0, self.tileChar1, self.endLine)
       kStr += self.endLine
     return kStr
 
@@ -1861,9 +1863,7 @@ class KernelWriterSource(KernelWriter):
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
         kStr += ", alpha"
-        kStr += ", rC[%d]%s" % (b, \
-            ((".%s"%self.vectorComponents[s]) if kernel["VectorWidth"]>1 \
-            else "") )
+        kStr += ", rC[%u + %u*VECTOR_WIDTH]" % (b, s )
 
         if kernel["ProblemType"]["UseBeta"]:
           kStr += ", beta"
