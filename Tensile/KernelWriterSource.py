@@ -1102,9 +1102,9 @@ class KernelWriterSource(KernelWriter):
         kStr += "  globalReadOffset%s%s_%u_%u" \
             % (tP["tensorChar"], tP["tileChar"], l, s )
         kStr += " > "
-        kStr += "size%s%s" % (tP["tileChar"], "-LOAD_VECTOR_WIDTH_%s+%u"%(tP["tensorChar"], s) if tP["rtv"] else "")
+        kStr += "size%s-%s" % (tP["tileChar"], "LOAD_VECTOR_WIDTH_%s+%u"%(tP["tensorChar"], s) if tP["rtv"] else "1")
         kStr += ") ? "
-        kStr += "size%s%s" % (tP["tileChar"], "-LOAD_VECTOR_WIDTH_%s+%u"%(tP["tensorChar"], s) if tP["rtv"] else "")
+        kStr += "size%s-%s" % (tP["tileChar"], "LOAD_VECTOR_WIDTH_%s+%u"%(tP["tensorChar"], s) if tP["rtv"] else "1")
         kStr += " : "
         kStr += "globalReadOffset%s%s_%u_%u" \
             % (tP["tensorChar"], tP["tileChar"], l, s )
