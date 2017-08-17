@@ -1088,11 +1088,28 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for l in range(0, tP["nrt"]):
       for s in range(0, tP["nrtv"]):
-        gro = "globalReadOffset%s%s_%u_%u" \
+        #gro = "globalReadOffset%s%s_%u_%u" \
+        #    % (tP["tensorChar"], tP["tileChar"], l, s )
+
+        #limit = "(size%s-LOAD_VECTOR_WIDTH_%s)" % (tP["tileChar"], tP["tensorChar"] )
+
+        #kStr += "  %s = (%s > %s) ? %s+%u : %s;%s" \
+        #    % (gro, gro, limit, limit, s, gro, self.endLine)
+
+        kStr += "  globalReadOffset%s%s_%u_%u" \
             % (tP["tensorChar"], tP["tileChar"], l, s )
-        limit = "(size%s-LOAD_VECTOR_WIDTH_%s)" % (tP["tileChar"], tP["tensorChar"] )
-        kStr += "  %s = (%s > %s) ? %s : %s;%s" \
-            % (gro, gro, limit, limit, gro, self.endLine)
+        kStr += " = ("
+        kStr += "  globalReadOffset%s%s_%u_%u" \
+            % (tP["tensorChar"], tP["tileChar"], l, 0 )
+        kStr += " > "
+        kStr += "size%s%s" % (tP["tileChar"], "-LOAD_VECTOR_WIDTH_%s"%tP["tensorChar"] if tP["rtv"] else "")
+        kStr += ") ? "
+        kStr += "size%s%s" % (tP["tileChar"], "-LOAD_VECTOR_WIDTH_%s+%u"%(tP["tensorChar"], s) if tP["rtv"] else "")
+        kStr += " : "
+        kStr += "globalReadOffset%s%s_%u_%u" \
+            % (tP["tensorChar"], tP["tileChar"], l, s )
+        kStr += ";%s" % self.endLine
+
     return kStr
 
   ##############################################################################
