@@ -1508,6 +1508,17 @@ class KernelWriterSource(KernelWriter):
                 % (tP["tensorChar"], para, sPara, perp, sPerp, \
                 "+%u"%sPerp if guardUnrolledComponents else "", \
                 self.endLine)
+    if False:
+      for perp in range(0, tP["nrp"]):
+        for sPerp in range(0, tP["nrpv"]):
+          for para in range(0, tP["nrc"]):
+            for sPara in range(0, tP["nrcv"]):
+              kStr += "%sprintf(\\\"t[%%u,%%u]: %s_%u_%u_%u_%u = %%.0f\\\\n\\\", %s(0), %s(1), %s_%u_%u_%u_%u );%s" \
+                  % (self.indent, tP["tensorChar"].lower(), \
+                  para, sPara, perp, sPerp, \
+                  self.getLocalIdStr, self.getLocalIdStr, tP["tensorChar"].lower(), \
+                  para, sPara, perp, sPerp, \
+                  self.endLine )
     return kStr
 
   ##############################################################################
@@ -1577,6 +1588,12 @@ class KernelWriterSource(KernelWriter):
                 self.endLine)
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic pop" + self.endLine
+    if False and tP["isB"]:
+      kStr += "%s%s" % (self.syncStr, self.endLine)
+      kStr += "    /* print Local state */" + self.endLine
+      kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
+      kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" % self.endLine
+      kStr += "    }" + self.endLine
     return kStr
 
   ##############################################################################
@@ -1612,7 +1629,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadInc(self, kernel, tP):
     kStr = ""
-    kStr += "%slocalRead%s += LOCAL_SPLITU*(MT%s/VECTOR_WIDTH+PAD);%s" \
+    kStr += "%slocalRead%s += LOCAL_SPLITU*(MT%s+PAD);%s" \
         % (self.indent, tP["tensorChar"], tP["tileChar"], self.endLine)
     return kStr
 
@@ -1623,7 +1640,7 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for r in range(0, kernel[tP["tt"]]/kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):
-        kStr += "%sr%s[%u*VECTOR_WIDTH+%u%s] = localRead%s[%u*SG%s + %u]; %s" \
+        kStr += "%sr%s[%u*VECTOR_WIDTH+%u%s] = localRead%s[%u*SG%s*VECTOR_WIDTH + %u]; %s" \
             % (self.indent, tP["tensorChar"], r, s, \
             (("+TT%s"%tP["tileChar"]) if black else ""), \
             tP["tensorChar"], r, tP["tileChar"], s, self.endLine)
