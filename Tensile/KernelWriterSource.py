@@ -1073,9 +1073,9 @@ class KernelWriterSource(KernelWriter):
   def graBranch(self, kernel, tP):
     kStr = ""
     for l in range(0, tP["nrt"]):
-      gro = "(globalReadOffset%s%s_%u%s)" \
+      gro = "(globalReadOffset%s%s_%u_0%s)" \
           % (tP["tensorChar"], tP["tileChar"], l, \
-          ("_s0 + (VECTOR_WIDTH-1)" if tP["rtc"] else "") )
+          (" + (VECTOR_WIDTH-1)" if tP["rtc"] else "") )
       limit = "size%s" % (tP["tileChar"])
       kStr += "  bool inBounds%s_%u = %s < %s;%s" \
           % (tP["tensorChar"], l, gro, limit, self.endLine)

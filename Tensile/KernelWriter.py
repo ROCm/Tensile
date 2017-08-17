@@ -1125,9 +1125,9 @@ class KernelWriter:
       tP["lsp"] = "LSPA"
       tP["lvc"] = "LVCA"
       tP["lvp"] = "LVPA"
-      #tP["rtc"] = self.readTileDimComponentsA
-      #tP["ruc"] = self.readUnrollDimComponentsA
       tP["rtv"] = self.readTileDimVectorA
+      tP["rtc"] = self.readTileDimComponentsA
+      #tP["ruc"] = self.readUnrollDimComponentsA
       #tP["ruv"] = self.readUnrollDimVectorA
       #tP["wtc"] = self.writeTileDimComponentsA
       #tP["wuc"] = self.writeUnrollDimComponentsA
@@ -1166,11 +1166,11 @@ class KernelWriter:
       tP["lsp"] = "LSPB"
       tP["lvc"] = "LVCB"
       tP["lvp"] = "LVPB"
-      #tP["rtc"] = self.readTileDimComponentsB
+      tP["rtv"] = self.readTileDimVectorB
+      tP["rtc"] = self.readTileDimComponentsB
       #tP["ruc"] = self.readUnrollDimComponentsB
       #tP["wtc"] = self.writeTileDimComponentsB
       #tP["wuc"] = self.writeUnrollDimComponentsB
-      tP["rtv"] = self.readTileDimVectorB
       #tP["ruv"] = self.readUnrollDimVectorB
       #tP["nlvc"] = self.numReadVectorComponentsB
       #tP["nwvc"] = self.numWriteVectorComponentsB
