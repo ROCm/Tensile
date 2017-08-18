@@ -792,21 +792,19 @@ class Solution:
     totalVectorsA = totalElementsA / state["VectorWidth"]
     totalVectorsB = totalElementsB / state["VectorWidth"]
     
-    #print "totalVectorsA", totalVectorsA
-    #print "totalVectorsB", totalVectorsB
-
     if totalVectorsA < state["NumThreads"]:
-      if state["NumThreads"] % totalVectorsA == 0:
-        state["PVA"] = state["NumThreads"] / totalVectorsA # partial vector
-      else:
+      state["PVA"] = state["NumThreads"] / totalVectorsA # partial vector
+      if state["NumThreads"] % totalVectorsA != 0 \
+          or state["PVA"] * totalVectorsA != state["NumThreads"] \
+          or state["VectorWidth"] % state["PVA"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("NumThreads %u %% totalVectorsA %u != 0" \
               % (state["NumThreads"], totalVectorsA))
         state["Valid"] = False
     else:
-      if totalVectorsA % state["NumThreads"] == 0:
-        state["PVA"] = 1 # partial vector
-      else:
+      state["PVA"] = 1 # partial vector
+      if totalVectorsA % state["NumThreads"] != 0 \
+          or state["VectorWidth"] % state["PVA"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("totalVectorsA %u %% NumThreads %u != 0" \
               % (totalVectorsA, state["NumThreads"]))
@@ -815,17 +813,18 @@ class Solution:
     state["NumLoadsA"] = totalVectorsA * state["PVA"] / state["NumThreads"]
 
     if totalVectorsB < state["NumThreads"]:
-      if state["NumThreads"] % totalVectorsB == 0:
-        state["PVB"] = state["NumThreads"] / totalVectorsB # partial vector
-      else:
+      state["PVB"] = state["NumThreads"] / totalVectorsB # partial vector
+      if state["NumThreads"] % totalVectorsB != 0 \
+          or state["PVB"] * totalVectorsB != state["NumThreads"] \
+          or state["VectorWidth"] % state["PVB"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("NumThreads %u %% totalVectorsB %u != 0" \
               % (state["NumThreads"], totalVectorsB))
         state["Valid"] = False
     else:
-      if totalVectorsB % state["NumThreads"] == 0:
-        state["PVB"] = 1 # partial vector
-      else:
+      state["PVB"] = 1 # partial vector
+      if totalVectorsB % state["NumThreads"] != 0 \
+          or state["VectorWidth"] % state["PVB"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("totalVectorsB %u %% NumThreads %u != 0" \
               % (totalVectorsB, state["NumThreads"]))
@@ -833,8 +832,6 @@ class Solution:
     state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
     state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
 
-    #print "pva", state["PVA"]
-    #print "pvb", state["PVB"]
 
     """
     # how many load instructions
