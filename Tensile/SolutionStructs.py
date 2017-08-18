@@ -791,7 +791,52 @@ class Solution:
     totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
     totalVectorsA = totalElementsA / state["VectorWidth"]
     totalVectorsB = totalElementsB / state["VectorWidth"]
+    
+    print "totalVectorsA", totalVectorsA
+    print "totalVectorsB", totalVectorsB
 
+    if totalVectorsA < state["NumThreads"]:
+      if state["NumThreads"] % totalVectorsA == 0:
+        state["PVA"] = state["NumThreads"] / totalVectorsA # partial vector
+      else:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NumThreads %u %% totalVectorsA %u != 0" \
+              % (state["NumThreads"], totalVectorsA))
+        state["Valid"] = False
+    else:
+      if totalVectorsA % state["NumThreads"] == 0:
+        state["PVA"] = 1 # partial vector
+      else:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalVectorsA %u %% NumThreads %u != 0" \
+              % (totalVectorsA, state["NumThreads"]))
+        state["Valid"] = False
+    state["GlobalLoadVectorWidthA"] = state["VectorWidth"] / state["PVA"]
+    state["NumLoadsA"] = totalVectorsA * state["PVA"] / state["NumThreads"]
+
+    if totalVectorsB < state["NumThreads"]:
+      if state["NumThreads"] % totalVectorsB == 0:
+        state["PVB"] = state["NumThreads"] / totalVectorsB # partial vector
+      else:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NumThreads %u %% totalVectorsB %u != 0" \
+              % (state["NumThreads"], totalVectorsB))
+        state["Valid"] = False
+    else:
+      if totalVectorsB % state["NumThreads"] == 0:
+        state["PVB"] = 1 # partial vector
+      else:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalVectorsB %u %% NumThreads %u != 0" \
+              % (totalVectorsB, state["NumThreads"]))
+        state["Valid"] = False
+    state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
+    state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
+
+    print "pva", state["PVA"]
+    print "pvb", state["PVB"]
+
+    """
     # how many load instructions
     if totalVectorsA % state["NumThreads"] != 0 or totalVectorsA < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
@@ -810,12 +855,15 @@ class Solution:
       return
     else:
       state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
+    """
 
+    print "NumLoadsA", state["NumLoadsA"]
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
       foundValid = False
       for nlca in range(1, state["NumLoadsA"]+1):
         nlpa = state["NumLoadsA"] / nlca
+        print nlca, nlpa
         if state["NumLoadsA"] % nlca == 0 \
             and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:

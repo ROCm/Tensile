@@ -835,8 +835,8 @@ class KernelWriter:
     """
 
     # TODO load sub-vector
-    vwa = kernel["VectorWidth"]
-    vwb = kernel["VectorWidth"]
+    vwa = kernel["GlobalLoadVectorWidthA"]
+    vwb = kernel["GlobalLoadVectorWidthB"]
 
     ########################################
     # read / write vectors or vector components
@@ -1156,6 +1156,7 @@ class KernelWriter:
       tP["nrpv"] = self.numReadsPerpVecCompA
       tP["nwcv"] = self.numWritesCoalVecCompA
       tP["nwpv"] = self.numWritesPerpVecCompA
+      tP["glvw"] = kernel["GlobalLoadVectorWidthA"]
       # asm
       tP["rcc"] = self.readCoalescedComponentsA
       tP["rcv"] = self.readCoalescedVectorA
@@ -1198,6 +1199,7 @@ class KernelWriter:
       tP["nrpv"] = self.numReadsPerpVecCompB
       tP["nwcv"] = self.numWritesCoalVecCompB
       tP["nwpv"] = self.numWritesPerpVecCompB
+      tP["glvw"] = kernel["GlobalLoadVectorWidthB"]
       # asm
       tP["rcc"] = self.readCoalescedComponentsB
       tP["rcv"] = self.readCoalescedVectorB

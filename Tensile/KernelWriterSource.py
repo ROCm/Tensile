@@ -151,9 +151,9 @@ class KernelWriterSource(KernelWriter):
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine )
     kStr += "#define VECTOR_WIDTH %u%s" % (kernel["VectorWidth"], self.endLine)
     kStr += "#define LOAD_VECTOR_WIDTH_A %u%s" \
-        % (kernel["VectorWidth"], self.endLine)
+        % (kernel["GlobalLoadVectorWidthA"], self.endLine)
     kStr += "#define LOAD_VECTOR_WIDTH_B %u%s" \
-        % (kernel["VectorWidth"], self.endLine)
+        % (kernel["GlobalLoadVectorWidthB"], self.endLine)
     kStr += self.endLine
     kStr += "/* DepthU parameters*/%s" % self.endLine
     kStr += "#define CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
@@ -207,10 +207,10 @@ class KernelWriterSource(KernelWriter):
       kStr += "#define LSCB (LOCAL_DEPTHU/NLCB)%s" \
           % (self.endLine)
       kStr += "#define LSPB (MT%s/NLPB)%s" % (self.tileCharB, self.endLine)
-    kStr += "#define LVCA (LSCA/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += "#define LVCB (LSCB/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += "#define LVPA (LSPA/VECTOR_WIDTH)%s" % (self.endLine)
-    kStr += "#define LVPB (LSPB/VECTOR_WIDTH)%s" % (self.endLine)
+    kStr += "#define LVCA (LSCA/LOAD_VECTOR_WIDTH_A)%s" % (self.endLine)
+    kStr += "#define LVCB (LSCB/LOAD_VECTOR_WIDTH_B)%s" % (self.endLine)
+    kStr += "#define LVPA (LSPA/LOAD_VECTOR_WIDTH_A)%s" % (self.endLine)
+    kStr += "#define LVPB (LSPB/LOAD_VECTOR_WIDTH_B)%s" % (self.endLine)
 
 
     # local buffer size
@@ -356,9 +356,9 @@ class KernelWriterSource(KernelWriter):
     kStr += "#define DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
-    vecStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
-    if kernel["VectorWidth"] > 1:
-      vecStr += str(kernel["VectorWidth"])
+    #vecStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
+    #if kernel["VectorWidth"] > 1:
+    #  vecStr += str(kernel["VectorWidth"])
     #kStr += "#define VECTOR_TYPE %s%s" % (vecStr, self.endLine)
 
     if self.language == "OCL":
@@ -967,7 +967,7 @@ class KernelWriterSource(KernelWriter):
       kStr += (tP["lsp"] if tP["grcv"] else tP["lvp"])
     kStr += ")"
     if tP["grcv"] == tP["tlu"]:
-      kStr += "*VECTOR_WIDTH"
+      kStr += "*LOAD_VECTOR_WIDTH_%s" % tP["tensorChar"]
     kStr += " + ("
     kStr += "wg%s" % (tP["tileChar"])
     kStr += ")*MT%s;%s" % (tP["tileChar"], self.endLine)
@@ -987,7 +987,7 @@ class KernelWriterSource(KernelWriter):
       kStr += (tP["lsp"] if tP["grcv"] else tP["lvp"])
     kStr += ")"
     if tP["grcv"] != tP["tlu"]:
-      kStr += "*VECTOR_WIDTH"
+      kStr += "*LOAD_VECTOR_WIDTH_%s"% tP["tensorChar"]
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         kStr += " + LOCAL_DEPTHU*"
@@ -1217,7 +1217,7 @@ class KernelWriterSource(KernelWriter):
       kStr += (tP["lsp"] if tP["grcv"] else tP["lvp"])
     kStr += ")";
     if tP["grcv"] == tP["tlu"]:
-      kStr += "*VECTOR_WIDTH"
+      kStr += "*LOAD_VECTOR_WIDTH_%s" % tP["tensorChar"]
     kStr += ";%s" % self.endLine
     return kStr
 
@@ -1235,7 +1235,7 @@ class KernelWriterSource(KernelWriter):
       kStr += (tP["lsp"] if tP["grcv"] else tP["lvp"])
     kStr += ")";
     if tP["grcv"] != tP["tlu"]:
-      kStr += "*VECTOR_WIDTH"
+      kStr += "*LOAD_VECTOR_WIDTH_%s" % tP["tensorChar"]
     kStr += ";%s" % self.endLine
     return kStr
 
