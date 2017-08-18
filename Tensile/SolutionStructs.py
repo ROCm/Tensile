@@ -792,8 +792,8 @@ class Solution:
     totalVectorsA = totalElementsA / state["VectorWidth"]
     totalVectorsB = totalElementsB / state["VectorWidth"]
     
-    print "totalVectorsA", totalVectorsA
-    print "totalVectorsB", totalVectorsB
+    #print "totalVectorsA", totalVectorsA
+    #print "totalVectorsB", totalVectorsB
 
     if totalVectorsA < state["NumThreads"]:
       if state["NumThreads"] % totalVectorsA == 0:
@@ -833,8 +833,8 @@ class Solution:
     state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
     state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
 
-    print "pva", state["PVA"]
-    print "pvb", state["PVB"]
+    #print "pva", state["PVA"]
+    #print "pvb", state["PVB"]
 
     """
     # how many load instructions
@@ -857,13 +857,13 @@ class Solution:
       state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
     """
 
-    print "NumLoadsA", state["NumLoadsA"]
+    #print "NumLoadsA", state["NumLoadsA"]
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
       foundValid = False
       for nlca in range(1, state["NumLoadsA"]+1):
         nlpa = state["NumLoadsA"] / nlca
-        print nlca, nlpa
+        #print nlca, nlpa
         if state["NumLoadsA"] % nlca == 0 \
             and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:

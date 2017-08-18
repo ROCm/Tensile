@@ -427,8 +427,8 @@ class KernelWriterAssembly(KernelWriter):
     # for local, tile->para, unroll->perp
     #self.localWriteWidthB = 1 if (self.writeTileDimComponentsB \
     #    or self.writeUnrollDimComponentsB) else kernel["VectorWidth"]
-    self.localWriteWidthB = tPA["nwcv"]
-    print "lwwb", self.localWriteWidthB
+    self.localWriteWidthB = tPB["nwcv"]
+    #print "lwwb", self.localWriteWidthB
     self.localWriteWidthB *= self.rpe
     self.localWrite2CoalescedB = tPB["nrc"]>1 \
         or self.writeTileDimComponentsB
@@ -511,13 +511,15 @@ class KernelWriterAssembly(KernelWriter):
         self.localReadInstructionIdxA]
     self.localReadInstructionB = instructions["LocalRead"][ \
         self.localReadInstructionIdxB]
-    print "localWrite", self.localWriteInstructionA
+    #print "localWrite", self.localWriteInstructionA
     # global reads per instruction
     tPA["nrcvpi"] = self.globalReadInstructionA.totalWidth / self.rpe
     tPB["nrcvpi"] = self.globalReadInstructionB.totalWidth / self.rpe
     tPA["nwcvpi"] = self.localWriteInstructionA.totalWidth / self.rpe
     tPB["nwcvpi"] = self.localWriteInstructionB.totalWidth / self.rpe
-    print "nwcvpi", tPA["nwcvpi"] 
+    #print "nwcvpi", tPA["nwcvpi"] 
+    #print self.localWriteInstructionA
+    #print self.localWriteInstructionB
     #print self.getKernelName(kernel)
     """
     print "\n"
@@ -573,10 +575,10 @@ class KernelWriterAssembly(KernelWriter):
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
         * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] \
         * self.numReadVectorComponentsA
-    print "numGlobalReadsA", numGlobalReadsA
+    #print "numGlobalReadsA", numGlobalReadsA
     numGlobalReadInstructionsA = numGlobalReadsA \
         / self.globalReadInstructionA.blockWidth
-    print "numGlobalReadInstructionsA", numGlobalReadInstructionsA
+    #print "numGlobalReadInstructionsA", numGlobalReadInstructionsA
     numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
@@ -1950,6 +1952,17 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def lwaFinalOffsets(self, kernel, tP):
     kStr = ""
+    """
+    print tP["tensorChar"]
+    print "nrp", tP["nrp"]
+    print "nrc", tP["nrc"]
+    print "nrcv", tP["nrcv"]
+    print "nrpv", tP["nrpv"]
+    print "nrcvpi", tP["nrcvpi"]
+    print "nwcv", tP["nwcv"]
+    print "nwpv", tP["nwpv"]
+    print "nwcvpi", tP["nwcvpi"]
+    """
     for perp in range(0, tP["nrp"]): # FIXME
       for para in range(0, tP["nrc"]):
         for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):

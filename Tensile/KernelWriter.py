@@ -901,13 +901,13 @@ class KernelWriter:
         self.numWritesPerpVecCompA = 1
 
 
-    self.numReadVectorComponentsA = kernel["VectorWidth"] \
+    self.numReadVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if (self.readTileDimComponentsA \
         or self.readUnrollDimComponentsA) else 1
-    self.numWriteVectorComponentsA = kernel["VectorWidth"] \
+    self.numWriteVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if (self.writeTileDimComponentsA \
         or self.writeUnrollDimComponentsA) else 1
-    self.numReadTileVectorComponentsA = kernel["VectorWidth"] \
+    self.numReadTileVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if self.readTileDimComponentsA else 1 # for branches
     # convert tile/unroll to para/perp
     if kernel["ProblemType"]["TLUA"]:
@@ -989,13 +989,13 @@ class KernelWriter:
         self.numWritesCoalVecCompB = vwb
         self.numWritesPerpVecCompB = 1
 
-    self.numReadVectorComponentsB = kernel["VectorWidth"] \
+    self.numReadVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
         if (self.readTileDimComponentsB \
         or self.readUnrollDimComponentsB) else 1
-    self.numWriteVectorComponentsB = kernel["VectorWidth"] \
+    self.numWriteVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
         if (self.writeTileDimComponentsB \
         or self.writeUnrollDimComponentsB) else 1
-    self.numReadTileVectorComponentsB = kernel["VectorWidth"] \
+    self.numReadTileVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
         if self.readTileDimComponentsB else 1 # for branches
     # convert tile/unroll to para/perp
     if kernel["ProblemType"]["TLUB"]:
@@ -1035,10 +1035,10 @@ class KernelWriter:
       kernel["LSPB"] = kernel["MacroTileB"] \
           / kernel["NumLoadsPerpendicularB"]
 
-    kernel["LVCA"] = kernel["LSCA"] / kernel["VectorWidth"]
-    kernel["LVCB"] = kernel["LSCB"] / kernel["VectorWidth"]
-    kernel["LVPA"] = kernel["LSPA"] / kernel["VectorWidth"]
-    kernel["LVPB"] = kernel["LSPB"] / kernel["VectorWidth"]
+    kernel["LVCA"] = kernel["LSCA"] / kernel["GlobalLoadVectorWidthA"]
+    kernel["LVCB"] = kernel["LSCB"] / kernel["GlobalLoadVectorWidthB"]
+    kernel["LVPA"] = kernel["LSPA"] / kernel["GlobalLoadVectorWidthA"]
+    kernel["LVPB"] = kernel["LSPB"] / kernel["GlobalLoadVectorWidthB"]
 
     self.getTensorParameters(tensorParametersA, kernel, True)
     self.getTensorParameters(tensorParametersB, kernel, False)
