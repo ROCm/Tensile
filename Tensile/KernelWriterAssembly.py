@@ -1955,8 +1955,8 @@ class KernelWriterAssembly(KernelWriter):
         for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
           lscaOffset = para * kernel[tP["lsc"]]
           lspaOffset = perp * kernel[tP["lsp"]]
-          sPara = 1
-          sPerp = 1
+          sPara = 0
+          sPerp = 0
           if tP["wtc"]:
             sPerp = s
             lscaOffset += s
