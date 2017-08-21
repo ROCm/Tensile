@@ -2538,25 +2538,28 @@ class KernelWriterAssembly(KernelWriter):
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
     offsetMultiplier = 1 # instruction.offsetMultiplier
-    totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"]) / numOffsets
+    #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx = 0
-    for lrIdx in range(0, totalReads):
-      paramList = []
-      if blockWidth == 1:
-        paramList.append(vgpr("Valu%s%s+%u"%( \
-            "Blk" if black else "", tP["tensorChar"], valuIdx)))
-      else:
-        paramList.append( vgpr("Valu%s%s+%u"%( \
-            "Blk" if black else "", tP["tensorChar"],valuIdx), \
-            blockWidth))
-      paramList.append(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
-      for oIdx in range(0, numOffsets):
-        paramList.append((kernel["SubGroup%u"%tP["tensorIdx"]]*(lrIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-            + tP["localReadOffset"])*self.bpe/offsetMultiplier)
-      paramTuple = tuple(paramList)
-      comment = "L -> Reg %u"%lrIdx
-      kStr += instruction.toString(paramTuple, comment)
-      valuIdx += blockWidth
+    numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
+    numReadsPerVector = kernel["VectorWidth"] / blockWidth
+    for vIdx in range(0, numVectorsPerTile):
+      for rIdx in range(0, numReadsPerVector):
+        paramList = []
+        if blockWidth == 1:
+          paramList.append(vgpr("Valu%s%s+%u"%( \
+              "Blk" if black else "", tP["tensorChar"], valuIdx)))
+        else:
+          paramList.append( vgpr("Valu%s%s+%u"%( \
+              "Blk" if black else "", tP["tensorChar"],valuIdx), \
+              blockWidth))
+        paramList.append(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
+        for oIdx in range(0, numOffsets):
+          paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+              + tP["localReadOffset"])*self.bpe/offsetMultiplier)
+        paramTuple = tuple(paramList)
+        comment = "L -> Reg %u"%rIdx
+        kStr += instruction.toString(paramTuple, comment)
+        valuIdx += blockWidth
     return kStr
 
   ##############################################################################
