@@ -2393,13 +2393,16 @@ class KernelWriterAssembly(KernelWriter):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
+            i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+            graIdx = i * self.rpga
+            g2lIdx = i * loadWidth
             kStr += tP["globalReadInstruction"].toString( \
                 (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
                 vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
                 "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ) )
             #kStr += "s_endpgm\n"
-            graIdx += self.rpga
-            g2lIdx += loadWidth
+            #graIdx += self.rpga
+            #g2lIdx += loadWidth
     return kStr
 
   ##############################################################################
@@ -2441,23 +2444,36 @@ class KernelWriterAssembly(KernelWriter):
     totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
-    for graIdx in range(0, totalWrites):
-      paramList = []
-      paramList.append(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
-      for blockIdx in range(0, numBlocks):
-        if blockWidth == 1:
-          paramList.append(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
-        else:
-          paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
-              blockWidth))
-      for oIdx in range(0, numOffsets):
-        paramList.append(tP["localWriteOffsets"][graIdx*numOffsets+oIdx])
 
-      paramTuple = tuple(paramList)
-      comment = "Reg -> L %u"%graIdx
-      kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
-      graIdx += 1
-      g2lIdx += blockWidth
+    # if transposing, positions of sPerp and sPara are transposed
+    for perp in range(0, tP["nrp"]):
+      for para in range(0, tP["nrc"]):
+        for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
+          sPara = 0
+          sPerp = 0
+          if tP["wtc"]:
+            sPerp = s
+          elif tP["wuc"]:
+            sPara = s
+          i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+          graIdx = i
+          g2lIdx = i*blockWidth
+
+
+          paramList = []
+          paramList.append(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
+          for blockIdx in range(0, numBlocks):
+            if blockWidth == 1:
+              paramList.append(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
+            else:
+              paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
+                  blockWidth))
+          for oIdx in range(0, numOffsets):
+            paramList.append(tP["localWriteOffsets"][i*numOffsets+oIdx])
+
+          paramTuple = tuple(paramList)
+          comment = "Reg -> L %u_%u_%u_%u"%(para, sPara, perp, sPerp)
+          kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
     return kStr
 
   ##############################################################################
