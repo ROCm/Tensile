@@ -2441,6 +2441,7 @@ class KernelWriterAssembly(KernelWriter):
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
+    offsetMultiplier = instruction.offsetMultiplier
     totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
@@ -2451,14 +2452,30 @@ class KernelWriterAssembly(KernelWriter):
         for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
           sPara = 0
           sPerp = 0
+          lscaOffset = para * kernel[tP["lsc"]]
+          lspaOffset = perp * kernel[tP["lsp"]]
           if tP["wtc"]:
             sPerp = s
+            lscaOffset += s
           elif tP["wuc"]:
             sPara = s
+            lspaOffset += s # * VW could go here, check transpose options
           i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
           graIdx = i
           g2lIdx = i*blockWidth
 
+          if tP["tlu"]:
+            lspaOffset *= kernel[tP["mt"]]
+          else:
+            lscaOffset *= kernel[tP["mt"]]
+          print "offset", lscaOffset, lspaOffset
+          if tP["tlu"] == tP["grcv"]:
+            print "tlu==grcv"
+            lspaOffset *= tP["glvw"]
+            lscaOffset *= tP["glvw"]
+          offset = lspaOffset + lscaOffset
+          offset *= self.bpe
+          offset /= offsetMultiplier
 
           paramList = []
           paramList.append(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
@@ -2469,7 +2486,7 @@ class KernelWriterAssembly(KernelWriter):
               paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
                   blockWidth))
           for oIdx in range(0, numOffsets):
-            paramList.append(tP["localWriteOffsets"][i*numOffsets+oIdx])
+            paramList.append(offset)
 
           paramTuple = tuple(paramList)
           comment = "Reg -> L %u_%u_%u_%u"%(para, sPara, perp, sPerp)
