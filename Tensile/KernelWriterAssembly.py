@@ -1714,11 +1714,14 @@ class KernelWriterAssembly(KernelWriter):
     uVW = 1
     uVS = 0
     if tP["rtc"]:
+      print "rtc"
       tVW = tP["glvw"]
       tVS = 1
     elif tP["ruc"]:
+      print "ruc"
       uVW = tP["glvw"]
       uVS = 1
+# resume here, a uVS is staying zero
     tileOffsets = tP["vgprTileOffsets"]
     unrollOffsets = tP["gpr"]["unrollOffsets"]
     tmp = self.vgprScratch.checkOut(3)
@@ -1735,6 +1738,7 @@ class KernelWriterAssembly(KernelWriter):
             else:
               vgprTile   = tileOffsets   + perp*tVW + sPara*tVS
               vgprUnroll = unrollOffsets + para*uVW + sPerp*uVS
+            print para, sPara, perp, sPerp, tVW, tVS, uVW, uVS, vgprTile, vgprUnroll
             # global offset macro
             kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
             for i in tP["ia"]:
@@ -1951,6 +1955,7 @@ class KernelWriterAssembly(KernelWriter):
   # initially assume write offsets fit into 8-bits
   ##############################################################################
   def lwaFinalOffsets(self, kernel, tP):
+    return self.comment("N/A")
     kStr = ""
     """
     print tP["tensorChar"]
@@ -2402,10 +2407,8 @@ class KernelWriterAssembly(KernelWriter):
                 "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ) )
             #kStr += "s_waitcnt vmcnt(0)\n"
             #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
-            #kStr += "s_endpgm\n"
-            #graIdx += self.rpga
-            #g2lIdx += loadWidth
-    #kStr += "s_endpgm\n"
+    #if tP["isB"]:
+    #  kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -2458,16 +2461,28 @@ class KernelWriterAssembly(KernelWriter):
           sPerp = 0
           lscaOffset = para * kernel[tP["lsc"]]
           lspaOffset = perp * kernel[tP["lsp"]]
-          if tP["wtc"] == tP["grcv"]:
-            sPerp = s
-            lspaOffset += s
-          elif tP["wuc"] == tP["grcv"]:
-            sPara = s
-            lscaOffset += s # * VW could go here, check transpose options
+          if tP["tlu"]:
+            if tP["wtc"] == tP["grcv"]:
+              sPerp = s
+              lspaOffset += s
+            elif tP["wuc"] == tP["grcv"]:
+              sPara = s
+              lscaOffset += s
+            i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+          else:
+            if tP["wtc"] == tP["grcv"]:
+              sPara = s
+              lscaOffset += s
+            elif tP["wuc"] == tP["grcv"]:
+              sPerp = s
+              lspaOffset += s
+            i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
+          #if not tP["tlu"]:
+          #  tmp = sPara
+          #  sPara = sPerp
+          #  sPerp = tmp
           print "s", sPara, sPerp
           print "offset", lscaOffset, lspaOffset
-          i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
-          graIdx = i
           g2lIdx = i*blockWidth
 
           if tP["tlu"]:

@@ -925,16 +925,7 @@ class Solution:
       foundValid = False
       for nlcb in range(1, state["NumLoadsB"]+1):
         nlpb = state["NumLoadsB"] / nlcb
-        # pre-filter for VW*NLCB
-        if state["VectorWidth"] > 1:
-          if state["ProblemType"]["TLUB"]:
-            if nlcb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
-          else:
-            if nlpb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
+        #print nlcb, nlpb
         if state["NumLoadsB"] % nlcb == 0 \
             and totalVectorsCoalescedB % nlcb == 0 \
             and totalElementsPerpB % nlpb == 0:
@@ -953,16 +944,6 @@ class Solution:
       foundValid = False
       for nlcb in range(state["NumLoadsB"], 0, -1):
         nlpb = state["NumLoadsB"] / nlcb
-        # pre-filter for VW*NLCB
-        if state["VectorWidth"] > 1:
-          if state["ProblemType"]["TLUB"]:
-            if nlcb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
-          else:
-            if nlpb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
         if state["NumLoadsB"] % nlcb == 0 \
             and totalVectorsCoalescedB % nlcb == 0 \
             and totalElementsPerpB % nlpb == 0:
