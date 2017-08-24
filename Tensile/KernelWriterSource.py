@@ -1489,7 +1489,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def globalReadDo(self, kernel, guardK, tP):
     kStr = ""
-    guardUnrolledComponents = guardK and kernel["VectorWidth"]>1
+    guardUnrolledComponents = False # guardK and kernel["VectorWidth"]>1
     numUnrollVectorComponents = kernel["VectorWidth"] \
         if guardUnrolledComponents else tP["nruv"]
 
@@ -1509,7 +1509,7 @@ class KernelWriterSource(KernelWriter):
               kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                   % (tP["tensorChar"], self.unrollChar, \
                   (perp if tP["tlu"] else para), \
-                  (sPerp if tP["tlu"] else sPara), sPerp, self.unrollChar, \
+                  (sPerp if tP["tlu"] else sPara), 0, self.unrollChar, \
                   (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
                   else ""), (" || !numIter%s"%self.unrollChar) \
                   if kernel["GlobalSplitU"] > 1 else "")

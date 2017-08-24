@@ -1523,7 +1523,7 @@ class KernelWriterAssembly(KernelWriter):
       if tP["grcv"]:
         divisorName = tP["lsp"]
       else:
-        divisorName = lvp
+        divisorName = tP["lvp"]
     divisor = kernel[divisorName]
 
     if tP["grcg"] == tP["tlu"]:
