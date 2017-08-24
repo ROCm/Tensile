@@ -684,6 +684,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     self.vgprScratch = ScratchRegisters(self.startVgprValuC, \
         self.startVgprLocalReadAddressesA - self.startVgprValuC)
+    assert self.vgprScratch.overflowed() == False
 
     ########################################
     # SGPR Allocation
@@ -1714,11 +1715,9 @@ class KernelWriterAssembly(KernelWriter):
     uVW = 1
     uVS = 0
     if tP["rtc"]:
-      print "rtc"
       tVW = tP["glvw"]
       tVS = 1
     elif tP["ruc"]:
-      print "ruc"
       uVW = tP["glvw"]
       uVS = 1
 # resume here, a uVS is staying zero
@@ -1738,7 +1737,6 @@ class KernelWriterAssembly(KernelWriter):
             else:
               vgprTile   = tileOffsets   + perp*tVW + sPara*tVS
               vgprUnroll = unrollOffsets + para*uVW + sPerp*uVS
-            print para, sPara, perp, sPerp, tVW, tVS, uVW, uVS, vgprTile, vgprUnroll
             # global offset macro
             kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
             for i in tP["ia"]:
@@ -2448,7 +2446,6 @@ class KernelWriterAssembly(KernelWriter):
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
     offsetMultiplier = instruction.offsetMultiplier
-    print instruction, blockWidth, offsetMultiplier
     totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
@@ -2481,15 +2478,12 @@ class KernelWriterAssembly(KernelWriter):
           #  tmp = sPara
           #  sPara = sPerp
           #  sPerp = tmp
-          print "s", sPara, sPerp
-          print "offset", lscaOffset, lspaOffset
           g2lIdx = i*blockWidth
 
           if tP["tlu"]:
             lspaOffset *= kernel[tP["mt"]]
           else:
             lscaOffset *= kernel[tP["mt"]]
-          #print "offset1", lscaOffset, lspaOffset
           if tP["tlu"] == tP["grcv"]:
             lspaOffset *= tP["glvw"]
             lscaOffset *= tP["glvw"]
