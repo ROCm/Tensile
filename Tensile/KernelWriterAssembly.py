@@ -2643,16 +2643,74 @@ class KernelWriterAssembly(KernelWriter):
   # Shift Vector Components d0 - SKIP
   ##############################################################################
   def shiftVectorComponents0(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar0, \
-        self.tileChar0, self.endLine)
-    kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
-        %(self.tileChar0, self.tileChar0, self.tileChar0, \
-        self.tileChar0, self.endLine)
-    kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
-        % (self.tileChar0, self.tileChar0, self.endLine)
+
+    # wgMT value
+    tmpSgpr = self.startSgprOffsetC
+    wgMT = self.vgprScratch.checkOut(1)
+    kStr += inst("v_mov_b32", vgpr(wgMT), sgpr("WorkGroup0"), "")
+    kStr += inst("v_mul_u32_u24", vgpr(wgMT), hex(-kernel["MacroTile0"]), vgpr(wgMT), \
+        "wg0*MT0")
+    kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+0"), \
+        vgpr(wgMT), "wgMT = Size0 - wg0*MT0")
+    kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(wgMT), \
+        hex(kernel["MacroTile0"]), "wgMT < MT0" )
+    kStr += inst("v_cndmask_b32", vgpr(wgMT), hex(kernel["MacroTile0"]), \
+        vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
+
+    # remainder
+    tmpVgpr = self.vgprScratch.checkOut(1)
+    qReg = self.vgprScratch.checkOut(1) 
+    rReg = self.vgprScratch.checkOut(1)
+    divisor = kernel["VectorWidth"]
+    kStr += vectorStaticDivideAndRemainder(qReg, rReg, wgMT, divisor, \
+        tmpVgpr, tmpSgpr)
+
+    # qReg %/ SG0
+    sReg = self.vgprScratch.checkOut(1) # / scalar component index
+    eReg = self.vgprScratch.checkOut(1) # % thread edge
+    divisor = kernel["SubGroup0"]
+    kStr += vectorStaticDivideAndRemainder(sReg, eReg, qReg, divisor, \
+        tmpVgpr, tmpSgpr)
+
+    # serial % SG0
+    sms = self.vgprScratch.checkOut(1) # serial % subgroup0
+    dummy = self.vgprScratch.checkOut(1) # quotient
+    divisor = kernel["SubGroup0"]
+    kStr += vectorStaticDivideAndRemainder(dummy, sms, "Serial", divisor, \
+        tmpVgpr, tmpSgpr)
+
+    # serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0
+    tmpSgpr2 = self.startSgprAddressA # 4 sgprs
+    kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr2,2), vgpr(sms), \
+        vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
+    kStr += inst("v_cmp_gt_u32", sgpr(tmpSgpr2+2,2), vgpr(rReg), \
+        hex(0), "wgMT%WV > 0" )
+    kStr += inst("s_and_b64", sgpr(tmpSgpr2,2), sgpr(tmpSgpr2,2), \
+        sgpr(tmpSgpr2+2,2), "() && ()" )
+    # conditional jump to end label
+    # loop of conditional jumps
+    # RESUME
+
+
+    kStr += dump(vgpr(rReg))
+    kStr += dump(vgpr(qReg))
+    kStr += dump(vgpr(sReg))
+    kStr += dump(vgpr(eReg))
+    kStr += "s_endpgm\n"
+
+
+
+
+    return kStr
+    #kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
+    #    % (self.tileChar0, self.tileChar0, self.tileChar0, \
+    #    self.tileChar0, self.endLine)
+    #kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
+    #    %(self.tileChar0, self.tileChar0, self.tileChar0, \
+    #    self.tileChar0, self.endLine)
+    #kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
+    #    % (self.tileChar0, self.tileChar0, self.endLine)
     kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% SG%s ) {%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar0, \
         self.tileChar0, self.endLine)
@@ -2660,24 +2718,36 @@ class KernelWriterAssembly(KernelWriter):
         % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
     for r0 in range(1, kernel["VectorWidth"]):
       kStr += "    if (r%s == %u) {%s" % (self.tileChar0, r0, self.endLine)
-      for tt1 in range(0, kernel["ThreadTile1"]):
-        for s in range(0, r0):
-          kStr += "      rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s = rC[s%s+%u*(TT%s/VECTOR_WIDTH)].%s;%s" \
-            % (self.tileChar0, tt1, self.tileChar0, self.vectorComponents[s],  \
-            self.tileChar0, tt1, self.tileChar0, \
-            self.vectorComponents[s+kernel["VectorWidth"]-r0], self.endLine)
+      numVectors = kernel["ThreadTile0"]/kernel["VectorWidth"]
+      for vIdx in range(0, numVectors):
+        if vIdx == 0:
+          kStr += "      "
+        else:
+          kStr += " else "
+        if vIdx < numVectors-1:
+          kStr += "if (s%s == %u) " % (self.tileChar0, vIdx)
+        kStr += "{%s" % self.endLine
+        for tt1 in range(0, kernel["ThreadTile1"]):
+          for s in range(0, r0):
+            kStr += "        rC[%u+%u*VECTOR_WIDTH+%u*TT%s] = rC[%u+%u*VECTOR_WIDTH+%u*TT%s];%s" \
+              % (s, vIdx, tt1, self.tileChar0, \
+              s+kernel["VectorWidth"]-r0, vIdx, tt1, self.tileChar0, \
+              self.endLine)
+        #kStr += "printf(\\\"sv %u %u\\\");%s" % (r0, vIdx, self.endLine)
+        kStr += "      }"
+        if vIdx == numVectors-1:
+          kStr += self.endLine
       kStr += "    }%s" % self.endLine
-    kStr += "  }%s" % self.endLine
     return kStr
 
   ##############################################################################
   # Shift Vectors Components d1 - SKIP
   ##############################################################################
   def shiftVectorComponents1(self, kernel):
-    return ""
     kStr = ""
-    kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
-        % (self.tileChar1, self.tileChar1, self.tileChar1, \
+    return kStr
+    kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
+        % (self.tileChar1, self.tileChar1, "wg%s"%self.tileChar1, \
         self.tileChar1, self.endLine)
     kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
         %(self.tileChar1, self.tileChar1, self.tileChar1, \
@@ -2692,22 +2762,39 @@ class KernelWriterAssembly(KernelWriter):
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
     for r1 in range(1, kernel["VectorWidth"]):
       kStr += "    if (r%s == %u) {%s" % (self.tileChar1, r1, self.endLine)
-      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+      numVectors = kernel["ThreadTile1"]/kernel["VectorWidth"]
+      for vIdx in range(0, numVectors):
+        if vIdx == 0:
+          kStr += "      "
+        else:
+          kStr += " else "
+        if vIdx < numVectors-1:
+          kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
+        kStr += "{%s" % self.endLine
+
         for s in range(0, r1):
-          kStr += "      rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)] = rC[%u+s%s*(TT%s/VECTOR_WIDTH)*(VECTOR_WIDTH) + %u*(TT%s/VECTOR_WIDTH)];%s" \
-            % (tt0, self.tileChar1, self.tileChar0, s, self.tileChar0, \
-            tt0, self.tileChar1, self.tileChar0, \
-            s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
+          for tt0 in range(0, kernel["ThreadTile0"]):
+            kStr += "        rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s] = rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s];%s" \
+              % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
+              tt0, vIdx, self.tileChar0, \
+              s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
+
+        kStr += "      }"
+        if vIdx == numVectors-1:
+          kStr += self.endLine
+
       kStr += "    }%s" % self.endLine
     kStr += "  }%s" % self.endLine
     return kStr
 
   ##############################################################################
+
+  ##############################################################################
   # Complex Declare Tmp Registers - SKIP
   ##############################################################################
   def complexDeclareTmpRegisters(self, kernel):
-    return ""
     kStr = ""
+    return kStr
     if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
       kStr += "  float type_mac_tmp;" + self.endLine
     if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
