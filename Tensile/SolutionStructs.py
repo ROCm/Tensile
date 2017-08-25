@@ -791,7 +791,49 @@ class Solution:
     totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
     totalVectorsA = totalElementsA / state["VectorWidth"]
     totalVectorsB = totalElementsB / state["VectorWidth"]
+    
+    if totalVectorsA < state["NumThreads"]:
+      state["PVA"] = state["NumThreads"] / totalVectorsA # partial vector
+      if state["NumThreads"] % totalVectorsA != 0 \
+          or state["PVA"] * totalVectorsA != state["NumThreads"] \
+          or state["VectorWidth"] % state["PVA"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NumThreads %u %% totalVectorsA %u != 0" \
+              % (state["NumThreads"], totalVectorsA))
+        state["Valid"] = False
+    else:
+      state["PVA"] = 1 # partial vector
+      if totalVectorsA % state["NumThreads"] != 0 \
+          or state["VectorWidth"] % state["PVA"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalVectorsA %u %% NumThreads %u != 0" \
+              % (totalVectorsA, state["NumThreads"]))
+        state["Valid"] = False
+    state["GlobalLoadVectorWidthA"] = state["VectorWidth"] / state["PVA"]
+    state["NumLoadsA"] = totalVectorsA * state["PVA"] / state["NumThreads"]
 
+    if totalVectorsB < state["NumThreads"]:
+      state["PVB"] = state["NumThreads"] / totalVectorsB # partial vector
+      if state["NumThreads"] % totalVectorsB != 0 \
+          or state["PVB"] * totalVectorsB != state["NumThreads"] \
+          or state["VectorWidth"] % state["PVB"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("NumThreads %u %% totalVectorsB %u != 0" \
+              % (state["NumThreads"], totalVectorsB))
+        state["Valid"] = False
+    else:
+      state["PVB"] = 1 # partial vector
+      if totalVectorsB % state["NumThreads"] != 0 \
+          or state["VectorWidth"] % state["PVB"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("totalVectorsB %u %% NumThreads %u != 0" \
+              % (totalVectorsB, state["NumThreads"]))
+        state["Valid"] = False
+    state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
+    state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
+
+
+    """
     # how many load instructions
     if totalVectorsA % state["NumThreads"] != 0 or totalVectorsA < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
@@ -810,12 +852,15 @@ class Solution:
       return
     else:
       state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
+    """
 
+    #print "NumLoadsA", state["NumLoadsA"]
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
       foundValid = False
       for nlca in range(1, state["NumLoadsA"]+1):
         nlpa = state["NumLoadsA"] / nlca
+        #print nlca, nlpa
         if state["NumLoadsA"] % nlca == 0 \
             and totalVectorsCoalescedA % nlca == 0 \
             and totalElementsPerpA % nlpa == 0:
@@ -880,16 +925,7 @@ class Solution:
       foundValid = False
       for nlcb in range(1, state["NumLoadsB"]+1):
         nlpb = state["NumLoadsB"] / nlcb
-        # pre-filter for VW*NLCB
-        if state["VectorWidth"] > 1:
-          if state["ProblemType"]["TLUB"]:
-            if nlcb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
-          else:
-            if nlpb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
+        #print nlcb, nlpb
         if state["NumLoadsB"] % nlcb == 0 \
             and totalVectorsCoalescedB % nlcb == 0 \
             and totalElementsPerpB % nlpb == 0:
@@ -908,16 +944,6 @@ class Solution:
       foundValid = False
       for nlcb in range(state["NumLoadsB"], 0, -1):
         nlpb = state["NumLoadsB"] / nlcb
-        # pre-filter for VW*NLCB
-        if state["VectorWidth"] > 1:
-          if state["ProblemType"]["TLUB"]:
-            if nlcb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
-          else:
-            if nlpb * state["VectorWidth"] \
-                > state["ThreadTile1"]:
-              continue
         if state["NumLoadsB"] % nlcb == 0 \
             and totalVectorsCoalescedB % nlcb == 0 \
             and totalElementsPerpB % nlpb == 0:

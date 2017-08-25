@@ -138,7 +138,7 @@ validParameters = {
     "NumLoadsCoalescedB":         range(-1, 64+1),
     "DepthU":                     range(2, 256+1, 2),
     "GlobalSplitU":               range(1, 64+1),
-    "VectorWidth":                [ -1, 1, 2, 4, 8 ],
+    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          range(1, 64+1),
     "MacroTileShapeMax":          range(1, 64+1),
