@@ -1634,6 +1634,7 @@ class KernelWriterAssembly(KernelWriter):
               1, vgpr(v+l*tP["glvw"]+(s-1)), \
               "gro%s%s_%u_s%u"%(tP["tensorChar"], tP["tileChar"], l, s) )
     else:
+      print "NOT RTC"
       kStr += inst("v_mov_b32", vgpr(v), \
           vgpr(tP["gpr"]["tReg"]), "gro%s%s_%u"%(tP["tensorChar"], tP["tileChar"], 0) )
       for l in range(1, tP["nrt"]):
@@ -1694,15 +1695,28 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A/B - SKIP
   ##############################################################################
   def graShift(self, kernel, tP):
-    return ""
     kStr = ""
+    # edge value
+    edge = self.vgprScratch.checkOut(1)
+    kStr += inst("v_add_i32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
+        hex(-tP["glvw"]), "edge = Size%s-%u"%(tP["tileChar"], tP["glvw"]) )
+    #kStr += dump(vgpr(edge))
+
+    # shift offsets
+    v = tP["vgprTileOffsets"]
+    tmpSgpr = self.startSgprOffsetC
     for l in range(0, tP["nrt"]):
-      gro = "globalReadOffset%s%s_%u%s" % (tP["tensorChar"], tP["tileChar"], l, \
-          ("_s0" if tP["rtc"] else "") )
-      limit = "(size%s-%s)" % (tP["tileChar"], \
-          ("VECTOR_WIDTH" if tP["rtv"] else "1") )
-      kStr += "  %s = (%s > %s) ? %s : %s;%s" \
-          % (gro, gro, limit, limit, gro, self.endLine)
+      # compare
+      #kStr += dump(vgpr(v+l))
+      kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
+      # shift 
+      kStr += inst("v_cndmask_b32", vgpr(v+l), vgpr(edge), vgpr(v+l), sgpr(tmpSgpr,2), "offset = (offset < edge) ? offset : edge" )
+      #kStr += dump(vgpr(v+l))
+    self.vgprScratch.checkIn(edge)
+    #if tP["isB"]:
+    #  kStr += "s_endpgm\n"
+
+
     return kStr
 
   ##############################################################################
