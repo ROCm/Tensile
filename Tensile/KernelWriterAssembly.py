@@ -2708,30 +2708,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += dump(vgpr(tmpVgpr+1))
 
     # mask if last thread in thread-tile column
-    kStr += inst("v_cmp_eq_u32", "vcc", vgpr(sms), \
-        vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
-
-    #kStr += inst("s_not_b64", "vcc", "vcc", \
-    #    "serial % SG0 != (wgMT/VECTOR_WIDTH)%SG0" )
-    #kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr2+2,2), vgpr(rReg), \
-    #    hex(0), "wgMT%WV == 0" )
-    #kStr += inst("s_or_b64", "vcc", sgpr(tmpSgpr2,2), \
-    #    sgpr(tmpSgpr2+2,2), "() || ()" )
-    #kStr += dump(vgpr(rReg))
-    #kStr += dump(vgpr(sms))
-    #kStr += dump(vgpr(eReg))
-    #kStr += inst("v_mov_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr2,2), "")
-    #kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(tmpSgpr2+0), "")
-    #kStr += inst("v_mov_b32", vgpr(tmpVgpr+1), sgpr(tmpSgpr2+1), "")
-    #kStr += dump(vgpr(tmpVgpr+0))
-    #kStr += dump(vgpr(tmpVgpr+1))
-
+    #kStr += inst("v_cmp_eq_u32", "vcc", vgpr(sms), \
+    #    vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
 
     # jump to end if no shifting
-    kStr += inst("s_cbranch_vccz label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
-        "don't shift d0")
-    kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-    kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
+    #kStr += inst("s_cbranch_vccz label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
+    #    "don't shift d0")
+    #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
+    #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     #kStr += inst("s_mov_b64", "exec", sgpr(ones,2), "reset")
     #kStr += "s_endpgm\n"
 
@@ -2756,10 +2740,18 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += inst("s_mov_b64", "exec", "vcc", "")
       kStr += inst("v_cmp_eq_u32", "exec", vgpr(sms), \
           vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
-      kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-      kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
+      #kStr += inst("s_nop", "5", "wait for exec update")
+      #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
+      #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
+      """
       if r == 3:
-        kStr += dump(vgpr("Serial"))
+        kStr += inst("v_cmp_eq_u32", sgpr(mask,2), vgpr(sms), \
+            vgpr(eReg), "mask" )
+        kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(mask+0), "")
+        kStr += inst("v_mov_b32", vgpr(tmpVgpr+1), sgpr(mask+1), "")
+        kStr += dump(vgpr(tmpVgpr+0))
+        kStr += dump(vgpr(tmpVgpr+1))
+      """
       for tt1 in range(0, kernel["ThreadTile1"]):
         for s in range(0, r):
           dst = (s) \
@@ -2777,6 +2769,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     kStr += "label_%04u: // end shift0%s" % (svcLabels[kernel["VectorWidth"]-1], self.endLine)
     kStr += inst("s_mov_b64", "exec", "0xFFFFFFFFFFFFFFFF", "all threads active")
+    #kStr += inst("s_nop", "5", "wait for exec update")
     kStr += dump(vgpr(vgprPath))
 
     # checkin scratch vgprs
