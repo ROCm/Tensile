@@ -648,11 +648,11 @@ class KernelWriter:
         # shift vector components d0
         if self.readTileDimVectorA:
           kStr += self.comment("shift vector components d0")
-          kStr += self.shiftVectorComponents0(kernel)
+          kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
         if self.readTileDimVectorB:
           kStr += self.comment("shift vector components d1")
-          kStr += self.shiftVectorComponents1(kernel)
+          kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 
       # complex declare tmp registers
       kStr += self.complexDeclareTmpRegisters(kernel)
@@ -1135,6 +1135,7 @@ class KernelWriter:
       #tP["nlvc"] = self.numReadVectorComponentsA
       #tP["nwvc"] = self.numWriteVectorComponentsA
       tP["wg"] = "WorkGroup0"
+      tP["sg"] = "SubGroup0"
       tP["tt"] = "ThreadTile0"
       tP["mt"] = "MacroTile0"
       tP["grcg"] = self.globalReadCoalesceGroupA
@@ -1182,6 +1183,7 @@ class KernelWriter:
       #tP["nlvc"] = self.numReadVectorComponentsB
       #tP["nwvc"] = self.numWriteVectorComponentsB
       tP["wg"] = "WorkGroup1"
+      tP["sg"] = "SubGroup1"
       tP["tt"] = "ThreadTile1"
       tP["mt"] = "MacroTile1"
       tP["grcg"] = self.globalReadCoalesceGroupB
@@ -1487,10 +1489,10 @@ class KernelWriter:
     return ""
 
   ##############################################################################
-  # Shift Vector Components d0
+  # Shift Vector Components d0/1
   ##############################################################################
   @abc.abstractmethod
-  def shiftVectorComponents0(self, kernel):
+  def shiftVectorComponents(self, kernel, tP):
     return ""
 
   ##############################################################################

@@ -2640,29 +2640,29 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Shift Vector Components d0 - SKIP
+  # Shift Vector Components d0,1 - DONE
   ##############################################################################
-  def shiftVectorComponents0(self, kernel):
+  def shiftVectorComponents(self, kernel, tP):
     kStr = ""
 
     # labels
     svcLabels = []
     for i in range(1, kernel["VectorWidth"]+1):
       r = i % kernel["VectorWidth"]
-      label = self.getLabel("ShiftVectorComponents0_R%u"%(r) )
+      label = self.getLabel("ShiftVectorComponents%u_R%u"%(tP["tensorIdx"], r) )
       svcLabels.append(label)
 
     # wgMT value
     tmpSgpr = self.startSgprOffsetC
     wgMT = self.vgprScratch.checkOut(1)
-    kStr += inst("v_mov_b32", vgpr(wgMT), sgpr("WorkGroup0"), "")
-    kStr += inst("v_mul_u32_u24", vgpr(wgMT), hex(-kernel["MacroTile0"]), vgpr(wgMT), \
-        "wg0*MT0")
-    kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+0"), \
-        vgpr(wgMT), "wgMT = Size0 - wg0*MT0")
+    kStr += inst("v_mov_b32", vgpr(wgMT), sgpr(tP["wg"]), "")
+    kStr += inst("v_mul_u32_u24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), \
+        "wg*MT")
+    kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
+        vgpr(wgMT), "wgMT = Size - wg*MT") # FIXME this should be index assignments for dim0,1
     kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(wgMT), \
-        hex(kernel["MacroTile0"]), "wgMT < MT0" )
-    kStr += inst("v_cndmask_b32", vgpr(wgMT), hex(kernel["MacroTile0"]), \
+        hex(kernel[tP["mt"]]), "wgMT < MT" )
+    kStr += inst("v_cndmask_b32", vgpr(wgMT), hex(kernel[tP["mt"]]), \
         vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
 
     # remainder
@@ -2673,22 +2673,35 @@ class KernelWriterAssembly(KernelWriter):
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
 
-    # qReg %/ SG0
+    # qReg %/ SG
     sReg = self.vgprScratch.checkOut(1) # / scalar component index
     eReg = self.vgprScratch.checkOut(1) # % thread edge
-    divisor = kernel["SubGroup0"]
+    divisor = kernel[tP["sg"]]
     kStr += vectorStaticDivideAndRemainder(sReg, eReg, qReg, divisor, \
         tmpVgpr, tmpSgpr)
 
-    # serial % SG0
-    sms = self.vgprScratch.checkOut(1) # serial % subgroup0
-    dummy = self.vgprScratch.checkOut(1) # quotient
-    divisor = kernel["SubGroup0"]
-    kStr += vectorStaticDivideAndRemainder(dummy, sms, "Serial", divisor, \
-        tmpVgpr, tmpSgpr)
-    kStr += dump(vgpr(rReg))
-    kStr += dump(vgpr(sms))
-    kStr += dump(vgpr(eReg))
+    if tP["isA"]:
+      # thread = serial % SG0
+      thread = self.vgprScratch.checkOut(1) # serial % subgroup
+      dummy = self.vgprScratch.checkOut(1) # quotient
+      divisor = kernel["SubGroup0"]
+      kStr += vectorStaticDivideAndRemainder(dummy, thread, "Serial", divisor, \
+          tmpVgpr, tmpSgpr)
+      kStr += dump(vgpr(thread))
+      kStr += dump(vgpr(eReg))
+    else:
+      # thread = (serial / SG0) % SG1
+      sd0 = self.vgprScratch.checkOut(1) # serial divided by sg0
+      dummy = self.vgprScratch.checkOut(1)
+      divisor = kernel["SubGroup0"]
+      kStr += vectorStaticDivideAndRemainder(sd0, dummy, "Serial", divisor, \
+          tmpVgpr, tmpSgpr) # thread = serial / SG0
+      divisor = kernel["SubGroup1"]
+      thread = self.vgprScratch.checkOut(1)
+      kStr += vectorStaticDivideAndRemainder(dummy, thread, sd0, divisor, \
+          tmpVgpr, tmpSgpr) # thread = (serial / SG0) % SG1
+      kStr += dump(vgpr(thread))
+      kStr += dump(vgpr(eReg))
 
     vgprPath = dummy
     sgprLoc = tmpSgpr
@@ -2697,74 +2710,63 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
     kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
 
-    # serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0
+    # serial % SG == (wgMT/VECTOR_WIDTH)%SG
     mask = self.startSgprAddressA # 4 sgprs
 
-    kStr += inst("v_cmp_eq_u32", sgpr(mask,2), vgpr(sms), \
+    kStr += inst("v_cmp_eq_u32", sgpr(mask,2), vgpr(thread), \
         vgpr(eReg), "mask" )
     kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(mask+0), "")
     kStr += inst("v_mov_b32", vgpr(tmpVgpr+1), sgpr(mask+1), "")
     kStr += dump(vgpr(tmpVgpr+0))
     kStr += dump(vgpr(tmpVgpr+1))
 
-    # mask if last thread in thread-tile column
-    #kStr += inst("v_cmp_eq_u32", "vcc", vgpr(sms), \
-    #    vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
-
-    # jump to end if no shifting
-    #kStr += inst("s_cbranch_vccz label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
-    #    "don't shift d0")
-    #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-    #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
-    #kStr += inst("s_mov_b64", "exec", sgpr(ones,2), "reset")
-    #kStr += "s_endpgm\n"
     # for each remainder, jump
     for r in range(1, kernel["VectorWidth"]):
       kStr += inst("v_cmp_eq_u32", "vcc", vgpr(rReg), \
           hex(r), "wgMT%%VW == %u"%r )
       kStr += inst("s_cbranch_vccnz label_%04u"\
           % svcLabels[(r-1)%kernel["VectorWidth"]], \
-          "shift d0 r=%u"%r)
+          "shift d%u r=%u"%(tP["tensorIdx"], r))
       kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), \
           "location=%u"%location); location *= 2
       kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), \
           vgpr(vgprPath), "path+=location")
-      #kStr += inst("s_mov_b64", "exec", sgpr(ones,2), "reset")
-      #kStr += dump(vgpr("Serial"))
     kStr += inst("s_branch label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
         "no shifting" )
 
     # code blocks for shifting
-    vectorIdx = kernel["ThreadTile0"]/kernel["VectorWidth"] - 1
+    vectorIdx = kernel[tP["tt"]]/kernel["VectorWidth"] - 1
     for r in range(1, kernel["VectorWidth"]):
-      kStr += self.comment("shift d0 r=%u"%r)
+      kStr += self.comment("shift d%u r=%u"%(tP["tensorIdx"], r))
       kStr += "label_%04u:%s" % (svcLabels[r-1], self.endLine)
-      #kStr += inst("s_mov_b64", "exec", "vcc", "")
-      kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(sms), \
-          vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
-      #kStr += inst("s_nop", "5", "wait for exec update")
-      #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-      #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
-      """
-      if r == 3:
-        kStr += inst("v_cmp_eq_u32", sgpr(mask,2), vgpr(sms), \
-            vgpr(eReg), "mask" )
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(mask+0), "")
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+1), sgpr(mask+1), "")
-        kStr += dump(vgpr(tmpVgpr+0))
-        kStr += dump(vgpr(tmpVgpr+1))
-      """
-      for tt1 in range(0, kernel["ThreadTile1"]):
+      # mask if last thread in thread-tile column
+      kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
+          vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
+      tto = kernel["ThreadTile%u"%((tP["tensorIdx"]+1)%2)] # thread tile orthogonal
+      for tt in range(0, tto):
         for s in range(0, r):
-          dst = (s) \
-              + vectorIdx * kernel["VectorWidth"] + tt1 * kernel["ThreadTile0"]
-          src = (s+kernel["VectorWidth"]-r) \
-              + vectorIdx * kernel["VectorWidth"] + tt1 * kernel["ThreadTile0"]
+          if tP["isA"]:
+            dst = (s) \
+                + vectorIdx * kernel["VectorWidth"] + tt * kernel["ThreadTile0"]
+            src = (s+kernel["VectorWidth"]-r) \
+                + vectorIdx * kernel["VectorWidth"] + tt * kernel["ThreadTile0"]
+            comment = "rC[%u+%u*VW+%u*TT%s] = rC[%u+%u*VW+%u*TT%s]" \
+                % (s, vectorIdx, tt, self.tileChar0, \
+                s+kernel["VectorWidth"]-r, vectorIdx, tt, self.tileChar0 )
+          else:
+            dst = (tt) \
+                + vectorIdx * kernel["VectorWidth"]*kernel["ThreadTile0"] + s * kernel["ThreadTile0"]
+            src = (tt) \
+                + vectorIdx * kernel["VectorWidth"]*kernel["ThreadTile0"] + (s+kernel["VectorWidth"]-r) * kernel["ThreadTile0"]
+            comment = "rC[%u+%u*TT%s*VW+%u*TT%s] = rC[%u+%u*TT%s*VW+%u*TT%s]" \
+              % (tt, vectorIdx, self.tileChar0, s, self.tileChar0, \
+              tt, vectorIdx, self.tileChar0, \
+              s+kernel["VectorWidth"]-r, self.tileChar0)
+
           kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst), \
-              vgpr(self.startVgprValuC+src), \
-              "rC[%u+%u*VW+%u*TT%s] = rC[%u+%u*VW+%u*TT%s]" \
-              % (s, vectorIdx, tt1, self.tileChar0, \
-              s+kernel["VectorWidth"]-r, vectorIdx, tt1, self.tileChar0 ) )
+              vgpr(self.startVgprValuC+src), comment)
+
+
       kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
           "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
       kStr += inst("s_or_saveexec_b64", "vcc", sgpr(tmpSgpr,2), \
@@ -2785,7 +2787,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(rReg)
     self.vgprScratch.checkIn(sReg)
     self.vgprScratch.checkIn(eReg)
-    self.vgprScratch.checkIn(sms)
+    self.vgprScratch.checkIn(thread)
     self.vgprScratch.checkIn(dummy)
     return kStr
 
