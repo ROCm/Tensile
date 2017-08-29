@@ -185,12 +185,13 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
       runScriptFile.write("\n")
     else:
       if globalParameters["PinClocks"]:
-        runScriptFile.write("rocm-smi -d 0 --setfan 255 --setsclk 7\n")
+        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --setfan 255 --setsclk 7\n")
         runScriptFile.write("sleep 1\n")
-        runScriptFile.write("rocm-smi -d 0 -a\n")
+        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 -a\n")
       runScriptFile.write("./client\n")
       if globalParameters["PinClocks"]:
-        runScriptFile.write("rocm-smi -d 0 --resetclocks\n")
+        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --resetclocks\n")
+        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --setfan 255\n")
   else:
     executablePath = os.path.join(globalParameters["WorkingPath"])
     if os.name == "nt":
@@ -564,7 +565,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "\n"
     # Solution Ptrs
     h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
-    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True)
+    argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True, True)
     for i in range(0, len(argList)):
       h += "  %s %s%s" % (argList[i][0], argList[i][1], \
           ",\n" if i < len(argList)-1 else ");\n\n")

@@ -22,12 +22,10 @@
 #include "SolutionHelper.h"
 #include "Tools.h"
 
-#if Tensile_RUNTIME_LANGUAGE_OCL
 #ifdef WIN32
 __declspec(thread) KernelMap kernelMap;
 #else
 thread_local KernelMap kernelMap;
-#endif
 #endif
 
 /*******************************************************************************
@@ -74,8 +72,6 @@ void tensileGetCompiledOpenCLKernel(
   // print build failure
   if (status != CL_SUCCESS) {
     printf("clBuildProgram Failed with status = %d\n", status);
-    printf("\nKernel Source:\n\n");
-    printf("%s\n", kernelSource);
 
     size_t len = 0;
     clGetProgramBuildInfo(clProgram, clDevice, CL_PROGRAM_BUILD_LOG,
@@ -86,6 +82,8 @@ void tensileGetCompiledOpenCLKernel(
     printf("\n\n\nBuild Log:\n\n");
     printf("%s\n", buildLog);
     printf("\n");
+    printf("\nKernel Source:\n\n");
+    printf("%s\n", kernelSource);
     delete[] buildLog;
   }
   status = clCreateKernelsInProgram(
@@ -98,6 +96,38 @@ void tensileGetCompiledOpenCLKernel(
 
   // put kernel in map
   kernelMap[key] = *kernel;
+}
+#endif
+
+/*******************************************************************************
+ * Get Assembly Kernels for HIP
+ ******************************************************************************/
+#if Tensile_RUNTIME_LANGUAGE_HIP
+void tensileGetHipFunctionFromCodeObjectByteArray(
+  hipFunction_t *function,
+  const char *functionName,
+  const unsigned char *coba, // code object byte array
+  hipStream_t stream ) {
+
+  // is function already loaded?
+  KernelMapKey key = std::make_tuple(stream, functionName);
+  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
+  if (idx != kernelMap.end()) {
+    *function = idx->second;
+    return;
+  }
+
+  // load function
+  TensileStatus status;
+  hipModule_t module;
+  status = hipModuleLoadData(&module, coba);
+  tensileStatusCheck(status);
+
+  hipModuleGetFunction(function, module, functionName);
+  tensileStatusCheck(status);
+
+  // store in map
+  kernelMap[key] = *function;
 }
 #endif
 

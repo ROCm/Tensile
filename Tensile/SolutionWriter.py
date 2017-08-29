@@ -21,7 +21,7 @@
 
 from SolutionStructs import Solution
 from KernelWriterSource import KernelWriterSource
-from Common import globalParameters
+from Common import globalParameters, kernelLanguageIsSource
 
 ################################################################################
 # SolutionWriter
@@ -40,6 +40,7 @@ class SolutionWriter:
     self.solutionSerialNaming = solutionSerialNaming
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
+    # only using getKernelName from KernelWriter so child doesn't matter
     self.kernelWriter = KernelWriterSource( kernelMinNaming, kernelSerialNaming)
 
     self.streamName = "hipStream_t" if self.language == "HIP" \
@@ -89,6 +90,28 @@ class SolutionWriter:
     s += " {\n"
     t += "  "
 
+    # hipFunction Struct
+    if not kernelLanguageIsSource():
+      s += "\n"
+      s += "/* module function args */\n"
+      s += "%sstruct {\n" % t
+      t += "  "
+      if globalParameters["DebugKernel"]:
+        s += "%sunsigned int *debugBuffer;\n" % t
+      solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
+      for arg in solutionArgs:
+        s += "%s%s %s;\n" % (t, arg[0], arg[1])
+      s += "%sunsigned int pad;\n" % t
+      t = t[2:]
+      s += "%s} hipFunctionArgs;\n" % t
+      #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
+      s += "%ssize_t hipFunctionArgsSize = sizeof(hipFunctionArgs);\n" % t
+      s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
+      #s += "%sprintf(\"size: %%lu\\n\", sizeof(unsigned int));\n" % t
+      #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
+    # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
+
+
     # kernels
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
@@ -121,8 +144,13 @@ class SolutionWriter:
           s += "%s      stream,\n" % (t)
           s += "%s      buildOptions);\n" % (t)
 
-    else:
-      pass
+    elif not kernelLanguageIsSource():
+      s += "%shipFunction_t %s_hipFunction;\n" % (t, kernelName)
+      s += "%s  tensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
+      s += "%s      &%s_hipFunction,\n" % (t, kernelName)
+      s += "%s      \"%s\",\n" % (t, kernelName)
+      s += "%s      %s_coba, // code object byte array\n" % (t, kernelName)
+      s += "%s      stream);\n" % (t)
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
     # index assignments
@@ -168,15 +196,26 @@ class SolutionWriter:
     s += "%sunsigned int totalWorkGroups0 = sizeOfC0 / macroTile0;\n" % (t)
     s += "%sunsigned int totalWorkGroups1 = sizeOfC1 / macroTile1;\n" % (t)
 
-    s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
-    s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
-    s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    if kernel["EdgeType"] != "None":
+      s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
+      s += "%sif (totalWorkGroups0*macroTile0 < sizeOfC0) { totalWorkGroups0++; }\n" % (t)
+      s += "%sif (totalWorkGroups1*macroTile1 < sizeOfC1) { totalWorkGroups1++; }\n" % (t)
+    if kernel["WorkGroupMappingType"] == "Z" and abs(kernel["WorkGroupMapping"]) == 2:
+      s += "%sunsigned int totalWorkGroupsPow2 = totalWorkGroups0 > totalWorkGroups1 ? totalWorkGroups0 : totalWorkGroups1;\n" % (t)
+      s += "%stotalWorkGroupsPow2--;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 1;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 2;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 4;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 8;\n" % (t)
+      s += "%stotalWorkGroupsPow2 |= totalWorkGroupsPow2 >> 16;\n" % (t)
+      s += "%stotalWorkGroupsPow2++;\n" % (t)
+      s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
+      s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
+
     if solution["GlobalSplitU"] > 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
-
-    s += "%sglobalWorkSize[0][0] = totalWorkGroups0%s;\n" % (t, "*localWorkSize[0]" if self.language == "OCL" else "")
-    s += "%sglobalWorkSize[0][1] = totalWorkGroups1%s;\n" % (t, "*localWorkSize[1]" if self.language == "OCL" else "")
-
+    s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
+    s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
 
     # offsets
     s += "\n%s/* offsets */\n" % (t)
@@ -209,7 +248,9 @@ class SolutionWriter:
     s += "%sTensileStatus status;\n" % (t)
     s += "\n"
 
-    # Beta-Only kernel
+    ########################################
+    # Enqueue Beta-Only Kernel
+    ########################################
     if solution["GlobalSplitU"] > 1:
       kernelNamesBetaOnly = []
       numStridesC = solution["ProblemType"]["NumIndicesC"] - \
@@ -347,7 +388,9 @@ class SolutionWriter:
         s += "%s}\n" % (t)
 
 
-    #enqueue the kernels
+    ########################################
+    # Enqueue Kernels
+    ########################################
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
       kernelName = self.kernelWriter.getKernelName(kernel)
@@ -390,6 +433,9 @@ class SolutionWriter:
         for i in range(0, solution["ProblemType"]["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
 
+      ########################################
+      # OpenCL Runtime
+      ########################################
       if self.language == "OCL":
         # set kernel args different for all enqueues
         argIdx = 5 if solution["ProblemType"]["UseBeta"] else 4
@@ -425,36 +471,112 @@ class SolutionWriter:
         s += "%soutputEvent );\n" % (t)
         s += "%stensileStatusCheck(status);\n" % (t)
 
+      ########################################
+      # HIP Runtime
+      ########################################
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
         s += "%s  hipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
         s += "%stry {\n" % (t)
         t += "  "
-        s += "%shipLaunchKernel(\n" % (t)
-        t += "  "
-        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
-        s += "%sdim3(globalWorkSize[kernelIdx][0], globalWorkSize[kernelIdx][1], globalWorkSize[kernelIdx][2]),\n" % (t)
-        s += "%sdim3(localWorkSize[0], localWorkSize[1], localWorkSize[2]),\n" % (t)
-        s += "%s0, // groupMemBytes\n" % (t)
-        s += "%sstream,\n" % (t)
-        s += "%sdataC,\n" % (t)
-        s += "%sdataA,\n" % (t)
-        s += "%sdataB,\n" % (t)
-        s += "%salpha,\n" % (t)
-        s += "%s%sbeta,\n" % (t, \
-            "" if solution["ProblemType"]["UseBeta"] else "//")
-        s += "%soffsets[kernelIdx][enqueueIdx][0],\n" % (t)
-        s += "%soffsets[kernelIdx][enqueueIdx][1],\n" % (t)
-        s += "%soffsets[kernelIdx][enqueueIdx][2],\n" % (t)
-        # strides
-        for stride in self.strideList:
-          s += "%s%s,\n" % (t, stride)
-        # sizes
-        for i in range(0, solution["ProblemType"]["TotalIndices"]):
-          lastParam = i == solution["ProblemType"]["TotalIndices"]-1
-          s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
-              % (t, i, "" if lastParam else "," )
-        s += "    );\n"
+        # hip kernel
+        if kernelLanguageIsSource():
+          s += "%shipLaunchKernel(\n" % (t)
+          t += "  "
+          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
+          s += "%sdim3(globalWorkSize[kernelIdx][0], globalWorkSize[kernelIdx][1], globalWorkSize[kernelIdx][2]),\n" % (t)
+          s += "%sdim3(localWorkSize[0], localWorkSize[1], localWorkSize[2]),\n" % (t)
+          s += "%s0, // groupMemBytes\n" % (t)
+          s += "%sstream,\n" % (t)
+          s += "%sdataC,\n" % (t)
+          s += "%sdataA,\n" % (t)
+          s += "%sdataB,\n" % (t)
+          s += "%salpha,\n" % (t)
+          s += "%s%sbeta,\n" % (t, \
+              "" if solution["ProblemType"]["UseBeta"] else "//")
+          s += "%soffsets[kernelIdx][enqueueIdx][0],\n" % (t)
+          s += "%soffsets[kernelIdx][enqueueIdx][1],\n" % (t)
+          s += "%soffsets[kernelIdx][enqueueIdx][2],\n" % (t)
+          # strides
+          for stride in self.strideList:
+            s += "%s%s,\n" % (t, stride)
+          # sizes
+          for i in range(0, solution["ProblemType"]["TotalIndices"]):
+            lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+            s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
+                % (t, i, "" if lastParam else "," )
+          s += "    );\n"
+        else:
+
+          if globalParameters["DebugKernel"]:
+            s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
+            s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
+            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][0];\n" % (t)
+            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][1];\n" % (t)
+            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][2];\n" % (t)
+            s += "%sdebugBufferNumElem *= localWorkSize[0];\n" % (t)
+            s += "%sdebugBufferNumElem *= localWorkSize[1];\n" % (t)
+            s += "%sdebugBufferNumElem *= localWorkSize[2];\n" % (t)
+            s += "%s  printf(\"debugBufferNumElem: %%04i: \\n\", debugBufferNumElem);\n" % (t)
+            s += "%ssize_t debugBufferSize = debugBufferNumElem * sizeof(unsigned int);\n" % (t)
+            s += "%shipDevice_t device;\n" % t
+            s += "%shipDeviceGet(&device, 0);\n" % t
+            s += "%shipMalloc(&(hipFunctionArgs.debugBuffer), debugBufferSize);\n" % t
+            s += "%sunsigned int *debugBufferHostPtr = new unsigned int[debugBufferNumElem];\n" % (t)
+            s += "%smemset(debugBufferHostPtr,0,debugBufferSize);\n" % (t)
+            s += "%shipMemcpyHtoD(hipFunctionArgs.debugBuffer, debugBufferHostPtr, debugBufferSize);\n" % (t)
+            s += "%smemset(debugBufferHostPtr,1,debugBufferSize);\n" % (t)
+
+          # hip assembly function
+          s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
+          s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
+          s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
+          s += "%shipFunctionArgs.alpha = alpha;\n" % (t)
+          if solution["ProblemType"]["UseBeta"]:
+            s += "%shipFunctionArgs.beta = beta;\n" % (t)
+          s += "%shipFunctionArgs.offsetC = offsets[kernelIdx][enqueueIdx][0];\n" % (t)
+          s += "%shipFunctionArgs.offsetA = offsets[kernelIdx][enqueueIdx][1];\n" % (t)
+          s += "%shipFunctionArgs.offsetB = offsets[kernelIdx][enqueueIdx][2];\n" % (t)
+          # strides
+          for stride in self.strideList:
+            s += "%shipFunctionArgs.%s = %s;\n" % (t, stride, stride)
+          # sizes
+          for i in range(0, solution["ProblemType"]["TotalIndices"]):
+            lastParam = i == solution["ProblemType"]["TotalIndices"]-1
+            s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
+                % (t, globalParameters["IndexChars"][i], i )
+
+          s += "%shipModuleLaunchKernel(\n" % (t)
+          t += "  "
+          s += "%s%s_hipFunction,\n" % (t, kernelName)
+          s += "%sglobalWorkSize[kernelIdx][0],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][1],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][2],\n" % (t)
+          s += "%slocalWorkSize[0],\n" % (t)
+          s += "%slocalWorkSize[1],\n" % (t)
+          s += "%slocalWorkSize[2],\n" % (t)
+          s += "%s0, // groupMemBytes\n" % (t)
+          s += "%sstream,\n" % (t)
+          s += "%sNULL,\n" % (t)
+          s += "%s(void**)hipLaunchParams);\n" % (t)
+          t = t[2:]
+          if globalParameters["DebugKernel"]:
+            # copy debug buffer
+            s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
+            s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
+            s += "%s  printf(\"%%04i\", i);\n" % (t)
+            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
+            s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
+            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t)
+            s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
+            s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
+            s += "%s else printf(\",%%4.0f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
+
+            s += "%s  }\n" % (t)
+            s += "%s  printf(\"\\n\");\n" % (t)
+            s += "%s}\n" % (t)
+
+
         t = t[2:]
         s += "%s} catch (const std::exception& e) {\n" % (t)
         s += "#ifdef DEBUG\n"
@@ -511,13 +633,13 @@ class SolutionWriter:
 
   ########################################
   # get solution arguments
-  def getArgList(self, problemType, includeDataAndEvents, includeStream):
+  def getArgList(self, problemType, includeData, includeEvents, includeStream):
     self.strideList = []
     self.sizeList = []
     argList = []
 
     # data ptrs
-    if includeDataAndEvents:
+    if includeData:
       typeName = problemType["DataType"].toCpp()
       if self.language == "HIP":
         argList.append(("%s *"%typeName, "dataC"))
@@ -561,7 +683,7 @@ class SolutionWriter:
       argList.append(("unsigned int", size))
     if includeStream:
       argList.append((self.streamName, "stream"))
-    if includeDataAndEvents:
+    if includeEvents:
       argList.append(("unsigned int", "numInputEvents"))
       argList.append(("%s *"%self.eventName, "inputEvents"))
       argList.append(("%s *"%self.eventName, "outputEvent"))
@@ -575,7 +697,7 @@ class SolutionWriter:
     solutionName = self.getSolutionName(solution)
     s += "%s%s %s(\n" % (t, self.statusName, solutionName)
     t += "    "
-    argList = self.getArgList(solution["ProblemType"], True, True)
+    argList = self.getArgList(solution["ProblemType"], True, True, True)
     for i in range(0, len(argList)):
       argString = "%s %s" % argList[i]
       s += "%s%s%s" % (t, argString, ",\n" if i < len(argList)-1 else ")" )

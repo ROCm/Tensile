@@ -1,0 +1,177 @@
+# benchmark fastest kernels for the 5760 size
+GlobalParameters:
+  MinimumRequiredVersion: 3.0.0
+  KernelLanguage: gfx803
+  CMakeBuildType: Release
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  NumElementsToValidate: 128
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  DataInitTypeAB: 3
+  DataInitTypeC: 0
+  KernelTime: True
+
+BenchmarkProblems:
+
+  - # sgemm NN
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: False
+      Batched: False
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
+        - LoopDoWhile: [False]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - WorkGroupMapping: [1]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+      ForkParameters:
+        - WorkGroupMapping: [1, 2, 3, 8]
+        - PrefetchLocalRead: [False, True]
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16,  1 ]
+        - DepthU: [8]
+        - VectorWidth: [4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4096, 128, 5760], 0, 0 ]
+
+  - # sgemm NT
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: True
+      UseBeta: False
+      Batched: False
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
+        - LoopDoWhile: [False]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - WorkGroupMapping: [1]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+      ForkParameters:
+        - WorkGroupMapping: [1, 2, 3, 8]
+        - PrefetchLocalRead: [False, True]
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16,  1 ]
+        - DepthU: [8]
+        - VectorWidth: [4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4096, 128, 5760], 0, 0 ]
+
+  - # sgemm TN
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: True
+      TransposeB: False
+      UseBeta: False
+      Batched: False
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
+        - LoopDoWhile: [False]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - WorkGroupMapping: [1]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+      ForkParameters:
+        - WorkGroupMapping: [1, 2, 3, 8]
+        - PrefetchLocalRead: [False, True]
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16,  1 ]
+        - DepthU: [8, 16]
+        - VectorWidth: [4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4096, 128, 5760], 0, 0 ]
+
+  - # sgemm TT
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: True
+      TransposeB: True
+      UseBeta: False
+      Batched: False
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes:
+          - Range: [ [5760], 0, 0 ]
+        - LoopDoWhile: [False]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
+        - WorkGroupMapping: [1]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+      ForkParameters:
+        - WorkGroupMapping: [-1, -2, -3, -8]
+        - PrefetchLocalRead: [False, True]
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16,  1 ]
+        - DepthU: [8]
+        - VectorWidth: [4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4096, 128, 5760], 0, 0 ]
+
+LibraryLogic:
+
+LibraryClient:

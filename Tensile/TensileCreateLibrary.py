@@ -19,11 +19,12 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, kernelLanguageIsSource
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
+from KernelWriterAssembly import KernelWriterAssembly
 
 import os
 import os.path
@@ -223,9 +224,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   for problemType in logicData:
 
     # function argument list
-    argListSizes = solutionWriter.getArgList(problemType, False, False)
-    argListStream = solutionWriter.getArgList(problemType, False, True)
-    argListData = solutionWriter.getArgList(problemType, True, True)
+    argListSizes = solutionWriter.getArgList(problemType, False, False, False)
+    argListStream = solutionWriter.getArgList(problemType, False, False, True)
+    argListData = solutionWriter.getArgList(problemType, True, True, True)
 
     # declare tensile_ProblemType
     h += "\n// enqueue solution\n"
@@ -633,8 +634,12 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
@@ -700,7 +705,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", \
       choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("KernelLanguage", help="Which kernel language?", \
-      choices=["OCL", "HIP", "ASM"])
+      choices=["OCL", "HIP", "gfx803", "gfx900"])
   argParser.add_argument("--merge-files", dest="MergeFiles", \
       action="store_true")
   argParser.add_argument("--no-merge-files", dest="MergeFiles", \
@@ -773,8 +778,12 @@ def TensileCreateLibrary():
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
   writeSolutionsAndKernels(outputPath, solutions, solutionWriter, kernelWriter)

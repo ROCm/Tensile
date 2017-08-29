@@ -28,10 +28,11 @@ from subprocess import Popen
 import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar, kernelLanguageIsSource
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
+from KernelWriterAssembly import KernelWriterAssembly
 from ClientWriter import writeRunScript, writeClientParameters
 from TensileCreateLibrary import writeSolutionsAndKernels, writeCMake
 import YAMLIO
@@ -234,6 +235,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       for j in range(0, len(solutionsForHardcoded)):
         solution = solutionsForHardcoded[j]
         solutionList.append(solution)
+    if len(solutionList) == 0:
+        printExit("Your parameters resulted in 0 valid solutions.\nYou should re-run with \"PrintSolutionRejectionReason: True\" to see why each parameter combination was rejected.")
     if globalParameters["PrintLevel"] >= 1:
       for i in range(0, len(solutions)):
         solutionsForHardcoded = solutions[i]
@@ -380,8 +383,12 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  kernelWriter = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
+  if kernelLanguageIsSource():
+    kernelWriter = KernelWriterSource( \
+        kernelMinNaming, kernelSerialNaming)
+  else:
+    kernelWriter = KernelWriterAssembly( \
+        kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   writeSolutionsAndKernels( \

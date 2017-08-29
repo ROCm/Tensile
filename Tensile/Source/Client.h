@@ -41,6 +41,8 @@ unsigned int numInvalidSolutions = 0;
 void initControls();
 void destroyControls();
 
+double globalFastestGFlops = 0.0;
+unsigned int globalFastestIdx = 0;
 double fastestGFlops = 0.0;
 unsigned int fastestIdx = 0;
 
@@ -290,6 +292,10 @@ bool callLibrary(
     fastestGFlops = gflops;
     fastestIdx = functionIdx;
     newFastest = true;
+    if (fastestGFlops > globalFastestGFlops) {
+      globalFastestGFlops = fastestGFlops;
+      globalFastestIdx = fastestIdx;
+    }
   }
 
   const char * solutionName = generatedCallTo_tensileGetSolutionName(
@@ -572,6 +578,10 @@ bool benchmarkAllSolutionsForSize(
       fastestGFlops = gflops;
       fastestIdx = solutionIdx;
       newFastest = true;
+      if (fastestGFlops > globalFastestGFlops) {
+        globalFastestGFlops = fastestGFlops;
+        globalFastestIdx = fastestIdx;
+      }
     }
 
     // print results to stdout
@@ -596,6 +606,7 @@ bool benchmarkAllSolutionsForSize(
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
   file << std::endl;
+
   return returnInvalids;
 } // benchmark solutions
 #endif // benchmark client
@@ -742,6 +753,8 @@ void initData(
     DataType *beta,
     DataType **referenceC,
     DataType **deviceOnHostC) {
+  int seed = time(NULL);
+  srand(seed);
   std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
     << maxSizeB << ")" << std::endl;
 
@@ -770,7 +783,7 @@ void initData(
   // initialize buffers C
   if (dataInitTypeC == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetRandom<DataType>(); }
+      (*initialC)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
   } else if (dataInitTypeC == 1) {
     for (size_t i = 0; i < maxSizeC; i++) {
@@ -780,19 +793,23 @@ void initData(
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
+  } else if (dataInitTypeC == 3) {
+    for (size_t i = 0; i < maxSizeC; i++) {
+      (*initialC)[i] = tensileGetRandom<DataType>(); }
+    std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeC; i++) {
-      (*initialC)[i] = tensileGetZero<DataType>(); }
+      (*initialC)[i] = tensileGetNaN<DataType>(); }
     std::cout << ".";
   }
 
   // initialize buffers
   if (dataInitTypeAB == 0) {
     for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetRandom<DataType>(); }
+      (*initialA)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetRandom<DataType>(); }
+      (*initialB)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
   } else if (dataInitTypeAB == 1) {
     for (size_t i = 0; i < maxSizeA; i++) {
@@ -810,10 +827,10 @@ void initData(
     std::cout << ".";
   } else {
     for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetZero<DataType>(); }
+      (*initialA)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetZero<DataType>(); }
+      (*initialB)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
   }
 

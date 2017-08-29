@@ -24,7 +24,7 @@
 parallel rocm_fiji: {
 
   currentBuild.result = "SUCCESS"
-  node('rocm-1.5&& fiji')
+  node('rocm-1.6 && fiji')
   {
     def scm_dir = pwd()
     def build_dir_debug = "${scm_dir}/test/debug"
@@ -65,12 +65,22 @@ parallel rocm_fiji: {
         // run jenkins tests
         dir("${build_dir_release}") {
           stage("unit tests") {
+
+           // defaults
            sh "tensile ../../Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults"
            sh "tensile ../../Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults"
            sh "tensile ../../Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults"
 
+           // thorough tests
            sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_hgemm.yaml hgemm"
            sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_sgemm.yaml sgemm"
+
+           // vectors
+           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors"
+           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
+
+           // assembly
+           sh "tensile ../../Tensile/Configs/sgemm_gfx803.yaml sgemm_gfx803"
 
            // TODO re-enable when jenkins supports opencl
            //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"

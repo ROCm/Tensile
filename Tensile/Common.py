@@ -45,6 +45,7 @@ else:
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
+globalParameters["DebugKernel"] = False
 globalParameters["PrintSolutionRejectionReason"] = False
 # paths
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))
@@ -69,6 +70,7 @@ globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
+globalParameters["AssemblerPath"] = "/opt/rocm/bin/hcc"
 
 # file heirarchy
 globalParameters["ShortNames"] = False
@@ -77,8 +79,8 @@ globalParameters["MergeFiles"] = True
 globalParameters["NumElementsToValidate"] = 128
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitTypeAB"] = 0 # 0=rand, 1=1, 2=serial, 3=0
-globalParameters["DataInitTypeC"]  = 0 # 0=rand, 1=1, 2=serial, 3=0
+globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768
@@ -97,7 +99,7 @@ for numThreads in range(64, 1025, 64):
           validWorkGroups.append(workGroup)
 
 
-validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8]
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 12, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
   for j in validThreadTileSides:
@@ -120,8 +122,15 @@ validParameters = {
     "UnrollMemFence":             [ False, True ],
     "GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
+    "GlobalRead2A":               [ False, True ],
+    "GlobalRead2B":               [ False, True ],
+    "LocalWrite2A":               [ False, True ],
+    "LocalWrite2B":               [ False, True ],
+    "LocalRead2A":                [ False, True ],
+    "LocalRead2B":                [ False, True ],
 
     "WorkGroupMapping":           range(-1024,1024+1),
+    "WorkGroupMappingType":       ["B", "Z"], # Blocking, S-order
     "MaxOccupancy":               range(1, 40+1), # wg / CU
     "WorkGroup":                  validWorkGroups,
     "ThreadTile":                 validThreadTiles,
@@ -129,7 +138,7 @@ validParameters = {
     "NumLoadsCoalescedB":         range(-1, 64+1),
     "DepthU":                     range(2, 256+1, 2),
     "GlobalSplitU":               range(1, 64+1),
-    "VectorWidth":                [ -1, 1, 2, 4, 8 ],
+    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          range(1, 64+1),
     "MacroTileShapeMax":          range(1, 64+1),
@@ -153,6 +162,12 @@ defaultBenchmarkCommonParameters = [
     {"PrefetchGlobalRead":        [ True ] },
     {"PrefetchLocalRead":         [ True ] },
     {"UnrollMemFence":            [ False ] },
+    {"GlobalRead2A":              [ True ] },
+    {"GlobalRead2B":              [ True ] },
+    {"LocalWrite2A":              [ True ] },
+    {"LocalWrite2B":              [ True ] },
+    {"LocalRead2A":               [ True ] },
+    {"LocalRead2B":               [ True ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -161,6 +176,7 @@ defaultBenchmarkCommonParameters = [
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
+    {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 1 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"DepthU":                    [ 16 ] },
@@ -214,6 +230,13 @@ defaultAnalysisParameters = {
     "SolutionImportanceMin":      0.01, # = keep range solutions; 0.01=1% wins
     }
 
+
+################################################################################
+# Kernel Language Belongs to Source or Assembly?
+################################################################################
+def kernelLanguageIsSource():
+  return globalParameters["KernelLanguage"] \
+      in ["OCL", "HIP"]
 
 ################################################################################
 # Searching Nested Lists / Dictionaries

@@ -24,26 +24,28 @@
 
 #include "TensileTypes.h"
 #include <map>
-#include <string>
 #include <tuple>
 
 /*******************************************************************************
- * OpenCL Kernel Cache
+ * Kernel Cache
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
 typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
+#else
+typedef std::tuple<hipStream_t, const char *> KernelMapKey;
+typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
+#endif
 
 #ifdef WIN32
 __declspec(thread) extern KernelMap kernelMap;
 #else
 extern thread_local KernelMap kernelMap;
 #endif
-#endif
 
 
 /*******************************************************************************
- * Compile OpenCL kernels
+ * Compile/Load Kernels
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_OCL
 void tensileGetCompiledOpenCLKernel(
@@ -51,6 +53,12 @@ void tensileGetCompiledOpenCLKernel(
   const char *kernelSource,
   cl_command_queue queue,
   const char *sourceBuildOptions);
+#else
+void tensileGetHipFunctionFromCodeObjectByteArray(
+  hipFunction_t *function,
+  const char *functionName,
+  const unsigned char *coba, // code object byte array
+  hipStream_t stream );
 #endif
 
 
