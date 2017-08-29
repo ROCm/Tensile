@@ -2718,15 +2718,19 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     #kStr += inst("s_mov_b64", "exec", sgpr(ones,2), "reset")
     #kStr += "s_endpgm\n"
-
+    kStr += inst("s_mov_b64", sgpr(tmpSgpr), \
+        "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
     # for each remainder, jump
     for r in range(1, kernel["VectorWidth"]):
       kStr += inst("v_cmp_eq_u32", "vcc", vgpr(rReg), \
           hex(r), "wgMT%%VW == %u"%r )
-      kStr += inst("s_cbranch_vccnz label_%04u"%svcLabels[(r-1)%kernel["VectorWidth"]], \
+      kStr += inst("s_cbranch_vccnz label_%04u"\
+          % svcLabels[(r-1)%kernel["VectorWidth"]], \
           "shift d0 r=%u"%r)
-      kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-      kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
+      kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), \
+          "location=%u"%location); location *= 2
+      kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), \
+          vgpr(vgprPath), "path+=location")
       #kStr += inst("s_mov_b64", "exec", sgpr(ones,2), "reset")
       #kStr += dump(vgpr("Serial"))
     kStr += inst("s_branch label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
@@ -2738,7 +2742,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment("shift d0 r=%u"%r)
       kStr += "label_%04u:%s" % (svcLabels[r-1], self.endLine)
       #kStr += inst("s_mov_b64", "exec", "vcc", "")
-      kStr += inst("v_cmp_eq_u32", "exec", vgpr(sms), \
+      kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(sms), \
           vgpr(eReg), "serial % SG0 == (wgMT/VECTOR_WIDTH)%SG0" )
       #kStr += inst("s_nop", "5", "wait for exec update")
       #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
@@ -2763,12 +2767,14 @@ class KernelWriterAssembly(KernelWriter):
               "rC[%u+%u*VW+%u*TT%s] = rC[%u+%u*VW+%u*TT%s]" \
               % (s, vectorIdx, tt1, self.tileChar0, \
               s+kernel["VectorWidth"]-r, vectorIdx, tt1, self.tileChar0 ) )
+      kStr += inst("s_and_saveexec_b64", "vcc", sgpr(tmpSgpr,2), \
+          "all threads active")
       kStr += inst("s_branch label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
           "done shifting" )
     kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
     kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     kStr += "label_%04u: // end shift0%s" % (svcLabels[kernel["VectorWidth"]-1], self.endLine)
-    kStr += inst("s_mov_b64", "exec", "0xFFFFFFFFFFFFFFFF", "all threads active")
+    #kStr += inst("s_mov_b64", "exec","0xFFFFFFFFFFFFFFFF","")
     #kStr += inst("s_nop", "5", "wait for exec update")
     kStr += dump(vgpr(vgprPath))
 
