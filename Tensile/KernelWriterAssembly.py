@@ -2718,8 +2718,6 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     #kStr += inst("s_mov_b64", "exec", sgpr(ones,2), "reset")
     #kStr += "s_endpgm\n"
-    kStr += inst("s_mov_b64", sgpr(tmpSgpr), \
-        "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
     # for each remainder, jump
     for r in range(1, kernel["VectorWidth"]):
       kStr += inst("v_cmp_eq_u32", "vcc", vgpr(rReg), \
@@ -2767,7 +2765,9 @@ class KernelWriterAssembly(KernelWriter):
               "rC[%u+%u*VW+%u*TT%s] = rC[%u+%u*VW+%u*TT%s]" \
               % (s, vectorIdx, tt1, self.tileChar0, \
               s+kernel["VectorWidth"]-r, vectorIdx, tt1, self.tileChar0 ) )
-      kStr += inst("s_and_saveexec_b64", "vcc", sgpr(tmpSgpr,2), \
+      kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
+          "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr(tmpSgpr,2), \
           "all threads active")
       kStr += inst("s_branch label_%04u"%svcLabels[kernel["VectorWidth"]-1], \
           "done shifting" )
