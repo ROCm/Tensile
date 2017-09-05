@@ -792,6 +792,139 @@ class KernelWriterAssembly(KernelWriter):
   def macroRegister(self, name, value):
     return ".set %s, %s%s" % (name, value, self.endLine)
 
+
+
+  ####################################
+  # Global Write Macros
+  ####################################
+  def globalWriteMacro(self, kernel, beta, edge):
+    kStr = ""
+    kStr += self.comment3("Global Write%s%s"%(" Beta" if beta else "", " Edge" if edge else ""))
+    kStr += ".macro GLOBAL_WRITE%s%s vc0 vc1 d0 d1 tid0 tid1 addrC tmp%s"%("_Beta" if beta else "", "_Edge" if edge else "", self.endLine)
+
+    kStr += ".set idx, %u + \\vc0 + \\d0*%u + \\vc1*%u + \\d1*%u*%u %s" \
+        % (self.startVgprValuC, \
+        kernel["VectorWidth"], \
+        kernel["ThreadTile0"], \
+        kernel["VectorWidth"], kernel["ThreadTile0"], \
+        self.endLine )
+    kStr += ".set addr, \\tmp+2%s" % self.endLine
+    #kStr += ".set vgprTmp, %u%s" % ( self.totalVgprs-8, self.endLine)
+    #kStr += dump(vgpr(self.globalWriteAddrC+0))
+    #kStr += dump(vgpr(self.globalWriteAddrC+1))
+    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Alpha"), "")
+    #kStr += dump(vgpr(65))
+    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Beta"), "")
+    #kStr += dump(vgpr(65))
+    #kStr += dump("v[idx]")
+    # static tmps b/c
+    #vgprAddr = self.totalVgprs-6
+    #vgprValue = self.totalVgprs-7
+
+    # coord0
+    kStr += staticMultiply("v[\\tmp+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
+    kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "\\vc0", "v[\\tmp+0]", \
+        "tmp0 = d0*sg0*VW + vc0")
+    kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "v[\\tid0]", "v[\\tmp+0]", \
+        "tmp0 = tid0 + d0*sg0*VW + vc0")
+
+    # coord1
+    kStr += staticMultiply("v[\\tmp+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
+    kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "\\vc1", "v[\\tmp+1]", \
+        "tmp1 = d1*sg1*VW + vc1")
+    kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "v[\\tid1]", "v[\\tmp+1]", \
+        "tmp1 = tid1 + d1*sg1*VW + vc1")
+
+    # strideC0 sgpr -> vgpr
+    kStr += inst("v_mov_b32", "v[addr+1]", sgpr("StridesC"), \
+        "%s = StridesC"%"v[addr+1]")
+
+    # coord1*strideC0
+    kStr += inst("v_mul_lo_u32", "v[addr+0]", "v[addr+1]", "v[\\tmp+1]", \
+        "=coord1*strideC0 (lo)")
+    kStr += inst("v_mul_hi_u32", "v[addr+1]", "v[addr+1]", "v[\\tmp+1]", \
+        "=coord1*strideC0 (hi)")
+
+    # index = coord0 + coord1*strideC0
+    kStr += inst("v_add_u32", "v[addr+0]", "vcc", "v[addr+0]", "v[\\tmp+0]", \
+        "index = coord0 + coord1*strideC0 (lo)")
+    kStr += inst("v_addc_u32", "v[addr+1]", "vcc", "v[addr+1]", hex(0), \
+        "vcc", "index = coord0 + coord1*strideC0 (hi)")
+    kStr += dump("v[addr+0]")
+
+    # index*4bytes
+    kStr += inst("v_lshlrev_b64", "v[addr:addr+1]", hex(log2(self.bpe)), \
+        "v[addr:addr+1]", "%s = 4*(vc0 + d0*sg0*VW + StridesC*(vc1+d1*sg1*VW) )"%"v[addr]" )
+
+    # final address = C + index*4bytes
+    kStr += inst("v_add_u32",  "v[addr+0]", "vcc", "v[\\addrC+0]", \
+        "v[addr+0]", "addr = C + index*4bytes (lo)" )
+    kStr += inst("v_addc_u32", "v[addr+1]", "vcc", "v[\\addrC+1]", \
+        "v[addr+1]", "vcc", "addr = C + index*4bytes (hi)")
+
+    # RESUME
+    """
+
+    #addr += (d1*strideC + d0*VW + vc)*4bytes
+
+    # tmp1 = strideC*(vc1 + d1*16*vw)
+    #kStr += inst("v_lshlrev_b32", "v[\\tmp+1]", \
+    #    hex(log2(kernel["SubGroup1"]*kernel["VectorWidth"])), \
+    #    "\\d1", "tmp1 = d1*sg1*VW" )
+    kStr += staticMultiply("v[\\tmp+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
+
+    kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "\\vc1", "v[\\tmp+1]", \
+        "tmp1 = vc1 + d1*sg1*VW")
+    kStr += inst("v_mul_u32_u24", "v[\\tmp+1]", "v[\\tmp+1]", "v[addr+0]", \
+        "%s = StridesC*(vc1+d1*sg1*VW)"%"v[\\tmp+1]" )
+
+    # tmp0 = c0 + d0*16*vw
+    #kStr += inst("v_lshlrev_b32", "v[\\tmp+0]", \
+    #    hex(log2(kernel["SubGroup0"]*kernel["VectorWidth"])), "\\d0", \
+    #    "tmp0 = d0*sg0*VW" )
+    kStr += staticMultiply("v[\\tmp+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
+    kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "\\vc0", "v[\\tmp+0]", \
+        "tmp0 = vc0 + d0*sg0*VW")
+    #kStr += dump(vgpr("Tmp"))
+    #kStr += "s_endpgm\n"
+    kStr += inst("v_add_u32", "v[addr+0]", "vcc", "v[\\tmp+0]", "v[\\tmp+1]", \
+        "%s = vc0 + d0*sg0*VW + StridesC*(vc1+d1*sg1*VW)"%"v[addr+0]" )
+
+    #kStr += inst("v_lshlrev_b64", vgpr(vgprAddr,2), hex(log2(kernel["SubGroup0"])), \
+    #    vgpr(vgprAddr,2), "%s = 16*(strideC1J*(d1*VW+vc1)+d0*VW)"%vgpr(vgprAddr) )
+
+    #kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", "\\vc0", vgpr(vgprAddr), \
+    #    "%s = 16*(StridesC1J*(d1*VW+vc1)+d0*VW)+vc0"%vgpr(vgprAddr) )
+
+    kStr += inst("v_lshlrev_b64", "v[addr:addr+1]", hex(log2(self.bpe)), \
+        "v[addr:addr+1]", "%s = 4*(vc0 + d0*sg0*VW + StridesC*(vc1+d1*sg1*VW) )"%"v[addr]" )
+
+    kStr += inst("v_add_u32", "v[addr]", "vcc", "v[\\base+0]", \
+        "v[addr]", "%s = base + (16*(strideC1J*(d1*VW+vc1)+d0*VW)+vc0)*4"%"v[addr]" )
+    kStr += inst("v_addc_u32", "v[addr+1]", "vcc", "v[\\base+1]", \
+        "v[addr+1]", "vcc", "%s = base + (16*(strideC1J*(d1*VW+vc1)+d0*VW)+vc0)*4"%"v[addr+1]")
+    """
+    kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
+    #kStr += dump("v[idx]")
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += inst("flat_load_dword", "v[\\tmp]", "v[addr:addr+1]", \
+          "load C" )
+      kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+      #kStr += dump("v[\\tmp]")
+      kStr += inst("v_mul_f32", "v[\\tmp]", sgpr("Beta"), "v[\\tmp]", \
+          "%s = C*beta"%"v[\\tmp]" )
+      #kStr += dump(vgpr("v[\\tmp]")
+      kStr += inst("v_add_f32", "v[idx]", "v[\\tmp]", "v[idx]", \
+          "v[idx] = sum*alpha + C*beta" )
+    #kStr += dump("v[addr+0]")
+    #kStr += dump("v[addr+1]")
+    #kStr += dump("v[idx]")
+    #kStr += "s_endpgm\n"
+
+    kStr += inst("flat_store_dword", "v[addr:addr+1]", "v[idx]", "store C" ) # FIXME
+    kStr += ".endm%s"%self.endLine
+    return kStr
+
   ##############################################################################
   # Function Prefix - DONE
   ##############################################################################
@@ -936,91 +1069,13 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += "s_endpgm\n"
       kStr += ".endm%s" % self.endLine
 
-    ####################################
-    # Global Write Macro
-    ####################################
-    kStr += self.comment3("Global Write")
-    kStr += ".macro GLOBAL_WRITE vc0 vc1 d0 d1 base tmp%s"%self.endLine
-
-    kStr += ".set idx, %u + \\vc0 + \\d0*%u + \\vc1*%u + \\d1*%u*%u %s" \
-        % (self.startVgprValuC, \
-        kernel["VectorWidth"], \
-        kernel["ThreadTile0"], \
-        kernel["VectorWidth"], kernel["ThreadTile0"], \
-        self.endLine )
-    kStr += ".set addr, \\tmp+2%s" % self.endLine
-    #kStr += ".set vgprTmp, %u%s" % ( self.totalVgprs-8, self.endLine)
-    #kStr += dump(vgpr(self.globalWriteAddrC+0))
-    #kStr += dump(vgpr(self.globalWriteAddrC+1))
-    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Alpha"), "")
-    #kStr += dump(vgpr(65))
-    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Beta"), "")
-    #kStr += dump(vgpr(65))
-    #kStr += dump("v[idx]")
-    # static tmps b/c
-    #vgprAddr = self.totalVgprs-6
-    #vgprValue = self.totalVgprs-7
-    kStr += inst("v_mov_b32", "v[addr+0]", sgpr("StridesC"), \
-        "%s = StridesC"%"v[addr+0]")
-    kStr += inst("v_mov_b32", "v[addr+1]", hex(0x0), \
-        "%s = 0"%"v[addr+1]" )
-    #addr += (d1*strideC + d0*VW + vc)*4bytes
-
-    # tmp1 = strideC*(vc1 + d1*16*vw)
-    #kStr += inst("v_lshlrev_b32", "v[\\tmp+1]", \
-    #    hex(log2(kernel["SubGroup1"]*kernel["VectorWidth"])), \
-    #    "\\d1", "tmp1 = d1*sg1*VW" )
-    kStr += staticMultiply("v[\\tmp+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
-
-    kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "\\vc1", "v[\\tmp+1]", \
-        "tmp1 = vc1 + d1*sg1*VW")
-    kStr += inst("v_mul_u32_u24", "v[\\tmp+1]", "v[\\tmp+1]", "v[addr+0]", \
-        "%s = StridesC*(vc1+d1*sg1*VW)"%"v[\\tmp+1]" )
-
-    # tmp0 = c0 + d0*16*vw
-    #kStr += inst("v_lshlrev_b32", "v[\\tmp+0]", \
-    #    hex(log2(kernel["SubGroup0"]*kernel["VectorWidth"])), "\\d0", \
-    #    "tmp0 = d0*sg0*VW" )
-    kStr += staticMultiply("v[\\tmp+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
-    kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "\\vc0", "v[\\tmp+0]", \
-        "tmp0 = vc0 + d0*sg0*VW")
-    #kStr += dump(vgpr("Tmp"))
-    #kStr += "s_endpgm\n"
-    kStr += inst("v_add_u32", "v[addr+0]", "vcc", "v[\\tmp+0]", "v[\\tmp+1]", \
-        "%s = vc0 + d0*sg0*VW + StridesC*(vc1+d1*sg1*VW)"%"v[addr+0]" )
-
-    #kStr += inst("v_lshlrev_b64", vgpr(vgprAddr,2), hex(log2(kernel["SubGroup0"])), \
-    #    vgpr(vgprAddr,2), "%s = 16*(strideC1J*(d1*VW+vc1)+d0*VW)"%vgpr(vgprAddr) )
-
-    #kStr += inst("v_add_u32", vgpr(vgprAddr), "vcc", "\\vc0", vgpr(vgprAddr), \
-    #    "%s = 16*(StridesC1J*(d1*VW+vc1)+d0*VW)+vc0"%vgpr(vgprAddr) )
-
-    kStr += inst("v_lshlrev_b64", "v[addr:addr+1]", hex(log2(self.bpe)), \
-        "v[addr:addr+1]", "%s = 4*(vc0 + d0*sg0*VW + StridesC*(vc1+d1*sg1*VW) )"%"v[addr]" )
-
-    kStr += inst("v_add_u32", "v[addr]", "vcc", "v[\\base+0]", \
-        "v[addr]", "%s = base + (16*(strideC1J*(d1*VW+vc1)+d0*VW)+vc0)*4"%"v[addr]" )
-    kStr += inst("v_addc_u32", "v[addr+1]", "vcc", "v[\\base+1]", \
-        "v[addr+1]", "vcc", "%s = base + (16*(strideC1J*(d1*VW+vc1)+d0*VW)+vc0)*4"%"v[addr+1]")
-    kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
-    #kStr += dump("v[idx]")
-    if kernel["ProblemType"]["UseBeta"]:
-      kStr += inst("flat_load_dword", "v[\\tmp]", "v[addr:addr+1]", \
-          "load C" )
-      kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
-      #kStr += dump("v[\\tmp]")
-      kStr += inst("v_mul_f32", "v[\\tmp]", sgpr("Beta"), "v[\\tmp]", \
-          "%s = C*beta"%"v[\\tmp]" )
-      #kStr += dump(vgpr("v[\\tmp]")
-      kStr += inst("v_add_f32", "v[idx]", "v[\\tmp]", "v[idx]", \
-          "v[idx] = sum*alpha + C*beta" )
-    #kStr += dump("v[addr+0]")
-    #kStr += dump("v[addr+1]")
-    #kStr += dump("v[idx]")
-    #kStr += "s_endpgm\n"
-
-    kStr += inst("flat_store_dword", "v[addr:addr+1]", "v[idx]", "store C" )
-    kStr += ".endm%s"%self.endLine
+    ########################################
+    # Global Write Macros
+    ########################################
+    kStr += self.globalWriteMacro(kernel, False, False)
+    kStr += self.globalWriteMacro(kernel, False, True)
+    kStr += self.globalWriteMacro(kernel, True,  False)
+    kStr += self.globalWriteMacro(kernel, True,  True)
 
     ########################################
     # Dynamic Scalar Divide
@@ -2792,55 +2847,6 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Shift Vectors Components d1 - SKIP
-  ##############################################################################
-  def shiftVectorComponents1(self, kernel):
-    kStr = ""
-    return kStr
-    kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
-        % (self.tileChar1, self.tileChar1, "wg%s"%self.tileChar1, \
-        self.tileChar1, self.endLine)
-    kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
-        %(self.tileChar1, self.tileChar1, self.tileChar1, \
-        self.tileChar1, self.endLine)
-    kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
-        % (self.tileChar1, self.tileChar1, self.endLine)
-    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == ((serial / SG%s) %% SG%s) ) {%s" \
-        % (self.tileChar1, self.tileChar1, self.tileChar1, \
-        self.tileChar0, self.tileChar1, \
-        self.endLine)
-    kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
-        % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-    for r1 in range(1, kernel["VectorWidth"]):
-      kStr += "    if (r%s == %u) {%s" % (self.tileChar1, r1, self.endLine)
-      numVectors = kernel["ThreadTile1"]/kernel["VectorWidth"]
-      for vIdx in range(0, numVectors):
-        if vIdx == 0:
-          kStr += "      "
-        else:
-          kStr += " else "
-        if vIdx < numVectors-1:
-          kStr += "if (s%s == %u) " % (self.tileChar1, vIdx)
-        kStr += "{%s" % self.endLine
-
-        for s in range(0, r1):
-          for tt0 in range(0, kernel["ThreadTile0"]):
-            kStr += "        rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s] = rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s];%s" \
-              % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
-              tt0, vIdx, self.tileChar0, \
-              s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
-
-        kStr += "      }"
-        if vIdx == numVectors-1:
-          kStr += self.endLine
-
-      kStr += "    }%s" % self.endLine
-    kStr += "  }%s" % self.endLine
-    return kStr
-
-  ##############################################################################
-
-  ##############################################################################
   # Complex Declare Tmp Registers - SKIP
   ##############################################################################
   def complexDeclareTmpRegisters(self, kernel):
@@ -2973,6 +2979,76 @@ class KernelWriterAssembly(KernelWriter):
     #print "GlobalWriteIndices"
     if not self.do["PostLoop"]: return ""
     kStr = ""
+
+    tmpS0 = self.startSgprAddressA
+    tmpS1 = tmpS0+1
+    tmpS2 = self.startSgprAddressB
+    tmpS3 = tmpS2+1
+    tmpV0 = self.vgprScratch.checkOut(1)
+
+    # thread id 0,1
+    tid0 = self.vgprScratch.checkOut(1)
+    tid1 = self.vgprScratch.checkOut(1)
+    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
+    divisor = kernel["SubGroup0"]
+    kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
+        tmpV0, tmpS0)
+    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["VectorWidth"])
+    kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["VectorWidth"])
+
+    # workgroup offset
+    kStr += inst("s_mul_i32", \
+        sgpr(tmpS0), \
+        hex(kernel["MacroTile0"]), \
+        sgpr("WorkGroup0"), \
+        "%s = wg0*MT0"%sgpr(tmpS0))
+    kStr += inst("s_mul_i32", \
+        sgpr(tmpS1), \
+        hex(kernel["MacroTile1"]), \
+        sgpr("WorkGroup1"), \
+        "%s = wg1*MT1"%sgpr(tmpS1))
+    #kStr += dump(vgpr("Serial"))
+    #kStr += dump(vgpr(tid0))
+    #kStr += dump(vgpr(tid1))
+
+    # coord = tid*VW + workgroup offset
+    kStr += inst("v_add_u32", \
+        vgpr(tid0), \
+        "vcc", \
+        vgpr(tid0), \
+        sgpr(tmpS0), \
+        "coord0 = tid0*VW + wg0*MT0")
+    kStr += inst("v_add_u32", \
+        vgpr(tid1), \
+        "vcc", \
+        vgpr(tid1), \
+        sgpr(tmpS1), \
+        "coord1 = tid1*VW + wg1*MT1")
+    self.tid0 = tid0
+    self.tid1 = tid1
+    self.addrC = self.vgprScratch.checkOut(2)
+    kStr += inst("v_mov_b32", \
+        vgpr(self.addrC+0), \
+        sgpr("AddressC+0"), \
+        "sgpr -> vgpr")
+    kStr += inst("v_mov_b32", \
+        vgpr(self.addrC+1), \
+        sgpr("AddressC+1"), \
+        "sgpr -> vgpr")
+
+    # RESUME
+    """
+
+
+
+    kStr += dump(vgpr(tid0))
+    kStr += dump(vgpr(tid1))
+    kStr += "s_endpgm\n"
+
+
+
+    #######
+    # OLD #
     tmp = self.vgprScratch.checkOut(2)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
     kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("AddressC+0"), "" )
@@ -2984,8 +3060,6 @@ class KernelWriterAssembly(KernelWriter):
     s1 = s0+1
     s2 = self.startSgprAddressB
     s3 = s2+1
-    #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup1"), "" )
-    #kStr += dump(vgpr(tmp))
 
     # work-group offset
     kStr += inst("s_mul_i32", \
@@ -3052,20 +3126,6 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(self.globalWriteAddrC+0))
     #kStr += dump(vgpr(self.globalWriteAddrC+1))
 
-    # thread id 0,1
-    self.local01 = self.vgprScratch.checkOut(2)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    dividendReg = "Serial" # local serial
-    rReg = self.local01 + 0
-    qReg = self.local01 + 1
-    tmpVgpr = self.vgprScratch.checkOut(1)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-    tmpSgpr = s0
-    divisor = kernel["SubGroup0"]
-    kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
-        tmpVgpr, tmpSgpr)
-    tid0 = rReg
-    tid1 = qReg
     #kStr += inst("v_lshlrev_b32", \
     #    vgpr(tid0), \
     #    log2(self.bpe*kernel["VectorWidth"]), \
@@ -3128,15 +3188,15 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(self.globalWriteAddrC+1), \
         "vcc", \
         "%s += C (upper)"%vgpr(self.globalWriteAddrC+1))
+    """
 
     #kStr += dump(vgpr(self.globalWriteAddrC+0))
     #kStr += dump(vgpr(self.globalWriteAddrC+1))
     #kStr += "s_endpgm\n"
 
-    self.vgprScratch.checkIn(tmpVgpr)
-    self.vgprScratch.checkIn(tmp)
-    self.vgprScratch.checkIn(self.local01)
-    self.globalWriteTmp = self.vgprScratch.checkOut(4)
+    self.vgprScratch.checkIn(tmpV0)
+    #self.vgprScratch.checkIn(tmp)
+    #self.vgprScratch.checkIn(self.local01)
     if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
 
     """
@@ -3176,13 +3236,14 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_endpgm\n"
     #kStr += "GLOBAL_WRITE 0 0 0 0%s" % (self.endLine)
     #kStr += "s_endpgm\n"
+    globalWriteTmp = self.vgprScratch.checkOut(4)
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
           for vc0 in range(0, kernel["VectorWidth"]):
-            kStr += "GLOBAL_WRITE %u %u %u %u %u %u%s" % (vc0, vc1, tt0, tt1, \
-                self.globalWriteAddrC, self.globalWriteTmp, self.endLine)
-    self.vgprScratch.checkIn(self.globalWriteTmp)
+            kStr += "GLOBAL_WRITE %u %u %u %u %u %u %u %u%s" % (vc0, vc1, tt0, tt1, \
+                self.tid0, self.tid1, self.addrC, globalWriteTmp, self.endLine)
+    self.vgprScratch.checkIn(globalWriteTmp)
     return kStr
 
   ##############################################################################
