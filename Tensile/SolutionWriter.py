@@ -511,9 +511,9 @@ class SolutionWriter:
           if globalParameters["DebugKernel"]:
             s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
             s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
-            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][0];\n" % (t)
-            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][1];\n" % (t)
-            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][2];\n" % (t)
+            s += "%sdebugBufferNumElem *= max(1,globalWorkSize[kernelIdx][0]);\n" % (t)
+            s += "%sdebugBufferNumElem *= max(1,globalWorkSize[kernelIdx][1]);\n" % (t)
+            s += "%sdebugBufferNumElem *= max(1,globalWorkSize[kernelIdx][2]);\n" % (t)
             s += "%sdebugBufferNumElem *= localWorkSize[0];\n" % (t)
             s += "%sdebugBufferNumElem *= localWorkSize[1];\n" % (t)
             s += "%sdebugBufferNumElem *= localWorkSize[2];\n" % (t)
