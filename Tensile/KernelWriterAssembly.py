@@ -2753,8 +2753,12 @@ class KernelWriterAssembly(KernelWriter):
       thread = self.vgprScratch.checkOut(1)
       kStr += vectorStaticDivideAndRemainder(dummy, thread, sd0, divisor, \
           tmpVgpr, tmpSgpr) # thread = (serial / SG0) % SG1
-      #kStr += dump(vgpr(thread))
-      #kStr += dump(vgpr(eReg))
+
+    # wgMT / (SG0*VW)
+    vReg = self.vgprScratch.checkOut(1) # which vector within thread tile
+    divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
+    kStr += vectorStaticDivideAndRemainder(vReg, dummy, wgMT, divisor, \
+        tmpVgpr, tmpSgpr)
 
     vgprPath = dummy
     sgprLoc = tmpSgpr
@@ -2773,11 +2777,6 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(tmpVgpr+0))
     #kStr += dump(vgpr(tmpVgpr+1))
 
-    # wgMT / (SG0*VW) RESUME
-    vReg = self.vgprScratch.checkOut(1) # which vector within thread tile
-    divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
-    kStr += vectorStaticDivideAndRemainder(vReg, dummy, wgMT, divisor, \
-        tmpVgpr, tmpSgpr)
 
     # for each remainder, jump
     for r in range(1, kernel["VectorWidth"]):
@@ -2795,7 +2794,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # code blocks for shifting
     for r in range(1, kernel["VectorWidth"]):
-      kStr += self.comment("shift d%u r=%u"%(tP["tensorIdx"], r))
+      kStr += self.comment3("shift d%u r=%u"%(tP["tensorIdx"], r))
       kStr += "label_%04u:%s" % (svrLabels[r-1], self.endLine)
       # mask if last thread in thread-tile column
       kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
@@ -2860,6 +2859,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprScratch.checkIn(eReg)
     self.vgprScratch.checkIn(thread)
     self.vgprScratch.checkIn(dummy)
+    self.vgprScratch.checkIn(vReg)
     return kStr
 
   ##############################################################################
