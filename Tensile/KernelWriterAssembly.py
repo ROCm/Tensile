@@ -1408,8 +1408,10 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = self.startSgprOffsetC
       kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "MT0-1")
+      kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr(tmpSgpr), "MT0-1")
       kStr += inst("v_add_u32", vgpr(nwg0), "vcc", sgpr("SizesFree+0"), \
-          hex(kernel["MacroTile0"]-1), "%s = size0+MT0-1"%vgpr(nwg0))
+          vgpr(tmpVgpr), "%s = size0+MT0-1"%vgpr(nwg0))
       kStr += vectorStaticDivide(nwg0, nwg0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
       tmpVgpr = self.vgprScratch.checkIn(tmpVgpr)
       self.nipt = 16 # num integers per thread
@@ -2699,20 +2701,22 @@ class KernelWriterAssembly(KernelWriter):
 
     # wgMT value
     tmpSgpr = self.startSgprOffsetC
+    tmpVgpr = self.vgprScratch.checkOut(1)
     wgMT = self.vgprScratch.checkOut(1)
     kStr += inst("v_mov_b32", vgpr(wgMT), sgpr(tP["wg"]), "")
     kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), \
         "wg*MT")
     kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
         vgpr(wgMT), "wgMT = Size - wg*MT") # FIXME this should be index assignments for dim0,1
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel[tP["mt"]]), "MT")
+    kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(kernel[tP["mt"]]), "MT")
     kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(wgMT), \
-        hex(kernel[tP["mt"]]), "wgMT < MT" )
+        vgpr(tmpVgpr), "wgMT < MT" )
     print "MacroTile", kernel[tP["mt"]]
-    kStr += inst("v_cndmask_b32", vgpr(wgMT), hex(kernel[tP["mt"]]), \
+    kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(tmpVgpr), \
         vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
 
     # remainder
-    tmpVgpr = self.vgprScratch.checkOut(1)
     qReg = self.vgprScratch.checkOut(1) 
     rReg = self.vgprScratch.checkOut(1)
     divisor = kernel["VectorWidth"]
