@@ -2687,13 +2687,22 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def shiftVectorComponents(self, kernel, tP):
     kStr = ""
-    numVectors = kernel[tP["tt"]]/kernel["VectorWidth"]
+    if tP["isA"]:
+      kStr += dump(vgpr(0))
+      kStr += dump(vgpr(1))
+      kStr += dump(vgpr(2))
+      kStr += dump(vgpr(3))
+
+    # glvw
+    #vw = kernel["VectorWidth"]
+    vw = tP["glvw"]
+    numVectors = kernel[tP["tt"]]/vw
 
     # labels
     svrLabels = []
     sviLabels = []
-    for i in range(0, kernel["VectorWidth"]):
-      r = (i+1) % kernel["VectorWidth"]
+    for i in range(0, vw):
+      r = (i+1) % vw
       label = self.getLabel("ShiftVectorComponents%u_R%u"%(tP["tensorIdx"], r) )
       svrLabels.append(label)
       tmpLabels = []
@@ -2721,7 +2730,7 @@ class KernelWriterAssembly(KernelWriter):
     # remainder
     qReg = self.vgprScratch.checkOut(1) 
     rReg = self.vgprScratch.checkOut(1)
-    divisor = kernel["VectorWidth"]
+    divisor = vw
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
 
@@ -2756,16 +2765,16 @@ class KernelWriterAssembly(KernelWriter):
 
     # wgMT / (SG0*VW)
     vReg = self.vgprScratch.checkOut(1) # which vector within thread tile
-    divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
+    divisor = kernel[tP["sg"]]*vw
     kStr += vectorStaticDivideAndRemainder(vReg, dummy, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
 
-    vgprPath = dummy
-    sgprLoc = tmpSgpr
-    kStr += inst("v_mov_b32", vgpr(vgprPath), hex(0), "path=0")
-    location = 1
-    kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-    kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
+    #vgprPath = dummy
+    #sgprLoc = tmpSgpr
+    #kStr += inst("v_mov_b32", vgpr(vgprPath), hex(0), "path=0")
+    #location = 1
+    #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
+    #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
 
     # serial % SG == (wgMT/VECTOR_WIDTH)%SG
     mask = self.startSgprAddressA # 4 sgprs
@@ -2779,73 +2788,76 @@ class KernelWriterAssembly(KernelWriter):
 
 
     # for each remainder, jump
-    for r in range(1, kernel["VectorWidth"]):
+    for r in range(1, vw):
       kStr += inst("v_cmp_eq_u32", "vcc", vgpr(rReg), \
           hex(r), "wgMT%%VW == %u"%r )
       kStr += inst("s_cbranch_vccnz label_%04u"\
-          % svrLabels[(r-1)%kernel["VectorWidth"]], \
+          % svrLabels[(r-1)%vw], \
           "shift d%u r=%u"%(tP["tensorIdx"], r))
       #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), \
       #    "location=%u"%location); location *= 2
       #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), \
       #    vgpr(vgprPath), "path+=location")
-    kStr += inst("s_branch label_%04u"%svrLabels[kernel["VectorWidth"]-1], \
+    kStr += inst("s_branch label_%04u"%svrLabels[vw-1], \
         "no shifting" )
 
     # code blocks for shifting
-    for r in range(1, kernel["VectorWidth"]):
+    for r in range(1, vw):
       kStr += self.comment3("shift d%u r=%u"%(tP["tensorIdx"], r))
       kStr += "label_%04u:%s" % (svrLabels[r-1], self.endLine)
-      # mask if last thread in thread-tile column
-      kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
-          vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
-      tto = kernel["ThreadTile%u"%((tP["tensorIdx"]+1)%2)] # thread tile orthogonal
+      #if r==3 and tP["isA"]:
+      #  kStr += dump(vgpr("Serial"))
 
       # for each vector index, jump
       for vectorIdx in range(0, numVectors):
         kStr += inst("v_cmp_eq_u32", "vcc", vgpr(vReg), \
             hex(vectorIdx), "wgMT/(SG*VW) == %u"%vectorIdx )
         kStr += inst("s_cbranch_vccnz label_%04u"\
-            % sviLabels[(r-1)%kernel["VectorWidth"]][vectorIdx], \
+            % sviLabels[(r-1)%vw][vectorIdx], \
             "shift d%u, r=%u, v=%u"%(tP["tensorIdx"], r, vectorIdx))
 
       # code blocks for shifting vector
       for vectorIdx in range(0, numVectors):
         kStr += self.comment("shift d%u r=%u v=%u"%(tP["tensorIdx"], r, vectorIdx))
         kStr += "label_%04u:%s" % (sviLabels[r-1][vectorIdx], self.endLine)
+        # mask if last thread in thread-tile column
+        kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
+          vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
+        tto = kernel["ThreadTile%u"%((tP["tensorIdx"]+1)%2)] # thread tile orthogonal
         for tt in range(0, tto):
           for s in range(0, r):
             if tP["isA"]:
               dst = (s) \
-                  + vectorIdx * kernel["VectorWidth"] + tt * kernel["ThreadTile0"]
-              src = (s+kernel["VectorWidth"]-r) \
-                  + vectorIdx * kernel["VectorWidth"] + tt * kernel["ThreadTile0"]
+                  + vectorIdx * vw + tt * kernel["ThreadTile0"]
+              src = (s+vw-r) \
+                  + vectorIdx * vw + tt * kernel["ThreadTile0"]
               comment = "rC[%u+%u*VW+%u*TT%s] = rC[%u+%u*VW+%u*TT%s]" \
                   % (s, vectorIdx, tt, self.tileChar0, \
-                  s+kernel["VectorWidth"]-r, vectorIdx, tt, self.tileChar0 )
+                  s+vw-r, vectorIdx, tt, self.tileChar0 )
             else:
               dst = (tt) \
-                  + vectorIdx * kernel["VectorWidth"]*kernel["ThreadTile0"] + s * kernel["ThreadTile0"]
+                  + vectorIdx*vw*kernel["ThreadTile0"] + s * kernel["ThreadTile0"]
               src = (tt) \
-                  + vectorIdx * kernel["VectorWidth"]*kernel["ThreadTile0"] + (s+kernel["VectorWidth"]-r) * kernel["ThreadTile0"]
+                  + vectorIdx * vw*kernel["ThreadTile0"] + (s+vw-r) * kernel["ThreadTile0"]
               comment = "rC[%u+%u*TT%s*VW+%u*TT%s] = rC[%u+%u*TT%s*VW+%u*TT%s]" \
                 % (tt, vectorIdx, self.tileChar0, s, self.tileChar0, \
                 tt, vectorIdx, self.tileChar0, \
-                s+kernel["VectorWidth"]-r, self.tileChar0)
+                s+vw-r, self.tileChar0)
 
             kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst), \
                 vgpr(self.startVgprValuC+src), comment)
+            #kStr += inst("s_nop", "4", "")
 
         # end shift; reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
             "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
         kStr += inst("s_or_saveexec_b64", "vcc", sgpr(tmpSgpr,2), \
             "all threads active")
-        kStr += inst("s_branch label_%04u"%svrLabels[kernel["VectorWidth"]-1], \
+        kStr += inst("s_branch label_%04u"%svrLabels[vw-1], \
             "done shifting" )
-    kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
-    kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
-    kStr += "label_%04u: // end shift0%s" % (svrLabels[kernel["VectorWidth"]-1], self.endLine)
+    #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location); location *= 2
+    #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
+    kStr += "label_%04u: // end shift0%s" % (svrLabels[vw-1], self.endLine)
     #kStr += inst("s_mov_b64", "exec","0xFFFFFFFFFFFFFFFF","")
     #kStr += inst("s_nop", "5", "wait for exec update")
     #kStr += dump(vgpr(vgprPath))
