@@ -2687,7 +2687,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def shiftVectorComponents(self, kernel, tP):
     kStr = ""
-    if tP["isA"]:
+    #kStr += dump(vgpr("Serial"))
+    if False and tP["isA"]:
       kStr += dump(vgpr(0))
       kStr += dump(vgpr(1))
       kStr += dump(vgpr(2))
@@ -2697,6 +2698,8 @@ class KernelWriterAssembly(KernelWriter):
     #vw = kernel["VectorWidth"]
     vw = tP["glvw"]
     numVectors = kernel[tP["tt"]]/vw
+    print "VW", kernel["VectorWidth"]
+    print "GLVW", vw
 
     # labels
     svrLabels = []
@@ -2720,19 +2723,26 @@ class KernelWriterAssembly(KernelWriter):
         "wg*MT")
     kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
         vgpr(wgMT), "wgMT = Size - wg*MT") # FIXME this should be index assignments for dim0,1
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel[tP["mt"]]), "MT")
     kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(kernel[tP["mt"]]), "MT")
     kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(wgMT), \
         vgpr(tmpVgpr), "wgMT < MT" )
     kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(tmpVgpr), \
         vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
+    dummy = self.vgprScratch.checkOut(1) # quotient
 
-    # remainder
+    # qReg 
     qReg = self.vgprScratch.checkOut(1) 
+    divisor = kernel["VectorWidth"] # vw
+    kStr += vectorStaticDivideAndRemainder(qReg, dummy, wgMT, divisor, \
+        tmpVgpr, tmpSgpr)
+
+    # rReg 
     rReg = self.vgprScratch.checkOut(1)
     divisor = vw
-    kStr += vectorStaticDivideAndRemainder(qReg, rReg, wgMT, divisor, \
+    kStr += vectorStaticDivideAndRemainder(dummy, rReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
+
+
 
 
     # qReg %/ SG
@@ -2745,12 +2755,11 @@ class KernelWriterAssembly(KernelWriter):
     if tP["isA"]:
       # thread = serial % SG0
       thread = self.vgprScratch.checkOut(1) # serial % subgroup
-      dummy = self.vgprScratch.checkOut(1) # quotient
       divisor = kernel["SubGroup0"]
       kStr += vectorStaticDivideAndRemainder(dummy, thread, "Serial", divisor, \
           tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(thread))
-      #kStr += dump(vgpr(eReg))
+      kStr += dump(vgpr(thread))
     else:
       # thread = (serial / SG0) % SG1
       sd0 = self.vgprScratch.checkOut(1) # serial divided by sg0
@@ -2763,11 +2772,21 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticDivideAndRemainder(dummy, thread, sd0, divisor, \
           tmpVgpr, tmpSgpr) # thread = (serial / SG0) % SG1
 
-    # wgMT / (SG0*VW)
+    # wgMT / (SG0*VW) -> (wgMT%VW) / glwv
     vReg = self.vgprScratch.checkOut(1) # which vector within thread tile
-    divisor = kernel[tP["sg"]]*vw
-    kStr += vectorStaticDivideAndRemainder(vReg, dummy, wgMT, divisor, \
+    divisor = kernel[tP["tt"]]
+    kStr += vectorStaticDivideAndRemainder(dummy, vReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
+
+    divisor = vw
+    kStr += vectorStaticDivideAndRemainder(vReg, dummy, vReg, divisor, \
+        tmpVgpr, tmpSgpr)
+
+    
+    if tP["isA"]:
+      kStr += dump(vgpr(eReg))
+      kStr += dump(vgpr(vReg))
+      kStr += dump(vgpr(rReg))
 
     #vgprPath = dummy
     #sgprLoc = tmpSgpr
