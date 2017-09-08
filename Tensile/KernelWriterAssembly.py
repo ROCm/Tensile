@@ -1677,7 +1677,6 @@ class KernelWriterAssembly(KernelWriter):
               1, vgpr(v+l*tP["glvw"]+(s-1)), \
               "gro%s%s_%u_s%u"%(tP["tensorChar"], tP["tileChar"], l, s) )
     else:
-      print "NOT RTC"
       kStr += inst("v_mov_b32", vgpr(v), \
           vgpr(tP["gpr"]["tReg"]), "gro%s%s_%u"%(tP["tensorChar"], tP["tileChar"], 0) )
       for l in range(1, tP["nrt"]):
@@ -1740,9 +1739,10 @@ class KernelWriterAssembly(KernelWriter):
   def graShift(self, kernel, tP):
     kStr = ""
     # edge value
+    margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprScratch.checkOut(1)
     kStr += inst("v_add_i32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
-        hex(-tP["glvw"]), "edge = Size%s-%u"%(tP["tileChar"], tP["glvw"]) )
+        hex(-margin), "edge = Size%s-%u"%(tP["tileChar"], margin) )
     #kStr += dump(vgpr(edge))
 
     # shift offsets
@@ -2688,7 +2688,7 @@ class KernelWriterAssembly(KernelWriter):
   def shiftVectorComponents(self, kernel, tP):
     kStr = ""
     #kStr += dump(vgpr("Serial"))
-    if False and tP["isA"]:
+    if tP["isA"]:
       kStr += dump(vgpr(0))
       kStr += dump(vgpr(1))
       kStr += dump(vgpr(2))
