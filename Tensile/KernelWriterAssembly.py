@@ -2698,8 +2698,6 @@ class KernelWriterAssembly(KernelWriter):
     #vw = kernel["VectorWidth"]
     vw = tP["glvw"]
     numVectors = kernel[tP["tt"]]/vw
-    print "VW", kernel["VectorWidth"]
-    print "GLVW", vw
 
     # labels
     svrLabels = []
@@ -2759,7 +2757,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticDivideAndRemainder(dummy, thread, "Serial", divisor, \
           tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(thread))
-      kStr += dump(vgpr(thread))
+      #kStr += dump(vgpr(thread))
     else:
       # thread = (serial / SG0) % SG1
       sd0 = self.vgprScratch.checkOut(1) # serial divided by sg0
@@ -2772,18 +2770,29 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticDivideAndRemainder(dummy, thread, sd0, divisor, \
           tmpVgpr, tmpSgpr) # thread = (serial / SG0) % SG1
 
-    # wgMT / (SG0*VW) -> (wgMT%VW) / glwv
+    # which glvw vector of thread to shift? wgMT / (SG0*VW) -> (wgMT%VW) / glvw
+    # (wgMT/(WG0*VW))*(VW/glvw) + (wgMT%VW) / glvw
+    if tP["tt"] > kernel["VectorWidth"]:
+      mvReg = self.vgprScratch.checkOut(1) # which macro vector within thread tile
+      divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
+      kStr += vectorStaticDivideAndRemainder(mvReg, dummy, wgMT, divisor, \
+          tmpVgpr, tmpSgpr)
+      if vw > kernel["VectorWidth"]:
+        kStr += inst("v_mul_u32", vgpr(mvReg), hex(kernel["VectorWidth"]/vw), "vId *= VW/glvw")
+
     vReg = self.vgprScratch.checkOut(1) # which vector within thread tile
-    divisor = kernel[tP["tt"]]
+    divisor = kernel["VectorWidth"]
     kStr += vectorStaticDivideAndRemainder(dummy, vReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
-
     divisor = vw
     kStr += vectorStaticDivideAndRemainder(vReg, dummy, vReg, divisor, \
         tmpVgpr, tmpSgpr)
 
+    if tP["tt"] > kernel["VectorWidth"]:
+      kStr += inst("v_add_u32", vgpr(vReg), "vcc", vgpr(mvReg), vgpr(vReg), "vId = 2 components")
+      self.vgprScratch.checkIn(mvReg)
     
-    if tP["isA"]:
+    if False and tP["isA"]:
       kStr += dump(vgpr(eReg))
       kStr += dump(vgpr(vReg))
       kStr += dump(vgpr(rReg))
