@@ -216,11 +216,15 @@ bool callLibrary(
   timer.start();
   double apiTimeUs = 0;
   // device stats
-  unsigned long long coreClock = 0;
-  unsigned long long memClock = 0;
-  double temp = 0;
-  unsigned long long fanSpeed = 0;
+  unsigned long long avgCoreClock = 0;
+  unsigned long long avgMemClock = 0;
+  double avgTemp = 0;
+  unsigned long long avgFanSpeed = 0;
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+    unsigned long long syncCoreClock = 0;
+    unsigned long long syncMemClock = 0;
+    double syncTemp = 0;
+    unsigned long long syncFanSpeed = 0;
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
       if (measureKernelTime) {
@@ -234,12 +238,6 @@ bool callLibrary(
       } else {
         generatedCallTo_tensile(userSizes, alpha, beta);
       }
-
-      // device stats
-      coreClock += tensileGetDeviceCoreClock(0);
-      memClock += tensileGetDeviceMemClock(0);
-      temp += tensileGetDeviceTemp(0);
-      fanSpeed += tensileGetDeviceFanSpeed(0);
     }
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
@@ -248,7 +246,28 @@ bool callLibrary(
 #if Tensile_RUNTIME_LANGUAGE_OCL
     status = clFinish(stream);
 #else
-    status = hipStreamSynchronize(stream);
+    unsigned int numDeviceStatsQueries = 0;
+    while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync-1]) != hipSuccess) {
+      // device stats
+      int currentCoreClock = tensileGetDeviceCoreClock(0);
+      int currentMemClock = tensileGetDeviceMemClock(0);
+      float currentTemp = tensileGetDeviceTemp(0);
+      int currentFanSpeed = tensileGetDeviceFanSpeed(0);
+      //std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
+      syncCoreClock += currentCoreClock;
+      syncMemClock += currentMemClock;
+      syncTemp += currentTemp;
+      syncFanSpeed += currentFanSpeed;
+      numDeviceStatsQueries++;
+    }
+    syncCoreClock /= numDeviceStatsQueries;
+    syncMemClock /= numDeviceStatsQueries;
+    syncTemp /= numDeviceStatsQueries;
+    syncFanSpeed /= numDeviceStatsQueries;
+    avgCoreClock += syncCoreClock;
+    avgMemClock += syncMemClock;
+    avgTemp += syncTemp;
+    avgFanSpeed += syncFanSpeed;
 #endif
     tensileStatusCheck(status);
   } // sync loop
@@ -298,10 +317,10 @@ bool callLibrary(
 
   timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
   // device stats
-  coreClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
-  memClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
-  temp /= (numSyncsPerBenchmark * numEnqueuesPerSync);
-  fanSpeed /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+  avgCoreClock /= numSyncsPerBenchmark;
+  avgMemClock /= numSyncsPerBenchmark;
+  avgTemp /= numSyncsPerBenchmark;
+  avgFanSpeed /= numSyncsPerBenchmark;
 
   double gflops = solutionIsValid ? totalFlops / timeNs : 0;
 
@@ -331,10 +350,10 @@ bool callLibrary(
       << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
   }
   // device stats
-  std::cout << coreClock << ", ";
-  std::cout << memClock << ", ";
-  std::cout << temp << ", ";
-  std::cout << fanSpeed << ", ";
+  std::cout << avgCoreClock << ", ";
+  std::cout << avgMemClock << ", ";
+  std::cout << avgTemp << ", ";
+  std::cout << avgFanSpeed << ", ";
   
   std::cout << functionIdx << "/" << numFunctions;
   std::cout << std::endl;
@@ -529,11 +548,15 @@ bool benchmarkAllSolutionsForSize(
     // time solution
     timer.start();
       // device stats
-    unsigned long long coreClock = 0;
-    unsigned long long memClock = 0;
-    double temp = 0;
-    unsigned long long fanSpeed = 0;
+    unsigned long long avgCoreClock = 0;
+    unsigned long long avgMemClock = 0;
+    double avgTemp = 0;
+    unsigned long long avgFanSpeed = 0;
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+      unsigned long long syncCoreClock = 0;
+      unsigned long long syncMemClock = 0;
+      double syncTemp = 0;
+      unsigned long long syncFanSpeed = 0;
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
         if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -551,17 +574,34 @@ bool benchmarkAllSolutionsForSize(
           generatedCallToSolution( solutionIdx, sizes, alpha, beta );
         }
 
-        // device stats
-        coreClock += tensileGetDeviceCoreClock(0);
-        memClock += tensileGetDeviceMemClock(0);
-        temp += tensileGetDeviceTemp(0);
-        fanSpeed += tensileGetDeviceFanSpeed(0);
       }
       // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
       status = clFinish(stream);
 #else
-      status = hipStreamSynchronize(stream);
+      unsigned int numDeviceStatsQueries = 0;
+      while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync-1]) != hipSuccess) {
+        // device stats
+        int currentCoreClock = tensileGetDeviceCoreClock(0);
+        int currentMemClock = tensileGetDeviceMemClock(0);
+        float currentTemp = tensileGetDeviceTemp(0);
+        int currentFanSpeed = tensileGetDeviceFanSpeed(0);
+        //std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
+        syncCoreClock += currentCoreClock;
+        syncMemClock += currentMemClock;
+        syncTemp += currentTemp;
+        syncFanSpeed += currentFanSpeed;
+        numDeviceStatsQueries++;
+      }
+      syncCoreClock /= numDeviceStatsQueries;
+      syncMemClock /= numDeviceStatsQueries;
+      syncTemp /= numDeviceStatsQueries;
+      syncFanSpeed /= numDeviceStatsQueries;
+
+      avgCoreClock += syncCoreClock;
+      avgMemClock += syncMemClock;
+      avgTemp += syncTemp;
+      avgFanSpeed += syncFanSpeed;
 #endif
       tensileStatusCheck(status);
     } // sync loop
@@ -609,10 +649,10 @@ bool benchmarkAllSolutionsForSize(
 
     timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
     // device status
-    coreClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
-    memClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
-    temp /= (numSyncsPerBenchmark * numEnqueuesPerSync);
-    fanSpeed /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+    avgCoreClock /= numSyncsPerBenchmark;
+    avgMemClock /= numSyncsPerBenchmark;
+    avgTemp /= numSyncsPerBenchmark;
+    avgFanSpeed /= numSyncsPerBenchmark;
 
     double gflops = solutionIsValid ? totalFlops / timeNs : 0;
     //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;
@@ -638,10 +678,10 @@ bool benchmarkAllSolutionsForSize(
         << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
     }
     // device stats
-    std::cout << coreClock << ", ";
-    std::cout << memClock << ", ";
-    std::cout << temp << ", ";
-    std::cout << fanSpeed << ", ";
+    std::cout << avgCoreClock << ", ";
+    std::cout << avgMemClock << ", ";
+    std::cout << avgTemp << ", ";
+    std::cout << avgFanSpeed << ", ";
 
     std::cout << solutionIdx << "/" << numSolutions << ", ";
     std::cout << std::endl;
