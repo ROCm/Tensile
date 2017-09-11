@@ -45,6 +45,7 @@ def main( config ):
   filesToCopy = [
       "Client.cpp",
       "Client.h",
+      "DeviceStats.hpp",
       "ReferenceCPU.h",
       "MathTemplates.cpp",
       "MathTemplates.h",
