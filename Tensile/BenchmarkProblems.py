@@ -117,6 +117,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         "Client.cpp",
         "Client.h",
         "CMakeLists.txt",
+        "DeviceStats.hpp",
         "MathTemplates.cpp",
         "MathTemplates.h",
         "TensileTypes.h",

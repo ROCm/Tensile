@@ -24,6 +24,7 @@
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"
 #include "ClientParameters.h"
+#include "DeviceStats.hpp"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -214,23 +215,35 @@ bool callLibrary(
   // time solution
   timer.start();
   double apiTimeUs = 0;
+  // device stats
+  unsigned long long coreClock = 0;
+  unsigned long long memClock = 0;
+  double temp = 0;
+  unsigned long long fanSpeed = 0;
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
       if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
         generatedCallTo_tensile(userSizes, alpha, beta, 0, NULL,
-            &l_outputEvent[syncIdx][0]);
+            &l_outputEvent[syncIdx][enqIdx]);
 #else
         generatedCallTo_tensile(userSizes, alpha, beta, numEnqueuesPerSync,
-            &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
+            &l_eventStart[syncIdx][enqIdx], &l_eventStop[syncIdx][enqIdx]);
 #endif
       } else {
         generatedCallTo_tensile(userSizes, alpha, beta);
       }
+
+      // device stats
+      coreClock += tensileGetDeviceCoreClock(0);
+      memClock += tensileGetDeviceMemClock(0);
+      temp += tensileGetDeviceTemp(0);
+      fanSpeed += tensileGetDeviceFanSpeed(0);
     }
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
+
     // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
     status = clFinish(stream);
@@ -283,7 +296,12 @@ bool callLibrary(
 
 #endif
 
-  timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
+  timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+  // device stats
+  coreClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+  memClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+  temp /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+  fanSpeed /= (numSyncsPerBenchmark * numEnqueuesPerSync);
 
   double gflops = solutionIsValid ? totalFlops / timeNs : 0;
 
@@ -312,6 +330,12 @@ bool callLibrary(
     std::cout << (numInvalids ? "FAILED" : "PASSED")
       << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
   }
+  // device stats
+  std::cout << coreClock << ", ";
+  std::cout << memClock << ", ";
+  std::cout << temp << ", ";
+  std::cout << fanSpeed << ", ";
+  
   std::cout << functionIdx << "/" << numFunctions;
   std::cout << std::endl;
 
@@ -504,16 +528,21 @@ bool benchmarkAllSolutionsForSize(
 
     // time solution
     timer.start();
+      // device stats
+    unsigned long long coreClock = 0;
+    unsigned long long memClock = 0;
+    double temp = 0;
+    unsigned long long fanSpeed = 0;
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
         if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
           TensileStatus status = generatedCallToSolution( solutionIdx , sizes, alpha, beta,
-              0, NULL, &l_outputEvent[syncIdx][0] );
+              0, NULL, &l_outputEvent[syncIdx][enqIdx] );
 #else
           TensileStatus status = generatedCallToSolution( solutionIdx, sizes, alpha, beta,
-              numEnqueuesPerSync, &l_eventStart[syncIdx][0],
-              &l_eventStop[syncIdx][0] );
+              numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
+              &l_eventStop[syncIdx][enqIdx] );
 #endif
           if (status == tensileStatusFailure) {
             solutionIsValid = false;
@@ -522,6 +551,11 @@ bool benchmarkAllSolutionsForSize(
           generatedCallToSolution( solutionIdx, sizes, alpha, beta );
         }
       }
+      // device stats
+      coreClock += tensileGetDeviceCoreClock(0);
+      memClock += tensileGetDeviceMemClock(0);
+      temp += tensileGetDeviceTemp(0);
+      fanSpeed += tensileGetDeviceFanSpeed(0);
       // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
       status = clFinish(stream);
@@ -556,8 +590,10 @@ bool benchmarkAllSolutionsForSize(
       for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
         for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
           // getEventDeltaTime returns unsigned long in milli-seconds on hip
-          kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
+          float kernel_time = getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
               l_eventStop[syncIdx][enqIdx] );
+          //std::cout << "kernelTime: " << kernel_time << std::endl;
+          kernel_time_sum += kernel_time;
           ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
           ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
         }
@@ -570,9 +606,15 @@ bool benchmarkAllSolutionsForSize(
 
 #endif
 
-    timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
+    timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+    // device status
+    coreClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+    memClock /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+    temp /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+    fanSpeed /= (numSyncsPerBenchmark * numEnqueuesPerSync);
 
     double gflops = solutionIsValid ? totalFlops / timeNs : 0;
+    //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;
     bool newFastest = false;
     if (gflops > fastestGFlops) {
       fastestGFlops = gflops;
@@ -594,6 +636,12 @@ bool benchmarkAllSolutionsForSize(
       std::cout << (numInvalids ? "FAILED" : "PASSED")
         << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
     }
+    // device stats
+    std::cout << coreClock << ", ";
+    std::cout << memClock << ", ";
+    std::cout << temp << ", ";
+    std::cout << fanSpeed << ", ";
+
     std::cout << solutionIdx << "/" << numSolutions << ", ";
     std::cout << std::endl;
 
@@ -633,7 +681,7 @@ bool benchmarkProblemSizes(
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
     std::cout << "(" << sIdx << ") " << solutionNames[sIdx] << std::endl;
   }
-  std::cout << "ResultsFileName: " << resultsFileName << std::endl;
+  //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
   file << "GFlops";
   for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
@@ -678,6 +726,7 @@ bool benchmarkProblemSizes(
     std::cout << std::endl;
   }
 #endif // opencl
+  std::cout << std::endl;
 
   // iterate over all problem sizes
   //bool moreProblemSizes = true;
@@ -755,8 +804,8 @@ void initData(
     DataType **deviceOnHostC) {
   int seed = time(NULL);
   srand(seed);
-  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
-    << maxSizeB << ")" << std::endl;
+  //std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
+  //  << maxSizeB << ")" << std::endl;
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
