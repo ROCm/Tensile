@@ -550,12 +550,13 @@ bool benchmarkAllSolutionsForSize(
         } else {
           generatedCallToSolution( solutionIdx, sizes, alpha, beta );
         }
+
+        // device stats
+        coreClock += tensileGetDeviceCoreClock(0);
+        memClock += tensileGetDeviceMemClock(0);
+        temp += tensileGetDeviceTemp(0);
+        fanSpeed += tensileGetDeviceFanSpeed(0);
       }
-      // device stats
-      coreClock += tensileGetDeviceCoreClock(0);
-      memClock += tensileGetDeviceMemClock(0);
-      temp += tensileGetDeviceTemp(0);
-      fanSpeed += tensileGetDeviceFanSpeed(0);
       // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
       status = clFinish(stream);
