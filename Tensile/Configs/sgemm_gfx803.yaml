@@ -33,13 +33,13 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Range: [ [5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
         - LoopTail: [False]
-        - EdgeType: ["None"]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - WorkGroupMapping: [1, 2, 3, 8]
         - PrefetchLocalRead: [False, True]
@@ -56,7 +56,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4096, 128, 5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
 
   - # sgemm NT
     - # ProblemType
@@ -71,13 +71,13 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Range: [ [5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
         - LoopTail: [False]
-        - EdgeType: ["None"]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - WorkGroupMapping: [1, 2, 3, 8]
         - PrefetchLocalRead: [False, True]
@@ -94,7 +94,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4096, 128, 5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
 
   - # sgemm TN
     - # ProblemType
@@ -109,13 +109,13 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Range: [ [5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
         - LoopTail: [False]
-        - EdgeType: ["None"]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - WorkGroupMapping: [1, 2, 3, 8]
         - PrefetchLocalRead: [False, True]
@@ -132,7 +132,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4096, 128, 5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
 
   - # sgemm TT
     - # ProblemType
@@ -147,13 +147,13 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Range: [ [5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
         - LoopDoWhile: [False]
         - NumLoadsCoalescedA: [1]
         - NumLoadsCoalescedB: [1]
         - WorkGroupMapping: [1]
         - LoopTail: [False]
-        - EdgeType: ["None"]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - WorkGroupMapping: [-1, -2, -3, -8]
         - PrefetchLocalRead: [False, True]
@@ -170,7 +170,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4096, 128, 5760], 0, 0 ]
+          - Range: [ [4096, 3, 23, 5760], 0, [128] ]
 
 LibraryLogic:
 
