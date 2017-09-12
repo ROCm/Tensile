@@ -1664,10 +1664,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Shift Vector Components d0
+  # Shift Vector Components d0,1
   ##############################################################################
-  def shiftVectorComponents0(self, kernel):
+  def shiftVectorComponents(self, kernel, tP):
     kStr = ""
+    if tP["isB"]:
+        return self.shiftVectorComponents1(kernel)
     kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
         % (self.tileChar0, self.tileChar0, self.tileChar0, \
         self.tileChar0, self.endLine)

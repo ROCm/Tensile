@@ -19,13 +19,14 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 #include "Client.h"
+#include "DeviceStats.h"
 #include <string>
 #include <cstring>
 #include <cstdio>
 #include <iostream>
 #include <iomanip>
 
-const unsigned int numLibraryCalls = 16;
+const unsigned int numLibraryCalls = 1024;
 
 /*******************************************************************************
  * main
@@ -45,11 +46,11 @@ int main( int argc, char *argv[] ) {
   unsigned int dataTypeIdx = 0;
   DataTypeEnum dataTypeEnum = dataTypeEnums[dataTypeIdx];
   bool invalids;
-  std::cout << "Columns: GFlops, SolName, KernelMs, "
+  std::cout << "Tensile Client Columns: GFlops, SolName, KernelMs, "
 #if Tensile_CLIENT_LIBRARY
-    << "EnqueueUs, "
+    << "ApiUs, "
 #endif
-    << "Valid/Total, Idx/Total" << std::endl;
+    << "Valid/Total, CoreMhz, MemMhz, TempC, FanSpeed, Idx/Total" << std::endl;
   switch(dataTypeEnum) {
 #ifdef Tensile_DATA_TYPE_FLOAT
   case enum_float: {
@@ -273,6 +274,9 @@ void initControls() {
   tensileStatusCheck(status);
   status = hipStreamCreate( &stream );
   tensileStatusCheck(status);
+
+  // prepare to report device stats
+  tensileInitDeviceStats();
 #endif
 
 }
