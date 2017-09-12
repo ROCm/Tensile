@@ -24,7 +24,7 @@
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"
 #include "ClientParameters.h"
-#include "DeviceStats.hpp"
+#include "DeviceStats.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
