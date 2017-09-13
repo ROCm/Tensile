@@ -183,13 +183,27 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     if os.name == "nt":
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
           "client.exe") )
-      runScriptFile.write("\n")
     else:
       if globalParameters["PinClocks"]:
         runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --setfan 255 --setsclk 7\n")
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 -a\n")
-      runScriptFile.write("./client\n")
+      runScriptFile.write("./client")
+    clp = ""
+    clp += " --platform-idx %u" % globalParameters["Platform"]
+    clp += " --device-idx %u" % globalParameters["Device"]
+    clp += " --init-c %u" % globalParameters["DataInitTypeC"]
+    clp += " --init-ab %u" % globalParameters["DataInitTypeAB"]
+    clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
+    clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
+    clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
+    clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
+    clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
+    clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
+    clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
+    runScriptFile.write(clp)
+    runScriptFile.write("\n")
+    if os.name != "nt":
       if globalParameters["PinClocks"]:
         runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --resetclocks\n")
         runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --setfan 255\n")
@@ -614,16 +628,16 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if globalParameters["RuntimeLanguage"] == "OCL":
     h += "unsigned int platformIdx = %u;\n" \
         % (globalParameters["Platform"])
-    h += "unsigned int deviceIdx = %u;\n" \
-        % (globalParameters["Device"])
+    #h += "unsigned int deviceIdx = %u;\n" \
+    #    % (globalParameters["Device"])
     h += "cl_platform_id platform;\n"
     h += "cl_device_id device;\n"
     h += "cl_context context;\n"
     h += "cl_command_queue stream;\n"
   else:
     h += "hipStream_t stream;\n"
-    h += "int deviceIdx = %u;\n" \
-        % (globalParameters["Device"])
+    #h += "int deviceIdx = %u;\n" \
+    #    % (globalParameters["Device"])
   h += "\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"
@@ -633,23 +647,23 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Benchmarking and Validation Parameters
   ##############################################################################
   h += "\n/* benchmarking parameters */\n"
-  h += "const bool measureKernelTime = %s;\n" \
-      % ("true" if globalParameters["KernelTime"] else "false")
-  h += "const unsigned int numEnqueuesPerSync = %u;\n" \
-      % (globalParameters["EnqueuesPerSync"])
-  h += "const unsigned int numSyncsPerBenchmark = %u;\n" \
-      % (globalParameters["SyncsPerBenchmark"])
-  h += "unsigned int numElementsToValidate = %s;\n" \
-      % (str(globalParameters["NumElementsToValidate"]) \
-      if globalParameters["NumElementsToValidate"] >= 0 \
-      else "0xFFFFFFFF" )
-  h += "unsigned int validationMaxToPrint = %u;\n" \
-      % globalParameters["ValidationMaxToPrint"]
-  h += "bool validationPrintValids = %s;\n" \
-      % ("true" if globalParameters["ValidationPrintValids"] else "false")
+  #h += "const bool measureKernelTime = %s;\n" \
+  #    % ("true" if globalParameters["KernelTime"] else "false")
+  #h += "const unsigned int numEnqueuesPerSync = %u;\n" \
+  #    % (globalParameters["EnqueuesPerSync"])
+  #h += "const unsigned int numSyncsPerBenchmark = %u;\n" \
+  #    % (globalParameters["SyncsPerBenchmark"])
+  #h += "unsigned int numElementsToValidate = %s;\n" \
+  #    % (str(globalParameters["NumElementsToValidate"]) \
+  #    if globalParameters["NumElementsToValidate"] >= 0 \
+  #    else "0xFFFFFFFF" )
+  #h += "unsigned int validationMaxToPrint = %u;\n" \
+  #    % globalParameters["ValidationMaxToPrint"]
+  #h += "bool validationPrintValids = %s;\n" \
+  #    % ("true" if globalParameters["ValidationPrintValids"] else "false")
   h += "size_t validationStride;\n"
-  h += "unsigned int dataInitTypeC = %s;\n" % globalParameters["DataInitTypeC"]
-  h += "unsigned int dataInitTypeAB = %s;\n" % globalParameters["DataInitTypeAB"]
+  #h += "unsigned int dataInitTypeC = %s;\n" % globalParameters["DataInitTypeC"]
+  #h += "unsigned int dataInitTypeAB = %s;\n" % globalParameters["DataInitTypeAB"]
   h += "\n"
 
   ##############################################################################

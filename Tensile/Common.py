@@ -68,6 +68,7 @@ globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
+globalParameters["NumBenchmarks"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
 globalParameters["AssemblerPath"] = "/opt/rocm/bin/hcc"
