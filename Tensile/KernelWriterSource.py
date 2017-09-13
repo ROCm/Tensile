@@ -2209,8 +2209,7 @@ class KernelWriterSource(KernelWriter):
         kStr += " / size" + self.indexChars[index2]
       kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
 
-    ########################################
-    # C indices
+    ######################################## # C indices
     #kStr += "  unsigned int serial = %s(0);%s" \
     #    % (self.getLocalIdStr, self.endLine)
     # wg=8x8
@@ -2252,12 +2251,21 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # zero
-    kStr += "    C[idx]"
     if kernel["ProblemType"]["UseBeta"]:
-      kStr += " *= beta;%s" % self.endLine
+      if kernel["ProblemType"]["DataType"].isComplex():
+        kStr += "    if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
+      else:
+        kStr += "    if(beta == SCALAR_ZERO) {%s" % self.endLine
+      kStr += "      C[idx] = SCALAR_ZERO;%s" % self.endLine
+      kStr += "    } else {%s" % self.endLine
+      kStr += "      C[idx] *= beta;%s" % self.endLine
+      kStr += "    }%s" % self.endLine
     else:
+      kStr += "    C[idx]"
       kStr += " = SCALAR_ZERO;%s" % (self.endLine)
     kStr += "  }%s" % self.endLine
+
+
 
     ########################################
     # end
