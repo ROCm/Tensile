@@ -68,6 +68,7 @@ globalParameters["ForceRedoLibraryLogic"] = True
 globalParameters["ForceRedoLibraryClient"] = True
 globalParameters["EnqueuesPerSync"] = 1
 globalParameters["SyncsPerBenchmark"] = 1
+globalParameters["NumBenchmarks"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
 globalParameters["AssemblerPath"] = "/opt/rocm/bin/hcc"
@@ -115,8 +116,8 @@ validParameters = {
     "LoopTail":                   [ False, True ],
     "GlobalReadCoalesceGroupA":   [ False, True ],
     "GlobalReadCoalesceGroupB":   [ False, True ],
-    "GlobalReadCoalesceVectorA":  [ False, True ],
-    "GlobalReadCoalesceVectorB":  [ False, True ],
+    "GlobalReadCoalesceVectorA":  [ True ], # =False worked before the vector refactor; fixing requires re-ordering load/store indices; but there aren't the faster option so not worth time right now
+    "GlobalReadCoalesceVectorB":  [ True ],
     "PrefetchGlobalRead":         [ False, True ],
     "PrefetchLocalRead":          [ False, True ],
     "UnrollMemFence":             [ False, True ],

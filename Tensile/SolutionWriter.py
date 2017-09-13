@@ -511,9 +511,9 @@ class SolutionWriter:
           if globalParameters["DebugKernel"]:
             s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
             s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
-            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][0];\n" % (t)
-            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][1];\n" % (t)
-            s += "%sdebugBufferNumElem *= globalWorkSize[kernelIdx][2];\n" % (t)
+            s += "%sdebugBufferNumElem *= max(1,globalWorkSize[kernelIdx][0]);\n" % (t)
+            s += "%sdebugBufferNumElem *= max(1,globalWorkSize[kernelIdx][1]);\n" % (t)
+            s += "%sdebugBufferNumElem *= max(1,globalWorkSize[kernelIdx][2]);\n" % (t)
             s += "%sdebugBufferNumElem *= localWorkSize[0];\n" % (t)
             s += "%sdebugBufferNumElem *= localWorkSize[1];\n" % (t)
             s += "%sdebugBufferNumElem *= localWorkSize[2];\n" % (t)
@@ -565,8 +565,8 @@ class SolutionWriter:
             s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
             s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
             s += "%s  printf(\"%%04i\", i);\n" % (t)
-            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
-            s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
+            s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
+            #s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
             #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t)
             s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
             s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)

@@ -24,6 +24,7 @@
 #include "ReferenceCPU.h"
 #include "MathTemplates.h"
 #include "ClientParameters.h"
+#include "DeviceStats.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -32,6 +33,55 @@
 TensileTimer timer;
 TensileTimer apiTimer;
 std::ofstream file;
+
+// benchmark parameters
+unsigned int deviceIdx;
+unsigned int initC;
+unsigned int initAB;
+unsigned int platformIdx;
+unsigned int printValids;
+unsigned int printMax;
+unsigned int numBenchmarks;
+unsigned int numElementsToValidate;
+unsigned int numEnqueuesPerSync;
+unsigned int numSyncsPerBenchmark;
+unsigned int useGPUTimer;
+
+// benchmark parameters commandline strings
+std::string keyDeviceIdx = "--device-idx";
+std::string keyHelp1 = "-h";
+std::string keyHelp2 = "--help";
+std::string keyInitC = "--init-c";
+std::string keyInitAB = "--init-ab";
+std::string keyPlatformIdx = "--platform-idx";
+std::string keyPrintValids = "--print-valids";
+std::string keyPrintMax = "--print-max";
+std::string keyNumBenchmarks = "--num-benchmarks";
+std::string keyNumElementsToValidate = "--num-elements-to-validate";
+std::string keyNumEnqueuesPerSync = "--num-enqueues-per-sync";
+std::string keyNumSyncsPerBenchmark = "--num-syncs-per-benchmark";
+std::string keyUseGPUTimer = "--use-gpu-timer";
+
+// benchmark parameters default values
+unsigned int defaultDeviceIdx = 0;
+unsigned int defaultInitC = 3;
+unsigned int defaultInitAB = 3;
+unsigned int defaultPlatformIdx = 0;
+unsigned int defaultPrintValids = 0;
+unsigned int defaultPrintMax = 0;
+unsigned int defaultNumBenchmarks = 1;
+unsigned int defaultNumElementsToValidate = 0;
+unsigned int defaultNumEnqueuesPerSync = 1;
+unsigned int defaultNumSyncsPerBenchmark = 1;
+unsigned int defaultUseGPUTimer = 1;
+
+// benchmark parameters for library client
+#if Tensile_CLIENT_LIBRARY
+std::string keyFunctionIdx = "--function-idx";
+std::string keySizes = "--sizes";
+unsigned int defaultFunctionIdx = 0;
+unsigned int defaultSize = 128;
+#endif
 
 #if Tensile_CLIENT_BENCHMARK
 unsigned int invalidSolutions[numSolutions];
@@ -179,8 +229,8 @@ bool callLibrary(
       numChecked++;
       if (!equal) numInvalids++;
 
-      if (!equal || validationPrintValids) {
-        if (printIdx < validationMaxToPrint) {
+      if (!equal || printValids) {
+        if (printIdx < printMax) {
           if (firstPrint) {
             std::cout << "  Device | Reference" << std::endl;
             firstPrint = false;
@@ -214,28 +264,54 @@ bool callLibrary(
   // time solution
   timer.start();
   double apiTimeUs = 0;
+  // device stats
+  unsigned long long avgCoreClock = 0;
+  unsigned long long avgMemClock = 0;
+  double avgTemp = 0;
+  unsigned long long avgFanSpeed = 0;
   for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+    unsigned long long syncCoreClock = 0;
+    unsigned long long syncMemClock = 0;
+    double syncTemp = 0;
+    unsigned long long syncFanSpeed = 0;
     apiTimer.start();
     for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-      if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-        generatedCallTo_tensile(userSizes, alpha, beta, 0, NULL,
-            &l_outputEvent[syncIdx][0]);
+      generatedCallTo_tensile(userSizes, alpha, beta, 0, NULL,
+          &l_outputEvent[syncIdx][enqIdx]);
 #else
-        generatedCallTo_tensile(userSizes, alpha, beta, numEnqueuesPerSync,
-            &l_eventStart[syncIdx][0], &l_eventStop[syncIdx][0]);
+      generatedCallTo_tensile(userSizes, alpha, beta, numEnqueuesPerSync,
+          &l_eventStart[syncIdx][enqIdx], &l_eventStop[syncIdx][enqIdx]);
 #endif
-      } else {
-        generatedCallTo_tensile(userSizes, alpha, beta);
-      }
     }
     double currentApiTimeUs = apiTimer.elapsed_us() / numEnqueuesPerSync;
     apiTimeUs += currentApiTimeUs;
+
     // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
     status = clFinish(stream);
 #else
-    status = hipStreamSynchronize(stream);
+    unsigned int numDeviceStatsQueries = 0;
+    do { // device stats
+      int currentCoreClock = tensileGetDeviceCoreClock(0);
+      int currentMemClock = tensileGetDeviceMemClock(0);
+      float currentTemp = tensileGetDeviceTemp(0);
+      int currentFanSpeed = tensileGetDeviceFanSpeed(0);
+      //std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
+      syncCoreClock += currentCoreClock;
+      syncMemClock += currentMemClock;
+      syncTemp += currentTemp;
+      syncFanSpeed += currentFanSpeed;
+      numDeviceStatsQueries++;
+    } while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync-1]) != hipSuccess);
+    syncCoreClock /= numDeviceStatsQueries;
+    syncMemClock /= numDeviceStatsQueries;
+    syncTemp /= numDeviceStatsQueries;
+    syncFanSpeed /= numDeviceStatsQueries;
+    avgCoreClock += syncCoreClock;
+    avgMemClock += syncMemClock;
+    avgTemp += syncTemp;
+    avgFanSpeed += syncFanSpeed;
 #endif
     tensileStatusCheck(status);
   } // sync loop
@@ -244,7 +320,7 @@ bool callLibrary(
 
   double timeNs = 0.0;
 #if Tensile_RUNTIME_LANGUAGE_OCL
-  if (measureKernelTime) {
+  if (useGPUTimer) {
     // Loop through the event array and collect kernel performance data
     // Release events when done with them
     cl_ulong kernel_time_sum = 0;
@@ -256,12 +332,11 @@ bool callLibrary(
       }
     }
     timeNs = static_cast<double>(kernel_time_sum);
-  }
-  else {
+  } else {
     timeNs = timer.elapsed_ns();
   }
 #else
-  if (measureKernelTime) {
+  if (useGPUTimer) {
     // Loop through the event array and collect kernel performance data
     // Release events when done with them
     float kernel_time_sum = 0;
@@ -276,14 +351,17 @@ bool callLibrary(
     }
     // convert to nano-seconds
     timeNs = static_cast<double>(kernel_time_sum) * TensileTimer::million;
-  }
-  else {
+  } else {
     timeNs = timer.elapsed_ns();
   }
-
 #endif
 
-  timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
+  timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+  // device stats
+  avgCoreClock /= numSyncsPerBenchmark;
+  avgMemClock /= numSyncsPerBenchmark;
+  avgTemp /= numSyncsPerBenchmark;
+  avgFanSpeed /= numSyncsPerBenchmark;
 
   double gflops = solutionIsValid ? totalFlops / timeNs : 0;
 
@@ -312,6 +390,12 @@ bool callLibrary(
     std::cout << (numInvalids ? "FAILED" : "PASSED")
       << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
   }
+  // device stats
+  std::cout << avgCoreClock << ", ";
+  std::cout << avgMemClock << ", ";
+  std::cout << avgTemp << ", ";
+  std::cout << avgFanSpeed << ", ";
+  
   std::cout << functionIdx << "/" << numFunctions;
   std::cout << std::endl;
 
@@ -467,8 +551,8 @@ bool benchmarkAllSolutionsForSize(
         numChecked++;
         if (!equal) numInvalids++;
 
-        if (!equal || validationPrintValids) {
-          if (printIdx < validationMaxToPrint) {
+        if (!equal || printValids) {
+          if (printIdx < printMax) {
             if (firstPrint) {
               std::cout << "  Device | Reference" << std::endl;
               firstPrint = false;
@@ -504,36 +588,63 @@ bool benchmarkAllSolutionsForSize(
 
     // time solution
     timer.start();
+      // device stats
+    unsigned long long avgCoreClock = 0;
+    unsigned long long avgMemClock = 0;
+    double avgTemp = 0;
+    unsigned long long avgFanSpeed = 0;
     for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+      unsigned long long syncCoreClock = 0;
+      unsigned long long syncMemClock = 0;
+      double syncTemp = 0;
+      unsigned long long syncFanSpeed = 0;
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        if (measureKernelTime) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-          TensileStatus status = generatedCallToSolution( solutionIdx , sizes, alpha, beta,
-              0, NULL, &l_outputEvent[syncIdx][0] );
+        TensileStatus status = generatedCallToSolution( solutionIdx , sizes, alpha, beta,
+            0, NULL, &l_outputEvent[syncIdx][enqIdx] );
 #else
-          TensileStatus status = generatedCallToSolution( solutionIdx, sizes, alpha, beta,
-              numEnqueuesPerSync, &l_eventStart[syncIdx][0],
-              &l_eventStop[syncIdx][0] );
+        TensileStatus status = generatedCallToSolution( solutionIdx, sizes, alpha, beta,
+            numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
+            &l_eventStop[syncIdx][enqIdx] );
 #endif
-          if (status == tensileStatusFailure) {
-            solutionIsValid = false;
-          }
-        } else {
-          generatedCallToSolution( solutionIdx, sizes, alpha, beta );
+        if (status == tensileStatusFailure) {
+          solutionIsValid = false;
         }
+
       }
       // sync
 #if Tensile_RUNTIME_LANGUAGE_OCL
       status = clFinish(stream);
 #else
-      status = hipStreamSynchronize(stream);
+      unsigned int numDeviceStatsQueries = 0;
+      do { // device stats
+        int currentCoreClock = tensileGetDeviceCoreClock(0);
+        int currentMemClock = tensileGetDeviceMemClock(0);
+        float currentTemp = tensileGetDeviceTemp(0);
+        int currentFanSpeed = tensileGetDeviceFanSpeed(0);
+        //std::cout << "clock: " << currentCoreClock << " Mhz" << std::endl;
+        syncCoreClock += currentCoreClock;
+        syncMemClock += currentMemClock;
+        syncTemp += currentTemp;
+        syncFanSpeed += currentFanSpeed;
+        numDeviceStatsQueries++;
+      } while (hipEventQuery(l_eventStop[syncIdx][numEnqueuesPerSync-1]) != hipSuccess);
+      syncCoreClock /= numDeviceStatsQueries;
+      syncMemClock /= numDeviceStatsQueries;
+      syncTemp /= numDeviceStatsQueries;
+      syncFanSpeed /= numDeviceStatsQueries;
+
+      avgCoreClock += syncCoreClock;
+      avgMemClock += syncMemClock;
+      avgTemp += syncTemp;
+      avgFanSpeed += syncFanSpeed;
 #endif
       tensileStatusCheck(status);
     } // sync loop
 
     double timeNs = 0.0;
 #if Tensile_RUNTIME_LANGUAGE_OCL
-    if (measureKernelTime) {
+    if (useGPUTimer) {
       // Loop through the multi-dimensional event array and collect kernel performance data
       // Release events when done with them
       cl_ulong kernel_time_sum = 0;
@@ -549,15 +660,17 @@ bool benchmarkAllSolutionsForSize(
       timeNs = timer.elapsed_ns();
     }
 #else
-    if (measureKernelTime) {
+    if (useGPUTimer) {
       // Loop through the event array and collect kernel performance data
       // Release events when done with them
       float kernel_time_sum = 0;
       for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
         for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
           // getEventDeltaTime returns unsigned long in milli-seconds on hip
-          kernel_time_sum += getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
+          float kernel_time = getEventDeltaTime(l_eventStart[syncIdx][enqIdx],
               l_eventStop[syncIdx][enqIdx] );
+          //std::cout << "kernelTime: " << kernel_time << std::endl;
+          kernel_time_sum += kernel_time;
           ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
           ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
         }
@@ -570,9 +683,15 @@ bool benchmarkAllSolutionsForSize(
 
 #endif
 
-    timeNs /= (numSyncsPerBenchmark / numEnqueuesPerSync);
+    timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
+    // device status
+    avgCoreClock /= numSyncsPerBenchmark;
+    avgMemClock /= numSyncsPerBenchmark;
+    avgTemp /= numSyncsPerBenchmark;
+    avgFanSpeed /= numSyncsPerBenchmark;
 
     double gflops = solutionIsValid ? totalFlops / timeNs : 0;
+    //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;
     bool newFastest = false;
     if (gflops > fastestGFlops) {
       fastestGFlops = gflops;
@@ -594,6 +713,12 @@ bool benchmarkAllSolutionsForSize(
       std::cout << (numInvalids ? "FAILED" : "PASSED")
         << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
     }
+    // device stats
+    std::cout << avgCoreClock << ", ";
+    std::cout << avgMemClock << ", ";
+    std::cout << avgTemp << ", ";
+    std::cout << avgFanSpeed << ", ";
+
     std::cout << solutionIdx << "/" << numSolutions << ", ";
     std::cout << std::endl;
 
@@ -633,7 +758,7 @@ bool benchmarkProblemSizes(
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
     std::cout << "(" << sIdx << ") " << solutionNames[sIdx] << std::endl;
   }
-  std::cout << "ResultsFileName: " << resultsFileName << std::endl;
+  //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
   file << "GFlops";
   for ( unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
@@ -678,6 +803,7 @@ bool benchmarkProblemSizes(
     std::cout << std::endl;
   }
 #endif // opencl
+  std::cout << std::endl;
 
   // iterate over all problem sizes
   //bool moreProblemSizes = true;
@@ -755,8 +881,8 @@ void initData(
     DataType **deviceOnHostC) {
   int seed = time(NULL);
   srand(seed);
-  std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
-    << maxSizeB << ")" << std::endl;
+  //std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
+  //  << maxSizeB << ")" << std::endl;
 
   *alpha = tensileGetOne<DataType>();
   if (useBeta[problemTypeIdx]) {
@@ -781,19 +907,19 @@ void initData(
   std::cout << ".";
 
   // initialize buffers C
-  if (dataInitTypeC == 0) {
+  if (initC == 0) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
-  } else if (dataInitTypeC == 1) {
+  } else if (initC == 1) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetOne<DataType>(); }
     std::cout << ".";
-  } else if (dataInitTypeC == 2) {
+  } else if (initC == 2) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
-  } else if (dataInitTypeC == 3) {
+  } else if (initC == 3) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
@@ -804,21 +930,21 @@ void initData(
   }
 
   // initialize buffers
-  if (dataInitTypeAB == 0) {
+  if (initAB == 0) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetZero<DataType>(); }
     std::cout << ".";
-  } else if (dataInitTypeAB == 1) {
+  } else if (initAB == 1) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetOne<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetOne<DataType>(); }
     std::cout << ".";
-  } else if (dataInitTypeAB == 2) {
+  } else if (initAB == 2) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
@@ -906,71 +1032,177 @@ void destroyData(
 #endif
 
 }
+
+
+void printClientUsage(std::string executableName) {
+  std::cout << "Usage: " << executableName << std::endl;
+  std::cout << "  " << keyDeviceIdx << " [" << defaultDeviceIdx << "]" << std::endl;  
+  std::cout << "  " << keyInitC << " [" << defaultInitC << "]" << std::endl;  
+  std::cout << "  " << keyInitAB << " [" << defaultInitAB << "]" << std::endl;  
+#if Tensile_RUNTIME_LANGUAGE_OCL
+  std::cout << "  " << keyPlatformIdx << " [" << defaultPlatformIdx << "]" << std::endl;  
+#endif
+  std::cout << "  " << keyPrintValids << " [" << defaultPrintValids << "]" << std::endl;  
+  std::cout << "  " << keyPrintMax << " [" << defaultPrintMax << "]" << std::endl;  
+  std::cout << "  " << keyNumBenchmarks << " [" << defaultNumBenchmarks << "]" << std::endl;  
+  std::cout << "  " << keyNumElementsToValidate << " [" << defaultNumElementsToValidate << "]" << std::endl;  
+  std::cout << "  " << keyNumEnqueuesPerSync << " [" << defaultNumEnqueuesPerSync << "]" << std::endl;  
+  std::cout << "  " << keyNumSyncsPerBenchmark << " [" << defaultNumSyncsPerBenchmark << "]" << std::endl;  
+  std::cout << "  " << keyUseGPUTimer << " [" << defaultUseGPUTimer << "]" << std::endl;  
 #if Tensile_CLIENT_LIBRARY
-unsigned int defaultNumElementsToValidate = 128;
-void printLibraryClientUsage(std::string executableName) {
-  std::cout << "Usage: " << executableName
-    << " FunctionIdx SizeI SizeJ SizeK [SizeL ...] [NumElementsToValidate="
-    << defaultNumElementsToValidate << "]" << std::endl;
-  std::cout << "Functions:" << std::endl;
+  std::cout << "  " << keyFunctionIdx << " [" << defaultFunctionIdx << "]" << std::endl;  
+  std::cout << "  " << keySizes << " [" << defaultSize << " " << defaultSize << " " << defaultSize << "]" << std::endl;  
+  std::cout << "FunctionIdx:" << std::endl;
   for (unsigned int i = 0; i < numFunctions; i++) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
   }
+#endif
 }
-#endif
 
+
+/*******************************************************************************
+ * Parse Command Line Parameters
+ ******************************************************************************/
 void parseCommandLineParameters( int argc, char *argv[] ) {
-  std::string executableName = argv[0];
+  std::string executableName(argv[0]);
 
-#if Tensile_CLIENT_BENCHMARK
-  dataTypeIdx = 0;
-  problemTypeIdx = 0;
+  // set benchmark parameters to default values before parsing user values
+  deviceIdx = defaultDeviceIdx;
+  initC = defaultInitC;
+  initAB = defaultInitAB;
+  platformIdx = defaultPlatformIdx;
+  printValids = defaultPrintValids;
+  printMax = defaultPrintMax;
+  numBenchmarks = defaultNumBenchmarks;
+  numElementsToValidate = defaultNumElementsToValidate;
+  numEnqueuesPerSync = defaultNumEnqueuesPerSync;
+  numSyncsPerBenchmark = defaultNumSyncsPerBenchmark;
+  useGPUTimer = defaultUseGPUTimer;
+#if Tensile_CLIENT_LIBRARY
+  functionIdx = defaultFunctionIdx;
+  dataTypeIdx = functionInfo[functionIdx][0];
+  problemTypeIdx = functionInfo[functionIdx][2];
+  for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+    userSizes[i] = defaultSize;
+  }
 #endif
 
-#if Tensile_CLIENT_LIBRARY
-  if (argc < 2) {
-    std::cout << "FATAL ERROR: no FunctionIdx provided" << std::endl;
-    printLibraryClientUsage(executableName);
-    exit(0);
-  }
   try {
-    functionIdx = static_cast<unsigned int>(atoi(argv[1]));
-    if (functionIdx >= numFunctions) {
-      std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= "
-        << "NumFunctions=" << numFunctions << std::endl;
+    // check for help
+    for (unsigned int argIdx = 1; argIdx < argc; argIdx++) {
+      if (keyHelp1 == argv[argIdx] || keyHelp2 == argv[argIdx]) {
+          printClientUsage(executableName);
+          exit(0);
+      }
     }
-    std::cout << "FunctionIdx: " << functionIdx << std::endl;
+#if Tensile_CLIENT_LIBRARY
+    // first, get functionIdx
+    functionIdx = defaultFunctionIdx;
+    for (unsigned int argIdx = 1; argIdx < argc; argIdx++) {
+      if (keyFunctionIdx == argv[argIdx]) {
+        functionIdx = static_cast<unsigned int>(atoi(argv[argIdx+1]));
+        if (functionIdx >= numFunctions) {
+          std::cout << "FATAL ERROR: FunctionIdx=" << functionIdx << " >= "
+            << "NumFunctions=" << numFunctions << std::endl;
+          printClientUsage(executableName);
+          exit(0);
+        }
+      }
+    }
     dataTypeIdx = functionInfo[functionIdx][0];
     problemTypeIdx = functionInfo[functionIdx][2];
-    if (static_cast<unsigned int>(argc - 2) < totalIndices[problemTypeIdx]) {
-      std::cout << "FATAL ERROR: " << totalIndices[problemTypeIdx]
-        << " sizes required for function[" << functionIdx << "]; only "
-        << static_cast<unsigned int>(argc - 2) << " provided." << std::endl;
-      printLibraryClientUsage(executableName);
-      exit(0);
-    }
-
     for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-      userSizes[i] = static_cast<unsigned int>(atoi(argv[2+i]));
-      std::cout << "  Size" << indexChars[i] << ": " << userSizes[i]
-        << std::endl;
+      userSizes[i] = defaultSize;
     }
-    if (static_cast<unsigned int>(argc) > 2+totalIndices[problemTypeIdx]) {
-      numElementsToValidate = static_cast<unsigned int>(
-          atoi(argv[2+totalIndices[problemTypeIdx]]));
-      std::cout << "  NumElementsToValidate: " << numElementsToValidate
-          << std::endl;
-    } else {
-      numElementsToValidate = defaultNumElementsToValidate;
-      std::cout << "  NumElementsToValidate: " << numElementsToValidate
-          << " (unspecified)" << std::endl;
-    }
+#endif
 
+    // second, get other arguments
+    for (unsigned int argIdx = 1; argIdx < argc; argIdx++) {
+      // device idx
+      if (keyDeviceIdx == argv[argIdx]) {
+        argIdx++;
+        deviceIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // init c
+      } else if (keyInitC == argv[argIdx]) {
+        argIdx++;
+        initC = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // init ab
+      } else if (keyInitAB == argv[argIdx]) {
+        argIdx++;
+        initAB = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // platform idx
+      } else if (keyPlatformIdx == argv[argIdx]) {
+        argIdx++;
+        platformIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // print valids
+      } else if (keyPrintValids == argv[argIdx]) {
+        argIdx++;
+        printValids = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // print max
+      } else if (keyPrintMax == argv[argIdx]) {
+        argIdx++;
+        printMax = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // num benchmarks
+      } else if (keyNumBenchmarks == argv[argIdx]) {
+        argIdx++;
+        numBenchmarks = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // num elements to validate
+      } else if (keyNumElementsToValidate == argv[argIdx]) {
+        argIdx++;
+        numElementsToValidate = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // num enqueues per sync
+      } else if (keyNumEnqueuesPerSync == argv[argIdx]) {
+        argIdx++;
+        numEnqueuesPerSync = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // num syncs per benchmark
+      } else if (keyNumSyncsPerBenchmark == argv[argIdx]) {
+        argIdx++;
+        numSyncsPerBenchmark = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // use gpu timer
+      } else if (keyUseGPUTimer == argv[argIdx]) {
+        argIdx++;
+        useGPUTimer = static_cast<unsigned int>(atoi(argv[argIdx]));
+      }
+#if Tensile_CLIENT_LIBRARY
+      // function idx
+      else if (keyFunctionIdx == argv[argIdx]) {
+        argIdx++;
+        // handled above
+
+      // sizes
+      } else if (keySizes == argv[argIdx]) {
+        argIdx++;
+        for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+          userSizes[i] = static_cast<unsigned int>(atoi(argv[argIdx]));
+          argIdx++;
+        }
+        argIdx--; // b/c incremented at end of loop
+      }
+#endif
+      // unrecognized
+      else {
+       std::cout << "Unrecognized: " << argv[argIdx] << std::endl;
+       printClientUsage(executableName);
+       exit(0);
+      }
+    } // loop
   } catch (...) {
-    printLibraryClientUsage(executableName);
+    printClientUsage(executableName);
     exit(0);
   }
 
+#if Tensile_CLIENT_LIBRARY
+  // max tensor sizes
   maxSizeC = 1;
   for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
     maxSizeC *= userSizes[i];
@@ -982,4 +1214,5 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
     maxSizeB *= userSizes[indexAssignmentsB[problemTypeIdx][i]];
   }
 #endif
+
 }

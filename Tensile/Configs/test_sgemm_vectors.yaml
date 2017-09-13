@@ -59,8 +59,6 @@ BenchmarkProblems:
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
-        - GlobalReadCoalesceVectorA: [False, True]
-        - GlobalReadCoalesceVectorB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [2, 4]
@@ -138,8 +136,6 @@ BenchmarkProblems:
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
-        - GlobalReadCoalesceVectorA: [False, True]
-        - GlobalReadCoalesceVectorB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [2, 4]
@@ -217,8 +213,6 @@ BenchmarkProblems:
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
-        - GlobalReadCoalesceVectorA: [False, True]
-        - GlobalReadCoalesceVectorB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [2, 4]
@@ -296,8 +290,6 @@ BenchmarkProblems:
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
-        - GlobalReadCoalesceVectorA: [False, True]
-        - GlobalReadCoalesceVectorB: [False, True]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - VectorWidth: [2, 4]

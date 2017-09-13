@@ -56,7 +56,7 @@ else()
   add_executable( ${ClientName}
     Client.cpp
     MathTemplates.cpp
-    #Tools.cpp
+    DeviceStats.h
     )
   target_compile_definitions( ${ClientName} PUBLIC 
     -DTensile_CLIENT_BENCHMARK=0
