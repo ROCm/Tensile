@@ -354,7 +354,6 @@ bool callLibrary(
   } else {
     timeNs = timer.elapsed_ns();
   }
-  std::cout << "time: " << timeNs << std::endl;
 #endif
 
   timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
@@ -1043,7 +1042,6 @@ void printClientUsage(std::string executableName) {
   std::cout << "  " << keyPlatformIdx << " [" << defaultPlatformIdx << "]" << std::endl;  
 #endif
   std::cout << "  " << keyPrintValids << " [" << defaultPrintValids << "]" << std::endl;  
-  std::cout << "  " << keyPrintValids << " [" << defaultPrintValids << "]" << std::endl;  
   std::cout << "  " << keyPrintMax << " [" << defaultPrintMax << "]" << std::endl;  
   std::cout << "  " << keyNumBenchmarks << " [" << defaultNumBenchmarks << "]" << std::endl;  
   std::cout << "  " << keyNumElementsToValidate << " [" << defaultNumElementsToValidate << "]" << std::endl;  
@@ -1177,6 +1175,7 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 #if Tensile_CLIENT_LIBRARY
       // function idx
       else if (keyFunctionIdx == argv[argIdx]) {
+        argIdx++;
         // handled above
 
       // sizes
