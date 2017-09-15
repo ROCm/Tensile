@@ -1,97 +1,449 @@
 #!/usr/bin/env groovy
 
-/*******************************************************************************
-* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
-*
-* Permission is hereby granted, free of charge, to any person obtaining a copy
-* of this software and associated documentation files (the "Software"), to deal
-* in the Software without restriction, including without limitation the rights
-* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-* ies of the Software, and to permit persons to whom the Software is furnished
-* to do so, subject to the following conditions:
-*
-* The above copyright notice and this permission notice shall be included in all
-* copies or substantial portions of the Software.
-*
-* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*******************************************************************************/
+// Generated from snippet generator 'properties; set job properties'
+properties([buildDiscarder(logRotator(
+    artifactDaysToKeepStr: '',
+    artifactNumToKeepStr: '',
+    daysToKeepStr: '',
+    numToKeepStr: '10')),
+    disableConcurrentBuilds(),
+    // parameters([booleanParam( name: 'push_image_to_docker_hub', defaultValue: false, description: 'Push tensile image to rocm docker-hub' )]),
+    [$class: 'CopyArtifactPermissionProperty', projectNames: '*']
+   ])
 
-parallel rocm_fiji: {
+////////////////////////////////////////////////////////////////////////
+// -- AUXILLARY HELPER FUNCTIONS
+// import hudson.FilePath;
+import java.nio.file.Path;
 
-  currentBuild.result = "SUCCESS"
-  node('rocm-1.6 && fiji')
+////////////////////////////////////////////////////////////////////////
+// Return build number of upstream job
+@NonCPS
+int get_upstream_build_num( )
+{
+    def upstream_cause = currentBuild.rawBuild.getCause( hudson.model.Cause$UpstreamCause )
+    if( upstream_cause == null)
+      return 0
+
+    return upstream_cause.getUpstreamBuild()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Return project name of upstream job
+@NonCPS
+String get_upstream_build_project( )
+{
+    def upstream_cause = currentBuild.rawBuild.getCause( hudson.model.Cause$UpstreamCause )
+    if( upstream_cause == null)
+      return null
+
+    return upstream_cause.getUpstreamProject()
+}
+
+////////////////////////////////////////////////////////////////////////
+// Calculate the relative path between two sub-directories from a common root
+@NonCPS
+String g_relativize( String root_string, String rel_source, String rel_build )
+{
+  Path root_path = new File( root_string ).toPath( )
+  Path path_src = root_path.resolve( rel_source )
+  Path path_build = root_path.resolve( rel_build )
+
+  String rel_path = path_build.relativize( path_src ).toString( )
+
+  // If rel_path is empty,
+  if( rel_path?.trim( ) )
+    return rel_path
+  else
+    return "."
+}
+
+////////////////////////////////////////////////////////////////////////
+// Construct the relative path of the build directory
+void build_directory_rel( project_paths paths, compiler_data hcc_args )
+{
+  // if( hcc_args.build_config.equalsIgnoreCase( 'release' ) )
+  // {
+  //   paths.project_build_prefix = paths.build_prefix + '/' + paths.project_name + '/release';
+  // }
+  // else
+  // {
+  //   paths.project_build_prefix = paths.build_prefix + '/' + paths.project_name + '/debug';
+  // }
+
+  // Currently, for this python based project, the build directory has to match the source directory
+  paths.project_build_prefix = paths.project_src_prefix;
+}
+
+////////////////////////////////////////////////////////////////////////
+// Lots of images are created above; no apparent way to delete images:tags with docker global variable
+def docker_clean_images( String org, String image_name )
+{
+  // Check if any images exist first grepping for image names
+  int docker_images = sh( script: "docker images | grep \"${org}/${image_name}\"", returnStatus: true )
+
+  // The script returns a 0 for success (images were found )
+  if( docker_images == 0 )
   {
-    def scm_dir = pwd()
-    def build_dir_debug = "${scm_dir}/test/debug"
-    def build_dir_release = "${scm_dir}/test/release"
+    // run bash script to clean images:tags after successful pushing
+    sh "docker images | grep \"${org}/${image_name}\" | awk '{print \$1 \":\" \$2}' | xargs docker rmi"
+  }
+}
 
-    // Run the containers preperation script
-    // Note, exported environment variables do not live outside of sh step
-    sh ". /home/jenkins/prep-env.sh"
+////////////////////////////////////////////////////////////////////////
+// -- BUILD RELATED FUNCTIONS
 
-    // The following try block performs build steps
-    try
+////////////////////////////////////////////////////////////////////////
+// Checkout source code, source dependencies and update version number numbers
+// Returns a relative path to the directory where the source exists in the workspace
+void checkout_and_version( project_paths paths )
+{
+  paths.project_src_prefix = paths.src_prefix + '/' + paths.project_name
+
+  dir( paths.project_src_prefix )
+  {
+    sh """#!/usr/bin/env bash
+      set -x
+      ls -la
+    """
+
+    // checkout tensile
+    checkout([
+      $class: 'GitSCM',
+      branches: scm.branches,
+      doGenerateSubmoduleConfigurations: scm.doGenerateSubmoduleConfigurations,
+      extensions: scm.extensions + [[$class: 'CleanCheckout']],
+      userRemoteConfigs: scm.userRemoteConfigs
+    ])
+
+    sh """#!/usr/bin/env bash
+      set -x
+      ls -la
+    """
+  }
+}
+
+////////////////////////////////////////////////////////////////////////
+// This creates the docker image that we use to build the project in
+// The docker images contains all dependencies, including OS platform, to build
+def docker_build_image( docker_data docker_args, project_paths paths )
+{
+  String build_image_name = "build-tensile-hip-artifactory"
+  def build_image = null
+
+  dir( paths.project_src_prefix )
+  {
+    def user_uid = sh( script: 'id -u', returnStdout: true ).trim()
+
+    // Docker 17.05 introduced the ability to use ARG values in FROM statements
+    // Docker inspect failing on FROM statements with ARG https://issues.jenkins-ci.org/browse/JENKINS-44836
+    // build_image = docker.build( "${paths.project_name}/${build_image_name}:latest", "--pull -f docker/${build_docker_file} --build-arg user_uid=${user_uid} --build-arg base_image=${from_image} ." )
+
+    // JENKINS-44836 workaround by using a bash script instead of docker.build()
+    sh "docker build -t ${paths.project_name}/${build_image_name}:latest -f docker/${docker_args.build_docker_file} ${docker_args.docker_build_args} --build-arg user_uid=${user_uid} --build-arg base_image=${docker_args.from_image} ."
+    build_image = docker.image( "${paths.project_name}/${build_image_name}:latest" )
+  }
+
+  return build_image
+}
+
+////////////////////////////////////////////////////////////////////////
+// This encapsulates the cmake configure, build and package commands
+// Leverages docker containers to encapsulate the build in a fixed environment
+def docker_build_inside_image( def build_image, compiler_data compiler_args, docker_data docker_args, project_paths paths )
+{
+  // Construct a relative path from build directory to src directory; used to invoke cmake
+  String rel_path_to_src = g_relativize( pwd( ), paths.project_src_prefix, paths.project_build_prefix )
+
+  build_image.inside( docker_args.docker_run_args )
+  {
+    // PYTHONPATH is used for setup.py install --prefix install_prefix
+    // PATH is to run unit tests
+    withEnv(["PYTHONPATH=install_prefix/lib/python2.7/site-packages/",
+      "PATH=${PATH}:install_prefix/bin/"])
     {
-      dir("${scm_dir}") {
-        stage("Clone") {
-          checkout scm
-        }
-      }
+      // The following does it's best to not use sudo; setting install prefix to local directory
+      // Running setup.py as root creates files/directories owned by root, which is a pain
+      sh """#!/usr/bin/env bash
+        set -x
+        cd ${paths.project_build_prefix}
+        mkdir -p install_prefix/lib/python2.7/site-packages
+        python ${rel_path_to_src}/setup.py install --prefix install_prefix
+      """
 
-      withEnv(["PATH=${PATH}:/opt/rocm/bin"]) {
-        // Record important versions of software layers we use
-        sh '''clang++ --version
-              cmake --version
-              hcc --version
-              hipconfig --version
-           '''
+      stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
+      {
+        // Cap the maximum amount of testing to be a few hours; assume failure if the time limit is hit
+        timeout(time: 1, unit: 'HOURS')
+        {
+          sh  """#!/usr/bin/env bash
+              set -x
+              cd ${paths.project_build_prefix}
 
-        // install Tensile
-        dir("${scm_dir}") {
-          sh '''
-            pwd
-            ls -l
-            sudo apt-get update
-            sudo apt-get install python-setuptools
-            sudo python setup.py install
-          '''
-        }
+              # defaults
+              tensile ${rel_path_to_src}/Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults
+              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults
+              tensile ${rel_path_to_src}/Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults
 
-        // run jenkins tests
-        dir("${build_dir_release}") {
-          stage("unit tests") {
+              # thorough tests
+              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_hgemm.yaml hgemm
+              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_sgemm.yaml sgemm
 
-           // defaults
-           sh "tensile ../../Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults"
-           sh "tensile ../../Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults"
-           sh "tensile ../../Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults"
+              # vectors
+              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors
+              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors
+          """
 
-           // thorough tests
-           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_hgemm.yaml hgemm"
-           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_sgemm.yaml sgemm"
-
-           // vectors
-           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors"
-           sh "tensile --runtime-language=HIP --kernel-language=HIP ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
-
-           // assembly
-           sh "tensile ../../Tensile/Configs/sgemm_gfx803.yaml sgemm_gfx803"
-
-           // TODO re-enable when jenkins supports opencl
-           //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
+          // assembly
+          if( env.NODE_LABELS ==~ /.*gfx803.*/ )
+          {
+            sh  """#!/usr/bin/env bash
+                set -x
+                cd ${paths.project_build_prefix}
+                tensile ${rel_path_to_src}/Tensile/Configs/sgemm_gfx803.yaml sgemm_gfx803
+            """
           }
+
+          // TODO re-enable when jenkins supports opencl
+          //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
+
+          archiveArtifacts artifacts: "${paths.project_build_prefix}/dist/*.egg", fingerprint: true
         }
       }
     }
-    catch( err )
+  }
+
+  return void
+}
+
+////////////////////////////////////////////////////////////////////////
+// hip_integration_testing
+// This function sets up compilation and testing of HiP on a compiler downloaded from an upstream build
+// Integration testing is centered around docker and constructing clean test environments every time
+
+// NOTES: I have implemeneted integration testing 3 different ways, and I've come to the conclusion nothing is perfect
+// 1.  I've tried having HCC push the test compiler to artifactory, and having HiP download the test docker image from artifactory
+//     a.  The act of uploading and downloading images from artifactory takes minutes
+//     b.  There is no good way of deleting images from a repository.  You have to use an arcane CURL command and I don't know how
+//        to keep the password secret.  These test integration images are meant to be ephemeral.
+// 2.  I tried 'docker save' to export a docker image into a tarball, and transfering the image through 'copy artifacts plugin'
+//     a.  The HCC docker image uncompressed is over 1GB
+//     b.  Compressing the docker image takes even longer than uploading the image to artifactory
+// 3.  Download the HCC .deb and dockerfile through 'copy artifacts plugin'.  Create a new HCC image on the fly
+//     a.  There is inefficency in building a new ubuntu image and installing HCC twice (once in HCC build, once here)
+//     b.  This solution doesn't scale when we start testing downstream libraries
+
+// I've implemented solution #3 above, probably transitioning to #2 down the line (probably without compression)
+String hip_integration_testing( String inside_args, String job, String build_config )
+{
+  // Attempt to make unique docker image names for each build, to support concurrent builds
+  // Mangle docker org name with upstream build info
+  String testing_org_name = 'hip-test-' + get_upstream_build_project( ).replaceAll('/','-') + '-' + get_upstream_build_num( )
+
+  // Tag image name with this build number
+  String hip_test_image_name = "hip:${env.BUILD_NUMBER}"
+
+  def tensile_integration_image = null
+
+  dir( 'integration-testing' )
+  {
+    deleteDir( )
+
+    // This invokes 'copy artifact plugin' to copy archived files from upstream build
+    step([$class: 'CopyArtifact', filter: 'archive/**/*.deb, docker/dockerfile-*',
+      fingerprintArtifacts: true, projectName: get_upstream_build_project( ), flatten: true,
+      selector: [$class: 'TriggeredBuildSelector', allowUpstreamDependencies: false, fallbackToLastSuccessful: false, upstreamFilterStrategy: 'UseGlobalSetting'],
+      target: '.' ])
+
+    docker.build( "${testing_org_name}/${hip_test_image_name}", "-f dockerfile-hip-ubuntu-16.04 ." )
+  }
+
+  // Checkout source code, dependencies and version files
+  String tensile_src_rel = checkout_and_version( job )
+
+  // Conctruct a binary directory path based on build config
+  String tensile_bin_rel = build_directory_rel( build_config );
+
+  // Build tensile inside of the build environment
+  tensile_integration_image = docker_build_image( job, testing_org_name, '', tensile_src_rel, "${testing_org_name}/${hip_test_image_name}" )
+
+  docker_build_inside_image( tensile_integration_image, inside_args, job, '', build_config, tensile_src_rel, tensile_bin_rel )
+  docker_clean_images( testing_org_name, '*' )
+}
+
+// Docker related variables gathered together to reduce parameter bloat on function calls
+class docker_data implements Serializable
+{
+  String from_image
+  String build_docker_file
+  String install_docker_file
+  String docker_run_args
+  String docker_build_args
+}
+
+// Docker related variables gathered together to reduce parameter bloat on function calls
+class compiler_data implements Serializable
+{
+  String compiler_name
+  String build_config
+  String compiler_path
+}
+
+// Paths variables bundled together to reduce parameter bloat on function calls
+class project_paths implements Serializable
+{
+  String project_name
+  String src_prefix
+  String project_src_prefix
+  String build_prefix
+  String project_build_prefix
+}
+
+////////////////////////////////////////////////////////////////////////
+// -- MAIN
+// Following this line is the start of MAIN of this Jenkinsfile
+
+// Integration testing is a special path which implies testing of an upsteam build of hcc,
+// but does not need testing across older builds of hcc or cuda.
+// params.hip_integration_test is set in HIP build
+// NOTE: hip does not currently set this bit; this is non-functioning at this time
+// if( params.hip_integration_test )
+// {
+//   println "Enabling tensile integration testing pass"
+
+//   node('docker && rocm')
+//   {
+//     hip_integration_testing( '--device=/dev/kfd', 'hip-ctu', 'Release' )
+//   }
+
+//   return
+// }
+
+// This defines a common build pipeline used by most targets
+def build_pipeline( compiler_data compiler_args, docker_data docker_args, project_paths tensile_paths, def docker_inside_closure )
+{
+  ansiColor( 'vga' )
+  {
+    stage( "Build ${compiler_args.compiler_name} ${compiler_args.build_config}" )
     {
-      currentBuild.result = "FAILURE"
-      throw err
+      // Checkout source code, dependencies and version files
+      checkout_and_version( tensile_paths )
+
+      // Conctruct a binary directory path based on build config
+      build_directory_rel( tensile_paths, compiler_args );
+
+      // Create/reuse a docker image that represents the tensile build environment
+      def tensile_build_image = docker_build_image( docker_args, tensile_paths )
+
+      // Print system information for the log
+      tensile_build_image.inside( docker_args.docker_run_args, docker_inside_closure )
+
+      // Build tensile inside of the build environment
+      docker_build_inside_image( tensile_build_image, compiler_args, docker_args, tensile_paths )
     }
-  } // node
+
+    // After a successful build, upload a docker image of the results
+    String job_name = env.JOB_NAME.toLowerCase( )
+    String tensile_image_name = docker_upload_artifactory( compiler_args, docker_args, tensile_paths, job_name )
+
+    docker_clean_images( job_name, tensile_image_name )
+  }
+}
+
+// The following launches 3 builds in parallel: hcc-ctu, hcc-rocm and cuda
+parallel hcc_ctu:
+{
+  node( 'docker && rocm' )
+  {
+    def docker_args = new docker_data(
+        from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
+        build_docker_file:'dockerfile-build-hip-hcc-ctu-ubuntu-16.04',
+        install_docker_file:'dockerfile-tensile-hip-hcc-ctu-ubuntu-16.04',
+        docker_run_args:'--device=/dev/kfd',
+        docker_build_args:' --pull' )
+
+    def compiler_args = new compiler_data(
+        compiler_name:'hcc-ctu',
+        build_config:'Release',
+        compiler_path:'/opt/rocm/bin/hcc' )
+
+    def tensile_paths = new project_paths(
+        project_name:'tensile',
+        src_prefix:'src',
+        build_prefix:'src' )
+
+    def print_version_closure = {
+      sh  """
+          set -x
+          /opt/rocm/bin/rocm_agent_enumerator -t ALL
+          /opt/rocm/bin/hcc --version
+        """
+    }
+
+    build_pipeline( compiler_args, docker_args, tensile_paths, print_version_closure )
+  }
+},
+hcc_rocm:
+{
+  node( 'docker && rocm' )
+  {
+    def hcc_docker_args = new docker_data(
+        from_image:'rocm/rocm-terminal:latest',
+        build_docker_file:'dockerfile-build-rocm-terminal',
+        install_docker_file:'dockerfile-tensile-rocm-terminal',
+        docker_run_args:'--device=/dev/kfd',
+        docker_build_args:' --pull' )
+
+    def hcc_compiler_args = new compiler_data(
+        compiler_name:'hcc-rocm',
+        build_config:'Release',
+        compiler_path:'/opt/rocm/bin/hcc' )
+
+    def tensile_paths = new project_paths(
+        project_name:'tensile',
+        src_prefix:'src',
+        build_prefix:'src' )
+
+    def print_version_closure = {
+      sh  """
+          set -x
+          /opt/rocm/bin/rocm_agent_enumerator -t ALL
+          /opt/rocm/bin/hcc --version
+        """
+    }
+
+    build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
+  }
+},
+nvcc:
+{
+  node( 'docker && cuda' )
+  {
+    def hcc_docker_args = new docker_data(
+        from_image:'nvidia/cuda:8.0-devel',
+        build_docker_file:'dockerfile-build-nvidia-cuda-8',
+        install_docker_file:'dockerfile-install-nvidia-cuda-8',
+        docker_run_args:'--device=/dev/nvidiactl --device=/dev/nvidia0 --device=/dev/nvidia-uvm --device=/dev/nvidia-uvm-tools --volume-driver=nvidia-docker --volume=nvidia_driver_375.74:/usr/local/nvidia:ro',
+        docker_build_args:' --pull' )
+
+    def hcc_compiler_args = new compiler_data(
+        compiler_name:'nvcc-8.0',
+        build_config:'Release',
+        compiler_path:'g++' )
+
+    def tensile_paths = new project_paths(
+        project_name:'tensile',
+        src_prefix:'src',
+        build_prefix:'src' )
+
+    def print_version_closure = {
+      sh  """
+          set -x
+          nvidia-smi
+          nvcc --version
+        """
+    }
+
+    build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
+  }
 }
