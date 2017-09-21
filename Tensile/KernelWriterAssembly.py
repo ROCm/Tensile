@@ -2459,7 +2459,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # maxAddr = size0
       kStr += self.comment1("compute max read address for exec masks")
-      kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", tP["ia"][0])), "maxAddr=size0")
+      kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", 0)), "maxAddr=size0")
       kStr += inst("s_mov_b32", sgpr(maxAddr+1), hex(0), "zero (upper)")
       #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(maxAddr+0), "dump")
       #kStr += dump(vgpr(dumpVgpr))
@@ -2469,9 +2469,9 @@ class KernelWriterAssembly(KernelWriter):
         # size[n] * stride[n-1]
         kStr += inst("s_mul_i32", \
             sgpr(tmpSgpr+0), \
-            sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", i)),  \
-            sgpr("Strides%s+%u"%(tP["tensorChar"],i-1)), \
-            "mul d%u lower"%i)
+            sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", d)),  \
+            sgpr("Strides%s+%u"%(tP["tensorChar"],d-1)), \
+            "mul d%u lower"%d)
         #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(tmpSgpr+0), "dump")
         #kStr += dump(vgpr(dumpVgpr))
 
@@ -2587,6 +2587,7 @@ class KernelWriterAssembly(KernelWriter):
     if guardK:
       self.vgprScratch.checkIn(bpeVgpr)
       self.vgprScratch.checkIn(zeroVgpr)
+      self.vgprScratch.checkIn(tmpVgpr)
     """
     gROAK_%u_%u
                   (perp if tP["tlu"] else para), \
