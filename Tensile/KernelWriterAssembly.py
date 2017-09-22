@@ -2450,7 +2450,7 @@ class KernelWriterAssembly(KernelWriter):
       maxAddr = 1*maxD0 + stride0*maxD1
       """
       ########################################
-      # Calculate Max Addr - FIXME only during isA
+      # Calculate Max Addr
       ########################################
       maxAddr = self.startSgprOffsetC # 3+6 = 9 sgprs available
       tmpSgpr = maxAddr + 2 # 7 sgprs available
@@ -2459,18 +2459,31 @@ class KernelWriterAssembly(KernelWriter):
 
       # maxAddr = size0
       kStr += self.comment1("compute max read address for exec masks")
-      kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", 0)), "maxAddr=size0")
+      sizeIdx = tP["ia"][0]
+      sizeIdxIsFree = sizeIdx < kernel["ProblemType"]["NumDimensionsC"]
+      if not sizeIdxIsFree:
+        sizeIdx -= kernel["ProblemType"]["NumDimensionsC"]
+      kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)), "maxAddr=size%u"%sizeIdx)
       kStr += inst("s_mov_b32", sgpr(maxAddr+1), hex(0), "zero (upper)")
       #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(maxAddr+0), "dump")
       #kStr += dump(vgpr(dumpVgpr))
 
       for d in range(1,len(tP["ia"])):
-        i = tP["ia"][d]
+        sizeIdx = tP["ia"][d]
+        sizeIdxIsFree = sizeIdx < kernel["ProblemType"]["NumDimensionsC"]
+        if not sizeIdxIsFree:
+          sizeIdx -= kernel["ProblemType"]["NumDimensionsC"]
+
+        strideIdx = d-1 # tP["ia"][d-1]
+        #strideIdxIsFree = strideIdx < kernel["ProblemType"]["NumDimensionsC"]
+        #if not strideIdxIsFree:
+        #  strideIdx -= kernel["ProblemType"]["NumDimensionsC"]
+
         # size[n] * stride[n-1]
         kStr += inst("s_mul_i32", \
             sgpr(tmpSgpr+0), \
-            sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", d)),  \
-            sgpr("Strides%s+%u"%(tP["tensorChar"],d-1)), \
+            sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)),  \
+            sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
             "mul d%u lower"%d)
         #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(tmpSgpr+0), "dump")
         #kStr += dump(vgpr(dumpVgpr))
@@ -2488,12 +2501,12 @@ class KernelWriterAssembly(KernelWriter):
             sgpr(maxAddr+0), \
             sgpr(tmpSgpr+0), \
             sgpr(maxAddr+0), \
-            "accumulate d%u lower"%i)
+            "accumulate d%u lower"%sizeIdx)
         kStr += inst("s_addc_u32", \
             sgpr(maxAddr+1), \
             sgpr(tmpSgpr+1), \
             sgpr(maxAddr+1), \
-            "accumulate d%u upper"%i)
+            "accumulate d%u upper"%sizeIdx)
       # maxAddr *= bytes/element
       kStr += inst("s_lshl_b64", \
           sgpr(maxAddr,2), \
@@ -2625,7 +2638,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += inst("v_and_b32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe-1), \
+        hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "reset to Red")
     return kStr
@@ -2750,7 +2763,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment1("handled internally")
     kStr += inst("v_and_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe-1), \
+        hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "reset Red,Blk -> Red")
     return kStr
