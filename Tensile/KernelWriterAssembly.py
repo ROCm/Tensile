@@ -2217,6 +2217,7 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = self.unrollIdx
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    # Tail Loop
     if tailLoop:
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU);%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
@@ -2236,7 +2237,16 @@ class KernelWriterAssembly(KernelWriter):
             hex(0), \
             sgpr("LoopCounters+%u"%loopIdx), \
             "counter%s = -size%s"%(loopChar, loopChar) )
-    else:
+
+      # tail loop count == 0?
+      tailLoopLabelBegin = self.getLabel("TailLoopBegin%s"%(loopChar) )
+      tailLoopLabelEnd = self.getLabel("TailLoopEnd%s"%(loopChar) )
+      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
+          hex(0), "numIter%s == 0"%loopChar )
+      kStr += inst("s_cbranch_scc1 label_%04u"\
+          % tailLoopLabelEnd, \
+          "skip to end of tail loop b/c numIter==0")
+    else: # Unrolled Loop
       if loopIdx == self.unrollIdx:
         #kStr += inst("v_mov_b32", vgpr(tmp), \
         #    sgpr("SizesSum+0"), "" )
@@ -2259,6 +2269,15 @@ class KernelWriterAssembly(KernelWriter):
             hex(0), \
             sgpr("LoopCounters+%u"%loopIdx), \
             "counter%s = -size%s"%(loopChar, loopChar) )
+
+        # unrolled loop count == 0?
+        loopLabelBegin = self.getLabel("LoopBegin%s"%(loopChar) )
+        loopLabelEnd = self.getLabel("LoopEnd%s"%(loopChar) )
+        kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
+            hex(0), "numIter%s == 0"%loopChar )
+        kStr += inst("s_cbranch_scc1 label_%04u"\
+          % loopLabelEnd, \
+          "skip to end of tail loop b/c numIter==0")
       else:
         # SKIP
         printExit("Asm GSU>1 not yet supported")
