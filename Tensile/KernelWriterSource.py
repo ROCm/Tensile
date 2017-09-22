@@ -226,7 +226,7 @@ class KernelWriterSource(KernelWriter):
 
     ########################################
     # z-ordering
-    if True:
+    if kernel["WorkGroupMappingType"] == "Z":
       kStr += self.endLine
       kStr += "#ifndef Z_ORDER_FUNCTIONS%s" % self.endLine
       kStr += "#define Z_ORDER_FUNCTIONS%s" % self.endLine
