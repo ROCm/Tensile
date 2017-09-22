@@ -603,7 +603,7 @@ class KernelWriter:
         kStr += self.syncThreads(kernel)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
-      kStr += self.dumpLds(kernel, 0, 8)
+      #kStr += self.dumpLds(kernel, 0, 8)
 
       # tail: re-init local read addresses
       if kernel["PrefetchGlobalRead"]:
