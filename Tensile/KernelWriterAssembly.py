@@ -252,6 +252,7 @@ class KernelWriterAssembly(KernelWriter):
   def getLabel(self, name):
     if name not in self.labels:
       self.labels[name] = len(self.labels)
+    print "LABEL %s: %u" % (name, self.labels[name])
     return self.labels[name]
 
   ##############################################################################
@@ -779,6 +780,19 @@ class KernelWriterAssembly(KernelWriter):
     tPB["localWriteInstruction"] = self.localWriteInstructionB
     tPB["localReadInstruction"] = self.localReadInstructionB
     tPB["gpr"] = {}
+
+    # pre-determine labels in order
+    unrollChar = self.indexChars[ \
+        kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+    self.labels = {}
+    #self.getLabel("PrefetchGlobalBegin")
+    self.getLabel("PrefetchGlobalEnd")
+    self.getLabel("LoopBegin%s"%(unrollChar))
+    self.getLabel("LoopEnd%s"%(unrollChar))
+    self.getLabel("PrefetchGlobalLastIterEnd")
+    self.getLabel("TailLoopBegin%s"%(unrollChar))
+    self.getLabel("TailLoopEnd%s"%(unrollChar))
+    # shift vectors determined later
 
 
 
@@ -2271,13 +2285,13 @@ class KernelWriterAssembly(KernelWriter):
             "counter%s = -size%s"%(loopChar, loopChar) )
 
         # unrolled loop count == 0?
-        loopLabelBegin = self.getLabel("LoopBegin%s"%(loopChar) )
-        loopLabelEnd = self.getLabel("LoopEnd%s"%(loopChar) )
-        kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
-            hex(0), "numIter%s == 0"%loopChar )
-        kStr += inst("s_cbranch_scc1 label_%04u"\
-          % loopLabelEnd, \
-          "skip to end of tail loop b/c numIter==0")
+        #loopLabelBegin = self.getLabel("LoopBegin%s"%(loopChar) )
+        #loopLabelEnd = self.getLabel("LoopEnd%s"%(loopChar) )
+        #kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
+        #    hex(0), "numIter%s == 0"%loopChar )
+        #kStr += inst("s_cbranch_scc1 label_%04u"\
+        #  % loopLabelEnd, \
+        #  "skip to end of unrolled loop b/c numIter==0")
       else:
         # SKIP
         printExit("Asm GSU>1 not yet supported")
@@ -2320,8 +2334,18 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
+
+    # is numIter at least 1? otherwise skip to end
+    endCounter = -1 if kernel["PrefetchGlobalRead"] and not tailLoop else 0
+    kStr += inst("s_cmp_ge_i32", \
+        sgpr("LoopCounters+%u"%loopIdx), \
+        hex(endCounter), \
+        "LoopCounter%s < EndCounter"%(loopChar) )
+    kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
+        "don't enter Loop%s"%loopChar )
+    
+    # begin loop
     kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
-    #kStr += self.indent + self.syncStr + self.endLine
     return kStr
 
 
@@ -2382,18 +2406,22 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # At Least 1 Unroll - SKIP
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel):
-    return ""
+  def openSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
-    kStr += "%sif (size%s >= DEPTHU) {%s" \
-        % (self.indent, self.unrollChar, self.endLine)
-    self.indent += "  "
+    if prefetch:
+      lastIterEnd = self.getLabel("PrefetchGlobalLastIterEnd")
+      kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
+          hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
+      kStr += inst("s_cbranch_scc1 label_%04u"\
+          % lastIterEnd, \
+          "skip to end of prefetch last iter b/c numIter==0")
     return kStr
-  def closeSumAtLeastUnroll(self, kernel):
-    return ""
+
+  def closeSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
-    self.indent = self.indent[2:]
-    kStr += "%s}%s" % (self.indent, self.endLine)
+    if not prefetch:
+      label = self.getLabel("PrefetchGlobalLastIterEnd")
+      kStr += "label_%04u:%s" % (label, self.endLine)
     return kStr
 
   ##############################################################################

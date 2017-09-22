@@ -254,7 +254,7 @@ class KernelWriter:
     ####################################
     if kernel["PrefetchGlobalRead"]:
       kStr += self.comment("prefetch: global -> local")
-      kStr += self.openSumAtLeastUnroll(kernel)
+      kStr += self.openSumAtLeastUnroll(kernel, True)
       if self.enable["GlobalRead"]:
         # global read
         kStr += self.comment("global read a")
@@ -301,7 +301,7 @@ class KernelWriter:
           kStr += self.localReadInc(kernel, tensorParametersA)
           kStr += self.comment("local read inc b")
           kStr += self.localReadInc(kernel, tensorParametersB)
-      kStr += self.closeSumAtLeastUnroll(kernel)
+      kStr += self.closeSumAtLeastUnroll(kernel, True)
 
     # open unrolled summation loop
     kStr += self.comment3("Unrolled Loop - Begin")
@@ -541,7 +541,7 @@ class KernelWriter:
     # prefetch: unrolled loop suffix
     if kernel["PrefetchGlobalRead"]:
       kStr += self.comment("prefetch: last unrolled iteration")
-      kStr += self.openSumAtLeastUnroll(kernel)
+      kStr += self.openSumAtLeastUnroll(kernel, False)
       if not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
           kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
@@ -565,7 +565,7 @@ class KernelWriter:
               1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
         if self.enable["MAC"]:
           kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
-      kStr += self.closeSumAtLeastUnroll(kernel)
+      kStr += self.closeSumAtLeastUnroll(kernel, False)
 
     ########################################
     # Tail Loop
@@ -1410,11 +1410,11 @@ class KernelWriter:
   # At Least 1 Unroll
   ##############################################################################
   @abc.abstractmethod
-  def openSumAtLeastUnroll(self, kernel):
+  def openSumAtLeastUnroll(self, kernel, prefetch):
     return ""
 
   @abc.abstractmethod
-  def closeSumAtLeastUnroll(self, kernel):
+  def closeSumAtLeastUnroll(self, kernel, prefetch):
     return ""
 
   ##############################################################################
