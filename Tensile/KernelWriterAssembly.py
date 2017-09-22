@@ -244,6 +244,7 @@ class KernelWriterAssembly(KernelWriter):
     self.labels = {}
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
+    self.inTailLoop = False
 
 
   ########################################
@@ -326,6 +327,7 @@ class KernelWriterAssembly(KernelWriter):
   def initKernel(self, kernel, tPA, tPB ):
     super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
     self.kernelName = self.getKernelName(kernel)
+    self.inTailLoop = False
 
     # registers per element
     self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
@@ -649,7 +651,10 @@ class KernelWriterAssembly(KernelWriter):
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
 
+    # move serial to last vgpr and shift tmp forward
     self.startVgprSerial = self.totalVgprs-1
+    self.startVgprTmp -= 1
+
     #self.globalWriteAddrC = self.totalVgprs-4 # match macro
     self.globalWriteAddrC = self.startVgprSerial-4 # match macro
     if self.spills:
@@ -2291,6 +2296,7 @@ class KernelWriterAssembly(KernelWriter):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
+      self.inTailLoop = True
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
@@ -2791,17 +2797,28 @@ class KernelWriterAssembly(KernelWriter):
   def localReadInc(self, kernel, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
-    if tP["localReadInstruction"].numOffsets == 1:
-      tP["localReadOffset"] += kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
-      kStr += self.comment1("N/A")
-    else:
-      inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
+    if self.inTailLoop:
+      inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]*self.bpe
+      tmpSgpr = self.startSgprOffsetC
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("v_add_i32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "vcc", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          hex(inc), \
+          sgpr(tmpSgpr), \
           "lr%s += %u"%(tP["tensorChar"], inc) )
+    else:
+      if tP["localReadInstruction"].numOffsets == 1:
+        tP["localReadOffset"] += kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
+        kStr += self.comment1("N/A")
+      else:
+        inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
+        kStr += inst("v_add_i32", \
+            vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+            "vcc", \
+            vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+            hex(inc), \
+            "lr%s += %u"%(tP["tensorChar"], inc) )
     return kStr
 
   ##############################################################################
