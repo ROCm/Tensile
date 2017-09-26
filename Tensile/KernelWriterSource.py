@@ -462,6 +462,20 @@ class KernelWriterSource(KernelWriter):
       # real data
       kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
           + "DST = MAC(MULA,MULB,DST);" + self.endLine
+
+      if kernel["ProblemType"]["DataType"].isHalf():
+        kStr += "#define TYPE_MAC_HALF2(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
+        kStr += "  a_pk_fma[0] = MULA0; %s " % (self.endLinePP)
+        kStr += " a_pk_fma[1] = MULA1; %s " % (self.endLinePP)
+        kStr += " b_pk_fma[0] = MULB0; %s " % (self.endLinePP)
+        kStr += " b_pk_fma[1] = MULB1; %s " % (self.endLinePP)
+        kStr += " c_pk_fma[0] = DST0; %s " % (self.endLinePP)
+        kStr += " c_pk_fma[1] = DST1; %s " % (self.endLinePP)
+        kStr += " c_pk_fma = __v_pk_fma_f16(a_pk_fma, b_pk_fma, c_pk_fma); %s " % (self.endLinePP)
+        kStr += " DST0 = c_pk_fma[0]; %s " % (self.endLinePP)
+        kStr += " DST1 = c_pk_fma[1]; %s " % (self.endLinePP)
+        kStr += self.endLine
+
       # GSU
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
         if kernel["ProblemType"]["UseBeta"]:
@@ -587,13 +601,26 @@ class KernelWriterSource(KernelWriter):
             self.vectorComponents[2], self.vectorComponents[3], \
             self.endLinePP)
       """
-      for b in range(0, kernel["ThreadTileB"]):
-        for a in range(0, kernel["ThreadTileA"]):
-          strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
-          strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
-          strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
-          kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
-              self.endLinePP)
+
+      if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
+        for b in range(0, kernel["ThreadTileB"]):
+          for a in range(0, kernel["ThreadTileA"]):
+            strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
+            strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
+            strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
+            if a % 2 == 0:
+              kStr += "  TYPE_MAC_HALF2(%s,%s,%s , " % (strA, strB, strC)
+            else:
+              kStr += "%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
+      else:
+        for b in range(0, kernel["ThreadTileB"]):
+          for a in range(0, kernel["ThreadTileA"]):
+            strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
+            strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
+            strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
+            kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
+                self.endLinePP)
+
       if kernel["UnrollMemFence"]:
         kStr += "  " + self.fenceStr
       kStr += self.endLine
@@ -627,6 +654,11 @@ class KernelWriterSource(KernelWriter):
         kStr += "  " + self.fenceStr
       kStr += self.endLine
       """
+
+      if kernel["ProblemType"]["DataType"].isReal():
+        kStr += "typedef __fp16 half2 __attribute__((ext_vector_type(2)));" + self.endLine
+        kStr += "extern \"C\" half2 __v_pk_fma_f16(half2, half2, half2) __asm(\"llvm.fma.v2f16\");" + self.endLine
+        kStr += self.endLine
 
     ####################################
     # preprocessor definitions of kernel arguments
