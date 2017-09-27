@@ -1460,16 +1460,16 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graWorkGroup(self, kernel):
     kStr = ""
-    tmpVgpr = self.vgprScratch.checkOut(2)
-    if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
 
     ########################################
     # Blocked rows or columns
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
+      tmpVgpr = self.vgprScratch.checkOut(2)
+      if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
       # nwg0
       nwg0 = self.vgprScratch.checkOut(1)
       if self.vgprScratch.overflowed(): kStr += "s_endpgm\n"
-      tmpSgpr = self.getTmpSgpr(1)
+      tmpSgpr = self.getTmpSgpr(2)
       kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
       kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("SizesFree+0"), "")
