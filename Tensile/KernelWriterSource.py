@@ -471,7 +471,7 @@ class KernelWriterSource(KernelWriter):
         kStr += " b_pk_fma[1] = MULB1; %s " % (self.endLinePP)
         kStr += " c_pk_fma[0] = DST0; %s " % (self.endLinePP)
         kStr += " c_pk_fma[1] = DST1; %s " % (self.endLinePP)
-        kStr += " c_pk_fma = __v_pk_fma_f16(a_pk_fma, b_pk_fma, c_pk_fma); %s " % (self.endLinePP)
+        kStr += " c_pk_fma = tensile_fmadd_half2(a_pk_fma, b_pk_fma, c_pk_fma); %s " % (self.endLinePP)
         kStr += " DST0 = c_pk_fma[0]; %s " % (self.endLinePP)
         kStr += " DST1 = c_pk_fma[1]; %s " % (self.endLinePP)
         kStr += self.endLine
@@ -654,11 +654,6 @@ class KernelWriterSource(KernelWriter):
         kStr += "  " + self.fenceStr
       kStr += self.endLine
       """
-
-      if kernel["ProblemType"]["DataType"].isReal():
-        kStr += "typedef __fp16 half2 __attribute__((ext_vector_type(2)));" + self.endLine
-        kStr += "extern \"C\" half2 __v_pk_fma_f16(half2, half2, half2) __asm(\"llvm.fma.v2f16\");" + self.endLine
-        kStr += self.endLine
 
     ####################################
     # preprocessor definitions of kernel arguments

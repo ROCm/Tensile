@@ -130,7 +130,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_fp16.h>\n")
+      kernelHeaderFile.write("#include \"TensileTypes.h\"\n")
     else:
       kernelHeaderFile.write("#include <string>\n")
 
