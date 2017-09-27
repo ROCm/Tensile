@@ -2523,14 +2523,14 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = maxAddr + 2 # 7 sgprs available
       #dumpVgpr = self.vgprScratch.checkOut(1)
 
-
       # maxAddr = size0
       kStr += self.comment1("compute max read address for exec masks")
       sizeIdx = tP["ia"][0]
       sizeIdxIsFree = sizeIdx < kernel["ProblemType"]["NumDimensionsC"]
       if not sizeIdxIsFree:
         sizeIdx -= kernel["ProblemType"]["NumDimensionsC"]
-      kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)), "maxAddr=size%u"%sizeIdx)
+      #kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)), "maxAddr=size%u"%sizeIdx)
+      kStr += inst("s_mov_b32", sgpr(maxAddr+0), hex(0), "maxAddr=size%u"%sizeIdx)
       kStr += inst("s_mov_b32", sgpr(maxAddr+1), hex(0), "zero (upper)")
       #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(maxAddr+0), "dump")
       #kStr += dump(vgpr(dumpVgpr))
@@ -2574,6 +2574,7 @@ class KernelWriterAssembly(KernelWriter):
             sgpr(tmpSgpr+1), \
             sgpr(maxAddr+1), \
             "accumulate d%u upper"%sizeIdx)
+
       # maxAddr *= bytes/element
       kStr += inst("s_lshl_b64", \
           sgpr(maxAddr,2), \
@@ -2629,15 +2630,18 @@ class KernelWriterAssembly(KernelWriter):
                 #kStr += "s_endpgm\n"
                 # zero out data regardless of load or not
                 kStr += inst("v_mov_b32", vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)), hex(0), "zero")
+
                 # mask if current address if in bounds
                 kStr += inst("v_cmpx_lt_u64", "vcc", \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
                     vgpr(maxAddr,2), \
                     "addr < maxAddr")
+
                 # load single element from address
                 kStr += inst("flat_load_dword", \
                     vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single")
+
                 # restore full exec mask
                 kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
                     "all threads active")
