@@ -2505,17 +2505,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # sizeK % LOCAL_DEPTHU
     if guardK:
-      """
-      gsuSumIdx = wg1 % GSU
-      numIter = sizeK / DU
-      numIterPerWgRemainder = numIter % GSU
-      if gsuSumIdx == numIterPerWgRemainder
-          numIter = ((sizeK%DU)+LSU-1)/LSU
-      else:
-          numIter = 0
-      simplified sizeK stays b/c no gsu or lsu
-      maxAddr = 1*maxD0 + stride0*maxD1
-      """
       ########################################
       # Calculate Max Addr
       ########################################
@@ -2523,58 +2512,20 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = maxAddr + 2 # 7 sgprs available
       #dumpVgpr = self.vgprScratch.checkOut(1)
 
-      # maxAddr = size0
-      kStr += self.comment1("compute max read address for exec masks")
-      sizeIdx = tP["ia"][0]
+      # maxAddr = size[n] * stride[n-1]
+      kStr += self.comment1("max read address = size[n] * stride[n-1]")
+      d = len(tP["ia"])-1 # dim
+      sizeIdx = tP["ia"][d]
       sizeIdxIsFree = sizeIdx < kernel["ProblemType"]["NumDimensionsC"]
       if not sizeIdxIsFree:
         sizeIdx -= kernel["ProblemType"]["NumDimensionsC"]
-      #kStr += inst("s_mov_b32", sgpr(maxAddr+0), sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)), "maxAddr=size%u"%sizeIdx)
-      kStr += inst("s_mov_b32", sgpr(maxAddr+0), hex(0), "maxAddr=size%u"%sizeIdx)
+      strideIdx = d-1 # tP["ia"][d-1]
+      kStr += inst("s_mul_i32", \
+          sgpr(maxAddr+0), \
+          sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)),  \
+          sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+          "mul d%u lower"%d)
       kStr += inst("s_mov_b32", sgpr(maxAddr+1), hex(0), "zero (upper)")
-      #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(maxAddr+0), "dump")
-      #kStr += dump(vgpr(dumpVgpr))
-
-      for d in range(1,len(tP["ia"])):
-        sizeIdx = tP["ia"][d]
-        sizeIdxIsFree = sizeIdx < kernel["ProblemType"]["NumDimensionsC"]
-        if not sizeIdxIsFree:
-          sizeIdx -= kernel["ProblemType"]["NumDimensionsC"]
-
-        strideIdx = d-1 # tP["ia"][d-1]
-        #strideIdxIsFree = strideIdx < kernel["ProblemType"]["NumDimensionsC"]
-        #if not strideIdxIsFree:
-        #  strideIdx -= kernel["ProblemType"]["NumDimensionsC"]
-
-        # size[n] * stride[n-1]
-        kStr += inst("s_mul_i32", \
-            sgpr(tmpSgpr+0), \
-            sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)),  \
-            sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-            "mul d%u lower"%d)
-        #kStr += inst("v_mov_b32", vgpr(dumpVgpr), sgpr(tmpSgpr+0), "dump")
-        #kStr += dump(vgpr(dumpVgpr))
-
-        # FIXME - how to do 64 bit add sgprs
-        #kStr += inst("s_mul_hi_u32", \
-        #    sgpr(tmpSgpr+1), \
-        #    sgpr("Sizes%s+%u"%("Free" if tP["ia"][0]<kernel["ProblemType"]["NumDimensionsC"] else "Sum", i)),  \
-        #    sgpr("Strides%s+%u"%(tP["tensorChar"],i-1)), \
-        #    "mul d%u upper"%i)
-        kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "maxAddr=size0")
-
-        # maxAddr += size[n] * stride[n-1]
-        kStr += inst("s_add_u32", \
-            sgpr(maxAddr+0), \
-            sgpr(tmpSgpr+0), \
-            sgpr(maxAddr+0), \
-            "accumulate d%u lower"%sizeIdx)
-        kStr += inst("s_addc_u32", \
-            sgpr(maxAddr+1), \
-            sgpr(tmpSgpr+1), \
-            sgpr(maxAddr+1), \
-            "accumulate d%u upper"%sizeIdx)
-
       # maxAddr *= bytes/element
       kStr += inst("s_lshl_b64", \
           sgpr(maxAddr,2), \
@@ -2645,9 +2596,8 @@ class KernelWriterAssembly(KernelWriter):
                 # restore full exec mask
                 kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
                     "all threads active")
-                #if tP["isB"]:
-                #  kStr += "s_waitcnt vmcnt(0)\n"
-                #  kStr += dump(vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)))
+                #kStr += "s_waitcnt vmcnt(0)\n"
+                #kStr += dump(vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)))
 
                 # increment address by 1 element
                 kStr += inst("v_add_u32", \
@@ -2667,27 +2617,10 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
                   vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
                   "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ) )
-            #kStr += "s_waitcnt vmcnt(0)\n"
-            #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
-    #if tP["isB"]:
-    #  kStr += "s_endpgm\n"
     if guardK:
       self.vgprScratch.checkIn(bpeVgpr)
       self.vgprScratch.checkIn(zeroVgpr)
       self.vgprScratch.checkIn(tmpVgpr)
-    """
-    gROAK_%u_%u
-                  (perp if tP["tlu"] else para), \
-                  (sPerp if tP["tlu"] else sPara), 0, self.unrollChar, \
-  a_0_0_0_0 = ( globalReadOffsetAK_0_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_0_0_0)
-  a_0_1_0_0 = ( globalReadOffsetAK_0_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_1_0_0)
-  a_0_2_0_0 = ( globalReadOffsetAK_0_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_2_0_0)
-  a_0_3_0_0 = ( globalReadOffsetAK_0_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_3_0_0)
-  a_0_0_1_0 = ( globalReadOffsetAK_1_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_0_1_0)
-  a_0_1_1_0 = ( globalReadOffsetAK_1_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_1_1_0)
-  a_0_2_1_0 = ( globalReadOffsetAK_1_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_2_1_0)
-  a_0_3_1_0 = ( globalReadOffsetAK_1_0 + 0 >= (sizeK % LOCAL_DEPTHU) ) ? SCALAR_ZERO : *(globalReadA_0_3_1_0)
-    """
     return kStr
 
   ##############################################################################
