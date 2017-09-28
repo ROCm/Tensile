@@ -1,7 +1,7 @@
 # benchmark fastest kernels for the 5760 size
 GlobalParameters:
   MinimumRequiredVersion: 3.0.0
-  KernelLanguage: gfx803
+  KernelLanguage: gfx900
   CMakeBuildType: Release
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
