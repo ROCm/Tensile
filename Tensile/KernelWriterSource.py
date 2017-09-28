@@ -874,6 +874,15 @@ class KernelWriterSource(KernelWriter):
     """
 
     ####################################
+    # allocate half2 memory
+    if kernel["ProblemType"]["DataType"].isHalf():
+      kStr += self.endLine
+      kStr += "  /* allocate half2 memory */" + self.endLine
+      kStr += "  half2 a_pk_fma;" + self.endLine
+      kStr += "  half2 b_pk_fma;" + self.endLine
+      kStr += "  half2 c_pk_fma;" + self.endLine
+
+    ####################################
     # allocate local memory
     kStr += self.endLine
     kStr += "  /* allocate local memory */" + self.endLine

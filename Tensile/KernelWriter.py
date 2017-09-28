@@ -303,11 +303,6 @@ class KernelWriter:
           kStr += self.localReadInc(kernel, tensorParametersB)
       kStr += self.closeSumAtLeastUnroll(kernel)
 
-    if kernel["ProblemType"]["DataType"].isHalf():
-      kStr += "  half2 a_pk_fma;" + self.endLine;
-      kStr += "  half2 b_pk_fma;" + self.endLine;
-      kStr += "  half2 c_pk_fma;" + self.endLine;
-
     # open unrolled summation loop
     kStr += self.comment3("Unrolled Loop - Begin")
     kStr += self.openLoop(kernel, self.unrollIdx)
