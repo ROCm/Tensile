@@ -460,11 +460,9 @@ class KernelWriterSource(KernelWriter):
     kStr += "/* MAC's */" + self.endLine
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
-      kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
-          + "DST = MAC(MULA,MULB,DST);" + self.endLine
 
-      if kernel["ProblemType"]["DataType"].isHalf():
-        kStr += "#define TYPE_MAC_HALF2(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
+      if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
+        kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
         kStr += "  a_pk_fma[0] = MULA0; %s " % (self.endLinePP)
         kStr += " a_pk_fma[1] = MULA1; %s " % (self.endLinePP)
         kStr += " b_pk_fma[0] = MULB0; %s " % (self.endLinePP)
@@ -475,6 +473,9 @@ class KernelWriterSource(KernelWriter):
         kStr += " DST0 = c_pk_fma[0]; %s " % (self.endLinePP)
         kStr += " DST1 = c_pk_fma[1]; %s " % (self.endLinePP)
         kStr += self.endLine
+      else:
+        kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
+            + "DST = MAC(MULA,MULB,DST);" + self.endLine
 
       # GSU
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
@@ -609,7 +610,7 @@ class KernelWriterSource(KernelWriter):
             strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
             strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
             if a % 2 == 0:
-              kStr += "  TYPE_MAC_HALF2(%s,%s,%s , " % (strA, strB, strC)
+              kStr += "  TYPE_MAC(%s,%s,%s , " % (strA, strB, strC)
             else:
               kStr += "%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
       else:
