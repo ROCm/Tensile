@@ -603,22 +603,17 @@ class KernelWriterSource(KernelWriter):
             self.endLinePP)
       """
 
-      if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
-        for b in range(0, kernel["ThreadTileB"]):
-          for a in range(0, kernel["ThreadTileA"]):
-            strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
-            strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
-            strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
+      for b in range(0, kernel["ThreadTileB"]):
+        for a in range(0, kernel["ThreadTileA"]):
+          strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
+          strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
+          strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
+          if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
             if a % 2 == 0:
               kStr += "  TYPE_MAC(%s,%s,%s , " % (strA, strB, strC)
             else:
               kStr += "%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
-      else:
-        for b in range(0, kernel["ThreadTileB"]):
-          for a in range(0, kernel["ThreadTileA"]):
-            strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
-            strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
-            strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
+          else:
             kStr += "  TYPE_MAC(%s,%s,%s); %s" % (strA, strB, strC, \
                 self.endLinePP)
 
