@@ -580,10 +580,10 @@ class KernelWriter:
         kStr += self.globalReadDo(kernel, True, tensorParametersA)
         kStr += self.comment("global read b")
         kStr += self.globalReadDo(kernel, True, tensorParametersB)
-      if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
       if self.enable["LocalWrite"]:
         # tail: local write
         if kernel["PrefetchGlobalRead"]:
@@ -599,10 +599,10 @@ class KernelWriter:
         kStr += self.localWriteDo(kernel, tensorParametersA)
         kStr += self.comment("local write b")
         kStr += self.localWriteDo(kernel, tensorParametersB)
-      if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
+      if self.enable["Sync"]:
+        kStr += self.syncThreads(kernel)
       #kStr += self.dumpLds(kernel, 0, 8)
 
       # tail: re-init local read addresses
