@@ -131,6 +131,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     if globalParameters["RuntimeLanguage"] == "HIP":
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
       kernelHeaderFile.write("#include \"TensileTypes.h\"\n")
+      kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
     else:
       kernelHeaderFile.write("#include <string>\n")
 
@@ -790,6 +791,7 @@ def TensileCreateLibrary():
 
   libraryStaticFiles = [
       "TensileTypes.h",
+      "KernelHeader.h",
       "SolutionHelper.cpp",
       "SolutionHelper.h",
       "Tools.cpp",
