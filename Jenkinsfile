@@ -423,7 +423,9 @@ hcc_rocm:
 
     build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
   }
-},
+}
+"""
+,
 nvcc:
 {
   node( 'docker && cuda' )
@@ -447,12 +449,13 @@ nvcc:
 
     def print_version_closure = {
       sh  """
-          set -x
-          nvidia-smi
-          nvcc --version
+      //    set -x
+      //    nvidia-smi
+      //    nvcc --version
         """
     }
 
     build_pipeline( hcc_compiler_args, hcc_docker_args, tensile_paths, print_version_closure )
   }
 }
+"""
