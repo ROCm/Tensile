@@ -627,10 +627,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "/* runtime structures */\n"
   h += "TensileStatus status;\n"
   if globalParameters["RuntimeLanguage"] == "OCL":
-    h += "unsigned int platformIdx = %u;\n" \
-        % (globalParameters["Platform"])
-    #h += "unsigned int deviceIdx = %u;\n" \
-    #    % (globalParameters["Device"])
     h += "cl_platform_id platform;\n"
     h += "cl_device_id device;\n"
     h += "cl_context context;\n"

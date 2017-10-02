@@ -174,7 +174,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
       stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
       {
         // Cap the maximum amount of testing to be a few hours; assume failure if the time limit is hit
-        timeout(time: 1, unit: 'HOURS')
+        timeout(time: 2, unit: 'HOURS')
         {
           sh  """#!/usr/bin/env bash
               set -x
@@ -192,6 +192,9 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
               # vectors
               tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors
               tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors
+
+              # tensor contractions
+              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/tensor_contraction.yaml tensor_contraction
           """
 
           // assembly
@@ -215,6 +218,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
           // TODO re-enable when jenkins supports opencl
           //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
+          //sh "tensile --runtime-language=OCL --kernel-language=OCL ${rel_path_to_src}/Tensile/Configs/convolution.yaml tensor_contraction"
 
           archiveArtifacts artifacts: "${paths.project_build_prefix}/dist/*.egg", fingerprint: true
         }
