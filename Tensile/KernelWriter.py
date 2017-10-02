@@ -229,12 +229,6 @@ class KernelWriter:
       kStr += self.comment("local read addresses: declare addresses b")
       kStr += self.lraDeclareAddresses(kernel, tensorParametersB)
 
-      # init pointers
-      kStr += self.comment("local read addresses: init pointers a")
-      kStr += self.localReadInitPointers(kernel, tensorParametersA)
-      kStr += self.comment("local read addresses: init pointers b")
-      kStr += self.localReadInitPointers(kernel, tensorParametersB)
-
     ###########################################################################
     # summations loops: open
     ###########################################################################
@@ -244,10 +238,18 @@ class KernelWriter:
     kStr += self.declareLoopNumIter(kernel)
 
     # open non-unrolled summation loops
-    kStr += self.calculateLoopNumIter(kernel, i)
-    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
+    for i in range(0, self.unrollIdx):
       kStr += self.comment("summation loop %u"%i)
+      kStr += self.calculateLoopNumIter(kernel, i)
       kStr += self.openLoop(kernel, i)
+    kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
+
+    if self.enable["PreLoop"]:
+      # init lds read pointers before each unrolled loop
+      kStr += self.comment("local read addresses: init pointers a")
+      kStr += self.localReadInitPointers(kernel, tensorParametersA)
+      kStr += self.comment("local read addresses: init pointers b")
+      kStr += self.localReadInitPointers(kernel, tensorParametersB)
 
     ####################################
     # prefetch: unrolled loop prefix

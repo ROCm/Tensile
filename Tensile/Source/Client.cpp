@@ -249,7 +249,7 @@ void initControls() {
   context = clCreateContext(NULL, 1, &device, NULL, NULL, &status);
   tensileStatusCheck(status);
 
-  if (useGPUTimers) {
+  if (useGPUTimer) {
       stream = clCreateCommandQueue(context, device, CL_QUEUE_PROFILING_ENABLE,
           &status);
   } else {

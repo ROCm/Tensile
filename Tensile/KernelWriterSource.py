@@ -1021,7 +1021,7 @@ class KernelWriterSource(KernelWriter):
   def graOtherSummationAssignments(self, kernel):
     kStr = ""
     for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
-      index = i
+      index = i + kernel["ProblemType"]["NumIndicesC"]
       kStr += "#define globalReadOffsetA%s 0%s" \
           % (self.indexChars[index], self.endLine)
       kStr += "#define globalReadOffsetB%s 0%s" \
@@ -1189,7 +1189,7 @@ class KernelWriterSource(KernelWriter):
     kStr += "%s%s globalReadInc%s%s = (%s)stride%s%s" \
         % (self.indent, self.int64Str, tP["tensorChar"], loopChar, \
         self.int64Str, tP["tensorChar"], loopChar)
-    if loopIdx==kernel["ProblemType"]["NumIndicesSummation"]-1:
+    if loopIdx==self.unrollIdx:
       kStr += "*LOCAL_DEPTHU"
       if kernel["GlobalSplitU"] > 1 \
           and kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
@@ -1199,7 +1199,8 @@ class KernelWriterSource(KernelWriter):
           min(loopIdx+2,kernel["ProblemType"]["NumIndicesSummation"]) ):
         tmpChar = self.indexChars[ \
             kernel["ProblemType"]["IndicesSummation"][j]]
-        kStr += " - stride%s%s*size%s" % (tP["tensorChar"], tmpChar, tmpChar)
+        kStr += " - stride%s%s*(size%s%s" % (tP["tensorChar"], tmpChar, tmpChar, "/LOCAL_DEPTHU)*LOCAL_DEPTHU" if loopIdx == self.unrollIdx-1 else ")")
+        #kStr += " - stride%s%s*(size%s-1)" % (tP["tensorChar"], tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 

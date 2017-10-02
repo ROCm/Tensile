@@ -224,7 +224,7 @@ bool callLibrary(
     unsigned int printIdx = 0;
     for (size_t i = 0; i < currentSizeC; i+= validationStride) {
       bool equal;
-      equal = tensileAlmostEqual<DataType>(
+      equal = tensileEqual<DataType>( // was AlmostEqual
           deviceOnHostC[i], referenceC[i]);
       numChecked++;
       if (!equal) numInvalids++;
@@ -546,7 +546,7 @@ bool benchmarkAllSolutionsForSize(
       unsigned int printIdx = 0;
       for (size_t i = 0; i < currentSizeC; i+= validationStride) {
         bool equal;
-        equal = tensileAlmostEqual<DataType>(
+        equal = tensileEqual<DataType>( // was AlmostEqual
             deviceOnHostC[i], referenceC[i]);
         numChecked++;
         if (!equal) numInvalids++;

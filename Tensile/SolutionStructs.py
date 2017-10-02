@@ -20,7 +20,7 @@
 ################################################################################
 
 
-from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1
+from Common import globalParameters, defaultProblemType, assignParameterWithDefault, printExit, assignParameterRequired, defaultSolution, validParameters, print1, print2
 from copy import deepcopy
 from math import ceil, log
 
@@ -254,14 +254,18 @@ class ProblemType:
         state["IndicesSummation"].append(i)
       else:
         printExit("invalid index %u" % i)
+    # print index assignments
+    print2("IndicesFree:  %s" % state["IndicesFree"])
+    print2("IndicesBatch: %s" % state["IndicesBatch"])
+    print2("IndicesSum:   %s" % state["IndicesSummation"])
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
+    if state["NumIndicesFree"] != 2:
+      printExit("Tensile can only handle 2 free indices; FreeIndices=%s."%state["IndicesFree"])
 
-
-    # by default, unroll index will be the first summation index
-    # TODO sort summation indices by "stride"
-    state["IndexUnroll"] = state["IndicesSummation"][0]
+    # by default, unroll index will be the last/inner summation index
+    state["IndexUnroll"] = state["IndicesSummation"][len(state["IndicesSummation"])-1]
     for i in range(0, len(state["IndexAssignmentsA"])):
       if state["IndexAssignmentsA"][i] == state["IndexUnroll"]:
         state["IndexUnrollA"] = i
@@ -270,18 +274,22 @@ class ProblemType:
       if state["IndexAssignmentsB"][i] == state["IndexUnroll"]:
         state["IndexUnrollB"] = i
         break
+    print2("IndexUnrollA: %u" % state["IndexUnrollA"])
+    print2("IndexUnrollB: %u" % state["IndexUnrollB"])
 
     # assign d0, d1
     state["Index01A"] = -1
     state["Index01B"] = -1
     for i in state["IndexAssignmentsA"]:
-      if i < state["NumIndicesC"]:
+      if i in state["IndicesFree"]:
         state["Index01A"] = i
         break
     for i in state["IndexAssignmentsB"]:
-      if i < state["NumIndicesC"]:
+      if i in state["IndicesFree"]:
         state["Index01B"] = i
         break
+    print2("Index01A: %u" % state["Index01A"])
+    print2("Index01B: %u" % state["Index01B"])
     # whichever has lower stride in C (lower value), is 0, other is 1
     if state["Index01A"] < state["Index01B"]:
       state["Index0"]  = state["Index01A"]
