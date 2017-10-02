@@ -2069,14 +2069,14 @@ class KernelWriterSource(KernelWriter):
         kStr += "#undef strideB" \
             + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
             + self.endLine
-      kStr += self.endLine + self.endLine
       # other summation indices
       for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
         index = i + kernel["ProblemType"]["NumIndicesC"]
-        kStr += "#define globalReadOffsetA%s 0%s" \
+        kStr += "#undef globalReadOffsetA%s%s" \
             % (self.indexChars[index], self.endLine)
-        kStr += "#define globalReadOffsetB%s 0%s" \
+        kStr += "#undef globalReadOffsetB%s%s" \
             % (self.indexChars[index], self.endLine)
+      kStr += self.endLine + self.endLine
     return kStr
 
   ##############################################################################
