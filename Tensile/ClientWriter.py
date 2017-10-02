@@ -49,6 +49,7 @@ def main( config ):
       "ReferenceCPU.h",
       "MathTemplates.cpp",
       "MathTemplates.h",
+      "KernelHeader.h",
       "Tools.h",
       "CMakeLists.txt",
       "TensileConfig.cmake",

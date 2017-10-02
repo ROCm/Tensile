@@ -75,10 +75,10 @@ template<> TensileComplexDouble tensileGetOne<TensileComplexDouble>() {
 * Random Templates
 ******************************************************************************/
 #ifdef Tensile_ENABLE_HALF
-template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<TensileHalf>(rand()%10); }
+template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<TensileHalf>((rand()%21) - 10); }
 #endif
-template<> float tensileGetRandom<float>() { return static_cast<float>(rand()%100); }
-template<> double tensileGetRandom<double>() { return static_cast<double>(rand()%1000); }
+template<> float tensileGetRandom<float>() { return static_cast<float>((rand()%201) - 100); }
+template<> double tensileGetRandom<double>() { return static_cast<double>((rand()%2001) - 1000); }
 template<> TensileComplexFloat tensileGetRandom<TensileComplexFloat>() {
   TensileComplexFloat r;
   TENSILEREAL(r) = tensileGetRandom<float>();

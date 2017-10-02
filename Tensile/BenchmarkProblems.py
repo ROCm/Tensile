@@ -121,6 +121,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         "MathTemplates.cpp",
         "MathTemplates.h",
         "TensileTypes.h",
+        "KernelHeader.h",
         "ReferenceCPU.h",
         "SolutionHelper.cpp",
         "SolutionHelper.h",
