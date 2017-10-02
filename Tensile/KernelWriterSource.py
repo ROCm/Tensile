@@ -2049,7 +2049,7 @@ class KernelWriterSource(KernelWriter):
         if kernel["PrefetchLocalRead"]:
           kStr += ("" if m==0 else "_BLK")
         kStr += self.endLine
-
+      # initial strides
       firstStride = 0
       if kernel["ProblemType"]["UseInitialStrides"]:
         lastStrideC = 0
@@ -2070,6 +2070,13 @@ class KernelWriterSource(KernelWriter):
             + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
             + self.endLine
       kStr += self.endLine + self.endLine
+      # other summation indices
+      for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
+        index = i + kernel["ProblemType"]["NumIndicesC"]
+        kStr += "#define globalReadOffsetA%s 0%s" \
+            % (self.indexChars[index], self.endLine)
+        kStr += "#define globalReadOffsetB%s 0%s" \
+            % (self.indexChars[index], self.endLine)
     return kStr
 
   ##############################################################################
@@ -2306,4 +2313,6 @@ class KernelWriterSource(KernelWriter):
     # end
     kStr += "}%s" % self.endLine
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
+    if kernel["ProblemType"]["DataType"].isReal():
+      kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
     return kStr

@@ -1830,7 +1830,7 @@ class KernelWriterAssembly(KernelWriter):
                 if i == tP["tileIdx"]:
                   kStr += ", %2u" % vgprTile
                 else: # just a group index
-                  kStr += ", %s" % sgpr("WorkGroup+%u"%i)
+                  kStr += ", WorkGroup+%u"%i
               else: # summation index
                 if i == kernel["ProblemType"]["IndexUnroll"]:
                   kStr += ", %2u" % vgprUnroll
