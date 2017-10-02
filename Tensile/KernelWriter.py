@@ -1132,7 +1132,7 @@ class KernelWriter:
       tP["tensorChar"] = "A"
       tP["tensorIdx"] = 0
       tP["tileChar"] = self.tileCharA
-      tP["tileIdx"] = kernel["ProblemType"]["TileA"]
+      tP["tileIdx"] = kernel["ProblemType"]["Index01A"]
       tP["lsc"] = "LSCA"
       tP["lsp"] = "LSPA"
       tP["lvc"] = "LVCA"
@@ -1180,7 +1180,7 @@ class KernelWriter:
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
-      tP["tileIdx"] = kernel["ProblemType"]["TileB"]
+      tP["tileIdx"] = kernel["ProblemType"]["Index01B"]
       tP["lsc"] = "LSCB"
       tP["lsp"] = "LSPB"
       tP["lvc"] = "LVCB"

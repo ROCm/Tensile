@@ -2273,4 +2273,5 @@ class KernelWriterSource(KernelWriter):
     ########################################
     # end
     kStr += "}%s" % self.endLine
+    kStr += "#undef GLOBAL_C%s" % (self.endLine)
     return kStr
