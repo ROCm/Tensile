@@ -1830,7 +1830,7 @@ class KernelWriterAssembly(KernelWriter):
                 if i == tP["tileIdx"]:
                   kStr += ", %2u" % vgprTile
                 else: # just a group index
-                  kStr += ", %s" % sgpr("WorkGroup+%u"%i)
+                  kStr += ", WorkGroup+%u"%i
               else: # summation index
                 if i == kernel["ProblemType"]["IndexUnroll"]:
                   kStr += ", %2u" % vgprUnroll
@@ -3227,7 +3227,6 @@ class KernelWriterAssembly(KernelWriter):
     divisor = kernel["SubGroup0"]
     kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
         tmpV0, tmpS0)
-    self.vgprScratch.checkIn(tmpV0)
     kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["VectorWidth"])
     kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["VectorWidth"])
 
@@ -3246,18 +3245,28 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(tid1))
 
     # coord = tid*VW + workgroup offset
-    kStr += inst("v_add_u32", \
-        vgpr(tid0), \
-        "vcc", \
-        vgpr(tid0), \
+    kStr += inst("v_mov_b32", \
+        vgpr(tmpV0), \
         sgpr(tmpS0), \
+        "sgpr -> vgpr")
+    kStr += inst("v_add_u32", \
+        vgpr(tid0), \
+        "vcc", \
+        vgpr(tid0), \
+        vgpr(tmpV0), \
         "coord0 = tid0*VW + wg0*MT0")
+
+    kStr += inst("v_mov_b32", \
+        vgpr(tmpV0), \
+        sgpr(tmpS1), \
+        "sgpr -> vgpr")
     kStr += inst("v_add_u32", \
         vgpr(tid1), \
         "vcc", \
         vgpr(tid1), \
-        sgpr(tmpS1), \
+        vgpr(tmpV0), \
         "coord1 = tid1*VW + wg1*MT1")
+    self.vgprScratch.checkIn(tmpV0)
     self.coord0 = tid0
     self.coord1 = tid1
     self.addrC = self.vgprScratch.checkOut(2)

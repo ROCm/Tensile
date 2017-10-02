@@ -229,12 +229,6 @@ class KernelWriter:
       kStr += self.comment("local read addresses: declare addresses b")
       kStr += self.lraDeclareAddresses(kernel, tensorParametersB)
 
-      # init pointers
-      kStr += self.comment("local read addresses: init pointers a")
-      kStr += self.localReadInitPointers(kernel, tensorParametersA)
-      kStr += self.comment("local read addresses: init pointers b")
-      kStr += self.localReadInitPointers(kernel, tensorParametersB)
-
     ###########################################################################
     # summations loops: open
     ###########################################################################
@@ -244,10 +238,18 @@ class KernelWriter:
     kStr += self.declareLoopNumIter(kernel)
 
     # open non-unrolled summation loops
-    kStr += self.calculateLoopNumIter(kernel, i)
-    for i in range(0,kernel["ProblemType"]["NumIndicesSummation"]-1):
+    for i in range(0, self.unrollIdx):
       kStr += self.comment("summation loop %u"%i)
+      kStr += self.calculateLoopNumIter(kernel, i)
       kStr += self.openLoop(kernel, i)
+    kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
+
+    if self.enable["PreLoop"]:
+      # init lds read pointers before each unrolled loop
+      kStr += self.comment("local read addresses: init pointers a")
+      kStr += self.localReadInitPointers(kernel, tensorParametersA)
+      kStr += self.comment("local read addresses: init pointers b")
+      kStr += self.localReadInitPointers(kernel, tensorParametersB)
 
     ####################################
     # prefetch: unrolled loop prefix
@@ -1130,7 +1132,7 @@ class KernelWriter:
       tP["tensorChar"] = "A"
       tP["tensorIdx"] = 0
       tP["tileChar"] = self.tileCharA
-      tP["tileIdx"] = kernel["ProblemType"]["TileA"]
+      tP["tileIdx"] = kernel["ProblemType"]["Index01A"]
       tP["lsc"] = "LSCA"
       tP["lsp"] = "LSPA"
       tP["lvc"] = "LVCA"
@@ -1178,7 +1180,7 @@ class KernelWriter:
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
-      tP["tileIdx"] = kernel["ProblemType"]["TileB"]
+      tP["tileIdx"] = kernel["ProblemType"]["Index01B"]
       tP["lsc"] = "LSCB"
       tP["lsp"] = "LSPB"
       tP["lvc"] = "LVCB"
