@@ -250,6 +250,7 @@ class KernelWriterAssembly(KernelWriter):
     self.versionMinor = int(self.language[4])
     self.versionStep  = int(self.language[5])
     print1("KernelWriterAsssembly targeting gfx%u\n" % self.version )
+    self.maxVgprs = 256
 
     ########################################
     # Available Memory Instructions
@@ -742,9 +743,6 @@ class KernelWriterAssembly(KernelWriter):
     numWavesPerWorkGroup = kernel["NumThreads"] / 64
     numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
     self.numWavesPerSimd = numWavesPerCU / 4
-    self.spills = self.numWavesPerSimd < 1
-    #if self.numWavesPerSimd < 1:
-    #  printExit("waves/simd: %u; %u vgprs" % (self.numWavesPerSimd, self.startVgprTmp) )
     maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
@@ -755,17 +753,6 @@ class KernelWriterAssembly(KernelWriter):
 
     #self.globalWriteAddrC = self.totalVgprs-4 # match macro
     self.globalWriteAddrC = self.startVgprSerial-4 # match macro
-    if self.spills:
-      self.do["PreLoop"]    = False
-      self.do["GlobalRead"] = False
-      self.do["GlobalInc"]  = False
-      self.do["LocalWrite"] = False
-      self.do["LocalRead"]  = False
-      self.do["Wait"]       = False
-      self.do["Sync"]       = False
-      self.do["MAC"]        = False
-      self.do["PostLoop"]   = False
-      self.totalVgprs = 1
 
     ########################################
     # SGPR Allocation
@@ -1375,6 +1362,13 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  group_segment_alignment = 4%s" % self.endLine
     kStr += "  private_segment_alignment = 4%s" % self.endLine
     kStr += ".end_amd_kernel_code_t%s" % self.endLine
+
+    # if overflowed vgpr pool, comment out the whole kernel body and let it fail gracefully
+    if self.vgprPool.size() > self.maxVgprs:
+      print ""
+      printWarning("%s invalid @ %u > %u max vgprs" % (self.kernelName, self.vgprPool.size(), self.maxVgprs) )
+      kStr += "s_endpgm // too many vgprs\n"
+      kStr += ".if 0\n"
 
     return kStr
 
@@ -2293,7 +2287,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx):
     kStr = ""
-    if not self.do["PreLoop"]: kStr += ".endif\n"
 
     tmp = self.vgprPool.checkOut(1)
     tailLoop = loopIdx < 0
@@ -2331,6 +2324,7 @@ class KernelWriterAssembly(KernelWriter):
           % tailLoopLabelEnd, \
           "skip to end of tail loop b/c numIter==0")
     else: # Unrolled Loop
+      if not self.do["PreLoop"]: kStr += ".endif\n"
       if loopIdx == self.unrollIdx:
         #kStr += inst("v_mov_b32", vgpr(tmp), \
         #    sgpr("SizesSum+0"), "" )
@@ -3357,68 +3351,9 @@ class KernelWriterAssembly(KernelWriter):
   # Function Suffix - DONE
   ##############################################################################
   def functionSuffix(self, kernel):
-    return ""
     kStr = ""
-    if globalParameters["MergeFiles"] and self.language == "HIP":
-      kStr += "#undef UNROLL%s" % self.endLine
-      kStr += "#undef SPLITU%s" % self.endLine
-      kStr += "#undef DEPTHU%s" % self.endLine
-      kStr += "#undef SG%s%s" % (self.tileChar0, self.endLine)
-      kStr += "#undef SG%s%s" % (self.tileChar1, self.endLine)
-      kStr += "#undef TT%s%s" % (self.tileChar0, self.endLine)
-      kStr += "#undef TT%s%s" % (self.tileChar1, self.endLine)
-      kStr += "#undef MT%s%s" % (self.tileChar0, self.endLine)
-      kStr += "#undef MT%s%s" % (self.tileChar1, self.endLine)
-      kStr += "#undef NLCA%s" % (self.endLine )
-      kStr += "#undef NLCB%s" % (self.endLine )
-      kStr += "#undef NLPA%s" % (self.endLine )
-      kStr += "#undef NLPB%s" % (self.endLine )
-      kStr += "#undef LSCA%s" % (self.endLine)
-      kStr += "#undef LSPA%s" % (self.endLine)
-      kStr += "#undef LSCB%s" % (self.endLine)
-      kStr += "#undef LSPB%s" % (self.endLine)
-      kStr += "#undef GLOBAL_C%s" % (self.endLine)
-      kStr += "#undef GLOBAL_OFFSET_A%s" % (self.endLine)
-      kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
-      kStr += "#undef DATA_TYPE%s" % (self.endLine)
-      kStr += "#undef VECTOR_TYPE%s" % (self.endLine)
-      kStr += "#undef LDS_OFFSET_B%s" % (self.endLine)
-      kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
-      kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
-      kStr += "#undef NUM_THREADS%s" % (self.endLine)
-      kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
-      kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
-      kStr += "#undef TYPE_MAC%s" % (self.endLine)
-      kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
-
-      numMacs = 2 if kernel["PrefetchLocalRead"] else 1
-      for m in range(0, numMacs):
-        kStr += "#undef MAC_%ux%u" \
-            % (kernel["ThreadTile0"], kernel["ThreadTile1"])
-        if kernel["PrefetchLocalRead"]:
-          kStr += ("" if m==0 else "_BLK")
-        kStr += self.endLine
-
-      firstStride = 0
-      if kernel["ProblemType"]["UseInitialStrides"]:
-        lastStrideC = 0
-        lastStrideA = 0
-        lastStrideB = 0
-      else:
-        lastStrideC = 1
-        lastStrideA = 1
-        lastStrideB = 1
-      for i in range(firstStride, lastStrideC):
-        kStr += "#undef strideC" + self.indexChars[i] + self.endLine
-      for i in range(firstStride, lastStrideA):
-        kStr += "#undef strideA" \
-            + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
-            + self.endLine
-      for i in range(firstStride, lastStrideB):
-        kStr += "#undef strideB" \
-            + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
-            + self.endLine
-      kStr += self.endLine + self.endLine
+    if self.vgprPool.size() > self.maxVgprs:
+      kStr += ".endif // too many vgprs\n"
     return kStr
 
   ##############################################################################
