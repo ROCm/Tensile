@@ -357,7 +357,7 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
 
     // After a successful build, upload a docker image of the results
     String job_name = env.JOB_NAME.toLowerCase( )
-    String tensile_image_name = docker_upload_artifactory( compiler_args, docker_args, tensile_paths, job_name )
+    //String tensile_image_name = docker_upload_artifactory( compiler_args, docker_args, tensile_paths, job_name )
 
     docker_clean_images( job_name, tensile_image_name )
   }
