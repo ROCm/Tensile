@@ -67,14 +67,14 @@ class MemoryInstruction:
 # RegisterPool
 ################################################################################
 class RegisterPool:
-  self.statusUnAvailable = 0
-  self.statusAvailable = 1
-  self.statusInUse = 2
+  statusUnAvailable = 0
+  statusAvailable = 1
+  statusInUse = 2
 
   ########################################
   # Init
-  def __init__(self):
-    self.pool = []
+  def __init__(self, size):
+    self.pool = [self.statusUnAvailable]*size
     self.checkOutSize = {}
 
   ########################################
@@ -85,17 +85,17 @@ class RegisterPool:
     oldSize = len(self.pool)
     if newSize > oldSize:
       for i in range(0, newSize-oldSize):
-        self.pool.append(self.statusAvailable)
+        self.pool.append(self.statusUnAvailable)
     # mark as available
     for i in range(start, start+size):
       if self.pool[i] == self.statusUnAvailable:
         self.pool[i] = self.statusAvailable
       elif self.pool[i] == self.statusAvailable:
-        printWarning("RegisterPool::add(%u,%u) pool[%u] already available" % (start, size, i)
+        printWarning("RegisterPool::add(%u,%u) pool[%u] already available" % (start, size, i))
       elif self.pool[i] == self.statusInUse:
-        printWarning("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i)
+        printWarning("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i))
       else:
-        printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, self.pool[i])
+        printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, self.pool[i]))
 
   ########################################
   # Remove
@@ -104,35 +104,36 @@ class RegisterPool:
     newSize = start + size
     oldSize = len(self.pool)
     if newSize > oldSize:
-      printWarning("RegisterPool::remove(%u,%u) but poolSize=%u" % (start, size, oldSize)
+      printWarning("RegisterPool::remove(%u,%u) but poolSize=%u" % (start, size, oldSize))
     # mark as unavailable
     for i in range(start, start+size):
       if  self.pool[i] == self.statusAvailable:
-        self.pool[i] = self.statusUnAvailable:
+        self.pool[i] = self.statusUnAvailable
       elif self.pool[i] == self.statusUnAvailable:
-        printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i)
+        printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i))
       elif  self.pool[i] == self.statusInUse:
-        printWarning("RegisterPool::remove(%u,%u) pool[%u] still in use" % (start, size, i)
+        printWarning("RegisterPool::remove(%u,%u) pool[%u] still in use" % (start, size, i))
       else:
-        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, self.pool[i])
+        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, self.pool[i]))
 
   ########################################
   # Check Out
   def checkOut(self, size):
     return self.checkOutAligned(size, 1)
   def checkOutAligned(self, size, alignment):
+    #print "RegisterPool::checkOutAligned(%u,%u)"%(size,alignment)
     found = -1
-    for i in range(0, self.size):
+    for i in range(0, len(self.pool)):
       # alignment
       if i % alignment != 0:
-        break
+        continue
       # enough space
-      if i + size > self.size:
-        break
+      if i + size > len(self.pool):
+        continue
       # all available
       allAvailable = True
       for j in range(0, size):
-        if self.available[i+j] != self.statusAvailable:
+        if self.pool[i+j] != self.statusAvailable:
           allAvailable = False
           i = j+1
           break
@@ -144,28 +145,36 @@ class RegisterPool:
 
     # success without overflowing
     if found > -1:
+      #print "Found: %u" % found
       for i in range(found, found+size):
         self.pool[i] = self.statusInUse
       self.checkOutSize[found] = size
       return found
     # need overflow
     else:
+      #print "RegisterPool::checkOutAligned(%u,%u) overflowing past %u" % (size, alignment, len(self.pool))
       # where does tail sequence of available registers begin
-      start = len(self.pool),
+      start = len(self.pool)
       for i in range(len(self.pool)-1, 0, -1):
         if self.pool[i] == self.statusAvailable:
           start = i
           continue
         else:
           break
+      #print "Start: ", start
       # move forward for alignment
       start = ((start + alignment - 1) / alignment) * alignment
+      #print "Aligned Start: ", start
       # new checkout can begin at start
       newSize = start + size
       oldSize = len(self.pool)
-      overflow = oldSize - newSize
+      overflow = newSize - oldSize
+      #print "Overflow: ", overflow
+      for i in range(start, len(self.pool)):
+        self.pool[i] = self.statusInUse
       for i in range(0, overflow):
-        self.pool[i].append(self.statusInUse)
+        self.pool.append(self.statusInUse)
+      self.checkOutSize[start] = size
       return start
 
   ########################################
@@ -180,10 +189,34 @@ class RegisterPool:
       printWarning("RegisterPool::checkIn(%u) but it was never checked out"%start)
 
   ########################################
-  # Get Size
-  def getSize(self):
+  # Size
+  def size(self):
     return len(self.pool)
 
+  ########################################
+  # State
+  def state(self):
+    stateStr = ""
+    placeValues = [1000, 100, 10, 1]
+    for placeValueIdx in range(1, len(placeValues)):
+      placeValue = placeValues[placeValueIdx]
+      priorPlaceValue = placeValues[placeValueIdx-1]
+      if len(self.pool) >= placeValue:
+        pvs = "" # place value string
+        for i in range(0, len(self.pool)):
+          if i % placeValue==0:
+            pvs += "%u"%((i%priorPlaceValue)/placeValue)
+          else:
+            pvs += " "
+        stateStr += pvs + "\n"
+    for i in range(0, len(self.pool)):
+      if self.pool[i] == self.statusUnAvailable:
+        stateStr += "."
+      elif self.pool[i] == self.statusAvailable:
+        stateStr += "|"
+      elif self.pool[i] == self.statusInUse:
+        stateStr += "#"
+    return stateStr
 
 
 ################################################################################
@@ -695,13 +728,13 @@ class KernelWriterAssembly(KernelWriter):
     self.startVgprSerial = vgprIdx
     vgprIdx += numVgprSerial
     # tmp vgprs
-    minVgprTmp = 1
-    if kernel["LoopTail"]:
-      minVgprTmp += 4
-    if globalParameters["DebugKernel"]:
-      minVgprTmp += 2
+    #minVgprTmp = 1
+    #if kernel["LoopTail"]:
+    #  minVgprTmp += 4
+    #if globalParameters["DebugKernel"]:
+    #  minVgprTmp += 2
     self.startVgprTmp = vgprIdx
-    vgprIdx += minVgprTmp
+    #vgprIdx += minVgprTmp
     print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
@@ -717,8 +750,8 @@ class KernelWriterAssembly(KernelWriter):
     self.totalVgprs = maxVgprSameOccupancy
 
     # move serial to last vgpr and shift tmp forward
-    self.startVgprSerial = self.totalVgprs-1
-    self.startVgprTmp -= 1
+    #self.startVgprSerial = self.totalVgprs-1
+    #self.startVgprTmp -= 1
 
     #self.globalWriteAddrC = self.totalVgprs-4 # match macro
     self.globalWriteAddrC = self.startVgprSerial-4 # match macro
@@ -733,15 +766,6 @@ class KernelWriterAssembly(KernelWriter):
       self.do["MAC"]        = False
       self.do["PostLoop"]   = False
       self.totalVgprs = 1
-
-    ########################################
-    # Pre Loop Scratch Vgprs
-    ########################################
-    self.vgprPool = RegisterPool()
-    self.vgprPool.add(self.startVgprValuC, \
-        self.startVgprLocalReadAddressesA - self.startVgprValuC)
-
-    self.sgprPool = RegisterPool()
 
     ########################################
     # SGPR Allocation
@@ -829,10 +853,16 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprGlobalReadIncsB = sgprIdx; sgprIdx += numSgprGlobalReadIncsB
     self.startSgprLoopCounters = sgprIdx
 
-    # TODO - what occupancy does this numSgpr limit to;
-    # it probably wouldn't matter but good to calculate and print warning
-    # if it is more limiting than vgpr limitation,
-    # also print LDS occupancy limitation even though it is explicit
+    ########################################
+    # Register Pools
+    ########################################
+    self.vgprPool = RegisterPool(self.startVgprTmp)
+    #print self.totalVgprs
+    #print self.vgprPool.state()
+    self.vgprPool.add(self.startVgprValuC, \
+        self.startVgprLocalReadAddressesA - self.startVgprValuC)
+    #print self.vgprPool.state()
+    self.sgprPool = RegisterPool(self.totalSgprs)
 
     # place any of these gpr inst values into tPA, tPB for later reference
     tPA["localWriteOffsets"] = []
@@ -866,7 +896,6 @@ class KernelWriterAssembly(KernelWriter):
   # format macro
   def macroRegister(self, name, value):
     return ".set %s, %s%s" % (name, value, self.endLine)
-
 
 
   ####################################
@@ -1029,9 +1058,9 @@ class KernelWriterAssembly(KernelWriter):
           self.startVgprAddressD)
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
-    kStr += self.comment1("VGPRs: %u + %u = %u" \
-        % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
-    kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
+    #kStr += self.comment1("VGPRs: %u + %u = %u" \
+    #    % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
+    #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
 
 
     ########################################
@@ -1065,7 +1094,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("sgprGlobalReadIncsB", \
           self.startSgprGlobalReadIncsB)
     kStr += self.macroRegister("sgprLoopCounters", self.startSgprLoopCounters)
-    kStr += self.comment1("SGPR: %u" % self.totalSgprs)
+    #kStr += self.comment1("SGPR: %u" % self.totalSgprs)
 
     ########################################
     # Global Offsets
@@ -1269,15 +1298,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".set LVCB, %u%s" % (lscb/vw, self.endLine)
     kStr += ".set LVPA, %u%s" % (lspa/vw, self.endLine)
     kStr += ".set LVPB, %u%s" % (lspb/vw, self.endLine)
-
     return kStr
-
-
-  ##############################################################################
-  # Function Signature Prefix - DONE
-  ##############################################################################
-  def functionSignaturePrefix(self, kernel):
-    return ""
 
 
   ##############################################################################
@@ -1319,14 +1340,16 @@ class KernelWriterAssembly(KernelWriter):
         % (kernArgBytes, self.endLine)
 
     # register allocation
+    totalVgprs = self.vgprPool.size()
+    totalSgprs = self.sgprPool.size()
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
-        % (self.totalVgprs, self.endLine)
+        % (totalVgprs, self.endLine)
     kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
-        % (self.totalSgprs, self.endLine)
+        % (totalSgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
-        % ( (self.totalVgprs-1)/4, self.totalVgprs, self.endLine)
+        % ( (totalVgprs-1)/4, totalVgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
-        % ( 1+(self.totalSgprs-1)/8, self.totalSgprs, self.endLine)
+        % ( 1+(totalSgprs-1)/8, totalSgprs, self.endLine)
 
     # work-group dimensions
     kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
@@ -2257,7 +2280,8 @@ class KernelWriterAssembly(KernelWriter):
   def declareLoopNumIter(self, kernel):
     self.vgprPool.remove(self.startVgprValuC, \
         self.startVgprLocalReadAddressesA - self.startVgprValuC)
-    self.vgprPool.add(self.startVgprTmp, self.numVgprTmp)
+    #print "vgpr pool adding tmp registers"
+    #self.vgprPool.add(self.startVgprTmp, self.numVgprTmp)
     kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "")
@@ -2433,7 +2457,7 @@ class KernelWriterAssembly(KernelWriter):
   # End Summation
   ##############################################################################
   def endSummation(self):
-    self.vgprPool.remove(self.startVgprTmp, self.numVgprTmp)
+    #self.vgprPool.remove(self.startVgprTmp, self.numVgprTmp)
     self.vgprPool.add(self.startVgprValuA, \
         self.startVgprSerial - self.startVgprValuA)
     return ""

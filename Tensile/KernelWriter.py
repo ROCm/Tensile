@@ -73,7 +73,8 @@ class KernelWriter:
     ####################################
     kStr += self.comment3("Begin Kernel")
     kStr += self.functionSignaturePrefix(kernel)
-    kStr += self.functionSignature(kernel)
+    beforeFunctionSignature = kStr
+    kStr = ""
     kStr += self.functionSignatureSuffix(kernel)
     kStr += self.functionBegin(kernel)
 
@@ -713,7 +714,10 @@ class KernelWriter:
     kStr += self.functionSuffix(kernel)
 
     kStr += self.closeString(kernel)
+    afterFunctionSignature = kStr
 
+    # function signature last since it needs to know how many gprs were actually used
+    kStr = beforeFunctionSignature + self.functionSignature(kernel) + afterFunctionSignature
     return kStr
 
 
