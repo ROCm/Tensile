@@ -229,61 +229,6 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
   return void
 }
 
-////////////////////////////////////////////////////////////////////////
-// hip_integration_testing
-// This function sets up compilation and testing of HiP on a compiler downloaded from an upstream build
-// Integration testing is centered around docker and constructing clean test environments every time
-
-// NOTES: I have implemeneted integration testing 3 different ways, and I've come to the conclusion nothing is perfect
-// 1.  I've tried having HCC push the test compiler to artifactory, and having HiP download the test docker image from artifactory
-//     a.  The act of uploading and downloading images from artifactory takes minutes
-//     b.  There is no good way of deleting images from a repository.  You have to use an arcane CURL command and I don't know how
-//        to keep the password secret.  These test integration images are meant to be ephemeral.
-// 2.  I tried 'docker save' to export a docker image into a tarball, and transfering the image through 'copy artifacts plugin'
-//     a.  The HCC docker image uncompressed is over 1GB
-//     b.  Compressing the docker image takes even longer than uploading the image to artifactory
-// 3.  Download the HCC .deb and dockerfile through 'copy artifacts plugin'.  Create a new HCC image on the fly
-//     a.  There is inefficency in building a new ubuntu image and installing HCC twice (once in HCC build, once here)
-//     b.  This solution doesn't scale when we start testing downstream libraries
-
-// I've implemented solution #3 above, probably transitioning to #2 down the line (probably without compression)
-String hip_integration_testing( String inside_args, String job, String build_config )
-{
-  // Attempt to make unique docker image names for each build, to support concurrent builds
-  // Mangle docker org name with upstream build info
-  String testing_org_name = 'hip-test-' + get_upstream_build_project( ).replaceAll('/','-') + '-' + get_upstream_build_num( )
-
-  // Tag image name with this build number
-  String hip_test_image_name = "hip:${env.BUILD_NUMBER}"
-
-  def tensile_integration_image = null
-
-  dir( 'integration-testing' )
-  {
-    deleteDir( )
-
-    // This invokes 'copy artifact plugin' to copy archived files from upstream build
-    step([$class: 'CopyArtifact', filter: 'archive/**/*.deb, docker/dockerfile-*',
-      fingerprintArtifacts: true, projectName: get_upstream_build_project( ), flatten: true,
-      selector: [$class: 'TriggeredBuildSelector', allowUpstreamDependencies: false, fallbackToLastSuccessful: false, upstreamFilterStrategy: 'UseGlobalSetting'],
-      target: '.' ])
-
-    docker.build( "${testing_org_name}/${hip_test_image_name}", "-f dockerfile-hip-ubuntu-16.04 ." )
-  }
-
-  // Checkout source code, dependencies and version files
-  String tensile_src_rel = checkout_and_version( job )
-
-  // Conctruct a binary directory path based on build config
-  String tensile_bin_rel = build_directory_rel( build_config );
-
-  // Build tensile inside of the build environment
-  tensile_integration_image = docker_build_image( job, testing_org_name, '', tensile_src_rel, "${testing_org_name}/${hip_test_image_name}" )
-
-  docker_build_inside_image( tensile_integration_image, inside_args, job, '', build_config, tensile_src_rel, tensile_bin_rel )
-  docker_clean_images( testing_org_name, '*' )
-}
-
 // Docker related variables gathered together to reduce parameter bloat on function calls
 class docker_data implements Serializable
 {
@@ -354,12 +299,6 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
       // Build tensile inside of the build environment
       docker_build_inside_image( tensile_build_image, compiler_args, docker_args, tensile_paths )
     }
-
-    // After a successful build, upload a docker image of the results
-    String job_name = env.JOB_NAME.toLowerCase( )
-    String tensile_image_name = docker_upload_artifactory( compiler_args, docker_args, tensile_paths, job_name )
-
-    docker_clean_images( job_name, tensile_image_name )
   }
 }
 
