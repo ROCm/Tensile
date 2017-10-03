@@ -1096,14 +1096,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]",     "v[\\vRemainder]", "s[\\sTmp:\\sTmp+1]", "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vRemainder]", "v[\\vRemainder]", "v[\\vQuotient]", "" )
     kStr += inst("v_sub_u32",     "v[\\vTmp0]",      "vcc",            "v[\\vQuotient]", "v[\\vRemainder]", "" )
-    kStr += inst("V_add_u32",     "v[\\vQuotient]",  "vcc",            "v[\\vQuotient]", "v[\\vRemainder]", "" )
+    kStr += inst("v_add_u32",     "v[\\vQuotient]",  "vcc",            "v[\\vQuotient]", "v[\\vRemainder]", "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vTmp0]", "s[\\sTmp:\\sTmp+1]", "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vDividend]", "" )
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
     kStr += inst("v_sub_u32",     "v[\\vTmp0]",      "vcc",            "v[\\vDividend]", "v[\\vRemainder]", "" )
     kStr += inst("v_cmp_ge_u32",  "s[\\sTmp:\\sTmp+1]", "v[\\vDividend]", "v[\\vRemainder]", "" )
-    kStr += inst("V_add_u32",     "v[\\vRemainder]", "vcc",            hex(1), "v[\\vQuotient]", "" )
-    kStr += inst("V_add_u32",     "v[\\vTmp1]",      "vcc", -1,        "v[\\vQuotient]", "" )
+    kStr += inst("v_add_u32",     "v[\\vRemainder]", "vcc",            hex(1), "v[\\vQuotient]", "" )
+    kStr += inst("v_add_u32",     "v[\\vTmp1]",      "vcc", -1,        "v[\\vQuotient]", "" )
     kStr += inst("v_cmp_le_u32",  "vcc",             "v[\\vDivisor]", "v[\\vTmp0]", "" )
     kStr += inst("s_and_b64", "vcc", "s[\\sTmp:\\sTmp+1]",                "vcc", "" ) # FIXME
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vRemainder]", "vcc", "" )
@@ -1474,8 +1474,8 @@ class KernelWriterAssembly(KernelWriter):
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
       kStr += inst("v_mov_b32", vgpr(nwg0), sgpr("SizesFree+0"), "")
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "")
-      kStr += inst("v_add_u32", vgpr(nwg0), "vcc", vgpr(nwg0), \
-          sgpr(tmpSgpr), "%s = size0+MT0-1"%vgpr(nwg0))
+      kStr += inst("v_add_u32", vgpr(nwg0), "vcc", sgpr(tmpSgpr), vgpr(nwg0), \
+          "%s = size0+MT0-1"%vgpr(nwg0))
       kStr += vectorStaticDivide(nwg0, nwg0, kernel["MacroTile0"], tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(nwg0))
 
@@ -1486,8 +1486,8 @@ class KernelWriterAssembly(KernelWriter):
           % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
       kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
-      kStr += inst("v_add_u32", vgpr(nwg1), "vcc", vgpr(nwg1), \
-          sgpr(tmpSgpr), "%s = size1+MT1-1"%vgpr(nwg1))
+      kStr += inst("v_add_u32", vgpr(nwg1), "vcc", sgpr(tmpSgpr), vgpr(nwg1), \
+          "%s = size1+MT1-1"%vgpr(nwg1))
       kStr += vectorStaticDivide(nwg1, nwg1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(nwg1))
 
@@ -1509,8 +1509,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mul_u32_u24", vgpr(wgSerial), vgpr(wgSerial), \
           vgpr(nwg0), "(wg1 % WGM)*nwg0")
       self.vgprScratch.checkIn(nwg0)
-      kStr += inst("v_add_u32", vgpr(wgSerial), "vcc", vgpr(wgSerial), \
-          sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
+      kStr += inst("v_add_u32", vgpr(wgSerial), "vcc", sgpr("WorkGroup0"), vgpr(wgSerial), \
+          "wgSerial = wg0 + (wg1 % WGM)*nwg0")
       #kStr += "s_endpgm\n"
       #return kStr
 
@@ -3245,26 +3245,17 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(tid1))
 
     # coord = tid*VW + workgroup offset
-    kStr += inst("v_mov_b32", \
-        vgpr(tmpV0), \
+    kStr += inst("v_add_u32", \
+        vgpr(tid0), \
+        "vcc", \
         sgpr(tmpS0), \
-        "sgpr -> vgpr")
-    kStr += inst("v_add_u32", \
         vgpr(tid0), \
-        "vcc", \
-        vgpr(tid0), \
-        vgpr(tmpV0), \
         "coord0 = tid0*VW + wg0*MT0")
-
-    kStr += inst("v_mov_b32", \
-        vgpr(tmpV0), \
-        sgpr(tmpS1), \
-        "sgpr -> vgpr")
     kStr += inst("v_add_u32", \
         vgpr(tid1), \
         "vcc", \
+        sgpr(tmpS1), \
         vgpr(tid1), \
-        vgpr(tmpV0), \
         "coord1 = tid1*VW + wg1*MT1")
     self.vgprScratch.checkIn(tmpV0)
     self.coord0 = tid0
