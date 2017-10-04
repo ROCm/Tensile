@@ -467,8 +467,8 @@ class WinningParameterDict:
       winningParameters = {}
       for paramName in benchmarkPermutations[0]:
         winningParameters[paramName] = winningSolution[paramName]
-      print2("HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
-          % ( hardcodedIdx, winningIdx, winningScore, winningParameters))
+      #print2("HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
+      #    % ( hardcodedIdx, winningIdx, winningScore, winningParameters))
       matches = WinningParameterDict.get(hardcodedParameters, self.winners)
       if len(matches) != 1:
         printExit("Didn't find exactly 1 match")

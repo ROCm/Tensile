@@ -255,9 +255,9 @@ class ProblemType:
       else:
         printExit("invalid index %u" % i)
     # print index assignments
-    print2("IndicesFree:  %s" % state["IndicesFree"])
-    print2("IndicesBatch: %s" % state["IndicesBatch"])
-    print2("IndicesSum:   %s" % state["IndicesSummation"])
+    #print2("IndicesFree:  %s" % state["IndicesFree"])
+    #print2("IndicesBatch: %s" % state["IndicesBatch"])
+    #print2("IndicesSum:   %s" % state["IndicesSummation"])
     state["NumIndicesFree"] = len(state["IndicesFree"])
     state["NumIndicesBatch"] = len(state["IndicesBatch"])
     state["NumIndicesSummation"] = len(state["IndicesSummation"])
@@ -274,8 +274,8 @@ class ProblemType:
       if state["IndexAssignmentsB"][i] == state["IndexUnroll"]:
         state["IndexUnrollB"] = i
         break
-    print2("IndexUnrollA: %u" % state["IndexUnrollA"])
-    print2("IndexUnrollB: %u" % state["IndexUnrollB"])
+    #print2("IndexUnrollA: %u" % state["IndexUnrollA"])
+    #print2("IndexUnrollB: %u" % state["IndexUnrollB"])
 
     # assign d0, d1
     state["Index01A"] = -1
@@ -288,8 +288,8 @@ class ProblemType:
       if i in state["IndicesFree"]:
         state["Index01B"] = i
         break
-    print2("Index01A: %u" % state["Index01A"])
-    print2("Index01B: %u" % state["Index01B"])
+    #print2("Index01A: %u" % state["Index01A"])
+    #print2("Index01B: %u" % state["Index01B"])
     # whichever has lower stride in C (lower value), is 0, other is 1
     if state["Index01A"] < state["Index01B"]:
       state["Index0"]  = state["Index01A"]

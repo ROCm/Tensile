@@ -1672,7 +1672,7 @@ class KernelWriter:
 
       # run assembler
       assemblerCommand = [assemblerFileName, kernelName]
-      print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
+      #print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, \
           cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()

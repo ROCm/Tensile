@@ -736,7 +736,7 @@ class KernelWriterAssembly(KernelWriter):
     #  minVgprTmp += 2
     self.startVgprTmp = vgprIdx
     #vgprIdx += minVgprTmp
-    print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
+    #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
     numWorkGroupsPerCU = vgprPerThreadPerOccupancy / vgprIdx
