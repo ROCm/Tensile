@@ -195,26 +195,10 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
               # tensor contractions
               tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/tensor_contraction.yaml tensor_contraction
-          """
 
-          // assembly
-          if( env.NODE_LABELS ==~ /.*gfx803.*/ )
-          {
-            sh  """#!/usr/bin/env bash
-                set -x
-                cd ${paths.project_build_prefix}
-                tensile ${rel_path_to_src}/Tensile/Configs/sgemm_gfx803.yaml sgemm_gfx803
-            """
-          }
-          // assembly
-          if( env.NODE_LABELS ==~ /.*gfx900.*/ )
-          {
-            sh  """#!/usr/bin/env bash
-                set -x
-                cd ${paths.project_build_prefix}
-                tensile ${rel_path_to_src}/Tensile/Configs/sgemm_gfx900.yaml sgemm_gfx900
-            """
-          }
+              # assembly
+              tensile ${rel_path_to_src}/Tensile/Configs/sgemm_asm.yaml sgemm_asm
+          """
 
           // TODO re-enable when jenkins supports opencl
           //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
