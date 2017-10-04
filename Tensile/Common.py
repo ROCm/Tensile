@@ -22,6 +22,7 @@ import os.path
 import sys
 from __init__ import __version__
 from collections import OrderedDict
+from subprocess import Popen, PIPE
 import time
 
 startTime = time.time()
@@ -38,10 +39,10 @@ globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
 if os.name == "nt":
   globalParameters["RuntimeLanguage"] = "OCL"
-  globalParameters["KernelLanguage"] = "OCL"
+  #globalParameters["KernelLanguage"] = "OCL"
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
-  globalParameters["KernelLanguage"] = "HIP"
+  #globalParameters["KernelLanguage"] = "HIP"
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
@@ -86,6 +87,8 @@ globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768
 globalParameters["MinimumRequiredVersion"] = "0.0.0"
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]
+globalParameters["CurrentISA"] = (0,0,0)
 
 ################################################################################
 # Default Benchmark Parameters
@@ -108,6 +111,7 @@ for i in validThreadTileSides:
 
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
+
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -145,6 +149,7 @@ validParameters = {
     "MacroTileShapeMax":          range(1, 64+1),
 
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ],
+    "KernelLanguage":             [ "Assembly", "Source" ],
     "MacroTile":                  validMacroTiles,
 
     }
@@ -153,6 +158,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":               [ False ] },
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
+    {"KernelLanguage":            [ "Source" ] },
     {"LdsPad":                    [ 0 ] },
     {"MaxOccupancy":              [ 10 ] },
     {"VectorWidth":               [ 1 ] }, # =2 once fixed
@@ -227,17 +233,9 @@ defaultAnalysisParameters = {
     "ScheduleName":       "Default",
     "DeviceNames":  ["Unspecified"],
     #"BranchPenalty":              0, # microseconds / kernel
-    #"SmoothOutliers":         False, # enforce monotonic data
     "SolutionImportanceMin":      0.01, # = 0.01=1% total time saved by keeping this solution
     }
 
-
-################################################################################
-# Kernel Language Belongs to Source or Assembly?
-################################################################################
-def kernelLanguageIsSource():
-  return globalParameters["KernelLanguage"] \
-      in ["OCL", "HIP"]
 
 ################################################################################
 # Searching Nested Lists / Dictionaries
@@ -338,6 +336,27 @@ def assignGlobalParameters( config ):
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
 
+  # read current gfx version
+  if os.name != "nt":
+    #cmdStr = ["/opt/rocm/bin/rocm_agent_enumerator"]
+    cmdStr = ["echo hi"]
+    process = Popen(["rocm_agent_enumerator", "-t", "GPU"], cwd="/opt/rocm/bin/", stdout=PIPE)
+    line = process.stdout.readline()
+    while line != "":
+      gfxIdx = line.find("gfx")
+      if gfxIdx >= 0:
+        major = int(line[gfxIdx+3:gfxIdx+4])
+        minor = int(line[gfxIdx+4:gfxIdx+5])
+        step  = int(line[gfxIdx+5:gfxIdx+6])
+        if (major,minor,step) in globalParameters["SupportedISA"]:
+          print1("# Detected gfx%u%u%u"%(major, minor, step))
+          globalParameters["CurrentISA"] = (major, minor, step)
+        line = process.stdout.readline()
+    if globalParameters["CurrentISA"] == (0,0,0):
+      printWarning("Did not detected ISA: %s" % globalParameters["SupportedISA"])
+    if process.returncode:
+      printWarning("rocm_agen_enumerator exited with code %u" % process.returncode)
+
 
 ################################################################################
 # Assign Parameters
@@ -374,8 +393,8 @@ def ensurePath( path ):
 # Is query version compatible with current version
 ################################################################################
 def versionIsCompatible(queryVersionString):
-  (qMajor, qMinor, qPatch) = queryVersionString.split(".")
-  (tMajor, tMinor, tPatch) = __version__.split(".")
+  (qMajor, qMinor, qStep) = queryVersionString.split(".")
+  (tMajor, tMinor, tStep) = __version__.split(".")
 
   # major version must match exactly
   if qMajor != tMajor:
@@ -385,7 +404,7 @@ def versionIsCompatible(queryVersionString):
   if qMinor > tMinor:
     return False
   if qMinor == tMinor:
-    if qPatch > tPatch:
+    if qStep > tStep:
       return False
   return True
 

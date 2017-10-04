@@ -155,8 +155,6 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     # for library client
     runScriptFile.write(" -DTensile_ROOT=%s" \
         % os.path.join(globalParameters["ScriptPath"], "..") )
-    runScriptFile.write(" -DTensile_KERNEL_LANGUAGE=%s" \
-        % globalParameters["KernelLanguage"])
     runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
     runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
     runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \

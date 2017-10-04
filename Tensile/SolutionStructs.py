@@ -1038,48 +1038,6 @@ class Solution:
       state["Valid"] = False
       return
 
-    # compiler trips over these configurations
-    """
-    if globalParameters["KernelLanguage"] == "HIP" \
-        and state["VectorWidth"] == 2 \
-        and state["ProblemType"]["TLUA"] \
-        and state["ProblemType"]["TLUB"] \
-        and state["GlobalReadCoalesceVectorA"] \
-        and state["GlobalReadCoalesceVectorB"]:
-      if state["ThreadTile0"] == 4 and state["ThreadTile1"] == 8 \
-          or state["ThreadTile0"] == 6 and state["ThreadTile1"] == 2\
-          or state["ThreadTile0"] == 6 and state["ThreadTile1"] == 8:
-        if globalParameters["PrintSolutionRejectionReason"]:
-          print1("compiler bug")
-        state["Valid"] = False
-
-    if globalParameters["KernelLanguage"] == "HIP" \
-        and state["VectorWidth"] == 4 \
-        and state["ProblemType"]["TLUA"] \
-        and state["ProblemType"]["TLUB"] \
-        and state["GlobalReadCoalesceVectorA"] \
-        and state["GlobalReadCoalesceVectorB"] \
-        and state["ThreadTile0"] == 8 and state["ThreadTile1"] == 8:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("compiler bug")
-      state["Valid"] = False
-
-    if globalParameters["KernelLanguage"] == "OCL" \
-        and state["VectorWidth"] == 2 \
-        and state["ProblemType"]["TLUA"] \
-        and state["ProblemType"]["TLUB"] \
-        and state["GlobalReadCoalesceVectorA"] \
-        and state["GlobalReadCoalesceVectorB"]:
-      if state["ThreadTile0"] == 4 and state["ThreadTile1"] == 8 \
-          or state["ThreadTile0"] == 8 and state["ThreadTile1"] == 4\
-          or state["ThreadTile0"] == 8 and state["ThreadTile1"] == 4:
-        if globalParameters["PrintSolutionRejectionReason"]:
-          print1("compiler bug")
-        state["Valid"] = False
-    """
-
-
-
     state["AssignedDerivedParameters"] = True
 
   ########################################

@@ -28,7 +28,7 @@ from subprocess import Popen
 import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar, kernelLanguageIsSource
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
@@ -385,17 +385,15 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  if kernelLanguageIsSource():
-    kernelWriter = KernelWriterSource( \
-        kernelMinNaming, kernelSerialNaming)
-  else:
-    kernelWriter = KernelWriterAssembly( \
-        kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource = KernelWriterSource( \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly( \
+      kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], solutions, solutionWriter, kernelWriter)
-
+      globalParameters["WorkingPath"], solutions, solutionWriter, \
+      kernelWriterSource, kernelWriterAssembly )
 
   ##############################################################################
   # Write CMake

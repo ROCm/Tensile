@@ -21,7 +21,7 @@
 
 from SolutionStructs import Solution
 from KernelWriterSource import KernelWriterSource
-from Common import globalParameters, kernelLanguageIsSource
+from Common import globalParameters
 
 ################################################################################
 # SolutionWriter
@@ -91,7 +91,7 @@ class SolutionWriter:
     t += "  "
 
     # hipFunction Struct
-    if not kernelLanguageIsSource():
+    if solution["KernelLanguage"] == "Assembly":
       s += "\n"
       s += "/* module function args */\n"
       s += "%sstruct {\n" % t
@@ -115,7 +115,7 @@ class SolutionWriter:
     # kernels
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
-    if globalParameters["KernelLanguage"] == "OCL":
+    if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
       for kernelIdx in range(0, len(kernelNames)):
@@ -144,7 +144,7 @@ class SolutionWriter:
           s += "%s      stream,\n" % (t)
           s += "%s      buildOptions);\n" % (t)
 
-    elif not kernelLanguageIsSource():
+    elif solution["KernelLanguage"] == "Assembly":
       s += "%shipFunction_t %s_hipFunction;\n" % (t, kernelName)
       s += "%s  tensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
       s += "%s      &%s_hipFunction,\n" % (t, kernelName)
@@ -480,7 +480,7 @@ class SolutionWriter:
         s += "%stry {\n" % (t)
         t += "  "
         # hip kernel
-        if kernelLanguageIsSource():
+        if solution["KernelLanguage"] == "Source":
           s += "%shipLaunchKernel(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -506,8 +506,9 @@ class SolutionWriter:
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
           s += "    );\n"
-        else:
 
+        # assembly kernel
+        else:
           if globalParameters["DebugKernel"]:
             s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
             s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)

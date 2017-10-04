@@ -33,7 +33,7 @@
 
 
 from SolutionStructs import DataType
-from Common import globalParameters, kernelLanguageIsSource, print1, print2, printExit, printWarning
+from Common import globalParameters, print1, print2, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log
 import abc
@@ -245,11 +245,12 @@ class KernelWriterAssembly(KernelWriter):
     self.globalReadIncsUseVgpr = True # slightly fewer [v_mov] instructions but extra registers
 
     # ISA version, such as 803
-    self.version = int(self.language[3:])
-    self.versionMajor = int(self.language[3])
-    self.versionMinor = int(self.language[4])
-    self.versionStep  = int(self.language[5])
-    print1("KernelWriterAsssembly targeting gfx%u\n" % self.version )
+    self.version = globalParameters["CurrentISA"]
+    self.versionMajor = globalParameters["CurrentISA"][0]
+    self.versionMinor = globalParameters["CurrentISA"][1]
+    self.versionStep  = globalParameters["CurrentISA"][2]
+    #print1("KernelWriterAsssembly targeting gfx%u%u%u\n" \
+    #    % (self.versionMajor, self.versionMinor, self.versionStep))
     self.maxVgprs = 256
 
     ########################################
@@ -306,7 +307,7 @@ class KernelWriterAssembly(KernelWriter):
     # gfx900
     ########################################
     self.memoryInstructions = {
-        803: { # Fiji
+        (8,0,3): {
           "GlobalRead": [ flat_load_dwordx4, flat_load_dwordx2,
             flat_load_dword ],
           "GlobalWrite": [ flat_store_dwordx4, flat_store_dwordx2,
@@ -316,7 +317,7 @@ class KernelWriterAssembly(KernelWriter):
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32 ]
           }, # 803
-        900: {
+        (9,0,0): {
           "GlobalRead": [ flat_load_dwordx4, flat_load_dwordx2,
             flat_load_dword ],
           "GlobalWrite": [ flat_store_dwordx4, flat_store_dwordx2,

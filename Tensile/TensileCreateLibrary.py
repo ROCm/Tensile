@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, kernelLanguageIsSource
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
@@ -37,7 +37,7 @@ from shutil import copy as shutil_copy
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
 def writeSolutionsAndKernels(outputPath, solutions, \
-    solutionWriter, kernelWriter):
+    solutionWriter, kernelWriterSource, kernelWriterAssembly):
   print1("# Writing Solutions and Kernels")
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Solutions"))
@@ -137,6 +137,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
 
   # tensor contraction kernels
   for kernel in kernels:
+    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
     if not globalParameters["MergeFiles"]:
       if globalParameters["ShortNames"]:
@@ -166,6 +167,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
+    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
     kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
     #kernelNamesBetaOnly.append(kernelName)
@@ -635,12 +637,10 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  if kernelLanguageIsSource():
-    kernelWriter = KernelWriterSource( \
-        kernelMinNaming, kernelSerialNaming)
-  else:
-    kernelWriter = KernelWriterAssembly( \
-        kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource = KernelWriterSource( \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly( \
+      kernelMinNaming, kernelSerialNaming)
 
   generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
@@ -666,7 +666,7 @@ def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels.cpp\n")
   else:
     for kernel in kernels:
-      kernelName = kernelWriter.getKernelName(kernel)
+      kernelName = kernelWriterSource.getKernelName(kernel) if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly.getKernelName(kernel) 
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.h\n" % (kernelName))
       generatedFile.write("  ${CMAKE_SOURCE_DIR}/Kernels/%s.cpp\n" % kernelName)
   generatedFile.write("  )\n")
@@ -705,8 +705,6 @@ def TensileCreateLibrary():
   argParser.add_argument("OutputPath", help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", \
       choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("KernelLanguage", help="Which kernel language?", \
-      choices=["OCL", "HIP", "gfx803", "gfx900"])
   argParser.add_argument("--merge-files", dest="MergeFiles", \
       action="store_true")
   argParser.add_argument("--no-merge-files", dest="MergeFiles", \
@@ -727,7 +725,6 @@ def TensileCreateLibrary():
   ensurePath(outputPath)
   arguments = {}
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
-  arguments["KernelLanguage"] = args.KernelLanguage
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
@@ -779,15 +776,14 @@ def TensileCreateLibrary():
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  if kernelLanguageIsSource():
-    kernelWriter = KernelWriterSource( \
-        kernelMinNaming, kernelSerialNaming)
-  else:
-    kernelWriter = KernelWriterAssembly( \
-        kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource = KernelWriterSource( \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly( \
+      kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
-  writeSolutionsAndKernels(outputPath, solutions, solutionWriter, kernelWriter)
+  writeSolutionsAndKernels(outputPath, solutions, solutionWriter, \
+      kernelWriterSource, kernelWriterAssembly)
 
   libraryStaticFiles = [
       "TensileTypes.h",

@@ -20,23 +20,22 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, kernelLanguageIsSource, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
+from Common import globalParameters, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
 import abc
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
 
 ################################################################################
-# Make OpenCL Kernel String
+# Kernel Writer
 ################################################################################
 class KernelWriter:
   __metaclass__=abc.ABCMeta
 
   ##############################################################################
-  # Make OpenCL Kernel String
+  # Init
   ##############################################################################
   def __init__( self, kernelMinNaming, kernelSerialNaming ):
-    self.language = globalParameters["KernelLanguage"]
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
 
@@ -779,6 +778,10 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+    if kernel["KernelLanguage"] == "Source":
+      self.language = globalParameters["RuntimeLanguage"]
+    else:
+      self.language = "ASM"
     self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
       self.indexChars.append(globalParameters["IndexChars"][i])
@@ -1639,10 +1642,9 @@ class KernelWriter:
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
 
-    if not kernelLanguageIsSource():
+    if kernel["KernelLanguage"] == "Assembly":
       # write assembly file to assembly directory
       pushWorkingPath("assembly")
-      pushWorkingPath(globalParameters["KernelLanguage"])
       kernelName = self.getKernelName(kernel)
       fileBase = path.join(globalParameters["WorkingPath"], kernelName )
       assemblyFileName = "%s.s" % fileBase
@@ -1699,8 +1701,6 @@ class KernelWriter:
         if byteIdx % 16 == 15:
           fileString += "\n"
 
-
-      popWorkingPath() # arch
       popWorkingPath() # assembly
 
       # read code-object file and convert to c++ representable uchar*
@@ -1714,7 +1714,7 @@ class KernelWriter:
   def getHeaderFileString(self, kernel):
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
-    if kernelLanguageIsSource():
+    if self.language == "HIP" or self.language == "OCL":
       if not globalParameters["MergeFiles"]:
         fileString += "#pragma once\n\n"
         if self.language == "HIP":
