@@ -1667,7 +1667,7 @@ class KernelWriter:
           assemblerFile.write("#!/bin/sh\n")
           assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
           assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa -mcpu=gfx%u%u%u -c -o $1.o $1.s\n" \
-              % (self.versionMajor, self.versionMinor, self.versionStep))
+              % (self.version[0], self.version[1], self.version[2]))
           assemblerFile.write("${ASM} -target amdgcn--amdhsa $1.o -o $1.co\n")
         assemblerFile.close()
         chmod(assemblerFileName, 0777)

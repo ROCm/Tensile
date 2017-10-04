@@ -246,11 +246,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
-    self.versionMajor = globalParameters["CurrentISA"][0]
-    self.versionMinor = globalParameters["CurrentISA"][1]
-    self.versionStep  = globalParameters["CurrentISA"][2]
-    #print1("KernelWriterAsssembly targeting gfx%u%u%u\n" \
-    #    % (self.versionMajor, self.versionMinor, self.versionStep))
     self.maxVgprs = 256
 
     ########################################
@@ -426,6 +421,10 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initKernel(self, kernel, tPA, tPB ):
     super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
+
+    if "ISA" in kernel:
+      self.version = kernel["ISA"]
+
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
 
@@ -1263,7 +1262,7 @@ class KernelWriterAssembly(KernelWriter):
     # begin kernel descriptor
     kStr += ".hsa_code_object_version 2,0%s" % self.endLine
     kStr += ".hsa_code_object_isa %u, %u, %u, \"AMD\", \"AMDGPU\" %s" \
-        % (self.versionMajor, self.versionMinor, self.versionStep, self.endLine)
+        % (self.version[0], self.version[1], self.version[2], self.endLine)
     kStr += ".text%s" % self.endLine
     kStr += ".p2align 8%s" % self.endLine
     kStr += ".amdgpu_hsa_kernel %s%s" % (self.kernelName, self.endLine)

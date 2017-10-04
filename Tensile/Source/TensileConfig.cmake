@@ -27,7 +27,6 @@ include(CMakeParseArguments)
 function(TensileCreateLibrary
     Tensile_LOGIC_PATH
     Tensile_RUNTIME_LANGUAGE
-    Tensile_KERNEL_LANGUAGE
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
@@ -72,7 +71,6 @@ function(TensileCreateLibrary
     ${Tensile_LOGIC_PATH}
     ${Tensile_SOURCE_PATH}
     ${Tensile_RUNTIME_LANGUAGE}
-    ${Tensile_KERNEL_LANGUAGE}
     )
 
   #string( REPLACE ";" " " Tensile_CREATE_COMMAND "${Tensile_CREATE_COMMAND}")

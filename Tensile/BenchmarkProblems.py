@@ -372,11 +372,16 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   # Min Naming
   ##############################################################################
   kernels = []
+  kernelsBetaOnly = []
   for solution in solutions:
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
+    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
+    for kernel in solutionKernelsBetaOnly:
+      if kernel not in kernelsBetaOnly:
+        kernelsBetaOnly.append(kernel)
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -392,18 +397,20 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
 
   # write solution, kernels and CMake
   writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], solutions, solutionWriter, \
-      kernelWriterSource, kernelWriterAssembly )
+      globalParameters["WorkingPath"], solutions, kernels, kernelsBetaOnly, \
+      solutionWriter, kernelWriterSource, kernelWriterAssembly )
 
   ##############################################################################
   # Write CMake
   ##############################################################################
 
   clientName = "TensileBenchmark_%s" % stepName
-  writeCMake(globalParameters["WorkingPath"], solutions, filesToCopy, clientName)
+  writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
+      clientName)
 
   forBenchmark = True
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, filesToCopy)
+  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+      filesToCopy)
 
 
 ################################################################################

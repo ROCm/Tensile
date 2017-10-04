@@ -145,12 +145,30 @@ class SolutionWriter:
           s += "%s      buildOptions);\n" % (t)
 
     elif solution["KernelLanguage"] == "Assembly":
-      s += "%shipFunction_t %s_hipFunction;\n" % (t, kernelName)
-      s += "%s  tensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
-      s += "%s      &%s_hipFunction,\n" % (t, kernelName)
-      s += "%s      \"%s\",\n" % (t, kernelName)
-      s += "%s      %s_coba, // code object byte array\n" % (t, kernelName)
-      s += "%s      stream);\n" % (t)
+      kernel = kernels[0]
+      s += "%sint deviceId = 0; // TODO this should query from hipStream_t\n" % (t)
+      s += "%shipDeviceProp_t deviceProperties;\n" % (t)
+      s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
+      s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
+      #s += "%sprintf(\"Device ISA: %%i\\n\", isa);\n" % (t)
+      s += "%shipFunction_t hipFunction;\n" % (t)
+      for i in range(0, len(globalParameters["SupportedISA"])):
+        isa = globalParameters["SupportedISA"][i]
+        kernel["ISA"] = (isa[0], isa[1], isa[2])
+        kernelName = self.kernelWriter.getKernelName(kernel)
+        s += t
+        if i > 0:
+          s += " else "
+        s += "%sif ( isa == %u%u%u ) {\n" % (t, isa[0], isa[1], isa[2])
+        #s += "%sprintf(\"Selected ISA: %u%u%u\\n\");\n" % (t, isa[0], isa[1], isa[2])
+        s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
+        s += "%s    &hipFunction,\n" % (t)
+        s += "%s    \"%s\",\n" % (t, kernelName)
+        s += "%s    %s_coba, // code object byte array\n" % (t, kernelName)
+        s += "%s    stream);\n" % (t)
+        s += "}"
+      s += "\n"
+
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
     # index assignments
@@ -393,6 +411,8 @@ class SolutionWriter:
     ########################################
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
+      if self.language == "HIP":
+        kernel["ISA"] = (0, 0, 0) # HIP source kernels needs dummy ISA version
       kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)
@@ -549,7 +569,7 @@ class SolutionWriter:
 
           s += "%shipModuleLaunchKernel(\n" % (t)
           t += "  "
-          s += "%s%s_hipFunction,\n" % (t, kernelName)
+          s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0],\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][1],\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][2],\n" % (t)

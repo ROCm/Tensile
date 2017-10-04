@@ -1193,6 +1193,11 @@ class Solution:
         if i < len(value)-1:
           abbrev += "_"
       return abbrev
+    elif isinstance(value, tuple):
+      abbrev = ""
+      for i in range(0, len(value)):
+        abbrev += str(value[i])
+      return abbrev
     else:
       printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)

@@ -31,45 +31,20 @@ import os.path
 import argparse
 import sys
 from shutil import copy as shutil_copy
+from copy import deepcopy
 
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, solutions, \
+def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly):
   print1("# Writing Solutions and Kernels")
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  #kernelNames = []
-  kernels = []
-  kernelsBetaOnly = []
-  #kernelNamesBetaOnly = []
-
-  ##############################################################################
-  # Min Naming
-  ##############################################################################
-  for solution in solutions:
-    solutionKernels = solution.getKernels()
-    for kernel in solutionKernels:
-      if kernel not in kernels:
-        kernels.append(kernel)
-    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
-    for kernel in solutionKernelsBetaOnly:
-      if kernel not in kernelsBetaOnly:
-        kernelsBetaOnly.append(kernel)
   progressBar = ProgressBar(len(solutions)+len(kernels))
-
-  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming = None
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
 
   ##############################################################################
   # Write Solutions
@@ -80,7 +55,6 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     solutionHeaderFile = open(os.path.join(outputPath, \
         "Solutions.h"), "w")
     solutionSourceFile.write("#include \"Solutions.h\"\n")
-    #solutionSourceFile.write("#include \"MathTemplates.h\"\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
@@ -88,11 +62,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
-      if globalParameters["ShortNames"]:
-        solutionFileName = \
-            Solution.getNameSerial(solution, solutionSerialNaming)
-      else:
-        solutionFileName = Solution.getNameMin(solution, solutionMinNaming)
+      solutionFileName = solutionWriter.getName(solution)
 
     # write solution.cpp
     if not globalParameters["MergeFiles"]:
@@ -140,11 +110,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
     kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
     if not globalParameters["MergeFiles"]:
-      if globalParameters["ShortNames"]:
-        kernelName = Solution.getNameSerial(kernel, kernelSerialNaming)
-      else:
-        kernelName = Solution.getNameMin(kernel, kernelMinNaming)
-      #kernelNames.append(kernelName)
+      kernelName = kernelWriter.getName(kernel)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -168,9 +134,7 @@ def writeSolutionsAndKernels(outputPath, solutions, \
   # beta-only kernels
   for kernel in kernelsBetaOnly:
     kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
-    # get kernel name
     kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
-    #kernelNamesBetaOnly.append(kernelName)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -273,18 +237,10 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       for solution in solutionsForSchedule:
         if solution not in solutionsForProblemType:
           solutionsForProblemType.append(solution)
-    #if globalParameters["ShortNames"]:
-    #  solutionSerialNaming = Solution.getSerialNaming(solutionsForProblemType)
-    #else:
-    #  solutionMinNaming = Solution.getMinNaming(solutionsForProblemType)
 
     # solution names for problem type
     solutionNamesForProblemType = []
     for solution in solutionsForProblemType:
-      #if globalParameters["ShortNames"]:
-      #  solutionName = Solution.getNameSerial(solution, solutionSerialNaming)
-      #else:
-      #  solutionName = Solution.getNameMin(solution, solutionMinNaming)
       solutionName = solutionWriter.getSolutionName(solution)
       solutionNamesForProblemType.append(solutionName)
 
@@ -312,10 +268,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       # solution names for schedule
       solutionNamesForSchedule = []
       for solution in solutionsForSchedule:
-        #if globalParameters["ShortNames"]:
-        #  solutionName = Solution.getNameSerial(solution, solutionSerialNaming)
-        #else:
-        #  solutionName = Solution.getNameMin(solution, solutionMinNaming)
         solutionName = solutionWriter.getSolutionName(solution)
         solutionNamesForSchedule.append(solutionName)
 
@@ -614,18 +566,11 @@ def writeSolutionCall(solutionName, problemType):
 ################################################################################
 # Write CMake
 ################################################################################
-def writeCMake(outputPath, solutions, libraryStaticFiles, clientName ):
+def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
   print1("# Writing Custom CMake")
   ##############################################################################
   # Min Naming
   ##############################################################################
-  kernels = []
-  for solution in solutions:
-    solutionKernels = solution.getKernels()
-    for kernel in solutionKernels:
-      if kernel not in kernels:
-        kernels.append(kernel)
-
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"] :
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -760,11 +705,32 @@ def TensileCreateLibrary():
 
   # create solution writer and kernel writer
   kernels = []
+  kernelsBetaOnly = []
   for solution in solutions:
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
+    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
+    for kernel in solutionKernelsBetaOnly:
+      if kernel not in kernelsBetaOnly:
+        kernelsBetaOnly.append(kernel)
+
+  # if any kernels are assembly, append every ISA supported
+  if globalParameters["RuntimeLanguage"] == "HIP":
+    newKernels = []
+    for kernel in kernels:
+      if kernel["KernelLanguage"] == "Assembly":
+        kernel["ISA"] = globalParameters["SupportedISA"][0]
+        for i in range(1, len(globalParameters["SupportedISA"])):
+          newKernel = deepcopy(kernel)
+          newKernel["ISA"] = globalParameters["SupportedISA"][i]
+          newKernels.append(newKernel)
+      else:
+        kernel["ISA"] = (0,0,0)
+    kernels.extend(newKernels)
+
+
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -782,8 +748,8 @@ def TensileCreateLibrary():
       kernelMinNaming, kernelSerialNaming)
 
   # write solutions and kernels
-  writeSolutionsAndKernels(outputPath, solutions, solutionWriter, \
-      kernelWriterSource, kernelWriterAssembly)
+  writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
+      solutionWriter, kernelWriterSource, kernelWriterAssembly)
 
   libraryStaticFiles = [
       "TensileTypes.h",
@@ -795,7 +761,7 @@ def TensileCreateLibrary():
 
   # write cmake
   clientName = "LibraryClient"
-  writeCMake(outputPath, solutions, libraryStaticFiles, clientName )
+  writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName )
 
   # write logic
   writeLogic(outputPath, logicData, solutionWriter)
