@@ -891,7 +891,7 @@ class KernelWriterAssembly(KernelWriter):
   def globalWriteMacro(self, kernel, beta, edge):
     kStr = ""
     kStr += self.comment3("Global Write%s%s"%(" Beta" if beta else "", " Edge" if edge else ""))
-    kStr += ".macro GLOBAL_WRITE%s%s vc0 vc1 d0 d1 coord0 coord1 addrC sizes tmp%s"%("_Beta" if beta else "", "_Edge" if edge else "", self.endLine)
+    kStr += ".macro GLOBAL_WRITE%s%s vc0 vc1 d0 d1 coord0 coord1 addrC sizes tmpVgpr%s"%("_Beta" if beta else "", "_Edge" if edge else "", self.endLine)
     fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
     tmpS01 = fullExecMaskSgpr+2 # scratch sgprs
     tmpS23 = tmpS01+2
@@ -904,74 +904,48 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ThreadTile0"], \
         kernel["VectorWidth"], kernel["ThreadTile0"], \
         self.endLine )
-    kStr += ".set addr, \\tmp+2%s" % self.endLine
-    #kStr += ".set vgprTmp, %u%s" % ( self.totalVgprs-8, self.endLine)
-    #kStr += dump(vgpr(self.globalWriteAddrC+0))
-    #kStr += dump(vgpr(self.globalWriteAddrC+1))
-    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Alpha"), "")
-    #kStr += dump(vgpr(65))
-    #kStr += inst("v_mov_b32", vgpr(65), sgpr("Beta"), "")
-    #kStr += dump(vgpr(65))
-    #kStr += dump("v[idx]")
-    # static tmps b/c
-    #vgprAddr = self.totalVgprs-6
-    #vgprValue = self.totalVgprs-7
+    kStr += ".set addr, \\tmpVgpr+2%s" % self.endLine
 
     # coord0
-    kStr += staticMultiply("v[\\tmp+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
-    kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "\\vc0", "v[\\tmp+0]", \
+    kStr += staticMultiply("v[\\tmpVgpr+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
+    kStr += inst("v_add_u32", "v[\\tmpVgpr+0]", "vcc", "\\vc0", "v[\\tmpVgpr+0]", \
         "tmp0 = d0*sg0*VW + vc0")
-    kStr += inst("v_add_u32", "v[\\tmp+0]", "vcc", "v[\\coord0]", "v[\\tmp+0]", \
+    kStr += inst("v_add_u32", "v[\\tmpVgpr+0]", "vcc", "v[\\coord0]", "v[\\tmpVgpr+0]", \
         "coord0 += d0*sg0*VW + vc0")
     #kStr += dump("v[\\tmp+0]")
     #kStr += dump("v[\\sizes+0]")
 
     # coord1
-    kStr += staticMultiply("v[\\tmp+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
-    kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "\\vc1", "v[\\tmp+1]", \
+    kStr += staticMultiply("v[\\tmpVgpr+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
+    kStr += inst("v_add_u32", "v[\\tmpVgpr+1]", "vcc", "\\vc1", "v[\\tmpVgpr+1]", \
         "tmp1 = d1*sg1*VW + vc1")
-    kStr += inst("v_add_u32", "v[\\tmp+1]", "vcc", "v[\\coord1]", "v[\\tmp+1]", \
+    kStr += inst("v_add_u32", "v[\\tmpVgpr+1]", "vcc", "v[\\coord1]", "v[\\tmpVgpr+1]", \
         "coord1 += d1*sg1*VW + vc1")
     #kStr += dump("v[\\tmp+1]")
 
     if False:
       kStr += inst("s_mov_b32",  sgpr(tmpS67), hex(0), "zero" )
-      kStr += inst("v_mov_b32",  "v[\\tmp+2]", sgpr(tmpS67), "zero" )
+      kStr += inst("v_mov_b32",  "v[\\tmpVgpr+2]", sgpr(tmpS67), "zero" )
 
     # in-bounds exec mask
     if edge:
-      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), "v[\\tmp+0]", "v[\\sizes+0]", "coord0 < size0" )
-      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), "v[\\tmp+1]", "v[\\sizes+1]", "coord1 < size1" )
+      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), "v[\\tmpVgpr+0]", "v[\\sizes+0]", "coord0 < size0" )
+      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), "v[\\tmpVgpr+1]", "v[\\sizes+1]", "coord1 < size1" )
       #kStr += inst("v_mov_b32", "v[\\tmp+2]", sgpr(tmpS01), "to dump")
       #kStr += dump("v[\\tmp+2]")
       kStr += inst("s_and_b64",  sgpr(tmpS45,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
       kStr += inst("s_and_saveexec_b64",  sgpr(tmpS67,2), sgpr(tmpS45,2), "sgprs -> exec" )
 
-    if False:
-      kStr += inst("s_mov_b32",  sgpr(tmpS67), hex(1), "one" )
-      kStr += inst("v_mov_b32",  "v[\\tmp+2]", sgpr(tmpS67), "one" )
-      kStr += dump("v[\\tmp+2]")
-
-    # strideC0 sgpr -> vgpr
-    kStr += inst("v_mov_b32", "v[addr+1]", sgpr("StridesC"), \
-        "%s = StridesC"%"v[addr+1]")
-
-    # coord1*strideC0
-    kStr += inst("v_mul_lo_u32", "v[addr+0]", "v[addr+1]", "v[\\tmp+1]", \
-        "=coord1*strideC0 (lo)")
-    kStr += inst("v_mul_hi_u32", "v[addr+1]", "v[addr+1]", "v[\\tmp+1]", \
-        "=coord1*strideC0 (hi)")
-
-    # index = coord0 + coord1*strideC0
-    kStr += inst("v_add_u32", "v[addr+0]", "vcc", "v[addr+0]", "v[\\tmp+0]", \
-        "index = coord0 + coord1*strideC0 (lo)")
-    kStr += inst("v_addc_u32", "v[addr+1]", "vcc", "v[addr+1]", hex(0), \
-        "vcc", "index = coord0 + coord1*strideC0 (hi)")
-    #kStr += dump("v[addr+0]")
-
-    # index*4bytes
-    kStr += inst("v_lshlrev_b64", "v[addr:addr+1]", hex(log2(self.bpe)), \
-        "v[addr:addr+1]", "%s = 4*(vc0 + d0*sg0*VW + StridesC*(vc1+d1*sg1*VW) )"%"v[addr]" )
+    # global offset macro
+    kStr += "GLOBAL_OFFSET_C addr"
+    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+      if i == kernel["ProblemType"]["Index0"]:
+        kStr += ", \\tmpVgpr+0"
+      elif i == kernel["ProblemType"]["Index1"]:
+        kStr += ", \\tmpVgpr+1"
+      else: # just a group index
+        kStr += ", sgprWorkGroup%u"%i
+    kStr += ", \\tmpVgpr+4%s" % self.endLine
 
     # final address = C + index*4bytes
     kStr += inst("v_add_u32",  "v[addr+0]", "vcc", "v[\\addrC+0]", \
@@ -983,14 +957,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
     #kStr += dump("v[idx]")
     if kernel["ProblemType"]["UseBeta"]:
-      kStr += inst("flat_load_dword", "v[\\tmp]", "v[addr:addr+1]", \
+      kStr += inst("flat_load_dword", "v[\\tmpVgpr]", "v[addr:addr+1]", \
           "load C" )
       kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
       #kStr += dump("v[\\tmp]")
-      kStr += inst("v_mul_f32", "v[\\tmp]", sgpr("Beta"), "v[\\tmp]", \
-          "%s = C*beta"%"v[\\tmp]" )
+      kStr += inst("v_mul_f32", "v[\\tmpVgpr]", sgpr("Beta"), "v[\\tmpVgpr]", \
+          "%s = C*beta"%"v[\\tmpVgpr]" )
       #kStr += dump(vgpr("v[\\tmp]")
-      kStr += inst("v_add_f32", "v[idx]", "v[\\tmp]", "v[idx]", \
+      kStr += inst("v_add_f32", "v[idx]", "v[\\tmpVgpr]", "v[idx]", \
           "v[idx] = sum*alpha + C*beta" )
     #kStr += dump("v[addr+0]")
     #kStr += dump("v[addr+1]")
@@ -1058,6 +1032,8 @@ class KernelWriterAssembly(KernelWriter):
         self.startSgprKernArgAddress)
     kStr += self.macroRegister("sgprWorkGroup%u"%(0 if kernel["WorkGroupMapping"]>0 else 1), self.startSgprWorkGroup0)
     kStr += self.macroRegister("sgprWorkGroup%u"%(1 if kernel["WorkGroupMapping"]>0 else 0), self.startSgprWorkGroup1)
+    for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
+      kStr += self.macroRegister("sgprWorkGroup%u"%i, self.startSgprWorkGroup0+i)
     kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
     kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
     kStr += self.macroRegister("sgprAlpha", self.startSgprAlpha)
@@ -1087,7 +1063,7 @@ class KernelWriterAssembly(KernelWriter):
     # Global Offsets
     ########################################
     for (tensorChar, indices) in [ \
-        ("C", range(0, kernel["ProblemType"]["NumDimensionsC"])), \
+        ("C", range(0, kernel["ProblemType"]["NumIndicesC"])), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"]), \
         ("B", kernel["ProblemType"]["IndexAssignmentsB"]) ]:
       kStr += self.comment("Global Offset %s"%tensorChar)
@@ -1095,46 +1071,104 @@ class KernelWriterAssembly(KernelWriter):
       idxChars = []
       for i in indices:
         idxChars.append(self.indexChars[i])
+
+      # macro declaration
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tensorChar
       for i in range(0, numDim):
-        kStr += " vgprOffset%s" % idxChars[i]
+        # tile index or unroll vgpr
+        if indices[i] == kernel["ProblemType"]["Index0"] \
+            or indices[i] == kernel["ProblemType"]["Index1"] \
+            or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
+          kStr += " vgprOffset%s" % idxChars[i]
+        # other c index sgpr
+        elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+          kStr += " sgprOffset%s" % idxChars[i]
+        # other sum index
+        else:
+          pass # these offsets are zero
       kStr += " vgprTmp%s" % self.endLine
-      # d0
-      kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "v[\\vgprOffset%s]" \
-          % idxChars[0], "d0 lower")
-      kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper" )
-      #kStr += dump("v[\\vgprOffset%s]"%idxChars[0])
-      #kStr += dump("v[\\vgprOffset%s]"%idxChars[1])
-      #kStr += "s_endpgm\n"
+
+      ########################################
+      # index 0
+      # tile index or unroll vgpr
+      if indices[0] == kernel["ProblemType"]["Index0"] \
+          or indices[0] == kernel["ProblemType"]["Index1"] \
+          or indices[0] == kernel["ProblemType"]["IndexUnroll"]:
+        kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "v[\\vgprOffset%s]" \
+            % idxChars[0], "d0 lower")
+        kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+      # other c index sgpr
+      elif indices[0] < kernel["ProblemType"]["NumIndicesC"]:
+        kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "s[\\sgprOffset%s]" \
+            % idxChars[0], "d0 lower")
+        kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+      # other sum index
+      else:
+        kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", hex(0), "d0 lower")
+        kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+
       # d1+
       for i in range(1, numDim):
-        kStr += inst("v_mul_lo_u32", \
-            "v[\\vgprTmp+0]", \
-            "v[\\vgprOffset%s]" % idxChars[i],  \
-            sgpr("Strides%s+%u"%(tensorChar,i-1)), \
-            "mul d%u lower"%i)
-        #kStr += dump("v[\\vgprTmp+0]")
 
-        kStr += inst("v_mov_b32", \
-            "v[\\vgprTmp+2]", \
-            hex(0),  \
-            "mul d%u upper"%i)
-        kStr += inst("v_addc_u32", \
-            "v[\\vgprTmp+1]", \
-            "vcc",  \
-            hex(0), \
-            "v[\\vgprTmp+2]", \
-            "vcc",  \
-            "mul d%u upper"%i)
-        #kStr += dump("v[\\vgprTmp+1]")
+        # tile index or unroll vgpr
+        if indices[i] == kernel["ProblemType"]["Index0"] \
+            or indices[i] == kernel["ProblemType"]["Index1"] \
+            or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
+          # offset * stride (lo)
+          kStr += inst("v_mul_lo_u32", \
+              "v[\\vgprTmp+0]", \
+              sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+              "v[\\vgprOffset%s]" % idxChars[i],  \
+              "mul d%u lower"%i)
+          # offset * stride (hi) FIXME
+          kStr += inst("v_mov_b32", \
+              "v[\\vgprTmp+2]", \
+              hex(0),  \
+              "mul d%u upper"%i)
+          kStr += inst("v_addc_u32", \
+              "v[\\vgprTmp+1]", \
+              "vcc",  \
+              hex(0), \
+              "v[\\vgprTmp+2]", \
+              "vcc",  \
+              "mul d%u upper"%i)
+        # other c index sgpr
+        elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+          # offset * stride (lo)
+          kStr += inst("v_mov_b32", \
+              "v[\\vgprTmp+1]", \
+              "s[\\sgprOffset%s]"%idxChars[i], \
+              "sgprOffset -> vgprTmp+1")
+          kStr += inst("v_mul_lo_u32", \
+              "v[\\vgprTmp+0]", \
+              sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+              "v[\\vgprTmp+1]",  \
+              "mul d%u lower"%i)
+          # offset * stride (hi) FIXME
+          kStr += inst("v_mov_b32", \
+              "v[\\vgprTmp+2]", \
+              hex(0),  \
+              "mul d%u upper"%i)
+          kStr += inst("v_addc_u32", \
+              "v[\\vgprTmp+1]", \
+              "vcc",  \
+              hex(0), \
+              "v[\\vgprTmp+2]", \
+              "vcc",  \
+              "mul d%u upper"%i)
+        # other sum index
+        else:
+          # don't even need to add
+          continue
 
+        # addr += offset * stride (lo)
         kStr += inst("v_add_i32", \
             "v[\\vgprAddr+0]", \
             "vcc", \
             "v[\\vgprAddr+0]",  \
             "v[\\vgprTmp+0]", \
             "accumulate d%u lower"%i)
-        #kStr += dump("v[\\vgprAddr+0]")
+        # addr += offset * stride (hi) FIXME
         kStr += inst("v_addc_u32", \
             "v[\\vgprAddr+1]", \
             "vcc", \
@@ -1142,6 +1176,8 @@ class KernelWriterAssembly(KernelWriter):
             hex(0), \
             "vcc", \
             "accumulate d%u lower"%i)
+
+      # addr *= bytes/element
       kStr += inst("v_lshlrev_b64", \
           "v[\\vgprAddr+0:\\vgprAddr+1]", \
           hex(log2(self.bpe)), \
@@ -1182,7 +1218,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_add_u32",     "v[\\vRemainder]", "vcc",            hex(1), "v[\\vQuotient]", "" )
     kStr += inst("v_add_u32",     "v[\\vTmp1]",      "vcc", -1,        "v[\\vQuotient]", "" )
     kStr += inst("v_cmp_le_u32",  "vcc",             "v[\\vDivisor]", "v[\\vTmp0]", "" )
-    kStr += inst("s_and_b64", "vcc", "s[\\sTmp:\\sTmp+1]",                "vcc", "" ) # FIXME
+    kStr += inst("s_and_b64",     "vcc",             "s[\\sTmp:\\sTmp+1]", "vcc", "" ) # FIXME
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vRemainder]", "vcc", "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
     kStr += inst("v_cmp_ne_i32",  "vcc", hex(0),     "v[\\vDivisor]", "" )
@@ -1214,77 +1250,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
       kStr += ".endm%s" % self.endLine
 
-    ####################################
-    # preprocessor definitions of kernel arguments
-    firstStride = 0
-    if kernel["ProblemType"]["UseInitialStrides"]:
-      # no strides .setd
-      lastStrideC = 0
-      lastStrideA = 0
-      lastStrideB = 0
-    else:
-      # .set initial stride
-      kStr += self.comment("hard-coded initial strides")
-      lastStrideC = 1
-      lastStrideA = 1
-      lastStrideB = 1
-
-    for i in range(firstStride, lastStrideC):
-      kStr += ".set strideC" + self.indexChars[i] + ", 1" + self.endLine
-    for i in range(firstStride, lastStrideA):
-      kStr += ".set strideA" \
-          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsA"][i]] \
-          + ", 1" + self.endLine
-    for i in range(firstStride, lastStrideB):
-      kStr += ".set strideB" \
-          + self.indexChars[kernel["ProblemType"]["IndexAssignmentsB"][i]] \
-          + ", 1" + self.endLine
-    kStr += self.endLine
-
-    ####################################
-    # scalar macros
-    kStr += self.comment("kernel parameter macros")
-    vw = kernel["VectorWidth"]
-    mt0 = kernel["MacroTile0"]
-    mt1 = kernel["MacroTile1"]
-    du = kernel["DepthU"]
-    if kernel["ProblemType"]["Tensor0"]==0:
-      mtA = mt0
-      mtB = mt1
-    else:
-      mtA = mt1
-      mtB = mt0
-    nlca = kernel["NumLoadsCoalescedA"]
-    nlcb = kernel["NumLoadsCoalescedB"]
-    nlpa = kernel["NumLoadsPerpendicularA"]
-    nlpb = kernel["NumLoadsPerpendicularB"]
-    kStr += ".set NLCA, %u%s" % (nlca, self.endLine)
-    kStr += ".set NLCB, %u%s" % (nlcb, self.endLine)
-    kStr += ".set NLPA, %u%s" % (nlpa, self.endLine)
-    kStr += ".set NLPB, %u%s" % (nlpb, self.endLine)
-
-    if kernel["ProblemType"]["TLUA"]:
-      lsca = mtA/nlpa
-      lspa = du/nlpa
-    else:
-      lsca = du/nlpa
-      lspa = mtA/nlpa
-    if kernel["ProblemType"]["TLUB"]:
-      lscb = mtB/nlpb
-      lspb = du/nlpb
-    else:
-      lscb = du/nlpb
-      lspb = mtB/nlpb
-
-    kStr += ".set LSCA, %u%s" % (lsca, self.endLine)
-    kStr += ".set LSPA, %u%s" % (lspa, self.endLine)
-    kStr += ".set LSCB, %u%s" % (lscb, self.endLine)
-    kStr += ".set LSPB, %u%s" % (lspb, self.endLine)
-
-    kStr += ".set LVCA, %u%s" % (lsca/vw, self.endLine)
-    kStr += ".set LVCB, %u%s" % (lscb/vw, self.endLine)
-    kStr += ".set LVPA, %u%s" % (lspa/vw, self.endLine)
-    kStr += ".set LVPB, %u%s" % (lspb/vw, self.endLine)
     return kStr
 
 
@@ -1883,7 +1848,7 @@ class KernelWriterAssembly(KernelWriter):
                 if i == tP["tileIdx"]:
                   kStr += ", %2u" % vgprTile
                 else: # just a group index
-                  kStr += ", WorkGroup+%u"%i
+                  kStr += ", sgprWorkGroup%u"%i
               else: # summation index
                 if i == kernel["ProblemType"]["IndexUnroll"]:
                   kStr += ", %2u" % vgprUnroll
@@ -3330,7 +3295,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_endpgm\n"
     #kStr += "GLOBAL_WRITE 0 0 0 0%s" % (self.endLine)
     #kStr += "s_endpgm\n"
-    globalWriteTmp = self.vgprPool.checkOut(4)
+    globalWriteTmp = self.vgprPool.checkOut(7)
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
