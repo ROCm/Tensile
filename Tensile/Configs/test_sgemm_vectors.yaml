@@ -54,8 +54,6 @@ BenchmarkProblems:
         - WorkGroup: [ [8, 8, 2 ] ]
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [-1]
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
@@ -69,13 +67,10 @@ BenchmarkProblems:
 
     - # Branches
       BenchmarkCommonParameters:
-        - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
         - DepthU: [ 16 ]
       ForkParameters:
-        - NumLoadsCoalescedA: [1, -1]
-        - NumLoadsCoalescedB: [1, -1]
         - ThreadTile:
           - [8, 8]
           - [2, 8]
@@ -131,8 +126,6 @@ BenchmarkProblems:
         - WorkGroup: [ [8, 8, 2 ] ]
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [-1]
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
@@ -146,13 +139,10 @@ BenchmarkProblems:
 
     - # Branches
       BenchmarkCommonParameters:
-        - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
         - DepthU: [ 16 ]
       ForkParameters:
-        - NumLoadsCoalescedA: [1, -1]
-        - NumLoadsCoalescedB: [1, -1]
         - ThreadTile:
           - [8, 8]
           - [2, 8]
@@ -208,8 +198,6 @@ BenchmarkProblems:
         - WorkGroup: [ [8, 8, 2 ] ]
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [-1]
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
@@ -223,13 +211,10 @@ BenchmarkProblems:
 
     - # Branches
       BenchmarkCommonParameters:
-        - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
         - DepthU: [ 16 ]
       ForkParameters:
-        - NumLoadsCoalescedA: [1, -1]
-        - NumLoadsCoalescedB: [1, -1]
         - ThreadTile:
           - [8, 8]
           - [2, 8]
@@ -285,8 +270,6 @@ BenchmarkProblems:
         - WorkGroup: [ [8, 8, 2 ] ]
         - ThreadTile: [ [4, 8] ]
         - DepthU: [ 16 ]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [-1]
       ForkParameters:
         - GlobalReadCoalesceGroupA: [False, True]
         - GlobalReadCoalesceGroupB: [False, True]
@@ -300,13 +283,10 @@ BenchmarkProblems:
 
     - # Branches
       BenchmarkCommonParameters:
-        - LoopDoWhile: [False]
         - LoopTail: [True]
         - EdgeType: ["Branch"]
         - DepthU: [ 16 ]
       ForkParameters:
-        - NumLoadsCoalescedA: [1, -1]
-        - NumLoadsCoalescedB: [1, -1]
         - ThreadTile:
           - [8, 8]
           - [2, 8]

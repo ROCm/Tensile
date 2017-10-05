@@ -140,7 +140,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   if os.name != "nt":
     runScriptFile.write("#!/bin/sh\n")
   q = "" if os.name == "nt" else "\""
-  runScriptFile.write("%s & echo %s%s%s & echo %s# Configuring CMake for Client%s & echo %s%s%s\n" \
+  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake")
   # runtime and kernel language
@@ -173,7 +173,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
       % ("ON" if globalParameters["MergeFiles"] else "OFF"))
   runScriptFile.write(" ../source\n")
-  runScriptFile.write("%s & echo %s%s%s & echo %s# Building Client%s & echo %s%s%s\n" \
+  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
@@ -214,8 +214,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
           "client.exe")
     else:
       executablePath = os.path.join(executablePath, "client")
-    runScriptFile.write("%s & echo %s%s%s & echo %s# Library Client Path:%s & echo %s\n" \
-        % (echoLine, q, HR, q, q, q, executablePath) )
+    runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client Path:%s && echo %s# %s%s && %s\n" \
+        % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)

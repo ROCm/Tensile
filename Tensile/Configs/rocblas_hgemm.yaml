@@ -33,10 +33,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 512 ]
         - EdgeType: ["ShiftPtr"]
-        - LoopDoWhile: [False]
         - LoopTail: [True]
-        - NumLoadsCoalescedA: [1]
-        - NumLoadsCoalescedB: [1]
         - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
@@ -76,10 +73,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 512 ]
         - EdgeType: ["ShiftPtr"]
-        - LoopDoWhile: [False]
         - LoopTail: [True]
-        - NumLoadsCoalescedA: [1]
-        - NumLoadsCoalescedB: [1]
         - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
@@ -119,10 +113,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 512 ]
         - EdgeType: ["ShiftPtr"]
-        - LoopDoWhile: [False]
         - LoopTail: [True]
-        - NumLoadsCoalescedA: [1]
-        - NumLoadsCoalescedB: [1]
         - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
@@ -163,10 +154,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 2880, 2880, 2, 512 ]
         - EdgeType: ["ShiftPtr"]
-        - LoopDoWhile: [False]
         - LoopTail: [True]
-        - NumLoadsCoalescedA: [1]
-        - NumLoadsCoalescedB: [1]
         - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:

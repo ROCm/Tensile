@@ -62,7 +62,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
-      solutionFileName = solutionWriter.getName(solution)
+      solutionFileName = solutionWriter.getSolutionName(solution)
 
     # write solution.cpp
     if not globalParameters["MergeFiles"]:
@@ -110,7 +110,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
     if not globalParameters["MergeFiles"]:
-      kernelName = kernelWriter.getName(kernel)
+      kernelName = kernelWriter.getKernelName(kernel)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -133,7 +133,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
-    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
+    kernelWriter = kernelWriterSource
     kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
 
     # write kernel.cpp
@@ -662,6 +662,8 @@ def TensileCreateLibrary():
       action="store_true")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", \
       action="store_false")
+  argParser.add_argument("--isa", dest="isa", action="append",
+      help="which architectures for assembly kernels to target" )
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -673,6 +675,21 @@ def TensileCreateLibrary():
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
+  if args.isa:
+    newISA = []
+    for isa in args.isa:
+      gfxIdx = isa.find("gfx")
+      if gfxIdx >= 0:
+        major = int(isa[gfxIdx+3:gfxIdx+4])
+        minor = int(isa[gfxIdx+4:gfxIdx+5])
+        step  = int(isa[gfxIdx+5:gfxIdx+6])
+        isaTuple = (major,minor,step)
+        if isaTuple in globalParameters["SupportedISA"] and isaTuple not in newISA:
+          print1("# User-Specified ISA: gfx%u%u%u" % (major,minor,step))
+          newISA.append(isaTuple)
+      else:
+        printWarning("isa parameter must be formed as: --isa gfx803")
+    arguments["SupportedISA"] = newISA
   assignGlobalParameters(arguments)
 
   if not os.path.exists(logicPath):

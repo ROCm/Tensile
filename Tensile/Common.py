@@ -39,10 +39,8 @@ globalParameters = OrderedDict()
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"
 if os.name == "nt":
   globalParameters["RuntimeLanguage"] = "OCL"
-  #globalParameters["KernelLanguage"] = "OCL"
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
-  #globalParameters["KernelLanguage"] = "HIP"
 # print level
 globalParameters["PrintLevel"] = 1
 globalParameters["LibraryPrintDebug"] = False
@@ -315,11 +313,34 @@ def printExit(message):
 def assignGlobalParameters( config ):
   global globalParameters
 
+  # read current gfx version
+  if os.name != "nt":
+    #cmdStr = ["/opt/rocm/bin/rocm_agent_enumerator"]
+    cmdStr = ["echo hi"]
+    process = Popen(["rocm_agent_enumerator", "-t", "GPU"], cwd="/opt/rocm/bin/", stdout=PIPE)
+    line = process.stdout.readline()
+    while line != "":
+      gfxIdx = line.find("gfx")
+      if gfxIdx >= 0:
+        major = int(line[gfxIdx+3:gfxIdx+4])
+        minor = int(line[gfxIdx+4:gfxIdx+5])
+        step  = int(line[gfxIdx+5:gfxIdx+6])
+        if (major,minor,step) in globalParameters["SupportedISA"]:
+          print1("# Host-Detected: gfx%u%u%u"%(major, minor, step))
+          globalParameters["CurrentISA"] = (major, minor, step)
+        line = process.stdout.readline()
+    if globalParameters["CurrentISA"] == (0,0,0):
+      printWarning("Did not detected ISA: %s" % globalParameters["SupportedISA"])
+    if process.returncode:
+      printWarning("rocm_agen_enumerator exited with code %u" % process.returncode)
+
+  # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
       printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
+  # User-specified global parameters
   print2("GlobalParameters:")
   for key in globalParameters:
     defaultValue = globalParameters[key]
@@ -338,26 +359,6 @@ def assignGlobalParameters( config ):
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
 
-  # read current gfx version
-  if os.name != "nt":
-    #cmdStr = ["/opt/rocm/bin/rocm_agent_enumerator"]
-    cmdStr = ["echo hi"]
-    process = Popen(["rocm_agent_enumerator", "-t", "GPU"], cwd="/opt/rocm/bin/", stdout=PIPE)
-    line = process.stdout.readline()
-    while line != "":
-      gfxIdx = line.find("gfx")
-      if gfxIdx >= 0:
-        major = int(line[gfxIdx+3:gfxIdx+4])
-        minor = int(line[gfxIdx+4:gfxIdx+5])
-        step  = int(line[gfxIdx+5:gfxIdx+6])
-        if (major,minor,step) in globalParameters["SupportedISA"]:
-          print1("# Detected gfx%u%u%u"%(major, minor, step))
-          globalParameters["CurrentISA"] = (major, minor, step)
-        line = process.stdout.readline()
-    if globalParameters["CurrentISA"] == (0,0,0):
-      printWarning("Did not detected ISA: %s" % globalParameters["SupportedISA"])
-    if process.returncode:
-      printWarning("rocm_agen_enumerator exited with code %u" % process.returncode)
 
 
 ################################################################################
