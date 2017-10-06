@@ -2516,21 +2516,19 @@ class KernelWriterAssembly(KernelWriter):
 
       # maxAddr = size[n] * stride[n-1]
       kStr += self.comment1("max read address = size[n] * stride[n-1]")
-      d = len(tP["ia"])-1 # dim
-      sizeIdx = tP["ia"][d]
+      dim = len(tP["ia"])-1 # dim
+      strideIdx = dim-1 # largest stride
+      sizeIdx = tP["ia"][dim]
 
-      sizeIdxIsFree = sizeIdx in kernel["ProblemType"]["IndicesFree"]
-      if sizeIdxIsFree:
-        pass
-      else:
+      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+      if sizeIdxIsSum:
         sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
 
-      strideIdx = tP["ia"][d-1]
       kStr += inst("s_mul_i32", \
           sgpr(maxAddr+0), \
-          sgpr("Sizes%s+%u"%("Free" if sizeIdxIsFree else "Sum", sizeIdx)),  \
+          sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
           sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-          "mul d%u lower"%d)
+          "mul d%u lower"%dim)
       kStr += inst("s_mov_b32", sgpr(maxAddr+1), hex(0), "zero (upper)")
       # maxAddr *= bytes/element
       kStr += inst("s_lshl_b64", \
