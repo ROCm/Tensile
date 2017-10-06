@@ -176,7 +176,5 @@ BenchmarkProblems:
           - Range: [ [32, 32, 32, 400], [32, 32, 32, 400], [2], [1536] ]
 
 LibraryLogic:
-  ScheduleName: Fiji
-  DeviceNames: ["R9 Nano"]
 
 LibraryClient:
