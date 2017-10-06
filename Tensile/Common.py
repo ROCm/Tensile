@@ -315,9 +315,7 @@ def assignGlobalParameters( config ):
 
   # read current gfx version
   if os.name != "nt":
-    #cmdStr = ["/opt/rocm/bin/rocm_agent_enumerator"]
-    cmdStr = ["echo hi"]
-    process = Popen(["rocm_agent_enumerator", "-t", "GPU"], cwd="/opt/rocm/bin/", stdout=PIPE)
+    process = Popen(["/opt/rocm/bin/rocm_agent_enumerator", "-t", "GPU"], stdout=PIPE)
     line = process.stdout.readline()
     while line != "":
       gfxIdx = line.find("gfx")
