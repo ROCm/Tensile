@@ -32,7 +32,6 @@ def BenchmarkProblemSize(cmdPrefix, row):
   for size in row:
     cmd += " "
     cmd += size
-  cmd += " 0"
   process = Popen(cmd, stdout=PIPE, shell=True)
   stdout = process.communicate()[0]
 
@@ -107,11 +106,7 @@ def TensileBenchmarkLibraryClient(userArgs):
   print output
 
   # begin commandString
-  cmdPrefix = ""
-  cmdPrefix += executablePath
-  cmdPrefix += " "
-  cmdPrefix += args.FunctionIdx
-  cmdPrefix += " "
+  cmdPrefix = "%s --function-idx %s --sizes" % (executablePath, args.FunctionIdx)
 
   # benchmark each problem size
   for row in [firstRow]:

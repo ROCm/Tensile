@@ -418,8 +418,8 @@ class LogicAnalyzer:
         lisPercWins = lisTuple[2]
         lisPercTime = lisTuple[3]
         if lisPercSaved < self.parameters["SolutionImportanceMin"]:
-          print1("# Removing Unimportant Solution: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
-              % (self.solutionNames[lisIdx], 100*lisPercWins, 100*lisPercTime, 100*lisPercSaved) )
+          print1("# Removing Unimportant Solution #%u: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
+              % (lisIdx, self.solutionNames[lisIdx], 100*lisPercWins, 100*lisPercTime, 100*lisPercSaved) )
           self.removeSolution(lisIdx)
           continue
         else:
@@ -844,17 +844,17 @@ class LogicAnalyzer:
           canRemove = False
           break
       if canRemove:
-        idx = solutionImportance[0][0]
+        idx = solutionImportance[i][0]
         if totalSavedMs > 0:
-          percSaved = 1.0 * solutionImportance[0][1] / totalSavedMs
+          percSaved = 1.0 * solutionImportance[i][1] / totalSavedMs
         else:
           percSaved = 0
         if totalWins > 0:
-          percWins = 1.0 * solutionImportance[0][2] / totalWins
+          percWins = 1.0 * solutionImportance[i][2] / totalWins
         else:
           percWins = 0
         if totalExecMs > 0:
-          percTime = 1.0 * solutionImportance[0][3] / totalExecMs
+          percTime = 1.0 * solutionImportance[i][3] / totalExecMs
         else:
           percTime = 0
         return ( idx, percSaved, percWins, percTime )
@@ -867,9 +867,9 @@ class LogicAnalyzer:
   def removeSolution(self, removeSolutionIdx):
 
     # temporarily move current to old
-    oldSolutions = self.solutions
+    oldSolutions = deepcopy(self.solutions)
     oldNumSolutions = self.numSolutions
-    oldData = self.data
+    oldData = deepcopy(self.data)
 
     # update solutions
     self.solutions = []
