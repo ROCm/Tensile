@@ -218,7 +218,7 @@ defaultProblemType = {
     "Batched":                  False,
     "IndexAssignmentsA":        [0, 2],
     "IndexAssignmentsB":        [1, 2],
-    "NumDimensionsC":           2,
+    "NumIndicesC":           2,
     "DataType":                 0,
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
