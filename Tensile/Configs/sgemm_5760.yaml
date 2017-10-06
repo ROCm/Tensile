@@ -32,10 +32,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Range: [ [5760], 0, 0 ]
-        - LoopDoWhile: [False]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [1]
-        - WorkGroupMapping: [1]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
@@ -70,10 +67,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Range: [ [5760], 0, 0 ]
-        - LoopDoWhile: [False]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [1]
-        - WorkGroupMapping: [1]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
@@ -108,10 +102,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Range: [ [5760], 0, 0 ]
-        - LoopDoWhile: [False]
-        - NumLoadsCoalescedA: [-1]
-        - NumLoadsCoalescedB: [1]
-        - WorkGroupMapping: [1]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
@@ -146,10 +137,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - ProblemSizes:
           - Range: [ [5760], 0, 0 ]
-        - LoopDoWhile: [False]
-        - NumLoadsCoalescedA: [1]
-        - NumLoadsCoalescedB: [1]
-        - WorkGroupMapping: [-1]
+        - WorkGroupMapping: [-8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]

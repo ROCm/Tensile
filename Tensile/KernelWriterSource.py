@@ -35,6 +35,7 @@ class KernelWriterSource(KernelWriter):
   def __init__( self, kernelMinNaming, kernelSerialNaming ):
     super(KernelWriterSource, self).__init__( \
         kernelMinNaming, kernelSerialNaming)
+    self.language = globalParameters["RuntimeLanguage"]
 
     if self.language == "OCL":
       # everything escaped extra b/c string

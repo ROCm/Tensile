@@ -21,7 +21,7 @@
 
 from SolutionStructs import Solution
 from KernelWriterSource import KernelWriterSource
-from Common import globalParameters, kernelLanguageIsSource
+from Common import globalParameters
 
 ################################################################################
 # SolutionWriter
@@ -91,7 +91,7 @@ class SolutionWriter:
     t += "  "
 
     # hipFunction Struct
-    if not kernelLanguageIsSource():
+    if solution["KernelLanguage"] == "Assembly":
       s += "\n"
       s += "/* module function args */\n"
       s += "%sstruct {\n" % t
@@ -115,7 +115,7 @@ class SolutionWriter:
     # kernels
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
-    if globalParameters["KernelLanguage"] == "OCL":
+    if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
       for kernelIdx in range(0, len(kernelNames)):
@@ -144,13 +144,32 @@ class SolutionWriter:
           s += "%s      stream,\n" % (t)
           s += "%s      buildOptions);\n" % (t)
 
-    elif not kernelLanguageIsSource():
-      s += "%shipFunction_t %s_hipFunction;\n" % (t, kernelName)
-      s += "%s  tensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
-      s += "%s      &%s_hipFunction,\n" % (t, kernelName)
-      s += "%s      \"%s\",\n" % (t, kernelName)
-      s += "%s      %s_coba, // code object byte array\n" % (t, kernelName)
-      s += "%s      stream);\n" % (t)
+    elif solution["KernelLanguage"] == "Assembly":
+      kernel = kernels[0]
+      s += "%sint deviceId;\n" % (t)
+      s += "%shipCtxGetDevice(&deviceId);\n" % (t)
+      s += "%shipDeviceProp_t deviceProperties;\n" % (t)
+      s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
+      s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
+      #s += "%sprintf(\"Device ISA: %%i\\n\", isa);\n" % (t)
+      s += "%shipFunction_t hipFunction;\n" % (t)
+      for i in range(0, len(globalParameters["SupportedISA"])):
+        isa = globalParameters["SupportedISA"][i]
+        kernel["ISA"] = (isa[0], isa[1], isa[2])
+        kernelName = self.kernelWriter.getKernelName(kernel)
+        s += t
+        if i > 0:
+          s += " else "
+        s += "%sif ( isa == %u%u%u ) {\n" % (t, isa[0], isa[1], isa[2])
+        #s += "%sprintf(\"Selected ISA: %u%u%u\\n\");\n" % (t, isa[0], isa[1], isa[2])
+        s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
+        s += "%s    &hipFunction,\n" % (t)
+        s += "%s    \"%s\",\n" % (t, kernelName)
+        s += "%s    %s_coba, // code object byte array\n" % (t, kernelName)
+        s += "%s    stream);\n" % (t)
+        s += "}"
+      s += "\n"
+
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
     # index assignments
@@ -393,6 +412,8 @@ class SolutionWriter:
     ########################################
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
+      if self.language == "HIP":
+        kernel["ISA"] = (0, 0, 0) # HIP source kernels needs dummy ISA version
       kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
       s += "%sunsigned int kernelIdx = %u;\n" % (t, kernelIdx)
@@ -480,7 +501,7 @@ class SolutionWriter:
         s += "%stry {\n" % (t)
         t += "  "
         # hip kernel
-        if kernelLanguageIsSource():
+        if solution["KernelLanguage"] == "Source":
           s += "%shipLaunchKernel(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -506,8 +527,9 @@ class SolutionWriter:
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
           s += "    );\n"
-        else:
 
+        # assembly kernel
+        else:
           if globalParameters["DebugKernel"]:
             s += "%sconst unsigned int debugBufferElementsPerThread = 16;\n" % t
             s += "%sunsigned int debugBufferNumElem = debugBufferElementsPerThread;\n" % (t)
@@ -548,7 +570,7 @@ class SolutionWriter:
 
           s += "%shipModuleLaunchKernel(\n" % (t)
           t += "  "
-          s += "%s%s_hipFunction,\n" % (t, kernelName)
+          s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0],\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][1],\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][2],\n" % (t)

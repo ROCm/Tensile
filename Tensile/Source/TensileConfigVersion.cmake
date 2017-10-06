@@ -21,7 +21,7 @@
 
 # hardcoded tensile version; also in Tensile/__init__.py
 set(TENSILE_VERSION_MAJOR 3)
-set(TENSILE_VERSION_MINOR 0)
+set(TENSILE_VERSION_MINOR 2)
 set(TENSILE_VERSION_PATCH 0)
 
 # export version
