@@ -178,7 +178,7 @@ def readLibraryLogicForSchedule( filename ):
     printExit("len(%s) %u < 7" % (filename, len(data)))
 
   # parse out objects
-  version           = data[0]["MinimumRequiredVersion"]
+  versionString     = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
   deviceNames       = data[2]
   problemTypeState  = data[3]
@@ -188,7 +188,7 @@ def readLibraryLogicForSchedule( filename ):
   rangeLogic        = data[7]
 
   # does version match
-  if version != __version__:
+  if not versionIsCompatible(versionString):
     printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
         % (filename, version, __version__) )
 

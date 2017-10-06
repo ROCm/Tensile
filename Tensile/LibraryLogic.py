@@ -415,57 +415,17 @@ class LogicAnalyzer:
       if lisTuple != None:
         lisIdx = lisTuple[0]
         lisPercSaved = lisTuple[1]
+        lisPercWins = lisTuple[2]
+        lisPercTime = lisTuple[3]
         if lisPercSaved < self.parameters["SolutionImportanceMin"]:
-          print1("# Removing Unimportant Solution: %u %s" \
-              % (lisIdx, self.solutionNames[lisIdx]) )
+          print1("# Removing Unimportant Solution #%u: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
+              % (lisIdx, self.solutionNames[lisIdx], 100*lisPercWins, 100*lisPercTime, 100*lisPercSaved) )
           self.removeSolution(lisIdx)
           continue
         else:
           break
       else: # no more lis, remainders are exact winner
         break
-
-
-  """
-  ##############################################################################
-  # ENTRY: Smooth Outliers
-  ##############################################################################
-  def smoothOutliers(self):
-    problemSizes = [0]*self.numIndices
-    for problemIndices in self.problemIndicesForGlobalRange:
-      problemSerial = self.indicesToSerial(0, problemIndices)
-
-      for solutionIdx in range(0, self.numSolutions):
-        gflops = self.data[problemSerial+solutionIdx]
-        neighborGFlops = []
-        smoothProblem = False
-        for iIdx in range(0, self.numIndices):
-          if problemIndices[iIdx] > 0 \
-              and problemIndices[iIdx] < self.numProblemSizes[iIdx]-1:
-            neighborBeforeIndices = deepcopy(problemIndices)
-            neighborAfterIndices = deepcopy(problemIndices)
-            neighborBeforeIndices[iIdx] -= 1
-            neighborAfterIndices[iIdx] += 1
-            neighborBeforeIdx = self.indicesToSerial(0, neighborBeforeIndices)
-            neighborAfterIdx = self.indicesToSerial(0, neighborAfterIndices)
-            neighborBeforeGFlops = self.data[neighborBeforeIdx+solutionIdx]
-            neighborAfterGFlops = self.data[neighborAfterIdx+solutionIdx]
-            neighborGFlops.append(neighborBeforeGFlops)
-            neighborGFlops.append(neighborAfterGFlops)
-            if neighborBeforeGFlops > gflops \
-                and neighborAfterGFlops < gflops :
-              smoothProblem = True
-        if smoothProblem:
-          s = ""
-          for i in range(0, self.numIndices):
-            problemSizes[i] = self.problemIndexToSize[i][problemIndices[i]]
-            s += "%u, " % problemSizes[i]
-          new = sum(neighborGFlops)/len(neighborGFlops)
-          old = self.data[problemSerial+solutionIdx]
-          s += "%f -> %f" % (old, new)
-          self.data[problemSerial+solutionIdx] \
-              = sum(neighborGFlops)/len(neighborGFlops)
-  """
 
 
   ##############################################################################
@@ -854,19 +814,29 @@ class LogicAnalyzer:
           secondGFlops = winnerGFlops
           winnerIdx = solutionIdx
           winnerGFlops = solutionGFlops
-      winnerTimeMs = totalFlops / winnerGFlops / 1000000
-      secondTimeMs = totalFlops / secondGFlops / 1000000
-      solutionImportance[winnerIdx][1] += (secondTimeMs - winnerTimeMs)
-      solutionImportance[winnerIdx][2] += 1
-      solutionImportance[winnerIdx][3] += winnerTimeMs
+      if winnerGFlops > 0 and secondGFlops > 0:
+        winnerTimeMs = totalFlops / winnerGFlops / 1000000
+        secondTimeMs = totalFlops / secondGFlops / 1000000
+        solutionImportance[winnerIdx][1] += (secondTimeMs - winnerTimeMs)
+        solutionImportance[winnerIdx][2] += 1
+        solutionImportance[winnerIdx][3] += winnerTimeMs
 
-      totalSavedMs += secondTimeMs - winnerTimeMs
-      totalExecMs += winnerTimeMs
-      totalWins += 1
+        totalSavedMs += secondTimeMs - winnerTimeMs
+        totalExecMs += winnerTimeMs
+        totalWins += 1
+
+    # print data before sorting
+    for i in range(0, self.numSolutions):
+      print2("[%2u] %s: %f saved, %u wins, %u time" \
+          % (solutionImportance[i][0], \
+          self.solutionNames[solutionImportance[i][0]], \
+          solutionImportance[i][1], solutionImportance[i][2], \
+          solutionImportance[i][3] ) )
+
     totalSavedMs = max(1, totalSavedMs)
     solutionImportance.sort(key=lambda x: x[1])
     for i in range(0, self.numSolutions):
-      solutionIdx = solutionImportance[0][0]
+      solutionIdx = solutionImportance[i][0]
       canRemove = True
       for exactProblem in self.exactWinners:
         winnerIdx = self.exactWinners[exactProblem][0]
@@ -874,17 +844,17 @@ class LogicAnalyzer:
           canRemove = False
           break
       if canRemove:
-        idx = solutionImportance[0][0]
+        idx = solutionImportance[i][0]
         if totalSavedMs > 0:
-          percSaved = solutionImportance[0][1] / totalSavedMs
+          percSaved = 1.0 * solutionImportance[i][1] / totalSavedMs
         else:
           percSaved = 0
         if totalWins > 0:
-          percWins = solutionImportance[0][2] / totalWins
+          percWins = 1.0 * solutionImportance[i][2] / totalWins
         else:
           percWins = 0
         if totalExecMs > 0:
-          percTime = solutionImportance[0][3] / totalExecMs
+          percTime = 1.0 * solutionImportance[i][3] / totalExecMs
         else:
           percTime = 0
         return ( idx, percSaved, percWins, percTime )
@@ -897,9 +867,9 @@ class LogicAnalyzer:
   def removeSolution(self, removeSolutionIdx):
 
     # temporarily move current to old
-    oldSolutions = self.solutions
+    oldSolutions = deepcopy(self.solutions)
     oldNumSolutions = self.numSolutions
-    oldData = self.data
+    oldData = deepcopy(self.data)
 
     # update solutions
     self.solutions = []

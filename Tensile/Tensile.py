@@ -23,7 +23,7 @@ import os
 import sys
 import argparse
 
-from Common import globalParameters, print1, ensurePath, \
+from Common import globalParameters, print1, print2, ensurePath, \
     assignGlobalParameters, HR
 import YAMLIO
 import BenchmarkProblems
@@ -102,8 +102,6 @@ def Tensile(userArgs):
       help="override which OpenCL platform to benchmark")
   argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
       choices=["HIP", "OCL"], help="override which runtime language to use")
-  argParser.add_argument("--kernel-language", dest="KernelLanguage", \
-      choices=["HIP", "OCL"], help="override which kernel language to use")
   argParser.add_argument("-v", "--verbose", action="store_true", \
       help="set PrintLevel=2")
   argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -117,7 +115,7 @@ def Tensile(userArgs):
   args = argParser.parse_args(userArgs)
   globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
   configPath = os.path.realpath( args.config_file)
-  print1("# ConfigFile: %s" % (configPath) )
+  print2("# ConfigFile: %s" % (configPath) )
   config = YAMLIO.readConfig( configPath )
   ensurePath(globalParameters["WorkingPath"])
 
@@ -137,9 +135,6 @@ def Tensile(userArgs):
   if args.RuntimeLanguage:
     print1("# Command-line override: RuntimeLanguage")
     globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
-  if args.KernelLanguage:
-    print1("# Command-line override: KernelLanguage")
-    globalParameters["KernelLanguage"] = args.KernelLanguage
   if args.verbose:
     print1("# Command-line override: PrintLevel")
     globalParameters["PrintLevel"] = 2

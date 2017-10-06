@@ -84,8 +84,7 @@ unsigned int defaultSize = 128;
 #endif
 
 #if Tensile_CLIENT_BENCHMARK
-unsigned int invalidSolutions[numSolutions];
-unsigned int numInvalidSolutions = 0;
+std::set<unsigned int> invalidSolutions;
 #endif
 
 void initControls();
@@ -725,7 +724,7 @@ bool benchmarkAllSolutionsForSize(
     // write results to file
     if (numInvalids > 0) {
       gflops = -1.0;
-      invalidSolutions[numInvalidSolutions++] = solutionIdx;
+      invalidSolutions.insert(solutionIdx);
     }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);

@@ -28,7 +28,7 @@ from subprocess import Popen
 import time
 
 from BenchmarkStructs import BenchmarkProcess
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar, kernelLanguageIsSource
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime, ProgressBar
 from SolutionStructs import Solution, ProblemType
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
@@ -372,11 +372,16 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   # Min Naming
   ##############################################################################
   kernels = []
+  kernelsBetaOnly = []
   for solution in solutions:
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
+    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
+    for kernel in solutionKernelsBetaOnly:
+      if kernel not in kernelsBetaOnly:
+        kernelsBetaOnly.append(kernel)
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
   kernelSerialNaming = Solution.getSerialNaming(kernels)
@@ -385,27 +390,27 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
   solutionWriter = SolutionWriter( \
       solutionMinNaming, solutionSerialNaming, \
       kernelMinNaming, kernelSerialNaming)
-  if kernelLanguageIsSource():
-    kernelWriter = KernelWriterSource( \
-        kernelMinNaming, kernelSerialNaming)
-  else:
-    kernelWriter = KernelWriterAssembly( \
-        kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource = KernelWriterSource( \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly( \
+      kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], solutions, solutionWriter, kernelWriter)
-
+      globalParameters["WorkingPath"], solutions, kernels, kernelsBetaOnly, \
+      solutionWriter, kernelWriterSource, kernelWriterAssembly )
 
   ##############################################################################
   # Write CMake
   ##############################################################################
 
   clientName = "TensileBenchmark_%s" % stepName
-  writeCMake(globalParameters["WorkingPath"], solutions, filesToCopy, clientName)
+  writeCMake(globalParameters["WorkingPath"], solutions, kernels, filesToCopy, \
+      clientName)
 
   forBenchmark = True
-  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, filesToCopy)
+  writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
+      filesToCopy)
 
 
 ################################################################################
@@ -467,8 +472,8 @@ class WinningParameterDict:
       winningParameters = {}
       for paramName in benchmarkPermutations[0]:
         winningParameters[paramName] = winningSolution[paramName]
-      print2("HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
-          % ( hardcodedIdx, winningIdx, winningScore, winningParameters))
+      #print2("HCP[%u] Winner: idx=%u, gflops=%f, param=%s" \
+      #    % ( hardcodedIdx, winningIdx, winningScore, winningParameters))
       matches = WinningParameterDict.get(hardcodedParameters, self.winners)
       if len(matches) != 1:
         printExit("Didn't find exactly 1 match")

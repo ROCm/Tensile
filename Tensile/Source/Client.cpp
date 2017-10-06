@@ -195,10 +195,11 @@ int main( int argc, char *argv[] ) {
   std::cout << std::endl;
   if (invalids) {
 #if Tensile_CLIENT_BENCHMARK
-    printf("\nInvalid Solutions: %u/%u\n", numInvalidSolutions, numSolutions);
-    for (unsigned int i = 0; i < numInvalidSolutions; i++) {
-      printf("[%2u] %s\n", invalidSolutions[i],
-          solutionNames[invalidSolutions[i]]);
+    printf("\nInvalid Solutions: %u/%u\n", static_cast<unsigned int>(invalidSolutions.size()), numSolutions);
+    // for (unsigned int i = 0; i < numInvalidSolutions; i++) {
+    for (std::set<unsigned int>::iterator i = invalidSolutions.begin(); i != invalidSolutions.end(); i++) {
+      unsigned int invalidSolutionIdx = *i;
+      printf("[%2u] %s\n", invalidSolutionIdx, solutionNames[invalidSolutionIdx]);
     }
 #endif
     return EXIT_FAILURE;

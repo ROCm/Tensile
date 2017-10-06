@@ -20,23 +20,22 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, kernelLanguageIsSource, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
+from Common import globalParameters, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
 import abc
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
 
 ################################################################################
-# Make OpenCL Kernel String
+# Kernel Writer
 ################################################################################
 class KernelWriter:
   __metaclass__=abc.ABCMeta
 
   ##############################################################################
-  # Make OpenCL Kernel String
+  # Init
   ##############################################################################
   def __init__( self, kernelMinNaming, kernelSerialNaming ):
-    self.language = globalParameters["KernelLanguage"]
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
 
@@ -73,7 +72,8 @@ class KernelWriter:
     ####################################
     kStr += self.comment3("Begin Kernel")
     kStr += self.functionSignaturePrefix(kernel)
-    kStr += self.functionSignature(kernel)
+    beforeFunctionSignature = kStr
+    kStr = ""
     kStr += self.functionSignatureSuffix(kernel)
     kStr += self.functionBegin(kernel)
 
@@ -713,7 +713,10 @@ class KernelWriter:
     kStr += self.functionSuffix(kernel)
 
     kStr += self.closeString(kernel)
+    afterFunctionSignature = kStr
 
+    # function signature last since it needs to know how many gprs were actually used
+    kStr = beforeFunctionSignature + self.functionSignature(kernel) + afterFunctionSignature
     return kStr
 
 
@@ -775,6 +778,10 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+    if kernel["KernelLanguage"] == "Source":
+      self.language = globalParameters["RuntimeLanguage"]
+    else:
+      self.language = "ASM"
     self.indexChars = []
     for i in range(0, len(globalParameters["IndexChars"])):
       self.indexChars.append(globalParameters["IndexChars"][i])
@@ -1174,6 +1181,7 @@ class KernelWriter:
       tP["ruc"] = self.readUnrollDimComponentsA
       tP["wtc"] = self.writeTileDimComponentsA
       tP["wuc"] = self.writeUnrollDimComponentsA
+      tP["idx"] = kernel["ProblemType"]["Index0"]
     else: # B
       tP["isA"] = False
       tP["isB"] = True
@@ -1218,6 +1226,7 @@ class KernelWriter:
       tP["ruc"] = self.readUnrollDimComponentsB
       tP["wtc"] = self.writeTileDimComponentsB
       tP["wuc"] = self.writeUnrollDimComponentsB
+      tP["idx"] = kernel["ProblemType"]["Index1"]
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
@@ -1635,10 +1644,9 @@ class KernelWriter:
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
 
-    if not kernelLanguageIsSource():
+    if kernel["KernelLanguage"] == "Assembly":
       # write assembly file to assembly directory
       pushWorkingPath("assembly")
-      pushWorkingPath(globalParameters["KernelLanguage"])
       kernelName = self.getKernelName(kernel)
       fileBase = path.join(globalParameters["WorkingPath"], kernelName )
       assemblyFileName = "%s.s" % fileBase
@@ -1661,14 +1669,14 @@ class KernelWriter:
           assemblerFile.write("#!/bin/sh\n")
           assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
           assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa -mcpu=gfx%u%u%u -c -o $1.o $1.s\n" \
-              % (self.versionMajor, self.versionMinor, self.versionStep))
+              % (self.version[0], self.version[1], self.version[2]))
           assemblerFile.write("${ASM} -target amdgcn--amdhsa $1.o -o $1.co\n")
         assemblerFile.close()
         chmod(assemblerFileName, 0777)
 
       # run assembler
       assemblerCommand = [assemblerFileName, kernelName]
-      print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
+      #print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, \
           cwd=globalParameters["WorkingPath"] )
       assemblerProcess.communicate()
@@ -1695,8 +1703,6 @@ class KernelWriter:
         if byteIdx % 16 == 15:
           fileString += "\n"
 
-
-      popWorkingPath() # arch
       popWorkingPath() # assembly
 
       # read code-object file and convert to c++ representable uchar*
@@ -1710,7 +1716,7 @@ class KernelWriter:
   def getHeaderFileString(self, kernel):
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
-    if kernelLanguageIsSource():
+    if self.language == "HIP" or self.language == "OCL":
       if not globalParameters["MergeFiles"]:
         fileString += "#pragma once\n\n"
         if self.language == "HIP":

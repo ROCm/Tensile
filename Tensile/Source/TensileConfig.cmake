@@ -27,7 +27,7 @@ include(CMakeParseArguments)
 function(TensileCreateLibrary
     Tensile_LOGIC_PATH
     Tensile_RUNTIME_LANGUAGE
-    Tensile_KERNEL_LANGUAGE
+    Tensile_ISA
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
@@ -67,12 +67,16 @@ function(TensileCreateLibrary
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
 
+  foreach( target ${Tensile_ISA} )
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--isa;${target}")
+  endforeach()
+
+
   # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}
     ${Tensile_LOGIC_PATH}
     ${Tensile_SOURCE_PATH}
     ${Tensile_RUNTIME_LANGUAGE}
-    ${Tensile_KERNEL_LANGUAGE}
     )
 
   #string( REPLACE ";" " " Tensile_CREATE_COMMAND "${Tensile_CREATE_COMMAND}")
@@ -101,9 +105,13 @@ function(TensileCreateLibrary
       )
   endif()
 
-  # create Tensile
+  # create Tensile Library
   set(options)
   add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
+  # specify gpu targets
+  foreach( target ${Tensile_ISA} )
+    target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
+  endforeach()
   if( Tensile_MERGE_FILES )
     target_include_directories(Tensile
       PUBLIC $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}> )

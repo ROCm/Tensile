@@ -186,39 +186,23 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
               tensile ${rel_path_to_src}/Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults
 
               # thorough tests
-              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_hgemm.yaml hgemm
-              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_sgemm.yaml sgemm
+              tensile ${rel_path_to_src}/Tensile/Configs/test_hgemm.yaml hgemm
+              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm.yaml sgemm
 
               # vectors
-              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors
-              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors
+              tensile ${rel_path_to_src}/Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors
+              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors
 
               # tensor contractions
-              tensile --runtime-language=HIP --kernel-language=HIP ${rel_path_to_src}/Tensile/Configs/tensor_contraction.yaml tensor_contraction
+              tensile ${rel_path_to_src}/Tensile/Configs/tensor_contraction.yaml tensor_contraction
+
+              # assembly
+              tensile ${rel_path_to_src}/Tensile/Configs/sgemm_asm.yaml sgemm_asm
           """
 
-          // assembly
-          if( env.NODE_LABELS ==~ /.*gfx803.*/ )
-          {
-            sh  """#!/usr/bin/env bash
-                set -x
-                cd ${paths.project_build_prefix}
-                tensile ${rel_path_to_src}/Tensile/Configs/sgemm_gfx803.yaml sgemm_gfx803
-            """
-          }
-          // assembly
-          if( env.NODE_LABELS ==~ /.*gfx900.*/ )
-          {
-            sh  """#!/usr/bin/env bash
-                set -x
-                cd ${paths.project_build_prefix}
-                tensile ${rel_path_to_src}/Tensile/Configs/sgemm_gfx900.yaml sgemm_gfx900
-            """
-          }
-
           // TODO re-enable when jenkins supports opencl
-          //sh "tensile --runtime-language=OCL --kernel-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
-          //sh "tensile --runtime-language=OCL --kernel-language=OCL ${rel_path_to_src}/Tensile/Configs/convolution.yaml tensor_contraction"
+          //sh "tensile --runtime-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
+          //sh "tensile --runtime-language=OCL ${rel_path_to_src}/Tensile/Configs/convolution.yaml tensor_contraction"
 
           archiveArtifacts artifacts: "${paths.project_build_prefix}/dist/*.egg", fingerprint: true
         }
