@@ -956,7 +956,7 @@ class KernelWriterAssembly(KernelWriter):
     # RESUME
     kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
     #kStr += dump("v[idx]")
-    if kernel["ProblemType"]["UseBeta"]:
+    if beta:
       kStr += inst("flat_load_dword", "v[\\tmpVgpr]", "v[addr:addr+1]", \
           "load C" )
       kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
@@ -1177,8 +1177,9 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     kStr += self.globalWriteMacro(kernel, False, False)
     kStr += self.globalWriteMacro(kernel, False, True)
-    kStr += self.globalWriteMacro(kernel, True,  False)
-    kStr += self.globalWriteMacro(kernel, True,  True)
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += self.globalWriteMacro(kernel, True,  False)
+      kStr += self.globalWriteMacro(kernel, True,  True)
 
     ########################################
     # Dynamic Scalar Divide
@@ -3247,10 +3248,6 @@ class KernelWriterAssembly(KernelWriter):
           sgpr(fullExecMaskSgpr,2), \
           "0xFFFFFFFFFFFFFFFF", \
           "full exec mask")
-      #kStr += inst("s_mov_b32", \
-      #    sgpr(fullExecMaskSgpr+1), \
-      #    "0xFFFFFFFF", \
-      #    "full exec mask (hi)")
 
     # store free sizes in vgprs for comparison
     self.sizesFreeVgprs = self.vgprPool.checkOut(2)
@@ -3263,7 +3260,6 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("SizesFree+1"), \
         "free sizes sgpr -> vgpr")
 
-    # RESUME
     return kStr
 
   ##############################################################################
@@ -3272,18 +3268,34 @@ class KernelWriterAssembly(KernelWriter):
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     kStr = ""
-    kStr += self.comment1("GLOBAL_WRITE vc0 vc1 tt0 tt1 coord0 coord1%s" % (self.endLine) )
-    #kStr += "s_endpgm\n"
-    #kStr += "GLOBAL_WRITE 0 0 0 0%s" % (self.endLine)
-    #kStr += "s_endpgm\n"
+    kStr += self.comment1("GLOBAL_WRITE vc0 vc1 tt0 tt1 coord0 coord1%s" \
+        % (self.endLine) )
     globalWriteTmp = self.vgprPool.checkOut(7)
-    for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
-      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
-        for vc1 in range(0, kernel["VectorWidth"]):
-          for vc0 in range(0, kernel["VectorWidth"]):
-            kStr += "GLOBAL_WRITE_Edge %u %u %u %u %u %u %u %u %u%s" \
-                % (vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
-                self.sizesFreeVgprs, globalWriteTmp, self.endLine)
+
+    if kernel["ProblemType"]["UseBeta"]:
+      betaLabel = self.getLabel("GW_Beta")
+      endLabel = self.getLabel("WG_End")
+      kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
+      kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
+          "Beta not not zero; so jump to B nonzero")
+      betas = [False, True]
+    else:
+      betas = [False]
+
+    for beta in betas:
+      for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+        for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+          for vc1 in range(0, kernel["VectorWidth"]):
+            for vc0 in range(0, kernel["VectorWidth"]):
+              kStr += "GLOBAL_WRITE%s_Edge %u %u %u %u %u %u %u %u %u%s" \
+                  % ("_Beta" if beta else "", \
+                  vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
+                  self.sizesFreeVgprs, globalWriteTmp, self.endLine)
+      if not beta and kernel["ProblemType"]["UseBeta"]:
+        kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
+        kStr += "label_%04u:%s"%(betaLabel, self.endLine)
+    if kernel["ProblemType"]["UseBeta"]:
+      kStr += "label_%04u:%s"%(endLabel, self.endLine)
     self.vgprPool.checkIn(globalWriteTmp)
     return kStr
 
