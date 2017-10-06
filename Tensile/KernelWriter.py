@@ -1181,6 +1181,7 @@ class KernelWriter:
       tP["ruc"] = self.readUnrollDimComponentsA
       tP["wtc"] = self.writeTileDimComponentsA
       tP["wuc"] = self.writeUnrollDimComponentsA
+      tP["idx"] = kernel["ProblemType"]["Index0"]
     else: # B
       tP["isA"] = False
       tP["isB"] = True
@@ -1225,6 +1226,7 @@ class KernelWriter:
       tP["ruc"] = self.readUnrollDimComponentsB
       tP["wtc"] = self.writeTileDimComponentsB
       tP["wuc"] = self.writeUnrollDimComponentsB
+      tP["idx"] = kernel["ProblemType"]["Index1"]
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B

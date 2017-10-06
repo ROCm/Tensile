@@ -214,7 +214,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
           "client.exe")
     else:
       executablePath = os.path.join(executablePath, "client")
-    runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client Path:%s && echo %s# %s%s && %s\n" \
+    runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
         % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
   runScriptFile.close()
   if os.name != "nt":

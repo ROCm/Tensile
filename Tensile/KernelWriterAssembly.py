@@ -1120,42 +1120,52 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u lower"%i)
-          # offset * stride (hi) FIXME
-          kStr += inst("v_mov_b32", \
-              "v[\\vgprTmp+2]", \
-              hex(0),  \
-              "mul d%u upper"%i)
-          kStr += inst("v_addc_u32", \
+          kStr += inst("v_mul_hi_u32", \
               "v[\\vgprTmp+1]", \
-              "vcc",  \
-              hex(0), \
-              "v[\\vgprTmp+2]", \
-              "vcc",  \
+              sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+              "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u upper"%i)
+          # offset * stride (hi) FIXME
+          #kStr += inst("v_mov_b32", \
+          #    "v[\\vgprTmp+2]", \
+          #    hex(0),  \
+          #    "mul d%u upper"%i)
+          #kStr += inst("v_addc_u32", \
+          #    "v[\\vgprTmp+1]", \
+          #    "vcc",  \
+          #    hex(0), \
+          #    "v[\\vgprTmp+2]", \
+          #    "vcc",  \
+          #    "mul d%u upper"%i)
         # other c index sgpr
         elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
           # offset * stride (lo)
           kStr += inst("v_mov_b32", \
-              "v[\\vgprTmp+1]", \
+              "v[\\vgprTmp+2]", \
               "s[\\sgprOffset%s]"%idxChars[i], \
-              "sgprOffset -> vgprTmp+1")
+              "sgprOffset -> vgprTmp+2")
           kStr += inst("v_mul_lo_u32", \
               "v[\\vgprTmp+0]", \
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
-              "v[\\vgprTmp+1]",  \
+              "v[\\vgprTmp+2]",  \
               "mul d%u lower"%i)
-          # offset * stride (hi) FIXME
-          kStr += inst("v_mov_b32", \
-              "v[\\vgprTmp+2]", \
-              hex(0),  \
-              "mul d%u upper"%i)
-          kStr += inst("v_addc_u32", \
+          kStr += inst("v_mul_hi_u32", \
               "v[\\vgprTmp+1]", \
-              "vcc",  \
-              hex(0), \
-              "v[\\vgprTmp+2]", \
-              "vcc",  \
+              sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+              "v[\\vgprTmp+2]",  \
               "mul d%u upper"%i)
+          # offset * stride (hi) FIXME
+          #kStr += inst("v_mov_b32", \
+          #    "v[\\vgprTmp+2]", \
+          #    hex(0),  \
+          #    "mul d%u upper"%i)
+          #kStr += inst("v_addc_u32", \
+          #    "v[\\vgprTmp+1]", \
+          #    "vcc",  \
+          #    hex(0), \
+          #    "v[\\vgprTmp+2]", \
+          #    "vcc",  \
+          #    "mul d%u upper"%i)
         # other sum index
         else:
           # don't even need to add
@@ -1168,14 +1178,14 @@ class KernelWriterAssembly(KernelWriter):
             "v[\\vgprAddr+0]",  \
             "v[\\vgprTmp+0]", \
             "accumulate d%u lower"%i)
-        # addr += offset * stride (hi) FIXME
+        # addr += offset * stride (hi)
         kStr += inst("v_addc_u32", \
             "v[\\vgprAddr+1]", \
             "vcc", \
             "v[\\vgprAddr+1]",  \
-            hex(0), \
+            "v[\\vgprTmp+1]", \
             "vcc", \
-            "accumulate d%u lower"%i)
+            "accumulate d%u upper"%i)
 
       # addr *= bytes/element
       kStr += inst("v_lshlrev_b64", \
@@ -1789,7 +1799,7 @@ class KernelWriterAssembly(KernelWriter):
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprPool.checkOut(1)
-    kStr += inst("v_add_i32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
+    kStr += inst("v_add_i32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["idx"]), \
         hex(-margin), "edge = Size%s-%u"%(tP["tileChar"], margin) )
     #kStr += dump(vgpr(edge))
 
@@ -2058,7 +2068,7 @@ class KernelWriterAssembly(KernelWriter):
   def lwaFinalOffsets(self, kernel, tP):
     return self.comment("N/A")
     kStr = ""
-    for perp in range(0, tP["nrp"]): # FIXME
+    for perp in range(0, tP["nrp"]):
       for para in range(0, tP["nrc"]):
         for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
           lscaOffset = para * kernel[tP["lsc"]]
@@ -2875,15 +2885,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def shiftVectorComponents(self, kernel, tP):
     kStr = ""
-    #kStr += dump(vgpr("Serial"))
-    #if tP["isA"]:
-    #  kStr += dump(vgpr(0))
-    #  kStr += dump(vgpr(1))
-    #  kStr += dump(vgpr(2))
-    #  kStr += dump(vgpr(3))
 
     # glvw
-    #vw = kernel["VectorWidth"]
     vw = tP["glvw"]
     numVectors = kernel[tP["tt"]]/vw
 
@@ -2892,11 +2895,11 @@ class KernelWriterAssembly(KernelWriter):
     sviLabels = []
     for i in range(0, vw):
       r = (i+1) % vw
-      label = self.getLabel("ShiftVectorComponents%u_R%u"%(tP["tensorIdx"], r) )
+      label = self.getLabel("ShiftVectorComponents%u_R%u"%(tP["idx"], r) )
       svrLabels.append(label)
       tmpLabels = []
       for v in range(0, numVectors):
-        label = self.getLabel("ShiftVectorComponents%u_R%u_V%u"%(tP["tensorIdx"], r, v) )
+        label = self.getLabel("ShiftVectorComponents%u_R%u_V%u"%(tP["idx"], r, v) )
         tmpLabels.append(label)
       sviLabels.append(tmpLabels)
 
@@ -2907,8 +2910,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mov_b32", vgpr(wgMT), sgpr(tP["wg"]), "")
     kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), \
         "wg*MT")
-    kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["tensorIdx"]), \
-        vgpr(wgMT), "wgMT = Size - wg*MT") # FIXME this should be index assignments for dim0,1
+    kStr += inst("v_add_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["idx"]), \
+        vgpr(wgMT), "wgMT = Size - wg*MT")
     kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(kernel[tP["mt"]]), "MT")
     kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(wgMT), \
         vgpr(tmpVgpr), "wgMT < MT" )
@@ -2993,7 +2996,7 @@ class KernelWriterAssembly(KernelWriter):
           hex(r), "wgMT%%VW == %u"%r )
       kStr += inst("s_cbranch_vccnz label_%04u"\
           % svrLabels[(r-1)%vw], \
-          "shift d%u r=%u"%(tP["tensorIdx"], r))
+          "shift d%u r=%u"%(tP["idx"], r))
       #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), \
       #    "location=%u"%location) location *= 2
       #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), \
@@ -3003,7 +3006,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # code blocks for shifting
     for r in range(1, vw):
-      kStr += self.comment3("shift d%u r=%u"%(tP["tensorIdx"], r))
+      kStr += self.comment3("shift d%u r=%u"%(tP["idx"], r))
       kStr += "label_%04u:%s" % (svrLabels[r-1], self.endLine)
       #if r==3 and tP["isA"]:
       #  kStr += dump(vgpr("Serial"))
@@ -3014,18 +3017,18 @@ class KernelWriterAssembly(KernelWriter):
             hex(vectorIdx), "wgMT/(SG*VW) == %u"%vectorIdx )
         kStr += inst("s_cbranch_vccnz label_%04u"\
             % sviLabels[(r-1)%vw][vectorIdx], \
-            "shift d%u, r=%u, v=%u"%(tP["tensorIdx"], r, vectorIdx))
+            "shift d%u, r=%u, v=%u"%(tP["idx"], r, vectorIdx))
 
       # code blocks for shifting vector
       for vectorIdx in range(0, numVectors):
-        kStr += self.comment("shift d%u r=%u v=%u"%(tP["tensorIdx"], r, vectorIdx))
+        kStr += self.comment("shift d%u r=%u v=%u"%(tP["idx"], r, vectorIdx))
         kStr += "label_%04u:%s" % (sviLabels[r-1][vectorIdx], self.endLine)
         if vectorIdx==2 and tP["isA"]:
           kStr += dump(vgpr("Serial"))
         # mask if last thread in thread-tile column
         kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
           vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
-        tto = kernel["ThreadTile%u"%((tP["tensorIdx"]+1)%2)] # thread tile orthogonal
+        tto = kernel["ThreadTile%u"%((tP["idx"]+1)%2)] # thread tile orthogonal
         for tt in range(0, tto):
           for s in range(0, r):
             if tP["isA"]:
@@ -3563,6 +3566,7 @@ def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
   kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False)
   return kStr
 
+# only used for loop unroll
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     doRemainder=True):
   kStr = ""

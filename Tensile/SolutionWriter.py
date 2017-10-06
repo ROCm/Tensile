@@ -147,7 +147,7 @@ class SolutionWriter:
     elif solution["KernelLanguage"] == "Assembly":
       kernel = kernels[0]
       s += "%sint deviceId;\n" % (t)
-      s += "%shipGetDevice(&deviceId);\n" % (t)
+      s += "%shipCtxGetDevice(&deviceId);\n" % (t)
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
