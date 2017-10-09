@@ -1718,6 +1718,7 @@ class KernelWriter:
     fileString = "" # CHeader
     if self.language == "HIP" or self.language == "OCL":
       if not globalParameters["MergeFiles"]:
+        fileString += CHeader
         fileString += "#pragma once\n\n"
         if self.language == "HIP":
           fileString += "#include <hip/hip_runtime.h>\n"
@@ -1786,6 +1787,7 @@ class KernelWriter:
     kernelName = self.getKernelNameBetaOnly(kernel)
     fileString = "" # CHeader
     if not globalParameters["MergeFiles"]:
+      fileString += CHeader
       fileString += "#pragma once\n\n"
       fileString += "\n"
       if self.language == "HIP":
