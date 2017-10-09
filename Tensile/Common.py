@@ -94,7 +94,7 @@ globalParameters["CurrentISA"] = (0,0,0)
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
   for nsg in [ 1, 2, 4, 8, 16, 32, 64 ]:
-    for sg0 in range(1, numThreads/nsg):
+    for sg0 in range(1, numThreads/nsg+1):
       sg1 = numThreads/nsg/sg0
       if sg0*sg1*nsg == numThreads:
           workGroup = [sg0, sg1, nsg]
