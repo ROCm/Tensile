@@ -1292,7 +1292,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, 1): # tP["nwcv"]):
             kStr += "  unsigned int localWriteOffset%s_%u_%u_%u_%u = localWriteFirstOffset%s + (%u + %d*%s)" \
                 % (tP["tensorChar"], para, sPara, perp, sPerp, \
                 tP["tensorChar"], sPara if tP["tlu"] else sPerp, para, \
@@ -1315,7 +1315,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, 1): # tP["nwcv"]):
             kStr += "  %sDATA_TYPE *localWrite%s_%u_%u_%u_%u;%s"\
                 % (self.sharedPtrStr, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine )
@@ -1576,7 +1576,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, 1): # tP["nwcv"]):
             kStr += "%slocalWriteOffset%s_%u_%u_%u_%u = (localWriteOffset%s_%u_%u_%u_%u + LDS_OFFSET_BLK)%%(LDS_OFFSET_BLK*2);%s" \
                 % (self.indent, tP["tensorChar"], \
                 para, sPara, perp, sPerp, tP["tensorChar"], \
@@ -1591,7 +1591,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, 1): # tP["nwcv"]):
             kStr += "%slocalWriteOffset%s_%u_%u_%u_%u %%= LDS_OFFSET_BLK;%s" \
                 % (self.indent, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine )
@@ -1605,7 +1605,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, 1): # tP["nwcv"]):
             kStr += "%slocalWrite%s_%u_%u_%u_%u = (%sDATA_TYPE *)(localMemory + localWriteOffset%s_%u_%u_%u_%u);%s"\
                 % (self.indent, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.sharedPtrStr, tP["tensorChar"], \
@@ -1624,9 +1624,9 @@ class KernelWriterSource(KernelWriter):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, tP["nwcv"]):
-            kStr += "%s*localWrite%s_%u_%u_%u_%u = %s_%u_%u_%u_%u;%s" \
+            kStr += "%s*(localWrite%s_%u_%u_%u_%u + %u) = %s_%u_%u_%u_%u;%s" \
                 % (self.indent, tP["tensorChar"], \
-                para, sPara, perp, sPerp, \
+                para, 0, perp, sPerp, sPara, \
                 tP["tensorChar"].lower(), \
                 para, \
                 sPara if tP["tlu"] else sPerp, \
