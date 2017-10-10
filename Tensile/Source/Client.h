@@ -87,6 +87,7 @@ unsigned int defaultSize = 128;
 std::set<unsigned int> invalidSolutions;
 #endif
 
+int expectedClockRate; // MHz
 void initControls();
 void destroyControls();
 
@@ -362,7 +363,11 @@ bool callLibrary(
   avgTemp /= numSyncsPerBenchmark;
   avgFanSpeed /= numSyncsPerBenchmark;
 
-  double gflops = solutionIsValid ? totalFlops / timeNs : 0;
+  float perfScaling = 1.f;
+#if Tensile_RUNTIME_LANGUAGE_HIP
+  perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
+#endif
+  double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
 
   bool newFastest = false;
   if (gflops > fastestGFlops) {
@@ -379,6 +384,7 @@ bool callLibrary(
       userSizes, alpha, beta);
 
   std::cout << std::setw(10) << std::fixed << std::setprecision(3)
+      << gflops*perfScaling << ", "
       << gflops << ", "
       << solutionName << (newFastest ? "*" : " ") << ", "
       << std::setw(9) << std::fixed << std::setprecision(3)
@@ -689,7 +695,11 @@ bool benchmarkAllSolutionsForSize(
     avgTemp /= numSyncsPerBenchmark;
     avgFanSpeed /= numSyncsPerBenchmark;
 
-    double gflops = solutionIsValid ? totalFlops / timeNs : 0;
+    float perfScaling = 1.f;
+#if Tensile_RUNTIME_LANGUAGE_HIP
+    perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
+#endif
+    double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
     //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;
     bool newFastest = false;
     if (gflops > fastestGFlops) {
@@ -704,6 +714,7 @@ bool benchmarkAllSolutionsForSize(
 
     // print results to stdout
     std::cout << std::setw(10) << std::fixed << std::setprecision(3)
+        << gflops*perfScaling << ", "
         << gflops << ", "
         << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
         << std::setw(9) << std::fixed << std::setprecision(3)
