@@ -767,20 +767,20 @@ class Solution:
         state["Valid"] = False
 
     initialDU = state["DepthU"]
-    # DepthU == 0 means glvw=1
-    if state["DepthU"] == 0:
+    # DepthU == -1 means glvw=1
+    if state["DepthU"] == -1:
       if state["MacroTile0"] != state["MacroTile1"]:
         if globalParameters["PrintSolutionRejectionReason"]:
           print1("DepthU=0 requires square MacroTile")
         state["Valid"] = False
       state["DepthU"] = state["NumThreads"] / state["MacroTile0"]
 
-    # DepthU == -1 means glvw is at most vw for A,B; small unroll
-    elif state["DepthU"] == -1:
+    # DepthU == -2 means glvw is at most vw for A,B; small unroll
+    elif state["DepthU"] == -2:
       state["DepthU"] = state["NumThreads"] * state["VectorWidth"] \
           / max(state["MacroTile0"], state["MacroTile1"])
-    # DepthU == -2 means glvw is at least vw for A,B; large unroll
-    elif state["DepthU"] == -2:
+    # DepthU == -3 means glvw is at least vw for A,B; large unroll
+    elif state["DepthU"] == -3:
       state["DepthU"] = state["NumThreads"] * state["VectorWidth"] \
           / min(state["MacroTile0"], state["MacroTile1"])
 

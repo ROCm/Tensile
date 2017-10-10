@@ -111,6 +111,8 @@ validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 4
 validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
+depthUs = [-3, -2, -1]
+depthUs.extend(range(2,256+1,2))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -140,7 +142,7 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,
     "NumLoadsCoalescedA":         range(-1, 64+1),
     "NumLoadsCoalescedB":         range(-1, 64+1),
-    "DepthU":                     [-2, -1, -0, range(2, 256+1, 2)],
+    "DepthU":                     depthUs,
     "GlobalSplitU":               range(1, 64+1),
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
     "LdsPad":                     [ 0, 1 ],
@@ -161,7 +163,7 @@ defaultBenchmarkCommonParameters = [
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPad":                    [ 0 ] },
     {"MaxOccupancy":              [ 10 ] },
-    {"VectorWidth":               [ 1 ] }, # =2 once fixed
+    {"VectorWidth":               [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
@@ -186,7 +188,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 1 ] },
     {"ThreadTile":                [ [4,4] ] },
-    {"DepthU":                    [ 16 ] },
+    {"DepthU":                    [ -1 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
