@@ -652,13 +652,13 @@ class KernelWriter:
       ####################################
       # Shift Vector Components
       ####################################
-      if kernel["EdgeType"] == "ShiftPtr" and kernel["VectorWidth"] > 1:
+      if kernel["EdgeType"] == "ShiftPtr":
         # shift vector components d0
-        if self.readTileDimVectorA:
+        if self.readTileDimVectorA and kernel["GlobalLoadVectorWidthA"] > 1:
           kStr += self.comment("shift vector components d0")
           kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
-        if self.readTileDimVectorB:
+        if self.readTileDimVectorB and kernel["GlobalLoadVectorWidthB"] > 1:
           kStr += self.comment("shift vector components d1")
           kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 
@@ -1182,6 +1182,9 @@ class KernelWriter:
       tP["wtc"] = self.writeTileDimComponentsA
       tP["wuc"] = self.writeUnrollDimComponentsA
       tP["idx"] = kernel["ProblemType"]["Index0"]
+      tP["rc"] = kernel["ProblemType"]["IndexAssignmentsA"][0] \
+          in [kernel["ProblemType"]["Index01A"], \
+          kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
     else: # B
       tP["isA"] = False
       tP["isB"] = True
@@ -1227,6 +1230,9 @@ class KernelWriter:
       tP["wtc"] = self.writeTileDimComponentsB
       tP["wuc"] = self.writeUnrollDimComponentsB
       tP["idx"] = kernel["ProblemType"]["Index1"]
+      tP["rc"] = kernel["ProblemType"]["IndexAssignmentsB"][0] \
+          in [kernel["ProblemType"]["Index01B"], \
+          kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
@@ -1718,6 +1724,7 @@ class KernelWriter:
     fileString = "" # CHeader
     if self.language == "HIP" or self.language == "OCL":
       if not globalParameters["MergeFiles"]:
+        fileString += CHeader
         fileString += "#pragma once\n\n"
         if self.language == "HIP":
           fileString += "#include <hip/hip_runtime.h>\n"
@@ -1786,6 +1793,7 @@ class KernelWriter:
     kernelName = self.getKernelNameBetaOnly(kernel)
     fileString = "" # CHeader
     if not globalParameters["MergeFiles"]:
+      fileString += CHeader
       fileString += "#pragma once\n\n"
       fileString += "\n"
       if self.language == "HIP":

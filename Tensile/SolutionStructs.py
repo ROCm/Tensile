@@ -674,10 +674,6 @@ class Solution:
       state["MacroTile0"] = state["SubGroup0"]*state["ThreadTile0"]
     if "SubGroup1" in state and "ThreadTile1" in state:
       state["MacroTile1"] = state["SubGroup1"]*state["ThreadTile1"]
-    if "LocalSplitU" in state and "DepthU" in state:
-      state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
-    if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
-        state["Valid"] = False
     if "MacroTile" in state:
       if state["MacroTile0"] != state["MacroTile"][0] \
           or state["MacroTile1"] != state["MacroTile"][1]:
@@ -723,7 +719,7 @@ class Solution:
 
     # VectorWidth
     if state["VectorWidth"] < 1:
-      state["VectorWidth"] = 4 / state["ProblemType"]["DataType"].numRegisters()
+      state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
       while state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         state["VectorWidth"] /= 2
@@ -748,12 +744,6 @@ class Solution:
       state["Valid"] = False
       return
 
-    # LoopUnroll too small
-    if state["LoopUnroll"] < 2:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("LoopUnroll %u is less than 2" \
-            % (state["LoopUnroll"]))
-      state["Valid"] = False
 
     # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways load
     if state["LocalSplitU"] > 1:
@@ -776,6 +766,23 @@ class Solution:
           print1("GlobalSplitU only compatible with single precision")
         state["Valid"] = False
 
+    initialDU = state["DepthU"]
+    # DepthU == -1 means glvw=1
+    if state["DepthU"] == -1:
+      if state["MacroTile0"] != state["MacroTile1"]:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("DepthU=0 requires square MacroTile")
+        state["Valid"] = False
+      state["DepthU"] = state["NumThreads"] / state["MacroTile0"]
+
+    # DepthU == -2 means glvw is at most vw for A,B; small unroll
+    elif state["DepthU"] == -2:
+      state["DepthU"] = state["NumThreads"] * state["VectorWidth"] \
+          / max(state["MacroTile0"], state["MacroTile1"])
+    # DepthU == -3 means glvw is at least vw for A,B; large unroll
+    elif state["DepthU"] == -3:
+      state["DepthU"] = state["NumThreads"] * state["VectorWidth"] \
+          / min(state["MacroTile0"], state["MacroTile1"])
 
     # how many elements to load
     if state["ProblemType"]["TLUA"]:
@@ -800,7 +807,7 @@ class Solution:
     totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
     totalVectorsA = totalElementsA / state["VectorWidth"]
     totalVectorsB = totalElementsB / state["VectorWidth"]
-    
+
     if totalVectorsA < state["NumThreads"]:
       state["PVA"] = state["NumThreads"] / totalVectorsA # partial vector
       if state["NumThreads"] % totalVectorsA != 0 \
@@ -841,29 +848,6 @@ class Solution:
     state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
     state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
 
-
-    """
-    # how many load instructions
-    if totalVectorsA % state["NumThreads"] != 0 or totalVectorsA < state["NumThreads"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("totalVectorsA %u %% NumThreads %u != 0" \
-            % (totalVectorsA, state["NumThreads"]))
-      state["Valid"] = False
-      return
-    else:
-      state["NumLoadsA"] = totalVectorsA / state["NumThreads"]
-
-    if totalVectorsB % state["NumThreads"] != 0 or totalVectorsB < state["NumThreads"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("totalVectorsB %u %% NumThreads %u != 0" \
-            % (totalVectorsB, state["NumThreads"]))
-      state["Valid"] = False
-      return
-    else:
-      state["NumLoadsB"] = totalVectorsB / state["NumThreads"]
-    """
-
-    #print "NumLoadsA", state["NumLoadsA"]
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
       foundValid = False
@@ -1037,6 +1021,19 @@ class Solution:
         print1("Kernel Uses %u > %u bytes of LDS" % ( ldsSize, globalParameters["MaxLDS"]))
       state["Valid"] = False
       return
+
+    # LoopUnroll  = DepthU / LocalSplitU
+    if "LocalSplitU" in state and "DepthU" in state:
+      state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
+    if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
+        state["Valid"] = False
+
+    # LoopUnroll too small
+    if state["LoopUnroll"] < 2:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("LoopUnroll %u is less than 2" \
+            % (state["LoopUnroll"]))
+      state["Valid"] = False
 
     state["AssignedDerivedParameters"] = True
 

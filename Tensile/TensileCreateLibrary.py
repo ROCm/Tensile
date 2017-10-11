@@ -54,6 +54,9 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
         "Solutions.cpp"), "w")
     solutionHeaderFile = open(os.path.join(outputPath, \
         "Solutions.h"), "w")
+    if globalParameters["MergeFiles"]:
+      solutionSourceFile.write(CHeader)
+      solutionHeaderFile.write(CHeader)
     solutionSourceFile.write("#include \"Solutions.h\"\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
@@ -68,7 +71,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     if not globalParameters["MergeFiles"]:
       solutionSourceFile = open(os.path.join(outputPath, \
           "Solutions", solutionFileName+".cpp"), "w")
-    solutionSourceFile.write(CHeader)
+      solutionSourceFile.write(CHeader)
     solutionSourceFile.write( \
         solutionWriter.getSourceFileString(solution))
     if not globalParameters["MergeFiles"]:
@@ -78,7 +81,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile = open(os.path.join(outputPath, \
           "Solutions", solutionFileName+".h"), "w")
-    solutionHeaderFile.write(CHeader)
+      solutionHeaderFile.write(CHeader)
     solutionHeaderFile.write( \
         solutionWriter.getHeaderFileString(solution))
     if not globalParameters["MergeFiles"]:
@@ -96,6 +99,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
         "Kernels.cpp"), "w")
     kernelHeaderFile = open(os.path.join(outputPath, \
         "Kernels.h"), "w")
+    kernelSourceFile.write(CHeader)
+    kernelHeaderFile.write(CHeader)
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
@@ -116,7 +121,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     if not globalParameters["MergeFiles"]:
       kernelSourceFile = open(os.path.join(outputPath, \
           "Kernels", kernelName+".cpp"), "w")
-    kernelSourceFile.write(CHeader)
+      kernelSourceFile.write(CHeader)
     kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
@@ -125,7 +130,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile = open(os.path.join(outputPath, \
           "Kernels", kernelName+".h"), "w")
-    kernelHeaderFile.write(CHeader)
+      kernelHeaderFile.write(CHeader)
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
@@ -140,7 +145,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     if not globalParameters["MergeFiles"]:
       kernelSourceFile = open(os.path.join(outputPath, \
           "Kernels", kernelName+".cpp"), "w")
-    kernelSourceFile.write(CHeader)
+      kernelSourceFile.write(CHeader)
     kernelSourceFile.write( kernelWriter.getSourceFileStringBetaOnly(kernel))
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
@@ -149,7 +154,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile = open(os.path.join(outputPath, \
           "Kernels", kernelName + ".h"), "w")
-    kernelHeaderFile.write(CHeader)
+      kernelHeaderFile.write(CHeader)
     kernelHeaderFile.write( kernelWriter.getHeaderFileStringBetaOnly(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()

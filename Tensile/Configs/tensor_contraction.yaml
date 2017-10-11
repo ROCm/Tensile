@@ -6,9 +6,9 @@ GlobalParameters:
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
   EnqueuesPerSync: 1
-  SyncsPerBenchmark: 2
+  SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 128
+  NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False

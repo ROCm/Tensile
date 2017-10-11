@@ -50,8 +50,8 @@ def BenchmarkProblemSize(cmdPrefix, row):
     splits = lineString.split(",")
     if len(splits) < 3:
       break
-    gflopsString = splits[0].lstrip()
-    msString = splits[2].lstrip()
+    gflopsString = splits[1].lstrip()
+    msString = splits[3].lstrip()
     gflops = float(gflopsString)
     ms = float(msString)
     totalGFlops += gflops
