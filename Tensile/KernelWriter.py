@@ -652,13 +652,13 @@ class KernelWriter:
       ####################################
       # Shift Vector Components
       ####################################
-      if kernel["EdgeType"] == "ShiftPtr" and kernel["VectorWidth"] > 1:
+      if kernel["EdgeType"] == "ShiftPtr":
         # shift vector components d0
-        if self.readTileDimVectorA:
+        if self.readTileDimVectorA and kernel["GlobalLoadVectorWidthA"] > 1:
           kStr += self.comment("shift vector components d0")
           kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
-        if self.readTileDimVectorB:
+        if self.readTileDimVectorB and kernel["GlobalLoadVectorWidthB"] > 1:
           kStr += self.comment("shift vector components d1")
           kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 

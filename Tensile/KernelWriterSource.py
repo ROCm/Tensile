@@ -1698,39 +1698,51 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def shiftVectorComponents(self, kernel, tP):
     kStr = ""
-    if tP["isB"]:
-        return self.shiftVectorComponents1(kernel)
     kStr += "  unsigned int wgMT%s = size%s - wg%s*MT%s;%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar0, \
-        self.tileChar0, self.endLine)
+        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], \
+        tP["tileChar"], self.endLine)
     kStr += "  if (wgMT%s > MT%s) wgMT%s = MT%s;%s" \
-        %(self.tileChar0, self.tileChar0, self.tileChar0, \
-        self.tileChar0, self.endLine)
-    kStr += "  unsigned int r%s = wgMT%s %% VECTOR_WIDTH;%s" \
-        % (self.tileChar0, self.tileChar0, self.endLine)
-    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH)%%SG%s) == serial %% SG%s ) {%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar0, \
-        self.tileChar0, self.endLine)
-    kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
-        % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
-    for r0 in range(1, kernel["VectorWidth"]):
-      kStr += "    if (r%s == %u) {%s" % (self.tileChar0, r0, self.endLine)
-      numVectors = kernel["ThreadTile0"]/kernel["VectorWidth"]
+        %(tP["tileChar"], tP["tileChar"], tP["tileChar"], \
+        tP["tileChar"], self.endLine)
+    kStr += "  unsigned int r%s = wgMT%s %% GLOBAL_LOAD_VECTOR_WIDTH_%s;%s" \
+        % (tP["tileChar"], tP["tileChar"], tP["tensorChar"], self.endLine)
+    kStr += "  if (r%s > 0 && ((wgMT%s/VECTOR_WIDTH) %% SG%s) == (serial %s SG%s)%s ) {%s" \
+        % (tP["tileChar"], tP["tileChar"], tP["tileChar"], "%" if tP["isA"] else "/", \
+        self.tileChar0, (" %% SG%s"%self.tileChar1) if tP["isB"] else "", self.endLine)
+
+    # old
+    #kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
+    #    % (tP["tileChar"], tP["tileChar"], tP["tileChar"], self.endLine)
+    # new
+    # (wgMT/(SG0*VW))*(VW/glvw) + (wgMT%VW) / glvw
+    kStr += "    unsigned int s%s = (wgMT%s%%VECTOR_WIDTH)/GLOBAL_LOAD_VECTOR_WIDTH_%s + (wgMT%s/(SG%s*VECTOR_WIDTH))*(VECTOR_WIDTH/GLOBAL_LOAD_VECTOR_WIDTH_%s);%s" \
+        % (tP["tileChar"], tP["tileChar"], tP["tensorChar"], \
+        tP["tileChar"], tP["tileChar"], tP["tensorChar"], self.endLine)
+
+    for r in range(1, tP["glvw"]):
+      kStr += "    if (r%s == %u) {%s" % (tP["tileChar"], r, self.endLine)
+      numVectors = kernel["ThreadTile%s"%tP["tileIdx"]]/tP["glvw"]
       for vIdx in range(0, numVectors):
         if vIdx == 0:
           kStr += "      "
         else:
           kStr += " else "
         if vIdx < numVectors-1:
-          kStr += "if (s%s == %u) " % (self.tileChar0, vIdx)
+          kStr += "if (s%s == %u) " % (tP["tileChar"], vIdx)
         kStr += "{%s" % self.endLine
-        for tt1 in range(0, kernel["ThreadTile1"]):
-          for s in range(0, r0):
-            kStr += "        rC[%u+%u*VECTOR_WIDTH+%u*TT%s] = rC[%u+%u*VECTOR_WIDTH+%u*TT%s];%s" \
-              % (s, vIdx, tt1, self.tileChar0, \
-              s+kernel["VectorWidth"]-r0, vIdx, tt1, self.tileChar0, \
-              self.endLine)
-        #kStr += "printf(\\\"sv %u %u\\\");%s" % (r0, vIdx, self.endLine)
+        for tt in range(0, kernel["ThreadTile%u"%((tP["tileIdx"]+1)%2)]):
+          for s in range(0, r):
+            if tP["isA"]:
+              kStr += "        rC[%u + %u*GLOBAL_LOAD_VECTOR_WIDTH_A + %u*TT%s] = rC[%u + %u*GLOBAL_LOAD_VECTOR_WIDTH_A + %u*TT%s];%s" \
+                % (s, vIdx, tt, self.tileChar0, \
+                s+tP["glvw"]-r, vIdx, tt, self.tileChar0, \
+                self.endLine)
+            else:
+              kStr += "        rC[%u + %u*TT%s*GLOBAL_LOAD_VECTOR_WIDTH_B + %u*TT%s] = rC[%u + %u*TT%s*GLOBAL_LOAD_VECTOR_WIDTH_B + %u*TT%s];%s" \
+                % (tt, vIdx, self.tileChar0, s, self.tileChar0, \
+                tt, vIdx, self.tileChar0, \
+                s+tP["glvw"]-r, self.tileChar0, self.endLine)
+        #kStr += "printf(\\\"sv %u %u\\\");%s" % (r, vIdx, self.endLine)
         kStr += "      }"
         if vIdx == numVectors-1:
           kStr += self.endLine
@@ -1741,7 +1753,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Shift Vectors Components d1
   ##############################################################################
-  def shiftVectorComponents1(self, kernel):
+  def shiftVectorComponents1(self, kernel, tP):
     kStr = ""
     kStr += "  unsigned int wgMT%s = size%s - %s*MT%s;%s" \
         % (self.tileChar1, self.tileChar1, "wg%s"%self.tileChar1, \
@@ -1757,9 +1769,9 @@ class KernelWriterSource(KernelWriter):
         self.endLine)
     kStr += "    unsigned int s%s = (wgMT%s/VECTOR_WIDTH)/SG%s;%s" \
         % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
-    for r1 in range(1, kernel["VectorWidth"]):
+    for r1 in range(1, tP["glvw"]):
       kStr += "    if (r%s == %u) {%s" % (self.tileChar1, r1, self.endLine)
-      numVectors = kernel["ThreadTile1"]/kernel["VectorWidth"]
+      numVectors = kernel["ThreadTile1"]/tP["glvw"]
       for vIdx in range(0, numVectors):
         if vIdx == 0:
           kStr += "      "
@@ -1774,7 +1786,7 @@ class KernelWriterSource(KernelWriter):
             kStr += "        rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s] = rC[%u+%u*TT%s*VECTOR_WIDTH + %u*TT%s];%s" \
               % (tt0, vIdx, self.tileChar0, s, self.tileChar0, \
               tt0, vIdx, self.tileChar0, \
-              s+kernel["VectorWidth"]-r1, self.tileChar0, self.endLine)
+              s+tP["glvw"]-r1, self.tileChar0, self.endLine)
 
         kStr += "      }"
         if vIdx == numVectors-1:

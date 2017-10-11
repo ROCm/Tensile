@@ -281,7 +281,7 @@ void initControls() {
   size_t bandwidth = (size_t) deviceProperties.memoryClockRate * deviceProperties.memoryBusWidth * 2 / (8 * 1000 * 1000);
   size_t compute = (size_t) deviceProperties.clockRate * deviceProperties.multiProcessorCount * 2 * 64 / (1000 * 1000);
   std::cout << "################################################################################" << std::endl;
-  std::cout << "# Device[" << deviceIdx << "]: " << deviceProperties.name << "(gfx" << deviceProperties.gcnArch << ")" << std::endl;
+  std::cout << "# Device[" << deviceIdx << "]: " << deviceProperties.name << " (gfx" << deviceProperties.gcnArch << ")" << std::endl;
   std::cout << "# Compute:   " << compute << " GFlop/s (" << deviceProperties.multiProcessorCount << " CUs @ " << deviceProperties.clockRate/1000 << " MHz)" << std::endl;
   std::cout << "# Bandwidth: " << bandwidth << " GB/s (" << deviceProperties.memoryBusWidth << "-bit @ " << deviceProperties.memoryClockRate/1000 << " MHz)" << std::endl;
   std::cout << "################################################################################" << std::endl;

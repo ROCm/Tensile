@@ -80,13 +80,11 @@ def executeStepsInConfig( config ):
 # Tensile - below entry points call here
 ################################################################################
 def Tensile(userArgs):
+  # 1st half of splash
   print1("")
   print1(HR)
   print1("#")
   print1("#  Tensile v%s" % (__version__) )
-  print1("#")
-  print1(HR)
-  print1("")
 
   # setup argument parser
   argParser = argparse.ArgumentParser()
@@ -115,7 +113,14 @@ def Tensile(userArgs):
   args = argParser.parse_args(userArgs)
   globalParameters["WorkingPath"] = os.path.abspath(args.output_path)
   configPath = os.path.realpath( args.config_file)
-  print2("# ConfigFile: %s" % (configPath) )
+
+  # 2nd half of splash
+  print1("#  Config: %s" % (configPath) )
+  print1("#")
+  print1(HR)
+  print1("")
+
+  # read config
   config = YAMLIO.readConfig( configPath )
   ensurePath(globalParameters["WorkingPath"])
 
