@@ -385,6 +385,7 @@ bool callLibrary(
 
   std::cout << std::setw(10) << std::fixed << std::setprecision(3)
       << gflops*perfScaling << ", "
+      << std::setw(10) << std::fixed << std::setprecision(3)
       << gflops << ", "
       << solutionName << (newFastest ? "*" : " ") << ", "
       << std::setw(9) << std::fixed << std::setprecision(3)
@@ -715,6 +716,7 @@ bool benchmarkAllSolutionsForSize(
     // print results to stdout
     std::cout << std::setw(10) << std::fixed << std::setprecision(3)
         << gflops*perfScaling << ", "
+        << std::setw(10) << std::fixed << std::setprecision(3)
         << gflops << ", "
         << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
         << std::setw(9) << std::fixed << std::setprecision(3)
