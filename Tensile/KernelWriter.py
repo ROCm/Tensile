@@ -1182,6 +1182,9 @@ class KernelWriter:
       tP["wtc"] = self.writeTileDimComponentsA
       tP["wuc"] = self.writeUnrollDimComponentsA
       tP["idx"] = kernel["ProblemType"]["Index0"]
+      tP["rc"] = kernel["ProblemType"]["IndexAssignmentsA"][0] \
+          in [kernel["ProblemType"]["Index01A"], \
+          kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
     else: # B
       tP["isA"] = False
       tP["isB"] = True
@@ -1227,6 +1230,9 @@ class KernelWriter:
       tP["wtc"] = self.writeTileDimComponentsB
       tP["wuc"] = self.writeUnrollDimComponentsB
       tP["idx"] = kernel["ProblemType"]["Index1"]
+      tP["rc"] = kernel["ProblemType"]["IndexAssignmentsB"][0] \
+          in [kernel["ProblemType"]["Index01B"], \
+          kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B

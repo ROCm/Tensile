@@ -719,7 +719,7 @@ class Solution:
 
     # VectorWidth
     if state["VectorWidth"] < 1:
-      state["VectorWidth"] = 4 / state["ProblemType"]["DataType"].numRegisters()
+      state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
       while state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         state["VectorWidth"] /= 2

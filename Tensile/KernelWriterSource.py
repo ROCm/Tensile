@@ -1067,7 +1067,7 @@ class KernelWriterSource(KernelWriter):
   def graTileOffsets(self, kernel, tP):
     kStr = ""
     for l in range(0, tP["nrt"]):
-      for s in range(0, 1): # tP["nrtv"]):
+      for s in range(0, 1 if tP["rc"] else tP["nrtv"]):
         kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u + %d*%s;%s" \
             % (tP["tensorChar"], tP["tileChar"], l, s, \
             tP["tensorChar"], tP["tileChar"], s, l, \
@@ -1086,7 +1086,7 @@ class KernelWriterSource(KernelWriter):
   def graUnrollOffsets(self, kernel, tP):
     kStr = ""
     for l in range(0, tP["nru"]):
-      for s in range(0, 1): # kernel["VectorWidth"]):
+      for s in range(0, 1 if tP["rc"] else kernel["VectorWidth"]):
         kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u + %d*%s;%s" \
             % (tP["tensorChar"], self.unrollChar, l, s, \
             tP["tensorChar"], self.unrollChar, s, l, \
@@ -1120,7 +1120,7 @@ class KernelWriterSource(KernelWriter):
   def graShift(self, kernel, tP):
     kStr = ""
     for l in range(0, tP["nrt"]):
-      for s in range(0, 1): # tP["nrtv"]):
+      for s in range(0, 1 if tP["rc"] else tP["nrtv"]):
         #gro = "globalReadOffset%s%s_%u_%u" \
         #    % (tP["tensorChar"], tP["tileChar"], l, s )
 
@@ -1153,7 +1153,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, 1): # tP["nrcv"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
             kStr += "  %s globalReadOffset%s_%u_%u_%u_%u = GLOBAL_OFFSET_%s( " \
                 % (self.uint64Str, tP["tensorChar"], \
                 para, sPara, perp, sPerp, tP["tensorChar"])
@@ -1199,7 +1199,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, 1): # tP["nrcv"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
             kStr += "  %sDATA_TYPE const *globalRead%s_%u_%u_%u_%u = %s + globalReadOffset%s_%u_%u_%u_%u;%s" \
                 % (self.globalPtrStr, tP["tensorChar"], \
                 para, sPara, perp, sPerp, \
@@ -1502,7 +1502,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, 1): # tP["nrcv"]):
+          for sPara in range(0, 1 if tP["rc"] else tP["nrcv"]):
             kStr += "%sglobalRead%s_%u_%u_%u_%u = (%sDATA_TYPE const *)( ((%sDATA_TYPE const *)globalRead%s_%u_%u_%u_%u) + globalReadInc%s%s);%s" \
                 % (self.indent, tP["tensorChar"], para, sPara, perp, sPerp, \
                 self.globalPtrStr, self.globalPtrStr, tP["tensorChar"], \
@@ -1553,19 +1553,8 @@ class KernelWriterSource(KernelWriter):
             if kernel["EdgeType"] == "Branch" or guardK:
               kStr += " ? SCALAR_ZERO : "
             kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
-                % (tP["tensorChar"], para, 0, perp, sPerp, sPara, \
+                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \
                 self.endLine)
-    if False:
-      for perp in range(0, tP["nrp"]):
-        for sPerp in range(0, tP["nrpv"]):
-          for para in range(0, tP["nrc"]):
-            for sPara in range(0, tP["nrcv"]):
-              kStr += "%sprintf(\\\"t[%%u,%%u]: %s_%u_%u_%u_%u = %%.0f\\\\n\\\", %s(0), %s(1), %s_%u_%u_%u_%u );%s" \
-                  % (self.indent, tP["tensorChar"].lower(), \
-                  para, sPara, perp, sPerp, \
-                  self.getLocalIdStr, self.getLocalIdStr, tP["tensorChar"].lower(), \
-                  para, sPara, perp, sPerp, \
-                  self.endLine )
     return kStr
 
   ##############################################################################
