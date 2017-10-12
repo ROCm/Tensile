@@ -893,6 +893,7 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ThreadTile0"], \
         kernel["VectorWidth"], kernel["ThreadTile0"], \
         self.endLine )
+    kStr += dump("v[idx]")
     kStr += ".set addr, \\tmpVgpr+2%s" % self.endLine
 
     # coord0
@@ -1474,7 +1475,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: WorkGroup - TODO GSU
+  # Global Read Addresses: WorkGroup
   ##############################################################################
   def graWorkGroup(self, kernel):
     kStr = ""
@@ -1704,7 +1705,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Unroll Assignment - TODO GSU
+  # Global Read Addresses: Unroll Assignment
   ##############################################################################
   def graUnrollAssignment(self, kernel, tP):
     kStr = ""
@@ -1991,7 +1992,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read Addresses: Increments - TODO GSU
+  # Global Read Addresses: Increments
   ##############################################################################
   def graIncrements(self, kernel, loopIdx, tP):
     kStr = ""
@@ -2321,7 +2322,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Calculate Loop Num Iter - TODO GSU
+  # Calculate Loop Num Iter
   ##############################################################################
   def calculateLoopNumIter(self, kernel, loopIdx):
     kStr = ""
@@ -2372,12 +2373,19 @@ class KernelWriterAssembly(KernelWriter):
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
         tmpSgpr = self.getTmpSgpr(1)
-        quotient = tmpSgpr
+        quotient = "LoopCounters+%u"%loopIdx
         remainder = "GSUSumIdx+1" # numIterPerWgRemainder
-        dividend = "LoopCounters+%u"%loopIdx # numIterMyWg
+        dividend = tmpSgpr # numIterMyWg
         divisor = kernel["GlobalSplitU"]
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
         kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr+1, True)
-        quotient_1 = tmpSgpr+1
+
+        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(quotient), "" )
+        #kStr += dump(vgpr(tmp))
+        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(remainder), "" )
+        #kStr += dump(vgpr(tmp))
+        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(dividend), "" )
+        #kStr += dump(vgpr(tmp))
 
         # if gsuSumIdx < numIterPerWgRemainder
         kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
@@ -2395,25 +2403,15 @@ class KernelWriterAssembly(KernelWriter):
           % (self.indent, loopChar, loopChar)
 
     # dump
-    kStr += inst("v_mov_b32", vgpr(tmp), \
-        sgpr("WorkGroup0"), "" )
-    kStr += dump(vgpr(tmp))
-    kStr += inst("v_mov_b32", vgpr(tmp), \
-        sgpr("WorkGroup1"), "" )
-    kStr += dump(vgpr(tmp))
-    kStr += inst("v_mov_b32", vgpr(tmp), \
-        sgpr("WorkGroup2"), "" )
-    kStr += dump(vgpr(tmp))
-
-    kStr += inst("v_mov_b32", vgpr(tmp), \
-        sgpr("GSUSumIdx+0"), "" )
-    kStr += dump(vgpr(tmp))
-    kStr += inst("v_mov_b32", vgpr(tmp), \
-        sgpr("GSUSumIdx+1"), "" )
-    kStr += dump(vgpr(tmp))
-    kStr += inst("v_mov_b32", vgpr(tmp), \
-        sgpr("LoopCounters+%u"%loopIdx), "" )
-    kStr += dump(vgpr(tmp))
+    #kStr += inst("v_mov_b32", vgpr(tmp), \
+    #    sgpr("GSUSumIdx+0"), "" )
+    #kStr += dump(vgpr(tmp))
+    #kStr += inst("v_mov_b32", vgpr(tmp), \
+    #    sgpr("GSUSumIdx+1"), "" )
+    #kStr += dump(vgpr(tmp))
+    #kStr += inst("v_mov_b32", vgpr(tmp), \
+    #    sgpr("LoopCounters+%u"%loopIdx), "" )
+    #kStr += dump(vgpr(tmp))
 
     #kStr += "s_endpgm\n"
     self.vgprPool.checkIn(tmp)
@@ -2587,7 +2585,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Read: Do It A/B - TODO GSU
+  # Global Read: Do It A/B
   ##############################################################################
   def globalReadDo(self, kernel, guardK, tP):
     if not self.do["GlobalRead"]: return ""
@@ -3092,8 +3090,6 @@ class KernelWriterAssembly(KernelWriter):
       for vectorIdx in range(0, numVectors):
         kStr += self.comment("shift d%u r=%u v=%u"%(tP["idx"], r, vectorIdx))
         kStr += "label_%04u:%s" % (sviLabels[r-1][vectorIdx], self.endLine)
-        if vectorIdx==2 and tP["isA"]:
-          kStr += dump(vgpr("Serial"))
         # mask if last thread in thread-tile column
         kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
           vgpr(eReg), "serial % SG == (wgMT/VECTOR_WIDTH)%SG" )
