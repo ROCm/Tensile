@@ -980,10 +980,6 @@ class KernelWriterSource(KernelWriter):
             % (wg0, wg1, self.endLine)
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
-
-    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u,%%u]\\\\n\\\", %s(0), %s(1), %s, %s, gsuSumIdx);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
-    #kStr += "  if (%s(0)==0) printf(\\\"wg[%%2u,%%2u] -> wg[%%2u,%%2u]\\\\n\\\", %s(0), %s(1), %s, %s);%s" % (self.getLocalIdStr, self.getGroupIdStr, self.getGroupIdStr, wg0, wg1, self.endLine)
-    #kStr += "  return;%s" % (self.endLine)
     return kStr
 
 
