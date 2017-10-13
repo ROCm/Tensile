@@ -2542,7 +2542,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cmp_eq_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
             "gsuSumIdx == numIterPerWgRemainder" )
         afterZero = self.getLabel("AfterNumIterZero")
-        kStr += inst("s_cbranch_scc0", "label_%04u"%afterZero, "skip" )
+        kStr += inst("s_cbranch_scc1", "label_%04u"%afterZero, "skip" )
         kStr += inst("s_mov_b32", sgpr("LoopCounters+%u"%loopIdx), hex(0), "numIter=0" )
         kStr += "label_%04u:%s" % (afterZero, self.endLine)
 
@@ -2575,13 +2575,6 @@ class KernelWriterAssembly(KernelWriter):
         divisor = kernel["GlobalSplitU"]
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
         kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr+1, True)
-
-        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(quotient), "" )
-        #kStr += dump(vgpr(tmp))
-        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(remainder), "" )
-        #kStr += dump(vgpr(tmp))
-        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr(dividend), "" )
-        #kStr += dump(vgpr(tmp))
 
         # if gsuSumIdx < numIterPerWgRemainder
         kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
