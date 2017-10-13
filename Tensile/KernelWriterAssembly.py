@@ -1110,11 +1110,11 @@ class KernelWriterAssembly(KernelWriter):
       #  kStr += dump(vgpr(data+1)) # old
       #  kStr += dump(vgpr(data+0)) # new
       #  kStr += dump(vgpr(tmp)) # read
-      kStr += inst("v_cmp_eq_u32", "vcc", vgpr(tmp), vgpr(data+1), \
+      kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmp), \
           "c read during atomic == c read during prior load" )
-      kStr += inst("s_or_b64", sgpr(tmpS67,2), "vcc", sgpr(tmpS67,2), "new mask" )
+      #kStr += inst("s_or_b64", sgpr(tmpS67,2), "vcc", sgpr(tmpS67,2), "new mask" )
       kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), "data+1 = tmp (new original C)" )
-      kStr += inst("s_andn2_b64", "exec", "exec", sgpr(tmpS67,2), "apply new mask" )
+      kStr += inst("s_and_saveexec_b64", sgpr(tmpS67,2), "vcc", "apply new mask" )
       kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
     else:
       kStr += inst("flat_store_dword", vgpr(addr,2), vgpr(data+0), "store C" )
@@ -3866,16 +3866,16 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
           "%s = %s %% %u"%(sgpr(rReg), sgpr(dReg), divisor) )
       #kStr += dump(sgpr(rReg))
   elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2 TODO FIXME
-    printExit("KernelWriterAssembly::scalarStaticDivide doesn't support %u" % divisor)
+    #printExit("KernelWriterAssembly::scalarStaticDivide doesn't support %u" % divisor)
     shift = 32 + log2(divisor/3)
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "tmp = magic")
     kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(dReg), sgpr(tmpSgpr), "tmp1 = dividend * magic")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "tmp = shift")
     kStr += inst("s_lshr_b32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), tmpSgpr, "tmp1 = (dividend * magic) << shift")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "tmp = divisor")
-    kStr += inst("v_mul_i32", sgpr(qReg), sgpr(tmpSgpr+1), sgpr(tmpSgpr), "qReg = ( (dividend*magic)<<shift )*divisor")
+    kStr += inst("s_mul_i32", sgpr(qReg), sgpr(tmpSgpr+1), sgpr(tmpSgpr), "qReg = ( (dividend*magic)<<shift )*divisor")
     if doRemainder:
-      kStr += inst("v_sub_u32", sgpr(rReg), "vcc", sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - divisor")
+      kStr += inst("s_sub_u32", sgpr(rReg), sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - divisor")
   else:
     printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
   return kStr
