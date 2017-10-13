@@ -3860,14 +3860,15 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
       #kStr += dump(sgpr(rReg))
   elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2 TODO FIXME
     #printExit("KernelWriterAssembly::scalarStaticDivide doesn't support %u" % divisor)
-    shift = 32 + log2(divisor/3)
+    shift = 33 + log2(divisor/3)
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "tmp = magic")
     kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(dReg), sgpr(tmpSgpr), "tmp1 = dividend * magic")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "tmp = shift")
-    kStr += inst("s_lshr_b32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), tmpSgpr, "tmp1 = (dividend * magic) << shift")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "tmp = divisor")
-    kStr += inst("s_mul_i32", sgpr(qReg), sgpr(tmpSgpr+1), sgpr(tmpSgpr), "qReg = ( (dividend*magic)<<shift )*divisor")
+    kStr += inst("s_lshr_b32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), sgpr(tmpSgpr), "tmp1 = (dividend * magic) << shift")
+    kStr += inst("s_mov_b32", sgpr(qReg), sgpr(tmpSgpr+1), "quotient")
     if doRemainder:
+      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(qReg), sgpr(tmpSgpr), "qReg = ( (dividend*magic)<<shift )*divisor")
       kStr += inst("s_sub_u32", sgpr(rReg), sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - divisor")
   else:
     printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
