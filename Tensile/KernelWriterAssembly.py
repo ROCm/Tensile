@@ -1722,14 +1722,38 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(quotient)
         self.vgprPool.checkIn(remainder)
       else:
+        if False:
+          quotient = self.vgprPool.checkOut(1)
+          remainder = self.vgprPool.checkOut(1)
+          dividend = "Serial"
+          tmpVgpr = self.vgprPool.checkOut(3)
+          tmpSgpr = self.getTmpSgpr(1)
+          divisor = 3
+          kStr += vectorStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpVgpr, tmpSgpr, True )
+          kStr += "s_endpgm\n"
+
+
         # gsuSumIdx = wg1 % GSU
         # wg1       = wg1 / GSU
-        tmpSgpr = self.getTmpSgpr(1)
-        divisor = self.getTmpSgpr(1)
+        tmpSgpr = self.getTmpSgpr(2) # needs 3
+        divisor = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(divisor), sgpr("WorkGroup1"), \
             "copying for divisor")
+
+        #tmp = self.vgprPool.checkOut(1)
+
+        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup1"), "wg1")
+        #kStr += dump(vgpr(tmp)) # numerator
+
         kStr += scalarStaticDivideAndRemainder("WorkGroup1", "GSUSumIdx", \
             divisor, kernel["GlobalSplitU"], tmpSgpr, True)
+
+        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("WorkGroup1"), "wg1")
+        #kStr += dump(vgpr(tmp)) # quotient
+        #kStr += inst("v_mov_b32", vgpr(tmp), sgpr("GSUSumIdx"), "gsusumidx")
+        #kStr += dump(vgpr(tmp)) # remainder
+        #self.vgprPool.checkIn(tmp)
+        #kStr += "s_endpgm\n"
 
     ########################################
     # Blocked rows or columns
@@ -2540,8 +2564,8 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop:
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-      tmpSgpr = self.getTmpSgpr(1)
-      kStr += scalarStaticDivideAndRemainder(tmpSgpr, "LoopCounters+%u"%loopIdx, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+1, True)
+      tmpSgpr = self.getTmpSgpr(2)
+      kStr += scalarStaticDivideAndRemainder(tmpSgpr, "LoopCounters+%u"%loopIdx, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr, True)
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:
         kStr += inst("s_cmp_eq_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
@@ -2573,13 +2597,13 @@ class KernelWriterAssembly(KernelWriter):
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(1)
+        tmpSgpr = self.getTmpSgpr(2)
         quotient = "LoopCounters+%u"%loopIdx
         remainder = "GSUSumIdx+1" # numIterPerWgRemainder
-        dividend = tmpSgpr # numIterMyWg
+        dividend = tmpSgpr+2 # numIterMyWg
         divisor = kernel["GlobalSplitU"]
-        kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
-        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr+1, True)
+        kStr += inst("s_mov_b32", sgpr(dividend), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
+        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, True) # TODO FIXME
 
         # if gsuSumIdx < numIterPerWgRemainder
         kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
@@ -3828,6 +3852,8 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "")
     kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
+    #kStr += dump(vgpr(tmpVgpr+0))
+    #kStr += dump(vgpr(tmpVgpr+1))
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
     kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
     kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "quotient")
@@ -3850,7 +3876,7 @@ def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
   kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False)
   return kStr
 
-# only used for loop unroll
+# only used for loop unroll and GlobalSplitU
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     doRemainder=True):
   kStr = ""
@@ -3858,7 +3884,6 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     divisor_log2 = log2(divisor)
     kStr += inst("s_lshr_b32", sgpr(qReg), sgpr(dReg), divisor_log2, \
         "%s = %s / %u"%(sgpr(qReg), sgpr(dReg), divisor) )
-    #kStr += dump(sgpr(qReg))
     if doRemainder:
       kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), sgpr(dReg), \
           "%s = %s %% %u"%(sgpr(rReg), sgpr(dReg), divisor) )
@@ -3866,15 +3891,17 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
   elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2 TODO FIXME
     #printExit("KernelWriterAssembly::scalarStaticDivide doesn't support %u" % divisor)
     shift = 33 + log2(divisor/3)
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "tmp = magic")
-    kStr += inst("s_mul_i32", sgpr(tmpSgpr+1), sgpr(dReg), sgpr(tmpSgpr), "tmp1 = dividend * magic")
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "tmp = shift")
-    kStr += inst("s_lshr_b32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), sgpr(tmpSgpr), "tmp1 = (dividend * magic) << shift")
-    kStr += inst("s_mov_b32", sgpr(qReg), sgpr(tmpSgpr+1), "quotient")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "hi = 0")
+    kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), "0xaaaa", sgpr(dReg), "tmp1 = dividend * magic hi")
+    kStr += inst("s_lshl_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(16), "left shift 16 bits")
+    kStr += inst("s_mul_i32", sgpr(qReg), sgpr(dReg), "0xaaab", "tmp0 = dividend * magic lo")
+    kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr(qReg), sgpr(tmpSgpr+0), "add lo")
+    kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), hex(0), "add hi")
+    kStr += inst("s_lshr_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(shift), "tmp1 = (dividend * magic) << shift")
+    kStr += inst("s_mov_b32", sgpr(qReg), sgpr(tmpSgpr), "quotient")
     if doRemainder:
-      kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(qReg), sgpr(tmpSgpr), "qReg = ( (dividend*magic)<<shift )*divisor")
-      kStr += inst("s_sub_u32", sgpr(rReg), sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - divisor")
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(qReg), hex(divisor), "quotient*divisor")
+      kStr += inst("s_sub_u32", sgpr(rReg), sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - quotient*divisor")
   else:
     printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
   return kStr
@@ -3921,12 +3948,13 @@ def staticMultiply(product, operand, multiplier):
 
   """
 # mod 3 v0 -> v0
-s_mov_b32  s1 0xaaaaaaab
+s_mov_b32  s1 0xaaaaaaab = (2^33 / 3) + 1
 v_mul_hi_u32  v2 v0 s1
 v_mul_lo_u32  v1 v0 s1
 v_lshrrev_b64  v[1:2] 33 v[1:2]
 v_mul_lo_u32  v1 v1 3
 v_sub_u32  v0 vcc v0 v1
+
 # mod 6
 s_mov_b32  s1 0xaaaaaaab
 v_mul_hi_u32  v2 v0 s1
@@ -3934,6 +3962,7 @@ v_mul_lo_u32  v1 v0 s1
 v_lshrrev_b64  v[1:2] 34 v[1:2]
 v_mul_lo_u32  v1 v1 6
 v_sub_u32  v0 vcc v0 v1
+
 # mod 12
 s_mov_b32  s1 0xaaaaaaab
 v_mul_hi_u32  v2 v0 s1
