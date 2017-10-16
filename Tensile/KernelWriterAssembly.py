@@ -67,6 +67,7 @@ class RegisterPool:
   ########################################
   # Add
   def add(self, start, size):
+    #print "RP::add(%u,%u)"%(start,size)
     # reserve space
     newSize = start + size
     oldSize = len(self.pool)
@@ -87,6 +88,7 @@ class RegisterPool:
   ########################################
   # Remove
   def remove(self, start, size):
+    #print "RP::remove(%u,%u)"%(start,size)
     # reserve space
     newSize = start + size
     oldSize = len(self.pool)
@@ -108,7 +110,6 @@ class RegisterPool:
   def checkOut(self, size):
     return self.checkOutAligned(size, 1)
   def checkOutAligned(self, size, alignment):
-    #print "RegisterPool::checkOutAligned(%u,%u)"%(size,alignment)
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -136,6 +137,7 @@ class RegisterPool:
       for i in range(found, found+size):
         self.pool[i] = self.statusInUse
       self.checkOutSize[found] = size
+      #print "RP::checkOut(%u,%u) @ %u"%(size,alignment, found)
       return found
     # need overflow
     else:
@@ -162,11 +164,13 @@ class RegisterPool:
       for i in range(0, overflow):
         self.pool.append(self.statusInUse)
       self.checkOutSize[start] = size
+      #print "RP::checkOut(%u,%u) @ %u (overflow)"%(size, alignment, start)
       return start
 
   ########################################
   # Check In
   def checkIn(self, start):
+    #print "RP::checkIn() @ %u"%(start)
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
@@ -1661,6 +1665,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_addc_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
           vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
       self.vgprPool.checkIn(v)
+      self.vgprPool.checkIn(nwg0)
 
     return kStr
 
@@ -1678,17 +1683,17 @@ class KernelWriterAssembly(KernelWriter):
         # nwg1
         nwg1 = self.vgprPool.checkOut(1)
         tmpVgpr = self.vgprPool.checkOut(1)
-        nwg1Old = self.vgprPool.checkOut(1)
+        quotient = self.vgprPool.checkOut(1)
         tmpSgpr = self.getTmpSgpr(1)
         kStr += "// nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
             % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
         kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
-        kStr += inst("v_mov_b32", vgpr(nwg1Old), sgpr("SizesFree+1"), "")
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile1"]-1), "")
         kStr += inst("v_add_u32", vgpr(nwg1), "vcc", sgpr(tmpSgpr), vgpr(nwg1), \
             "%s = size1+MT1-1"%vgpr(nwg1))
-        kStr += vectorStaticDivide(nwg1, nwg1Old, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
-        self.vgprPool.checkIn(nwg1Old)
+        kStr += vectorStaticDivide(quotient, nwg1, kernel["MacroTile1"], tmpVgpr, tmpSgpr)
+        self.vgprPool.checkIn(nwg1)
+        nwg1 = quotient
 
         # wg1
         wg1 = self.vgprPool.checkOut(1)
