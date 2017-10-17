@@ -395,12 +395,6 @@ class KernelWriterAssembly(KernelWriter):
     else:
       return ((self.startSgprOffsetC+1)/2)*2
 
-# TODO: option: when offset bits aren't sufficient, do we use VALU to
-# increment address or do we use extra registers to store addresses?
-# (1) write1 and aways have sufficient offset bits
-# (2) write2 and if insufficient offset bits then IncrementAndReset
-# (3) write2 and if insufficient offset bits then AllocateAdditionalAddresses
-
   ##############################################################################
   #
   #   Functions to Write Kernel Segments
@@ -879,7 +873,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ####################################
-  # Global Write Macros - TODO GSU
+  # Global Write Macros
   ####################################
   def globalWriteMacro(self, kernel, beta, edge):
     kStr = ""
@@ -974,7 +968,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ####################################
-  # Global Write Inline - TODO GSU
+  # Global Write Inline
   ####################################
   def globalWriteInline(self, kernel, beta, edge, atomic, vc0, vc1, \
       d0, d1, coord0, coord1, addrC, sizes, tmpVgpr):
@@ -1391,7 +1385,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_add_u32",     "v[\\vRemainder]", "vcc",            hex(1), "v[\\vQuotient]", "" )
     kStr += inst("v_add_u32",     "v[\\vTmp1]",      "vcc", -1,        "v[\\vQuotient]", "" )
     kStr += inst("v_cmp_le_u32",  "vcc",             "v[\\vDivisor]", "v[\\vTmp0]", "" )
-    kStr += inst("s_and_b64",     "vcc",             "s[\\sTmp:\\sTmp+1]", "vcc", "" ) # FIXME
+    kStr += inst("s_and_b64",     "vcc",             "s[\\sTmp:\\sTmp+1]", "vcc", "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vRemainder]", "vcc", "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
     kStr += inst("v_cmp_ne_i32",  "vcc", hex(0),     "v[\\vDivisor]", "" )
@@ -1529,7 +1523,6 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # load kernel args
-    # TODO revert to s_load_dwordx2
     kStr += self.comment("Load Kernel Args")
     kernArgOffset = 0
     if globalParameters["DebugKernel"]:
@@ -1971,7 +1964,6 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Other Free Assignments
   ##############################################################################
   def graOtherFreeAssignments(self, kernel):
-    # TODO: support more dimensions than just batched
     return self.comment1(sgpr("WorkGroup2"))
 
   ##############################################################################
@@ -2588,12 +2580,11 @@ class KernelWriterAssembly(KernelWriter):
     # Unrolled Loop
     elif loopIdx == self.unrollIdx:
       if not self.do["PreLoop"]: kStr += ".endif\n"
-      # TODO doesn't support DU non-pow2
-      kStr += inst("s_lshr_b32", \
-          sgpr("LoopCounters+%u"%loopIdx), \
-          sgpr("SizesSum+%u"%loopIdx), \
-          log2(kernel["DepthU"]), \
-          "numIter%s = size%s / DU"%(loopChar, loopChar) )
+      tmpSgpr = self.getTmpSgpr(2)
+      quotient = "LoopCounters+%u"%loopIdx
+      dividend = "SizesSum+%u"%loopIdx
+      divisor = kernel["DepthU"]
+      kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, False)
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
@@ -2603,7 +2594,7 @@ class KernelWriterAssembly(KernelWriter):
         dividend = tmpSgpr+2 # numIterMyWg
         divisor = kernel["GlobalSplitU"]
         kStr += inst("s_mov_b32", sgpr(dividend), sgpr("LoopCounters+%u"%loopIdx), "copy for divide" )
-        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, True) # TODO FIXME
+        kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, True)
 
         # if gsuSumIdx < numIterPerWgRemainder
         kStr += inst("s_cmp_lt_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
@@ -2619,19 +2610,6 @@ class KernelWriterAssembly(KernelWriter):
       printExit("no assembly support for 2+ dimensional summation")
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
-
-    # dump
-    #kStr += inst("v_mov_b32", vgpr(tmp), \
-    #    sgpr("GSUSumIdx+0"), "" )
-    #kStr += dump(vgpr(tmp))
-    #kStr += inst("v_mov_b32", vgpr(tmp), \
-    #    sgpr("GSUSumIdx+1"), "" )
-    #kStr += dump(vgpr(tmp))
-    #kStr += inst("v_mov_b32", vgpr(tmp), \
-    #    sgpr("LoopCounters+%u"%loopIdx), "" )
-    #kStr += dump(vgpr(tmp))
-
-    #kStr += "s_endpgm\n"
     self.vgprPool.checkIn(tmp)
 
     # counter = -counter
@@ -3846,29 +3824,30 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     if doRemainder:
       kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
           "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
-
-  elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2
-    shift = 33 + log2(divisor/3)
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0xaaaaaaab", "")
+  else:
+    if divisor >= 30:
+      shift = 32+5
+    elif divisor >= 14:
+      shift = 32+4
+    elif divisor >= 6:
+      shift = 32+3
+    elif divisor >= 5:
+      shift = 32+2
+    elif divisor >= 3:
+      shift = 32+1
+    magic = ((2**shift) / divisor) + 1
+    magicHi = magic / (2**16)
+    magicLo = magic & (2**16-1)
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), "")
     kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
-    #kStr += dump(vgpr(tmpVgpr+0))
-    #kStr += dump(vgpr(tmpVgpr+1))
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
     kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
     kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "quotient")
-    #kStr += dump(vgpr(qReg))
     if doRemainder:
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
-      #kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr(tmpSgpr), "")
-      #kStr += dump(vgpr(tmpVgpr))
       kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "product = quotient * divisor")
-      #kStr += dump(vgpr(tmpVgpr))
       kStr += inst("v_sub_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "remainder = dividend - product")
-      #kStr += dump(vgpr(rReg))
-
-  else:
-    printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
   return kStr
 
 def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
@@ -3887,14 +3866,25 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     if doRemainder:
       kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), sgpr(dReg), \
           "%s = %s %% %u"%(sgpr(rReg), sgpr(dReg), divisor) )
-      #kStr += dump(sgpr(rReg))
-  elif (((divisor/3) & ((divisor/3) - 1)) == 0): # 3 * pow of 2 TODO FIXME
-    #printExit("KernelWriterAssembly::scalarStaticDivide doesn't support %u" % divisor)
-    shift = 33 + log2(divisor/3)
+  else:
+    if divisor >= 30:
+      shift = 32+5
+    elif divisor >= 14:
+      shift = 32+4
+    elif divisor >= 6:
+      shift = 32+3
+    elif divisor >= 5:
+      shift = 32+2
+    elif divisor >= 3:
+      shift = 32+1
+    magic = ((2**shift) / divisor) + 1
+    magicHi = magic / (2**16)
+    magicLo = magic & (2**16-1)
+
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "hi = 0")
-    kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), "0xaaaa", sgpr(dReg), "tmp1 = dividend * magic hi")
+    kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), hex(magicHi), sgpr(dReg), "tmp1 = dividend * magic hi")
     kStr += inst("s_lshl_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(16), "left shift 16 bits")
-    kStr += inst("s_mul_i32", sgpr(qReg), sgpr(dReg), "0xaaab", "tmp0 = dividend * magic lo")
+    kStr += inst("s_mul_i32", sgpr(qReg), sgpr(dReg), hex(magicLo), "tmp0 = dividend * magic lo")
     kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr(qReg), sgpr(tmpSgpr+0), "add lo")
     kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), hex(0), "add hi")
     kStr += inst("s_lshr_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(shift), "tmp1 = (dividend * magic) << shift")
@@ -3902,20 +3892,11 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     if doRemainder:
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(qReg), hex(divisor), "quotient*divisor")
       kStr += inst("s_sub_u32", sgpr(rReg), sgpr(dReg), sgpr(tmpSgpr), "rReg = dividend - quotient*divisor")
-  else:
-    printExit("KernelWriterAssembly::divmod doesn't support %u" % divisor)
   return kStr
-
-#def staticRemainder(rReg, dReg, divisor, tmpVgpr, tmpSgpr):
-#  qReg = self.vgprPool.checkOut(1)
-#  kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr)
-#  self.vgprPool.checkIn(qReg)
-#  return kStr
 
 ########################################
 # Multiply
 # product register, operand register, multiplier
-# TODO clarify support of sgpr and constant operand/multipliers
 ########################################
 def staticMultiply(product, operand, multiplier):
   if ((multiplier & (multiplier - 1)) == 0): # pow of 2
@@ -3933,75 +3914,3 @@ def staticMultiply(product, operand, multiplier):
     else:
       return inst("v_mul_lo_u32", product, operand, hex(multiplier), \
           "%s = %s * %u"%(product, operand, multiplier) )
-    """
-    VOP3 (cannot use literal constant)
-    v_mul_lo_u32
-    v_mul_hi_u32
-    v_mul_hi_i32
-    VOP2
-    v_mul_i32_i24
-    v_mul_u32_u24
-    v_mul_hi_i32_i24
-    v_mul_hi_u32_u24
-
-    """
-
-  """
-# mod 3 v0 -> v0
-s_mov_b32  s1 0xaaaaaaab = (2^33 / 3) + 1
-v_mul_hi_u32  v2 v0 s1
-v_mul_lo_u32  v1 v0 s1
-v_lshrrev_b64  v[1:2] 33 v[1:2]
-v_mul_lo_u32  v1 v1 3
-v_sub_u32  v0 vcc v0 v1
-
-# mod 6
-s_mov_b32  s1 0xaaaaaaab
-v_mul_hi_u32  v2 v0 s1
-v_mul_lo_u32  v1 v0 s1
-v_lshrrev_b64  v[1:2] 34 v[1:2]
-v_mul_lo_u32  v1 v1 6
-v_sub_u32  v0 vcc v0 v1
-
-# mod 12
-s_mov_b32  s1 0xaaaaaaab
-v_mul_hi_u32  v2 v0 s1
-v_mul_lo_u32  v1 v0 s1
-v_lshrrev_b64  v[1:2] 35 v[1:2]
-v_mul_lo_u32  v1 v1 12
-v_sub_u32  v0 vcc v0 v1
-# mod 2
-V_AND_B32  v0 1 v0
-# mod 4
-V_AND_B32  v0 3 v0
-# mod 8
-V_AND_B32  v0 7 v0
-# mod 16
-V_AND_B32  v0 15 v0
-
-    else:
-      kStr += "/"
-# div 2
-V_LSHLREV_B32  v0 1 v0
-# div 2
-V_LSHLREV_B32  v0 2 v0
-# div 8
-V_LSHLREV_B32  v0 3 v0
-# div 16
-V_LSHLREV_B32  v0 4 v0
-# div 3
-s_mov_b32  s0 0xaaaaaaab
-v_mul_hi_u32  v3 v0 s0
-v_mul_lo_u32  v2 v0 s0
-v_lshrrev_b64  v[2:3] 33 v[2:3]
-# div 6
-s_mov_b32  s0 0xaaaaaaab
-v_mul_hi_u32  v3 v0 s0
-v_mul_lo_u32  v2 v0 s0
-v_lshrrev_b64  v[2:3] 34 v[2:3]
-# div 12
-s_mov_b32  s0 0xaaaaaaab
-v_mul_hi_u32  v3 v0 s0
-v_mul_lo_u32  v2 v0 s0
-v_lshrrev_b64  v[2:3] 35 v[2:3]
-  """
