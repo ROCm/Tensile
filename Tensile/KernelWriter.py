@@ -800,6 +800,7 @@ class KernelWriter:
     self.tileCharB = self.tileChar0 if (kernel["ProblemType"]["Tensor0"]==1) \
         else self.tileChar1
 
+    """
     if kernel["ProblemType"]["Tensor0"]==0:
       kernel["ThreadTileA"] = kernel["ThreadTile0"]
       kernel["ThreadTileB"] = kernel["ThreadTile1"]
@@ -814,6 +815,7 @@ class KernelWriter:
       kernel["SubGroupA"] = kernel["SubGroup1"]
       kernel["MacroTileB"] = kernel["MacroTile0"]
       kernel["MacroTileA"] = kernel["MacroTile1"]
+    """
 
     ########################################
     # derrive global-read-coalesce-group from local in config
@@ -1032,6 +1034,7 @@ class KernelWriter:
 
     ####################################
     # load sizes
+    """
     if kernel["ProblemType"]["TLUA"]:
       kernel["LSCA"] = kernel["MacroTileA"] \
           / kernel["NumLoadsCoalescedA"]
@@ -1054,6 +1057,7 @@ class KernelWriter:
     kernel["LVCB"] = kernel["LSCB"] / kernel["GlobalLoadVectorWidthB"]
     kernel["LVPA"] = kernel["LSPA"] / kernel["GlobalLoadVectorWidthA"]
     kernel["LVPB"] = kernel["LSPB"] / kernel["GlobalLoadVectorWidthB"]
+    """
 
     self.getTensorParameters(tensorParametersA, kernel, True)
     self.getTensorParameters(tensorParametersB, kernel, False)
