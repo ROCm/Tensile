@@ -83,7 +83,8 @@ globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
-globalParameters["DeviceLDS"] = 32768
+globalParameters["DeviceLDS"] = 32768*2
+globalParameters["MaxDepthU"] = 256
 globalParameters["MinimumRequiredVersion"] = "0.0.0"
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]
 globalParameters["CurrentISA"] = (0,0,0)
@@ -111,7 +112,7 @@ validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 4
 validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
-depthUs = [-3, -2, -1]
+depthUs = range(-16, 0)
 depthUs.extend(range(2,256+1,2))
 for i in validMacroTileSides:
   for j in validMacroTileSides:

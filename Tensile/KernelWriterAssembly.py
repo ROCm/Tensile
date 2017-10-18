@@ -871,102 +871,6 @@ class KernelWriterAssembly(KernelWriter):
   def macroRegister(self, name, value):
     return ".set %s, %s%s" % (name, value, self.endLine)
 
-
-  ####################################
-  # Global Write Macros
-  ####################################
-  def globalWriteMacro(self, kernel, beta, edge):
-    kStr = ""
-    kStr += self.comment3("Global Write%s%s"%(" Beta" if beta else "", " Edge" if edge else ""))
-    kStr += ".macro GLOBAL_WRITE%s%s vc0 vc1 d0 d1 coord0 coord1 addrC sizes tmpVgpr%s"%("_Beta" if beta else "", "_Edge" if edge else "", self.endLine)
-    fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
-    tmpS01 = fullExecMaskSgpr+2 # scratch sgprs
-    tmpS23 = tmpS01+2
-    tmpS45 = tmpS23+2
-    tmpS67 = tmpS45+2
-
-    kStr += ".set idx, %u + \\vc0 + \\d0*%u + \\vc1*%u + \\d1*%u*%u %s" \
-        % (self.startVgprValuC, \
-        kernel["VectorWidth"], \
-        kernel["ThreadTile0"], \
-        kernel["VectorWidth"], kernel["ThreadTile0"], \
-        self.endLine )
-    kStr += ".set addr, \\tmpVgpr+2%s" % self.endLine
-
-    # coord0
-    kStr += staticMultiply("v[\\tmpVgpr+0]", "\\d0", (kernel["SubGroup0"]*kernel["VectorWidth"]))
-    kStr += inst("v_add_u32", "v[\\tmpVgpr+0]", "vcc", "\\vc0", "v[\\tmpVgpr+0]", \
-        "tmp0 = d0*sg0*VW + vc0")
-    kStr += inst("v_add_u32", "v[\\tmpVgpr+0]", "vcc", "v[\\coord0]", "v[\\tmpVgpr+0]", \
-        "coord0 += d0*sg0*VW + vc0")
-    #kStr += dump("v[\\tmp+0]")
-    #kStr += dump("v[\\sizes+0]")
-
-    # coord1
-    kStr += staticMultiply("v[\\tmpVgpr+1]", "\\d1", (kernel["SubGroup1"]*kernel["VectorWidth"]))
-    kStr += inst("v_add_u32", "v[\\tmpVgpr+1]", "vcc", "\\vc1", "v[\\tmpVgpr+1]", \
-        "tmp1 = d1*sg1*VW + vc1")
-    kStr += inst("v_add_u32", "v[\\tmpVgpr+1]", "vcc", "v[\\coord1]", "v[\\tmpVgpr+1]", \
-        "coord1 += d1*sg1*VW + vc1")
-    #kStr += dump("v[\\tmp+1]")
-
-    if False:
-      kStr += inst("s_mov_b32",  sgpr(tmpS67), hex(0), "zero" )
-      kStr += inst("v_mov_b32",  "v[\\tmpVgpr+2]", sgpr(tmpS67), "zero" )
-
-    # in-bounds exec mask
-    if edge:
-      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), "v[\\tmpVgpr+0]", "v[\\sizes+0]", "coord0 < size0" )
-      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), "v[\\tmpVgpr+1]", "v[\\sizes+1]", "coord1 < size1" )
-      #kStr += inst("v_mov_b32", "v[\\tmp+2]", sgpr(tmpS01), "to dump")
-      #kStr += dump("v[\\tmp+2]")
-      kStr += inst("s_and_b64",  sgpr(tmpS45,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
-      kStr += inst("s_and_saveexec_b64",  sgpr(tmpS67,2), sgpr(tmpS45,2), "sgprs -> exec" )
-
-    # global offset macro
-    kStr += "GLOBAL_OFFSET_C addr"
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += ", \\tmpVgpr+0"
-      elif i == kernel["ProblemType"]["Index1"]:
-        kStr += ", \\tmpVgpr+1"
-      else: # just a group index
-        kStr += ", sgprWorkGroup%u"%i
-    kStr += ", \\tmpVgpr+4%s" % self.endLine
-
-    # final address = C + index*4bytes
-    kStr += inst("v_add_u32",  "v[addr+0]", "vcc", "v[\\addrC+0]", \
-        "v[addr+0]", "addr = C + index*4bytes (lo)" )
-    kStr += inst("v_addc_u32", "v[addr+1]", "vcc", "v[\\addrC+1]", \
-        "v[addr+1]", "vcc", "addr = C + index*4bytes (hi)")
-
-    # RESUME
-    kStr += inst("v_mul_f32", "v[idx]", sgpr("Alpha"), "v[idx]", "*= alpha" )
-    #kStr += dump("v[idx]")
-    if beta:
-      kStr += inst("flat_load_dword", "v[\\tmpVgpr]", "v[addr:addr+1]", \
-          "load C" )
-      kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
-      #kStr += dump("v[\\tmp]")
-      kStr += inst("v_mul_f32", "v[\\tmpVgpr]", sgpr("Beta"), "v[\\tmpVgpr]", \
-          "%s = C*beta"%"v[\\tmpVgpr]" )
-      #kStr += dump(vgpr("v[\\tmp]")
-      kStr += inst("v_add_f32", "v[idx]", "v[\\tmpVgpr]", "v[idx]", \
-          "v[idx] = sum*alpha + C*beta" )
-    #kStr += dump("v[addr+0]")
-    #kStr += dump("v[addr+1]")
-    #kStr += dump("v[idx]")
-    #kStr += "s_endpgm\n"
-
-    kStr += inst("flat_store_dword", "v[addr:addr+1]", "v[idx]", "store C" )
-
-    # restore full exec mask
-    if edge:
-      kStr += inst("s_or_saveexec_b64",  sgpr(tmpS67,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
-
-    kStr += ".endm%s"%self.endLine
-    return kStr
-
   ####################################
   # Global Write Inline
   ####################################
@@ -1048,18 +952,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
           "%s = C*beta"%vgpr(data+0) )
     else:
-      kStr += inst("v_mov_b32", vgpr(data+0), vgpr(idx), \
+      kStr += inst("v_mov_b32", vgpr(data+0), vgpr(data+1), \
           "sum*alpha")
 
     # new c = new c + rC
     if beta or atomic:
-      kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
+      kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(idx), \
           "sum*alpha + C*beta")
-      #if idx==0:
-      #  # results of 1st write
-      #  kStr += dump(vgpr(data+1)) # old
-      #  kStr += dump(vgpr(idx))    # rC
-      #  kStr += dump(vgpr(data+0)) # new
 
     # store rC
     if atomic:
@@ -1076,11 +975,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), vgpr(addr,2), \
           vgpr(data,2), "glc", "attempt write", self.endLine )
       kStr += inst("s_waitcnt vmcnt(0) lgkmcnt(0)", "wait for atomic" )
-      #if idx==0:
-      #  # results of 1st write
-      #  kStr += dump(vgpr(data+1)) # old
-      #  kStr += dump(vgpr(data+0)) # new
-      #  kStr += dump(vgpr(tmp))    # read
       kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmp), \
           vgpr(data+1), "c read during atomic == c read during prior load" )
       kStr += inst("s_and_saveexec_b64", sgpr(tmpS67,2), "vcc", \
@@ -1095,19 +989,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "label_%04u:%s" % (labelIdx, self.endLine)
       kStr += inst("v_add_f32", vgpr(data+0), vgpr(idx), vgpr(data+1), \
           "newC = rC + originalC" )
-      #if idx==0:
-      #  # results of subsequent write
-      #  kStr += dump(vgpr(data+1)) # old
-      #  kStr += dump(vgpr(idx))    # rC
-      #  kStr += dump(vgpr(data+0)) # new
       kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), \
           vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
       kStr += inst("s_waitcnt vmcnt(0) lgkmcnt(0)", "wait" )
-      #if idx==0:
-      #  # results of subsequent write
-      #  kStr += dump(vgpr(data+1)) # old
-      #  kStr += dump(vgpr(data+0)) # new
-      #  kStr += dump(vgpr(tmp)) # read
       kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmp), \
           "c read during atomic == c read during prior load" )
       #kStr += inst("s_or_b64", sgpr(tmpS67,2), "vcc", sgpr(tmpS67,2), "new mask" )
@@ -1120,41 +1004,6 @@ class KernelWriterAssembly(KernelWriter):
     # restore full exec mask
     if edge:
       kStr += inst("s_or_saveexec_b64",  sgpr(tmpS67,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
-
-#flat_load_dword v6, v[0:1]
-#v_mul_f32_e32 v3, s10, v2
-#s_waitcnt vmcnt(0) lgkmcnt(0)
-#v_mad_f32 v5, s10, v2, v6
-#flat_atomic_cmpswap v5, v[0:1], v[5:6] glc
-#s_waitcnt vmcnt(0) lgkmcnt(0)
-#v_cmp_ne_u32_e32 vcc, v5, v6
-#s_and_saveexec_b64 s[0:1], vcc
-#; mask branch BB2_113
-#BB2_111:                                ; %_ZNSt6atomicIfE21compare_exchange_weakERffSt12memory_orderS2_.exit.i2637.i.preheader
-#s_mov_b64 s[0:1], 0
-#BB2_112:                                ; %_ZNSt6atomicIfE21compare_exchange_weakERffSt12memory_orderS2_.exit.i2637.i
-#v_add_f32_e32 v4, v3, v5
-#flat_atomic_cmpswap v2, v[0:1], v[4:5] glc
-#s_waitcnt vmcnt(0) lgkmcnt(0)
-#v_cmp_eq_u32_e32 vcc, v2, v5
-#s_or_b64 s[0:1], vcc, s[0:1]
-#v_mov_b32_e32 v5, v2
-#s_andn2_b64 exec, exec, s[0:1]
-#s_cbranch_execnz BB2_112
-#BB2_113:                                ; %Cijk_Ailk_Bjlk_SB_MT032x032x08_K1.exit
-
-
-
-
-
-
-
-
-    #kStr += dump(vgpr(addr+0))
-    #kStr += dump(vgpr(addr+1))
-    #kStr += dump(vgpr(idx))
-    #kStr += "s_endpgm\n"
-
 
     return kStr
 
@@ -1351,15 +1200,6 @@ class KernelWriterAssembly(KernelWriter):
           "offset *= bytes/element")
       #kStr += "s_endpgm\n"
       kStr += ".endm%s" % self.endLine
-
-    ########################################
-    # Global Write Macros
-    ########################################
-    kStr += self.globalWriteMacro(kernel, False, False)
-    kStr += self.globalWriteMacro(kernel, False, True)
-    if kernel["ProblemType"]["UseBeta"]:
-      kStr += self.globalWriteMacro(kernel, True,  False)
-      kStr += self.globalWriteMacro(kernel, True,  True)
 
     ########################################
     # Dynamic Scalar Divide
@@ -1872,6 +1712,9 @@ class KernelWriterAssembly(KernelWriter):
       else:
         divisorName = tP["lvp"]
     divisor = kernel[divisorName]
+    if divisor == 0:
+        print self.kernelName
+        print kernel
 
     if tP["grcg"] == tP["tlu"]:
       rReg = self.vgprPool.checkOut(1) # gro-tile = serial%divisor
