@@ -1463,11 +1463,10 @@ class KernelWriterAssembly(KernelWriter):
     # Debug Buffer
     if globalParameters["DebugKernel"]:
       kStr += self.comment("Debug Buffer")
-      nt_log2 = log2(kernel["NumThreads"])
 
       # nwg0
       nwg0 = self.vgprPool.checkOut(1)
-      tmpVgpr = self.vgprPool.checkOut(1)
+      tmpVgpr = self.vgprPool.checkOut(2)
       tmpSgpr = self.getTmpSgpr(1)
       kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
@@ -1485,8 +1484,7 @@ class KernelWriterAssembly(KernelWriter):
           "%s=wg1*nwg0"%vgpr(v+1) )
       kStr += inst("v_add_u32", vgpr(v), "vcc", vgpr(v), vgpr(v+1), \
           "%s=wg1*nwg0+wg0"%vgpr(v) )
-      kStr += inst("v_lshlrev_b32", vgpr(v), nt_log2, vgpr(v), \
-          "%s=NT*(wg1*nwg0+wg0)"%vgpr(v) )
+      kStr += staticMultiply(vgpr(v), vgpr(v), kernel["NumThreads"], sgpr(tmpSgpr))
       kStr += inst("v_add_u32", vgpr(v), "vcc", vgpr(v), vgpr("Serial"), \
           "%s=tid+NT*(wg1*nwg0+wg0)=serial"%vgpr(v) )
       kStr += inst("v_mul_lo_u32", vgpr(v), hex(self.nipt*4), vgpr(v), \
@@ -1515,7 +1513,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # nwg1
         nwg1 = self.vgprPool.checkOut(1)
-        tmpVgpr = self.vgprPool.checkOut(1)
+        tmpVgpr = self.vgprPool.checkOut(2)
         quotient = self.vgprPool.checkOut(1)
         tmpSgpr = self.getTmpSgpr(1)
         kStr += "// nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
@@ -1736,16 +1734,16 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("%s = gro%s-unroll = serial%s%s" \
         % (vgpr(uReg), tP["tensorChar"], uOpStr, divisorName) )
     dividendReg = "Serial" # local serial
-    tmpVgpr = self.vgprPool.checkOut(1)
+    tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
 
     if tP["glvw"] > 1:
       if tP["grcv"] == tP["tlu"]:
-        kStr += staticMultiply(vgpr(tReg), vgpr(tReg), tP["glvw"])
+        kStr += staticMultiply(vgpr(tReg), vgpr(tReg), tP["glvw"], sgpr(tmpSgpr))
       else:
-        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), tP["glvw"])
+        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), tP["glvw"], sgpr(tmpSgpr))
     kStr += staticMultiply(vgpr(tmpVgpr), sgpr(tP["wg"]), kernel[tP["mt"]])
     kStr += inst("v_add_u32", vgpr(tReg2), "vcc", vgpr(tmpVgpr), \
         vgpr(tReg), "gro%s-tile = serial%s%s*VW + (wg%s*MT%s)" \
@@ -1774,8 +1772,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(gsuOffset), sgpr("GSUSumIdx"), "=gsuSumIdx")
       if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         # graUnrollAssignment += gsuSumIdx*DepthU
-        kStr += inst("v_mul_lo_u32", vgpr(gsuOffset), hex(kernel["DepthU"]), \
-            vgpr(gsuOffset), "gsuOffset=gsuSumIdx*DepthU")
+        tmpSgpr = self.getTmpSgpr(1)
+        kStr += staticMultiply(vgpr(gsuOffset), vgpr(gsuOffset), kernel["DepthU"], sgpr(tmpSgpr))
       else:
         # graUnrollAssignment += gsuSumIdx*(SizeU/GSU)
         sizeU = self.vgprPool.checkOut(1)
@@ -1783,7 +1781,7 @@ class KernelWriterAssembly(KernelWriter):
             "=Size%u"%self.unrollChar)
         quotient = self.vgprPool.checkOut(1)
         dummy = self.vgprPool.checkOut(1)
-        tmpVgpr = self.vgprPool.checkOut(1)
+        tmpVgpr = self.vgprPool.checkOut(2)
         tmpSgpr = self.getTmpSgpr(1)
         kStr += vectorStaticDivideAndRemainder(quotient, dummy, sizeU, \
             hex(kernel["GlobalSplitU"]), tmpVgpr, tmpSgpr)
@@ -1982,19 +1980,10 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += "globalReadOffset%s%s" % (tP["tensorChar"], self.indexChars[i] )
             kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine)
+            # dump final offsets
+            #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
+            #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%tP["tensorChar"], graIdx))
             graIdx += self.rpga
-    #kStr += dump(vgpr("GlobalReadAddr%s"%tP["tensorChar"]))
-    #kStr += dump(vgpr("GlobalReadAddr%s+1"%tP["tensorChar"]))
-    #if False:
-      #kStr += dump(vgpr("GlobalReadAddrA+0"))
-      #kStr += dump(vgpr("GlobalReadAddrA+2"))
-      #kStr += dump(vgpr("GlobalReadAddrA+4"))
-      #kStr += dump(vgpr("GlobalReadAddrA+6"))
-      #kStr += dump(vgpr("GlobalReadAddrA+8"))
-      #kStr += dump(vgpr("GlobalReadAddrA+10"))
-      #kStr += dump(vgpr("GlobalReadAddrA+12"))
-      #kStr += dump(vgpr("GlobalReadAddrA+14"))
-
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
     self.vgprPool.checkIn(tmp)
@@ -2026,11 +2015,6 @@ class KernelWriterAssembly(KernelWriter):
                 % (tP["tensorChar"], para, sPara, perp, sPerp, \
                 tP["tensorChar"], tP["tensorChar"], \
                 para, sPara, perp, sPerp )
-            #kStr += dump(vgpr("GlobalReadAddrA+0"))
-            #kStr += dump(vgpr("GlobalReadAddrA+1"))
-            #kStr += dump(vgpr(tmp+0))
-            #kStr += dump(vgpr(tmp+1))
-
             kStr += inst("v_add_u32", \
                 vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                 "vcc", \
@@ -2103,12 +2087,6 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
               hex(0), \
               "(carry)")
-        #tmp = self.vgprPool.checkOut(2)
-        #kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("GlobalReadIncsA+0"), "" )
-        #kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("GlobalReadIncsA+1"), "" )
-        #kStr += dump(vgpr(tmp+0))
-        #kStr += dump(vgpr(tmp+1))
-        #self.vgprPool.checkIn(tmp)
       else: # transposed
         if self.globalReadIncsUseVgpr:
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
@@ -2156,7 +2134,6 @@ class KernelWriterAssembly(KernelWriter):
         hex(kernel["MacroTile%s"%tP["tensorChar"]]), \
         vgpr(uReg), \
         "lw%s%s*MT%s"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    #kStr += dump(vgpr("LocalWriteAddrA"))
     kStr += inst("v_add_u32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "vcc", \
@@ -2182,6 +2159,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tP["gpr"]["uReg"])
     if kernel["GlobalSplitU"] > 1:
       self.vgprPool.checkIn(tP["gpr"]["uReg2"])
+    # dump lds write offsets
     #kStr += dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
     return kStr
 
@@ -2250,17 +2228,13 @@ class KernelWriterAssembly(KernelWriter):
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
     dividendReg = "Serial" # local serial
-    tmpVgpr = self.vgprPool.checkOut(1)
+    tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
-    #kStr += dump(vgpr(rReg))
-    #kStr += dump(vgpr(qReg))
     tP["gpr"]["lro"] = rReg
-    #kStr += dump(vgpr(tP["gpr"]["lro"]))
     self.tmplroB = qReg
     self.vgprPool.checkIn(tmpVgpr)
-    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -2275,19 +2249,14 @@ class KernelWriterAssembly(KernelWriter):
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
     dividendReg = self.tmplroB
-    tmpVgpr = self.vgprPool.checkOut(1)
+    tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
-    #kStr += dump(vgpr(rReg))
-    #kStr += dump(vgpr(qReg))
-    #kStr += "s_endpgm\n"
     self.vgprPool.checkIn(self.tmplroB) # old
     tP["gpr"]["lro"] = rReg
-    #kStr += dump(vgpr(tP["gpr"]["lro"]))
     self.vgprPool.checkIn(qReg)
     self.vgprPool.checkIn(tmpVgpr)
-    #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -2298,13 +2267,12 @@ class KernelWriterAssembly(KernelWriter):
     divisor = kernel["NumThreads"]
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
-    dividendReg = 0
-    tmpVgpr = self.vgprPool.checkOut(1)
+    dividendReg = "Serial"
+    tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
     sgid = qReg
-    #kStr += dump(vgpr(tP["gpr"]["lro"]))
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
         hex(kernel["MacroTile%u"%tP["tensorIdx"]]), \
@@ -2314,15 +2282,9 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         "sgid*sgid*MT%u"%tP["tensorIdx"] )
-    #kStr += dump(vgpr(sgid))
     if kernel["VectorWidth"] > 1:
-      #kStr += inst("v_lshlrev_b32", \
-      #    vgpr(tP["gpr"]["lro"]), \
-      #    log2(kernel["VectorWidth"]), \
-      #    vgpr(tP["gpr"]["lro"]), \
-      #    "lroA *= VW" )
-      kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), kernel["VectorWidth"])
-      #kStr += dump(vgpr(tP["gpr"]["lro"]))
+      kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
+          kernel["VectorWidth"], sgpr(tmpSgpr))
     kStr += inst("v_add_u32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "vcc", \
@@ -2334,23 +2296,14 @@ class KernelWriterAssembly(KernelWriter):
         hex(log2(self.bpe)), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "*= bytes/element" )
-    """
-    if tP["isB"]:
-      kStr += inst("v_lshlrev_b32", \
-          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          hex(log2(self.bpe)), \
-          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          "*= bytes/element" )
-    """
-    #kStr += dump(vgpr("LocalReadAddrA"))
-    #kStr += "s_endpgm\n"
+
+    # dump lra final offset
+    #kStr += dump(vgpr("LocalReadAddr%s"%tP["tensorChar"])) # all zeros for B
 
     self.vgprPool.checkIn(tmpVgpr)
     self.vgprPool.checkIn(qReg)
     self.vgprPool.checkIn(rReg)
     self.vgprPool.checkIn(tP["gpr"]["lro"])
-    #kStr += "  unsigned int localReadOffsetA = lr%s*VECTOR_WIDTH + sgId*MT%s%s" \
-    #    % ( tP["tileChar"], tP["tileChar"], self.endLine)
     return kStr
 
   ##############################################################################
@@ -2874,7 +2827,7 @@ class KernelWriterAssembly(KernelWriter):
           #comment = "Reg -> L %u_%u_%u_%u"%(para, sPara, perp, sPerp)
           kStr += tP["localWriteInstruction"].toString(paramTuple, comment)
     #if tP["isB"]:
-    #  kStr += self.dumpLds(kernel, 0, 4)
+    #  kStr += self.dumpLds(kernel, 0, 8)
     #  kStr += "s_endpgm\n"
     return kStr
 
@@ -3020,7 +2973,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # wgMT value
     tmpSgpr = self.getTmpSgpr(2)
-    tmpVgpr = self.vgprPool.checkOut(1)
+    tmpVgpr = self.vgprPool.checkOut(2)
     wgMT = self.vgprPool.checkOut(1)
     kStr += inst("v_mov_b32", vgpr(wgMT), sgpr(tP["wg"]), "")
     kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), \
@@ -3324,7 +3277,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpS1 = tmpS0+1
     tmpS2 = tmpS1+1
     tmpS3 = tmpS2+1
-    tmpV0 = self.vgprPool.checkOut(1)
+    tmpV0 = self.vgprPool.checkOut(2)
 
     # thread id 0,1
     tid0 = self.vgprPool.checkOut(1)
@@ -3332,8 +3285,8 @@ class KernelWriterAssembly(KernelWriter):
     divisor = kernel["SubGroup0"]
     kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
         tmpV0, tmpS0)
-    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["VectorWidth"])
-    kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["VectorWidth"])
+    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["VectorWidth"], sgpr(tmpS1))
+    kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["VectorWidth"], sgpr(tmpS1))
 
     # workgroup offset
     kStr += inst("s_mul_i32", \
@@ -3672,8 +3625,10 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
       shift = 32+5
     elif divisor >= 14:
       shift = 32+4
-    elif divisor >= 6:
+    elif divisor >= 7:
       shift = 32+3
+    elif divisor >= 6:
+      shift = 32+2 # this was 32+3 but divisor hex didn't fit into 32 bits
     elif divisor >= 5:
       shift = 32+2
     elif divisor >= 3:
@@ -3741,19 +3696,21 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
 # Multiply
 # product register, operand register, multiplier
 ########################################
-def staticMultiply(product, operand, multiplier):
+def staticMultiply(product, operand, multiplier, tmpSgpr=None):
   if ((multiplier & (multiplier - 1)) == 0): # pow of 2
     multiplier_log2 = log2(multiplier)
     return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
         "%s = %s * %u"%(product, operand, multiplier) )
   else:
-    if True: # operand.startswith("s["):
-      kStr = ""
-      kStr += inst("v_mov_b32", product, multiplier, \
+    kStr = ""
+    if product == operand:
+      kStr += inst("s_mov_b32", tmpSgpr, hex(multiplier), \
+        "%s = %u"%(tmpSgpr, multiplier) )
+      kStr += inst("v_mul_lo_u32", product, tmpSgpr, operand, \
+        "%s *= %s"%(product, operand) )
+    else:
+      kStr += inst("v_mov_b32", product, hex(multiplier), \
         "%s = %u"%(product, multiplier) )
       kStr += inst("v_mul_lo_u32", product, product, operand, \
         "%s *= %s"%(product, operand) )
-      return kStr
-    else:
-      return inst("v_mul_lo_u32", product, operand, hex(multiplier), \
-          "%s = %s * %u"%(product, operand, multiplier) )
+    return kStr
