@@ -3621,8 +3621,9 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
       kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
           "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
   else:
-    if divisor >= 30:
-      shift = 32+5
+    """
+    if divisor == 30:
+      shift = 32+2
     elif divisor >= 14:
       shift = 32+4
     elif divisor >= 7:
@@ -3633,6 +3634,8 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
       shift = 32+2
     elif divisor >= 3:
       shift = 32+1
+    """
+    shift = 32+1
     magic = ((2**shift) / divisor) + 1
     magicHi = magic / (2**16)
     magicLo = magic & (2**16-1)
@@ -3665,8 +3668,9 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
       kStr += inst("s_and_b32", sgpr(rReg), (divisor-1), sgpr(dReg), \
           "%s = %s %% %u"%(sgpr(rReg), sgpr(dReg), divisor) )
   else:
-    if divisor >= 30:
-      shift = 32+5
+    """
+    if divisor == 30:
+      shift = 32+2
     elif divisor >= 14:
       shift = 32+4
     elif divisor >= 6:
@@ -3675,6 +3679,8 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
       shift = 32+2
     elif divisor >= 3:
       shift = 32+1
+    """
+    shift = 32+1
     magic = ((2**shift) / divisor) + 1
     magicHi = magic / (2**16)
     magicLo = magic & (2**16-1)
