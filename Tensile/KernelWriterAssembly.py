@@ -2891,8 +2891,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_add_u32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "vcc", \
-          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           sgpr(tmpSgpr), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "lr%s += %u"%(tP["tensorChar"], inc) )
     else:
       if tP["localReadInstruction"].numOffsets == 1:
@@ -2903,8 +2903,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_add_u32", \
             vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
             "vcc", \
-            vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
             hex(inc), \
+            vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
             "lr%s += %u"%(tP["tensorChar"], inc) )
     return kStr
 
