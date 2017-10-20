@@ -200,8 +200,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
     clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
     clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
-    clp += " --sleep-size %u" % globalParameters["SleepSize"]
-    clp += " --sleep-solution %u" % globalParameters["SleepSolution"]
+    clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
     if os.name != "nt":

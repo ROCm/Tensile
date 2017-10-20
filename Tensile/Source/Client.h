@@ -50,8 +50,7 @@ unsigned int useGPUTimer;
 #if Tensile_CLIENT_BENCHMARK
 unsigned int solutionStartIdx;
 unsigned int numSolutions;
-unsigned int sleepSize;
-unsigned int sleepSolution;
+unsigned int sleepPercent;
 #endif
 
 // benchmark parameters commandline strings
@@ -71,8 +70,7 @@ std::string keyUseGPUTimer = "--use-gpu-timer";
 #if Tensile_CLIENT_BENCHMARK
 std::string keySolutionStartIdx = "--solution-start-idx";
 std::string keyNumSolutions = "--num-solutions";
-std::string keySleepSize = "--sleep-size";
-std::string keySleepSolution = "--sleep-solution";
+std::string keySleepPercent = "--sleep-percent";
 #endif
 
 // benchmark parameters default values
@@ -90,8 +88,7 @@ unsigned int defaultUseGPUTimer = 1;
 #if Tensile_CLIENT_BENCHMARK
 unsigned int defaultSolutionStartIdx = 0;
 unsigned int defaultNumSolutions = maxNumSolutions;
-unsigned int defaultSleepSize = 0;
-unsigned int defaultSleepSolution = 0;
+unsigned int defaultSleepPercent = 0;
 #endif
 
 // benchmark parameters for library client
@@ -760,8 +757,9 @@ bool benchmarkAllSolutionsForSize(
     }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
-    if (sleepSolution) {
-      usleep(sleepSolution);
+    if (sleepPercent) {
+      unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
+      usleep(sleepMicroSeconds);
     }
   } // solution loop
   file << std::endl;
@@ -832,10 +830,6 @@ bool benchmarkProblemSizes(
     bool invalids = benchmarkAllSolutionsForSize( problemIdx, initialC,
         initialA, initialB, alpha, beta, referenceC, deviceOnHostC);
     if (invalids) returnInvalids = true;
-
-    if (sleepSize) {
-      usleep(sleepSize);
-    }
   } // for problemIdx
 
   // close file
@@ -1039,8 +1033,7 @@ void printClientUsage(std::string executableName) {
 #else
   std::cout << "  " << keySolutionStartIdx << " [" << defaultSolutionStartIdx << "]" << std::endl;  
   std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]" << std::endl;  
-  std::cout << "  " << keySleepSize << " [" << defaultSleepSize << "]" << std::endl;  
-  std::cout << "  " << keySleepSolution << " [" << defaultSleepSolution << "]" << std::endl;  
+  std::cout << "  " << keySleepPercent << " [" << defaultSleepPercent << "]" << std::endl;  
 #endif
 }
 
@@ -1195,15 +1188,10 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
           throw -1;
         }
 
-      // sleep problem
-      } else if (keySleepSize == argv[argIdx]) {
+      // sleep percent
+      } else if (keySleepPercent == argv[argIdx]) {
         argIdx++;
-        sleepSize = static_cast<unsigned int>(atoi(argv[argIdx]));
-
-      // sleep solution
-      } else if (keySleepSolution == argv[argIdx]) {
-        argIdx++;
-        sleepSolution = static_cast<unsigned int>(atoi(argv[argIdx]));
+        sleepPercent = static_cast<unsigned int>(atoi(argv[argIdx]));
       }
 #endif
       // unrecognized
