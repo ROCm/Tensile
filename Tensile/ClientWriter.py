@@ -200,6 +200,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
     clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
     clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
+    clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
     if os.name != "nt":
@@ -574,8 +575,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     h += "/* solutions */\n"
     # Problem Type Indices
-    h += "const unsigned int numSolutions = %u;\n" % len(solutions)
-    h += "float solutionPerf[numProblems][numSolutions]; // milliseconds\n"
+    h += "const unsigned int maxNumSolutions = %u;\n" % len(solutions)
+    h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
     h += "\n"
     # Solution Ptrs
     h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
@@ -583,7 +584,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, len(argList)):
       h += "  %s %s%s" % (argList[i][0], argList[i][1], \
           ",\n" if i < len(argList)-1 else ");\n\n")
-    h += "const SolutionFunctionPointer solutions[numSolutions] = {\n"
+    h += "const SolutionFunctionPointer solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
@@ -594,7 +595,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += " };\n"
     h += "\n"
     # Solution Names
-    h += "const char *solutionNames[numSolutions] = {\n"
+    h += "const char *solutionNames[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)

@@ -1172,7 +1172,7 @@ class Solution:
     return Solution.getNameMin(state, requiredParameters)
 
   ########################################
-  # TODO limit parameters to those in global, not derrived ones
+  # Get Name Min
   @ staticmethod
   def getNameMin(state, requiredParameters):
     name = ""

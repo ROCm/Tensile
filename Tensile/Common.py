@@ -81,6 +81,7 @@ globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["SleepPercent"] = 0 # how long to sleep after every solution: 25 means 25% of solution time
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768*2
@@ -163,7 +164,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                  [ "Branch" ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPad":                    [ 0 ] },
-    {"MaxOccupancy":              [ 10 ] },
+    {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
@@ -182,12 +183,12 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"MacroTileShapeMin":         [ 1 ] },
-    {"MacroTileShapeMax":         [ 4 ] },
+    {"MacroTileShapeMax":         [ 64 ] },
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
     {"WorkGroupMappingType":      [ "B" ] },
-    {"WorkGroupMapping":          [ 1 ] },
+    {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"DepthU":                    [ -1 ] },
     ]

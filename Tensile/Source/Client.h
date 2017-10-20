@@ -29,6 +29,7 @@
 #include <iomanip>
 #include <fstream>
 #include <cstring>
+#include <unistd.h>
 
 TensileTimer timer;
 TensileTimer apiTimer;
@@ -46,6 +47,11 @@ unsigned int numElementsToValidate;
 unsigned int numEnqueuesPerSync;
 unsigned int numSyncsPerBenchmark;
 unsigned int useGPUTimer;
+#if Tensile_CLIENT_BENCHMARK
+unsigned int solutionStartIdx;
+unsigned int numSolutions;
+unsigned int sleepPercent;
+#endif
 
 // benchmark parameters commandline strings
 std::string keyDeviceIdx = "--device-idx";
@@ -61,6 +67,11 @@ std::string keyNumElementsToValidate = "--num-elements-to-validate";
 std::string keyNumEnqueuesPerSync = "--num-enqueues-per-sync";
 std::string keyNumSyncsPerBenchmark = "--num-syncs-per-benchmark";
 std::string keyUseGPUTimer = "--use-gpu-timer";
+#if Tensile_CLIENT_BENCHMARK
+std::string keySolutionStartIdx = "--solution-start-idx";
+std::string keyNumSolutions = "--num-solutions";
+std::string keySleepPercent = "--sleep-percent";
+#endif
 
 // benchmark parameters default values
 unsigned int defaultDeviceIdx = 0;
@@ -74,6 +85,11 @@ unsigned int defaultNumElementsToValidate = 0;
 unsigned int defaultNumEnqueuesPerSync = 1;
 unsigned int defaultNumSyncsPerBenchmark = 1;
 unsigned int defaultUseGPUTimer = 1;
+#if Tensile_CLIENT_BENCHMARK
+unsigned int defaultSolutionStartIdx = 0;
+unsigned int defaultNumSolutions = maxNumSolutions;
+unsigned int defaultSleepPercent = 0;
+#endif
 
 // benchmark parameters for library client
 #if Tensile_CLIENT_LIBRARY
@@ -517,7 +533,7 @@ bool benchmarkAllSolutionsForSize(
 
   }
   fastestGFlops = 0;
-  for (unsigned int solutionIdx = 0; solutionIdx < numSolutions; solutionIdx ++) {
+  for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
 
     // copy data in language
@@ -741,6 +757,10 @@ bool benchmarkAllSolutionsForSize(
     }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
+    if (sleepPercent) {
+      unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
+      usleep(sleepMicroSeconds);
+    }
   } // solution loop
   file << std::endl;
 
@@ -782,30 +802,9 @@ bool benchmarkProblemSizes(
   }
   file << std::endl;
 
-  // initialize index sizes
-  //for ( unsigned int i = 0; i < numIndicesSized; i++) {
-  //  currentSizedIndexSizes[i] = indicesSized[i][0];
-  //  currentSizedIndexIncrements[i] = indicesSized[i][1];
-  //}
-
-  // run each solution to pre-compile opencl kernels if not validating
-  //unsigned int currentSizedIdx = 0;
-  //unsigned int currentMappedIdx = 0;
 #if Tensile_RUNTIME_LANGUAGE_OCL
   if (!numElementsToValidate) {
     std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
-    /*
-    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-      if (indexIsSized[i]) {
-        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
-      }
-#if Tensile_INDICES_MAPPED
-      else {
-        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
-      }
-#endif
-    }
-    */
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
       generatedCallToSolution( sIdx, problemSizes[0], alpha, beta );
       status = clFinish(stream); tensileStatusCheck(status);
@@ -818,25 +817,8 @@ bool benchmarkProblemSizes(
   std::cout << std::endl;
 
   // iterate over all problem sizes
-  //bool moreProblemSizes = true;
-  //unsigned int problemIdx = 0;
   for (unsigned int problemIdx = 0; problemIdx < numProblems; problemIdx++ ) {
 
-    // convert current sized and mapped indices to full sizes
-    //currentSizedIdx = 0;
-    //currentMappedIdx = 0;
-    /*
-    for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
-      if (indexIsSized[i]) {
-        fullSizes[i] = currentSizedIndexSizes[currentSizedIdx++];
-      }
-#if Tensile_INDICES_MAPPED
-      else {
-        fullSizes[i] = fullSizes[indicesMapped[currentMappedIdx++]];
-      }
-#endif
-    }
-    */
     // print size
     std::cout << "Problem[" << problemIdx << "/" << numProblems << "]: " << problemSizes[problemIdx][0];
     for (unsigned int i = 1; i < totalIndices[problemTypeIdx]; i++) {
@@ -848,26 +830,6 @@ bool benchmarkProblemSizes(
     bool invalids = benchmarkAllSolutionsForSize( problemIdx, initialC,
         initialA, initialB, alpha, beta, referenceC, deviceOnHostC);
     if (invalids) returnInvalids = true;
-
-    // increment sizes for next benchmark
-    //currentSizedIndexSizes[0] += currentSizedIndexIncrements[0];
-    //currentSizedIndexIncrements[0] += indicesSized[0][2];
-    //for (unsigned int i = 1; i < numIndicesSized+1; i++) {
-      // if prior index past max, reset to min and increment next index
-      //if (currentSizedIndexSizes[i-1] > indicesSized[i-1][3]) {
-        // reset prior index
-        //currentSizedIndexSizes[i-1] = indicesSized[i-1][0];
-        //currentSizedIndexIncrements[i-1] = indicesSized[i-1][1];
-        // increment next index
-        //if ( i >= numIndicesSized) {
-        //  moreProblemSizes = false;
-        //} else {
-        //  currentSizedIndexSizes[i] += currentSizedIndexIncrements[i];
-        //  currentSizedIndexIncrements[i] += indicesSized[i][2];
-        //}
-      //}
-    //}
-    //problemIdx++;
   } // for problemIdx
 
   // close file
@@ -1068,6 +1030,10 @@ void printClientUsage(std::string executableName) {
   for (unsigned int i = 0; i < numFunctions; i++) {
     std::cout << "  (" << i << ") " << functionNames[i] << std::endl;
   }
+#else
+  std::cout << "  " << keySolutionStartIdx << " [" << defaultSolutionStartIdx << "]" << std::endl;  
+  std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]" << std::endl;  
+  std::cout << "  " << keySleepPercent << " [" << defaultSleepPercent << "]" << std::endl;  
 #endif
 }
 
@@ -1097,6 +1063,9 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     userSizes[i] = defaultSize;
   }
+#else
+  solutionStartIdx = defaultSolutionStartIdx;
+  numSolutions = defaultNumSolutions;
 #endif
 
   try {
@@ -1200,6 +1169,30 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
         }
         argIdx--; // b/c incremented at end of loop
       }
+#else
+      // solution start idx
+      else if (keySolutionStartIdx == argv[argIdx]) {
+        argIdx++;
+        solutionStartIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
+        if (solutionStartIdx >= maxNumSolutions) {
+          std::cout << "Tensile::FATAL: " << keySolutionStartIdx << " " << solutionStartIdx << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
+          throw -1;
+        }
+
+      // num solutions
+      } else if (keyNumSolutions == argv[argIdx]) {
+        argIdx++;
+        numSolutions = static_cast<unsigned int>(atoi(argv[argIdx]));
+        if (numSolutions > maxNumSolutions) {
+          std::cout << "Tensile::FATAL: " << keyNumSolutions << " " << numSolutions << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
+          throw -1;
+        }
+
+      // sleep percent
+      } else if (keySleepPercent == argv[argIdx]) {
+        argIdx++;
+        sleepPercent = static_cast<unsigned int>(atoi(argv[argIdx]));
+      }
 #endif
       // unrecognized
       else {
@@ -1208,6 +1201,12 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
        exit(0);
       }
     } // loop
+#if Tensile_CLIENT_BENCHMARK
+    if (solutionStartIdx + numSolutions > maxNumSolutions) {
+      std::cout << "Tensile::FATAL: " << keySolutionStartIdx << " " << solutionStartIdx << " + " << keyNumSolutions << " " << numSolutions << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
+      throw -1;
+    }
+#endif
   } catch (...) {
     printClientUsage(executableName);
     exit(0);
