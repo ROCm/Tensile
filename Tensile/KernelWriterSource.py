@@ -155,6 +155,8 @@ class KernelWriterSource(KernelWriter):
         % (kernel["GlobalLoadVectorWidthA"], self.endLine)
     kStr += "#define GLOBAL_LOAD_VECTOR_WIDTH_B %u%s" \
         % (kernel["GlobalLoadVectorWidthB"], self.endLine)
+    kStr += "#define GLOBAL_WRITE_VECTOR_WIDTH %u%s" \
+        % (kernel["GlobalWriteVectorWidth"], self.endLine)
     kStr += self.endLine
     kStr += "/* DepthU parameters*/%s" % self.endLine
     kStr += "#define CPSV (NUM_THREADS / MT%s * VECTOR_WIDTH)%s" \
@@ -1824,9 +1826,9 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitULocalRead(self, kernel):
     kStr = ""
-    for i in range(0, kernel["NumVectorsPerThread"]):
+    for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for s in range(0, kernel["VectorWidth"]):
-        kStr += "  rC[%u + %3u*VECTOR_WIDTH] = localLocalSplitU[%u + (serial+%u*NUM_THREADS)*VECTOR_WIDTH];%s" \
+        kStr += "  rC[%u + %3u*GLOBAL_WRITE_VECTOR_WIDTH] = localLocalSplitU[%u + (serial+%u*NUM_THREADS)*GLOBAL_WRITE_VECTOR_WIDTH];%s" \
             % (s, i, s, i, self.endLine)
     kStr += self.endLine
     return kStr
@@ -1837,9 +1839,9 @@ class KernelWriterSource(KernelWriter):
   def localSplitUReduction(self, kernel):
     kStr = ""
     for r in range(1, kernel["LocalSplitU"]):
-      for i in range(0, kernel["NumVectorsPerThread"]):
-        for s in range(0, kernel["VectorWidth"]):
-          kStr += "  rC[%u + %3u*VECTOR_WIDTH] += localLocalSplitU[(%u + serial*VECTOR_WIDTH+%u*NUM_THREADS*VECTOR_WIDTH + %u*MT%s*MT%s)];%s" \
+      for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
+        for s in range(0, kernel["GlobalWriteVectorWidth"]):
+          kStr += "  rC[%u + %3u*GLOBAL_WRITE_VECTOR_WIDTH] += localLocalSplitU[(%u + serial*GLOBAL_WRITE_VECTOR_WIDTH+%u*NUM_THREADS*GLOBAL_WRITE_VECTOR_WIDTH + %u*MT%s*MT%s)];%s" \
               % (s, i, s, i, r, self.tileChar0, self.tileChar1, self.endLine)
       kStr += self.endLine
     return kStr
@@ -1849,9 +1851,9 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
-    kStr += "  unsigned int localC%s = (serial %% (MT%s/VECTOR_WIDTH))*VECTOR_WIDTH;%s" \
+    kStr += "  unsigned int localC%s = (serial %% (MT%s/GLOBAL_WRITE_VECTOR_WIDTH))*GLOBAL_WRITE_VECTOR_WIDTH;%s" \
         % (self.tileChar0, self.tileChar0, self.endLine)
-    kStr += "  unsigned int localC%s = serial / (MT%s/VECTOR_WIDTH);%s" \
+    kStr += "  unsigned int localC%s = serial / (MT%s/GLOBAL_WRITE_VECTOR_WIDTH);%s" \
         % (self.tileChar1, self.tileChar0, self.endLine)
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int globalC%s = (" \
@@ -1872,12 +1874,12 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitUGlobalWrite(self, kernel):
     kStr = ""
-    for b in range(0, kernel["NumVectorsPerThread"]):
-      for s in range(0, kernel["VectorWidth"]):
+    for b in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
+      for s in range(0, kernel["GlobalWriteVectorWidth"]):
         if kernel["EdgeType"] != "None":
           kStr += "  if (globalC%s%s < size%s) {" \
               % (self.tileChar0, \
-              ((" + %u" %s) if kernel["VectorWidth"]>1 else ""), \
+              ((" + %u" %s) if kernel["GlobalWriteVectorWidth"]>1 else ""), \
               self.tileChar0)
           kStr += "  if (globalC%s + %u*CPSV < size%s) {" \
               % (self.tileChar1, b, self.tileChar1)
@@ -1885,7 +1887,7 @@ class KernelWriterSource(KernelWriter):
         kStr += "  TYPE_MAC_WRITE( C[ GLOBAL_C( (%s)" % self.uint64Str
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           kStr += " globalC%s" % self.indexChars[i]
-          if i == kernel["ProblemType"]["Index0"] and kernel["VectorWidth"]>1:
+          if i == kernel["ProblemType"]["Index0"] and kernel["GlobalWriteVectorWidth"]>1:
             kStr += " + %u" %s
           if i == kernel["ProblemType"]["Index1"]:
             kStr += " + %u*CPSV" %b
@@ -1893,7 +1895,7 @@ class KernelWriterSource(KernelWriter):
             kStr += ", (%s)" % self.uint64Str
         kStr += ") ]"
         kStr += ", alpha"
-        kStr += ", rC[%u + %u*VECTOR_WIDTH]" % (s, b )
+        kStr += ", rC[%u + %u*GLOBAL_WRITE_VECTOR_WIDTH]" % (s, b )
 
         if kernel["ProblemType"]["UseBeta"]:
           kStr += ", beta"
@@ -2022,6 +2024,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
       kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_A%s" % (self.endLine)
       kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_B%s" % (self.endLine)
+      kStr += "#undef GLOBAL_WRITE_VECTOR_WIDTH%s" % (self.endLine)
       kStr += "#undef TYPE_MAC%s" % (self.endLine)
       kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
       kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
