@@ -891,7 +891,10 @@ class KernelWriterAssembly(KernelWriter):
     tmpS45 = tmpS23+2
     tmpS67 = tmpS45+2
 
-    idx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+    if lsu:
+      idx = self.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
+    else:
+      idx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
     kStr += self.comment1("idx = %u"% idx)
 
     addr = tmpVgpr+0
@@ -2268,7 +2271,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def lraFinalOffset(self, kernel, tP):
     kStr = ""
-    divisor = kernel["MacroTile%u"%tP["tensorIdx"]]
+    divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder
     dividendReg = "Serial"
@@ -2958,6 +2961,12 @@ class KernelWriterAssembly(KernelWriter):
     #if tP["isB"]:
     #  kStr += self.dumpLds(kernel, 0, 16)
     #  kStr += "s_endpgm\n"
+    #if tP["isA"]:
+    #kStr += "s_waitcnt lgkmcnt(0)\n"
+    #if tP["isA"]:
+    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
+    #if tP["isB"]:
+    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
 
     return kStr
 
