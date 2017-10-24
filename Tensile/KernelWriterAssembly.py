@@ -2455,9 +2455,45 @@ class KernelWriterAssembly(KernelWriter):
         "LoopCounter%s < EndCounter"%(loopChar) )
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "don't enter Loop%s"%loopChar )
+
+    
+    # LSU not all threads will do summation
+    if tailLoop and kernel["LocalSplitU"] > 1:
+      tmpSgpr = self.getTmpSgpr(2)
+      kStr += self.comment("apply exec mask")
+      tmpVgpr = self.vgprPool.checkOut(2)
+      dummy = self.vgprPool.checkOut(1)
+      sgId = self.vgprPool.checkOut(1)
+      divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
+      kStr += vectorStaticDivide(sgId, "Serial", divisor, tmpVgpr, tmpSgpr)
+      numIter = self.vgprPool.checkOut(1)
+      kStr += inst("v_mov_b32", vgpr(numIter), sgpr("SizesSum+0"), "sizeU to vgpr")
+      divisor = kernel["DepthU"]
+      kStr += vectorStaticDivideAndRemainder(dummy, numIter, numIter, divisor, tmpVgpr, tmpSgpr)
+      self.vgprPool.checkIn(dummy)
+      #kStr += dump(vgpr(sgId))
+      #kStr += dump(vgpr(numIter))
+      kStr += inst("v_cmpx_lt_u32", "vcc", \
+          vgpr(sgId), vgpr(numIter), "sgId < numIter")
+      self.vgprPool.checkIn(tmpVgpr)
+      #self.vgprPool.checkIn(sg)
+      self.sgId = sgId
+      self.tailNumIter = numIter
+      #self.vgprPool.checkIn(numIter)
+
+      # thread is active is sgId < numIter % LocalSplitU
     
     # begin loop
     kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
+
+    # LSU mask for this iteration
+    if tailLoop and kernel["LocalSplitU"] > 1:
+      kStr += inst("v_cmpx_lt_u32", "vcc", \
+          vgpr(self.sgId), vgpr(self.tailNumIter), "sgId < numIter")
+      kStr += inst("v_add_i32", vgpr(self.sgId), "vcc", hex(kernel["LocalSplitU"]), \
+          vgpr(self.sgId), "sgId+=LSU")
+      #kStr += dump(vgpr(self.sgId))
+
     return kStr
 
 
@@ -2491,11 +2527,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_branch label_%04u"%loopLabelBegin, \
         "restart Loop%s"%loopChar )
     kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
-    if tailLoop:
-      pass
-      #kStr += self.dumpLds(kernel, 0, 8)
-      #kStr += dump(vgpr(0))
-    #kStr += "s_endpgm\n"
+
+    # restore all threads
+    if tailLoop and kernel["LocalSplitU"] > 1:
+      kStr += self.comment("restore full exec mask")
+      fullExec = self.getTmpSgpr(2)
+      kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+          "0xFFFFFFFFFFFFFFFF", "restore all threads active")
+      kStr += inst("s_or_saveexec_b64",  sgpr(fullExec,2), sgpr(fullExec,2), "full mask -> exec" )
     return kStr
 
   ##############################################################################
