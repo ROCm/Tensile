@@ -45,6 +45,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 32,  4,  1 ]
           - [  8,  8,  1 ]
+          - [  4,  8,  4 ]
         - DepthU: [-3]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -72,6 +73,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
+          - [  4,  4,  4 ]
         - DepthU: [-1]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -107,6 +109,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8, 16,  1 ]
+          - [  2,  8,  8 ]
         - DepthU: [-3]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -133,7 +136,8 @@ BenchmarkProblems:
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
-          - [ 16, 16,  1 ]
+          - [ 16,  8,  1 ]
+          - [ 16,  2,  8 ]
         - DepthU: [-1]
         - VectorWidth: [-1]
       BenchmarkForkParameters:

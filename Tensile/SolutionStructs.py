@@ -722,15 +722,25 @@ class Solution:
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
-    state["NumVectorsPerThread"] = numElementsPerWorkGroup / \
-        state["NumThreads"] / state["VectorWidth"]
-    if state["NumVectorsPerThread"] * state["NumThreads"] \
-        * state["VectorWidth"] != numElementsPerWorkGroup:
+    if numElementsPerWorkGroup < state["NumThreads"]:
       if globalParameters["PrintSolutionRejectionReason"]:
-        print1("LocalSplitU %u too large; less than 1 vector per thread" \
-            % (state["LocalSplitU"]))
+        print1("NumElementsPerWorkGroup %u < NumThreads %u; reduce LocalSplitU" \
+            % (numElementsPerWorkGroup, state["NumThreads"]))
       state["Valid"] = False
       return
+    state["NumElementsPerThread"] = numElementsPerWorkGroup / \
+        state["NumThreads"]
+    state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
+
+    state["NumGlobalWriteVectorsPerThread"] = state["NumElementsPerThread"] \
+        / state["GlobalWriteVectorWidth"]
+    #if state["NumElementsPerThread"] * state["NumThreads"] \
+    #    != numElementsPerWorkGroup:
+    #  if globalParameters["PrintSolutionRejectionReason"]:
+    #    print1("LocalSplitU %u too large; less than 1 vector per thread. Increase ThreadTile or decrease LocalSplitU" \
+    #        % (state["LocalSplitU"]))
+    #  state["Valid"] = False
+    #  return
 
 
     # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways load
