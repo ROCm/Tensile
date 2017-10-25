@@ -182,7 +182,10 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   ih = ""
   ih += "#include \"Tensile.h\"\n"
   ih += "#include \"SolutionHelper.h\"\n"
-  ih += "#include <map>\n"
+  if globalParameters["SolutionMapHash"]:
+    ih += "#include <unordered_map>\n"
+  else:
+    ih += "#include <map>\n"
   ih += "#include <tuple>\n"
 
   # Tensile.cpp
@@ -323,15 +326,36 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     # implement problem-type functions in source
     s += "/*******************************************************************************\n * Per-ProblemType Functions\n *******************************************************************************/"
 
-    # problem type templates
-    problemTypeTemplate = "%s" % ("cl_command_queue" \
-        if globalParameters["RuntimeLanguage"] == "OCL" else "hipStream_t")
-    for i in range(0, problemType["TotalIndices"]):
-      problemTypeTemplate += ", unsigned int"
+    # problem type Key
+    problemTypeTemplate = "unsigned int, unsigned int, unsigned int"
+    if globalParameters["RuntimeLanguage"] == "OCL":
+        problemTypeTemplate += ", cl_command_queue"
     ih += "typedef std::tuple<%s> Key_%s;\n" \
         % (problemTypeTemplate, problemType)
-    ih += "typedef std::map<Key_%s, TensileSolutionPointer_%s> Map_%s;\n" \
-        % (problemType, problemType, problemType)
+
+    # hash function
+    ih += "\n"
+    ih += "size_t tensileProblemSizeHasher( const Key_%s & problemSize ) {\n" % problemType
+    ih += "  size_t hash = 0;\n"
+    ih += "  // ignore lowest 4 bits; keep next 21 bits\n"
+    ih += "  size_t hash0 = (std::get<0>(problemSize) >> 4) & ((1<<22)-1); // 21 bits of size0\n"
+    ih += "  size_t hash1 = (std::get<1>(problemSize) >> 4) & ((1<<22)-1); // 21 bits of size1\n"
+    ih += "  size_t hashU = (std::get<2>(problemSize) >> 4) & ((1<<22)-1); // 21 bits of sizeU\n"
+    ih += "  // 21+21+21 = 63 bit hash\n"
+    ih += "  hash |= hash0;\n"
+    ih += "  hash |= hash1<<21;\n"
+    ih += "  hash |= hashU<<42;\n"
+    ih += "  return hash;\n"
+    ih += "}\n"
+    ih += "\n"
+
+    if globalParameters["SolutionMapHash"]:
+        ih += "typedef std::unordered_map<Key_%s, TensileSolutionPointer_%s, std::function<size_t (Key_%s)>> Map_%s;\n" \
+          % (problemType, problemType, problemType, problemType)
+    else:
+      ih += "typedef std::map<Key_%s, TensileSolutionPointer_%s> Map_%s;\n" \
+          % (problemType, problemType, problemType)
+
     ih += "extern Map_%s solutionMap_%s;\n" % (problemType, problemType)
 
     # implement tensileGetSolutionPointerUncached_ProblemType
@@ -392,7 +416,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # implement tensileGetSolutionPointer_ProblemType
     s += "\n// return solution pointer; user calls it\n"
-    s += "Map_%s solutionMap_%s;\n" % (problemType, problemType)
+    s += "Map_%s solutionMap_%s(1024, tensileProblemSizeHasher);\n" % (problemType, problemType)
     s += "TensileSolutionPointer_%s tensileGetSolutionPointer_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
@@ -400,10 +424,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           % (argListStream[i][0], argListStream[i][1], \
           ",\n" if i < len(argListStream)-1 else ") {\n")
     # create key
-    s += "  Key_%s key = std::make_tuple(stream" % (problemType)
-    for i in range(0, problemType["TotalIndices"]):
-      s += ", size%s" % globalParameters["IndexChars"][i]
-    s += ");\n"
+    s += "  Key_%s key = std::make_tuple( size%s, size%s, size%s%s );\n" \
+        % (problemType, \
+        globalParameters["IndexChars"][problemType["Index0"]], \
+        globalParameters["IndexChars"][problemType["Index1"]], \
+        globalParameters["IndexChars"][problemType["IndexUnroll"]], \
+        ", stream" if globalParameters["RuntimeLanguage"] == "OCL" else "")
     # check for key in map
     s += "  Map_%s::iterator iter = solutionMap_%s.find(key);\n" \
         % (problemType, problemType)
