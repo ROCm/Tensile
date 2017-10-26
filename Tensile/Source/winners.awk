@@ -16,3 +16,6 @@ BEGIN {
   winnerLine = $0
 }
 
+END {
+  printf "%-40s - %s\n", problemLine, winnerLine
+}

@@ -81,7 +81,7 @@ globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
 globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
-globalParameters["SleepPercent"] = 100 # how long to sleep after every solution: 25 means 25% of solution time
+globalParameters["SleepPercent"] = 0 # how long to sleep after every solution: 25 means 25% of solution time
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768
 globalParameters["DeviceLDS"] = 32768*2

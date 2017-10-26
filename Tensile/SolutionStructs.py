@@ -671,20 +671,6 @@ class Solution:
             print1("WorkGroupMappingType=Z only supports WorkGroupMapping=1, 2")
           state["Valid"] = False
 
-    if state["ProblemType"]["Tensor0"]==0:
-      state["ThreadTileA"] = state["ThreadTile0"]
-      state["ThreadTileB"] = state["ThreadTile1"]
-      state["SubGroupA"] = state["SubGroup0"]
-      state["SubGroupB"] = state["SubGroup1"]
-      state["MacroTileA"] = state["MacroTile0"]
-      state["MacroTileB"] = state["MacroTile1"]
-    else:
-      state["ThreadTileB"] = state["ThreadTile0"]
-      state["ThreadTileA"] = state["ThreadTile1"]
-      state["SubGroupB"] = state["SubGroup0"]
-      state["SubGroupA"] = state["SubGroup1"]
-      state["MacroTileB"] = state["MacroTile0"]
-      state["MacroTileA"] = state["MacroTile1"]
 
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
@@ -703,6 +689,21 @@ class Solution:
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
       return
+
+    if state["ProblemType"]["Tensor0"]==0:
+      state["ThreadTileA"] = state["ThreadTile0"]
+      state["ThreadTileB"] = state["ThreadTile1"]
+      state["SubGroupA"] = state["SubGroup0"]
+      state["SubGroupB"] = state["SubGroup1"]
+      state["MacroTileA"] = state["MacroTile0"]
+      state["MacroTileB"] = state["MacroTile1"]
+    else:
+      state["ThreadTileB"] = state["ThreadTile0"]
+      state["ThreadTileA"] = state["ThreadTile1"]
+      state["SubGroupB"] = state["SubGroup0"]
+      state["SubGroupA"] = state["SubGroup1"]
+      state["MacroTileB"] = state["MacroTile0"]
+      state["MacroTileA"] = state["MacroTile1"]
 
     # VectorWidth
     if state["VectorWidth"] < 1:
