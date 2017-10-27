@@ -7,7 +7,7 @@ GlobalParameters:
   CMakeBuildType: Release
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
-  NumElementsToValidate: 128
+  NumElementsToValidate: 0
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   Platform: 0
@@ -448,7 +448,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [1, 8]
-        - DepthU: [ 8, 16, 24, 32 ]
+        - DepthU: [ 8, 16, 32 ]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
