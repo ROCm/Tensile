@@ -60,7 +60,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   ensurePath(os.path.join(globalParameters["WorkingPath"],"Data"))
 
   totalBenchmarkSteps = len(benchmarkProcess)
-  resultsFileBaseList = []
+  resultsFileBaseFinal = None
   winners = WinningParameterDict()
   print1("# NumBenchmarkSteps: %u" % totalBenchmarkSteps)
   print1("")
@@ -259,7 +259,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     resultsFileBase = os.path.normpath(os.path.join( \
         globalParameters["WorkingPath"], "../Data", shortName))
     if benchmarkStep.isFinal():
-      resultsFileBaseList.append(resultsFileBase)
+      resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
@@ -308,7 +308,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         % (HR, problemSizeGroupName, shortName, elapsedTime, HR))
 
   popWorkingPath() # ProblemType
-  return resultsFileBaseList
+  return resultsFileBaseFinal
 # End benchmarkProblemType()
 
 
@@ -633,22 +633,27 @@ def main( config ):
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
-      # Benchmark Problem Size Group
-      resultsFileBaseList = benchmarkProblemType(problemTypeConfig, \
-          problemSizeGroupConfig, problemSizeGroupIdx)
+      # results files will be named
+      newResultsFileName = os.path.join(dataPath, "%s_%02u.csv" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
+      newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
+          % (str(problemTypeObj), problemSizeGroupIdx) )
 
-      # Copy Data
-      for resultsFileIdx in range(0, len(resultsFileBaseList)):
-        resultsFileBase = resultsFileBaseList[resultsFileIdx]
+      # skip if possible
+      if globalParameters["ForceRedoBenchmarkProblems"] or \
+          not os.path.exists(newResultsFileName):
+
+        # Benchmark Problem Size Group
+        resultsFileBaseFinal = benchmarkProblemType(problemTypeConfig, \
+            problemSizeGroupConfig, problemSizeGroupIdx)
+
+        # Copy Data
+        resultsFileBase = resultsFileBaseFinal
         resultsFileName = "%s.csv" % (resultsFileBase)
         solutionsFileName = "%s.yaml" % (resultsFileBase)
-        resultsIdxStr = "_%02u"%resultsFileIdx if len(resultsFileBaseList)>1 \
-            else ""
-        newResultsFileName = os.path.join(dataPath, "%s_%02u%s.csv" \
-            % (str(problemTypeObj), problemSizeGroupIdx, resultsIdxStr) )
-        newSolutionsFileName = os.path.join(dataPath, "%s_%02u%s.yaml" \
-            % (str(problemTypeObj), problemSizeGroupIdx, resultsIdxStr) )
         shutil_copy( resultsFileName, newResultsFileName )
         shutil_copy( solutionsFileName, newSolutionsFileName )
+      else:
+        print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 
   popWorkingPath()
