@@ -418,7 +418,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # implement tensileGetSolutionPointer_ProblemType
     s += "\n// return solution pointer; user calls it\n"
-    s += "Map_%s solutionMap_%s(1024, tensileProblemSizeHasher);\n" % (problemType, problemType)
+    s += "Map_%s solutionMap_%s%s;\n" % (problemType, problemType, "(1024, tensileProblemSizeHasher)" if globalParameters["SolutionMapHash"] else "")
     s += "TensileSolutionPointer_%s tensileGetSolutionPointer_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
