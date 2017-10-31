@@ -47,10 +47,10 @@ unsigned int numElementsToValidate;
 unsigned int numEnqueuesPerSync;
 unsigned int numSyncsPerBenchmark;
 unsigned int useGPUTimer;
+unsigned int sleepPercent;
 #if Tensile_CLIENT_BENCHMARK
 unsigned int solutionStartIdx;
 unsigned int numSolutions;
-unsigned int sleepPercent;
 #endif
 
 // benchmark parameters commandline strings
@@ -67,10 +67,10 @@ std::string keyNumElementsToValidate = "--num-elements-to-validate";
 std::string keyNumEnqueuesPerSync = "--num-enqueues-per-sync";
 std::string keyNumSyncsPerBenchmark = "--num-syncs-per-benchmark";
 std::string keyUseGPUTimer = "--use-gpu-timer";
+std::string keySleepPercent = "--sleep-percent";
 #if Tensile_CLIENT_BENCHMARK
 std::string keySolutionStartIdx = "--solution-start-idx";
 std::string keyNumSolutions = "--num-solutions";
-std::string keySleepPercent = "--sleep-percent";
 #endif
 
 // benchmark parameters default values
@@ -85,10 +85,10 @@ unsigned int defaultNumElementsToValidate = 0;
 unsigned int defaultNumEnqueuesPerSync = 1;
 unsigned int defaultNumSyncsPerBenchmark = 1;
 unsigned int defaultUseGPUTimer = 1;
+unsigned int defaultSleepPercent = 0;
 #if Tensile_CLIENT_BENCHMARK
 unsigned int defaultSolutionStartIdx = 0;
 unsigned int defaultNumSolutions = maxNumSolutions;
-unsigned int defaultSleepPercent = 0;
 #endif
 
 // benchmark parameters for library client
@@ -1023,6 +1023,7 @@ void printClientUsage(std::string executableName) {
   std::cout << "  " << keyNumEnqueuesPerSync << " [" << defaultNumEnqueuesPerSync << "]" << std::endl;  
   std::cout << "  " << keyNumSyncsPerBenchmark << " [" << defaultNumSyncsPerBenchmark << "]" << std::endl;  
   std::cout << "  " << keyUseGPUTimer << " [" << defaultUseGPUTimer << "]" << std::endl;  
+  std::cout << "  " << keySleepPercent << " [" << defaultSleepPercent << "]" << std::endl;  
 #if Tensile_CLIENT_LIBRARY
   std::cout << "  " << keyFunctionIdx << " [" << defaultFunctionIdx << "]" << std::endl;  
   std::cout << "  " << keySizes << " [" << defaultSize << " " << defaultSize << " " << defaultSize << "]" << std::endl;  
@@ -1033,7 +1034,6 @@ void printClientUsage(std::string executableName) {
 #else
   std::cout << "  " << keySolutionStartIdx << " [" << defaultSolutionStartIdx << "]" << std::endl;  
   std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]" << std::endl;  
-  std::cout << "  " << keySleepPercent << " [" << defaultSleepPercent << "]" << std::endl;  
 #endif
 }
 
@@ -1153,6 +1153,11 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
       } else if (keyUseGPUTimer == argv[argIdx]) {
         argIdx++;
         useGPUTimer = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // sleep percent
+      } else if (keySleepPercent == argv[argIdx]) {
+        argIdx++;
+        sleepPercent = static_cast<unsigned int>(atoi(argv[argIdx]));
       }
 #if Tensile_CLIENT_LIBRARY
       // function idx
@@ -1187,11 +1192,6 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
           std::cout << "Tensile::FATAL: " << keyNumSolutions << " " << numSolutions << " must be less than maxNumSolutions " << maxNumSolutions  << std::endl;
           throw -1;
         }
-
-      // sleep percent
-      } else if (keySleepPercent == argv[argIdx]) {
-        argIdx++;
-        sleepPercent = static_cast<unsigned int>(atoi(argv[argIdx]));
       }
 #endif
       // unrecognized
