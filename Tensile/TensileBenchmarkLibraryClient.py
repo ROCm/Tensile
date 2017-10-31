@@ -43,6 +43,13 @@ def BenchmarkProblemSize(cmdPrefix, row):
   totalGFlops = 0
   totalMs = 0
   numSamples = 0
+  gflopList = []
+  msList = []
+
+  # skip first b/c warmup/lookup
+  newLineIdx = stdout.find("\n")
+  stdout = stdout[newLineIdx+1:]
+
   # parse every line of data
   while "\n" in stdout:
     newLineIdx = stdout.find("\n")
@@ -54,16 +61,18 @@ def BenchmarkProblemSize(cmdPrefix, row):
     msString = splits[3].lstrip()
     gflops = float(gflopsString)
     ms = float(msString)
-    totalGFlops += gflops
-    totalMs += ms
-    numSamples += 1
+    gflopList.append(gflops)
+    msList.append(ms)
+    #totalGFlops += gflops
+    #totalMs += ms
+    #numSamples += 1
     
     # next line
     stdout = stdout[newLineIdx+1:]
 
-  gflops = totalGFlops / numSamples
-  ms = totalMs / numSamples
-  return (gflops, ms)
+  #gflops = totalGFlops / numSamples
+  #ms = totalMs / numSamples
+  return (gflopList, msList)
 
 ################################################################################
 # Benchmark Problem Sizes
@@ -76,7 +85,7 @@ def TensileBenchmarkLibraryClient(userArgs):
   argParser.add_argument("ProblemSizesPath")
   argParser.add_argument("NumAverage")
   args = argParser.parse_args(userArgs)
-  N = int(args.NumAverage)
+  N = int(args.NumAverage) # b/c have to throw away first warmup/lookup
 
   # executable path
   executablePath = os.path.realpath( args.Executable )
@@ -100,22 +109,17 @@ def TensileBenchmarkLibraryClient(userArgs):
   for i in range(0, numIndices):
     sizeStr = "size%u" % i
     output += "%6s, " % sizeStr
-  output += "%9s, %9s, " % ( "medGF", "medMs" )
-  output += "%9s, %9s, " % ( "avgGF", "avgMs" )
-  output += "%9s, %9s" % ( "stdGF", "stdMs" )
+  output += "%9s, %9s, " % ( "medianGF", "medianMs" )
+  output += "%9s, %9s, " % ( "meanGF", "meanMs" )
+  output += "%9s, %9s" % ( "rstdGF", "rstdMs" )
   print output
 
   # begin commandString
-  cmdPrefix = "%s --function-idx %s --sizes" % (executablePath, args.FunctionIdx)
+  cmdPrefix = "%s --sleep-percent 300 --function-idx %s --num-benchmarks %u --sizes" % (executablePath, args.FunctionIdx, N+1)
 
   # benchmark each problem size
   for row in [firstRow]:
-    gflopList = []
-    msList = []
-    for i in range(0, N):
-      (gflops, ms) = BenchmarkProblemSize(cmdPrefix, row)
-      gflopList.append(gflops)
-      msList.append(ms)
+    (gflopList, msList) = BenchmarkProblemSize(cmdPrefix, row)
     meanGFlops = mean(gflopList)
     meanMs = mean(msList)
     medianGFlops = median(gflopList)
@@ -127,33 +131,28 @@ def TensileBenchmarkLibraryClient(userArgs):
     output = ""
     for size in row:
       output += "%6u, " % int(size)
-    output += "%9.3f, %9.3f, " % (medianGFlops, medianMs)
-    output += "%9.3f, %9.3f, " % (meanGFlops, meanMs)
-    output += "%9.3f, %9.3f" % (stddevGFlops, stddevMs)
+    output += "%9.2f, %9.4f, " % (medianGFlops, medianMs)
+    output += "%9.2f, %9.4f, " % (meanGFlops, meanMs)
+    output += "%9.5f, %9.5f" % (stddevGFlops, stddevMs)
     print output
 
   # benchmark each problem size
   for row in csvFile:
-    gflopList = []
-    msList = []
-    for i in range(0, N):
-      (gflops, ms) = BenchmarkProblemSize(cmdPrefix, row)
-      gflopList.append(gflops)
-      msList.append(ms)
+    (gflopList, msList) = BenchmarkProblemSize(cmdPrefix, row)
     meanGFlops = mean(gflopList)
     meanMs = mean(msList)
     medianGFlops = median(gflopList)
     medianMs = median(msList)
-    stddevGFlops = stddev(gflopList)
-    stddevMs = stddev(msList)
+    stddevGFlops = stddev(gflopList) / meanGFlops
+    stddevMs = stddev(msList) / meanMs
 
     # format output
     output = ""
     for size in row:
       output += "%6u, " % int(size)
-    output += "%9.3f, %9.3f, " % (medianGFlops, medianMs)
-    output += "%9.3f, %9.3f, " % (meanGFlops, meanMs)
-    output += "%9.3f, %9.3f" % (stddevGFlops, stddevMs)
+    output += "%9.2f, %9.4f, " % (medianGFlops, medianMs)
+    output += "%9.2f, %9.4f, " % (meanGFlops, meanMs)
+    output += "%9.5f, %9.5f" % (stddevGFlops, stddevMs)
     print output
 
 def median(lst):
@@ -171,7 +170,7 @@ def stddev(lst):
   mn = mean(lst)
   for i in range(len(lst)):
     total += pow((lst[i]-mn),2)
-  return (total/len(lst))**0.5
+  return (total/(len(lst)-1))**0.5
 
 # installed "tensileBenchmarkLibraryClient" command
 def main():

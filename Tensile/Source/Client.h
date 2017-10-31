@@ -404,7 +404,7 @@ bool callLibrary(
       << std::setw(10) << std::fixed << std::setprecision(3)
       << gflops << ", "
       << solutionName << (newFastest ? "*" : " ") << ", "
-      << std::setw(9) << std::fixed << std::setprecision(3)
+      << std::setw(10) << std::fixed << std::setprecision(4)
       << timeNs * TensileTimer::reciprical_million << ", "
       << std::setw(7) << std::fixed << std::setprecision(3)
       << apiTimeUs << ", ";
