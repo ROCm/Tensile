@@ -145,6 +145,7 @@ class SolutionWriter:
           s += "%s      buildOptions);\n" % (t)
 
     elif solution["KernelLanguage"] == "Assembly":
+      localStatic = True
       kernel = kernels[0]
       s += "%sint deviceId;\n" % (t)
       s += "%shipCtxGetDevice(&deviceId);\n" % (t)
@@ -153,21 +154,35 @@ class SolutionWriter:
       s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
       #s += "%sprintf(\"Device ISA: %%i\\n\", isa);\n" % (t)
       s += "%shipFunction_t hipFunction;\n" % (t)
+      #s += "  "
+
       for i in range(0, len(globalParameters["SupportedISA"])):
         isa = globalParameters["SupportedISA"][i]
         kernel["ISA"] = (isa[0], isa[1], isa[2])
         kernelName = self.kernelWriter.getKernelName(kernel)
         s += t
         if i > 0:
-          s += " else "
-        s += "%sif ( isa == %u%u%u ) {\n" % (t, isa[0], isa[1], isa[2])
-        #s += "%sprintf(\"Selected ISA: %u%u%u\\n\");\n" % (t, isa[0], isa[1], isa[2])
-        s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
-        s += "%s    &hipFunction,\n" % (t)
-        s += "%s    \"%s\",\n" % (t, kernelName)
-        s += "%s    %s_coba, // code object byte array\n" % (t, kernelName)
-        s += "%s    stream);\n" % (t)
-        s += "}"
+          s += "else "
+        s += "if ( isa == %u%u%u ) {\n" % (isa[0], isa[1], isa[2])
+        t += "  "
+        if localStatic:
+          s += "%sstatic hipFunction_t hipFunctionLocal = nullptr;\n" % (t)
+          s += "%sif (!hipFunctionLocal) {\n" % (t)
+          t += "  "
+          s += "%shipModule_t module = nullptr;\n" % (t)
+          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+          s += "%shipModuleGetFunction(&hipFunctionLocal, module, \"%s\");\n" % (t, kernelName)
+          t = t[2:]
+          s += "%s}\n" % (t)
+          s += "%shipFunction = hipFunctionLocal;\n" % (t)
+        else:
+          s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
+          s += "%s    &hipFunction,\n" % (t)
+          s += "%s    \"%s\",\n" % (t, kernelName)
+          s += "%s    %s_coba); // code object byte array\n" % (t, kernelName)
+
+        t = t[2:]
+        s += "%s}" % (t)
       s += "\n"
 
     typeName = solution["ProblemType"]["DataType"].toCpp()
@@ -323,14 +338,6 @@ class SolutionWriter:
           s += "%s  status = clSetKernelArg( kernelBetaOnly, %u, sizeof(%s), &beta ); tensileStatusCheck(status);\n" % (t, argIdx, typeName); argIdx+=1
           s += "%s}\n" % (t)
         # enqueue
-        """
-        s += "printf(\"%u\\\\n\", globalWorkSizeBetaOnly[0]);\n"
-        s += "printf(\"%u\\\\n\", globalWorkSizeBetaOnly[1]);\n"
-        s += "printf(\"%u\\\\n\", globalWorkSizeBetaOnly[2]);\n"
-        s += "printf(\"%u\\\\n\", localWorkSizeBetaOnly[0]);\n"
-        s += "printf(\"%u\\\\n\", localWorkSizeBetaOnly[1]);\n"
-        s += "printf(\"%u\\\\n\", localWorkSizeBetaOnly[2]);\n"
-        """
         s += "%scl_event kernelEventBetaOnly;\n" % (t)
         s += "%sstatus = clEnqueueNDRangeKernel(\n" % (t)
         t += "  "
@@ -358,7 +365,9 @@ class SolutionWriter:
 
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
-        s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
+        t += "  "
+        s += "%shipEventRecord(inputEvents[0], stream );\n" % (t)
+        t += "  "
         s += "%stry {\n" % (t)
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
@@ -406,13 +415,12 @@ class SolutionWriter:
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
 
-
     ########################################
     # Enqueue Kernels
     ########################################
     for kernelIdx in range(0, len(kernels)):
       kernel = kernels[kernelIdx]
-      if self.language == "HIP":
+      if kernel["KernelLanguage"] == "HIP":
         kernel["ISA"] = (0, 0, 0) # HIP source kernels needs dummy ISA version
       kernelName = self.kernelWriter.getKernelName(kernel)
       s += "\n%s/* kernel %u: %s */\n" % (t, kernelIdx, kernelName)
@@ -435,8 +443,6 @@ class SolutionWriter:
           if sizeIdx not in [ solution["ProblemType"]["Index0"],  solution["ProblemType"]["Index1"], solution["ProblemType"]["IndexUnroll"] ]:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
-
-
 
       s += "%sfor (unsigned int enqueueIdx = 0; enqueueIdx < numEnqueues[%u]; enqueueIdx++) {\n" % (t, kernelIdx)
       t += "  "
@@ -497,7 +503,9 @@ class SolutionWriter:
       ########################################
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
-        s += "%s  hipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
+        t += "  "
+        s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
+        t = t[2:]
         s += "%stry {\n" % (t)
         t += "  "
         # hip kernel
@@ -526,7 +534,7 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
-          s += "    );\n"
+          s += "%s);\n" % (t)
 
         # assembly kernel
         else:

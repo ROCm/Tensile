@@ -24,6 +24,8 @@
 
 #include "TensileTypes.h"
 #include <map>
+#include <unordered_map>
+#include <string>
 #include <tuple>
 
 /*******************************************************************************
@@ -33,7 +35,7 @@
 typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
 #else
-typedef std::tuple<hipStream_t, const char *> KernelMapKey;
+typedef std::string KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
 #endif
 
@@ -57,8 +59,7 @@ void tensileGetCompiledOpenCLKernel(
 void tensileGetHipFunctionFromCodeObjectByteArray(
   hipFunction_t *function,
   const char *functionName,
-  const unsigned char *coba, // code object byte array
-  hipStream_t stream );
+  const unsigned char *coba); // code object byte array
 #endif
 
 

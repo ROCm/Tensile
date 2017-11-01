@@ -89,13 +89,14 @@ globalParameters["MaxDepthU"] = 256
 globalParameters["MinimumRequiredVersion"] = "0.0.0"
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]
 globalParameters["CurrentISA"] = (0,0,0)
+globalParameters["SolutionMapHash"] = False
 
 ################################################################################
 # Default Benchmark Parameters
 ################################################################################
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
-  for nsg in [ 1, 2, 4, 8, 16, 32, 64 ]:
+  for nsg in [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ]:
     for sg0 in range(1, numThreads/nsg+1):
       sg1 = numThreads/nsg/sg0
       if sg0*sg1*nsg == numThreads:
@@ -114,7 +115,7 @@ validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
 depthUs = range(-16, 0)
-depthUs.extend(range(2,256+1,2))
+depthUs.extend(range(2,512+1,2))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -145,7 +146,7 @@ validParameters = {
     "NumLoadsCoalescedA":         range(-1, 64+1),
     "NumLoadsCoalescedB":         range(-1, 64+1),
     "DepthU":                     depthUs,
-    "GlobalSplitU":               range(1, 64+1),
+    "GlobalSplitU":               range(1, 128+1),
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          range(1, 64+1),
@@ -180,8 +181,8 @@ defaultBenchmarkCommonParameters = [
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
     {"GlobalSplitU":              [ 1 ] },
-    {"GlobalSplitUWorkGroupMappingRoundRobin":    [ True ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
+    {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"NumLoadsCoalescedA":        [ 1 ] },

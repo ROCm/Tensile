@@ -106,11 +106,10 @@ void tensileGetCompiledOpenCLKernel(
 void tensileGetHipFunctionFromCodeObjectByteArray(
   hipFunction_t *function,
   const char *functionName,
-  const unsigned char *coba, // code object byte array
-  hipStream_t stream ) {
+  const unsigned char *coba) { // code object byte array
 
   // is function already loaded?
-  KernelMapKey key = std::make_tuple(stream, functionName);
+  KernelMapKey key = std::string(functionName);
   KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
   if (idx != kernelMap.end()) {
     *function = idx->second;

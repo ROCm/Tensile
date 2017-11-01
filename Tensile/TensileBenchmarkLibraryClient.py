@@ -29,11 +29,15 @@ from subprocess import Popen, PIPE
 ################################################################################
 def BenchmarkProblemSize(cmdPrefix, row):
   cmd = cmdPrefix
+  cmd += " --sizes"
   for size in row:
     cmd += " "
-    cmd += size
+    cmd += size.lstrip()
+  sys.stderr.write(cmd)
+  sys.stderr.write("\n")
   process = Popen(cmd, stdout=PIPE, shell=True)
   stdout = process.communicate()[0]
+  sys.stderr.write(stdout)
 
   # find beginning of data
   initializingIdx = stdout.find("Initializing")
@@ -43,6 +47,13 @@ def BenchmarkProblemSize(cmdPrefix, row):
   totalGFlops = 0
   totalMs = 0
   numSamples = 0
+  gflopList = []
+  msList = []
+
+  # skip first b/c warmup/lookup
+  newLineIdx = stdout.find("\n")
+  stdout = stdout[newLineIdx+1:]
+
   # parse every line of data
   while "\n" in stdout:
     newLineIdx = stdout.find("\n")
@@ -54,107 +65,98 @@ def BenchmarkProblemSize(cmdPrefix, row):
     msString = splits[3].lstrip()
     gflops = float(gflopsString)
     ms = float(msString)
-    totalGFlops += gflops
-    totalMs += ms
-    numSamples += 1
+    gflopList.append(gflops)
+    msList.append(ms)
     
     # next line
     stdout = stdout[newLineIdx+1:]
+  return (gflopList, msList)
 
-  gflops = totalGFlops / numSamples
-  ms = totalMs / numSamples
-  return (gflops, ms)
+
+################################################################################
+# Print Stats
+################################################################################
+def PrintStats(header, row, gflopList, msList):
+  meanGFlops = mean(gflopList)
+  meanMs = mean(msList)
+  medianGFlops = median(gflopList)
+  medianMs = median(msList)
+  stddevGFlops = stddev(gflopList) / meanGFlops
+  stddevMs = stddev(msList) / meanMs
+
+  # format output
+  line = ""
+  for size in row:
+    line += "%6u, " % int(size)
+  line += "%9.2f, %9.4f, " % (medianGFlops, medianMs)
+  line += "%9.2f, %9.4f, " % (meanGFlops, meanMs)
+  line += "%9.5f, %9.5f" % (stddevGFlops, stddevMs)
+  sys.stdout.write(line) 
+  sys.stdout.write("\n") 
+  sys.stdout.flush()
+  sys.stderr.write("[STDOUT] %s\n" % header) 
+  sys.stderr.write("[STDOUT] %s\n" % line) 
+  sys.stderr.write("[END]\n\n\n") 
+  sys.stderr.flush()
+
 
 ################################################################################
 # Benchmark Problem Sizes
 ################################################################################
 def TensileBenchmarkLibraryClient(userArgs):
-  # parse args
-  argParser = argparse.ArgumentParser()
-  argParser.add_argument("Executable")
-  argParser.add_argument("FunctionIdx")
-  argParser.add_argument("ProblemSizesPath")
-  argParser.add_argument("NumAverage")
-  args = argParser.parse_args(userArgs)
-  N = int(args.NumAverage)
+  if len(userArgs) < 2:
+    line = "USAGE:   python TensileBenchmarkLibraryClient.py sizes.csv library_client_command > name.txt 2> name.raw.txt \n"
+    sys.stderr.write(line)
+    line = "Example: python TensileBenchmarkLibraryClient.py sizes.csv ./4_LibraryClient/build/client --function-idx 1 --num-benchmarks 100 --use-gpu-timer 0 > nn.txt 2> nn.raw.txt\n"
+    sys.stderr.write(line)
+    line = "[BE SURE TO PIN CLOCKS]\n"
+    sys.stderr.write(line)
+    exit(-1)
 
-  # executable path
-  executablePath = os.path.realpath( args.Executable )
-  print "ExecutablePath: ", executablePath
-  print "FunctionIdx: ", args.FunctionIdx
+  # parse problem sizes path
+  problemSizesPath = os.path.realpath( userArgs[0] )
+  line = "ProblemSizesPath: %s\n" % problemSizesPath
+  sys.stdout.write(line)
+  sys.stderr.write(line)
 
-  # read problem sizes
-  problemSizesPath = os.path.realpath( args.ProblemSizesPath )
-  print "ProblemSizesPath: ", problemSizesPath
+  # parse library client command
+  libraryClientCommandList = userArgs[1:]
+  libraryClientCommand = " ".join(libraryClientCommandList)
+  line = "LibraryClientCommand: %s\n" % libraryClientCommand
+  sys.stdout.write(line)
+  sys.stdout.write("\n") 
+  sys.stderr.write(line)
+  sys.stderr.write("\n\n") 
+  
+  # read problem sizes file
   csvFileRaw = open(problemSizesPath, "r")
   csvFile = csv.reader(csvFileRaw)
-  print "NumAverage: ", args.NumAverage
 
-  # print column headers
+  # column headers
   numIndices = -1
   for row in csvFile:
     numIndices = len(row)
     firstRow = row
     break
-  output = ""
+  header = ""
   for i in range(0, numIndices):
     sizeStr = "size%u" % i
-    output += "%6s, " % sizeStr
-  output += "%9s, %9s, " % ( "medGF", "medMs" )
-  output += "%9s, %9s, " % ( "avgGF", "avgMs" )
-  output += "%9s, %9s" % ( "stdGF", "stdMs" )
-  print output
-
-  # begin commandString
-  cmdPrefix = "%s --function-idx %s --sizes" % (executablePath, args.FunctionIdx)
+    header += "%6s, " % sizeStr
+  header += "%9s, %9s, " % ( "medianGF", "medianMs" )
+  header += "%9s, %9s, " % ( "meanGF", "meanMs" )
+  header += "%9s, %9s" % ( "rstdGF", "rstdMs" )
+  sys.stdout.write(header) 
+  sys.stdout.write("\n") 
 
   # benchmark each problem size
   for row in [firstRow]:
-    gflopList = []
-    msList = []
-    for i in range(0, N):
-      (gflops, ms) = BenchmarkProblemSize(cmdPrefix, row)
-      gflopList.append(gflops)
-      msList.append(ms)
-    meanGFlops = mean(gflopList)
-    meanMs = mean(msList)
-    medianGFlops = median(gflopList)
-    medianMs = median(msList)
-    stddevGFlops = stddev(gflopList)
-    stddevMs = stddev(msList)
-
-    # format output
-    output = ""
-    for size in row:
-      output += "%6u, " % int(size)
-    output += "%9.3f, %9.3f, " % (medianGFlops, medianMs)
-    output += "%9.3f, %9.3f, " % (meanGFlops, meanMs)
-    output += "%9.3f, %9.3f" % (stddevGFlops, stddevMs)
-    print output
+    (gflopList, msList) = BenchmarkProblemSize(libraryClientCommand, row)
+    PrintStats(header, row, gflopList, msList)
 
   # benchmark each problem size
   for row in csvFile:
-    gflopList = []
-    msList = []
-    for i in range(0, N):
-      (gflops, ms) = BenchmarkProblemSize(cmdPrefix, row)
-      gflopList.append(gflops)
-      msList.append(ms)
-    meanGFlops = mean(gflopList)
-    meanMs = mean(msList)
-    medianGFlops = median(gflopList)
-    medianMs = median(msList)
-    stddevGFlops = stddev(gflopList)
-    stddevMs = stddev(msList)
-
-    # format output
-    output = ""
-    for size in row:
-      output += "%6u, " % int(size)
-    output += "%9.3f, %9.3f, " % (medianGFlops, medianMs)
-    output += "%9.3f, %9.3f, " % (meanGFlops, meanMs)
-    output += "%9.3f, %9.3f" % (stddevGFlops, stddevMs)
-    print output
+    (gflopList, msList) = BenchmarkProblemSize(libraryClientCommand, row)
+    PrintStats(header, row, gflopList, msList)
 
 def median(lst):
   sortedList = sorted(lst)
@@ -171,7 +173,7 @@ def stddev(lst):
   mn = mean(lst)
   for i in range(len(lst)):
     total += pow((lst[i]-mn),2)
-  return (total/len(lst))**0.5
+  return (total/(len(lst)-1))**0.5
 
 # installed "tensileBenchmarkLibraryClient" command
 def main():
