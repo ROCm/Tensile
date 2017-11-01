@@ -93,9 +93,11 @@ def PrintStats(header, row, gflopList, msList):
   line += "%9.5f, %9.5f" % (stddevGFlops, stddevMs)
   sys.stdout.write(line) 
   sys.stdout.write("\n") 
+  sys.stdout.flush()
   sys.stderr.write("[STDOUT] %s\n" % header) 
   sys.stderr.write("[STDOUT] %s\n" % line) 
   sys.stderr.write("[END]\n\n\n") 
+  sys.stderr.flush()
 
 
 ################################################################################
