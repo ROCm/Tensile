@@ -29,6 +29,7 @@ from subprocess import Popen, PIPE
 ################################################################################
 def BenchmarkProblemSize(cmdPrefix, row):
   cmd = cmdPrefix
+  cmd += " --sizes"
   for size in row:
     cmd += " "
     cmd += size
@@ -63,9 +64,6 @@ def BenchmarkProblemSize(cmdPrefix, row):
     ms = float(msString)
     gflopList.append(gflops)
     msList.append(ms)
-    #totalGFlops += gflops
-    #totalMs += ms
-    #numSamples += 1
     
     # next line
     stdout = stdout[newLineIdx+1:]
@@ -78,26 +76,23 @@ def BenchmarkProblemSize(cmdPrefix, row):
 # Benchmark Problem Sizes
 ################################################################################
 def TensileBenchmarkLibraryClient(userArgs):
-  # parse args
-  argParser = argparse.ArgumentParser()
-  argParser.add_argument("Executable")
-  argParser.add_argument("FunctionIdx")
-  argParser.add_argument("ProblemSizesPath")
-  argParser.add_argument("NumAverage")
-  args = argParser.parse_args(userArgs)
-  N = int(args.NumAverage) # b/c have to throw away first warmup/lookup
+  if len(userArgs) < 2:
+    print "USAGE:   python TensileBenchmarkLibraryClient.py sizes.csv library_client_command" 
+    print "Example: python TensileBenchmarkLibraryClient.py sizes.csv ./4_LibraryClient/build/client --function-idx 1 --num-benchmarks 100 --use-gpu-timer 0" 
+    exit(-1)
 
-  # executable path
-  executablePath = os.path.realpath( args.Executable )
-  print "ExecutablePath: ", executablePath
-  print "FunctionIdx: ", args.FunctionIdx
-
-  # read problem sizes
-  problemSizesPath = os.path.realpath( args.ProblemSizesPath )
+  # parse problem sizes path
+  problemSizesPath = os.path.realpath( userArgs[0] )
   print "ProblemSizesPath: ", problemSizesPath
+
+  # parse library client command
+  libraryClientCommandList = userArgs[1:]
+  libraryClientCommand = " ".join(libraryClientCommandList)
+  print "LibraryClientCommand: ", libraryClientCommand
+  
+  # read problem sizes file
   csvFileRaw = open(problemSizesPath, "r")
   csvFile = csv.reader(csvFileRaw)
-  print "NumAverage: ", args.NumAverage
 
   # print column headers
   numIndices = -1
@@ -114,12 +109,9 @@ def TensileBenchmarkLibraryClient(userArgs):
   output += "%9s, %9s" % ( "rstdGF", "rstdMs" )
   print output
 
-  # begin commandString
-  cmdPrefix = "%s --sleep-percent 300 --function-idx %s --num-benchmarks %u --sizes" % (executablePath, args.FunctionIdx, N+1)
-
   # benchmark each problem size
   for row in [firstRow]:
-    (gflopList, msList) = BenchmarkProblemSize(cmdPrefix, row)
+    (gflopList, msList) = BenchmarkProblemSize(libraryClientCommand, row)
     meanGFlops = mean(gflopList)
     meanMs = mean(msList)
     medianGFlops = median(gflopList)
@@ -138,7 +130,7 @@ def TensileBenchmarkLibraryClient(userArgs):
 
   # benchmark each problem size
   for row in csvFile:
-    (gflopList, msList) = BenchmarkProblemSize(cmdPrefix, row)
+    (gflopList, msList) = BenchmarkProblemSize(libraryClientCommand, row)
     meanGFlops = mean(gflopList)
     meanMs = mean(msList)
     medianGFlops = median(gflopList)
