@@ -81,8 +81,8 @@ def PrintStats(header, row, gflopList, msList):
   meanMs = mean(msList)
   medianGFlops = median(gflopList)
   medianMs = median(msList)
-  stddevGFlops = stddev(gflopList)
-  stddevMs = stddev(msList)
+  stddevGFlops = stddev(gflopList) / meanGFlops
+  stddevMs = stddev(msList) / meanMs
 
   # format output
   line = ""
