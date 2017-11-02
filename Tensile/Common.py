@@ -79,8 +79,10 @@ globalParameters["MergeFiles"] = True
 globalParameters["NumElementsToValidate"] = 128
 globalParameters["ValidationMaxToPrint"] = 4
 globalParameters["ValidationPrintValids"] = False
-globalParameters["DataInitTypeAB"] = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
-globalParameters["DataInitTypeC"]  = 3 # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeAB"] = 3    # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeC"]  = 3    # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeAlpha"] = 2 # 0=0, 1=1, 2=2, 3=rand, 4=NaN
+globalParameters["DataInitTypeBeta"] = 2  # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["SleepPercent"] = 0 # how long to sleep after every solution: 25 means 25% of solution time
 # protect against invalid kernel
 globalParameters["MaxLDS"] = 32768

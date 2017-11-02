@@ -37,6 +37,8 @@ std::ofstream file;
 
 // benchmark parameters
 unsigned int deviceIdx;
+unsigned int initAlpha;
+unsigned int initBeta;
 unsigned int initC;
 unsigned int initAB;
 unsigned int platformIdx;
@@ -59,6 +61,8 @@ std::string keyHelp1 = "-h";
 std::string keyHelp2 = "--help";
 std::string keyInitC = "--init-c";
 std::string keyInitAB = "--init-ab";
+std::string keyInitAlpha = "--init-alpha";
+std::string keyInitBeta = "--init-beta";
 std::string keyPlatformIdx = "--platform-idx";
 std::string keyPrintValids = "--print-valids";
 std::string keyPrintMax = "--print-max";
@@ -75,6 +79,8 @@ std::string keyNumSolutions = "--num-solutions";
 
 // benchmark parameters default values
 unsigned int defaultDeviceIdx = 0;
+unsigned int defaultInitAlpha = 2;
+unsigned int defaultInitBeta = 2;
 unsigned int defaultInitC = 3;
 unsigned int defaultInitAB = 3;
 unsigned int defaultPlatformIdx = 0;
@@ -855,12 +861,33 @@ void initData(
     DataType **deviceOnHostC) {
   int seed = time(NULL);
   srand(seed);
-  //std::cout << "InitData(" << maxSizeC << ", " << maxSizeA << ", "
-  //  << maxSizeB << ")" << std::endl;
 
-  *alpha = tensileGetOne<DataType>();
+  // initialize alpha
+  if (initAlpha == 0) {
+    *alpha = tensileGetZero<DataType>();
+  } else if (initAlpha == 1) {
+    *alpha = tensileGetOne<DataType>();
+  } else if (initAlpha == 2) {
+    *alpha = tensileGetTypeForInt<DataType>(2);
+  } else if (initAlpha == 3) {
+    *alpha = tensileGetRandom<DataType>();
+  } else {
+    *alpha = tensileGetNaN<DataType>();
+  }
+
+  // initialize beta
   if (useBeta[problemTypeIdx]) {
-    *beta = tensileGetTypeForInt<DataType>(2);
+    if (initBeta == 0) {
+      *beta = tensileGetZero<DataType>();
+    } else if (initBeta == 1) {
+      *beta = tensileGetOne<DataType>();
+    } else if (initBeta == 2) {
+      *beta = tensileGetTypeForInt<DataType>(2);
+    } else if (initBeta == 3) {
+      *beta = tensileGetRandom<DataType>();
+    } else {
+      *beta = tensileGetNaN<DataType>();
+    }
   } else {
     *beta = tensileGetZero<DataType>();
   }
@@ -1013,6 +1040,8 @@ void printClientUsage(std::string executableName) {
   std::cout << "  " << keyDeviceIdx << " [" << defaultDeviceIdx << "]" << std::endl;  
   std::cout << "  " << keyInitC << " [" << defaultInitC << "]" << std::endl;  
   std::cout << "  " << keyInitAB << " [" << defaultInitAB << "]" << std::endl;  
+  std::cout << "  " << keyInitAlpha << " [" << defaultInitAlpha << "]" << std::endl;  
+  std::cout << "  " << keyInitBeta << " [" << defaultInitBeta << "]" << std::endl;  
 #if Tensile_RUNTIME_LANGUAGE_OCL
   std::cout << "  " << keyPlatformIdx << " [" << defaultPlatformIdx << "]" << std::endl;  
 #endif
@@ -1103,6 +1132,16 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
       if (keyDeviceIdx == argv[argIdx]) {
         argIdx++;
         deviceIdx = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // init alpha
+      } else if (keyInitAlpha == argv[argIdx]) {
+        argIdx++;
+        initAlpha = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      // init beta
+      } else if (keyInitBeta == argv[argIdx]) {
+        argIdx++;
+        initBeta = static_cast<unsigned int>(atoi(argv[argIdx]));
 
       // init c
       } else if (keyInitC == argv[argIdx]) {
