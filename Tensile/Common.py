@@ -124,7 +124,7 @@ validParameters = {
     "LoopTail":                   [ False, True ],
     "GlobalReadCoalesceGroupA":   [ False, True ],
     "GlobalReadCoalesceGroupB":   [ False, True ],
-    "GlobalReadCoalesceVectorA":  [ True ], # =False worked before the vector refactor; fixing requires re-ordering load/store indices; but there aren't the faster option so not worth time right now
+    "GlobalReadCoalesceVectorA":  [ True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [ True ],
     "PrefetchGlobalRead":         [ False, True ],
     "PrefetchLocalRead":          [ False, True ],

@@ -958,14 +958,15 @@ class KernelWriterAssembly(KernelWriter):
     if beta and not atomic:
       kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
           "%s = C*beta"%vgpr(data+0) )
-    else:
-      kStr += inst("v_mov_b32", vgpr(data+0), vgpr(data+1), \
-          "sum*alpha")
 
-    # new c = new c + rC
+    # new c = [new c +] rC
     if beta or atomic:
       kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(idx), \
           "sum*alpha + C*beta")
+    else:
+      kStr += inst("v_mov_b32", vgpr(data+0), vgpr(idx), \
+          "sum*alpha")
+
 
     # store rC
     if atomic:
