@@ -191,6 +191,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp = ""
     clp += " --platform-idx %u" % globalParameters["Platform"]
     clp += " --device-idx %u" % globalParameters["Device"]
+    clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
+    clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
     clp += " --init-c %u" % globalParameters["DataInitTypeC"]
     clp += " --init-ab %u" % globalParameters["DataInitTypeAB"]
     clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]

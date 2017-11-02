@@ -954,18 +954,28 @@ class KernelWriterAssembly(KernelWriter):
           "load C" )
       kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
 
-    # data+1 = new c = old c * beta
-    if beta and not atomic:
-      kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
-          "%s = C*beta"%vgpr(data+0) )
+    # calculate new c value
+    if beta:
+      if atomic:
+        # data+0 = new c = old c + rC
+        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
+            "sum*alpha + C*beta")
+      else:
+        # data+0 = new c = old c*beta
+        kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
+            "%s = C*beta"%vgpr(data+0) )
+        # data+0 = new c = old c*beta + rC
+        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(idx), \
+            "sum*alpha + C*beta")
     else:
-      kStr += inst("v_mov_b32", vgpr(data+0), vgpr(data+1), \
-          "sum*alpha")
-
-    # new c = new c + rC
-    if beta or atomic:
-      kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(idx), \
-          "sum*alpha + C*beta")
+      if atomic:
+        # data+0 = new c = old c + rC
+        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
+            "sum*alpha + C*beta")
+      else:
+        # data+0 = new c = rC
+        kStr += inst("v_mov_b32", vgpr(data+0), vgpr(idx), \
+            "sum*alpha")
 
     # store rC
     if atomic:
