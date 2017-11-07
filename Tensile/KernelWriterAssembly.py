@@ -399,9 +399,9 @@ class KernelWriterAssembly(KernelWriter):
 
   def getTmpSgpr(self, num):
     if num==1:
-      return self.startSgprOffsetC
+      return self.startSgprTmpPool
     else:
-      return ((self.startSgprOffsetC+1)/2)*2
+      return ((self.startSgprTmpPool+1)/2)*2
 
   ##############################################################################
   #
@@ -830,6 +830,8 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprAddressD = sgprIdx;       sgprIdx += self.numSgprAddressD
     self.totalSgprs = sgprIdx
 
+    self.startSgprTmpPool = self.totalSgprs
+
     # assign loop sgprs which overlap above assignments
     sgprIdx = self.startSgprLoopPadding
     self.startSgprGlobalReadIncsA = sgprIdx; sgprIdx += numSgprGlobalReadIncsA
@@ -936,15 +938,15 @@ class KernelWriterAssembly(KernelWriter):
 
     # register allocation
     totalVgprs = self.vgprPool.size()+1 # + Serial
-    totalSgprs = self.sgprPool.size()
+    #totalSgprs = self.sgprPool.size()
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
         % (totalVgprs, self.endLine)
     kStr += "  wavefront_sgpr_count = %u // sgprs%s" \
-        % (totalSgprs, self.endLine)
+        % (self.totalSgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_vgprs = %u // floor((%u-1)/4)%s" \
         % ( (totalVgprs-1)/4, totalVgprs, self.endLine)
     kStr += "  compute_pgm_rsrc1_sgprs = %u // floor((%u-1)/8)%s" \
-        % ( 1+(totalSgprs-1)/8, totalSgprs, self.endLine)
+        % ( 1+(self.totalSgprs-1)/8, self.totalSgprs, self.endLine)
 
     # work-group dimensions
     kStr += "  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg%s" % self.endLine
@@ -1334,6 +1336,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
+    self.startSgprTmpPool = self.startSgprOffsetC
 
     ########################################
     # NumWorkGroups
@@ -2453,11 +2456,9 @@ class KernelWriterAssembly(KernelWriter):
   # End Summation
   ##############################################################################
   def endSummation(self):
-    #self.vgprPool.remove(self.startVgprTmp, self.numVgprTmp)
     self.vgprPool.add(self.startVgprValuA, \
         self.startVgprTmp - self.startVgprValuA)
-        #self.startVgprSerial - self.startVgprValuA + 1)
-    #self.vgprPool.remove(self.vgprPool.size(), 1) # reserve last for Serial
+    self.startSgprTmpPool = self.startSgprSizesSum
     return ""
 
   ##############################################################################
@@ -3216,7 +3217,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tmpSgpr = self.getTmpSgpr(1)
     baseAddr = self.vgprPool.checkOut(1)
-    offsetSgpr = self.getTmpSgpr(1)
     kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpe, sgpr(tmpSgpr))
     for r in range(0, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
@@ -3305,14 +3305,6 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(self.addrC+1), \
         sgpr("AddressC+1"), \
         "sgpr -> vgpr")
-
-    # create full exec mask
-    if kernel["EdgeType"] != "None":
-      fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
-      kStr += inst("s_mov_b64", \
-          sgpr(fullExecMaskSgpr,2), \
-          "0xFFFFFFFFFFFFFFFF", \
-          "full exec mask")
     return kStr
 
   ##############################################################################
@@ -3323,7 +3315,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PostLoop"]: return ""
     kStr = ""
 
-    self.scratchSgprs = self.startSgprSizesSum
+    self.scratchSgprs = self.getTmpSgpr(1)
 
     tmpS0 = self.scratchSgprs
     tmpS1 = tmpS0+1
@@ -3379,14 +3371,6 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(self.addrC+1), \
         sgpr("AddressC+1"), \
         "sgpr -> vgpr")
-
-    # create full exec mask
-    if kernel["EdgeType"] != "None":
-      fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
-      kStr += inst("s_mov_b64", \
-          sgpr(fullExecMaskSgpr,2), \
-          "0xFFFFFFFFFFFFFFFF", \
-          "full exec mask")
     return kStr
 
   ##############################################################################
@@ -3466,6 +3450,24 @@ class KernelWriterAssembly(KernelWriter):
     label_End
     """
 
+    ########################################
+    # Vgprs
+    tmpVgpr = self.vgprPool.checkOut(2+3) # was 7, should be 2 for coord and 3 for GLOBAL_OFFSET_C
+
+    ########################################
+    # Sgprs
+    globalWriteSgprs = self.getTmpSgpr(2)
+    # create full exec mask
+    fullExecMaskSgpr = globalWriteSgprs
+    globalWriteSgprs += 2
+    kStr += inst("s_mov_b64", \
+        sgpr(fullExecMaskSgpr,2), \
+        "0xFFFFFFFFFFFFFFFF", \
+        "full exec mask")
+    tmpSgpr = globalWriteSgprs
+    globalWriteSgprs += 8
+    elementSgprs = globalWriteSgprs
+
     # branch B1 or B0
     if kernel["ProblemType"]["UseBeta"]:
       betaLabel = self.getLabel("GW_Beta")
@@ -3473,12 +3475,12 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
           "Beta not not zero; so jump to B nonzero")
 
-    tmpVgpr = self.vgprPool.checkOut(2+3) # was 7, should be 2 for coord and 3 for GLOBAL_OFFSET_C
+
     for beta in betas:
       # start B1
       if beta:
         kStr += "label_%04u:%s"%(betaLabel, self.endLine)
-      tmpS01 = self.getTmpSgpr(2)
+      tmpS01 = tmpSgpr
       tmpS23 = tmpS01 + 2
       tmpS45 = tmpS23 + 2
 
@@ -3589,7 +3591,8 @@ class KernelWriterAssembly(KernelWriter):
           elementVgprs = self.vgprPool.checkOut(numElementVgprs)
           kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
-              sizesFreeVgprs, elementVgprs, numVgprsPerElement, tmpVgpr)
+              sizesFreeVgprs, elementVgprs, numVgprsPerElement, tmpVgpr, \
+              fullExecMaskSgpr, elementSgprs, tmpSgpr)
           self.vgprPool.checkIn(elementVgprs)
 
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
@@ -3607,7 +3610,8 @@ class KernelWriterAssembly(KernelWriter):
   ####################################
   def globalWriteInline(self, kernel, beta, edge, lsu, atomic, \
       batchElements, coord0, coord1, addrC, sizes, \
-      batchElementVgprs, numVgprsPerElement, tmpVgpr):
+      batchElementVgprs, numVgprsPerElement, tmpVgpr, \
+      fullExecMaskSgpr, elementSgprs, tmpSgpr):
     kStr = ""
 
     #foreach element in batch
@@ -3628,7 +3632,7 @@ class KernelWriterAssembly(KernelWriter):
           %(" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1, \
           coord0, coord1, addrC, sizes if sizes != None else 0, tmpVgpr))
       fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
-      tmpS01 = fullExecMaskSgpr+2 # scratch sgprs
+      tmpS01 = tmpSgpr # scratch sgprs
       tmpS23 = tmpS01+2
       tmpS45 = tmpS23+2
       tmpS67 = tmpS45+2
