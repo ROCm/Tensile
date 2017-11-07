@@ -3473,7 +3473,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
           "Beta not not zero; so jump to B nonzero")
 
-    tmpVgpr = self.vgprPool.checkOut(7) # was 7, should be 3 for GLOBAL_OFFSET_C
+    tmpVgpr = self.vgprPool.checkOut(2+3) # was 7, should be 2 for coord and 3 for GLOBAL_OFFSET_C
     for beta in betas:
       # start B1
       if beta:
@@ -3560,12 +3560,11 @@ class KernelWriterAssembly(KernelWriter):
         # 3 for GLOBAL_OFFSET_C calculation (can overlap below, therefore max)
         # if beta 1*rpe for new value
         # if atomic 2*rpe for old and cmp values
+        numVgprsPerElement = 2
         if atomic:
-          numVgprsPerElement = 2+max(3,3*self.rpe)
+          numVgprsPerElement += 3*self.rpe
         elif beta:
-          numVgprsPerElement = 2+max(3,1*self.rpe)
-        else:
-          numVgprsPerElement = 2+3
+          numVgprsPerElement += 1*self.rpe
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.available()
@@ -3584,30 +3583,14 @@ class KernelWriterAssembly(KernelWriter):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements) )
           elementsThisBatch = elements[elementStartIdx:elementStopIdx]
+          print "BATCH[%u/%u]: elements[%u:%u]" % (batchIdx, numBatches, elementStartIdx, elementStopIdx)
           numElementsThisBatch = len(elementsThisBatch)
           numElementVgprs = numElementsThisBatch * numVgprsPerElement
           elementVgprs = self.vgprPool.checkOut(numElementVgprs)
-          for element in elementsThisBatch:
-            print element
-            tt1 = element[0]
-            tt0 = element[1]
-            vc1 = element[2]
-            vc0 = element[3]
-            kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
-                vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
-                sizesFreeVgprs, tmpVgpr)
+          kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
+              elementsThisBatch, self.coord0, self.coord1, self.addrC, \
+              sizesFreeVgprs, elementVgprs, numVgprsPerElement, tmpVgpr)
           self.vgprPool.checkIn(elementVgprs)
-
-
-        # determine how many gprs are available for unrolling these writes
-        #for element in elements: # these come from SplitU or regular
-        #  tt1 = element[0]
-        #  tt0 = element[1]
-        #  vc1 = element[2]
-        #  vc0 = element[3]
-        #  kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
-        #      vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
-        #      sizesFreeVgprs, tmpVgpr)
 
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
         if edge:
@@ -3622,152 +3605,162 @@ class KernelWriterAssembly(KernelWriter):
   ####################################
   # Global Write Inline
   ####################################
-  def globalWriteInline(self, kernel, beta, edge, lsu, atomic, vc0, vc1, \
-      d0, d1, coord0, coord1, addrC, sizes, tmpVgpr):
-
-    #d0 always equals 0 for lsu
-    strideD0 = 0 # never used for lsu
-    strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]/kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
+  def globalWriteInline(self, kernel, beta, edge, lsu, atomic, \
+      batchElements, coord0, coord1, addrC, sizes, \
+      batchElementVgprs, numVgprsPerElement, tmpVgpr):
     kStr = ""
-    kStr += self.comment3("Global Write%s%s vc=%u,%u d=%u,%u coord=%u,%u addr=%u sizes=%u tmpVgpr=%u " \
-        %(" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1, \
-        coord0, coord1, addrC, sizes if sizes != None else 0, tmpVgpr))
-    #kStr += ".macro GLOBAL_WRITE%s%s vc0 vc1 d0 d1 coord0 coord1 addrC sizes tmpVgpr%s"%("_Beta" if beta else "", "_Edge" if edge else "", self.endLine)
-    fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
-    tmpS01 = fullExecMaskSgpr+2 # scratch sgprs
-    tmpS23 = tmpS01+2
-    tmpS45 = tmpS23+2
-    tmpS67 = tmpS45+2
 
-    if lsu:
-      idx = self.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
-    else:
-      idx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
-    kStr += self.comment1("idx = %u"% idx)
+    #foreach element in batch
+    for elementIdx in range(0, len(batchElements)):
+      element = batchElements[elementIdx]
+      elementVgprs = batchElementVgprs + elementIdx * numVgprsPerElement
+      print element
+      d1 = element[0]
+      d0 = element[1]
+      vc1 = element[2]
+      vc0 = element[3]
 
-    addr = tmpVgpr+0
-    tmpVgpr += 2
 
-    # coord0
-    kStr += staticMultiply(vgpr(tmpVgpr+0), d0, (kernel["SubGroup0"]*kernel["VectorWidth"]))
-    kStr += inst("v_add_u32", vgpr(tmpVgpr+0), "vcc", vc0, vgpr(tmpVgpr+0), \
-        "tmp0 = d0*sg0*VW + vc0")
-    kStr += inst("v_add_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), vgpr(tmpVgpr+0), \
-        "coord0 += d0*sg0*VW + vc0")
+      #d0 always equals 0 for lsu
+      strideD0 = 0 # never used for lsu
+      strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]/kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
+      kStr += self.comment3("Global Write%s%s vc=%u,%u d=%u,%u coord=%u,%u addr=%u sizes=%u tmpVgpr=%u " \
+          %(" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1, \
+          coord0, coord1, addrC, sizes if sizes != None else 0, tmpVgpr))
+      fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
+      tmpS01 = fullExecMaskSgpr+2 # scratch sgprs
+      tmpS23 = tmpS01+2
+      tmpS45 = tmpS23+2
+      tmpS67 = tmpS45+2
 
-    # coord1
-    kStr += staticMultiply(vgpr(tmpVgpr+1), d1, strideD1)
-    kStr += inst("v_add_u32", vgpr(tmpVgpr+1), "vcc", hex(vc1), vgpr(tmpVgpr+1), \
-        "tmp1 = d1*sg1*VW + vc1")
-    kStr += inst("v_add_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), vgpr(tmpVgpr+1), \
-        "coord1 += d1*sg1*VW + vc1")
-    #kStr += dump(vgpr(tmp+1))
-
-    # in-bounds exec mask
-    if edge:
-      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(tmpVgpr+0), vgpr(sizes+0), "coord0 < size0" )
-      kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(tmpVgpr+1), vgpr(sizes+1), "coord1 < size1" )
-      #kStr += inst("v_mov_b32", vgpr(tmp+2), sgpr(tmpS01), "to dump")
-      #kStr += dump(vgpr(tmp+2))
-      kStr += inst("s_and_b64",  sgpr(tmpS45,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
-      kStr += inst("s_and_saveexec_b64",  sgpr(tmpS67,2), sgpr(tmpS45,2), "sgprs -> exec" )
-
-    # global offset macro (requires 3 tmpVgpr)
-    kStr += "GLOBAL_OFFSET_C %u" % addr
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      if i == kernel["ProblemType"]["Index0"]:
-        kStr += ", %s" % (tmpVgpr+0)
-      elif i == kernel["ProblemType"]["Index1"]:
-        kStr += ", %s" % (tmpVgpr+1)
-      else: # just a group index
-        kStr += ", sgprWorkGroup%u"%i
-    kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
-
-    # final address = C + index*4bytes
-    kStr += inst("v_add_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
-        vgpr(addr+0), "addr = C + index*4bytes (lo)" )
-    kStr += inst("v_addc_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
-        vgpr(addr+1), "vcc", "addr = C + index*4bytes (hi)")
-
-    # rC *= alpha
-    kStr += inst("v_mul_f32", vgpr(idx), sgpr("Alpha"), vgpr(idx), "*= alpha" )
-
-    # for atomic, data[1] = original c, data[0] = new c
-    data = tmpVgpr
-    tmp = tmpVgpr+2
-
-    # load c into data+1
-    if beta or atomic:
-      kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
-          "load C" )
-      kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
-
-    # calculate new c value
-    if beta:
-      if atomic:
-        # data+0 = new c = old c + rC
-        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
-            "sum*alpha + C*beta")
+      if lsu:
+        idx = self.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
       else:
-        # data+0 = new c = old c*beta
-        kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
-            "%s = C*beta"%vgpr(data+0) )
-        # data+0 = new c = old c*beta + rC
-        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(idx), \
-            "sum*alpha + C*beta")
-    else:
-      if atomic:
-        # data+0 = new c = old c + rC
-        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
-            "sum*alpha + C*beta")
+        idx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
+      kStr += self.comment1("idx = %u"% idx)
+
+      addr = elementVgprs+0
+
+      # coord0
+      kStr += staticMultiply(vgpr(tmpVgpr+0), d0, (kernel["SubGroup0"]*kernel["VectorWidth"]))
+      kStr += inst("v_add_u32", vgpr(tmpVgpr+0), "vcc", vc0, vgpr(tmpVgpr+0), \
+          "tmp0 = d0*sg0*VW + vc0")
+      kStr += inst("v_add_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), vgpr(tmpVgpr+0), \
+          "coord0 += d0*sg0*VW + vc0")
+
+      # coord1
+      kStr += staticMultiply(vgpr(tmpVgpr+1), d1, strideD1)
+      kStr += inst("v_add_u32", vgpr(tmpVgpr+1), "vcc", hex(vc1), vgpr(tmpVgpr+1), \
+          "tmp1 = d1*sg1*VW + vc1")
+      kStr += inst("v_add_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), vgpr(tmpVgpr+1), \
+          "coord1 += d1*sg1*VW + vc1")
+      #kStr += dump(vgpr(tmp+1))
+
+      # in-bounds exec mask
+      if edge:
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(tmpVgpr+0), vgpr(sizes+0), "coord0 < size0" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(tmpVgpr+1), vgpr(sizes+1), "coord1 < size1" )
+        #kStr += inst("v_mov_b32", vgpr(tmp+2), sgpr(tmpS01), "to dump")
+        #kStr += dump(vgpr(tmp+2))
+        kStr += inst("s_and_b64",  sgpr(tmpS45,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
+        kStr += inst("s_and_saveexec_b64",  sgpr(tmpS67,2), sgpr(tmpS45,2), "sgprs -> exec" )
+
+      # global offset macro (requires 3 tmpVgpr)
+      kStr += "GLOBAL_OFFSET_C %u" % addr
+      for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+        if i == kernel["ProblemType"]["Index0"]:
+          kStr += ", %s" % (tmpVgpr+0)
+        elif i == kernel["ProblemType"]["Index1"]:
+          kStr += ", %s" % (tmpVgpr+1)
+        else: # just a group index
+          kStr += ", sgprWorkGroup%u"%i
+      kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
+
+      # final address = C + index*4bytes
+      kStr += inst("v_add_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
+          vgpr(addr+0), "addr = C + index*4bytes (lo)" )
+      kStr += inst("v_addc_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
+          vgpr(addr+1), "vcc", "addr = C + index*4bytes (hi)")
+
+      # rC *= alpha
+      kStr += inst("v_mul_f32", vgpr(idx), sgpr("Alpha"), vgpr(idx), "*= alpha" )
+
+      # for atomic, data[1] = original c, data[0] = new c
+      data = tmpVgpr
+      tmp = tmpVgpr+2
+
+      # load c into data+1
+      if beta or atomic:
+        kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
+            "load C" )
+        kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+
+      # calculate new c value
+      if beta:
+        if atomic:
+          # data+0 = new c = old c + rC
+          kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
+              "sum*alpha + C*beta")
+        else:
+          # data+0 = new c = old c*beta
+          kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
+              "%s = C*beta"%vgpr(data+0) )
+          # data+0 = new c = old c*beta + rC
+          kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(idx), \
+              "sum*alpha + C*beta")
       else:
-        # data+0 = new c = rC
-        kStr += inst("v_mov_b32", vgpr(data+0), vgpr(idx), \
-            "sum*alpha")
+        if atomic:
+          # data+0 = new c = old c + rC
+          kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(idx), \
+              "sum*alpha + C*beta")
+        else:
+          # data+0 = new c = rC
+          kStr += inst("v_mov_b32", vgpr(data+0), vgpr(idx), \
+              "sum*alpha")
 
-    # store rC
-    if atomic:
-      # flat_atomic_cmpswap tmp addr data
-      # tmp = mem[addr]
-      # src = data[0] new C
-      # cmp = data[1] original C
-      # mem[addr] = (tmp==cmp) ? src : tmp
-      # addr = vgpr(addr,2)
-      # data = vgpr(tmpVgpr,2)
-      # tmp = vgpr(tmpVgpr+4)
+      # store rC
+      if atomic:
+        # flat_atomic_cmpswap tmp addr data
+        # tmp = mem[addr]
+        # src = data[0] new C
+        # cmp = data[1] original C
+        # mem[addr] = (tmp==cmp) ? src : tmp
+        # addr = vgpr(addr,2)
+        # data = vgpr(tmpVgpr,2)
+        # tmp = vgpr(tmpVgpr+4)
 
-      # first attempt
-      kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), vgpr(addr,2), \
-          vgpr(data,2), "glc", "attempt write", self.endLine )
-      kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait for atomic" )
-      kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmp), \
-          vgpr(data+1), "c read during atomic == c read during prior load" )
-      kStr += inst("s_and_saveexec_b64", sgpr(tmpS67,2), "vcc", \
-          "apply mask, keep running threads that weren't successful" )
-      kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), \
-          "data+1 = tmp (new original C)" )
+        # first attempt
+        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), vgpr(addr,2), \
+            vgpr(data,2), "glc", "attempt write", self.endLine )
+        kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait for atomic" )
+        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmp), \
+            vgpr(data+1), "c read during atomic == c read during prior load" )
+        kStr += inst("s_and_saveexec_b64", sgpr(tmpS67,2), "vcc", \
+            "apply mask, keep running threads that weren't successful" )
+        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), \
+            "data+1 = tmp (new original C)" )
 
-      # subsequent attempts loop
-      labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
-        % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
-      labelIdx = self.getLabel(labelString)
-      kStr += "label_%04u:%s" % (labelIdx, self.endLine)
-      kStr += inst("v_add_f32", vgpr(data+0), vgpr(idx), vgpr(data+1), \
-          "newC = rC + originalC" )
-      kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), \
-          vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
-      kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait" )
-      kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmp), \
-          "c read during atomic == c read during prior load" )
-      kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), "data+1 = tmp (new original C)" )
-      kStr += inst("s_and_saveexec_b64", sgpr(tmpS67,2), "vcc", "apply new mask" )
-      kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
-    else:
-      kStr += inst("flat_store_dword", vgpr(addr,2), vgpr(data+0), "store C" )
+        # subsequent attempts loop
+        labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
+          % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
+        labelIdx = self.getLabel(labelString)
+        kStr += "label_%04u:%s" % (labelIdx, self.endLine)
+        kStr += inst("v_add_f32", vgpr(data+0), vgpr(idx), vgpr(data+1), \
+            "newC = rC + originalC" )
+        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), \
+            vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
+        kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait" )
+        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmp), \
+            "c read during atomic == c read during prior load" )
+        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), "data+1 = tmp (new original C)" )
+        kStr += inst("s_and_saveexec_b64", sgpr(tmpS67,2), "vcc", "apply new mask" )
+        kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
+      else:
+        kStr += inst("flat_store_dword", vgpr(addr,2), vgpr(data+0), "store C" )
 
-    # restore full exec mask
-    if edge or atomic:
-      kStr += inst("s_or_saveexec_b64",  sgpr(tmpS67,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+      # restore full exec mask
+      if edge or atomic:
+        kStr += inst("s_or_saveexec_b64",  sgpr(tmpS67,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
 
     return kStr
 
