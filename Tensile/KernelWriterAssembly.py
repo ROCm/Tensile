@@ -184,6 +184,15 @@ class RegisterPool:
     return len(self.pool)
 
   ########################################
+  # Size
+  def available(self):
+    numAvailable = 0
+    for s in self.pool:
+      if s == self.statusAvailable:
+        numAvailable += 1
+    return numAvailable
+
+  ########################################
   # State
   def state(self):
     stateStr = ""
@@ -3418,19 +3427,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
 
-    #print self.vgprPool.state()
-    numVgprTmp = self.vgprPool.size() - self.numVgprValuC 
-    print "NumVgprTmp", numVgprTmp
-    # how many vgprs are needed for zero elements
-    # if edge, 2 vgprs for size boundary checks
-    # 2 for addressC in vgpr for addition 
-    # 2 for coord0,1
-
-    # 5 = how many vgprs are needed per element
-    # 2 for addr
-    # if beta 1*rpe for new value
-    # if atomic 2*rpe for old and cmp values
-
 
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
@@ -3477,7 +3473,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
           "Beta not not zero; so jump to B nonzero")
 
-    globalWriteTmp = self.vgprPool.checkOut(5)
+    tmpVgpr = self.vgprPool.checkOut(7) # was 7, should be 3 for GLOBAL_OFFSET_C
     for beta in betas:
       # start B1
       if beta:
@@ -3535,6 +3531,7 @@ class KernelWriterAssembly(KernelWriter):
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
         kStr += "label_%04u:%s"%(writeLabels[beta][edge], self.endLine)
+
         if edge:
           # store free sizes in vgprs for comparison
           sizesFreeVgprs = self.vgprPool.checkOut(2)
@@ -3548,15 +3545,70 @@ class KernelWriterAssembly(KernelWriter):
               "free sizes sgpr -> vgpr")
         else:
           sizesFreeVgprs = None
+
+        ########################################
+        # Calculate Vgprs for Write Batching
+        ########################################
+
+        # how many vgprs are needed for zero elements
+        # 2 for addressC in vgpr for addition - already checked out
+        # 2 for coord0,1 of thread - already checked out
+        # 2 for tmp - already checked out
+
+        # 5 = how many vgprs are needed per element
+        # 2 for addr
+        # 3 for GLOBAL_OFFSET_C calculation (can overlap below, therefore max)
+        # if beta 1*rpe for new value
+        # if atomic 2*rpe for old and cmp values
+        if atomic:
+          numVgprsPerElement = 2+max(3,3*self.rpe)
+        elif beta:
+          numVgprsPerElement = 2+max(3,1*self.rpe)
+        else:
+          numVgprsPerElement = 2+3
+
+        #print self.vgprPool.state()
+        numVgprAvailable = self.vgprPool.available()
+        print "NumVgprAvailable", numVgprAvailable
+        numElementsPerBatch = numVgprAvailable / numVgprsPerElement
+        print "NumElementsPerBatch", numElementsPerBatch
+
+        # if no atomics and no edge, then write whole vectors
+        if not atomic and not edge:
+          numVectorsPerBatch = numElementsPerBatch / kernel["GlobalWriteVectorWidth"]
+          print "  NumVectorsPerBatch", numVectorsPerBatch
+          numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
+          print "  NumElementsPerBatch", numElementsPerBatch
+        numBatches = max(1, (len(elements)+numElementsPerBatch-1) / numElementsPerBatch)
+        for batchIdx in range(0, numBatches):
+          elementStartIdx = batchIdx * numElementsPerBatch
+          elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements) )
+          elementsThisBatch = elements[elementStartIdx:elementStopIdx]
+          numElementsThisBatch = len(elementsThisBatch)
+          numElementVgprs = numElementsThisBatch * numVgprsPerElement
+          elementVgprs = self.vgprPool.checkOut(numElementVgprs)
+          for element in elementsThisBatch:
+            print element
+            tt1 = element[0]
+            tt0 = element[1]
+            vc1 = element[2]
+            vc0 = element[3]
+            kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
+                vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
+                sizesFreeVgprs, tmpVgpr)
+          self.vgprPool.checkIn(elementVgprs)
+
+
         # determine how many gprs are available for unrolling these writes
-        for element in elements: # these come from SplitU or regular
-          tt1 = element[0]
-          tt0 = element[1]
-          vc1 = element[2]
-          vc0 = element[3]
-          kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
-              vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
-              sizesFreeVgprs, globalWriteTmp)
+        #for element in elements: # these come from SplitU or regular
+        #  tt1 = element[0]
+        #  tt0 = element[1]
+        #  vc1 = element[2]
+        #  vc0 = element[3]
+        #  kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
+        #      vc0, vc1, tt0, tt1, self.coord0, self.coord1, self.addrC, \
+        #      sizesFreeVgprs, tmpVgpr)
+
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
         if edge:
           self.vgprPool.checkIn(sizesFreeVgprs)
@@ -3564,7 +3616,7 @@ class KernelWriterAssembly(KernelWriter):
     # End label
     if kernel["ProblemType"]["UseBeta"]:
       kStr += "label_%04u:%s"%(endLabel, self.endLine)
-    self.vgprPool.checkIn(globalWriteTmp)
+    self.vgprPool.checkIn(tmpVgpr)
     return kStr
 
   ####################################
@@ -3620,7 +3672,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_and_b64",  sgpr(tmpS45,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
       kStr += inst("s_and_saveexec_b64",  sgpr(tmpS67,2), sgpr(tmpS45,2), "sgprs -> exec" )
 
-    # global offset macro
+    # global offset macro (requires 3 tmpVgpr)
     kStr += "GLOBAL_OFFSET_C %u" % addr
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
       if i == kernel["ProblemType"]["Index0"]:
