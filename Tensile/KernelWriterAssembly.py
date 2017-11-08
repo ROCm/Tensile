@@ -3452,7 +3452,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Vgprs
-    tmpVgpr = self.vgprPool.checkOut(2+3) # was 7, should be 2 for coord and 3 for GLOBAL_OFFSET_C
+    tmpVgpr = self.vgprPool.checkOut(2+3) # 2 for coord and 3 for GLOBAL_OFFSET_C
 
     ########################################
     # Sgprs
@@ -3647,6 +3647,10 @@ class KernelWriterAssembly(KernelWriter):
         sumIdx = self.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
       elementSumIdx.append(sumIdx)
 
+    tmpS01 = tmpSgpr # scratch sgprs
+    tmpS23 = tmpS01+2
+    tmpS45 = tmpS23+2
+
     ########################################
     # calculate addr and masks
     for elementIdx in range(0, len(batchElements)):
@@ -3667,9 +3671,6 @@ class KernelWriterAssembly(KernelWriter):
           %(" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1, \
           coord0, coord1, addrC, sizes if sizes != None else 0, tmpVgpr))
       #fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
-      tmpS01 = tmpSgpr # scratch sgprs
-      tmpS23 = tmpS01+2
-      tmpS45 = tmpS23+2
 
       kStr += self.comment1("idx = %u"% sumIdx)
 
@@ -3713,6 +3714,33 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_addc_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
           vgpr(addr+1), "vcc", "addr = C + index*4bytes (hi)")
 
+      if edge:
+        # apply in-bounds exec mask
+        kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
+
+      if atomic:
+        # load c into data+1 becaue of CAS structure
+        kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
+            "load C" )
+      elif beta:
+        # load c into data+0
+        kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), \
+            "load C" )
+      # restore full exec mask for calculating addr of next element
+      if elementIdx < len(batchElements):
+        kStr += inst("s_or_saveexec_b64",  sgpr(tmpS45,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+
+    ########################################
+    # rC *= alpha
+    for elementIdx in range(0, len(batchElements)):
+      sumIdx = elementSumIdx[elementIdx]
+      kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
+
+    ########################################
+    # wait for batched load
+    if beta or atomic:
+      kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+
     ########################################
     # the rest
     for elementIdx in range(0, len(batchElements)):
@@ -3725,29 +3753,14 @@ class KernelWriterAssembly(KernelWriter):
       d0 = element[1]
       vc1 = element[2]
       vc0 = element[3]
+
       if edge:
+        # apply in-bounds exec mask
         kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
-
-      # rC *= alpha
-      kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
-
-      # for atomic, data[1] = original c, data[0] = new c
-      #data = tmpVgpr
-      tmp = tmpVgpr+2
-
-      if atomic:
-        # load c into data+1 becaue of CAS structure
-        kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
-            "load C" )
-        kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
-      elif beta:
-        # load c into data+0
-        kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), \
-            "load C" )
-        kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
 
       # calculate new c value
       if atomic:
+        # for atomic, data[1] = original c, data[0] = new c
         if beta:
           # data+0 = new c = old c + rC
           kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
@@ -3781,14 +3794,14 @@ class KernelWriterAssembly(KernelWriter):
         # tmp = vgpr(tmpVgpr+4)
 
         # first attempt
-        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), vgpr(addr,2), \
+        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), vgpr(addr,2), \
             vgpr(data,2), "glc", "attempt write", self.endLine )
         kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait for atomic" )
-        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmp), \
+        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmpVgpr), \
             vgpr(data+1), "c read during atomic == c read during prior load" )
         kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", \
             "apply mask, keep running threads that weren't successful" )
-        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), \
+        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), \
             "data+1 = tmp (new original C)" )
 
         # subsequent attempts loop
@@ -3798,12 +3811,12 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "label_%04u:%s" % (labelIdx, self.endLine)
         kStr += inst("v_add_f32", vgpr(data+0), vgpr(sumIdx), vgpr(data+1), \
             "newC = rC + originalC" )
-        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmp), \
+        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
             vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
         kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait" )
-        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmp), \
+        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmpVgpr), \
             "c read during atomic == c read during prior load" )
-        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmp), "data+1 = tmp (new original C)" )
+        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), "data+1 = tmp (new original C)" )
         kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", "apply new mask" )
         kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
       else:
