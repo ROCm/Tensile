@@ -3746,17 +3746,29 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Atomic
+    ########################################
+    # flat_atomic_cmpswap tmp addr data
+    # tmp = mem[addr]
+    # src = data[0] new C
+    # cmp = data[1] original C
+    # mem[addr] = (tmp==cmp) ? src : tmp
+    # addr = vgpr(addr,2)
+    # data = vgpr(tmpVgpr,2)
+    # tmp = vgpr(tmpVgpr+4)
     if atomic:
 
       ########################################
       # wait for batched load
       if beta or atomic:
-        kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+        kStr += inst("s_waitcnt", "vmcnt(0)", "wait C" )
 
+      ########################################
+      # first attempt write
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
         addr = elementAddr[elementIdx]
         data = elementData[elementIdx]
+        tmpVgpr = data+2
         mask = elementMask[elementIdx]
         sumIdx = elementSumIdx[elementIdx]
         d1 = element[0]
@@ -3766,7 +3778,8 @@ class KernelWriterAssembly(KernelWriter):
 
         # apply in-bounds exec mask
         if edge:
-          kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
+          #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
+          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
         # for atomic, data[1] = original c, data[0] = new c
         if beta:
@@ -3778,19 +3791,33 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
               "sum*alpha + C*beta")
 
-        # flat_atomic_cmpswap tmp addr data
-        # tmp = mem[addr]
-        # src = data[0] new C
-        # cmp = data[1] original C
-        # mem[addr] = (tmp==cmp) ? src : tmp
-        # addr = vgpr(addr,2)
-        # data = vgpr(tmpVgpr,2)
-        # tmp = vgpr(tmpVgpr+4)
-
-        # first attempt
+        # attempt write
         kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), vgpr(addr,2), \
             vgpr(data,2), "glc", "attempt write", self.endLine )
-        kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait for atomic" )
+
+      ########################################
+      # wait for first attempt write
+      kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic" )
+
+      ########################################
+      # check first attempt
+      for elementIdx in range(0, len(batchElements)):
+        element = batchElements[elementIdx]
+        addr = elementAddr[elementIdx]
+        data = elementData[elementIdx]
+        tmpVgpr = data+2
+        mask = elementMask[elementIdx]
+        sumIdx = elementSumIdx[elementIdx]
+        d1 = element[0]
+        d0 = element[1]
+        vc1 = element[2]
+        vc0 = element[3]
+
+        # apply in-bounds exec mask
+        if edge:
+          #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
+          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+
         kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmpVgpr), \
             vgpr(data+1), "c read during atomic == c read during prior load" )
         kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", \
@@ -3815,16 +3842,16 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
         kStr += inst("s_or_saveexec_b64",  sgpr(tmpS45,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
 
+
     ########################################
     # Not Atomic
+    ########################################
     else:
 
       ########################################
       # wait for batched load
       if beta: # FIXME can this be moved to below or do flat instructions return out of order
         kStr += inst("s_waitcnt", "vmcnt(0)", "wait C" )
-      #if beta:
-      #  kStr += inst("s_waitcnt", "vmcnt(%u)"%(len(batchElements)-1), "wait C")
 
       for elementIdx in range(0, len(batchElements)):
         element = batchElements[elementIdx]
