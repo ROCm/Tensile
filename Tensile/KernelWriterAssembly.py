@@ -3757,6 +3757,18 @@ class KernelWriterAssembly(KernelWriter):
     # tmp = vgpr(tmpVgpr+4)
     if atomic:
 
+      # atomic loop label
+      element = batchElements[0]
+      d1 = element[0]
+      d0 = element[1]
+      vc1 = element[2]
+      vc0 = element[3]
+      labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
+        % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
+      label = self.getLabel(labelString)
+      labelString += "EarlyExid"
+      labelAfterAtomicLoop = self.getLabel(labelString)
+
       ########################################
       # wait for batched load
       if beta or atomic:
@@ -3813,34 +3825,77 @@ class KernelWriterAssembly(KernelWriter):
         vc1 = element[2]
         vc0 = element[3]
 
-        # apply in-bounds exec mask
+        # calculate new masks
         if edge:
           #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
-          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+          #kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+          kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(tmpVgpr), \
+              vgpr(data+1), "c read during atomic == c read during prior load" )
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+        else:
+          #kStr += inst("s_mov_b64", sgpr(mask,2), sgpr(fullExecMaskSgpr,2), "mask = full" )
+          kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(tmpVgpr), \
+              vgpr(data+1), "c read during atomic != c read during prior load" )
+        #kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
 
-        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(tmpVgpr), \
-            vgpr(data+1), "c read during atomic == c read during prior load" )
-        kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", \
-            "apply mask, keep running threads that weren't successful" )
-        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), \
-            "data+1 = tmp (new original C)" )
+        #kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(tmpVgpr), \
+        #    vgpr(data+1), "c read during atomic == c read during prior load" )
+        #kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+        #kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", \
+        #    "apply mask, keep running threads that weren't successful" )
+        # FIXME early exit here; loop over all masks, or-ing them together then check if mask is zero
+        #kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), \
+        #    "data+1 = tmp (new original C)" )
 
-        # subsequent attempts loop
-        labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
-          % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
-        labelIdx = self.getLabel(labelString)
-        kStr += "label_%04u:%s" % (labelIdx, self.endLine)
+      # or masks together to check early exit
+      kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
+      for elementIdx in range(0, len(batchElements)):
+        mask = elementMask[elementIdx]
+        kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
+      kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+      kStr += inst("s_cbranch_execz", "label_%04u" % labelAfterAtomicLoop, "if exec is zero skip loop" )
+
+      # begin atomic loop
+      kStr += "label_%04u:%s" % (label, self.endLine)
+
+      for elementIdx in range(0, len(batchElements)):
+        element = batchElements[elementIdx]
+        addr = elementAddr[elementIdx]
+        data = elementData[elementIdx]
+        tmpVgpr = data+2
+        mask = elementMask[elementIdx]
+        sumIdx = elementSumIdx[elementIdx]
+
+        # apply mask for element
+        kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
+        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), "data+1 = tmp (new original C)" )
         kStr += inst("v_add_f32", vgpr(data+0), vgpr(sumIdx), vgpr(data+1), \
             "newC = rC + originalC" )
         kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
             vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
         kStr += inst("s_waitcnt vmcnt(0) & lgkmcnt(0)", "wait" )
-        kStr += inst("v_cmp_ne_u32", "vcc", vgpr(data+1), vgpr(tmpVgpr), \
+        # compare success
+        kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(tmpVgpr), \
             "c read during atomic == c read during prior load" )
-        kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), "data+1 = tmp (new original C)" )
-        kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", "apply new mask" )
-        kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
-        kStr += inst("s_or_saveexec_b64",  sgpr(tmpS45,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+        # update element mask
+        kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+
+      # or masks together
+      kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
+      for elementIdx in range(0, len(batchElements)):
+        mask = elementMask[elementIdx]
+        kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
+
+      # apply combined masks and exit
+      kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+      kStr += inst("s_cbranch_execnz", "label_%04u" % label, "try again if not complete" )
+      kStr += "label_%04u:%s" % (labelAfterAtomicLoop, self.endLine)
+      kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+
+      #  kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "apply new mask" )
+      #  #kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", "apply new mask" )
+      #  kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
+      #  kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
 
 
     ########################################
