@@ -35,7 +35,7 @@
 typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
 #else
-typedef std::string KernelMapKey;
+typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
 #endif
 
