@@ -3610,9 +3610,9 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpVgpr)
     return kStr
 
-  ####################################
+  ##############################################################################
   # Global Write Inline
-  ####################################
+  ##############################################################################
   def globalWriteInline(self, kernel, beta, edge, lsu, atomic, \
       batchElements, coord0, coord1, addrC, sizes, \
       batchElementVgprs, numVgprsPerElement, tmpVgpr, \
@@ -3622,6 +3622,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # allocate per-element resources
     elementAddr = []
+    elementData = []
     elementMask = []
     elementSumIdx = []
     for elementIdx in range(0, len(batchElements)):
@@ -3631,6 +3632,8 @@ class KernelWriterAssembly(KernelWriter):
       elementSgprs = batchElementSgprs + elementIdx * numSgprsPerElement
       addr = elementVgprs+0
       elementAddr.append(addr)
+      data = elementVgprs+2
+      elementData.append(data)
       mask = elementSgprs+0
       elementMask.append(mask)
 
@@ -3649,6 +3652,7 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = elementAddr[elementIdx]
+      data = elementData[elementIdx]
       mask = elementMask[elementIdx]
       sumIdx = elementSumIdx[elementIdx]
       d1 = element[0]
@@ -3714,6 +3718,7 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = elementAddr[elementIdx]
+      data = elementData[elementIdx]
       mask = elementMask[elementIdx]
       sumIdx = elementSumIdx[elementIdx]
       d1 = element[0]
@@ -3727,32 +3732,37 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
 
       # for atomic, data[1] = original c, data[0] = new c
-      data = tmpVgpr
+      #data = tmpVgpr
       tmp = tmpVgpr+2
 
-      # load c into data+1
-      if beta or atomic:
+      if atomic:
+        # load c into data+1 becaue of CAS structure
         kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
+            "load C" )
+        kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
+      elif beta:
+        # load c into data+0
+        kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), \
             "load C" )
         kStr += inst("s_waitcnt", "vmcnt(0) & lgkmcnt(0)", "wait C" )
 
       # calculate new c value
-      if beta:
-        if atomic:
+      if atomic:
+        if beta:
           # data+0 = new c = old c + rC
           kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
               "sum*alpha + C*beta")
         else:
-          # data+0 = new c = old c*beta
-          kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+1), \
-              "%s = C*beta"%vgpr(data+0) )
-          # data+0 = new c = old c*beta + rC
-          kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+0), vgpr(sumIdx), \
-              "sum*alpha + C*beta")
-      else:
-        if atomic:
           # data+0 = new c = old c + rC
           kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
+              "sum*alpha + C*beta")
+      else:
+        if beta:
+          # data+0 = new c = old c*beta
+          kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+0), \
+              "%s = C*beta"%vgpr(data+0) )
+          # data+0 = new c = old c*beta + rC
+          kStr += inst("v_add_f32", vgpr(data+0), vgpr(sumIdx), vgpr(data+0), \
               "sum*alpha + C*beta")
         else:
           # data+0 = new c = rC
