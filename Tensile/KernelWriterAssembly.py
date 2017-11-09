@@ -942,6 +942,10 @@ class KernelWriterAssembly(KernelWriter):
 
     # register allocation
     totalVgprs = self.vgprPool.size()+1 # + Serial
+    if self.vgprPool.size() > self.maxVgprs:
+      self.overflowedResources = True
+    if self.overflowedResources:
+      totalVgprs = 1
     #totalSgprs = self.sgprPool.size()
     kStr += "  workitem_vgpr_count = %u // vgprs%s" \
         % (totalVgprs, self.endLine)
@@ -1230,7 +1234,7 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = True
     if self.overflowedResources:
       print ""
-      printWarning("%s invalid @ %u > %u max vgprs" % (self.kernelName, self.vgprPool.size(), self.maxVgprs) )
+      printWarning("%s invalid: too many vgprs" % (self.kernelName) )
       kStr += "s_endpgm // too many vgprs\n"
       kStr += ".if 0\n"
 
