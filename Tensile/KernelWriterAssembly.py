@@ -3966,6 +3966,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def functionSuffix(self, kernel):
     kStr = ""
+    if self.vgprPool.size() > self.maxVgprs:
+      self.overflowedResources = True
     if self.overflowedResources:
       kStr += ".endif // too many vgprs\n"
     return kStr
