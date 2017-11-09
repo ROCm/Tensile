@@ -104,52 +104,41 @@ void tensileGetCompiledOpenCLKernel(
  * Get Assembly Kernels for HIP
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_HIP
-void tensileGetHipFunctionFromCodeObjectByteArray(
-  hipFunction_t *function,
-  const char *functionName,
-  const unsigned char *coba) { // code object byte array
-  TensileStatus status;
-
-  // is function already loaded?
-  hipDevice_t currentDevice; // caller guaranteed that current device
-                             // matches handle/stream device
-  status = hipCtxGetDevice(&currentDevice);
-  tensileStatusCheck(status);
-  KernelMapKey key = std::make_tuple(currentDevice, functionName);
-
-  // looking up kernel must be thread safe as to not
-  // end up with redundant modules on a single device
-  std::mutex kernelMapMutex; // FIXME adds few microseconds on every api call?
-  std::lock_guard<std::mutex> kernelMapLock(kernelMapMutex);
-
-  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
-  if (idx != kernelMap.end()) {
-    *function = idx->second;
-    return;
-  }
-
-  // load function
-  hipModule_t module;
-  status = hipModuleLoadData(&module, coba);
-  tensileStatusCheck(status);
-
-  hipModuleGetFunction(function, module, functionName);
-  tensileStatusCheck(status);
-
-  // store in map
-  kernelMap[key] = *function;
-
-  // kernelMapMutex releases
-}
+//void tensileGetHipFunctionFromCodeObjectByteArray(
+//  hipFunction_t *function,
+//  const char *functionName,
+//  const unsigned char *coba) { // code object byte array
+//  TensileStatus status;
+//
+//  // is function already loaded?
+//  hipDevice_t currentDevice; // caller guaranteed that current device
+//                             // matches handle/stream device
+//  status = hipCtxGetDevice(&currentDevice);
+//  tensileStatusCheck(status);
+//  KernelMapKey key = std::make_tuple(currentDevice, functionName);
+//
+//  // looking up kernel must be thread safe as to not
+//  // end up with redundant modules on a single device
+//  std::mutex kernelMapMutex; // FIXME adds few microseconds on every api call?
+//  std::lock_guard<std::mutex> kernelMapLock(kernelMapMutex);
+//
+//  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
+//  if (idx != kernelMap.end()) {
+//    *function = idx->second;
+//    return;
+//  }
+//
+//  // load function
+//  hipModule_t module;
+//  status = hipModuleLoadData(&module, coba);
+//  tensileStatusCheck(status);
+//
+//  hipModuleGetFunction(function, module, functionName);
+//  tensileStatusCheck(status);
+//
+//  // store in map
+//  kernelMap[key] = *function;
+//
+//  // kernelMapMutex releases
+//}
 #endif
-
-
-/*******************************************************************************
- * Calculate sizes for multi kernel
- ******************************************************************************/
-void tensileCalculateSizesForEdgeMultiKernel(){
-}
-void tensileCalculateSizesForKernelMaxSizes(){
-}
-
-
