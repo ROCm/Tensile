@@ -3827,8 +3827,9 @@ class KernelWriterAssembly(KernelWriter):
 
         # calculate new masks
         if edge:
-          #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
-          #kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+          # need to apply element mask before comparison
+          # so that all valid lanes are doing the cmp
+          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
           kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(tmpVgpr), \
               vgpr(data+1), "c read during atomic == c read during prior load" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
@@ -3836,16 +3837,6 @@ class KernelWriterAssembly(KernelWriter):
           #kStr += inst("s_mov_b64", sgpr(mask,2), sgpr(fullExecMaskSgpr,2), "mask = full" )
           kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(tmpVgpr), \
               vgpr(data+1), "c read during atomic != c read during prior load" )
-        #kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
-
-        #kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(tmpVgpr), \
-        #    vgpr(data+1), "c read during atomic == c read during prior load" )
-        #kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
-        #kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", \
-        #    "apply mask, keep running threads that weren't successful" )
-        # FIXME early exit here; loop over all masks, or-ing them together then check if mask is zero
-        #kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), \
-        #    "data+1 = tmp (new original C)" )
 
       # or masks together to check early exit
       kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
