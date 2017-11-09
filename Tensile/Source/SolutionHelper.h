@@ -56,18 +56,10 @@ void tensileGetCompiledOpenCLKernel(
   cl_command_queue queue,
   const char *sourceBuildOptions);
 #else
-void tensileGetHipFunctionFromCodeObjectByteArray(
-  hipFunction_t *function,
-  const char *functionName,
-  const unsigned char *coba); // code object byte array
+//void tensileGetHipFunctionFromCodeObjectByteArray(
+//  hipFunction_t *function,
+//  const char *functionName,
+//  const unsigned char *coba); // code object byte array
 #endif
-
-
-/*******************************************************************************
- * Calculate sizes for multi kernel
- ******************************************************************************/
-void tensileCalculateSizesForEdgeMultiKernel();
-void tensileCalculateSizesForKernelMaxSizes();
-
 
 #endif

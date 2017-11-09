@@ -89,11 +89,12 @@ class SolutionWriter:
     s += self.getSolutionSignature(solution)
     s += " {\n"
     t += "  "
+    s += "%sTensileStatus status;\n" % (t)
 
     # hipFunction Struct
     if solution["KernelLanguage"] == "Assembly":
       s += "\n"
-      s += "/* module function args */\n"
+      s += "%s/* module function args */\n" % (t)
       s += "%sstruct {\n" % t
       t += "  "
       if globalParameters["DebugKernel"]:
@@ -166,15 +167,37 @@ class SolutionWriter:
         s += "if ( isa == %u%u%u ) {\n" % (isa[0], isa[1], isa[2])
         t += "  "
         if localStatic:
-          s += "%sstatic hipFunction_t hipFunctionLocal = nullptr;\n" % (t)
-          s += "%sif (!hipFunctionLocal) {\n" % (t)
+          s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
+          s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
+          t += "  "
+          s += "%sstd::mutex initFunctionsMutex;\n" % (t)
+          s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
+          s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
+          t += "  "
+          s += "%sstatic int numDevices = -1;\n" % (t)
+          s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
+          s += "%shipFunctions = new hipFunction_t[numDevices];\n" % (t)
+          s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
+          s += "%s  hipFunctions[i] = nullptr;\n" % (t)
+          s += "%s}\n" % (t)
+          t = t[2:]
+          s += "%s}\n" % (t)
+          t = t[2:]
+          s += "%s}\n" % (t)
+          s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
+          t += "  "
+          s += "%sstd::mutex loadModuleMutex;\n" % (t)
+          s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
+          s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
           t += "  "
           s += "%shipModule_t module = nullptr;\n" % (t)
           s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
-          s += "%shipModuleGetFunction(&hipFunctionLocal, module, \"%s\");\n" % (t, kernelName)
+          s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
           t = t[2:]
           s += "%s}\n" % (t)
-          s += "%shipFunction = hipFunctionLocal;\n" % (t)
+          t = t[2:]
+          s += "%s}\n" % (t)
+          s += "%shipFunction = hipFunctions[deviceId];\n" % (t)
         else:
           s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
           s += "%s    &hipFunction,\n" % (t)
@@ -183,6 +206,9 @@ class SolutionWriter:
 
         t = t[2:]
         s += "%s}" % (t)
+      s += " else {\n"
+      s += "%s  return tensileStatusFailure;\n" % (t)
+      s += "%s}\n" % (t)
       s += "\n"
 
     typeName = solution["ProblemType"]["DataType"].toCpp()
@@ -278,8 +304,6 @@ class SolutionWriter:
         s += "%ssizes[%u][0][%u] = size%s;\n" \
             % (t, kernelIdx, i, self.indexChars[i])
 
-    s += "\n"
-    s += "%sTensileStatus status;\n" % (t)
     s += "\n"
 
     ########################################
