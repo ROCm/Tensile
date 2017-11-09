@@ -417,6 +417,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if "ISA" in kernel:
       self.version = kernel["ISA"]
+    self.overflowedResources = False # if true, comment out whole kernel
 
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
@@ -733,6 +734,9 @@ class KernelWriterAssembly(KernelWriter):
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU / kernel["NumThreads"]
     numWorkGroupsPerCU = vgprPerThreadPerOccupancy / vgprIdx
+    if numWorkGroupsPerCU < 1:
+      self.overflowedResources = True
+      numWorkGroupsPerCU  = 1 # dummy value
     numWavesPerWorkGroup = kernel["NumThreads"] / 64
     numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
     self.numWavesPerSimd = numWavesPerCU / 4
@@ -1223,6 +1227,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # if overflowed vgpr pool, comment out the whole kernel body and let it fail gracefully
     if self.vgprPool.size() > self.maxVgprs:
+      self.overflowedResources = True
+    if self.overflowedResources:
       print ""
       printWarning("%s invalid @ %u > %u max vgprs" % (self.kernelName, self.vgprPool.size(), self.maxVgprs) )
       kStr += "s_endpgm // too many vgprs\n"
@@ -1628,9 +1634,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         divisorName = tP["lvp"]
     divisor = kernel[divisorName]
-    if divisor == 0:
-        print self.kernelName
-        print kernel
 
     if tP["grcg"] == tP["tlu"]:
       rReg = self.vgprPool.checkOut(1) # gro-tile = serial%divisor
@@ -1746,8 +1749,6 @@ class KernelWriterAssembly(KernelWriter):
     numTileOffsets = tP["nrt"]
     if tP["rtc"]:
       numTileOffsets *= tP["glvw"]
-    if numTileOffsets > 8:
-      print "NumTileOffsets", numTileOffsets
     tP["vgprTileOffsets"] = self.vgprPool.checkOut(numTileOffsets)
     v = tP["vgprTileOffsets"]
     stride = tP["lsc"] if tP["tlu"] else tP["lsp"]
@@ -1788,8 +1789,6 @@ class KernelWriterAssembly(KernelWriter):
     numUnrollOffsets = tP["nru"]
     if tP["ruc"]:
       numUnrollOffsets *= tP["glvw"]
-    if numUnrollOffsets > 8:
-      print "NumUnrollOffsets", numUnrollOffsets
     tP["gpr"]["unrollOffsets"] = self.vgprPool.checkOut(numUnrollOffsets)
     v = tP["gpr"]["unrollOffsets"]
     stride = (tP["lsp"] if tP["tlu"] else tP["lsc"])
@@ -3967,7 +3966,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def functionSuffix(self, kernel):
     kStr = ""
-    if self.vgprPool.size() > self.maxVgprs:
+    if self.overflowedResources:
       kStr += ".endif // too many vgprs\n"
     return kStr
 
