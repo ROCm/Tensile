@@ -153,6 +153,9 @@ validParameters = {
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          range(1, 64+1),
     "MacroTileShapeMax":          range(1, 64+1),
+    "PerformanceSyncLocation":    range(-1, 16*16+1),
+    "PerformanceWaitLocation":    range(-1, 16*16+1),
+    "PerformanceWaitCount":       range(-1, 16),
 
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ],
     "KernelLanguage":             [ "Assembly", "Source" ],
@@ -194,6 +197,9 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"DepthU":                    [ -1 ] },
+    {"PerformanceSyncLocation":   [ -1 ] },
+    {"PerformanceWaitLocation":   [ -1 ] },
+    {"PerformanceWaitCount":      [ -1 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []

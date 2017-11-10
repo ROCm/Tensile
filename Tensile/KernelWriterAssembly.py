@@ -1216,6 +1216,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["PrefetchLocalRead"]:
         kStr += ("" if m==0 else "_BLK")
       kStr += self.endLine
+      macIdx = 0
       for b in range(0, kernel["ThreadTile1"]):
         for a in range(0, kernel["ThreadTile0"]):
           cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
@@ -1226,6 +1227,13 @@ class KernelWriterAssembly(KernelWriter):
           #if a==0 and b==0:
           #  kStr += dump(aStr)
           kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+          if macIdx == kernel["PerformanceWaitLocation"]:
+              kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
+                  % (kernel["PerformanceWaitCount"], self.endLine)
+          if macIdx == kernel["PerformanceSyncLocation"]:
+              kStr += "s_barrier // extra barrier for performance%s" \
+                  % (self.endLine)
+          macIdx += 1
       kStr += ".endm%s" % self.endLine
 
 
