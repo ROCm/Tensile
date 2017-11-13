@@ -423,8 +423,9 @@ class KernelWriterAssembly(KernelWriter):
     self.inTailLoop = False
 
     # registers per element
-    self.rpe = kernel["ProblemType"]["DataType"].numRegisters()
-    self.bpe = self.rpe * 4
+    self.bpr = 4 # all registers are 32bit
+    self.bpe = int(self.bpr*kernel["ProblemType"]["DataType"].numRegisters())
+    print "bpe", self.bpe
     # registers per global address
     self.rpga = 2 # 64-bit
     # registers per local address
@@ -436,10 +437,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadA instruction; no flat_load2_*
-    self.globalReadWidthA = tPA["nrcv"]
-    #self.globalReadWidthA = kernel["VectorWidth"] if (self.readTileDimVectorA \
-    #    or self.readUnrollDimVectorA) else 1
-    self.globalReadWidthA *= self.rpe
+    self.globalReadWidthA = (tPA["nrcv"]*self.bpe)/self.bpr
     self.globalRead2CoalescedA = kernel["NumLoadsCoalescedA"]>1 \
         or self.readCoalescedComponentsA
     self.globalRead2PerpendicularA = kernel["NumLoadsPerpendicularA"] > 1 \
@@ -451,10 +449,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadB instruction; no flat_load2_
-    self.globalReadWidthB = tPB["nrcv"]
-    #self.globalReadWidthB = kernel["VectorWidth"] if (self.readTileDimVectorB \
-    #    or self.readUnrollDimVectorB) else 1
-    self.globalReadWidthB *= self.rpe
+    self.globalReadWidthB = (tPB["nrcv"]*self.bpe)/self.bpr
     self.globalRead2CoalescedB = kernel["NumLoadsCoalescedB"]>1 \
         or self.readCoalescedComponentsB
     self.globalRead2PerpendicularB = kernel["NumLoadsPerpendicularB"] > 1 \
@@ -469,8 +464,7 @@ class KernelWriterAssembly(KernelWriter):
     # for local, tile->para, unroll->perp
     #self.localWriteWidthA = 1 if (self.writeTileDimComponentsA \
     #    or self.writeUnrollDimComponentsA) else kernel["VectorWidth"]
-    self.localWriteWidthA = tPA["nwcv"]
-    self.localWriteWidthA *= self.rpe
+    self.localWriteWidthA = (tPA["nwcv"]*self.bpe)/self.bpr
     self.localWrite2CoalescedA = tPA["nrc"]>1 \
         or self.writeTileDimComponentsA
     self.localWrite2PerpendicularA = tPA["nrp"]>1 \
@@ -490,7 +484,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideTileA = kernel["LSPA"]
         self.localWriteJoinTileA = "Perpendicular"
-    self.localWriteStrideTileA *= self.rpe
+    self.localWriteStrideTileA = (self.localWriteStrideTileA*self.bpe)/self.bpr
     # localWriteA stride unroll
     if kernel["ProblemType"]["TLUA"]:
       if self.writeUnrollDimComponentsA:
@@ -506,7 +500,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideUnrollA = kernel["LSCA"]*kernel["MacroTileA"]
         self.localWriteJoinUnrollA = "Coalesced"
-    self.localWriteStrideUnrollA *= self.rpe
+    self.localWriteStrideUnrollA = (self.localWriteStrideUnrollA*self.bpe)/self.bpr
     self.localWriteInstructionIdxA = \
         self.selectMemoryInstruction("LocalWrite", self.localWriteWidthA, \
         kernel["LocalWrite2A"], \
@@ -518,8 +512,7 @@ class KernelWriterAssembly(KernelWriter):
     # for local, tile->para, unroll->perp
     #self.localWriteWidthB = 1 if (self.writeTileDimComponentsB \
     #    or self.writeUnrollDimComponentsB) else kernel["VectorWidth"]
-    self.localWriteWidthB = tPB["nwcv"]
-    self.localWriteWidthB *= self.rpe
+    self.localWriteWidthB = (tPB["nwcv"]*self.bpe)/self.bpr
     self.localWrite2CoalescedB = tPB["nrc"]>1 \
         or self.writeTileDimComponentsB
     self.localWrite2PerpendicularB = tPB["nrp"]>1 \
@@ -539,7 +532,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideTileB = kernel["LSPB"]
         self.localWriteJoinTileB = "Perpendicular"
-    self.localWriteStrideTileB *= self.rpe
+    self.localWriteStrideTileB = (self.localWriteStrideTileB*self.bpe)/self.bpr
     # localWriteB stride unroll
     if kernel["ProblemType"]["TLUB"]:
       if self.writeUnrollDimComponentsB:
@@ -555,7 +548,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideUnrollB = kernel["LSCB"]*kernel["MacroTileB"]
         self.localWriteJoinUnrollB = "Coalesced"
-    self.localWriteStrideUnrollB *= self.rpe
+    self.localWriteStrideUnrollB = (self.localWriteStrideUnrollB*self.bpe)/self.bpr
     self.localWriteInstructionIdxB = \
         self.selectMemoryInstruction("LocalWrite", self.localWriteWidthB, \
         kernel["LocalWrite2B"], \
@@ -564,10 +557,10 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # localRead A
-    self.localReadWidth = kernel["VectorWidth"] * self.rpe
+    self.localReadWidth = (kernel["VectorWidth"] * self.bpe)/self.bpr
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
-    self.localReadStrideCoalescedA = kernel["ThreadTile0"] * self.rpe
+    self.localReadStrideCoalescedA = (kernel["ThreadTile0"] * self.bpe)/self.bpr
     self.localRead2CoalescedA = kernel["ThreadTile0"]/kernel["VectorWidth"] > 1
     self.localReadInstructionIdxA = \
         self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
@@ -577,10 +570,10 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # localRead B
-    self.localReadWidth = kernel["VectorWidth"] * self.rpe
+    self.localReadWidth = (kernel["VectorWidth"] * self.bpe)/self.bpr
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
-    self.localReadStrideCoalescedB = kernel["ThreadTile1"] * self.rpe
+    self.localReadStrideCoalescedB = (kernel["ThreadTile1"] * self.bpe)/self.bpr
     self.localRead2CoalescedB = kernel["ThreadTile1"]/kernel["VectorWidth"] > 1
     self.localReadInstructionIdxB = \
         self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
@@ -602,10 +595,10 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadInstructionB = instructions["LocalRead"][ \
         self.localReadInstructionIdxB]
     # global reads per instruction
-    tPA["nrcvpi"] = self.globalReadInstructionA.totalWidth / self.rpe
-    tPB["nrcvpi"] = self.globalReadInstructionB.totalWidth / self.rpe
-    tPA["nwcvpi"] = self.localWriteInstructionA.totalWidth / self.rpe
-    tPB["nwcvpi"] = self.localWriteInstructionB.totalWidth / self.rpe
+    tPA["nrcvpi"] = (self.globalReadInstructionA.totalWidth*self.bpr) / self.bpe
+    tPB["nrcvpi"] = (self.globalReadInstructionB.totalWidth*self.bpr) / self.bpe
+    tPA["nwcvpi"] = (self.localWriteInstructionA.totalWidth*self.bpr) / self.bpe
+    tPB["nwcvpi"] = (self.localWriteInstructionB.totalWidth*self.bpr) / self.bpe
 
     ####################################
     # VGPR Allocation
@@ -613,18 +606,18 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num vgprs: valu
-    self.numVgprValuC = kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.rpe
-    numVgprValuA = kernel["ThreadTileA"]*self.rpe
-    numVgprValuB = kernel["ThreadTileB"]*self.rpe
+    self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpe)/self.bpr
+    numVgprValuA = (kernel["ThreadTileA"]*self.bpe)/self.bpr
+    numVgprValuB = (kernel["ThreadTileB"]*self.bpe)/self.bpr
     numVgprValuBlkA = numVgprValuA if kernel["PrefetchLocalRead"] else 0
     numVgprValuBlkB = numVgprValuB if kernel["PrefetchLocalRead"] else 0
 
     ####################################
     # num vgprs: global -> local elements
-    numVgprG2LA = kernel["NumLoadsCoalescedA"] \
-        * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * self.rpe
-    numVgprG2LB = kernel["NumLoadsCoalescedB"] \
-        * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * self.rpe
+    numVgprG2LA = (kernel["NumLoadsCoalescedA"] \
+        * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * self.bpe)/self.bpr
+    numVgprG2LB = (kernel["NumLoadsCoalescedB"] \
+        * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * self.bpe)/self.bpr
 
     ####################################
     # num vgprs: local read addresses
@@ -1217,23 +1210,65 @@ class KernelWriterAssembly(KernelWriter):
         kStr += ("" if m==0 else "_BLK")
       kStr += self.endLine
       macIdx = 0
-      for b in range(0, kernel["ThreadTile1"]):
-        for a in range(0, kernel["ThreadTile0"]):
-          cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-          aStr = "v[%s+%u]" \
-              % ("vgprValuA" if m==0 else "vgprValuBlkA", a)
-          bStr = "v[%s+%u]" \
-              % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
-          #if a==0 and b==0:
-          #  kStr += dump(aStr)
-          kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-          if macIdx == kernel["PerformanceWaitLocation"]:
-              kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
-                  % (kernel["PerformanceWaitCount"], self.endLine)
-          if macIdx == kernel["PerformanceSyncLocation"]:
-              kStr += "s_barrier // extra barrier for performance%s" \
-                  % (self.endLine)
-          macIdx += 1
+      # half precision
+      if kernel["ProblemType"]["DataType"].isHalf():
+        for blockB in range(0, kernel["ThreadTile1"]/2):
+          for blockA in range(0, kernel["ThreadTile0"]/2):
+            if self.version == 803:
+              for b in range(blockB*2, (blockB+1)*2):
+                for a in range(blockA*2, (blockA+1)*2):
+                  # v_mac_f16 or v_fma_f16
+                  kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
+            elif self.version == 900:
+              b = blockB*2
+              a = blockA*2
+              cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+              aStr = "v[%s+%u]" \
+                  % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+              bStr = "v[%s+%u]" \
+                  % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
+              kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+
+              cStr = "v[%s+%u+%u*%u+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+              kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+              """
+              D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+              D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+              C[0] = A[0]*B[0]+D[0]
+              C[1] = A[1]*B[1]+D[1]
+              """
+              a += 1 # skip next one
+
+      # single precision
+      elif kernel["ProblemType"]["DataType"].isSingle():
+        for b in range(0, kernel["ThreadTile1"]):
+          for a in range(0, kernel["ThreadTile0"]):
+
+            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u]" \
+                % ("vgprValuA" if m==0 else "vgprValuBlkA", a)
+            bStr = "v[%s+%u]" \
+                % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
+            #if a==0 and b==0:
+            #  kStr += dump(aStr)
+            kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+            if macIdx == kernel["PerformanceWaitLocation"]:
+                kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
+                    % (kernel["PerformanceWaitCount"], self.endLine)
+            if macIdx == kernel["PerformanceSyncLocation"]:
+                kStr += "s_barrier // extra barrier for performance%s" \
+                    % (self.endLine)
+            macIdx += 1
+
+      # double precision
+      elif kernel["ProblemType"]["DataType"].isDouble():
+        for b in range(0, kernel["ThreadTile1"]):
+          for a in range(0, kernel["ThreadTile0"]):
+            pass
+
+      # other precision
+      else:
+        printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
       kStr += ".endm%s" % self.endLine
 
 
@@ -1259,6 +1294,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     # set m0
+    print "hex", (kernel["LdsNumElements"] * self.bpe)
+    print "lds", kernel["LdsNumElements"]
     if self.do["PreLoop"]: kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
         * self.bpe), "LDS clamp at %u bytes" \
         %(kernel["LdsNumElements"] * self.bpe) )
@@ -3578,9 +3615,9 @@ class KernelWriterAssembly(KernelWriter):
         # if atomic 2*rpe for old and cmp values
         numVgprsPerElement = 2
         if atomic:
-          numVgprsPerElement += 3*self.rpe
+          numVgprsPerElement += (3*self.bpe)/self.bpr
         elif beta:
-          numVgprsPerElement += 1*self.rpe
+          numVgprsPerElement += (1*self.bpe)/self.bpr
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.available()

@@ -1083,7 +1083,7 @@ class Solution:
     state["LVPB"] = state["LSPB"] / state["GlobalLoadVectorWidthB"]
 
     # lds buffer size for A, B
-    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
+    ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
