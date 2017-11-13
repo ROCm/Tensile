@@ -1214,12 +1214,12 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["ProblemType"]["DataType"].isHalf():
         for blockB in range(0, kernel["ThreadTile1"]/2):
           for blockA in range(0, kernel["ThreadTile0"]/2):
-            if self.version == 803:
+            if self.version == (8,0,3):
               for b in range(blockB*2, (blockB+1)*2):
                 for a in range(blockA*2, (blockA+1)*2):
                   # v_mac_f16 or v_fma_f16
                   kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
-            elif self.version == 900:
+            elif self.version == (9,0,0):
               b = blockB*2
               a = blockA*2
               cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
@@ -1229,7 +1229,7 @@ class KernelWriterAssembly(KernelWriter):
                   % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
               kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
-              cStr = "v[%s+%u+%u*%u+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+              cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
               kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
               """
               D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
@@ -1237,7 +1237,9 @@ class KernelWriterAssembly(KernelWriter):
               C[0] = A[0]*B[0]+D[0]
               C[1] = A[1]*B[1]+D[1]
               """
-              a += 1 # skip next one
+            else:
+              printExit("Half-precision not supported for arch=%u" % self.version )
+
 
       # single precision
       elif kernel["ProblemType"]["DataType"].isSingle():
@@ -1293,83 +1295,91 @@ class KernelWriterAssembly(KernelWriter):
   def allocateResources(self, kernel):
     kStr = ""
 
-    # set m0
-    print "hex", (kernel["LdsNumElements"] * self.bpe)
-    print "lds", kernel["LdsNumElements"]
-    if self.do["PreLoop"]: kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
-        * self.bpe), "LDS clamp at %u bytes" \
-        %(kernel["LdsNumElements"] * self.bpe) )
+    if self.do["PreLoop"]: 
+      # set m0
+      kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
+          * self.bpe), "LDS clamp at %u bytes" \
+          %(kernel["LdsNumElements"] * self.bpe) )
 
-    if self.do["PreLoop"]: kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
+      kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
-    ########################################
-    # load kernel args
-    kStr += self.comment("Load Kernel Args")
-    kernArgOffset = 0
-    if globalParameters["DebugKernel"]:
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressD"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
+      ########################################
+      # load kernel args
+      kStr += self.comment("Load Kernel Args")
+      kernArgOffset = 0
+      if globalParameters["DebugKernel"]:
+        kStr += inst("s_load_dword", sgpr("AddressD"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
+        kernArgOffset += 1*4
+        kStr += inst("s_load_dword", sgpr("AddressD+1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
+        kernArgOffset += 1*4
+      kStr += inst("s_load_dword", sgpr("AddressC"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
       kernArgOffset += 1*4
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressD+1"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug" )
+      kStr += inst("s_load_dword", sgpr("AddressC+1"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
       kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressC"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressC+1"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressA"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressA+1"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressB"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("AddressB+1"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("Alpha"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
-    kernArgOffset += 1*4
-    if kernel["ProblemType"]["UseBeta"]:
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("Beta"), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
+      kStr += inst("s_load_dword", sgpr("AddressA"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
       kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("OffsetC"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("OffsetA"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset a" )
-    kernArgOffset += 1*4
-    if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("OffsetB"), \
-        sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset b" )
-    kernArgOffset += 1*4
-    for i in range(0, self.numSgprStridesC):
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
+      kStr += inst("s_load_dword", sgpr("AddressA+1"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr a" )
       kernArgOffset += 1*4
-    for i in range(0, self.numSgprStridesA):
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride a %u"%i )
+      kStr += inst("s_load_dword", sgpr("AddressB"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
       kernArgOffset += 1*4
-    for i in range(0, self.numSgprStridesB):
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride b %u"%i )
+      kStr += inst("s_load_dword", sgpr("AddressB+1"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr b" )
       kernArgOffset += 1*4
-    for i in range(0, self.numSgprSizesFree):
-      if self.do["PreLoop"]: kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
+      # for half precision or smaller, data is padded to fill up 32-bits
+      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle():
+        kStr += inst("s_load_dword", sgpr("Alpha"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
+      elif kernel["ProblemType"]["DataType"].isDouble():
+        kStr += inst("s_load_dwordx2", sgpr("Alpha",2), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
+      kernArgOffset += 1*max(4,self.bpe)
+      if kernel["ProblemType"]["UseBeta"]:
+        if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle():
+          kStr += inst("s_load_dword", sgpr("Beta"), \
+              sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += inst("s_load_dwordx2", sgpr("Beta",2), \
+              sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
+        kernArgOffset += 1*max(4,self.bpe)
+      kStr += inst("s_load_dword", sgpr("OffsetC"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
       kernArgOffset += 1*4
-    for i in range(0, self.numSgprSizesSum):
-      kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
-          sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
+      kStr += inst("s_load_dword", sgpr("OffsetA"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset a" )
       kernArgOffset += 1*4
-    kStr += inst("s_waitcnt", "lgkmcnt(0)", \
-        "wait for %u bytes of kern args" % kernArgOffset )
-    if not self.do["PreLoop"]:
+      kStr += inst("s_load_dword", sgpr("OffsetB"), \
+          sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset b" )
+      kernArgOffset += 1*4
+      for i in range(0, self.numSgprStridesC):
+        kStr += inst("s_load_dword", sgpr("StridesC+%u"%i), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride c %u"%i )
+        kernArgOffset += 1*4
+      for i in range(0, self.numSgprStridesA):
+        kStr += inst("s_load_dword", sgpr("StridesA+%u"%i), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride a %u"%i )
+        kernArgOffset += 1*4
+      for i in range(0, self.numSgprStridesB):
+        kStr += inst("s_load_dword", sgpr("StridesB+%u"%i), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load stride b %u"%i )
+        kernArgOffset += 1*4
+      for i in range(0, self.numSgprSizesFree):
+        kStr += inst("s_load_dword", sgpr("SizesFree+%u"%i), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
+        kernArgOffset += 1*4
+      for i in range(0, self.numSgprSizesSum):
+        kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load size free %u"%i )
+        kernArgOffset += 1*4
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", \
+          "wait for %u bytes of kern args" % kernArgOffset )
+    else:
       kStr += ".if 0\n"
 
     ########################################

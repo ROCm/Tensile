@@ -48,7 +48,7 @@ class KernelWriter:
     self.enable["Wait"]           = True
     self.enable["Sync"]           = True
     self.enable["MAC"]            = True
-    self.enable["PostLoop"]       = True
+    self.enable["PostLoop"]       = False
 
 
   ##############################################################################

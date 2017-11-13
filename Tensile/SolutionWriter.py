@@ -102,6 +102,9 @@ class SolutionWriter:
       solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
       for arg in solutionArgs:
         s += "%s%s %s;\n" % (t, arg[0], arg[1])
+        if arg[0] == "TensileHalf":
+          s += "%s%s %s_pad;\n" % (t, arg[0], arg[1])
+
       s += "%sunsigned int pad;\n" % t
       t = t[2:]
       s += "%s} hipFunctionArgs;\n" % t
@@ -109,7 +112,7 @@ class SolutionWriter:
       s += "%ssize_t hipFunctionArgsSize = sizeof(hipFunctionArgs);\n" % t
       s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
       #s += "%sprintf(\"size: %%lu\\n\", sizeof(unsigned int));\n" % t
-      #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
+      s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
     # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
 
 

@@ -135,7 +135,7 @@ class DataType:
   def numRegisters( self ):
     return self.properties[self.value][self.idxReg]
   def numBytes( self ):
-    return self.numRegisters() * 4
+    return int(self.numRegisters() * 4)
   def flopsPerMac(self):
     return 2 if self.isReal() else 8
 
