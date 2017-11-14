@@ -20,7 +20,11 @@ GlobalParameters:
   SleepPercent: 200
 
 BenchmarkProblems:
-  - # dgemm NN
+
+  ########################################
+  # NN
+  ########################################
+  -
     - # ProblemType
       OperationType: GEMM
       DataType: d
@@ -32,35 +36,31 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 1536, 1536, 2, 1536 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - WorkGroupMapping: [8]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+        - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-          - [ 2, 4 ]
+          - [ 2, 2 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
-        - PrefetchGlobalRead: [False, True]
-        - PrefetchLocalRead: [False, True]
-        - DepthU: [ 4, 8, 16, 32]
+        - DepthU: [ -2 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
+          - Range: [ [64], [64], [2], [64] ]
 
-  - # dgemm NT
-    - # ProblemType:
+  ########################################
+  # NT
+  ########################################
+  -
+    - # ProblemType
       OperationType: GEMM
       DataType: d
       TransposeA: False
@@ -71,34 +71,30 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 1536, 1536, 2, 1536 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - WorkGroupMapping: [8]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+        - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-          - [ 2, 4 ]
+          - [ 2, 2 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
-        - PrefetchGlobalRead: [False, True]
-        - PrefetchLocalRead: [False, True]
-        - DepthU: [ 4, 8, 16, 32 ]
+        - DepthU: [ -2 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
+          - Range: [ [64], [64], [2], [64] ]
 
-  - # dgemm TN
+  ########################################
+  # TN
+  ########################################
+  -
     - # ProblemType
       OperationType: GEMM
       DataType: d
@@ -110,34 +106,30 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 1536, 1536, 2, 1536 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - WorkGroupMapping: [8]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+        - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-          - [ 2, 4 ]
+          - [ 2, 2 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
-        - PrefetchGlobalRead: [False, True]
-        - PrefetchLocalRead: [False, True]
-        - DepthU: [ 4, 8, 16, 32 ]
+        - DepthU: [ -2 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
+          - Range: [ [64], [64], [2], [64] ]
 
-  - # dgemm TT
+  ########################################
+  # TT
+  ########################################
+  -
     - # ProblemType
       OperationType: GEMM
       DataType: d
@@ -146,36 +138,28 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    - # BenchmarkProblemSizeGroup
+    - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
-        - WorkGroupMapping: [-1]
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 1536, 1536, 2, 1536 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - WorkGroupMapping: [8]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+        - VectorWidth: [1]
       ForkParameters:
         - ThreadTile:
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-          - [ 2, 4 ]
+          - [ 2, 2 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
-        - PrefetchGlobalRead: [False, True]
-        - PrefetchLocalRead: [False, True]
-        - DepthU: [ 4, 8, 16, 32 ]
+        - DepthU: [ -2 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
+          - Range: [ [64], [64], [2], [64] ]
 
 LibraryLogic:
 
