@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 3.2.0
+  MinimumRequiredVersion: 3.3.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -14,7 +14,7 @@ GlobalParameters:
   Device: 0
   KernelTime: True
   PinClocks: True
-  SleepPercent: 150
+  SleepPercent: 200
 
 BenchmarkProblems:
 

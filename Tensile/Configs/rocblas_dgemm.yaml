@@ -16,6 +16,8 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
+  PinClocks: True
+  SleepPercent: 200
 
 BenchmarkProblems:
   - # dgemm NN
