@@ -27,7 +27,7 @@ import time
 
 from copy import deepcopy
 
-from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime
+from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar
 from SolutionStructs import Solution
 import YAMLIO
 
@@ -36,7 +36,7 @@ import YAMLIO
 ################################################################################
 def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print2(HR)
-  print1("# %s" % problemType)
+  print1("# Analyzing: %s" % problemType)
 
   solutionsList = []
   problemSizesList = []
@@ -55,8 +55,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
-    print2("# ProblemSizes: %s" % problemSizes)
     solutionMinNaming = Solution.getMinNaming(solutions)
+    print1("# Read: %s" % (solutionsFileName))
+    print2("# ProblemSizes: %s" % problemSizes)
     print2("# Solutions:")
     solutionIdx = 0
     for solution in solutions:
@@ -80,7 +81,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   ######################################
   # Print solutions used
-  print1("Solutions Used:")
+  print1("# Solutions Used:")
   for i in range(0, len(logicAnalyzer.solutions)):
     print1("(%2u) %s" % (i, Solution.getNameFull(logicAnalyzer.solutions[i])))
 
@@ -165,9 +166,16 @@ class LogicAnalyzer:
 
     # merge solutions from size groups
     # solutions needs to be a set, and offset needs to be mapping
+    print1("# Merging Solutions:")
     self.numSolutionsPerGroup = []
     self.solutionGroupMap = []
     self.solutions = []
+
+    totalSolutions = 0
+    for solutionGroupIdx in range(0, len(solutionsList)):
+      solutionGroup = solutionsList[solutionGroupIdx]
+      totalSolutions += len(solutionGroup)
+    progressBar = ProgressBar(totalSolutions)
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]
       self.numSolutionsPerGroup.append(len(solutionGroup))
@@ -178,6 +186,7 @@ class LogicAnalyzer:
           self.solutions.append(solution)
         sIdx = self.solutions.index(solution)
         self.solutionGroupMap[solutionGroupIdx][solutionIdx] = sIdx
+        progressBar.increment()
     # print "SolutionGroupMap", self.solutionGroupMap
     self.numSolutions = len(self.solutions)
     self.solutionMinNaming = Solution.getMinNaming(self.solutions)
@@ -204,10 +213,10 @@ class LogicAnalyzer:
         self.exactProblemSizes.add(tuple(exactSize))
 
       # add ranges
-      print "ProblemSizes", problemSizes.sizes
+      #print "ProblemSizes", problemSizes.sizes
       self.rangeProblemSizes.update(problemSizes.sizes)
       for rangeSize in problemSizes.ranges:
-        print "RangeSize", rangeSize
+        #print "RangeSize", rangeSize
         sizedIdx = 0
         mappedIdx = 0
         for i in range(0, self.numIndices):
@@ -242,7 +251,7 @@ class LogicAnalyzer:
         self.problemSizeToIndex[i][size] = j
         self.problemIndexToSize[i].append(size)
       self.numProblemSizes.append(len(unifiedProblemSizes[i]))
-    print1("NumProblemSizes: %s" % self.numProblemSizes)
+    print1("# NumProblemSizes: %s" % self.numProblemSizes)
 
     # total size of data array
     self.totalProblems = 1
@@ -302,7 +311,7 @@ class LogicAnalyzer:
 
     #print self.data
     # map exact problem sizes to solutions
-    print "ExactWinners", self.exactWinners
+    print1("# ExactWinners: %s" % self.exactWinners)
 
 
   ##############################################################################
@@ -417,9 +426,9 @@ class LogicAnalyzer:
         lisPercSaved = lisTuple[1]
         lisPercWins = lisTuple[2]
         lisPercTime = lisTuple[3]
-        if lisPercSaved < self.parameters["SolutionImportanceMin"]:
-          print1("# Removing Unimportant Solution #%u: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
-              % (lisIdx, self.solutionNames[lisIdx], 100*lisPercWins, 100*lisPercTime, 100*lisPercSaved) )
+        if lisPercSaved < self.parameters["SolutionImportanceMin"] or lisPercWins == 0:
+          print1("# Removing Unimportant Solution %u/%u: %s ( %f%% wins, %f%% ms time, %f%% ms saved" \
+              % (lisIdx, self.numSolutions, self.solutionNames[lisIdx], 100*lisPercWins, 100*lisPercTime, 100*lisPercSaved) )
           self.removeSolution(lisIdx)
           continue
         else:
@@ -785,7 +794,7 @@ class LogicAnalyzer:
   def leastImportantSolution(self):
     solutionImportance = []
     for i in range(0, self.numSolutions):
-      solutionImportance.append([i, 0, 0, 0])
+      solutionImportance.append([i, 0, 0, 0, False])
     problemSizes = [0]*self.numIndices
     totalSavedMs = 0
     totalExecMs = 0
@@ -798,46 +807,48 @@ class LogicAnalyzer:
         totalFlops *= size
 
       problemSerial = self.indicesToSerial(0, problemIndices)
-      if self.data[problemSerial+0] > self.data[problemSerial+1]:
-        winnerIdx = 0
-        winnerGFlops = self.data[problemSerial+0]
-        secondGFlops = self.data[problemSerial+1]
-      else:
-        winnerIdx = 1
-        winnerGFlops = self.data[problemSerial+1]
-        secondGFlops = self.data[problemSerial+0]
-
-      for solutionIdx in range(2, self.numSolutions):
+      winnerIdx = -1
+      winnerGFlops = -1e6
+      secondGFlops = -1e9
+      for solutionIdx in range(0, self.numSolutions):
         solutionSerialIdx = problemSerial + solutionIdx
         solutionGFlops = self.data[solutionSerialIdx]
         if solutionGFlops > winnerGFlops:
           secondGFlops = winnerGFlops
           winnerIdx = solutionIdx
           winnerGFlops = solutionGFlops
+        elif solutionGFlops > secondGFlops:
+          secondGFlops = solutionGFlops 
+
+      winnerTimeMs = totalFlops / winnerGFlops / 1000000.0
+      secondTimeMs = totalFlops / secondGFlops / 1000000.0
       if winnerGFlops > 0 and secondGFlops > 0:
-        winnerTimeMs = totalFlops / winnerGFlops / 1000000
-        secondTimeMs = totalFlops / secondGFlops / 1000000
         solutionImportance[winnerIdx][1] += (secondTimeMs - winnerTimeMs)
+        totalSavedMs += secondTimeMs - winnerTimeMs
+      if winnerGFlops > 0:
         solutionImportance[winnerIdx][2] += 1
         solutionImportance[winnerIdx][3] += winnerTimeMs
-
-        totalSavedMs += secondTimeMs - winnerTimeMs
         totalExecMs += winnerTimeMs
         totalWins += 1
+        if secondGFlops <= 0:
+          solutionImportance[winnerIdx][4] = True # this is only valid solution for this problem size, keep it
+
 
     # print data before sorting
     for i in range(0, self.numSolutions):
-      print2("[%2u] %s: %f saved, %u wins, %u time" \
+      print2("[%2u] %s: %e saved, %u wins, %u time, %s" \
           % (solutionImportance[i][0], \
           self.solutionNames[solutionImportance[i][0]], \
-          solutionImportance[i][1], solutionImportance[i][2], \
-          solutionImportance[i][3] ) )
+          solutionImportance[i][1], \
+          solutionImportance[i][2], \
+          solutionImportance[i][3], \
+          "singular" if solutionImportance[i][4] else "" ) )
 
     totalSavedMs = max(1, totalSavedMs)
     solutionImportance.sort(key=lambda x: x[1])
     for i in range(0, self.numSolutions):
       solutionIdx = solutionImportance[i][0]
-      canRemove = True
+      canRemove = not solutionImportance[i][4] # don't remove if is only win for any size
       for exactProblem in self.exactWinners:
         winnerIdx = self.exactWinners[exactProblem][0]
         if solutionIdx == winnerIdx: # exact winners are important
@@ -901,6 +912,7 @@ class LogicAnalyzer:
     for problemSize in self.exactWinners:
       if self.exactWinners[problemSize][0] >= removeSolutionIdx:
         self.exactWinners[problemSize][0] -= 1
+
 
   ##############################################################################
   # Score Range For Logic
