@@ -79,6 +79,18 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   # Remove least important solutions
   logicAnalyzer.removeLeastImportantSolutions()
 
+  """
+  # print raw data
+  line = "After Removals:\n"
+  for row in range(0, 6):
+    for col in range(0, 6):
+      for sol in range(0, logicAnalyzer.numSolutions):
+       line += "% 5.0f" % logicAnalyzer.data[sol + logicAnalyzer.numSolutions*(col + 6*row)]
+      line += "; "
+    line += "\n"
+  print line
+  """
+
   ######################################
   # Print solutions used
   print1("# Solutions Used:")
@@ -309,6 +321,8 @@ class LogicAnalyzer:
       self.addFromCSV(dataFileName, self.numSolutionsPerGroup[fileIdx], \
           self.solutionGroupMap[fileIdx])
 
+
+
     #print self.data
     # map exact problem sizes to solutions
     print1("# ExactWinners: %s" % self.exactWinners)
@@ -500,6 +514,7 @@ class LogicAnalyzer:
       ########################################
       # this is last index, so just return fastest solution
       if isLastIndex:
+        print2("%sSingleProblem & LastIndex" % tab)
         winnerIdx = self.winnerForRange(currentIndexRange)
         if winnerIdx < 0:
           return None
@@ -510,7 +525,7 @@ class LogicAnalyzer:
       ########################################
       # this isn't last index, so just recursively return next index
       else:
-        #print2("%sreturning early enRule(%s)" \
+        print2("%sSingleProblem & NotLastIndex" % tab)
         #    % (tab, nextIndexRange) )
         nextRule = self.enRule(nextIndexIndex, nextIndexRange)
         if nextRule == None:
@@ -524,11 +539,11 @@ class LogicAnalyzer:
     # full iterative rule list
     ########################################
     else:
-      #print tab, "Initial Rule"
 
       ########################################
       # create initial rule
       if isLastIndex:
+        print2("%sMultiProblem & LastIndex" % tab)
         winnerIdx = -1
         for problemIndex in range(currentIndexRange[currentIndex][0], \
             currentIndexRange[currentIndex][1]):
@@ -553,20 +568,19 @@ class LogicAnalyzer:
         """
         #print "InitialRule", initialRule
       else:
-        #print2("%sinitialRule(%s)" % (tab, nextIndexRange))
+        print2("%sMultiProblem & LastIndex" % tab)
         nextRule = self.enRule(nextIndexIndex, nextIndexRange)
         if nextRule == None:
           return None
         initialRule = [ currentIndexRange[currentIndex][0], nextRule ]
-        #print2("%sinitialRule(%s) DONE" % (tab, nextIndexRange))
       ruleList.append(initialRule)
-      # print tab, ruleList
+      print2("%sMultiProblem::InitialRuleList=%s" % (tab, ruleList))
       if globalParameters["PrintLevel"] == 1:
         stdout.write("#")
 
       ########################################
       # for all problem indices in this index
-      #print tab, "Improve Rule"
+      print2("%sMultiProblem::Improving Rule" % tab)
       for problemIndex in range(currentIndexRange[currentIndex][0]+1, \
           currentIndexRange[currentIndex][1]):
         nextIndexRange[currentIndex][0] = problemIndex
@@ -577,10 +591,11 @@ class LogicAnalyzer:
 
         if isLastIndex:
           winnerIdx = self.winnerForRange(nextIndexRange)
+          print2("%sMultiProblem::ImproveRule[%u]::LastIndex::WinnerIdx=%u for %s" % (tab, problemIndex, winnerIdx, nextIndexRange))
           # if no solutions benchmarked for this problem size, continue
           if winnerIdx < 0:
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            #print tab, ruleList, "Updating b/c None"
+            print2("%sUpdating range b/c None" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -588,9 +603,10 @@ class LogicAnalyzer:
             candidateRule = [ problemIndex, winnerIdx]
         else:
           nextRule = self.enRule(nextIndexIndex, nextIndexRange)
+          print2("%sMultiProblem::ImproveRule[%u]::NotLastIndex::NextRule=%s for %s; %s" % (tab, problemIndex, nextRule, nextIndexIndex, nextIndexRange))
           if nextRule == None:
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            # print tab, ruleList, "Updating b/c None"
+            print2("%sUpdating b/c None" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write(" ")
             continue
@@ -600,9 +616,8 @@ class LogicAnalyzer:
         ########################################
         # candidate same as prior
         if candidateRule[1] == priorRule[1]:
-          #print2("%sP[%2u]: same" % (tab, problemIndex))
+          print2("%sCandidateRule==PriorRule; just updating prior" % (tab))
           ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-          # print tab, ruleList, "Updating b/c Same"
           if globalParameters["PrintLevel"] == 1:
             stdout.write(" ")
           continue
@@ -610,9 +625,7 @@ class LogicAnalyzer:
         ########################################
         # compare candidate vs prior
         else:
-          #print2("%sScoring P:%s for Prior=%s, Cand=%s" \
-          #    % ( tab, nextIndexRange, priorRuleForSize, candidateRule))
-          # score prior
+          print2("%sCandidateRule!=PriorRule; appending rule assuming its better" % (tab))
 
           """
           priorRuleScore = self.scoreRangeForLogic(nextIndexRange, \
@@ -641,20 +654,20 @@ class LogicAnalyzer:
 
           ########################################
           # candidate wins
+          #print candidateRuleScore, priorRuleScore
           if True: # or candidateRuleScore < priorRuleScore:
             ruleList.append(candidateRule)
-            # print tab, ruleList, "Appending b/c Different"
+            print2("%sAppending b/c Different" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write("#")
 
           ########################################
           # prior wins
           else:
-            # print "PRIOR_WINS"
+            print2("%sPrior Rule Wins" % tab)
             if globalParameters["PrintLevel"] == 1:
               stdout.write(".")
             ruleList[len(ruleList)-1][0] = problemIndex # NO_UPDATE
-            # print tab, ruleList
 
     print2("%sReturning RuleList: %s" % (tab, ruleList))
     return ruleList
@@ -750,6 +763,9 @@ class LogicAnalyzer:
             secondGFlops = winnerGFlops
             winnerIdx = solutionIdx
             winnerGFlops = solutionGFlops
+          elif solutionGFlops > secondGFlops:
+            secondIdx = solutionIdx
+            secondGFlops = solutionGFlops
 
         if winnerIdx not in winnerIndices:
           winnerIndices.append(winnerIdx)
@@ -996,7 +1012,6 @@ class LogicAnalyzer:
       return 0
     else:
       scores = self.scoreRangeForSolutions(indexRange)
-      # print "WinnerForRange", indexRange, scores
       winnerIdx = 0
       hasWinner = False
       for solutionIdx in range(1, self.numSolutions):
@@ -1020,8 +1035,11 @@ class LogicAnalyzer:
       totalFlops = self.totalFlopsForProblemIndices(problemIndices)
       for solutionIdx in range(0, self.numSolutions):
         gflops = self.data[problemSerial+solutionIdx]
-        gflops = max(1E-9, gflops)
-        timeUs = totalFlops / gflops / 1000
+        if gflops > 0:
+          timeUs = totalFlops / gflops / 1000
+        else: # this solution not benchmarked for this size, therefore set
+          # its score to +inf so that its automatically disqualified
+          timeUs = float("inf")
         scores[solutionIdx] += timeUs
     return scores
 
