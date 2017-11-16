@@ -732,24 +732,28 @@ class Solution:
     state["NumElementsPerThread"] = numElementsPerWorkGroup / \
         state["NumThreads"]
     state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
-
+    if state["NumElementsPerThread"] % state["GlobalWriteVectorWidth"] != 0:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("LSU NumElementsPerThread %u not divisible into GWVW %u" \
+            % (state["NumElementsPerThread"], state["GlobalWriteVectorWidth"]))
+      state["Valid"] = False
+      return
     state["NumGlobalWriteVectorsPerThread"] = state["NumElementsPerThread"] \
         / state["GlobalWriteVectorWidth"]
-    #if state["NumElementsPerThread"] * state["NumThreads"] \
-    #    != numElementsPerWorkGroup:
-    #  if globalParameters["PrintSolutionRejectionReason"]:
-    #    print1("LocalSplitU %u too large; less than 1 vector per thread. Increase ThreadTile or decrease LocalSplitU" \
-    #        % (state["LocalSplitU"]))
-    #  state["Valid"] = False
-    #  return
 
 
-    # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways load
+    # LocalSplitU but can't NumThreads%MacroTile doesn't support sideways store
     if state["LocalSplitU"] > 1:
       if state["NumThreads"] % state["MacroTile0"] != 0:
         if globalParameters["PrintSolutionRejectionReason"]:
-          print1("LocalSplitU but NumThreads=%u not divisible by MT0=%u for sideways load" \
+          print1("LocalSplitU but NumThreads=%u not divisible by MT0=%u for sideways store" \
               % (state["NumThreads"], state["MacroTile0"]))
+        state["Valid"] = False
+        return
+      if state["MacroTile0"]*state["MacroTile1"] % state["NumThreads"] != 0:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("LocalSplitU but MT0*MT1=%u elements doesn't divide into NumThreads=%u" \
+              % (state["MacroTile0"]*state["MacroTile1"], state["NumThreads"]))
         state["Valid"] = False
         return
 

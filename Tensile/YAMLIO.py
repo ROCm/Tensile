@@ -190,7 +190,7 @@ def readLibraryLogicForSchedule( filename ):
   # does version match
   if not versionIsCompatible(versionString):
     printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
-        % (filename, version, __version__) )
+        % (filename, versionString, __version__) )
 
   # unpack problemType
   problemType = ProblemType(problemTypeState)

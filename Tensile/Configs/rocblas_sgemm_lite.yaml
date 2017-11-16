@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 3.2.0
+  MinimumRequiredVersion: 3.3.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -8,7 +8,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 128
+  NumElementsToValidate: 0
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -17,6 +17,7 @@ GlobalParameters:
   Device: 0
   KernelTime: True
   PinClocks: True
+  SleepPercent: 200
 
 BenchmarkProblems:
   ########################################
@@ -35,25 +36,25 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
+          - Exact: [ 5504, 5504, 1, 3104 ]
+        - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - VectorWidth: [1]
-        - WorkGroupMapping: [8]
-        - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
+        - PrefetchGlobalRead: [False, True]
         - ThreadTile:
-          - [ 8, 8 ]
-          - [ 4, 8 ]
           - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
-          - [  4,  8, 4 ]
-          - [  8,  8, 2 ]
-          - [  8,  8, 4 ]
-          - [  8, 16, 2 ]
-        - DepthU: [ 4, 8, 16 ]
-        - GlobalSplitU: [2, 4, 8]
+          - [ 16, 16, 1 ]
+          - [ 8, 8, 4 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1, 2, 4, 8]
+        - DepthU: [ 8, 16, 32 ]
+        - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -61,51 +62,40 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 3000], [32, 32, 32, 3000], [1], [2880] ]
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ]
 
   ########################################
-  # NN - Assembly
+  # NN - VectorWidth Correctness
   ########################################
-    - # BenchmarkProblemSizeGroup - Assembly
+    - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
-        - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - WorkGroupMapping: [8]
+        - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - VectorWidth: [-1]
+        - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
-          - [ 8, 8 ]
-          - [ 6, 8 ]
-          - [ 4, 8 ]
-          - [ 6, 6 ]
-          - [ 4, 6 ]
-          - [ 4, 4 ]
-          - [ 2, 4 ]
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 16, 16, 1 ]
-          - [  8, 16, 1 ]
-          - [  8,  8, 1 ]
-        - DepthU: [ 4, 8, 16 ]
+          - [ 4, 4, 4 ]
+        - GlobalSplitU: [2, 4, 8]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 6000], [32, 32, 32, 6000], [1], [2880] ]
-
+          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
   ########################################
   # NT - standard
   ########################################
-  - # sgemm NT
+  -
     - # ProblemType
       OperationType: GEMM
       DataType: s
@@ -118,71 +108,61 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - VectorWidth: [1]
-        - WorkGroupMapping: [8]
-      ForkParameters:
-        - ThreadTile:
-          - [ 8, 8 ]
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-        - WorkGroup:
-          - [  4,  8, 4 ]
-          - [  8,  8, 2 ]
-          - [  8,  8, 4 ]
-          - [  8, 16, 2 ]
-        - PrefetchGlobalRead: [False, True]
-        - PrefetchLocalRead: [False, True]
-        - DepthU: [ 4, 8, 16 ]
-        - GlobalSplitU: [2, 4, 8]
-      BenchmarkForkParameters:
-      JoinParameters:
-        - MacroTile
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Range: [ [32, 32, 32, 3000], [32, 32, 32, 3000], [1], [2880] ]
-
-  ########################################
-  # NT - Assembly
-  ########################################
-    - # BenchmarkProblemSizeGroup - Assembly
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
+          - Exact: [ 5504, 5504, 1, 3104 ]
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [8]
-        - VectorWidth: [-1]
       ForkParameters:
+        - PrefetchGlobalRead: [False, True]
         - ThreadTile:
-          - [ 8, 8 ]
-          - [ 6, 8 ]
-          - [ 4, 8 ]
-          - [ 6, 6 ]
-          - [ 4, 6 ]
           - [ 4, 4 ]
-          - [ 2, 4 ]
-          - [ 2, 2 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-          - [  8, 16, 1 ]
-          - [  8,  8, 1 ]
-        - DepthU: [ 4, 8, 16 ]
+          - [ 8, 8, 4 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1, 2, 4, 8]
+        - DepthU: [ 8, 16, 32 ]
+        - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 6000], [32, 32, 32, 6000], [1], [2880] ]
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ]
 
+  ########################################
+  # NT - VectorWidth Correctness
+  ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [ 4, 4, 4 ]
+        - GlobalSplitU: [2, 4, 8]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
   ########################################
   # TN - standard
@@ -200,27 +180,25 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
+          - Exact: [ 5504, 5504, 1, 3104 ]
+        - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - VectorWidth: [1]
-        - WorkGroupMapping: [8]
-        - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
+        - PrefetchGlobalRead: [False, True]
         - ThreadTile:
-          - [ 8, 8 ]
-          - [ 4, 8 ]
           - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
-          - [  2,  4,16 ]
-          - [  4,  4, 8 ]
-          - [  4,  8, 4 ]
-          - [  4,  4,16 ]
-          - [  4,  8, 8 ]
-          - [  8,  8, 4 ]
-        - DepthU: [8, 16, 32 ]
-        - GlobalSplitU: [2, 4, 8]
+          - [ 16, 16, 1 ]
+          - [ 8, 8, 4 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1, 2, 4, 8]
+        - DepthU: [ 8, 16, 32 ]
+        - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
@@ -228,45 +206,35 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 3000], [32, 32, 32, 3000], [1], [2880] ]
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ]
 
   ########################################
-  # TN - Assembly
+  # TN - VectorWidth Correctness
   ########################################
-    - # BenchmarkProblemSizeGroup - Assembly
+    - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
-        - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [8]
-        - VectorWidth: [-1]
+        - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
-          - [ 8, 8 ]
-          - [ 6, 8 ]
-          - [ 4, 8 ]
-          - [ 6, 6 ]
-          - [ 4, 6 ]
-          - [ 4, 4 ]
-          - [ 2, 4 ]
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 16, 16, 1 ]
-          - [  8, 16, 1 ]
-          - [  8,  8, 1 ]
-        - DepthU: [ 8, 16, 32 ]
+          - [ 4, 4, 4 ]
+        - GlobalSplitU: [2, 4, 8]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 6000], [32, 32, 32, 6000], [1], [2880] ]
+          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
   ########################################
   # TT - standard
@@ -282,69 +250,64 @@ BenchmarkProblems:
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
-        - WorkGroupMapping: [-1]
       BenchmarkCommonParameters:
         - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - VectorWidth: [1]
-        - PrefetchGlobalRead: [True]
-        - PrefetchLocalRead: [True]
-      ForkParameters:
-        - WorkGroupMapping: [-1, -8]
-        - ThreadTile:
-          - [ 8, 8 ]
-          - [ 4, 8 ]
-          - [ 4, 4 ]
-        - WorkGroup:
-          - [  4,  8, 4 ]
-          - [  8,  8, 2 ]
-          - [  8,  8, 4 ]
-          - [  8, 16, 2 ]
-        - DepthU: [ 4, 8, 16 ]
-      BenchmarkForkParameters:
-      JoinParameters:
-        - MacroTile
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Range: [ [32, 32, 32, 3000], [32, 32, 32, 3000], [1], [2880] ]
-
-  ########################################
-  # TT - Assembly
-  ########################################
-    - # BenchmarkProblemSizeGroup - Assembly
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 4080, 4080, 2, 2880 ]
+          - Exact: [ 5504, 5504, 1, 3104 ]
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [8]
-        - VectorWidth: [-1]
       ForkParameters:
+        - PrefetchGlobalRead: [False, True]
         - ThreadTile:
-          - [ 8, 8 ]
-          - [ 4, 8 ]
           - [ 4, 4 ]
-          - [ 2, 4 ]
-          - [ 2, 2 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-          - [  8, 16, 1 ]
-          - [  8,  8, 1 ]
-        - DepthU: [ 4, 8, 16 ]
+          - [ 8, 8, 4 ]
+        - WorkGroupMapping: [-1, -4]
+        - GlobalSplitU: [1, 2, 4, 8]
+        - DepthU: [ 8, 16, 32 ]
+        - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
         - MacroTile
+        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 6000], [32, 32, 32, 6000], [1], [2880] ]
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ]
+
+  ########################################
+  # TT - VectorWidth Correctness
+  ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [-1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [ 4, 4, 4 ]
+        - GlobalSplitU: [2, 4, 8]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
+
 
 LibraryLogic:
 
