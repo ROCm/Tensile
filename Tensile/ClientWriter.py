@@ -183,10 +183,10 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
       runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
           "client.exe") )
     else:
-      if globalParameters["PinClocks"]:
-        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --setfan 255 --setsclk 7\n")
+      if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
+        runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("sleep 1\n")
-        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 -a\n")
+        runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
       runScriptFile.write("./client")
     clp = ""
     clp += " --platform-idx %u" % globalParameters["Platform"]
@@ -206,9 +206,9 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write(clp)
     runScriptFile.write("\n")
     if os.name != "nt":
-      if globalParameters["PinClocks"]:
-        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --resetclocks\n")
-        runScriptFile.write("/opt/rocm/bin/rocm-smi -d 0 --setfan 255\n")
+      if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
+        runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
+        runScriptFile.write("%s -d 0 --setfan 255\n" % globalParameters["ROCmSMIPath"])
   else:
     executablePath = os.path.join(globalParameters["WorkingPath"])
     if os.name == "nt":
