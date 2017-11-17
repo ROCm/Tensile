@@ -1710,18 +1710,18 @@ class KernelWriterAssembly(KernelWriter):
       else:
         # graUnrollAssignment += gsuSumIdx*(SizeU/GSU)
         sizeU = self.vgprPool.checkOut(1)
-        kStr += inst("v_mov_b32", vgpr(sizeU), sgpr("Size%u"%self.unrollChar), \
-            "=Size%u"%self.unrollChar)
+        kStr += inst("v_mov_b32", vgpr(sizeU), sgpr("SizesSum+0"), \
+            "=Size%s"%self.unrollChar)
         quotient = self.vgprPool.checkOut(1)
         dummy = self.vgprPool.checkOut(1)
         tmpVgpr = self.vgprPool.checkOut(2)
         tmpSgpr = self.getTmpSgpr(1)
         kStr += vectorStaticDivideAndRemainder(quotient, dummy, sizeU, \
-            hex(kernel["GlobalSplitU"]), tmpVgpr, tmpSgpr)
+            kernel["GlobalSplitU"], tmpVgpr, tmpSgpr)
         self.vgprPool.checkIn(sizeU)
         self.vgprPool.checkIn(dummy)
         self.vgprPool.checkIn(tmpVgpr)
-        kStr += " + (size%s/GLOBAL_SPLITU)*" % self.unrollChar
+        #kStr += " + (size%s/GLOBAL_SPLITU)*" % self.unrollChar
         kStr += inst("v_mul_lo_u32", vgpr(gsuOffset), vgpr(quotient), \
             vgpr(gsuOffset), "gsuOffset=gsuSumIdx*(SizeU/GSU)")
         self.vgprPool.checkIn(quotient)
