@@ -8,7 +8,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 0
+  NumElementsToValidate: 11111
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -50,12 +50,10 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
         - GlobalSplitU: [1]
-        - DepthU: [ -3 ]
+        - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -91,12 +89,10 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
         - GlobalSplitU: [1]
-        - DepthU: [ -3 ]
+        - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -132,7 +128,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
         - GlobalSplitU: [1]
-        - DepthU: [ -3 ]
+        - DepthU: [ 8, 12, 16, 24, 32 ]
         - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -171,12 +167,10 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [-4]
         - GlobalSplitU: [1]
-        - DepthU: [ -3 ]
+        - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
