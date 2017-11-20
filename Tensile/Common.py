@@ -70,7 +70,9 @@ globalParameters["SyncsPerBenchmark"] = 1
 globalParameters["NumBenchmarks"] = 1
 globalParameters["PinClocks"] = False
 globalParameters["KernelTime"] = False
-globalParameters["AssemblerPath"] = "/opt/rocm/bin/hcc"
+globalParameters["AssemblerPath"] = None # /opt/rocm/bin/hcc
+globalParameters["ROCmAgentEnumeratorPath"] = None # /opt/rocm/bin/rocm_agent_enumerator
+globalParameters["ROCmSMIPath"] = None # /opt/rocm/bin/rocm-smi
 
 # file heirarchy
 globalParameters["ShortNames"] = False
@@ -318,32 +320,28 @@ def printExit(message):
   sys.stdout.flush()
   sys.exit(-1)
 
-
+################################################################################
+# Locate Executables
+################################################################################
+def isExe( filePath ):
+  return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
+def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
+  # look in path first
+  for path in os.environ["PATH"].split(os.pathsep):
+    exePath = os.path.join(path, exeName)
+    if isExe(exePath):
+      return exePath
+  # look in default path second
+  exePath = os.path.join(defaultPath, exeName)
+  if isExe(exePath):
+    return exePath
+  return None
 
 ################################################################################
 # Assign Global Parameters
 ################################################################################
 def assignGlobalParameters( config ):
   global globalParameters
-
-  # read current gfx version
-  if os.name != "nt":
-    process = Popen(["/opt/rocm/bin/rocm_agent_enumerator", "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline()
-    while line != "":
-      gfxIdx = line.find("gfx")
-      if gfxIdx >= 0:
-        major = int(line[gfxIdx+3:gfxIdx+4])
-        minor = int(line[gfxIdx+4:gfxIdx+5])
-        step  = int(line[gfxIdx+5:gfxIdx+6])
-        if (major,minor,step) in globalParameters["SupportedISA"]:
-          print1("# Host-Detected: gfx%u%u%u"%(major, minor, step))
-          globalParameters["CurrentISA"] = (major, minor, step)
-        line = process.stdout.readline()
-    if globalParameters["CurrentISA"] == (0,0,0):
-      printWarning("Did not detected ISA: %s" % globalParameters["SupportedISA"])
-    if process.returncode:
-      printWarning("rocm_agen_enumerator exited with code %u" % process.returncode)
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -363,6 +361,31 @@ def assignGlobalParameters( config ):
         print2(" %24s: %8s (overriden)" % (key, configValue))
     else:
       print2(" %24s: %8s (unspecified)" % (key, defaultValue))
+
+  # ROCm Agent Enumerator Path
+  globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+  globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+
+  # read current gfx version
+  if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
+    line = process.stdout.readline()
+    while line != "":
+      gfxIdx = line.find("gfx")
+      if gfxIdx >= 0:
+        major = int(line[gfxIdx+3:gfxIdx+4])
+        minor = int(line[gfxIdx+4:gfxIdx+5])
+        step  = int(line[gfxIdx+5:gfxIdx+6])
+        if (major,minor,step) in globalParameters["SupportedISA"]:
+          print1("# Detected ISA: gfx%u%u%u"%(major, minor, step))
+          globalParameters["CurrentISA"] = (major, minor, step)
+        line = process.stdout.readline()
+    if globalParameters["CurrentISA"] == (0,0,0):
+      printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
+    if process.returncode:
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+
 
   for key in config:
     value = config[key]

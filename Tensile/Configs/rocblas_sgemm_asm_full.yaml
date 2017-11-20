@@ -421,6 +421,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Range: [ [4], [4], [1], [3104] ] # corner
           - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
           - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
@@ -698,6 +699,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Range: [ [4], [4], [1], [3104] ] # corner
           - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
           - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
@@ -825,6 +827,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Range: [ [4], [4], [1], [3104] ] # corner
           - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
           - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
@@ -942,6 +945,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Range: [ [4], [4], [1], [3104] ] # corner
           - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
           - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
