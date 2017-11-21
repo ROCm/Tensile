@@ -425,7 +425,6 @@ class KernelWriterAssembly(KernelWriter):
     # registers per element
     self.bpr = 4 # all registers are 32bit
     self.bpe = int(self.bpr*kernel["ProblemType"]["DataType"].numRegisters())
-    print "bpe", self.bpe
     # registers per global address
     self.rpga = 2 # 64-bit
     # registers per local address
@@ -916,9 +915,9 @@ class KernelWriterAssembly(KernelWriter):
     # kern arg size
     kernArgReg = 0
     kernArgReg += 3*self.rpga
-    kernArgReg += 1 # alpha
+    kernArgReg += max(1,int(self.bpe/4)) # alpha
     if kernel["ProblemType"]["UseBeta"]:
-      kernArgReg += 1 # beta
+      kernArgReg += max(1,int(self.bpe/4)) # beta
     kernArgReg += 3 # offsets
     kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
@@ -1218,6 +1217,11 @@ class KernelWriterAssembly(KernelWriter):
               for b in range(blockB*2, (blockB+1)*2):
                 for a in range(blockA*2, (blockA+1)*2):
                   # v_mac_f16 or v_fma_f16
+                  cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
                   kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
             elif self.version == (9,0,0):
               b = blockB*2
@@ -2031,8 +2035,8 @@ class KernelWriterAssembly(KernelWriter):
         if self.globalReadIncsUseVgpr:
           tmpSgpr = self.getTmpSgpr(1)
           kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-              hex(depthU*4), sgpr("Strides%s"%tP["tensorChar"]), \
-              "incr = stride*%u*4bytes"%depthU )
+              hex(depthU*self.bpe), sgpr("Strides%s"%tP["tensorChar"]), \
+              "incr = stride*%u*bytes"%depthU )
           """
           kStr += inst("s_addc_u32", \
               sgpr(tmpSgpr+1), \
@@ -2054,8 +2058,8 @@ class KernelWriterAssembly(KernelWriter):
               "" )
         else:
           kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*4), sgpr("Strides%s"%tP["tensorChar"]), \
-              "incr = stride*%u*4bytes"%depthU )
+              hex(depthU*self.bpe), sgpr("Strides%s"%tP["tensorChar"]), \
+              "incr = stride*%u*bytes"%depthU )
           """
           kStr += inst("s_addc_u32", \
               sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
@@ -2070,16 +2074,16 @@ class KernelWriterAssembly(KernelWriter):
       else: # transposed
         if self.globalReadIncsUseVgpr:
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*4), \
-              "incr = %u*4bytes"%depthU )
+              hex(depthU*self.bpe), \
+              "incr = %u*bytes"%depthU )
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
-              hex(0), "incr = %u*4bytes (upper)"%depthU )
+              hex(0), "incr = %u*bytes (upper)"%depthU )
         else:
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*4), \
-              "incr = %u*4bytes"%depthU )
+              hex(depthU*self.bpe), \
+              "incr = %u*bytes"%depthU )
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
-              hex(0), "incr = %u*4bytes (upper)"%depthU )
+              hex(0), "incr = %u*bytes (upper)"%depthU )
     else:
       printExit("NumIndicesSummation=%u not yet supported in assembly" \
           % kernel["ProblemType"]["NumIndicesSummation"] )
@@ -2952,7 +2956,9 @@ class KernelWriterAssembly(KernelWriter):
     #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
-    numReadsPerVector = kernel["VectorWidth"] / blockWidth
+    #print "numVectorsPerTile", numVectorsPerTile
+    numReadsPerVector = (kernel["VectorWidth"] * self.bpe ) / (blockWidth*4) # bytes
+    #print "numReadsPerVector", numReadsPerVector
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
         paramList = []
