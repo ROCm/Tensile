@@ -642,15 +642,15 @@ class KernelWriterAssembly(KernelWriter):
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
         * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] \
         * self.numReadVectorComponentsA
-    numGlobalReadInstructionsA = numGlobalReadsA \
-        / self.globalReadInstructionA.blockWidth
+    numGlobalReadInstructionsA = (numGlobalReadsA * self.bpe)\
+        / (self.globalReadInstructionA.blockWidth * 4)
     numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] \
         * self.numReadVectorComponentsB
-    numGlobalReadInstructionsB = numGlobalReadsB \
-        / self.globalReadInstructionB.blockWidth
+    numGlobalReadInstructionsB = (numGlobalReadsB * self.bpe) \
+        / (self.globalReadInstructionB.blockWidth * 4)
     numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
     numVgprSerial = 1
     if self.globalReadIncsUseVgpr:
@@ -759,8 +759,8 @@ class KernelWriterAssembly(KernelWriter):
     numSgprOffsetC = 1
     numSgprOffsetA = 1
     numSgprOffsetB = 1
-    numSgprAlpha = 1
-    numSgprBeta = 1 if kernel["ProblemType"]["UseBeta"] else 0
+    numSgprAlpha = max(1,int(self.bpe/4))
+    numSgprBeta  = max(1,int(self.bpe/4)) if kernel["ProblemType"]["UseBeta"] else 0
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     self.numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
@@ -1249,7 +1249,6 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["ProblemType"]["DataType"].isSingle():
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
-
             cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
             aStr = "v[%s+%u]" \
                 % ("vgprValuA" if m==0 else "vgprValuBlkA", a)
@@ -1270,7 +1269,13 @@ class KernelWriterAssembly(KernelWriter):
       elif kernel["ProblemType"]["DataType"].isDouble():
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
-            pass
+            cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+            aStr = "v[%s+%u*2:%s+%u*2+1]" \
+                % ("vgprValuA" if m==0 else "vgprValuBlkA", a, "vgprValuA" if m==0 else "vgprValuBlkA", a)
+            bStr = "v[%s+%u*2:%s+%u*2+1]" \
+                % ("vgprValuB" if m==0 else "vgprValuBlkB", b, "vgprValuB" if m==0 else "vgprValuBlkB", b)
+            kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+
 
       # other precision
       else:
@@ -1341,16 +1346,20 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("Alpha"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += inst("s_load_dwordx2", sgpr("Alpha",2), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset), "load alpha" )
+        kStr += inst("s_load_dword", sgpr("Alpha+0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load alpha" )
+        kStr += inst("s_load_dword", sgpr("Alpha+1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load alpha" )
       kernArgOffset += 1*max(4,self.bpe)
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("s_load_dword", sgpr("Beta"), \
               sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
         elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += inst("s_load_dwordx2", sgpr("Beta",2), \
-              sgpr("KernArgAddress",2), hex(kernArgOffset), "load beta" )
+          kStr += inst("s_load_dword", sgpr("Beta+0"), \
+              sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load beta" )
+          kStr += inst("s_load_dword", sgpr("Beta+1"), \
+              sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load beta" )
         kernArgOffset += 1*max(4,self.bpe)
       kStr += inst("s_load_dword", sgpr("OffsetC"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
@@ -2957,7 +2966,7 @@ class KernelWriterAssembly(KernelWriter):
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
     #print "numVectorsPerTile", numVectorsPerTile
-    numReadsPerVector = (kernel["VectorWidth"] * self.bpe ) / (blockWidth*4) # bytes
+    numReadsPerVector = (kernel["VectorWidth"] * self.bpe ) / (blockWidth*4) # bytes/register
     #print "numReadsPerVector", numReadsPerVector
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
@@ -3158,7 +3167,6 @@ class KernelWriterAssembly(KernelWriter):
 
             kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst), \
                 vgpr(self.startVgprValuC+src), comment)
-            #kStr += inst("s_nop", "4", "")
 
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
@@ -3783,11 +3791,11 @@ class KernelWriterAssembly(KernelWriter):
           kStr += ", sgprWorkGroup%u"%i
       kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
 
-      # final address = C + index*4bytes
+      # final address = C + index*bytes
       kStr += inst("v_add_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
-          vgpr(addr+0), "addr = C + index*4bytes (lo)" )
+          vgpr(addr+0), "addr = C + index*bytes (lo)" )
       kStr += inst("v_addc_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
-          vgpr(addr+1), "vcc", "addr = C + index*4bytes (hi)")
+          vgpr(addr+1), "vcc", "addr = C + index*bytes (hi)")
 
       if atomic:
         # load c into data+1 becaue of CAS structure
