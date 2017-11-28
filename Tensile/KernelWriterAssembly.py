@@ -1847,7 +1847,7 @@ class KernelWriterAssembly(KernelWriter):
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprPool.checkOut(1)
-    kStr += inst("v_add_i32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["idx"]), \
+    kStr += inst("v_add_u32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["idx"]), \
         hex(-margin), "edge = Size%s-%u"%(tP["tileChar"], margin) )
     #kStr += dump(vgpr(edge))
 
@@ -2414,7 +2414,7 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop and kernel["LocalSplitU"] > 1:
       kStr += inst("v_cmpx_lt_u32", "vcc", \
           vgpr(sgId), vgpr(numIter), "sgId < numIter")
-      kStr += inst("v_add_i32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
+      kStr += inst("v_add_u32", vgpr(sgId), "vcc", hex(kernel["LocalSplitU"]), \
           vgpr(sgId), "sgId+=LSU")
       self.vgprPool.checkIn(sgId)
       self.vgprPool.checkIn(numIter)
@@ -3504,7 +3504,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT0=0" ) 
 
       # s23 = nwg0-1
-      kStr += inst("s_add_i32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" ) 
+      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" ) 
       kStr += inst("s_cmp_lt_u32", sgpr("WorkGroup0"), sgpr(tmpS23), "wg0 < nwg0-1")
       kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck0"], \
           "wg0 < nwg0-1 so skip rMT0 = Size0 % MT0")
@@ -3526,7 +3526,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr(tmpS01), hex(0), "rMT1=0" ) 
 
       # s23 = nwg1-1
-      kStr += inst("s_add_i32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" ) 
+      kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" ) 
       kStr += inst("s_cmp_lt_u32", sgpr("WorkGroup1"), sgpr(tmpS23), "wg1 < nwg1-1")
       kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta]["EdgeCheck1"], \
           "wg1 < nwg1-1 so skip rMT1 = Size1 % MT1")
