@@ -27,7 +27,7 @@ import time
 
 from copy import deepcopy
 
-from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar
+from Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from SolutionStructs import Solution
 import YAMLIO
 
