@@ -2691,7 +2691,6 @@ class KernelWriterAssembly(KernelWriter):
       zeroVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(zeroVgpr), \
           hex(0), "zero")
-
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -2701,13 +2700,14 @@ class KernelWriterAssembly(KernelWriter):
             g2lIdx = i * loadWidth
             if guardK:
               # for each component in vector
-              for r in range(0, loadWidth):
+              for r in range(0, loadWidth/(self.bpe/self.bpr)):
                 kStr += self.comment1("load component %u"%r)
                 #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
                 #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
                 #kStr += "s_endpgm\n"
                 # zero out data regardless of load or not
-                kStr += inst("v_mov_b32", vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)), hex(0), "zero")
+                for i in range(0, self.bpe/self.bpr):
+                  kStr += inst("v_mov_b32", vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*(self.bpe/self.bpr)+i)), hex(0), "zero")
 
                 # mask if current address if in bounds
                 kStr += inst("v_cmpx_lt_u64", "vcc", \
@@ -2716,9 +2716,18 @@ class KernelWriterAssembly(KernelWriter):
                     "addr < maxAddr")
 
                 # load single element from address
-                kStr += inst("flat_load_dword", \
-                    vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                    vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single")
+                if kernel["ProblemType"]["DataType"].isHalf():
+                  printWarning("Tail Loop not yet implemented for Half Precision")
+                elif kernel["ProblemType"]["DataType"].isSingle():
+                  kStr += inst("flat_load_dword", \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single float")
+                elif kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += inst("flat_load_dwordx2", \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single double")
+                else:
+                  printWarning("DataType unsupported")
 
                 # restore full exec mask
                 kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
