@@ -22,7 +22,7 @@
 from SolutionStructs import DataType
 from Common import globalParameters, print1, print2, printExit, printWarning
 from KernelWriter import KernelWriter
-from math import log
+from math import log, ceil
 import abc
 
 ################################################################################
@@ -3165,8 +3165,9 @@ class KernelWriterAssembly(KernelWriter):
                 tt, vectorIdx, self.tileChar0, \
                 s+vw-r, self.tileChar0)
 
-            kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst), \
-                vgpr(self.startVgprValuC+src), comment)
+            for r in range(0, self.bpe/self.bpr):
+              kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr+r), \
+                  vgpr(self.startVgprValuC+src*self.bpe/self.bpr+r), comment)
 
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
@@ -3543,7 +3544,13 @@ class KernelWriterAssembly(KernelWriter):
     # branch B1 or B0
     if kernel["ProblemType"]["UseBeta"]:
       betaLabel = self.getLabel("GW_Beta")
-      kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
+      if self.bpe <= self.bpr: # 1 register to check for Beta==0
+        kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
+      else: # multiple registers to check for Beta==0
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("Beta+0"), "tmp = Beta[0]")
+        for i in range(1, self.bpe/self.bpr):
+          kStr += inst("s_or_b32", sgpr(tmpSgpr), sgpr("Beta+%u"%i), sgpr(tmpSgpr), "tmp |= Beta[%u] " % i)
+        kStr += inst("s_cmpk_eq_u32", sgpr(tmpSgpr), hex(0), "Beta == 0")
       kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
           "Beta not not zero; so jump to B nonzero")
 
@@ -3641,7 +3648,10 @@ class KernelWriterAssembly(KernelWriter):
         if atomic:
           numVgprsPerElement += (3*self.bpe)/self.bpr
         elif beta:
-          numVgprsPerElement += (1*self.bpe)/self.bpr
+          if self.bpe >= self.bpr:
+            numVgprsPerElement += (1*self.bpe)/self.bpr
+          else:
+            numVgprsPerElement += (1.0*self.bpe)/self.bpr
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.available()
@@ -3664,9 +3674,9 @@ class KernelWriterAssembly(KernelWriter):
           elementsThisBatch = elements[elementStartIdx:elementStopIdx]
           #print "BATCH[%u/%u]: elements[%u:%u]" % (batchIdx, numBatches, elementStartIdx, elementStopIdx)
           numElementsThisBatch = len(elementsThisBatch)
-          numElementVgprs = numElementsThisBatch * numVgprsPerElement
+          numElementVgprs = int(numElementsThisBatch * ceil(numVgprsPerElement))
           elementVgprs = self.vgprPool.checkOut(numElementVgprs)
-          kStr += self.globalWriteInline(kernel, beta, edge, lsu, atomic, \
+          kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
               sizesFreeVgprs, elementVgprs, numVgprsPerElement, tmpVgpr, \
               fullExecMaskSgpr, elementSgprs, numSgprsPerElement, tmpSgpr)
@@ -3683,9 +3693,9 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Global Write Inline
+  # Global Write Batch
   ##############################################################################
-  def globalWriteInline(self, kernel, beta, edge, lsu, atomic, \
+  def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, \
       batchElements, coord0, coord1, addrC, sizes, \
       batchElementVgprs, numVgprsPerElement, tmpVgpr, \
       fullExecMaskSgpr, batchElementSgprs, numSgprsPerElement, tmpSgpr):
@@ -3703,22 +3713,24 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # allocate per-element resources
+    numVgprsPerAddr = self.rpga
+    numVgprsPerData = numVgprsPerElement - numVgprsPerAddr # might be decimal for half
+    addrVgprOffset = 0
+    dataVgprOffset = addrVgprOffset + numVgprsPerAddr*len(batchElements)
     elementAddr = []
     elementData = []
     elementMask = []
     elementSumIdx = []
     for elementIdx in range(0, len(batchElements)):
       # gpr assignments for element
-      element = batchElements[elementIdx]
-      elementVgprs = batchElementVgprs + elementIdx * numVgprsPerElement
-      elementSgprs = batchElementSgprs + elementIdx * numSgprsPerElement
-      addr = elementVgprs+0
+      addr = batchElementVgprs + addrVgprOffset + elementIdx*numVgprsPerAddr # elementVgprs+0
       elementAddr.append(addr)
-      data = elementVgprs+2
+      data = batchElementVgprs + dataVgprOffset + int(elementIdx*numVgprsPerData) # elementVgprs+self.rpga
       elementData.append(data)
-      mask = elementSgprs+0
+      mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
       elementMask.append(mask)
 
+      element = batchElements[elementIdx]
       d1 = element[0]
       d0 = element[1]
       vc1 = element[2]
@@ -3803,8 +3815,18 @@ class KernelWriterAssembly(KernelWriter):
             "load C" )
       elif beta:
         # load c into data+0
-        kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), \
-            "load C" )
+        if kernel["ProblemType"]["DataType"].isHalf():
+          if sumIdx%2:
+            #kStr += inst("flat_load_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" ) # FIXME need d16_hi
+            #kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
+            kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
+          else:
+            pass
+            #kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
+        elif kernel["ProblemType"]["DataType"].isSingle():
+          kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += inst("flat_load_dwordx2", vgpr(data+0,2), vgpr(addr,2), "load C" )
 
       # restore full exec mask for calculating addr of next element
       if edge and (beta or atomic):
@@ -4015,13 +4037,42 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
         if beta:
-          # data+0 = new c = old c*beta
-          kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+0), \
-              "%s = C*beta"%vgpr(data+0) )
-          # data+0 = new c = old c*beta + rC
-          kStr += inst("v_add_f32", vgpr(sumIdx), vgpr(data+0), vgpr(sumIdx), \
-              "sum*alpha + C*beta")
-        kStr += inst("flat_store_dword", vgpr(addr,2), vgpr(sumIdx), "store C" )
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if sumIdx%2==0:
+              # data+0 = new c = old c*beta
+              kStr += inst("v_pk_mul_f16", vgpr(data+0), vgpr(self.betaVgpr), vgpr(data+0), \
+                  "%s = C*beta"%vgpr(data+0))
+              # data+0 = new c = old c*beta + rC
+              kStr += inst("v_pk_add_f16", vgpr(sumIdx/2), vgpr(data+0), vgpr(sumIdx/2), \
+                  "sum*alpha + C*beta")
+            else:
+              pass # add will have been done previously
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            # data+0 = new c = old c*beta
+            kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+0), \
+                "%s = C*beta"%vgpr(data+0) )
+            # data+0 = new c = old c*beta + rC
+            kStr += inst("v_add_f32", vgpr(sumIdx), vgpr(data+0), vgpr(sumIdx), \
+                "sum*alpha + C*beta")
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            # data+0 = new c = old c*beta
+            kStr += inst("v_mul_f64", vgpr(data+0,2), sgpr("Beta",2), vgpr(data+0,2), \
+                "%s = C*beta"%vgpr(data+0,2) )
+            # data+0 = new c = old c*beta + rC
+            kStr += inst("v_add_f64", vgpr(sumIdx*2,2), vgpr(data+0,2), vgpr(sumIdx*2,2), \
+                "sum*alpha + C*beta")
+
+        if kernel["ProblemType"]["DataType"].isHalf():
+          pass
+          #if sumIdx%2:
+            #kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" ) # FIXME need d16_hi
+            #kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+          #else:
+            #kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+        elif kernel["ProblemType"]["DataType"].isSingle():
+          kStr += inst("flat_store_dword", vgpr(addr,2), vgpr(sumIdx), "store C" )
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          kStr += inst("flat_store_dwordx2", vgpr(addr,2), vgpr(sumIdx*2,2), "store C" )
 
       if edge: # subsequent batch must start with full exec mask
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )

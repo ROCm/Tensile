@@ -481,8 +481,8 @@ class SolutionWriter:
       # debug print kernel dimensions
       if globalParameters["LibraryPrintDebug"]:
         s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
-      # debug print kernel arguments
-      # offsets
+        # debug print kernel arguments
+        # offsets
         for i in range(0, 3):
           s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
         # strides
