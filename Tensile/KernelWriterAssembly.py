@@ -810,6 +810,9 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprGSUSumIdx = sgprIdx;      sgprIdx += numSgprGSUSumIdx
     self.startSgprAddressC = sgprIdx;       sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx;       sgprIdx += self.numSgprStridesC
+    # doubles need to be aligned to even
+    if self.bpe > 4 and sgprIdx%2==1:
+      sgprIdx += 1
     self.startSgprAlpha = sgprIdx;          sgprIdx += numSgprAlpha
     self.startSgprBeta = sgprIdx;           sgprIdx += numSgprBeta
     self.startSgprSizesFree = sgprIdx;      sgprIdx += self.numSgprSizesFree
