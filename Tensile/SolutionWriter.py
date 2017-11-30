@@ -404,7 +404,7 @@ class SolutionWriter:
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
-        s += "%shipLaunchKernel(\n" % (t)
+        s += "%shipLaunchKernelGGL(\n" % (t)
         t += "  "
         s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
         s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
@@ -422,7 +422,7 @@ class SolutionWriter:
 
         if solution["ProblemType"]["UseBeta"]:
           s += "%s} else {\n" % (t)
-          s += "%shipLaunchKernel(\n" % (t)
+          s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
           s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
@@ -542,7 +542,7 @@ class SolutionWriter:
         t += "  "
         # hip kernel
         if solution["KernelLanguage"] == "Source":
-          s += "%shipLaunchKernel(\n" % (t)
+          s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
           s += "%sdim3(globalWorkSize[kernelIdx][0], globalWorkSize[kernelIdx][1], globalWorkSize[kernelIdx][2]),\n" % (t)
