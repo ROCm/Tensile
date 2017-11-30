@@ -42,8 +42,12 @@ class MemoryInstruction:
     self.endLine = "\n"
   ########################################
   # write in assembly format
-  def toString(self, params, comment):
+  def toString(self, params, comment, nonTemporal=0):
     instStr = "%s %s" % (self.name, (self.formatting % params) )
+    if nonTemporal%2==1:
+      instStr += " glc"
+    if nonTemporal/2==1:
+      instStr += " slc"
     line = "%-50s // %s%s" % (instStr, comment, self.endLine)
     return line
   def __str__(self):
@@ -2753,7 +2757,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += tP["globalReadInstruction"].toString( \
                   (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
                   vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
-                  "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ) )
+                  "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
               #kStr += "s_waitcnt vmcnt(0)\n"
               #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))
     if guardK:
@@ -4074,6 +4078,11 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("v_add_f64", vgpr(sumIdx*2,2), vgpr(data+0,2), vgpr(sumIdx*2,2), \
                 "sum*alpha + C*beta")
 
+        nonTemporalStr = ""
+        if kernel["NonTemporalC"]%2==1:
+          nonTemporalStr += " glc"
+        if kernel["NonTemporalC"]/2==1:
+          nonTemporalStr += " slc"
         if kernel["ProblemType"]["DataType"].isHalf():
           pass
           #if sumIdx%2:
@@ -4082,9 +4091,9 @@ class KernelWriterAssembly(KernelWriter):
           #else:
             #kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
         elif kernel["ProblemType"]["DataType"].isSingle():
-          kStr += inst("flat_store_dword", vgpr(addr,2), vgpr(sumIdx), "store C" )
+          kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
         elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += inst("flat_store_dwordx2", vgpr(addr,2), vgpr(sumIdx*2,2), "store C" )
+          kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
 
       if edge: # subsequent batch must start with full exec mask
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )

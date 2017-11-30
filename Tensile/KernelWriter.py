@@ -1189,6 +1189,7 @@ class KernelWriter:
       tP["rc"] = kernel["ProblemType"]["IndexAssignmentsA"][0] \
           in [kernel["ProblemType"]["Index01A"], \
           kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
+      tP["NonTemporal"] = kernel["NonTemporalA"]
     else: # B
       tP["isA"] = False
       tP["isB"] = True
@@ -1237,6 +1238,7 @@ class KernelWriter:
       tP["rc"] = kernel["ProblemType"]["IndexAssignmentsB"][0] \
           in [kernel["ProblemType"]["Index01B"], \
           kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
+      tP["NonTemporal"] = kernel["NonTemporalB"]
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
