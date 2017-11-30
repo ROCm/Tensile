@@ -3538,6 +3538,11 @@ class KernelWriterAssembly(KernelWriter):
     goto label_End
     label_End
     """
+    if kernel["ProblemType"]["DataType"].isHalf():
+      self.alphaVgpr = self.vgprPool.checkOut(1)
+      self.betaVgpr = self.vgprPool.checkOut(1)
+      kStr += inst("v_mov_b32", vgpr(self.alphaVgpr), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
+      kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
 
     ########################################
     # Vgprs
@@ -3677,12 +3682,16 @@ class KernelWriterAssembly(KernelWriter):
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = numElementsPerBatchLimitedBySgprs 
 
+        if kernel["ProblemType"]["DataType"].isHalf():
+          # only do an even number of halves
+          numElementsPerBatch = (numElementsPerBatch/2)*2
+
         # if no atomics and no edge, then write whole vectors
-        if not atomic and not edge:
-          numVectorsPerBatch = numElementsPerBatch / kernel["GlobalWriteVectorWidth"]
-          #print "  NumVectorsPerBatch", numVectorsPerBatch
-          numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
-          #print "  NumElementsPerBatch", numElementsPerBatch
+        #if not atomic and not edge:
+        #  numVectorsPerBatch = numElementsPerBatch / kernel["GlobalWriteVectorWidth"]
+        #  #print "  NumVectorsPerBatch", numVectorsPerBatch
+        #  numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
+        #  #print "  NumElementsPerBatch", numElementsPerBatch
         numBatches = max(1, (len(elements)+numElementsPerBatch-1) / numElementsPerBatch)
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
@@ -3854,7 +3863,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment("rC *= alpha")
     for elementIdx in range(0, len(batchElements)):
       sumIdx = elementSumIdx[elementIdx]
-      kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
+      if kernel["ProblemType"]["DataType"].isHalf():
+        kStr += inst("v_mul_f16", vgpr(sumIdx/2), vgpr(self.alphaVgpr), vgpr(sumIdx/2), "*= alpha")
+      elif kernel["ProblemType"]["DataType"].isSingle():
+        kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
+      elif kernel["ProblemType"]["DataType"].isDouble():
+        kStr += inst("v_mul_f64", vgpr(sumIdx*2,2), sgpr("Alpha",2), vgpr(sumIdx*2,2), "*= alpha")
 
     ########################################
     # Atomic
@@ -3907,14 +3921,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
         # for atomic, data[1] = original c, data[0] = new c
-        if beta:
-          # data+0 = new c = old c + rC
-          kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
-              "sum*alpha + C*beta")
-        else:
-          # data+0 = new c = old c + rC
-          kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
-              "sum*alpha + C*beta")
+        kStr += inst("v_add_f32", vgpr(data+0), vgpr(data+1), vgpr(sumIdx), \
+            "sum*alpha + C*beta")
 
         # attempt write
         kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), vgpr(addr,2), \
