@@ -1914,8 +1914,8 @@ class KernelWriterAssembly(KernelWriter):
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprPool.checkOut(1)
-    kStr += inst("v_add_u32", vgpr(edge), "vcc", sgpr("SizesFree+%u"%tP["idx"]), \
-        hex(-margin), "edge = Size%s-%u"%(tP["tileChar"], margin) )
+    kStr += inst("v_add_u32", vgpr(edge), "vcc", hex(-margin), sgpr("SizesFree+%u"%tP["idx"]), \
+        "edge = Size%s-%u"%(tP["tileChar"], margin) )
     #kStr += dump(vgpr(edge))
 
     # shift offsets
