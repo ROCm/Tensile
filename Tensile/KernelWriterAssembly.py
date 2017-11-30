@@ -3177,9 +3177,9 @@ class KernelWriterAssembly(KernelWriter):
                 tt, vectorIdx, self.tileChar0, \
                 s+vw-r, self.tileChar0)
 
-            for r in range(0, self.bpe/self.bpr):
-              kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr+r), \
-                  vgpr(self.startVgprValuC+src*self.bpe/self.bpr+r), comment)
+            for i in range(0, self.bpe/self.bpr):
+              kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr+i), \
+                  vgpr(self.startVgprValuC+src*self.bpe/self.bpr+i), comment)
 
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
