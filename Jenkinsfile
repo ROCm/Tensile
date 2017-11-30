@@ -198,6 +198,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
               # assembly
               tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm_asm.yaml sgemm_asm
+              tensile ${rel_path_to_src}/Tensile/Configs/test_dgemm_asm.yaml dgemm_asm
           """
 
           // TODO re-enable when jenkins supports opencl
