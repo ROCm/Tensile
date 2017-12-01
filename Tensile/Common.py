@@ -158,6 +158,9 @@ validParameters = {
     "PerformanceSyncLocation":    range(-1, 16*16+1),
     "PerformanceWaitLocation":    range(-1, 16*16+1),
     "PerformanceWaitCount":       range(-1, 16),
+    "NonTemporalC":               range(0,4),
+    "NonTemporalA":               range(0,4),
+    "NonTemporalB":               range(0,4),
 
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ],
     "KernelLanguage":             [ "Assembly", "Source" ],
@@ -202,6 +205,9 @@ defaultBenchmarkCommonParameters = [
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
     {"PerformanceWaitCount":      [ -1 ] },
+    {"NonTemporalC":              [ 0 ] },
+    {"NonTemporalA":              [ 0 ] },
+    {"NonTemporalB":              [ 0 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []

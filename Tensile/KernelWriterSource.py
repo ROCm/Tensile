@@ -725,7 +725,7 @@ class KernelWriterSource(KernelWriter):
     # pointers
     globalStr = "__global "
     if self.language == "HIP":
-      s += "  hipLaunchParm lp," + self.endLine
+      #s += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
     restrictStr = "restrict"
     if self.language == "HIP":
@@ -2156,7 +2156,7 @@ class KernelWriterSource(KernelWriter):
     # pointers
     globalStr = "__global "
     if self.language == "HIP":
-      kStr += "  hipLaunchParm lp," + self.endLine
+      #kStr += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
     #restrictStr = "restrict"
     #if self.language == "HIP":

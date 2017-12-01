@@ -135,7 +135,7 @@ class DataType:
   def numRegisters( self ):
     return self.properties[self.value][self.idxReg]
   def numBytes( self ):
-    return self.numRegisters() * 4
+    return int(self.numRegisters() * 4)
   def flopsPerMac(self):
     return 2 if self.isReal() else 8
 
@@ -1083,7 +1083,7 @@ class Solution:
     state["LVPB"] = state["LSPB"] / state["GlobalLoadVectorWidthB"]
 
     # lds buffer size for A, B
-    ldsAlign = 64 / state["ProblemType"]["DataType"].numRegisters()
+    ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
     ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])

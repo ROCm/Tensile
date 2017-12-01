@@ -101,8 +101,13 @@ class SolutionWriter:
         s += "%sunsigned int *debugBuffer;\n" % t
       solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
       for arg in solutionArgs:
-        s += "%s%s %s;\n" % (t, arg[0], arg[1])
-      s += "%sunsigned int pad;\n" % t
+        if arg[0] == "TensileHalf":
+          s += "%s%s %s;\n" % (t, arg[0], arg[1])
+          s += "%s%s %s_pad;\n" % (t, arg[0], arg[1])
+        else:
+          s += "%s%s %s;\n" % (t, arg[0], arg[1])
+
+      s += "%sunsigned int pad;\n" % t # FIXME can this be removed?
       t = t[2:]
       s += "%s} hipFunctionArgs;\n" % t
       #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
@@ -110,6 +115,9 @@ class SolutionWriter:
       s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
       #s += "%sprintf(\"size: %%lu\\n\", sizeof(unsigned int));\n" % t
       #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
+      #for arg in solutionArgs:
+      #  s += "%sprintf(\"%s: %%lu\\n\", static_cast<char*>(static_cast<void*>(&hipFunctionArgs.%s)) - static_cast<char*>(static_cast<void*>(&hipFunctionArgs.%s)));\n" % (t, arg[1], arg[1], solutionArgs[0][1])
+
     # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
 
 
@@ -396,7 +404,7 @@ class SolutionWriter:
         if solution["ProblemType"]["UseBeta"]:
           s += "%sif (betaZero) {\n" % (t)
           t += "  "
-        s += "%shipLaunchKernel(\n" % (t)
+        s += "%shipLaunchKernelGGL(\n" % (t)
         t += "  "
         s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[0])
         s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
@@ -414,7 +422,7 @@ class SolutionWriter:
 
         if solution["ProblemType"]["UseBeta"]:
           s += "%s} else {\n" % (t)
-          s += "%shipLaunchKernel(\n" % (t)
+          s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
           s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
@@ -473,8 +481,8 @@ class SolutionWriter:
       # debug print kernel dimensions
       if globalParameters["LibraryPrintDebug"]:
         s += "%sprintf(\"%s: g{ %%u, %%u, %%u } l{ %%u, %%u, %%u}\\n\", static_cast<unsigned int>(globalWorkSize[kernelIdx][0]), static_cast<unsigned int>(globalWorkSize[kernelIdx][1]), static_cast<unsigned int>(globalWorkSize[kernelIdx][2]), static_cast<unsigned int>(localWorkSize[0]), static_cast<unsigned int>(localWorkSize[1]), static_cast<unsigned int>(localWorkSize[2]) );\n" % (t, kernelName)
-      # debug print kernel arguments
-      # offsets
+        # debug print kernel arguments
+        # offsets
         for i in range(0, 3):
           s += "%sprintf(\"  offset[%u] = %%u\\n\", offsets[kernelIdx][enqueueIdx][%u]);\n" % (t, i, i)
         # strides
@@ -534,7 +542,7 @@ class SolutionWriter:
         t += "  "
         # hip kernel
         if solution["KernelLanguage"] == "Source":
-          s += "%shipLaunchKernel(\n" % (t)
+          s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
           s += "%sdim3(globalWorkSize[kernelIdx][0], globalWorkSize[kernelIdx][1], globalWorkSize[kernelIdx][2]),\n" % (t)
