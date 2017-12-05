@@ -858,13 +858,11 @@ class KernelWriterAssembly(KernelWriter):
     self.sgprPool = RegisterPool(self.totalSgprs)
 
     # place any of these gpr inst values into tPA, tPB for later reference
-    tPA["localWriteOffsets"] = []
     tPA["globalReadInstruction"] = self.globalReadInstructionA
     tPA["localWriteInstruction"] = self.localWriteInstructionA
     tPA["localReadInstruction"] = self.localReadInstructionA
     tPA["gpr"] = {}
 
-    tPB["localWriteOffsets"] = []
     tPB["globalReadInstruction"] = self.globalReadInstructionB
     tPB["localWriteInstruction"] = self.localWriteInstructionB
     tPB["localReadInstruction"] = self.localReadInstructionB
@@ -2193,7 +2191,6 @@ class KernelWriterAssembly(KernelWriter):
           offset = lspaOffset + lscaOffset
           offset *= self.bpe
           offset /= tP["localWriteInstruction"].offsetMultiplier
-          tP["localWriteOffsets"].append(offset)
           kStr += "%slwo%s_%u_%u_%u_%u = (%s%d*%s)" \
               % (self.commentPrefix, tP["tensorChar"], \
               para, sPara, perp, sPerp, \
@@ -2810,7 +2807,6 @@ class KernelWriterAssembly(KernelWriter):
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
     offsetMultiplier = instruction.offsetMultiplier
-    totalWrites = len(tP["localWriteOffsets"])/numOffsets
     g2lIdx = 0
     graIdx = 0
     #kStr += dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
@@ -4162,10 +4158,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if skipLocalWrite > -1 or skipLocalRead > -1:
       if skipLocalWrite > -1:
-        numA = len(tPA["localWriteOffsets"]) \
-            / tPA["localWriteInstruction"].numOffsets
-        numB = len(tPB["localWriteOffsets"]) \
-            / tPB["localWriteInstruction"].numOffsets
+        numA = tPA["nrp"]*tPA["nrc"]*max(tPA["nwcv"],tPA["nwpv"])/tPA["nwcvpi"]
+        numB = tPB["nrp"]*tPB["nrc"]*max(tPB["nwcv"],tPB["nwpv"])/tPB["nwcvpi"]
         lgkmcnt += skipLocalWrite * (numA + numB)
       if skipLocalRead > -1:
         numA = (kernel["ThreadTile0"] / kernel["VectorWidth"]) \
