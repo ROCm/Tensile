@@ -318,7 +318,7 @@ class BenchmarkProcess:
     print2("BenchmarkJoinParameters:")
     for step in self.benchmarkJoinParameters:
       print2("    %s" % step)
-    # benchmarkJoinParameters
+    # benchmarkFinalParameters
     print2("BenchmarkFinalParameters:")
     for step in self.benchmarkFinalParameters:
       print2("    %s" % step)
