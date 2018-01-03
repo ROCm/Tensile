@@ -1239,7 +1239,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
               cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-              kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+              kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
               """
               D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
               D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
@@ -1912,9 +1912,15 @@ class KernelWriterAssembly(KernelWriter):
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprPool.checkOut(1)
-    kStr += inst("v_add_u32", vgpr(edge), "vcc", hex(-margin), sgpr("SizesFree+%u"%tP["idx"]), \
+
+    tmpSgpr = self.getTmpSgpr(1)
+    kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(-margin), sgpr("SizesFree+%u"%tP["idx"]), \
         "edge = Size%s-%u"%(tP["tileChar"], margin) )
-    #kStr += dump(vgpr(edge))
+    kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
+        "edge = Size%s-%u"%(tP["tileChar"], margin) )
+    # correct but invalid instruction
+    #kStr += inst("v_add_u32", vgpr(edge), "vcc", -margin, sgpr("SizesFree+%u"%tP["idx"]), \
+    #    "edge = Size%s-%u"%(tP["tileChar"], margin) )
 
     # shift offsets
     v = tP["vgprTileOffsets"]
@@ -3838,12 +3844,9 @@ class KernelWriterAssembly(KernelWriter):
         # load c into data+0
         if kernel["ProblemType"]["DataType"].isHalf():
           if sumIdx%2:
-            #kStr += inst("flat_load_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" ) # FIXME need d16_hi
-            #kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-            kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
+            kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
           else:
-            pass
-            #kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
+            kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
         elif kernel["ProblemType"]["DataType"].isDouble():
@@ -3860,7 +3863,8 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       sumIdx = elementSumIdx[elementIdx]
       if kernel["ProblemType"]["DataType"].isHalf():
-        kStr += inst("v_mul_f16", vgpr(sumIdx/2), vgpr(self.alphaVgpr), vgpr(sumIdx/2), "*= alpha")
+        if sumIdx%2:
+          kStr += inst("v_pk_mul_f16", vgpr(sumIdx/2), vgpr(self.alphaVgpr), vgpr(sumIdx/2), "*= alpha")
       elif kernel["ProblemType"]["DataType"].isSingle():
         kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
       elif kernel["ProblemType"]["DataType"].isDouble():
@@ -4088,12 +4092,10 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["NonTemporalC"]/2==1:
           nonTemporalStr += " slc"
         if kernel["ProblemType"]["DataType"].isHalf():
-          pass
-          #if sumIdx%2:
-            #kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" ) # FIXME need d16_hi
-            #kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
-          #else:
-            #kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+          if sumIdx%2:
+            kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+          else:
+            kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
         elif kernel["ProblemType"]["DataType"].isDouble():

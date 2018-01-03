@@ -102,8 +102,7 @@ class SolutionWriter:
       solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
       for arg in solutionArgs:
         if arg[0] == "TensileHalf":
-          s += "%s%s %s;\n" % (t, arg[0], arg[1])
-          s += "%s%s %s_pad;\n" % (t, arg[0], arg[1])
+          s += "%s%s %s[2];\n" % (t, arg[0], arg[1])
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
 
@@ -593,9 +592,17 @@ class SolutionWriter:
           s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
-          s += "%shipFunctionArgs.alpha = alpha;\n" % (t)
+          if solution["ProblemType"]["DataType"].isHalf():
+            s += "%shipFunctionArgs.alpha[0] = alpha;\n" % (t)
+            s += "%shipFunctionArgs.alpha[1] = alpha;\n" % (t)
+          else:
+            s += "%shipFunctionArgs.alpha = alpha;\n" % (t)
           if solution["ProblemType"]["UseBeta"]:
-            s += "%shipFunctionArgs.beta = beta;\n" % (t)
+            if solution["ProblemType"]["DataType"].isHalf():
+              s += "%shipFunctionArgs.beta[0] = beta;\n" % (t)
+              s += "%shipFunctionArgs.beta[1] = beta;\n" % (t)
+            else:
+              s += "%shipFunctionArgs.beta = beta;\n" % (t)
           s += "%shipFunctionArgs.offsetC = offsets[kernelIdx][enqueueIdx][0];\n" % (t)
           s += "%shipFunctionArgs.offsetA = offsets[kernelIdx][enqueueIdx][1];\n" % (t)
           s += "%shipFunctionArgs.offsetB = offsets[kernelIdx][enqueueIdx][2];\n" % (t)
