@@ -966,10 +966,9 @@ class KernelWriterAssembly(KernelWriter):
     #  kStr += "  enable_sgpr_grid_workgroup_count_y = 1 // nwg1%s" % self.endLine
 
     # lds size
-    kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine
+    #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
     kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
-        % ( kernel["LdsNumElements"] \
-        * self.bpe, self.endLine )
+        % ( kernel["LdsNumElements"] * self.bpe, self.endLine )
 
     # other
     kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
@@ -3183,9 +3182,64 @@ class KernelWriterAssembly(KernelWriter):
                 tt, vectorIdx, self.tileChar0, \
                 s+vw-r, self.tileChar0)
 
-            for i in range(0, self.bpe/self.bpr):
-              kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr+i), \
-                  vgpr(self.startVgprValuC+src*self.bpe/self.bpr+i), comment)
+            kStr += "// src=%u, dst=%u\n" % (src,dst)
+
+            # half
+            if self.bpe == 2:
+              srcVgpr = self.startVgprValuC+src*self.bpe/self.bpr
+              dstVgpr = self.startVgprValuC+dst*self.bpe/self.bpr
+              if r % 2 == 0: # even shift can use mov_b32
+                if s % 2 == 0:
+                  kStr += inst("v_mov_b32", vgpr(dstVgpr), \
+                      vgpr(srcVgpr), comment)
+                else:
+                  pass # above command performs two moves
+              else: # odd shift
+                srcLo = src % 2 == 0 # even
+                dstLo = dst % 2 == 0 # even
+                kStr += "// srcLo=%u, dstLo=%u\n" % (srcLo,dstLo)
+                if dstLo: # hi src to lo dst; can clobber hi bits
+                  kStr += inst("v_lshrrev_b32", vgpr(dstVgpr), \
+                      hex(16), vgpr(srcVgpr), "hi16 -> lo16")
+                  #if dstVgpr == srcVgpr: # same vgpr hi -> lo
+                  #  # shift only
+                  #  kStr += inst("v_lshlrev_b32", vgpr(dstVgpr), \
+                  #      hex(16), vgpr(srcVgpr), "hi16 -> lo16 shift only")
+                  #else: # moving hi of src vgpr into lo of dst vgpr
+                  #  #kStr += "v_pk_add_u16 %s, hex(0), %s op_sel:[0,1] op_sel_hi:[1,1] // %s:hi -> %s:lo\n" \
+                  #  #    % ( vgpr(dstVgpr), vgpr(srcVgpr), src, dst )
+                  #  kStr += inst("v_lshlrev_b32", vgpr(dstVgpr), \
+                  #      hex(16), vgpr(srcVgpr), "hi16 -> lo16")
+                else: # dstHi; cannot clobber lo bits
+                  tmpSrcVgpr = self.vgprPool.checkOut(1)
+                  # zero out dst hi bits -> dst
+                  kStr += inst("v_and_b32", vgpr(dstVgpr), \
+                      "0x0000FFFF", vgpr(dstVgpr), "zero out dst hi16")
+                  if srcLo: # lo src to hi dst
+                    # left shift src 16 bits -> tmpSrc
+                    kStr += inst("v_lshlrev_b32", vgpr(tmpSrcVgpr), \
+                        hex(16), vgpr(srcVgpr), "left shift src 16 bits")
+                  else: # hi src to hi dst
+                    # zero out src lo bits -> tmpSrc
+                    kStr += inst("v_and_b32", vgpr(srcVgpr), \
+                        "0xFFFF0000", vgpr(tmpSrcVgpr), "zero out src lo16")
+                  # dst = tmpSrc | dst
+                  kStr += inst("v_or_b32", vgpr(dstVgpr), \
+                      vgpr(tmpSrcVgpr), vgpr(dstVgpr), "dst = tmpSrc | dst")
+                  self.vgprPool.checkIn(tmpSrcVgpr)
+              #kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr), \
+              #    vgpr(self.startVgprValuC+src*self.bpe/self.bpr), comment)
+
+              #kStr += "v_pk_add_u16 %s, %s, %s op_sel:[%u,%u,%u] op_sel_hi:[%u,%u,%u] // %s -> %s\n" \
+              #        % ( vgpr(self.startVgprValuC+dst*self.bpe/self.bpr), hex(0),
+              #        vgpr(self.startVgprValuC+src*self.bpe/self.bpr),
+              #        lo0, lo1, lo2, hi0, hi1, hi2, src, dst )
+
+            # single or larger
+            else:
+              for i in range(0, self.bpe/self.bpr):
+                kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr+i), \
+                    vgpr(self.startVgprValuC+src*self.bpe/self.bpr+i), comment)
 
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
@@ -3686,15 +3740,15 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves
-          numElementsPerBatch = (numElementsPerBatch/2)*2
+          numElementsPerBatch = int(numElementsPerBatch/2)*2
 
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
         #  numVectorsPerBatch = numElementsPerBatch / kernel["GlobalWriteVectorWidth"]
         #  #print "  NumVectorsPerBatch", numVectorsPerBatch
         #  numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
-        #  #print "  NumElementsPerBatch", numElementsPerBatch
         numBatches = max(1, (len(elements)+numElementsPerBatch-1) / numElementsPerBatch)
+        #print "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements) )

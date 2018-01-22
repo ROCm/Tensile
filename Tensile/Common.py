@@ -87,8 +87,8 @@ globalParameters["DataInitTypeAlpha"] = 2 # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2  # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["SleepPercent"] = 0 # how long to sleep after every solution: 25 means 25% of solution time
 # protect against invalid kernel
-globalParameters["MaxLDS"] = 32768
-globalParameters["DeviceLDS"] = 32768*2
+globalParameters["MaxLDS"] = 65536
+globalParameters["DeviceLDS"] = 65536
 globalParameters["MaxDepthU"] = 256
 globalParameters["MinimumRequiredVersion"] = "0.0.0"
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]
@@ -150,7 +150,7 @@ validParameters = {
     "NumLoadsCoalescedA":         range(-1, 64+1),
     "NumLoadsCoalescedB":         range(-1, 64+1),
     "DepthU":                     depthUs,
-    "GlobalSplitU":               range(1, 128+1),
+    "GlobalSplitU":               range(1, 1024+1),
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
     "LdsPad":                     [ 0, 1 ],
     "MacroTileShapeMin":          range(1, 64+1),
