@@ -2853,7 +2853,7 @@ class KernelWriterAssembly(KernelWriter):
           if tP["tlu"] == tP["grcv"]:
             lspaOffset *= tP["glvw"]
             lscaOffset *= tP["glvw"]
-          offset = (lspaOffset + lscaOffset)*(self.bpe/self.bpr)
+          offset = (lspaOffset + lscaOffset)*self.bpe/self.bpr
           offset *= self.bpe
           offset /= offsetMultiplier
 
