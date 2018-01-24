@@ -2709,7 +2709,7 @@ class KernelWriterAssembly(KernelWriter):
             g2lIdx = i * loadWidth
             if guardK:
               # for each component in vector
-              for r in range(0, loadWidth/(self.bpe/self.bpr)):
+              for r in range(0, loadWidth*self.bpr/self.bpe):
                 kStr += self.comment1("load component %u"%r)
                 #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
                 #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
@@ -2726,7 +2726,9 @@ class KernelWriterAssembly(KernelWriter):
 
                 # load single element from address
                 if kernel["ProblemType"]["DataType"].isHalf():
-                  printWarning("Tail Loop not yet implemented for Half Precision")
+                  kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single f16")
                 elif kernel["ProblemType"]["DataType"].isSingle():
                   kStr += inst("flat_load_dword", \
                       vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
