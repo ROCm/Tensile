@@ -880,6 +880,12 @@ class Solution:
       state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
       state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
 
+      # f16 can't load shorts from global->lds
+      if state["ProblemType"]["DataType"].isHalf() \
+          and (state["GlobalLoadVectorWidthA"] == 1 \
+          or state["GlobalLoadVectorWidthB"] == 1):
+        validDepthU = False
+
       if userDepthU == -1: # no vectors
         if state["GlobalLoadVectorWidthA"] != 1 \
             or state["GlobalLoadVectorWidthB"] != 1:
@@ -926,6 +932,15 @@ class Solution:
     ########################################
     # end DepthU loop
     ########################################
+
+    # f16 can't load shorts from global->lds
+    if state["ProblemType"]["DataType"].isHalf() \
+        and (state["GlobalLoadVectorWidthA"] == 1 \
+        or state["GlobalLoadVectorWidthB"] == 1):
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("f16 kernels can load shorts from global->lds") 
+      validDepthU = False
+      return
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:

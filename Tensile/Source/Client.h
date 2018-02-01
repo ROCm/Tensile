@@ -377,6 +377,10 @@ bool callLibrary(
     timeNs = timer.elapsed_ns();
   }
 #endif
+  if (sleepPercent) {
+    unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
+    usleep(sleepMicroSeconds);
+  }
 
   timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
   // device stats
@@ -710,6 +714,10 @@ bool benchmarkAllSolutionsForSize(
     }
 
 #endif
+    if (sleepPercent) {
+      unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
+      usleep(sleepMicroSeconds);
+    }
 
     timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
     // device status
@@ -763,10 +771,6 @@ bool benchmarkAllSolutionsForSize(
     }
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
-    if (sleepPercent) {
-      unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
-      usleep(sleepMicroSeconds);
-    }
   } // solution loop
   file << std::endl;
 
