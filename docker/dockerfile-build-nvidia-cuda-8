@@ -27,8 +27,8 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     python2.7 \
     python-yaml \
     python-setuptools \
+    libnuma1 \
     hip_hcc \
-    hip_nvcc \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

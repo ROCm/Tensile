@@ -158,9 +158,8 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
   build_image.inside( docker_args.docker_run_args )
   {
     // PYTHONPATH is used for setup.py install --prefix install_prefix
-    // PATH is to run unit tests
-    withEnv(["PYTHONPATH=install_prefix/lib/python2.7/site-packages/",
-      "PATH=${PATH}:install_prefix/bin/"])
+    // 02/05/2018 - PATH is to run unit tests, however setting path does not appear to work in withEnv block
+    withEnv(["PATH+TENSILE=./install_prefix/bin/", "PYTHONPATH=install_prefix/lib/python2.7/site-packages/"])
     {
       // The following does it's best to not use sudo; setting install prefix to local directory
       // Running setup.py as root creates files/directories owned by root, which is a pain
@@ -176,8 +175,10 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
         // Cap the maximum amount of testing to be a few hours; assume failure if the time limit is hit
         timeout(time: 2, unit: 'HOURS')
         {
+          // Because PATH does not appear to get set with 'withEnv', manually set it in the bash script below
           sh  """#!/usr/bin/env bash
               set -x
+              export PATH=\${PATH}:./install_prefix/bin/
               cd ${paths.project_build_prefix}
 
               # defaults
@@ -290,13 +291,13 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
 // The following launches 3 builds in parallel: hcc-ctu, hcc-rocm and cuda
 parallel hcc_ctu:
 {
-  node( 'docker && rocm' )
+  node( 'docker && rocm && dkms' )
   {
     def docker_args = new docker_data(
         from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
         build_docker_file:'dockerfile-build-hip-hcc-ctu-ubuntu-16.04',
         install_docker_file:'dockerfile-tensile-hip-hcc-ctu-ubuntu-16.04',
-        docker_run_args:'--device=/dev/kfd',
+        docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
         docker_build_args:' --pull' )
 
     def compiler_args = new compiler_data(
@@ -322,13 +323,13 @@ parallel hcc_ctu:
 },
 hcc_rocm:
 {
-  node( 'docker && rocm' )
+  node( 'docker && rocm && !dkms' )
   {
     def hcc_docker_args = new docker_data(
         from_image:'rocm/rocm-terminal:latest',
         build_docker_file:'dockerfile-build-rocm-terminal',
         install_docker_file:'dockerfile-tensile-rocm-terminal',
-        docker_run_args:'--device=/dev/kfd',
+        docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
         docker_build_args:' --pull' )
 
     def hcc_compiler_args = new compiler_data(
