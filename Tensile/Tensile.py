@@ -31,6 +31,14 @@ import LibraryLogic
 import ClientWriter
 from __init__ import __version__
 
+###############################################################################
+# Execute Steps in Config
+# called from Tensile() below
+# calls
+#   BenchmarkProblems.main() to run benchmark steps
+#   LibraryLogic.main() to analyse final benchmark data and produce logic/yaml
+#   ClientWriter.main() to create client which calls library based on above yaml
+################################################################################
 def executeStepsInConfig( config ):
 
   ##############################################################################
@@ -77,7 +85,8 @@ def executeStepsInConfig( config ):
 
 
 ################################################################################
-# Tensile - below entry points call here
+# Tensile
+# - below entry points call here
 ################################################################################
 def Tensile(userArgs):
   # 1st half of splash
@@ -151,9 +160,9 @@ def Tensile(userArgs):
     globalParameters["ShortNames"] = True
   if args.noMergeFiles:
     globalParameters["MergeFiles"] = False
-
-
   print1("")
+
+  # Execute Steps in the config script
   executeStepsInConfig( config )
   sys.exit(0)
 
@@ -163,6 +172,7 @@ def TensileConfigPath(*args):
 
 ################################################################################
 # Entry points
+# the first several of these can be deprecated, only main() is used
 ################################################################################
 
 
