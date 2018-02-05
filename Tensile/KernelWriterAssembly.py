@@ -3806,8 +3806,7 @@ class KernelWriterAssembly(KernelWriter):
           self.vgprPool.checkIn(sizesFreeVgprs)
 
     # End label
-    if kernel["ProblemType"]["UseBeta"]:
-      kStr += "label_%04u:%s"%(endLabel, self.endLine)
+    kStr += "label_%04u:%s"%(endLabel, self.endLine)
     self.vgprPool.checkIn(tmpVgpr)
     return kStr
 

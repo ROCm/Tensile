@@ -18,7 +18,6 @@ GlobalParameters:
   KernelTime: True
   PinClocks: True
   SleepPercent: 200
-  PrintSolutionRejectionReason: True
 
 BenchmarkProblems:
 
