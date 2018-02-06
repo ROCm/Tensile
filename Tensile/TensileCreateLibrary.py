@@ -433,6 +433,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         globalParameters["IndexChars"][problemType["IndexUnroll"]], \
         ", stream" if globalParameters["RuntimeLanguage"] == "OCL" else "")
     # check for key in map
+    s += "  static std::mutex findKernelMutex;\n"
+    s += "  std::lock_guard<std::mutex> findKernelLock(findKernelMutex);\n"
     s += "  Map_%s::iterator iter = solutionMap_%s.find(key);\n" \
         % (problemType, problemType)
     s += "  if (iter != solutionMap_%s.end()) {\n" % problemType
