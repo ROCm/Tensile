@@ -177,7 +177,7 @@ class SolutionWriter:
           s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
           s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
           t += "  "
-          s += "%sstd::mutex initFunctionsMutex;\n" % (t)
+          s += "%sstatic std::mutex initFunctionsMutex;\n" % (t)
           s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
           s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
           t += "  "
@@ -193,7 +193,7 @@ class SolutionWriter:
           s += "%s}\n" % (t)
           s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
           t += "  "
-          s += "%sstd::mutex loadModuleMutex;\n" % (t)
+          s += "%sstatic std::mutex loadModuleMutex;\n" % (t)
           s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
           s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
           t += "  "
