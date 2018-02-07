@@ -183,10 +183,11 @@ class SolutionWriter:
           t += "  "
           s += "%sstatic int numDevices = -1;\n" % (t)
           s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
-          s += "%shipFunctions = new hipFunction_t[numDevices];\n" % (t)
+          s += "%shipFunction_t *tmp = new hipFunction_t[numDevices];\n" % (t)
           s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
-          s += "%s  hipFunctions[i] = nullptr;\n" % (t)
+          s += "%s  tmp[i] = nullptr;\n" % (t)
           s += "%s}\n" % (t)
+          s += "%shipFunctions = tmp;\n" % (t)
           t = t[2:]
           s += "%s}\n" % (t)
           t = t[2:]
