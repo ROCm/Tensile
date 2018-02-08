@@ -20,10 +20,9 @@
 ################################################################################
 
 from SolutionStructs import DataType
-from Common import globalParameters, print1, print2, printExit, printWarning
+from Common import globalParameters, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log, ceil
-import abc
 
 
 ################################################################################
@@ -360,7 +359,6 @@ class KernelWriterAssembly(KernelWriter):
       instructions):
     for i in range(0, len(instructions)):
       instruction = instructions[i]
-      name = instruction.name
       numAddresses = instruction.numAddresses
       numOffsets = instruction.numOffsets
       offsetMultiplier = instruction.offsetMultiplier
@@ -2386,7 +2384,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "label_%04u:%s" % (afterZero, self.endLine)
 
       # if tail numIter == 0 skip altogether
-      tailLoopLabelBegin = self.getLabel("TailLoopBegin%s"%(loopChar) )
       tailLoopLabelEnd = self.getLabel("TailLoopEnd%s"%(loopChar) )
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%loopIdx), \
           hex(0), "numIter%s == 0"%loopChar )
@@ -2824,9 +2821,8 @@ class KernelWriterAssembly(KernelWriter):
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
-    offsetMultiplier = instruction.offsetMultiplier
+    #offsetMultiplier = instruction.offsetMultiplier
     g2lIdx = 0
-    graIdx = 0
     #kStr += dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
     #print "\nLocalWrite", tP["tensorChar"]
     #print "tlu", tP["tlu"]
@@ -3018,7 +3014,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
     instruction = tP["localReadInstruction"]
-    numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
     offsetMultiplier = 1 # instruction.offsetMultiplier
@@ -3440,8 +3435,6 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(1)
     tmpS0 = tmpSgpr
     tmpS1 = tmpS0+1
-    tmpS2 = tmpS1+1
-    tmpS3 = tmpS2+1
 
     # lr0 = serial % SG0
     divisor = kernel["MacroTile0"] / kernel["GlobalWriteVectorWidth"]
@@ -3502,8 +3495,6 @@ class KernelWriterAssembly(KernelWriter):
 
     tmpS0 = self.scratchSgprs
     tmpS1 = tmpS0+1
-    tmpS2 = tmpS1+1
-    tmpS3 = tmpS2+1
     tmpV0 = self.vgprPool.checkOut(2)
 
     # thread id 0,1
@@ -3861,7 +3852,6 @@ class KernelWriterAssembly(KernelWriter):
 
     tmpS01 = tmpSgpr # scratch sgprs
     tmpS23 = tmpS01+2
-    tmpS45 = tmpS23+2
 
     ########################################
     # calculate addr and masks
@@ -3878,7 +3868,7 @@ class KernelWriterAssembly(KernelWriter):
       vc0 = element[3]
 
       #d0 always equals 0 for lsu
-      strideD0 = 0 # never used for lsu
+      #strideD0 = 0 # never used for lsu
       strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]/kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
       #fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
 
@@ -3902,11 +3892,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(tmpVgpr+0), vgpr(sizes+0), "coord0 < size0" )
         kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(tmpVgpr+1), vgpr(sizes+1), "coord1 < size1" )
         kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
-        #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" ) # moved below
 
       if edge and (beta or atomic):
         # apply in-bounds exec mask for read
-        #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
         kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
 
@@ -4443,8 +4431,6 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     """
     shift = 32+1
     magic = ((2**shift) / divisor) + 1
-    magicHi = magic / (2**16)
-    magicLo = magic & (2**16-1)
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), "")
     kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")

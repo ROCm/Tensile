@@ -18,7 +18,6 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import argparse
 import sys
 import csv
 import os
@@ -44,9 +43,6 @@ def BenchmarkProblemSize(cmdPrefix, row):
   newLineIdx = stdout.find("\n", initializingIdx)
   stdout = stdout[newLineIdx+1:]
 
-  totalGFlops = 0
-  totalMs = 0
-  numSamples = 0
   gflopList = []
   msList = []
 

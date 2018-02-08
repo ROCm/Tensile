@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, pushWorkingPath, popWorkingPath, printWarning, printExit, print1, print2, HR
+from Common import globalParameters, pushWorkingPath, popWorkingPath, printExit, CHeader
 import abc
 from os import path, chmod
 from os import name as osname
@@ -1662,7 +1662,6 @@ class KernelWriter:
       kernelName = self.getKernelName(kernel)
       fileBase = path.join(globalParameters["WorkingPath"], kernelName )
       assemblyFileName = "%s.s" % fileBase
-      objectFileName = "%s.o" % fileBase
       codeObjectFileName = "%s.co" % fileBase
       assemblyFile = open(assemblyFileName, "w")
       assemblyFile.write(fileString)
