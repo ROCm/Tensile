@@ -1079,6 +1079,8 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
 
   // set benchmark parameters to default values before parsing user values
   deviceIdx = defaultDeviceIdx;
+  initAlpha = defaultInitAlpha;
+  initBeta = defaultInitBeta;
   initC = defaultInitC;
   initAB = defaultInitAB;
   platformIdx = defaultPlatformIdx;
@@ -1089,6 +1091,7 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   numEnqueuesPerSync = defaultNumEnqueuesPerSync;
   numSyncsPerBenchmark = defaultNumSyncsPerBenchmark;
   useGPUTimer = defaultUseGPUTimer;
+  sleepPercent = defaultSleepPercent;
 #if Tensile_CLIENT_LIBRARY
   functionIdx = defaultFunctionIdx;
   dataTypeIdx = functionInfo[functionIdx][0];

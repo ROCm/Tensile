@@ -894,7 +894,6 @@ class KernelWriterSource(KernelWriter):
   # Global Read Addresses: Subgroup
   ##############################################################################
   def graSubgroup(self, kernel):
-    nwgg = kernel["WorkGroupMapping"] > 0
     kStr = ""
     kStr += "  unsigned int serial = %s(0);%s" \
         % (self.getLocalIdStr, self.endLine)
@@ -1521,7 +1520,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def globalReadDo(self, kernel, guardK, tP):
     kStr = ""
-    numUnrollVectorComponents = tP["nruv"]
 
     #for perp in range(0, tP["nrp"]):
     #  for para in range(0, tP["nrc"]):

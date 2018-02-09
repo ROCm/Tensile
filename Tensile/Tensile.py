@@ -23,7 +23,7 @@ import os
 import sys
 import argparse
 
-from Common import globalParameters, print1, print2, ensurePath, \
+from Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, HR
 import YAMLIO
 import BenchmarkProblems
@@ -44,8 +44,6 @@ def executeStepsInConfig( config ):
   ##############################################################################
   # Benchmark Problems
   ##############################################################################
-  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["BenchmarkDataPath"])
   if "BenchmarkProblems" in config:
     BenchmarkProblems.main( config["BenchmarkProblems"] )
     print1("")

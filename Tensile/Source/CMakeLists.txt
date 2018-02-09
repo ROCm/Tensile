@@ -56,8 +56,8 @@ else()
   message(STATUS "Making LibraryClient")
   option( Tensile_SHORT_FILE_NAMES "Use short file names (for MSVC)" OFF)
   option( Tensile_LIBRARY_PRINT_DEBUG "TensileLib to print debug info" OFF)
-  set( Tensile_ISA gfx803;gfx900 CACHE STRING
-    "List of gpu architectures to target" )
+  #set( Tensile_ISA gfx803;gfx900 CACHE STRING "List of gpu architectures to target" )
+  set( Tensile_ISA gfx900 CACHE STRING "List of gpu architectures to target" ) # hgemm doesn't work on 803 b/c packed instructions
   add_executable( ${ClientName}
     Client.cpp
     MathTemplates.cpp
