@@ -87,9 +87,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [5504] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [5504] ] # skinny-1
+          - Range: [ [8], [8], [1], [5504] ] # corner
+          - Range: [ [8], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [8], [1], [5504] ] # skinny-1
 
   ########################################
   # NT - standard
@@ -157,9 +157,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [5504] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [5504] ] # skinny-1
+          - Range: [ [8], [8], [1], [5504] ] # corner
+          - Range: [ [8], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [8], [1], [5504] ] # skinny-1
 
   ########################################
   # TN - standard
@@ -227,9 +227,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [5504] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [5504] ] # skinny-1
+          - Range: [ [8], [8], [1], [5504] ] # corner
+          - Range: [ [8], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [8], [1], [5504] ] # skinny-1
 
   ########################################
   # TT - standard
@@ -297,9 +297,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [5504] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [5504] ] # skinny-1
+          - Range: [ [8], [8], [1], [5504] ] # corner
+          - Range: [ [8], [64, 64, 64, 7000], [1], [5504] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [8], [1], [5504] ] # skinny-1
 
 
 LibraryLogic:
