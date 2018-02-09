@@ -884,7 +884,11 @@ class Solution:
       if state["ProblemType"]["DataType"].isHalf() \
           and (state["GlobalLoadVectorWidthA"] == 1 \
           or state["GlobalLoadVectorWidthB"] == 1):
-        validDepthU = False
+        if "KernelLanguage" in state:
+          if state["KernelLanguage"] == "Assembly":
+            validDepthU = False
+        else:
+          validDepthU = False
 
       if userDepthU == -1: # no vectors
         if state["GlobalLoadVectorWidthA"] != 1 \
@@ -933,14 +937,16 @@ class Solution:
     # end DepthU loop
     ########################################
 
-    # f16 can't load shorts from global->lds
+    # f16 asm can't load shorts from global->lds
     if state["ProblemType"]["DataType"].isHalf() \
         and (state["GlobalLoadVectorWidthA"] == 1 \
         or state["GlobalLoadVectorWidthB"] == 1):
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("f16 kernels can load shorts from global->lds") 
-      validDepthU = False
-      return
+      if "KernelLanguage" in state:
+        if state["KernelLanguage"] == "Assembly":
+          if globalParameters["PrintSolutionRejectionReason"]:
+            print1("f16 kernels can load shorts from global->lds")
+          state["Valid"] = False
+          return
 
     # nlca = 1
     if state["NumLoadsCoalescedA"] == 1:
