@@ -70,7 +70,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
+        - KernelLanguage: ["Source"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
@@ -81,7 +81,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 8, 8, 1 ]
         - DepthU: [ 8 ]
-        - VectorWidth: [2]
+        - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -140,7 +140,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
+        - KernelLanguage: ["Source"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
@@ -151,7 +151,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 8, 8, 1 ]
         - DepthU: [ 8 ]
-        - VectorWidth: [-1]
+        - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -210,7 +210,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
+        - KernelLanguage: ["Source"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
@@ -221,7 +221,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 8, 8, 1 ]
         - DepthU: [ 8 ]
-        - VectorWidth: [2]
+        - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -280,7 +280,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
+        - KernelLanguage: ["Source"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [-1]
@@ -291,7 +291,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 8, 8, 1 ]
         - DepthU: [ 8 ]
-        - VectorWidth: [2]
+        - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
