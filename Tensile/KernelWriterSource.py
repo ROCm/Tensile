@@ -804,19 +804,12 @@ class KernelWriterSource(KernelWriter):
     if kernel["ProblemType"]["DataType"].isHalf() \
         and kernel["VectorWidth"] > 1 \
         and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch"):
-      #kStr += "  VECTOR_TYPE VECTOR_ZERO;%s" % ( self.endLine )
-      #kStr += "  VECTOR_ZERO.p[0] = 0;%s" % self.endLine
-      #kStr += "  VECTOR_ZERO.p[1] = 0;%s" % self.endLine
       kStr += "#define SCALAR_ZERO 0%s" % self.endLine
     elif kernel["ProblemType"]["DataType"].isComplex():
       kStr += "  DATA_TYPE SCALAR_ZERO;%s" % ( self.endLine )
       kStr += "  SCALAR_ZERO.s0 = 0;%s" % self.endLine
       kStr += "  SCALAR_ZERO.s1 = 0;%s" % self.endLine
-      #kStr += "#define VECTOR_ZERO SCALAR_ZERO%s" % self.endLine
     else:
-      #kStr += "#define VECTOR_ZERO %s%s" % ( kernel["ProblemType"][\
-      #   "DataType"].zeroString(self.language, kernel["VectorWidth"]), \
-      #   self.endLine )
       kStr += "#define SCALAR_ZERO %s%s" % ( kernel["ProblemType"][\
          "DataType"].zeroString(self.language, 1), \
          self.endLine )
@@ -2027,15 +2020,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
       kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
       # zero
-      if kernel["ProblemType"]["DataType"].isHalf() \
-          and kernel["VectorWidth"] > 1 \
-          and (kernel["LoopTail"] or kernel["EdgeType"] == "Branch"):
-        pass
-      elif kernel["ProblemType"]["DataType"].isComplex():
-        pass
-      else:
-        kStr += "#undef VECTOR_ZERO%s" % (self.endLine )
-        kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
+      kStr += "#undef SCALAR_ZERO%s" % (self.endLine )
 
       numMacs = 2 if kernel["PrefetchLocalRead"] else 1
       for m in range(0, numMacs):
