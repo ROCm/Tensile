@@ -208,7 +208,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     if os.name != "nt":
       if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
-        runScriptFile.write("%s -d 0 --setfan 255\n" % globalParameters["ROCmSMIPath"])
+        runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
   else:
     executablePath = os.path.join(globalParameters["WorkingPath"])
     if os.name == "nt":
