@@ -991,25 +991,25 @@ class KernelWriterAssembly(KernelWriter):
 
 
     kStr += self.comment3("ASM syntax bug workarounds")
-    kStr += ".macro _v_add_co_u32 dst, co, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_add_co_u32 \dst, \co, \src0, \src1 \dpp" + self.endLine
+        kStr += "   v_add_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_add_u32 \dst, \co, \src0, \src1 \dpp" + self.endLine
+        kStr += "   v_add_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
-    kStr += ".macro _v_sub_co_u32 dst, co, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_sub_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_sub_co_u32 \dst, \co, \src0, \src1 \dpp" + self.endLine
+        kStr += "   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_sub_u32 \dst, \co, \src0, \src1 \dpp" + self.endLine
+        kStr += "   v_sub_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
-    kStr += ".macro _v_addc_co_u32 dst, co, src0, src1, dpp=" + self.endLine
+    kStr += ".macro _v_addc_co_u32 dst, ccOut, src0, ccIn, src1, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
-        kStr += "   v_addc_co_u32 \dst, \co, \src0, \src1 \dpp" + self.endLine
+        kStr += "   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     else:
-        kStr += "   v_addc_u32 \dst, \co, \src0, \src1 \dpp" + self.endLine
+        kStr += "   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
 
