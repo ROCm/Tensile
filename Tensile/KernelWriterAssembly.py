@@ -2882,41 +2882,44 @@ class KernelWriterAssembly(KernelWriter):
                       
 
                   # mask if current address if in bounds
-                  kStr += inst("v_cmpx_lt_u64", "vcc", \
+                  kStr += inst("v_cmp_lt_u64", "vcc", \
                       vgpr(fullAddrVgpr,2), \
                       vgpr(maxAddr,2), \
                       "addr < maxAddr")
+
+                  kStr += inst("v_cndmask_b32", \
+                               vgpr(fullAddrVgpr), \
+                               -1,
+                               vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                               "vcc",
+                               "Select desired offset. Repurposing fullAddrVgpr+0 for offset")
 
                   # load single element from address
                   if kernel["ProblemType"]["DataType"].isHalf():
                     kStr += inst("buffer_load_short_d16%s"%("_hi" if r%2==1 else ""), \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                        vgpr(fullAddrVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         "0 offen offset:0",\
                         "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     kStr += inst("buffer_load_dword", \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                        vgpr(fullAddrVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         "0 offen offset:0",\
                         "load single float")
                   elif kernel["ProblemType"]["DataType"].isDouble():
                     kStr += inst("buffer_load_dwordx2", \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                        vgpr(fullAddrVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         "0 offen offset:0",\
                         "load single double")
                   else:
                     printWarning("DataType unsupported")
 
-                  # restore full exec mask
-                  kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
-                      "all threads active")
-
-                  # increment address by 1 element
+                  # increment offset by 1 element
                   kStr += inst("_v_add_co_u32", \
                       vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
                       "vcc", \
