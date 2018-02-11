@@ -348,7 +348,6 @@ class KernelWriterAssembly(KernelWriter):
     super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
 
     # True=slightly fewer [v_mov] instructions but extra registers
-    # TODO, remove me, we should be able to addc with SGPR directly.
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
 
     #######################################L
@@ -2826,10 +2825,14 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr(maxAddr+0))
       #kStr += dump(vgpr(maxAddr+1))
 
-      # full exec mask
-      fullExec = tmpSgpr
-      kStr += inst("s_mov_b64", sgpr(fullExec,2), \
-          "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
+      if kernel["BufferLoad"]:
+        fullAddrVgpr = self.vgprPool.checkOut(2)
+      else:
+        # full exec mask
+        fullExec = tmpSgpr
+        kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+            "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
+
       # inc
       bpeVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(bpeVgpr), \
@@ -2837,8 +2840,6 @@ class KernelWriterAssembly(KernelWriter):
       zeroVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(zeroVgpr), \
           hex(0), "zero")
-      if kernel["BufferLoad"]:
-        fullAddrVgpr = self.vgprPool.checkOut(2)
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -2892,7 +2893,7 @@ class KernelWriterAssembly(KernelWriter):
                                -1,
                                vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
                                "vcc",
-                               "Select desired offset. Repurposing fullAddrVgpr+0 for offset")
+                               "Select offset or clip if OOB. Repurposing fullAddrVgpr+0 for offset")
 
                   # load single element from address
                   if kernel["ProblemType"]["DataType"].isHalf():
