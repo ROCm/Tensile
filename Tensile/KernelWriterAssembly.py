@@ -2889,17 +2889,26 @@ class KernelWriterAssembly(KernelWriter):
 
                   # load single element from address
                   if kernel["ProblemType"]["DataType"].isHalf():
-                    kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
+                    kStr += inst("buffer_load_short_d16%s"%("_hi" if r%2==1 else ""), \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                        vgpr(fullAddrVgpr,2), "load single f16")
+                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                        "0 offen offset:0",\
+                        "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
-                    kStr += inst("flat_load_dword", \
+                    kStr += inst("buffer_load_dword", \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                        vgpr(fullAddrVgpr,2), "load single float")
+                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                        "0 offen offset:0",\
+                        "load single float")
                   elif kernel["ProblemType"]["DataType"].isDouble():
-                    kStr += inst("flat_load_dwordx2", \
+                    kStr += inst("buffer_load_dwordx2", \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                        vgpr(fullAddrVgpr,2), "load single double")
+                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                        "0 offen offset:0",\
+                        "load single double")
                   else:
                     printWarning("DataType unsupported")
 
