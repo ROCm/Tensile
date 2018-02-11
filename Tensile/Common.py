@@ -189,6 +189,7 @@ validParameters = {
     "LocalWrite2B":               [ False, True ],
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
+    "BufferLoad":                 [ False, True] ,
 
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
@@ -276,6 +277,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
+    {"BufferLoad":                [ False ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
