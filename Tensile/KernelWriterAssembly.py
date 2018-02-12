@@ -251,7 +251,7 @@ class KernelWriterAssembly(KernelWriter):
     self.globalReadIncsUseVgpr = True # slightly fewer [v_mov] instructions but extra registers
 
     self.AsmBugs = {}
-    self.AsmBugs["ExplicitCO"] = True; # New assembler require explicit reference to CO (carry-out)
+    self.AsmBugs["ExplicitCO"] = False; # New assembler require explicit reference to CO (carry-out)
 
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
