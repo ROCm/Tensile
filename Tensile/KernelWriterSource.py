@@ -2016,6 +2016,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_A%s" % (self.endLine)
       kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_B%s" % (self.endLine)
       kStr += "#undef GLOBAL_WRITE_VECTOR_WIDTH%s" % (self.endLine)
+      kStr += "#undef MAC%s" % (self.endLine)
       kStr += "#undef TYPE_MAC%s" % (self.endLine)
       kStr += "#undef TYPE_MAC_WRITE%s" % (self.endLine)
       kStr += "#undef GLOBAL_SPLITU%s" % (self.endLine)
