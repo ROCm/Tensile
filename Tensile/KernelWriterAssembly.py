@@ -315,6 +315,7 @@ class KernelWriterAssembly(KernelWriter):
       para2, # NumLoadsPara >= 2
       perp2, # NumLoadsPerp >= 2
       strides ):
+
     #instructions = self.memoryArchitecture[operation]
     instructions = self.memoryInstructions[self.version][operation]
     # try to combine
@@ -2100,7 +2101,7 @@ class KernelWriterAssembly(KernelWriter):
             # dump final offsets
             #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
             #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%tP["tensorChar"], graIdx))
-            graIdx += self.rpga
+            graIdx += self.rpgo if kernel["BufferLoad"] else self.rpga
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
     self.vgprPool.checkIn(tmp)
@@ -2845,7 +2846,7 @@ class KernelWriterAssembly(KernelWriter):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
             i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
-            graIdx = i * self.rpga
+            graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
             g2lIdx = i * loadWidth
             if guardK:
               # for each component in vector
