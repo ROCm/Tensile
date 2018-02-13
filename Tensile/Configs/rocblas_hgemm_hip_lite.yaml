@@ -18,7 +18,7 @@ GlobalParameters:
   KernelTime: True
 
 BenchmarkProblems:
-  - # sgemm NN
+  - # hgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: h
@@ -30,35 +30,29 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 2880, 2880, 2, 512 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - VectorWidth: [1]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+          - Range: [ [5504], 0, [1], 0 ]
 
-  - # sgemm NT
+  - # hgemm NT
     - # ProblemType
       OperationType: GEMM
       DataType: h
@@ -70,35 +64,29 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 2880, 2880, 2, 512 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - VectorWidth: [1]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+          - Range: [ [5504], 0, [1], 0 ]
 
-  - # sgemm TN
+  - # hgemm TN
     - # ProblemType
       OperationType: GEMM
       DataType: h
@@ -110,35 +98,29 @@ BenchmarkProblems:
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 2880, 2880, 2, 512 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - VectorWidth: [1]
+        - WorkGroupMapping: [8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+          - Range: [ [5504], 0, [1], 0 ]
 
-  - # sgemm TT
+  - # hgemm TT
     - # ProblemType
       OperationType: GEMM
       DataType: h
@@ -151,33 +133,27 @@ BenchmarkProblems:
       InitialSolutionParameters:
         - WorkGroupMapping: [-1]
       BenchmarkCommonParameters:
-        - ProblemSizes:
-          - Exact: [ 2880, 2880, 2, 512 ]
+        - KernelLanguage: ["Source"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - VectorWidth: [1]
+        - WorkGroupMapping: [-8]
       ForkParameters:
         - ThreadTile:
           - [ 8, 8 ]
           - [ 4, 8 ]
           - [ 4, 4 ]
         - WorkGroup:
-          - [  4,  4, 16 ]
-          - [  4,  8,  8 ]
-          - [  8,  8,  4 ]
-          - [  8, 16,  2 ]
           - [ 16, 16,  1 ]
         - PrefetchGlobalRead: [False, True]
         - PrefetchLocalRead: [False, True]
         - DepthU: [ 4, 8, 16, 32 ]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
       BenchmarkJoinParameters:
-        - WorkGroupMapping: [-64, -32, -16, -8, -4, -2, -1, 1, 2, 4, 8, 16, 32, 64]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [32, 32, 32, 4000], [32, 32, 32, 4000], [1], [256, 256, 0, 512] ]
+          - Range: [ [5504], 0, [1], 0 ]
 
 LibraryLogic:
 
