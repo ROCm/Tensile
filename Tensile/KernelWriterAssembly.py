@@ -250,7 +250,7 @@ class KernelWriterAssembly(KernelWriter):
     self.do["PostLoop"]   = True
 
     self.AsmBugs = {}
-    self.AsmBugs["ExplicitCO"] = False; # New assembler require explicit reference to CO (carry-out)
+    self.AsmBugs["ExplicitCO"] = True # New assembler require explicit reference to CO (carry-out)
 
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
@@ -417,18 +417,18 @@ class KernelWriterAssembly(KernelWriter):
     # gfx900
     ########################################
     if (kernel["BufferLoad"]):
-      gfx9_load_dwordx4 = buffer_load_dwordx4;
-      gfx9_load_dwordx2 = buffer_load_dwordx2;
-      gfx9_load_dword   = buffer_load_dword;
+      chosen_load_dwordx4 = buffer_load_dwordx4;
+      chosen_load_dwordx2 = buffer_load_dwordx2;
+      chosen_load_dword   = buffer_load_dword;
     else:
-      gfx9_load_dwordx4 = flat_load_dwordx4;
-      gfx9_load_dwordx2 = flat_load_dwordx2;
-      gfx9_load_dword   = flat_load_dword;
+      chosen_load_dwordx4 = flat_load_dwordx4;
+      chosen_load_dwordx2 = flat_load_dwordx2;
+      chosen_load_dword   = flat_load_dword;
 
     self.memoryInstructions = {
         (8,0,3): {
-          "GlobalRead": [ flat_load_dwordx4, flat_load_dwordx2,
-            flat_load_dword ],
+          "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
+            chosen_load_dword ],
           "GlobalWrite": [ flat_store_dwordx4, flat_store_dwordx2,
             flat_store_dword ],
           "LocalRead": [ ds_read_b128, ds_read2_b64,
@@ -437,8 +437,8 @@ class KernelWriterAssembly(KernelWriter):
             ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
           }, # 803
         (9,0,0): {
-          "GlobalRead": [ gfx9_load_dwordx4, gfx9_load_dwordx2,
-            gfx9_load_dword ],
+          "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
+            chosen_load_dword ],
           "GlobalWrite": [ flat_store_dwordx4, flat_store_dwordx2,
             flat_store_dword ],
           "LocalRead": [ ds_read_b128, ds_read2_b64,
