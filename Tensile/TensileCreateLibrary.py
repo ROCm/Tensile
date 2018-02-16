@@ -373,37 +373,57 @@ def writeLogic(outputPath, logicData, solutionWriter ):
             ",\n" if i < len(argListStream)-1 else ") {\n")
 
       # choose from schedules based on device name
+#     print logicData
       schedules = logicData[problemType]
       numSchedules = len(schedules)
       if numSchedules > 1:
+
+        reordered_schedules = []
+        for scheduleIdx in range(0, numSchedules):
+          schedule = schedules[scheduleIdx]
+          deviceNames = schedule[1]
+          if deviceNames != ["fallback"]:
+            reordered_schedules.append(schedule)
+        for scheduleIdx in range(0, numSchedules):
+          schedule = schedules[scheduleIdx]
+          deviceNames = schedule[1]
+          if deviceNames == ["fallback"]:
+            reordered_schedules.append(schedule)
 
         # get device name
         if globalParameters["RuntimeLanguage"] == "OCL":
           s += "get device name opencl;\n"
         else:
-          s += "get device name hip;\n"
+          s += "\n//  get device name hip;\n"
+          s += "    int deviceId;\n"
+          s += "    hipCtxGetDevice(&deviceId);\n"
+          s += "    hipDeviceProp_t deviceProperties;\n"
+          s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
+          s += "    std::string name = deviceProperties.name;\n"
 
+        s += "\n    "
         for scheduleIdx in range(0, numSchedules):
-          schedule = schedules[scheduleIdx]
+          schedule = reordered_schedules[scheduleIdx]
+          scheduleName  = schedule[0]
           deviceNames = schedule[1]
           if scheduleIdx > 0:
-            s += "else "
+            s += "    else "
           if scheduleIdx < numSchedules-1:
             s += "if ("
             for deviceNameIdx in range(0, len(deviceNames)):
               deviceName = deviceNames[deviceNameIdx]
               if deviceNameIdx > 0:
                 s += " && "
-                s += "name == \"%s\"" % deviceName
+              s += "name == \"%s\"" % deviceName
             s += ")"
-          s += "{"
-          s += "  return tensileGetSolution%s_%s_%s(" \
+          s += "{\n"
+          s += "        return tensileGetSolution%s_%s_%s(" \
               % ( returnType, scheduleName, problemType)
           for i in range(0, len(argListSizes)):
             s += "%s%s" \
                 % (argListSizes[i][1],
                     ", " if i < len(argListSizes)-1 else ");\n")
-            s += "}"
+          s += "    }\n"
       else: # == 1
         schedule = schedules[0]
         scheduleName = schedule[0]
