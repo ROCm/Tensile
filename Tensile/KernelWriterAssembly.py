@@ -25,7 +25,6 @@ from KernelWriter import KernelWriter
 from math import log, ceil
 from distutils.version import LooseVersion, StrictVersion
 
-
 ################################################################################
 # Memory Instruction
 ################################################################################
@@ -251,14 +250,14 @@ class KernelWriterAssembly(KernelWriter):
     self.do["PostLoop"]   = True
 
     self.AsmBugs = {}
-        # At some point in the future, this assembler check can go away, because all available assemblers
-        # will use ExplicitCO by default.  This is only to help the transition between rocm v1.7.0 and v1.7.1
-        # If grepping the version of hcc didn't work, then globalParameters should return '0.0.0'
-        # and the check goes to old behavior
-        if( LooseVersion( globalParameters["HccVersion"] ) < LooseVersion( '1.2.18012') ):
-            self.AsmBugs["ExplicitCO"] = False
-        else:
-    self.AsmBugs["ExplicitCO"] = True # New assembler require explicit reference to CO (carry-out)
+    # At some point in the future, this assembler check can go away, because all available assemblers
+    # will use ExplicitCO by default.  This is only to help the transition between rocm v1.7.0 and v1.7.1
+    # If grepping the version of hcc didn't work, then globalParameters should return '0.0.0'
+    # and the check goes to old behavior
+    if( LooseVersion( globalParameters["HccVersion"] ) < LooseVersion( '1.2.18012') ):
+      self.AsmBugs["ExplicitCO"] = False
+    else:
+      self.AsmBugs["ExplicitCO"] = True # New assembler require explicit reference to CO (carry-out)
 
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
@@ -695,7 +694,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"]:
       numVgprGlobalReadOffsetsA = numGlobalReadInstructionsA * self.rpgo 
     else:
-    numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
+      numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga 
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] \
@@ -705,7 +704,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"]:
       numVgprGlobalReadOffsetsB = numGlobalReadInstructionsB * self.rpgo 
     else:
-    numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
+      numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
     numVgprSerial = 1
     if self.globalReadIncsUseVgpr:
       numVgprGlobalReadIncsA = kernel["ProblemType"]["NumIndicesSummation"] \
@@ -769,10 +768,10 @@ class KernelWriterAssembly(KernelWriter):
       self.startVgprGlobalReadOffsetB = vgprIdx
       vgprIdx += numVgprGlobalReadOffsetsB
     else:
-    self.startVgprGlobalReadAddressesA = vgprIdx
-    vgprIdx += numVgprGlobalReadAddressesA
-    self.startVgprGlobalReadAddressesB = vgprIdx
-    vgprIdx += numVgprGlobalReadAddressesB
+      self.startVgprGlobalReadAddressesA = vgprIdx
+      vgprIdx += numVgprGlobalReadAddressesA
+      self.startVgprGlobalReadAddressesB = vgprIdx
+      vgprIdx += numVgprGlobalReadAddressesB
     self.startVgprGlobalReadIncsA = vgprIdx
     vgprIdx += numVgprGlobalReadIncsA
     self.startVgprGlobalReadIncsB = vgprIdx
@@ -1105,10 +1104,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("vgprGlobalReadOffsetB", \
           self.startVgprGlobalReadOffsetB)
     else:
-    kStr += self.macroRegister("vgprGlobalReadAddrA", \
-        self.startVgprGlobalReadAddressesA)
-    kStr += self.macroRegister("vgprGlobalReadAddrB", \
-        self.startVgprGlobalReadAddressesB)
+      kStr += self.macroRegister("vgprGlobalReadAddrA", \
+          self.startVgprGlobalReadAddressesA)
+      kStr += self.macroRegister("vgprGlobalReadAddrB", \
+          self.startVgprGlobalReadAddressesB)
     if self.globalReadIncsUseVgpr:
       kStr += self.macroRegister("vgprGlobalReadIncsA", \
           self.startVgprGlobalReadIncsA)
@@ -2091,7 +2090,7 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["BufferLoad"]:
               kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
             else:
-            kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
+              kStr += "GLOBAL_OFFSET_%s vgprGlobalReadAddr%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
             for i in tP["ia"]:
               if i < kernel["ProblemType"]["NumIndicesC"]:
                 if i == tP["tileIdx"]:
@@ -2138,36 +2137,36 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tP["tensorChar"]), "Srd127_96", "Set bits 127_96 in SRD" )
 
     else:
-    tmp = self.vgprPool.checkOut(2)
-    kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("Address%s+0"%tP["tensorChar"]), "" )
-    kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("Address%s+1"%tP["tensorChar"]), "" )
-    for perp in range(0, tP["nrp"]):
-      for sPerp in range(0, tP["nrpv"]):
-        for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
+      tmp = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("Address%s+0"%tP["tensorChar"]), "" )
+      kStr += inst("v_mov_b32", vgpr(tmp+1), sgpr("Address%s+1"%tP["tensorChar"]), "" )
+      for perp in range(0, tP["nrp"]):
+        for sPerp in range(0, tP["nrpv"]):
+          for para in range(0, tP["nrc"]):
+            for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
 
-            comment = "gRA%s_%u_%u_%u_%u = addr%s+grO%s_%u_%u_%u_%u" \
-                % (tP["tensorChar"], para, sPara, perp, sPerp, \
-                tP["tensorChar"], tP["tensorChar"], \
-                para, sPara, perp, sPerp )
-            kStr += inst("_v_add_co_u32", \
-                vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
-                "vcc", \
-                vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                vgpr(tmp+0), \
-                comment+" (lower)")
-            kStr += inst("_v_addc_co_u32", \
-                vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                "vcc", \
-                vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                vgpr(tmp+1), \
-                "vcc", \
-                comment+" (upper)")
-            #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
-            #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
-            graIdx += self.rpga
-    #kStr += "s_endpgm\n"
-    self.vgprPool.checkIn(tmp)
+              comment = "gRA%s_%u_%u_%u_%u = addr%s+grO%s_%u_%u_%u_%u" \
+                  % (tP["tensorChar"], para, sPara, perp, sPerp, \
+                  tP["tensorChar"], tP["tensorChar"], \
+                  para, sPara, perp, sPerp )
+              kStr += inst("_v_add_co_u32", \
+                  vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
+                  "vcc", \
+                  vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                  vgpr(tmp+0), \
+                  comment+" (lower)")
+              kStr += inst("_v_addc_co_u32", \
+                  vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                  "vcc", \
+                  vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                  vgpr(tmp+1), \
+                  "vcc", \
+                  comment+" (upper)")
+              #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
+              #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
+              graIdx += self.rpga
+      #kStr += "s_endpgm\n"
+      self.vgprPool.checkIn(tmp)
 
     return kStr
 
@@ -2725,54 +2724,54 @@ class KernelWriterAssembly(KernelWriter):
            sgpr("GlobalReadIncs%s+1"%(tP["tensorChar"])), \
           "gra SRD += inc(upper)" )
     else:
-    loopChar = self.indexChars[ \
-        kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    graIdx = 0
-    tmp = self.vgprPool.checkOut(1)
-    #for perp in range(0, tP["nrp"]):
-    #  for para in range(0, tP["nrc"]):
-    #    for s in range(0, tP["nrcv"]):
-    for perp in range(0, tP["nrp"]):
-      for sPerp in range(0, tP["nrpv"]):
-        for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
-            if self.globalReadIncsUseVgpr:
-              kStr += inst("_v_add_co_u32 ", \
-                  vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
-                  "vcc", \
-                  vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                  vgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
-                  "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
-              kStr += inst("_v_addc_co_u32", \
-                  vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                  "vcc", \
-                  vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                  vgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
-                  "vcc", \
-                  "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
-            else:
-              kStr += inst("_v_add_co_u32 ", \
-                  vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
-                  "vcc", \
-                  vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                  sgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
-                  "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
-              kStr += inst("v_mov_b32 ", \
-                  vgpr(tmp), \
-                  sgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
-                  "vgpr GlobalReadIncs%s"%tP["tensorChar"] )
-              kStr += inst("_v_addc_co_u32", \
-                  vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                  "vcc", \
-                  vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                  vgpr(tmp), \
-                  "vcc", \
-                  "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
-            graIdx += self.rpga
-    self.vgprPool.checkIn(tmp)
-    #kStr += dump(vgpr("GlobalReadAddrA+0"))
-    #kStr += dump(vgpr("GlobalReadAddrA+1"))
-    #kStr += "s_endpgm\n"
+      loopChar = self.indexChars[ \
+          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+      graIdx = 0
+      tmp = self.vgprPool.checkOut(1)
+      #for perp in range(0, tP["nrp"]):
+      #  for para in range(0, tP["nrc"]):
+      #    for s in range(0, tP["nrcv"]):
+      for perp in range(0, tP["nrp"]):
+        for sPerp in range(0, tP["nrpv"]):
+          for para in range(0, tP["nrc"]):
+            for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
+              if self.globalReadIncsUseVgpr:
+                kStr += inst("_v_add_co_u32 ", \
+                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                    vgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
+                    "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
+                kStr += inst("_v_addc_co_u32", \
+                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                    vgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
+                    "vcc", \
+                    "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
+              else:
+                kStr += inst("_v_add_co_u32 ", \
+                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                    sgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
+                    "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
+                kStr += inst("v_mov_b32 ", \
+                    vgpr(tmp), \
+                    sgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
+                    "vgpr GlobalReadIncs%s"%tP["tensorChar"] )
+                kStr += inst("_v_addc_co_u32", \
+                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                    vgpr(tmp), \
+                    "vcc", \
+                    "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
+              graIdx += self.rpga
+      self.vgprPool.checkIn(tmp)
+      #kStr += dump(vgpr("GlobalReadAddrA+0"))
+      #kStr += dump(vgpr("GlobalReadAddrA+1"))
+      #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -2837,10 +2836,10 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["BufferLoad"]:
         fullAddrVgpr = self.vgprPool.checkOut(2)
       else:
-      # full exec mask
-      fullExec = tmpSgpr
-      kStr += inst("s_mov_b64", sgpr(fullExec,2), \
-          "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
+        # full exec mask
+        fullExec = tmpSgpr
+        kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+            "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
 
       # inc
       bpeVgpr = self.vgprPool.checkOut(1)
@@ -2891,7 +2890,7 @@ class KernelWriterAssembly(KernelWriter):
                       "Recompute full addr (upper)")
                       
 
-                # mask if current address if in bounds
+                  # mask if current address if in bounds
                   kStr += inst("v_cmp_lt_u64", "vcc", \
                       vgpr(fullAddrVgpr,2), \
                       vgpr(maxAddr,2), \
@@ -2937,44 +2936,44 @@ class KernelWriterAssembly(KernelWriter):
                       vgpr(bpeVgpr), "graOffset += 1 (lower)")
                 else:
                   # mask if current address if in bounds
-                kStr += inst("v_cmpx_lt_u64", "vcc", \
-                    vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
-                    vgpr(maxAddr,2), \
-                    "addr < maxAddr")
+                  kStr += inst("v_cmpx_lt_u64", "vcc", \
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
+                      vgpr(maxAddr,2), \
+                      "addr < maxAddr")
 
-                # load single element from address
-                if kernel["ProblemType"]["DataType"].isHalf():
-                  kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single f16")
-                elif kernel["ProblemType"]["DataType"].isSingle():
-                  kStr += inst("flat_load_dword", \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single float")
-                elif kernel["ProblemType"]["DataType"].isDouble():
-                  kStr += inst("flat_load_dwordx2", \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single double")
-                else:
-                  printWarning("DataType unsupported")
+                  # load single element from address
+                  if kernel["ProblemType"]["DataType"].isHalf():
+                    kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
+                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                        vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single f16")
+                  elif kernel["ProblemType"]["DataType"].isSingle():
+                    kStr += inst("flat_load_dword", \
+                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
+                        vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single float")
+                  elif kernel["ProblemType"]["DataType"].isDouble():
+                    kStr += inst("flat_load_dwordx2", \
+                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
+                        vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single double")
+                  else:
+                    printWarning("DataType unsupported")
 
-                # restore full exec mask
-                kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
-                    "all threads active")
+                  # restore full exec mask
+                  kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
+                      "all threads active")
 
-                # increment address by 1 element
-                kStr += inst("_v_add_co_u32", \
-                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
-                    "vcc", \
-                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                    vgpr(bpeVgpr), "gra += 1 (lower)")
-                kStr += inst("_v_addc_co_u32", \
-                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                    "vcc", \
-                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                    vgpr(zeroVgpr), \
-                    "vcc", \
-                    "gra += 1 (upper)")
+                  # increment address by 1 element
+                  kStr += inst("_v_add_co_u32", \
+                      vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
+                      "vcc", \
+                      vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                      vgpr(bpeVgpr), "gra += 1 (lower)")
+                  kStr += inst("_v_addc_co_u32", \
+                      vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                      "vcc", \
+                      vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                      vgpr(zeroVgpr), \
+                      "vcc", \
+                      "gra += 1 (upper)")
             else: # not guardK
               if kernel["BufferLoad"]:
                 kStr += tP["globalReadInstruction"].toString( \
@@ -2982,11 +2981,11 @@ class KernelWriterAssembly(KernelWriter):
                     vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
                     sgpr("Srd%s"%(tP["tensorChar"]), 4), 0), \
                     "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
-            else:
-              kStr += tP["globalReadInstruction"].toString( \
-                  (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
-                  vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
-                  "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
+              else:
+                kStr += tP["globalReadInstruction"].toString( \
+                    (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
+                    vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
+                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
 
               #kStr += "s_waitcnt vmcnt(0)\n"
               #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))

@@ -103,9 +103,9 @@ globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
-    globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "OCL"
 else:
-    globalParameters["RuntimeLanguage"] = "HIP"
+  globalParameters["RuntimeLanguage"] = "HIP"
 
 # might be deprecated
 globalParameters["SolutionMapHash"] = False
@@ -116,19 +116,19 @@ globalParameters["EnableHalf"] = False
 ################################################################################
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
-    for nsg in [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ]:
-        for sg0 in range(1, numThreads/nsg+1):
-            sg1 = numThreads/nsg/sg0
-            if sg0*sg1*nsg == numThreads:
-                workGroup = [sg0, sg1, nsg]
-                validWorkGroups.append(workGroup)
+  for nsg in [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ]:
+    for sg0 in range(1, numThreads/nsg+1):
+      sg1 = numThreads/nsg/sg0
+      if sg0*sg1*nsg == numThreads:
+          workGroup = [sg0, sg1, nsg]
+          validWorkGroups.append(workGroup)
 
 
 validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 12, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
-    for j in validThreadTileSides:
-        validThreadTiles.append([i, j])
+  for j in validThreadTileSides:
+    validThreadTiles.append([i, j])
 
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
@@ -137,8 +137,8 @@ validISA.extend(globalParameters["SupportedISA"])
 depthUs = range(-16, 0)
 depthUs.extend(range(2,512+1,2))
 for i in validMacroTileSides:
-    for j in validMacroTileSides:
-        validMacroTiles.append([i, j])
+  for j in validMacroTileSides:
+    validMacroTiles.append([i, j])
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
     "LoopTail":                   [ False, True ], # tail loop handles non multiples of unrolled summation loop
@@ -151,12 +151,12 @@ validParameters = {
     # =False means the L1 cache will do the transposing work and it is quite fast; then data is written coalesced (no bank conflicts) to LDS.
     # =True means the transpose will happen while writing to LDS, this usually has bank conflicts, but it appears the throughput is still fast enough to not slow the VALUs down.
     # it appears that the L1 cache can still achieve quite a bit of performance for GRCG=False, but overall it's usually faster to read coalesced
-    "GlobalReadCoalesceGroupA":   [ False, True ], # True means
+    "GlobalReadCoalesceGroupA":   [ False, True ], # True means 
     "GlobalReadCoalesceGroupB":   [ False, True ],
 
     # for transposes, this option governs how short-vectors should be read from global and written to lds
     # it is impossible to transpose data while operating on short-vectors for GlobalRead,LocalWrite and LocalRead; an odd number of those must be transposing and operating on vector components.
-    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds
+    # since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds 
     # =True means read short-vector from global and write its components to lds
     # =False means read vector components from global so that a full short-vector can be written to lds
     # both options were supported until a refactoring of the short-vector code (necessary to enable assembly) broke it. Since =True always seems to be faster, no time has been spend on fixing =False
@@ -309,9 +309,9 @@ defaultBenchmarkJoinParameters = []
 defaultSolution = {}
 for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
     defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
-    for paramDict in paramList:
-        for key, value in paramDict.iteritems():
-            defaultSolution[key] = value[0]
+  for paramDict in paramList:
+    for key, value in paramDict.iteritems():
+      defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
 ################################################################################
@@ -363,86 +363,86 @@ defaultAnalysisParameters = {
 ################################################################################
 # param name in structures?
 def inListOfDictionaries(param, dictionaries):
-    for dictionary in dictionaries:
-        if param in dictionary:
-            return True
-    return False
+  for dictionary in dictionaries:
+    if param in dictionary:
+      return True
+  return False
 def inListOfListOfDictionaries(param, dictionaries):
-    for dictionaryList in dictionaries:
-        if inListOfDictionaries(param, dictionaryList):
-            return True
-    return False
+  for dictionaryList in dictionaries:
+    if inListOfDictionaries(param, dictionaryList):
+      return True
+  return False
 def inListOfLists(param, lists):
-    for l in lists:
-        if param in l:
-            return True
-    return False
+  for l in lists:
+    if param in l:
+      return True
+  return False
 
 # get param values from structures.
 def hasParam( name, structure ):
-    if isinstance(structure, list):
-        for l in structure:
-            if hasParam(name, l):
-                return True
-        return False
-    elif isinstance(structure, dict):
-        return name in structure
-    else:
-        return name == structure
-        #printExit("structure %s is not list or dict" % structure)
+  if isinstance(structure, list):
+    for l in structure:
+      if hasParam(name, l):
+        return True
+    return False
+  elif isinstance(structure, dict):
+    return name in structure
+  else:
+    return name == structure
+    #printExit("structure %s is not list or dict" % structure)
 
 def getParamValues( name, structure ):
-    if isinstance(structure, list):
-        for l in structure:
-            param = getParamValues(name, l)
-            if param != None:
-                return param
-        return None
-    elif isinstance(structure, dict):
-        if name in structure:
-            return structure[name]
-        else:
-            return None
+  if isinstance(structure, list):
+    for l in structure:
+      param = getParamValues(name, l)
+      if param != None:
+        return param
+    return None
+  elif isinstance(structure, dict):
+    if name in structure:
+      return structure[name]
     else:
-        printExit("structure %s is not list or dict" % structure)
+      return None
+  else:
+    printExit("structure %s is not list or dict" % structure)
 
 ################################################################################
 # Print Debug
 ################################################################################
 def print1(message):
-    if globalParameters["PrintLevel"] >= 1:
-        print message
-        sys.stdout.flush()
+  if globalParameters["PrintLevel"] >= 1:
+    print message
+    sys.stdout.flush()
 def print2(message):
-    if globalParameters["PrintLevel"] >= 2:
-        print message
-        sys.stdout.flush()
+  if globalParameters["PrintLevel"] >= 2:
+    print message
+    sys.stdout.flush()
 
 def printWarning(message):
-    print "Tensile::WARNING: %s" % message
-    sys.stdout.flush()
+  print "Tensile::WARNING: %s" % message
+  sys.stdout.flush()
 def printExit(message):
-    print "Tensile::FATAL: %s" % message
-    sys.stdout.flush()
-    sys.exit(-1)
+  print "Tensile::FATAL: %s" % message
+  sys.stdout.flush()
+  sys.exit(-1)
 
 ################################################################################
 # Locate Executables
 # rocm-smi, hcc, rocm_agent_enumerator
 ################################################################################
 def isExe( filePath ):
-    return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
+  return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
 def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
-    # look in path first
-    for path in os.environ["PATH"].split(os.pathsep):
-        exePath = os.path.join(path, exeName)
-        if isExe(exePath):
-            return exePath
-    # look in default path second
-    exePath = os.path.join(defaultPath, exeName)
+  # look in path first
+  for path in os.environ["PATH"].split(os.pathsep):
+    exePath = os.path.join(path, exeName)
     if isExe(exePath):
-        return exePath
-    return None
+      return exePath
+  # look in default path second
+  exePath = os.path.join(defaultPath, exeName)
+  if isExe(exePath):
+    return exePath
+  return None
 
 ################################################################################
 # Assign Global Parameters
@@ -450,72 +450,72 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
 # can override them, those overridings happen here
 ################################################################################
 def assignGlobalParameters( config ):
-    global globalParameters
+  global globalParameters
 
-    # Minimum Required Version
-    if "MinimumRequiredVersion" in config:
-        if not versionIsCompatible(config["MinimumRequiredVersion"]):
-            printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
-                % (config["MinimumRequiredVersion"], __version__) )
+  # Minimum Required Version
+  if "MinimumRequiredVersion" in config:
+    if not versionIsCompatible(config["MinimumRequiredVersion"]):
+      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+          % (config["MinimumRequiredVersion"], __version__) )
 
-    # User-specified global parameters
-    print2("GlobalParameters:")
-    for key in globalParameters:
-        defaultValue = globalParameters[key]
-        if key in config:
-            configValue = config[key]
-            if configValue == defaultValue:
-                print2(" %24s: %8s (same)" % (key, configValue))
-            else:
-                print2(" %24s: %8s (overriden)" % (key, configValue))
-        else:
-            print2(" %24s: %8s (unspecified)" % (key, defaultValue))
+  # User-specified global parameters
+  print2("GlobalParameters:")
+  for key in globalParameters:
+    defaultValue = globalParameters[key]
+    if key in config:
+      configValue = config[key]
+      if configValue == defaultValue:
+        print2(" %24s: %8s (same)" % (key, configValue))
+      else:
+        print2(" %24s: %8s (overriden)" % (key, configValue))
+    else:
+      print2(" %24s: %8s (unspecified)" % (key, defaultValue))
 
-    # ROCm Agent Enumerator Path
-    globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
-    globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+  # ROCm Agent Enumerator Path
+  globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+  globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
 
-    # read current gfx version
-    if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-        process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
+  # read current gfx version
+  if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
+    line = process.stdout.readline()
+    while line != "":
+      gfxIdx = line.find("gfx")
+      if gfxIdx >= 0:
+        major = int(line[gfxIdx+3:gfxIdx+4])
+        minor = int(line[gfxIdx+4:gfxIdx+5])
+        step  = int(line[gfxIdx+5:gfxIdx+6])
+        if (major,minor,step) in globalParameters["SupportedISA"]:
+          print1("# Detected ISA: gfx%u%u%u"%(major, minor, step))
+          globalParameters["CurrentISA"] = (major, minor, step)
         line = process.stdout.readline()
-        while line != "":
-            gfxIdx = line.find("gfx")
-            if gfxIdx >= 0:
-                major = int(line[gfxIdx+3:gfxIdx+4])
-                minor = int(line[gfxIdx+4:gfxIdx+5])
-                step  = int(line[gfxIdx+5:gfxIdx+6])
-                if (major,minor,step) in globalParameters["SupportedISA"]:
-                    print1("# Detected ISA: gfx%u%u%u"%(major, minor, step))
-                    globalParameters["CurrentISA"] = (major, minor, step)
-                line = process.stdout.readline()
-        if globalParameters["CurrentISA"] == (0,0,0):
-            printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-        if process.returncode:
-            printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+    if globalParameters["CurrentISA"] == (0,0,0):
+      printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
+    if process.returncode:
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
-    # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
-    # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
-    # '0.0.0' will persist
-    if platform.linux_distribution()[0] == "Ubuntu":
-        process = Popen(["dpkg", "-l", "hcc"], stdout=PIPE)
-        if process.returncode:
-            printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
+  # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
+  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
+  # '0.0.0' will persist
+  if platform.linux_distribution()[0] == "Ubuntu":
+    process = Popen(["dpkg", "-l", "hcc"], stdout=PIPE)
+    if process.returncode:
+      printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
 
-        line = process.stdout.readline()
-        while line != "":
-            packageIdx = line.find("hcc")
-            if packageIdx >= 0:
-                globalParameters["HccVersion"] = line.split()[2]
-                break
-            line = process.stdout.readline()
+    line = process.stdout.readline()
+    while line != "":
+      packageIdx = line.find("hcc")
+      if packageIdx >= 0:
+        globalParameters["HccVersion"] = line.split()[2]
+        break
+      line = process.stdout.readline()
 
-    for key in config:
-        value = config[key]
-        if key not in globalParameters:
-            printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
-        globalParameters[key] = value
+  for key in config:
+    value = config[key]
+    if key not in globalParameters:
+      printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
+    globalParameters[key] = value
 
 
 
@@ -525,17 +525,17 @@ def assignGlobalParameters( config ):
 ################################################################################
 def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
     defaultDictionary):
-    if key in sourceDictionary:
-        destinationDictionary[key] = sourceDictionary[key]
-    else:
-        destinationDictionary[key] = defaultDictionary[key]
+  if key in sourceDictionary:
+    destinationDictionary[key] = sourceDictionary[key]
+  else:
+    destinationDictionary[key] = defaultDictionary[key]
 
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
-    if key in sourceDictionary:
-        destinationDictionary[key] = sourceDictionary[key]
-    else:
-        printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
+  if key in sourceDictionary:
+    destinationDictionary[key] = sourceDictionary[key]
+  else:
+    printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 
 
 ################################################################################
@@ -543,15 +543,15 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 # store a WorkingPath where to write files (like benchmark files)
 ################################################################################
 def pushWorkingPath( foldername ):
-    globalParameters["WorkingPath"] = \
-        os.path.join(globalParameters["WorkingPath"], foldername )
-    ensurePath( globalParameters["WorkingPath"] )
+  globalParameters["WorkingPath"] = \
+      os.path.join(globalParameters["WorkingPath"], foldername )
+  ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
-    globalParameters["WorkingPath"] = \
-        os.path.split(globalParameters["WorkingPath"])[0]
+  globalParameters["WorkingPath"] = \
+      os.path.split(globalParameters["WorkingPath"])[0]
 def ensurePath( path ):
-    if not os.path.exists(path):
-        os.makedirs(path)
+  if not os.path.exists(path):
+    os.makedirs(path)
 
 ################################################################################
 # Is query version compatible with current version
@@ -559,55 +559,56 @@ def ensurePath( path ):
 # tensile.major == yaml.major and tensile.minor.step > yaml.minor.step
 ################################################################################
 def versionIsCompatible(queryVersionString):
-    (qMajor, qMinor, qStep) = queryVersionString.split(".")
-    (tMajor, tMinor, tStep) = __version__.split(".")
+  (qMajor, qMinor, qStep) = queryVersionString.split(".")
+  (tMajor, tMinor, tStep) = __version__.split(".")
 
-    # major version must match exactly
-    if qMajor != tMajor:
-        return False
+  # major version must match exactly
+  if qMajor != tMajor:
+    return False
 
-    # minor.patch version must be >=
-    if qMinor > tMinor:
-        return False
-    if qMinor == tMinor:
-        if qStep > tStep:
-            return False
-    return True
+  # minor.patch version must be >=
+  if qMinor > tMinor:
+    return False
+  if qMinor == tMinor:
+    if qStep > tStep:
+      return False
+  return True
 
 ################################################################################
 # Progress Bar Printing
 # prints "||||" up to width
 ################################################################################
 class ProgressBar:
-    def __init__(self, maxValue, width=80):
-        self.char = '|'
-        self.maxValue = maxValue
-        self.width = width
-        self.maxTicks = self.width - 7
+  def __init__(self, maxValue, width=80):
+    self.char = '|'
+    self.maxValue = maxValue
+    self.width = width
+    self.maxTicks = self.width - 7
 
-        self.priorValue = 0
-        self.fraction = 0
-        self.numTicks = 0
 
-    def increment(self):
-        self.update(self.priorValue + 1)
+    self.priorValue = 0
+    self.fraction = 0
+    self.numTicks = 0
 
-    def update(self, value):
-        currentFraction = 1.0 * value / self.maxValue
-        currentNumTicks = int(currentFraction * self.maxTicks)
-        if currentNumTicks > self.numTicks:
-            self.numTicks = currentNumTicks
-            self.fraction = currentFraction
-            self.printStatus()
-        self.priorValue = value
+  def increment(self):
+    self.update(self.priorValue+1)
 
-    def printStatus(self):
-        sys.stdout.write("\r")
-        sys.stdout.write("[%-*s] %3d%%" \
-            % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
-        if self.numTicks == self.maxTicks:
-            sys.stdout.write("\n")
-        sys.stdout.flush()
+  def update(self, value):
+    currentFraction = 1.0 * value / self.maxValue
+    currentNumTicks = int(currentFraction * self.maxTicks)
+    if currentNumTicks > self.numTicks:
+      self.numTicks = currentNumTicks
+      self.fraction = currentFraction
+      self.printStatus()
+    self.priorValue = value
+
+  def printStatus(self):
+    sys.stdout.write("\r")
+    sys.stdout.write("[%-*s] %3d%%" \
+        % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
+    if self.numTicks == self.maxTicks:
+      sys.stdout.write("\n")
+    sys.stdout.flush()
 
 # Append copyrights to all files generated by tensile since they belong to Tensile intellectual property
 CMakeHeader = """################################################################################
