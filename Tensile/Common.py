@@ -24,6 +24,7 @@ from __init__ import __version__
 from collections import OrderedDict
 from subprocess import Popen, PIPE
 import time
+import platform
 
 startTime = time.time()
 
@@ -98,6 +99,7 @@ globalParameters["WorkingPath"] = os.getcwd()           # path where tensile cal
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
+globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -493,6 +495,21 @@ def assignGlobalParameters( config ):
     if process.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
+  # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
+  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
+  # '0.0.0' will persist
+  if platform.linux_distribution()[0] == "Ubuntu":
+    process = Popen(["dpkg", "-l", "hcc"], stdout=PIPE)
+    if process.returncode:
+      printWarning("%s looking for package %s exited with code %u" % ('dpkg', 'hcc', process.returncode))
+
+    line = process.stdout.readline()
+    while line != "":
+      packageIdx = line.find("hcc")
+      if packageIdx >= 0:
+        globalParameters["HccVersion"] = line.split()[2]
+        break
+      line = process.stdout.readline()
 
   for key in config:
     value = config[key]

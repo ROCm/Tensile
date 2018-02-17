@@ -115,6 +115,8 @@ def Tensile(userArgs):
       help="use serial kernel and solution names")
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
+  # argParser.add_argument("--hcc-version", dest="HccVersion", \
+  #     help="This can affect what opcodes are emitted by the assembler")
 
   # parse arguments
   args = argParser.parse_args(userArgs)
