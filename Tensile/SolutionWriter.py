@@ -160,64 +160,48 @@ class SolutionWriter:
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
-      #s += "%sprintf(\"Device ISA: %%i\\n\", isa);\n" % (t)
       s += "%shipFunction_t hipFunction;\n" % (t)
-      #s += "  "
 
-      for i in range(0, len(globalParameters["SupportedISA"])):
-        isa = globalParameters["SupportedISA"][i]
-        kernel["ISA"] = (isa[0], isa[1], isa[2])
-        kernelName = self.kernelWriter.getKernelName(kernel)
-        s += t
-        if i > 0:
-          s += "else "
-        s += "if ( isa == %u%u%u ) {\n" % (isa[0], isa[1], isa[2])
+      kernelName = self.kernelWriter.getKernelName(kernel)
+      s += t
+      if localStatic:
+        s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
+        s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
         t += "  "
-        if localStatic:
-          s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
-          s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
-          t += "  "
-          s += "%sstatic std::mutex initFunctionsMutex;\n" % (t)
-          s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
-          s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
-          t += "  "
-          s += "%sstatic int numDevices = -1;\n" % (t)
-          s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
-          s += "%shipFunction_t *tmp = new hipFunction_t[numDevices];\n" % (t)
-          s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
-          s += "%s  tmp[i] = nullptr;\n" % (t)
-          s += "%s}\n" % (t)
-          s += "%shipFunctions = tmp;\n" % (t)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
-          t += "  "
-          s += "%sstatic std::mutex loadModuleMutex;\n" % (t)
-          s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
-          s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
-          t += "  "
-          s += "%shipModule_t module = nullptr;\n" % (t)
-          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
-          s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          s += "%shipFunction = hipFunctions[deviceId];\n" % (t)
-        else:
-          s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
-          s += "%s    &hipFunction,\n" % (t)
-          s += "%s    \"%s\",\n" % (t, kernelName)
-          s += "%s    %s_coba); // code object byte array\n" % (t, kernelName)
-
+        s += "%sstatic std::mutex initFunctionsMutex;\n" % (t)
+        s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
+        s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
+        t += "  "
+        s += "%sstatic int numDevices = -1;\n" % (t)
+        s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
+        s += "%shipFunction_t *tmp = new hipFunction_t[numDevices];\n" % (t)
+        s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
+        s += "%s  tmp[i] = nullptr;\n" % (t)
+        s += "%s}\n" % (t)
+        s += "%shipFunctions = tmp;\n" % (t)
         t = t[2:]
-        s += "%s}" % (t)
-      s += " else {\n"
-      s += "%s  return tensileStatusFailure;\n" % (t)
-      s += "%s}\n" % (t)
-      s += "\n"
+        s += "%s}\n" % (t)
+        t = t[2:]
+        s += "%s}\n" % (t)
+        s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
+        t += "  "
+        s += "%sstatic std::mutex loadModuleMutex;\n" % (t)
+        s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
+        s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
+        t += "  "
+        s += "%shipModule_t module = nullptr;\n" % (t)
+        s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
+        t = t[2:]
+        s += "%s}\n" % (t)
+        t = t[2:]
+        s += "%s}\n" % (t)
+        s += "%shipFunction = hipFunctions[deviceId];\n" % (t)
+      else:
+        s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
+        s += "%s    &hipFunction,\n" % (t)
+        s += "%s    \"%s\",\n" % (t, kernelName)
+        s += "%s    %s_coba); // code object byte array\n" % (t, kernelName)
 
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
