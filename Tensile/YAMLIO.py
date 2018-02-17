@@ -109,7 +109,7 @@ def readSolutions( filename ):
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################
-def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
+def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, deviceNames, \
     logicTuple):
   problemType   = logicTuple[0]
   solutions     = logicTuple[1]
@@ -124,8 +124,7 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   # Tensile version
   data.append({"MinimumRequiredVersion":__version__})
   # schedule name
-  data.append(schedulePrefix)
-  architectureName = "gfx000"
+  data.append(schedulePrefix)     # change from Tensile to vega10
   data.append(architectureName)
   # schedule device names
   data.append(deviceNames)

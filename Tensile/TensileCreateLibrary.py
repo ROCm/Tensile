@@ -413,7 +413,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
             for deviceNameIdx in range(0, len(deviceNames)):
               deviceName = deviceNames[deviceNameIdx]
               if deviceNameIdx > 0:
-                s += " && "
+                s += " || "
               s += "name == \"%s\"" % deviceName
             s += ")"
           s += "{\n"

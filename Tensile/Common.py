@@ -347,8 +347,8 @@ defaultBenchmarkFinalProblemSizes = [{"Range": [
 ################################################################################
 defaultAnalysisParameters = {
     "ScheduleName":       "Tensile",
-    "DeviceNames":  ["Unspecified"],
-    #"BranchPenalty":              0, # microseconds / kernel
+    "DeviceNames":  "fallback",
+    "ArchitectureName": "gfx000",
     "SolutionImportanceMin":      0.01, # = 0.01=1% total time saved by keeping this solution
     }
 
