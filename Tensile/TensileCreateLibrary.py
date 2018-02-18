@@ -48,19 +48,34 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
   ##############################################################################
   # Write Solutions
   ##############################################################################
+  # The files with the *Executor suffix in their name are C++ interfaces for Tensile
+  # They can co-exist with the C interfaces, and the client should choose which 
+  # interface they wish to link with by #including the appropriate header file
   if globalParameters["MergeFiles"]:
     solutionSourceFile = open(os.path.join(outputPath, \
         "Solutions.cpp"), "w")
     solutionHeaderFile = open(os.path.join(outputPath, \
         "Solutions.h"), "w")
+    solutionSourceFileExecutor = open(os.path.join(outputPath, \
+        "solutions-executor.cpp"), "w")
+    solutionHeaderFileExecutor = open(os.path.join(outputPath, \
+        "solutions-executor.hpp"), "w")
     if globalParameters["MergeFiles"]:
       solutionSourceFile.write(CHeader)
       solutionHeaderFile.write(CHeader)
+      solutionSourceFileExecutor.write(CHeader)
+      solutionHeaderFileExecutor.write(CHeader)
     solutionSourceFile.write("#include \"Solutions.h\"\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
+    solutionSourceFileExecutor.write("#include \"solutions-executor.hpp\"\n")
+    solutionHeaderFileExecutor.write("#include \"TensileTypes.h\"\n")
+    solutionHeaderFileExecutor.write("#include \"Kernels.h\"\n")
+    solutionHeaderFileExecutor.write("#include \"SolutionHelper.h\"\n")
+    solutionHeaderFileExecutor.write("#include \"Tools.h\"\n")
+    
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
@@ -72,7 +87,9 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
           "Solutions", solutionFileName+".cpp"), "w")
       solutionSourceFile.write(CHeader)
     solutionSourceFile.write( \
-        solutionWriter.getSourceFileString(solution))
+        solutionWriter.getSourceFileString(solution, "C"))
+    solutionSourceFileExecutor.write( \
+        solutionWriter.getSourceFileString(solution, "executor"))
     if not globalParameters["MergeFiles"]:
       solutionSourceFile.close()
 
@@ -82,7 +99,9 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
           "Solutions", solutionFileName+".h"), "w")
       solutionHeaderFile.write(CHeader)
     solutionHeaderFile.write( \
-        solutionWriter.getHeaderFileString(solution))
+        solutionWriter.getHeaderFileString(solution, "C"))
+    solutionHeaderFileExecutor.write( \
+        solutionWriter.getHeaderFileString(solution, "executor"))
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
     progressBar.increment()
