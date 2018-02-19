@@ -176,5 +176,20 @@ BenchmarkProblems:
           - Range: [ [32, 32, 32, 2000], [32, 32, 32, 2000], [2], [1536] ]
 
 LibraryLogic:
+    ScheduleName: "vega10"
+    DeviceNames: ["Device 6863", "Device 6862"]
+    ArchitectureName: "gfx900"
+
+#   ScheduleName: "mi25"
+#   DeviceNames: ["Device 6860"]
+#   ArchitectureName: "gfx900"
+
+#   ScheduleName: "r9nano"
+#   DeviceNames: ["Device 7300"]
+#   ArchitectureName: "gfx803"
+
+#   ScheduleName: "hip"
+#   DeviceNames: ["Device 0000"]
+#   ArchitectureName: "fallback"
 
 LibraryClient:

@@ -109,7 +109,7 @@ def readSolutions( filename ):
 # 1 yaml per problem type
 # problemType, skinny0, skinny1, diagonal
 ################################################################################
-def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
+def writeLibraryLogicForSchedule( filePath, schedulePrefix, architectureName, deviceNames, \
     logicTuple):
   problemType   = logicTuple[0]
   solutions     = logicTuple[1]
@@ -124,7 +124,8 @@ def writeLibraryLogicForSchedule( filePath, schedulePrefix, deviceNames, \
   # Tensile version
   data.append({"MinimumRequiredVersion":__version__})
   # schedule name
-  data.append(schedulePrefix)
+  data.append(schedulePrefix)     # change from Tensile to vega10
+  data.append(architectureName)
   # schedule device names
   data.append(deviceNames)
   # problem type
@@ -180,12 +181,13 @@ def readLibraryLogicForSchedule( filename ):
   # parse out objects
   versionString     = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
-  deviceNames       = data[2]
-  problemTypeState  = data[3]
-  solutionStates    = data[4]
-  indexOrder        = data[5]
-  exactLogic        = data[6]
-  rangeLogic        = data[7]
+  architectureName  = data[2]
+  deviceNames       = data[3]
+  problemTypeState  = data[4]
+  solutionStates    = data[5]
+  indexOrder        = data[6]
+  exactLogic        = data[7]
+  rangeLogic        = data[8]
 
   # does version match
   if not versionIsCompatible(versionString):
@@ -198,6 +200,13 @@ def readLibraryLogicForSchedule( filename ):
   solutions = []
   for i in range(0, len(solutionStates)):
     solutionState = solutionStates[i]
+    if solutionState["KernelLanguage"] == "Assembly":
+      isa0 = int(architectureName[3])
+      isa1 = int(architectureName[4])
+      isa2 = int(architectureName[5])
+      solutionState["ISA"] = (isa0, isa1, isa2)
+    else:
+      solutionState["ISA"] = (0, 0, 0)
     solutionObject = Solution(solutionState)
     if solutionObject["ProblemType"] != problemType:
       printExit("ProblemType of file doesn't match solution: %s != %s" \

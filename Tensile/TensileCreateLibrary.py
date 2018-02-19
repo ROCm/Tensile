@@ -373,37 +373,57 @@ def writeLogic(outputPath, logicData, solutionWriter ):
             ",\n" if i < len(argListStream)-1 else ") {\n")
 
       # choose from schedules based on device name
+#     print logicData
       schedules = logicData[problemType]
       numSchedules = len(schedules)
       if numSchedules > 1:
+
+        reordered_schedules = []
+        for scheduleIdx in range(0, numSchedules):
+          schedule = schedules[scheduleIdx]
+          deviceNames = schedule[1]
+          if deviceNames != ["fallback"]:
+            reordered_schedules.append(schedule)
+        for scheduleIdx in range(0, numSchedules):
+          schedule = schedules[scheduleIdx]
+          deviceNames = schedule[1]
+          if deviceNames == ["fallback"]:
+            reordered_schedules.append(schedule)
 
         # get device name
         if globalParameters["RuntimeLanguage"] == "OCL":
           s += "get device name opencl;\n"
         else:
-          s += "get device name hip;\n"
+          s += "\n//  get device name hip;\n"
+          s += "    int deviceId;\n"
+          s += "    hipCtxGetDevice(&deviceId);\n"
+          s += "    hipDeviceProp_t deviceProperties;\n"
+          s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
+          s += "    std::string name = deviceProperties.name;\n"
 
+        s += "\n    "
         for scheduleIdx in range(0, numSchedules):
-          schedule = schedules[scheduleIdx]
+          schedule = reordered_schedules[scheduleIdx]
+          scheduleName  = schedule[0]
           deviceNames = schedule[1]
           if scheduleIdx > 0:
-            s += "else "
+            s += "    else "
           if scheduleIdx < numSchedules-1:
             s += "if ("
             for deviceNameIdx in range(0, len(deviceNames)):
               deviceName = deviceNames[deviceNameIdx]
               if deviceNameIdx > 0:
-                s += " && "
-                s += "name == \"%s\"" % deviceName
+                s += " || "
+              s += "name == \"%s\"" % deviceName
             s += ")"
-          s += "{"
-          s += "  return tensileGetSolution%s_%s_%s(" \
+          s += "{\n"
+          s += "        return tensileGetSolution%s_%s_%s(" \
               % ( returnType, scheduleName, problemType)
           for i in range(0, len(argListSizes)):
             s += "%s%s" \
                 % (argListSizes[i][1],
                     ", " if i < len(argListSizes)-1 else ");\n")
-            s += "}"
+          s += "    }\n"
       else: # == 1
         schedule = schedules[0]
         scheduleName = schedule[0]
@@ -697,8 +717,6 @@ def TensileCreateLibrary():
       action="store_true")
   argParser.add_argument("--no-library-print-debug", dest="LibraryPrintDebug", \
       action="store_false")
-  argParser.add_argument("--isa", dest="isa", action="append",
-      help="which architectures for assembly kernels to target" )
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -710,21 +728,6 @@ def TensileCreateLibrary():
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
-  if args.isa:
-    newISA = []
-    for isa in args.isa:
-      gfxIdx = isa.find("gfx")
-      if gfxIdx >= 0:
-        major = int(isa[gfxIdx+3:gfxIdx+4])
-        minor = int(isa[gfxIdx+4:gfxIdx+5])
-        step  = int(isa[gfxIdx+5:gfxIdx+6])
-        isaTuple = (major,minor,step)
-        if isaTuple in globalParameters["SupportedISA"] and isaTuple not in newISA:
-          print1("# User-Specified ISA: gfx%u%u%u" % (major,minor,step))
-          newISA.append(isaTuple)
-      else:
-        printWarning("isa parameter must be formed as: --isa gfx803")
-    arguments["SupportedISA"] = newISA
   assignGlobalParameters(arguments)
 
   if not os.path.exists(logicPath):
@@ -769,19 +772,6 @@ def TensileCreateLibrary():
         kernelsBetaOnly.append(kernel)
 
   # if any kernels are assembly, append every ISA supported
-  if globalParameters["RuntimeLanguage"] == "HIP":
-    newKernels = []
-    for kernel in kernels:
-      if kernel["KernelLanguage"] == "Assembly":
-        kernel["ISA"] = globalParameters["SupportedISA"][0]
-        for i in range(1, len(globalParameters["SupportedISA"])):
-          newKernel = deepcopy(kernel)
-          newKernel["ISA"] = globalParameters["SupportedISA"][i]
-          newKernels.append(newKernel)
-      else:
-        kernel["ISA"] = (0,0,0)
-    kernels.extend(newKernels)
-
 
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)

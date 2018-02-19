@@ -1267,21 +1267,12 @@ def main(  config ):
       #if problemTypeTuple not in problemTypeTuples:
       #  problemTypeTuples.append(problemTypeTuple)
 
-  # Run Analysis
-  #schedulePrefix = globalParameters["Name"]
-  if "ScheduleName" in config:
-    schedulePrefix = config["ScheduleName"]
-  else:
-    schedulePrefix = "Tensile"
-  if "DeviceNames" in config:
-    deviceNamesForSchedule = config["DeviceNames"]
-  else:
-    deviceNamesForSchedule = "default"
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
         analysisParameters )
     YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
-        schedulePrefix, deviceNamesForSchedule, logicTuple)
+        analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
+        analysisParameters["DeviceNames"], logicTuple)
 
   popWorkingPath()
 
