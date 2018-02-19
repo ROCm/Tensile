@@ -653,6 +653,36 @@ class SolutionWriter:
     return s
 
   ##############################################################################
+  # getHeaderString
+  ##############################################################################
+  def getHeaderString(self, solution):
+    s = ""
+    if not globalParameters["MergeFiles"]:
+      s += "#pragma once\n\n"
+      s += "#include \"TensileTypes.h\"\n"
+      s += "#include \"SolutionHelper.h\"\n"
+      s += "#include \"Tools.h\"\n"
+      s += "\n"
+
+      # include kernels
+      for kernel in solution.getKernels():
+        if kernel != None:
+          kernelName = self.kernelWriter.getKernelName(kernel)
+          s += "#include \"" + kernelName + ".h\"\n"
+      for kernel in solution.getKernelsBetaOnly():
+        kernelName = self.kernelWriter.getKernelNameBetaOnly(kernel)
+        s += "#include \"" + kernelName + ".h\"\n"
+
+      s += "\n"
+
+    # function declaration
+    s += self.getSolutionSignature(solution) + ";\n"
+    s += "\n"
+    #s += "#endif\n"
+    s += "\n"
+    return s
+
+  ##############################################################################
   # getSourceExecutorString
   ##############################################################################
   def getSourceExecutorString(self, solution):
@@ -663,18 +693,35 @@ class SolutionWriter:
       kernelNames.append( kernelName )
 
     s = ""
+    s += "#include \"solutions-executor.hpp\"\n"
+
+    return s
+
+  ##############################################################################
+  # getHeaderExecutorString
+  ##############################################################################
+  def getHeaderExecutorString(self, solution):
+    s = ""
+    kernels = solution.getKernels()
+    kernelNames = []
+    for kernel in kernels:
+      kernelName = self.kernelWriter.getKernelName(kernel)
+      kernelNames.append( kernelName )
+
+    # Initialize to blank the strings we use to construct the program
+    s = ""
     t = ""
-    # includes
 
-
-    if not globalParameters["MergeFiles"]:
-      solutionName = self.getSolutionName(solution)
-      s += "#include \"%s.h\"\n" % solutionName
-      #s += "#include \"MathTemplates.h\"\n"
-      s += "\n"
+    s += "#pragma once\n"
+    s += "#ifndef GUARD_SOLUTIONS_EXECUTOR_H\n"
+    s += "#define GUARD_SOLUTIONS_EXECUTOR_H\n\n"
+    s += "#include \"TensileTypes.h\"\n"
+    s += "#include \"Kernels.h\"\n"
+    s += "#include \"SolutionHelper.h\"\n"
+    s += "#include \"Tools.h\"\n\n"
 
     # solution function signature
-    s += self.getSolutionSignature(solution)
+    s += self.getSolutionExecutorSignature(solution)
     s += " {\n"
     t += "  "
     s += "%sTensileStatus status;\n" % (t)
@@ -683,7 +730,7 @@ class SolutionWriter:
     if solution["KernelLanguage"] == "Assembly":
       s += "\n"
       s += "%s/* module function args */\n" % (t)
-      s += "%sstruct {\n" % t
+      s += "%sstruct hipFunctionArgs {\n" % t
       t += "  "
       if globalParameters["DebugKernel"]:
         s += "%sunsigned int *debugBuffer;\n" % t
@@ -696,116 +743,100 @@ class SolutionWriter:
 
       s += "%sunsigned int pad;\n" % t # FIXME can this be removed?
       t = t[2:]
-      s += "%s} hipFunctionArgs;\n" % t
+      s += "%s};\n" % t
       #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
-      s += "%ssize_t hipFunctionArgsSize = sizeof(hipFunctionArgs);\n" % t
-      s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
+      # s += "%ssize_t hipFunctionArgsSize = sizeof(hipFunctionArgs);\n" % t
+      # s += "%svoid *hipLaunchParams[] = {HIP_LAUNCH_PARAM_BUFFER_POINTER, &hipFunctionArgs, HIP_LAUNCH_PARAM_BUFFER_SIZE, &hipFunctionArgsSize, HIP_LAUNCH_PARAM_END};\n" % t
       #s += "%sprintf(\"size: %%lu\\n\", sizeof(unsigned int));\n" % t
       #s += "%sprintf(\"hipFunctionArgsSize: %%lu\\n\", sizeof(hipFunctionArgs));\n" % t
       #for arg in solutionArgs:
       #  s += "%sprintf(\"%s: %%lu\\n\", static_cast<char*>(static_cast<void*>(&hipFunctionArgs.%s)) - static_cast<char*>(static_cast<void*>(&hipFunctionArgs.%s)));\n" % (t, arg[1], arg[1], solutionArgs[0][1])
 
-    # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
+      # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
 
 
     # kernels
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
-    if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
-      s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
-      t += "  "
-      for kernelIdx in range(0, len(kernelNames)):
-        kernelName = kernelNames[kernelIdx]
-        s += "%s%s_src%s\n" % (t, kernelName, \
-            "," if kernelIdx < len(kernels)-1 else "" )
-      t = t[2:]
-      s += "%s};\n" % (t)
-      s += "%scl_kernel kernels[numKernels];\n" % (t)
-      s += "%sconst char *buildOptions = \"-cl-std=cl2.0\";\n" % (t)
-      s += "%sfor (unsigned int i = 0; i < numKernels; i++) {\n" % (t)
-      s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
-      s += "%s      &kernels[i],\n" % (t)
-      s += "%s      kernelSources[i],\n" % (t)
-      s += "%s      stream,\n" % (t)
-      s += "%s      buildOptions);\n" % (t)
-      s += "%s}\n" % (t)
+    # if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
+    #   s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
+    #   t += "  "
+    #   for kernelIdx in range(0, len(kernelNames)):
+    #     kernelName = kernelNames[kernelIdx]
+    #     s += "%s%s_src%s\n" % (t, kernelName, \
+    #         "," if kernelIdx < len(kernels)-1 else "" )
+    #   t = t[2:]
+    #   s += "%s};\n" % (t)
+    #   s += "%scl_kernel kernels[numKernels];\n" % (t)
+    #   s += "%sconst char *buildOptions = \"-cl-std=cl2.0\";\n" % (t)
+    #   s += "%sfor (unsigned int i = 0; i < numKernels; i++) {\n" % (t)
+    #   s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
+    #   s += "%s      &kernels[i],\n" % (t)
+    #   s += "%s      kernelSources[i],\n" % (t)
+    #   s += "%s      stream,\n" % (t)
+    #   s += "%s      buildOptions);\n" % (t)
+    #   s += "%s}\n" % (t)
 
-      if solution["GlobalSplitU"] > 1:
-        for beta in solution.getKernelsBetaOnly():
-          kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
-          s += "%scl_kernel kernel_%s;\n" % (t, kernelName)
-          s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
-          s += "%s      &kernel_%s,\n" % (t, kernelName)
-          s += "%s      %s_src,\n" % (t, kernelName)
-          s += "%s      stream,\n" % (t)
-          s += "%s      buildOptions);\n" % (t)
+    #   if solution["GlobalSplitU"] > 1:
+    #     for beta in solution.getKernelsBetaOnly():
+    #       kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
+    #       s += "%scl_kernel kernel_%s;\n" % (t, kernelName)
+    #       s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
+    #       s += "%s      &kernel_%s,\n" % (t, kernelName)
+    #       s += "%s      %s_src,\n" % (t, kernelName)
+    #       s += "%s      stream,\n" % (t)
+    #       s += "%s      buildOptions);\n" % (t)
 
-    elif solution["KernelLanguage"] == "Assembly":
-      localStatic = True
-      kernel = kernels[0]
-      s += "%sint deviceId;\n" % (t)
-      s += "%shipCtxGetDevice(&deviceId);\n" % (t)
-      s += "%shipDeviceProp_t deviceProperties;\n" % (t)
-      s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
-      s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
-      #s += "%sprintf(\"Device ISA: %%i\\n\", isa);\n" % (t)
-      s += "%shipFunction_t hipFunction;\n" % (t)
-      #s += "  "
+    # elif solution["KernelLanguage"] == "Assembly":
+    #   localStatic = True
+    #   kernel = kernels[0]
+    #   s += "%sint deviceId;\n" % (t)
+    #   s += "%shipCtxGetDevice(&deviceId);\n" % (t)
+    #   s += "%shipDeviceProp_t deviceProperties;\n" % (t)
+    #   s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
+    #   s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
+    #   s += "%shipFunction_t hipFunction;\n" % (t)
 
-      for i in range(0, len(globalParameters["SupportedISA"])):
-        isa = globalParameters["SupportedISA"][i]
-        kernel["ISA"] = (isa[0], isa[1], isa[2])
-        kernelName = self.kernelWriter.getKernelName(kernel)
-        s += t
-        if i > 0:
-          s += "else "
-        s += "if ( isa == %u%u%u ) {\n" % (isa[0], isa[1], isa[2])
-        t += "  "
-        if localStatic:
-          s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
-          s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
-          t += "  "
-          s += "%sstatic std::mutex initFunctionsMutex;\n" % (t)
-          s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
-          s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
-          t += "  "
-          s += "%sstatic int numDevices = -1;\n" % (t)
-          s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
-          s += "%shipFunction_t *tmp = new hipFunction_t[numDevices];\n" % (t)
-          s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
-          s += "%s  tmp[i] = nullptr;\n" % (t)
-          s += "%s}\n" % (t)
-          s += "%shipFunctions = tmp;\n" % (t)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
-          t += "  "
-          s += "%sstatic std::mutex loadModuleMutex;\n" % (t)
-          s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
-          s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
-          t += "  "
-          s += "%shipModule_t module = nullptr;\n" % (t)
-          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
-          s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          t = t[2:]
-          s += "%s}\n" % (t)
-          s += "%shipFunction = hipFunctions[deviceId];\n" % (t)
-        else:
-          s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
-          s += "%s    &hipFunction,\n" % (t)
-          s += "%s    \"%s\",\n" % (t, kernelName)
-          s += "%s    %s_coba); // code object byte array\n" % (t, kernelName)
-
-        t = t[2:]
-        s += "%s}" % (t)
-      s += " else {\n"
-      s += "%s  return tensileStatusFailure;\n" % (t)
-      s += "%s}\n" % (t)
-      s += "\n"
+    #   kernelName = self.kernelWriter.getKernelName(kernel)
+    #   s += t
+    #   if localStatic:
+    #     s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
+    #     s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
+    #     t += "  "
+    #     s += "%sstatic std::mutex initFunctionsMutex;\n" % (t)
+    #     s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
+    #     s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
+    #     t += "  "
+    #     s += "%sstatic int numDevices = -1;\n" % (t)
+    #     s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
+    #     s += "%shipFunction_t *tmp = new hipFunction_t[numDevices];\n" % (t)
+    #     s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
+    #     s += "%s  tmp[i] = nullptr;\n" % (t)
+    #     s += "%s}\n" % (t)
+    #     s += "%shipFunctions = tmp;\n" % (t)
+    #     t = t[2:]
+    #     s += "%s}\n" % (t)
+    #     t = t[2:]
+    #     s += "%s}\n" % (t)
+    #     s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
+    #     t += "  "
+    #     s += "%sstatic std::mutex loadModuleMutex;\n" % (t)
+    #     s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
+    #     s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
+    #     t += "  "
+    #     s += "%shipModule_t module = nullptr;\n" % (t)
+    #     s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+    #     s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
+    #     t = t[2:]
+    #     s += "%s}\n" % (t)
+    #     t = t[2:]
+    #     s += "%s}\n" % (t)
+    #     s += "%shipFunction = hipFunctions[deviceId];\n" % (t)
+    #   else:
+    #     s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
+    #     s += "%s    &hipFunction,\n" % (t)
+    #     s += "%s    \"%s\",\n" % (t, kernelName)
+    #     s += "%s    %s_coba); // code object byte array\n" % (t, kernelName)
 
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
@@ -1254,66 +1285,7 @@ class SolutionWriter:
     s += "*/\n"
     s += "\n"
 
-    return s
-
-  ##############################################################################
-  # getHeaderString
-  ##############################################################################
-  def getHeaderString(self, solution):
-    s = ""
-    if not globalParameters["MergeFiles"]:
-      s += "#pragma once\n\n"
-      s += "#include \"TensileTypes.h\"\n"
-      s += "#include \"SolutionHelper.h\"\n"
-      s += "#include \"Tools.h\"\n"
-      s += "\n"
-
-      # include kernels
-      for kernel in solution.getKernels():
-        if kernel != None:
-          kernelName = self.kernelWriter.getKernelName(kernel)
-          s += "#include \"" + kernelName + ".h\"\n"
-      for kernel in solution.getKernelsBetaOnly():
-        kernelName = self.kernelWriter.getKernelNameBetaOnly(kernel)
-        s += "#include \"" + kernelName + ".h\"\n"
-
-      s += "\n"
-
-    # function declaration
-    s += self.getSolutionSignature(solution) + ";\n"
-    s += "\n"
-    #s += "#endif\n"
-    s += "\n"
-    return s
-
-  ##############################################################################
-  # getHeaderExecutorString
-  ##############################################################################
-  def getHeaderExecutorString(self, solution):
-    s = ""
-    if not globalParameters["MergeFiles"]:
-      s += "#pragma once\n\n"
-      s += "#include \"TensileTypes.h\"\n"
-      s += "#include \"SolutionHelper.h\"\n"
-      s += "#include \"Tools.h\"\n"
-      s += "\n"
-
-      # include kernels
-      for kernel in solution.getKernels():
-        if kernel != None:
-          kernelName = self.kernelWriter.getKernelName(kernel)
-          s += "#include \"" + kernelName + ".h\"\n"
-      for kernel in solution.getKernelsBetaOnly():
-        kernelName = self.kernelWriter.getKernelNameBetaOnly(kernel)
-        s += "#include \"" + kernelName + ".h\"\n"
-
-      s += "\n"
-
-    # function declaration
-    s += self.getSolutionSignature(solution) + ";\n"
-    s += "\n"
-    #s += "#endif\n"
-    s += "\n"
+    s += "#endif  // GUARD_SOLUTIONS_EXECUTOR_H \n"
     return s
 
   ########################################
@@ -1388,6 +1360,21 @@ class SolutionWriter:
       s += "%s%s%s" % (t, argString, ",\n" if i < len(argList)-1 else ")" )
     return s
 
+  ########################################
+  # get function signature
+  def getSolutionExecutorSignature(self, solution):
+    t = "" # indent
+    s = ""
+    s += "template <class Executor>\n"
+    solutionName = self.getSolutionName(solution)
+    s += "%s%s %s(\n" % (t, self.statusName, solutionName)
+    t += "    "
+    argList = self.getArgList(solution["ProblemType"], True, False, False)
+    for i in range(0, len(argList)):
+      argString = "%s %s" % argList[i]
+      s += "%s%s%s" % (t, argString, ",\n" )
+    s += "%sExecutor ex)\n" % (t)
+    return s
 
   ########################################
   # get full source code
@@ -1396,7 +1383,10 @@ class SolutionWriter:
     fileStr = "" # CHeader
 
     if( interface == "executor"):
-      fileStr += self.getSourceExecutorString(solution)
+      if globalParameters["MergeFiles"]:
+        fileStr += self.getSourceExecutorString(solution)
+      else:
+        raise NotImplementedError( "Executor interfaces assume MergeFiles is true" )
     else:
       fileStr += self.getSourceString(solution)
 
@@ -1410,7 +1400,10 @@ class SolutionWriter:
     fileStr = "" # CHeader
 
     if( interface == "executor"):
-      fileStr += self.getHeaderExecutorString(solution)
+      if globalParameters["MergeFiles"]:
+        fileStr += self.getHeaderExecutorString(solution)
+      else:
+        raise NotImplementedError( "Executor interfaces assume MergeFiles is true" )
     else:
       fileStr += self.getHeaderString(solution)
 

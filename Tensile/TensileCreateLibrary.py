@@ -70,11 +70,6 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
-    solutionSourceFileExecutor.write("#include \"solutions-executor.hpp\"\n")
-    solutionHeaderFileExecutor.write("#include \"TensileTypes.h\"\n")
-    solutionHeaderFileExecutor.write("#include \"Kernels.h\"\n")
-    solutionHeaderFileExecutor.write("#include \"SolutionHelper.h\"\n")
-    solutionHeaderFileExecutor.write("#include \"Tools.h\"\n")
     
   for solution in solutions:
     # get solution name
