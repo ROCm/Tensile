@@ -12,7 +12,7 @@ ARG REPO_RADEON=repo.radeon.com
 # Install dependent packages
 # Dependencies:
 # * hcc-config.cmake: pkg-config
-# * tensile: python2.7, python-yaml
+# * tensile: python2.7, python-pip
 # * rocblas-test: gfortran, googletest
 # * rocblas-bench: libboost-program-options-dev
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends curl && \
@@ -25,13 +25,15 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     git \
     pkg-config \
     python2.7 \
-    python-yaml \
+    python-pip \
     python-setuptools \
     libnuma1 \
     hip_hcc \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+RUN pip install tox
 
 # docker pipeline runs containers with particular uid
 # create a jenkins user with this specific uid so it can use sudo priviledges
