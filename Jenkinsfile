@@ -162,6 +162,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
       sh """#!/usr/bin/env bash
         set -x
         cd ${paths.project_src_prefix}
+        tox --version
         tox -vv
       """      
     }
