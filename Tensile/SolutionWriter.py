@@ -933,6 +933,8 @@ class SolutionWriter:
 
     s += "\n"
 
+    # NOTE[KFK]: This beta only kernel needs to be refactored into the new c++ interface
+    # The problem is that it does not use assembly, but only HIP or OCL kernels
     ########################################
     # Enqueue Beta-Only Kernel
     ########################################
@@ -1012,8 +1014,6 @@ class SolutionWriter:
         #s += " float tmp[128*128];\n"
         #s += "clEnqueueReadBuffer(stream, dataC, CL_TRUE, 0, 128*128*sizeof(float), tmp, 0, NULL, NULL);\n"
         #s += "for (unsigned int i = 0; i < 128*128; i++) { printf(\"%f\\n\", tmp[i]); }\n"
-
-
       else:
         s += "%sif( inputEvents != NULL )\n" % (t)
         t += "  "
@@ -1067,6 +1067,24 @@ class SolutionWriter:
         s += "%s}\n" % (t)
 
     ########################################
+    # Device specific kernel selection logics
+    ########################################
+    s += "%sstd::string kernel_name;\n" % (t)
+    s += "%sconst unsigned char* kernel_data = nullptr;\n" % (t)
+
+    # TODO:  This needs further logic to loop over all the kernels available in the tensile
+    # code generation.  I know that the current if(ex.get_device_name() ) doesn't really do
+    # much but it at least verifies the executor has such a method and returns something
+    kernelName = self.kernelWriter.getKernelName(kernel)
+    if( solution["KernelLanguage"] == "Assembly" ):
+      s += "%sif( ex.get_device_name() )\n%s{\n" % (t, t)
+      t += "  "
+      s += "%skernel_data = %s_coba;\n" % (t, kernelName)
+      s += "%skernel_name = %s;\n" % (t, kernelName)
+      t = t[2:]
+      s += "%s}\n" % (t)
+
+    ########################################
     # Enqueue Kernels
     ########################################
     for kernelIdx in range(0, len(kernels)):
@@ -1095,7 +1113,7 @@ class SolutionWriter:
             s += "%sstatus = clSetKernelArg( kernels[kernelIdx], %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[sizeIdx])
           argIdx += 1
 
-      s += "%sfor (unsigned int enqueueIdx = 0; enqueueIdx < numEnqueues[%u]; enqueueIdx++) {\n" % (t, kernelIdx)
+      s += "%sfor (unsigned int enqueueIdx = 0; enqueueIdx < numEnqueues[%u]; enqueueIdx++)\n%s{\n" % (t, kernelIdx, t)
       t += "  "
       # debug print kernel dimensions
       if globalParameters["LibraryPrintDebug"]:
@@ -1153,11 +1171,7 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
-        s += "%sif( inputEvents != NULL )\n" % (t)
-        t += "  "
-        s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
-        t = t[2:]
-        s += "%stry {\n" % (t)
+        s += "%stry\n%s{\n" % (t, t)
         t += "  "
         # hip kernel
         if solution["KernelLanguage"] == "Source":
@@ -1209,72 +1223,43 @@ class SolutionWriter:
             s += "%smemset(debugBufferHostPtr,1,debugBufferSize);\n" % (t)
 
           # hip assembly function
-          s += "%shipFunctionArgs.dataC = dataC;\n" % (t)
-          s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
-          s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
+          s += "%sex.from_binary(kernel_data, 0, kernel_name, globalWorkSize[kernelIdx], localWorkSize)(\n" % (t)
+          t += "  "
+          s += "%shipFunctionArgs{ dataC,\n" % (t)
+          s += "%sdataA,\n" % (t)
+          s += "%sdataB,\n" % (t)
           if solution["ProblemType"]["DataType"].isHalf():
+            raise NotImplementedError( "Half scalars in executors not implemented" )
             s += "%shipFunctionArgs.alpha[0] = alpha;\n" % (t)
             s += "%shipFunctionArgs.alpha[1] = alpha;\n" % (t)
           else:
-            s += "%shipFunctionArgs.alpha = alpha;\n" % (t)
+            s += "%salpha,\n" % (t)
           if solution["ProblemType"]["UseBeta"]:
             if solution["ProblemType"]["DataType"].isHalf():
+              raise NotImplementedError( "Half scalars in executors not implemented" )
               s += "%shipFunctionArgs.beta[0] = beta;\n" % (t)
               s += "%shipFunctionArgs.beta[1] = beta;\n" % (t)
             else:
-              s += "%shipFunctionArgs.beta = beta;\n" % (t)
-          s += "%shipFunctionArgs.offsetC = offsets[kernelIdx][enqueueIdx][0];\n" % (t)
-          s += "%shipFunctionArgs.offsetA = offsets[kernelIdx][enqueueIdx][1];\n" % (t)
-          s += "%shipFunctionArgs.offsetB = offsets[kernelIdx][enqueueIdx][2];\n" % (t)
+              s += "%sbeta,\n" % (t)
+          s += "%soffsets[kernelIdx][enqueueIdx][0],\n" % (t)
+          s += "%soffsets[kernelIdx][enqueueIdx][1],\n" % (t)
+          s += "%soffsets[kernelIdx][enqueueIdx][2],\n" % (t)
           # strides
           for stride in self.strideList:
-            s += "%shipFunctionArgs.%s = %s;\n" % (t, stride, stride)
+            s += "%s%s,\n" % (t, stride)
           # sizes
           for i in range(0, solution["ProblemType"]["TotalIndices"]):
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
-            s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
-                % (t, globalParameters["IndexChars"][i], i )
-
-          s += "%shipModuleLaunchKernel(\n" % (t)
-          t += "  "
-          s += "%shipFunction,\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][0],\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][1],\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][2],\n" % (t)
-          s += "%slocalWorkSize[0],\n" % (t)
-          s += "%slocalWorkSize[1],\n" % (t)
-          s += "%slocalWorkSize[2],\n" % (t)
-          s += "%s0, // groupMemBytes\n" % (t)
-          s += "%sstream,\n" % (t)
-          s += "%sNULL,\n" % (t)
-          s += "%s(void**)hipLaunchParams);\n" % (t)
-          t = t[2:]
-          if globalParameters["DebugKernel"]:
-            # copy debug buffer
-            s += "%shipMemcpyDtoH(debugBufferHostPtr, hipFunctionArgs.debugBuffer, debugBufferSize);\n" % (t)
-            s += "%sfor(unsigned int i = 0; i < debugBufferNumElem/debugBufferElementsPerThread; i++) {\n" % (t)
-            s += "%s  printf(\"%%04i\", i);\n" % (t)
-            s += "%s  char u[debugBufferElementsPerThread] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};\n" % (t)
-            #s += "%s  char u[debugBufferElementsPerThread] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};\n" % (t)
-            #s += "%s  char u[debugBufferElementsPerThread] = {1,1,0,0,1,1,0,0,1,1,1,1,1,1,1,1};\n" % (t)
-            s += "%s  for(unsigned int j = 0; j < debugBufferElementsPerThread; j++) {\n" % (t)
-            s += "%s if (u[j]) printf(\",%%4u\", debugBufferHostPtr[i*debugBufferElementsPerThread+j]);\n" % (t)
-            s += "%s else printf(\",%%4.0f\", ((float *)debugBufferHostPtr)[i*debugBufferElementsPerThread+j]);\n" % (t)
-
-            s += "%s  }\n" % (t)
-            s += "%s  printf(\"\\n\");\n" % (t)
-            s += "%s}\n" % (t)
-
+            s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
+                % (t, i, "});" if lastParam else "," )
 
         t = t[2:]
-        s += "%s} catch (const std::exception& e) {\n" % (t)
+        s += "%s}\n%scatch (const std::exception& e) {\n" % (t, t)
         s += "#ifdef DEBUG\n"
         s += "%s  std::cerr << e.what() << std::endl;\n" % (t)
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
-        s += "%sif( outputEvent != NULL )\n" % (t)
-        s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
       s += "  }\n"
     s += "\n"
     s += "  return tensileStatusSuccess;\n"
