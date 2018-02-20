@@ -1176,10 +1176,10 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Global Offsets
     ########################################
-    for (tensorChar, indices) in [ \
-        ("C", range(0, kernel["ProblemType"]["NumIndicesC"])), \
-        ("A", kernel["ProblemType"]["IndexAssignmentsA"]), \
-        ("B", kernel["ProblemType"]["IndexAssignmentsB"]) ]:
+    for (tensorChar, indices, justOffset32) in [ \
+        ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), 0), \
+        ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"]), \
+        ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"]) ]:
       kStr += self.comment("Global Offset %s"%tensorChar)
       numDim = len(indices)
       idxChars = []
@@ -1210,16 +1210,24 @@ class KernelWriterAssembly(KernelWriter):
           or indices[0] == kernel["ProblemType"]["IndexUnroll"]:
         kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "v[\\vgprOffset%s]" \
             % idxChars[0], "d0 lower")
-        kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        # justOffset32 means we should only write the 32-bit offset 
+        # This is used in Buffer addressing modes.
+        # TODO - there is some additional dead code here that computes the upper 32 bits
+        #        and can be removed in the justOffset32 modes:w
+        # Flat addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
+        if not justOffset32:
+          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
       # other c index sgpr
       elif indices[0] < kernel["ProblemType"]["NumIndicesC"]:
         kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "s[\\sgprOffset%s]" \
             % idxChars[0], "d0 lower")
-        kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        if not justOffset32:
+          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
       # other sum index
       else:
         kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", hex(0), "d0 lower")
-        kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        if not justOffset32:
+          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
 
       # d1+
       for i in range(1, numDim):
@@ -1269,20 +1277,28 @@ class KernelWriterAssembly(KernelWriter):
             "v[\\vgprAddr+0]",  \
             "accumulate d%u lower"%i)
         # addr += offset * stride (hi)
-        kStr += inst("_v_addc_co_u32", \
-            "v[\\vgprAddr+1]", \
-            "vcc", \
-            "v[\\vgprTmp+1]",  \
-            "v[\\vgprAddr+1]",  \
-            "vcc", \
-            "accumulate d%u upper"%i)
+        if not justOffset32:
+          kStr += inst("_v_addc_co_u32", \
+              "v[\\vgprAddr+1]", \
+              "vcc", \
+              "v[\\vgprTmp+1]",  \
+              "v[\\vgprAddr+1]",  \
+              "vcc", \
+              "accumulate d%u upper"%i)
 
       # addr *= bytes/element
-      kStr += inst("v_lshlrev_b64", \
-          "v[\\vgprAddr+0:\\vgprAddr+1]", \
-          hex(log2(self.bpe)), \
-          "v[\\vgprAddr+0:\\vgprAddr+1]", \
-          "offset *= bytes/element")
+      if justOffset32:
+        kStr += inst("v_lshlrev_b32", \
+            "v[\\vgprAddr+0]", \
+            hex(log2(self.bpe)), \
+            "v[\\vgprAddr+0]", \
+            "offset *= bytes/element")
+      else:
+        kStr += inst("v_lshlrev_b64", \
+            "v[\\vgprAddr+0:\\vgprAddr+1]", \
+            hex(log2(self.bpe)), \
+            "v[\\vgprAddr+0:\\vgprAddr+1]", \
+            "offset *= bytes/element")
       #kStr += "s_endpgm\n"
       kStr += ".endm%s" % self.endLine
 
@@ -2106,8 +2122,11 @@ class KernelWriterAssembly(KernelWriter):
                 para, sPara, perp, sPerp, self.endLine)
 
             # dump final offsets
+            # BufferLoad flavor:
+            #kStr += dump(vgpr("GlobalReadOffset%s+%u+0"%(tP["tensorChar"], graIdx)))S
+            # Flat load flavor:
             #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
-            #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%tP["tensorChar"], graIdx))
+            #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
             graIdx += self.rpgo if kernel["BufferLoad"] else self.rpga
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
