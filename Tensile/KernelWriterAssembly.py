@@ -238,15 +238,16 @@ class KernelWriterAssembly(KernelWriter):
 
     self.do = {}
 
-    self.do["PreLoop"]    = True
-    self.do["GlobalRead"] = True
-    self.do["GlobalInc"]  = True
-    self.do["LocalWrite"] = True
-    self.do["LocalRead"]  = True
-    self.do["Wait"]       = True
-    self.do["Sync"]       = True
-    self.do["MAC"]        = True
-    self.do["PostLoop"]   = True
+    self.do["PreLoop"]     = True
+    self.do["GlobalReadA"] = True
+    self.do["GlobalReadB"] = True
+    self.do["GlobalInc"]   = True
+    self.do["LocalWrite"]  = True
+    self.do["LocalRead"]   = True
+    self.do["Wait"]        = True
+    self.do["Sync"]        = True
+    self.do["MAC"]         = True
+    self.do["PostLoop"]    = True
 
     self.maxVgprs = 256
 
@@ -2777,7 +2778,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read: Do It A/B
   ##############################################################################
   def globalReadDo(self, kernel, guardK, tP):
-    if not self.do["GlobalRead"]: return ""
+    if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
     kStr = ""
     graIdx = 0
     g2lIdx = 0
