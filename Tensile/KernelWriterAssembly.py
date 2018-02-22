@@ -23,7 +23,7 @@ from SolutionStructs import DataType
 from Common import globalParameters, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log, ceil
-from distutils.version import LooseVersion, StrictVersion
+from distutils.version import LooseVersion
 
 ################################################################################
 # Memory Instruction

@@ -157,57 +157,15 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
   build_image.inside( docker_args.docker_run_args )
   {
-    // PYTHONPATH is used for setup.py install --prefix install_prefix
-    // 02/05/2018 - PATH is to run unit tests, however setting path does not appear to work in withEnv block
-    withEnv(["PATH+TENSILE=./install_prefix/bin/", "PYTHONPATH=install_prefix/lib/python2.7/site-packages/"])
+    stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
     {
-      // The following does it's best to not use sudo; setting install prefix to local directory
-      // Running setup.py as root creates files/directories owned by root, which is a pain
-      sh """#!/usr/bin/env bash
-        set -x
-        cd ${paths.project_build_prefix}
-        mkdir -p install_prefix/lib/python2.7/site-packages
-        python ${rel_path_to_src}/setup.py install --prefix install_prefix
-      """
-
-      stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
-      {
-        // Cap the maximum amount of testing to be a few hours; assume failure if the time limit is hit
-        timeout(time: 2, unit: 'HOURS')
-        {
-          // Because PATH does not appear to get set with 'withEnv', manually set it in the bash script below
-          sh  """#!/usr/bin/env bash
-              set -x
-              export PATH=\${PATH}:./install_prefix/bin/
-              cd ${paths.project_build_prefix}
-
-              # defaults
-              tensile ${rel_path_to_src}/Tensile/Configs/test_hgemm_defaults.yaml hgemm_defaults
-              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm_defaults.yaml sgemm_defaults
-              tensile ${rel_path_to_src}/Tensile/Configs/test_dgemm_defaults.yaml dgemm_defaults
-
-              # thorough tests
-              tensile ${rel_path_to_src}/Tensile/Configs/test_hgemm.yaml hgemm
-              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm.yaml sgemm
-
-              # vectors
-              tensile ${rel_path_to_src}/Tensile/Configs/test_hgemm_vectors.yaml hgemm_vectors
-              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors
-
-              # tensor contractions
-              tensile ${rel_path_to_src}/Tensile/Configs/test_tensor_contraction.yaml tensor_contraction
-
-              # assembly
-              tensile ${rel_path_to_src}/Tensile/Configs/test_sgemm_asm.yaml sgemm_asm
-              tensile ${rel_path_to_src}/Tensile/Configs/test_dgemm_asm.yaml dgemm_asm
-          """
-
-          // TODO re-enable when jenkins supports opencl
-          //sh "tensile --runtime-language=OCL ../../Tensile/Configs/test_sgemm_vectors.yaml sgemm_vectors"
-          //sh "tensile --runtime-language=OCL ${rel_path_to_src}/Tensile/Configs/convolution.yaml tensor_contraction"
-
-          archiveArtifacts artifacts: "${paths.project_build_prefix}/dist/*.egg", fingerprint: true
-        }
+      timeout(time: 1, unit: 'HOURS') {
+        sh """#!/usr/bin/env bash
+          set -x
+          cd ${paths.project_src_prefix}
+          tox --version
+          tox -vv --workdir /tmp/.tensile-tox
+        """
       }
     }
   }

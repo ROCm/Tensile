@@ -164,7 +164,6 @@ def Tensile(userArgs):
 
   # Execute Steps in the config script
   executeStepsInConfig( config )
-  sys.exit(0)
 
 
 def TensileConfigPath(*args):
