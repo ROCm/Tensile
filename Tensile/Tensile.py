@@ -115,8 +115,8 @@ def Tensile(userArgs):
       help="use serial kernel and solution names")
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
-  # argParser.add_argument("--hcc-version", dest="HccVersion", \
-  #     help="This can affect what opcodes are emitted by the assembler")
+  argParser.add_argument("--current-isa", dest="currentIsa", nargs=3, type=int, \
+      help="Override autodetection of the detected ISA")
 
   # parse arguments
   args = argParser.parse_args(userArgs)
@@ -160,6 +160,8 @@ def Tensile(userArgs):
     globalParameters["ShortNames"] = True
   if args.noMergeFiles:
     globalParameters["MergeFiles"] = False
+  if args.currentIsa:
+    globalParameters["CurrentISA"] = tuple( args.currentIsa )
   print1("")
 
   # Execute Steps in the config script
