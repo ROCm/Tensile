@@ -42,6 +42,7 @@ unsigned int initAlpha;
 unsigned int initBeta;
 unsigned int initC;
 unsigned int initAB;
+unsigned int specializeAB; // True if the init mode requires different values for each matrix dim
 unsigned int platformIdx;
 unsigned int printValids;
 unsigned int printMax;
@@ -178,6 +179,132 @@ void copyData(
 #endif
 }
 
+// Specialize the AB data for the problem size.
+// This is used with the SerialInK data init type - each matrix needs different data.
+// Since this takes extra time, it is recommended to use this data init mode only
+// for debug
+template<typename DataType>
+void specializeData(
+    DataType *initialData,
+    unsigned int totalIndices,
+    unsigned int numIndicesC, 
+    unsigned int numIndicesAB,
+    const unsigned int *allSizes,
+    const unsigned int *indexAssignments) {
+
+
+  assert(totalIndices != 0);
+
+  const unsigned int numIndicesSummation = totalIndices - numIndicesC;
+
+  const unsigned int db = 1; // 0x1=header, 0x2=offset/value on each store, 0x4=loop debug
+  TensorDims td("specialize_matrix", numIndicesAB, numIndicesC, allSizes, indexAssignments);
+
+  if (db & 0x1) {
+    td.print();
+  }
+
+
+
+  // Bucketize the sizes for the free and bound (summation) indices:
+  //std::vector<unsigned int> freeIndexSizes(numIndicesC, 0);
+  std::vector<unsigned int> freeIndexSizes;
+  std::vector<unsigned int> boundIndexSizes;
+  for (size_t i = 0; i < numIndicesAB; i++) {
+    if (indexAssignments[i] < numIndicesC) {
+      freeIndexSizes.push_back(allSizes[indexAssignments[i]]);
+    } else {
+      boundIndexSizes.push_back(allSizes[indexAssignments[i]]);
+    }
+  }
+  const unsigned numIndicesFree = freeIndexSizes.size();
+  assert(boundIndexSizes.size() == numIndicesSummation);
+
+
+  // Counter for free-coord, these change in the free index loop
+  std::vector<unsigned int> freeCoord(numIndicesFree, 0);
+
+  // Counters to track coordinate, these change in the bound index loop
+  std::vector<unsigned int> boundCoord( numIndicesSummation, 0);
+  std::vector<unsigned int> coords( numIndicesAB, 0 );
+
+  DataType val = 0; // running initializer value
+  bool moreIndicesC = true;
+  while (moreIndicesC) { // iterate over entire free index range
+    // reset summation indices
+    for (unsigned int b = 0; b < numIndicesSummation; b++) {
+      boundCoord[b] = 0;
+    }
+
+    while (true) { // iterate over entire bound index range
+
+
+      // convert free/bound coord into tensorA,B 
+      unsigned int f=0;
+      unsigned int b=0;
+      for (unsigned int i = 0; i < numIndicesAB; i++) {
+        if (indexAssignments[i] < numIndicesC) {
+          coords[i] = freeCoord[f++];
+        } else {
+          coords[i] = boundCoord[b++];
+        }
+      }
+
+      size_t serialIdx = 0;
+      for (unsigned int i = 0; i < numIndicesAB; i++) {
+        serialIdx += coords[i]*td.memoryStrides[i];
+      }
+
+      if (db & 0x2) {
+        std::cout << "[" << serialIdx << "] = " << val << "\n";
+      }
+      initialData[serialIdx] = val++;  // actually initialize the element
+
+      // increment bound coord
+      boundCoord[numIndicesSummation-1]++;
+      for ( size_t bi = numIndicesSummation - 1; bi > 0 ; bi--) {
+        if ( boundCoord[bi] >= boundIndexSizes[bi]) {
+          boundCoord[bi] = 0;
+          boundCoord[bi-1]++;
+        }
+      }
+
+      if (boundCoord[0] >= boundIndexSizes[0]) {
+        if (db & 0x4) {
+          std::cout << "boundsBreak, boundCoord=" << boundCoord[0] << "\n";
+        }
+        break; // bound index range exit criteria
+      }
+    } // bound range
+    
+    // increment free coord
+    // skip = 1, validate everything
+    freeCoord[0]++;
+    // bump free counters to next level:
+    for (size_t f = 0; f < numIndicesFree-1; f++) {
+      if (db & 0x4) {
+        std::cout << "wrapcheck" << f << ":" << freeCoord[f] << " >= ? " << freeIndexSizes[f] << "\n";
+      }
+      if (freeCoord[f] >= freeIndexSizes[f]) {
+        if (db & 0x4) {
+          std::cout << "wrapdo" << f << ":" << freeCoord[f] << " >= ? " << freeIndexSizes[f] << "\n";
+        }
+
+        freeCoord[f] = 0;
+        freeCoord[f+1]++;
+      }
+    }
+
+    // When last free coord hits the max, exit the loop:
+    if (db & 0x4) {
+      std::cout << "done?" << freeCoord[numIndicesFree-1] << " >= ? " << freeIndexSizes[numIndicesFree-1] << "\n";
+    }
+    if (freeCoord.back() >= freeIndexSizes.back()) {
+      moreIndicesC = false;
+      break; // free index range exit criteria
+    }
+  }
+}
 
 /*******************************************************************************
  * Call Library
@@ -202,12 +329,27 @@ bool callLibrary(
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     totalFlops *= userSizes[i]; }
 
+  if (specializeAB) {
+    specializeData(initialA, totalIndices[problemTypeIdx],
+                    numIndicesC[problemTypeIdx],
+                    numIndicesAB[problemTypeIdx],
+                    userSizes, indexAssignmentsA[problemIdx]);
+    specializeData(initialB, totalIndices[problemTypeIdx],
+                    numIndicesC[problemTypeIdx],
+                    numIndicesAB[problemTypeIdx],
+                    userSizes, indexAssignmentsB[problemIdx]);
+    copyData<DataType> (initialA, initialB);
+  }
+
   if (printTensorA) {
-    printTensor("A", initialA, numIndicesAB[problemTypeIdx], sizes, 
+    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+                  numIndicesC[problemTypeIdx],
+                  sizes, 
                   indexAssignmentsA[problemTypeIdx]);
   }
   if (printTensorB) {
-    printTensor("B", initialB, numIndicesAB[problemTypeIdx], sizes, 
+    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+                  numIndicesC[problemTypeIdx],
                   indexAssignmentsB[problemTypeIdx]);
   }
 
@@ -543,6 +685,28 @@ bool benchmarkAllSolutionsForSize(
     totalFlops *= sizes[i]; }
   file << ", " << totalFlops;
 
+  if (specializeAB) {
+    specializeData(initialA, totalIndices[problemTypeIdx],
+                    numIndicesC[problemTypeIdx],
+                    numIndicesAB[problemTypeIdx],
+                    sizes, indexAssignmentsA[problemTypeIdx]);
+    specializeData(initialB, totalIndices[problemTypeIdx],
+                    numIndicesC[problemTypeIdx],
+                    numIndicesAB[problemTypeIdx],
+                    sizes, indexAssignmentsB[problemTypeIdx]);
+    copyData<DataType> (initialA, initialB);
+  }
+  if (printTensorA) {
+    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes,
+                indexAssignmentsA[problemTypeIdx]);
+  }
+  if (printTensorB) {
+    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes, 
+                indexAssignmentsB[problemTypeIdx]);
+  }
+
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
@@ -574,18 +738,12 @@ bool benchmarkAllSolutionsForSize(
         alpha, beta);
 
   }
+
+
   fastestGFlops = 0;
   for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
 
-    if (printTensorA) {
-      printTensor("A", initialA, numIndicesAB[solutionIdx], sizes, 
-                    indexAssignmentsA[solutionIdx]);
-    }
-    if (printTensorB) {
-      printTensor("B", initialB, numIndicesAB[solutionIdx], sizes, 
-                    indexAssignmentsB[solutionIdx]);
-    }
 
     // copy data in language
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -969,10 +1127,13 @@ void initData(
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
-  } else {
+  } else if (initC == 4) {
     for (size_t i = 0; i < maxSizeC; i++) {
       (*initialC)[i] = tensileGetNaN<DataType>(); }
     std::cout << ".";
+  } else {
+    std::cout << "FATAL ERROR: Bad DataInitTypeC=" << initC << "\n";
+    exit(0);
   }
 
   // initialize buffers
@@ -997,13 +1158,25 @@ void initData(
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetTypeForInt<DataType>(i); }
     std::cout << ".";
-  } else {
+  } else if (initAB == 3) {
     for (size_t i = 0; i < maxSizeA; i++) {
       (*initialA)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
     for (size_t i = 0; i < maxSizeB; i++) {
       (*initialB)[i] = tensileGetRandom<DataType>(); }
     std::cout << ".";
+    std::cout << ".";
+  } else if (initAB == 4) {
+    for (size_t i = 0; i < maxSizeA; i++) {
+      (*initialA)[i] = tensileGetNaN<DataType>(); }
+    for (size_t i = 0; i < maxSizeB; i++) {
+      (*initialB)[i] = tensileGetNaN<DataType>(); }
+  } else if (initAB == 5) {
+    // Will initialize later for each matrix dim:
+    specializeAB = true;
+  } else {
+    std::cout << "FATAL ERROR: Bad DataInitTypeAB=" << initAB << "\n";
+    exit(0);
   }
 
 
@@ -1024,14 +1197,6 @@ void initData(
       maxSizeB*bytesPerElement[dataTypeIdx], NULL, &status);
   tensileStatusCheck(status);
     std::cout << ".";
-  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceA), CL_TRUE,
-      0, maxSizeA*bytesPerElement[dataTypeIdx], *initialA, 0, NULL, NULL);
-  tensileStatusCheck(status);
-    std::cout << ".";
-  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceB), CL_TRUE,
-      0, maxSizeB*bytesPerElement[dataTypeIdx], *initialB, 0, NULL, NULL);
-  tensileStatusCheck(status);
-    std::cout << ".";
 #else
   status = hipMalloc( &deviceC, maxSizeC*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
@@ -1042,16 +1207,19 @@ void initData(
   status = hipMalloc( &deviceB, maxSizeB*bytesPerElement[dataTypeIdx] );
   tensileStatusCheck(status);
   std::cout << ".";
-  status = hipMemcpy(deviceA, *initialA, maxSizeA*bytesPerElement[dataTypeIdx],
-      hipMemcpyHostToDevice);
-  status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx],
-      hipMemcpyHostToDevice);
 #endif
 
-  copyData<DataType>(*initialA, *initialB);
+  if (!specializeAB) {
+    // Specialized data is initialized and copied before each matrix run:
+    copyData<DataType>(*initialA, *initialB);
+  }
 
   std::cout << std::endl;
 }
+
+
+
+
 
 /*******************************************************************************
  * destroy data
@@ -1127,6 +1295,7 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   initBeta = defaultInitBeta;
   initC = defaultInitC;
   initAB = defaultInitAB;
+  specializeAB = false;
   platformIdx = defaultPlatformIdx;
   printValids = defaultPrintValids;
   printMax = defaultPrintMax;
