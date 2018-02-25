@@ -168,6 +168,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   if globalParameters["CMakeCFlags"]:
     runScriptFile.write("  -DCMAKE_C_FLAGS=%s" \
         % globalParameters["CMakeCFlags"] )
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" \
+      % (globalParameters["CMakeBuildType"]))
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
