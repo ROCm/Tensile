@@ -130,6 +130,8 @@ class DataType:
     return self.value == self.single
   def isHalf(self):
     return self.value == self.half
+  def isNone(self):
+    return self.value == self.none
 
   ########################################
   def numRegisters( self ):
