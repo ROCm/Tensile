@@ -28,6 +28,7 @@ public:
   TensorDims(
     const std::string name,
     unsigned int numIndices,
+    unsigned int firstSummationIndex,
     const unsigned int *indexedSizes,
     const unsigned int *indexAssignments);
 
@@ -51,6 +52,7 @@ public:
 private:
   const std::string _name;
   unsigned int _numIndices;
+  unsigned int _firstSummationIndex;
   std::vector<unsigned int> _indexAssignment;
 
 };
@@ -58,10 +60,12 @@ private:
 TensorDims::TensorDims(
   const std::string name,
   unsigned int numIndices,
+  unsigned int firstSummationIndex,
   const unsigned int *indexedSizes,
   const unsigned int *indexAssignments) :
     _name(name),
     _numIndices(numIndices),
+    _firstSummationIndex(firstSummationIndex),
     sizes(numIndices,0),
     elementStrides(numIndices, 0),
     memoryStrides(numIndices, 0),
@@ -101,11 +105,17 @@ void TensorDims::print() const {
       std::cout << ", ";
     }
     std::cout << _indexAssignment[i];
+    if (_indexAssignment[i] >= _firstSummationIndex) 
+        std::cout << "(sum)";
+    else
+        std::cout << "(free)";
   }
   std::cout << "\n";
 
   for (unsigned int i=0; i<_numIndices; i++) {
-    std::cout << "  size[" << i << "]="<<sizes[i]<<"\n";
+    std::cout << "  size[" << i << "]=" << sizes[i] 
+              << (_indexAssignment[i] >= _firstSummationIndex ? " (sum)" : " (free)")
+              << "\n";
   }
   for (unsigned int i=0; i<_numIndices; i++) {
     std::cout << "  elementStrides[" << i << "]="<<elementStrides[i]<<"\n";
@@ -147,12 +157,13 @@ void printTensor(
     const std::string &name,
     const Type *data,
     unsigned int numIndices,
+    unsigned int firstSummationIndex,
     const unsigned int *indexedSizes,
     const unsigned int *indexAssignments,
     //unsigned printMode=PrintElementIndex | PrintElementValue) {
     unsigned printMode=PrintElementValue) {
 
-    TensorDims td(name, numIndices, indexedSizes, indexAssignments);
+    TensorDims td(name, numIndices, firstSummationIndex, indexedSizes, indexAssignments);
 
     td.print();
 
