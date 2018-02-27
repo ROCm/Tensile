@@ -186,7 +186,7 @@ int main( int argc, char *argv[] ) {
 
   // cleanup
   destroyControls();
-  std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GFlop/s by ("
+  std::cout << std::endl << "Fastest: " << globalFastestGFlops << " GFlop/s " << globalFastestTime/1000.0f << " us by ("
       << globalFastestIdx << ") ";
 #if Tensile_CLIENT_BENCHMARK
   std::cout << solutionNames[fastestIdx];

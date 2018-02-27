@@ -115,6 +115,7 @@ void initControls();
 void destroyControls();
 
 double globalFastestGFlops = 0.0;
+double globalFastestTime  = 0.0;
 unsigned int globalFastestIdx = 0;
 double fastestGFlops = 0.0;
 unsigned int fastestIdx = 0;
@@ -437,6 +438,7 @@ bool callLibrary(
     newFastest = true;
     if (fastestGFlops > globalFastestGFlops) {
       globalFastestGFlops = fastestGFlops;
+      globalFastestTime = timeNs;
       globalFastestIdx = fastestIdx;
     }
   }
@@ -788,6 +790,7 @@ bool benchmarkAllSolutionsForSize(
       newFastest = true;
       if (fastestGFlops > globalFastestGFlops) {
         globalFastestGFlops = fastestGFlops;
+        globalFastestTime = timeNs;
         globalFastestIdx = fastestIdx;
       }
     }
