@@ -433,7 +433,30 @@ class KernelWriterAssembly(KernelWriter):
 
     # registers per element
     self.bpr = 4 # all registers are 32bit
-    self.bpe = int(self.bpr*kernel["ProblemType"]["DataType"].numRegisters())
+    if not kernel["ProblemType"]["DataType"].isNone():
+        # deprecated path. assume all data is the same size
+        print "Kernel using deprecated parameter DataType. Use DataTypeA/B/C to specify matrix data types and DataTypeAccumulate to specify accumulation data type."
+        self.bpeA = int(self.bpr*\
+            kernel["ProblemType"]["DataType"].numRegisters())
+        self.bpeB = int(self.bpr*\
+            kernel["ProblemType"]["DataType"].numRegisters())
+        self.bpeCexternal = int(self.bpr*\
+                kernel["ProblemType"]["DataType"].numRegisters())
+        self.bpeCinternal = int(self.bpr*\
+                kernel["ProblemType"]["DataType"].numRegisters())
+    else:
+        self.bpeA = int(self.bpr*\
+            kernel["ProblemType"]["DataTypeA"].numRegisters())
+        self.bpeB = int(self.bpr*\
+            kernel["ProblemType"]["DataTypeB"].numRegisters())
+    # A and B must have the same datatype for the time being
+        assert self.bpeA == self.bpeB
+        self.bpeCexternal = int(self.bpr*\
+            kernel["ProblemType"]["DataTypeC"].numRegisters())
+        self.bpeCinternal = int(self.bpr*\
+            kernel["ProblemType"]["DataTypeAccumulate"].numRegisters())
+    assert self.bpeA == tPA["bpe"]
+    assert self.bpeB == tPB["bpe"]
     # registers per global address
     self.rpga = 2 # 64-bit
     # registers per local address
@@ -445,7 +468,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadA instruction; no flat_load2_*
-    self.globalReadWidthA = (tPA["nrcv"]*self.bpe)/self.bpr
+    self.globalReadWidthA = (tPA["nrcv"]*tPA["bpe"])/self.bpr
     self.globalRead2CoalescedA = kernel["NumLoadsCoalescedA"]>1 \
         or self.readCoalescedComponentsA
     self.globalRead2PerpendicularA = kernel["NumLoadsPerpendicularA"] > 1 \
@@ -457,7 +480,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadB instruction; no flat_load2_
-    self.globalReadWidthB = (tPB["nrcv"]*self.bpe)/self.bpr
+    self.globalReadWidthB = (tPB["nrcv"]*tPB["bpe"])/self.bpr
     self.globalRead2CoalescedB = kernel["NumLoadsCoalescedB"]>1 \
         or self.readCoalescedComponentsB
     self.globalRead2PerpendicularB = kernel["NumLoadsPerpendicularB"] > 1 \
@@ -472,9 +495,9 @@ class KernelWriterAssembly(KernelWriter):
     # for local, tile->para, unroll->perp
     #self.localWriteWidthA = 1 if (self.writeTileDimComponentsA \
     #    or self.writeUnrollDimComponentsA) else kernel["VectorWidth"]
-    self.localWriteWidthA = (tPA["nwcv"]*self.bpe)/self.bpr
+    self.localWriteWidthA = (tPA["nwcv"]*tPA["bpe"])/self.bpr
     if self.localWriteWidthA < 1:
-      self.localWriteWidthA = (1.0*tPA["nwcv"]*self.bpe)/self.bpr
+      self.localWriteWidthA = (1.0*tPA["nwcv"]*tPA["bpe"])/self.bpr
     self.localWrite2CoalescedA = tPA["nrc"]>1 \
         or self.writeTileDimComponentsA
     self.localWrite2PerpendicularA = tPA["nrp"]>1 \
@@ -494,7 +517,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideTileA = kernel["LSPA"]
         self.localWriteJoinTileA = "Perpendicular"
-    self.localWriteStrideTileA = (self.localWriteStrideTileA*self.bpe)/self.bpr
+    self.localWriteStrideTileA = (self.localWriteStrideTileA*tPA["bpe"])/self.bpr
     # localWriteA stride unroll
     if kernel["ProblemType"]["TLUA"]:
       if self.writeUnrollDimComponentsA:
@@ -510,7 +533,8 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideUnrollA = kernel["LSCA"]*kernel["MacroTileA"]
         self.localWriteJoinUnrollA = "Coalesced"
-    self.localWriteStrideUnrollA = (self.localWriteStrideUnrollA*self.bpe)/self.bpr
+    self.localWriteStrideUnrollA = \
+        (self.localWriteStrideUnrollA*tPA["bpe"])/self.bpr
     self.localWriteInstructionIdxA = \
         self.selectMemoryInstruction("LocalWrite", self.localWriteWidthA, \
         kernel["LocalWrite2A"], \
@@ -522,9 +546,9 @@ class KernelWriterAssembly(KernelWriter):
     # for local, tile->para, unroll->perp
     #self.localWriteWidthB = 1 if (self.writeTileDimComponentsB \
     #    or self.writeUnrollDimComponentsB) else kernel["VectorWidth"]
-    self.localWriteWidthB = (tPB["nwcv"]*self.bpe)/self.bpr
+    self.localWriteWidthB = (tPB["nwcv"]*tPB["bpe"])/self.bpr
     if self.localWriteWidthB < 1:
-      self.localWriteWidthB = (1.0*tPB["nwcv"]*self.bpe)/self.bpr
+      self.localWriteWidthB = (1.0*tPB["nwcv"]*tPB["bpe"])/self.bpr
     self.localWrite2CoalescedB = tPB["nrc"]>1 \
         or self.writeTileDimComponentsB
     self.localWrite2PerpendicularB = tPB["nrp"]>1 \
@@ -544,7 +568,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideTileB = kernel["LSPB"]
         self.localWriteJoinTileB = "Perpendicular"
-    self.localWriteStrideTileB = (self.localWriteStrideTileB*self.bpe)/self.bpr
+    self.localWriteStrideTileB = (self.localWriteStrideTileB*tPB["bpe"])/self.bpr
     # localWriteB stride unroll
     if kernel["ProblemType"]["TLUB"]:
       if self.writeUnrollDimComponentsB:
@@ -560,7 +584,8 @@ class KernelWriterAssembly(KernelWriter):
       else:
         self.localWriteStrideUnrollB = kernel["LSCB"]*kernel["MacroTileB"]
         self.localWriteJoinUnrollB = "Coalesced"
-    self.localWriteStrideUnrollB = (self.localWriteStrideUnrollB*self.bpe)/self.bpr
+    self.localWriteStrideUnrollB = \
+        (self.localWriteStrideUnrollB*tPB["bpe"])/self.bpr
     self.localWriteInstructionIdxB = \
         self.selectMemoryInstruction("LocalWrite", self.localWriteWidthB, \
         kernel["LocalWrite2B"], \
@@ -569,26 +594,28 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # localRead A
-    self.localReadWidth = (kernel["VectorWidth"] * self.bpe)/self.bpr
+    localReadWidth = (kernel["VectorWidth"] * tPA["bpe"])/self.bpr
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
-    self.localReadStrideCoalescedA = (kernel["ThreadTile0"] * self.bpe)/self.bpr
+    self.localReadStrideCoalescedA = \
+        (kernel["ThreadTile0"] * tPA["bpe"])/self.bpr
     self.localRead2CoalescedA = kernel["ThreadTile0"]/kernel["VectorWidth"] > 1
     self.localReadInstructionIdxA = \
-        self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
+        self.selectMemoryInstruction("LocalRead", localReadWidth, \
         kernel["LocalRead2A"], \
         self.localRead2CoalescedA, localRead2Perpendicular,
         [self.localReadStrideCoalescedA] )
 
     ########################################
     # localRead B
-    self.localReadWidth = (kernel["VectorWidth"] * self.bpe)/self.bpr
+    localReadWidth = (kernel["VectorWidth"] * tPB["bpe"])/self.bpr
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
-    self.localReadStrideCoalescedB = (kernel["ThreadTile1"] * self.bpe)/self.bpr
+    self.localReadStrideCoalescedB = \
+    (kernel["ThreadTile1"] * tPB["bpe"])/self.bpr
     self.localRead2CoalescedB = kernel["ThreadTile1"]/kernel["VectorWidth"] > 1
     self.localReadInstructionIdxB = \
-        self.selectMemoryInstruction("LocalRead", self.localReadWidth, \
+        self.selectMemoryInstruction("LocalRead", localReadWidth, \
         kernel["LocalRead2B"], \
         self.localRead2CoalescedB, localRead2Perpendicular,
         [self.localReadStrideCoalescedB] )
@@ -607,10 +634,10 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadInstructionB = instructions["LocalRead"][ \
         self.localReadInstructionIdxB]
     # global reads per instruction
-    tPA["nrcvpi"] = int((self.globalReadInstructionA.totalWidth*self.bpr) / self.bpe)
-    tPB["nrcvpi"] = int((self.globalReadInstructionB.totalWidth*self.bpr) / self.bpe)
-    tPA["nwcvpi"] = int((self.localWriteInstructionA.totalWidth*self.bpr) / self.bpe)
-    tPB["nwcvpi"] = int((self.localWriteInstructionB.totalWidth*self.bpr) / self.bpe)
+    tPA["nrcvpi"] = int((self.globalReadInstructionA.totalWidth*self.bpr) / tPA["bpe"])
+    tPB["nrcvpi"] = int((self.globalReadInstructionB.totalWidth*self.bpr) / tPB["bpe"])
+    tPA["nwcvpi"] = int((self.localWriteInstructionA.totalWidth*self.bpr) / tPA["bpe"])
+    tPB["nwcvpi"] = int((self.localWriteInstructionB.totalWidth*self.bpr) / tPB["bpe"])
 
     ####################################
     # VGPR Allocation
@@ -618,18 +645,19 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num vgprs: valu
-    self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpe)/self.bpr
-    numVgprValuA = (kernel["ThreadTileA"]*self.bpe)/self.bpr
-    numVgprValuB = (kernel["ThreadTileB"]*self.bpe)/self.bpr
+#jgolds bpeCinternal because we are allocating accumulation registers here
+    self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)/self.bpr
+    numVgprValuA = (kernel["ThreadTileA"]*tPA["bpe"])/self.bpr
+    numVgprValuB = (kernel["ThreadTileB"]*tPB["bpe"])/self.bpr
     numVgprValuBlkA = numVgprValuA if kernel["PrefetchLocalRead"] else 0
     numVgprValuBlkB = numVgprValuB if kernel["PrefetchLocalRead"] else 0
 
     ####################################
     # num vgprs: global -> local elements
     numVgprG2LA = (kernel["NumLoadsCoalescedA"] \
-        * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * self.bpe)/self.bpr
+        * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * tPA["bpe"])/self.bpr
     numVgprG2LB = (kernel["NumLoadsCoalescedB"] \
-        * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * self.bpe)/self.bpr
+        * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * tPB["bpe"])/self.bpr
 
     ####################################
     # num vgprs: local read addresses
@@ -655,14 +683,14 @@ class KernelWriterAssembly(KernelWriter):
     numGlobalReadsA = kernel["NumLoadsCoalescedA"] \
         * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] \
         * self.numReadVectorComponentsA
-    numGlobalReadInstructionsA = (numGlobalReadsA * self.bpe)\
+    numGlobalReadInstructionsA = (numGlobalReadsA * tPA["bpe"])\
         / (self.globalReadInstructionA.blockWidth * 4)
     numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] \
         * self.numReadVectorComponentsB
-    numGlobalReadInstructionsB = (numGlobalReadsB * self.bpe) \
+    numGlobalReadInstructionsB = (numGlobalReadsB * tPB["bpe"]) \
         / (self.globalReadInstructionB.blockWidth * 4)
     numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
     numVgprSerial = 1
@@ -772,8 +800,9 @@ class KernelWriterAssembly(KernelWriter):
     numSgprOffsetC = 1
     numSgprOffsetA = 1
     numSgprOffsetB = 1
-    numSgprAlpha = max(1,int(self.bpe/4))
-    numSgprBeta  = max(1,int(self.bpe/4)) if kernel["ProblemType"]["UseBeta"] else 0
+#jgolds still assuming A and B have same data type
+    numSgprAlpha = max(1,int(tPA["bpe"]/4))
+    numSgprBeta  = max(1,int(self.bpeCexternal/4)) if kernel["ProblemType"]["UseBeta"] else 0
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprStridesA = len(kernel["ProblemType"]["IndexAssignmentsA"])
     self.numSgprStridesB = len(kernel["ProblemType"]["IndexAssignmentsB"])
@@ -824,7 +853,8 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprAddressC = sgprIdx;       sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx;       sgprIdx += self.numSgprStridesC
     # doubles need to be aligned to even
-    if self.bpe > 4 and sgprIdx%2==1:
+#jgolds still assuming A and B have the same data type
+    if tPA["bpe"] > 4 and sgprIdx%2==1:
       sgprIdx += 1
     self.startSgprAlpha = sgprIdx;          sgprIdx += numSgprAlpha
     self.startSgprBeta = sgprIdx;           sgprIdx += numSgprBeta
@@ -929,9 +959,10 @@ class KernelWriterAssembly(KernelWriter):
     # kern arg size
     kernArgReg = 0
     kernArgReg += 3*self.rpga
-    kernArgReg += max(1,int(self.bpe/4)) # alpha
+#jgolds still assuming A and B have the same data type
+    kernArgReg += max(1,int(self.bpeA/4)) # alpha
     if kernel["ProblemType"]["UseBeta"]:
-      kernArgReg += max(1,int(self.bpe/4)) # beta
+      kernArgReg += max(1,int(self.bpeCexternal/4)) # beta
     kernArgReg += 3 # offsets
     kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
     kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
@@ -976,8 +1007,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # lds size
     #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
+#jgolds which bpe should we use? assuming A
     kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
-        % ( kernel["LdsNumElements"] * self.bpe, self.endLine )
+        % ( kernel["LdsNumElements"] * self.bpeA, self.endLine )
 
     # other
     kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
@@ -1169,9 +1201,10 @@ class KernelWriterAssembly(KernelWriter):
             "accumulate d%u upper"%i)
 
       # addr *= bytes/element
+#jgolds which bpe should we use? assuming A
       kStr += inst("v_lshlrev_b64", \
           "v[\\vgprAddr+0:\\vgprAddr+1]", \
-          hex(log2(self.bpe)), \
+          hex(log2(self.bpeA)), \
           "v[\\vgprAddr+0:\\vgprAddr+1]", \
           "offset *= bytes/element")
       #kStr += "s_endpgm\n"
@@ -1222,6 +1255,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += ("" if m==0 else "_BLK")
       kStr += self.endLine
       macIdx = 0
+#jgolds needs fixing
       # half precision
       if kernel["ProblemType"]["DataType"].isHalf():
         for blockB in range(0, kernel["ThreadTile1"]/2):
@@ -1319,9 +1353,10 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.do["PreLoop"]: 
       # set m0
+#jgolds which bpe here? Using A for now
       kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
-          * self.bpe), "LDS clamp at %u bytes" \
-          %(kernel["LdsNumElements"] * self.bpe) )
+          * self.bpeA), "LDS clamp at %u bytes" \
+          %(kernel["LdsNumElements"] * self.bpeA) )
 
       kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
@@ -1363,7 +1398,8 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load alpha" )
         kStr += inst("s_load_dword", sgpr("Alpha+1"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load alpha" )
-      kernArgOffset += 1*max(4,self.bpe)
+#jgolds assuming A and B have same data type
+      kernArgOffset += 1*max(4,self.bpeA)
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("s_load_dword", sgpr("Beta"), \
@@ -1373,7 +1409,7 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load beta" )
           kStr += inst("s_load_dword", sgpr("Beta+1"), \
               sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load beta" )
-        kernArgOffset += 1*max(4,self.bpe)
+        kernArgOffset += 1*max(4,self.bpeCexternal)
       kStr += inst("s_load_dword", sgpr("OffsetC"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load offset c" )
       kernArgOffset += 1*4
@@ -2062,8 +2098,9 @@ class KernelWriterAssembly(KernelWriter):
       if tP["tlu"]:
         if self.globalReadIncsUseVgpr:
           tmpSgpr = self.getTmpSgpr(1)
+#jgolds which bpe here? assuming tP
           kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
-              hex(depthU*self.bpe), sgpr("Strides%s"%tP["tensorChar"]), \
+              hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
               "incr = stride*%u*bytes"%depthU )
           """
           kStr += inst("s_addc_u32", \
@@ -2085,8 +2122,9 @@ class KernelWriterAssembly(KernelWriter):
               sgpr(tmpSgpr+1), \
               "" )
         else:
+#jgolds which bpe here? assuming tP
           kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*self.bpe), sgpr("Strides%s"%tP["tensorChar"]), \
+              hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
               "incr = stride*%u*bytes"%depthU )
           """
           kStr += inst("s_addc_u32", \
@@ -2100,15 +2138,16 @@ class KernelWriterAssembly(KernelWriter):
               hex(0), \
               "(carry)")
       else: # transposed
+#jgolds which bpe here? assuming tP
         if self.globalReadIncsUseVgpr:
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*self.bpe), \
+              hex(depthU*tP["bpe"]), \
               "incr = %u*bytes"%depthU )
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
               hex(0), "incr = %u*bytes (upper)"%depthU )
         else:
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
-              hex(depthU*self.bpe), \
+              hex(depthU*tP["bpe"]), \
               "incr = %u*bytes"%depthU )
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
               hex(0), "incr = %u*bytes (upper)"%depthU )
@@ -2154,19 +2193,20 @@ class KernelWriterAssembly(KernelWriter):
         "lwFO%s = lw%s%s + lw%s%s*MT%s" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
         tP["tensorChar"], self.unrollChar, tP["tileChar"]) )
+#jgolds which bpe here? assuming tP
     kStr += inst("v_lshlrev_b32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(log2(self.bpe)), \
+        hex(log2(tP["bpe"])), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         " *= bytes/element" )
     if tP["isB"]:
       kStr += inst("v_add_u32", \
           vgpr("LocalWriteAddrB"), \
           "vcc", \
-          hex(kernel["LdsOffsetB"]*self.bpe), \
+          hex(kernel["LdsOffsetB"]*tP["bpe"]), \
           vgpr("LocalWriteAddrB"), \
           "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (tP["tileChar"], \
-          self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpe) )
+          self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpeB) )
     self.vgprPool.checkIn(tP["gpr"]["lwoT"])
     self.vgprPool.checkIn(tP["gpr"]["uReg"])
     if kernel["GlobalSplitU"] > 1:
@@ -2203,7 +2243,8 @@ class KernelWriterAssembly(KernelWriter):
           if tP["tlu"] == tP["grcv"]:
             lspaOffset *= tP["glvw"]
           offset = lspaOffset + lscaOffset
-          offset *= self.bpe
+#jgolds which bpe here? assuming tP
+          offset *= tP["bpe"]
           offset /= tP["localWriteInstruction"].offsetMultiplier
           kStr += "%slwo%s_%u_%u_%u_%u = (%s%d*%s)" \
               % (self.commentPrefix, tP["tensorChar"], \
@@ -2302,9 +2343,10 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         vgpr(tP["gpr"]["lro"]), \
         "o = lro%s*VW+sgid*MT%u"%(tP["tensorChar"], tP["tensorIdx"]) )
+#jgolds which bpe here? assuming tP
     kStr += inst("v_lshlrev_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        hex(log2(self.bpe)), \
+        hex(log2(tP["bpe"])), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "*= bytes/element" )
 
@@ -2324,10 +2366,11 @@ class KernelWriterAssembly(KernelWriter):
     if tP["isA"]:
       return self.comment1("N/A")
     else:
+#jgolds which bpe here? Looks like tP, which is B
       return inst("v_add_u32", \
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           "vcc", \
-          hex(kernel["LdsOffset%s"%tP["tensorChar"]]*self.bpe), \
+          hex(kernel["LdsOffset%s"%tP["tensorChar"]]*tP["bpe"]), \
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           " += LdsOffset%s (lower)"%tP["tensorChar"])
 
@@ -2677,7 +2720,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_lshl_b64", \
           sgpr(maxAddr,2), \
           sgpr(maxAddr,2), \
-          hex(log2(self.bpe)), "offset *= bytes/element")
+          hex(log2(tP["bpe"])), "offset *= bytes/element")
       # maxAddr += initial address
       kStr += inst("s_add_u32", \
           sgpr(maxAddr+0), \
@@ -2703,8 +2746,9 @@ class KernelWriterAssembly(KernelWriter):
           "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
       # inc
       bpeVgpr = self.vgprPool.checkOut(1)
+#jgolds which bpe here? assuming tP
       kStr += inst("v_mov_b32", vgpr(bpeVgpr), \
-          hex(self.bpe), "bytes per element")
+          hex(tP["bpe"]), "bytes per element")
       zeroVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(zeroVgpr), \
           hex(0), "zero")
@@ -2717,14 +2761,15 @@ class KernelWriterAssembly(KernelWriter):
             g2lIdx = i * loadWidth
             if guardK:
               # for each component in vector
-              for r in range(0, loadWidth*self.bpr/self.bpe):
+#jgolds which bpe here? assuming tP
+              for r in range(0, loadWidth*self.bpr/tP["bpe"]):
                 kStr += self.comment1("load component %u"%r)
                 #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
                 #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
                 #kStr += "s_endpgm\n"
                 # zero out data regardless of load or not
-                for i in range(0, self.bpe/self.bpr):
-                  kStr += inst("v_mov_b32", vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*(self.bpe/self.bpr)+i)), hex(0), "zero")
+                for i in range(0, tP["bpe"]/self.bpr):
+                  kStr += inst("v_mov_b32", vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*(tP["bpe"]/self.bpr)+i)), hex(0), "zero")
 
                 # mask if current address if in bounds
                 kStr += inst("v_cmpx_lt_u64", "vcc", \
@@ -2784,9 +2829,10 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteSwapOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+#jgolds which bpe here? assuming tP
     kStr += inst("v_xor_b32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
+        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "swap Red Blk")
     return kStr
@@ -2798,9 +2844,10 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteResetOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+#jgolds which bpe here? assuming tP
     kStr += inst("v_and_b32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
+        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "reset to Red")
     return kStr
@@ -2884,7 +2931,8 @@ class KernelWriterAssembly(KernelWriter):
           #print "2lscaOffset", lscaOffset
           offsetElements = (lspaOffset + lscaOffset)
           #print "offsetElements", offsetElements
-          offsetBytes = offsetElements*self.bpe
+#jgolds which bpe here? assuming tP
+          offsetBytes = offsetElements*tP["bpe"]
           #print "offsetBytes", offsetBytes
           #offset = offsetBytes*offsetMultiplier
           offset = offsetBytes*1
@@ -2935,9 +2983,10 @@ class KernelWriterAssembly(KernelWriter):
   def localReadSwapOffsets(self, kernel, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
+#jgolds which bpe here? assuming tP
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe), \
+        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "swap Red Blk")
     return kStr
@@ -2952,9 +3001,10 @@ class KernelWriterAssembly(KernelWriter):
     if tP["localReadInstruction"].numOffsets == 1:
       tP["localReadOffset"] = 0
       kStr += self.comment1("handled internally")
+#jgolds which bpe here? assuming tP
     kStr += inst("v_and_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*self.bpe-1), \
+        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1), \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "reset Red,Blk -> Red")
     return kStr
@@ -2969,9 +3019,10 @@ class KernelWriterAssembly(KernelWriter):
       tP["localReadOffset"] = 0
       kStr += self.comment1("N/A")
     else:
+#jgolds which bpe here? assuming tP
       kStr += inst("v_and_b32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*self.bpe-1), \
+          hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*tP["bpe"]-1), \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           "reset Red,Blk -> Red")
     return kStr
@@ -2983,7 +3034,8 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead"]: return ""
     kStr = ""
     if self.inTailLoop:
-      inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]*self.bpe
+#jgolds which bpe here? assuming tP
+      inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]*tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("v_add_u32", \
@@ -3021,7 +3073,8 @@ class KernelWriterAssembly(KernelWriter):
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
     #print "numVectorsPerTile", numVectorsPerTile
-    numReadsPerVector = (kernel["VectorWidth"] * self.bpe ) / (blockWidth*4) # bytes/register
+#jgolds which bpe here? assuming tP
+    numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"] ) / (blockWidth*4) # bytes/register
     #print "numReadsPerVector", numReadsPerVector
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
@@ -3035,8 +3088,9 @@ class KernelWriterAssembly(KernelWriter):
               blockWidth))
         paramList.append(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
         for oIdx in range(0, numOffsets):
+#jgolds which bpe here? assuming tP
           paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-              + tP["localReadOffset"])*self.bpe/offsetMultiplier)
+              + tP["localReadOffset"])*tP["bpe"]/offsetMultiplier)
         paramTuple = tuple(paramList)
         comment = "L -> Reg %u"%rIdx
         kStr += instruction.toString(paramTuple, comment)
@@ -3223,9 +3277,10 @@ class KernelWriterAssembly(KernelWriter):
             kStr += "// src=%u, dst=%u\n" % (src,dst)
 
             # f16
-            if self.bpe == 2:
-              srcVgpr = self.startVgprValuC+src*self.bpe/self.bpr
-              dstVgpr = self.startVgprValuC+dst*self.bpe/self.bpr
+#jgolds I think this should be bpeCinternal
+            if self.bpeCinternal == 2:
+              srcVgpr = self.startVgprValuC+src*self.bpeCinternal/self.bpr
+              dstVgpr = self.startVgprValuC+dst*self.bpeCinternal/self.bpr
               kStr += "// %u, %u, %u, %u, %u, %u\n" % (r, vectorIdx, tt, s, dst, src)
               if tP["isA"]: # f16 d0
                 if r % 2 == 0: # even shift can use mov_b32
@@ -3270,9 +3325,10 @@ class KernelWriterAssembly(KernelWriter):
 
             # f32 or larger
             else:
-              for i in range(0, self.bpe/self.bpr):
-                kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpe/self.bpr+i), \
-                    vgpr(self.startVgprValuC+src*self.bpe/self.bpr+i), comment)
+#jgolds which bpeC should we use?
+              for i in range(0, self.bpeCinternal/self.bpr):
+                kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpeCinternal/self.bpr+i), \
+                    vgpr(self.startVgprValuC+src*self.bpeCinternal/self.bpr+i), comment)
 
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
@@ -3339,17 +3395,18 @@ class KernelWriterAssembly(KernelWriter):
         kernel["SubGroup1"], tmpVgpr, tmpSgpr)
 
     # lr0 *= VW
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["VectorWidth"]*self.bpe), "VW")
+#jgolds which bpeC should we use?
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["VectorWidth"]*self.bpeCinternal), "VW")
     kStr += inst("v_mul_lo_u32", vgpr(lr0), sgpr(tmpSgpr), vgpr(lr0), \
         "lr0 *= VW")
     # lr1 *= VW*MT0
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), \
-        hex(kernel["VectorWidth"]*kernel["MacroTile0"]*self.bpe), "VW*MT0")
+        hex(kernel["VectorWidth"]*kernel["MacroTile0"]*self.bpeCinternal), "VW*MT0")
     kStr += inst("v_mul_lo_u32", vgpr(lr1), sgpr(tmpSgpr), vgpr(lr1), \
         "lr1 *= VW*MT0")
     # sg  *= MT0*MT1
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), \
-        hex(kernel["MacroTile0"]*kernel["MacroTile1"]*self.bpe), "MT0*MT1")
+        hex(kernel["MacroTile0"]*kernel["MacroTile1"]*self.bpeCinternal), "MT0*MT1")
     kStr += inst("v_mul_lo_u32", vgpr(sg), sgpr(tmpSgpr), vgpr(sg), \
         "sg *= MT0*MT1")
 
@@ -3379,8 +3436,9 @@ class KernelWriterAssembly(KernelWriter):
                 + i*kernel["VectorWidth"] \
                 + s*kernel["ThreadTile0"] \
                 + j*kernel["ThreadTile0"]*kernel["VectorWidth"]
+#jgolds which bpe should we use?
             kStr += "ds_write_b32 %s, %s offset:%u%s" \
-                % (vgpr(addr), vgpr(regIdx), writeOffset*self.bpe, self.endLine)
+                % (vgpr(addr), vgpr(regIdx), writeOffset*self.bpeCinternal, self.endLine)
             # ds_write value
             #kStr += dump(vgpr(regIdx))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
@@ -3395,14 +3453,15 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tmpSgpr = self.getTmpSgpr(1)
     baseAddr = self.vgprPool.checkOut(1)
-    kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpe, sgpr(tmpSgpr))
+#jgolds which bpe should we use?
+    kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeA, sgpr(tmpSgpr))
     for r in range(0, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
         for s in range(0, kernel["GlobalWriteVectorWidth"]):
           offset = s + i*kernel["NumThreads"]*kernel["GlobalWriteVectorWidth"] + r * kernel["MacroTile0"]*kernel["MacroTile1"]
           regIdx = s + i*kernel["GlobalWriteVectorWidth"] + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
           kStr += "ds_read_b32 %s, %s offset:%u%s" % (vgpr("ValuC+%u"%regIdx), \
-              vgpr(baseAddr), offset*self.bpe, self.endLine)
+              vgpr(baseAddr), offset*self.bpeA, self.endLine)
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all reads")
     self.vgprPool.checkIn(baseAddr)
     return kStr
@@ -3650,11 +3709,11 @@ class KernelWriterAssembly(KernelWriter):
     # branch B1 or B0
     if kernel["ProblemType"]["UseBeta"]:
       betaLabel = self.getLabel("GW_Beta")
-      if self.bpe <= self.bpr: # 1 register to check for Beta==0
+      if self.bpeCinternal <= self.bpr: # 1 register to check for Beta==0
         kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
       else: # multiple registers to check for Beta==0
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), sgpr("Beta+0"), "tmp = Beta[0]")
-        for i in range(1, self.bpe/self.bpr):
+        for i in range(1, self.bpeCinternal/self.bpr):
           kStr += inst("s_or_b32", sgpr(tmpSgpr), sgpr("Beta+%u"%i), sgpr(tmpSgpr), "tmp |= Beta[%u] " % i)
         kStr += inst("s_cmpk_eq_u32", sgpr(tmpSgpr), hex(0), "Beta == 0")
       kStr += inst("s_cbranch_scc0 label_%04u" % betaLabel, \
@@ -3751,13 +3810,15 @@ class KernelWriterAssembly(KernelWriter):
         # if beta 1*rpe for new value
         # if atomic 2*rpe for old and cmp values
         numVgprsPerElement = 2
+#jgolds which bpe should we use?
         if atomic:
-          numVgprsPerElement += (3*self.bpe)/self.bpr
+          numVgprsPerElement += (3*self.bpeCinternal)/self.bpr
         elif beta:
-          if self.bpe >= self.bpr:
-            numVgprsPerElement += (1*self.bpe)/self.bpr
+#jgolds aren't these the same?
+          if self.bpeCinternal >= self.bpr:
+            numVgprsPerElement += (1*self.bpeCinternal)/self.bpr
           else:
-            numVgprsPerElement += (1.0*self.bpe)/self.bpr
+            numVgprsPerElement += (1.0*self.bpeCinternal)/self.bpr
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.available()
@@ -4298,9 +4359,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_barrier", "" )
       tmp = self.vgprPool.checkOut(1)
       tmpAddr = self.vgprPool.checkOut(1)
+#jgolds which bpe should we use?
       kStr += inst("v_lshlrev_b32", \
           vgpr(tmpAddr), \
-          hex(log2(self.bpe)), \
+          hex(log2(self.bpeA)), \
           vgpr("Serial"), \
           "dump lds")
       for i in range(startU, startU+numU):
