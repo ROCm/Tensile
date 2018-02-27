@@ -139,9 +139,10 @@ size_t TensorDims::computeMemoryOffset(size_t elementIndex) {
 }
 
 
-const unsigned PrintElementIndex   = 0x1;
-const unsigned PrintElementOffset = 0x2;
-const unsigned PrintElementValue   = 0x4;
+static const unsigned PrintElementIndex   = 0x1;
+static const unsigned PrintElementOffset = 0x2;
+static const unsigned PrintElementValue   = 0x4;
+
 
 // Tensile_LIBRARY_PRINT_DEBUG  ??
 #if 1
@@ -167,6 +168,9 @@ void printTensor(
 
     td.print();
 
+    const unsigned int maxCols = 50;
+    const unsigned int maxRows = 100;
+
 
     // Lower-numbered indices have more leading spaces
     // Highest index has zero and is aligned to left column
@@ -178,6 +182,17 @@ void printTensor(
     }
 
     bool dbPrint = false;
+
+
+#if 0
+    if (maxCols != -1) {
+        if (maxCols > 10) {
+            colAfterElipse=5;
+        } else {
+            colAfterElipse=1;
+        }
+    }
+#endif
 
     // Print the elements 
     for (size_t e=0; e<td.totalSize; e++) {
