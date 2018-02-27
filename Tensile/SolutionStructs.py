@@ -972,7 +972,7 @@ class Solution:
       if "KernelLanguage" in state:
         if state["KernelLanguage"] == "Assembly":
           if globalParameters["PrintSolutionRejectionReason"]:
-            print1("f16 kernels can load shorts from global->lds")
+            print1("f16 kernels can't load shorts from global->lds")
           state["Valid"] = False
           return
 
