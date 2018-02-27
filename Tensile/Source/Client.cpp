@@ -61,6 +61,7 @@ int main( int argc, char *argv[] ) {
     float *deviceOnHostC_float;
     initData(&initialC_float, &initialA_float, &initialB_float, &alpha_float,
         &beta_float, &referenceC_float, &deviceOnHostC_float);
+
     for (unsigned int i = 0; i < numBenchmarks; i++) {
 #if Tensile_CLIENT_BENCHMARK
       invalids = benchmarkProblemSizes(initialC_float, initialA_float,

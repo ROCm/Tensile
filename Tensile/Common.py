@@ -64,9 +64,12 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
-# how to initialize tensor data
-globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
-globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+# how to initialize tensor data.
+# serial-in-u will use a sequence that increments in the K dimension
+# This is a predictable patterns that can be checked as the kernel runs to detect
+# when the wrong data is being used.
+globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u
+globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 # build parameters
@@ -74,6 +77,17 @@ globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
 globalParameters["DebugKernel"] = False           # assembly only, kernel gets buffer for debug "printing"; kernel writes data to memory, gets coppied to host and printed
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
+
+# Tensor printing controls:
+globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
+globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
+# PrintMaxCols applies to dimensions where multiple cols are printed per line.
+# PrintMaxRows applies to dimensions where one row is printed per line
+# If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
+globalParameters["PrintMaxCols"] = -1             # Max number of cols to print. 
+globalParameters["PrintMaxRows"] = -1             # Max number of rows to print. 
+
+
 # device selection
 globalParameters["Platform"] = 0                  # select opencl platform
 globalParameters["Device"] = 0                    # select hip device or opencl device within platform

@@ -47,6 +47,7 @@ def main( config ):
       "Client.h",
       "DeviceStats.h",
       "ReferenceCPU.h",
+      "TensorUtils.h",
       "MathTemplates.cpp",
       "MathTemplates.h",
       "KernelHeader.h",
@@ -167,6 +168,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   if globalParameters["CMakeCFlags"]:
     runScriptFile.write("  -DCMAKE_C_FLAGS=%s" \
         % globalParameters["CMakeCFlags"] )
+  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" \
+      % (globalParameters["CMakeBuildType"]))
   # for both
   if os.name == "nt":
     runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
@@ -225,6 +228,11 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
   return runScriptName
 
 
+def toCppBool(yamlBool):
+  return "true" if yamlBool else "false"
+
+
+
 ################################################################################
 # Write Generated Benchmark Parameters
 ################################################################################
@@ -273,6 +281,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "#endif\n"
   h += "} DataTypeEnum;\n"
   h += "\n"
+
+  h += "// Debug Params\n";
+  h += "const bool printTensorA=%s;\n" % toCppBool(globalParameters["PrintTensorA"])
+  h += "const bool printTensorB=%s;\n" % toCppBool(globalParameters["PrintTensorB"])
+  h += "\n";
 
   h += "const char indexChars[%u] = \"%s" \
       % (len(globalParameters["IndexChars"])+1, \
