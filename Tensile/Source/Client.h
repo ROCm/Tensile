@@ -31,6 +31,8 @@
 #include <fstream>
 #include <cstring>
 #include <unistd.h>
+#include <set>
+#include <assert.h>
 
 TensileTimer timer;
 TensileTimer apiTimer;
