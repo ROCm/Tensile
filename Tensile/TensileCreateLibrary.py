@@ -103,6 +103,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     kernelSourceFile.write("#include \"Kernels.h\"\n")
     kernelHeaderFile.write("#pragma once\n")
     if globalParameters["RuntimeLanguage"] == "HIP":
+      kernelHeaderFile.write("#define HCC_ENABLE_ACCELERATOR_PRINTF\n\n")
       kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
       kernelHeaderFile.write("#include \"TensileTypes.h\"\n")
       kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
