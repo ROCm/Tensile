@@ -433,30 +433,15 @@ class KernelWriterAssembly(KernelWriter):
 
     # registers per element
     self.bpr = 4 # all registers are 32bit
-    if not kernel["ProblemType"]["DataType"].isNone():
-        # deprecated path. assume all data is the same size
-        print "Kernel using deprecated parameter DataType. Use DataTypeA/B/C to specify matrix data types and DataTypeAccumulate to specify accumulation data type."
-        self.bpeA = int(self.bpr*\
-            kernel["ProblemType"]["DataType"].numRegisters())
-        self.bpeB = int(self.bpr*\
-            kernel["ProblemType"]["DataType"].numRegisters())
-        self.bpeCexternal = int(self.bpr*\
-                kernel["ProblemType"]["DataType"].numRegisters())
-        self.bpeCinternal = int(self.bpr*\
-                kernel["ProblemType"]["DataType"].numRegisters())
-    else:
-        self.bpeA = int(self.bpr*\
-            kernel["ProblemType"]["DataTypeA"].numRegisters())
-        self.bpeB = int(self.bpr*\
-            kernel["ProblemType"]["DataTypeB"].numRegisters())
-    # A and B must have the same datatype for the time being
-        assert self.bpeA == self.bpeB
-        self.bpeCexternal = int(self.bpr*\
-            kernel["ProblemType"]["DataTypeC"].numRegisters())
-        self.bpeCinternal = int(self.bpr*\
-            kernel["ProblemType"]["DataTypeAccumulate"].numRegisters())
-    assert self.bpeA == tPA["bpe"]
-    assert self.bpeB == tPB["bpe"]
+    self.bpeAB = int(self.bpr*\
+        kernel["ProblemType"]["DataType"].numRegisters())
+    self.bpeCexternal = int(self.bpr*\
+        kernel["ProblemType"]["DataType"].numRegisters())
+#jgolds This needs to key off the high-precision accumulation flag
+    self.bpeCinternal = int(self.bpr*\
+        kernel["ProblemType"]["DataType"].numRegisters())
+    assert self.bpeAB == tPA["bpe"]
+    assert self.bpeAB == tPB["bpe"]
     # registers per global address
     self.rpga = 2 # 64-bit
     # registers per local address
@@ -960,7 +945,7 @@ class KernelWriterAssembly(KernelWriter):
     kernArgReg = 0
     kernArgReg += 3*self.rpga
 #jgolds still assuming A and B have the same data type
-    kernArgReg += max(1,int(self.bpeA/4)) # alpha
+    kernArgReg += max(1,int(self.bpeAB/4)) # alpha
     if kernel["ProblemType"]["UseBeta"]:
       kernArgReg += max(1,int(self.bpeCexternal/4)) # beta
     kernArgReg += 3 # offsets
@@ -1009,7 +994,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
 #jgolds which bpe should we use? assuming A
     kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
-        % ( kernel["LdsNumElements"] * self.bpeA, self.endLine )
+        % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
 
     # other
     kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
@@ -1204,7 +1189,7 @@ class KernelWriterAssembly(KernelWriter):
 #jgolds which bpe should we use? assuming A
       kStr += inst("v_lshlrev_b64", \
           "v[\\vgprAddr+0:\\vgprAddr+1]", \
-          hex(log2(self.bpeA)), \
+          hex(log2(self.bpeAB)), \
           "v[\\vgprAddr+0:\\vgprAddr+1]", \
           "offset *= bytes/element")
       #kStr += "s_endpgm\n"
@@ -1355,8 +1340,8 @@ class KernelWriterAssembly(KernelWriter):
       # set m0
 #jgolds which bpe here? Using A for now
       kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
-          * self.bpeA), "LDS clamp at %u bytes" \
-          %(kernel["LdsNumElements"] * self.bpeA) )
+          * self.bpeAB), "LDS clamp at %u bytes" \
+          %(kernel["LdsNumElements"] * self.bpeAB) )
 
       kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
 
@@ -1399,7 +1384,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("Alpha+1"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load alpha" )
 #jgolds assuming A and B have same data type
-      kernArgOffset += 1*max(4,self.bpeA)
+      kernArgOffset += 1*max(4,self.bpeAB)
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("s_load_dword", sgpr("Beta"), \
@@ -2206,7 +2191,7 @@ class KernelWriterAssembly(KernelWriter):
           hex(kernel["LdsOffsetB"]*tP["bpe"]), \
           vgpr("LocalWriteAddrB"), \
           "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (tP["tileChar"], \
-          self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpeB) )
+          self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpeAB) )
     self.vgprPool.checkIn(tP["gpr"]["lwoT"])
     self.vgprPool.checkIn(tP["gpr"]["uReg"])
     if kernel["GlobalSplitU"] > 1:
@@ -3454,14 +3439,14 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(1)
     baseAddr = self.vgprPool.checkOut(1)
 #jgolds which bpe should we use?
-    kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeA, sgpr(tmpSgpr))
+    kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeAB, sgpr(tmpSgpr))
     for r in range(0, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
         for s in range(0, kernel["GlobalWriteVectorWidth"]):
           offset = s + i*kernel["NumThreads"]*kernel["GlobalWriteVectorWidth"] + r * kernel["MacroTile0"]*kernel["MacroTile1"]
           regIdx = s + i*kernel["GlobalWriteVectorWidth"] + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
           kStr += "ds_read_b32 %s, %s offset:%u%s" % (vgpr("ValuC+%u"%regIdx), \
-              vgpr(baseAddr), offset*self.bpeA, self.endLine)
+              vgpr(baseAddr), offset*self.bpeAB, self.endLine)
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all reads")
     self.vgprPool.checkIn(baseAddr)
     return kStr
@@ -4362,7 +4347,7 @@ class KernelWriterAssembly(KernelWriter):
 #jgolds which bpe should we use?
       kStr += inst("v_lshlrev_b32", \
           vgpr(tmpAddr), \
-          hex(log2(self.bpeA)), \
+          hex(log2(self.bpeAB)), \
           vgpr("Serial"), \
           "dump lds")
       for i in range(startU, startU+numU):
