@@ -20,10 +20,9 @@
 ################################################################################
 
 from SolutionStructs import DataType
-from Common import globalParameters, printExit, printWarning
+from Common import globalParameters, printExit, printWarning, print2
 from KernelWriter import KernelWriter
 from math import log, ceil
-from distutils.version import LooseVersion
 
 ################################################################################
 # Memory Instruction
@@ -249,18 +248,6 @@ class KernelWriterAssembly(KernelWriter):
     self.do["MAC"]        = True
     self.do["PostLoop"]   = True
 
-    self.AsmBugs = {}
-    # At some point in the future, this assembler check can go away, because all available assemblers
-    # will use ExplicitCO by default.  This is only to help the transition between rocm v1.7.0 and v1.7.1
-    # If grepping the version of hcc didn't work, then globalParameters should return '0.0.0'
-    # and the check goes to old behavior
-    if( LooseVersion( globalParameters["HccVersion"] ) < LooseVersion( '1.2.18012') ):
-      self.AsmBugs["ExplicitCO"] = False
-    else:
-      self.AsmBugs["ExplicitCO"] = True # New assembler require explicit reference to CO (carry-out)
-
-    # ISA version, such as 803
-    self.version = globalParameters["CurrentISA"]
     self.maxVgprs = 256
 
     self.endLine = "\n"
@@ -455,8 +442,20 @@ class KernelWriterAssembly(KernelWriter):
           } # 900
         }
 
+    # ISA version, such as 803
+    self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
       self.version = kernel["ISA"]
+
+    self.AsmBugs = {}
+    # At some point in the future, this assembler check can go away, because all available assemblers
+    # will use ExplicitCO by default.  This is only to help the transition between rocm v1.7.0 and v1.7.1
+    # If grepping the version of hcc didn't work, then globalParameters should return '0.0.0'
+    # and the check goes to old behavior
+    self.AsmBugs["ExplicitCO"] = globalParameters["AsmHasExplicitCO"][self.version]
+
+    print2 ("info: in KernelWriterAssembly: Isa=%s, AsmHasExplicitCO=%s" % (self.version, globalParameters["AsmHasExplicitCO"][self.version]))
+
     self.overflowedResources = False # if true, comment out whole kernel
 
     self.kernelName = self.getKernelName(kernel)

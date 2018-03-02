@@ -111,6 +111,7 @@ globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to us
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HccVersion"] = "0,0,0"
+globalParameters["AsmHasExplicitCO"] = {}
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -505,6 +506,19 @@ def assignGlobalParameters( config ):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+
+  # Determine assembler capabilities:
+  # Try to assemble the new explicit co syntax:
+  for (v) in globalParameters["SupportedISA"]:
+      isaVersion = "gfx" + "".join(map(str,v))
+      asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
+                 % (globalParameters["AssemblerPath"], isaVersion)
+      globalParameters["AsmHasExplicitCO"][v] = \
+              not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" | %s" % asmCmd)
+
+      print "Try Check command : %s ExplicitCO=%d" % (asmCmd, globalParameters["AsmHasExplicitCO"][v])
+
+
 
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
