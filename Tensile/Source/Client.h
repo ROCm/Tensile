@@ -203,11 +203,14 @@ bool callLibrary(
     totalFlops *= userSizes[i]; }
 
   if (printTensorA) {
-    printTensor("A", initialA, numIndicesAB[problemTypeIdx], sizes, 
+    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+                  numIndicesC[problemTypeIdx],
+                  sizes, 
                   indexAssignmentsA[problemTypeIdx]);
   }
   if (printTensorB) {
-    printTensor("B", initialB, numIndicesAB[problemTypeIdx], sizes, 
+    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+                  numIndicesC[problemTypeIdx],
                   indexAssignmentsB[problemTypeIdx]);
   }
 
@@ -543,6 +546,17 @@ bool benchmarkAllSolutionsForSize(
     totalFlops *= sizes[i]; }
   file << ", " << totalFlops;
 
+  if (printTensorA) {
+    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes,
+                indexAssignmentsA[problemTypeIdx]);
+  }
+  if (printTensorB) {
+    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes, 
+                indexAssignmentsB[problemTypeIdx]);
+  }
+
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
@@ -574,18 +588,12 @@ bool benchmarkAllSolutionsForSize(
         alpha, beta);
 
   }
+
+
   fastestGFlops = 0;
   for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
 
-    if (printTensorA) {
-      printTensor("A", initialA, numIndicesAB[solutionIdx], sizes, 
-                    indexAssignmentsA[solutionIdx]);
-    }
-    if (printTensorB) {
-      printTensor("B", initialB, numIndicesAB[solutionIdx], sizes, 
-                    indexAssignmentsB[solutionIdx]);
-    }
 
     // copy data in language
 #if Tensile_RUNTIME_LANGUAGE_OCL
