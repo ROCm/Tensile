@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import DataType
-from Common import globalParameters, printExit, printWarning, print1, print2
+from Common import globalParameters, printExit, printWarning, print2
 from KernelWriter import KernelWriter
 from math import log, ceil
 
