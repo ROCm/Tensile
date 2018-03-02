@@ -22,6 +22,8 @@
 #include <vector>
 #include <iostream>
 
+extern const char indexChars[];
+
 
 class TensorDims {
 public:
@@ -115,6 +117,7 @@ void TensorDims::print() const {
   for (unsigned int i=0; i<_numIndices; i++) {
     std::cout << "  size[" << i << "]=" << sizes[i] 
               << (_indexAssignment[i] >= _firstSummationIndex ? " (sum)" : " (free)")
+              << ",\'" << indexChars[_indexAssignment[i]] << "\'"
               << "\n";
   }
   for (unsigned int i=0; i<_numIndices; i++) {
@@ -167,8 +170,9 @@ void printTensor(
     unsigned int firstSummationIndex,
     const unsigned int *indexedSizes,
     const unsigned int *indexAssignments,
-    //unsigned printMode=PrintRowAddress + PrintElementIndex + PrintElementValue | PrintElementValueHex) {
-    //unsigned printMode=PrintRowAddress + PrintRowAddress + PrintElementIndex + PrintElementValue | PrintElementValueHex) {
+    //unsigned printMode=PrintRowAddress + PrintRowElementCoord + PrintElementIndex + PrintElementValue + PrintElementValueHex) {
+    //unsigned printMode= PrintRowElementCoord + PrintElementIndex + PrintElementValue + PrintElementValueHex) {
+    //unsigned printMode= PrintRowElementCoord + PrintElementIndex + PrintElementValue + PrintElementValueHex) {
     unsigned printMode=PrintRowElementCoord+PrintElementValue) {
 
     TensorDims td(name, numIndices, firstSummationIndex, indexedSizes, indexAssignments);
