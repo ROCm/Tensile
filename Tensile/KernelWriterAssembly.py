@@ -485,9 +485,18 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ProblemType"]["DataType"].numRegisters())
     self.bpeCexternal = int(self.bpr*\
         kernel["ProblemType"]["DataType"].numRegisters())
-#jgolds This needs to key off the high-precision accumulation flag
-    self.bpeCinternal = int(self.bpr*\
-        kernel["ProblemType"]["DataType"].numRegisters())
+#jgolds Need to check device for support
+    if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        if kernel["ProblemType"]["DataType"].isHalf():
+            self.bpeCinternal = int(self.bpr*1)
+        else:
+            print "HighPrecisionAccumulate only valid when DataType is half."
+            self.bpeCinternal = int(self.bpr*\
+                kernel["ProblemType"]["DataType"].numRegisters())
+            kernel["ProblemType"]["HighPrecisionAccumulate"] = False
+    else:
+        self.bpeCinternal = int(self.bpr*\
+            kernel["ProblemType"]["DataType"].numRegisters())
     assert self.bpeAB == tPA["bpe"]
     assert self.bpeAB == tPB["bpe"]
     # registers per global address
@@ -858,7 +867,6 @@ class KernelWriterAssembly(KernelWriter):
     numSgprOffsetC = 1
     numSgprOffsetA = 1
     numSgprOffsetB = 1
-#jgolds still assuming A and B have same data type
     numSgprAlpha = max(1,int(tPA["bpe"]/4))
     numSgprBeta  = max(1,int(self.bpeCexternal/4)) if kernel["ProblemType"]["UseBeta"] else 0
     self.numSgprStridesC = kernel["ProblemType"]["NumIndicesC"]
@@ -923,7 +931,6 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprAddressC = sgprIdx;       sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx;       sgprIdx += self.numSgprStridesC
     # doubles need to be aligned to even
-#jgolds still assuming A and B have the same data type
     if tPA["bpe"] > 4 and sgprIdx%2==1:
       sgprIdx += 1
     self.startSgprAlpha = sgprIdx;          sgprIdx += numSgprAlpha
@@ -1033,7 +1040,6 @@ class KernelWriterAssembly(KernelWriter):
     # kern arg size
     kernArgReg = 0
     kernArgReg += 3*self.rpga
-#jgolds still assuming A and B have the same data type
     kernArgReg += max(1,int(self.bpeAB/4)) # alpha
     if kernel["ProblemType"]["UseBeta"]:
       kernArgReg += max(1,int(self.bpeCexternal/4)) # beta
@@ -1388,7 +1394,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += ("" if m==0 else "_BLK")
       kStr += self.endLine
       macIdx = 0
-#jgolds needs fixing
       # half precision
       if kernel["ProblemType"]["DataType"].isHalf():
         for blockB in range(0, kernel["ThreadTile1"]/2):
@@ -1404,23 +1409,47 @@ class KernelWriterAssembly(KernelWriter):
                       % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
                   kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
             elif self.version == (9,0,0):
-              b = blockB*2
-              a = blockA*2
-              cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
-              aStr = "v[%s+%u]" \
-                  % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
-              bStr = "v[%s+%u]" \
-                  % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
-              kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+              if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                # we treat HighPrecisionAccumulate as expanded packed math
+                b = blockB*2
+                a = blockA*2
+                cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                aStr = "v[%s+%u]" \
+                    % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                bStr = "v[%s+%u]" \
+                    % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
-              cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-              kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-              """
-              D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-              D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-              C[0] = A[0]*B[0]+D[0]
-              C[1] = A[1]*B[1]+D[1]
-              """
+                cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                """
+                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                C[0] = A[0]*B[0]+D[0]
+                C[1] = A[1]*B[1]+D[1]
+                """
+              else:
+                b = blockB*2
+                a = blockA*2
+                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+                aStr = "v[%s+%u]" \
+                    % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                bStr = "v[%s+%u]" \
+                    % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
+                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+
+                cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                """
+                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                C[0] = A[0]*B[0]+D[0]
+                C[1] = A[1]*B[1]+D[1]
+                """
             else:
               printExit("Half-precision not supported for arch=%u" % self.version )
 
@@ -1531,7 +1560,6 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load alpha" )
         kStr += inst("s_load_dword", sgpr("Alpha+1"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load alpha" )
-#jgolds assuming A and B have same data type
       kernArgOffset += 1*max(4,self.bpeAB)
       if kernel["ProblemType"]["UseBeta"]:
         if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isSingle():
@@ -3971,6 +3999,9 @@ class KernelWriterAssembly(KernelWriter):
       self.betaVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(self.alphaVgpr), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
       kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
+      if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        kStr += inst("v_cvt_f32_f16", vgpr(self.alphaVgpr), vgpr(self.alphaVgpr), "convert alpha to fp32")
+        kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
 
     ########################################
     # Vgprs
@@ -4267,10 +4298,14 @@ class KernelWriterAssembly(KernelWriter):
       elif beta:
         # load c into data+0
         if kernel["ProblemType"]["DataType"].isHalf():
-          if sumIdx%2:
-            kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
+          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            if sumIdx%2:
+              kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
+            else:
+              kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
           else:
             kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
+            kStr += inst("v_cvt_f32_f16", vgpr(data+0), vgpr(data+0), "convert C to fp32")
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
         elif kernel["ProblemType"]["DataType"].isDouble():
@@ -4287,8 +4322,11 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       sumIdx = elementSumIdx[elementIdx]
       if kernel["ProblemType"]["DataType"].isHalf():
-        if sumIdx%2:
-          kStr += inst("v_pk_mul_f16", vgpr(sumIdx/2), vgpr(self.alphaVgpr), vgpr(sumIdx/2), "*= alpha")
+        if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          if sumIdx%2:
+            kStr += inst("v_pk_mul_f16", vgpr(sumIdx/2), vgpr(self.alphaVgpr), vgpr(sumIdx/2), "*= alpha")
+        else:
+          kStr += inst("v_mul_f32", vgpr(sumIdx), vgpr(self.alphaVgpr), vgpr(sumIdx), "*= alpha")
       elif kernel["ProblemType"]["DataType"].isSingle():
         kStr += inst("v_mul_f32", vgpr(sumIdx), sgpr("Alpha"), vgpr(sumIdx), "*= alpha" )
       elif kernel["ProblemType"]["DataType"].isDouble():
@@ -4486,15 +4524,20 @@ class KernelWriterAssembly(KernelWriter):
 
         if beta:
           if kernel["ProblemType"]["DataType"].isHalf():
-            if sumIdx%2==0:
-              # data+0 = new c = old c*beta
-              kStr += inst("v_pk_mul_f16", vgpr(data+0), vgpr(self.betaVgpr), vgpr(data+0), \
-                  "%s = C*beta"%vgpr(data+0))
-              # data+0 = new c = old c*beta + rC
-              kStr += inst("v_pk_add_f16", vgpr(sumIdx/2), vgpr(data+0), vgpr(sumIdx/2), \
-                  "sum*alpha + C*beta")
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdx%2==0:
+                # data+0 = new c = old c*beta
+                kStr += inst("v_pk_mul_f16", vgpr(data+0), vgpr(self.betaVgpr), vgpr(data+0), \
+                    "%s = C*beta"%vgpr(data+0))
+                # data+0 = new c = old c*beta + rC
+                kStr += inst("v_pk_add_f16", vgpr(sumIdx/2), vgpr(data+0), vgpr(sumIdx/2), \
+                    "sum*alpha + C*beta")
+              else:
+                pass # add will have been done previously
             else:
-              pass # add will have been done previously
+              # data+0 = new c = old c*beta + rC
+              kStr += inst("v_mad_f32", vgpr(sumIdx), vgpr(self.betaVgpr), vgpr(data+0), \
+                vgpr(sumIdx), "sum*alpha + C*beta")
           elif kernel["ProblemType"]["DataType"].isSingle():
             # data+0 = new c = old c*beta
             kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+0), \
@@ -4516,10 +4559,15 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["NonTemporalC"]/2==1:
           nonTemporalStr += " slc"
         if kernel["ProblemType"]["DataType"].isHalf():
-          if sumIdx%2:
-            kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            if sumIdx%2:
+              kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+            else:
+              kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
           else:
-            kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+            # convert C to fp16 before output
+            kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
+            kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
         elif kernel["ProblemType"]["DataType"].isDouble():
