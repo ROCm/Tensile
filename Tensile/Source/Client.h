@@ -25,6 +25,7 @@
 #include "MathTemplates.h"
 #include "ClientParameters.h"
 #include "DeviceStats.h"
+#include "TensorUtils.h"
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -155,6 +156,29 @@ float getEventDeltaTime(hipEvent_t start, hipEvent_t stop)
 
 #endif
 
+
+template<typename DataType>
+void copyData(
+    DataType *initialA,
+    DataType *initialB) {
+#if Tensile_RUNTIME_LANGUAGE_OCL
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceA), CL_TRUE,
+      0, maxSizeA*bytesPerElement[dataTypeIdx], initialA, 0, NULL, NULL);
+  tensileStatusCheck(status);
+    std::cout << ".";
+  status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceB), CL_TRUE,
+      0, maxSizeB*bytesPerElement[dataTypeIdx], initialB, 0, NULL, NULL);
+  tensileStatusCheck(status);
+    std::cout << ".";
+#else
+  status = hipMemcpy(deviceA, initialA, maxSizeA*bytesPerElement[dataTypeIdx],
+      hipMemcpyHostToDevice);
+  status = hipMemcpy(deviceB, initialB, maxSizeB*bytesPerElement[dataTypeIdx],
+      hipMemcpyHostToDevice);
+#endif
+}
+
+
 /*******************************************************************************
  * Call Library
  * return true if errors/invalids
@@ -178,7 +202,18 @@ bool callLibrary(
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     totalFlops *= userSizes[i]; }
 
-  // copy data to device
+  if (printTensorA) {
+    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+                  numIndicesC[problemTypeIdx],
+                  sizes, 
+                  indexAssignmentsA[problemTypeIdx]);
+  }
+  if (printTensorB) {
+    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+                  numIndicesC[problemTypeIdx],
+                  indexAssignmentsB[problemTypeIdx]);
+  }
+
   size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
 #if Tensile_RUNTIME_LANGUAGE_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE,
@@ -511,6 +546,17 @@ bool benchmarkAllSolutionsForSize(
     totalFlops *= sizes[i]; }
   file << ", " << totalFlops;
 
+  if (printTensorA) {
+    printTensor("A", initialA, numIndicesAB[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes,
+                indexAssignmentsA[problemTypeIdx]);
+  }
+  if (printTensorB) {
+    printTensor("B", initialB, numIndicesAB[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes, 
+                indexAssignmentsB[problemTypeIdx]);
+  }
+
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
@@ -542,9 +588,12 @@ bool benchmarkAllSolutionsForSize(
         alpha, beta);
 
   }
+
+
   fastestGFlops = 0;
   for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
+
 
     // copy data in language
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -1006,6 +1055,9 @@ void initData(
   status = hipMemcpy(deviceB, *initialB, maxSizeB*bytesPerElement[dataTypeIdx],
       hipMemcpyHostToDevice);
 #endif
+
+  copyData<DataType>(*initialA, *initialB);
+
   std::cout << std::endl;
 }
 

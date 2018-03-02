@@ -31,6 +31,7 @@
 #define tensileStatusFailure -1
 #define TensileComplexFloat cl_float2
 #define TensileComplexDouble cl_double2
+#define TensileHalf cl_half
 
 // HIP
 #else
@@ -41,6 +42,12 @@
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 #define TensileHalf __fp16
+
+inline std::ostream& operator<<(std::ostream& os, const __fp16& dt)  
+{  
+   os << (float)(dt);
+   return os;  
+}
 
 #endif
 

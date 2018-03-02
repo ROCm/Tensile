@@ -74,6 +74,17 @@ globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
 globalParameters["DebugKernel"] = False           # assembly only, kernel gets buffer for debug "printing"; kernel writes data to memory, gets coppied to host and printed
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
+
+# Tensor printing controls:
+globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
+globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
+# PrintMaxCols applies to dimensions where multiple cols are printed per line.
+# PrintMaxRows applies to dimensions where one row is printed per line
+# If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
+globalParameters["PrintMaxCols"] = -1             # Max number of cols to print. 
+globalParameters["PrintMaxRows"] = -1             # Max number of rows to print. 
+
+
 # device selection
 globalParameters["Platform"] = 0                  # select opencl platform
 globalParameters["Device"] = 0                    # select hip device or opencl device within platform
