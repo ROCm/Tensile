@@ -1746,16 +1746,18 @@ class KernelWriter:
           assemblerFile.write("copy %1.s %1.o\n")
           assemblerFile.write("copy %1.o %1.co\n")
         else:
-          assemblerFile.write("#!/bin/sh\n")
+          assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
+          assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
+          assemblerFile.write("f=$1\n")
+          assemblerFile.write("shift\n")
           assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
-          assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa -mcpu=gfx%u%u%u -c -o $1.o $1.s\n" \
-              % (self.version[0], self.version[1], self.version[2]))
-          assemblerFile.write("${ASM} -target amdgcn--amdhsa $1.o -o $1.co\n")
+          assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa $@ -c -o $f.o $f.s\n")
+          assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
         assemblerFile.close()
         chmod(assemblerFileName, 0777)
 
       # run assembler
-      assemblerCommand = [assemblerFileName, kernelName]
+      assemblerCommand = [assemblerFileName, kernelName, "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])]
       #print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, \
           cwd=globalParameters["WorkingPath"] )
