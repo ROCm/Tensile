@@ -279,6 +279,16 @@ bool callLibrary(
     hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
 
+    if (printTensorC) {
+      std::vector<unsigned int> indexAssignmentsC;
+      for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+        indexAssignmentsC.push_back(i);
+      }
+      printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
+                  numIndicesC[problemTypeIdx], sizes,
+                  indexAssignmentsC.data());
+    }
+
     // compare
     bool firstPrint = true;
     unsigned int printIdx = 0;
@@ -623,6 +633,15 @@ bool benchmarkAllSolutionsForSize(
 #else
       hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
+      if (printTensorC) {
+        std::vector<unsigned int> indexAssignmentsC;
+        for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+          indexAssignmentsC.push_back(i);
+        }
+        printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
+                    numIndicesC[problemTypeIdx], sizes,
+                    indexAssignmentsC.data());
+      }
 
       // compare
       //unsigned int maxPrint = 16;

@@ -285,6 +285,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "// Debug Params\n";
   h += "const bool printTensorA=%s;\n" % toCppBool(globalParameters["PrintTensorA"])
   h += "const bool printTensorB=%s;\n" % toCppBool(globalParameters["PrintTensorB"])
+  h += "const bool printTensorC=%s;\n" % toCppBool(globalParameters["PrintTensorC"])
   h += "\n";
 
   h += "const char indexChars[%u] = \"%s" \
