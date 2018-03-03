@@ -249,6 +249,23 @@ class KernelWriterAssembly(KernelWriter):
     self.do["MAC"]         = True
     self.do["PostLoop"]    = True
 
+    # Various debug flags and modes 
+    self.db = {}
+    self.db["EnableAsserts"]     = True  # Enable assertion codegen
+
+    # Check A and B values loaded from memory to ensure they match expected
+    # sequential pattern.  Requires DataInitTypeAB=2.  
+    # Mismatches will assert (generate GPUVM fault)
+    self.db["InitLds"]     = True  # Initialize LDS at start of kernel
+    self.printedAssertCnt  = 0
+    self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
+
+    # Number of times localReadDo has been called by the code-generator.  
+    # Used to control debug enablement.
+    # Note this increments as the assembly code is generated not as it executes
+    # so it can be used to determine which iteration of the unroll is being generated
+    self.localReadDoCnt   = 0  
+
     self.maxVgprs = 256
 
     self.endLine = "\n"
@@ -838,6 +855,7 @@ class KernelWriterAssembly(KernelWriter):
       self.numSgprStridesA -= 1
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
+
     self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
     self.numSgprAddressD = self.rpga if globalParameters["DebugKernel"] else 0
 
@@ -905,6 +923,10 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprOffsetC = sgprIdx;        sgprIdx += numSgprOffsetC
     self.startSgprOffsetA = sgprIdx;        sgprIdx += numSgprOffsetA
     self.startSgprOffsetB = sgprIdx;        sgprIdx += numSgprOffsetB
+    self.startSgprBaseElementIndexA = sgprIdx;  sgprIdx += 1
+    self.startSgprBaseElementIndexB = sgprIdx;  sgprIdx += 1
+    self.startSgprElementIndexIncA = sgprIdx;       sgprIdx += 1
+    self.startSgprElementIndexIncB = sgprIdx;       sgprIdx += 1
     self.startSgprLoopTail = sgprIdx;       sgprIdx += numSgprLoopTail
     self.startSgprAddressD = sgprIdx;       sgprIdx += self.numSgprAddressD
     self.totalSgprs = sgprIdx
@@ -1116,6 +1138,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressD", \
           self.startVgprAddressD)
+
     self.startVgprSerial = totalVgprs - 1
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
@@ -1159,6 +1182,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("sgprAddressD", self.startSgprAddressD)
+
     if not self.globalReadIncsUseVgpr:
       kStr += self.macroRegister("sgprGlobalReadIncsA", \
           self.startSgprGlobalReadIncsA)
@@ -1616,7 +1640,12 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(v)
       self.vgprPool.checkIn(nwg0)
 
+
+    if self.db["InitLds"]:
+      kStr += self.initLds(kernel, self.initLdsValue)
+
     return kStr
+
 
   ##############################################################################
   # Global Read Addresses: WorkGroup
@@ -2061,6 +2090,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graFinalOffsets(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     tVW = 1
     tVS = 0
     uVW = 1
@@ -2104,6 +2134,7 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += "globalReadOffset%s%s" % (tP["tensorChar"], self.indexChars[i] )
             kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine)
+
 
             # dump final offsets
             #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
@@ -2207,7 +2238,7 @@ class KernelWriterAssembly(KernelWriter):
               vgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
               sgpr(tmpSgpr+1), \
               "" )
-        else:
+        else: # not globalReadIncsUseVgpr, ie use SGPR
           kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*self.bpe), sgpr("Strides%s"%tP["tensorChar"]), \
               "incr = stride*%u*bytes"%depthU )
@@ -2222,6 +2253,8 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
               hex(0), \
               "(carry)")
+
+
       else: # transposed
         if self.globalReadIncsUseVgpr:
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
@@ -2235,9 +2268,14 @@ class KernelWriterAssembly(KernelWriter):
               "incr = %u*bytes"%depthU )
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
               hex(0), "incr = %u*bytes (upper)"%depthU )
+
     else:
       printExit("NumIndicesSummation=%u not yet supported in assembly" \
           % kernel["ProblemType"]["NumIndicesSummation"] )
+
+
+
+
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
     return kStr
@@ -2400,13 +2438,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
     qReg = self.vgprPool.checkOut(1) # quotient
-    rReg = self.vgprPool.checkOut(1) # remainder
+    rReg = self.vgprPool.checkOut(1) # remainder, unused here
     dividendReg = "Serial"
     tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, \
         tmpVgpr, tmpSgpr)
     sgid = qReg
+
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
         hex(kernel["MacroTile%u"%tP["tensorIdx"]]), \
@@ -2415,7 +2454,7 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         vgpr(sgid), \
-        "sgid*sgid*MT%u"%tP["tensorIdx"] )
+        "sgid=sgid*MT%u"%tP["tensorIdx"] )
     if kernel["VectorWidth"] > 1:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
@@ -2431,8 +2470,16 @@ class KernelWriterAssembly(KernelWriter):
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         "*= bytes/element" )
 
+
+    #if tP["isA"]:
+    #  kStr += self.bomb(113)
+
+
     # dump lra final offset
-    #kStr += dump(vgpr("LocalReadAddr%s"%tP["tensorChar"])) # all zeros for B
+    #if tP["isA"]:
+    #  kStr += dump(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
+    #  kStr += dump(vgpr("ElementIndex%s"%tP["tensorChar"])) 
+
 
     self.vgprPool.checkIn(tmpVgpr)
     self.vgprPool.checkIn(qReg)
@@ -2772,6 +2819,7 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr("GlobalReadAddrA+0"))
       #kStr += dump(vgpr("GlobalReadAddrA+1"))
       #kStr += "s_endpgm\n"
+
     return kStr
 
   ##############################################################################
@@ -3144,8 +3192,9 @@ class KernelWriterAssembly(KernelWriter):
           kStr += tP["localWriteInstruction"].toString(paramTuple, comment, \
               nonTemporal, highBits)
     #if tP["isB"]:
-    #  kStr += self.dumpLds(kernel, 0, 8)
-    #  kStr += "s_endpgm\n"
+      #kStr += self.bomb(1)
+      #kStr += self.dumpLds(kernel, 0, 8)
+      #kStr += "s_endpgm\n"
     return kStr
 
   ##############################################################################
@@ -3170,6 +3219,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if tP["localReadInstruction"].numOffsets == 1:
       tP["localReadOffset"] = 0
+      tP["localReadElementOffset"] = 0
       kStr += self.comment1("handled internally")
     kStr += inst("v_and_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
@@ -3186,6 +3236,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if self.localReadInstructionA.numOffsets == 1:
       tP["localReadOffset"] = 0
+      tP["localReadElementOffset"] = 0
       kStr += self.comment1("N/A")
     else:
       kStr += inst("v_and_b32", \
@@ -3230,7 +3281,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localReadDo(self, kernel, black, tP):
     if not self.do["LocalRead"]: return ""
+    self.localReadDoCnt += 1
     kStr = ""
+    tc = tP["tensorChar"]
     #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
@@ -3246,20 +3299,22 @@ class KernelWriterAssembly(KernelWriter):
       for rIdx in range(0, numReadsPerVector):
         paramList = []
         if blockWidth == 1:
-          paramList.append(vgpr("Valu%s%s+%u"%( \
-              "Blk" if black else "", tP["tensorChar"], valuIdx)))
+          destVgpr = vgpr("Valu%s%s+%u"%( \
+              "Blk" if black else "", tc, valuIdx))
         else:
-          paramList.append( vgpr("Valu%s%s+%u"%( \
-              "Blk" if black else "", tP["tensorChar"],valuIdx), \
-              blockWidth))
-        paramList.append(vgpr("LocalReadAddr%s"%tP["tensorChar"]))
+          destVgpr = vgpr("Valu%s%s+%u"%( \
+              "Blk" if black else "", tc, valuIdx), \
+              blockWidth)
+        paramList.append(destVgpr)
+        paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets):
           paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
               + tP["localReadOffset"])*self.bpe/offsetMultiplier)
         paramTuple = tuple(paramList)
-        comment = "L -> Reg %u"%rIdx
+        comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u"%(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx)
         kStr += instruction.toString(paramTuple, comment)
         valuIdx += blockWidth
+
     #if tP["isB"]:
     #  kStr += self.dumpLds(kernel, 0, 16)
     #  kStr += "s_endpgm\n"
@@ -3269,6 +3324,13 @@ class KernelWriterAssembly(KernelWriter):
     #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
     #if tP["isB"]:
     #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
+
+    #if tP["isA"] and self.localReadDoCnt >=3: # TODO - disable
+    #  # skip over tmp used above, so it doesn't get trashed
+    #  tmpVgpr = self.vgprPool.checkOut(3) 
+    #  kStr += self.bomb(self.localReadDoCnt + 10, tmpVgpr+1)
+    #  self.vgprPool.checkIn(tmpVgpr)
+
 
     return kStr
 
@@ -4531,6 +4593,35 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(tmpAddr)
     return kStr
 
+
+  ########################################
+  # init lds state
+  ########################################
+  def initLds(self, kernel, value):
+    tmpSgpr = self.getTmpSgpr(1)
+    kStr = ""
+    kStr += self.comment("init lds state")
+    kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
+    kStr += inst("s_barrier", "" )
+    tmp = self.vgprPool.checkOut(1)
+    tmpAddr = self.vgprPool.checkOut(1)
+    kStr += inst("v_mov_b32", vgpr(tmp), hex(value), "Init value")
+    writesPerThread = ((kernel["LdsNumElements"]-1)/kernel["NumThreads"]) + 1
+    kStr += inst("v_lshlrev_b32", \
+        vgpr(tmpAddr), \
+        2,
+        vgpr("Serial"), \
+        "set per-thread address to init LDS")
+    for i in range(0, writesPerThread):  
+      kStr += "ds_write_b32 %s, %s offset:%u %s" \
+          %( vgpr(tmpAddr), vgpr(tmp), (i*kernel["NumThreads"]*4), \
+          "//init lds" + self.endLine)
+
+    kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for init to complete" )
+    self.vgprPool.checkIn(tmp)
+    self.vgprPool.checkIn(tmpAddr)
+    return kStr
+
   ##############################################################################
   #
   #   Beta-Only Kernel
@@ -4552,6 +4643,79 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
 
+  ##############################################################################
+  # Cause a GPUVM fault.  
+  # Instruction after the bomb will write the cookie to SGPR0, so you can see the cookie in the 
+  # backtrace. Useful for locating which spot in code generated the bomb
+  # vgprAddr controls which vgpr to overwrite with the null pointer address
+  ##############################################################################
+  def bomb(self,cookie=None,scratchVgpr=-1):
+      kStr =""
+      if scratchVgpr==-1:
+        vgprAddr = self.vgprPool.checkOut(2)
+      else:
+        vgprAddr = scratchVgpr
+      kStr += inst("v_mov_b32", vgpr(vgprAddr+0), 0, "")
+      kStr += inst("v_mov_b32", vgpr(vgprAddr+1), 0, "")
+      #kStr += inst("s_trap",1,  "")
+      kStr += inst("flat_load_dword", vgpr(vgprAddr), vgpr(vgprAddr,2), "bomb - force fault" )
+
+      # This move does not execute but appears in the instruction stream immediately following
+      # the faulting load:
+      if cookie != None:
+        kStr += inst("s_mov_b32", sgpr(0), cookie, "bomb cookie= "+str(cookie))
+     
+      if scratchVgpr == -1:
+        self.vgprPool.checkIn(vgprAddr)
+      return kStr
+
+
+  ##############################################################################
+  # assertCommon : Common routine for all assert functions. 
+  ##############################################################################
+  def assertCommon(self, c, val0, val1, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      self.printedAssertCnt += 1
+      fullExec = self.getTmpSgpr(4) 
+      cc       = fullExec + 2
+      #kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+      #    "0", "assert")
+      kStr += inst("s_or_saveexec_b64", sgpr(fullExec,2), 0, \
+          "assert: saved execmask")
+      kStr += inst("v_cmpx_%s_u32"%c, sgpr(cc,2), val0, val1, "v_cmp" )   # bozo
+
+      # Default cookie for asserts is negative of #asserts which executed
+      # without firing:
+      kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)  
+
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
+          "assert: restore execmask")
+
+    return kStr
+
+  ##############################################################################
+  # Handle different conditions for the asserts:
+  # These support uin32 compare, float could be added later
+  ##############################################################################
+  def assert_eq(self, val0, val1, cookie=-1):
+    return self.assertCommon("ne", val0, val1, cookie)
+
+  def assert_ne(self, val0, val1, cookie=-1):
+    return self.assertCommon("eq", val0, val1, cookie)
+
+  def assert_lt(self, val0, val1, cookie=-1):
+    return self.assertCommon("ge", val0, val1, cookie)
+
+  def assert_gt(self, val0, val1, cookie=-1):
+    return self.assertCommon("le", val0, val1, cookie)
+
+  def assert_le(self, val0, val1, cookie=-1):
+    return self.assertCommon("gt", val0, val1, cookie)
+
+  def assert_ge(self, val0, val1, cookie=-1):
+    return self.assertCommon("lt", val0, val1, cookie)
+
 
 ################################################################################
 # Helper Functions
@@ -4568,6 +4732,9 @@ def dump(vgprStore):
     kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
         hex(4), "debug dump inc" )
   return kStr
+
+
+
 
 
 ########################################
