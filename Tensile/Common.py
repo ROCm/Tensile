@@ -499,7 +499,7 @@ def assignGlobalParameters( config ):
         minor = int(line[gfxIdx+4:gfxIdx+5])
         step  = int(line[gfxIdx+5:gfxIdx+6])
         if (major,minor,step) in globalParameters["SupportedISA"]:
-          print1("# Detected ISA: gfx%u%u%u"%(major, minor, step))
+          print1("# Detected local GPU with ISA: gfx%u%u%u"%(major, minor, step))
           globalParameters["CurrentISA"] = (major, minor, step)
         line = process.stdout.readline()
     if globalParameters["CurrentISA"] == (0,0,0):
@@ -514,9 +514,11 @@ def assignGlobalParameters( config ):
       asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
                  % (globalParameters["AssemblerPath"], isaVersion)
       globalParameters["AsmHasExplicitCO"][v] = \
-              not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" | %s" % asmCmd)
+              not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" | %s %s" % \
+              (asmCmd, \
+              "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
 
-      print "Try Check command : %s ExplicitCO=%d" % (asmCmd, globalParameters["AsmHasExplicitCO"][v])
+      print1 ("# Asm caps for %s: AsmHasExplicitCO=%d" % (isaVersion, globalParameters["AsmHasExplicitCO"][v]))
 
 
 
