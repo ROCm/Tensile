@@ -705,7 +705,7 @@ class Solution:
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
 
-    # VectorWidth
+    # VectorWidth default handling
     if state["VectorWidth"] < 1:
       state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
       while state["ThreadTile0"] % state["VectorWidth"] != 0 \
@@ -720,6 +720,15 @@ class Solution:
             state["VectorWidth"]))
       state["Valid"] = False
       return
+
+
+    # Default GlobalReadVectorWidth
+    if state["GlobalReadVectorWidth"] < 1:
+      state["GlobalReadVectorWidth"] = state["VectorWidth"]
+      if state["ProblemType"]["DataType"].isHalf() \
+          and state["GlobalReadVectorWidth"] < 2: 
+        state["GlobalReadVectorWidth"] = 2 
+
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
@@ -814,11 +823,11 @@ class Solution:
       totalElementsA = totalElementsCoalescedA * totalElementsPerpA
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
-      # convert elements to vectors based on VectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA / state["VectorWidth"]
-      totalVectorsCoalescedB = totalElementsCoalescedB / state["VectorWidth"]
-      totalVectorsA = totalElementsA / state["VectorWidth"]
-      totalVectorsB = totalElementsB / state["VectorWidth"]
+      # convert elements to vectors based on GlobalReadVectorWidth
+      totalVectorsCoalescedA = totalElementsCoalescedA / state["GlobalReadVectorWidth"]
+      totalVectorsCoalescedB = totalElementsCoalescedB / state["GlobalReadVectorWidth"]
+      totalVectorsA = totalElementsA / state["GlobalReadVectorWidth"]
+      totalVectorsB = totalElementsB / state["GlobalReadVectorWidth"]
 
       if totalVectorsA < state["NumThreads"]:
         state["PVA"] = state["NumThreads"] / totalVectorsA # partial vector
@@ -832,7 +841,7 @@ class Solution:
             print1("PVA %u * totalVectorsA %u != NumThreads %u" \
                 % (state["PVA"], totalVectorsA, state["NumThreads"]))
           validDepthU = False
-        if state["VectorWidth"] % state["PVA"] != 0:
+        if state["GlobalReadVectorWidth"] % state["PVA"] != 0:
           if globalParameters["PrintSolutionRejectionReason"]:
             print1("NumThreads %u %% totalVectorsA %u != 0" \
                 % (state["NumThreads"], totalVectorsA))
@@ -844,13 +853,15 @@ class Solution:
             print1("totalVectorsA %u %% NumThreads %u != 0" \
                 % (totalVectorsA, state["NumThreads"]))
           validDepthU = False
-        if state["VectorWidth"] % state["PVA"] != 0:
+        if state["GlobalReadVectorWidth"] % state["PVA"] != 0:
           if globalParameters["PrintSolutionRejectionReason"]:
-            print1("VectorWidth %u %% PVA %u != 0" \
-                % (state["VectorWidth"], state["PVA"]))
+            print1("GlobalReadVectorWidth %u %% PVA %u != 0" \
+                % (state["GlobalReadVectorWidth"], state["PVA"]))
           validDepthU = False
-      state["GlobalLoadVectorWidthA"] = state["VectorWidth"] / state["PVA"]
+      state["GlobalLoadVectorWidthA"] = state["GlobalReadVectorWidth"] / state["PVA"]
       state["NumLoadsA"] = totalVectorsA * state["PVA"] / state["NumThreads"]
+
+
 
       if totalVectorsB < state["NumThreads"]:
         state["PVB"] = state["NumThreads"] / totalVectorsB # partial vector
@@ -864,20 +875,20 @@ class Solution:
             print1("PVB %u * totalVectorsB %u != NumThreads %u" \
                 % (state["PVB"], totalVectorsB, state["NumThreads"]))
           validDepthU = False
-        if state["VectorWidth"] % state["PVB"] != 0:
+        if state["GlobalReadVectorWidth"] % state["PVB"] != 0:
           if globalParameters["PrintSolutionRejectionReason"]:
-            print1("VectorWidth %u %% PVB %u != 0" \
-                % (state["VectorWidth"], state["PVB"]))
+            print1("GlobalReadVectorWidth %u %% PVB %u != 0" \
+                % (state["GlobalReadVectorWidth"], state["PVB"]))
           validDepthU = False
       else:
         state["PVB"] = 1 # partial vector
         if totalVectorsB % state["NumThreads"] != 0 \
-            or state["VectorWidth"] % state["PVB"] != 0:
+            or state["GlobalReadVectorWidth"] % state["PVB"] != 0:
           if globalParameters["PrintSolutionRejectionReason"]:
             print1("totalVectorsB %u %% NumThreads %u != 0" \
                 % (totalVectorsB, state["NumThreads"]))
           validDepthU = False
-      state["GlobalLoadVectorWidthB"] = state["VectorWidth"] / state["PVB"]
+      state["GlobalLoadVectorWidthB"] = state["GlobalReadVectorWidth"] / state["PVB"]
       state["NumLoadsB"] = totalVectorsB * state["PVB"] / state["NumThreads"]
 
       # f16 can't load shorts from global->lds

@@ -212,9 +212,16 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,     # ( tt0 x tt1 ) dimensions of the C tile that each thread works on, TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+
+    # Controls desiredwidth of loads from global memory -> LDS.
+    # 1 is ofen best value since this allows direct global->LDS (no intervening register)
+    # and eliminates the pointer unshift logic
+    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+
     # threads should read/write/operate on this many contiguous elements. VW=4 on sgemm means read/write float4's.
     # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >128 bits isn't supported and should be faster
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
@@ -278,6 +285,7 @@ defaultBenchmarkCommonParameters = [
     {"LdsPad":                    [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
+    {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
