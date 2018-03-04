@@ -39,6 +39,7 @@ TensileStatus tensileReferenceCPU(
     Type beta,
     unsigned int totalIndices,
     const unsigned int *sizes,
+    const unsigned int *minStrides,
     unsigned int numIndicesC,
     unsigned int numIndicesAB,
     const unsigned int *indexAssignmentsA,
@@ -51,9 +52,17 @@ TensileStatus tensileReferenceCPU(
   // sizes
   unsigned int *sizesA = new unsigned int[numIndicesAB];
   unsigned int *sizesB = new unsigned int[numIndicesAB];
+
+  // Stride in each index
+  std::vector<unsigned int> strides(totalIndices);
+
   unsigned int *stridesC = new unsigned int[numIndicesC];
   unsigned int *stridesA = new unsigned int[numIndicesAB];
   unsigned int *stridesB = new unsigned int[numIndicesAB];
+  for (unsigned int i = 0; i < totalIndices; i++) {
+    strides[i] = max(minStrides[i], sizes[i]);
+  }
+
   for (unsigned int i = 0; i < numIndicesAB; i++) {
     sizesA[i] = sizes[indexAssignmentsA[i]];
     sizesB[i] = sizes[indexAssignmentsB[i]];
@@ -63,11 +72,11 @@ TensileStatus tensileReferenceCPU(
   stridesA[0] = 1;
   stridesB[0] = 1;
   for (unsigned int i = 1; i < numIndicesAB; i++) {
-    stridesA[i] = stridesA[i-1] * sizesA[i-1];
-    stridesB[i] = stridesB[i-1] * sizesB[i-1];
+    stridesA[i] = stridesA[i-1] * strides[indexAssignmentsA[i-1]];
+    stridesB[i] = stridesB[i-1] * strides[indexAssignmentsB[i-1]];
   }
   for (unsigned int i = 1; i < numIndicesC; i++) {
-    stridesC[i] = stridesC[i-1] * sizes[i-1];
+    stridesC[i] = stridesC[i-1] * strides[i-1];
   }
 
 
