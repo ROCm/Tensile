@@ -2652,7 +2652,7 @@ class KernelWriterAssembly(KernelWriter):
     # LSU not all threads will do summation
     if tailLoop and kernel["LocalSplitU"] > 1:
       tmpSgpr = self.getTmpSgpr(2)
-      kStr += self.comment("apply exec mask")
+      kStr += self.comment("apply exec mask for LSU")
       tmpVgpr = self.vgprPool.checkOut(2)
       dummy = self.vgprPool.checkOut(1)
       sgId = self.vgprPool.checkOut(1)
@@ -2717,7 +2717,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "exit Loop%s"%loopChar )
     kStr += inst("s_branch label_%04u"%loopLabelBegin, \
-        "restart Loop%s"%loopChar )
+        "restart %s Loop%s"%("tailLoop" if tailLoop else "unrolled loop", loopChar ))
     kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
 
     # restore all threads
@@ -2938,23 +2938,22 @@ class KernelWriterAssembly(KernelWriter):
 
                   # Compute the full address so we can 
                   # TODO - replace this with a direct compare against the offset 
-                  kStr += inst("_v_add_co_u32",  
+                  kStr += inst("v_mov_b32", \
+                                vgpr(fullAddrVgpr+1), 
+                                sgpr("Srd%s+1"%(tP["tensorChar"])), "save SRD since addc can't use SGPR")
+                  kStr += inst("_v_add_co_u32", \
                       vgpr(fullAddrVgpr+0), \
                       "vcc", \
-                      sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 1), \
+                      sgpr("Srd%s+0"%(tP["tensorChar"])), \
                       vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
-                      "Recompute full addr (lo)")
-                  kStr += inst("v_mov_b32",  
-                      vgpr(fullAddrVgpr+1), \
-                      sgpr("Srd%s+%u"%(tP["tensorChar"], 1), 1), \
-                      "full addr (upper)")
+                      "Recompute full addr <- SRD + GRO (lo)")
                   kStr += inst("_v_addc_co_u32",  
                       vgpr(fullAddrVgpr+1), \
                       "vcc", \
                       vgpr(fullAddrVgpr+1), \
                       0, \
                       "vcc", \
-                      "Recompute full addr (upper)")
+                      "Recompute full addr (upper) (just pick up CO)")
                       
 
                   # mask if current address if in bounds
@@ -4528,6 +4527,12 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # WaitCnt- DONE
+  # 3 components can contribute to the waitcnt:
+  #   - Pending global reads.  (skipGlobalRead)
+  #   - Pending local write.  (skipLocalWrite)
+  #   - Pending local reads (skipLocalRead)
+  # If a skip* arg is set, the associated component does not contribute to
+  # the expected lgkmcnt or vmcnt
   ##############################################################################
   def wait(self, kernel, tPA, tPB, skipGlobalRead, skipLocalWrite, \
       skipLocalRead, comment):
@@ -4556,7 +4561,10 @@ class KernelWriterAssembly(KernelWriter):
       numB = kernel["NumLoadsPerpendicularB"] * kernel["NumLoadsCoalescedB"] \
           * self.numReadVectorComponentsB
       vmcnt += skipGlobalRead * (numA + numB)
-      if lgkmcnt > -1:
+
+      # Unlike flat loads, BufferLoad do not increment the outstanding
+      # lgkmcnt 
+      if lgkmcnt > -1 and not kernel["BufferLoad"]:
         lgkmcnt += skipGlobalRead * (numA + numB)
 
     if False:
@@ -4636,7 +4644,7 @@ class KernelWriterAssembly(KernelWriter):
           %( vgpr(tmpAddr), vgpr(tmp), (i*kernel["NumThreads"]*4), \
           "//init lds" + self.endLine)
 
-    kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for init to complete" )
+    kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "wait for LDS init to complete" )
     self.vgprPool.checkIn(tmp)
     self.vgprPool.checkIn(tmpAddr)
     return kStr
@@ -4696,19 +4704,19 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if self.db["EnableAsserts"]:
       self.printedAssertCnt += 1
-      fullExec = self.getTmpSgpr(4) 
-      cc       = fullExec + 2
-      #kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+      saveExec = self.getTmpSgpr(4) 
+      cc       = saveExec + 2
+      #kStr += inst("s_mov_b64", sgpr(saveExec,2), \
       #    "0", "assert")
-      kStr += inst("s_or_saveexec_b64", sgpr(fullExec,2), 0, \
+      kStr += inst("s_or_saveexec_b64", sgpr(saveExec,2), 0, \
           "assert: saved execmask")
-      kStr += inst("v_cmpx_%s_u32"%c, sgpr(cc,2), val0, val1, "v_cmp" )   # bozo
+      kStr += inst("v_cmpx_%s_u32"%c, sgpr(cc,2), val0, val1, "v_cmp" )   
 
       # Default cookie for asserts is negative of #asserts which executed
       # without firing:
       kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)  
 
-      kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr(saveExec,2), \
           "assert: restore execmask")
 
     return kStr
