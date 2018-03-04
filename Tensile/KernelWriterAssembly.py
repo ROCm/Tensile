@@ -1193,7 +1193,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferLoad"]:
         kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
-        kStr += self.macroRegister("BufferLimit", "0x8000000")
+        kStr += self.macroRegister("BufferLimit", "0x80000000")
         kStr += self.comment3("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
         kStr += self.macroRegister("Srd127_96",   "0x0020000")
 
