@@ -60,7 +60,7 @@ TensileStatus tensileReferenceCPU(
   unsigned int *stridesA = new unsigned int[numIndicesAB];
   unsigned int *stridesB = new unsigned int[numIndicesAB];
   for (unsigned int i = 0; i < totalIndices; i++) {
-    strides[i] = max(minStrides[i], sizes[i]);
+    strides[i] = std::max(minStrides[i], sizes[i]);
   }
 
   for (unsigned int i = 0; i < numIndicesAB; i++) {

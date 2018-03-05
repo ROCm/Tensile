@@ -191,13 +191,19 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
       runScriptFile.write("./client")
+
+    if globalParameters["DataInitTypeA"] == -1 :
+        globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
+    if globalParameters["DataInitTypeB"] == -1 :
+        globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
     clp = ""
     clp += " --platform-idx %u" % globalParameters["Platform"]
     clp += " --device-idx %u" % globalParameters["Device"]
     clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
     clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
     clp += " --init-c %u" % globalParameters["DataInitTypeC"]
-    clp += " --init-ab %u" % globalParameters["DataInitTypeAB"]
+    clp += " --init-a %u" % globalParameters["DataInitTypeA"]
+    clp += " --init-b %u" % globalParameters["DataInitTypeB"]
     clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
     clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
     clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
@@ -754,13 +760,13 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0,lastStrideC):
       h += "  unsigned int strideC%u%s = 1" % (i, indexChars[i])
       for j in range(0, i):
-        h += "* max(minStrides[%i], sizes[%i])" % (j,j)
+        h += "* std::max(minStrides[%i], sizes[%i])" % (j,j)
       h += ";\n"
     for i in range(0,lastStrideA):
       h += "  unsigned int strideA%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsA"][i]])
       for j in range(0, i):
-        h += "* max(minStrides[%i], sizes[%i])" % \
+        h += "* std::max(minStrides[%i], sizes[%i])" % \
           (problemType["IndexAssignmentsA"][j],
            problemType["IndexAssignmentsA"][j])
       h += ";\n"
@@ -768,7 +774,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  unsigned int strideB%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsB"][i]])
       for j in range(0, i):
-        h += "* max(minStrides[%i], sizes[%i])" % \
+        h += "* std::max(minStrides[%i], sizes[%i])" % \
           (problemType["IndexAssignmentsB"][j],
            problemType["IndexAssignmentsB"][j])
       h += ";\n"

@@ -65,7 +65,9 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
 # how to initialize tensor data
-globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN.  Sets both DataInitTypeA and DataInitTypeB
+globalParameters["DataInitTypeA"] = -1             # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeB"] = -1             # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN

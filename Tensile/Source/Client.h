@@ -42,8 +42,9 @@ std::ofstream file;
 unsigned int deviceIdx;
 unsigned int initAlpha;
 unsigned int initBeta;
+unsigned int initA;
+unsigned int initB;
 unsigned int initC;
-unsigned int initAB;
 unsigned int platformIdx;
 unsigned int printValids;
 unsigned int printMax;
@@ -63,7 +64,8 @@ std::string keyDeviceIdx = "--device-idx";
 std::string keyHelp1 = "-h";
 std::string keyHelp2 = "--help";
 std::string keyInitC = "--init-c";
-std::string keyInitAB = "--init-ab";
+std::string keyInitA = "--init-a";
+std::string keyInitB = "--init-b";
 std::string keyInitAlpha = "--init-alpha";
 std::string keyInitBeta = "--init-beta";
 std::string keyPlatformIdx = "--platform-idx";
@@ -85,7 +87,8 @@ unsigned int defaultDeviceIdx = 0;
 unsigned int defaultInitAlpha = 2;
 unsigned int defaultInitBeta = 2;
 unsigned int defaultInitC = 3;
-unsigned int defaultInitAB = 3;
+unsigned int defaultInitA = 3;
+unsigned int defaultInitB = 3;
 unsigned int defaultPlatformIdx = 0;
 unsigned int defaultPrintValids = 0;
 unsigned int defaultPrintMax = 0;
@@ -564,7 +567,7 @@ bool benchmarkAllSolutionsForSize(
   std::vector<unsigned int> elementStridesC(numIndicesC[problemIdx]);
 
   for (unsigned int i = 0; i < totalIndices[problemIdx]; i++) {
-    strides[i] = max(minStrides[i], sizes[i]);
+    strides[i] = std::max(minStrides[i], sizes[i]);
   }
   elementStridesC[0] = 1;
   stridesC[0] = 1;
@@ -960,7 +963,30 @@ bool benchmarkProblemSizes(
 } // benchmarkProblemSizes
 #endif // benchmark
 
-
+template<typename DataType>
+void initInput(
+    unsigned dataInitType,
+    DataType **initial,
+    size_t     maxSize)
+{
+  if (dataInitType == 0) {
+    for (size_t i = 0; i < maxSize; i++) {
+      (*initial)[i] = tensileGetZero<DataType>(); }
+    std::cout << ".";
+  } else if (dataInitType == 1) {
+    for (size_t i = 0; i < maxSize; i++) {
+      (*initial)[i] = tensileGetOne<DataType>(); }
+    std::cout << ".";
+  } else if (dataInitType == 2) {
+    for (size_t i = 0; i < maxSize; i++) {
+      (*initial)[i] = tensileGetTypeForInt<DataType>(i); }
+    std::cout << ".";
+  } else {
+    for (size_t i = 0; i < maxSize; i++) {
+      (*initial)[i] = tensileGetRandom<DataType>(); }
+    std::cout << ".";
+  }
+}
 
 
 /*******************************************************************************
@@ -1047,39 +1073,8 @@ void initData(
   }
 
   // initialize buffers
-  if (initAB == 0) {
-    for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetZero<DataType>(); }
-    std::cout << ".";
-    for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetZero<DataType>(); }
-    std::cout << ".";
-  } else if (initAB == 1) {
-    for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetOne<DataType>(); }
-    std::cout << ".";
-    for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetOne<DataType>(); }
-    std::cout << ".";
-  } else if (initAB == 2) {
-    for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetTypeForInt<DataType>(i); }
-    std::cout << ".";
-    for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetTypeForInt<DataType>(i); }
-    std::cout << ".";
-  } else {
-    for (size_t i = 0; i < maxSizeA; i++) {
-      (*initialA)[i] = tensileGetRandom<DataType>(); }
-    std::cout << ".";
-    for (size_t i = 0; i < maxSizeB; i++) {
-      (*initialB)[i] = tensileGetRandom<DataType>(); }
-    std::cout << ".";
-  }
-
-
-
-
+  initInput(initA, initialA, maxSizeA);
+  initInput(initB, initialB, maxSizeB);
 
   // create device buffers and copy data
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -1158,7 +1153,8 @@ void printClientUsage(std::string executableName) {
   std::cout << "Usage: " << executableName << std::endl;
   std::cout << "  " << keyDeviceIdx << " [" << defaultDeviceIdx << "]" << std::endl;  
   std::cout << "  " << keyInitC << " [" << defaultInitC << "]" << std::endl;  
-  std::cout << "  " << keyInitAB << " [" << defaultInitAB << "]" << std::endl;  
+  std::cout << "  " << keyInitA << " [" << defaultInitA << "]" << std::endl;  
+  std::cout << "  " << keyInitB << " [" << defaultInitB << "]" << std::endl;  
   std::cout << "  " << keyInitAlpha << " [" << defaultInitAlpha << "]" << std::endl;  
   std::cout << "  " << keyInitBeta << " [" << defaultInitBeta << "]" << std::endl;  
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -1197,7 +1193,8 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
   initAlpha = defaultInitAlpha;
   initBeta = defaultInitBeta;
   initC = defaultInitC;
-  initAB = defaultInitAB;
+  initA = defaultInitA;
+  initB = defaultInitB;
   platformIdx = defaultPlatformIdx;
   printValids = defaultPrintValids;
   printMax = defaultPrintMax;
@@ -1271,9 +1268,13 @@ void parseCommandLineParameters( int argc, char *argv[] ) {
         initC = static_cast<unsigned int>(atoi(argv[argIdx]));
 
       // init ab
-      } else if (keyInitAB == argv[argIdx]) {
+      } else if (keyInitA == argv[argIdx]) {
         argIdx++;
-        initAB = static_cast<unsigned int>(atoi(argv[argIdx]));
+        initA = static_cast<unsigned int>(atoi(argv[argIdx]));
+
+      } else if (keyInitB == argv[argIdx]) {
+        argIdx++;
+        initB = static_cast<unsigned int>(atoi(argv[argIdx]));
 
       // platform idx
       } else if (keyPlatformIdx == argv[argIdx]) {
