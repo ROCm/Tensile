@@ -2106,7 +2106,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graFinalOffsets(self, kernel, tP):
     kStr = ""
-    tc = tP["tensorChar"]
     tVW = 1
     tVS = 0
     uVW = 1
@@ -4625,7 +4624,6 @@ class KernelWriterAssembly(KernelWriter):
   # init lds state
   ########################################
   def initLds(self, kernel, value):
-    tmpSgpr = self.getTmpSgpr(1)
     kStr = ""
     kStr += self.comment("init lds state")
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
