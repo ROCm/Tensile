@@ -2317,20 +2317,21 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def lwaFirstOffset(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     #"lwFOA = lwA%s + lwA%s*MT%s" \
     #    % (tP["tileChar"], self.unrollChar, tP["tileChar"])
     uReg = tP["gpr"]["uReg2" if kernel["GlobalSplitU"] > 1 else "uReg"]
     kStr += inst("v_mul_u32_u24", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["MacroTile%s"%tP["tensorChar"]]), \
+        hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
         vgpr(uReg), \
-        "lw%s%s*MT%s"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
+        "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
     kStr += inst("_v_add_co_u32", \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
         "vcc", \
         vgpr(tP["gpr"]["lwoT"]), \
         vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        "lwFO%s = lw%s%s + lw%s%s*MT%s" \
+        "lwFO%s = lw%s%s + lw%s%s*(MT%s+PAD)" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
         tP["tensorChar"], self.unrollChar, tP["tileChar"]) )
     kStr += inst("v_lshlrev_b32", \
@@ -2390,12 +2391,12 @@ class KernelWriterAssembly(KernelWriter):
               (("%u + "%sPara) if tP["wtc"] else ""), \
               para, tP["lsc"] )
           if not tP["tlu"]:
-            kStr += "*MT%s" % (tP["tileChar"])
+            kStr += "*MT%s+PAD" % (tP["tileChar"])
           kStr += " + (%s%d*%s)" % (
               (("%u + "%sPerp) if tP["wuc"] else ""), perp, \
               tP["lsp"])
           if tP["tlu"]:
-            kStr += "*MT%s" % (tP["tileChar"])
+            kStr += "*MT%s+PAD" % (tP["tileChar"])
           kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
     return kStr
 
@@ -2454,6 +2455,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def lraFinalOffset(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
     qReg = self.vgprPool.checkOut(1) # quotient
     rReg = self.vgprPool.checkOut(1) # remainder, unused here
@@ -2466,13 +2468,13 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += inst("s_mov_b32", \
         sgpr(tmpSgpr), \
-        hex(kernel["MacroTile%u"%tP["tensorIdx"]]), \
-        "MT%u"%tP["tensorIdx"] )
+        hex(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]), \
+        "MT%u+PAD"%tP["tensorIdx"] )
     kStr += inst("v_mul_lo_u32", \
         vgpr(sgid), \
         sgpr(tmpSgpr), \
         vgpr(sgid), \
-        "sgid=sgid*MT%u"%tP["tensorIdx"] )
+        "sgid=sgid*(MT%u+PAD)"%tP["tensorIdx"] )
     if kernel["VectorWidth"] > 1:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
@@ -3101,6 +3103,7 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteDo(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+    tc = tP["tensorChar"]
     instruction = tP["localWriteInstruction"]
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
@@ -3155,9 +3158,9 @@ class KernelWriterAssembly(KernelWriter):
           #print "0lscaOffset", lscaOffset
 
           if tP["tlu"]:
-            lspaOffset *= kernel[tP["mt"]]
+            lspaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
           else:
-            lscaOffset *= kernel[tP["mt"]]
+            lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
           #print "1lspaOffset", lspaOffset
           #print "1lscaOffset", lscaOffset
           #if tP["tlu"] == tP["grcv"]:
@@ -3180,12 +3183,12 @@ class KernelWriterAssembly(KernelWriter):
               (("%u + "%sPara) if tP["wtc"] else ""), \
               para, tP["lsc"] )
           if not tP["tlu"]:
-            comment += "*MT%s" % (tP["tileChar"])
+            comment += "*(MT%s+PAD)" % (tP["tileChar"])
           comment += " + (%s%d*%s)" % (
               (("%u + "%sPerp) if tP["wuc"] else ""), perp, \
               tP["lsp"])
           if tP["tlu"]:
-            comment += "*MT%s" % (tP["tileChar"])
+            comment += "(*MT%s+PAD)" % (tP["tileChar"])
           comment += " = %u" % (offset)
 
           paramList = []
@@ -3196,6 +3199,7 @@ class KernelWriterAssembly(KernelWriter):
             else:
               paramList.append( vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), \
                   blockWidth))
+          #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
           for oIdx in range(0, numOffsets):
             paramList.append(offset)
 
@@ -3208,9 +3212,6 @@ class KernelWriterAssembly(KernelWriter):
               highBits = True
           kStr += tP["localWriteInstruction"].toString(paramTuple, comment, \
               nonTemporal, highBits)
-    #if tP["isB"]:
-      #kStr += self.bomb(1)
-      #kStr += self.dumpLds(kernel, 0, 8)
       #kStr += "s_endpgm\n"
     return kStr
 
@@ -3269,8 +3270,9 @@ class KernelWriterAssembly(KernelWriter):
   def localReadInc(self, kernel, tP):
     if not self.do["LocalRead"]: return ""
     kStr = ""
+    tc = tP["tensorChar"]
     if self.inTailLoop:
-      inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]*self.bpe
+      inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*self.bpe
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("_v_add_co_u32", \
@@ -3278,19 +3280,19 @@ class KernelWriterAssembly(KernelWriter):
           "vcc", \
           sgpr(tmpSgpr), \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-          "lr%s += %u"%(tP["tensorChar"], inc) )
+          "lr%s += %u (LSU*(MT+PAD)*bpe)"%(tP["tensorChar"], inc) )
     else:
       if tP["localReadInstruction"].numOffsets == 1:
-        tP["localReadOffset"] += kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
-        kStr += self.comment1("N/A")
+        tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc])
+        kStr += self.comment1("N/A, lro->%d"%tP["localReadOffset"])
       else:
-        inc = kernel["LocalSplitU"]*kernel["MacroTile%u"%tP["tensorIdx"]]
+        inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])
         kStr += inst("_v_add_co_u32", \
             vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
             "vcc", \
             hex(inc), \
             vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-            "lr%s += %u"%(tP["tensorChar"], inc) )
+            "lr%s += %u (LSU+(MT+Pad)*bpe"%(tP["tensorChar"], inc) )
     return kStr
 
   ##############################################################################

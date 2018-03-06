@@ -1130,10 +1130,17 @@ class Solution:
     state["LVPB"] = state["LSPB"] / state["GlobalLoadVectorWidthB"]
 
     # lds buffer size for A, B
+    if state["KernelLanguage"] == "Source" and \
+       state["LdsPadA"] != state["LdsPadB"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("Source KernelLanguage only supports LdsPadA == LdsPadB")
+      state["Valid"] = False
+      return
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
-    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPad"])
+    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
-    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPad"])
+    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
     # todo, can the alignment be a power of 2?
     if state["PrefetchGlobalRead"]:
