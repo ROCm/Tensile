@@ -191,13 +191,19 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
       runScriptFile.write("./client")
+
+    if globalParameters["DataInitTypeA"] == -1 :
+        globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
+    if globalParameters["DataInitTypeB"] == -1 :
+        globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
     clp = ""
     clp += " --platform-idx %u" % globalParameters["Platform"]
     clp += " --device-idx %u" % globalParameters["Device"]
     clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
     clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
     clp += " --init-c %u" % globalParameters["DataInitTypeC"]
-    clp += " --init-ab %u" % globalParameters["DataInitTypeAB"]
+    clp += " --init-a %u" % globalParameters["DataInitTypeA"]
+    clp += " --init-b %u" % globalParameters["DataInitTypeB"]
     clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
     clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
     clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
@@ -285,6 +291,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "// Debug Params\n";
   h += "const bool printTensorA=%s;\n" % toCppBool(globalParameters["PrintTensorA"])
   h += "const bool printTensorB=%s;\n" % toCppBool(globalParameters["PrintTensorB"])
+  h += "const bool printTensorC=%s;\n" % toCppBool(globalParameters["PrintTensorC"])
   h += "\n";
 
   h += "const char indexChars[%u] = \"%s" \
@@ -522,6 +529,15 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "};"
       h += "\n"
 
+    h += "const unsigned int minStrides[%u] = {" \
+        % problemTypes[0]["TotalIndices"]
+    for i in range(0, len(problemSizes.minStrides)):
+      if (i!=0):
+        h += ", ";
+      h += str(problemSizes.minStrides[i]);
+
+    h += "};\n"
+
   else:
     h += "unsigned int userSizes[maxNumIndices];\n"
 
@@ -684,6 +700,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "template<typename DataType>\n"
   h += "TensileStatus generatedCallToReferenceCPU(\n"
   h += "    const unsigned int *sizes,\n"
+  h += "    const unsigned int *minStrides,\n"
   h += "    DataType *referenceC,\n"
   h += "    DataType *initialA,\n"
   h += "    DataType *initialB,\n"
@@ -697,6 +714,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "      beta,\n"
   h += "      totalIndices[problemTypeIdx],\n"
   h += "      sizes,\n"
+  h += "      minStrides,\n"
   h += "      numIndicesC[problemTypeIdx],\n"
   h += "      numIndicesAB[problemTypeIdx],\n"
   h += "      indexAssignmentsA[problemTypeIdx],\n"
@@ -717,6 +735,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "TensileStatus generatedCallToSolution(\n"
     h += "    unsigned int solutionIdx,\n"
     h += "    const unsigned int *sizes,\n"
+    h += "    const unsigned int *minStrides,\n"
     h += "    DataType alpha,\n"
     h += "    DataType beta, \n"
     h += "    unsigned int numEvents = 0, \n"
@@ -741,21 +760,23 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0,lastStrideC):
       h += "  unsigned int strideC%u%s = 1" % (i, indexChars[i])
       for j in range(0, i):
-        h += "*sizes[%i]" % j
+        h += "* std::max(minStrides[%i], sizes[%i])" % (j,j)
       h += ";\n"
     for i in range(0,lastStrideA):
       h += "  unsigned int strideA%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsA"][i]])
       for j in range(0, i):
-        h += "*sizes[%i]" % \
-          problemType["IndexAssignmentsA"][j]
+        h += "* std::max(minStrides[%i], sizes[%i])" % \
+          (problemType["IndexAssignmentsA"][j],
+           problemType["IndexAssignmentsA"][j])
       h += ";\n"
     for i in range(0,lastStrideB):
       h += "  unsigned int strideB%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsB"][i]])
       for j in range(0, i):
-        h += "*sizes[%i]" % \
-          problemType["IndexAssignmentsB"][j]
+        h += "* std::max(minStrides[%i], sizes[%i])" % \
+          (problemType["IndexAssignmentsB"][j],
+           problemType["IndexAssignmentsB"][j])
       h += ";\n"
     for i in range(0, problemType["TotalIndices"]):
       h += "  unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
@@ -802,6 +823,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "template<typename DataType>\n"
       h += "%s generatedCallTo_%s(\n" % (returnName, functionName)
       h += "    unsigned int *sizes,\n"
+      h += "    unsigned int *minStrides,\n"
       h += "    DataType alpha,\n"
       h += "    DataType beta, \n"
       h += "    unsigned int numEvents = 0, \n"
@@ -824,6 +846,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "inline %s generatedCallTo_%s<%s>(\n" \
             % (returnName, functionName, typeName)
         h += "    unsigned int *sizes,\n"
+        h += "    unsigned int *minStrides,\n"
         h += "    %s alpha,\n" % typeName
         h += "    %s beta,\n" % typeName
         h += "    unsigned int numEvents, \n"

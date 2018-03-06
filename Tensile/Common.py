@@ -65,7 +65,9 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
 # how to initialize tensor data
-globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
+globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN.  Can be overridden by the DataInitTypeA or DataInitTypeB.  Eventually DataInitTypeAB will be retired.
+globalParameters["DataInitTypeA"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN.  -1 uses value from DataInitTypeAB
+globalParameters["DataInitTypeB"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN.  -1 uses value from DataInitTypeAB
 globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
@@ -78,6 +80,8 @@ globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue
 # Tensor printing controls:
 globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
+globalParameters["PrintTensorC"] = False          # Print TensorC after computation
+
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
 # PrintMaxRows applies to dimensions where one row is printed per line
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."

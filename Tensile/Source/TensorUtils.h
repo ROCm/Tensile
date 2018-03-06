@@ -55,7 +55,7 @@ private:
   const std::string _name;
   unsigned int _numIndices;
   unsigned int _firstSummationIndex;
-  std::vector<unsigned int> _indexAssignment;
+  std::vector<unsigned int> _indexAssignments;
 
 };
 
@@ -71,11 +71,11 @@ TensorDims::TensorDims(
     sizes(numIndices,0),
     elementStrides(numIndices, 0),
     memoryStrides(numIndices, 0),
-    _indexAssignment(numIndices, 0) {
+    _indexAssignments(numIndices, 0) {
 
   totalSize = 1;
   for (unsigned int i=0; i<numIndices; i++) {
-    _indexAssignment[i] = indexAssignments[i];
+    _indexAssignments[i] = indexAssignments[i];
     sizes[i] = indexedSizes[indexAssignments[i]];
     totalSize *= sizes[i];
   }
@@ -102,28 +102,28 @@ TensorDims::TensorDims(
 void TensorDims::print() const {
 
   std::cout << "Matrix:" << _name << "  indexAssignments:";
-  for (unsigned int i=0; i<_numIndices; i++) {
-    if (i != 0) {
+  for (int i=_numIndices-1; i>=0; i--) {
+    if (i != _numIndices-1) {
       std::cout << ", ";
     }
-    std::cout << _indexAssignment[i];
-    if (_indexAssignment[i] >= _firstSummationIndex) 
+    std::cout << _indexAssignments[i];
+    if (_indexAssignments[i] >= _firstSummationIndex) 
         std::cout << "(sum)";
     else
         std::cout << "(free)";
   }
   std::cout << "\n";
 
-  for (unsigned int i=0; i<_numIndices; i++) {
+  for (int i=_numIndices-1; i>=0; i--) {
     std::cout << "  size[" << i << "]=" << sizes[i] 
-              << (_indexAssignment[i] >= _firstSummationIndex ? " (sum)" : " (free)")
-              << ",\'" << indexChars[_indexAssignment[i]] << "\'"
+              << (_indexAssignments[i] >= _firstSummationIndex ? " (sum)" : " (free)")
+              << ",\'" << indexChars[_indexAssignments[i]] << "\'"
               << "\n";
   }
-  for (unsigned int i=0; i<_numIndices; i++) {
+  for (int i=_numIndices-1; i>=0; i--) {
     std::cout << "  elementStrides[" << i << "]="<<elementStrides[i]<<"\n";
   }
-  for (unsigned int i=0; i<_numIndices; i++) {
+  for (int i=_numIndices-1; i>=0; i--) {
     std::cout << "  memoryStrides[" << i << "]="<<memoryStrides[i]<<"\n";
   }
 };
@@ -204,6 +204,16 @@ void printTensor(
         }
     }
 #endif
+
+    // Print order of elements:
+    std::cout << "\n  ";
+    for (int i=numIndices-1; i>=0; i--) {
+        if (i != numIndices-1) {
+          std::cout << ",";
+        }
+        std::cout << indexChars[indexAssignments[i]];
+    }
+    std::cout << "\n";
 
     // Print the elements 
     for (size_t e=0; e<td.totalSize; e++) {
