@@ -517,6 +517,7 @@ class ProblemSizes:
     self.problemType = problemType
     self.ranges = []
     self.exacts = []
+    self.minStrides = None
     for dictionary in config:
       for sizeTypeKey in dictionary:
         if sizeTypeKey == "Range":
@@ -529,8 +530,22 @@ class ProblemSizes:
                 % (e, problemType) )
           else:
             self.exacts.append(tuple(e))
+        elif sizeTypeKey == "MinStride":
+          e = dictionary[sizeTypeKey]
+          if len(e) != problemType["TotalIndices"]:
+            printExit("MinStride %s doesn't match indices of ProblemType %s" \
+                % (e, problemType) )
+          if self.minStrides:
+            printExit("Only one MinStride command is allowed in a ProblemsSizes definition.  Previous minStrides:%s, New minstride:%s" \
+                % (self.minStrides, e) )
+
+          self.minStrides=(tuple(e))
         else:
           printExit("ProblemSize Type %s not supported"%sizeTypeKey)
+
+    if not self.minStrides: 
+      # set harmless default mins of 0
+      self.minStrides = ([0]* problemType["TotalIndices"])
 
     self.sizes = set()
     for sizeRange in self.ranges:
@@ -548,11 +563,11 @@ class ProblemSizes:
       sizeA = 1
       sizeB = 1
       for i in range(0, problemType["NumIndicesC"]):
-        sizeC *= problemSize[i]
+        sizeC *= max(self.minStrides[i], problemSize[i])
       for i in self.problemType["IndexAssignmentsA"]:
-        sizeA *= problemSize[i]
+        sizeA *= max(self.minStrides[i], problemSize[i])
       for i in self.problemType["IndexAssignmentsB"]:
-        sizeB *= problemSize[i]
+        sizeB *= max(self.minStrides[i], problemSize[i])
       self.maxC = max(self.maxC, sizeC)
       self.maxA = max(self.maxA, sizeA)
       self.maxB = max(self.maxB, sizeB)
