@@ -292,7 +292,7 @@ bool callLibrary(
       if (!equal || printValids) {
         if (printIdx < printMax) {
           if (firstPrint) {
-            std::cout << "  Device | Reference" << std::endl;
+            std::cout << "Index:  Device | Reference" << std::endl;
             firstPrint = false;
           }
           std::cout << "[" << (numChecked-1) << "] " << i << ": "

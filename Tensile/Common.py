@@ -299,7 +299,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"BufferLoad":                [ False ] },
+    {"BufferLoad":                [ True ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
