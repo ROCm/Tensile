@@ -256,7 +256,7 @@ class KernelWriterAssembly(KernelWriter):
     # Check A and B values loaded from memory to ensure they match expected
     # sequential pattern.  Requires DataInitTypeAB=2.  
     # Mismatches will assert (generate GPUVM fault)
-    self.db["InitLds"]     = True  # Initialize LDS at start of kernel
+    self.db["InitLds"]     = False  # Initialize LDS at start of kernel
     self.printedAssertCnt  = 0
     self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
 
