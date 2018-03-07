@@ -528,18 +528,22 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       else:
         h += "};"
       h += "\n"
-
     h += "const unsigned int minStrides[%u] = {" \
         % problemTypes[0]["TotalIndices"]
     for i in range(0, len(problemSizes.minStrides)):
       if (i!=0):
         h += ", ";
       h += str(problemSizes.minStrides[i]);
-
     h += "};\n"
-
   else:
     h += "unsigned int userSizes[maxNumIndices];\n"
+    h += "unsigned int minStrides[%u] = {" \
+        % maxNumIndices
+    for i in range(0, maxNumIndices):
+      if (i!=0):
+        h += ", ";
+      h += str(0); # always use 0 for minStrides in benchmark mode
+    h += "};\n"
 
   if forBenchmark:
     h += "/* problem sizes */\n"
