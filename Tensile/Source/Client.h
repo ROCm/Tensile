@@ -200,29 +200,47 @@ bool callLibrary(
     DataType *referenceC,
     DataType *deviceOnHostC ) {
 
-  assert(0);  // needs to fix for new stride code
-
-  size_t currentSizeC = 1;
-  for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
-    currentSizeC *= userSizes[i];
-  }
   size_t totalFlops = numFlopsPerMac[dataTypeIdx];
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     totalFlops *= userSizes[i]; }
 
+  // Compute stridesC for validation
+  // strideC accounts for memory strides (ie ldc)
+  // while elementStride is a pure element space
+  std::vector<unsigned int> strides(totalIndices[problemTypeIdx]);
+  std::vector<unsigned int> stridesC(numIndicesC[problemTypeIdx]);
+  std::vector<unsigned int> elementStridesC(numIndicesC[problemTypeIdx]);
+
+  for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
+    strides[i] = std::max(minStrides[i], userSizes[i]);
+  }
+  elementStridesC[0] = 1;
+  stridesC[0] = 1;
+  for (unsigned int i = 1; i < numIndicesC[problemTypeIdx]; i++) {
+    elementStridesC[i] = elementStridesC[i-1] * userSizes[i-1];
+    stridesC[i] = stridesC[i-1] * strides[i-1];
+  }
+
   if (printTensorA) {
     printTensor("A", initialA, numIndicesAB[problemTypeIdx],
                   numIndicesC[problemTypeIdx],
-                  sizes, 
+                  userSizes, 
                   indexAssignmentsA[problemTypeIdx]);
   }
   if (printTensorB) {
     printTensor("B", initialB, numIndicesAB[problemTypeIdx],
                   numIndicesC[problemTypeIdx],
+                  userSizes, 
                   indexAssignmentsB[problemTypeIdx]);
   }
 
-  size_t sizeToCopy = currentSizeC*bytesPerElement[dataTypeIdx];
+  size_t currentElementSizeC = 1;
+  size_t currentMemorySizeC = 1;
+  for (unsigned int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+    currentElementSizeC *= userSizes[i];
+    currentMemorySizeC *= strides[i];
+  }
+  size_t sizeToCopy = currentMemorySizeC*bytesPerElement[dataTypeIdx];
 #if Tensile_RUNTIME_LANGUAGE_OCL
   status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE,
       0, sizeToCopy, initialC, 0, NULL, NULL);
@@ -239,11 +257,11 @@ bool callLibrary(
   if (numElementsToValidate) {
     memcpy(referenceC, initialC, sizeToCopy);
     // calculate validation stride
-    if (numElementsToValidate >= currentSizeC) {
+    if (numElementsToValidate >= currentElementSizeC) {
       validationStride = 1;
     } else {
       if (numElementsToValidate) {
-        validationStride = currentSizeC / numElementsToValidate;
+        validationStride = currentElementSizeC / numElementsToValidate;
         // find next prime number
         while (true) { // break statement at end
           bool prime = true;
@@ -290,21 +308,21 @@ bool callLibrary(
         indexAssignmentsC.push_back(i);
       }
       printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
-                  numIndicesC[problemTypeIdx], sizes,
+                  numIndicesC[problemTypeIdx], userSizes,
                   indexAssignmentsC.data());
     }
-
     // compare
     bool firstPrint = true;
     unsigned int printIdx = 0;
-    for (size_t i = 0; i < currentSizeC; i+= validationStride) {
+    for (size_t e = 0; e < currentElementSizeC; e+= validationStride) {
 
+      // Compute the actual serialIdxX accouting for strides:
       size_t serialIdxC = 0;
-      for (int j = numIndicesC-1; j >=0; j--) {
-        serialIdxC += r / elementStrides[j] * *stridesC[j];
-        i = i % elementStrides[j];
+      size_t r = e;
+      for (int j = numIndicesC[problemTypeIdx]-1; j >=0; j--) {
+        serialIdxC += r / elementStridesC[j] * stridesC[j];
+        r = r % elementStridesC[j];
       }
-
 
       bool equal;
       equal = tensileEqual<DataType>( // was AlmostEqual
@@ -319,7 +337,7 @@ bool callLibrary(
             firstPrint = false;
           }
           std::cout << "[" << (numChecked-1) << "] " 
-            << " e=" << e << 
+            << " e=" << e
             << " serialIdxC=" << serialIdxC << ": "
             << tensileToString(deviceOnHostC[serialIdxC])
             << (equal ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
@@ -328,6 +346,7 @@ bool callLibrary(
         }
       }
     } // compare loop
+
   } // if validate
   if (numInvalids) {
     solutionIsValid = false;
