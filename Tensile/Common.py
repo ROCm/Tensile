@@ -252,7 +252,8 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPad":                     [ 0, 1 ],
+    "LdsPadA":                     [ 0, 1, 2],
+    "LdsPadB":                     [ 0, 1, 2],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
@@ -286,7 +287,8 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
     {"KernelLanguage":            [ "Source" ] },
-    {"LdsPad":                    [ 0 ] },
+    {"LdsPadA":                    [ 0 ] },
+    {"LdsPadB":                    [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },

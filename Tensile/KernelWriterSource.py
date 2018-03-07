@@ -171,7 +171,7 @@ class KernelWriterSource(KernelWriter):
           % (kernel["GlobalSplitU"], self.endLine )
     kStr += self.endLine
     kStr += "/* other */%s" % self.endLine
-    kStr += "#define PAD %u%s" % (kernel["LdsPad"], self.endLine)
+    kStr += "#define PAD %u%s" % (kernel["LdsPadA"], self.endLine)  # TODO - ignore LdsPadB
     kStr += "#define WORK_GROUP_MAPPING %u%s" \
         % (abs(kernel["WorkGroupMapping"]), self.endLine)
     kStr += self.endLine
