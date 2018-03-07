@@ -1418,15 +1418,15 @@ class KernelWriterAssembly(KernelWriter):
                     % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
                 bStr = "v[%s+%u]" \
                     % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                 cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                 cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                 cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                 """
+                ignore this, not quite correct for mixed precision
                 D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
                 D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
                 C[0] = A[0]*B[0]+D[0]
@@ -3637,7 +3637,6 @@ class KernelWriterAssembly(KernelWriter):
 
             # f32 or larger
             else:
-#jgolds which bpeC should we use?
               for i in range(0, self.bpeCinternal/self.bpr):
                 kStr += inst("v_mov_b32", vgpr(self.startVgprValuC+dst*self.bpeCinternal/self.bpr+i), \
                     vgpr(self.startVgprValuC+src*self.bpeCinternal/self.bpr+i), comment)
@@ -3707,7 +3706,6 @@ class KernelWriterAssembly(KernelWriter):
         kernel["SubGroup1"], tmpVgpr, tmpSgpr)
 
     # lr0 *= VW
-#jgolds which bpeC should we use?
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["VectorWidth"]*self.bpeCinternal), "VW")
     kStr += inst("v_mul_lo_u32", vgpr(lr0), sgpr(tmpSgpr), vgpr(lr0), \
         "lr0 *= VW")
@@ -3748,7 +3746,6 @@ class KernelWriterAssembly(KernelWriter):
                 + i*kernel["VectorWidth"] \
                 + s*kernel["ThreadTile0"] \
                 + j*kernel["ThreadTile0"]*kernel["VectorWidth"]
-#jgolds which bpe should we use?
             kStr += "ds_write_b32 %s, %s offset:%u%s" \
                 % (vgpr(addr), vgpr(regIdx), writeOffset*self.bpeCinternal, self.endLine)
             # ds_write value
@@ -3999,6 +3996,7 @@ class KernelWriterAssembly(KernelWriter):
       self.betaVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(self.alphaVgpr), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
       kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
+#jgolds look at moving these converted values back to scalar regs and free up the VGPRs
       if kernel["ProblemType"]["HighPrecisionAccumulate"]:
         kStr += inst("v_cvt_f32_f16", vgpr(self.alphaVgpr), vgpr(self.alphaVgpr), "convert alpha to fp32")
         kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
@@ -4200,6 +4198,8 @@ class KernelWriterAssembly(KernelWriter):
     # allocate per-element resources
     numVgprsPerAddr = self.rpga
     numVgprsPerData = numVgprsPerElement - numVgprsPerAddr # might be decimal for half
+#jgolds
+    print "numVgprsPerData", numVgprsPerData
     addrVgprOffset = 0
     dataVgprOffset = addrVgprOffset + numVgprsPerAddr*len(batchElements)
     elementAddr = []
@@ -4305,7 +4305,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
           else:
             kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-            kStr += inst("v_cvt_f32_f16", vgpr(data+0), vgpr(data+0), "convert C to fp32")
+            #kStr += inst("v_cvt_f32_f16", vgpr(data+0), vgpr(data+0), "convert C to fp32")
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
         elif kernel["ProblemType"]["DataType"].isDouble():
@@ -4536,8 +4536,9 @@ class KernelWriterAssembly(KernelWriter):
                 pass # add will have been done previously
             else:
               # data+0 = new c = old c*beta + rC
-              kStr += inst("v_mad_f32", vgpr(sumIdx), vgpr(self.betaVgpr), vgpr(data+0), \
-                vgpr(sumIdx), "sum*alpha + C*beta")
+              kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[0,1,0]%s" % \
+                (vgpr(sumIdx), vgpr(self.betaVgpr), vgpr(data+0), vgpr(sumIdx), self.endLine)
+
           elif kernel["ProblemType"]["DataType"].isSingle():
             # data+0 = new c = old c*beta
             kStr += inst("v_mul_f32", vgpr(data+0), sgpr("Beta"), vgpr(data+0), \
