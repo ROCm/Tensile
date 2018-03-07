@@ -4198,8 +4198,6 @@ class KernelWriterAssembly(KernelWriter):
     # allocate per-element resources
     numVgprsPerAddr = self.rpga
     numVgprsPerData = numVgprsPerElement - numVgprsPerAddr # might be decimal for half
-#jgolds
-    print "numVgprsPerData", numVgprsPerData
     addrVgprOffset = 0
     dataVgprOffset = addrVgprOffset + numVgprsPerAddr*len(batchElements)
     elementAddr = []
@@ -4305,7 +4303,6 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
           else:
             kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-            #kStr += inst("v_cvt_f32_f16", vgpr(data+0), vgpr(data+0), "convert C to fp32")
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
         elif kernel["ProblemType"]["DataType"].isDouble():
