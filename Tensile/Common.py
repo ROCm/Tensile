@@ -348,9 +348,14 @@ defaultProblemType = {
     # =TensorContraction  requires specifying
     "OperationType":            "GEMM",
 
-    "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+#jgolds changed default to 6, "none", so we can tell when it's been set by a Problem
+    "DataType":                 6,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType, DEPRECATED
+    "DataTypeA":                0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "DataTypeB":                0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "DataTypeC":                0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "DataTypeAccumulate":       0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "UseBeta":                  True,             # =True use beta parameter (asm will check for B=0 and optimize the write for that), =False don't use beta parameter
-    "HighPrecisionAccumulate":  False,            # this was the original plan for specifying f32 += f16*f16, but its possible that Accumulation/Internal precision and output precision should be their own DataTypes altogether
+    "HighPrecisionAccumulate":  False,            # this was the original plan for specifying f32 += f16*f16, but its possible that Accumulation/Internal precision and output precision should be their own DataTypes altogether. DEPRECATED
     "ComplexConjugateA":        False,            # complex data should be conjugated for "C" transpose case
     "ComplexConjugateB":        False,
 
