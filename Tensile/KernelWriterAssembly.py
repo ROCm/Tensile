@@ -3670,7 +3670,7 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitULocalWrite(self, kernel):
     kStr = ""
     # wait for summation to be done with lds before writing reduction values
-    kStr += self.syncThreads(kernel)
+    kStr += self.syncThreads(kernel, "pre-lsu local write")
 
     tmpVgpr = self.vgprPool.checkOut(2)
     lr0 = self.vgprPool.checkOut(1)
@@ -3735,7 +3735,7 @@ class KernelWriterAssembly(KernelWriter):
             # ds_write value
             #kStr += dump(vgpr(regIdx))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
-    kStr += self.syncThreads(kernel)
+    kStr += self.syncThreads(kernel, "post-lsu local write")
     #kStr += self.dumpLds(kernel, 0, 16)
     return kStr
 
@@ -4640,9 +4640,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # SyncThreads
   ##############################################################################
-  def syncThreads(self, kernel):
+  def syncThreads(self, kernel, comment=""):
     if kernel["NumThreads"] > 64 and self.do["Sync"]:
-      return self.indent + self.syncStr + self.endLine
+      return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
       return ""
 
@@ -4655,7 +4655,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.comment("dump lds state")
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
-      kStr += inst("s_barrier", "" )
+      kStr += inst("s_barrier", "dump LDS" )
       tmp = self.vgprPool.checkOut(1)
       tmpAddr = self.vgprPool.checkOut(1)
       kStr += inst("v_lshlrev_b32", \
@@ -4680,7 +4680,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("init lds state")
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
-    kStr += inst("s_barrier", "" )
+    kStr += inst("s_barrier", "init LDS" )
     tmp = self.vgprPool.checkOut(1)
     tmpAddr = self.vgprPool.checkOut(1)
     kStr += inst("v_mov_b32", vgpr(tmp), hex(value), "Init value")

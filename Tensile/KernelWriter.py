@@ -333,7 +333,7 @@ class KernelWriter:
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "wait for local write")
       if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel)
+        kStr += self.syncThreads(kernel, "wait for global read")
 
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
@@ -341,7 +341,7 @@ class KernelWriter:
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
       if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel) # prior iter done reading lds
+        kStr += self.syncThreads(kernel, "prior iter done reading lds")
       if self.enable["LocalWrite"]:
         kStr += self.comment("local write a")
         kStr += self.localWriteDo(kernel, tensorParametersA)
