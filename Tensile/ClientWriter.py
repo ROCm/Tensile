@@ -693,7 +693,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   #h += "bool validationPrintValids = %s;\n" \
   #    % ("true" if globalParameters["ValidationPrintValids"] else "false")
   h += "size_t validationStride;\n"
-  if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+  if problemType["HighPrecisionAccumulate"]:
     h += "static bool useHighPrecisionAccumulate = true;\n"
   else:
     h += "static bool useHighPrecisionAccumulate = false;\n"
