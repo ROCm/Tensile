@@ -1140,12 +1140,7 @@ class KernelWriter:
     if tA: # A
       tP["isA"] = True                                      # is this tensor A
       tP["isB"] = False                                     # is this tensor B
-      if not kernel["ProblemType"]["DataType"].isNone():
-        print "Kernel uses deprecated DataType. Use DataTypeA/B/C to specify type of each matrix"
-#jgolds 4 is hardcoded here as bytes per register as bpr is not set yet
-        tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
-      else:
-        tP["bpe"] = int(4*kernel["ProblemType"]["DataTypeA"].numRegisters())
+      tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
       tP["tensorChar"] = "A"                                # tensor character A/B
       tP["tensorIdx"] = 0                                   # tensor index A=0, B=1
       tP["tileChar"] = self.tileCharA                       # tile char I0 or J1
@@ -1199,12 +1194,7 @@ class KernelWriter:
     else: # B
       tP["isA"] = False
       tP["isB"] = True
-      if not kernel["ProblemType"]["DataType"].isNone():
-        print "Kernel uses deprecated DataType. Use DataTypeA/B/C to specify type of each matrix"
-#jgolds 4 is hardcoded here as bytes per register since bpr is not set yet
-        tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
-      else:
-        tP["bpe"] = int(4*kernel["ProblemType"]["DataTypeB"].numRegisters())
+      tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
