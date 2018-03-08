@@ -2537,7 +2537,6 @@ class KernelWriterAssembly(KernelWriter):
   def calculateLoopNumIter(self, kernel, loopIdx):
     kStr = ""
 
-    tmp = self.vgprPool.checkOut(1)
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -2611,7 +2610,6 @@ class KernelWriterAssembly(KernelWriter):
       printExit("no assembly support for 2+ dimensional summation")
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
-    self.vgprPool.checkIn(tmp)
 
     # counter = -counter
     kStr += inst("s_sub_u32", \
