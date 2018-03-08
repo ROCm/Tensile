@@ -819,9 +819,6 @@ class KernelWriterAssembly(KernelWriter):
     self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
     self.totalVgprs = maxVgprSameOccupancy
 
-    # move serial to last vgpr and shift tmp forward
-    self.startVgprSerial = self.totalVgprs-1
-    self.startVgprTmp -= 1
 
     ########################################
     # SGPR Allocation
@@ -943,11 +940,11 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs-1) # don't initially reserve Serial
+    self.vgprPool = RegisterPool(self.totalVgprs)
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.startVgprLocalReadAddressesA - self.startVgprValuC)
+        self.startVgprLocalReadAddressesA - self.startVgprValuC) # Add as available
     #print self.vgprPool.state()
 
     self.vgprPool.add( self.startVgprTmp, self.numVgprTmp)
@@ -1036,7 +1033,7 @@ class KernelWriterAssembly(KernelWriter):
         % (kernArgBytes, self.endLine)
 
     # register allocation
-    totalVgprs = self.vgprPool.size()+1 # + Serial
+    totalVgprs = self.vgprPool.size() 
     if self.vgprPool.size() > self.maxVgprs:
       self.overflowedResources = True
     if self.overflowedResources:
@@ -1139,7 +1136,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("vgprAddressD", \
           self.startVgprAddressD)
 
-    self.startVgprSerial = totalVgprs - 1
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
     #kStr += self.comment1("VGPRs: %u + %u = %u" \
