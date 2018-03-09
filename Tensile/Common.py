@@ -181,8 +181,8 @@ validParameters = {
     "GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [        True ],
 
-    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds
-    "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds
+    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -252,8 +252,8 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2],
-    "LdsPadB":                     [ 0, 1, 2],
+    "LdsPadA":                     [ 0, 1, 2, 3, 4],
+    "LdsPadB":                     [ 0, 1, 2, 3, 4],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
