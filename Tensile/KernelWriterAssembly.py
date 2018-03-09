@@ -245,7 +245,8 @@ class KernelWriterAssembly(KernelWriter):
     self.do["GlobalReadB"] = True
     self.do["GlobalInc"]   = True
     self.do["LocalWrite"]  = True
-    self.do["LocalRead"]   = True
+    self.do["LocalReadA"]   = True
+    self.do["LocalReadB"]   = True
     self.do["Wait"]        = True
     self.do["Sync"]        = True
     self.do["MAC"]         = True
@@ -3220,7 +3221,8 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Swap Offsets A/B
   ##############################################################################
   def localReadSwapOffsets(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
@@ -3234,7 +3236,8 @@ class KernelWriterAssembly(KernelWriter):
   # x % n == n & (n-1) for n power of 2
   ##############################################################################
   def localReadResetOffsets(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     if tP["localReadInstruction"].numOffsets == 1:
       tP["localReadOffset"] = 0
@@ -3251,7 +3254,8 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Init Pointers A/B
   ##############################################################################
   def localReadInitPointers(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     if self.localReadInstructionA.numOffsets == 1:
       tP["localReadOffset"] = 0
@@ -3269,7 +3273,8 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Increment A/B
   ##############################################################################
   def localReadInc(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
     if self.inTailLoop:
@@ -3300,10 +3305,10 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Do It A/B
   ##############################################################################
   def localReadDo(self, kernel, black, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     self.localReadDoCnt += 1
     kStr = ""
-    tc = tP["tensorChar"]
     #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
