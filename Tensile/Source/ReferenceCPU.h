@@ -50,6 +50,9 @@ TensileStatus tensileReferenceCPU(
     bool useHighPrecisionAccumulate
   ) {
 
+  // Only allow high precision accumulate if Type is half
+  bool localUseHighPrecisionAccumulate = useHighPrecisionAccumulate && std::is_same<Type, TensileHalf>::value;
+
   // sizes
   unsigned int *sizesA = new unsigned int[numIndicesAB];
   unsigned int *sizesB = new unsigned int[numIndicesAB];
@@ -166,7 +169,7 @@ TensileStatus tensileReferenceCPU(
       Type product = tensileMultiply<Type>( valueA, valueB );
       //printf("%f = %f * %f\n", product, valueA, valueB );
 
-      if (useHighPrecisionAccumulate)
+      if (localUseHighPrecisionAccumulate)
         sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
       else
         sumC = tensileAdd<Type>(sumC,product);
@@ -191,19 +194,19 @@ TensileStatus tensileReferenceCPU(
     for (unsigned int i = 0; i < numIndicesC; i++) {
       serialIdxC += freeCoord[i]*stridesC[i];
     }
-    if (useHighPrecisionAccumulate)
+    if (localUseHighPrecisionAccumulate)
       sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
     else
       sumC = tensileMultiply<Type>(alpha,sumC);
     if (!tensileIsZero(beta)) {
       Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
-      if (useHighPrecisionAccumulate)
+      if (localUseHighPrecisionAccumulate)
         sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
       else
         sumC = tensileAdd<Type>(tmp,sumC);
     }
 
-    if (useHighPrecisionAccumulate)
+    if (localUseHighPrecisionAccumulate)
       dataC[serialIdxC] = (Type)sumCfloat;
     else
       dataC[serialIdxC] = sumC;
