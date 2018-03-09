@@ -105,223 +105,126 @@ TensileStatus tensileReferenceCPU(
   std::vector<unsigned int> coordsB( numIndicesAB );
 
   bool moreIndicesC = true;
-  if (useHighPrecisionAccumulate) {
-    while (moreIndicesC) { // iterate over entire free index range
+  while (moreIndicesC) { // iterate over entire free index range
 
-      float sumC = tensileGetZero<float>();
-      // reset summation indices
-      for (unsigned int b = 0; b < numIndicesSummation; b++) {
-        boundCoord[b] = 0;
+    Type sumC = tensileGetZero<Type>();
+    float sumCfloat = 0.0f;
+    // reset summation indices
+    for (unsigned int b = 0; b < numIndicesSummation; b++) {
+      boundCoord[b] = 0;
+    }
+    while (true) { // iterate over entire bound index range
+      
+      // convert free/bound coord into tensorA,B 
+      for (unsigned int i = 0; i < numIndicesAB; i++) {
+        if (indexAssignmentsA[i] < numIndicesC) {
+          coordsA[i] = freeCoord[indexAssignmentsA[i]];
+        } else {
+          coordsA[i] = boundCoord[indexAssignmentsA[i]-numIndicesC];
+        }
       }
-      while (true) { // iterate over entire bound index range
-        
-        // convert free/bound coord into tensorA,B 
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          if (indexAssignmentsA[i] < numIndicesC) {
-            coordsA[i] = freeCoord[indexAssignmentsA[i]];
-          } else {
-            coordsA[i] = boundCoord[indexAssignmentsA[i]-numIndicesC];
-          }
+      for (unsigned int i = 0; i < numIndicesAB; i++) {
+        if (indexAssignmentsB[i] < numIndicesC) {
+          coordsB[i] = freeCoord[indexAssignmentsB[i]];
+        } else {
+          coordsB[i] = boundCoord[indexAssignmentsB[i]-numIndicesC];
         }
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          if (indexAssignmentsB[i] < numIndicesC) {
-            coordsB[i] = freeCoord[indexAssignmentsB[i]];
-          } else {
-            coordsB[i] = boundCoord[indexAssignmentsB[i]-numIndicesC];
-          }
-        }
-        
-        size_t serialIdxA = 0;
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          serialIdxA += coordsA[i]*stridesA[i];
-        }
-        Type valueA = dataA[serialIdxA];
-        if (
+      }
+      
+      size_t serialIdxA = 0;
+      for (unsigned int i = 0; i < numIndicesAB; i++) {
+        serialIdxA += coordsA[i]*stridesA[i];
+      }
+      Type valueA = dataA[serialIdxA];
+      if (
 #ifdef Tensile_ENABLE_HALF
-//             std::is_same<Type, TensileComplexHalf>() ||
+//           std::is_same<Type, TensileComplexHalf>() ||
 #endif
-             std::is_same<Type, TensileComplexFloat>()
-          || std::is_same<Type, TensileComplexDouble>() ) {
-          if ( complexConjugateA ) {
-            tensileComplexConjugate<Type>( valueA );
-          }
+           std::is_same<Type, TensileComplexFloat>()
+        || std::is_same<Type, TensileComplexDouble>() ) {
+        if ( complexConjugateA ) {
+          tensileComplexConjugate<Type>( valueA );
         }
+      }
 
-        size_t serialIdxB = 0;
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          serialIdxB += coordsB[i]*stridesB[i];
-        }
-        Type valueB = dataB[serialIdxB];
-        if (
+      size_t serialIdxB = 0;
+      for (unsigned int i = 0; i < numIndicesAB; i++) {
+        serialIdxB += coordsB[i]*stridesB[i];
+      }
+      Type valueB = dataB[serialIdxB];
+      if (
 #ifdef Tensile_ENABLE_HALF
-//             std::is_same<Type, TensileComplexHalf>() ||
+//           std::is_same<Type, TensileComplexHalf>() ||
 #endif
-             std::is_same<Type, TensileComplexFloat>()
-          || std::is_same<Type, TensileComplexDouble>() ) {
-          if ( complexConjugateB ) {
-            tensileComplexConjugate<Type>( valueB );
-          }
-        }
-
-        Type product = tensileMultiply<Type>( valueA, valueB );
-        //printf("%f = %f * %f\n", product, valueA, valueB );
-
-        sumC = tensileAdd<float>(sumC,(float)product);
-
-        // increment bound coord
-        boundCoord[numIndicesSummation-1]++;
-        for ( size_t b = numIndicesSummation - 1; b > 0 ; b--) {
-          if ( boundCoord[b] >= boundIndexSizes[b]) {
-            boundCoord[b] = 0;
-            boundCoord[b-1]++;
-          }
-        }
-        //if (boundCoord[numIndicesSummation - 1] >= boundIndexSizes[numIndicesSummation - 1]) {
-        if (boundCoord[0] >= boundIndexSizes[0]) {
-          break; // bound index range exit criteria
-        }
-
-      } // bound range
-
-
-      size_t serialIdxC = 0;
-      for (unsigned int i = 0; i < numIndicesC; i++) {
-        serialIdxC += freeCoord[i]*stridesC[i];
-      }
-      sumC = tensileMultiply<float>((float)alpha,sumC);
-      if (!tensileIsZero(beta)) {
-        float tmp = tensileMultiply<float>((float)beta, (float)dataC[serialIdxC]);
-        sumC = tensileAdd<float>(tmp,sumC);
-      }
-
-      dataC[serialIdxC] = (TensileHalf)sumC;
-
-      // increment free coord
-      // skip = 1, validate everything
-      for (size_t i = 0; i < validationStride; i++) {
-        freeCoord[0]++;
-        for (size_t f = 0; f < numIndicesC-1; f++) {
-          if (freeCoord[f] >= sizes[f]) {
-            freeCoord[f] = 0;
-            freeCoord[f+1]++;
-          }
-        }
-        if (freeCoord[numIndicesC - 1] >= sizes[numIndicesC - 1]) {
-          moreIndicesC = false;
-          break; // free index range exit criteria
+           std::is_same<Type, TensileComplexFloat>()
+        || std::is_same<Type, TensileComplexDouble>() ) {
+        if ( complexConjugateB ) {
+          tensileComplexConjugate<Type>( valueB );
         }
       }
 
-    } // free range
-  } else {
-    while (moreIndicesC) { // iterate over entire free index range
+      Type product = tensileMultiply<Type>( valueA, valueB );
+      //printf("%f = %f * %f\n", product, valueA, valueB );
 
-      Type sumC = tensileGetZero<Type>();
-      // reset summation indices
-      for (unsigned int b = 0; b < numIndicesSummation; b++) {
-        boundCoord[b] = 0;
-      }
-      while (true) { // iterate over entire bound index range
-        
-        // convert free/bound coord into tensorA,B 
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          if (indexAssignmentsA[i] < numIndicesC) {
-            coordsA[i] = freeCoord[indexAssignmentsA[i]];
-          } else {
-            coordsA[i] = boundCoord[indexAssignmentsA[i]-numIndicesC];
-          }
-        }
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          if (indexAssignmentsB[i] < numIndicesC) {
-            coordsB[i] = freeCoord[indexAssignmentsB[i]];
-          } else {
-            coordsB[i] = boundCoord[indexAssignmentsB[i]-numIndicesC];
-          }
-        }
-        
-        size_t serialIdxA = 0;
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          serialIdxA += coordsA[i]*stridesA[i];
-        }
-        Type valueA = dataA[serialIdxA];
-        if (
-#ifdef Tensile_ENABLE_HALF
-//             std::is_same<Type, TensileComplexHalf>() ||
-#endif
-             std::is_same<Type, TensileComplexFloat>()
-          || std::is_same<Type, TensileComplexDouble>() ) {
-          if ( complexConjugateA ) {
-            tensileComplexConjugate<Type>( valueA );
-          }
-        }
-
-        size_t serialIdxB = 0;
-        for (unsigned int i = 0; i < numIndicesAB; i++) {
-          serialIdxB += coordsB[i]*stridesB[i];
-        }
-        Type valueB = dataB[serialIdxB];
-        if (
-#ifdef Tensile_ENABLE_HALF
-//             std::is_same<Type, TensileComplexHalf>() ||
-#endif
-             std::is_same<Type, TensileComplexFloat>()
-          || std::is_same<Type, TensileComplexDouble>() ) {
-          if ( complexConjugateB ) {
-            tensileComplexConjugate<Type>( valueB );
-          }
-        }
-
-        Type product = tensileMultiply<Type>( valueA, valueB );
-        //printf("%f = %f * %f\n", product, valueA, valueB );
-
+      if (useHighPrecisionAccumulate)
+        sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
+      else
         sumC = tensileAdd<Type>(sumC,product);
 
-        // increment bound coord
-        boundCoord[numIndicesSummation-1]++;
-        for ( size_t b = numIndicesSummation - 1; b > 0 ; b--) {
-          if ( boundCoord[b] >= boundIndexSizes[b]) {
-            boundCoord[b] = 0;
-            boundCoord[b-1]++;
-          }
+      // increment bound coord
+      boundCoord[numIndicesSummation-1]++;
+      for ( size_t b = numIndicesSummation - 1; b > 0 ; b--) {
+        if ( boundCoord[b] >= boundIndexSizes[b]) {
+          boundCoord[b] = 0;
+          boundCoord[b-1]++;
         }
-        //if (boundCoord[numIndicesSummation - 1] >= boundIndexSizes[numIndicesSummation - 1]) {
-        if (boundCoord[0] >= boundIndexSizes[0]) {
-          break; // bound index range exit criteria
-        }
-
-      } // bound range
-
-
-      size_t serialIdxC = 0;
-      for (unsigned int i = 0; i < numIndicesC; i++) {
-        serialIdxC += freeCoord[i]*stridesC[i];
       }
+      //if (boundCoord[numIndicesSummation - 1] >= boundIndexSizes[numIndicesSummation - 1]) {
+      if (boundCoord[0] >= boundIndexSizes[0]) {
+        break; // bound index range exit criteria
+      }
+
+    } // bound range
+
+
+    size_t serialIdxC = 0;
+    for (unsigned int i = 0; i < numIndicesC; i++) {
+      serialIdxC += freeCoord[i]*stridesC[i];
+    }
+    if (useHighPrecisionAccumulate)
+      sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
+    else
       sumC = tensileMultiply<Type>(alpha,sumC);
-      if (!tensileIsZero(beta)) {
-        Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
+    if (!tensileIsZero(beta)) {
+      Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
+      if (useHighPrecisionAccumulate)
+        sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
+      else
         sumC = tensileAdd<Type>(tmp,sumC);
-      }
+    }
 
+    if (useHighPrecisionAccumulate)
+      dataC[serialIdxC] = (Type)sumCfloat;
+    else
       dataC[serialIdxC] = sumC;
 
-      // increment free coord
-      // skip = 1, validate everything
-      for (size_t i = 0; i < validationStride; i++) {
-        freeCoord[0]++;
-        for (size_t f = 0; f < numIndicesC-1; f++) {
-          if (freeCoord[f] >= sizes[f]) {
-            freeCoord[f] = 0;
-            freeCoord[f+1]++;
-          }
-        }
-        if (freeCoord[numIndicesC - 1] >= sizes[numIndicesC - 1]) {
-          moreIndicesC = false;
-          break; // free index range exit criteria
+    // increment free coord
+    // skip = 1, validate everything
+    for (size_t i = 0; i < validationStride; i++) {
+      freeCoord[0]++;
+      for (size_t f = 0; f < numIndicesC-1; f++) {
+        if (freeCoord[f] >= sizes[f]) {
+          freeCoord[f] = 0;
+          freeCoord[f+1]++;
         }
       }
+      if (freeCoord[numIndicesC - 1] >= sizes[numIndicesC - 1]) {
+        moreIndicesC = false;
+        break; // free index range exit criteria
+      }
+    }
 
-    } // free range
-  }
+  } // free range
   delete[] sizesA;
   delete[] sizesB;
 
