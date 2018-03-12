@@ -846,10 +846,6 @@ class KernelWriterAssembly(KernelWriter):
     if numWorkGroupsPerCU < 1:
       self.overflowedResources = True
       numWorkGroupsPerCU  = 1 # dummy value
-    numWavesPerWorkGroup = kernel["NumThreads"] / 64
-    numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
-    self.numWavesPerSimd = numWavesPerCU / 4
-    maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
 
     self.totalVgprs = vgprIdx
 
@@ -2657,7 +2653,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(2)
+        tmpSgpr = self.getTmpSgpr(3)
         quotient = "LoopCounters+%u"%loopIdx
         remainder = "GSUSumIdx+1" # numIterPerWgRemainder
         dividend = tmpSgpr+2 # numIterMyWg
