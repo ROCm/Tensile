@@ -2574,10 +2574,11 @@ class KernelWriterAssembly(KernelWriter):
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           " += LdsOffset%s (lower)"%tP["tensorChar"])
 
+
   ##############################################################################
-  # Declare Loop Num Iterations
+  # Initialize C
   ##############################################################################
-  def declareLoopNumIter(self, kernel):
+  def initC(self, kernel):
     self.vgprPool.remove(self.startVgprValuC, \
         self.startVgprLocalReadAddressesA - self.startVgprValuC)
     #print "vgpr pool adding tmp registers"
@@ -2586,6 +2587,13 @@ class KernelWriterAssembly(KernelWriter):
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "")
     return kStr
+
+
+  ##############################################################################
+  # Declare Loop Num Iterations
+  ##############################################################################
+  def declareLoopNumIter(self, kernel):
+    return ""
 
 
   ##############################################################################
