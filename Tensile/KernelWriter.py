@@ -244,6 +244,10 @@ class KernelWriter:
       kStr += self.openLoop(kernel, i)
     kStr += self.calculateLoopNumIter(kernel, self.unrollIdx)
 
+    # Do this as last phase of init since Assembly removes registers
+    # from the tmp pool here (so many fewer available)
+    kStr += self.initC(kernel)
+
     if self.enable["PreLoop"]:
       # init lds read pointers before each unrolled loop
       kStr += self.comment("local read addresses: init pointers a")
@@ -1399,6 +1403,13 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def calculateLoopNumIter(self, kernel, loopIdx):
+    return ""
+
+  ##############################################################################
+  # Initialize C
+  ##############################################################################
+  @abc.abstractmethod
+  def initC(self, kernel):
     return ""
 
   ##############################################################################

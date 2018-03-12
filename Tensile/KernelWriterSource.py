@@ -814,14 +814,8 @@ class KernelWriterSource(KernelWriter):
          "DataType"].zeroString(self.language, 1), \
          self.endLine )
 
-    # registers for valu
-    kStr += self.endLine
-    kStr += "  /* registers for MAC's */" + self.endLine
-    kStr += "  DATA_TYPE rC[TT%s*TT%s];%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine )
-    for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]):
-        kStr += "  rC[%u] = SCALAR_ZERO;%s" % (i, self.endLine)
 
+    # registers for valuAB
     kStr += "  DATA_TYPE rA[TT%s%s];%s" \
         % (self.tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
         self.endLine)
@@ -1346,6 +1340,22 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     kStr += "  %sDATA_TYPE *localRead%s;%s" % (self.sharedPtrStr, \
         tP["tensorChar"], self.endLine)
+    return kStr
+
+  ##############################################################################
+  # Initialize C
+  ##############################################################################
+  def initC(self, kernel):
+    kStr = ""
+
+    # registers for valu C
+    kStr += self.endLine
+    kStr += "  /* registers for MAC's */" + self.endLine
+    kStr += "  DATA_TYPE rC[TT%s*TT%s];%s" \
+        % (self.tileChar0, self.tileChar1, self.endLine )
+    for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]):
+        kStr += "  rC[%u] = SCALAR_ZERO;%s" % (i, self.endLine)
+
     return kStr
 
   ##############################################################################
