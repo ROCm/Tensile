@@ -965,6 +965,11 @@ class KernelWriterAssembly(KernelWriter):
       self.startSgprSrdB = sgprIdx; sgprIdx += numSgprSrdB;
       assert (self.startSgprSrdB % 4 == 0) # must be aligned to 4 SGPRs
 
+    # To avoid corrupting tmp sgprs that may be used around the assert,
+    # reserve some sgprs to save/restore the execmask
+    if self.db["EnableAsserts"]:
+      self.startSgprSaveExecMask             = sgprIdx; sgprIdx += 2
+
     self.startSgprGSUSumIdx = sgprIdx;      sgprIdx += numSgprGSUSumIdx
     self.startSgprAddressC = sgprIdx;       sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx;       sgprIdx += self.numSgprStridesC
@@ -1241,6 +1246,8 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("sgprAddressDbg", self.startSgprAddressDbg)
       kStr += self.macroRegister("sgprDebugKernelItems", self.startSgprDebugKernelItems)
+    if self.db["EnableAsserts"]:
+      kStr += self.macroRegister("sgprSaveExecMask", self.startSgprSaveExecMask)
 
     if not self.globalReadIncsUseVgpr:
       kStr += self.macroRegister("sgprGlobalReadIncsA", \
@@ -4844,23 +4851,30 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # assertCommon : Common routine for all assert functions. 
   ##############################################################################
-  def assertCommon(self, c, val0, val1, cookie=-1):
+  def assertCommon(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
       self.printedAssertCnt += 1
-      saveExec = self.getTmpSgpr(4) 
-      cc       = saveExec + 2
-      #kStr += inst("s_mov_b64", sgpr(saveExec,2), \
-      #    "0", "assert")
-      kStr += inst("s_or_saveexec_b64", sgpr(saveExec,2), 0, \
-          "assert: saved execmask")
-      kStr += inst("v_cmpx_%s_u32"%c, sgpr(cc,2), val0, val1, "v_cmp" )   
 
-      # Default cookie for asserts is negative of #asserts which executed
-      # without firing:
+      # Default cookie for asserts is negative of printed #asserts 
+      # Can be used to roughly identify which assert in the code is firing
       kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)  
 
-      kStr += inst("s_or_saveexec_b64", "vcc", sgpr(saveExec,2), \
+    return kStr
+
+  ##############################################################################
+  # assertCmpCommon : Common routine for all assert comparison functions
+  ##############################################################################
+  def assertCmpCommon(self, c, val0, val1, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+          "assert: saved execmask")
+      kStr += inst("v_cmpx_%s_u32"%c, "vcc", val0, val1, "v_cmp" )   
+
+      kStr += self.assertCommon(cookie)
+
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
           "assert: restore execmask")
 
     return kStr
@@ -4868,24 +4882,53 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Handle different conditions for the asserts:
   # These support uin32 compare, float could be added later
+  # Asserts currently modify vcc
   ##############################################################################
   def assert_eq(self, val0, val1, cookie=-1):
-    return self.assertCommon("ne", val0, val1, cookie)
+    return self.assertCmpCommon("ne", val0, val1, cookie)
 
   def assert_ne(self, val0, val1, cookie=-1):
-    return self.assertCommon("eq", val0, val1, cookie)
+    return self.assertCmpCommon("eq", val0, val1, cookie)
 
   def assert_lt(self, val0, val1, cookie=-1):
-    return self.assertCommon("ge", val0, val1, cookie)
+    return self.assertCmpCommon("ge", val0, val1, cookie)
 
   def assert_gt(self, val0, val1, cookie=-1):
-    return self.assertCommon("le", val0, val1, cookie)
+    return self.assertCmpCommon("le", val0, val1, cookie)
 
   def assert_le(self, val0, val1, cookie=-1):
-    return self.assertCommon("gt", val0, val1, cookie)
+    return self.assertCmpCommon("gt", val0, val1, cookie)
 
   def assert_ge(self, val0, val1, cookie=-1):
-    return self.assertCommon("lt", val0, val1, cookie)
+    return self.assertCmpCommon("lt", val0, val1, cookie)
+
+  # Assert that all bits in vcc are true, or assert/bomb otherwise
+  def assert_vcc_true(self, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+          "assert: saved execmask")
+      kStr += inst("s_mov_b64", "exec", "vcc", "Predicate based on VCC")
+      kStr += self.assertCommon(cookie)
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+    return kStr
+
+
+  # Assert that all bits in vcc are false, or assert/bomb otherwise
+  def assert_vcc_false(self, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+          "assert: saved execmask")
+      kStr += inst("s_not_b64", "exec", "vcc", "Predicate based on !VCC")
+      kStr += self.assertCommon(cookie)
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+    return kStr
+
 
 
   ########################################
