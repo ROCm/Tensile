@@ -841,8 +841,7 @@ class KernelWriterAssembly(KernelWriter):
     numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
     self.numWavesPerSimd = numWavesPerCU / 4
     maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
-    self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
-    self.totalVgprs = maxVgprSameOccupancy
+    self.totalVgprs = self.startVgprTmp
 
 
     ########################################
@@ -972,7 +971,7 @@ class KernelWriterAssembly(KernelWriter):
         self.startVgprLocalReadAddressesA - self.startVgprValuC) # Add as available
     #print self.vgprPool.state()
 
-    self.vgprPool.add( self.startVgprTmp, self.numVgprTmp)
+    #self.vgprPool.add( self.startVgprTmp, self.numVgprTmp)
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
