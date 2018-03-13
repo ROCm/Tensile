@@ -260,6 +260,9 @@ class KernelWriterAssembly(KernelWriter):
     self.printedAssertCnt  = 0
     self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
 
+    self.db["CheckValue1A"] = False
+    self.db["CheckValue1B"] = False
+
     # Number of times localReadDo has been called by the code-generator.  
     # Used to control debug enablement.
     # Note this increments as the assembly code is generated not as it executes
@@ -3333,6 +3336,11 @@ class KernelWriterAssembly(KernelWriter):
         comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u"%(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx)
         kStr += instruction.toString(paramTuple, comment)
         valuIdx += blockWidth
+
+        # TODO - handle vector-load
+        if self.db["CheckValue1%s"%tc]:
+            kStr += "s_waitcnt lgkmcnt(0) // CheckValue1 wait for LDS read\n"
+            kStr += self.assert_eq(destVgpr, 1.0)
 
     #if tP["isB"]:
     #  kStr += self.dumpLds(kernel, 0, 16)
