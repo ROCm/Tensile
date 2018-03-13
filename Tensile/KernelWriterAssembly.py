@@ -255,6 +255,7 @@ class KernelWriterAssembly(KernelWriter):
     # Various debug flags and modes 
     self.db = {}
     self.db["EnableAsserts"]     = True  # Enable assertion codegen
+    self.db["DebugKernelMaxItems"] = 16  # Capture first N(=16) print values, ignore subsequent.  If -1, debug writing is faster but writing more than 16 values is undefined.
 
     # Check A and B values loaded from memory to ensure they match expected
     # sequential pattern.  Requires DataInitTypeAB=2.  
@@ -289,6 +290,10 @@ class KernelWriterAssembly(KernelWriter):
     if name not in self.labels:
       self.labels[name] = len(self.labels)
     return self.labels[name]
+
+  def getUniqLabel(self):
+    name = "uniq_label_" + str(len(self.labels))
+    return self.getLabel(name)
 
   ##############################################################################
   # Find Memory Instruction For Width and Stride
@@ -350,6 +355,33 @@ class KernelWriterAssembly(KernelWriter):
       return self.startSgprTmpPool
     else:
       return ((self.startSgprTmpPool+1)/2)*2
+
+  def dumpSgpr(self, sgprStore):
+    kStr = ""
+    if globalParameters["DebugKernel"]:
+      afterDump = -1
+      if self.db["DebugKernelMaxItems"] != -1:
+        afterDump = self.getUniqLabel()
+        kStr += inst("s_cmp_lt_u32", sgpr("DebugKernelItems"), 16,  "")
+        kStr += inst("s_cbranch_scc0", "label_%04u"%afterDump, \
+                     "skip if already wrote enough work-items" )
+        kStr += inst("s_add_u32", sgpr("DebugKernelItems"), \
+                     sgpr("DebugKernelItems"), \
+                     hex(1), "inc items written" )
+
+      tmp = self.vgprPool.checkOut(1)
+      kStr += inst("v_mov_b32", vgpr(tmp), sgprStore, "Debug")
+      kStr += inst("flat_store_dword", vgpr("AddressD", 2), \
+          vgpr(tmp), "debug dump sgpr store" )
+      kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
+          hex(4), "debug dump inc" )
+      self.vgprPool.checkIn(tmp)
+
+      if self.db["DebugKernelMaxItems"] != -1:
+        kStr += "label_%04u:%s  %s" % (afterDump, "// skip debug target", self.endLine)
+
+    return kStr
+
 
   ##############################################################################
   #
@@ -931,7 +963,11 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprElementIndexIncA = sgprIdx;       sgprIdx += 1
     self.startSgprElementIndexIncB = sgprIdx;       sgprIdx += 1
     self.startSgprLoopTail = sgprIdx;       sgprIdx += numSgprLoopTail
-    self.startSgprAddressD = sgprIdx;       sgprIdx += self.numSgprAddressD
+
+    if globalParameters["DebugKernel"]:
+      self.startSgprAddressD          = sgprIdx;       sgprIdx += self.numSgprAddressD
+      self.startSgprDebugKernelItems = sgprIdx;       sgprIdx += 1
+
     self.totalSgprs = sgprIdx
 
     self.startSgprTmpPool = self.totalSgprs
@@ -1179,6 +1215,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("sgprAddressD", self.startSgprAddressD)
+      kStr += self.macroRegister("sgprDebugKernelItems", self.startSgprDebugKernelItems)
 
     if not self.globalReadIncsUseVgpr:
       kStr += self.macroRegister("sgprGlobalReadIncsA", \
@@ -1650,6 +1687,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(v+2), sgpr("AddressD+1"), "%s=AddressD1"%vgpr(v+2) )
       kStr += inst("_v_addc_co_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
           vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+      kStr += inst("s_mov_b32", sgpr("DebugKernelItems"), 0, "")
       self.vgprPool.checkIn(v)
       self.vgprPool.checkIn(nwg0)
 
@@ -4750,21 +4788,36 @@ class KernelWriterAssembly(KernelWriter):
     return self.assertCommon("lt", val0, val1, cookie)
 
 
+  ########################################
+  # Store to Debug Buffer
+  ########################################
+  def dump(self, vgprStore):
+    kStr = ""
+    if globalParameters["DebugKernel"]:
+      afterDump = -1
+      if self.db["DebugKernelMaxItems"] != -1:
+        afterDump = self.getUniqLabel()
+        kStr += inst("s_cmp_lt_u32", sgpr("DebugKernelItems"), 16,  "")
+        kStr += inst("s_cbranch_scc0", "label_%04u"%afterDump, \
+                     "skip if already wrote enough work-items" )
+        kStr += inst("s_add_u32", sgpr("DebugKernelItems"), \
+                     sgpr("DebugKernelItems"), \
+                     hex(1), "inc items written" )
+
+      kStr += inst("flat_store_dword", vgpr("AddressD", 2), \
+          vgprStore, "debug dump store" )
+      kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
+          hex(4), "debug dump inc" )
+
+      if self.db["DebugKernelMaxItems"] != -1:
+        kStr += "label_%04u:%s  %s" % (afterDump, "// skip debug target", self.endLine)
+
+    return kStr
+
 ################################################################################
 # Helper Functions
 ################################################################################
 
-########################################
-# Store to Debug Buffer
-########################################
-def dump(vgprStore):
-  kStr = ""
-  if globalParameters["DebugKernel"]:
-    kStr += inst("flat_store_dword", vgpr("AddressD", 2), \
-        vgprStore, "debug dump store" )
-    kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
-        hex(4), "debug dump inc" )
-  return kStr
 
 
 
