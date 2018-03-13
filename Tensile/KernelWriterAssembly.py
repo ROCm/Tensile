@@ -71,6 +71,7 @@ class RegisterPool:
     self.checkOutSize = {}
 
   ########################################
+  # Adds registers to the pool so they can be used as temps
   # Add
   def add(self, start, size):
     # reserve space
@@ -92,6 +93,7 @@ class RegisterPool:
 
   ########################################
   # Remove
+  # Removes registers from the pool so they cannot be subsequently allocated for tmps
   def remove(self, start, size):
     #print "RP::remove(%u,%u)"%(start,size)
     # reserve space
@@ -243,7 +245,8 @@ class KernelWriterAssembly(KernelWriter):
     self.do["GlobalReadB"] = True
     self.do["GlobalInc"]   = True
     self.do["LocalWrite"]  = True
-    self.do["LocalRead"]   = True
+    self.do["LocalReadA"]   = True
+    self.do["LocalReadB"]   = True
     self.do["Wait"]        = True
     self.do["Sync"]        = True
     self.do["MAC"]         = True
@@ -252,6 +255,7 @@ class KernelWriterAssembly(KernelWriter):
     # Various debug flags and modes 
     self.db = {}
     self.db["EnableAsserts"]     = True  # Enable assertion codegen
+    self.db["DebugKernelMaxItems"] = 16  # Capture first N(=16) print values, ignore subsequent.  If -1, debug writing is faster but writing more than 16 values is undefined.
 
     # Check A and B values loaded from memory to ensure they match expected
     # sequential pattern.  Requires DataInitTypeAB=2.  
@@ -289,6 +293,10 @@ class KernelWriterAssembly(KernelWriter):
     if name not in self.labels:
       self.labels[name] = len(self.labels)
     return self.labels[name]
+
+  def getUniqLabel(self):
+    name = "uniq_label_" + str(len(self.labels))
+    return self.getLabel(name)
 
   ##############################################################################
   # Find Memory Instruction For Width and Stride
@@ -350,6 +358,33 @@ class KernelWriterAssembly(KernelWriter):
       return self.startSgprTmpPool
     else:
       return ((self.startSgprTmpPool+1)/2)*2
+
+  def dumpSgpr(self, sgprStore):
+    kStr = ""
+    if globalParameters["DebugKernel"]:
+      afterDump = -1
+      if self.db["DebugKernelMaxItems"] != -1:
+        afterDump = self.getUniqLabel()
+        kStr += inst("s_cmp_lt_u32", sgpr("DebugKernelItems"), 16,  "")
+        kStr += inst("s_cbranch_scc0", "label_%04u"%afterDump, \
+                     "skip if already wrote enough work-items" )
+        kStr += inst("s_add_u32", sgpr("DebugKernelItems"), \
+                     sgpr("DebugKernelItems"), \
+                     hex(1), "inc items written" )
+
+      tmp = self.vgprPool.checkOut(1)
+      kStr += inst("v_mov_b32", vgpr(tmp), sgprStore, "Debug")
+      kStr += inst("flat_store_dword", vgpr("AddressD", 2), \
+          vgpr(tmp), "debug dump sgpr store" )
+      kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
+          hex(4), "debug dump inc" )
+      self.vgprPool.checkIn(tmp)
+
+      if self.db["DebugKernelMaxItems"] != -1:
+        kStr += "label_%04u:%s  %s" % (afterDump, "// skip debug target", self.endLine)
+
+    return kStr
+
 
   ##############################################################################
   #
@@ -800,13 +835,20 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += numVgprAddressD
     self.startVgprSerial = vgprIdx
     vgprIdx += numVgprSerial
+
+    # Point at last VGPR that can be reclaimed for use in the summation loop 
+    # This should be just BEFORE the vgprSerial, which may still be used.
+    # If more VGPRs are added here be aware of the register reclaim code in
+    # endSummation - registers that should be preserved should be allocated
+    # with numbers higher than vgprReclaimAfterSummation
+    self.vgprReclaimAfterSummation = self.startVgprSerial-1
+
     # tmp vgprs
     #minVgprTmp = 1
     #if kernel["LoopTail"]:
     #  minVgprTmp += 4
     #if globalParameters["DebugKernel"]:
     #  minVgprTmp += 2
-    self.startVgprTmp = vgprIdx
     #vgprIdx += minVgprTmp
     #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     vgprPerCU = 65536
@@ -815,16 +857,9 @@ class KernelWriterAssembly(KernelWriter):
     if numWorkGroupsPerCU < 1:
       self.overflowedResources = True
       numWorkGroupsPerCU  = 1 # dummy value
-    numWavesPerWorkGroup = kernel["NumThreads"] / 64
-    numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
-    self.numWavesPerSimd = numWavesPerCU / 4
-    maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
-    self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
-    self.totalVgprs = maxVgprSameOccupancy
 
-    # move serial to last vgpr and shift tmp forward
-    self.startVgprSerial = self.totalVgprs-1
-    self.startVgprTmp -= 1
+    self.totalVgprs = vgprIdx
+
 
     ########################################
     # SGPR Allocation
@@ -908,6 +943,11 @@ class KernelWriterAssembly(KernelWriter):
       self.startSgprSrdB = sgprIdx; sgprIdx += numSgprSrdB;
       assert (self.startSgprSrdB % 4 == 0) # must be aligned to 4 SGPRs
 
+    # To avoid corrupting tmp sgprs that may be used around the assert,
+    # reserve some sgprs to save/restore the execmask
+    if self.db["EnableAsserts"]:
+      self.startSgprSaveExecMask             = sgprIdx; sgprIdx += 2
+
     self.startSgprGSUSumIdx = sgprIdx;      sgprIdx += numSgprGSUSumIdx
     self.startSgprAddressC = sgprIdx;       sgprIdx += numSgprAddressC
     self.startSgprStridesC = sgprIdx;       sgprIdx += self.numSgprStridesC
@@ -931,7 +971,11 @@ class KernelWriterAssembly(KernelWriter):
     self.startSgprElementIndexIncA = sgprIdx;       sgprIdx += 1
     self.startSgprElementIndexIncB = sgprIdx;       sgprIdx += 1
     self.startSgprLoopTail = sgprIdx;       sgprIdx += numSgprLoopTail
-    self.startSgprAddressD = sgprIdx;       sgprIdx += self.numSgprAddressD
+
+    if globalParameters["DebugKernel"]:
+      self.startSgprAddressD          = sgprIdx;       sgprIdx += self.numSgprAddressD
+      self.startSgprDebugKernelItems = sgprIdx;       sgprIdx += 1
+
     self.totalSgprs = sgprIdx
 
     self.startSgprTmpPool = self.totalSgprs
@@ -946,14 +990,11 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs-1) # don't initially reserve Serial
+    self.vgprPool = RegisterPool(self.totalVgprs)
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.startVgprLocalReadAddressesA - self.startVgprValuC)
-    #print self.vgprPool.state()
-
-    self.vgprPool.add( self.startVgprTmp, self.numVgprTmp)
+        self.startVgprLocalReadAddressesA - self.startVgprValuC) # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -1039,7 +1080,7 @@ class KernelWriterAssembly(KernelWriter):
         % (kernArgBytes, self.endLine)
 
     # register allocation
-    totalVgprs = self.vgprPool.size()+1 # + Serial
+    totalVgprs = self.vgprPool.size() 
     if self.vgprPool.size() > self.maxVgprs:
       self.overflowedResources = True
     if self.overflowedResources:
@@ -1142,11 +1183,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("vgprAddressD", \
           self.startVgprAddressD)
 
-    self.startVgprSerial = totalVgprs - 1
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
-    #kStr += self.comment1("VGPRs: %u + %u = %u" \
-    #    % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
 
 
@@ -1185,6 +1223,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("sgprAddressD", self.startSgprAddressD)
+      kStr += self.macroRegister("sgprDebugKernelItems", self.startSgprDebugKernelItems)
+    if self.db["EnableAsserts"]:
+      kStr += self.macroRegister("sgprSaveExecMask", self.startSgprSaveExecMask)
 
     if not self.globalReadIncsUseVgpr:
       kStr += self.macroRegister("sgprGlobalReadIncsA", \
@@ -1656,6 +1697,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(v+2), sgpr("AddressD+1"), "%s=AddressD1"%vgpr(v+2) )
       kStr += inst("_v_addc_co_u32", vgpr("AddressD+1"), "vcc", vgpr(v+2), \
           vgpr(v+1), "vcc", "%s=AddrD* + serial*nipt*4"%vgpr("AddressD") )
+      kStr += inst("s_mov_b32", sgpr("DebugKernelItems"), 0, "")
       self.vgprPool.checkIn(v)
       self.vgprPool.checkIn(nwg0)
 
@@ -2524,18 +2566,25 @@ class KernelWriterAssembly(KernelWriter):
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           " += LdsOffset%s (lower)"%tP["tensorChar"])
 
+
   ##############################################################################
-  # Declare Loop Num Iterations
+  # Initialize C
   ##############################################################################
-  def declareLoopNumIter(self, kernel):
+  def initC(self, kernel):
     self.vgprPool.remove(self.startVgprValuC, \
         self.startVgprLocalReadAddressesA - self.startVgprValuC)
-    #print "vgpr pool adding tmp registers"
-    #self.vgprPool.add(self.startVgprTmp, self.numVgprTmp)
+
     kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "")
     return kStr
+
+
+  ##############################################################################
+  # Declare Loop Num Iterations
+  ##############################################################################
+  def declareLoopNumIter(self, kernel):
+    return ""
 
 
   ##############################################################################
@@ -2544,7 +2593,6 @@ class KernelWriterAssembly(KernelWriter):
   def calculateLoopNumIter(self, kernel, loopIdx):
     kStr = ""
 
-    tmp = self.vgprPool.checkOut(1)
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -2596,7 +2644,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(2)
+        tmpSgpr = self.getTmpSgpr(3)
         quotient = "LoopCounters+%u"%loopIdx
         remainder = "GSUSumIdx+1" # numIterPerWgRemainder
         dividend = tmpSgpr+2 # numIterMyWg
@@ -2618,7 +2666,6 @@ class KernelWriterAssembly(KernelWriter):
       printExit("no assembly support for 2+ dimensional summation")
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
-    self.vgprPool.checkIn(tmp)
 
     # counter = -counter
     kStr += inst("s_sub_u32", \
@@ -2738,7 +2785,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
-        self.startVgprTmp - self.startVgprValuA)
+        self.vgprReclaimAfterSummation - self.startVgprValuA + 1)
     self.startSgprTmpPool = self.startSgprSizesSum
     return ""
 
@@ -3222,7 +3269,8 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Swap Offsets A/B
   ##############################################################################
   def localReadSwapOffsets(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
@@ -3236,7 +3284,8 @@ class KernelWriterAssembly(KernelWriter):
   # x % n == n & (n-1) for n power of 2
   ##############################################################################
   def localReadResetOffsets(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     if tP["localReadInstruction"].numOffsets == 1:
       tP["localReadOffset"] = 0
@@ -3253,7 +3302,8 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Init Pointers A/B
   ##############################################################################
   def localReadInitPointers(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     if self.localReadInstructionA.numOffsets == 1:
       tP["localReadOffset"] = 0
@@ -3271,7 +3321,8 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Increment A/B
   ##############################################################################
   def localReadInc(self, kernel, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
     if self.inTailLoop:
@@ -3302,10 +3353,10 @@ class KernelWriterAssembly(KernelWriter):
   # Local Read: Do It A/B
   ##############################################################################
   def localReadDo(self, kernel, black, tP):
-    if not self.do["LocalRead"]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
     self.localReadDoCnt += 1
     kStr = ""
-    tc = tP["tensorChar"]
     #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
@@ -3627,7 +3678,7 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitULocalWrite(self, kernel):
     kStr = ""
     # wait for summation to be done with lds before writing reduction values
-    kStr += self.syncThreads(kernel)
+    kStr += self.syncThreads(kernel, "pre-lsu local write")
 
     tmpVgpr = self.vgprPool.checkOut(2)
     lr0 = self.vgprPool.checkOut(1)
@@ -3692,7 +3743,7 @@ class KernelWriterAssembly(KernelWriter):
             # ds_write value
             #kStr += dump(vgpr(regIdx))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
-    kStr += self.syncThreads(kernel)
+    kStr += self.syncThreads(kernel, "post-lsu local write")
     #kStr += self.dumpLds(kernel, 0, 16)
     return kStr
 
@@ -4597,9 +4648,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # SyncThreads
   ##############################################################################
-  def syncThreads(self, kernel):
+  def syncThreads(self, kernel, comment=""):
     if kernel["NumThreads"] > 64 and self.do["Sync"]:
-      return self.indent + self.syncStr + self.endLine
+      return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
       return ""
 
@@ -4612,7 +4663,7 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.comment("dump lds state")
       kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
-      kStr += inst("s_barrier", "" )
+      kStr += inst("s_barrier", "dump LDS" )
       tmp = self.vgprPool.checkOut(1)
       tmpAddr = self.vgprPool.checkOut(1)
       kStr += inst("v_lshlrev_b32", \
@@ -4637,7 +4688,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("init lds state")
     kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "" )
-    kStr += inst("s_barrier", "" )
+    kStr += inst("s_barrier", "init LDS" )
     tmp = self.vgprPool.checkOut(1)
     tmpAddr = self.vgprPool.checkOut(1)
     kStr += inst("v_mov_b32", vgpr(tmp), hex(value), "Init value")
@@ -4708,23 +4759,30 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # assertCommon : Common routine for all assert functions. 
   ##############################################################################
-  def assertCommon(self, c, val0, val1, cookie=-1):
+  def assertCommon(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
       self.printedAssertCnt += 1
-      saveExec = self.getTmpSgpr(4) 
-      cc       = saveExec + 2
-      #kStr += inst("s_mov_b64", sgpr(saveExec,2), \
-      #    "0", "assert")
-      kStr += inst("s_or_saveexec_b64", sgpr(saveExec,2), 0, \
-          "assert: saved execmask")
-      kStr += inst("v_cmpx_%s_u32"%c, sgpr(cc,2), val0, val1, "v_cmp" )   
 
-      # Default cookie for asserts is negative of #asserts which executed
-      # without firing:
+      # Default cookie for asserts is negative of printed #asserts 
+      # Can be used to roughly identify which assert in the code is firing
       kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)  
 
-      kStr += inst("s_or_saveexec_b64", "vcc", sgpr(saveExec,2), \
+    return kStr
+
+  ##############################################################################
+  # assertCmpCommon : Common routine for all assert comparison functions
+  ##############################################################################
+  def assertCmpCommon(self, c, val0, val1, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+          "assert: saved execmask")
+      kStr += inst("v_cmpx_%s_u32"%c, "vcc", val0, val1, "v_cmp" )   
+
+      kStr += self.assertCommon(cookie)
+
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
           "assert: restore execmask")
 
     return kStr
@@ -4732,41 +4790,85 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Handle different conditions for the asserts:
   # These support uin32 compare, float could be added later
+  # Asserts currently modify vcc
   ##############################################################################
   def assert_eq(self, val0, val1, cookie=-1):
-    return self.assertCommon("ne", val0, val1, cookie)
+    return self.assertCmpCommon("ne", val0, val1, cookie)
 
   def assert_ne(self, val0, val1, cookie=-1):
-    return self.assertCommon("eq", val0, val1, cookie)
+    return self.assertCmpCommon("eq", val0, val1, cookie)
 
   def assert_lt(self, val0, val1, cookie=-1):
-    return self.assertCommon("ge", val0, val1, cookie)
+    return self.assertCmpCommon("ge", val0, val1, cookie)
 
   def assert_gt(self, val0, val1, cookie=-1):
-    return self.assertCommon("le", val0, val1, cookie)
+    return self.assertCmpCommon("le", val0, val1, cookie)
 
   def assert_le(self, val0, val1, cookie=-1):
-    return self.assertCommon("gt", val0, val1, cookie)
+    return self.assertCmpCommon("gt", val0, val1, cookie)
 
   def assert_ge(self, val0, val1, cookie=-1):
-    return self.assertCommon("lt", val0, val1, cookie)
+    return self.assertCmpCommon("lt", val0, val1, cookie)
 
+  # Assert that all bits in vcc are true, or assert/bomb otherwise
+  def assert_vcc_true(self, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+          "assert: saved execmask")
+      kStr += inst("s_mov_b64", "exec", "vcc", "Predicate based on VCC")
+      kStr += self.assertCommon(cookie)
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+    return kStr
+
+
+  # Assert that all bits in vcc are false, or assert/bomb otherwise
+  def assert_vcc_false(self, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+          "assert: saved execmask")
+      kStr += inst("s_not_b64", "exec", "vcc", "Predicate based on !VCC")
+      kStr += self.assertCommon(cookie)
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+    return kStr
+
+
+
+  ########################################
+  # Store to Debug Buffer
+  ########################################
+  def dump(self, vgprStore):
+    kStr = ""
+    if globalParameters["DebugKernel"]:
+      afterDump = -1
+      if self.db["DebugKernelMaxItems"] != -1:
+        afterDump = self.getUniqLabel()
+        kStr += inst("s_cmp_lt_u32", sgpr("DebugKernelItems"), 16,  "")
+        kStr += inst("s_cbranch_scc0", "label_%04u"%afterDump, \
+                     "skip if already wrote enough work-items" )
+        kStr += inst("s_add_u32", sgpr("DebugKernelItems"), \
+                     sgpr("DebugKernelItems"), \
+                     hex(1), "inc items written" )
+
+      kStr += inst("flat_store_dword", vgpr("AddressD", 2), \
+          vgprStore, "debug dump store" )
+      kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
+          hex(4), "debug dump inc" )
+
+      if self.db["DebugKernelMaxItems"] != -1:
+        kStr += "label_%04u:%s  %s" % (afterDump, "// skip debug target", self.endLine)
+
+    return kStr
 
 ################################################################################
 # Helper Functions
 ################################################################################
 
-########################################
-# Store to Debug Buffer
-########################################
-def dump(vgprStore):
-  kStr = ""
-  if globalParameters["DebugKernel"]:
-    kStr += inst("flat_store_dword", vgpr("AddressD", 2), \
-        vgprStore, "debug dump store" )
-    kStr += inst("_v_add_co_u32", vgpr("AddressD"), "vcc", vgpr("AddressD"), \
-        hex(4), "debug dump inc" )
-  return kStr
 
 
 

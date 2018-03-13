@@ -132,7 +132,7 @@ globalParameters["EnableHalf"] = False
 ################################################################################
 validWorkGroups = []
 for numThreads in range(64, 1025, 64):
-  for nsg in [ 1, 2, 4, 8, 16, 32, 64, 128, 256 ]:
+  for nsg in [ 1, 2, 4, 8, 16, 32, 64, 96, 128, 256 ]:
     for sg0 in range(1, numThreads/nsg+1):
       sg1 = numThreads/nsg/sg0
       if sg0*sg1*nsg == numThreads:
@@ -181,8 +181,8 @@ validParameters = {
     "GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [        True ],
 
-    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds
-    "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds
+    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -229,8 +229,8 @@ validParameters = {
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
-    "MacroTileShapeMin":          range(1, 64+1),
-    "MacroTileShapeMax":          range(1, 64+1),
+    "MacroTileShapeMin":          range(1, 256+1),
+    "MacroTileShapeMax":          range(1, 256+1),
 
     # when loading all the data from global into lds requires multiple load instructions, these parameters govern which
     # loads will pull which rectangle of data from global into lds
@@ -252,8 +252,8 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2],
-    "LdsPadB":                     [ 0, 1, 2],
+    "LdsPadA":                     [ 0, 1, 2, 3, 4],
+    "LdsPadB":                     [ 0, 1, 2, 3, 4],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
