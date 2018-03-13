@@ -693,6 +693,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   #h += "bool validationPrintValids = %s;\n" \
   #    % ("true" if globalParameters["ValidationPrintValids"] else "false")
   h += "size_t validationStride;\n"
+  if problemType["HighPrecisionAccumulate"]:
+    h += "static bool useHighPrecisionAccumulate = true;\n"
+  else:
+    h += "static bool useHighPrecisionAccumulate = false;\n"
   #h += "unsigned int dataInitTypeC = %s;\n" % globalParameters["DataInitTypeC"]
   #h += "unsigned int dataInitTypeAB = %s;\n" % globalParameters["DataInitTypeAB"]
   h += "\n"
@@ -709,7 +713,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "    DataType *initialA,\n"
   h += "    DataType *initialB,\n"
   h += "    DataType alpha,\n"
-  h += "    DataType beta) {\n"
+  h += "    DataType beta,\n"
+  h += "    bool useHighPrecisionAccumulate) {\n"
   h += "  return tensileReferenceCPU(\n"
   h += "      referenceC,\n"
   h += "      initialA,\n"
@@ -725,7 +730,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "      indexAssignmentsB[problemTypeIdx],\n"
   h += "      complexConjugateA[problemTypeIdx],\n"
   h += "      complexConjugateB[problemTypeIdx],\n"
-  h += "      validationStride );\n"
+  h += "      validationStride,\n"
+  h += "      useHighPrecisionAccumulate);\n"
   h += "};\n"
   h += "\n"
 

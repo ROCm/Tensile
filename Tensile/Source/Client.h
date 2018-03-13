@@ -285,7 +285,7 @@ bool callLibrary(
     // call reference function
     TensileStatus referenceStatus = generatedCallToReferenceCPU( userSizes, minStrides, referenceC,
         initialA, initialB,
-        alpha, beta);
+        alpha, beta, useHighPrecisionAccumulate);
 
     // call device function
     TensileStatus tensileStatus = generatedCallTo_tensile( userSizes, minStrides, alpha, beta);
@@ -652,7 +652,7 @@ bool benchmarkAllSolutionsForSize(
       }
     }
     generatedCallToReferenceCPU( sizes, minStrides, referenceC, initialA, initialB,
-        alpha, beta);
+        alpha, beta, useHighPrecisionAccumulate);
 
   }
 

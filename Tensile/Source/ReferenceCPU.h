@@ -46,8 +46,12 @@ TensileStatus tensileReferenceCPU(
     const unsigned int *indexAssignmentsB,
     bool complexConjugateA,
     bool complexConjugateB,
-    size_t validationStride // = 1 means do all
+    size_t validationStride, // = 1 means do all
+    bool useHighPrecisionAccumulate
   ) {
+
+  // Only allow high precision accumulate if Type is half
+  bool localUseHighPrecisionAccumulate = useHighPrecisionAccumulate && std::is_same<Type, TensileHalf>::value;
 
   // sizes
   unsigned int *sizesA = new unsigned int[numIndicesAB];
@@ -107,6 +111,7 @@ TensileStatus tensileReferenceCPU(
   while (moreIndicesC) { // iterate over entire free index range
 
     Type sumC = tensileGetZero<Type>();
+    float sumCfloat = 0.0f;
     // reset summation indices
     for (unsigned int b = 0; b < numIndicesSummation; b++) {
       boundCoord[b] = 0;
@@ -164,7 +169,10 @@ TensileStatus tensileReferenceCPU(
       Type product = tensileMultiply<Type>( valueA, valueB );
       //printf("%f = %f * %f\n", product, valueA, valueB );
 
-      sumC = tensileAdd<Type>(sumC,product);
+      if (localUseHighPrecisionAccumulate)
+        sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
+      else
+        sumC = tensileAdd<Type>(sumC,product);
 
       // increment bound coord
       boundCoord[numIndicesSummation-1]++;
@@ -186,13 +194,22 @@ TensileStatus tensileReferenceCPU(
     for (unsigned int i = 0; i < numIndicesC; i++) {
       serialIdxC += freeCoord[i]*stridesC[i];
     }
-    sumC = tensileMultiply<Type>(alpha,sumC);
+    if (localUseHighPrecisionAccumulate)
+      sumCfloat = tensileMultiply<float>((float)alpha,sumCfloat);
+    else
+      sumC = tensileMultiply<Type>(alpha,sumC);
     if (!tensileIsZero(beta)) {
       Type tmp = tensileMultiply<Type>(beta, dataC[serialIdxC]);
-      sumC = tensileAdd<Type>(tmp,sumC);
+      if (localUseHighPrecisionAccumulate)
+        sumCfloat = tensileAdd<float>((float)tmp,sumCfloat);
+      else
+        sumC = tensileAdd<Type>(tmp,sumC);
     }
 
-    dataC[serialIdxC] = sumC;
+    if (localUseHighPrecisionAccumulate)
+      dataC[serialIdxC] = (Type)sumCfloat;
+    else
+      dataC[serialIdxC] = sumC;
 
     // increment free coord
     // skip = 1, validate everything

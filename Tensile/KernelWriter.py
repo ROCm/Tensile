@@ -1141,6 +1141,7 @@ class KernelWriter:
     if tA: # A
       tP["isA"] = True                                      # is this tensor A
       tP["isB"] = False                                     # is this tensor B
+      tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
       tP["tensorChar"] = "A"                                # tensor character A/B
       tP["tensorIdx"] = 0                                   # tensor index A=0, B=1
       tP["tileChar"] = self.tileCharA                       # tile char I0 or J1
@@ -1194,6 +1195,7 @@ class KernelWriter:
     else: # B
       tP["isA"] = False
       tP["isB"] = True
+      tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
