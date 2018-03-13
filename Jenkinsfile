@@ -284,7 +284,7 @@ hcc_rocm:
   node( 'docker && rocm && !dkms' )
   {
     def hcc_docker_args = new docker_data(
-        from_image:'rocm/rocm-terminal:latest',
+        from_image:'rocm/rocm-terminal:1.6.4',
         build_docker_file:'dockerfile-build-rocm-terminal',
         install_docker_file:'dockerfile-tensile-rocm-terminal',
         docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
