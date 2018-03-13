@@ -881,7 +881,7 @@ class KernelWriter:
         self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
         self.readUnrollDimVectorA = False # Components
         self.writeTileDimComponentsA = False # Scalar
-        self.writeUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
         # NEW
         self.numReadsTileVecCompA = 1
         self.numReadsUnrollVecCompA = vwa
@@ -897,7 +897,7 @@ class KernelWriter:
         self.readTileDimVectorA = False # Scalar
         self.readUnrollDimComponentsA = False # Vector
         self.readUnrollDimVectorA = True # Vector
-        self.writeTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
         self.writeUnrollDimComponentsA = False # Scalar
         # NEW
         self.numReadsUnrollVecCompA = vwa
@@ -970,7 +970,7 @@ class KernelWriter:
         self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
         self.readUnrollDimVectorB = False # Components
         self.writeTileDimComponentsB = False # Scalar
-        self.writeUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
         # NEW
         self.numReadsTileVecCompB = 1
         self.numReadsUnrollVecCompB = vwb
@@ -986,7 +986,7 @@ class KernelWriter:
         self.readTileDimVectorB = False # Scalar
         self.readUnrollDimComponentsB = False # Vector
         self.readUnrollDimVectorB = True # Vector
-        self.writeTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
         self.writeUnrollDimComponentsB = False # Scalar
         # NEW
         self.numReadsUnrollVecCompB = vwb
@@ -1006,6 +1006,7 @@ class KernelWriter:
         self.numWritesCoalVecCompB = vwb
         self.numWritesPerpVecCompB = 1
 
+    # numReadVectorComponentsB is refers to global reads
     self.numReadVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
         if (self.readTileDimComponentsB \
         or self.readUnrollDimComponentsB) else 1
