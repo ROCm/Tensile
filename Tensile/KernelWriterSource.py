@@ -2111,8 +2111,8 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # SyncThreads
   ##############################################################################
-  def syncThreads(self, kernel):
-    return self.indent + self.syncStr + self.endLine
+  def syncThreads(self, kernel, comment=""):
+    return self.indent + self.syncStr + " //" + comment + self.endLine
 
   ##############################################################################
   #
