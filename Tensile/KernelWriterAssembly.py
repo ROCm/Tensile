@@ -71,6 +71,7 @@ class RegisterPool:
     self.checkOutSize = {}
 
   ########################################
+  # Adds registers to the pool so they can be used as temps
   # Add
   def add(self, start, size):
     # reserve space
@@ -92,6 +93,7 @@ class RegisterPool:
 
   ########################################
   # Remove
+  # Removes registers from the pool so they cannot be subsequently allocated for tmps
   def remove(self, start, size):
     #print "RP::remove(%u,%u)"%(start,size)
     # reserve space
@@ -822,13 +824,20 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += numVgprAddressDbg
     self.startVgprSerial = vgprIdx
     vgprIdx += numVgprSerial
+
+    # Point at last VGPR that can be reclaimed for use in the summation loop 
+    # This should be just BEFORE the vgprSerial, which may still be used.
+    # If more VGPRs are added here be aware of the register reclaim code in
+    # endSummation - registers that should be preserved should be allocated
+    # with numbers higher than vgprReclaimAfterSummation
+    self.vgprReclaimAfterSummation = self.startVgprSerial-1
+
     # tmp vgprs
     #minVgprTmp = 1
     #if kernel["LoopTail"]:
     #  minVgprTmp += 4
     #if globalParameters["DebugKernel"]:
     #  minVgprTmp += 2
-    self.startVgprTmp = vgprIdx
     #vgprIdx += minVgprTmp
     #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
     vgprPerCU = 65536
@@ -837,16 +846,9 @@ class KernelWriterAssembly(KernelWriter):
     if numWorkGroupsPerCU < 1:
       self.overflowedResources = True
       numWorkGroupsPerCU  = 1 # dummy value
-    numWavesPerWorkGroup = kernel["NumThreads"] / 64
-    numWavesPerCU = numWorkGroupsPerCU * numWavesPerWorkGroup
-    self.numWavesPerSimd = numWavesPerCU / 4
-    maxVgprSameOccupancy = vgprPerThreadPerOccupancy / numWorkGroupsPerCU
-    self.numVgprTmp = maxVgprSameOccupancy - self.startVgprTmp
-    self.totalVgprs = maxVgprSameOccupancy
 
-    # move serial to last vgpr and shift tmp forward
-    self.startVgprSerial = self.totalVgprs-1
-    self.startVgprTmp -= 1
+    self.totalVgprs = vgprIdx
+
 
     ########################################
     # SGPR Allocation
@@ -968,14 +970,11 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs-1) # don't initially reserve Serial
+    self.vgprPool = RegisterPool(self.totalVgprs)
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.startVgprLocalReadAddressesA - self.startVgprValuC)
-    #print self.vgprPool.state()
-
-    self.vgprPool.add( self.startVgprTmp, self.numVgprTmp)
+        self.startVgprLocalReadAddressesA - self.startVgprValuC) # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -1061,7 +1060,7 @@ class KernelWriterAssembly(KernelWriter):
         % (kernArgBytes, self.endLine)
 
     # register allocation
-    totalVgprs = self.vgprPool.size()+1 # + Serial
+    totalVgprs = self.vgprPool.size() 
     if self.vgprPool.size() > self.maxVgprs:
       self.overflowedResources = True
     if self.overflowedResources:
@@ -1164,11 +1163,8 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressDbg", \
           self.startVgprAddressDbg)
-    self.startVgprSerial = totalVgprs - 1
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
-    #kStr += self.comment1("VGPRs: %u + %u = %u" \
-    #    % (self.startVgprTmp, self.numVgprTmp, self.totalVgprs) )
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
 
 
@@ -2579,18 +2575,25 @@ class KernelWriterAssembly(KernelWriter):
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           " += LdsOffset%s (lower)"%tP["tensorChar"])
 
+
   ##############################################################################
-  # Declare Loop Num Iterations
+  # Initialize C
   ##############################################################################
-  def declareLoopNumIter(self, kernel):
+  def initC(self, kernel):
     self.vgprPool.remove(self.startVgprValuC, \
         self.startVgprLocalReadAddressesA - self.startVgprValuC)
-    #print "vgpr pool adding tmp registers"
-    #self.vgprPool.add(self.startVgprTmp, self.numVgprTmp)
+
     kStr = ""
     for i in range(0, self.numVgprValuC):
       kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "")
     return kStr
+
+
+  ##############################################################################
+  # Declare Loop Num Iterations
+  ##############################################################################
+  def declareLoopNumIter(self, kernel):
+    return ""
 
 
   ##############################################################################
@@ -2599,7 +2602,6 @@ class KernelWriterAssembly(KernelWriter):
   def calculateLoopNumIter(self, kernel, loopIdx):
     kStr = ""
 
-    tmp = self.vgprPool.checkOut(1)
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
@@ -2651,7 +2653,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # if GSU numIter++ if gsuSumIdx < remainder
       if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(2)
+        tmpSgpr = self.getTmpSgpr(3)
         quotient = "LoopCounters+%u"%loopIdx
         remainder = "GSUSumIdx+1" # numIterPerWgRemainder
         dividend = tmpSgpr+2 # numIterMyWg
@@ -2673,7 +2675,6 @@ class KernelWriterAssembly(KernelWriter):
       printExit("no assembly support for 2+ dimensional summation")
       kStr += "%snumIter%s = size%s" \
           % (self.indent, loopChar, loopChar)
-    self.vgprPool.checkIn(tmp)
 
     # counter = -counter
     kStr += inst("s_sub_u32", \
@@ -2793,7 +2794,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
-        self.startVgprTmp - self.startVgprValuA)
+        self.vgprReclaimAfterSummation - self.startVgprValuA + 1)
     self.startSgprTmpPool = self.startSgprSizesSum
     return ""
 

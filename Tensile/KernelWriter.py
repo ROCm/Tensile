@@ -237,6 +237,8 @@ class KernelWriter:
     kStr += self.comment("declare loop num iterations")
     kStr += self.declareLoopNumIter(kernel)
 
+    kStr += self.initC(kernel)
+
     # open non-unrolled summation loops
     for i in range(0, self.unrollIdx):
       kStr += self.comment("summation loop %u"%i)
@@ -1402,6 +1404,13 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def calculateLoopNumIter(self, kernel, loopIdx):
+    return ""
+
+  ##############################################################################
+  # Initialize C
+  ##############################################################################
+  @abc.abstractmethod
+  def initC(self, kernel):
     return ""
 
   ##############################################################################
