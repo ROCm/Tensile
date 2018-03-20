@@ -120,6 +120,7 @@ globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))    
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HccVersion"] = "0,0,0"
 globalParameters["AsmHasExplicitCO"] = {}
+globalParameters["AsmHasDirectToLds"] = {}
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -532,11 +533,18 @@ def assignGlobalParameters( config ):
       asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
                  % (globalParameters["AssemblerPath"], isaVersion)
       globalParameters["AsmHasExplicitCO"][v] = \
-              not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" | %s %s" % \
-              (asmCmd, \
-              "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
+              not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" \
+                      | %s %s" % \
+                      (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
+      globalParameters["AsmHasDirectToLds"][v] = \
+              not os.system ("echo \"buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds\" \
+                             | %s %s" % \
+                             (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
 
-      print1 ("# Asm caps for %s: AsmHasExplicitCO=%d" % (isaVersion, globalParameters["AsmHasExplicitCO"][v]))
+      print1 ("# Asm caps for %s: AsmHasExplicitCO=%d AsmHasDirectToLds=%d" \
+              % (isaVersion, \
+                  globalParameters["AsmHasExplicitCO"][v], \
+                  globalParameters["AsmHasDirectToLds"][v]))
 
 
 

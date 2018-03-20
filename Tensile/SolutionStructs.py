@@ -743,8 +743,8 @@ class Solution:
     if state["GlobalReadVectorWidth"] < 1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
       if state["ProblemType"]["DataType"].isHalf() \
-          and state["GlobalReadVectorWidth"] < 2: 
-        state["GlobalReadVectorWidth"] = 2 
+          and state["GlobalReadVectorWidth"] < 2:
+        state["GlobalReadVectorWidth"] = 2
 
 
     # LocalSplitU too large?
@@ -1192,6 +1192,42 @@ class Solution:
         print1("LoopUnroll %u is less than 2" \
             % (state["LoopUnroll"]))
       state["Valid"] = False
+
+
+    # Determine if we can load directly-to-LDS.
+    # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
+    # LDS loads always write 4 bytes apart so can use only 4-byte operations
+    # The matrix must not require transposing since that is done by reading to VGPR and writing in different order
+    # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
+    # Note for these matrices LSC is same as MacroTile dim
+    # TODO - currently only support Single but could be extended to 2 halfs or part of a double
+    state["DirectToLdsA"] = False
+    state["DirectToLdsB"] = False
+
+    if state["KernelLanguage"] == "Assembly" \
+        and state["BufferLoad"] \
+        and state["ProblemType"]["DataType"].isSingle():
+
+      if state["GlobalLoadVectorWidthA"] == 1 \
+          and not state["ProblemType"]["TransposeA"] \
+          and ((state["LSCA"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
+        state["DirectToLdsA"] = True
+
+      if state["GlobalLoadVectorWidthB"] == 1 \
+          and state["ProblemType"]["TransposeB"] \
+          and ((state["LSCB"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
+        state["DirectToLdsB"] = True
+
+        if 0:
+          print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
+                 " LSCA=", state["LSCA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
+                 " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
+                 "  ->DirectToLdsA=", state["DirectToLdsA"]
+          print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
+                 " LSCB=", state["LSCB"], "GLVB_B=", state["GlobalLoadVectorWidthB"], \
+                 " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
+                 "  ->DirectToLdsB=", state["DirectToLdsB"]
+
 
     state["AssignedDerivedParameters"] = True
 
