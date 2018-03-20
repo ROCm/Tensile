@@ -249,7 +249,7 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
 // The following launches 3 builds in parallel: hcc-ctu, hcc-rocm and cuda
 parallel hcc_ctu:
 {
-  node( 'docker && rocm && dkms' )
+  node( 'docker && rocm && jenkins-rocm-0' )
   {
     def docker_args = new docker_data(
         from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
@@ -281,10 +281,10 @@ parallel hcc_ctu:
 },
 hcc_rocm:
 {
-  node( 'docker && rocm && !dkms' )
+  node( 'docker && rocm && jenkins-rocm-2' )
   {
     def hcc_docker_args = new docker_data(
-        from_image:'rocm/rocm-terminal:1.6.4',
+        from_image:'rocm/rocm-terminal:1.7.1',
         build_docker_file:'dockerfile-build-rocm-terminal',
         install_docker_file:'dockerfile-tensile-rocm-terminal',
         docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
