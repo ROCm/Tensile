@@ -353,11 +353,11 @@ bool callLibrary(
     specializeData(initialA, totalIndices[problemTypeIdx],
                     numIndicesC[problemTypeIdx],
                     numIndicesAB[problemTypeIdx],
-                    userSizes, indexAssignmentsA[problemIdx]);
+                    userSizes, indexAssignmentsA[problemTypeIdx]);
     specializeData(initialB, totalIndices[problemTypeIdx],
                     numIndicesC[problemTypeIdx],
                     numIndicesAB[problemTypeIdx],
-                    userSizes, indexAssignmentsB[problemIdx]);
+                    userSizes, indexAssignmentsB[problemTypeIdx]);
     copyData<DataType> (initialA, initialB);
   }
 
