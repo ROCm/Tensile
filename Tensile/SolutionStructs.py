@@ -1203,30 +1203,33 @@ class Solution:
     # TODO - currently only support Single but could be extended to 2 halfs or part of a double
     state["DirectToLdsA"] = False
     state["DirectToLdsB"] = False
+    state["LocalWriteUseSgprA"] = False
+    state["LocalWriteUseSgprB"] = False
 
     if state["KernelLanguage"] == "Assembly" \
-        and state["BufferLoad"] \
-        and state["ProblemType"]["DataType"].isSingle():
-
+      and state["BufferLoad"] \
+      and state["ProblemType"]["DataType"].isSingle():
       if state["GlobalLoadVectorWidthA"] == 1 \
-          and not state["ProblemType"]["TransposeA"] \
-          and ((state["LSCA"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
+        and not state["ProblemType"]["TransposeA"] \
+        and ((state["LSCA"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
         state["DirectToLdsA"] = True
+        state["LocalWriteUseSgprA"] = True
 
       if state["GlobalLoadVectorWidthB"] == 1 \
-          and state["ProblemType"]["TransposeB"] \
-          and ((state["LSCB"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
+        and state["ProblemType"]["TransposeB"] \
+        and ((state["LSCB"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
         state["DirectToLdsB"] = True
+        state["LocalWriteUseSgprA"] = True
 
-        if 0:
-          print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
-                 " LSCA=", state["LSCA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
-                 " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
-                 "  ->DirectToLdsA=", state["DirectToLdsA"]
-          print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
-                 " LSCB=", state["LSCB"], "GLVB_B=", state["GlobalLoadVectorWidthB"], \
-                 " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
-                 "  ->DirectToLdsB=", state["DirectToLdsB"]
+      if 0:
+        print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
+               " LSCA=", state["LSCA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
+               " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
+               "  ->DirectToLdsA=", state["DirectToLdsA"]
+        print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
+               " LSCB=", state["LSCB"], "GLVB_B=", state["GlobalLoadVectorWidthB"], \
+               " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
+               "  ->DirectToLdsB=", state["DirectToLdsB"]
 
 
     state["AssignedDerivedParameters"] = True
