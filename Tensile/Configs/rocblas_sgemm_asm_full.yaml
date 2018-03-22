@@ -425,6 +425,59 @@ BenchmarkProblems:
           - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
           - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
 
+  ########################################
+  # NN - VGPR refactor
+  ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+        - PrefetchGlobalRead: [ True ]
+        - PrefetchLocalRead: [ True ]
+#       - PrefetchGlobalRead: [0,1]
+#       - PrefetchLocalRead: [0,1]
+#       - WorkGroupMapping: [1, 8]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 2, 4 ]
+          - [ 4, 2 ]
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 4 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+#         - [ 4, 16, 1 ]
+#         - [ 16, 4, 1 ]
+#         - [ 4, 32, 1 ]
+#         - [ 32, 4, 1 ]
+#         - [ 8, 32, 1 ]
+          - [  8,  8, 1 ]
+          - [ 16,  8, 1 ]
+          - [ 16, 16, 1 ]
+          - [ 32,  8, 1 ]
+          - [ 32, 16, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [4]
+        - LdsPadB: [0,1,2,4]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 256, 193600, 1, 64 ]
+          - Exact: [ 64, 193600, 1, 64 ]
+          - Exact: [ 64, 193600, 1, 256 ]
+          - Exact: [ 512, 50176, 1, 128 ]
+          - Exact: [ 128, 50176, 1, 512 ]
+          - Exact: [ 256, 12544, 1, 1024 ]
+          - Exact: [ 1024, 12544, 1, 256 ]
+          - Exact: [ 2048, 3136, 1, 512 ]
+          - Exact: [ 512, 3136, 1, 2048 ]
 
 
   ########################################
