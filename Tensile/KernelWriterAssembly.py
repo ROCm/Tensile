@@ -1338,11 +1338,12 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u lower"%i)
-          kStr += inst("v_mul_hi_u32", \
-              "v[\\vgprTmp+1]", \
-              sgpr("Strides%s+%u"%(tensorChar,i-1)), \
-              "v[\\vgprOffset%s]" % idxChars[i],  \
-              "mul d%u upper"%i)
+          if not justOffset32:
+            kStr += inst("v_mul_hi_u32", \
+                "v[\\vgprTmp+1]", \
+                sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+                "v[\\vgprOffset%s]" % idxChars[i],  \
+                "mul d%u upper"%i)
         # other c index sgpr
         elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
           kStr += inst("v_mov_b32", \
