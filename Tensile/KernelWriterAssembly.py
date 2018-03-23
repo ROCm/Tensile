@@ -422,6 +422,12 @@ class KernelWriterAssembly(KernelWriter):
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
     self.directToLds = 1
 
+    # precise checking only works for vectorloads=1 - else if the vload crosses 
+    # boundary we ignore all components not just the ones that are OOB.
+    self.preciseBoundsCheck = kernel["BufferLoad"] \
+        and kernel["GlobalLoadVectorWidthA"]==1 \
+        and kernel["GlobalLoadVectorWidthB"]==1
+
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
@@ -1254,6 +1260,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
 
     if kernel["BufferLoad"]:
+      kStr += self.comment3("Buffer stride based on bytes-per-element:")
       if self.bpeAB == 2:
         kStr += self.macroRegister("BufferStride", "0x00020000")
       elif self.bpeAB == 4:
@@ -1263,8 +1270,9 @@ class KernelWriterAssembly(KernelWriter):
       else:
         assert("unsupported bpeAB")
 
-      kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
-      kStr += self.macroRegister("BufferLimit", "0x80000000")
+      if not self.preciseBoundsCheck:
+        kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
+        kStr += self.macroRegister("BufferLimit", "0x80000000")
       kStr += self.comment3("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
       kStr += self.macroRegister("Srd127_96",   "0x0020000")
       #kStr += self.macroRegister("Srd127_96",    "0x0008000")
@@ -2164,6 +2172,8 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A/B
   ##############################################################################
   def graShift(self, kernel, tP):
+    if self.preciseBoundsCheck: return ""
+
     kStr = ""
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
@@ -2276,12 +2286,30 @@ class KernelWriterAssembly(KernelWriter):
     graIdx = 0
 
     if kernel["BufferLoad"]:
+      # maxAddrSgpr = size[n] * stride[n-1]
+      kStr += self.comment1("max read offset = size[n] * stride[n-1]")
+      dim = len(tP["ia"])-1 # dim
+      strideIdx = dim-1 # largest stride
+      sizeIdx = tP["ia"][dim]
+
+      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+      if sizeIdxIsSum:
+        sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+
+
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
-      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tP["tensorChar"]), sgpr("Address%s+0"%tP["tensorChar"]), "init SRD base address (lower)" )
-      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tP["tensorChar"]), sgpr("Address%s+1"%tP["tensorChar"]), "init SRD base address (upper) + other fields" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower)" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
       kStr += inst("s_or_b32", sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), "BufferStride", "Reset buffer stride")
-      kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tP["tensorChar"]), "BufferLimit", "")
-      kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tP["tensorChar"]), "Srd127_96", "Set bits 127_96 in SRD" )
+      if self.preciseBoundsCheck:
+        kStr += inst("s_mul_i32", \
+            sgpr("Srd%s+2"%tc), \
+            sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+            sgpr("Strides%s+%u"%(tc,strideIdx)), \
+            "set limit to bottom-right corner of array")
+      else:
+        kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit", "")
+      kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
     else:
       tmp = self.vgprPool.checkOut(2)
