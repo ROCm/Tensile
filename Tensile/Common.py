@@ -297,7 +297,9 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadB":                    [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"GlobalReadVectorWidth":     [ -1 ] },
+    # use 1 by default since this enables other important optimizations including:
+    # DirectToLds, preciseBoundsCheck, and useSgrpForGRO
+    {"GlobalReadVectorWidth":     [ 1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
