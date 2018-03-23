@@ -1219,7 +1219,7 @@ class Solution:
         and state["ProblemType"]["TransposeB"] \
         and ((state["LSCB"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
         state["DirectToLdsB"] = True
-        state["LocalWriteUseSgprA"] = True
+        state["LocalWriteUseSgprB"] = True
 
       if 0:
         print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
