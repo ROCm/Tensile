@@ -41,16 +41,11 @@ class MemoryInstruction:
     self.endLine = "\n"
   ########################################
   # write in assembly format
-  def toString(self, params, comment, nonTemporal=0, highBits=0, lds=0):
+  def toString(self, params, comment, nonTemporal=0, highBits=0):
     name = self.name
     if highBits:
       name += "_d16_hi"
-    # Remove destination from format string
-    # TODO-LDSDestBug - don't set lds flag to 0 here:
-    lds = 0
-    f = self.formatting.split(",",1)[-1] if lds else self.formatting
-
-    instStr = "%s %s" % (name, (f % params) )
+    instStr = "%s %s" % (name, (self.formatting % params) )
     if nonTemporal%2==1:
       instStr += " glc"
     if nonTemporal/2==1:
@@ -3019,7 +3014,7 @@ class KernelWriterAssembly(KernelWriter):
     ldsOffset = 0
 
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
-      # DirectToLds only enabled for TLU=1 cases, where ther registers are directly copied into LDS
+      # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
       if kernel["LocalWriteUseSgpr%s"%tc]:
         kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
       else:
@@ -3143,14 +3138,14 @@ class KernelWriterAssembly(KernelWriter):
                         "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                      # TODO-LDSDestBug.  Use dummy Vgpr0 untilLDS dest asm bug fixed:
+                      # Assembler expects a destination VGPR even though not written
                       kStr += tP["globalReadInstruction"].toString( \
                           (\
                           vgpr(0), \
                           vgpr(offsetVgpr), \
                           sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                          0, "lds"), \
-                          "load single float G -> LDS(%s)", tP["NonTemporal"], 0, 1 )
+                          0,""), \
+                          "load single float G -> LDS(%s)", tP["NonTemporal"], 0)
 
                     else:
                       kStr += inst("buffer_load_dword", \
@@ -3235,27 +3230,29 @@ class KernelWriterAssembly(KernelWriter):
                   directToLdsLoads+=1
                   ldsOffset += ldsInc
 
-                  # TODO-LDSDestBug.  Use dummy Vgpr0 untilLDS dest asm bug fixed:
+                  # Assembler expects a destination VGPR even though not written
                   kStr += tP["globalReadInstruction"].toString( \
                       (\
                       vgpr(0), \
-                      vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                      vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
                       sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                      0, "lds"), \
-                      "G -> LDS(%s)"%(comment), tP["NonTemporal"], 0, 1 )
+                      0,""), \
+                      "G -> LDS(%s)"%(comment), \
+                      tP["NonTemporal"], 0)
 
                 else:
                   kStr += tP["globalReadInstruction"].toString( \
                       (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
-                      vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                      vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
                       sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                      0, ""), \
-                      "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ))
+                      0,""), \
+                      "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ),\
+                      tP["NonTemporal"], 0)
               else:
                 kStr += tP["globalReadInstruction"].toString( \
                     (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
-                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
+                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"], 0 )
 
               #kStr += "s_waitcnt vmcnt(0)\n"
               #kStr += self.bomb()
@@ -3865,7 +3862,6 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     kStr += "label_%04u: // end shift0%s" % (svrLabels[vw-1], self.endLine)
     #kStr += inst("s_mov_b64", "exec","0xFFFFFFFFFFFFFFFF","")
-    #kStr += inst("s_nop", "5", "wait for exec update")
     #kStr += dump(vgpr(vgprPath))
 
     # checkin scratch vgprs
