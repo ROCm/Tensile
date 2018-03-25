@@ -577,6 +577,14 @@ class KernelWriter:
     if kernel["LoopTail"]:
       kStr += self.comment3("Tail Loop")
 
+      # Update local write pointers in case the upcoming global reads are writing directly to LDS:
+      if self.enable["LocalWrite"]:
+        if kernel["PrefetchGlobalRead"]:
+          kStr += self.comment("local write reset offsets a")
+          kStr += self.localWriteResetOffsets(kernel, tensorParametersA)
+          kStr += self.comment("local write reset offsets b")
+          kStr += self.localWriteResetOffsets(kernel, tensorParametersB)
+
       if self.enable["GlobalRead"]:
         # tail: global read
         kStr += self.calculateLoopNumIter(kernel, -1)
@@ -590,11 +598,6 @@ class KernelWriter:
         kStr += self.syncThreads(kernel)
       if self.enable["LocalWrite"]:
         # tail: local write
-        if kernel["PrefetchGlobalRead"]:
-          kStr += self.comment("local write reset offsets a")
-          kStr += self.localWriteResetOffsets(kernel, tensorParametersA)
-          kStr += self.comment("local write reset offsets b")
-          kStr += self.localWriteResetOffsets(kernel, tensorParametersB)
         kStr += self.comment("local write init pointers a")
         kStr += self.localWriteInitPointers(kernel, tensorParametersA)
         kStr += self.comment("local write init pointers b")
@@ -1171,7 +1174,7 @@ class KernelWriter:
       tP["nlpv"] = self.numReadsPerpVecCompA                # num vector components perpendicular to coalesced; =1 or VW
       # NEW
       tP["nrt"] = self.numReadsTileA                        # number of reads along tile dimension
-      tP["nrtv"] = self.numReadsTileVecCompA                # number of vector components along tile dimension; =1 or VW                
+      tP["nrtv"] = self.numReadsTileVecCompA                # number of vector components along tile dimension; =1 or VW
       tP["nru"] = self.numReadsUnrollA                      # number of reads along unroll dimension
       tP["nruv"] = self.numReadsUnrollVecCompA              # number of vector components along unroll dimension; =1 or VW
       tP["nrc"] = kernel["NumLoadsCoalescedA"]              # number of reads along coalesced dimension

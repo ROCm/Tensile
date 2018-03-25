@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import DataType
-from Common import globalParameters, printExit, printWarning, print2
+from Common import globalParameters, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log, ceil
 
@@ -251,14 +251,15 @@ class KernelWriterAssembly(KernelWriter):
     self.do["Sync"]        = True
     self.do["MAC"]         = True
     self.do["PostLoop"]    = True
+    self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
-    # Various debug flags and modes 
+    # Various debug flags and modes
     self.db = {}
     self.db["EnableAsserts"]     = True  # Enable assertion codegen
     self.db["DebugKernelMaxItems"] = 16  # Capture first N(=16) print values, ignore subsequent.  If -1, debug writing is faster but writing more than 16 values is undefined.
 
     # Check A and B values loaded from memory to ensure they match expected
-    # sequential pattern.  Requires DataInitTypeAB=2.  
+    # sequential pattern.  Requires DataInitTypeAB=2.
     # Mismatches will assert (generate GPUVM fault)
     self.db["InitLds"]     = False  # Initialize LDS at start of kernel
     self.printedAssertCnt  = 0
@@ -267,7 +268,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
 
-    # Number of times localReadDo has been called by the code-generator.  
+    # Number of times localReadDo has been called by the code-generator.
     # Used to control debug enablement.
     # Note this increments as the assembly code is generated not as it executes
     # so it can be used to determine which iteration of the unroll is being generated
@@ -400,6 +401,28 @@ class KernelWriterAssembly(KernelWriter):
 
     # True=slightly fewer [v_mov] instructions but extra registers
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
+    self.directToLds = 1
+
+    # ISA version, such as 803
+    self.version = globalParameters["CurrentISA"]
+    if "ISA" in kernel:
+      self.version = kernel["ISA"]
+
+    self.AsmBugs = {}
+    self.AsmBugs["ExplicitCO"] = globalParameters["AsmHasExplicitCO"][self.version]
+
+    if not self.directToLds or not globalParameters["AsmHasDirectToLds"][self.version]:
+      kernel["DirectToLdsA"] = False
+      kernel["DirectToLdsB"] = False
+      kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
+      kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
+
+
+    # TODO - remove these when support fully avail:
+    if kernel["DirectToLdsA"]:
+      print "DirectToLdsA=", kernel["DirectToLdsA"]
+    if kernel["DirectToLdsB"]:
+      print "DirectToLdsB=", kernel["DirectToLdsB"]
 
     #######################################L
     # Available Memory Instructions
@@ -442,11 +465,11 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s" )
 
     buffer_load_dwordx4 = MemoryInstruction("buffer_load_dwordx4", 1, 0, 0, 4, \
-        "%s, %s, %s, %s idxen offset:0" )
+        "%s, %s, %s, 0 idxen offset:%u %s" )
     buffer_load_dwordx2 = MemoryInstruction("buffer_load_dwordx2", 1, 0, 0, 2, \
-        "%s, %s, %s, %s idxen offset:0" )
+        "%s, %s, %s, 0 idxen offset:%u %s" )
     buffer_load_dword = MemoryInstruction("buffer_load_dword", 1, 0, 0, 1, \
-        "%s, %s, %s, %s idxen offset:0" )
+        "%s, %s, %s, 0 idxen offset:%u %s" )
 
     ########################################
     # Global Write
@@ -498,19 +521,6 @@ class KernelWriterAssembly(KernelWriter):
           } # 900
         }
 
-    # ISA version, such as 803
-    self.version = globalParameters["CurrentISA"]
-    if "ISA" in kernel:
-      self.version = kernel["ISA"]
-
-    self.AsmBugs = {}
-    # At some point in the future, this assembler check can go away, because all available assemblers
-    # will use ExplicitCO by default.  This is only to help the transition between rocm v1.7.0 and v1.7.1
-    # If grepping the version of hcc didn't work, then globalParameters should return '0.0.0'
-    # and the check goes to old behavior
-    self.AsmBugs["ExplicitCO"] = globalParameters["AsmHasExplicitCO"][self.version]
-
-    print2 ("info: in KernelWriterAssembly: Isa=%s, AsmHasExplicitCO=%s" % (self.version, globalParameters["AsmHasExplicitCO"][self.version]))
 
     self.overflowedResources = False # if true, comment out whole kernel
 
@@ -736,10 +746,12 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num vgprs: global -> local elements
-    numVgprG2LA = (kernel["NumLoadsCoalescedA"] \
-        * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * tPA["bpe"])/self.bpr
-    numVgprG2LB = (kernel["NumLoadsCoalescedB"] \
-        * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * tPB["bpe"])/self.bpr
+    if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
+      numVgprG2LA = (kernel["NumLoadsCoalescedA"] \
+          * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * tPA["bpe"])/self.bpr
+    if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
+      numVgprG2LB = (kernel["NumLoadsCoalescedB"] \
+          * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * tPB["bpe"])/self.bpr
 
     ####################################
     # num vgprs: local read addresses
@@ -752,13 +764,13 @@ class KernelWriterAssembly(KernelWriter):
     #    * nlp * self.numWriteVectorComponentsA
     #numLocalWriteInstructionsA = numLocalWritesA \
     #    / self.localWriteInstructionA[self.instructionIdxNumOffsets]
-    numVgprLocalWriteAddressesA = 1 * self.rpla
+    numVgprLocalWriteAddressesA = 0 if kernel["LocalWriteUseSgprA"] else 1 * self.rpla
 
     #numLocalWritesB = kernel["NumLoadsCoalescedB"] \
     #    * nlp * self.numWriteVectorComponentsB
     #numLocalWriteInstructionsB = numLocalWritesB \
     #    / self.localWriteInstructionB[self.instructionIdxNumOffsets]
-    numVgprLocalWriteAddressesB = 1 * self.rpla
+    numVgprLocalWriteAddressesB = 0 if kernel["LocalWriteUseSgprB"] else 1 * self.rpla
 
     ####################################
     # num vgprs: global read addresses
@@ -808,30 +820,35 @@ class KernelWriterAssembly(KernelWriter):
 
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
     self.startVgprValuBlkA = vgprIdx; vgprIdx += numVgprValuBlkA
-    if kernel["PrefetchGlobalRead"]:
-      self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
-    else: # g2l can overlap valu
-      self.startVgprG2LA = self.startVgprValuA
-      vgprIdx = self.startVgprValuA \
-          + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
+    if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
+      if kernel["PrefetchGlobalRead"]:
+        self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
+      else: # g2l can overlap valu
+        self.startVgprG2LA = self.startVgprValuA
+        vgprIdx = self.startVgprValuA \
+            + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
 
     self.startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
     self.startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
-    if kernel["PrefetchGlobalRead"]:
-      self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
-    else: # g2l can overlap valu
-      self.startVgprG2LB = self.startVgprValuB
-      vgprIdx = self.startVgprValuB \
-          + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
+    if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
+      if kernel["PrefetchGlobalRead"]:
+        self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
+      else: # g2l can overlap valu
+        self.startVgprG2LB = self.startVgprValuB
+        vgprIdx = self.startVgprValuB \
+            + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
 
     self.startVgprLocalReadAddressesA = vgprIdx
     vgprIdx += numVgprLocalReadAddressesA
     self.startVgprLocalReadAddressesB = vgprIdx
     vgprIdx += numVgprLocalReadAddressesB
-    self.startVgprLocalWriteAddressesA = vgprIdx
-    vgprIdx += numVgprLocalWriteAddressesA
-    self.startVgprLocalWriteAddressesB = vgprIdx
-    vgprIdx += numVgprLocalWriteAddressesB
+    if not kernel["LocalWriteUseSgprA"]:
+      self.startVgprLocalWriteAddressesA = vgprIdx
+      vgprIdx += numVgprLocalWriteAddressesA
+
+    if not kernel["LocalWriteUseSgprB"]:
+      self.startVgprLocalWriteAddressesB = vgprIdx
+      vgprIdx += numVgprLocalWriteAddressesB
 
     # BufferLoad:
     # Uses a resource descriptor (SRD) which is stored in 4 SGPRs and thus shared by all work-items.
@@ -1006,6 +1023,8 @@ class KernelWriterAssembly(KernelWriter):
     sgprIdx = self.startSgprLoopPadding
     self.startSgprGlobalReadIncsA = sgprIdx; sgprIdx += numSgprGlobalReadIncsA
     self.startSgprGlobalReadIncsB = sgprIdx; sgprIdx += numSgprGlobalReadIncsB
+    self.startSgprLocalWriteAddrA = sgprIdx; sgprIdx += 1 if kernel["LocalWriteUseSgprA"] else 0
+    self.startSgprLocalWriteAddrB = sgprIdx; sgprIdx += 1 if kernel["LocalWriteUseSgprB"] else 0
     self.startSgprLoopCounters = sgprIdx
 
     ########################################
@@ -1175,18 +1194,22 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
     kStr += self.macroRegister("vgprValuA", self.startVgprValuA)
     kStr += self.macroRegister("vgprValuBlkA", self.startVgprValuBlkA)
-    kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
+    if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
+        kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
     kStr += self.macroRegister("vgprValuB", self.startVgprValuB)
     kStr += self.macroRegister("vgprValuBlkB", self.startVgprValuBlkB)
-    kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
+    if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
+        kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
     kStr += self.macroRegister("vgprLocalReadAddrA", \
         self.startVgprLocalReadAddressesA)
     kStr += self.macroRegister("vgprLocalReadAddrB", \
         self.startVgprLocalReadAddressesB)
-    kStr += self.macroRegister("vgprLocalWriteAddrA", \
-        self.startVgprLocalWriteAddressesA)
-    kStr += self.macroRegister("vgprLocalWriteAddrB", \
-        self.startVgprLocalWriteAddressesB)
+    if not kernel["LocalWriteUseSgprA"]:
+      kStr += self.macroRegister("vgprLocalWriteAddrA", \
+          self.startVgprLocalWriteAddressesA)
+    if not kernel["LocalWriteUseSgprB"]:
+      kStr += self.macroRegister("vgprLocalWriteAddrB", \
+          self.startVgprLocalWriteAddressesB)
     if kernel["BufferLoad"]:
       kStr += self.macroRegister("vgprGlobalReadOffsetA", \
           self.startVgprGlobalReadOffsetA)
@@ -1202,6 +1225,7 @@ class KernelWriterAssembly(KernelWriter):
           self.startVgprGlobalReadIncsA)
       kStr += self.macroRegister("vgprGlobalReadIncsB", \
           self.startVgprGlobalReadIncsB)
+
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressDbg", \
           self.startVgprAddressDbg)
@@ -1254,6 +1278,13 @@ class KernelWriterAssembly(KernelWriter):
           self.startSgprGlobalReadIncsA)
       kStr += self.macroRegister("sgprGlobalReadIncsB", \
           self.startSgprGlobalReadIncsB)
+
+    if kernel["LocalWriteUseSgprA"]:
+      kStr += self.macroRegister("sgprLocalWriteAddrA", \
+          self.startSgprLocalWriteAddrA)
+    if kernel["LocalWriteUseSgprB"]:
+      kStr += self.macroRegister("sgprLocalWriteAddrB", \
+          self.startSgprLocalWriteAddrB)
     kStr += self.macroRegister("sgprLoopCounters", self.startSgprLoopCounters)
     #kStr += self.comment1("SGPR: %u" % self.totalSgprs)
 
@@ -2250,7 +2281,8 @@ class KernelWriterAssembly(KernelWriter):
 
             # dump final offsets
             # BufferLoad flavor:
-            #kStr += dump(vgpr("GlobalReadOffset%s+%u+0"%(tP["tensorChar"], graIdx)))S
+            #if tP["isA"]:
+            #  kStr += self.dump(vgpr("GlobalReadOffset%s+%u+0"%(tP["tensorChar"], graIdx)))
             # Flat load flavor:
             #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
             #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
@@ -2258,6 +2290,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
     self.vgprPool.checkIn(tmp)
+
     return kStr
 
   ##############################################################################
@@ -2423,39 +2456,54 @@ class KernelWriterAssembly(KernelWriter):
     #"lwFOA = lwA%s + lwA%s*MT%s" \
     #    % (tP["tileChar"], self.unrollChar, tP["tileChar"])
     uReg = tP["gpr"]["uReg2" if kernel["GlobalSplitU"] > 1 else "uReg"]
+    if kernel["LocalWriteUseSgpr%s"%tc]:
+      destVgpr = self.vgprPool.checkOut(1)
+    else:
+      destVgpr = "LocalWriteAddr%s"%tc
+
     kStr += inst("v_mul_u32_u24", \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        vgpr(destVgpr), \
         hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
         vgpr(uReg), \
         "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
     kStr += inst("_v_add_co_u32", \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        vgpr(destVgpr), \
         "vcc", \
         vgpr(tP["gpr"]["lwoT"]), \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        vgpr(destVgpr), \
         "lwFO%s = lw%s%s + lw%s%s*(MT%s+PAD)" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
         tP["tensorChar"], self.unrollChar, tP["tileChar"]) )
 #jgolds which bpe here? assuming tP
     kStr += inst("v_lshlrev_b32", \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        vgpr(destVgpr), \
         hex(log2(tP["bpe"])), \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+        vgpr(destVgpr), \
         " *= bytes/element" )
     if tP["isB"]:
       kStr += inst("_v_add_co_u32", \
-          vgpr("LocalWriteAddrB"), \
+          vgpr(destVgpr), \
           "vcc", \
           hex(kernel["LdsOffsetB"]*tP["bpe"]), \
-          vgpr("LocalWriteAddrB"), \
+          vgpr(destVgpr), \
           "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (tP["tileChar"], \
           self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpeAB) )
     self.vgprPool.checkIn(tP["gpr"]["lwoT"])
     self.vgprPool.checkIn(tP["gpr"]["uReg"])
     if kernel["GlobalSplitU"] > 1:
       self.vgprPool.checkIn(tP["gpr"]["uReg2"])
+
+    if kernel["LocalWriteUseSgpr%s"%tc]:
+      # TODO: Can refactor code above to Compute this directly:
+      kStr += inst("v_readfirstlane_b32", \
+          sgpr("LocalWriteAddr%s"%tc), \
+          vgpr(destVgpr), \
+          "Copy lds write address VGPR to SGPR")
+      self.vgprPool.checkIn(destVgpr)
+
     # dump lds write offsets
-    #kStr += dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
+    #if tP["isA"]:
+    #  kStr += self.dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
     return kStr
 
   ##############################################################################
@@ -2961,9 +3009,22 @@ class KernelWriterAssembly(KernelWriter):
   def globalReadDo(self, kernel, guardK, tP):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
     kStr = ""
+    tc = tP["tensorChar"]
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth
+    ldsOffset = 0
+
+    if kernel["DirectToLds%s"%tP["tensorChar"]]:
+      # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
+      if kernel["LocalWriteUseSgpr%s"%tc]:
+        kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
+      else:
+        lwaSgpr = self.getTmpSgpr(1)
+        kStr += inst("v_readfirstlane_b32", sgpr(lwaSgpr), \
+            vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            "Set lds write address to SGPR")
+        kStr += inst("s_mov_b32", "m0", sgpr(lwaSgpr), "m0 <- LDS write address")
 
     # sizeK % LOCAL_DEPTHU
     if guardK:
@@ -3029,6 +3090,10 @@ class KernelWriterAssembly(KernelWriter):
         zeroVgpr = self.vgprPool.checkOut(1)
         kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
 
+      # End if guardK
+
+    directToLdsLoads = 0
+
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -3056,6 +3121,15 @@ class KernelWriterAssembly(KernelWriter):
                                "vcc",
                                "Select offset or clip if OOB. offset")
 
+
+                  if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                    ldsInc = kernel["NumThreads"]*4
+                    if directToLdsLoads != 0:
+                      kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
+                          "Move LDS write address to next line" )
+                    directToLdsLoads+=1
+
+
                   # load single element from address
                   if kernel["ProblemType"]["DataType"].isHalf():
                     kStr += inst("buffer_load_short_d16%s"%("_hi" if r%2==1 else ""), \
@@ -3065,7 +3139,18 @@ class KernelWriterAssembly(KernelWriter):
                         "0 idxen offset:0",\
                         "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
-                    kStr += inst("buffer_load_dword", \
+                    if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                      # Assembler expects a destination VGPR even though not written
+                      kStr += tP["globalReadInstruction"].toString( \
+                          (\
+                          vgpr(0), \
+                          vgpr(offsetVgpr), \
+                          sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                          0,"lds"), \
+                          "load single float G -> LDS(%s)", tP["NonTemporal"], 0)
+
+                    else:
+                      kStr += inst("buffer_load_dword", \
                         vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
@@ -3129,22 +3214,64 @@ class KernelWriterAssembly(KernelWriter):
                       "gra += 1 (upper)")
             else: # not guardK
               if kernel["BufferLoad"]:
-                kStr += tP["globalReadInstruction"].toString( \
-                    (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
-                    vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
-                    sgpr("Srd%s"%(tP["tensorChar"]), 4), 0), \
-                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
+                if kernel["DirectToLds%s"%tP["tensorChar"]]:
+
+                  # Get offset (for checking, see comment below) and comment:
+                  (checkOffset, iDummy, comment) = \
+                      self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP)
+                  # Direct to LDS always writes consecutive LDS locations at m0 + 4 * TidInWave
+                  # Therefore we double-check here to ensure the desired LDS write offset
+                  # is moving at NumThreads*4.  This should already be guaranteed since
+                  # we only use direct-to-lds for non-transpose cases but double-check here.
+                  ldsInc = kernel["NumThreads"]*4
+                  #print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
+
+                  if directToLdsLoads != 0:
+                    kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
+                        "Move LDS write address to next line" )
+                  directToLdsLoads+=1
+                  ldsOffset += ldsInc
+
+                  # Assembler expects a destination VGPR even though not written
+                  kStr += tP["globalReadInstruction"].toString( \
+                      (\
+                      vgpr(0), \
+                      vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
+                      sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                      0,"lds"), \
+                      "G -> LDS(%s)"%(comment), \
+                      tP["NonTemporal"], 0)
+
+                else:
+                  kStr += tP["globalReadInstruction"].toString( \
+                      (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
+                      vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
+                      sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                      0,""), \
+                      "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ),\
+                      tP["NonTemporal"], 0)
               else:
                 kStr += tP["globalReadInstruction"].toString( \
                     (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
-                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"] )
+                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"], 0 )
 
               #kStr += "s_waitcnt vmcnt(0)\n"
+              #kStr += self.bomb()
               #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))
+
+    #kStr += "s_waitcnt vmcnt(0)\n"
+    #kStr += "s_barrier // debug\n"
+    #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
+
+    # TODO - can remove one of these m0 restores if A and B both TLU
+    if kernel["DirectToLds%s"%tP["tensorChar"]]:
+      kStr += inst("s_mov_b32", "m0", \
+          hex(kernel["LdsNumElements"] * tP["bpe"]), \
+          "Restore LDS clamp at %u bytes"%(kernel["LdsNumElements"] * tP["bpe"]))
+
     if guardK:
-      #self.vgprPool.checkIn(tmpVgpr)
-      if kernel["BufferLoad"]: 
+      if kernel["BufferLoad"]:
         self.vgprPool.checkIn(offsetVgpr)
       else:
         self.vgprPool.checkIn(bpeVgpr)
@@ -3157,12 +3284,20 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteSwapOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+    tc = tP["tensorChar"]
 #jgolds which bpe here? assuming tP
-    kStr += inst("v_xor_b32", \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        "swap Red Blk")
+    if kernel["LocalWriteUseSgpr%s"%tc]:
+      kStr += inst("s_xor_b32", \
+          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
+          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          "swap Red Blk SGPR")
+    else:
+      kStr += inst("v_xor_b32", \
+          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
+          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          "swap Red Blk")
     return kStr
 
   ##############################################################################
@@ -3172,12 +3307,20 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteResetOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+    tc = tP["tensorChar"]
 #jgolds which bpe here? assuming tP
-    kStr += inst("v_and_b32", \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1), \
-        vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-        "reset to Red")
+    if kernel["LocalWriteUseSgpr%s"%tc]:
+      kStr += inst("s_and_b32", \
+          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1), \
+          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          "reset to Red")
+    else:
+      kStr += inst("v_and_b32", \
+          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1), \
+          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+          "reset to Red")
     return kStr
 
   ##############################################################################
@@ -3186,13 +3329,84 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteInitPointers(self, kernel, tP):
     return self.comment1("N/A")
 
+
+  ##############################################################################
+  # Calculate offset to use for LDS write
+  ##############################################################################
+  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP):
+
+    tc = tP["tensorChar"]
+
+    #print "  ", "perp", perp, "para", para, "s", s
+    lscaOffset = para * kernel[tP["lsc"]]
+    lspaOffset = perp * kernel[tP["lsp"]]
+    if tP["tlu"]:
+      if tP["wtc"] == tP["grcv"]:
+        lspaOffset += sPerp
+      elif tP["wuc"] == tP["grcv"]:
+        lscaOffset += sPara
+      i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+    else:
+      if tP["wtc"] == tP["grcv"]:
+        lscaOffset += sPara
+      elif tP["wuc"] == tP["grcv"]:
+        lspaOffset += sPerp
+      i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
+
+    #if not tP["tlu"]:
+    #  tmp = sPara
+    #  sPara = sPerp
+    #  sPerp = tmp
+    #print "0lspaOffset", lspaOffset
+    #print "0lscaOffset", lscaOffset
+
+    if tP["tlu"]:
+      lspaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
+    else:
+      lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
+    #print "1lspaOffset", lspaOffset
+    #print "1lscaOffset", lscaOffset
+    #if tP["tlu"] == tP["grcv"]:
+    #  lspaOffset *= tP["glvw"]
+    #  lscaOffset *= tP["glvw"]
+
+    #print "2lspaOffset", lspaOffset
+    #print "2lscaOffset", lscaOffset
+    offsetElements = (lspaOffset + lscaOffset)
+    #print "offsetElements", offsetElements
+    offsetBytes = offsetElements*tP["bpe"]
+    #print "offsetBytes", offsetBytes
+    #offset = offsetBytes*offsetMultiplier
+    offset = offsetBytes*1
+    #print "offset", offset
+
+    comment = "lwo%s_%u_%u_%u_%u = (%s%d*%s)" \
+        % (tP["tensorChar"], \
+        para, sPara, perp, sPerp, \
+        (("%u + "%sPara) if tP["wtc"] else ""), \
+        para, tP["lsc"] )
+    if not tP["tlu"]:
+      comment += "*(MT%s+PAD)" % (tP["tileChar"])
+    comment += " + (%s%d*%s)" % (
+        (("%u + "%sPerp) if tP["wuc"] else ""), perp, \
+        tP["lsp"])
+    if tP["tlu"]:
+      comment += "(*MT%s+PAD)" % (tP["tileChar"])
+    comment += " = %u" % (offset)
+
+    return (offset, i, comment)
+
+
   ##############################################################################
   # Local Write: Do It A/B
   ##############################################################################
   def localWriteDo(self, kernel, tP):
-    if not self.do["LocalWrite"]: return ""
-    kStr = ""
     tc = tP["tensorChar"]
+
+    if not self.do["LocalWrite"]: return ""
+    if kernel["DirectToLds%s"%tc]: return ""
+
+    kStr = ""
     instruction = tP["localWriteInstruction"]
     numBlocks = instruction.numBlocks
     numOffsets = instruction.numOffsets
@@ -3200,89 +3414,56 @@ class KernelWriterAssembly(KernelWriter):
     #offsetMultiplier = instruction.offsetMultiplier
     g2lIdx = 0
     #kStr += dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
-    #print "\nLocalWrite", tP["tensorChar"]
-    #print "tlu", tP["tlu"]
-    #print "lsc", kernel[tP["lsc"]]
-    #print "lsp", kernel[tP["lsp"]]
-    #print "grcv", tP["grcv"]
-    #print "wtc", tP["wtc"]
-    #print "wuc", tP["wuc"]
-    #print "nrp", tP["nrp"]
-    #print "nrc", tP["nrc"]
-    #print "nwcv", tP["nwcv"]
-    #print "nwpv", tP["nwpv"]
-    #print "nrcvpi", tP["nrcvpi"]
-    #print "nwcvpi", tP["nwcvpi"]
+    if 0:
+      print "\nLocalWrite", tP["tensorChar"]
+      print "tlu", tP["tlu"]
+      print "lsc", kernel[tP["lsc"]]
+      print "lsp", kernel[tP["lsp"]]
+      print "grcv", tP["grcv"]
+      print "wtc", tP["wtc"]
+      print "wuc", tP["wuc"]
+      print "nrc", tP["nrc"]
+      print "nrp", tP["nrp"]
+      print "nwcv", tP["nwcv"]
+      print "nwpv", tP["nwpv"]
+      print "nrcvpi", tP["nrcvpi"]
+      print "nwcvpi", tP["nwcvpi"]
+
+    if kernel["LocalWriteUseSgpr%s"%tc]:
+      tmpLocalWriteAddr = self.vgprPool.checkOut(1)
+      # So this code loads the same LDS address into each lane - it needs to be offset by 4 bytes for each lane.
+      # This could be done in one instruction if we tweak the definition of sgprLocalWriteAddress so it is
+      # same for all values in the group and then multiply Serial*4.
+      # But the patterns that can use LocalWriteAddr can also use DirectToLds and DirectToLds does not
+      # use this code here. 
+      kStr += inst("v_mov_b32", vgpr(tmpLocalWriteAddr), sgpr("LocalWriteAddr%s"%tc), "ds_writes require address in vgpr")
+
     # if transposing, positions of sPerp and sPara are transposed
     for perp in range(0, tP["nrp"]):
       for para in range(0, tP["nrc"]):
         for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
-          #print "  ", "perp", perp, "para", para, "s", s
-          sPara = 0
+
           sPerp = 0
-          lscaOffset = para * kernel[tP["lsc"]]
-          lspaOffset = perp * kernel[tP["lsp"]]
+          sPara = 0
           if tP["tlu"]:
             if tP["wtc"] == tP["grcv"]:
               sPerp = s
-              lspaOffset += s
             elif tP["wuc"] == tP["grcv"]:
               sPara = s
-              lscaOffset += s
-            i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
           else:
             if tP["wtc"] == tP["grcv"]:
               sPara = s
-              lscaOffset += s
             elif tP["wuc"] == tP["grcv"]:
               sPerp = s
-              lspaOffset += s
-            i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
-          #if not tP["tlu"]:
-          #  tmp = sPara
-          #  sPara = sPerp
-          #  sPerp = tmp
+
+          (offset, i, comment) = self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP)
           g2lIdx = i*blockWidth
-          #print "0lspaOffset", lspaOffset
-          #print "0lscaOffset", lscaOffset
-
-          if tP["tlu"]:
-            lspaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
-          else:
-            lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
-          #print "1lspaOffset", lspaOffset
-          #print "1lscaOffset", lscaOffset
-          #if tP["tlu"] == tP["grcv"]:
-          #  lspaOffset *= tP["glvw"]
-          #  lscaOffset *= tP["glvw"]
-
-          #print "2lspaOffset", lspaOffset
-          #print "2lscaOffset", lscaOffset
-          offsetElements = (lspaOffset + lscaOffset)
-          #print "offsetElements", offsetElements
-#jgolds which bpe here? assuming tP
-          offsetBytes = offsetElements*tP["bpe"]
-          #print "offsetBytes", offsetBytes
-          #offset = offsetBytes*offsetMultiplier
-          offset = offsetBytes*1
-          #print "offset", offset
-
-          comment = "lwo%s_%u_%u_%u_%u = (%s%d*%s)" \
-              % (tP["tensorChar"], \
-              para, sPara, perp, sPerp, \
-              (("%u + "%sPara) if tP["wtc"] else ""), \
-              para, tP["lsc"] )
-          if not tP["tlu"]:
-            comment += "*(MT%s+PAD)" % (tP["tileChar"])
-          comment += " + (%s%d*%s)" % (
-              (("%u + "%sPerp) if tP["wuc"] else ""), perp, \
-              tP["lsp"])
-          if tP["tlu"]:
-            comment += "(*MT%s+PAD)" % (tP["tileChar"])
-          comment += " = %u" % (offset)
 
           paramList = []
-          paramList.append(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
+          if kernel["LocalWriteUseSgpr%s"%tc]:
+            paramList.append(vgpr(tmpLocalWriteAddr))
+          else:
+            paramList.append(vgpr("LocalWriteAddr%s"%tc))
           for blockIdx in range(0, numBlocks):
             if blockWidth == 1:
               paramList.append(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx)))
@@ -3303,6 +3484,17 @@ class KernelWriterAssembly(KernelWriter):
           kStr += tP["localWriteInstruction"].toString(paramTuple, comment, \
               nonTemporal, highBits)
       #kStr += "s_endpgm\n"
+
+    if kernel["LocalWriteUseSgpr%s"%tc]:
+      self.vgprPool.checkIn(tmpLocalWriteAddr)
+
+    #kStr += self.assert_lt(vgpr("Serial"), 64)
+
+
+    #if tc=="B":
+    #  kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+    #  kStr += self.bomb(13)
+
     return kStr
 
   ##############################################################################
@@ -3691,7 +3883,6 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
     kStr += "label_%04u: // end shift0%s" % (svrLabels[vw-1], self.endLine)
     #kStr += inst("s_mov_b64", "exec","0xFFFFFFFFFFFFFFFF","")
-    #kStr += inst("s_nop", "5", "wait for exec update")
     #kStr += dump(vgpr(vgprPath))
 
     # checkin scratch vgprs
@@ -5102,3 +5293,5 @@ def staticMultiply(product, operand, multiplier, tmpSgpr=None):
       kStr += inst("v_mul_lo_u32", product, product, operand, \
         "%s *= %s"%(product, operand) )
     return kStr
+
+
