@@ -4947,7 +4947,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["NumThreads"] > 64 and self.do["Sync"]:
       return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
-      return "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + comment
+      return "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
+              comment + self.endLine
 
 
   ########################################
