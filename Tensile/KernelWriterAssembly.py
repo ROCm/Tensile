@@ -3035,7 +3035,9 @@ class KernelWriterAssembly(KernelWriter):
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
       if not self.preciseBoundsCheck:
-          # maxAddrSgpr = size[n] * stride[n-1]
+          # Set maxAddrSgpr to max allowed element offset
+          # maxAddrSgpr = size[n] * stride[n-1] 
+          # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
           kStr += self.comment1("max read address = size[n] * stride[n-1]")
           dim = len(tP["ia"])-1 # dim
           strideIdx = dim-1 # largest stride
@@ -3045,15 +3047,35 @@ class KernelWriterAssembly(KernelWriter):
           if sizeIdxIsSum:
             sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
 
+          kStr += inst("s_sub_u32", \
+              sgpr(tmpSgpr), \
+              sgpr("Srd%s+0"%tc), \
+              sgpr("Address%s+0"%tc), \
+              "Compute distance of SRD from original array in bytes")
+
+          kStr += inst("s_lshr_b32",
+              sgpr(tmpSgpr), \
+              sgpr(tmpSgpr), \
+              hex(log2(tP["bpe"])), \
+              "SRD%s-Address%s Distance in elements"%(tc,tc))
+
           kStr += inst("s_mul_i32", \
               sgpr(maxAddrSgpr+0), \
               sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
               sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
               "Array size")
 
+          kStr += inst("s_sub_u32", \
+              sgpr(maxAddrSgpr), \
+              sgpr(maxAddrSgpr), \
+              sgpr(tmpSgpr), \
+              "Max element offset =  MaxSize - SRD_Distance")
+
       if not kernel["BufferLoad"]:
         kStr += inst("s_mov_b32", sgpr(maxAddrSgpr+1), hex(0), "zero (upper)")
         # maxAddrSgpr *= bytes/element
+
+
         kStr += inst("s_lshl_b64", \
             sgpr(maxAddrSgpr,2), \
             sgpr(maxAddrSgpr,2), \
