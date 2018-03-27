@@ -449,6 +449,10 @@ class KernelWriterAssembly(KernelWriter):
     # the VGPRs that are used for the GRO offset checking
     assert not (self.useSgprForGRO and self.checkGRO)
 
+    # Debug mode to explore combining VGPRs.
+    # Saves VGPRs but doesn't generate correct answer
+    self.combineLocalAddresses = 0
+
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
@@ -877,17 +881,32 @@ class KernelWriterAssembly(KernelWriter):
         vgprIdx = self.startVgprValuB \
             + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
 
+    # Registers allocated above this point can be used as temps during setup
+    # Registers above here are reserved in initC, near the end of the setup
+    # code
+    self.lastPreLoopTempVgpr = vgprIdx+1
+    #----------------------------------
+
     self.startVgprLocalReadAddressesA = vgprIdx
     vgprIdx += numVgprLocalReadAddressesA
-    self.startVgprLocalReadAddressesB = vgprIdx
-    vgprIdx += numVgprLocalReadAddressesB
+    if self.combineLocalAddresses:
+      self.startVgprLocalReadAddressesB = self.startVgprLocalReadAddressesA
+    else:
+      self.startVgprLocalReadAddressesB = vgprIdx
+      vgprIdx += numVgprLocalReadAddressesB
     if not kernel["LocalWriteUseSgprA"]:
-      self.startVgprLocalWriteAddressesA = vgprIdx
-      vgprIdx += numVgprLocalWriteAddressesA
+      if self.combineLocalAddresses:
+        self.startVgprLocalWriteAddressesA = self.startVgprLocalReadAddressesA
+      else:
+        self.startVgprLocalWriteAddressesA = vgprIdx
+        vgprIdx += numVgprLocalWriteAddressesA
 
     if not kernel["LocalWriteUseSgprB"]:
-      self.startVgprLocalWriteAddressesB = vgprIdx
-      vgprIdx += numVgprLocalWriteAddressesB
+      if self.combineLocalAddresses:
+        self.startVgprLocalWriteAddressesB = self.startVgprLocalReadAddressesA
+      else:
+        self.startVgprLocalWriteAddressesB = vgprIdx
+        vgprIdx += numVgprLocalWriteAddressesB
 
     # BufferLoad:
     # Uses a resource descriptor (SRD) which is stored in 4 SGPRs and thus shared by all work-items.
@@ -1067,7 +1086,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.startVgprLocalReadAddressesA - self.startVgprValuC) # Add as available
+        self.lastPreLoopTempVgpr - self.startVgprValuC) # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -2736,7 +2755,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initC(self, kernel):
     self.vgprPool.remove(self.startVgprValuC, \
-        self.startVgprLocalReadAddressesA - self.startVgprValuC)
+        self.lastPreLoopTempVgpr - self.startVgprValuC)
 
     kStr = ""
     for i in range(0, self.numVgprValuC):
