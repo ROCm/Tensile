@@ -428,8 +428,6 @@ class KernelWriterAssembly(KernelWriter):
         and kernel["GlobalLoadVectorWidthA"]==1 \
         and kernel["GlobalLoadVectorWidthB"]==1
 
-    print "preciseBoundsCheck=", self.preciseBoundsCheck
-
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
@@ -443,13 +441,6 @@ class KernelWriterAssembly(KernelWriter):
       kernel["DirectToLdsB"] = False
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
-
-
-    # TODO - remove these when support fully avail:
-    if kernel["DirectToLdsA"]:
-      print "DirectToLdsA=", kernel["DirectToLdsA"]
-    if kernel["DirectToLdsB"]:
-      print "DirectToLdsB=", kernel["DirectToLdsB"]
 
     #######################################L
     # Available Memory Instructions
