@@ -722,6 +722,12 @@ class Solution:
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
 
+    # Init vars early since there are early-exit return statements below
+    state["DirectToLdsA"] = False
+    state["DirectToLdsB"] = False
+    state["LocalWriteUseSgprA"] = False
+    state["LocalWriteUseSgprB"] = False
+
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
       state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
@@ -740,11 +746,13 @@ class Solution:
 
 
     # Default GlobalReadVectorWidth
-    if state["GlobalReadVectorWidth"] < 1:
+    if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
-      if state["ProblemType"]["DataType"].isHalf() \
-          and state["GlobalReadVectorWidth"] < 2:
-        state["GlobalReadVectorWidth"] = 2
+
+    # Vector-width must be at least 2 for Half:
+    if state["ProblemType"]["DataType"].isHalf() \
+        and state["GlobalReadVectorWidth"] < 2:
+      state["GlobalReadVectorWidth"] = 2
 
 
     # LocalSplitU too large?
@@ -1201,10 +1209,6 @@ class Solution:
     # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
     # Note for these matrices LSC is same as MacroTile dim
     # TODO - currently only support Single but could be extended to 2 halfs or part of a double
-    state["DirectToLdsA"] = False
-    state["DirectToLdsB"] = False
-    state["LocalWriteUseSgprA"] = False
-    state["LocalWriteUseSgprB"] = False
 
     if state["KernelLanguage"] == "Assembly" \
       and state["BufferLoad"] \
