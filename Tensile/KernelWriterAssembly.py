@@ -23,6 +23,7 @@ from SolutionStructs import DataType
 from Common import globalParameters, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log, ceil
+import collections
 
 ################################################################################
 # Memory Instruction
@@ -393,12 +394,30 @@ class KernelWriterAssembly(KernelWriter):
   #
   ##############################################################################
 
+  def defineSgpr(self, name, numSgprs, align=1):
+    if numSgprs == 0: return
+
+    # round up to next alignment boundary:
+    self.sgprIdx = ((self.sgprIdx+align-1) / align) * align
+
+    self.sgprs[name] = self.sgprIdx
+    self.sgprIdx += numSgprs
+    return
+
   ##############################################################################
   # Init Kernel
   ##############################################################################
   def initKernel(self, kernel, tPA, tPB ):
     super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
 
+    self.sgprs=collections.OrderedDict()
+    self.sgprIdx = 0
+
+    #---
+    # Internal optimization controls.
+    # These have a default which is almost always faster so don't make a full-blown YAML parm
+    # But have a control here so we can disable for debugging and also easily tell
+    # which parts of the code were changed to support the new mode.
     # True=slightly fewer [v_mov] instructions but extra registers
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
     self.directToLds = 1
@@ -906,16 +925,6 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
-    numSgprKernArgAddress = self.rpga
-    numSgprWorkGroup0 = 1
-    numSgprWorkGroup1 = 1
-    numSgprWorkGroup2 = 1
-    numSgprSrdA = 4  # resource descriptor (SRD) A, must be aligned on 4-SGPR boundary
-    numSgprSrdB = 4  # resource descriptor (SRD) B, must be aligned on 4-SGPR boundary
-    #numSgprSrdC = 4  # resource descriptor (SRD) C, must be aligned on 4-SGPR boundary
-    numSgprNumWorkGroups0 = 1 # num macro tiles, not multiplied by GSU
-    numSgprNumWorkGroups1 = 1 # num macro tiles, not multiplied by GSU
-    numSgprGSUSumIdx = 2 if kernel["GlobalSplitU"] > 1 else 0
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
@@ -956,76 +965,75 @@ class KernelWriterAssembly(KernelWriter):
         + numSgprOffsetC + numSgprOffsetA + numSgprOffsetB
     numSgprLoopPadding = max(0, numSgprFreedBeforeLoops  \
         - numSgprLoopCountersAndIncrements)
-    if kernel["LoopTail"]:
-      numSgprLoopTail = 6
-    else:
-      numSgprLoopTail = 0
 
     ########################################
     # SGPR Assignment according to AMDGPU-ABI
     ########################################
-    sgprIdx = 0
-    self.startSgprKernArgAddress = sgprIdx; sgprIdx += numSgprKernArgAddress
-    assert(self.startSgprKernArgAddress == 0) # kernarg is passed to kernel as SGPR0
 
-    self.startSgprWorkGroup0 = sgprIdx;     sgprIdx += numSgprWorkGroup0
-    self.startSgprWorkGroup1 = sgprIdx;     sgprIdx += numSgprWorkGroup1
-    self.startSgprWorkGroup2 = sgprIdx;     sgprIdx += numSgprWorkGroup2
+    self.defineSgpr("KernArgAddress", self.rpga)
+    assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
 
-    self.startSgprNumWorkGroups0 = sgprIdx; sgprIdx += numSgprNumWorkGroups0
-    self.startSgprNumWorkGroups1 = sgprIdx; sgprIdx += numSgprNumWorkGroups1
+    if kernel["WorkGroupMapping"]>0 :
+      self.defineSgpr("WorkGroup0", 1)
+      self.defineSgpr("WorkGroup1", 1)
+    else:
+      self.defineSgpr("WorkGroup1", 1)
+      self.defineSgpr("WorkGroup0", 1)
+
+    assert (kernel["ProblemType"]["NumIndicesC"] <= 3) # else seems registers below would collide??
+    for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
+      self.defineSgpr("WorkGroup%u"%i, 1)
+
+    self.defineSgpr("NumWorkGroups0", 1)
+    self.defineSgpr("NumWorkGroups1", 1)
 
     if kernel["BufferLoad"]:
-      sgprIdx = ((sgprIdx+3) / 4) * 4  # Round Up to next 4-byte aligned.  
-      self.startSgprSrdA = sgprIdx; sgprIdx += numSgprSrdA;
-      assert (self.startSgprSrdA % 4 == 0) # must be aligned to 4 SGPRs
-      self.startSgprSrdB = sgprIdx; sgprIdx += numSgprSrdB;
-      assert (self.startSgprSrdB % 4 == 0) # must be aligned to 4 SGPRs
+       # resource descriptor (SRD) A and B, must be aligned on 4-SGPR boundary
+      self.defineSgpr("SrdA", 4, 4)
+      self.defineSgpr("SrdB", 4, 4)
 
     # To avoid corrupting tmp sgprs that may be used around the assert,
     # reserve some sgprs to save/restore the execmask
     if self.db["EnableAsserts"]:
-      self.startSgprSaveExecMask             = sgprIdx; sgprIdx += 2
+      self.defineSgpr("SaveExecMask", 2)
 
-    self.startSgprGSUSumIdx = sgprIdx;      sgprIdx += numSgprGSUSumIdx
-    self.startSgprAddressC = sgprIdx;       sgprIdx += numSgprAddressC
-    self.startSgprStridesC = sgprIdx;       sgprIdx += self.numSgprStridesC
+    self.defineSgpr("GSUSumIdx", 2 if kernel["GlobalSplitU"] > 1 else 0)
+    self.defineSgpr("AddressC", numSgprAddressC)
+    self.defineSgpr("StridesC", self.numSgprStridesC)
+
     # doubles need to be aligned to even
-    if tPA["bpe"] > 4 and sgprIdx%2==1:
-      sgprIdx += 1
-    self.startSgprAlpha = sgprIdx;          sgprIdx += numSgprAlpha
-    self.startSgprBeta = sgprIdx;           sgprIdx += numSgprBeta
-    self.startSgprSizesFree = sgprIdx;      sgprIdx += self.numSgprSizesFree
-    self.startSgprSizesSum = sgprIdx;       sgprIdx += self.numSgprSizesSum
-    self.startSgprLoopPadding = sgprIdx;    sgprIdx += numSgprLoopPadding # overlap
-    self.startSgprStridesA = sgprIdx;       sgprIdx += self.numSgprStridesA
-    self.startSgprStridesB = sgprIdx;       sgprIdx += self.numSgprStridesB
-    self.startSgprAddressA = sgprIdx;       sgprIdx += numSgprAddressA
-    self.startSgprAddressB = sgprIdx;       sgprIdx += numSgprAddressB
-    self.startSgprOffsetC = sgprIdx;        sgprIdx += numSgprOffsetC
-    self.startSgprOffsetA = sgprIdx;        sgprIdx += numSgprOffsetA
-    self.startSgprOffsetB = sgprIdx;        sgprIdx += numSgprOffsetB
-    self.startSgprBaseElementIndexA = sgprIdx;  sgprIdx += 1
-    self.startSgprBaseElementIndexB = sgprIdx;  sgprIdx += 1
-    self.startSgprElementIndexIncA = sgprIdx;       sgprIdx += 1
-    self.startSgprElementIndexIncB = sgprIdx;       sgprIdx += 1
-    self.startSgprLoopTail = sgprIdx;       sgprIdx += numSgprLoopTail
+    #if tPA["bpe"] > 4 and self.sgprIdx%2==1:
+    #  self.sgprIdx += 1
+    self.defineSgpr("Alpha", numSgprAlpha, 2)
+    if kernel["ProblemType"]["UseBeta"]:
+      self.defineSgpr("Beta", numSgprBeta, 2)
+
+    self.defineSgpr("SizesFree", self.numSgprSizesFree)
+    self.defineSgpr("SizesSum", self.numSgprSizesSum)
+    self.defineSgpr("LoopPadding", numSgprLoopPadding)
+    self.defineSgpr("StridesA", self.numSgprStridesA)
+    self.defineSgpr("StridesB", self.numSgprStridesB)
+    self.defineSgpr("AddressA", numSgprAddressA)
+    self.defineSgpr("AddressB", numSgprAddressB)
+    self.defineSgpr("OffsetC", numSgprOffsetC)
+    self.defineSgpr("OffsetA", numSgprOffsetA)
+    self.defineSgpr("OffsetB", numSgprOffsetB)
+
+    self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
+    self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
+    self.defineSgpr("LoopCounters", numSgprLoopCounters)
+
+    if kernel["LocalWriteUseSgprA"]:
+        self.defineSgpr("LocalWriteAddrA", 1)
+    if kernel["LocalWriteUseSgprB"]:
+        self.defineSgpr("LocalWriteAddrB", 1)
 
     if globalParameters["DebugKernel"]:
-      self.startSgprAddressDbg = sgprIdx;     sgprIdx += self.numSgprAddressDbg
-      self.startSgprDebugKernelItems = sgprIdx;       sgprIdx += 1
+      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
+      self.defineSgpr("DebugKernelItems", 1)
 
-    self.totalSgprs = sgprIdx
-
+    self.totalSgprs = self.sgprIdx
     self.startSgprTmpPool = self.totalSgprs
-
-    # assign loop sgprs which overlap above assignments
-    sgprIdx = self.startSgprLoopPadding
-    self.startSgprGlobalReadIncsA = sgprIdx; sgprIdx += numSgprGlobalReadIncsA
-    self.startSgprGlobalReadIncsB = sgprIdx; sgprIdx += numSgprGlobalReadIncsB
-    self.startSgprLocalWriteAddrA = sgprIdx; sgprIdx += 1 if kernel["LocalWriteUseSgprA"] else 0
-    self.startSgprLocalWriteAddrB = sgprIdx; sgprIdx += 1 if kernel["LocalWriteUseSgprB"] else 0
-    self.startSgprLoopCounters = sgprIdx
 
     ########################################
     # Register Pools
@@ -1239,54 +1247,11 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     kStr += self.comment3("SGPR Assignments")
 
-    kStr += self.macroRegister("sgprKernArgAddress", \
-        self.startSgprKernArgAddress)
-    kStr += self.macroRegister("sgprWorkGroup%u"%(0 if kernel["WorkGroupMapping"]>0 else 1), self.startSgprWorkGroup0)
-    kStr += self.macroRegister("sgprWorkGroup%u"%(1 if kernel["WorkGroupMapping"]>0 else 0), self.startSgprWorkGroup1)
-    kStr += self.macroRegister("sgprNumWorkGroups0", self.startSgprNumWorkGroups0)
-    kStr += self.macroRegister("sgprNumWorkGroups1", self.startSgprNumWorkGroups1)
-    for i in range(2, kernel["ProblemType"]["NumIndicesC"]):
-      kStr += self.macroRegister("sgprWorkGroup%u"%i, self.startSgprWorkGroup0+i)
-    if kernel["BufferLoad"]:
-      kStr += self.macroRegister("sgprSrdA", self.startSgprSrdA)
-      kStr += self.macroRegister("sgprSrdB", self.startSgprSrdB)
-    if kernel["GlobalSplitU"] > 1:
-      kStr += self.macroRegister("sgprGSUSumIdx",self.startSgprGSUSumIdx)
-    kStr += self.macroRegister("sgprAddressC", self.startSgprAddressC)
-    kStr += self.macroRegister("sgprStridesC", self.startSgprStridesC)
-    kStr += self.macroRegister("sgprAlpha", self.startSgprAlpha)
-    if kernel["ProblemType"]["UseBeta"]:
-      kStr += self.macroRegister("sgprBeta", self.startSgprBeta)
-    kStr += self.macroRegister("sgprSizesFree", self.startSgprSizesFree)
-    kStr += self.macroRegister("sgprSizesSum", self.startSgprSizesSum)
-    kStr += self.macroRegister("sgprLoopPadding", self.startSgprLoopPadding)
-    kStr += self.macroRegister("sgprStridesA", self.startSgprStridesA)
-    kStr += self.macroRegister("sgprStridesB", self.startSgprStridesB)
-    kStr += self.macroRegister("sgprAddressA", self.startSgprAddressA)
-    kStr += self.macroRegister("sgprAddressB", self.startSgprAddressB)
-    kStr += self.macroRegister("sgprOffsetC", self.startSgprOffsetC)
-    kStr += self.macroRegister("sgprOffsetA", self.startSgprOffsetA)
-    kStr += self.macroRegister("sgprOffsetB", self.startSgprOffsetB)
-    if globalParameters["DebugKernel"]:
-      kStr += self.macroRegister("sgprAddressDbg", self.startSgprAddressDbg)
-      kStr += self.macroRegister("sgprDebugKernelItems", self.startSgprDebugKernelItems)
-    if self.db["EnableAsserts"]:
-      kStr += self.macroRegister("sgprSaveExecMask", self.startSgprSaveExecMask)
 
-    if not self.globalReadIncsUseVgpr:
-      kStr += self.macroRegister("sgprGlobalReadIncsA", \
-          self.startSgprGlobalReadIncsA)
-      kStr += self.macroRegister("sgprGlobalReadIncsB", \
-          self.startSgprGlobalReadIncsB)
-
-    if kernel["LocalWriteUseSgprA"]:
-      kStr += self.macroRegister("sgprLocalWriteAddrA", \
-          self.startSgprLocalWriteAddrA)
-    if kernel["LocalWriteUseSgprB"]:
-      kStr += self.macroRegister("sgprLocalWriteAddrB", \
-          self.startSgprLocalWriteAddrB)
-    kStr += self.macroRegister("sgprLoopCounters", self.startSgprLoopCounters)
-    #kStr += self.comment1("SGPR: %u" % self.totalSgprs)
+    # Emit declarations for all sgprs allocated with defineSgpr
+    # in the order they were declared
+    for skey in self.sgprs:
+      kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
 
     if kernel["BufferLoad"]:
       if self.bpeAB == 2:
@@ -1703,7 +1668,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
-    self.startSgprTmpPool = self.startSgprOffsetC
+    self.startSgprTmpPool = self.sgprs["OffsetC"]
 
     ########################################
     # NumWorkGroups
@@ -2895,7 +2860,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
         self.vgprReclaimAfterSummation - self.startVgprValuA + 1)
-    self.startSgprTmpPool = self.startSgprSizesSum
+    self.startSgprTmpPool = self.sgprs["SizesSum"]
     return ""
 
   ##############################################################################
