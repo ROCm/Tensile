@@ -4330,11 +4330,19 @@ class KernelWriterAssembly(KernelWriter):
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.available()
+	# Grow the register pool if needed - we need enough regs for at least one element
+	# Unfortunate since this means the write logic is setting the VGPR requirement
+	# for the entire kernel but at least we have a functional kernel
+        if numVgprAvailable < numVgprsPerElement:
+            t = self.vgprPool.checkOut(numVgprsPerElement)
+            self.vgprPool.checkIn(t)
+            numVgprAvailable = self.vgprPool.available()
+
         #print "NumVgprAvailable", numVgprAvailable
         numElementsPerBatch = numVgprAvailable / numVgprsPerElement
         #print "NumElementsPerBatch", numElementsPerBatch, "LimitedBySgprs", numElementsPerBatchLimitedBySgprs, "WARNING" if numElementsPerBatchLimitedBySgprs < numElementsPerBatch else "okay"
         if numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
-          numElementsPerBatch = numElementsPerBatchLimitedBySgprs 
+          numElementsPerBatch = numElementsPerBatchLimitedBySgprs
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves
@@ -4818,7 +4826,7 @@ class KernelWriterAssembly(KernelWriter):
   #   - Pending global reads.  (skipGlobalRead)
   #   - Pending local write.  (skipLocalWrite)
   #   - Pending local reads (skipLocalRead)
-  # If a skip* arg is set, the associated component does not contribute to
+  # If a skip* arg is -1, the associated component does not contribute to
   # the expected lgkmcnt or vmcnt
   ##############################################################################
   def wait(self, kernel, tPA, tPB, skipGlobalRead, skipLocalWrite, \
@@ -4831,8 +4839,10 @@ class KernelWriterAssembly(KernelWriter):
 
     if skipLocalWrite > -1 or skipLocalRead > -1:
       if skipLocalWrite > -1:
-        numA = tPA["nrp"]*tPA["nrc"]*max(tPA["nwcv"],tPA["nwpv"])/tPA["nwcvpi"]
-        numB = tPB["nrp"]*tPB["nrc"]*max(tPB["nwcv"],tPB["nwpv"])/tPB["nwcvpi"]
+        numA = 0 if kernel["DirectToLdsA"] \
+               else tPA["nrp"]*tPA["nrc"]*max(tPA["nwcv"],tPA["nwpv"])/tPA["nwcvpi"]
+        numB = 0 if kernel["DirectToLdsB"] \
+               else tPB["nrp"]*tPB["nrc"]*max(tPB["nwcv"],tPB["nwpv"])/tPB["nwcvpi"]
         lgkmcnt += skipLocalWrite * (numA + numB)
       if skipLocalRead > -1:
         numA = (kernel["ThreadTile0"] / kernel["VectorWidth"]) \
@@ -4850,7 +4860,7 @@ class KernelWriterAssembly(KernelWriter):
       vmcnt += skipGlobalRead * (numA + numB)
 
       # Unlike flat loads, BufferLoad do not increment the outstanding
-      # lgkmcnt 
+      # lgkmcnt
       if lgkmcnt > -1 and not kernel["BufferLoad"]:
         lgkmcnt += skipGlobalRead * (numA + numB)
 
@@ -4879,7 +4889,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["NumThreads"] > 64 and self.do["Sync"]:
       return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
-      return ""
+      return "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + comment
 
 
   ########################################
