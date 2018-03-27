@@ -274,7 +274,7 @@ class KernelWriter:
         kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
             tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "3wait for global read")
       if self.enable["LocalWrite"]:
         # local write
         kStr += self.comment("local write a")
@@ -293,7 +293,7 @@ class KernelWriter:
       # prefetch-local
       if kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0wait for local write")
         if self.enable["Sync"]:
           kStr += self.syncThreads(kernel)
         if self.enable["LocalRead"]:
@@ -329,24 +329,24 @@ class KernelWriter:
 
     if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "1wait for local write")
       if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel, "wait for global read")
+        kStr += self.syncThreads(kernel, "4sync for global read")
 
     # if not prefetch global, localWrite before mac's
     if not kernel["PrefetchGlobalRead"]:
       # unrolled loop: local write A, B
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "0wait for global read")
       if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel, "prior iter done reading lds")
+        kStr += self.syncThreads(kernel, "PGR=0, prior iter done reading lds")
       if self.enable["LocalWrite"]:
         kStr += self.comment("local write a")
         kStr += self.localWriteDo(kernel, tensorParametersA)
         kStr += self.comment("local write b")
         kStr += self.localWriteDo(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
         # debug Local state
@@ -413,7 +413,7 @@ class KernelWriter:
         kStr += self.comment("local read b")
         kStr += self.localReadDo(kernel, True, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "4wait for global read")
       if self.enable["LocalWrite"]:
         # local write for next iter
         kStr += self.comment("local write a")
@@ -474,7 +474,7 @@ class KernelWriter:
     kStr += self.comment("iter %u"%unrollIter)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "3wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
@@ -494,7 +494,7 @@ class KernelWriter:
         kStr += self.localReadInc(kernel, tensorParametersB)
     elif kernel["PrefetchGlobalRead"]:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "1wait for global read")
       if self.enable["LocalWrite"]:
         # local write
         kStr += self.comment("local write a")
@@ -520,7 +520,7 @@ class KernelWriter:
         kStr += self.comment("local read init pointers b")
         kStr += self.localReadInitPointers(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 0, "0wait for local read")
     elif not kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
       if self.enable["LocalRead"]:
         # local read init ptrs
@@ -529,10 +529,10 @@ class KernelWriter:
         kStr += self.comment("local read init pointers b")
         kStr += self.localReadInitPointers(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "1wait for local read")
     else:
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "2wait for local read")
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
     if self.enable["MAC"]:
@@ -548,7 +548,7 @@ class KernelWriter:
       kStr += self.openSumAtLeastUnroll(kernel, False)
       if not kernel["PrefetchLocalRead"]:
         if self.enable["Wait"]:
-          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write")
         if self.enable["Sync"]:
           kStr += self.syncThreads(kernel)
       for u in range(0, kernel["LoopUnroll"]):
@@ -566,7 +566,7 @@ class KernelWriter:
             kStr += self.localReadInc(kernel, tensorParametersB)
         if self.enable["Wait"]:
           kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
-              1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "wait for local read")
+              1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "3wait for local read")
         if self.enable["MAC"]:
           kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
       kStr += self.closeSumAtLeastUnroll(kernel, False)
@@ -593,7 +593,7 @@ class KernelWriter:
         kStr += self.comment("global read b")
         kStr += self.globalReadDo(kernel, True, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "2wait for global read")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
       if self.enable["LocalWrite"]:
@@ -607,7 +607,7 @@ class KernelWriter:
         kStr += self.comment("local write b")
         kStr += self.localWriteDo(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "wait for local write")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "5wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
       #kStr += self.dumpLds(kernel, 0, 8)
@@ -636,7 +636,7 @@ class KernelWriter:
         kStr += self.comment("local read inc b")
         kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "wait for local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read")
       if self.enable["MAC"]:
         kStr += self.macIter(kernel, False )
 

@@ -223,8 +223,9 @@ validParameters = {
 
 
     # Controls desiredwidth of loads from global memory -> LDS.
-    # 1 is ofen best value since this allows direct global->LDS (no intervening register)
     # and eliminates the pointer unshift logic
+    # -1 : Set GlobalReadVectorWidth =  VectorWidth
+    #  1 cannot be used for half type.
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
 
     # threads should read/write/operate on this many contiguous elements. VW=4 on sgemm means read/write float4's.
