@@ -504,11 +504,11 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s" )
 
     buffer_load_dwordx4 = MemoryInstruction("buffer_load_dwordx4", 1, 0, 0, 4, \
-        "%s, %s, %s, %s idxen offset:0 %s" )
+        "%s, %s, %s, %s offen offset:0 %s" )
     buffer_load_dwordx2 = MemoryInstruction("buffer_load_dwordx2", 1, 0, 0, 2, \
-        "%s, %s, %s, %s idxen offset:0 %s" )
+        "%s, %s, %s, %s offen offset:0 %s" )
     buffer_load_dword = MemoryInstruction("buffer_load_dword", 1, 0, 0, 1, \
-        "%s, %s, %s, %s idxen offset:0 %s" )
+        "%s, %s, %s, %s offen offset:0 %s" )
 
     ########################################
     # Global Write
@@ -1280,22 +1280,11 @@ class KernelWriterAssembly(KernelWriter):
 
 
     if kernel["BufferLoad"]:
-      kStr += self.comment3("Buffer stride based on bytes-per-element:")
-      if self.bpeAB == 2:
-        kStr += self.macroRegister("BufferStride", "0x00020000")
-      elif self.bpeAB == 4:
-        kStr += self.macroRegister("BufferStride", "0x00040000")
-      elif self.bpeAB == 8:
-        kStr += self.macroRegister("BufferStride", "0x00080000")
-      else:
-        assert("unsupported bpeAB")
-
       if not self.preciseBoundsCheck:
         kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
         kStr += self.macroRegister("BufferLimit", "0x80000000")
       kStr += self.comment3("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
       kStr += self.macroRegister("Srd127_96",   "0x0020000")
-      #kStr += self.macroRegister("Srd127_96",    "0x0008000")
 
     ########################################
     # Global Offsets
@@ -1413,7 +1402,13 @@ class KernelWriterAssembly(KernelWriter):
 
       # addr *= bytes/element
 #jgolds which bpe should we use? assuming A
-      if not justOffset32:
+      if justOffset32:
+        kStr += inst("v_lshlrev_b32", \
+            "v[\\vgprAddr+0]", \
+            hex(log2(self.bpeAB)), \
+            "v[\\vgprAddr+0]", \
+            "offset *= bytes/element")
+      else:
         kStr += inst("v_lshlrev_b64", \
             "v[\\vgprAddr+0:\\vgprAddr+1]", \
             hex(log2(self.bpeAB)), \
@@ -2363,17 +2358,20 @@ class KernelWriterAssembly(KernelWriter):
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower)" )
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
-      kStr += inst("s_or_b32", sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), "BufferStride", "Reset buffer stride")
       if self.preciseBoundsCheck:
         kStr += inst("s_mul_i32", \
             sgpr("Srd%s+2"%tc), \
             sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
             sgpr("Strides%s+%u"%(tc,strideIdx)), \
             "set limit to bottom-right corner of array")
+        kStr += inst("s_lshl_b32",
+            sgpr("Srd%s+2"%tc), \
+            sgpr("Srd%s+2"%tc), \
+            hex(log2(tP["bpe"])), \
+            "Size in bytes") #TODO-64B
       else:
         kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit", "")
       kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
-
     else:
       tmp = self.vgprPool.checkOut(2)
       kStr += inst("v_mov_b32", vgpr(tmp+0), sgpr("Address%s+0"%tP["tensorChar"]), "" )
@@ -3007,7 +3005,15 @@ class KernelWriterAssembly(KernelWriter):
            sgpr("Srd%s+1"%(tP["tensorChar"])),\
            sgpr("GlobalReadIncs%s+1"%(tP["tensorChar"])), \
           "gra SRD += inc(upper)" )
-      kStr += inst("s_or_b32", sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), "BufferStride", "Reset buffer stride")
+
+      # also have to move the boundary since we change the base
+      # so less buffers to the edge:
+      if self.preciseBoundsCheck:
+        kStr += inst("s_sub_u32 ", \
+             sgpr("Srd%s+2"%(tc)), \
+             sgpr("Srd%s+2"%(tc)), \
+             sgpr("GlobalReadIncs%s+0"%(tc)), \
+            "limit -= inc)" )
     else:
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
@@ -3096,8 +3102,8 @@ class KernelWriterAssembly(KernelWriter):
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
       if not self.preciseBoundsCheck:
-          # Set maxAddrSgpr to max allowed element offset
-          # maxAddrSgpr = size[n] * stride[n-1] 
+          # Set maxAddrSgpr to max allowed byte offset
+          # maxAddrSgpr = size[n] * stride[n-1] * bpe
           # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
           kStr += self.comment1("max read address = size[n] * stride[n-1]")
           dim = len(tP["ia"])-1 # dim
@@ -3114,25 +3120,27 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Address%s+0"%tc), \
               "Compute distance of SRD from original array in bytes")
 
-          kStr += inst("s_lshr_b32",
-              sgpr(tmpSgpr), \
-              sgpr(tmpSgpr), \
-              hex(log2(tP["bpe"])), \
-              "SRD%s-Address%s Distance in elements"%(tc,tc))
-
           kStr += inst("s_mul_i32", \
               sgpr(maxAddrSgpr+0), \
               sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
               sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
               "Array size")
 
+          kStr += inst("s_lshl_b32",
+              sgpr(maxAddrSgpr+0), \
+              sgpr(maxAddrSgpr+0), \
+              hex(log2(tP["bpe"])), \
+              "Array size in bytes")
+
           kStr += inst("s_sub_u32", \
               sgpr(maxAddrSgpr), \
               sgpr(maxAddrSgpr), \
               sgpr(tmpSgpr), \
-              "Max element offset =  MaxSize - SRD_Distance")
+              "Max byte offset =  MaxSize - SRD_Distance")
 
-      if not kernel["BufferLoad"]:
+      if kernel["BufferLoad"]:
+        offsetVgpr = self.vgprPool.checkOut(1)
+      else:
         kStr += inst("s_mov_b32", sgpr(maxAddrSgpr+1), hex(0), "zero (upper)")
         # maxAddrSgpr *= bytes/element
 
@@ -3229,7 +3237,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " idxen offset:0",\
+                        " offen offset:0",\
                         "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -3247,7 +3255,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " idxen offset:0",\
+                        " offen offset:0",\
                         "load single float")
                   elif kernel["ProblemType"]["DataType"].isDouble():
                     kStr += inst("buffer_load_dwordx2", \
@@ -3255,7 +3263,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " idxen offset:0",\
+                        " offen offset:0",\
                         "load single double")
                   else:
                     printWarning("DataType unsupported")
@@ -3268,7 +3276,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
                         "vcc", \
                         vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                        1, "graOffset += 1")
+                        tP["bpe"], "graOffset += bpe")
                 else: # Not buffer load
                   # mask if current address if in bounds
                   kStr += inst("v_cmpx_lt_u64", "vcc", \
@@ -3375,7 +3383,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr("GlobalReadOffset%s+0"%(tc)), \
           "vcc", \
           vgpr("GlobalReadOffset%s+0"%(tc)), \
-          1, "graOffset += 1")
+          tP["bpe"], "graOffset += bpe")
 
     # TODO - can remove one of these m0 restores if A and B both TLU
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -3601,10 +3609,10 @@ class KernelWriterAssembly(KernelWriter):
 
     #kStr += self.assert_lt(vgpr("Serial"), 64)
 
-
-    #if tc=="B":
-    #  kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
-    #  kStr += self.bomb(13)
+    if 0 and tP["isB"]:
+      kStr += inst("s_barrier", "dump LDS" )
+      kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+      kStr += self.bomb(13)
 
     return kStr
 
