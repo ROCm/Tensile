@@ -19,7 +19,13 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from copy import copy, deepcopy
-from Common import print1, print2, printWarning, defaultSolution, defaultProblemSizes, defaultBenchmarkFinalProblemSizes, defaultBenchmarkCommonParameters, hasParam, defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, defaultBenchmarkForkParameters, defaultJoinParameters, printExit, validParameters
+from Common import print1, print2, printWarning, defaultSolution, \
+    defaultProblemSizes, defaultBenchmarkFinalProblemSizes, \
+    defaultBatchedProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
+    defaultBenchmarkCommonParameters, hasParam, \
+    defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
+    defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
+    validParameters
 from SolutionStructs import Solution, ProblemType, ProblemSizes
 
 ################################################################################
@@ -41,6 +47,9 @@ class BenchmarkProcess:
     #  problemTypeConfig = {}
     #  print2("No ProblemType in config: %s; using defaults." % str(config) )
     self.problemType = ProblemType(problemTypeConfig)
+    self.isBatched = True \
+        if "Batched" in problemTypeConfig and problemTypeConfig["Batched"] \
+        else False
     print2("# BenchmarkProcess beginning %s" % str(self.problemType))
 
     # read initial solution parameters
@@ -73,7 +82,7 @@ class BenchmarkProcess:
     self.singleValueParameters = {}
 
     # (I)
-    self.fillInMissingStepsWithDefaults(problemSizeGroupConfig)
+    self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
 
     # convert list of parameters to list of steps
     self.currentProblemSizes = []
@@ -86,7 +95,7 @@ class BenchmarkProcess:
   ##############################################################################
   # (I) Create lists of param, filling in missing params from defaults
   ##############################################################################
-  def fillInMissingStepsWithDefaults(self, config):
+  def fillInMissingStepsWithDefaults(self, isbatched, config):
     print2("")
     print2("####################################################################")
     print1("# Filling in Parameters With Defaults")
@@ -97,6 +106,8 @@ class BenchmarkProcess:
     # (I-0) get 6 phases from config
     configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
         if "BenchmarkCommonParameters" in config \
+        else [{"ProblemSizes": defaultBatchedProblemSizes}] \
+        if isbatched \
         else [{"ProblemSizes": defaultProblemSizes}]
     configForkParameters = config["ForkParameters"] \
         if "ForkParameters" in config else []
@@ -111,6 +122,8 @@ class BenchmarkProcess:
     configBenchmarkFinalParameters = config["BenchmarkFinalParameters"] \
         if "BenchmarkFinalParameters" in config and config["BenchmarkFinalParameters"] != None \
         and len(config["BenchmarkFinalParameters"]) > 0 \
+        else [{"ProblemSizes": defaultBatchedBenchmarkFinalProblemSizes}] \
+        if isbatched \
         else [{"ProblemSizes": defaultBenchmarkFinalProblemSizes}]
 
     ############################################################################
@@ -138,7 +151,9 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-1) get current problem sizes
-    currentProblemSizes = defaultProblemSizes
+    currentProblemSizes = defaultBatchedProblemSizes \
+        if isbatched \
+        else defaultProblemSizes
     if configBenchmarkCommonParameters != None:
       if len(configBenchmarkCommonParameters) > 0:
         if "ProblemSizes" in configBenchmarkCommonParameters[0]:

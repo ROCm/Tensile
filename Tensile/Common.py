@@ -376,6 +376,9 @@ defaultProblemType = {
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
 defaultBenchmarkFinalProblemSizes = [{"Range": [
     [64, 64, 64, 512], 0, 0 ]}]
+defaultBatchedProblemSizes = [{"Range": [ [2880], 0, [1], 0 ]}]
+defaultBatchedBenchmarkFinalProblemSizes = [{"Range": [
+    [64, 64, 64, 512], 0, [1], 0 ]}]
 
 
 ################################################################################
