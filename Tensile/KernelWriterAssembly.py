@@ -420,13 +420,25 @@ class KernelWriterAssembly(KernelWriter):
     # which parts of the code were changed to support the new mode.
     # True=slightly fewer [v_mov] instructions but extra registers
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
+
+    # When possible, fetch directly into LDS without bypassing registers.
     self.directToLds = 1
 
-    # precise checking only works for vectorloads=1 - else if the vload crosses 
+    # Use SGPR to store an offset from GlobalReadOffsetA+0.
+    # (as opposed to using dedicated VGPR for each GRO
+    self.globalOffsetUseSgpr = True
+
+    # Precise bounds check uses the "num_records" field in the buffer to
+    # precisely detect when we are inbounds or not.  Only a one-dimensional
+    # check is used since this is faster and also for computation we only
+    # need to ensure that none of the loads fault.  Work-items which are
+    # computing bogus sections of the C tile will later be ignored.
+    # precise checking only works for vectorloads=1 - else if the vload crosses
     # boundary we ignore all components not just the ones that are OOB.
     self.preciseBoundsCheck = kernel["BufferLoad"] \
         and kernel["GlobalLoadVectorWidthA"]==1 \
         and kernel["GlobalLoadVectorWidthB"]==1
+    #---
 
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
@@ -799,9 +811,9 @@ class KernelWriterAssembly(KernelWriter):
         / (self.globalReadInstructionA.blockWidth * 4)
 
     if kernel["BufferLoad"]:
-      numVgprGlobalReadOffsetsA = numGlobalReadInstructionsA * self.rpgo 
+      numVgprGlobalReadOffsetsA = numGlobalReadInstructionsA * self.rpgo
     else:
-      numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga 
+      numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] \
@@ -2085,8 +2097,8 @@ class KernelWriterAssembly(KernelWriter):
       numTileOffsets *= tP["glvw"]
     tP["vgprTileOffsets"] = self.vgprPool.checkOut(numTileOffsets)
     v = tP["vgprTileOffsets"]
-    stride = tP["lsc"] if tP["tlu"] else tP["lsp"]
-    stride = kernel[stride]
+    strideIdx = tP["lsc"] if tP["tlu"] else tP["lsp"]
+    stride = kernel[strideIdx]
     if tP["rtc"]:
       # l=0, s=0
       kStr += inst("v_mov_b32", vgpr(v), \
@@ -2099,7 +2111,7 @@ class KernelWriterAssembly(KernelWriter):
         # l>0, s=0
         kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]), "vcc", stride, \
             vgpr(v+(l-1)*tP["glvw"]), \
-            "gro%s%s_%u_s%u"%(tP["tensorChar"], tP["tileChar"], l, 0) )
+            "gro%s%s_%u_s%u + %s"%(tP["tensorChar"], tP["tileChar"], l, 0, strideIdx) )
         # l>0, s>0
         for s in range(1, tP["glvw"]):
           kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]+s), "vcc", \
@@ -2110,7 +2122,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(tP["gpr"]["tReg"]), "gro%s%s_%u"%(tP["tensorChar"], tP["tileChar"], 0) )
       for l in range(1, tP["nrt"]):
         kStr += inst("_v_add_co_u32", vgpr(v+l), "vcc", stride, \
-            vgpr(v+l-1), "gro%s%s_%u"%(tP["tensorChar"], tP["tileChar"], l) )
+            vgpr(v+l-1), "gro%s%s_%u += %s"%(tP["tensorChar"], tP["tileChar"], l, strideIdx) )
     self.vgprPool.checkIn(tP["gpr"]["tReg"])
     return kStr
 
@@ -2125,8 +2137,8 @@ class KernelWriterAssembly(KernelWriter):
       numUnrollOffsets *= tP["glvw"]
     tP["gpr"]["unrollOffsets"] = self.vgprPool.checkOut(numUnrollOffsets)
     v = tP["gpr"]["unrollOffsets"]
-    stride = (tP["lsp"] if tP["tlu"] else tP["lsc"])
-    stride = kernel[stride]
+    strideIdx = (tP["lsp"] if tP["tlu"] else tP["lsc"])
+    stride = kernel[strideIdx]
     if tP["ruc"]:
       # l=0, s=0
       kStr += inst("v_mov_b32", vgpr(v), \
@@ -2139,7 +2151,7 @@ class KernelWriterAssembly(KernelWriter):
         # l>0, s=0
         kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]), "vcc", stride, \
             vgpr(v+(l-1)*tP["glvw"]), \
-            "gro%s%s_%u_s%u"%(tP["tensorChar"], self.unrollChar, l, 0) )
+            "gro%s%s_%u_s%u + %s"%(tP["tensorChar"], self.unrollChar, l, 0, strideIdx) )
         # l>0, s>0
         for s in range(1, tP["glvw"]):
           kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]+s), "vcc", \
@@ -2150,7 +2162,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(tP["gpr"]["uReg"]), "gro%s%s_%u"%(tP["tensorChar"], self.unrollChar, 0) )
       for l in range(1, tP["nru"]):
         kStr += inst("_v_add_co_u32", vgpr(v+l), "vcc", stride, \
-            vgpr(v+l-1), "gro%s%s_%u"%(tP["tensorChar"], self.unrollChar, l) )
+            vgpr(v+l-1), "gro%s%s_%u + %s"%(tP["tensorChar"], self.unrollChar, l, strideIdx) )
     #self.vgprPool.checkIn(tP["gpr"]["uReg"])
     return kStr
 
@@ -2203,6 +2215,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graFinalOffsets(self, kernel, tP):
     kStr = ""
+    tc = tP["tensorChar"]
     tVW = 1
     tVS = 0
     uVW = 1
@@ -2247,6 +2260,29 @@ class KernelWriterAssembly(KernelWriter):
             kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine)
 
+            if 1 and self.preciseBoundsCheck and graIdx >0: # and tP["isB"]:
+              tmpSgpr = self.getTmpSgpr(1)
+              if tP["tlu"]:
+                tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
+                unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
+                kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("Strides%s"%tc), unrollStride, \
+                             "compute offset diff (scaled unrollDim)")
+                kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), tileStride, \
+                           "compute offset diff (tileDim)")
+              else:
+                tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
+                unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
+                kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("Strides%s"%tc), tileStride, \
+                             "compute offset diff (scaled tileDim)")
+                kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), unrollStride, \
+                           "compute offset diff (unrollDim)")
+
+              print tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
+                    "Strides%s="%tc
+
+              kStr += self.assert_vector_diff(vgpr("GlobalReadOffset%s+%u"%(tc,0)), \
+                                              vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
+                                              sgpr(tmpSgpr))
 
             # dump final offsets
             # BufferLoad flavor:
@@ -5108,9 +5144,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.assertCommon(cookie)
       kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
           "assert: restore execmask")
-
     return kStr
-
 
   # Assert that all bits in vcc are false, or assert/bomb otherwise
   def assert_vcc_false(self, cookie=-1):
@@ -5122,10 +5156,21 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.assertCommon(cookie)
       kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
           "assert: restore execmask")
-
     return kStr
 
-
+  # assert v0 + expectedScalarDiff == v1
+  # Verify that each element in v1 is scalar offset from v0
+  def assert_vector_diff(self, v0, v1, expectedScalarDiff, cookie=-1):
+    kStr = ""
+    cmpVgpr = self.vgprPool.checkOut(1)
+    kStr += inst("_v_add_co_u32", \
+                 vgpr(cmpVgpr), "vcc", \
+                 expectedScalarDiff, \
+                 v0, \
+                 "assert_vector_diff add expectedScalarDiff")
+    kStr += self.assert_eq(vgpr(cmpVgpr), v1, cookie)
+    self.vgprPool.checkIn(cmpVgpr)
+    return kStr
 
   ########################################
   # Store to Debug Buffer
