@@ -1235,6 +1235,12 @@ class Solution:
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsB=", state["DirectToLdsB"]
 
+    if state["KernelLanguage"] == "Assembly" and state["UseSgprForGRO"] == -1:
+      # Don't use SGPR if it looks like we might not have enough:
+      # 40 is based on current SGPR usage, this may need to be tuned in the future:
+      if state["NumLoadsA"] + state["NumLoadsB"] > 40:
+        print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
+        state["UseSgprForGRO"] = 0
 
     state["AssignedDerivedParameters"] = True
 

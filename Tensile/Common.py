@@ -212,7 +212,13 @@ validParameters = {
     "LocalWrite2B":               [ False, True ],
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
-    "BufferLoad":                 [ False, True] ,
+    "BufferLoad":                 [ False, True],
+
+    # Attempt to use SGPR for Global Read Offsets.
+    # This will convert VGPR into SGPR which is usually a win (in particular if the GlobalReadWidth is 1.)
+    # However, the mode may exhaust all available SGPR, in particular for large unroll
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
+    "UseSgprForGRO":              [ -1, 0, 1],
 
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
@@ -314,6 +320,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
     {"BufferLoad":                [ True ] },
+    {"UseSgprForGRO":             [ -1 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
