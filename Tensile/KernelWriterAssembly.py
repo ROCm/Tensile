@@ -415,39 +415,16 @@ class KernelWriterAssembly(KernelWriter):
     self.sgprIdx = 0
 
     #---
-    # Internal optimization controls.
+    # Internal optimization and debug controls.
     # These have a default which is almost always faster so don't make a full-blown YAML parm
     # But have a control here so we can disable for debugging and also easily tell
     # which parts of the code were changed to support the new mode.
-    # True=slightly fewer [v_mov] instructions but extra registers
-    self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
-
-    # When possible, fetch directly into LDS without bypassing registers.
-    self.directToLds = 1
-
-
-    # Precise bounds check uses the "num_records" field in the buffer to
-    # precisely detect when we are inbounds or not.  Only a one-dimensional
-    # check is used since this is faster and also for computation we only
-    # need to ensure that none of the loads fault.  Work-items which are
-    # computing bogus sections of the C tile will later be ignored.
-    # precise checking only works for vectorloads=1 - else if the vload crosses
-    # boundary we ignore all components not just the ones that are OOB.
-    self.preciseBoundsCheck = kernel["BufferLoad"] \
-        and kernel["GlobalLoadVectorWidthA"]==1 \
-        and kernel["GlobalLoadVectorWidthB"]==1
-    #---
-
-    # Use SGPR to store an offset from GlobalReadOffsetA+0.
-    # (as opposed to using dedicated VGPR for each GRO
-    # Requires preciseBounds check since we rely on the buffer bounds check, not
-    # individual vector registers doing bounds compares.
-    self.useSgprForGRO = kernel["UseSgprForGRO"] and kernel["BufferLoad"] and self.preciseBoundsCheck
+    self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True 
 
     self.checkGRO = False
     # checkGRO requires useSgprForGRO=0 so that code allocates and
     # the VGPRs that are used for the GRO offset checking
-    assert not (self.useSgprForGRO and self.checkGRO)
+    assert not (kernel["UseSgprForGRO"] and self.checkGRO)
 
     # Debug mode to explore combining VGPRs.
     # Saves VGPRs but doesn't generate correct answer
@@ -461,7 +438,7 @@ class KernelWriterAssembly(KernelWriter):
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmHasExplicitCO"][self.version]
 
-    if not self.directToLds or not globalParameters["AsmHasDirectToLds"][self.version]:
+    if not globalParameters["AsmHasDirectToLds"][self.version]:
       kernel["DirectToLdsA"] = False
       kernel["DirectToLdsB"] = False
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
@@ -916,9 +893,9 @@ class KernelWriterAssembly(KernelWriter):
     # BufferLoad disables the gptGlobalReadAddr used in flat addressing.
     if kernel["BufferLoad"]:
        self.startVgprGlobalReadOffsetA = vgprIdx
-       vgprIdx += 1 if self.useSgprForGRO else numGlobalReadOffsetsA
+       vgprIdx += 1 if kernel["UseSgprForGRO"] else numGlobalReadOffsetsA
        self.startVgprGlobalReadOffsetB = vgprIdx
-       vgprIdx += 1 if self.useSgprForGRO else numGlobalReadOffsetsB
+       vgprIdx += 1 if kernel["UseSgprForGRO"] else numGlobalReadOffsetsB
     else:
       self.startVgprGlobalReadAddressesA = vgprIdx
       vgprIdx += numVgprGlobalReadAddressesA
@@ -1062,7 +1039,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
 
-    if self.useSgprForGRO:
+    if kernel["UseSgprForGRO"]:
       self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
       self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
 
@@ -1212,6 +1189,12 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  private_segment_alignment = 4%s" % self.endLine
     kStr += ".end_amd_kernel_code_t%s" % self.endLine
 
+    kStr += self.comment3("Optimizations:")
+    kStr += self.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
+    kStr += self.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
+    kStr += self.comment1("PreciseBoundsCheck=%s" % kernel["PreciseBoundsCheck"])
+    kStr += self.comment1("UseSgprForGRO=%s" % kernel["UseSgprForGRO"])
+
 
     kStr += self.comment3("ASM syntax bug workarounds")
     kStr += ".macro _v_add_co_u32 dst, cc, src0, src1, dpp=" + self.endLine
@@ -1299,7 +1282,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
     if kernel["BufferLoad"]:
-      if not self.preciseBoundsCheck:
+      if not kernel["PreciseBoundsCheck"]:
         kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
         kStr += self.macroRegister("BufferLimit", "0x80000000")
       kStr += self.comment3("Bits 127:96 of SRD.  Set DataFormat = 32 bit")
@@ -1374,12 +1357,12 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u lower"%i)
-	  if not justOffset32:
-	    kStr += inst("v_mul_hi_u32", \
-		"v[\\vgprTmp+1]", \
-		sgpr("Strides%s+%u"%(tensorChar,i-1)), \
-		"v[\\vgprOffset%s]" % idxChars[i],  \
-		"mul d%u upper"%i)
+          if not justOffset32:
+            kStr += inst("v_mul_hi_u32", \
+                "v[\\vgprTmp+1]", \
+                sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+                "v[\\vgprOffset%s]" % idxChars[i],  \
+                "mul d%u upper"%i)
         # other c index sgpr
         elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
           kStr += inst("v_mov_b32", \
@@ -2207,7 +2190,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A/B
   ##############################################################################
   def graShift(self, kernel, tP):
-    if self.preciseBoundsCheck: return ""
+    if kernel["PreciseBoundsCheck"]: return ""
 
     kStr = ""
     # edge value
@@ -2272,7 +2255,7 @@ class KernelWriterAssembly(KernelWriter):
               vgprTile   = tileOffsets   + perp*tVW + sPara*tVS
               vgprUnroll = unrollOffsets + para*uVW + sPerp*uVS
 
-            if graIdx==0 or not self.useSgprForGRO:
+            if graIdx==0 or not kernel["UseSgprForGRO"]:
               # emit global offset macro
               if kernel["BufferLoad"]:
                   kStr += "GLOBAL_OFFSET_%s vgprGlobalReadOffset%s+%u"%(tP["tensorChar"], tP["tensorChar"], graIdx)
@@ -2292,8 +2275,8 @@ class KernelWriterAssembly(KernelWriter):
               kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                   para, sPara, perp, sPerp, self.endLine)
 
-            if graIdx >0 and (self.useSgprForGRO or self.checkGRO):
-              if self.useSgprForGRO:
+            if graIdx >0 and (kernel["UseSgprForGRO"] or self.checkGRO):
+              if kernel["UseSgprForGRO"]:
                 scalarGro = "ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1)
               else:
                 scalarGro = self.getTmpSgpr(1)
@@ -2325,7 +2308,7 @@ class KernelWriterAssembly(KernelWriter):
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
                                                 sgpr(scalarGro))
 
-              if self.useSgprForGRO:
+              if kernel["UseSgprForGRO"]:
                   kStr += inst("s_lshl_b32", \
                       sgpr(scalarGro), \
                       sgpr(scalarGro), \
@@ -2376,7 +2359,7 @@ class KernelWriterAssembly(KernelWriter):
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower)" )
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
-      if self.preciseBoundsCheck:
+      if kernel["PreciseBoundsCheck"]:
         kStr += inst("s_mul_i32", \
             sgpr("Srd%s+2"%tc), \
             sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
@@ -3026,7 +3009,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # also have to move the boundary since we change the base
       # so less buffers to the edge:
-      if self.preciseBoundsCheck:
+      if kernel["PreciseBoundsCheck"]:
         kStr += inst("s_sub_u32 ", \
              sgpr("Srd%s+2"%(tc)), \
              sgpr("Srd%s+2"%(tc)), \
@@ -3119,7 +3102,7 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-64B:
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
-      if not self.preciseBoundsCheck:
+      if not kernel["PreciseBoundsCheck"]:
           # Set maxAddrSgpr to max allowed byte offset
           # maxAddrSgpr = size[n] * stride[n-1] * bpe
           # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
@@ -3216,8 +3199,8 @@ class KernelWriterAssembly(KernelWriter):
 
                 if kernel["BufferLoad"]:
                   # mask if current address if in bounds
-                  if self.preciseBoundsCheck:
-                    if self.useSgprForGRO:
+                  if kernel["PreciseBoundsCheck"]:
+                    if kernel["UseSgprForGRO"]:
                       offsetVgpr = "GlobalReadOffset%s+0"%(tc)
                       if graIdx==0:
                         soffset = "0"
@@ -3285,11 +3268,11 @@ class KernelWriterAssembly(KernelWriter):
                         "load single double")
                   else:
                     printWarning("DataType unsupported")
-                  if not self.preciseBoundsCheck:
+                  if not kernel["PreciseBoundsCheck"]:
                     self.vgprPool.checkIn(offsetVgpr)
 
                   # increment offset by 1 element
-                  if not self.useSgprForGRO:
+                  if not kernel["UseSgprForGRO"]:
                     kStr += inst("_v_add_co_u32", \
                         vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
                         "vcc", \
@@ -3337,7 +3320,7 @@ class KernelWriterAssembly(KernelWriter):
                       "gra += 1 (upper)")
             else: # not guardK
               if kernel["BufferLoad"]:
-                if graIdx==0 or not self.useSgprForGRO:
+                if graIdx==0 or not kernel["UseSgprForGRO"]:
                   offsetVgpr= "GlobalReadOffset%s+%u"%(tc, graIdx)
                   soffset = "0"
                 else:
@@ -3394,7 +3377,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_barrier // debug\n"
     #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
-    if guardK and self.useSgprForGRO:
+    if guardK and kernel["UseSgprForGRO"]:
       # increment offset 0 by 1 element
       # have to do this after all the component loads since they all use 0
       kStr += inst("_v_add_co_u32", \
@@ -4502,9 +4485,9 @@ class KernelWriterAssembly(KernelWriter):
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.available()
-	# Grow the register pool if needed - we need enough regs for at least one element
-	# Unfortunate since this means the write logic is setting the VGPR requirement
-	# for the entire kernel but at least we have a functional kernel
+        # Grow the register pool if needed - we need enough regs for at least one element
+        # Unfortunate since this means the write logic is setting the VGPR requirement
+        # for the entire kernel but at least we have a functional kernel
         if numVgprAvailable < numVgprsPerElement:
             t = self.vgprPool.checkOut(numVgprsPerElement)
             self.vgprPool.checkIn(t)

@@ -723,10 +723,13 @@ class Solution:
       state["MacroTileA"] = state["MacroTile1"]
 
     # Init vars early since there are early-exit return statements below
+    state["DirectToLds"] = False
     state["DirectToLdsA"] = False
     state["DirectToLdsB"] = False
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
+    state["PreciseBoundsCheck"] = False
+    state["UseSgprForGRO"] = False
 
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
@@ -1201,6 +1204,12 @@ class Solution:
             % (state["LoopUnroll"]))
       state["Valid"] = False
 
+    if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
+      state["BufferLoad"] = False
+      state["DirectToLds"] = False
+      state["PreciseBoundsCheck"] = False
+      state["UseSgprForGRO"] = False
+
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -1209,10 +1218,9 @@ class Solution:
     # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
     # Note for these matrices LSC is same as MacroTile dim
     # TODO - currently only support Single but could be extended to 2 halfs or part of a double
-
-    if state["KernelLanguage"] == "Assembly" \
-      and state["BufferLoad"] \
-      and state["ProblemType"]["DataType"].isSingle():
+    state["DirectToLdsA"] = state["DirectToLds"]
+    state["DirectToLdsB"] = state["DirectToLds"]
+    if state["ProblemType"]["DataType"].isSingle():
       if state["GlobalLoadVectorWidthA"] == 1 \
         and not state["ProblemType"]["TransposeA"] \
         and ((state["LSCA"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
@@ -1235,12 +1243,34 @@ class Solution:
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsB=", state["DirectToLdsB"]
 
-    if state["KernelLanguage"] == "Assembly" and state["UseSgprForGRO"] == -1:
+    # Precise bounds check uses the "num_records" field in the buffer to
+    # precisely detect when we are inbounds or not.  Only a one-dimensional
+    # check is used since this is faster and also for computation we only
+    # need to ensure that none of the loads fault.  Work-items which are
+    # computing bogus sections of the C tile will later be ignored.
+    # precise checking only works for vectorloads=1 - else if the vload crosses
+    # boundary we ignore all components not just the ones that are OOB.
+    # TODO - we could support larger loads if we know the array is a multiple
+    # of the load width
+    if state["PreciseBoundsCheck"]:
+      if kernel["GlobalLoadVectorWidthA"] !=1 \
+        or kernel["GlobalLoadVectorWidthB"] ==1:
+        state["PreciseBoundsCheck"] = False
+
+    # Use SGPR to store an offset from GlobalReadOffsetA+0.
+    # (as opposed to using dedicated VGPR for each GRO
+    # Requires preciseBounds check since we rely on the buffer bounds check, not
+    # individual vector registers doing bounds compares.
+    if not state["PreciseBoundsCheck"]:
+      state["UseSgprForGRO"] = False
+
+    if state["UseSgprForGRO"] == -1:
       # Don't use SGPR if it looks like we might not have enough:
       # 40 is based on current SGPR usage, this may need to be tuned in the future:
       if state["NumLoadsA"] + state["NumLoadsB"] > 40:
         print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["UseSgprForGRO"] = 0
+
 
     state["AssignedDerivedParameters"] = True
 
