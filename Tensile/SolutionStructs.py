@@ -723,13 +723,10 @@ class Solution:
       state["MacroTileA"] = state["MacroTile1"]
 
     # Init vars early since there are early-exit return statements below
-    state["DirectToLds"] = False
     state["DirectToLdsA"] = False
     state["DirectToLdsB"] = False
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
-    state["PreciseBoundsCheck"] = False
-    state["UseSgprForGRO"] = False
 
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
@@ -1218,9 +1215,7 @@ class Solution:
     # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
     # Note for these matrices LSC is same as MacroTile dim
     # TODO - currently only support Single but could be extended to 2 halfs or part of a double
-    state["DirectToLdsA"] = state["DirectToLds"]
-    state["DirectToLdsB"] = state["DirectToLds"]
-    if state["ProblemType"]["DataType"].isSingle():
+    if state["DirectToLds"] and state["ProblemType"]["DataType"].isSingle():
       if state["GlobalLoadVectorWidthA"] == 1 \
         and not state["ProblemType"]["TransposeA"] \
         and ((state["LSCA"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
@@ -1253,8 +1248,8 @@ class Solution:
     # TODO - we could support larger loads if we know the array is a multiple
     # of the load width
     if state["PreciseBoundsCheck"]:
-      if kernel["GlobalLoadVectorWidthA"] !=1 \
-        or kernel["GlobalLoadVectorWidthB"] ==1:
+      if state["GlobalLoadVectorWidthA"]   !=1 \
+        or state["GlobalLoadVectorWidthB"] !=1:
         state["PreciseBoundsCheck"] = False
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
@@ -1262,7 +1257,7 @@ class Solution:
     # Requires preciseBounds check since we rely on the buffer bounds check, not
     # individual vector registers doing bounds compares.
     if not state["PreciseBoundsCheck"]:
-      state["UseSgprForGRO"] = False
+      state["UseSgprForGRO"] = 0
 
     if state["UseSgprForGRO"] == -1:
       # Don't use SGPR if it looks like we might not have enough:
@@ -1270,7 +1265,8 @@ class Solution:
       if state["NumLoadsA"] + state["NumLoadsB"] > 40:
         print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["UseSgprForGRO"] = 0
-
+      else:
+        state["UseSgprForGRO"] = 1
 
     state["AssignedDerivedParameters"] = True
 

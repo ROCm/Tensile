@@ -145,7 +145,7 @@ class RegisterPool:
       for i in range(found, found+size):
         self.pool[i] = self.statusInUse
       self.checkOutSize[found] = size
-      #print "RP::checkOut(%u,%u) @ %u"%(size,alignment, found)
+      #print "RP::checkOut(%u,%u) @ %u avail=%u"%(size,alignment, found, self.available())
       return found
     # need overflow
     else:
@@ -935,6 +935,7 @@ class KernelWriterAssembly(KernelWriter):
     self.totalVgprs = vgprIdx
 
 
+
     ########################################
     # SGPR Allocation
     ########################################
@@ -1266,6 +1267,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
+    kStr += self.comment1("max VGPR=%u"%self.totalVgprs)
 
 
     ########################################
@@ -3139,12 +3141,9 @@ class KernelWriterAssembly(KernelWriter):
               sgpr(tmpSgpr), \
               "Max byte offset =  MaxSize - SRD_Distance")
 
-      if kernel["BufferLoad"]:
-        offsetVgpr = self.vgprPool.checkOut(1)
-      else:
+      if not kernel["BufferLoad"]:
         kStr += inst("s_mov_b32", sgpr(maxAddrSgpr+1), hex(0), "zero (upper)")
         # maxAddrSgpr *= bytes/element
-
 
         kStr += inst("s_lshl_b64", \
             sgpr(maxAddrSgpr,2), \
@@ -4489,6 +4488,7 @@ class KernelWriterAssembly(KernelWriter):
         # Unfortunate since this means the write logic is setting the VGPR requirement
         # for the entire kernel but at least we have a functional kernel
         if numVgprAvailable < numVgprsPerElement:
+            print "grow pool"
             t = self.vgprPool.checkOut(numVgprsPerElement)
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.available()
