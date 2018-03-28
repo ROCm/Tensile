@@ -185,7 +185,7 @@ class RegisterPool:
         self.pool[i] = self.statusAvailable
       self.checkOutSize.pop(start)
     else:
-      printWarning("RegisterPool::checkIn(%u) but it was never checked out"%start)
+      printWarning("RegisterPool::checkIn(%s) but it was never checked out"%start)
 
   ########################################
   # Size
@@ -1374,12 +1374,12 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprOffset%s]" % idxChars[i],  \
               "mul d%u lower"%i)
-          if not justOffset32:
-            kStr += inst("v_mul_hi_u32", \
-                "v[\\vgprTmp+1]", \
-                sgpr("Strides%s+%u"%(tensorChar,i-1)), \
-                "v[\\vgprOffset%s]" % idxChars[i],  \
-                "mul d%u upper"%i)
+	  if not justOffset32:
+	    kStr += inst("v_mul_hi_u32", \
+		"v[\\vgprTmp+1]", \
+		sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+		"v[\\vgprOffset%s]" % idxChars[i],  \
+		"mul d%u upper"%i)
         # other c index sgpr
         elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
           kStr += inst("v_mov_b32", \
@@ -2372,7 +2372,6 @@ class KernelWriterAssembly(KernelWriter):
       sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
       if sizeIdxIsSum:
         sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
-
 
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower)" )
@@ -5065,7 +5064,6 @@ class KernelWriterAssembly(KernelWriter):
     else:
       return "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
               comment + self.endLine
-
 
   ########################################
   # dump lds state
