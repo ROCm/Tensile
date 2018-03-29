@@ -460,7 +460,7 @@ BenchmarkProblems:
           - [ 32,  8, 1 ]
           - [ 32, 16, 1 ]
         - WorkGroupMapping: [1, 8]
-        - DepthU: [ 8, 16, 24, 32 ]
+        - DepthU: [ 8, 16, 24, 32, 64 ]
         - VectorWidth: [1,2,4]
         - GlobalReadVectorWidth: [4]
         - LdsPadB: [0,1,2,4]
