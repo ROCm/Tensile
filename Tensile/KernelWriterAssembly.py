@@ -2300,6 +2300,14 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), unrollStride, \
                              "compute offset diff (unrollDim)")
 
+              # Using offsets so GRO holds a byte offset not an element offset
+              # So scale here before comparison:
+              kStr += inst("s_lshl_b32", \
+                  sgpr(scalarGro), \
+                  sgpr(scalarGro), \
+                  hex(log2(tP["bpe"])), \
+                  "scalar offset *= bytes/element")
+
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
 
@@ -2310,12 +2318,6 @@ class KernelWriterAssembly(KernelWriter):
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
                                                 sgpr(scalarGro))
 
-              if kernel["UseSgprForGRO"]:
-                  kStr += inst("s_lshl_b32", \
-                      sgpr(scalarGro), \
-                      sgpr(scalarGro), \
-                      hex(log2(tP["bpe"])), \
-                      "scalar offset *= bytes/element")
 
             # dump final offsets
             # BufferLoad flavor:
