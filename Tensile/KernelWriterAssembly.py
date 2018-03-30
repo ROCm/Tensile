@@ -2867,7 +2867,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "don't enter Loop%s"%loopChar )
 
-    
     # LSU not all threads will do summation
     if tailLoop and kernel["LocalSplitU"] > 1:
       tmpSgpr = self.getTmpSgpr(2)
@@ -2891,7 +2890,6 @@ class KernelWriterAssembly(KernelWriter):
       #self.vgprPool.checkIn(numIter)
 
       # thread is active is sgId < numIter % LocalSplitU
-    
     # begin loop
     kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
 
@@ -4146,6 +4144,9 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
 
+    if kernel["BufferStore"]:
+      kStr += self.allocPostSrd(kernel, "C")
+
     # tmp gprs
     tmpVgpr = self.vgprPool.checkOut(2)
     tid0 = self.vgprPool.checkOut(1)
@@ -4202,12 +4203,27 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  ##############################################################################
+  def allocPostSrd(self, kernel, ch):
+    kStr = ""
+    # Buffer-load uses one base read pointer stored in the SRD - set it here:
+    kStr += inst("s_mov_b32", sgpr("Srd%s+0"%ch), sgpr("Address%s+0"%ch), "init SRD base address (lower)" )
+    kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
+    kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), 0x80000000, "")
+    kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in SRD")
+    return kStr
+
+
+  ##############################################################################
   # Not LocalSplitU: Global Write Indices
   ##############################################################################
   def notLocalSplitUGlobalWriteIndices(self, kernel):
     #print "GlobalWriteIndices"
     if not self.do["PostLoop"]: return ""
     kStr = ""
+
+    if kernel["BufferStore"]:
+      kStr += self.allocPostSrd(kernel, "C")
 
     self.scratchSgprs = self.getTmpSgpr(1)
 
@@ -4643,12 +4659,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
 
       # final address = C + index*bytes
-      kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
-          vgpr(addr+0), "addr = C + index*bytes (lo)" )
-      if kernel["BufferStore"]:
-        kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
-            0, "vcc", "addr = C + index*bytes (hi)")
-      else:
+      if not kernel["BufferStore"]:
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
+            vgpr(addr+0), "addr = C + index*bytes (lo)" )
         kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
             vgpr(addr+1), "vcc", "addr = C + index*bytes (hi)")
 
@@ -4920,20 +4933,37 @@ class KernelWriterAssembly(KernelWriter):
             nonTemporalStr += " glc"
           if kernel["NonTemporalC"]/2==1:
             nonTemporalStr += " slc"
-          if kernel["ProblemType"]["DataType"].isHalf():
-            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              if sumIdx%2:
-                kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+          if kernel["BufferStore"]:
+            if kernel["ProblemType"]["DataType"].isHalf():
+              if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                if sumIdx%2:
+                  kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+                else:
+                  kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
               else:
-                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
-            else:
-              # convert C to fp16 before output
-              kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
-              kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
-          elif kernel["ProblemType"]["DataType"].isSingle():
-            kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
-          elif kernel["ProblemType"]["DataType"].isDouble():
-            kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
+                # convert C to fp16 before output
+                kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
+                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
+            elif kernel["ProblemType"]["DataType"].isSingle():
+              kStr += "buffer_store_dword %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                       ( vgpr(sumIdx), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
+            elif kernel["ProblemType"]["DataType"].isDouble():
+              kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
+          else:
+            if kernel["ProblemType"]["DataType"].isHalf():
+              if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                if sumIdx%2:
+                  kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+                else:
+                  kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+              else:
+                # convert C to fp16 before output
+                kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
+                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
+            elif kernel["ProblemType"]["DataType"].isSingle():
+              kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
+            elif kernel["ProblemType"]["DataType"].isDouble():
+              kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
 
       if edge: # subsequent batch must start with full exec mask
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
