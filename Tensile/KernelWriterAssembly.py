@@ -2869,7 +2869,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "don't enter Loop%s"%loopChar )
 
-    
     # LSU not all threads will do summation
     if tailLoop and kernel["LocalSplitU"] > 1:
       tmpSgpr = self.getTmpSgpr(2)
@@ -2893,7 +2892,6 @@ class KernelWriterAssembly(KernelWriter):
       #self.vgprPool.checkIn(numIter)
 
       # thread is active is sgId < numIter % LocalSplitU
-    
     # begin loop
     kStr += "label_%04u:%s" % (loopLabelBegin, self.endLine)
 
@@ -4148,6 +4146,9 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWriteIndices(self, kernel):
     kStr = ""
 
+    if kernel["BufferStore"]:
+      kStr += self.allocPostLoopSrd(kernel, "C")
+
     # tmp gprs
     tmpVgpr = self.vgprPool.checkOut(2)
     tid0 = self.vgprPool.checkOut(1)
@@ -4192,16 +4193,33 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpVgpr)
     self.coord0 = tid0
     self.coord1 = tid1
-    self.addrC = self.vgprPool.checkOut(2)
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+0), \
-        sgpr("AddressC+0"), \
-        "sgpr -> vgpr")
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+1), \
-        sgpr("AddressC+1"), \
-        "sgpr -> vgpr")
+    if kernel["BufferStore"]:
+      self.addrC = -1
+      self.addrC = self.vgprPool.checkOut(2)
+    else:
+      self.addrC = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+0), \
+          sgpr("AddressC+0"), \
+          "sgpr -> vgpr")
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+1), \
+          sgpr("AddressC+1"), \
+          "sgpr -> vgpr")
+
     return kStr
+
+  ##############################################################################
+  ##############################################################################
+  def allocPostLoopSrd(self, kernel, ch):
+    kStr = ""
+    # Buffer-load uses one base read pointer stored in the SRD - set it here:
+    kStr += inst("s_mov_b32", sgpr("Srd%s+0"%ch), sgpr("Address%s+0"%ch), "init SRD base address (lower)" )
+    kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
+    kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), hex(0x80000000), "")
+    kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in SRD")
+    return kStr
+
 
   ##############################################################################
   # Not LocalSplitU: Global Write Indices
@@ -4210,6 +4228,9 @@ class KernelWriterAssembly(KernelWriter):
     #print "GlobalWriteIndices"
     if not self.do["PostLoop"]: return ""
     kStr = ""
+
+    if kernel["BufferStore"]:
+      kStr += self.allocPostLoopSrd(kernel, "C")
 
     self.scratchSgprs = self.getTmpSgpr(1)
 
@@ -4256,15 +4277,19 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpV0)
     self.coord0 = tid0
     self.coord1 = tid1
-    self.addrC = self.vgprPool.checkOut(2)
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+0), \
-        sgpr("AddressC+0"), \
-        "sgpr -> vgpr")
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+1), \
-        sgpr("AddressC+1"), \
-        "sgpr -> vgpr")
+    if kernel["BufferStore"]:
+      self.addrC = -1
+      self.addrC = self.vgprPool.checkOut(2)
+    else:
+      self.addrC = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+0), \
+          sgpr("AddressC+0"), \
+          "sgpr -> vgpr")
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+1), \
+          sgpr("AddressC+1"), \
+          "sgpr -> vgpr")
     return kStr
 
   ##############################################################################
@@ -4491,7 +4516,6 @@ class KernelWriterAssembly(KernelWriter):
         # Unfortunate since this means the write logic is setting the VGPR requirement
         # for the entire kernel but at least we have a functional kernel
         if numVgprAvailable < numVgprsPerElement:
-            print "grow pool"
             t = self.vgprPool.checkOut(numVgprsPerElement)
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.available()
@@ -4645,33 +4669,53 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
 
       # final address = C + index*bytes
-      kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
-          vgpr(addr+0), "addr = C + index*bytes (lo)" )
-      if kernel["BufferStore"]:
-        kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
-            0, "vcc", "addr = C + index*bytes (hi)")
-      else:
+      if not kernel["BufferStore"]:
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
+            vgpr(addr+0), "addr = C + index*bytes (lo)" )
         kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
             vgpr(addr+1), "vcc", "addr = C + index*bytes (hi)")
 
       if atomic:
         # load c into data+1 becaue of CAS structure
-        kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
-            "load C" )
+        if kernel["BufferStore"]:
+          kStr += inst("buffer_load_dword", vgpr(data+1), vgpr(addr), \
+                        sgpr("SrdC", 4), 0, "offen", "load C (atomic)" )
+        else:
+          kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
+              "load C" )
       elif beta:
         # load c into data+0
-        if kernel["ProblemType"]["DataType"].isHalf():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            if sumIdx%2:
-              kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
+        if kernel["BufferStore"]:
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdx%2:
+                kStr += inst("buffer_load_short_d16_hi", vgpr(data+0), vgpr(addr), \
+                            sgpr("SrdC", 4), 0, "offen", "load C")
+              else:
+                kStr += inst("buffer_load_short_d16", vgpr(data+0), vgpr(addr), \
+                            sgpr("SrdC", 4), 0, "offen", "load C")
+            else:
+              kStr += inst("buffer_load_short_d16", vgpr(data+0), vgpr(addr), \
+                          sgpr("SrdC", 4), 0, "offen", "load C")
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += inst("buffer_load_dword", vgpr(data+0), vgpr(addr), \
+                        sgpr("SrdC", 4), 0, "offen", "load C")
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("buffer_load_dwordx2", vgpr(data+0,2), vgpr(addr), \
+                        sgpr("SrdC", 4), 0, "offen", "load C")
+        else:
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdx%2:
+                kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
+              else:
+                kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
             else:
               kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-          else:
-            kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-        elif kernel["ProblemType"]["DataType"].isSingle():
-          kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
-        elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += inst("flat_load_dwordx2", vgpr(data+0,2), vgpr(addr,2), "load C" )
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("flat_load_dwordx2", vgpr(data+0,2), vgpr(addr,2), "load C" )
 
       # restore full exec mask for calculating addr of next element
       if edge and (beta or atomic):
@@ -4749,8 +4793,18 @@ class KernelWriterAssembly(KernelWriter):
             "sum*alpha + C*beta")
 
         # attempt write
-        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), vgpr(addr,2), \
-            vgpr(data,2), "glc", "attempt write", self.endLine )
+        if kernel["BufferStore"]:
+          # Using no-ret version here?
+          kStr += "buffer_atomic_cmpswap %s, %s, %s, %s %s    // %s%s" % \
+              (vgpr(tmpVgpr), vgpr(data,2), \
+               vgpr(addr,1), \
+               sgpr("SrdC", 4),  \
+               "0 offen offset:0 glc", \
+               "attempt write", self.endLine )
+        else:
+          kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+              (vgpr(tmpVgpr), vgpr(addr,2), \
+              vgpr(data,2), "glc", "attempt write", self.endLine )
 
       ########################################
       # wait for first attempt write
@@ -4811,8 +4865,17 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), "data+1 = tmp (new original C)" )
         kStr += inst("v_add_f32", vgpr(data+0), vgpr(sumIdx), vgpr(data+1), \
             "newC = rC + originalC" )
-        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
-            vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
+        if kernel["BufferStore"]:
+          # Using no-ret version here?
+          kStr += "buffer_atomic_cmpswap %s, %s, %s, %s %s    // %s%s" % \
+              (vgpr(tmpVgpr), vgpr(data,2), \
+               vgpr(addr,1), \
+               sgpr("SrdC", 4), \
+               "0 offen offset:0 glc", \
+               "try again", self.endLine )
+        else:
+          kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
+              vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
 
       # wait for batched write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
@@ -4922,20 +4985,41 @@ class KernelWriterAssembly(KernelWriter):
             nonTemporalStr += " glc"
           if kernel["NonTemporalC"]/2==1:
             nonTemporalStr += " slc"
-          if kernel["ProblemType"]["DataType"].isHalf():
-            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              if sumIdx%2:
-                kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+          if kernel["BufferStore"]:
+            if kernel["ProblemType"]["DataType"].isHalf():
+              if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                if sumIdx%2:
+                  kStr += "buffer_store_short_d16_hi %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                           ( vgpr(sumIdx/2), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
+                else:
+                  kStr += "buffer_store_short %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                           ( vgpr(sumIdx/2), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
               else:
-                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
-            else:
-              # convert C to fp16 before output
-              kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
-              kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
-          elif kernel["ProblemType"]["DataType"].isSingle():
-            kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
-          elif kernel["ProblemType"]["DataType"].isDouble():
-            kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
+                # convert C to fp16 before output
+                kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
+                kStr += "buffer_store_short %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                         ( vgpr(sumIdx), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
+            elif kernel["ProblemType"]["DataType"].isSingle():
+              kStr += "buffer_store_dword %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                       ( vgpr(sumIdx), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
+            elif kernel["ProblemType"]["DataType"].isDouble():
+              kStr += "buffer_store_dwordx2 %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                       ( vgpr(sumIdx*2,2), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
+          else:
+            if kernel["ProblemType"]["DataType"].isHalf():
+              if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                if sumIdx%2:
+                  kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+                else:
+                  kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+              else:
+                # convert C to fp16 before output
+                kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
+                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
+            elif kernel["ProblemType"]["DataType"].isSingle():
+              kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
+            elif kernel["ProblemType"]["DataType"].isDouble():
+              kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
 
       if edge: # subsequent batch must start with full exec mask
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
@@ -5339,10 +5423,10 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
     kStr += inst("v_lshrrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), \
-        "%s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
+        "vectorStaticDiv: %s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
     if doRemainder:
       kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
-          "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
+          "vectorStaticDiv: %s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
   else:
     """
     if divisor == 30:
@@ -5365,11 +5449,11 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
     kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
-    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "quotient")
+    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "vectorStaticDiv: quotient")
     if doRemainder:
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
-      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "product = quotient * divisor")
-      kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "remainder = dividend - product")
+      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "vectorStaticDiv: product = quotient * divisor")
+      kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "vectorStaticDiv: remainder = dividend - product")
   return kStr
 
 def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
@@ -5426,20 +5510,23 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
 def staticMultiply(product, operand, multiplier, tmpSgpr=None):
   if ((multiplier & (multiplier - 1)) == 0): # pow of 2
     multiplier_log2 = log2(multiplier)
-    return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
-        "%s = %s * %u"%(product, operand, multiplier) )
+    if multiplier_log2==0 and product == operand:
+      return ""
+    else:
+      return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
+          "staticMultiply: %s = %s * %u"%(product, operand, multiplier) )
   else:
     kStr = ""
     if product == operand:
       kStr += inst("s_mov_b32", tmpSgpr, hex(multiplier), \
-        "%s = %u"%(tmpSgpr, multiplier) )
+          "staticMultiply: %s = %u"%(tmpSgpr, multiplier) )
       kStr += inst("v_mul_lo_u32", product, tmpSgpr, operand, \
-        "%s *= %s"%(product, operand) )
+          "staticMultiply: %s *= %s"%(product, operand) )
     else:
       kStr += inst("v_mov_b32", product, hex(multiplier), \
-        "%s = %u"%(product, multiplier) )
+          "staticMultiply: %s = %u"%(product, multiplier) )
       kStr += inst("v_mul_lo_u32", product, product, operand, \
-        "%s *= %s"%(product, operand) )
+          "staticMultiply: %s *= %s"%(product, operand) )
     return kStr
 
 
