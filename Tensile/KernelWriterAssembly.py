@@ -803,7 +803,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"]:
       numGlobalReadOffsetsA = numGlobalReadInstructionsA * self.rpgo
     else:
-      numGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
+      numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
     numGlobalReadsB = kernel["NumLoadsCoalescedB"] \
         * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] \
