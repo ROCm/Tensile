@@ -1295,7 +1295,7 @@ class KernelWriterAssembly(KernelWriter):
     # Global Offsets
     ########################################
     for (tensorChar, indices, justOffset32) in [ \
-        ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), 0), \
+        ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), kernel["BufferStore"]), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"]), \
         ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"]) ]:
       kStr += self.comment("Global Offset %s"%tensorChar)
@@ -4647,8 +4647,12 @@ class KernelWriterAssembly(KernelWriter):
       # final address = C + index*bytes
       kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
           vgpr(addr+0), "addr = C + index*bytes (lo)" )
-      kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
-          vgpr(addr+1), "vcc", "addr = C + index*bytes (hi)")
+      if kernel["BufferStore"]:
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
+            0, "vcc", "addr = C + index*bytes (hi)")
+      else:
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), "vcc", vgpr(addrC+1), \
+            vgpr(addr+1), "vcc", "addr = C + index*bytes (hi)")
 
       if atomic:
         # load c into data+1 becaue of CAS structure
