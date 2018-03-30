@@ -40,8 +40,6 @@ def test_tensor_contraction(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_tensor_contraction.yaml"), tmpdir.strpath])
 
 # assembly
-def test_hgemm_asm(tmpdir):
-    Tensile.Tensile([Tensile.TensileConfigPath("test_hgemm_asm.yaml"), tmpdir.strpath])
 def test_sgemm_asm(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_sgemm_asm.yaml"), tmpdir.strpath])
 def test_dgemm_asm(tmpdir):
