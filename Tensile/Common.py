@@ -213,6 +213,7 @@ validParameters = {
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
     "BufferLoad":                 [ False, True],
+    "BufferStore":                [ False, True],
 
     # Attempt to load directly from global memory into LDS.
     # Assembly only
@@ -338,6 +339,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
     {"BufferLoad":                [ True ] },
+    {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },
     {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },

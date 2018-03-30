@@ -419,10 +419,10 @@ class KernelWriterAssembly(KernelWriter):
     # These have a default which is almost always faster so don't make a full-blown YAML parm
     # But have a control here so we can disable for debugging and also easily tell
     # which parts of the code were changed to support the new mode.
-    self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True 
+    self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
 
     self.checkGRO = False
-    # checkGRO requires useSgprForGRO=0 so that code allocates and
+    # checkGRO requires useSgprForGRO=0 so that code allocates and uses
     # the VGPRs that are used for the GRO offset checking
     assert not (kernel["UseSgprForGRO"] and self.checkGRO)
 
@@ -934,8 +934,6 @@ class KernelWriterAssembly(KernelWriter):
 
     self.totalVgprs = vgprIdx
 
-
-
     ########################################
     # SGPR Allocation
     ########################################
@@ -1008,6 +1006,8 @@ class KernelWriterAssembly(KernelWriter):
        # resource descriptor (SRD) A and B, must be aligned on 4-SGPR boundary
       self.defineSgpr("SrdA", 4, 4)
       self.defineSgpr("SrdB", 4, 4)
+    if kernel["BufferStore"]:
+      self.defineSgpr("SrdC", 4, 4)
 
     # To avoid corrupting tmp sgprs that may be used around the assert,
     # reserve some sgprs to save/restore the execmask
