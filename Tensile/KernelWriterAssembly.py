@@ -1570,7 +1570,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.overflowedResources:
       print ""
       printWarning("%s invalid: too many vgprs(%u) or sgprs(%u)" \
-          % (self.kernelName, self.vgprs.size(), self.sgprPool.size()) )
+          % (self.kernelName, self.vgprPool.size(), self.sgprPool.size()) )
       kStr += "s_endpgm // too many vgprs\n"
       kStr += ".if 0\n"
 
@@ -3154,12 +3154,12 @@ class KernelWriterAssembly(KernelWriter):
             # maxAddrSgpr += initial address
         kStr += inst("s_add_u32", \
             sgpr(maxAddrSgpr+0), \
-            sgpr(self.startSgprAddressA if tP["isA"] else self.startSgprAddressB), \
+            sgpr(self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"]), \
             sgpr(maxAddrSgpr+0), \
             "prepend address lower")
         kStr += inst("s_addc_u32", \
             sgpr(maxAddrSgpr+1), \
-            sgpr((self.startSgprAddressA if tP["isA"] else self.startSgprAddressB)+1), \
+            sgpr((self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"])+1), \
             sgpr(maxAddrSgpr+1), \
             "prepend address upper")
         # sgpr->vgpr
