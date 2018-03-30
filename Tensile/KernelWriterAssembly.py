@@ -252,6 +252,7 @@ class KernelWriterAssembly(KernelWriter):
     self.do["Sync"]        = True
     self.do["MAC"]         = True
     self.do["PostLoop"]    = True
+    self.do["GlobalWrite"] = True
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
     # Various debug flags and modes
@@ -4909,25 +4910,26 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("v_add_f64", vgpr(sumIdx*2,2), vgpr(data+0,2), vgpr(sumIdx*2,2), \
                 "sum*alpha + C*beta")
 
-        nonTemporalStr = ""
-        if kernel["NonTemporalC"]%2==1:
-          nonTemporalStr += " glc"
-        if kernel["NonTemporalC"]/2==1:
-          nonTemporalStr += " slc"
-        if kernel["ProblemType"]["DataType"].isHalf():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            if sumIdx%2:
-              kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+        if self.do["GlobalWrite"]:
+          nonTemporalStr = ""
+          if kernel["NonTemporalC"]%2==1:
+            nonTemporalStr += " glc"
+          if kernel["NonTemporalC"]/2==1:
+            nonTemporalStr += " slc"
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdx%2:
+                kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+              else:
+                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
             else:
-              kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
-          else:
-            # convert C to fp16 before output
-            kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
-            kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
-        elif kernel["ProblemType"]["DataType"].isSingle():
-          kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
-        elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
+              # convert C to fp16 before output
+              kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
+              kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += "flat_store_dword %s, %s%s // store C\n" % ( vgpr(addr,2), vgpr(sumIdx), nonTemporalStr )
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
 
       if edge: # subsequent batch must start with full exec mask
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
