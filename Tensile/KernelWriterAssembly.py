@@ -1294,6 +1294,9 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Global Offsets
     ########################################
+    # justOffset32 means we should only write the 32-bit offset
+    # This is used in Buffer addressing modes.
+    # Flat addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
     for (tensorChar, indices, justOffset32) in [ \
         ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), kernel["BufferStore"]), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"]), \
@@ -1326,26 +1329,13 @@ class KernelWriterAssembly(KernelWriter):
       if indices[0] == kernel["ProblemType"]["Index0"] \
           or indices[0] == kernel["ProblemType"]["Index1"] \
           or indices[0] == kernel["ProblemType"]["IndexUnroll"]:
-        kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "v[\\vgprOffset%s]" \
-            % idxChars[0], "d0 lower")
-        # justOffset32 means we should only write the 32-bit offset 
-        # This is used in Buffer addressing modes.
-        # TODO - there is some additional dead code here that computes the upper 32 bits
-        #        and can be removed in the justOffset32 modes:w
-        # Flat addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
-        if not justOffset32:
-          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        offset = "v[\\vgprOffset%s]" % idxChars[0]
       # other c index sgpr
       elif indices[0] < kernel["ProblemType"]["NumIndicesC"]:
-        kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", "s[\\sgprOffset%s]" \
-            % idxChars[0], "d0 lower")
-        if not justOffset32:
-          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        offset = "s[\\sgprOffset%s]" % idxChars[0]
       # other sum index
       else:
-        kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", hex(0), "d0 lower")
-        if not justOffset32:
-          kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+        offset = "hex(0)"
 
       # d1+
       for i in range(1, numDim):
@@ -1366,6 +1356,7 @@ class KernelWriterAssembly(KernelWriter):
                 sgpr("Strides%s+%u"%(tensorChar,i-1)), \
                 "v[\\vgprOffset%s]" % idxChars[i],  \
                 "mul d%u upper"%i)
+          needAdd = 1
         # other c index sgpr
         elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
           kStr += inst("v_mov_b32", \
@@ -1383,27 +1374,36 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprTmp+2]",  \
               "mul d%u upper"%i)
+          needAdd = 1
         # other sum index
         else:
           # don't even need to add b/c offset=zero
-          continue
+          needAdd = 0
 
-        # addr += offset * stride (lo)
-        kStr += inst("_v_add_co_u32", \
-            "v[\\vgprAddr+0]", \
-            "vcc", \
-            "v[\\vgprTmp+0]", \
-            "v[\\vgprAddr+0]",  \
-            "accumulate d%u lower"%i)
-        # addr += offset * stride (hi)
-        if not justOffset32:
-          kStr += inst("_v_addc_co_u32", \
-              "v[\\vgprAddr+1]", \
+        if needAdd:
+          # addr += offset * stride (lo)
+          kStr += inst("_v_add_co_u32", \
+              "v[\\vgprAddr+0]", \
               "vcc", \
-              "v[\\vgprTmp+1]",  \
-              "v[\\vgprAddr+1]",  \
-              "vcc", \
-              "accumulate d%u upper"%i)
+              "v[\\vgprTmp+0]", \
+              offset, \
+              "accumulate d%u lower"%i)
+          # addr += offset * stride (hi)
+          if not justOffset32:
+            kStr += inst("_v_addc_co_u32", \
+                "v[\\vgprAddr+1]", \
+                "vcc", \
+                "v[\\vgprTmp+1]",  \
+                0, \
+                "vcc", \
+                "accumulate d%u upper"%i)
+        else:
+          kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", offset, "d0 lower")
+          if not justOffset32:
+            kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
+
+        # Change offset for subsequent dims (if needed)
+        offset = "v[\\vgprAddr+0]"
 
       # addr *= bytes/element
 #jgolds which bpe should we use? assuming A
