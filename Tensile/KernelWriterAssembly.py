@@ -4632,14 +4632,20 @@ class KernelWriterAssembly(KernelWriter):
 
 
       coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
-      if coordOffset0 <= 64:
+      if coordOffset0 == 0:
+        # just use coord0 directly
+        coordVgpr0 = coord0
+        kStr += self.comment1("coordOffset=0, use coordVgpr0=v%u directly"%coordVgpr0)
+      elif coordOffset0 <= 64:
         # coordOffset0 fits in instruction:
         kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), coordOffset0, \
             "coord0 += d0*sg0*VW + vc0")
+        coordVgpr0 = tmpVgpr+0
       else:
         kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset0, "coord0Offset d0=%u vc0=%u"%(d0, vc0))
         kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), sgpr(tmpS01), \
             "coord0 += d0*sg0*VW + vc0")
+        coordVgpr0 = tmpVgpr+0
 
       # coord1
       # coord0
@@ -4652,20 +4658,26 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", hex(vc1), vgpr(tmpVgpr+1), \
       #    "tmp1 = d1*sg1*VW + vc1")
 
-      if coordOffset1 <= 64:
+      if coordOffset1 == 0:
+        # just use coord0 directly
+        coordVgpr1 = coord1
+        kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%coordVgpr1)
+      elif coordOffset1 <= 64:
         # coordOffset1 fits in instruction:
         kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), coordOffset1, \
             "coord1 += d1*sg1*VW + vc1")
+        coordVgpr1 = tmpVgpr+1
       else:
         kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset1, "coordOffset1 d1=%u vc1=%u"%(d0, vc0))
         kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), sgpr(tmpS01), \
             "coord1 += d1*sg1*VW + vc1")
+        coordVgpr1 = tmpVgpr+1
       #kStr += dump(vgpr(tmp+1))
 
       # in-bounds exec mask
       if edge:
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(tmpVgpr+0), vgpr(sizes+0), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(tmpVgpr+1), vgpr(sizes+1), "coord1 < size1" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), vgpr(sizes+0), "coord0 < size0" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(coordVgpr1), vgpr(sizes+1), "coord1 < size1" )
         kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
       if edge and (beta or atomic):
@@ -4677,9 +4689,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "GLOBAL_OFFSET_C %u" % addr
       for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
         if i == kernel["ProblemType"]["Index0"]:
-          kStr += ", %s" % (tmpVgpr+0)
+          kStr += ", %s" % (coordVgpr0)
         elif i == kernel["ProblemType"]["Index1"]:
-          kStr += ", %s" % (tmpVgpr+1)
+          kStr += ", %s" % (coordVgpr1)
         else: # just a group index
           kStr += ", sgprWorkGroup%u"%i
       kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
