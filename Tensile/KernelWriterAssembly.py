@@ -4505,7 +4505,6 @@ class KernelWriterAssembly(KernelWriter):
         # Unfortunate since this means the write logic is setting the VGPR requirement
         # for the entire kernel but at least we have a functional kernel
         if numVgprAvailable < numVgprsPerElement:
-            print "grow pool"
             t = self.vgprPool.checkOut(numVgprsPerElement)
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.available()
@@ -4667,22 +4666,45 @@ class KernelWriterAssembly(KernelWriter):
 
       if atomic:
         # load c into data+1 becaue of CAS structure
-        kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
-            "load C" )
+        if kernel["BufferStore"]:
+          kStr += inst("buffer_load_dword", vgpr(data+1), vgpr(addr), \
+                        sgpr("SrdC", 4), 0, "offen", "load C (atomic)" )
+        else:
+          kStr += inst("flat_load_dword", vgpr(data+1), vgpr(addr,2), \
+              "load C" )
       elif beta:
         # load c into data+0
-        if kernel["ProblemType"]["DataType"].isHalf():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            if sumIdx%2:
-              kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
+        if kernel["BufferStore"]:
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdx%2:
+                kStr += inst("buffer_load_short_d16_hi", vgpr(data+0), vgpr(addr), \
+                            sgpr("SrdC", 4), 0, "offen", "load C")
+              else:
+                kStr += inst("buffer_load_short_d16", vgpr(data+0), vgpr(addr), \
+                            sgpr("SrdC", 4), 0, "offen", "load C")
+            else:
+              kStr += inst("buffer_load_short_d16", vgpr(data+0), vgpr(addr), \
+                          sgpr("SrdC", 4), 0, "offen", "load C")
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += inst("buffer_load_dword", vgpr(data+0), vgpr(addr), \
+                        sgpr("SrdC", 4), 0, "offen", "load C")
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("buffer_load_dwordx2", vgpr(data+0,2), vgpr(addr), \
+                        sgpr("SrdC", 4), 0, "offen", "load C")
+        else:
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdx%2:
+                kStr += inst("flat_load_short_d16_hi", vgpr(data+0), vgpr(addr,2), "load C" )
+              else:
+                kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
             else:
               kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-          else:
-            kStr += inst("flat_load_short_d16", vgpr(data+0), vgpr(addr,2), "load C" )
-        elif kernel["ProblemType"]["DataType"].isSingle():
-          kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
-        elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += inst("flat_load_dwordx2", vgpr(data+0,2), vgpr(addr,2), "load C" )
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += inst("flat_load_dword", vgpr(data+0), vgpr(addr,2), "load C" )
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("flat_load_dwordx2", vgpr(data+0,2), vgpr(addr,2), "load C" )
 
       # restore full exec mask for calculating addr of next element
       if edge and (beta or atomic):
@@ -4760,8 +4782,18 @@ class KernelWriterAssembly(KernelWriter):
             "sum*alpha + C*beta")
 
         # attempt write
-        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), vgpr(addr,2), \
-            vgpr(data,2), "glc", "attempt write", self.endLine )
+        if kernel["BufferStore"]:
+          # Using no-ret version here?
+          kStr += "buffer_atomic_cmpswap %s, %s, %s, %s %s    // %s%s" % \
+              (vgpr(tmpVgpr), vgpr(data,2), \
+               vgpr(addr,1), \
+               sgpr("SrdC", 4),  \
+               "0 offen offset:0 glc", \
+               "attempt write", self.endLine )
+        else:
+          kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+              (vgpr(tmpVgpr), vgpr(addr,2), \
+              vgpr(data,2), "glc", "attempt write", self.endLine )
 
       ########################################
       # wait for first attempt write
@@ -4822,8 +4854,17 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_mov_b32", vgpr(data+1), vgpr(tmpVgpr), "data+1 = tmp (new original C)" )
         kStr += inst("v_add_f32", vgpr(data+0), vgpr(sumIdx), vgpr(data+1), \
             "newC = rC + originalC" )
-        kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
-            vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
+        if kernel["BufferStore"]:
+          # Using no-ret version here?
+          kStr += "buffer_atomic_cmpswap %s, %s, %s, %s %s    // %s%s" % \
+              (vgpr(tmpVgpr), vgpr(data,2), \
+               vgpr(addr,1), \
+               sgpr("SrdC", 4), \
+               "0 offen offset:0 glc", \
+               "try again", self.endLine )
+        else:
+          kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
+              vgpr(addr,2), vgpr(data,2), "glc", "try again", self.endLine)
 
       # wait for batched write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
@@ -4937,18 +4978,22 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ProblemType"]["DataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 if sumIdx%2:
-                  kStr += inst("flat_store_short_d16_hi", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+                  kStr += "buffer_store_short_d16_hi %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                           ( vgpr(sumIdx/2), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
                 else:
-                  kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx/2), "store C" )
+                  kStr += "buffer_store_short %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                           ( vgpr(sumIdx/2), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
               else:
                 # convert C to fp16 before output
                 kStr += inst("v_cvt_f16_f32", vgpr(sumIdx), vgpr(sumIdx), "convert C to fp16" )
-                kStr += inst("flat_store_short", vgpr(addr,2), vgpr(sumIdx), "store C" )
+                kStr += "buffer_store_short %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                         ( vgpr(sumIdx), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
             elif kernel["ProblemType"]["DataType"].isSingle():
               kStr += "buffer_store_dword %s, %s, %s%s 0 offen offset:0// store C\n" % \
                        ( vgpr(sumIdx), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
             elif kernel["ProblemType"]["DataType"].isDouble():
-              kStr += "flat_store_dwordx2 %s, %s%s  // store C\n" % ( vgpr(addr,2), vgpr(sumIdx*2,2), nonTemporalStr )
+              kStr += "buffer_store_dwordx2 %s, %s, %s%s 0 offen offset:0// store C\n" % \
+                       ( vgpr(sumIdx*2,2), vgpr(addr), sgpr("SrdC", 4), nonTemporalStr )
           else:
             if kernel["ProblemType"]["DataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
