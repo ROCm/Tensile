@@ -4145,7 +4145,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["BufferStore"]:
-      kStr += self.allocPostSrd(kernel, "C")
+      kStr += self.allocPostLoopSrd(kernel, "C")
 
     # tmp gprs
     tmpVgpr = self.vgprPool.checkOut(2)
@@ -4191,25 +4191,30 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpVgpr)
     self.coord0 = tid0
     self.coord1 = tid1
-    self.addrC = self.vgprPool.checkOut(2)
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+0), \
-        sgpr("AddressC+0"), \
-        "sgpr -> vgpr")
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+1), \
-        sgpr("AddressC+1"), \
-        "sgpr -> vgpr")
+    if kernel["BufferStore"]:
+      self.addrC = -1
+      self.addrC = self.vgprPool.checkOut(2)
+    else:
+      self.addrC = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+0), \
+          sgpr("AddressC+0"), \
+          "sgpr -> vgpr")
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+1), \
+          sgpr("AddressC+1"), \
+          "sgpr -> vgpr")
+
     return kStr
 
   ##############################################################################
   ##############################################################################
-  def allocPostSrd(self, kernel, ch):
+  def allocPostLoopSrd(self, kernel, ch):
     kStr = ""
     # Buffer-load uses one base read pointer stored in the SRD - set it here:
     kStr += inst("s_mov_b32", sgpr("Srd%s+0"%ch), sgpr("Address%s+0"%ch), "init SRD base address (lower)" )
     kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
-    kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), 0x80000000, "")
+    kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), hex(0x80000000), "")
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in SRD")
     return kStr
 
@@ -4223,7 +4228,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["BufferStore"]:
-      kStr += self.allocPostSrd(kernel, "C")
+      kStr += self.allocPostLoopSrd(kernel, "C")
 
     self.scratchSgprs = self.getTmpSgpr(1)
 
@@ -4270,15 +4275,19 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpV0)
     self.coord0 = tid0
     self.coord1 = tid1
-    self.addrC = self.vgprPool.checkOut(2)
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+0), \
-        sgpr("AddressC+0"), \
-        "sgpr -> vgpr")
-    kStr += inst("v_mov_b32", \
-        vgpr(self.addrC+1), \
-        sgpr("AddressC+1"), \
-        "sgpr -> vgpr")
+    if kernel["BufferStore"]:
+      self.addrC = -1
+      self.addrC = self.vgprPool.checkOut(2)
+    else:
+      self.addrC = self.vgprPool.checkOut(2)
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+0), \
+          sgpr("AddressC+0"), \
+          "sgpr -> vgpr")
+      kStr += inst("v_mov_b32", \
+          vgpr(self.addrC+1), \
+          sgpr("AddressC+1"), \
+          "sgpr -> vgpr")
     return kStr
 
   ##############################################################################
@@ -4517,7 +4526,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves
-          numElementsPerBatch = int(numElementsPerBatch/2)*2
+          numElementsPerBatch = int((numElementsPerBatch+1)/2)*2
 
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
@@ -5412,10 +5421,10 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
     kStr += inst("v_lshrrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), \
-        "%s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
+        "vectorStaticDiv: %s = %s / %u"%(vgpr(qReg), vgpr(dReg), divisor) )
     if doRemainder:
       kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
-          "%s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
+          "vectorStaticDiv: %s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
   else:
     """
     if divisor == 30:
@@ -5438,11 +5447,11 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
     kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
     kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
-    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "quotient")
+    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "vectorStaticDiv: quotient")
     if doRemainder:
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
-      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "product = quotient * divisor")
-      kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "remainder = dividend - product")
+      kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "vectorStaticDiv: product = quotient * divisor")
+      kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "vectorStaticDiv: remainder = dividend - product")
   return kStr
 
 def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
@@ -5499,20 +5508,23 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
 def staticMultiply(product, operand, multiplier, tmpSgpr=None):
   if ((multiplier & (multiplier - 1)) == 0): # pow of 2
     multiplier_log2 = log2(multiplier)
-    return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
-        "%s = %s * %u"%(product, operand, multiplier) )
+    if multiplier_log2==0 and product == operand:
+      return ""
+    else:
+      return inst("v_lshlrev_b32", product, multiplier_log2, operand, \
+          "staticMultiply: %s = %s * %u"%(product, operand, multiplier) )
   else:
     kStr = ""
     if product == operand:
       kStr += inst("s_mov_b32", tmpSgpr, hex(multiplier), \
-        "%s = %u"%(tmpSgpr, multiplier) )
+          "staticMultiply: %s = %u"%(tmpSgpr, multiplier) )
       kStr += inst("v_mul_lo_u32", product, tmpSgpr, operand, \
-        "%s *= %s"%(product, operand) )
+          "staticMultiply: %s *= %s"%(product, operand) )
     else:
       kStr += inst("v_mov_b32", product, hex(multiplier), \
-        "%s = %u"%(product, multiplier) )
+          "staticMultiply: %s = %u"%(product, multiplier) )
       kStr += inst("v_mul_lo_u32", product, product, operand, \
-        "%s *= %s"%(product, operand) )
+          "staticMultiply: %s *= %s"%(product, operand) )
     return kStr
 
 
