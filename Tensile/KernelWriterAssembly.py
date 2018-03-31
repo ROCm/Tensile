@@ -4277,7 +4277,7 @@ class KernelWriterAssembly(KernelWriter):
     self.coord1 = tid1
     if kernel["BufferStore"]:
       self.addrC = -1
-      self.addrC = self.vgprPool.checkOut(2)
+      self.addrC = self.vgprPool.checkOut(2)  # TODO - where is this checked in?
     else:
       self.addrC = self.vgprPool.checkOut(2)
       kStr += inst("v_mov_b32", \
@@ -4535,6 +4535,7 @@ class KernelWriterAssembly(KernelWriter):
         #  numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
         numBatches = max(1, (len(elements)+numElementsPerBatch-1) / numElementsPerBatch)
         #print "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch
+        self.lastCoordOffset1 = -1
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements) )
@@ -4629,19 +4630,36 @@ class KernelWriterAssembly(KernelWriter):
       strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]/kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
       #fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
 
-      # coord0
-      kStr += staticMultiply(vgpr(tmpVgpr+0), d0, (kernel["SubGroup0"]*kernel["VectorWidth"]))
-      kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vc0, vgpr(tmpVgpr+0), \
-          "tmp0 = d0*sg0*VW + vc0")
-      kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), vgpr(tmpVgpr+0), \
-          "coord0 += d0*sg0*VW + vc0")
+
+      coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
+      if coordOffset0 <= 64:
+        # coordOffset0 fits in instruction:
+        kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), coordOffset0, \
+            "coord0 += d0*sg0*VW + vc0")
+      else:
+        kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset0, "coord0Offset d0=%u vc0=%u"%(d0, vc0))
+        kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+0), "vcc", vgpr(coord0), sgpr(tmpS01), \
+            "coord0 += d0*sg0*VW + vc0")
 
       # coord1
-      kStr += staticMultiply(vgpr(tmpVgpr+1), d1, strideD1)
-      kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", hex(vc1), vgpr(tmpVgpr+1), \
-          "tmp1 = d1*sg1*VW + vc1")
-      kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), vgpr(tmpVgpr+1), \
-          "coord1 += d1*sg1*VW + vc1")
+      # coord0
+      coordOffset1 = d1*strideD1 + vc1
+      if coordOffset1 != self.lastCoordOffset1:
+        kStr += self.comment("new offset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
+        self.lastCoordOffset1 = coordOffset1
+
+      #kStr += staticMultiply(vgpr(tmpVgpr+1), d1, strideD1)
+      #kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", hex(vc1), vgpr(tmpVgpr+1), \
+      #    "tmp1 = d1*sg1*VW + vc1")
+
+      if coordOffset1 <= 64:
+        # coordOffset1 fits in instruction:
+        kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), coordOffset1, \
+            "coord1 += d1*sg1*VW + vc1")
+      else:
+        kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset1, "coordOffset1 d1=%u vc1=%u"%(d0, vc0))
+        kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), sgpr(tmpS01), \
+            "coord1 += d1*sg1*VW + vc1")
       #kStr += dump(vgpr(tmp+1))
 
       # in-bounds exec mask
