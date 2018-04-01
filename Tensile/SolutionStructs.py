@@ -1201,6 +1201,10 @@ class Solution:
             % (state["LoopUnroll"]))
       state["Valid"] = False
 
+    # TODO - this can be fixed by using buffer_atomic_cmpswap
+    if state["GlobalSplitU"] > 1:
+      state["BufferStore"] = 0
+
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
       state["DirectToLds"] = False

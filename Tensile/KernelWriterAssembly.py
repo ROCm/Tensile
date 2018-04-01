@@ -115,9 +115,9 @@ class RegisterPool:
 
   ########################################
   # Check Out
-  def checkOut(self, size):
-    return self.checkOutAligned(size, 1)
-  def checkOutAligned(self, size, alignment):
+  def checkOut(self, size, tag=""):
+    return self.checkOutAligned(size, 1, tag)
+  def checkOutAligned(self, size, alignment, tag=""):
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -145,7 +145,7 @@ class RegisterPool:
       for i in range(found, found+size):
         self.pool[i] = self.statusInUse
       self.checkOutSize[found] = size
-      #print "RP::checkOut(%u,%u) @ %u avail=%u"%(size,alignment, found, self.available())
+      #print "RP::checkOut %s(%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
       return found
     # need overflow
     else:
@@ -172,7 +172,8 @@ class RegisterPool:
       for i in range(0, overflow):
         self.pool.append(self.statusInUse)
       self.checkOutSize[start] = size
-      #print "RP::checkOut(%u,%u) @ %u (overflow)"%(size, alignment, start)
+      #print self.state()
+      #print "RP::checkOut %s(%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
       return start
 
   ########################################
@@ -184,6 +185,7 @@ class RegisterPool:
       for i in range(start, start+size):
         self.pool[i] = self.statusAvailable
       self.checkOutSize.pop(start)
+      #print "RP::checkIn() @ %u +%u"%(start,size)
     else:
       printWarning("RegisterPool::checkIn(%s) but it was never checked out"%start)
 
@@ -192,14 +194,39 @@ class RegisterPool:
   def size(self):
     return len(self.pool)
 
+
   ########################################
-  # Size
+  # Number of available registers
   def available(self):
     numAvailable = 0
     for s in self.pool:
       if s == self.statusAvailable:
         numAvailable += 1
     return numAvailable
+
+  ########################################
+  # Size of largest consecutive block
+  def availableBlock(self):
+    maxAvailable = 0
+    numAvailable = 0
+    for s in self.pool:
+      if s == self.statusAvailable:
+        numAvailable += 1
+      else:
+        if numAvailable > maxAvailable:
+          maxAvailable = numAvailable
+        numAvailable = 0
+    if numAvailable > maxAvailable:
+      maxAvailable = numAvailable
+    print self.state()
+    print "available()=", self.available(), "availableBlock()=",maxAvailable 
+    return maxAvailable
+
+  ########################################
+  def checkFinalState(self):
+    for si in range(0,len(self.pool)):
+      if self.pool[si] == self.statusInUse:
+        printWarning("RegisterPool::checkFinalState: temp (%s) was never checked in."%si)
 
   ########################################
   # State
@@ -4150,9 +4177,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.allocPostLoopSrd(kernel, "C")
 
     # tmp gprs
-    tmpVgpr = self.vgprPool.checkOut(2)
     tid0 = self.vgprPool.checkOut(1)
     tid1 = self.vgprPool.checkOut(1)
+    tmpVgpr = self.vgprPool.checkOut(2)
     tmpSgpr = self.getTmpSgpr(1)
     tmpS0 = tmpSgpr
     tmpS1 = tmpS0+1
@@ -4194,8 +4221,9 @@ class KernelWriterAssembly(KernelWriter):
     self.coord0 = tid0
     self.coord1 = tid1
     if kernel["BufferStore"]:
+      #print "----AddressC-LocalSplitU"
+      #print self.vgprPool.state()
       self.addrC = -1
-      self.addrC = self.vgprPool.checkOut(2)
     else:
       self.addrC = self.vgprPool.checkOut(2)
       kStr += inst("v_mov_b32", \
@@ -4232,15 +4260,18 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       kStr += self.allocPostLoopSrd(kernel, "C")
 
+    # thread id 0,1
+    # These will live for entire GlobalWrite loop - allocate before tmps
+    # to avoid fragmentation
+    tid0 = self.vgprPool.checkOut(1)
+    tid1 = self.vgprPool.checkOut(1)
+
     self.scratchSgprs = self.getTmpSgpr(1)
 
     tmpS0 = self.scratchSgprs
     tmpS1 = tmpS0+1
     tmpV0 = self.vgprPool.checkOut(2)
 
-    # thread id 0,1
-    tid0 = self.vgprPool.checkOut(1)
-    tid1 = self.vgprPool.checkOut(1)
     divisor = kernel["SubGroup0"]
     kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
         tmpV0, tmpS0)
@@ -4278,8 +4309,9 @@ class KernelWriterAssembly(KernelWriter):
     self.coord0 = tid0
     self.coord1 = tid1
     if kernel["BufferStore"]:
+      #print "----AddressC-nonLSU-----"
+      #print self.vgprPool.state()
       self.addrC = -1
-      self.addrC = self.vgprPool.checkOut(2)  # TODO - where is this checked in?
     else:
       self.addrC = self.vgprPool.checkOut(2)
       kStr += inst("v_mov_b32", \
@@ -4291,6 +4323,15 @@ class KernelWriterAssembly(KernelWriter):
           sgpr("AddressC+1"), \
           "sgpr -> vgpr")
     return kStr
+
+  ##############################################################################
+  # Release any resources used by the global write
+  def cleanupGlobalWrite(self, kernel):
+    self.vgprPool.checkIn(self.coord0)
+    self.vgprPool.checkIn(self.coord1)
+    if not kernel["BufferStore"]:
+      self.vgprPool.checkIn(self.addrC)
+
 
   ##############################################################################
   # Not LocalSplitU: Global Write
@@ -4305,7 +4346,10 @@ class KernelWriterAssembly(KernelWriter):
           for vc0 in range(0, kernel["VectorWidth"]):
               element = (tt1, tt0, vc1, vc0)
               elements.append(element)
-    return self.globalWriteElements(kernel, lsu, elements)
+
+    kStr =  self.globalWriteElements(kernel, lsu, elements)
+    self.cleanupGlobalWrite(kernel)
+    return kStr
 
   ##############################################################################
   # LocalSplitU: Global Write
@@ -4320,7 +4364,9 @@ class KernelWriterAssembly(KernelWriter):
           for vc0 in range(0, kernel["GlobalWriteVectorWidth"]):
             element = (tt1, tt0, vc1, vc0)
             elements.append(element)
-    return self.globalWriteElements(kernel, lsu, elements)
+    kStr =  self.globalWriteElements(kernel, lsu, elements)
+    self.cleanupGlobalWrite(kernel)
+    return kStr
 
   ##############################################################################
   # Global Write Elements
@@ -4380,7 +4426,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Vgprs
-    tmpVgpr = self.vgprPool.checkOut(2+3) # 2 for coord and 3 for GLOBAL_OFFSET_C
+    tmpVgpr = self.vgprPool.checkOut(2+3,"tmp-GlobalWrite") # 2 for coord and 3 for GLOBAL_OFFSET_C
 
     ########################################
     # Sgprs
@@ -4470,7 +4516,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if edge:
           # store free sizes in vgprs for comparison
-          sizesFreeVgprs = self.vgprPool.checkOut(2)
+          sizesFreeVgprs = self.vgprPool.checkOut(2, "sizesFreeVgprs")
           kStr += inst("v_mov_b32", \
               vgpr(sizesFreeVgprs+0), \
               sgpr("SizesFree+0"), \
@@ -4499,7 +4545,8 @@ class KernelWriterAssembly(KernelWriter):
         # 3 for GLOBAL_OFFSET_C calculation (can overlap below, therefore max)
         # if beta 1*rpe for new value
         # if atomic 2*rpe for old and cmp values
-        numVgprsPerElement = 2
+        self.numVgprsPerAddr = self.rpgo if kernel["BufferStore"] else self.rpga
+        numVgprsPerElement = self.numVgprsPerAddr
 #jgolds which bpe should we use?
         if atomic:
           numVgprsPerElement += (3*self.bpeCinternal)/self.bpr
@@ -4511,14 +4558,16 @@ class KernelWriterAssembly(KernelWriter):
             numVgprsPerElement += (1.0*self.bpeCinternal)/self.bpr
 
         #print self.vgprPool.state()
-        numVgprAvailable = self.vgprPool.available()
+        numVgprAvailable = self.vgprPool.availableBlock()
         # Grow the register pool if needed - we need enough regs for at least one element
         # Unfortunate since this means the write logic is setting the VGPR requirement
         # for the entire kernel but at least we have a functional kernel
+        # TODO : the vgprSerial is needed for-ever and if we grow here will split the
+        # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
         if numVgprAvailable < numVgprsPerElement:
-            t = self.vgprPool.checkOut(numVgprsPerElement)
-            self.vgprPool.checkIn(t)
-            numVgprAvailable = self.vgprPool.available()
+          t = self.vgprPool.checkOut(int(ceil(numVgprsPerElement)), "grow-pool")
+          self.vgprPool.checkIn(t)
+          numVgprAvailable = self.vgprPool.availableBlock()
 
         #print "NumVgprAvailable", numVgprAvailable
         numElementsPerBatch = numVgprAvailable / numVgprsPerElement
@@ -4536,16 +4585,17 @@ class KernelWriterAssembly(KernelWriter):
         #  #print "  NumVectorsPerBatch", numVectorsPerBatch
         #  numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
         numBatches = max(1, (len(elements)+numElementsPerBatch-1) / numElementsPerBatch)
-        #print "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch
+        #print "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch, "numVgprsPerElement", numVgprsPerElement
         self.lastCoordOffset1 = -1
+        self.coord1Vgpr = -1
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements) )
           elementsThisBatch = elements[elementStartIdx:elementStopIdx]
-          #print "BATCH[%u/%u]: elements[%u:%u]" % (batchIdx, numBatches, elementStartIdx, elementStopIdx)
           numElementsThisBatch = len(elementsThisBatch)
           numElementVgprs = int(numElementsThisBatch * ceil(numVgprsPerElement))
-          elementVgprs = self.vgprPool.checkOut(numElementVgprs)
+          #print "BATCH[%u/%u]: elements[%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx, numElementVgprs)
+          elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs")
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
               sizesFreeVgprs, elementVgprs, numVgprsPerElement, tmpVgpr, \
@@ -4582,17 +4632,16 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # allocate per-element resources
-    numVgprsPerAddr = self.rpga
-    numVgprsPerData = numVgprsPerElement - numVgprsPerAddr # might be decimal for half
+    numVgprsPerData = numVgprsPerElement - self.numVgprsPerAddr # might be decimal for half
     addrVgprOffset = 0
-    dataVgprOffset = addrVgprOffset + numVgprsPerAddr*len(batchElements)
+    dataVgprOffset = addrVgprOffset + self.numVgprsPerAddr*len(batchElements)
     elementAddr = []
     elementData = []
     elementMask = []
     elementSumIdx = []
     for elementIdx in range(0, len(batchElements)):
       # gpr assignments for element
-      addr = batchElementVgprs + addrVgprOffset + elementIdx*numVgprsPerAddr # elementVgprs+0
+      addr = batchElementVgprs + addrVgprOffset + elementIdx*self.numVgprsPerAddr # elementVgprs+0
       elementAddr.append(addr)
       data = batchElementVgprs + dataVgprOffset + int(elementIdx*numVgprsPerData) # elementVgprs+self.rpga
       elementData.append(data)
@@ -4656,36 +4705,31 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment("new offset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
         self.lastCoordOffset1 = coordOffset1
 
-      #kStr += staticMultiply(vgpr(tmpVgpr+1), d1, strideD1)
-      #kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", hex(vc1), vgpr(tmpVgpr+1), \
-      #    "tmp1 = d1*sg1*VW + vc1")
-
-      if coordOffset1 == 0:
-        # just use coord0 directly
-        coordVgpr1 = coord1
-        kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%coordVgpr1)
-      elif coordOffset1 <= 64:
-        # coordOffset1 fits in instruction:
-        kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), coordOffset1, \
-            "coord1 += d1*sg1*VW + vc1")
-        coordVgpr1 = tmpVgpr+1
-      else:
-        kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset1, "coordOffset1 d1=%u vc1=%u"%(d0, vc0))
-        kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), sgpr(tmpS01), \
-            "coord1 += d1*sg1*VW + vc1")
-        coordVgpr1 = tmpVgpr+1
+        if coordOffset1 == 0:
+          # just use coord0 directly
+          self.coordVgpr1 = coord1
+          kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%self.coordVgpr1)
+        elif coordOffset1 <= 64:
+          # coordOffset1 fits in instruction:
+          kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), coordOffset1, \
+              "coord1 += d1*sg1*VW + vc1")
+          self.coordVgpr1 = tmpVgpr+1
+        else:
+          kStr += inst("s_mov_b32", sgpr(tmpS01), coordOffset1, "coordOffset1 d1=%u vc1=%u"%(d0, vc0))
+          kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), sgpr(tmpS01), \
+              "coord1 += d1*sg1*VW + vc1")
+          self.coordVgpr1 = tmpVgpr+1
       #kStr += dump(vgpr(tmp+1))
 
       # in-bounds exec mask
       if edge:
         kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), vgpr(sizes+0), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(coordVgpr1), vgpr(sizes+1), "coord1 < size1" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), vgpr(sizes+1), "coord1 < size1" )
         kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
       if edge and (beta or atomic):
         # apply in-bounds exec mask for read
         kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
-
 
       # global offset macro (requires 3 tmpVgpr)
       kStr += "GLOBAL_OFFSET_C %u" % addr
@@ -4693,7 +4737,7 @@ class KernelWriterAssembly(KernelWriter):
         if i == kernel["ProblemType"]["Index0"]:
           kStr += ", %s" % (coordVgpr0)
         elif i == kernel["ProblemType"]["Index1"]:
-          kStr += ", %s" % (coordVgpr1)
+          kStr += ", %s" % (self.coordVgpr1)
         else: # just a group index
           kStr += ", sgprWorkGroup%u"%i
       kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
@@ -5072,6 +5116,9 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = True
     if self.overflowedResources:
       kStr += ".endif // too many gprs\n"
+
+    self.vgprPool.checkFinalState()
+    print "\n"
     return kStr
 
   ##############################################################################
