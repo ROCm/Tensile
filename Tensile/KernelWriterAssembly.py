@@ -4395,7 +4395,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves
-          numElementsPerBatch = int(numElementsPerBatch/2)*2
+          numElementsPerBatch = int((numElementsPerBatch+1)/2)*2
 
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
