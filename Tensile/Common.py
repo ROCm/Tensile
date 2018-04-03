@@ -212,7 +212,31 @@ validParameters = {
     "LocalWrite2B":               [ False, True ],
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
-    "BufferLoad":                 [ False, True] ,
+    "BufferLoad":                 [ False, True],
+
+    # Attempt to load directly from global memory into LDS.
+    # Assembly only
+    # Requires BufferLoad, assembler support for lds modifier on buffer
+    # loads (checked automatically), GlobalVectorWidth=1 (this is hw
+    # requirement) and A/B must not require any transpose.
+    # DirectToLds reduces load latency and eliminates the
+    # G2L registers used to stage data.  Also replaces the
+    # local write offset with an SGPR.
+    # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
+    "DirectToLds":                [ False, True],
+
+    # Use buffer limit field to precisely check array bounds.
+    # Requires BufferLoad.  Eliminate the shift logic and
+    # simplifies the bounds checking.  Enables
+    # UseSgprForGRO.
+    "PreciseBoundsCheck":         [ False, True],
+
+    # Attempt to use SGPR for Global Read Offsets.
+    # Requires BufferLoad=1 and PreciseBoundsCheck=1
+    # This will convert VGPR into SGPR which is usually a win (in particular if the GlobalReadWidth is 1.)
+    # However, the mode may exhaust all available SGPR, in particular for large unroll
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
+    "UseSgprForGRO":              [ -1, 0, 1],
 
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
@@ -297,7 +321,9 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadB":                    [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    {"GlobalReadVectorWidth":     [ -1 ] },
+    # use 1 by default since this enables other important optimizations including:
+    # DirectToLds, preciseBoundsCheck, and useSgrpForGRO
+    {"GlobalReadVectorWidth":     [ 1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
@@ -312,6 +338,9 @@ defaultBenchmarkCommonParameters = [
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
     {"BufferLoad":                [ True ] },
+    {"DirectToLds":               [ True ] },
+    {"PreciseBoundsCheck":        [ True ] },
+    {"UseSgprForGRO":             [ -1 ] },
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
