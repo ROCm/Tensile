@@ -19,3 +19,10 @@ def test_sgemm_defaults(tmpdir):
 def test_dgemm_defaults(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_dgemm_defaults.yaml"), tmpdir.strpath])
 
+def test_hgemm_asm(tmpdir):
+    Tensile.Tensile([Tensile.TensileConfigPath("test_hgemm_asm.yaml"), tmpdir.strpath])
+def test_sgemm_asm(tmpdir):
+    Tensile.Tensile([Tensile.TensileConfigPath("test_sgemm_asm.yaml"), tmpdir.strpath])
+def test_dgemm_asm(tmpdir):
+    Tensile.Tensile([Tensile.TensileConfigPath("test_dgemm_asm.yaml"), tmpdir.strpath])
+
