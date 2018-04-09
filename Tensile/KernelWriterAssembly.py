@@ -218,8 +218,8 @@ class RegisterPool:
         numAvailable = 0
     if numAvailable > maxAvailable:
       maxAvailable = numAvailable
-    print self.state()
-    print "available()=", self.available(), "availableBlock()=",maxAvailable 
+    #print self.state()
+    #print "available()=", self.available(), "availableBlock()=",maxAvailable
     return maxAvailable
 
   ########################################
@@ -5118,7 +5118,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".endif // too many gprs\n"
 
     self.vgprPool.checkFinalState()
-    print "\n"
     return kStr
 
   ##############################################################################
