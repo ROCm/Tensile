@@ -464,9 +464,9 @@ class KernelWriterAssembly(KernelWriter):
       self.version = kernel["ISA"]
 
     self.AsmBugs = {}
-    self.AsmBugs["ExplicitCO"] = globalParameters["AsmHasExplicitCO"][self.version]
+    self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
 
-    if not globalParameters["AsmHasDirectToLds"][self.version]:
+    if not globalParameters["AsmCaps"][self.version]["HasDirectToLds"]:
       kernel["DirectToLdsA"] = False
       kernel["DirectToLdsB"] = False
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
@@ -4779,12 +4779,25 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
       if kernel["BufferStore"]:
-        kStr += inst("v_add_lshl_u32", \
-            vgpr(addr), \
-            vgpr(scaledCoordVgpr1), \
-            vgpr(coordVgpr0), \
-            hex(log2(self.bpeCexternal)), \
-            "accumulate d0 lower and *= bpe")
+        if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+          kStr += inst("v_add_lshl_u32", \
+              vgpr(addr), \
+              vgpr(scaledCoordVgpr1), \
+              vgpr(coordVgpr0), \
+              hex(log2(self.bpeCexternal)), \
+              "accumulate d0 lower and *= bpe")
+        else:
+          kStr += inst("_v_add_u32", \
+              vgpr(addr), \
+              "vcc", \
+              vgpr(scaledCoordVgpr1), \
+              vgpr(coordVgpr0), \
+              "accumulate d0 lower")
+          kStr += inst("v_lshlrev_b32", \
+              vgpr(addr), \
+              hex(log2(self.bpeCexternal)), \
+              vgpr(addr), \
+              " *= bytes/element" )
       else:
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
