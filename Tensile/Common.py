@@ -579,7 +579,6 @@ def assignGlobalParameters( config ):
             not os.system ("echo \"v_add_lshl_u32 v47, v36, v34, 0x2\" \
                            | %s %s" % \
                            (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
-
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])

@@ -4727,7 +4727,6 @@ class KernelWriterAssembly(KernelWriter):
         # in tmpVgpr+2, save the scaled address:
         indices = range(0, kernel["ProblemType"]["NumIndicesC"])
         numDim = len(indices)
-        upperDimVgpr = tmpVgpr+2 # VGPR that stores accumulated offsets from 1..numDim
         for i in range(1, numDim):
           assert( indices[i] < kernel["ProblemType"]["NumIndicesC"])
           coord = -1
@@ -4787,7 +4786,7 @@ class KernelWriterAssembly(KernelWriter):
               hex(log2(self.bpeCexternal)), \
               "accumulate d0 lower and *= bpe")
         else:
-          kStr += inst("_v_add_u32", \
+          kStr += inst("_v_add_co_u32", \
               vgpr(addr), \
               "vcc", \
               vgpr(scaledCoordVgpr1), \
