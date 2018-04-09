@@ -1396,11 +1396,12 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprTmp+2]",  \
               "mul d%u lower"%i)
-          kStr += inst("v_mul_hi_u32", \
-              "v[\\vgprTmp+1]", \
-              sgpr("Strides%s+%u"%(tensorChar,i-1)), \
-              "v[\\vgprTmp+2]",  \
-              "mul d%u upper"%i)
+          if not justOffset32:
+            kStr += inst("v_mul_hi_u32", \
+                "v[\\vgprTmp+1]", \
+                sgpr("Strides%s+%u"%(tensorChar,i-1)), \
+                "v[\\vgprTmp+2]",  \
+                "mul d%u upper"%i)
           needAdd = 1
         # other sum index
         else:
@@ -4426,7 +4427,8 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Vgprs
-    tmpVgpr = self.vgprPool.checkOut(2+3,"tmp-GlobalWrite") # 2 for coord and 3 for GLOBAL_OFFSET_C
+    goc = 2 if kernel["BufferStore"] else 3 # GLOBAL_OFFSET_C
+    tmpVgpr = self.vgprPool.checkOut(2+goc,"tmp-GlobalWrite") # 2 for coord + GLOBAL_OFFSET_C
 
     ########################################
     # Sgprs
@@ -4587,7 +4589,7 @@ class KernelWriterAssembly(KernelWriter):
         numBatches = max(1, (len(elements)+numElementsPerBatch-1) / numElementsPerBatch)
         #print "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch, "numVgprsPerElement", numVgprsPerElement
         self.lastCoordOffset1 = -1
-        self.coord1Vgpr = -1
+        self.coordVgpr1 = -1
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements) )
@@ -4681,7 +4683,9 @@ class KernelWriterAssembly(KernelWriter):
       strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]/kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
       #fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
 
+      # Compute scaled offset requires 2 SGPR
 
+      scaledCoordVgpr1 = tmpVgpr+2
       coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
       if coordOffset0 == 0:
         # just use coord0 directly
@@ -4702,7 +4706,7 @@ class KernelWriterAssembly(KernelWriter):
       # coord0
       coordOffset1 = d1*strideD1 + vc1
       if coordOffset1 != self.lastCoordOffset1:
-        kStr += self.comment("new offset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
+        kStr += self.comment1("new offset1=%u: d1=%u vc1=%u" % (coordOffset1, d1, vc1))
         self.lastCoordOffset1 = coordOffset1
 
         if coordOffset1 == 0:
@@ -4719,7 +4723,50 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("_v_add_co_u32", vgpr(tmpVgpr+1), "vcc", vgpr(coord1), sgpr(tmpS01), \
               "coord1 += d1*sg1*VW + vc1")
           self.coordVgpr1 = tmpVgpr+1
-      #kStr += dump(vgpr(tmp+1))
+
+        # in tmpVgpr+2, save the scaled address:
+        indices = range(0, kernel["ProblemType"]["NumIndicesC"])
+        numDim = len(indices)
+        upperDimVgpr = tmpVgpr+2 # VGPR that stores accumulated offsets from 1..numDim
+        for i in range(1, numDim):
+          assert( indices[i] < kernel["ProblemType"]["NumIndicesC"])
+          coord = -1
+          if i == kernel["ProblemType"]["Index0"]:
+            assert(0) # Should never get here?
+            coord = vgpr(coordVgpr0)
+            useSgpr = 0
+          elif i == kernel["ProblemType"]["Index1"]:
+            coord = vgpr(self.coordVgpr1)
+            useSgpr = 0
+          else: # just a group index
+            coord = sgpr("WorkGroup%u"%i)
+            useSgpr = 1
+
+          if useSgpr:
+            kStr += inst("v_mov_b32", \
+                vgpr(tmpVgpr+3), \
+                coord, "vgpr <- sgpr")
+            kStr += inst("v_mul_lo_u32", \
+                vgpr(tmpVgpr+3), \
+                sgpr("StridesC+%u"%(i-1)), \
+                vgpr(tmpVgpr+3), \
+                "Coffset %u "%i)
+          else:
+            kStr += inst("v_mul_lo_u32", \
+                vgpr(scaledCoordVgpr1), \
+                sgpr("StridesC+%u"%(i-1)), \
+                coord, \
+                "Coffset %u "%i)
+
+          if i>1:
+            kStr += inst("_v_add_co_u32", \
+                vgpr(scaledCoordVgpr1), \
+                "vcc", \
+                vgpr(scaledCoordVgpr1), \
+                vgpr(tmpVgpr+3), \
+                "accumulate d%u into addr"%i)
+
+
 
       # in-bounds exec mask
       if edge:
@@ -4731,18 +4778,26 @@ class KernelWriterAssembly(KernelWriter):
         # apply in-bounds exec mask for read
         kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
-      # global offset macro (requires 3 tmpVgpr)
-      kStr += "GLOBAL_OFFSET_C %u" % addr
-      for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        if i == kernel["ProblemType"]["Index0"]:
-          kStr += ", %s" % (coordVgpr0)
-        elif i == kernel["ProblemType"]["Index1"]:
-          kStr += ", %s" % (self.coordVgpr1)
-        else: # just a group index
-          kStr += ", sgprWorkGroup%u"%i
-      kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
+      if kernel["BufferStore"]:
+        kStr += inst("v_add_lshl_u32", \
+            vgpr(addr), \
+            vgpr(scaledCoordVgpr1), \
+            vgpr(coordVgpr0), \
+            hex(log2(self.bpeCexternal)), \
+            "accumulate d0 lower and *= bpe")
+      else:
+        # global offset macro (requires 3 tmpVgpr)
+        # final address = C + index*bytes
+        kStr += "GLOBAL_OFFSET_C %u" % addr
+        for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
+          if i == kernel["ProblemType"]["Index0"]:
+            kStr += ", %s" % (coordVgpr0)
+          elif i == kernel["ProblemType"]["Index1"]:
+            kStr += ", %s" % (self.coordVgpr1)
+          else: # just a group index
+            kStr += ", sgprWorkGroup%u"%i
+        kStr += ", %s%s" % ((tmpVgpr+2), self.endLine)
 
-      # final address = C + index*bytes
       if not kernel["BufferStore"]:
         kStr += inst("_v_add_co_u32",  vgpr(addr+0), "vcc", vgpr(addrC+0), \
             vgpr(addr+0), "addr = C + index*bytes (lo)" )
