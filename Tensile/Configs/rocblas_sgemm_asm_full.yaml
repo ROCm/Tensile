@@ -296,7 +296,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [1, 8]
-        - DepthU: [ 8, 16, 24 ]
+        - DepthU: [ 8, 16, 24, 32 ]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -304,6 +304,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Exact: [ 1024, 1024, 1, 1024 ]
           - Exact: [ 1024, 700, 1, 512 ]
           - Exact: [ 1024, 700, 1, 512 ]
           - Exact: [ 3072, 128, 1, 1024 ]
@@ -725,6 +726,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Exact: [ 1024, 1024, 1, 1024 ]
 # MIOpen sizes
           - Exact: [  1760,   800, 1, 1760 ]
           - Exact: [  1760,  1600, 1, 1760 ]
@@ -928,6 +930,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Exact: [ 1024, 1024, 1, 1024 ]
           - Exact: [ 1760, 7133, 1, 1760 ]
           - Exact: [ 2048, 7133, 1, 2048 ]
           - Exact: [ 2560, 7133, 1, 2560 ]
@@ -1044,7 +1047,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [-1, -4]
-        - DepthU: [ 8, 16, 24 ]
+        - DepthU: [ 8, 16, 24, 32 ]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -1052,6 +1055,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Exact: [ 1024, 1024, 1, 1024 ]
 
   ########################################
   # TT - VectorWidth Correctness
