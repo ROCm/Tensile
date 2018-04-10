@@ -1,6 +1,6 @@
 # benchmark assembly and source kernels
 GlobalParameters:
-  MinimumRequiredVersion: 4.0.1
+  MinimumRequiredVersion: 5.0.1
   CMakeBuildType: Release
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
