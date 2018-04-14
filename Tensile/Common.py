@@ -184,6 +184,11 @@ validParameters = {
     "GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [        True ],
 
+
+    # Data loaded into LDS will be stored so consecutive LDS location store elements consecutive in U dim
+    "LocalSerialInUA" :            [ False, True],
+    "LocalSerialInUB" :            [ False, True],
+
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
 
@@ -323,10 +328,12 @@ defaultBenchmarkCommonParameters = [
     # use 1 by default since this enables other important optimizations including:
     # DirectToLds, preciseBoundsCheck, and useSgrpForGRO
     {"GlobalReadVectorWidth":     [ -1 ] },
-    {"GlobalReadCoalesceVectorA": [ True ] },
-    {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
+    {"GlobalReadCoalesceVectorA": [ True ] },
+    {"GlobalReadCoalesceVectorB": [ True ] },
+    {"LocalSerialInUA":           [ False ] },
+    {"LocalSerialInUB":           [ False ] },
     {"PrefetchGlobalRead":        [ True ] },
     {"PrefetchLocalRead":         [ True ] },
     {"UnrollMemFence":            [ False ] },

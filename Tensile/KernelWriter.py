@@ -1,4 +1,4 @@
-################################################################################
+###############################################################################
 # Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -778,6 +778,7 @@ class KernelWriter:
     s += self.endLine
     return s
 
+
   ##############################################################################
   # Init Kernel
   ##############################################################################
@@ -866,62 +867,54 @@ class KernelWriter:
     if kernel["ProblemType"]["TLUA"]: # NT no transpose
       self.numReadsTileA = kernel["NumLoadsCoalescedA"]
       self.numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
-      self.numWritesCoalA = kernel["NumLoadsCoalescedA"]
-      self.numWritesPerpA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vectors, write vectors
         self.readTileDimComponentsA = False # Vector
         self.readTileDimVectorA = True # Vector
         self.readUnrollDimComponentsA = False # Scalar
         self.readUnrollDimVectorA = False # Scalar
-        self.writeTileDimComponentsA = False # Vector
-        self.writeUnrollDimComponentsA = False # Scalar
         # NEW
         self.numReadsTileVecCompA = vwa
         self.numReadsUnrollVecCompA = 1
-        self.numWritesCoalVecCompA = vwa
-        self.numWritesPerpVecCompA = 1
       else: # read components, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
         self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
         self.readUnrollDimVectorA = False # Components
-        self.writeTileDimComponentsA = False # Scalar
-        self.writeUnrollDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
         # NEW
         self.numReadsTileVecCompA = 1
         self.numReadsUnrollVecCompA = vwa
-        self.numWritesCoalVecCompA = 1
-        self.numWritesPerpVecCompA = vwa
     else: # TN yes transpose
       self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
       self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
-      self.numWritesCoalA = kernel["NumLoadsPerpendicularA"]
-      self.numWritesPerpA = kernel["NumLoadsCoalescedA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
         self.readUnrollDimComponentsA = False # Vector
         self.readUnrollDimVectorA = True # Vector
-        self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
-        self.writeUnrollDimComponentsA = False # Scalar
         # NEW
         self.numReadsUnrollVecCompA = vwa
         self.numReadsTileVecCompA = 1
-        self.numWritesCoalVecCompA = 1
-        self.numWritesPerpVecCompA = vwa
       else: # read components, write vectors
         self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
         self.readTileDimVectorA = False # Components
         self.readUnrollDimComponentsA = False # Scalar
         self.readUnrollDimVectorA = False # Scalar
-        self.writeTileDimComponentsA = False # Vector
-        self.writeUnrollDimComponentsA = False # Scalar
         # NEW
         self.numReadsUnrollVecCompA = 1
         self.numReadsTileVecCompA = vwa
-        self.numWritesCoalVecCompA = vwa
-        self.numWritesPerpVecCompA = 1
 
+    # Writes can be stored in LDS serial-in-Tile (default) or serial-in-U.
+    assert(kernel["GlobalReadCoalesceVectorA"]) # didn't try to support this mode here
+    if (not kernel["LocalSerialInUA"]) == kernel["ProblemType"]["TLUA"]: # NT no transpose
+      self.writeTileDimComponentsA = False # Vector
+      self.writeUnrollDimComponentsA = False # Scalar
+      self.numWritesCoalVecCompA = vwa
+      self.numWritesPerpVecCompA = 1
+    else:
+      self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+      self.writeUnrollDimComponentsA = False # Scalar
+      self.numWritesCoalVecCompA = 1
+      self.numWritesPerpVecCompA = vwa
 
     self.numReadVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if (self.readTileDimComponentsA \
@@ -955,8 +948,6 @@ class KernelWriter:
     if kernel["ProblemType"]["TLUB"]: # NT no transpose
       self.numReadsTileB = kernel["NumLoadsCoalescedB"]
       self.numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
-      self.numWritesCoalB = kernel["NumLoadsCoalescedB"]
-      self.numWritesPerpB = kernel["NumLoadsPerpendicularB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         self.readTileDimComponentsB = False # Vector
         self.readTileDimVectorB = True # Vector
@@ -1010,6 +1001,20 @@ class KernelWriter:
         self.numReadsTileVecCompB = vwb
         self.numWritesCoalVecCompB = vwb
         self.numWritesPerpVecCompB = 1
+
+    # Writes can be stored in LDS serial-in-Tile (default) or serial-in-U.
+    # KernelWriterAssembly has additional logic to make the swap effective
+    assert(kernel["GlobalReadCoalesceVectorB"]) # didn't try to support this mode here
+    if (not kernel["LocalSerialInUB"]) == kernel["ProblemType"]["TLUB"]: # NT no transpose
+      self.writeTileDimComponentsB = False # Vector
+      self.writeUnrollDimComponentsB = False # Scalar
+      self.numWritesCoalVecCompB = vwa
+      self.numWritesPerpVecCompB = 1
+    else:
+      self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+      self.writeUnrollDimComponentsB = False # Scalar
+      self.numWritesCoalVecCompB = 1
+      self.numWritesPerpVecCompB = vwa
 
     # numReadVectorComponentsB is refers to global reads
     self.numReadVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
