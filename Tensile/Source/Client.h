@@ -613,7 +613,7 @@ bool callLibrary(
 
   float perfScaling = 1.f;
 #if Tensile_RUNTIME_LANGUAGE_HIP
-  perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
+//  perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
 #endif
   double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
 
@@ -1012,7 +1012,7 @@ bool benchmarkAllSolutionsForSize(
 
     float perfScaling = 1.f;
 #if Tensile_RUNTIME_LANGUAGE_HIP
-    perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
+//    perfScaling = 1.f * expectedClockRate / avgCoreClock; // if clock speeds drop
 #endif
     double gflops = solutionIsValid ? perfScaling * totalFlops / timeNs : 0;
     //std::cout << gflops << " gflops = " << totalFlops << " flops / " << timeNs << " ns" << std::endl;

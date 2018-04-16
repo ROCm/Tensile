@@ -4,6 +4,6 @@
 *.vscode
 *~
 Tensile.egg-info
-build
+build*
 dist
 .cache

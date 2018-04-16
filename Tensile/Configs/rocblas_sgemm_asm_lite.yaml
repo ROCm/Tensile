@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 3.3.0
+  MinimumRequiredVersion: 4.0.2
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -314,6 +314,10 @@ BenchmarkProblems:
 
 
 LibraryLogic:
+#   ScheduleName: "vega20"
+#   DeviceNames: ["Device 66a0"]
+#   ArchitectureName: "gfx906"
+
     ScheduleName: "vega10"
     DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
     ArchitectureName: "gfx900"
