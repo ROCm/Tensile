@@ -314,13 +314,13 @@ BenchmarkProblems:
 
 
 LibraryLogic:
-    ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0"]
-    ArchitectureName: "gfx906"
+#   ScheduleName: "vega20"
+#   DeviceNames: ["Device 66a0"]
+#   ArchitectureName: "gfx906"
 
-#   ScheduleName: "vega10"
-#   DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
-#   ArchitectureName: "gfx900"
+    ScheduleName: "vega10"
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
+    ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
 #   DeviceNames: ["Device 6860"]
