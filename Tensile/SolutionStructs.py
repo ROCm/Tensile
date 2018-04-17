@@ -791,7 +791,7 @@ class Solution:
         state["Valid"] = False
         return
 
-    # GlobalSplitU doesn't work with
+    # GlobalSplitU doesn't work with some other things:
     if state["GlobalSplitU"] > 1:
       if not state["GlobalSplitUSummationAssignmentRoundRobin"] \
           and state["LoopTail"]:
