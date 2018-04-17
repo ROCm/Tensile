@@ -280,12 +280,20 @@ class KernelWriterAssembly(KernelWriter):
     self.do["MAC"]         = True
     self.do["PostLoop"]    = True
     self.do["GlobalWrite"] = True
+
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
     # Various debug flags and modes
     self.db = {}
     self.db["EnableAsserts"]     = True  # Enable assertion codegen
     self.db["DebugKernelMaxItems"] = 16  # Capture first N(=16) print values, ignore subsequent.  If -1, debug writing is faster but writing more than 16 values is undefined.
+
+    # Chicken bit to add conservative synchronization at strategic points:
+    # 0x1 = waitcnt + barrier after vector load
+    # 0x2 = waitcnt at self.wait() for globalRead
+    # 0x4 = waitcnt at self.wait() for localWrite
+    # 0x8 = waitcnt at self.wait() for localRead
+    self.db["ConservativeWaitCnt"] = 0x0
 
     # Check A and B values loaded from memory to ensure they match expected
     # sequential pattern.  Requires DataInitTypeAB=2.
@@ -316,6 +324,7 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
     self.inTailLoop = False
+
 
 
   ########################################
@@ -1121,6 +1130,10 @@ class KernelWriterAssembly(KernelWriter):
     self.getLabel("TailLoopEnd%s"%(unrollChar))
     # shift vectors determined later
 
+    if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
+    if self.db["ConservativeWaitCnt"] : print ("\n***WARNING: ConservativeWaitCnt enabled, may impact performance\n")
+    if self.do["KeepDirectToLdsAlloc"] : print ("\n***WARNING: KeepDirectToLdsAlloc enabled, may impact performance\n")
+    if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
 
 
   ##############################################################################
@@ -1218,7 +1231,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "  private_segment_alignment = 4%s" % self.endLine
     kStr += ".end_amd_kernel_code_t%s" % self.endLine
 
-    kStr += self.comment3("Optimizations:")
+    kStr += self.comment3("Optimizations and Config:")
+    kStr += self.comment1("ThreadTile=%u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
     kStr += self.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
     kStr += self.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
     kStr += self.comment1("PreciseBoundsCheck=%s" % kernel["PreciseBoundsCheck"])
@@ -1311,7 +1325,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("max SGPR=%u"%self.sgprIdx)
 
 
-    if kernel["BufferLoad"]:
+    if kernel["BufferLoad"] or kernel["BufferStore"]:
       if not kernel["PreciseBoundsCheck"]:
         kStr += self.comment3("2GB limit - set offsets to -1 to exceed this and clamp")
         kStr += self.macroRegister("BufferLimit", "0x80000000")
@@ -3110,11 +3124,16 @@ class KernelWriterAssembly(KernelWriter):
     loadWidth = tP["globalReadInstruction"].totalWidth
     ldsOffset = 0
 
+    if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
+      kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
+      kStr += self.syncThreads(kernel)
+
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
       # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
       if kernel["LocalWriteUseSgpr%s"%tc]:
         kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
       else:
+        # TODO - remove this code? No reason not to use LocalWriteUseSgpr?
         lwaSgpr = self.getTmpSgpr(1)
         kStr += inst("v_readfirstlane_b32", sgpr(lwaSgpr), \
             vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
@@ -3401,9 +3420,11 @@ class KernelWriterAssembly(KernelWriter):
               #kStr += self.bomb()
               #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))
 
-    #kStr += "s_waitcnt vmcnt(0)\n"
-    #kStr += "s_barrier // debug\n"
-    #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
+    if self.db["ConservativeWaitCnt"] & 0x1:
+        kStr += "s_barrier // debug\n"
+        kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+        kStr += "s_barrier // debug\n"
+        #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
     if guardK and kernel["UseSgprForGRO"]:
       # increment offset 0 by 1 element
@@ -5255,8 +5276,13 @@ class KernelWriterAssembly(KernelWriter):
       if lgkmcnt > -1 and not kernel["BufferLoad"]:
         lgkmcnt += skipGlobalRead * (numA + numB)
 
-    if False:
-      return "s_waitcnt lgkmcnt(0) & vmcnt(0) // debug%s" % self.endLine
+    if (self.db["ConservativeWaitCnt"] & 0x2) and skipGlobalRead != -1 or \
+       (self.db["ConservativeWaitCnt"] & 0x4) and skipLocalWrite != -1 or \
+       (self.db["ConservativeWaitCnt"] & 0x8) and skipLocalRead  != -1:
+        dbKStr = ""
+        dbKStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "debug %s"%comment )
+        dbKStr += inst("s_barrier", "debug" )
+        return dbKStr
 
     lgkmcnt = min(lgkmcnt, 15)
     vmcnt = min(vmcnt, 15)
