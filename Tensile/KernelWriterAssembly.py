@@ -67,7 +67,8 @@ class RegisterPool:
 
   ########################################
   # Init
-  def __init__(self, size):
+  def __init__(self, size, printRP=0):
+    self.printRP=printRP
     self.pool = [self.statusUnAvailable]*size
     self.checkOutSize = {}
 
@@ -96,7 +97,8 @@ class RegisterPool:
   # Remove
   # Removes registers from the pool so they cannot be subsequently allocated for tmps
   def remove(self, start, size):
-    #print "RP::remove(%u,%u)"%(start,size)
+    if self.printRP:
+      print "RP::remove(%u,%u)"%(start,size)
     # reserve space
     newSize = start + size
     oldSize = len(self.pool)
@@ -145,7 +147,8 @@ class RegisterPool:
       for i in range(found, found+size):
         self.pool[i] = self.statusInUse
       self.checkOutSize[found] = size
-      #print "RP::checkOut %s(%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
+      if self.printRP:
+        print "RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
       return found
     # need overflow
     else:
@@ -172,20 +175,23 @@ class RegisterPool:
       for i in range(0, overflow):
         self.pool.append(self.statusInUse)
       self.checkOutSize[start] = size
-      #print self.state()
-      #print "RP::checkOut %s(%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
+      if self.printRP:
+        print self.state()
+        print "RP::checkOut %s(%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
       return start
 
   ########################################
   # Check In
   def checkIn(self, start):
-    #print "RP::checkIn() @ %u"%(start)
+    if self.printRP:
+      print "RP::checkIn() @ %u"%(start)
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
         self.pool[i] = self.statusAvailable
       self.checkOutSize.pop(start)
-      #print "RP::checkIn() @ %u +%u"%(start,size)
+      if self.printRP:
+        print "RP::checkIn() @ %u +%u"%(start,size)
     else:
       printWarning("RegisterPool::checkIn(%s) but it was never checked out"%start)
 
@@ -227,6 +233,8 @@ class RegisterPool:
     for si in range(0,len(self.pool)):
       if self.pool[si] == self.statusInUse:
         printWarning("RegisterPool::checkFinalState: temp (%s) was never checked in."%si)
+        if self.printRP:
+          print self.state()
 
   ########################################
   # State
@@ -304,6 +312,9 @@ class KernelWriterAssembly(KernelWriter):
 
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
+
+    # print register pool:
+    self.db["PrintRP"] = False
 
     # Number of times localReadDo has been called by the code-generator.
     # Used to control debug enablement.
@@ -1097,7 +1108,7 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs)
+    self.vgprPool = RegisterPool(self.totalVgprs, self.db["PrintRP"])
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
@@ -1134,6 +1145,9 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["ConservativeWaitCnt"] : print ("\n***WARNING: ConservativeWaitCnt enabled, may impact performance\n")
     if self.do["KeepDirectToLdsAlloc"] : print ("\n***WARNING: KeepDirectToLdsAlloc enabled, may impact performance\n")
     if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
+    if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
+    if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
+    if self.db["PrintRP"] : print ("\n***WARNING: PrintRP enabled, may generate verbose output\n")
 
 
   ##############################################################################
@@ -4354,6 +4368,12 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["BufferStore"]:
       self.vgprPool.checkIn(self.addrC)
 
+    try:
+        self.vgprPool.checkIn(self.alphaVgpr)
+        self.vgprPool.checkIn(self.betaVgpr)
+    except AttributeError:
+        None # ignore if alpha/beta never allocated
+
 
   ##############################################################################
   # Not LocalSplitU: Global Write
@@ -4437,8 +4457,8 @@ class KernelWriterAssembly(KernelWriter):
     label_End
     """
     if kernel["ProblemType"]["DataType"].isHalf():
-      self.alphaVgpr = self.vgprPool.checkOut(1)
-      self.betaVgpr = self.vgprPool.checkOut(1)
+      self.alphaVgpr = self.vgprPool.checkOut(1, "alpha")
+      self.betaVgpr = self.vgprPool.checkOut(1, "beta")
       kStr += inst("v_mov_b32", vgpr(self.alphaVgpr), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
       kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
 #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
