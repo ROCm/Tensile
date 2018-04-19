@@ -182,10 +182,11 @@ class LogicAnalyzer:
 
     # merge solutions from size groups
     # solutions needs to be a set, and offset needs to be mapping
-    print1("# Merging Solutions:")
+    print1("# Merging Solutions: len(solutionList=%u)"%(len(solutionsList)))
     self.numSolutionsPerGroup = []
     self.solutionGroupMap = []
     self.solutions = []
+    solutionsHash = {} # for accelerating lookups
 
     totalSolutions = 0
     for solutionGroupIdx in range(0, len(solutionsList)):
@@ -198,12 +199,12 @@ class LogicAnalyzer:
       self.solutionGroupMap.append({})
       for solutionIdx in range(0, len(solutionGroup)):
         solution = solutionGroup[solutionIdx]
-        if solution not in self.solutions:
+        if not solution in solutionsHash:
+          sIdx = len(self.solutions) # the one we are about to add
           self.solutions.append(solution)
-        sIdx = self.solutions.index(solution)
+          solutionsHash[solution] = 1
         self.solutionGroupMap[solutionGroupIdx][solutionIdx] = sIdx
         progressBar.increment()
-    # print "SolutionGroupMap", self.solutionGroupMap
     self.numSolutions = len(self.solutions)
     self.solutionMinNaming = Solution.getMinNaming(self.solutions)
     self.solutionNames = []
