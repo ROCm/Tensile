@@ -3254,8 +3254,8 @@ class KernelWriterAssembly(KernelWriter):
             g2lIdx = i * loadWidth
             if guardK:
               # for each component in vector
-#jgolds which bpe here? assuming tP
-              for r in range(0, loadWidth*self.bpr/tP["bpe"]):
+              r = 0
+              while r < loadWidth*self.bpr/tP["bpe"]:
                 kStr += self.comment1("load component %u"%r)
 
                 if kernel["BufferLoad"]:
@@ -3291,16 +3291,37 @@ class KernelWriterAssembly(KernelWriter):
                           "Move LDS write address to next line" )
                     directToLdsLoads+=1
 
-
-                  # load single element from address
+                  # load single element from address (except packed half case below)
+                  numElementsPerLoad = 1
                   if kernel["ProblemType"]["DataType"].isHalf():
-                    kStr += inst("buffer_load_short_d16%s"%("_hi" if r%2==1 else ""), \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                        vgpr(offsetVgpr), \
-                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                        soffset, \
-                        " offen offset:0",\
-                        "load single f16")
+                    if kernel["AssertSummationElementMultiple"] % 2 == 0:
+                      if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                        # Assembler expects a destination VGPR even though not written
+                        kStr += tP["globalReadInstruction"].toString( \
+                          (\
+                          vgpr(0), \
+                          vgpr(offsetVgpr), \
+                          sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                          soffset,"lds"), \
+                          "load packed 2xhalf  G -> LDS(%s)", tP["NonTemporal"], 0)
+                      else:
+                        kStr += inst("buffer_load_dword", \
+                          vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                          vgpr(offsetVgpr), \
+                          sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                          soffset, \
+                          " offen offset:0",\
+                          "load packed 2xhalf")
+                      numElementsPerLoad = 2
+                      r += 1 # skip next element since we loaded 2X here
+                    else:
+                      kStr += inst("buffer_load_short_d16%s"%("_hi" if r%2==1 else ""), \
+                          vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                          vgpr(offsetVgpr), \
+                          sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                          soffset, \
+                          " offen offset:0",\
+                          "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
                       # Assembler expects a destination VGPR even though not written
@@ -3338,7 +3359,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
                         "vcc", \
                         vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                        tP["bpe"], "graOffset += bpe")
+                        numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
                 else: # Not buffer load
                   # mask if current address if in bounds
                   kStr += inst("v_cmpx_lt_u64", "vcc", \
@@ -3379,6 +3400,7 @@ class KernelWriterAssembly(KernelWriter):
                       vgpr(zeroVgpr), \
                       "vcc", \
                       "gra += 1 (upper)")
+                r += 1 # next component (for half)
             else: # not guardK
               if kernel["BufferLoad"]:
                 if graIdx==0 or not kernel["UseSgprForGRO"]:
