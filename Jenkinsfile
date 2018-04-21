@@ -282,7 +282,7 @@ hcc_ctu:
 {
   try
   {
-    node( 'docker && rocm && jenkins-rocm-2' )
+    node( 'docker && rocm && jenkins-rocm-3' )
     {
       def docker_args = new docker_data(
           from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
