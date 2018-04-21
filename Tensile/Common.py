@@ -237,6 +237,12 @@ validParameters = {
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
     "UseSgprForGRO":              [ -1, 0, 1],
 
+    # When creating the kernel, assume that the summation size is some multiple of the element size.
+    # This can result in more efficient kernels, but requires runtime checking to ensure the specified
+    # summation value meets the requirements
+    # 1 indicates no additional restriction - all sizes are multiples of 1
+    "AssertSummationElementMultiple": [1,2,4,8],
+
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               range(1, 40+1),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
@@ -281,8 +287,8 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2, 3, 4],
-    "LdsPadB":                     [ 0, 1, 2, 3, 4],
+    "LdsPadA":                     [ 0, 1, 2, 3, 4, 8],
+    "LdsPadB":                     [ 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
@@ -341,6 +347,8 @@ defaultBenchmarkCommonParameters = [
     {"DirectToLds":               [ True ] },
     {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
+    {"AssertSummationElementMultiple": [ 1 ] },
+
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },

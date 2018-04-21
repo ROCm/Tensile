@@ -1215,19 +1215,25 @@ class Solution:
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
+    #   TODO - for doubles we need to add something special here?
     # The matrix must not require transposing since that is done by reading to VGPR and writing in different order
     # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
     # Note for these matrices LSC is same as MacroTile dim
-    # TODO - currently only support Single but could be extended to 2 halfs or part of a double
-    if state["DirectToLds"] and state["ProblemType"]["DataType"].isSingle():
-      if state["GlobalLoadVectorWidthA"] == 1 \
+    if state["DirectToLds"]:
+      # The tail loop requires half summation elements be a multiple of two to use DirectToLds feature
+      elementMultipleOk = not state["ProblemType"]["DataType"].isHalf() \
+                          or state["AssertSummationElementMultiple"] % 2 == 0
+
+      if (state["GlobalLoadVectorWidthA"] * state["ProblemType"]["DataType"].numBytes() == 4) \
         and not state["ProblemType"]["TransposeA"] \
+        and elementMultipleOk \
         and ((state["LSCA"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
         state["DirectToLdsA"] = True
         state["LocalWriteUseSgprA"] = True
 
-      if state["GlobalLoadVectorWidthB"] == 1 \
+      if (state["GlobalLoadVectorWidthB"] * state["ProblemType"]["DataType"].numBytes() == 4) \
         and state["ProblemType"]["TransposeB"] \
+        and elementMultipleOk \
         and ((state["LSCB"] * state["ProblemType"]["DataType"].numBytes()) % 256 == 0):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
