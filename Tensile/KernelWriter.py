@@ -39,16 +39,6 @@ class KernelWriter:
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
 
-    self.enable = {}
-    self.enable["PreLoop"]        = True
-    self.enable["GlobalRead"]     = True
-    self.enable["GlobalReadInc"]  = True
-    self.enable["LocalWrite"]     = True
-    self.enable["LocalRead"]      = True
-    self.enable["Wait"]           = True
-    self.enable["Sync"]           = True
-    self.enable["MAC"]            = True
-    self.enable["PostLoop"]       = True
 
 
   ##############################################################################
@@ -783,6 +773,17 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+    self.enable = {}
+    self.enable["PreLoop"]        = kernel["DisableKernelPieces"] > -7
+    self.enable["GlobalRead"]     = kernel["DisableKernelPieces"] > -2
+    self.enable["GlobalReadInc"]  = kernel["DisableKernelPieces"] > -7
+    self.enable["LocalWrite"]     = kernel["DisableKernelPieces"] > -3
+    self.enable["LocalRead"]      = kernel["DisableKernelPieces"] > -4
+    self.enable["Wait"]           = kernel["DisableKernelPieces"] > -5
+    self.enable["Sync"]           = kernel["DisableKernelPieces"] > -5
+    self.enable["MAC"]            = kernel["DisableKernelPieces"] > -6
+    self.enable["PostLoop"]       = kernel["DisableKernelPieces"] > -1
+
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
     else:
