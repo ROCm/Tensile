@@ -407,7 +407,9 @@ defaultProblemType = {
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "UseBeta":                  True,             # =True use beta parameter (asm will check for B=0 and optimize the write for that), =False don't use beta parameter
-    "HighPrecisionAccumulate":  False,            # this was the original plan for specifying f32 += f16*f16, but its possible that Accumulation/Internal precision and output precision should be their own DataTypes altogether.
+    "HighPrecisionAccumulate":  False,            # f32 += f16*f16
+    "SilentHighPrecisionAccumulate": False,       # Keep kernel names the same for HPA mode.  Useful for testing.
+
     "ComplexConjugateA":        False,            # complex data should be conjugated for "C" transpose case
     "ComplexConjugateB":        False,
 
