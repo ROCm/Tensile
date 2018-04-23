@@ -26,7 +26,9 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     pkg-config \
     python2.7 \
     python-pip \
+    python-pytest \
     python-setuptools \
+    python-yaml \
     libnuma1 \
     hip_hcc \
     && \
