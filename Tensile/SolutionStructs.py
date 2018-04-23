@@ -722,6 +722,7 @@ class Solution:
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
 
+
     # Init vars early since there are early-exit return statements below
     state["DirectToLdsA"] = False
     state["DirectToLdsB"] = False
@@ -973,6 +974,13 @@ class Solution:
     # end DepthU loop
     ########################################
 
+
+    # Width of the tile as stored in LDS
+    state["LocalTileWidthNameA"] = "DepthU" if state["LocalSerialInUA"] else "MacroTileA"
+    state["LocalTileWidthNameB"] = "DepthU" if state["LocalSerialInUB"] else "MacroTileB"
+    state["LocalTileWidthA"] = state[state["LocalTileWidthNameA"]]
+    state["LocalTileWidthB"] = state[state["LocalTileWidthNameB"]]
+
     # f16 asm can't load shorts from global->lds
     if state["ProblemType"]["DataType"].isHalf() \
         and (state["GlobalLoadVectorWidthA"] == 1 \
@@ -1139,6 +1147,7 @@ class Solution:
     state["LVPA"] = state["LSPA"] / state["GlobalLoadVectorWidthA"]
     state["LVPB"] = state["LSPB"] / state["GlobalLoadVectorWidthB"]
 
+
     # lds buffer size for A, B
     if state["KernelLanguage"] == "Source" and \
        state["LdsPadA"] != state["LdsPadB"]:
@@ -1148,9 +1157,15 @@ class Solution:
       return
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
-    ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
+    if state["LocalSerialInUA"]:
+      ldsNumElementsA = (state["DepthU"]+state["LdsPadA"])*state["MacroTile0"]
+    else:
+      ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
-    ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
+    if state["LocalSerialInUB"]:
+      ldsNumElementsB = state["DepthU"]*(state["MacroTile1"]+state["LdsPadB"])
+    else:
+      ldsNumElementsB = (state["DepthU"]+state["LdsPadB"])*state["MacroTile1"]
     ldsNumElementsAlignedB = ((ldsNumElementsB+ldsAlign-1)/ldsAlign)*ldsAlign
     # todo, can the alignment be a power of 2?
     if state["PrefetchGlobalRead"]:
@@ -1170,6 +1185,9 @@ class Solution:
     else:
       state["LdsOffsetB"] = ldsNumElementsAlignedA
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
+
+    #print "LdsOffsetB=%u elements (0x%x bytes)" \
+    #     % (state["LdsOffsetB"], state["LdsOffsetB"]*state["ProblemType"]["DataType"].numBytes())
 
     # lds buffer size for reduction
     ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
