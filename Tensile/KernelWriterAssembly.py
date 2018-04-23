@@ -2970,6 +2970,8 @@ class KernelWriterAssembly(KernelWriter):
   def macIter(self, kernel, black):
     if not self.do["MAC"]: return ""
     kStr = ""
+    if kernel["ProblemType"]["DataType"].isHalf():
+      kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
     kStr += "MAC_%ux%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"])
     if black:
       kStr += "_BLK"
