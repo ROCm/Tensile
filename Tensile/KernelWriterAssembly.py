@@ -1281,6 +1281,14 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
+    # Use combined add+shift, where available:
+    kStr += ".macro _v_add_lshl_u32 dst, src0, src1, shiftCnt" + self.endLine
+    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+      kStr += "    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+    else:
+      kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+    kStr += ".endm" + self.endLine
 
 
 
@@ -2592,20 +2600,14 @@ class KernelWriterAssembly(KernelWriter):
         hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
         vgpr(uReg), \
         "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    kStr += inst("_v_add_co_u32", \
+    #jgolds which bpe here? assuming tP
+    kStr += inst("_v_add_lshl_u32", \
         vgpr(destVgpr), \
-        "vcc", \
         vgpr(tP["gpr"]["lwoT"]), \
         vgpr(destVgpr), \
-        "lwFO%s = lw%s%s + lw%s%s*(MT%s+PAD)" \
-        % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
-        tP["tensorChar"], self.unrollChar, tP["tileChar"]) )
-#jgolds which bpe here? assuming tP
-    kStr += inst("v_lshlrev_b32", \
-        vgpr(destVgpr), \
         hex(log2(tP["bpe"])), \
-        vgpr(destVgpr), \
-        " *= bytes/element" )
+        "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
+        % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
     if tP["isB"]:
       kStr += inst("_v_add_co_u32", \
           vgpr(destVgpr), \
@@ -2756,19 +2758,12 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["VectorWidth"] > 1:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
-    kStr += inst("_v_add_co_u32", \
+    kStr += inst("_v_add_lshl_u32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        "vcc", \
         vgpr(sgid), \
         vgpr(tP["gpr"]["lro"]), \
-        "o = lro%s*VW+sgid*MT%u"%(tP["tensorChar"], tP["tensorIdx"]) )
-#jgolds which bpe here? assuming tP
-    kStr += inst("v_lshlrev_b32", \
-        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         hex(log2(tP["bpe"])), \
-        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        "*= bytes/element" )
-
+        "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tP["tensorIdx"]) )
 
     #if tP["isA"]:
     #  kStr += self.bomb(113)
@@ -4963,25 +4958,12 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
       if kernel["BufferStore"]:
-        if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
-          kStr += inst("v_add_lshl_u32", \
-              vgpr(addr), \
-              vgpr(scaledCoordVgpr1), \
-              vgpr(coordVgpr0), \
-              hex(log2(self.bpeCexternal)), \
-              "accumulate d0 lower and *= bpe")
-        else:
-          kStr += inst("_v_add_co_u32", \
-              vgpr(addr), \
-              "vcc", \
-              vgpr(scaledCoordVgpr1), \
-              vgpr(coordVgpr0), \
-              "accumulate d0 lower")
-          kStr += inst("v_lshlrev_b32", \
-              vgpr(addr), \
-              hex(log2(self.bpeCexternal)), \
-              vgpr(addr), \
-              " *= bytes/element" )
+        kStr += inst("_v_add_lshl_u32", \
+            vgpr(addr), \
+            vgpr(scaledCoordVgpr1), \
+            vgpr(coordVgpr0), \
+            hex(log2(self.bpeCexternal)), \
+            "accumulate d0 lower and *= bpe")
       else:
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
