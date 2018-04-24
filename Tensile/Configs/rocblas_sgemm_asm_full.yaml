@@ -15,6 +15,7 @@ GlobalParameters:
   KernelTime: True
   PinClocks: True
   SleepPercent: 200
+  DataInitTypeBeta : 0
 
 BenchmarkProblems:
 
