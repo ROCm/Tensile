@@ -45,6 +45,7 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile
 globalParameters["PrintLevel"] = 1                # how much info to print. 0=none, 1=standard, 2=verbose
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
+globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -250,6 +251,18 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,     # ( tt0 x tt1 ) dimensions of the C tile that each thread works on, TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+    # Each switch is incremental, ie 3 will provide NoPostLoop+NoGlobalRead+NoLocalWrite
+    # 0=Baseline
+    # -1= +NoPostLoop
+    # -2= +NoGlobalRead
+    # -3= +NoLocalWrite
+    # -4= +NoLocalRead
+    # -5= +NoWait +NoSync
+    # -6= +NoMAC
+    # -7= +NoPreLoop+ NoGlobalReadInc
+    # -10= NullKernel
+    "DisableKernelPieces":        range(-10,1),         # disable pieces of the kernel, for performance isolation
+
 
     # Controls desiredwidth of loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
@@ -360,6 +373,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },

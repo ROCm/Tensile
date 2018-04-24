@@ -518,9 +518,10 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
-        s += "%sif( inputEvents != NULL )\n" % (t)
-        t += "  "
-        s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
+        if not globalParameters["PreciseKernelTime"]:
+          s += "%sif( inputEvents != NULL )\n" % (t)
+          t += "  "
+          s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
         t = t[2:]
         s += "%stry {\n" % (t)
         t += "  "
@@ -600,19 +601,24 @@ class SolutionWriter:
             s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
                 % (t, globalParameters["IndexChars"][i], i )
 
-          s += "%shipModuleLaunchKernel(\n" % (t)
+          s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][0],\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][1],\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][2],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][1]*localWorkSize[1],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][2]*localWorkSize[2],\n" % (t)
           s += "%slocalWorkSize[0],\n" % (t)
           s += "%slocalWorkSize[1],\n" % (t)
           s += "%slocalWorkSize[2],\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
           s += "%sNULL,\n" % (t)
-          s += "%s(void**)hipLaunchParams);\n" % (t)
+          s += "%s(void**)hipLaunchParams\n" % (t)
+          if globalParameters["PreciseKernelTime"]:
+            s += "%s,inputEvents ? inputEvents[enqueueIdx]:nullptr\n" %(t)
+            s += "%s,outputEvent ? outputEvent[enqueueIdx]:nullptr\n" % (t)
+
+          s += "%s);\n" % (t)
           t = t[2:]
           if globalParameters["DebugKernel"]:
             # copy debug buffer
@@ -638,9 +644,10 @@ class SolutionWriter:
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
-        s += "%sif( outputEvent != NULL )\n" % (t)
-        s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
-      s += "  }\n"
+        if not globalParameters["PreciseKernelTime"]:
+          s += "%sif( outputEvent != NULL )\n" % (t)
+          s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
+        s += "  }\n"
     s += "\n"
     s += "  return tensileStatusSuccess;\n"
     s += "}\n"

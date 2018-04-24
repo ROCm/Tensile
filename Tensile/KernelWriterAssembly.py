@@ -281,8 +281,8 @@ class KernelWriterAssembly(KernelWriter):
     self.do["GlobalReadB"] = True
     self.do["GlobalInc"]   = True
     self.do["LocalWrite"]  = True
-    self.do["LocalReadA"]   = True
-    self.do["LocalReadB"]   = True
+    self.do["LocalReadA"]  = True
+    self.do["LocalReadB"]  = True
     self.do["Wait"]        = True
     self.do["Sync"]        = True
     self.do["MAC"]         = True
@@ -458,6 +458,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initKernel(self, kernel, tPA, tPB ):
     super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
+
+    self.do["NullKernel"]  = kernel["DisableKernelPieces"] <= -10
 
     self.sgprs=collections.OrderedDict()
     self.sgprIdx = 0
@@ -1642,6 +1644,8 @@ class KernelWriterAssembly(KernelWriter):
   def functionBegin(self, kernel): return ""
   def allocateResources(self, kernel):
     kStr = ""
+    if self.do["NullKernel"]:
+      kStr += inst("s_endpgm", "Skip the whole kernel")
 
     if self.do["PreLoop"]: 
       # set m0
@@ -1651,6 +1655,7 @@ class KernelWriterAssembly(KernelWriter):
           %(kernel["LdsNumElements"] * self.bpeAB) )
 
       kStr += inst("v_mov_b32", vgpr("Serial"), vgpr(0), "thread serial id")
+
 
       ########################################
       # load kernel args
