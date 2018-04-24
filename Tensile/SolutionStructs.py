@@ -346,7 +346,7 @@ class ProblemType:
     name += "_"
     name += self["DataType"].toChar()
     if self["UseBeta"]: name += "B"
-    if self["HighPrecisionAccumulate"]: name += "H"
+    if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStrides"]: name += "I"
     return name
 
