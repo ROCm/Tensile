@@ -117,9 +117,9 @@ class RegisterPool:
 
   ########################################
   # Check Out
-  def checkOut(self, size, tag=""):
-    return self.checkOutAligned(size, 1, tag)
-  def checkOutAligned(self, size, alignment, tag=""):
+  def checkOut(self, size, tag="", preventOverflow=False):
+    return self.checkOutAligned(size, 1, tag, preventOverflow)
+  def checkOutAligned(self, size, alignment, tag="", preventOverflow=False):
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -154,6 +154,7 @@ class RegisterPool:
     else:
       #print "RegisterPool::checkOutAligned(%u,%u) overflowing past %u" % (size, alignment, len(self.pool))
       # where does tail sequence of available registers begin
+      assert (not preventOverflow)
       start = len(self.pool)
       for i in range(len(self.pool)-1, 0, -1):
         if self.pool[i] == self.statusAvailable:
@@ -177,7 +178,7 @@ class RegisterPool:
       self.checkOutSize[start] = size
       if self.printRP:
         print self.state()
-        print "RP::checkOut %s(%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
+        print "RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
       return start
 
   ########################################
@@ -1338,7 +1339,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
-    kStr += self.comment1("max VGPR=%u"%self.totalVgprs)
+    kStr += self.comment1("max VGPR=%u"%self.vgprPool.size())
 
 
     ########################################
@@ -4595,20 +4596,6 @@ class KernelWriterAssembly(KernelWriter):
       for edge in edges:
         kStr += "label_%04u:%s"%(writeLabels[beta][edge], self.endLine)
 
-        if edge:
-          # store free sizes in vgprs for comparison
-          sizesFreeVgprs = self.vgprPool.checkOut(2, "sizesFreeVgprs")
-          kStr += inst("v_mov_b32", \
-              vgpr(sizesFreeVgprs+0), \
-              sgpr("SizesFree+0"), \
-              "free sizes sgpr -> vgpr")
-          kStr += inst("v_mov_b32", \
-              vgpr(sizesFreeVgprs+1), \
-              sgpr("SizesFree+1"), \
-              "free sizes sgpr -> vgpr")
-        else:
-          sizesFreeVgprs = None
-
         edgeI = edge  # set to True to disable vector stores
         #edgeI = True  # set to True to disable vector stores
 
@@ -4642,7 +4629,7 @@ class KernelWriterAssembly(KernelWriter):
             numVgprsPerDataPerVI = (1*self.bpeCinternal)/self.bpr
           else:
             numVgprsPerDataPerVI = (1.0*self.bpeCinternal)/self.bpr
-        numVgprsPerElement = numVgprsPerAddr + numVgprsPerDataPerVI * gwvw
+        numVgprsPerElement = numVgprsPerAddr + int(numVgprsPerDataPerVI * gwvw)
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.availableBlock()
@@ -4651,8 +4638,13 @@ class KernelWriterAssembly(KernelWriter):
         # for the entire kernel but at least we have a functional kernel
         # TODO : the vgprSerial is needed for-ever and if we grow here will split the
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
-        if numVgprAvailable < numVgprsPerElement:
-          t = self.vgprPool.checkOut(int(ceil(numVgprsPerElement)), "grow-pool for GlobalWrite")
+        minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
+        if numVgprAvailable < minElements*numVgprsPerElement:
+          print "warning: growing VGPR for GlobalWrite batchin - this may bloat VGPR usage. numVgprAvailable=", numVgprAvailable, \
+                "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
+                "beta=", beta, "gwvw=", gwvw
+          print self.vgprPool.state()
+          t = self.vgprPool.checkOut(int(ceil(minElements**numVgprsPerElement)), "grow-pool for GlobalWrite")
           self.vgprPool.checkIn(t)
           numVgprAvailable = self.vgprPool.availableBlock()
 
@@ -4667,7 +4659,8 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves
-          numElementsPerBatch = int((numElementsPerBatch+1)/2)*2
+          numElementsPerBatch = int(numElementsPerBatch/2)*2
+          assert(numElementsPerBatch > 0)
 
 
         # if no atomics and no edge, then write whole vectors
@@ -4686,16 +4679,16 @@ class KernelWriterAssembly(KernelWriter):
           numElementsThisBatch = len(elementsThisBatch)
           numElementVgprs = int(numElementsThisBatch * ceil(numVgprsPerElement))
           #print "BATCH[%u/%u]: elements[edgeI][%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx, numElementVgprs)
-          elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs")
+          # elementVgprs can be large and should be perfectly tuned to the number of available
+          # VGPRS.  We do not want to accidentally overflow and grow the pool here:
+          elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs", preventOverflow=True)
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
-              sizesFreeVgprs, elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
+              elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
               fullExecMaskSgpr, elementSgprs, numSgprsPerElement, tmpSgpr)
           self.vgprPool.checkIn(elementVgprs)
 
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
-        if edge:
-          self.vgprPool.checkIn(sizesFreeVgprs)
 
     # End label
     kStr += "label_%04u:%s"%(endLabel, self.endLine)
@@ -4796,7 +4789,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Write Batch
   ##############################################################################
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, \
-      batchElements, coord0, coord1, addrC, sizes, \
+      batchElements, coord0, coord1, addrC,  \
       batchElementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
       fullExecMaskSgpr, batchElementSgprs, numSgprsPerElement, tmpSgpr):
     kStr = ""
@@ -4950,8 +4943,8 @@ class KernelWriterAssembly(KernelWriter):
 
       # in-bounds exec mask
       if edge:
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), vgpr(sizes+0), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), vgpr(sizes+1), "coord1 < size1" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
         kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
       if edge and (beta or atomic):
