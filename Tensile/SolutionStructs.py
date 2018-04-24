@@ -1248,18 +1248,22 @@ class Solution:
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
                "  ->DirectToLdsB=", state["DirectToLdsB"]
 
+      # Update parent variable so kernel display is accurate
+      state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
+
     # Precise bounds check uses the "num_records" field in the buffer to
     # precisely detect when we are inbounds or not.  Only a one-dimensional
     # check is used since this is faster and also for computation we only
     # need to ensure that none of the loads fault.  Work-items which are
     # computing bogus sections of the C tile will later be ignored.
-    # precise checking only works for vectorloads=1 - else if the vload crosses
-    # boundary we ignore all components not just the ones that are OOB.
-    # TODO - we could support larger loads if we know the array is a multiple
-    # of the load width
+    # precise checking only works for vectorloads<=AssertSummationElementMultiple
+    # else if the vload crosses boundary we ignore all components not just the
+    # ones that are OOB.
     if state["PreciseBoundsCheck"]:
-      if state["GlobalLoadVectorWidthA"]   !=1 \
-        or state["GlobalLoadVectorWidthB"] !=1:
+      if  state["GlobalLoadVectorWidthA"] > \
+          state["AssertSummationElementMultiple"] \
+          or state["GlobalLoadVectorWidthB"] > \
+          state["AssertSummationElementMultiple"]:
         state["PreciseBoundsCheck"] = False
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
