@@ -270,11 +270,11 @@ validParameters = {
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
-    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # threads should read/write/operate on this many contiguous elements. VW=4 on sgemm means read/write float4's.
-    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >128 bits isn't supported and should be faster
-    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
+    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...

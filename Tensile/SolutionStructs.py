@@ -755,6 +755,15 @@ class Solution:
       state["GlobalReadVectorWidth"] = 2
 
 
+    if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
+      # reject - VW too big
+      state["Valid"] = False
+
+    if state["GlobalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
+      # reject - GRVW too big
+      state["Valid"] = False
+
+
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
     if numElementsPerWorkGroup < state["NumThreads"]:
