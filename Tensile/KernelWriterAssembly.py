@@ -1288,7 +1288,10 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
       kStr += "    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
     else:
-      kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      if self.AsmBugs["ExplicitCO"]:
+        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      else:
+        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
       kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
     kStr += ".endm" + self.endLine
 
