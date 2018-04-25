@@ -3267,7 +3267,10 @@ class KernelWriterAssembly(KernelWriter):
               # for each component in vector
               r = 0
               while r < loadWidth*self.bpr/tP["bpe"]:
-                kStr += self.comment1("load component %u"%r)
+                kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+                # load single element from address (except packed half case below)
+                numElementsPerLoad = 1
+                offset = 0
 
                 if kernel["BufferLoad"]:
                   # mask if current address if in bounds
@@ -3281,6 +3284,8 @@ class KernelWriterAssembly(KernelWriter):
                     else:
                       offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
                       soffset = "0"
+
+                    offset = r * numElementsPerLoad * tP["bpe"]
                   else:
                     offsetVgpr = self.vgprPool.checkOut(1)
                     soffset = "0"
@@ -3302,8 +3307,6 @@ class KernelWriterAssembly(KernelWriter):
                           "Move LDS write address to next line" )
                     directToLdsLoads+=1
 
-                  # load single element from address (except packed half case below)
-                  numElementsPerLoad = 1
                   if kernel["ProblemType"]["DataType"].isHalf():
                     if kernel["AssertSummationElementMultiple"] % 2 == 0:
                       if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -3321,7 +3324,7 @@ class KernelWriterAssembly(KernelWriter):
                           vgpr(offsetVgpr), \
                           sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                           soffset, \
-                          " offen offset:0",\
+                          " offen offset:%u"%offset,\
                           "load packed 2xhalf")
                       numElementsPerLoad = 2
                       r += 1 # skip next element since we loaded 2X here
@@ -3331,7 +3334,7 @@ class KernelWriterAssembly(KernelWriter):
                           vgpr(offsetVgpr), \
                           sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                           soffset, \
-                          " offen offset:0",\
+                          " offen offset:%u"%offset,\
                           "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -3349,7 +3352,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " offen offset:0",\
+                        " offen offset:%u"%offset,\
                         "load single float")
                   elif kernel["ProblemType"]["DataType"].isDouble():
                     kStr += inst("buffer_load_dwordx2", \
@@ -3357,7 +3360,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " offen offset:0",\
+                        " offen offset:%u"%offset,\
                         "load single double")
                   else:
                     printWarning("DataType unsupported")
@@ -4643,7 +4646,7 @@ class KernelWriterAssembly(KernelWriter):
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
         minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
         if numVgprAvailable < minElements*numVgprsPerElement:
-          print "warning: growing VGPR for GlobalWrite batchin - this may bloat VGPR usage. numVgprAvailable=", numVgprAvailable, \
+          print "warning: growing VGPR for GlobalWrite batching - this may bloat VGPR usage. numVgprAvailable=", numVgprAvailable, \
                 "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
                 "beta=", beta, "gwvw=", gwvw
           print self.vgprPool.state()
