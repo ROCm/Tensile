@@ -38,6 +38,7 @@ class KernelWriter:
   def __init__( self, kernelMinNaming, kernelSerialNaming ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
+    self.overflowedResources = 0
 
 
 
@@ -710,9 +711,11 @@ class KernelWriter:
     kStr += self.closeString(kernel)
     afterFunctionSignature = kStr
 
+    error = self.overflowedResources
+
     # function signature last since it needs to know how many gprs were actually used
     kStr = beforeFunctionSignature + self.functionSignature(kernel) + afterFunctionSignature
-    return kStr
+    return (error,kStr)
 
 
 
@@ -1675,7 +1678,9 @@ class KernelWriter:
     fileString += self.kernelBodyPrefix( kernel, tensorParametersA, \
         tensorParametersB )
     self.stringIdx = 0
-    fileString += self.kernelBody( kernel, tensorParametersA, tensorParametersB)
+    (error, kb) = self.kernelBody( kernel, tensorParametersA, tensorParametersB)
+
+    fileString += kb
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
 
@@ -1725,7 +1730,7 @@ class KernelWriter:
         bytearrayFile.write('fileString += "**************************************************/\\n\\n\\n"\n')
 
         bytearrayFile.write('import os.path\n\n')
-        
+
         bytearrayFile.write('''fileString += '#include "Kernels.h"\\n\\n'\n''')
         bytearrayFile.write('fileString += "/* code object byte array */\\n\\n"\n\n')
 
@@ -1812,7 +1817,7 @@ class KernelWriter:
 
       # read code-object file and convert to c++ representable uchar*
       # return string of code-object byte array
-    return fileString
+    return (error, fileString)
 
 
   ##############################################################################
@@ -1886,7 +1891,7 @@ class KernelWriter:
     fileString += self.kernelBodyBetaOnly( kernel )
     if self.language == "OCL":
       fileString += "\";"
-    return fileString
+    return (0,fileString)
 
   def getHeaderFileStringBetaOnly(self, kernel):
     kernelName = self.getKernelNameBetaOnly(kernel)

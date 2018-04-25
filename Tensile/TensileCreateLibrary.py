@@ -38,13 +38,97 @@ from shutil import copy as shutil_copy
 ################################################################################
 def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly):
-  print1("# Writing Solutions and Kernels")
+  print1("# Writing Kernels")
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  progressBar = ProgressBar(len(solutions)+len(kernels))
+  progressBar = ProgressBar(len(kernels))
 
+  ##############################################################################
+  # Write Kernels
+  ##############################################################################
+  if globalParameters["MergeFiles"]:
+    kernelSourceFile = open(os.path.join(outputPath, \
+        "Kernels.cpp"), "w")
+    kernelHeaderFile = open(os.path.join(outputPath, \
+        "Kernels.h"), "w")
+    kernelSourceFile.write(CHeader)
+    kernelHeaderFile.write(CHeader)
+    kernelSourceFile.write("#include \"Kernels.h\"\n")
+    kernelHeaderFile.write("#pragma once\n")
+    if globalParameters["RuntimeLanguage"] == "HIP":
+      kernelHeaderFile.write("#define HCC_ENABLE_ACCELERATOR_PRINTF\n\n")
+      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+      kernelHeaderFile.write("#include \"TensileTypes.h\"\n")
+      kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
+    else:
+      kernelHeaderFile.write("#include <string>\n")
+
+  # tensor contraction kernels
+  for ki in range(0,len(kernels)):
+    kernel = kernels[ki]
+    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
+    # get kernel name
+    if not globalParameters["MergeFiles"]:
+      kernelName = kernelWriter.getKernelName(kernel)
+
+    # write kernel.cpp
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".cpp"), "w")
+      kernelSourceFile.write(CHeader)
+    (err, src) = kernelWriter.getSourceFileString(kernel)
+    kernelSourceFile.write(src)
+    if err:
+      print "*** warning: invalid kernel#%u"%ki
+
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
+
+    # write kernel.h
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".h"), "w")
+      kernelHeaderFile.write(CHeader)
+    kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
+    progressBar.increment()
+
+  # beta-only kernels
+  for kernel in kernelsBetaOnly:
+    kernelWriter = kernelWriterSource
+    kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
+
+    # write kernel.cpp
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName+".cpp"), "w")
+      kernelSourceFile.write(CHeader)
+
+    (err, src) = kernelWriter.getSourceFileStringBetaOnly(kernel)
+    kernelSourceFile.write(src)
+    if err:
+      print "*** warning: invalid kernel#%u"%ki
+    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.close()
+    # write kernel.h
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile = open(os.path.join(outputPath, \
+          "Kernels", kernelName + ".h"), "w")
+      kernelHeaderFile.write(CHeader)
+    kernelHeaderFile.write( kernelWriter.getHeaderFileStringBetaOnly(kernel))
+    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.close()
+
+  # close merged
+  if globalParameters["MergeFiles"]:
+    kernelHeaderFile.close()
+
+
+  print1("# Writing Solutions")
+  progressBar = ProgressBar(len(solutions))
   ##############################################################################
   # Write Solutions
   ##############################################################################
@@ -90,78 +174,6 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
   if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
 
-  ##############################################################################
-  # Write Kernels
-  ##############################################################################
-  if globalParameters["MergeFiles"]:
-    kernelSourceFile = open(os.path.join(outputPath, \
-        "Kernels.cpp"), "w")
-    kernelHeaderFile = open(os.path.join(outputPath, \
-        "Kernels.h"), "w")
-    kernelSourceFile.write(CHeader)
-    kernelHeaderFile.write(CHeader)
-    kernelSourceFile.write("#include \"Kernels.h\"\n")
-    kernelHeaderFile.write("#pragma once\n")
-    if globalParameters["RuntimeLanguage"] == "HIP":
-      kernelHeaderFile.write("#define HCC_ENABLE_ACCELERATOR_PRINTF\n\n")
-      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include \"TensileTypes.h\"\n")
-      kernelHeaderFile.write("#include \"KernelHeader.h\"\n")
-    else:
-      kernelHeaderFile.write("#include <string>\n")
-
-  # tensor contraction kernels
-  for kernel in kernels:
-    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
-    # get kernel name
-    if not globalParameters["MergeFiles"]:
-      kernelName = kernelWriter.getKernelName(kernel)
-
-    # write kernel.cpp
-    if not globalParameters["MergeFiles"]:
-      kernelSourceFile = open(os.path.join(outputPath, \
-          "Kernels", kernelName+".cpp"), "w")
-      kernelSourceFile.write(CHeader)
-    kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
-    if not globalParameters["MergeFiles"]:
-      kernelSourceFile.close()
-
-    # write kernel.h
-    if not globalParameters["MergeFiles"]:
-      kernelHeaderFile = open(os.path.join(outputPath, \
-          "Kernels", kernelName+".h"), "w")
-      kernelHeaderFile.write(CHeader)
-    kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
-    if not globalParameters["MergeFiles"]:
-      kernelHeaderFile.close()
-    progressBar.increment()
-
-  # beta-only kernels
-  for kernel in kernelsBetaOnly:
-    kernelWriter = kernelWriterSource
-    kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
-
-    # write kernel.cpp
-    if not globalParameters["MergeFiles"]:
-      kernelSourceFile = open(os.path.join(outputPath, \
-          "Kernels", kernelName+".cpp"), "w")
-      kernelSourceFile.write(CHeader)
-    kernelSourceFile.write( kernelWriter.getSourceFileStringBetaOnly(kernel))
-    if not globalParameters["MergeFiles"]:
-      kernelSourceFile.close()
-
-    # write kernel.h
-    if not globalParameters["MergeFiles"]:
-      kernelHeaderFile = open(os.path.join(outputPath, \
-          "Kernels", kernelName + ".h"), "w")
-      kernelHeaderFile.write(CHeader)
-    kernelHeaderFile.write( kernelWriter.getHeaderFileStringBetaOnly(kernel))
-    if not globalParameters["MergeFiles"]:
-      kernelHeaderFile.close()
-
-  # close merged
-  if globalParameters["MergeFiles"]:
-    kernelHeaderFile.close()
 
 
 ################################################################################

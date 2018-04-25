@@ -1249,13 +1249,17 @@ class Solution:
 
       if 0:
         print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
-               " LSCA=", state["LSCA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
+               " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
-               "  ->DirectToLdsA=", state["DirectToLdsA"]
+               "  ->DirectToLdsA=", state["DirectToLdsA"], \
+               " NumLoadsCoalescedA=", state["NumLoadsCoalescedA"], \
+               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"]
         print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
-               " LSCB=", state["LSCB"], "GLVB_B=", state["GlobalLoadVectorWidthB"], \
+               " LSCB=", state["LSCB"],"LSPB=", state["LSPB"],  "GLVB_B=", state["GlobalLoadVectorWidthB"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
-               "  ->DirectToLdsB=", state["DirectToLdsB"]
+               "  ->DirectToLdsB=", state["DirectToLdsB"], \
+               " NumLoadsCoalescedB=", state["NumLoadsCoalescedB"], \
+               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"]
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
