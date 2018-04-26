@@ -288,6 +288,7 @@ validParameters = {
     # one for other types.
     "MinGlobalWriteVectorWidth":      [-1, 1, 2, 4, 8 ],
 
+    "VectorStore":                    [False, True],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
@@ -354,8 +355,7 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"MinGlobalWriteVectorWidth": [ -1 ] },
-    # use 1 by default since this enables other important optimizations including:
-    # DirectToLds, preciseBoundsCheck, and useSgrpForGRO
+    {"VectorStore":               [ True ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },

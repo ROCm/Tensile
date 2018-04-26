@@ -2330,7 +2330,7 @@ class KernelWriterAssembly(KernelWriter):
       # compare
       #kStr += dump(vgpr(v+l))
       kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
-      # shift 
+      # shift
       kStr += inst("v_cndmask_b32", vgpr(v+l), vgpr(edge), vgpr(v+l), sgpr(tmpSgpr,2), "offset = (offset < edge) ? offset : edge" )
       #kStr += dump(vgpr(v+l))
     self.vgprPool.checkIn(edge)
@@ -4451,16 +4451,19 @@ class KernelWriterAssembly(KernelWriter):
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = False
-    vectorWidths = [kernel["VectorWidth"], 1]
+    vectorWidths = [kernel["VectorWidth"] if kernel["VectorStore"] else 1, 1]
     elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
-          element = (tt1, tt0, vc1, 0, kernel["VectorWidth"])
-          elements[False].append(element) # No Edge Elements
+          if kernel["VectorStore"]:
+            element = (tt1, tt0, vc1, 0)
+            elements[False].append(element) # No Edge Elements
           for vc0 in range(0, kernel["VectorWidth"]):
-              element = (tt1, tt0, vc1, vc0, 1)
-              elements[True].append(element) # No Edge Elements
+            element = (tt1, tt0, vc1, vc0)
+            elements[True].append(element) # Edge Elements
+            if not kernel["VectorStore"]:
+              elements[False].append(element) # No Edge Elements
 
     kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
@@ -4472,16 +4475,19 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = True
-    vectorWidths = [kernel["GlobalWriteVectorWidth"], 1]
+    vectorWidths = [kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1, 1]
     elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for tt0 in range(0, 1):
         for vc1 in range(0, 1):
-          element = (tt1, tt0, vc1, 0)
-          elements[False].append(element) # No Edge Elements
+          if kernel["VectorStore"]:
+            element = (tt1, tt0, vc1, 0)
+            elements[False].append(element) # No Edge Elements
           for vc0 in range(0, kernel["GlobalWriteVectorWidth"]):
             element = (tt1, tt0, vc1, vc0)
             elements[True].append(element)  #  Edge Elements
+            if not kernel["VectorStore"]:
+              elements[False].append(element)  #  No Edge Elements
     kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
@@ -5109,11 +5115,10 @@ class KernelWriterAssembly(KernelWriter):
           else: # HPA
             kStr += inst("v_mul_f32", vgpr(sumIdxV), vgpr(self.alphaVgpr), vgpr(sumIdxV), "*= alpha")
             kStr += inst("v_cvt_f16_f32", vgpr(sumIdxV), vgpr(sumIdxV), "convert C to fp16" )
-            if sumIdxV%2 == 1:
+            if vi%2 == 1:
+              assert (gwvw % 2 == 0)
               d = elementSumIdx[elementIdx] + vi/2
-              #print "d=", d
               kStr += inst("v_pack_b32_f16", vgpr(d), vgpr(sumIdxV-1), vgpr(sumIdxV), "Pack with neighbor" )
-              #kStr += inst("v_pack_b32_f16", vgpr(sumIdxV/2), vgpr(sumIdxV), vgpr(sumIdxV-1), "Pack with neighbor" )
 
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("v_mul_f32", vgpr(sumIdxV), sgpr("Alpha"), vgpr(sumIdxV), "*= alpha" )
