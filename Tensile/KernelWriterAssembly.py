@@ -57,7 +57,6 @@ class MemoryInstruction:
   def __str__(self):
     return self.name
 
-
 ################################################################################
 # RegisterPool
 ################################################################################
@@ -349,7 +348,32 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetB = 0
     self.inTailLoop = False
 
+    self.vgprOccupancy = [0]*(256+1)
+    for i in range(0,   24+1): self.vgprOccupancy[i] = 10
+    for i in range(25,  28+1): self.vgprOccupancy[i] = 9
+    for i in range(29,  32+1): self.vgprOccupancy[i] = 8
+    for i in range(33,  36+1): self.vgprOccupancy[i] = 7
+    for i in range(37,  40+1): self.vgprOccupancy[i] = 6
+    for i in range(41,  48+1): self.vgprOccupancy[i] = 5
+    for i in range(49,  64+1): self.vgprOccupancy[i] = 4
+    for i in range(65,  84+1): self.vgprOccupancy[i] = 3
+    for i in range(85, 128+1): self.vgprOccupancy[i] = 2
+    for i in range(129,256+1): self.vgprOccupancy[i] = 1
 
+
+  ########################################
+  def getOccupancy(self, kernel, vgprs):
+    multiplier = int(ceil(max(kernel["NumThreads"], 256) / 256.0))
+    # example: wg=512 multiplier=2, 1024=4
+
+    maxLds = 65536
+    ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
+    ldsLimitedOccupancy = int(ceil(maxLds / float(ldsSize)))
+
+    vgprs *= multiplier
+    vgprLimitedOccupancy =  self.vgprOccupancy[vgprs] if vgprs <= 256 else 0
+
+    return min(ldsLimitedOccupancy, vgprLimitedOccupancy)
 
   ########################################
   # Get Label
@@ -4427,6 +4451,7 @@ class KernelWriterAssembly(KernelWriter):
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = False
+    vectorWidths = [kernel["VectorWidth"], 1]
     elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
@@ -4437,7 +4462,7 @@ class KernelWriterAssembly(KernelWriter):
               element = (tt1, tt0, vc1, vc0, 1)
               elements[True].append(element) # No Edge Elements
 
-    kStr =  self.globalWriteElements(kernel, lsu, elements)
+    kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
 
@@ -4447,23 +4472,24 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = True
+    vectorWidths = [kernel["GlobalWriteVectorWidth"], 1]
     elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for tt0 in range(0, 1):
         for vc1 in range(0, 1):
-          element = (tt1, tt0, vc1, 0, kernel["GlobalWriteVectorWidth"])
+          element = (tt1, tt0, vc1, 0)
           elements[False].append(element) # No Edge Elements
           for vc0 in range(0, kernel["GlobalWriteVectorWidth"]):
-            element = (tt1, tt0, vc1, vc0, 1)
+            element = (tt1, tt0, vc1, vc0)
             elements[True].append(element)  #  Edge Elements
-    kStr =  self.globalWriteElements(kernel, lsu, elements)
+    kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
 
   ##############################################################################
   # Global Write Elements
   ##############################################################################
-  def globalWriteElements(self, kernel, lsu, elements):
+  def globalWriteElements(self, kernel, lsu, vectorWidths, elements):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
@@ -4472,7 +4498,8 @@ class KernelWriterAssembly(KernelWriter):
       # globalWriteBatch only supports gwvw=1 if atomics are used.
       # So copy the elements[1] (edge=True, VW=1) to elements[0] so gwvw used on both paths
       elements[0] = elements[1]
-      assert elements[0][0][4] == 1
+      vectorWidths[0] = vectorWidths[1]
+      assert (vectorWidths[0] == 1)
 
 
     # write possibilities and labels
@@ -4617,7 +4644,7 @@ class KernelWriterAssembly(KernelWriter):
         edgeI = edge  # set to True to disable vector stores
         #edgeI = True  # set to True to disable vector stores
 
-        gwvw = elements[edgeI][0][4]
+        gwvw = vectorWidths[edgeI]
 
         ########################################
         # Calculate Vgprs for Write Batching
@@ -4657,14 +4684,48 @@ class KernelWriterAssembly(KernelWriter):
         # TODO : the vgprSerial is needed for-ever and if we grow here will split the
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
         minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
+        shrinkDb = 0
         if numVgprAvailable < minElements*numVgprsPerElement:
-          print "warning: growing VGPR for GlobalWrite batching - this may bloat VGPR usage. numVgprAvailable=", numVgprAvailable, \
-                "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
-                "beta=", beta, "gwvw=", gwvw
-          print self.vgprPool.state()
-          t = self.vgprPool.checkOut(int(ceil(minElements**numVgprsPerElement)), "grow-pool for GlobalWrite")
-          self.vgprPool.checkIn(t)
-          numVgprAvailable = self.vgprPool.availableBlock()
+          gwvwOrig = gwvw
+          currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size())
+          futureOccupancy = self.getOccupancy(kernel, \
+              self.vgprPool.size() - numVgprAvailable + minElements*numVgprsPerElement)
+          while gwvw > kernel["MinGlobalWriteVectorWidth"]:
+            futureOccupancy = self.getOccupancy(kernel, \
+                self.vgprPool.size() - numVgprAvailable + minElements*numVgprsPerElement)
+            if futureOccupancy < currentOccupancy:
+              if shrinkDb:
+                print "shrink-gwvw-before: gwvw=%u  numVgprsPerElement=%u %s" % (gwvw, numVgprsPerElement, self.kernelName)
+              gwvw = gwvw/2
+              numVgprsPerElement = numVgprsPerAddr + int(numVgprsPerDataPerVI * gwvw)
+              if shrinkDb:
+                print "shrink-gwvw-after: gwvw=%u  numVgprsPerElement=%u" % (gwvw, numVgprsPerElement)
+            else:
+              break  # good enough
+
+          if shrinkDb:
+            print "currentOccupancy=%u futureOccupancy=%u VGPRs=%u numVgprAvail=%u vgprPerElem=%u" \
+                % (currentOccupancy, futureOccupancy, self.vgprPool.size(), \
+                   numVgprAvailable, minElements*numVgprsPerElement)
+          if futureOccupancy > currentOccupancy:
+            print "warning: %s growing VGPR for GlobalWrite batching - this may bloat VGPR usage" % \
+                  (self.kernelName)
+            print "   numVgprAvailable=", numVgprAvailable, \
+                  "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
+                  "beta=", beta, "gwvw=", gwvw
+          elif gwvw != gwvwOrig:
+            if shrinkDb:
+              print "info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
+                  % (self.kernelName, gwvwOrig, gwvw, currentOccupancy)
+
+          if numVgprAvailable < minElements*numVgprsPerElement:
+            newVgprs = int(ceil(minElements*numVgprsPerElement))
+            if shrinkDb:
+              print "info: growing pool += %u\n" % (newVgprs)
+              print self.vgprPool.state()
+            t = self.vgprPool.checkOut(newVgprs, "grow-pool for GlobalWrite")
+            self.vgprPool.checkIn(t)
+            numVgprAvailable = self.vgprPool.availableBlock()
 
         maxElementsPerBatch = 4 if not beta else 1000
 
@@ -4700,7 +4761,7 @@ class KernelWriterAssembly(KernelWriter):
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
           elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs", preventOverflow=True)
-          kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, \
+          kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, gwvw, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
               elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
               fullExecMaskSgpr, elementSgprs, numSgprsPerElement, tmpSgpr)
@@ -4806,7 +4867,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Write Batch
   ##############################################################################
-  def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, \
+  def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, gwvw, \
       batchElements, coord0, coord1, addrC,  \
       batchElementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
       fullExecMaskSgpr, batchElementSgprs, numSgprsPerElement, tmpSgpr):
@@ -4817,7 +4878,8 @@ class KernelWriterAssembly(KernelWriter):
         % (" Beta" if beta else "", " Edge" if edge else "")
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
-      commentStr += "(%u,%u,%u,%u:vw%u)" % element
+      commentStr += "(%u,%u,%u,%u:vw%u)" % \
+        (element[0], element[1], element[2], element[3], gwvw)
       if elementIdx < len(batchElements)-1:
         commentStr += "; "
     kStr += self.comment3(commentStr)
@@ -4831,12 +4893,11 @@ class KernelWriterAssembly(KernelWriter):
     elementData = []
     elementMask = []
     elementSumIdx = []
-    gwvw0 = batchElements[0][4] # all gwvw are the same
     for elementIdx in range(0, len(batchElements)):
       # gpr assignments for element
       addr = batchElementVgprs + addrVgprOffset + elementIdx*numVgprsPerAddr # elementVgprs+0
       elementAddr.append(addr)
-      data = batchElementVgprs + dataVgprOffset + int(elementIdx*numVgprsPerDataPerVI*gwvw0) # elementVgprs+self.rpga
+      data = batchElementVgprs + dataVgprOffset + int(elementIdx*numVgprsPerDataPerVI*gwvw) # elementVgprs+self.rpga
       elementData.append(data)
       mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
       elementMask.append(mask)
@@ -4846,8 +4907,6 @@ class KernelWriterAssembly(KernelWriter):
       d0 = element[1]
       vc1 = element[2]
       vc0 = element[3]
-      gwvw = element[4]
-      assert (gwvw0 == gwvw)
       #print "Edge=", edge, element
       if lsu:
         sumIdx = self.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
