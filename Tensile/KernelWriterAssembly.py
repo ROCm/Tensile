@@ -5106,9 +5106,15 @@ class KernelWriterAssembly(KernelWriter):
           if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
             if sumIdxV%2:
               kStr += inst("v_pk_mul_f16", vgpr(sumIdxV/2), vgpr(self.alphaVgpr), vgpr(sumIdxV/2), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
-          else:
+          else: # HPA
             kStr += inst("v_mul_f32", vgpr(sumIdxV), vgpr(self.alphaVgpr), vgpr(sumIdxV), "*= alpha")
             kStr += inst("v_cvt_f16_f32", vgpr(sumIdxV), vgpr(sumIdxV), "convert C to fp16" )
+            if sumIdxV%2 == 1:
+              d = elementSumIdx[elementIdx] + vi/2
+              #print "d=", d
+              kStr += inst("v_pack_b32_f16", vgpr(d), vgpr(sumIdxV-1), vgpr(sumIdxV), "Pack with neighbor" )
+              #kStr += inst("v_pack_b32_f16", vgpr(sumIdxV/2), vgpr(sumIdxV), vgpr(sumIdxV-1), "Pack with neighbor" )
+
         elif kernel["ProblemType"]["DataType"].isSingle():
           kStr += inst("v_mul_f32", vgpr(sumIdxV), sgpr("Alpha"), vgpr(sumIdxV), "*= alpha" )
         elif kernel["ProblemType"]["DataType"].isDouble():
