@@ -33,7 +33,7 @@ BenchmarkProblems:
       TransposeA: False
       TransposeB: False
       UseBeta: True
-      Batched: False
+      Batched: True 
 
   ########################################
   # NN - NonBatched
@@ -66,22 +66,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-         # - Exact: [  12544,  256, 1024 ]
-         # - Exact: [  50176,  512,  128 ]
-          - Exact: [   3136,  512, 2048 ]
-        #  - Exact: [  12544, 1024,  256 ]
-          - Exact: [   3136, 2048,  512 ]
-         # - Exact: [ 193600,  256,   64 ]
-         # - Exact: [ 193600,   64,   64 ]
-
-  -
-    - # ProblemType
-      OperationType: GEMM
-      DataType: s
-      TransposeA: False
-      TransposeB: False
-      UseBeta: True
-      Batched: True
+          - Exact: [  12544,  256, 1, 1024 ]
+          - Exact: [  50176,  512, 1,  128 ]
+          - Exact: [   3136,  512, 1, 2048 ]
+          - Exact: [  12544, 1024, 1,  256 ]
+          - Exact: [   3136, 2048, 1,  512 ]
+          - Exact: [ 193600,  256, 1,   64 ]
+          - Exact: [ 193600,   64, 1,   64 ]
 
   ########################################
   # NN - Super Skinny
@@ -554,9 +545,9 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [  196,  256, 64, 1024 ]
           - Exact: [  784,  512, 64,  128 ]
-          #- Exact: [   49,  512, 64, 2048 ]
+          - Exact: [   49,  512, 64, 2048 ]
           - Exact: [  196, 1024, 64,  256 ]
-          #- Exact: [   49, 2048, 64,  512 ]
+          - Exact: [   49, 2048, 64,  512 ]
           - Exact: [ 3025,  256, 64,   64 ]
           - Exact: [ 3025,   64, 64,   64 ]
 
