@@ -43,7 +43,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  progressBar = ProgressBar(len(kernels))
+  if globalParameters["ShowProgressBar"]:
+    progressBar = ProgressBar(len(kernels))
 
   ##############################################################################
   # Write Kernels
@@ -94,7 +95,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
-    progressBar.increment()
+    if globalParameters["ShowProgressBar"]:
+      progressBar.increment()
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
@@ -128,7 +130,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
 
 
   print1("# Writing Solutions")
-  progressBar = ProgressBar(len(solutions))
+  if globalParameters["ShowProgressBar"]:
+    progressBar = ProgressBar(len(solutions))
   ##############################################################################
   # Write Solutions
   ##############################################################################
@@ -169,7 +172,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
         solutionWriter.getHeaderFileString(solution))
     if not globalParameters["MergeFiles"]:
       solutionHeaderFile.close()
-    progressBar.increment()
+    if globalParameters["ShowProgressBar"]:
+      progressBar.increment()
   # close merged
   if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
