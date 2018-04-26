@@ -2,7 +2,7 @@ GlobalParameters:
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   PrintSolutionRejectionReason: False
-  MinimumRequiredVersion: 4.0.2
+  MinimumRequiredVersion: 4.1.0
   NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   DataInitTypeAB: 1
