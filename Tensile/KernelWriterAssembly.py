@@ -24,6 +24,7 @@ from Common import globalParameters, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log, ceil
 import collections
+import traceback
 
 ################################################################################
 # Memory Instruction
@@ -65,33 +66,41 @@ class RegisterPool:
   statusAvailable = 1
   statusInUse = 2
 
+  class Register:
+    def __init__(self, status, tag=""):
+      self.status = status
+      self.tag = tag
+
+
   ########################################
   # Init
   def __init__(self, size, printRP=0):
     self.printRP=printRP
-    self.pool = [self.statusUnAvailable]*size
+    self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
 
   ########################################
   # Adds registers to the pool so they can be used as temps
   # Add
-  def add(self, start, size):
+  def add(self, start, size, tag=""):
     # reserve space
+    if self.printRP:
+      print "RP::add(%u, %u for '%s')"%(start,size,tag)
     newSize = start + size
     oldSize = len(self.pool)
     if newSize > oldSize:
       for i in range(0, newSize-oldSize):
-        self.pool.append(self.statusUnAvailable)
+        self.pool.append(self.Register(self.statusUnAvailable,tag))
     # mark as available
     for i in range(start, start+size):
-      if self.pool[i] == self.statusUnAvailable:
-        self.pool[i] = self.statusAvailable
-      elif self.pool[i] == self.statusAvailable:
+      if self.pool[i].status == self.statusUnAvailable:
+        self.pool[i].status = self.statusAvailable
+      elif self.pool[i].status == self.statusAvailable:
         printWarning("RegisterPool::add(%u,%u) pool[%u] already available" % (start, size, i))
-      elif self.pool[i] == self.statusInUse:
+      elif self.pool[i].status == self.statusInUse:
         printWarning("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i))
       else:
-        printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, self.pool[i]))
+        printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
 
   ########################################
   # Remove
@@ -106,20 +115,20 @@ class RegisterPool:
       printWarning("RegisterPool::remove(%u,%u) but poolSize=%u" % (start, size, oldSize))
     # mark as unavailable
     for i in range(start, start+size):
-      if  self.pool[i] == self.statusAvailable:
-        self.pool[i] = self.statusUnAvailable
-      elif self.pool[i] == self.statusUnAvailable:
+      if  self.pool[i].status == self.statusAvailable:
+        self.pool[i].status = self.statusUnAvailable
+      elif self.pool[i].status == self.statusUnAvailable:
         printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i))
-      elif  self.pool[i] == self.statusInUse:
+      elif  self.pool[i].status == self.statusInUse:
         printWarning("RegisterPool::remove(%u,%u) pool[%u] still in use" % (start, size, i))
       else:
-        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, self.pool[i]))
+        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
 
   ########################################
   # Check Out
-  def checkOut(self, size, tag=""):
-    return self.checkOutAligned(size, 1, tag)
-  def checkOutAligned(self, size, alignment, tag=""):
+  def checkOut(self, size, tag="", preventOverflow=False):
+    return self.checkOutAligned(size, 1, tag, preventOverflow)
+  def checkOutAligned(self, size, alignment, tag="", preventOverflow=False):
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -131,7 +140,7 @@ class RegisterPool:
       # all available
       allAvailable = True
       for j in range(0, size):
-        if self.pool[i+j] != self.statusAvailable:
+        if self.pool[i+j].status != self.statusAvailable:
           allAvailable = False
           i = j+1
           break
@@ -145,7 +154,7 @@ class RegisterPool:
     if found > -1:
       #print "Found: %u" % found
       for i in range(found, found+size):
-        self.pool[i] = self.statusInUse
+        self.pool[i].status = self.statusInUse
       self.checkOutSize[found] = size
       if self.printRP:
         print "RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
@@ -154,9 +163,10 @@ class RegisterPool:
     else:
       #print "RegisterPool::checkOutAligned(%u,%u) overflowing past %u" % (size, alignment, len(self.pool))
       # where does tail sequence of available registers begin
+      assert (not preventOverflow)
       start = len(self.pool)
       for i in range(len(self.pool)-1, 0, -1):
-        if self.pool[i] == self.statusAvailable:
+        if self.pool[i].status == self.statusAvailable:
           start = i
           continue
         else:
@@ -171,13 +181,13 @@ class RegisterPool:
       overflow = newSize - oldSize
       #print "Overflow: ", overflow
       for i in range(start, len(self.pool)):
-        self.pool[i] = self.statusInUse
+        self.pool[i].status = self.statusInUse
       for i in range(0, overflow):
-        self.pool.append(self.statusInUse)
+        self.pool.append(self.Register(self.statusInUse,tag))
       self.checkOutSize[start] = size
       if self.printRP:
         print self.state()
-        print "RP::checkOut %s(%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
+        print "RP::checkOut' %s' (%u,%u) @ %u (overflow)"%(tag, size, alignment, start)
       return start
 
   ########################################
@@ -188,11 +198,13 @@ class RegisterPool:
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
-        self.pool[i] = self.statusAvailable
+        self.pool[i].status = self.statusAvailable
       self.checkOutSize.pop(start)
       if self.printRP:
         print "RP::checkIn() @ %u +%u"%(start,size)
     else:
+      if 0:
+        traceback.print_stack(None)
       printWarning("RegisterPool::checkIn(%s) but it was never checked out"%start)
 
   ########################################
@@ -206,7 +218,7 @@ class RegisterPool:
   def available(self):
     numAvailable = 0
     for s in self.pool:
-      if s == self.statusAvailable:
+      if s.status == self.statusAvailable:
         numAvailable += 1
     return numAvailable
 
@@ -216,7 +228,7 @@ class RegisterPool:
     maxAvailable = 0
     numAvailable = 0
     for s in self.pool:
-      if s == self.statusAvailable:
+      if s.status == self.statusAvailable:
         numAvailable += 1
       else:
         if numAvailable > maxAvailable:
@@ -231,8 +243,9 @@ class RegisterPool:
   ########################################
   def checkFinalState(self):
     for si in range(0,len(self.pool)):
-      if self.pool[si] == self.statusInUse:
-        printWarning("RegisterPool::checkFinalState: temp (%s) was never checked in."%si)
+      if self.pool[si].status == self.statusInUse:
+        printWarning("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
+            %(si, self.pool[si].tag))
         if self.printRP:
           print self.state()
 
@@ -253,11 +266,11 @@ class RegisterPool:
             pvs += " "
         stateStr += pvs + "\n"
     for i in range(0, len(self.pool)):
-      if self.pool[i] == self.statusUnAvailable:
+      if self.pool[i].status == self.statusUnAvailable:
         stateStr += "."
-      elif self.pool[i] == self.statusAvailable:
+      elif self.pool[i].status == self.statusAvailable:
         stateStr += "|"
-      elif self.pool[i] == self.statusInUse:
+      elif self.pool[i].status == self.statusInUse:
         stateStr += "#"
     return stateStr
 
@@ -459,7 +472,8 @@ class KernelWriterAssembly(KernelWriter):
   def initKernel(self, kernel, tPA, tPB ):
     super(KernelWriterAssembly, self).initKernel(kernel, tPA, tPB)
 
-    self.do["NullKernel"]  = kernel["DisableKernelPieces"] <= -10
+    dkp = kernel["DisableKernelPieces"]
+    self.do["NullKernel"]  = dkp >= 9 or dkp == -9
 
     self.sgprs=collections.OrderedDict()
     self.sgprIdx = 0
@@ -1118,7 +1132,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.lastPreLoopTempVgpr - self.startVgprValuC) # Add as available
+        self.lastPreLoopTempVgpr - self.startVgprValuC, "Premium") # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -1281,6 +1295,17 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
+    # Use combined add+shift, where available:
+    kStr += ".macro _v_add_lshl_u32 dst, src0, src1, shiftCnt" + self.endLine
+    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+      kStr += "    v_add_lshl_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+    else:
+      if self.AsmBugs["ExplicitCO"]:
+        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      else:
+        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+    kStr += ".endm" + self.endLine
 
 
 
@@ -1329,7 +1354,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.macroRegister("vgprSerial", \
         self.startVgprSerial)
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
-    kStr += self.comment1("max VGPR=%u"%self.totalVgprs)
+    kStr += self.comment1("max VGPR=%u"%self.vgprPool.size())
 
 
     ########################################
@@ -2592,20 +2617,14 @@ class KernelWriterAssembly(KernelWriter):
         hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
         vgpr(uReg), \
         "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    kStr += inst("_v_add_co_u32", \
+    #jgolds which bpe here? assuming tP
+    kStr += inst("_v_add_lshl_u32", \
         vgpr(destVgpr), \
-        "vcc", \
         vgpr(tP["gpr"]["lwoT"]), \
         vgpr(destVgpr), \
-        "lwFO%s = lw%s%s + lw%s%s*(MT%s+PAD)" \
-        % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
-        tP["tensorChar"], self.unrollChar, tP["tileChar"]) )
-#jgolds which bpe here? assuming tP
-    kStr += inst("v_lshlrev_b32", \
-        vgpr(destVgpr), \
         hex(log2(tP["bpe"])), \
-        vgpr(destVgpr), \
-        " *= bytes/element" )
+        "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
+        % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
     if tP["isB"]:
       kStr += inst("_v_add_co_u32", \
           vgpr(destVgpr), \
@@ -2756,19 +2775,12 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["VectorWidth"] > 1:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), \
           kernel["VectorWidth"], sgpr(tmpSgpr))
-    kStr += inst("_v_add_co_u32", \
+    kStr += inst("_v_add_lshl_u32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        "vcc", \
         vgpr(sgid), \
         vgpr(tP["gpr"]["lro"]), \
-        "o = lro%s*VW+sgid*MT%u"%(tP["tensorChar"], tP["tensorIdx"]) )
-#jgolds which bpe here? assuming tP
-    kStr += inst("v_lshlrev_b32", \
-        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         hex(log2(tP["bpe"])), \
-        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        "*= bytes/element" )
-
+        "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tP["tensorIdx"]) )
 
     #if tP["isA"]:
     #  kStr += self.bomb(113)
@@ -3267,7 +3279,10 @@ class KernelWriterAssembly(KernelWriter):
               # for each component in vector
               r = 0
               while r < loadWidth*self.bpr/tP["bpe"]:
-                kStr += self.comment1("load component %u"%r)
+                kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+                # load single element from address (except packed half case below)
+                numElementsPerLoad = 1
+                offset = 0
 
                 if kernel["BufferLoad"]:
                   # mask if current address if in bounds
@@ -3281,6 +3296,8 @@ class KernelWriterAssembly(KernelWriter):
                     else:
                       offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
                       soffset = "0"
+
+                    offset = r * numElementsPerLoad * tP["bpe"]
                   else:
                     offsetVgpr = self.vgprPool.checkOut(1)
                     soffset = "0"
@@ -3302,8 +3319,6 @@ class KernelWriterAssembly(KernelWriter):
                           "Move LDS write address to next line" )
                     directToLdsLoads+=1
 
-                  # load single element from address (except packed half case below)
-                  numElementsPerLoad = 1
                   if kernel["ProblemType"]["DataType"].isHalf():
                     if kernel["AssertSummationElementMultiple"] % 2 == 0:
                       if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -3321,7 +3336,7 @@ class KernelWriterAssembly(KernelWriter):
                           vgpr(offsetVgpr), \
                           sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                           soffset, \
-                          " offen offset:0",\
+                          " offen offset:%u"%offset,\
                           "load packed 2xhalf")
                       numElementsPerLoad = 2
                       r += 1 # skip next element since we loaded 2X here
@@ -3331,7 +3346,7 @@ class KernelWriterAssembly(KernelWriter):
                           vgpr(offsetVgpr), \
                           sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                           soffset, \
-                          " offen offset:0",\
+                          " offen offset:%u"%offset,\
                           "load single f16")
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -3349,7 +3364,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " offen offset:0",\
+                        " offen offset:%u"%offset,\
                         "load single float")
                   elif kernel["ProblemType"]["DataType"].isDouble():
                     kStr += inst("buffer_load_dwordx2", \
@@ -3357,7 +3372,7 @@ class KernelWriterAssembly(KernelWriter):
                         vgpr(offsetVgpr), \
                         sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                         soffset, \
-                        " offen offset:0",\
+                        " offen offset:%u"%offset,\
                         "load single double")
                   else:
                     printWarning("DataType unsupported")
@@ -4401,12 +4416,10 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["BufferStore"]:
       self.vgprPool.checkIn(self.addrC)
 
-    try:
-        self.vgprPool.checkIn(self.alphaVgpr)
-        self.vgprPool.checkIn(self.betaVgpr)
-    except AttributeError:
-        None # ignore if alpha/beta never allocated
-
+    if self.alphaVgpr != None:
+      self.vgprPool.checkIn(self.alphaVgpr)
+    if self.betaVgpr != None:
+      self.vgprPool.checkIn(self.betaVgpr)
 
   ##############################################################################
   # Not LocalSplitU: Global Write
@@ -4499,6 +4512,8 @@ class KernelWriterAssembly(KernelWriter):
     goto label_End
     label_End
     """
+    self.alphaVgpr = None
+    self.betaVgpr = None
     if kernel["ProblemType"]["DataType"].isHalf():
       self.alphaVgpr = self.vgprPool.checkOut(1, "alpha")
       self.betaVgpr = self.vgprPool.checkOut(1, "beta")
@@ -4599,20 +4614,6 @@ class KernelWriterAssembly(KernelWriter):
       for edge in edges:
         kStr += "label_%04u:%s"%(writeLabels[beta][edge], self.endLine)
 
-        if edge:
-          # store free sizes in vgprs for comparison
-          sizesFreeVgprs = self.vgprPool.checkOut(2, "sizesFreeVgprs")
-          kStr += inst("v_mov_b32", \
-              vgpr(sizesFreeVgprs+0), \
-              sgpr("SizesFree+0"), \
-              "free sizes sgpr -> vgpr")
-          kStr += inst("v_mov_b32", \
-              vgpr(sizesFreeVgprs+1), \
-              sgpr("SizesFree+1"), \
-              "free sizes sgpr -> vgpr")
-        else:
-          sizesFreeVgprs = None
-
         edgeI = edge  # set to True to disable vector stores
         #edgeI = True  # set to True to disable vector stores
 
@@ -4646,7 +4647,7 @@ class KernelWriterAssembly(KernelWriter):
             numVgprsPerDataPerVI = (1*self.bpeCinternal)/self.bpr
           else:
             numVgprsPerDataPerVI = (1.0*self.bpeCinternal)/self.bpr
-        numVgprsPerElement = numVgprsPerAddr + numVgprsPerDataPerVI * gwvw
+        numVgprsPerElement = numVgprsPerAddr + int(numVgprsPerDataPerVI * gwvw)
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.availableBlock()
@@ -4655,8 +4656,13 @@ class KernelWriterAssembly(KernelWriter):
         # for the entire kernel but at least we have a functional kernel
         # TODO : the vgprSerial is needed for-ever and if we grow here will split the
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
-        if numVgprAvailable < numVgprsPerElement:
-          t = self.vgprPool.checkOut(int(ceil(numVgprsPerElement)), "grow-pool for GlobalWrite")
+        minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
+        if numVgprAvailable < minElements*numVgprsPerElement:
+          print "warning: growing VGPR for GlobalWrite batching - this may bloat VGPR usage. numVgprAvailable=", numVgprAvailable, \
+                "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
+                "beta=", beta, "gwvw=", gwvw
+          print self.vgprPool.state()
+          t = self.vgprPool.checkOut(int(ceil(minElements**numVgprsPerElement)), "grow-pool for GlobalWrite")
           self.vgprPool.checkIn(t)
           numVgprAvailable = self.vgprPool.availableBlock()
 
@@ -4671,7 +4677,8 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["ProblemType"]["DataType"].isHalf():
           # only do an even number of halves
-          numElementsPerBatch = int((numElementsPerBatch+1)/2)*2
+          numElementsPerBatch = int(numElementsPerBatch/2)*2
+          assert(numElementsPerBatch > 0)
 
 
         # if no atomics and no edge, then write whole vectors
@@ -4690,16 +4697,16 @@ class KernelWriterAssembly(KernelWriter):
           numElementsThisBatch = len(elementsThisBatch)
           numElementVgprs = int(numElementsThisBatch * ceil(numVgprsPerElement))
           #print "BATCH[%u/%u]: elements[edgeI][%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx, numElementVgprs)
-          elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs")
+          # elementVgprs can be large and should be perfectly tuned to the number of available
+          # VGPRS.  We do not want to accidentally overflow and grow the pool here:
+          elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs", preventOverflow=True)
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
-              sizesFreeVgprs, elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
+              elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
               fullExecMaskSgpr, elementSgprs, numSgprsPerElement, tmpSgpr)
           self.vgprPool.checkIn(elementVgprs)
 
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
-        if edge:
-          self.vgprPool.checkIn(sizesFreeVgprs)
 
     # End label
     kStr += "label_%04u:%s"%(endLabel, self.endLine)
@@ -4800,7 +4807,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Write Batch
   ##############################################################################
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, \
-      batchElements, coord0, coord1, addrC, sizes, \
+      batchElements, coord0, coord1, addrC,  \
       batchElementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
       fullExecMaskSgpr, batchElementSgprs, numSgprsPerElement, tmpSgpr):
     kStr = ""
@@ -4954,8 +4961,8 @@ class KernelWriterAssembly(KernelWriter):
 
       # in-bounds exec mask
       if edge:
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), vgpr(sizes+0), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), vgpr(sizes+1), "coord1 < size1" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
         kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
       if edge and (beta or atomic):
@@ -4963,25 +4970,12 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
       if kernel["BufferStore"]:
-        if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
-          kStr += inst("v_add_lshl_u32", \
-              vgpr(addr), \
-              vgpr(scaledCoordVgpr1), \
-              vgpr(coordVgpr0), \
-              hex(log2(self.bpeCexternal)), \
-              "accumulate d0 lower and *= bpe")
-        else:
-          kStr += inst("_v_add_co_u32", \
-              vgpr(addr), \
-              "vcc", \
-              vgpr(scaledCoordVgpr1), \
-              vgpr(coordVgpr0), \
-              "accumulate d0 lower")
-          kStr += inst("v_lshlrev_b32", \
-              vgpr(addr), \
-              hex(log2(self.bpeCexternal)), \
-              vgpr(addr), \
-              " *= bytes/element" )
+        kStr += inst("_v_add_lshl_u32", \
+            vgpr(addr), \
+            vgpr(scaledCoordVgpr1), \
+            vgpr(coordVgpr0), \
+            hex(log2(self.bpeCexternal)), \
+            "accumulate d0 lower and *= bpe")
       else:
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes

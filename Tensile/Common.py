@@ -251,28 +251,30 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,     # ( tt0 x tt1 ) dimensions of the C tile that each thread works on, TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
-    # Each switch is incremental, ie 3 will provide NoPostLoop+NoGlobalRead+NoLocalWrite
+    # If negative, setting is precise and will disable onlt the specified code piece.
+    # If positive, each switch includes switches <= the specified switch.
+    # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
     # 0=Baseline
-    # -1= +NoPostLoop
-    # -2= +NoGlobalRead
-    # -3= +NoLocalWrite
-    # -4= +NoLocalRead
-    # -5= +NoWait +NoSync
-    # -6= +NoMAC
-    # -7= +NoPreLoop+ NoGlobalReadInc
-    # -10= NullKernel
-    "DisableKernelPieces":        range(-10,1),         # disable pieces of the kernel, for performance isolation
+    # 1= +NoPostLoop
+    # 2= +NoGlobalRead
+    # 3= +NoLocalWrite
+    # 4= +NoLocalRead
+    # 5= +NoWait +NoSync
+    # 6= +NoMAC
+    # 7= +NoPreLoop+ NoGlobalReadInc
+    # 9= NullKernel
+    "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
 
 
     # Controls desiredwidth of loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
-    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # threads should read/write/operate on this many contiguous elements. VW=4 on sgemm means read/write float4's.
-    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >128 bits isn't supported and should be faster
-    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
+    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...

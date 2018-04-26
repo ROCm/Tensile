@@ -755,6 +755,15 @@ class Solution:
       state["GlobalReadVectorWidth"] = 2
 
 
+    if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
+      # reject - VW too big
+      state["Valid"] = False
+
+    if state["GlobalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
+      # reject - GRVW too big
+      state["Valid"] = False
+
+
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
     if numElementsPerWorkGroup < state["NumThreads"]:
@@ -1240,26 +1249,34 @@ class Solution:
 
       if 0:
         print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
-               " LSCA=", state["LSCA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
+               " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
-               "  ->DirectToLdsA=", state["DirectToLdsA"]
+               "  ->DirectToLdsA=", state["DirectToLdsA"], \
+               " NumLoadsCoalescedA=", state["NumLoadsCoalescedA"], \
+               " NumLoadsPerpendicularA=", state["NumLoadsPerpendicularA"]
         print "B: TLU=", state["ProblemType"]["TLUB"], " MT=", state["MacroTile1"], \
-               " LSCB=", state["LSCB"], "GLVB_B=", state["GlobalLoadVectorWidthB"], \
+               " LSCB=", state["LSCB"],"LSPB=", state["LSPB"],  "GLVB_B=", state["GlobalLoadVectorWidthB"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
-               "  ->DirectToLdsB=", state["DirectToLdsB"]
+               "  ->DirectToLdsB=", state["DirectToLdsB"], \
+               " NumLoadsCoalescedB=", state["NumLoadsCoalescedB"], \
+               " NumLoadsPerpendicularB=", state["NumLoadsPerpendicularB"]
+
+      # Update parent variable so kernel display is accurate
+      state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
 
     # Precise bounds check uses the "num_records" field in the buffer to
     # precisely detect when we are inbounds or not.  Only a one-dimensional
     # check is used since this is faster and also for computation we only
     # need to ensure that none of the loads fault.  Work-items which are
     # computing bogus sections of the C tile will later be ignored.
-    # precise checking only works for vectorloads=1 - else if the vload crosses
-    # boundary we ignore all components not just the ones that are OOB.
-    # TODO - we could support larger loads if we know the array is a multiple
-    # of the load width
+    # precise checking only works for vectorloads<=AssertSummationElementMultiple
+    # else if the vload crosses boundary we ignore all components not just the
+    # ones that are OOB.
     if state["PreciseBoundsCheck"]:
-      if state["GlobalLoadVectorWidthA"]   !=1 \
-        or state["GlobalLoadVectorWidthB"] !=1:
+      if  state["GlobalLoadVectorWidthA"] > \
+          state["AssertSummationElementMultiple"] \
+          or state["GlobalLoadVectorWidthB"] > \
+          state["AssertSummationElementMultiple"]:
         state["PreciseBoundsCheck"] = False
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
