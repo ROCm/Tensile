@@ -24,6 +24,7 @@ from Common import globalParameters, printExit, printWarning
 from KernelWriter import KernelWriter
 from math import log, ceil
 import collections
+import traceback
 
 ################################################################################
 # Memory Instruction
@@ -65,33 +66,41 @@ class RegisterPool:
   statusAvailable = 1
   statusInUse = 2
 
+  class Register:
+    def __init__(self, status, tag=""):
+      self.status = status
+      self.tag = tag
+
+
   ########################################
   # Init
   def __init__(self, size, printRP=0):
     self.printRP=printRP
-    self.pool = [self.statusUnAvailable]*size
+    self.pool = [self.Register(self.statusUnAvailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
 
   ########################################
   # Adds registers to the pool so they can be used as temps
   # Add
-  def add(self, start, size):
+  def add(self, start, size, tag=""):
     # reserve space
+    if self.printRP:
+      print "RP::add(%u, %u for '%s')"%(start,size,tag)
     newSize = start + size
     oldSize = len(self.pool)
     if newSize > oldSize:
       for i in range(0, newSize-oldSize):
-        self.pool.append(self.statusUnAvailable)
+        self.pool.append(self.Register(self.statusUnAvailable,tag))
     # mark as available
     for i in range(start, start+size):
-      if self.pool[i] == self.statusUnAvailable:
-        self.pool[i] = self.statusAvailable
-      elif self.pool[i] == self.statusAvailable:
+      if self.pool[i].status == self.statusUnAvailable:
+        self.pool[i].status = self.statusAvailable
+      elif self.pool[i].status == self.statusAvailable:
         printWarning("RegisterPool::add(%u,%u) pool[%u] already available" % (start, size, i))
-      elif self.pool[i] == self.statusInUse:
+      elif self.pool[i].status == self.statusInUse:
         printWarning("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i))
       else:
-        printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, self.pool[i]))
+        printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
 
   ########################################
   # Remove
@@ -106,14 +115,14 @@ class RegisterPool:
       printWarning("RegisterPool::remove(%u,%u) but poolSize=%u" % (start, size, oldSize))
     # mark as unavailable
     for i in range(start, start+size):
-      if  self.pool[i] == self.statusAvailable:
-        self.pool[i] = self.statusUnAvailable
-      elif self.pool[i] == self.statusUnAvailable:
+      if  self.pool[i].status == self.statusAvailable:
+        self.pool[i].status = self.statusUnAvailable
+      elif self.pool[i].status == self.statusUnAvailable:
         printWarning("RegisterPool::remove(%u,%u) pool[%u] already unavailable" % (start, size, i))
-      elif  self.pool[i] == self.statusInUse:
+      elif  self.pool[i].status == self.statusInUse:
         printWarning("RegisterPool::remove(%u,%u) pool[%u] still in use" % (start, size, i))
       else:
-        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, self.pool[i]))
+        printExit("RegisterPool::remove(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
 
   ########################################
   # Check Out
@@ -131,7 +140,7 @@ class RegisterPool:
       # all available
       allAvailable = True
       for j in range(0, size):
-        if self.pool[i+j] != self.statusAvailable:
+        if self.pool[i+j].status != self.statusAvailable:
           allAvailable = False
           i = j+1
           break
@@ -145,7 +154,7 @@ class RegisterPool:
     if found > -1:
       #print "Found: %u" % found
       for i in range(found, found+size):
-        self.pool[i] = self.statusInUse
+        self.pool[i].status = self.statusInUse
       self.checkOutSize[found] = size
       if self.printRP:
         print "RP::checkOut '%s' (%u,%u) @ %u avail=%u"%(tag, size,alignment, found, self.available())
@@ -157,7 +166,7 @@ class RegisterPool:
       assert (not preventOverflow)
       start = len(self.pool)
       for i in range(len(self.pool)-1, 0, -1):
-        if self.pool[i] == self.statusAvailable:
+        if self.pool[i].status == self.statusAvailable:
           start = i
           continue
         else:
@@ -172,9 +181,9 @@ class RegisterPool:
       overflow = newSize - oldSize
       #print "Overflow: ", overflow
       for i in range(start, len(self.pool)):
-        self.pool[i] = self.statusInUse
+        self.pool[i].status = self.statusInUse
       for i in range(0, overflow):
-        self.pool.append(self.statusInUse)
+        self.pool.append(self.Register(self.statusInUse,tag))
       self.checkOutSize[start] = size
       if self.printRP:
         print self.state()
@@ -189,11 +198,13 @@ class RegisterPool:
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
-        self.pool[i] = self.statusAvailable
+        self.pool[i].status = self.statusAvailable
       self.checkOutSize.pop(start)
       if self.printRP:
         print "RP::checkIn() @ %u +%u"%(start,size)
     else:
+      if 0:
+        traceback.print_stack(None)
       printWarning("RegisterPool::checkIn(%s) but it was never checked out"%start)
 
   ########################################
@@ -207,7 +218,7 @@ class RegisterPool:
   def available(self):
     numAvailable = 0
     for s in self.pool:
-      if s == self.statusAvailable:
+      if s.status == self.statusAvailable:
         numAvailable += 1
     return numAvailable
 
@@ -217,7 +228,7 @@ class RegisterPool:
     maxAvailable = 0
     numAvailable = 0
     for s in self.pool:
-      if s == self.statusAvailable:
+      if s.status == self.statusAvailable:
         numAvailable += 1
       else:
         if numAvailable > maxAvailable:
@@ -232,8 +243,9 @@ class RegisterPool:
   ########################################
   def checkFinalState(self):
     for si in range(0,len(self.pool)):
-      if self.pool[si] == self.statusInUse:
-        printWarning("RegisterPool::checkFinalState: temp (%s) was never checked in."%si)
+      if self.pool[si].status == self.statusInUse:
+        printWarning("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
+            %(si, self.pool[si].tag))
         if self.printRP:
           print self.state()
 
@@ -254,11 +266,11 @@ class RegisterPool:
             pvs += " "
         stateStr += pvs + "\n"
     for i in range(0, len(self.pool)):
-      if self.pool[i] == self.statusUnAvailable:
+      if self.pool[i].status == self.statusUnAvailable:
         stateStr += "."
-      elif self.pool[i] == self.statusAvailable:
+      elif self.pool[i].status == self.statusAvailable:
         stateStr += "|"
-      elif self.pool[i] == self.statusInUse:
+      elif self.pool[i].status == self.statusInUse:
         stateStr += "#"
     return stateStr
 
@@ -1120,7 +1132,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.lastPreLoopTempVgpr - self.startVgprValuC) # Add as available
+        self.lastPreLoopTempVgpr - self.startVgprValuC, "Premium") # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -4404,12 +4416,10 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["BufferStore"]:
       self.vgprPool.checkIn(self.addrC)
 
-    try:
-        self.vgprPool.checkIn(self.alphaVgpr)
-        self.vgprPool.checkIn(self.betaVgpr)
-    except AttributeError:
-        None # ignore if alpha/beta never allocated
-
+    if self.alphaVgpr != None:
+      self.vgprPool.checkIn(self.alphaVgpr)
+    if self.betaVgpr != None:
+      self.vgprPool.checkIn(self.betaVgpr)
 
   ##############################################################################
   # Not LocalSplitU: Global Write
@@ -4502,6 +4512,8 @@ class KernelWriterAssembly(KernelWriter):
     goto label_End
     label_End
     """
+    self.alphaVgpr = None
+    self.betaVgpr = None
     if kernel["ProblemType"]["DataType"].isHalf():
       self.alphaVgpr = self.vgprPool.checkOut(1, "alpha")
       self.betaVgpr = self.vgprPool.checkOut(1, "beta")
