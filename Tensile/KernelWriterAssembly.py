@@ -368,6 +368,7 @@ class KernelWriterAssembly(KernelWriter):
 
     maxLds = 65536
     ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
+    ldsSize = (ldsSize + 255) & 0xff00 # 256-byte granularity
     ldsLimitedOccupancy = int(ceil(maxLds / float(ldsSize)))
 
     vgprs *= multiplier
@@ -2314,14 +2315,18 @@ class KernelWriterAssembly(KernelWriter):
     margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprPool.checkOut(1)
 
-    tmpSgpr = self.getTmpSgpr(1)
-    kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(-margin), sgpr("SizesFree+%u"%tP["idx"]), \
-        "edge = Size%s-%u"%(tP["tileChar"], margin) )
-    kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
-        "edge = Size%s-%u"%(tP["tileChar"], margin) )
-    # correct but invalid instruction
-    #kStr += inst("_v_add_co_u32", vgpr(edge), "vcc", -margin, sgpr("SizesFree+%u"%tP["idx"]), \
-    #    "edge = Size%s-%u"%(tP["tileChar"], margin) )
+
+    if kernel["BufferLoad"] and kernel["PreciseBoundsCheck"]:
+      # Go to the edge. we can rely on preciseboundscheck to keep things inline
+      # Results in more loads of 0 which is better for power and debug
+      kStr += inst("v_mov_b32", vgpr(edge), sgpr("SizesFree+%u"%tP["idx"]), \
+                "edge = Size%s"%(tP["tileChar"]) )
+    else:
+      tmpSgpr = self.getTmpSgpr(1)
+      kStr += inst("s_add_u32", sgpr(tmpSgpr), hex(-margin), sgpr("SizesFree+%u"%tP["idx"]), \
+          "edge = Size%s-%u"%(tP["tileChar"], margin) )
+      kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
+          "edge = Size%s-%u"%(tP["tileChar"], margin) )
 
     # shift offsets
     v = tP["vgprTileOffsets"]
