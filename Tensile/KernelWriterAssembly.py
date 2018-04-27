@@ -3850,66 +3850,66 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   ##############################################################################
-  def localReadDo(self, kernel, black, tP):
-    tc=tP["tensorChar"]
-    if not self.do["LocalRead%s"%tc]: return ""
-    self.localReadDoCnt += 1
-    kStr = ""
-    #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
-    instruction = tP["localReadInstruction"]
-    numOffsets = instruction.numOffsets
-    blockWidth = instruction.blockWidth
-    offsetMultiplier = 1 # instruction.offsetMultiplier
-    #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
-    valuIdx = 0
-    numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
-    #print "numVectorsPerTile", numVectorsPerTile
-#jgolds which bpe here? assuming tP
-    numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"] ) / (blockWidth*4) # bytes/register
-    #print "numReadsPerVector", numReadsPerVector
-    for vIdx in range(0, numVectorsPerTile):
-      for rIdx in range(0, numReadsPerVector):
-        paramList = []
-        if blockWidth == 1:
-          destVgpr = vgpr("Valu%s%s+%u"%( \
-              "Blk" if black else "", tc, valuIdx))
-        else:
-          destVgpr = vgpr("Valu%s%s+%u"%( \
-              "Blk" if black else "", tc, valuIdx), \
-              blockWidth)
-        paramList.append(destVgpr)
-        paramList.append(vgpr("LocalReadAddr%s"%tc))
-        for oIdx in range(0, numOffsets):
-#jgolds which bpe here? assuming tP
-          paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-              + tP["localReadOffset"])*tP["bpe"]/offsetMultiplier)
-        paramTuple = tuple(paramList)
-        comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u"%(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx)
-        kStr += instruction.toString(paramTuple, comment)
-        valuIdx += blockWidth
+  def localReadDo(self, kernel, bufferColor, tP):
 
-        # TODO - handle vector-load
-        if self.db["CheckValue1%s"%tc]:
-            kStr += "s_waitcnt lgkmcnt(0) // CheckValue1 wait for LDS read\n"
-            kStr += self.assert_eq(destVgpr, 1.0)
+    for iui in kernel["InnerUnroll"]:
+      tc=tP["tensorChar"]
+      if not self.do["LocalRead%s"%tc]: return ""
+      self.localReadDoCnt += 1
+      kStr = ""
+      #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if bufferColor else "", tP["tensorChar"], 0)))
+      instruction = tP["localReadInstruction"]
+      numOffsets = instruction.numOffsets
+      blockWidth = instruction.blockWidth
+      offsetMultiplier = 1 # instruction.offsetMultiplier
+      #totalReads = (kernel["ThreadTile%u"%tP["tensorIdx"]]/blockWidth) / numOffsets
+      valuIdx = 0
+      numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
+      #print "numVectorsPerTile", numVectorsPerTile
+  #jgolds which bpe here? assuming tP
+      numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"] ) / (blockWidth*4) # bytes/register
+      #print "numReadsPerVector", numReadsPerVector
+      for vIdx in range(0, numVectorsPerTile):
+        for rIdx in range(0, numReadsPerVector):
+          paramList = []
+          if blockWidth == 1:
+            destVgpr = vgpr("Valu%s%s+%u"%( \
+                "Blk" if bufferColor else "", tc, valuIdx))
+          else:
+            destVgpr = vgpr("Valu%s%s+%u"%( \
+                "Blk" if bufferColor else "", tc, valuIdx), \
+                blockWidth)
+          paramList.append(destVgpr)
+          paramList.append(vgpr("LocalReadAddr%s"%tc))
+          for oIdx in range(0, numOffsets):
+  #jgolds which bpe here? assuming tP
+            paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+                + tP["localReadOffset"])*tP["bpe"]/offsetMultiplier)
+          paramTuple = tuple(paramList)
+          comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u"%(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx)
+          kStr += instruction.toString(paramTuple, comment)
+          valuIdx += blockWidth
 
-    #if tP["isB"]:
-    #  kStr += self.dumpLds(kernel, 0, 16)
-    #  kStr += "s_endpgm\n"
-    #if tP["isA"]:
-    #kStr += "s_waitcnt lgkmcnt(0)\n"
-    #if tP["isA"]:
-    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
-    #if tP["isB"]:
-    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
+          # TODO - handle vector-load
+          if self.db["CheckValue1%s"%tc]:
+              kStr += "s_waitcnt lgkmcnt(0) // CheckValue1 wait for LDS read\n"
+              kStr += self.assert_eq(destVgpr, 1.0)
 
-    #if tP["isA"] and self.localReadDoCnt >=3: # TODO - disable
-    #  # skip over tmp used above, so it doesn't get trashed
-    #  tmpVgpr = self.vgprPool.checkOut(3) 
-    #  kStr += self.bomb(self.localReadDoCnt + 10, tmpVgpr+1)
-    #  self.vgprPool.checkIn(tmpVgpr)
+      #if tP["isB"]:
+      #  kStr += self.dumpLds(kernel, 0, 16)
+      #  kStr += "s_endpgm\n"
+      #if tP["isA"]:
+      #kStr += "s_waitcnt lgkmcnt(0)\n"
+      #if tP["isA"]:
+      #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if bufferColor else "", tP["tensorChar"], 0)))
+      #if tP["isB"]:
+      #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if bufferColor else "", tP["tensorChar"], 0)))
 
-
+      #if tP["isA"] and self.localReadDoCnt >=3: # TODO - disable
+      #  # skip over tmp used above, so it doesn't get trashed
+      #  tmpVgpr = self.vgprPool.checkOut(3) 
+      #  kStr += self.bomb(self.localReadDoCnt + 10, tmpVgpr+1)
+      #  self.vgprPool.checkIn(tmpVgpr)
     return kStr
 
   ##############################################################################

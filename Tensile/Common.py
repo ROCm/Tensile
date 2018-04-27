@@ -340,6 +340,10 @@ validParameters = {
     # BoundaryLoad: todo. use isa to set buffer/image load boundaries and out of bounds data automatically comes in as zero
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ], # None=don't guard against ou
 
+    # Group together unroll iterations inside the unroll loop.
+    # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
+    "InnerUnroll",                [1,2,4],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -353,6 +357,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":               [ False ] },
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
+    {"InnerUnroll":               [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                    [ 0 ] },
     {"LdsPadB":                    [ 0 ] },
