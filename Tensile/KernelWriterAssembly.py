@@ -854,10 +854,12 @@ class KernelWriterAssembly(KernelWriter):
     # num vgprs: valu
 #jgolds bpeCinternal because we are allocating accumulation registers here
     self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)/self.bpr
-    numVgprValuA = (kernel["ThreadTileA"]*tPA["bpe"])/self.bpr
-    numVgprValuB = (kernel["ThreadTileB"]*tPB["bpe"])/self.bpr
-    numVgprValuBlkA = numVgprValuA if kernel["PrefetchLocalRead"] else 0
-    numVgprValuBlkB = numVgprValuB if kernel["PrefetchLocalRead"] else 0
+
+    valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
+    self.numVgprValuAPerBlock = (kernel["ThreadTileA"]*tPA["bpe"])/self.bpr
+    self.numVgprValuBPerBlock = (kernel["ThreadTileB"]*tPB["bpe"])/self.bpr
+    numVgprValuA = self.numVgprValuAPerBlock * valuBlocks
+    numVgprValuB = self.numVgprValuBPerBlock * valuBlocks
 
     ####################################
     # num vgprs: global -> local elements
@@ -934,24 +936,26 @@ class KernelWriterAssembly(KernelWriter):
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
 
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
-    self.startVgprValuBlkA = vgprIdx; vgprIdx += numVgprValuBlkA
+
+    valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
+    print "valuBlocks=", valuBlocks
+
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
         self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
       else: # g2l can overlap valu
         self.startVgprG2LA = self.startVgprValuA
         vgprIdx = self.startVgprValuA \
-            + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
+            + max(self.numVgprValuAPerBlock*valuBlocks, numVgprG2LA)
 
     self.startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
-    self.startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
         self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
       else: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
-            + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
+            + max(numVgprValuB*valuBlocks, numVgprG2LB)
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
@@ -1341,12 +1345,17 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     kStr += self.comment3("VGPR Assignments")
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
-    kStr += self.macroRegister("vgprValuA", self.startVgprValuA)
-    kStr += self.macroRegister("vgprValuBlkA", self.startVgprValuBlkA)
+    for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
+      for iui in range(0, kernel["InnerUnroll"]):
+        kStr += self.macroRegister("vgprValuA_%u_%u"%(bi,iui), \
+            self.startVgprValuA+(bi+iui)*self.numVgprValuAPerBlock)
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
-    kStr += self.macroRegister("vgprValuB", self.startVgprValuB)
-    kStr += self.macroRegister("vgprValuBlkB", self.startVgprValuBlkB)
+
+    for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
+      for iui in range(0, kernel["InnerUnroll"]):
+        kStr += self.macroRegister("vgprValuB_%u_%u"%(bi,iui), \
+            self.startVgprValuB+(bi+iui)*self.numVgprValuBPerBlock)
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
     kStr += self.macroRegister("vgprLocalReadAddrA", \
@@ -1574,6 +1583,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("%dx%d thread-tile" \
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
     numMacs = 2 if kernel["PrefetchLocalRead"] else 1
+    iui = 0 # fixme-iui
     for m in range(0, numMacs):
       kStr += ".macro MAC_%ux%u" \
           % (kernel["ThreadTile0"], kernel["ThreadTile1"])
@@ -1591,9 +1601,9 @@ class KernelWriterAssembly(KernelWriter):
                   # v_mac_f16 or v_fma_f16
                   cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                      % ("vgprValuA_%u_%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
+                      % ("vgprValuB_%u_%u"%(m,iui), blockB)
                   kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
             elif self.version == (9,0,0):
               if kernel["ProblemType"]["HighPrecisionAccumulate"]:
@@ -1602,9 +1612,9 @@ class KernelWriterAssembly(KernelWriter):
                 a = blockA*2
                 cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                 aStr = "v[%s+%u]" \
-                    % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                    % ("vgprValuA_%u_%u"%(m,iui), blockA)
                 bStr = "v[%s+%u]" \
-                    % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
+                    % ("vgprValuB_%u_%u"%(m,iui), blockB)
                 kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                 cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                 kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
@@ -1624,9 +1634,9 @@ class KernelWriterAssembly(KernelWriter):
                 a = blockA*2
                 cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
                 aStr = "v[%s+%u]" \
-                    % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                    % ("vgprValuA_%u_%u"%(m,iui), blockA)
                 bStr = "v[%s+%u]" \
-                    % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
+                    % ("vgprValuB_%u_%u"%(m,iui), blockB)
                 kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
                 cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
@@ -1647,9 +1657,9 @@ class KernelWriterAssembly(KernelWriter):
           for a in range(0, kernel["ThreadTile0"]):
             cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
             aStr = "v[%s+%u]" \
-                % ("vgprValuA" if m==0 else "vgprValuBlkA", a)
+                % ("vgprValuA_%u_%u"%(m,iui), a)
             bStr = "v[%s+%u]" \
-                % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
+                % ("vgprValuB_%u_%u"%(m,iui), b)
             #if a==0 and b==0:
             #  kStr += dump(aStr)
             kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
@@ -1667,9 +1677,9 @@ class KernelWriterAssembly(KernelWriter):
           for a in range(0, kernel["ThreadTile0"]):
             cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
             aStr = "v[%s+%u*2:%s+%u*2+1]" \
-                % ("vgprValuA" if m==0 else "vgprValuBlkA", a, "vgprValuA" if m==0 else "vgprValuBlkA", a)
+                % ("vgprValuA_%u_%u"%(m,iui) , a, "vgprValuA_%u_%u"%(m,iui), a)
             bStr = "v[%s+%u*2:%s+%u*2+1]" \
-                % ("vgprValuB" if m==0 else "vgprValuBlkB", b, "vgprValuB" if m==0 else "vgprValuBlkB", b)
+                % ("vgprValuB_%u_%u"%(m,iui) , b, "vgprValuB_%u_%u"%(m,iui), b)
             kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
 
@@ -3548,6 +3558,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
 #jgolds which bpe here? assuming tP
+#fixme-iui  need to use wrapping increment for double or triple buffering:
     if kernel["LocalWriteUseSgpr%s"%tc]:
       kStr += inst("s_xor_b32", \
           sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
@@ -3850,14 +3861,14 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   ##############################################################################
-  def localReadDo(self, kernel, bufferColor, tP):
+  def localReadDo(self, kernel, bufferIdx, tP):
 
-    for iui in kernel["InnerUnroll"]:
-      tc=tP["tensorChar"]
-      if not self.do["LocalRead%s"%tc]: return ""
+    tc=tP["tensorChar"]
+    if not self.do["LocalRead%s"%tc]: return ""
+    kStr = ""
+    for iui in range(0,kernel["InnerUnroll"]):
+      print "innerUnroll=%u", iui
       self.localReadDoCnt += 1
-      kStr = ""
-      #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if bufferColor else "", tP["tensorChar"], 0)))
       instruction = tP["localReadInstruction"]
       numOffsets = instruction.numOffsets
       blockWidth = instruction.blockWidth
@@ -3872,13 +3883,7 @@ class KernelWriterAssembly(KernelWriter):
       for vIdx in range(0, numVectorsPerTile):
         for rIdx in range(0, numReadsPerVector):
           paramList = []
-          if blockWidth == 1:
-            destVgpr = vgpr("Valu%s%s+%u"%( \
-                "Blk" if bufferColor else "", tc, valuIdx))
-          else:
-            destVgpr = vgpr("Valu%s%s+%u"%( \
-                "Blk" if bufferColor else "", tc, valuIdx), \
-                blockWidth)
+          destVgpr = vgpr("Valu%s_%u_%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
           paramList.append(destVgpr)
           paramList.append(vgpr("LocalReadAddr%s"%tc))
           for oIdx in range(0, numOffsets):

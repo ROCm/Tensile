@@ -1540,7 +1540,7 @@ class KernelWriter:
   # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadDo(self, kernel, bufferColor, innerLoopIdx,, tP):
+  def localReadDo(self, kernel, bufferColor, tP):
     return ""
 
   ##############################################################################
