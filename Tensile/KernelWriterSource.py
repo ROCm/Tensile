@@ -1464,7 +1464,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, black):
+  def macIter(self, kernel, black, iui):
     kStr = ""
     kStr += "%sMAC_%ux%u" % (self.indent, \
         kernel["ThreadTile0"],kernel["ThreadTile1"])
@@ -1671,7 +1671,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Do It A/B
   ##############################################################################
-  def localReadDo(self, kernel, black, tP):
+  def localReadDo(self, kernel, black, iui, tP):
     kStr = ""
     for r in range(0, kernel[tP["tt"]]/kernel["VectorWidth"]):
       for s in range(0, kernel["VectorWidth"]):
