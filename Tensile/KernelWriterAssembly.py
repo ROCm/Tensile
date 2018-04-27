@@ -938,8 +938,6 @@ class KernelWriterAssembly(KernelWriter):
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
 
     valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
-    print "valuBlocks=", valuBlocks
-
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
         self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
@@ -1346,10 +1344,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("VGPR Assignments")
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
+    kStr += self.comment3("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
     ri = 0
     for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
       for iui in range(0, kernel["InnerUnroll"]):
-        kStr += self.macroRegister("vgprValuA_%u_%u"%(bi,iui), self.startVgprValuA+ri)
+        kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
         ri += self.numVgprValuAPerBlock
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
@@ -1357,7 +1356,7 @@ class KernelWriterAssembly(KernelWriter):
     ri = 0
     for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
       for iui in range(0, kernel["InnerUnroll"]):
-        kStr += self.macroRegister("vgprValuB_%u_%u"%(bi,iui), self.startVgprValuB+ri)
+        kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
         ri += self.numVgprValuBPerBlock
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
@@ -1587,7 +1586,7 @@ class KernelWriterAssembly(KernelWriter):
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
     for m in range(0, 1+kernel["PrefetchLocalRead"]):
       for iui in range(0, kernel["InnerUnroll"]):
-        kStr += ".macro MAC_%ux%u_%u_%u" \
+        kStr += ".macro MAC_%ux%u_X%u_I%u" \
             % (kernel["ThreadTile0"], kernel["ThreadTile1"], m, iui)
         kStr += self.endLine
         macIdx = 0
@@ -1601,9 +1600,9 @@ class KernelWriterAssembly(KernelWriter):
                     # v_mac_f16 or v_fma_f16
                     cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
                     aStr = "v[%s+%u]" \
-                        % ("vgprValuA_%u_%u"%(m,iui), blockA)
+                        % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                     bStr = "v[%s+%u]" \
-                        % ("vgprValuB_%u_%u"%(m,iui), blockB)
+                        % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                     kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
               elif self.version == (9,0,0):
                 if kernel["ProblemType"]["HighPrecisionAccumulate"]:
@@ -1612,9 +1611,9 @@ class KernelWriterAssembly(KernelWriter):
                   a = blockA*2
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_%u_%u"%(m,iui), blockA)
+                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_%u_%u"%(m,iui), blockB)
+                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
@@ -1634,9 +1633,9 @@ class KernelWriterAssembly(KernelWriter):
                   a = blockA*2
                   cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_%u_%u"%(m,iui), blockA)
+                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_%u_%u"%(m,iui), blockB)
+                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
                   kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
                   cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
@@ -1657,9 +1656,9 @@ class KernelWriterAssembly(KernelWriter):
             for a in range(0, kernel["ThreadTile0"]):
               cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
               aStr = "v[%s+%u]" \
-                  % ("vgprValuA_%u_%u"%(m,iui), a)
+                  % ("vgprValuA_X%u_I%u"%(m,iui), a)
               bStr = "v[%s+%u]" \
-                  % ("vgprValuB_%u_%u"%(m,iui), b)
+                  % ("vgprValuB_X%u_I%u"%(m,iui), b)
               #if a==0 and b==0:
               #  kStr += dump(aStr)
               kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
@@ -1677,9 +1676,9 @@ class KernelWriterAssembly(KernelWriter):
             for a in range(0, kernel["ThreadTile0"]):
               cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
               aStr = "v[%s+%u*2:%s+%u*2+1]" \
-                  % ("vgprValuA_%u_%u"%(m,iui) , a, "vgprValuA_%u_%u"%(m,iui), a)
+                  % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
               bStr = "v[%s+%u*2:%s+%u*2+1]" \
-                  % ("vgprValuB_%u_%u"%(m,iui) , b, "vgprValuB_%u_%u"%(m,iui), b)
+                  % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
 
@@ -3045,8 +3044,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_add_u32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         sgpr("LoopCounters+%u"%loopIdx), \
-        hex(1), \
-        "counter%s++"%(loopChar) )
+        hex(kernel["InnerUnroll"]) if tailLoop else 1, \
+        "inc counter%s"%(loopChar) )
     kStr += inst("s_cmp_eq_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(endCounter), \
@@ -3084,7 +3083,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("MACs, buffer=%u iui=%u"%(bufferIdx, iui))
     if kernel["ProblemType"]["DataType"].isHalf():
       kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
-    kStr += "MAC_%ux%u_%u_%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx, iui)
+    kStr += "MAC_%ux%u_X%u_I%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx, iui)
     kStr += self.endLine
     return kStr
 
@@ -3867,7 +3866,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     self.localReadDoCnt += 1
-    print "lrdo: innerUnroll=", iui
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
@@ -3881,7 +3879,7 @@ class KernelWriterAssembly(KernelWriter):
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
         paramList = []
-        destVgpr = vgpr("Valu%s_%u_%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
+        destVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
         paramList.append(destVgpr)
         paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets):
