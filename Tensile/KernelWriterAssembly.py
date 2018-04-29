@@ -301,6 +301,8 @@ class KernelWriterAssembly(KernelWriter):
     self.do["PostLoop"]    = True
     self.do["GlobalWrite"] = True
 
+    self.do["EdgeWrite"]   = False
+
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
     # Various debug flags and modes
@@ -4515,7 +4517,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
-    edges = [False, True]
+    edges = [False, True] if self.do["EdgeWrite"] else [False]
     writeLabels = {}
     for beta in betas:
       writeLabels[beta] = {}
@@ -4623,9 +4625,10 @@ class KernelWriterAssembly(KernelWriter):
       # s01 now = myMT0 = wg0 < nwg0-1 ? MT0 : rMT0
 
       # if rMT0 > 0 goto label_B?_E1
-      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT0 > 0")
-      kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
-          "edges required so jump to E1")
+      if self.do["EdgeWrite"]:
+        kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT0 > 0")
+        kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
+            "edges required so jump to E1")
 
       # check edge1 ###
 
@@ -4645,9 +4648,11 @@ class KernelWriterAssembly(KernelWriter):
       # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
 
       # if rMT1 > 0 goto label_B?_E1
-      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT1 > 0")
-      kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
-          "edges required so jump to E1")
+      if self.do["EdgeWrite"]:
+        kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT1 > 0")
+        kStr += inst("s_cbranch_scc1 label_%04u" % writeLabels[beta][True], \
+            "edges required so jump to E1")
+
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
         kStr += "label_%04u:%s"%(writeLabels[beta][edge], self.endLine)
