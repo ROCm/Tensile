@@ -267,6 +267,7 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
+    # For example set to DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
 
 
