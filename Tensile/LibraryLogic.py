@@ -193,7 +193,7 @@ class LogicAnalyzer:
 
     # merge solutions from size groups
     # solutions needs to be a set, and offset needs to be mapping
-    print1("# Merging Solutions: len(solutionList=%u)"%(len(solutionsList)))
+    print1("# Merging Solutions:")
     self.numSolutionsPerGroup = []
     self.solutionGroupMap = []
     self.solutions = []
@@ -213,7 +213,10 @@ class LogicAnalyzer:
         if not solution in solutionsHash:
           sIdx = len(self.solutions) # the one we are about to add
           self.solutions.append(solution)
-          solutionsHash[solution] = 1
+          solutionsHash[solution] = sIdx
+        else:
+          sIdx = solutionsHash[solution]
+
         self.solutionGroupMap[solutionGroupIdx][solutionIdx] = sIdx
         progressBar.increment()
     self.numSolutions = len(self.solutions)
@@ -396,13 +399,14 @@ class LogicAnalyzer:
               winnerIdx = solutionIdx
               winnerGFlops = gflops
             solutionIdx += 1
+          assert (winnerIdx != -1)
           if problemSize in self.exactWinners:
             if winnerGFlops > self.exactWinners[problemSize][1]:
-              print "update exact", problemSize, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
+              #print "update exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
               self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
           else:
             self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-            print "new exact", problemSize, self.exactWinners[problemSize]
+            #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
 
         # Range Problem Size
         elif problemSize in self.rangeProblemSizes:
@@ -516,7 +520,7 @@ class LogicAnalyzer:
     # Always keep the exact sizes:
     for exactProblem in self.exactWinners:
       winnerIdx = self.exactWinners[exactProblem][0]
-      print "keepWinnerSolution adding exact", exactProblem, winnerIdx
+      #print "keepWinnerSolution adding exact", exactProblem, winnerIdx
       winners.add(winnerIdx)
 
     print "Winners", winners
