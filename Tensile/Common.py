@@ -62,6 +62,7 @@ globalParameters["ForceRedoLibraryClient"] = True     # if False and library cli
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
+globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 
 ########################################
 # less common
