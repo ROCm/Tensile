@@ -301,7 +301,7 @@ class KernelWriterAssembly(KernelWriter):
     self.do["PostLoop"]    = True
     self.do["GlobalWrite"] = True
 
-    self.do["EdgeWrite"]   = False
+    self.do["EdgeWrite"]   = True
 
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
@@ -5200,18 +5200,22 @@ class KernelWriterAssembly(KernelWriter):
               "sum*alpha + C*beta vi=%u"%vi)
 
           # attempt write
-          if kernel["BufferStore"]:
-            kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                (vgpr(dataV,2), \
-                 vgpr(addr,1), \
-                 sgpr("SrdC", 4),  \
-                 "0 offen offset:0 glc", \
-                 "attempt write", self.endLine )
+          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
+          if self.do["GlobalWrite"]:
+            if kernel["BufferStore"]:
+              kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                  (vgpr(dataV,2), \
+                   vgpr(addr,1), \
+                   sgpr("SrdC", 4),  \
+                   "0 offen offset:0 glc", \
+                   "attempt write", self.endLine )
+            else:
+              kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                  (vgpr(atomicDestVgpr), vgpr(addr,2), \
+                  vgpr(dataV,2), "glc", "attempt write", self.endLine )
           else:
-            tmpVgpr = dataV+2
-            kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                (vgpr(tmpVgpr), vgpr(addr,2), \
-                vgpr(dataV,2), "glc", "attempt write", self.endLine )
+             kStr += inst("v_mov_b32", vgpr(atomicDestVgpr), vgpr(dataV+1), "Fake successful CAS" )
+             # Fake successful CAS swap:
 
       ########################################
       # wait for first attempt write
@@ -5274,17 +5278,18 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
           kStr += inst("v_add_f32", vgpr(dataV+0), vgpr(sumIdxV), vgpr(dataV+1), \
               "newC = rC + originalC" )
-          if kernel["BufferStore"]:
-            # Using no-ret version here?
-            kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                (vgpr(dataV,2), \
-                 vgpr(addr,1), \
-                 sgpr("SrdC", 4), \
-                 "0 offen offset:0 glc", \
-                 "try again", self.endLine )
-          else:
-            kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
-                vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
+          if self.do["GlobalWrite"]:
+            if kernel["BufferStore"]:
+              # Using no-ret version here?
+              kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                  (vgpr(dataV,2), \
+                   vgpr(addr,1), \
+                   sgpr("SrdC", 4), \
+                   "0 offen offset:0 glc", \
+                   "try again", self.endLine )
+            else:
+              kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
+                  vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
 
       # wait for batched write
       kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
