@@ -77,7 +77,12 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   ######################################
   # Remove least important solutions
-  logicAnalyzer.removeLeastImportantSolutions()
+  if globalParameters["SolutionSelectionAlg"] == 0:
+    logicAnalyzer.removeLeastImportantSolutions()
+  elif globalParameters["SolutionSelectionAlg"] == 1:
+    logicAnalyzer.keepWinnerSolutions()
+  else:
+    printExit("Bad KeepLogic=%u"%globalParameters["KeepLogic"])
 
   # print raw data
   if globalParameters["PrintLevel"] >= 2:
@@ -86,6 +91,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     for size in logicAnalyzer.numProblemSizes:
       numOther *= size
     numCols = logicAnalyzer.numProblemSizes[1]
+    if numCols == 0: numCols = 1
     numOther /= numCols
     for row in range(0, numOther):
       for col in range(0, numCols):
@@ -99,7 +105,12 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   # Print solutions used
   print1("# Solutions Used:")
   for i in range(0, len(logicAnalyzer.solutions)):
-    print1("(%2u) %s" % (i, Solution.getNameFull(logicAnalyzer.solutions[i])))
+    s = logicAnalyzer.solutions[i]
+    s.state["SolutionIndex"] = i
+    s.state["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
+    print1("(%2u) %s : %s" % (i, \
+        Solution.getNameMin(s, solutionMinNaming), \
+        Solution.getNameFull(s)))  # this is the right name
 
   ######################################
   # Correct outliers
@@ -278,7 +289,11 @@ class LogicAnalyzer:
     print2("TotalProblems: %u" % self.totalProblems)
     print2("TotalSolutions: %u" % self.numSolutions)
     print2("TotalSize: %u" % self.totalSize)
+    # data is a 2D array [problemIdx][solutionIdx] which stores perf data in gflops for
+    # the specified solution
     self.data = array.array('f', [-2]*self.totalSize)
+
+    # Each entry in exactWinners is a 2D array [solutionIdx, perf]
     self.exactWinners = {}
 
     """
@@ -383,9 +398,11 @@ class LogicAnalyzer:
             solutionIdx += 1
           if problemSize in self.exactWinners:
             if winnerGFlops > self.exactWinners[problemSize][1]:
+              print "update exact", problemSize, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
               self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
           else:
             self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
+            print "new exact", problemSize, self.exactWinners[problemSize]
 
         # Range Problem Size
         elif problemSize in self.rangeProblemSizes:
@@ -434,10 +451,15 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # ENTRY: Remove Least Important Solutions
+  # ENTRY: Original KeepLogic algorithm: Remove Least Important Solutions,
+  # one at a time.  Stop when leastImportantSolution indicates no more
+  # solutions can be removed, which appears to be when the solution
+  # is used by an exact problem or is the only possible solution for some
+  # problem or doesn't improve the a solution by > SolutionImportanceMin% 
   ##############################################################################
   def removeLeastImportantSolutions(self):
     # Remove least important solutions
+    start = time.time()
     while len(self.solutions) > 1:
       lisTuple = self.leastImportantSolution()
       if lisTuple != None:
@@ -454,6 +476,52 @@ class LogicAnalyzer:
           break
       else: # no more lis, remainders are exact winner
         break
+    stop = time.time()
+    print "removeLeastImportantSolutions elapsed time = %.1f secs" % (stop - start)
+
+
+  ##############################################################################
+  # ENTRY: Alternate KeepLogic algorithm that keeps the fastest for each
+  #  exact and range.  Other solutions are removed.
+  ##############################################################################
+  def keepWinnerSolutions(self):
+
+    # solution indexes for the winners:
+    winners = set()
+
+    solutionImportance = []
+    for i in range(0, self.numSolutions):
+      solutionImportance.append([i, 0, 0, 0, False])
+    problemSizes = [0]*self.numIndices
+    print "problemIndicesForGlobalRange", self.problemIndicesForGlobalRange
+    for problemIndices in self.problemIndicesForGlobalRange:
+      for i in range(0, self.numIndices):
+        problemSizes[i] = self.problemIndexToSize[i][problemIndices[i]]
+      totalFlops = self.flopsPerMac
+      for size in problemSizes:
+        totalFlops *= size
+
+      problemSerial = self.indicesToSerial(0, problemIndices)
+      winnerIdx = -1
+      winnerGFlops = -1e6
+      for solutionIdx in range(0, self.numSolutions):
+        solutionSerialIdx = problemSerial + solutionIdx
+        solutionGFlops = self.data[solutionSerialIdx]
+        if solutionGFlops > winnerGFlops:
+          winnerIdx = solutionIdx
+          winnerGFlops = solutionGFlops
+
+      winners.add(winnerIdx)
+
+    # Always keep the exact sizes:
+    for exactProblem in self.exactWinners:
+      winnerIdx = self.exactWinners[exactProblem][0]
+      print "keepWinnerSolution adding exact", exactProblem, winnerIdx
+      winners.add(winnerIdx)
+
+    print "Winners", winners
+    self.pruneSolutions(winners)
+
 
 
   ##############################################################################
@@ -955,6 +1023,62 @@ class LogicAnalyzer:
     for problemSize in self.exactWinners:
       if self.exactWinners[problemSize][0] >= removeSolutionIdx:
         self.exactWinners[problemSize][0] -= 1
+
+
+  ##############################################################################
+  # Prune a list of solutions, keeping only the indices specified in 
+  # keepSolutions.  keepSolutions is a set not a list
+  ##############################################################################
+  def pruneSolutions(self, keepSolutions):
+
+    removeSolutionIdxList = []
+    solutionMapNewToOld = [] # dense mapping
+    solutionMapOldToNew = [-1] * self.numSolutions
+
+    # temporarily move current to old
+    oldSolutions = deepcopy(self.solutions)
+    oldNumSolutions = self.numSolutions
+    oldData = deepcopy(self.data)
+    # update solutions
+    self.solutions = []
+    for i in range(0, oldNumSolutions):
+      if i in keepSolutions:
+        solutionMapNewToOld.append(i)
+        solutionMapOldToNew[i] = len(self.solutions)
+        self.solutions.append(oldSolutions[i])
+      else:
+        removeSolutionIdxList.append(i)
+
+    self.solutionMinNaming = Solution.getMinNaming(self.solutions)
+    self.solutionNames = []
+    self.solutionTiles = []
+    for solution in self.solutions:
+      self.solutionNames.append(Solution.getNameMin(solution, \
+          self.solutionMinNaming))
+      self.solutionTiles.append("%ux%u"%(solution["MacroTile0"], \
+          solution["MacroTile1"]))
+    self.numSolutions = len(self.solutions)
+
+    # update data
+    self.totalSize = self.totalProblems * self.numSolutions
+    self.data = array.array('f', [0]*self.totalSize)
+    for problemIndex in range(0, self.totalProblems):
+      for newSolutionIdx in range(0, self.numSolutions):
+        oldSolutionIdx = solutionMapNewToOld[newSolutionIdx]
+        self.data[problemIndex*self.numSolutions+newSolutionIdx] \
+            = oldData[problemIndex*oldNumSolutions+oldSolutionIdx]
+
+    # update exact Winners
+    for problemSize in self.exactWinners:
+      print "prune updating exacWinnert", problemSize, \
+              "from ", self.exactWinners[problemSize][0], \
+              "to ", solutionMapOldToNew[self.exactWinners[problemSize][0]]
+      self.exactWinners[problemSize][0] = \
+          solutionMapOldToNew[self.exactWinners[problemSize][0]]
+      if self.exactWinners[problemSize][0] == -1:
+        print ("warning: exactWinner[", problemSize, "] == -1")
+      if self.exactWinners[problemSize][0] >= self.numSolutions:
+        print ("warning: exactWinner[", problemSize, "] ")
 
 
   ##############################################################################

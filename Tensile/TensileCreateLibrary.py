@@ -178,6 +178,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
   if not globalParameters["MergeFiles"]:
     solutionHeaderFile.close()
 
+  if globalParameters["ExitAfterKernelGen"]:
+    printExit("** Exiting after kernel generation due to ExitAfterKernelGen=1")
 
 
 ################################################################################
