@@ -754,6 +754,9 @@ class Solution:
         and state["GlobalReadVectorWidth"] < 2:
       state["GlobalReadVectorWidth"] = 2
 
+    if state["MinGlobalWriteVectorWidth"] == -1:
+      state["MinGlobalWriteVectorWidth"] = 2 \
+        if state["ProblemType"]["DataType"].isHalf() else 1
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
