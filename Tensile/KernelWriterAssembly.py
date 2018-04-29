@@ -5141,7 +5141,14 @@ class KernelWriterAssembly(KernelWriter):
     # addr = vgpr(addr,2)
     # data = vgpr(tmpVgpr,2)
     # tmp = vgpr(tmpVgpr+4)
+
+    # buffer_atomic_cmpswap:
+    # src = data[vi*numVgprsPerDataPerVI][0] new C
+    # cmp = data[vi*numVgprsPerDataPerVI][1] original C
+    # after buffer_atomic_cmpswap
+    # dest = data[vi*numVgprsPerDataPerVI][0] C loaded from memory, overwrites src
     if atomic:
+      del tmpVgpr # catch bugs
       # TODO for atomic GWVW:
       #  - Use VI to compute addresses, sumIdx.
       #  - Need a solution for the mask.  Can move to all buffer or can fix?
@@ -5182,22 +5189,21 @@ class KernelWriterAssembly(KernelWriter):
 
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          tmpVgpr = dataV+2
           sumIdxV = elementSumIdx[elementIdx] + vi
-          # FIXME-atomic
           # for atomic, data[1] = original c, data[0] = new c
           kStr += inst("v_add_f32", vgpr(dataV+0), vgpr(dataV+1), vgpr(sumIdxV), \
               "sum*alpha + C*beta vi=%u"%vi)
 
           # attempt write
           if kernel["BufferStore"]:
-            kStr += "buffer_atomic_cmpswap %s, %s, %s, %s %s    // %s%s" % \
-                (vgpr(tmpVgpr), vgpr(dataV,2), \
+            kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                (vgpr(dataV,2), \
                  vgpr(addr,1), \
                  sgpr("SrdC", 4),  \
                  "0 offen offset:0 glc", \
                  "attempt write", self.endLine )
           else:
+            tmpVgpr = dataV+2
             kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                 (vgpr(tmpVgpr), vgpr(addr,2), \
                 vgpr(dataV,2), "glc", "attempt write", self.endLine )
@@ -5221,17 +5227,17 @@ class KernelWriterAssembly(KernelWriter):
         # calculate new masks
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          tmpVgpr = dataV+2
+          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
           if edge:
             # need to apply element mask before comparison
             # so that all valid lanes are doing the cmp
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
-            kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(tmpVgpr), \
+            kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
                 vgpr(dataV+1), "c read during atomic == c read during prior load" )
             kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
           else:
             #kStr += inst("s_mov_b64", sgpr(mask,2), sgpr(fullExecMaskSgpr,2), "mask = full" )
-            kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(tmpVgpr), \
+            kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
                 vgpr(dataV+1), "c read during atomic != c read during prior load" )
 
       # or masks together to check early exit
@@ -5255,24 +5261,24 @@ class KernelWriterAssembly(KernelWriter):
 
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          tmpVgpr = dataV+2
+          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
           sumIdxV = elementSumIdx[elementIdx] + vi
 
           # apply mask for element
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
-          kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(tmpVgpr), "dataV+1 = tmp (new original C)" )
+          kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
           kStr += inst("v_add_f32", vgpr(dataV+0), vgpr(sumIdxV), vgpr(dataV+1), \
               "newC = rC + originalC" )
           if kernel["BufferStore"]:
             # Using no-ret version here?
-            kStr += "buffer_atomic_cmpswap %s, %s, %s, %s %s    // %s%s" % \
-                (vgpr(tmpVgpr), vgpr(dataV,2), \
+            kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                (vgpr(dataV,2), \
                  vgpr(addr,1), \
                  sgpr("SrdC", 4), \
                  "0 offen offset:0 glc", \
                  "try again", self.endLine )
           else:
-            kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(tmpVgpr), \
+            kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
                 vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
 
       # wait for batched write
@@ -5284,17 +5290,16 @@ class KernelWriterAssembly(KernelWriter):
         element = batchElements[elementIdx]
         addr = elementAddr[elementIdx]
         data = elementData[elementIdx]
-        tmpVgpr = data+2
         mask = elementMask[elementIdx]
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          tmpVgpr = dataV+2
+          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
 
           # apply mask for element
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
 
           # compare success
-          kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(tmpVgpr), \
+          kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
               "c read during atomic == c read during prior load" )
           # update element mask
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
