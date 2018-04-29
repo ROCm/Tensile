@@ -5035,23 +5035,32 @@ class KernelWriterAssembly(KernelWriter):
                 "accumulate d%u into addr"%i)
 
       # in-bounds exec mask
-      if edge:
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
-        kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
-
-      if edge and (beta or atomic):
-        # apply in-bounds exec mask for read
-        kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
-
       if kernel["BufferStore"]:
         kStr += inst("_v_add_lshl_u32", \
             vgpr(addr), \
             vgpr(scaledCoordVgpr1), \
             vgpr(coordVgpr0), \
             hex(log2(self.bpeCexternal)), \
-            "accumulate d0 lower and *= bpe")
+            "accumulate d0 lower and *= bpe into addr")
+        if edge:
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
+          kStr += inst("v_cndmask_b32", \
+                       vgpr(addr), \
+                        -1,
+                       vgpr(addr), \
+                       sgpr(mask,2), \
+                        "clip if OOB. offset")
       else:
+        if edge:
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
+
+          if (beta or atomic):
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
         kStr += "GLOBAL_OFFSET_C %u" % addr
@@ -5108,7 +5117,7 @@ class KernelWriterAssembly(KernelWriter):
                     addr0, addr1, 0, extraFields)
 
       # restore full exec mask for calculating addr of next element
-      if edge and (beta or atomic):
+      if not kernel["BufferStore"] and edge and (beta or atomic):
         #kStr += inst("s_or_saveexec_b64",  sgpr(tmpS45,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
 
@@ -5189,8 +5198,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # apply in-bounds exec mask
         if edge:
-          #kStr += inst("s_and_saveexec_b64",  sgpr(tmpS45,2), sgpr(mask,2), "sgprs -> exec" )
-          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec (before atomic)" )
 
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
@@ -5200,7 +5208,7 @@ class KernelWriterAssembly(KernelWriter):
               "sum*alpha + C*beta vi=%u"%vi)
 
           # attempt write
-          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
+          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
           if self.do["GlobalWrite"]:
             if kernel["BufferStore"]:
               kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
@@ -5358,7 +5366,7 @@ class KernelWriterAssembly(KernelWriter):
         #  kStr += inst("s_waitcnt", "vmcnt(%u)"%(len(batchElements)-1), "wait C")
 
         # apply in-bounds exec mask
-        if edge:
+        if edge and not kernel["BufferStore"]:
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
         if beta:
