@@ -1743,7 +1743,7 @@ class KernelWriter:
         bytearrayFile.write('  codeObjectByteArray = bytearray(codeObjectFile.read())\n')
         bytearrayFile.write('  codeObjectFile.close()\n\n')
 
-        bytearrayFile.write('# write code object byte array\n')
+        bytearrayFile.write('# write code object byte array for asm\n')
         bytearrayFile.write('  fileString += "const unsigned char %s_coba[%u] = {\\n" % (kernelName, len(codeObjectByteArray))\n')
         bytearrayFile.write('  for byteIdx in range(0, len(codeObjectByteArray)):\n')
         bytearrayFile.write('    byte = codeObjectByteArray[byteIdx]\n')
