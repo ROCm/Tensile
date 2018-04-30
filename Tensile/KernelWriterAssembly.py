@@ -953,7 +953,7 @@ class KernelWriterAssembly(KernelWriter):
       else: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
-            + max(numVgprValuB*valuBlocks, numVgprG2LB)
+            + max(self.numVgprValuBPerBlock*valuBlocks, numVgprG2LB)
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
