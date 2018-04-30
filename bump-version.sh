@@ -3,11 +3,11 @@
 # This script needs to be edited to bump version for new release.
 # Version will be bumped in Tensile/__init__.py and in .yaml files
 
-OLD_VERSION="4.0.2"
-NEW_VERSION="4.1.0"
+OLD_VERSION="4.1.0"
+NEW_VERSION="4.1.1"
 
-OLD_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.0.2"
-NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.1.0"
+OLD_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.1.0"
+NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.1.1"
 
 sed -i "s/${OLD_VERSION}/${NEW_VERSION}/g" Tensile/__init__.py
 
