@@ -3080,14 +3080,16 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, bufferIdx, iui):
+  def macIter(self, kernel, bufferIdx, iuiCount):
     if not self.do["MAC"]: return ""
     kStr = ""
-    kStr += self.comment1("MACs, buffer=%u iui=%u"%(bufferIdx, iui))
-    if kernel["ProblemType"]["DataType"].isHalf():
-      kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
-    kStr += "MAC_%ux%u_X%u_I%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx, iui)
-    kStr += self.endLine
+
+    for iui in range(0,iuiCount):
+      kStr += self.comment1("MACs, buffer=%u iui=%u"%(bufferIdx, iui))
+      if kernel["ProblemType"]["DataType"].isHalf():
+        kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
+      kStr += "MAC_%ux%u_X%u_I%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx, iui)
+      kStr += self.endLine
     return kStr
 
   ##############################################################################

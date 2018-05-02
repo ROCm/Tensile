@@ -1464,13 +1464,14 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, black, iui):
+  def macIter(self, kernel, black, iuiCount):
     kStr = ""
-    kStr += "%sMAC_%ux%u" % (self.indent, \
-        kernel["ThreadTile0"],kernel["ThreadTile1"])
-    if black:
-      kStr += "_BLK"
-    kStr += self.endLine
+    for iui in range(0,iuiCount):
+        kStr += "%sMAC_%ux%u" % (self.indent, \
+            kernel["ThreadTile0"],kernel["ThreadTile1"])
+        if black:
+          kStr += "_BLK"
+        kStr += self.endLine
     return kStr
 
   ##############################################################################
