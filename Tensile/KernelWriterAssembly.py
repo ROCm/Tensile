@@ -854,10 +854,12 @@ class KernelWriterAssembly(KernelWriter):
     # num vgprs: valu
 #jgolds bpeCinternal because we are allocating accumulation registers here
     self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)/self.bpr
-    numVgprValuA = (kernel["ThreadTileA"]*tPA["bpe"])/self.bpr
-    numVgprValuB = (kernel["ThreadTileB"]*tPB["bpe"])/self.bpr
-    numVgprValuBlkA = numVgprValuA if kernel["PrefetchLocalRead"] else 0
-    numVgprValuBlkB = numVgprValuB if kernel["PrefetchLocalRead"] else 0
+
+    valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
+    self.numVgprValuAPerBlock = (kernel["ThreadTileA"]*tPA["bpe"])/self.bpr
+    self.numVgprValuBPerBlock = (kernel["ThreadTileB"]*tPB["bpe"])/self.bpr
+    numVgprValuA = self.numVgprValuAPerBlock * valuBlocks
+    numVgprValuB = self.numVgprValuBPerBlock * valuBlocks
 
     ####################################
     # num vgprs: global -> local elements
@@ -934,24 +936,24 @@ class KernelWriterAssembly(KernelWriter):
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
 
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
-    self.startVgprValuBlkA = vgprIdx; vgprIdx += numVgprValuBlkA
+
+    valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
         self.startVgprG2LA = vgprIdx; vgprIdx += numVgprG2LA
       else: # g2l can overlap valu
         self.startVgprG2LA = self.startVgprValuA
         vgprIdx = self.startVgprValuA \
-            + max(numVgprValuA+numVgprValuBlkA, numVgprG2LA)
+            + max(self.numVgprValuAPerBlock*valuBlocks, numVgprG2LA)
 
     self.startVgprValuB = vgprIdx; vgprIdx += numVgprValuB
-    self.startVgprValuBlkB = vgprIdx; vgprIdx += numVgprValuBlkB
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
       if kernel["PrefetchGlobalRead"]:
         self.startVgprG2LB = vgprIdx; vgprIdx += numVgprG2LB
       else: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
-            + max(numVgprValuB+numVgprValuBlkB, numVgprG2LB)
+            + max(self.numVgprValuBPerBlock*valuBlocks, numVgprG2LB)
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
@@ -1341,12 +1343,21 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     kStr += self.comment3("VGPR Assignments")
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
-    kStr += self.macroRegister("vgprValuA", self.startVgprValuA)
-    kStr += self.macroRegister("vgprValuBlkA", self.startVgprValuBlkA)
+
+    kStr += self.comment3("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
+    ri = 0
+    for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
+      for iui in range(0, kernel["InnerUnroll"]):
+        kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
+        ri += self.numVgprValuAPerBlock
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
-    kStr += self.macroRegister("vgprValuB", self.startVgprValuB)
-    kStr += self.macroRegister("vgprValuBlkB", self.startVgprValuBlkB)
+
+    ri = 0
+    for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
+      for iui in range(0, kernel["InnerUnroll"]):
+        kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
+        ri += self.numVgprValuBPerBlock
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
     kStr += self.macroRegister("vgprLocalReadAddrA", \
@@ -1573,110 +1584,108 @@ class KernelWriterAssembly(KernelWriter):
     # MACs
     kStr += self.comment3("%dx%d thread-tile" \
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
-    numMacs = 2 if kernel["PrefetchLocalRead"] else 1
-    for m in range(0, numMacs):
-      kStr += ".macro MAC_%ux%u" \
-          % (kernel["ThreadTile0"], kernel["ThreadTile1"])
-      if kernel["PrefetchLocalRead"]:
-        kStr += ("" if m==0 else "_BLK")
-      kStr += self.endLine
-      macIdx = 0
-      # half precision
-      if kernel["ProblemType"]["DataType"].isHalf():
-        for blockB in range(0, kernel["ThreadTile1"]/2):
-          for blockA in range(0, kernel["ThreadTile0"]/2):
-            if self.version == (8,0,3):
-              for b in range(blockB*2, (blockB+1)*2):
-                for a in range(blockA*2, (blockA+1)*2):
-                  # v_mac_f16 or v_fma_f16
-                  cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
+    for m in range(0, 1+kernel["PrefetchLocalRead"]):
+      for iui in range(0, kernel["InnerUnroll"]):
+        kStr += ".macro MAC_%ux%u_X%u_I%u" \
+            % (kernel["ThreadTile0"], kernel["ThreadTile1"], m, iui)
+        kStr += self.endLine
+        macIdx = 0
+        # half precision
+        if kernel["ProblemType"]["DataType"].isHalf():
+          for blockB in range(0, kernel["ThreadTile1"]/2):
+            for blockA in range(0, kernel["ThreadTile0"]/2):
+              if self.version == (8,0,3):
+                for b in range(blockB*2, (blockB+1)*2):
+                  for a in range(blockA*2, (blockA+1)*2):
+                    # v_mac_f16 or v_fma_f16
+                    cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
+                    aStr = "v[%s+%u]" \
+                        % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+                    bStr = "v[%s+%u]" \
+                        % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                    kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
+              elif self.version == (9,0,0):
+                if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                  # we treat HighPrecisionAccumulate as expanded packed math
+                  b = blockB*2
+                  a = blockA*2
+                  cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
+                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
-                  kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
-            elif self.version == (9,0,0):
-              if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-                # we treat HighPrecisionAccumulate as expanded packed math
-                b = blockB*2
-                a = blockA*2
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                """
-                ignore this, not quite correct for mixed precision
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
+                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  """
+                  ignore this, not quite correct for mixed precision
+                  D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                  D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                  C[0] = A[0]*B[0]+D[0]
+                  C[1] = A[1]*B[1]+D[1]
+                  """
+                else:
+                  b = blockB*2
+                  a = blockA*2
+                  cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                  kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+
+                  cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                  kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  """
+                  D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                  D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                  C[0] = A[0]*B[0]+D[0]
+                  C[1] = A[1]*B[1]+D[1]
+                  """
               else:
-                b = blockB*2
-                a = blockA*2
-                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA" if m==0 else "vgprValuBlkA", blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB" if m==0 else "vgprValuBlkB", blockB)
-                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-
-                cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                """
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
-            else:
-              printExit("Half-precision not supported for arch=%u" % self.version )
+                printExit("Half-precision not supported for arch=%u" % self.version )
 
 
-      # single precision
-      elif kernel["ProblemType"]["DataType"].isSingle():
-        for b in range(0, kernel["ThreadTile1"]):
-          for a in range(0, kernel["ThreadTile0"]):
-            cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u]" \
-                % ("vgprValuA" if m==0 else "vgprValuBlkA", a)
-            bStr = "v[%s+%u]" \
-                % ("vgprValuB" if m==0 else "vgprValuBlkB", b)
-            #if a==0 and b==0:
-            #  kStr += dump(aStr)
-            kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-            if macIdx == kernel["PerformanceWaitLocation"]:
-                kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
-                    % (kernel["PerformanceWaitCount"], self.endLine)
-            if macIdx == kernel["PerformanceSyncLocation"]:
-                kStr += "s_barrier // extra barrier for performance%s" \
-                    % (self.endLine)
-            macIdx += 1
+        # single precision
+        elif kernel["ProblemType"]["DataType"].isSingle():
+          for b in range(0, kernel["ThreadTile1"]):
+            for a in range(0, kernel["ThreadTile0"]):
+              cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
+              aStr = "v[%s+%u]" \
+                  % ("vgprValuA_X%u_I%u"%(m,iui), a)
+              bStr = "v[%s+%u]" \
+                  % ("vgprValuB_X%u_I%u"%(m,iui), b)
+              #if a==0 and b==0:
+              #  kStr += dump(aStr)
+              kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+              if macIdx == kernel["PerformanceWaitLocation"]:
+                  kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
+                      % (kernel["PerformanceWaitCount"], self.endLine)
+              if macIdx == kernel["PerformanceSyncLocation"]:
+                  kStr += "s_barrier // extra barrier for performance%s" \
+                      % (self.endLine)
+              macIdx += 1
 
-      # double precision
-      elif kernel["ProblemType"]["DataType"].isDouble():
-        for b in range(0, kernel["ThreadTile1"]):
-          for a in range(0, kernel["ThreadTile0"]):
-            cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u*2:%s+%u*2+1]" \
-                % ("vgprValuA" if m==0 else "vgprValuBlkA", a, "vgprValuA" if m==0 else "vgprValuBlkA", a)
-            bStr = "v[%s+%u*2:%s+%u*2+1]" \
-                % ("vgprValuB" if m==0 else "vgprValuBlkB", b, "vgprValuB" if m==0 else "vgprValuBlkB", b)
-            kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+        # double precision
+        elif kernel["ProblemType"]["DataType"].isDouble():
+          for b in range(0, kernel["ThreadTile1"]):
+            for a in range(0, kernel["ThreadTile0"]):
+              cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
+              aStr = "v[%s+%u*2:%s+%u*2+1]" \
+                  % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
+              bStr = "v[%s+%u*2:%s+%u*2+1]" \
+                  % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
+              kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
 
 
-      # other precision
-      else:
-        printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
-      kStr += ".endm%s" % self.endLine
+        # other precision
+        else:
+          printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
+        kStr += ".endm%s" % self.endLine
 
 
     # if overflowed vgpr pool, comment out the whole kernel body and let it fail gracefully
@@ -3032,11 +3041,14 @@ class KernelWriterAssembly(KernelWriter):
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
     endCounter = -1 if kernel["PrefetchGlobalRead"] and not tailLoop else 0
 
+    tailLoopInnerUnroll = kernel["InnerUnroll"] \
+            if (kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0) else 1
+
     kStr += inst("s_add_u32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         sgpr("LoopCounters+%u"%loopIdx), \
-        hex(1), \
-        "counter%s++"%(loopChar) )
+        hex(tailLoopInnerUnroll), \
+        "inc counter%s"%(loopChar) )
     kStr += inst("s_cmp_eq_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(endCounter), \
@@ -3068,15 +3080,16 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, black):
+  def macIter(self, kernel, bufferIdx, iuiCount):
     if not self.do["MAC"]: return ""
     kStr = ""
-    if kernel["ProblemType"]["DataType"].isHalf():
-      kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
-    kStr += "MAC_%ux%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"])
-    if black:
-      kStr += "_BLK"
-    kStr += self.endLine
+
+    for iui in range(0,iuiCount):
+      kStr += self.comment1("MACs, buffer=%u iui=%u"%(bufferIdx, iui))
+      if kernel["ProblemType"]["DataType"].isHalf():
+        kStr += ".align32 8, 0xbf800001\n"   # Align v_pk_fma instructions used in MAC_ blocks
+      kStr += "MAC_%ux%u_X%u_I%u" % (kernel["ThreadTile0"],kernel["ThreadTile1"], bufferIdx, iui)
+      kStr += self.endLine
     return kStr
 
   ##############################################################################
@@ -3548,6 +3561,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
 #jgolds which bpe here? assuming tP
+#fixme-iui  need to use wrapping increment for double or triple buffering:
     if kernel["LocalWriteUseSgpr%s"%tc]:
       kStr += inst("s_xor_b32", \
           sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
@@ -3849,13 +3863,14 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Local Read: Do It A/B
+  # iui = Inner Unroll Idx
   ##############################################################################
-  def localReadDo(self, kernel, black, tP):
+  def localReadDo(self, kernel, bufferIdx, iui, tP):
+
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
-    self.localReadDoCnt += 1
     kStr = ""
-    #kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
+    self.localReadDoCnt += 1
     instruction = tP["localReadInstruction"]
     numOffsets = instruction.numOffsets
     blockWidth = instruction.blockWidth
@@ -3864,27 +3879,20 @@ class KernelWriterAssembly(KernelWriter):
     valuIdx = 0
     numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]/kernel["VectorWidth"])
     #print "numVectorsPerTile", numVectorsPerTile
-#jgolds which bpe here? assuming tP
     numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"] ) / (blockWidth*4) # bytes/register
     #print "numReadsPerVector", numReadsPerVector
     for vIdx in range(0, numVectorsPerTile):
       for rIdx in range(0, numReadsPerVector):
         paramList = []
-        if blockWidth == 1:
-          destVgpr = vgpr("Valu%s%s+%u"%( \
-              "Blk" if black else "", tc, valuIdx))
-        else:
-          destVgpr = vgpr("Valu%s%s+%u"%( \
-              "Blk" if black else "", tc, valuIdx), \
-              blockWidth)
+        destVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuIdx), blockWidth)
         paramList.append(destVgpr)
         paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets):
-#jgolds which bpe here? assuming tP
           paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
               + tP["localReadOffset"])*tP["bpe"]/offsetMultiplier)
         paramTuple = tuple(paramList)
-        comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u"%(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx)
+        comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
+            %(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
         kStr += instruction.toString(paramTuple, comment)
         valuIdx += blockWidth
 
@@ -3899,17 +3907,15 @@ class KernelWriterAssembly(KernelWriter):
     #if tP["isA"]:
     #kStr += "s_waitcnt lgkmcnt(0)\n"
     #if tP["isA"]:
-    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
+    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if bufferColor else "", tP["tensorChar"], 0)))
     #if tP["isB"]:
-    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if black else "", tP["tensorChar"], 0)))
+    #  kStr += dump(vgpr("Valu%s%s+%u"%("Blk" if bufferColor else "", tP["tensorChar"], 0)))
 
     #if tP["isA"] and self.localReadDoCnt >=3: # TODO - disable
     #  # skip over tmp used above, so it doesn't get trashed
     #  tmpVgpr = self.vgprPool.checkOut(3) 
     #  kStr += self.bomb(self.localReadDoCnt + 10, tmpVgpr+1)
     #  self.vgprPool.checkIn(tmpVgpr)
-
-
     return kStr
 
   ##############################################################################
@@ -3951,13 +3957,13 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
     dummy = self.vgprPool.checkOut(1)
 
-    # qReg 
+    # qReg
     qReg = self.vgprPool.checkOut(1)
     divisor = kernel["VectorWidth"] # vw
     kStr += vectorStaticDivideAndRemainder(qReg, dummy, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
 
-    # rReg 
+    # rReg
     rReg = self.vgprPool.checkOut(1)
     divisor = vw
     kStr += vectorStaticDivideAndRemainder(dummy, rReg, wgMT, divisor, \

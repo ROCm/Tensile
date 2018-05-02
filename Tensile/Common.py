@@ -190,7 +190,7 @@ validParameters = {
     "GlobalReadCoalesceVectorB":  [        True ],
 
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
+    "PrefetchLocalRead":          [ 0,1 ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -340,6 +340,10 @@ validParameters = {
     # BoundaryLoad: todo. use isa to set buffer/image load boundaries and out of bounds data automatically comes in as zero
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ], # None=don't guard against ou
 
+    # Group together unroll iterations inside the unroll loop.
+    # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
+    "InnerUnroll":                [1,2,4],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -353,6 +357,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":               [ False ] },
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
+    {"InnerUnroll":               [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                    [ 0 ] },
     {"LdsPadB":                    [ 0 ] },
@@ -366,7 +371,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ True ] },
-    {"PrefetchLocalRead":         [ True ] },
+    {"PrefetchLocalRead":         [ 1 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
     {"GlobalRead2B":              [ True ] },

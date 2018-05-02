@@ -1205,6 +1205,7 @@ class Solution:
       state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
         state["Valid"] = False
+    state["LoopUnroll"] /= state["InnerUnroll"]
 
     # LoopUnroll too small
     if state["LoopUnroll"] < 2:
