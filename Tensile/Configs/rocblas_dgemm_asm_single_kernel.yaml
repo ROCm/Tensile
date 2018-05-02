@@ -43,7 +43,7 @@ BenchmarkProblems:
       ForkParameters:
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 8, 8 ]
+          - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
