@@ -3041,10 +3041,13 @@ class KernelWriterAssembly(KernelWriter):
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
     endCounter = -1 if kernel["PrefetchGlobalRead"] and not tailLoop else 0
 
+    tailLoopInnerUnroll = kernel["InnerUnroll"] \
+            if (kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0) else 1
+
     kStr += inst("s_add_u32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         sgpr("LoopCounters+%u"%loopIdx), \
-        hex(kernel["InnerUnroll"]) if tailLoop else 1, \
+        hex(tailLoopInnerUnroll), \
         "inc counter%s"%(loopChar) )
     kStr += inst("s_cmp_eq_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \

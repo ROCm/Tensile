@@ -646,7 +646,11 @@ class KernelWriter:
       # tail: macs
       kStr += self.comment("tail loop: macs")
       kStr += self.openLoop(kernel, -1)
-      for iui in range(0,kernel["InnerUnroll"]):
+      # Try to use InnerUnroll in the tail loop if allowed:
+      tailLoopInnerUnroll = \
+        kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % kernel["InnerUnroll"]==0) else 1
+
+      for iui in range(0,tailLoopInnerUnroll):
         if self.enable["LocalRead"]:
           kStr += self.comment("local read a")
           kStr += self.localReadDo(kernel, 0, iui, tensorParametersA)
@@ -658,7 +662,7 @@ class KernelWriter:
           kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read")
-      for iui in range(0,kernel["InnerUnroll"]):
+      for iui in range(0,tailLoopInnerUnroll):
         if self.enable["MAC"]:
           kStr += self.macIter(kernel, False, iui )
 
