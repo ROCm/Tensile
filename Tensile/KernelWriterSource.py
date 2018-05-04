@@ -772,6 +772,10 @@ class KernelWriterSource(KernelWriter):
     # sizes
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
       s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
+
+    if kernel["PersistentKernel"]:
+      s += "," + self.endLine + "  unsigned int problemNumWorkGroups0"
+      s += "," + self.endLine + "  unsigned int problemNumWorkGroups1"
     s += " )"
     return s
 
@@ -893,23 +897,46 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graWorkGroup(self, kernel):
     kStr = ""
+
     wg0 = "wg%s" % self.tileChar0
     wg1 = "wg%s" % self.tileChar1
     nwgg = kernel["WorkGroupMapping"] > 0
+    n0 = 0 if nwgg else 1
+    n1 = 1 if nwgg else 0
 
-    # transpose work-group grid
-    kStr += "  unsigned int %s = %s(%u);%s" \
-        % ( wg0, self.getGroupIdStr, 0 if nwgg else 1, self.endLine)
-    kStr += "  unsigned int %s = %s(%u);%s" \
-        % ( wg1, self.getGroupIdStr, 1 if nwgg else 0, self.endLine)
-    kStr += "  unsigned int n%s = %s(%u);%s" \
-        % ( wg0, self.getNumGroupsStr, 0 if nwgg else 1, self.endLine)
-    kStr += "  unsigned int n%s = %s(%u);%s" \
-        % ( wg1, self.getNumGroupsStr, 1 if nwgg else 0, self.endLine)
+
+    if kernel["PersistentKernel"]:
+      kStr += "  %s wgPersistent = %s(0);%s" \
+        % (self.uint64Str, self.getGroupIdStr, self.endLine)
+      kStr += "  unsigned int n%s = problemNumWorkGroups%u;%s" \
+          % ( wg0, n0 , self.endLine)
+      kStr += "  unsigned int n%s = problemNumWorkGroups%u;%s" \
+          % ( wg1, n1 , self.endLine)
+      kStr += "  unsigned int %s  = wgPersistent %% problemNumWorkGroups%u;%s" \
+          % ( wg0, n0, self.endLine)
+      kStr += "  unsigned int %s  = wgPersistent / problemNumWorkGroups%u;%s" \
+          % ( wg1, n0, self.endLine)
+
+      if kernel["GlobalSplitU"] > 1:
+        kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
+
+      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
+      kStr += "while (1) {%s" % (self.endLine)
+    else:
+      # optionally transpose work-group grid
+      kStr += "  unsigned int %s = %s(%u);%s" \
+          % ( wg0, self.getGroupIdStr, n0, self.endLine)
+      kStr += "  unsigned int %s = %s(%u);%s" \
+          % ( wg1, self.getGroupIdStr, n1, self.endLine)
+      kStr += "  unsigned int n%s = %s(%u);%s" \
+          % ( wg0, self.getNumGroupsStr, n0, self.endLine)
+      kStr += "  unsigned int n%s = %s(%u);%s" \
+          % ( wg1, self.getNumGroupsStr, n1, self.endLine)
+      if kernel["GlobalSplitU"] > 1:
+        kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
 
     # split up work-group grid
     if kernel["GlobalSplitU"] > 1:
-      kStr += "n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
       kStr += "  unsigned int gsuSumIdx;%s" % self.endLine
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
         kStr += "  gsuSumIdx = %s / n%s;%s" \
@@ -927,7 +954,7 @@ class KernelWriterSource(KernelWriter):
     if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
       kStr += self.endLine
       kStr += "  %s wgSerial = %s + (%s %% WORK_GROUP_MAPPING) * n%s;// within block%s" \
-          % (self.uint64Str, wg0, wg1, wg0, self.endLine)
+        % (self.uint64Str, wg0, wg1, wg0, self.endLine)
       kStr += "  unsigned int block = %s / WORK_GROUP_MAPPING;%s" \
           % (wg1, self.endLine );
       kStr += "  unsigned int blockRemainder = (%s < n%s-(n%s %% WORK_GROUP_MAPPING) ) ? 0 : n%s %% WORK_GROUP_MAPPING;%s" % \
@@ -947,6 +974,7 @@ class KernelWriterSource(KernelWriter):
             % (wg1, blockWidth, self.endLine)
         kStr += "  }"
       kStr += "%s" % self.endLine
+
 
     ########################################
     # Generalized Z-Order
@@ -968,6 +996,11 @@ class KernelWriterSource(KernelWriter):
             % (wg0, wg1, self.endLine)
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
+
+    if kernel["PersistentKernel"]:
+      kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
+        % (wg1, wg1, wg0, wg0, self.endLine)
+      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  probNumWG=%%u_%%u\\n%s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s, problemNumWorkGroups0, problemNumWorkGroups1);" % (self.endLinePP, wg0, wg1)+ self.endLine
     return kStr
 
 
@@ -1986,8 +2019,27 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def functionEnd(self, kernel):
     kStr = ""
+
+    if kernel["PersistentKernel"]:
+      wg0 = "wg%s" % self.tileChar0
+      wg1 = "wg%s" % self.tileChar1
+      nwgg = kernel["WorkGroupMapping"] > 0
+      n0 = 0 if nwgg else 1
+      n1 = 1 if nwgg else 0
+
+      kStr += "  wgPersistent += %s(0);%s" \
+        % (self.getNumGroupsStr, self.endLine)
+      kStr += "  %s  = wgPersistent %% problemNumWorkGroups%u;%s" \
+          % ( wg0, n0, self.endLine)
+      kStr += "  %s  = wgPersistent / problemNumWorkGroups%u;%s" \
+          % ( wg1, n0, self.endLine)
+      kStr += "} // End Persistent Loop" + self.endLine
+
+
+
     kStr += self.endLine
     kStr += "}" + self.endLine
+
     return kStr
 
   ##############################################################################
