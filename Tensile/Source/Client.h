@@ -1063,7 +1063,6 @@ bool benchmarkAllSolutionsForSize(
 } // benchmark solutions
 #endif // benchmark client
 
-
 /*******************************************************************************
  * Benchmark Problem Sizes
  ******************************************************************************/
@@ -1111,6 +1110,8 @@ bool benchmarkProblemSizes(
 #endif // opencl
   std::cout << std::endl;
 
+	TensileTimer totalKernelTimer;
+  totalKernelTimer.start();
   // iterate over all problem sizes
   for (unsigned int problemIdx = 0; problemIdx < numProblems; problemIdx++ ) {
 
@@ -1126,6 +1127,8 @@ bool benchmarkProblemSizes(
         initialA, initialB, alpha, beta, referenceC, deviceOnHostC);
     if (invalids) returnInvalids = true;
   } // for problemIdx
+	auto timeK = totalKernelTimer.elapsed_sec();
+  std::cout <<  "\nRun kernels elapsed time: " << timeK << " secs\n";
 
   // close file
   file.close();
