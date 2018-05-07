@@ -277,7 +277,7 @@ validParameters = {
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
-    "PersistentKernel":           range(0,10+1) ,       # Use persistent kerne.
+    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
 
 
     # Controls desiredwidth of loads from global memory -> LDS.

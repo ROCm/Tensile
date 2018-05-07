@@ -566,7 +566,7 @@ class SolutionWriter:
                 % (t, i, "" if lastParam else "," )
           if solution["PersistentKernel"]:
             s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
-            s += "%s,totalWorkGroups%u\n" %(t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
+            s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
           s += "%s);\n" % (t)
 
         # assembly kernel
