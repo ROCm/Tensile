@@ -4696,7 +4696,7 @@ class KernelWriterAssembly(KernelWriter):
             numVgprsPerDataPerVI = (1*self.bpeCinternal)/self.bpr
           else:
             numVgprsPerDataPerVI = (1.0*self.bpeCinternal)/self.bpr
-        numVgprsPerElement = numVgprsPerAddr + int(numVgprsPerDataPerVI * gwvw)
+        numVgprsPerElement = numVgprsPerAddr + int(ceil(numVgprsPerDataPerVI * gwvw))
 
         #print self.vgprPool.state()
         numVgprAvailable = self.vgprPool.availableBlock()
