@@ -248,6 +248,10 @@ validParameters = {
     # 1 indicates no additional restriction - all sizes are multiples of 1
     "AssertSummationElementMultiple": [1,2,4,8],
 
+    # For Block Mapping type:
+    # 0   : Use hardware-assigned wg number with no remapping.
+    # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
+    # < 0 : Swaps the position of wg0 and wg1.
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               range(1, 40+1),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
@@ -269,6 +273,11 @@ validParameters = {
     # 9= NullKernel
     # For example set to DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
+
+
+    # 0  : standard launch
+    # N>0 : launch persistent kernel with N workgroups per compute unit
+    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
 
 
     # Controls desiredwidth of loads from global memory -> LDS.
@@ -391,6 +400,8 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
+    {"PersistentKernel":          [ 1 ] },
+
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },

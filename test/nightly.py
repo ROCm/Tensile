@@ -11,6 +11,10 @@
 
 import Tensile.Tensile as Tensile
 
+# new features
+def test_persistent(tmpdir):
+    Tensile.Tensile([Tensile.TensileConfigPath("test_persistent.yaml"), tmpdir.strpath])
+
 # defaults
 def test_hgemm_defaults(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_hgemm_defaults.yaml"), tmpdir.strpath])
