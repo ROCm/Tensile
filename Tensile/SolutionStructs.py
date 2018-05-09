@@ -1159,6 +1159,12 @@ class Solution:
       state["Valid"] = False
       return
 
+    if state["KernelLanguage"] == "Assembly" and state["PersistentKernel"]:
+      if globalParameters["PrintSolutionRejectionReason"]:
+        print1("Persistent only works on Source path")
+      state["Valid"] = False
+      return
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
