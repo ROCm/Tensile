@@ -30,7 +30,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - GlobalSplitU: [1, 3, 5]
-        - PersistentKernel: [0]
+        - PersistentKernel: [1]
         - ThreadTile:
           - [ 8, 8 ]
         - WorkGroup:
