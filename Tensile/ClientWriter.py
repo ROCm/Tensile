@@ -123,10 +123,12 @@ def main( config ):
   process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
   process.communicate()
   if process.returncode:
-    printWarning("Benchmark Process exited with code %u" % process.returncode)
+    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
   popWorkingPath() # build
 
   popWorkingPath() # LibraryClient
+
+  return process.returncode
 
 
 ################################################################################
@@ -214,6 +216,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
+    runScriptFile.write("ERR=$?\n")
     if os.name != "nt":
       if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
@@ -228,6 +231,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
       executablePath = os.path.join(executablePath, "client")
     runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
         % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
+  if os.name != "nt":
+    runScriptFile.write("return $ERR\n")
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)
