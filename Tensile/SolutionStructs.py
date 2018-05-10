@@ -164,7 +164,7 @@ class DataType:
 # Print a reject message :
 def reject(state, *args):
   if globalParameters["PrintSolutionRejectionReason"]:
-    sys.stdout.write("reject: ")
+    sys.stdout.write("\nreject: ")
     for a in args:
       print(a)
     traceback.print_stack(None, 2)
@@ -867,7 +867,10 @@ class Solution:
   #     - The wasted space is removed when the data is written to LDS- the LWO
   #       for work-items beyond the valid ones are set to safely write to OOB locations.
 
-  #     - The 
+  #     - In cases where each load is loading multiple rows (multiple lines of lsc
+  #       elements), the last load is allowed to load fewer lines than the others.
+  #       The KernelWriterAssembly will modify the LWO for the last load.  This allows
+  #       flexibility in the unroll factors for example.
   @staticmethod
   def setGlobalLoadTileDimFractional(state, tc, depthU):
 
@@ -881,9 +884,11 @@ class Solution:
       parDim  = depthU
       perpDim = state["MacroTile%s"%tc]
 
-    print "\ninfo: %s Fractional NumThreads=%u GRWV=%u MT=%ux%u" \
-        % (tc, state["NumThreads"], state["GlobalReadVectorWidth"], \
-           parDim, perpDim)
+    print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG02%u_%02u_%02u NumThreads=%u GRWV=%u" \
+        % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
+          parDim, perpDim, \
+          state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
+          state["NumThreads"], state["GlobalReadVectorWidth"])
 
     # Try to find a GRVW which is smaller than the LSC and also does not force
     # the LSC to wrap - both of these conditions can be tested with lsc % grvw ==0.
@@ -1142,14 +1147,15 @@ class Solution:
       totalVectorsA = totalElementsA / state["GlobalReadVectorWidth"]
       totalVectorsB = totalElementsB / state["GlobalReadVectorWidth"]
 
-      print "info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
-                     pvar(state, "ThreadTile0"), pvar(state, "ThreadTile1"), \
-                     "WG=%ux%u" % (state["WorkGroup"][0], state["WorkGroup"][1]), \
-                     pvar(state, "MacroTileA"), pvar(state, "MacroTileB")
-      print "info: totalElementsCoalescedA=", totalElementsCoalescedA, \
-            " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA
-      print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
-            " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
+      if 0:
+        print "info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), \
+                       pvar(state, "ThreadTile0"), pvar(state, "ThreadTile1"), \
+                       "WG=%ux%u" % (state["WorkGroup"][0], state["WorkGroup"][1]), \
+                       pvar(state, "MacroTileA"), pvar(state, "MacroTileB")
+        print "info: totalElementsCoalescedA=", totalElementsCoalescedA, \
+              " totalVectorsCoalescedA=", totalVectorsCoalescedA, " totalVectorsA=", totalVectorsA
+        print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
+              " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
 
       # f16 can't load shorts from global->lds
       if state["ProblemType"]["DataType"].isHalf() \
@@ -1247,8 +1253,9 @@ class Solution:
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
     # Some of these might become 0?
-    print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
-          pvar(state, "LVCB"), pvar(state, "LVPB")
+    if 0:
+      print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
+            pvar(state, "LVCB"), pvar(state, "LVPB")
 
     # lds buffer size for A, B
     if state["KernelLanguage"] == "Source" and \
@@ -1309,13 +1316,14 @@ class Solution:
         state["Valid"] = False
     state["LoopUnroll"] /= state["InnerUnroll"]
 
-    print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
-    print "info: ", pvar(state["ProblemType"], "TLUA"), \
-        pvar(state, "NumLoadsCoalescedA"), pvar(state, "NumLoadsPerpendicularA"), \
-        pvar(state, "LSCA"), pvar(state, "LSPA")
-    print "info:", pvar(state["ProblemType"], "TLUB"), \
-        pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
-        pvar(state, "LSCB"), pvar(state, "LSPB")
+    if 0:
+      print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
+      print "info: ", pvar(state["ProblemType"], "TLUA"), \
+          pvar(state, "NumLoadsCoalescedA"), pvar(state, "NumLoadsPerpendicularA"), \
+          pvar(state, "LSCA"), pvar(state, "LSPA")
+      print "info:", pvar(state["ProblemType"], "TLUB"), \
+          pvar(state, "NumLoadsCoalescedB"), pvar(state, "NumLoadsPerpendicularB"), \
+          pvar(state, "LSCB"), pvar(state, "LSPB")
 
     # LoopUnroll too small
     if state["LoopUnroll"] < 2:
@@ -1365,7 +1373,7 @@ class Solution:
           state["DirectToLdsB"] = True
           state["LocalWriteUseSgprB"] = True
 
-      if 1:
+      if 0:
         print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
                " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
