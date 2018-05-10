@@ -63,6 +63,7 @@ globalParameters["ShowProgressBar"] = True     # if False and library client alr
 globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 
 ########################################
 # less common
@@ -159,7 +160,7 @@ validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
 depthUs = range(-16, 0)
-depthUs.extend(range(2,512+1,2))
+depthUs.extend(range(2,512+1,1))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -175,7 +176,7 @@ validParameters = {
     # =False means the L1 cache will do the transposing work and it is quite fast; then data is written coalesced (no bank conflicts) to LDS.
     # =True means the transpose will happen while writing to LDS, this usually has bank conflicts, but it appears the throughput is still fast enough to not slow the VALUs down.
     # it appears that the L1 cache can still achieve quite a bit of performance for GRCG=False, but overall it's usually faster to read coalesced
-    "GlobalReadCoalesceGroupA":   [ False, True ], # True means 
+    "GlobalReadCoalesceGroupA":   [ False, True ],
     "GlobalReadCoalesceGroupB":   [ False, True ],
 
     # for transposes, this option governs how short-vectors should be read from global and written to lds
@@ -241,6 +242,7 @@ validParameters = {
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
     "UseSgprForGRO":              [ -1, 0, 1],
+    "FractionalLoad":             [ False, True] ,      # Some work-items in the group may not participate in the final buffer load .Allows more felxibility in choosing DepthU
 
     # When creating the kernel, assume that the summation size is some multiple of the element size.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
@@ -324,6 +326,9 @@ validParameters = {
     # So, each iteration through the summation loop, which has 4 actual subiterations, does 8 summation iterations, because each subgroup did 4; and when data is read from global memory the threads read 8 elements along the summation dimension.
     # DepthU = LoopUnroll * LocalSplitU = 4*2 in this case
     # it made more sense for the user to directly control LocalSplitU and DepthU, then derrive afterwards LoopUnroll=DepthU/LocalSplitU
+    # -1 : Only allow GLVW=1
+    # -2 : Only allow max(GLVWA,GLVWB) < VW ?
+    # -3 : Only allow min(GLVWA,GLVWB) < VW ?
     "DepthU":                     depthUs,
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
@@ -401,6 +406,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
+    {"FractionalLoad":            [ 0 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
