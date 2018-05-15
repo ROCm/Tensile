@@ -531,7 +531,7 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
-        if not globalParameters["PreciseKernelTime"]:
+        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
           s += "%sif( inputEvents != NULL )\n" % (t)
           t += "  "
           s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
@@ -665,7 +665,7 @@ class SolutionWriter:
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
-        if not globalParameters["PreciseKernelTime"]:
+        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
           s += "%sif( outputEvent != NULL )\n" % (t)
           s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
         s += "  }\n"
