@@ -108,7 +108,7 @@ else()
                 -Wdangling-field
                 -Wdangling-initializer-list
                 -Wdelete-incomplete
-                -Wdeprecated
+                # -Wdeprecated  # disable deprecated until we migrate hipCtx APIs
                 -Wdivision-by-zero
                 -Wduplicate-decl-specifier
                 -Wduplicate-enum

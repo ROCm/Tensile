@@ -2025,7 +2025,6 @@ class KernelWriterSource(KernelWriter):
       wg1 = "wg%s" % self.tileChar1
       nwgg = kernel["WorkGroupMapping"] > 0
       n0 = 0 if nwgg else 1
-      n1 = 1 if nwgg else 0
 
       kStr += "  wgPersistent += %s(0);%s" \
         % (self.getNumGroupsStr, self.endLine)
