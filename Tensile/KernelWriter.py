@@ -376,19 +376,16 @@ class KernelWriter:
 
     pf     = kernel["PrefetchLocalRead"]  # how many pf already done above
 
-    # which loop iteration to reset the LRO:
-    resetLroIter = kernel["LoopUnroll"] - kernel["PrefetchLocalRead"] - 1
-
     ############################################################################
     # unrolled loop: mac iterations
     # Includes handling for the 2nd-to-last iteration:
     ############################################################################
     for u in range(0, kernel["LoopUnroll"]-1):
-      isMinus2Iter = (u == kernel["LoopUnroll"] - 2)
-     # local read
+      # which loop iteration to reset the LRO:
+      isResetLroIter = (u == kernel["LoopUnroll"] - kernel["PrefetchLocalRead"] - 1)
       extraComment = ""
-      if isMinus2Iter:
-        extraComment = " (second to last iteration)" 
+      if isResetLroIter:
+        extraComment = " (swap local pointers iteration)" 
       kStr += self.comment("iter %u%s"%(u,extraComment))
       plrIdx = (u+pf) % (kernel["PrefetchLocalRead"]+1)
       for iui in range(0,kernel["InnerUnroll"]):
@@ -399,18 +396,13 @@ class KernelWriter:
           kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
 
           # Don't increment the LRO if we are going to reset them below:
-          if not isMinus2Iter or iui != kernel["InnerUnroll"]-1:
+          if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
             kStr += self.comment("local read increment a")
             kStr += self.localReadInc(kernel, tensorParametersA)
             kStr += self.comment("local read increment b")
             kStr += self.localReadInc(kernel, tensorParametersB)
-      if not isMinus2Iter:
-          waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
-          waitLocalWrite = -1
-          waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
 
-      else: # isMinus2Iter
-
+      if isResetLroIter: # ResetLroIter
         if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
           if self.enable["Wait"]:
             kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "4wait for global read")
@@ -431,7 +423,7 @@ class KernelWriter:
             kStr += self.localWriteInitPointers(kernel, tensorParametersB)
 
         if self.enable["LocalRead"]:
-          if kernel["PrefetchLocalRead"]:
+          if isResetLroIter:
             # Swap, reset, or increment the LRO:
             if kernel["PrefetchGlobalRead"]:
               kStr += self.comment("local read swap offsets a")
@@ -451,10 +443,15 @@ class KernelWriter:
             kStr += self.localReadInc(kernel, tensorParametersB)
 
         waitGlobalRead = -1
-        if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
+        if kernel["PrefetchGlobalRead"] and isResetLroIter:
           waitLocalWrite = 1
         else:
           waitLocalWrite = -1
+        waitLocalRead  = 1 if isResetLroIter else 0
+
+      else: # not isResetLroIter
+        waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
+        waitLocalWrite = -1
         waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
 
       if self.enable["Wait"]:
