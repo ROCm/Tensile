@@ -232,7 +232,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
         % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
   if os.name != "nt":
-    runScriptFile.write("return $ERR\n")
+    runScriptFile.write("exit $ERR\n")
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)
