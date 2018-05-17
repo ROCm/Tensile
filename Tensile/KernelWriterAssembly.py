@@ -1121,13 +1121,14 @@ class KernelWriterAssembly(KernelWriter):
     # doubles need to be aligned to even
     #if tPA["bpe"] > 4 and self.sgprIdx%2==1:
     #  self.sgprIdx += 1
-    self.defineSgpr("Alpha", numSgprAlpha, 2)
+    self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
-      self.defineSgpr("Beta", numSgprBeta, 2)
+      self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
 
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
-    self.defineSgpr("LoopPadding", numSgprLoopPadding)
+    self.defineSgpr("LoopCounters", numSgprLoopCounters)
+    self.defineSgpr("LoopPadding", numSgprLoopPadding - numSgprLoopCounters)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
@@ -1138,7 +1139,6 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
-    self.defineSgpr("LoopCounters", numSgprLoopCounters)
 
     if kernel["UseSgprForGRO"]:
       self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
