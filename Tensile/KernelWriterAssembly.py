@@ -327,7 +327,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
 
-    # print register pool:
+    # print register pool checkins and checkouts
     self.db["PrintRP"] = False
 
     # Number of times localReadDo(localWriteDo) has been called by the code-generator.
@@ -3223,7 +3223,7 @@ class KernelWriterAssembly(KernelWriter):
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
       graIdx = 0
-      tmp = self.vgprPool.checkOut(1)
+      tmp = self.vgprPool.checkOut(1, "groInc")
       #for perp in range(0, tP["nrp"]):
       #  for para in range(0, tP["nrc"]):
       #    for s in range(0, tP["nrcv"]):
@@ -3313,7 +3313,7 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-64B:
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
-      if not kernel["PreciseBoundsCheck"]:
+      if kernel["BufferLoad"] and not kernel["PreciseBoundsCheck"]:
           # Set maxAddrSgpr to max allowed byte offset
           # maxAddrSgpr = size[n] * stride[n-1] * bpe
           # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
@@ -3370,11 +3370,10 @@ class KernelWriterAssembly(KernelWriter):
             sgpr(maxAddrSgpr+1), \
             "prepend address upper")
         # sgpr->vgpr
-        tmpVgpr = self.vgprPool.checkOut(2)
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
+        maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
+        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
+        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
 
-        maxAddrVgpr = tmpVgpr
         #kStr += dump(vgpr(maxAddr+0))
         #kStr += dump(vgpr(maxAddr+1))
 
@@ -3382,7 +3381,7 @@ class KernelWriterAssembly(KernelWriter):
         fullExec = tmpSgpr
         kStr += inst("s_mov_b64", sgpr(fullExec,2), \
             "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-        bpeVgpr = self.vgprPool.checkOut(1)
+        bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
         kStr += inst("v_mov_b32", vgpr(bpeVgpr), 1, "one element")
 
         zeroVgpr = self.vgprPool.checkOut(1)
@@ -3645,6 +3644,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if guardK:
       if not kernel["BufferLoad"]:
+        self.vgprPool.checkIn(maxAddrVgpr)
         self.vgprPool.checkIn(bpeVgpr)
         self.vgprPool.checkIn(zeroVgpr)
     return kStr
@@ -4950,15 +4950,15 @@ class KernelWriterAssembly(KernelWriter):
         assert ("bad bps")
     else:
       if bps==2 and hi16:
-        kStr += inst("flat_load_short_d16_hi", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, "load C" )
       elif bps==2 and not hi16:
-        kStr += inst("flat_load_short", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, "load C" )
       elif bps==4:
-        kStr += inst("flat_load_dword", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
       elif bps==8:
-        kStr += inst("flat_load_dwordx2", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
       elif bps==16:
-        kStr += inst("flat_load_dwordx4", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
       else:
          assert ("bad bps")
 
@@ -4995,15 +4995,15 @@ class KernelWriterAssembly(KernelWriter):
         assert ("bad bps")
     else:
       if bps==2 and hi16:
-        kStr += inst("flat_store_short_d16_hi", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_short_d16_hi", addr0, vgpr(srcVgpr*2), extraFields, "store C" )
       elif bps==2 and not hi16:
-        kStr += inst("flat_store_short", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_short", addr0, vgpr(srcVgpr, rpv*2), extraFields, "store C" )
       elif bps==4:
-        kStr += inst("flat_store_dword", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_dword", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
       elif bps==8:
-        kStr += inst("flat_store_dwordx2", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_dwordx2", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
       elif bps==16:
-        kStr += inst("flat_store_dwordx4", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_dwordx4", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
       else:
          assert ("bad bps")
 
