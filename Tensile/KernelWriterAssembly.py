@@ -3313,18 +3313,17 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-64B:
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
+      kStr += self.comment1("max read address = size[n] * stride[n-1]")
+      dim = len(tP["ia"])-1 # dim
+      strideIdx = dim-1 # largest stride
+      sizeIdx = tP["ia"][dim]
+      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+      if sizeIdxIsSum:
+	sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
       if kernel["BufferLoad"] and not kernel["PreciseBoundsCheck"]:
           # Set maxAddrSgpr to max allowed byte offset
           # maxAddrSgpr = size[n] * stride[n-1] * bpe
           # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
-          kStr += self.comment1("max read address = size[n] * stride[n-1]")
-          dim = len(tP["ia"])-1 # dim
-          strideIdx = dim-1 # largest stride
-          sizeIdx = tP["ia"][dim]
-
-          sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-          if sizeIdxIsSum:
-            sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
 
           kStr += inst("s_sub_u32", \
               sgpr(tmpSgpr), \
@@ -3351,6 +3350,12 @@ class KernelWriterAssembly(KernelWriter):
               "Max byte offset =  MaxSize - SRD_Distance")
 
       if not kernel["BufferLoad"]:
+	kStr += inst("s_mul_i32", \
+	    sgpr(maxAddrSgpr+0), \
+	    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+	    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+	    "mul d%u lower"%dim)
+
         kStr += inst("s_mov_b32", sgpr(maxAddrSgpr+1), hex(0), "zero (upper)")
         # maxAddrSgpr *= bytes/element
 
@@ -3374,16 +3379,14 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
         kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
 
-        #kStr += dump(vgpr(maxAddr+0))
-        #kStr += dump(vgpr(maxAddr+1))
-
         # full exec mask
         fullExec = tmpSgpr
         kStr += inst("s_mov_b64", sgpr(fullExec,2), \
             "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
         bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
-        kStr += inst("v_mov_b32", vgpr(bpeVgpr), 1, "one element")
+	kStr += inst("v_mov_b32", vgpr(bpeVgpr), hex(tP["bpe"]), "bpe")
 
+	# can remove this?
         zeroVgpr = self.vgprPool.checkOut(1)
         kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
 
@@ -3544,7 +3547,7 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
                       "all threads active")
 
-                  # increment address by 1 element
+                  # increment address by 1 element (BPE)
                   kStr += inst("_v_add_co_u32", \
                       vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                       "vcc", \
