@@ -148,6 +148,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
+    if globalParameters["CodeFromFiles"]:
+      solutionHeaderFile.write("#include <unistd.h>\n")
   for solution in solutions:
     # get solution name
     if not globalParameters["MergeFiles"]:
