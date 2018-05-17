@@ -197,7 +197,17 @@ class SolutionWriter:
         s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
         t += "  "
         s += "%shipModule_t module = nullptr;\n" % (t)
-        s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        if not globalParameters["CodeFromFiles"]:
+          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        else:
+          s += "%sif (access(\"../source/assembly/%s.co\", R_OK) != 0)\n" % (t, kernelName)
+          t += "  "
+          s += "%shipModuleLoad(&module, \"assembly/%s.co\");\n" % (t, kernelName)
+          t = t[2:]
+          s += "%selse\n" % (t)
+          t += "  "
+          s += "%shipModuleLoad(&module, \"../source/assembly/%s.co\");\n" % (t, kernelName)
+        t = t[2:]
         s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
         t = t[2:]
         s += "%s}\n" % (t)
