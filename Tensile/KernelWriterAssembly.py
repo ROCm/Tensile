@@ -445,11 +445,17 @@ class KernelWriterAssembly(KernelWriter):
     return self.findMemoryInstructionForWidthStride( \
         width, strides, False, instructions)
 
+  def setStartTmpPool(self, newStartTmpPool):
+    #print "set tmpSgprPool to ", newStartTmpPool
+    self.startSgprTmpPool = newStartTmpPool
+
   def getTmpSgpr(self, num):
-    if num==1:
-      return self.startSgprTmpPool
-    else:
-      return ((self.startSgprTmpPool+1)/2)*2
+    pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
+    if self.startSgprTmpPool+num+pad > self.totalSgprs:
+      self.totalSgprs = self.startSgprTmpPool + num + pad
+      #print "warning: growing SGPR pool to ", self.totalSgprs
+
+    return self.startSgprTmpPool + pad
 
   def dumpSgpr(self, sgprStore):
     kStr = ""
@@ -1073,13 +1079,6 @@ class KernelWriterAssembly(KernelWriter):
 
     numSgprLoopCounters = 1 * kernel["ProblemType"]["NumIndicesSummation"]
 
-    numSgprLoopCountersAndIncrements = numSgprGlobalReadIncsA \
-        + numSgprGlobalReadIncsB + numSgprLoopCounters
-    numSgprFreedBeforeLoops = self.numSgprStridesA + self.numSgprStridesB \
-        + self.numSgprSizesFree + numSgprAddressA + numSgprAddressB \
-        + numSgprOffsetC + numSgprOffsetA + numSgprOffsetB
-    numSgprLoopPadding = max(0, numSgprFreedBeforeLoops  \
-        - numSgprLoopCountersAndIncrements)
 
     ########################################
     # SGPR Assignment according to AMDGPU-ABI
@@ -1128,11 +1127,21 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
     self.defineSgpr("LoopCounters", numSgprLoopCounters)
-    self.defineSgpr("LoopPadding", numSgprLoopPadding - numSgprLoopCounters)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
     self.defineSgpr("AddressB", numSgprAddressB)
+    if globalParameters["DebugKernel"]:
+      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
+      self.defineSgpr("DebugKernelItems", 1)
+
+    #------------------------
+    # Registers defined below this point are not available in the post-loop
+    # (we reclaim them to use as temps, typically for execmasks)
+    # Mostly impacts flat kernels and GSU edge since these need SGPR
+    # for conditionals
+    self.lastPostLoopSgpr = self.sgprIdx
+
     self.defineSgpr("OffsetC", numSgprOffsetC)
     self.defineSgpr("OffsetA", numSgprOffsetA)
     self.defineSgpr("OffsetB", numSgprOffsetB)
@@ -1140,21 +1149,17 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
 
-    if kernel["UseSgprForGRO"]:
-      self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
-      self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
-
     if kernel["LocalWriteUseSgprA"]:
         self.defineSgpr("LocalWriteAddrA", 1)
     if kernel["LocalWriteUseSgprB"]:
         self.defineSgpr("LocalWriteAddrB", 1)
 
-    if globalParameters["DebugKernel"]:
-      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
-      self.defineSgpr("DebugKernelItems", 1)
+    if kernel["UseSgprForGRO"]:
+      self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
+      self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
 
     self.totalSgprs = self.sgprIdx
-    self.startSgprTmpPool = self.totalSgprs
+    self.setStartTmpPool(self.totalSgprs)
 
     ########################################
     # Register Pools
@@ -1164,7 +1169,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.lastPreLoopTempVgpr - self.startVgprValuC, "Premium") # Add as available
+        self.lastPreLoopTempVgpr - self.startVgprValuC, "CoreRegs") # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -1410,7 +1415,7 @@ class KernelWriterAssembly(KernelWriter):
     # in the order they were declared
     for skey in self.sgprs:
       kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
-    kStr += self.comment1("max SGPR=%u"%self.sgprIdx)
+    kStr += self.comment1("max SGPR=%u"%self.totalSgprs)
 
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
@@ -1833,7 +1838,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
-    self.startSgprTmpPool = self.sgprs["OffsetC"]
+    #self.setStartTmpPool(self.sgprs["OffsetC"])
 
     ########################################
     # NumWorkGroups
@@ -3136,7 +3141,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
         self.vgprReclaimAfterSummation - self.startVgprValuA + 1)
-    self.startSgprTmpPool = self.sgprs["SizesSum"]
+    self.setStartTmpPool(self.lastPostLoopSgpr)
     return ""
 
   ##############################################################################
@@ -4703,7 +4708,10 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Sgprs
-    globalWriteSgprs = self.getTmpSgpr(2)
+    numSgprsPerElement = 2
+    maxElementsPerBatch = 4 if not beta else 8
+    numSgprsForPostLoop = 2+2+6+ maxElementsPerBatch*numSgprsPerElement
+    globalWriteSgprs = self.getTmpSgpr(numSgprsForPostLoop)
     # create full exec mask
     fullExecMaskSgpr = globalWriteSgprs
     globalWriteSgprs += 2
@@ -4799,7 +4807,6 @@ class KernelWriterAssembly(KernelWriter):
         ########################################
 
         numElementSgprs = self.totalSgprs - elementSgprs
-        numSgprsPerElement = 2
         numElementsPerBatchLimitedBySgprs = numElementSgprs / numSgprsPerElement
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
@@ -4875,7 +4882,6 @@ class KernelWriterAssembly(KernelWriter):
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.availableBlock()
 
-        maxElementsPerBatch = 4 if not beta else 1000
 
         #print "NumVgprAvailable", numVgprAvailable
         numElementsPerBatch = min(numVgprAvailable / numVgprsPerElement, \
