@@ -66,13 +66,14 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     else:
       kernelHeaderFile.write("#include <string>\n")
 
+  kernelsWithBuildErrs = {}
+
   # tensor contraction kernels
   for ki in range(0,len(kernels)):
     kernel = kernels[ki]
     kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
-    if not globalParameters["MergeFiles"]:
-      kernelName = kernelWriter.getKernelName(kernel)
+    kernelName = kernelWriter.getKernelName(kernel)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -80,8 +81,10 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
           "Kernels", kernelName+".cpp"), "w")
       kernelSourceFile.write(CHeader)
     (err, src) = kernelWriter.getSourceFileString(kernel)
+
     kernelSourceFile.write(src)
     if err:
+      kernelsWithBuildErrs[kernelName] = err
       print "*** warning: invalid kernel#%u"%ki
 
     if not globalParameters["MergeFiles"]:
@@ -161,7 +164,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
           "Solutions", solutionFileName+".cpp"), "w")
       solutionSourceFile.write(CHeader)
     solutionSourceFile.write( \
-        solutionWriter.getSourceFileString(solution))
+        solutionWriter.getSourceFileString(solution, kernelsWithBuildErrs))
     if not globalParameters["MergeFiles"]:
       solutionSourceFile.close()
 

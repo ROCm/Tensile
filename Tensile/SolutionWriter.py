@@ -67,11 +67,14 @@ class SolutionWriter:
   ##############################################################################
   # getSourceString
   ##############################################################################
-  def getSourceString(self, solution):
+  def getSourceString(self, solution, kernelsWithBuildErrs):
     kernels = solution.getKernels()
     kernelNames = []
+    kernelBuildErr = 0
     for kernel in kernels:
       kernelName = self.kernelWriter.getKernelName(kernel)
+      if kernelName in kernelsWithBuildErrs:
+        kernelBuildErr = 1
       kernelNames.append( kernelName )
 
     s = ""
@@ -88,6 +91,11 @@ class SolutionWriter:
     # solution function signature
     s += self.getSolutionSignature(solution)
     s += " {\n"
+    if kernelBuildErr:
+      s += "%s  return tensileStatusFailure; // One or more kernels had build failures (%s)\n" % (t, kernelNames)
+      s += "%s}\n" % (t)
+      return s
+
     t += "  "
     s += "%sTensileStatus status;\n" % (t)
 
@@ -799,9 +807,9 @@ class SolutionWriter:
   ########################################
   # get full source code
   # called from BenchmarkProblems
-  def getSourceFileString(self, solution):
+  def getSourceFileString(self, solution, kernelsWithBuildErrs):
     fileStr = "" # CHeader
-    fileStr += self.getSourceString(solution)
+    fileStr += self.getSourceString(solution, kernelsWithBuildErrs)
     return fileStr
 
 
