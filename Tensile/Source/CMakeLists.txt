@@ -74,7 +74,8 @@ endif()
 
 if (UNIX)
   # the Tensile library doesn't require c++11, but client/ReferenceCPU does
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wdeprecated-declarations" )
+  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11"  )
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-deprecated-declarations" )
 endif()
 
 if(Tensile_MERGE_FILES)
