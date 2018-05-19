@@ -327,7 +327,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
 
-    # print register pool:
+    # print register pool checkins and checkouts
     self.db["PrintRP"] = False
 
     # Number of times localReadDo(localWriteDo) has been called by the code-generator.
@@ -445,11 +445,17 @@ class KernelWriterAssembly(KernelWriter):
     return self.findMemoryInstructionForWidthStride( \
         width, strides, False, instructions)
 
+  def setStartTmpPool(self, newStartTmpPool):
+    #print "set tmpSgprPool to ", newStartTmpPool
+    self.startSgprTmpPool = newStartTmpPool
+
   def getTmpSgpr(self, num):
-    if num==1:
-      return self.startSgprTmpPool
-    else:
-      return ((self.startSgprTmpPool+1)/2)*2
+    pad = 0 if num ==1 else self.startSgprTmpPool & 0x1
+    if self.startSgprTmpPool+num+pad > self.totalSgprs:
+      self.totalSgprs = self.startSgprTmpPool + num + pad
+      #print "warning: growing SGPR pool to ", self.totalSgprs
+
+    return self.startSgprTmpPool + pad
 
   def dumpSgpr(self, sgprStore):
     kStr = ""
@@ -1073,13 +1079,6 @@ class KernelWriterAssembly(KernelWriter):
 
     numSgprLoopCounters = 1 * kernel["ProblemType"]["NumIndicesSummation"]
 
-    numSgprLoopCountersAndIncrements = numSgprGlobalReadIncsA \
-        + numSgprGlobalReadIncsB + numSgprLoopCounters
-    numSgprFreedBeforeLoops = self.numSgprStridesA + self.numSgprStridesB \
-        + self.numSgprSizesFree + numSgprAddressA + numSgprAddressB \
-        + numSgprOffsetC + numSgprOffsetA + numSgprOffsetB
-    numSgprLoopPadding = max(0, numSgprFreedBeforeLoops  \
-        - numSgprLoopCountersAndIncrements)
 
     ########################################
     # SGPR Assignment according to AMDGPU-ABI
@@ -1121,40 +1120,46 @@ class KernelWriterAssembly(KernelWriter):
     # doubles need to be aligned to even
     #if tPA["bpe"] > 4 and self.sgprIdx%2==1:
     #  self.sgprIdx += 1
-    self.defineSgpr("Alpha", numSgprAlpha, 2)
+    self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
-      self.defineSgpr("Beta", numSgprBeta, 2)
+      self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
 
     self.defineSgpr("SizesFree", self.numSgprSizesFree)
     self.defineSgpr("SizesSum", self.numSgprSizesSum)
-    self.defineSgpr("LoopPadding", numSgprLoopPadding)
+    self.defineSgpr("LoopCounters", numSgprLoopCounters)
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
     self.defineSgpr("AddressB", numSgprAddressB)
+    if globalParameters["DebugKernel"]:
+      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
+      self.defineSgpr("DebugKernelItems", 1)
+
+    #------------------------
+    # Registers defined below this point are not available in the post-loop
+    # (we reclaim them to use as temps, typically for execmasks)
+    # Mostly impacts flat kernels and GSU edge since these need SGPR
+    # for conditionals
+    self.lastPostLoopSgpr = self.sgprIdx
+
     self.defineSgpr("OffsetC", numSgprOffsetC)
     self.defineSgpr("OffsetA", numSgprOffsetA)
     self.defineSgpr("OffsetB", numSgprOffsetB)
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
-    self.defineSgpr("LoopCounters", numSgprLoopCounters)
-
-    if kernel["UseSgprForGRO"]:
-      self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
-      self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
 
     if kernel["LocalWriteUseSgprA"]:
         self.defineSgpr("LocalWriteAddrA", 1)
     if kernel["LocalWriteUseSgprB"]:
         self.defineSgpr("LocalWriteAddrB", 1)
 
-    if globalParameters["DebugKernel"]:
-      self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
-      self.defineSgpr("DebugKernelItems", 1)
+    if kernel["UseSgprForGRO"]:
+      self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
+      self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
 
     self.totalSgprs = self.sgprIdx
-    self.startSgprTmpPool = self.totalSgprs
+    self.setStartTmpPool(self.totalSgprs)
 
     ########################################
     # Register Pools
@@ -1164,7 +1169,7 @@ class KernelWriterAssembly(KernelWriter):
     #print self.vgprPool.state()
 
     self.vgprPool.add(self.startVgprValuC, \
-        self.lastPreLoopTempVgpr - self.startVgprValuC, "Premium") # Add as available
+        self.lastPreLoopTempVgpr - self.startVgprValuC, "CoreRegs") # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -1410,7 +1415,7 @@ class KernelWriterAssembly(KernelWriter):
     # in the order they were declared
     for skey in self.sgprs:
       kStr += self.macroRegister("sgpr"+skey, self.sgprs[skey])
-    kStr += self.comment1("max SGPR=%u"%self.sgprIdx)
+    kStr += self.comment1("max SGPR=%u"%self.totalSgprs)
 
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
@@ -1833,7 +1838,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_addc_u32", sgpr("AddressB"), sgpr("OffsetB"),\
         sgpr("AddressB"), "addrB += offsetB carry" )
     # now sgpr OffsetC,A,B are freed up for arithmetic
-    self.startSgprTmpPool = self.sgprs["OffsetC"]
+    #self.setStartTmpPool(self.sgprs["OffsetC"])
 
     ########################################
     # NumWorkGroups
@@ -3136,7 +3141,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
         self.vgprReclaimAfterSummation - self.startVgprValuA + 1)
-    self.startSgprTmpPool = self.sgprs["SizesSum"]
+    self.setStartTmpPool(self.lastPostLoopSgpr)
     return ""
 
   ##############################################################################
@@ -3223,7 +3228,7 @@ class KernelWriterAssembly(KernelWriter):
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
       graIdx = 0
-      tmp = self.vgprPool.checkOut(1)
+      tmp = self.vgprPool.checkOut(1, "groInc")
       #for perp in range(0, tP["nrp"]):
       #  for para in range(0, tP["nrc"]):
       #    for s in range(0, tP["nrcv"]):
@@ -3313,18 +3318,17 @@ class KernelWriterAssembly(KernelWriter):
       # TODO-64B:
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
-      if not kernel["PreciseBoundsCheck"]:
+      kStr += self.comment1("max read address = size[n] * stride[n-1]")
+      dim = len(tP["ia"])-1 # dim
+      strideIdx = dim-1 # largest stride
+      sizeIdx = tP["ia"][dim]
+      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+      if sizeIdxIsSum:
+	sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+      if kernel["BufferLoad"] and not kernel["PreciseBoundsCheck"]:
           # Set maxAddrSgpr to max allowed byte offset
           # maxAddrSgpr = size[n] * stride[n-1] * bpe
           # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
-          kStr += self.comment1("max read address = size[n] * stride[n-1]")
-          dim = len(tP["ia"])-1 # dim
-          strideIdx = dim-1 # largest stride
-          sizeIdx = tP["ia"][dim]
-
-          sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-          if sizeIdxIsSum:
-            sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
 
           kStr += inst("s_sub_u32", \
               sgpr(tmpSgpr), \
@@ -3351,6 +3355,12 @@ class KernelWriterAssembly(KernelWriter):
               "Max byte offset =  MaxSize - SRD_Distance")
 
       if not kernel["BufferLoad"]:
+	kStr += inst("s_mul_i32", \
+	    sgpr(maxAddrSgpr+0), \
+	    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+	    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+	    "mul d%u lower"%dim)
+
         kStr += inst("s_mov_b32", sgpr(maxAddrSgpr+1), hex(0), "zero (upper)")
         # maxAddrSgpr *= bytes/element
 
@@ -3370,21 +3380,18 @@ class KernelWriterAssembly(KernelWriter):
             sgpr(maxAddrSgpr+1), \
             "prepend address upper")
         # sgpr->vgpr
-        tmpVgpr = self.vgprPool.checkOut(2)
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
-
-        maxAddrVgpr = tmpVgpr
-        #kStr += dump(vgpr(maxAddr+0))
-        #kStr += dump(vgpr(maxAddr+1))
+        maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
+        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
+        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
 
         # full exec mask
         fullExec = tmpSgpr
         kStr += inst("s_mov_b64", sgpr(fullExec,2), \
             "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-        bpeVgpr = self.vgprPool.checkOut(1)
-        kStr += inst("v_mov_b32", vgpr(bpeVgpr), 1, "one element")
+        bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
+	kStr += inst("v_mov_b32", vgpr(bpeVgpr), hex(tP["bpe"]), "bpe")
 
+	# can remove this?
         zeroVgpr = self.vgprPool.checkOut(1)
         kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
 
@@ -3545,7 +3552,7 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
                       "all threads active")
 
-                  # increment address by 1 element
+                  # increment address by 1 element (BPE)
                   kStr += inst("_v_add_co_u32", \
                       vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
                       "vcc", \
@@ -3645,6 +3652,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if guardK:
       if not kernel["BufferLoad"]:
+        self.vgprPool.checkIn(maxAddrVgpr)
         self.vgprPool.checkIn(bpeVgpr)
         self.vgprPool.checkIn(zeroVgpr)
     return kStr
@@ -4700,7 +4708,10 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Sgprs
-    globalWriteSgprs = self.getTmpSgpr(2)
+    numSgprsPerElement = 2
+    maxElementsPerBatch = 4 if not beta else 8
+    numSgprsForPostLoop = 2+2+6+ maxElementsPerBatch*numSgprsPerElement
+    globalWriteSgprs = self.getTmpSgpr(numSgprsForPostLoop)
     # create full exec mask
     fullExecMaskSgpr = globalWriteSgprs
     globalWriteSgprs += 2
@@ -4796,7 +4807,6 @@ class KernelWriterAssembly(KernelWriter):
         ########################################
 
         numElementSgprs = self.totalSgprs - elementSgprs
-        numSgprsPerElement = 2
         numElementsPerBatchLimitedBySgprs = numElementSgprs / numSgprsPerElement
         # how many vgprs are needed for zero elements
         # 2 for addressC in vgpr for addition - already checked out
@@ -4872,7 +4882,6 @@ class KernelWriterAssembly(KernelWriter):
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.availableBlock()
 
-        maxElementsPerBatch = 4 if not beta else 1000
 
         #print "NumVgprAvailable", numVgprAvailable
         numElementsPerBatch = min(numVgprAvailable / numVgprsPerElement, \
@@ -4950,15 +4959,15 @@ class KernelWriterAssembly(KernelWriter):
         assert ("bad bps")
     else:
       if bps==2 and hi16:
-        kStr += inst("flat_load_short_d16_hi", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, "load C" )
       elif bps==2 and not hi16:
-        kStr += inst("flat_load_short", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, "load C" )
       elif bps==4:
-        kStr += inst("flat_load_dword", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
       elif bps==8:
-        kStr += inst("flat_load_dwordx2", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
       elif bps==16:
-        kStr += inst("flat_load_dwordx4", addr0, destVgpr, extraFields, "load C" )
+        kStr += inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
       else:
          assert ("bad bps")
 
@@ -4995,15 +5004,15 @@ class KernelWriterAssembly(KernelWriter):
         assert ("bad bps")
     else:
       if bps==2 and hi16:
-        kStr += inst("flat_store_short_d16_hi", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_short_d16_hi", addr0, vgpr(srcVgpr*2), extraFields, "store C" )
       elif bps==2 and not hi16:
-        kStr += inst("flat_store_short", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_short", addr0, vgpr(srcVgpr, rpv*2), extraFields, "store C" )
       elif bps==4:
-        kStr += inst("flat_store_dword", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_dword", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
       elif bps==8:
-        kStr += inst("flat_store_dwordx2", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_dwordx2", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
       elif bps==16:
-        kStr += inst("flat_store_dwordx4", addr0, srcVgpr, extraFields, "store C" )
+        kStr += inst("flat_store_dwordx4", addr0, vgpr(srcVgpr, rpv), extraFields, "store C" )
       else:
          assert ("bad bps")
 
