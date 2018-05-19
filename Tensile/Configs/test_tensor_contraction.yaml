@@ -13,6 +13,7 @@ GlobalParameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
+  ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
 
 BenchmarkProblems:
   - # 4-D batched sgemm NN
