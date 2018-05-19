@@ -670,6 +670,5 @@ def main( config ):
 
   popWorkingPath()
 
-  print "exitCode=", totalTestFails
-  if totalTestFails:
+  if globalParameters["ExitOnFails"] and totalTestFails:
     sys.exit(1)

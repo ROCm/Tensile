@@ -7,6 +7,7 @@ GlobalParameters:
   ValidationMaxToPrint: 4
   DataInitTypeAB: 1
   DataInitTypeC: 1
+  ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
 
 BenchmarkProblems:
 

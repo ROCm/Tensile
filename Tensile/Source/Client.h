@@ -428,8 +428,8 @@ bool callLibrary(
         alpha, beta, useHighPrecisionAccumulate);
 
     // call device function
-    TensileStatus tensileStatus = generatedCallTo_tensile( userSizes, minStrides, alpha, beta);
-    if (tensileStatus == tensileStatusFailure) {
+    TensileStatus tensileCallStatus = generatedCallTo_tensile( userSizes, minStrides, alpha, beta);
+    if (tensileCallStatus == tensileStatusFailure) {
       solutionIsValid = false;
     }
 
@@ -825,66 +825,70 @@ bool benchmarkAllSolutionsForSize(
     // validate solution
     size_t numInvalids = 0;
     size_t numChecked = 0;
+    TensileStatus callStatus = tensileStatusSuccess;
     if (numElementsToValidate) {
 
       // enqueue device solution
-      generatedCallToSolution( solutionIdx , sizes, minStrides, alpha, beta );
+      callStatus = generatedCallToSolution( solutionIdx , sizes, minStrides, alpha, beta );
 
-      // copy data back to host
+      if (callStatus == tensileStatusSuccess) {
+        // copy data back to host
 #if Tensile_RUNTIME_LANGUAGE_OCL
-      clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-          sizeToCopy, deviceOnHostC, 0, NULL, NULL);
+        clEnqueueReadBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
+            sizeToCopy, deviceOnHostC, 0, NULL, NULL);
 #else
-      hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
+        hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
-      if (printTensorC) {
-        std::vector<unsigned int> indexAssignmentsC;
-        for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
-          indexAssignmentsC.push_back(i);
-        }
-        printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
-                    numIndicesC[problemTypeIdx], sizes,
-                    indexAssignmentsC.data());
-      }
-      // compare
-      bool firstPrint = true;
-      unsigned int printIdx = 0;
-      for (size_t e = 0; e < currentElementSizeC; e+= validationStride) {
-
-        // Compute the actual serialIdxX accouting for strides:
-        size_t serialIdxC = 0;
-        size_t r = e;
-        for (int j = numIndicesC[problemTypeIdx]-1; j >=0; j--) {
-          serialIdxC += r / elementStridesC[j] * stridesC[j];
-          r = r % elementStridesC[j];
-        }
-
-        bool equal;
-        equal = tensileEqual<DataType>( // was AlmostEqual
-            deviceOnHostC[serialIdxC], referenceC[serialIdxC]);
-        numChecked++;
-        if (!equal) numInvalids++;
-
-        if (!equal || printValids) {
-          if (printIdx < printMax) {
-            if (firstPrint) {
-              std::cout << "Index:  Device | Reference" << std::endl;
-              firstPrint = false;
-            }
-            std::cout << "[" << (numChecked-1) << "] " 
-              << " e=" << e
-              << " serialIdxC=" << serialIdxC << ": "
-              << tensileToString(deviceOnHostC[serialIdxC])
-              << (equal ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
-              << std::endl;
-            printIdx++;
+        if (printTensorC) {
+          std::vector<unsigned int> indexAssignmentsC;
+          for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+            indexAssignmentsC.push_back(i);
           }
+          printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
+                      numIndicesC[problemTypeIdx], sizes,
+                      indexAssignmentsC.data());
         }
-      } // compare loop
-      if (numInvalids) {
-        returnInvalids = true;
-        solutionIsValid = false;
-      }
+        // compare
+        //
+        bool firstPrint = true;
+        unsigned int printIdx = 0;
+        for (size_t e = 0; e < currentElementSizeC; e+= validationStride) {
+
+          // Compute the actual serialIdxX accouting for strides:
+          size_t serialIdxC = 0;
+          size_t r = e;
+          for (int j = numIndicesC[problemTypeIdx]-1; j >=0; j--) {
+            serialIdxC += r / elementStridesC[j] * stridesC[j];
+            r = r % elementStridesC[j];
+          }
+
+          bool equal;
+          equal = tensileEqual<DataType>( // was AlmostEqual
+              deviceOnHostC[serialIdxC], referenceC[serialIdxC]);
+          numChecked++;
+          if (!equal) numInvalids++;
+
+          if (!equal || printValids) {
+            if (printIdx < printMax) {
+              if (firstPrint) {
+                std::cout << "Index:  Device | Reference" << std::endl;
+                firstPrint = false;
+              }
+              std::cout << "[" << (numChecked-1) << "] " 
+                << " e=" << e
+                << " serialIdxC=" << serialIdxC << ": "
+                << tensileToString(deviceOnHostC[serialIdxC])
+                << (equal ? "==" : "!=") << tensileToString(referenceC[serialIdxC])
+                << std::endl;
+              printIdx++;
+            }
+          }
+        } // compare loop
+        if (numInvalids) {
+          returnInvalids = true;
+          solutionIsValid = false;
+        }
+      } // if callStatus == success
     } // if numElementsToValidate > 0
 
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -1037,8 +1041,11 @@ bool benchmarkAllSolutionsForSize(
         << std::setw(9) << std::fixed << std::setprecision(3)
         << timeNs * TensileTimer::reciprical_million << ", ";
     if (numElementsToValidate) {
-      std::cout << (numInvalids ? "FAILED" : "PASSED")
-        << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
+      if (callStatus == tensileStatusSuccess)
+        std::cout << (numInvalids ? "FAILED" : "PASSED")
+          << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
+      else 
+        std::cout << "INVALID_KERNEL, ";
     }
     // device stats
     std::cout << avgCoreClock << ", ";

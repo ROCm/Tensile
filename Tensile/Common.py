@@ -65,6 +65,7 @@ globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
 
 ########################################
 # less common
