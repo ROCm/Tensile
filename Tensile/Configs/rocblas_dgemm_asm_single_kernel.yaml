@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.0.2
+  MinimumRequiredVersion: 4.2.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -18,6 +18,7 @@ GlobalParameters:
   KernelTime: True
   PinClocks: True
   SleepPercent: 200
+  DataInitTypeBeta : 0
 
 BenchmarkProblems:
   ########################################
@@ -42,7 +43,7 @@ BenchmarkProblems:
       ForkParameters:
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 8, 8 ]
+          - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]

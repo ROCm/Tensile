@@ -11,6 +11,10 @@
 
 import Tensile.Tensile as Tensile
 
+# new features
+def test_persistent(tmpdir):
+    Tensile.Tensile([Tensile.TensileConfigPath("test_persistent.yaml"), tmpdir.strpath])
+
 # defaults
 def test_hgemm_defaults(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_hgemm_defaults.yaml"), tmpdir.strpath])
@@ -32,7 +36,7 @@ def test_sgemm_vectors(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_sgemm_vectors.yaml"), tmpdir.strpath])
 
 # tensor convolution
-def test_tensor_convolution(tmpdir):
+def test_convolution(tmpdir):
     Tensile.Tensile([Tensile.TensileConfigPath("test_convolution.yaml"), tmpdir.strpath])
 
 # tensor contractions

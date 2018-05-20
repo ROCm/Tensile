@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.0.2
+  MinimumRequiredVersion: 4.2.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -15,6 +15,7 @@ GlobalParameters:
   KernelTime: True
   PinClocks: True
   SleepPercent: 200
+  DataInitTypeBeta : 0
 
 BenchmarkProblems:
 
@@ -475,35 +476,28 @@ BenchmarkProblems:
   ########################################
   # NN - Batch
   ########################################
-    - # Benchmark Group
+    - # Benchmark Group - ResNet 1x1:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PrefetchGlobalRead: [ True ]
-        - PrefetchLocalRead: [ True ]
       ForkParameters:
+        - PrefetchGlobalRead: [ False, True ]
+        - PrefetchLocalRead: [ False]
         - ThreadTile:
-#         - [ 2, 2 ]
-          - [ 2, 4 ]
-          - [ 4, 2 ]
           - [ 4, 4 ]
           - [ 4, 8 ]
           - [ 8, 4 ]
-          - [ 8, 8 ]
         - WorkGroup:
-          - [ 8, 32, 1 ]
-          - [  8,  8, 1 ]
-          - [  8, 16, 1 ]
           - [ 16,  8, 1 ]
+          - [ 8, 32, 1 ]
           - [ 16, 16, 1 ]
           - [ 32,  8, 1 ]
-          - [ 32, 16, 1 ]
-        - WorkGroupMapping: [1, 8]
-        - DepthU: [ 8, 16 ]
+        - WorkGroupMapping: [8]
+        - DepthU: [ 16 ]
         - VectorWidth: [1,2,4]
-        - GlobalReadVectorWidth: [4]
+        - GlobalReadVectorWidth: [1,4]
         - LdsPadB: [0,1,2,4]
       BenchmarkForkParameters:
       JoinParameters:
@@ -513,11 +507,12 @@ BenchmarkProblems:
           - Exact: [  196,  256, 64, 1024 ]
           - Exact: [  784,  512, 64,  128 ]
           - Exact: [   49,  512, 64, 2048 ]
+          - Exact: [ 3136,  512,  1, 2048 ]
           - Exact: [  196, 1024, 64,  256 ]
           - Exact: [   49, 2048, 64,  512 ]
+          - Exact: [ 3136, 2048,  1,  512 ]
           - Exact: [ 3025,  256, 64,   64 ]
           - Exact: [ 3025,   64, 64,   64 ]
-
 
   ########################################
   ########################################
@@ -1092,7 +1087,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

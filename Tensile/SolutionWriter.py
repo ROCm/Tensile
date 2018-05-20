@@ -67,11 +67,14 @@ class SolutionWriter:
   ##############################################################################
   # getSourceString
   ##############################################################################
-  def getSourceString(self, solution):
+  def getSourceString(self, solution, kernelsWithBuildErrs):
     kernels = solution.getKernels()
     kernelNames = []
+    kernelBuildErr = 0
     for kernel in kernels:
       kernelName = self.kernelWriter.getKernelName(kernel)
+      if kernelName in kernelsWithBuildErrs:
+        kernelBuildErr = 1
       kernelNames.append( kernelName )
 
     s = ""
@@ -88,6 +91,11 @@ class SolutionWriter:
     # solution function signature
     s += self.getSolutionSignature(solution)
     s += " {\n"
+    if kernelBuildErr:
+      s += "%s  return tensileStatusFailure; // One or more kernels had build failures (%s)\n" % (t, kernelNames)
+      s += "%s}\n" % (t)
+      return s
+
     t += "  "
     s += "%sTensileStatus status;\n" % (t)
 
@@ -106,6 +114,12 @@ class SolutionWriter:
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
 
+
+      if solution["PersistentKernel"]:
+        # pass in the number of groups since not available in WG
+        s += "%sunsigned int numGroupTiles0;\n" % t
+        s += "%sunsigned int numGroupTiles1;\n" % t
+
       s += "%sunsigned int pad;\n" % t # FIXME can this be removed?
       t = t[2:]
       s += "%s} hipFunctionArgs;\n" % t
@@ -123,6 +137,11 @@ class SolutionWriter:
     # kernels
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
+
+    s += "%sint deviceId;\n" % (t)
+    s += "%shipCtxGetDevice(&deviceId);\n" % (t)
+    s += "%shipDeviceProp_t deviceProperties;\n" % (t)
+    s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
     if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
@@ -155,10 +174,6 @@ class SolutionWriter:
     elif solution["KernelLanguage"] == "Assembly":
       localStatic = True
       kernel = kernels[0]
-      s += "%sint deviceId;\n" % (t)
-      s += "%shipCtxGetDevice(&deviceId);\n" % (t)
-      s += "%shipDeviceProp_t deviceProperties;\n" % (t)
-      s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
       s += "%shipFunction_t hipFunction;\n" % (t)
 
@@ -190,7 +205,17 @@ class SolutionWriter:
         s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
         t += "  "
         s += "%shipModule_t module = nullptr;\n" % (t)
-        s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        if not globalParameters["CodeFromFiles"]:
+          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        else:
+          s += "%sif (access(\"../source/assembly/%s.co\", R_OK) != 0)\n" % (t, kernelName)
+          t += "  "
+          s += "%shipModuleLoad(&module, \"assembly/%s.co\");\n" % (t, kernelName)
+          t = t[2:]
+          s += "%selse\n" % (t)
+          t += "  "
+          s += "%shipModuleLoad(&module, \"../source/assembly/%s.co\");\n" % (t, kernelName)
+        t = t[2:]
         s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
         t = t[2:]
         s += "%s}\n" % (t)
@@ -266,8 +291,13 @@ class SolutionWriter:
 
     if solution["GlobalSplitU"] > 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
-    s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
-    s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
+    if solution["PersistentKernel"]:
+      s += "%sglobalWorkSize[0][0] = deviceProperties.multiProcessorCount * %u;\n" \
+              % (t, solution["PersistentKernel"])
+      s += "%sglobalWorkSize[0][1] = 1;\n" % t
+    else:
+      s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
+      s += "%sglobalWorkSize[0][1] = totalWorkGroups%u%s;\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0, "*localWorkSize[1]" if self.language == "OCL" else "")
 
     # offsets
     s += "\n%s/* offsets */\n" % (t)
@@ -296,6 +326,7 @@ class SolutionWriter:
         s += "%ssizes[%u][0][%u] = size%s;\n" \
             % (t, kernelIdx, i, self.indexChars[i])
 
+    #s += "printf(\"Launching with grid=%zu_%zu problemGrid=%u_%u mt=%u_%u\\n\", globalWorkSize[0][0], globalWorkSize[0][1], totalWorkGroups0, totalWorkGroups1, macroTile0, macroTile1);\n"
     s += "\n"
 
     ########################################
@@ -518,9 +549,10 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
-        s += "%sif( inputEvents != NULL )\n" % (t)
-        t += "  "
-        s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
+        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
+          s += "%sif( inputEvents != NULL )\n" % (t)
+          t += "  "
+          s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
         t = t[2:]
         s += "%stry {\n" % (t)
         t += "  "
@@ -550,6 +582,9 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
+          if solution["PersistentKernel"]:
+            s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
+            s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
           s += "%s);\n" % (t)
 
         # assembly kernel
@@ -600,19 +635,29 @@ class SolutionWriter:
             s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
                 % (t, globalParameters["IndexChars"][i], i )
 
-          s += "%shipModuleLaunchKernel(\n" % (t)
+          if solution["PersistentKernel"]:
+            # pass in the number of groups since not available in WG
+            s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
+            s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
+
+          s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][0],\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][1],\n" % (t)
-          s += "%sglobalWorkSize[kernelIdx][2],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][1]*localWorkSize[1],\n" % (t)
+          s += "%sglobalWorkSize[kernelIdx][2]*localWorkSize[2],\n" % (t)
           s += "%slocalWorkSize[0],\n" % (t)
           s += "%slocalWorkSize[1],\n" % (t)
           s += "%slocalWorkSize[2],\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
           s += "%sNULL,\n" % (t)
-          s += "%s(void**)hipLaunchParams);\n" % (t)
+          s += "%s(void**)hipLaunchParams\n" % (t)
+          if globalParameters["PreciseKernelTime"]:
+            s += "%s,inputEvents ? inputEvents[enqueueIdx]:nullptr\n" %(t)
+            s += "%s,outputEvent ? outputEvent[enqueueIdx]:nullptr\n" % (t)
+
+          s += "%s);\n" % (t)
           t = t[2:]
           if globalParameters["DebugKernel"]:
             # copy debug buffer
@@ -638,9 +683,10 @@ class SolutionWriter:
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
-        s += "%sif( outputEvent != NULL )\n" % (t)
-        s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
-      s += "  }\n"
+        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
+          s += "%sif( outputEvent != NULL )\n" % (t)
+          s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
+        s += "  }\n"
     s += "\n"
     s += "  return tensileStatusSuccess;\n"
     s += "}\n"
@@ -761,9 +807,9 @@ class SolutionWriter:
   ########################################
   # get full source code
   # called from BenchmarkProblems
-  def getSourceFileString(self, solution):
+  def getSourceFileString(self, solution, kernelsWithBuildErrs):
     fileStr = "" # CHeader
-    fileStr += self.getSourceString(solution)
+    fileStr += self.getSourceString(solution, kernelsWithBuildErrs)
     return fileStr
 
 

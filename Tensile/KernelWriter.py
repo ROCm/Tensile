@@ -38,17 +38,8 @@ class KernelWriter:
   def __init__( self, kernelMinNaming, kernelSerialNaming ):
     self.kernelMinNaming = kernelMinNaming
     self.kernelSerialNaming = kernelSerialNaming
+    self.overflowedResources = 0
 
-    self.enable = {}
-    self.enable["PreLoop"]        = True
-    self.enable["GlobalRead"]     = True
-    self.enable["GlobalReadInc"]  = True
-    self.enable["LocalWrite"]     = True
-    self.enable["LocalRead"]      = True
-    self.enable["Wait"]           = True
-    self.enable["Sync"]           = True
-    self.enable["MAC"]            = True
-    self.enable["PostLoop"]       = True
 
 
   ##############################################################################
@@ -296,15 +287,16 @@ class KernelWriter:
           kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0wait for local write")
         if self.enable["Sync"]:
           kStr += self.syncThreads(kernel)
-        if self.enable["LocalRead"]:
-          kStr += self.comment("local read prefetch a")
-          kStr += self.localReadDo(kernel, False, tensorParametersA)
-          kStr += self.comment("local read prefetch b")
-          kStr += self.localReadDo(kernel, False, tensorParametersB)
-          kStr += self.comment("local read inc a")
-          kStr += self.localReadInc(kernel, tensorParametersA)
-          kStr += self.comment("local read inc b")
-          kStr += self.localReadInc(kernel, tensorParametersB)
+        for iui in range(0,kernel["InnerUnroll"]):
+          if self.enable["LocalRead"]:
+            kStr += self.comment("local read prefetch a")
+            kStr += self.localReadDo(kernel, 0, iui, tensorParametersA)
+            kStr += self.comment("local read prefetch b")
+            kStr += self.localReadDo(kernel, 0, iui, tensorParametersB)
+            kStr += self.comment("local read inc a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment("local read inc b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
       kStr += self.closeSumAtLeastUnroll(kernel, True)
 
     # open unrolled summation loop
@@ -360,15 +352,16 @@ class KernelWriter:
 
     # unrolled loop: prefetch local
     if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
-      if self.enable["LocalRead"]:
-        kStr += self.comment("prefetch local a")
-        kStr += self.localReadDo(kernel, False, tensorParametersA)
-        kStr += self.comment("prefetch local b")
-        kStr += self.localReadDo(kernel, False, tensorParametersB)
-        kStr += self.comment("local read increment a")
-        kStr += self.localReadInc(kernel, tensorParametersA)
-        kStr += self.comment("local read increment b")
-        kStr += self.localReadInc(kernel, tensorParametersB)
+      for iui in range(0,kernel["InnerUnroll"]):
+        if self.enable["LocalRead"]:
+          kStr += self.comment("prefetch local a")
+          kStr += self.localReadDo(kernel, 0, iui, tensorParametersA)
+          kStr += self.comment("prefetch local b")
+          kStr += self.localReadDo(kernel, 0, iui, tensorParametersB)
+          kStr += self.comment1("local read increment a")
+          kStr += self.localReadInc(kernel, tensorParametersA)
+          kStr += self.comment1("local read increment b")
+          kStr += self.localReadInc(kernel, tensorParametersB)
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
@@ -380,19 +373,20 @@ class KernelWriter:
      # local read
       kStr += self.comment("iter %u"%u)
       readBlk = kernel["PrefetchLocalRead"] and u%2==0
-      if self.enable["LocalRead"]:
-        kStr += self.comment("local read a")
-        kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
-        kStr += self.comment("local read b")
-        kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
-        kStr += self.comment("local read increment a")
-        kStr += self.localReadInc(kernel, tensorParametersA)
-        kStr += self.comment("local read increment b")
-        kStr += self.localReadInc(kernel, tensorParametersB)
+      for iui in range(0,kernel["InnerUnroll"]):
+        if self.enable["LocalRead"]:
+          kStr += self.comment("local read a")
+          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+          kStr += self.comment("local read b")
+          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
+          kStr += self.comment("local read increment a")
+          kStr += self.localReadInc(kernel, tensorParametersA)
+          kStr += self.comment("local read increment b")
+          kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
       if self.enable["MAC"]:
-        kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
+        kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1), kernel["InnerUnroll"] )
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
@@ -404,14 +398,21 @@ class KernelWriter:
     # local write, readSwap/Init, writeSwapInit
     # if no prefetch-local: read for current unroll of current iter
     unrollIter = kernel["LoopUnroll"]-2
-    kStr += self.comment("iter %u"%unrollIter)
+    kStr += self.comment("iter %u (second to last)"%unrollIter)
     if kernel["PrefetchLocalRead"] and kernel["PrefetchGlobalRead"]:
-      if self.enable["LocalRead"]:
-        # local read for last unroll
-        kStr += self.comment("local read a")
-        kStr += self.localReadDo(kernel, True, tensorParametersA)
-        kStr += self.comment("local read b")
-        kStr += self.localReadDo(kernel, True, tensorParametersB)
+      for iui in range(0,kernel["InnerUnroll"]):
+        if self.enable["LocalRead"]:
+          # local read for last unroll
+          kStr += self.comment("local read a")
+          kStr += self.localReadDo(kernel, 1, iui, tensorParametersA)
+          kStr += self.comment("local read b")
+          kStr += self.localReadDo(kernel, 1, iui, tensorParametersB)
+          if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
+            kStr += self.comment1("unroll increments:")
+            kStr += self.comment1("local read inc a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment("local read inc b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "4wait for global read")
       if self.enable["LocalWrite"]:
@@ -444,10 +445,17 @@ class KernelWriter:
       if self.enable["LocalRead"]:
         # local read
         readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
-        kStr += self.comment("local read a")
-        kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
-        kStr += self.comment("local read b")
-        kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
+        for iui in range(0,kernel["InnerUnroll"]):
+          kStr += self.comment("local read a")
+          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+          kStr += self.comment("local read b")
+          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
+          if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
+            kStr += self.comment1("unroll increments:")
+            kStr += self.comment1("local read inc a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment("local read inc b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
         if kernel["PrefetchLocalRead"]:
           # local read init ptrs
           kStr += self.comment("local read init pointers a")
@@ -462,8 +470,9 @@ class KernelWriter:
           kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
+
     if self.enable["MAC"]:
-      kStr += self.macIter(kernel, False)
+      kStr += self.macIter(kernel, False, kernel["InnerUnroll"])
 
     ####################################
     # unrolled loop: last summation iter
@@ -471,20 +480,27 @@ class KernelWriter:
     # if prefetch-local: read red for 1st unroll of next iter
     # if not prefetch-local: read for current unroll of current iter
     unrollIter = kernel["LoopUnroll"]-1
-    kStr += self.comment("iter %u"%unrollIter)
+    kStr += self.comment("iter %u (last)"%unrollIter)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "3wait for local write")
       if self.enable["Sync"]:
         kStr += self.syncThreads(kernel)
     if not kernel["PrefetchLocalRead"] or kernel["PrefetchGlobalRead"]:
-      if self.enable["LocalRead"]:
-        # local read
-        readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
-        kStr += self.comment("local read a")
-        kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
-        kStr += self.comment("local read b")
-        kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
+      for iui in range(0,kernel["InnerUnroll"]):
+        if self.enable["LocalRead"]:
+          # local read
+          readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+          kStr += self.comment("local read a")
+          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+          kStr += self.comment("local read b")
+          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
+          if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
+            kStr += self.comment("unroll increments:")
+            kStr += self.comment("local read inc a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment("local read inc b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
     if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
       if self.enable["LocalRead"]:
         # local read inc
@@ -536,7 +552,7 @@ class KernelWriter:
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
     if self.enable["MAC"]:
-      kStr += self.macIter(kernel, kernel["PrefetchLocalRead"])
+      kStr += self.macIter(kernel, kernel["PrefetchLocalRead"], kernel["InnerUnroll"])
 
     # close unrolled loop
     kStr += self.comment3("Unrolled Loop - End")
@@ -554,21 +570,22 @@ class KernelWriter:
       for u in range(0, kernel["LoopUnroll"]):
         kStr += self.comment("iter %u"%u)
         readBlk = kernel["PrefetchLocalRead"] and u%2==0
-        if self.enable["LocalRead"]:
-          if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
-            kStr += self.comment("local read a")
-            kStr += self.localReadDo(kernel, readBlk, tensorParametersA)
-            kStr += self.comment("local read b")
-            kStr += self.localReadDo(kernel, readBlk, tensorParametersB)
-            kStr += self.comment("local read inc a")
-            kStr += self.localReadInc(kernel, tensorParametersA)
-            kStr += self.comment("local read inc b")
-            kStr += self.localReadInc(kernel, tensorParametersB)
+        for iui in range(0,kernel["InnerUnroll"]):
+          if self.enable["LocalRead"]:
+            if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
+              kStr += self.comment("local read a")
+              kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+              kStr += self.comment("local read b")
+              kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
+              kStr += self.comment("local read inc a")
+              kStr += self.localReadInc(kernel, tensorParametersA)
+              kStr += self.comment("local read inc b")
+              kStr += self.localReadInc(kernel, tensorParametersB)
         if self.enable["Wait"]:
           kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
               1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "3wait for local read")
         if self.enable["MAC"]:
-          kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1) )
+          kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1), kernel["InnerUnroll"] )
       kStr += self.closeSumAtLeastUnroll(kernel, False)
 
     ########################################
@@ -626,19 +643,24 @@ class KernelWriter:
       # tail: macs
       kStr += self.comment("tail loop: macs")
       kStr += self.openLoop(kernel, -1)
-      if self.enable["LocalRead"]:
-        kStr += self.comment("local read a")
-        kStr += self.localReadDo(kernel, False, tensorParametersA)
-        kStr += self.comment("local read b")
-        kStr += self.localReadDo(kernel, False, tensorParametersB)
-        kStr += self.comment("local read inc a")
-        kStr += self.localReadInc(kernel, tensorParametersA)
-        kStr += self.comment("local read inc b")
-        kStr += self.localReadInc(kernel, tensorParametersB)
+      # Try to use InnerUnroll in the tail loop if allowed:
+      tailLoopInnerUnroll = \
+        kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % kernel["InnerUnroll"]==0) else 1
+
+      for iui in range(0,tailLoopInnerUnroll):
+        if self.enable["LocalRead"]:
+          kStr += self.comment("local read a")
+          kStr += self.localReadDo(kernel, 0, iui, tensorParametersA)
+          kStr += self.comment("local read b")
+          kStr += self.localReadDo(kernel, 0, iui, tensorParametersB)
+          kStr += self.comment("local read inc a")
+          kStr += self.localReadInc(kernel, tensorParametersA)
+          kStr += self.comment("local read inc b")
+          kStr += self.localReadInc(kernel, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read")
       if self.enable["MAC"]:
-        kStr += self.macIter(kernel, False )
+        kStr += self.macIter(kernel, False, tailLoopInnerUnroll)
 
       # tail: close
       kStr += self.closeLoop(kernel, -1)
@@ -720,9 +742,11 @@ class KernelWriter:
     kStr += self.closeString(kernel)
     afterFunctionSignature = kStr
 
+    error = self.overflowedResources
+
     # function signature last since it needs to know how many gprs were actually used
     kStr = beforeFunctionSignature + self.functionSignature(kernel) + afterFunctionSignature
-    return kStr
+    return (error,kStr)
 
 
 
@@ -783,6 +807,24 @@ class KernelWriter:
   ##############################################################################
   @abc.abstractmethod
   def initKernel(self, kernel, tensorParametersA, tensorParametersB ):
+    self.enable = {}
+    dkp = kernel["DisableKernelPieces"]
+    # Can locally overrid these by changing True to False or
+    # use the DisableKernelPieces for a quick search (see Common.py)
+    self.enable["PreLoop"]        = True and not (dkp>0 and dkp >= 7) and not dkp == -7
+    self.enable["GlobalRead"]     = True and not (dkp>0 and dkp >= 2) and not dkp == -2
+    self.enable["GlobalReadInc"]  = True and not (dkp>0 and dkp >= 7) and not dkp == -7
+    self.enable["LocalWrite"]     = True and not (dkp>0 and dkp >= 3) and not dkp == -3
+    self.enable["LocalRead"]      = True and not (dkp>0 and dkp >= 4) and not dkp == -4
+    self.enable["Wait"]           = True and not (dkp>0 and dkp >= 5) and not dkp == -5
+    self.enable["Sync"]           = True and not (dkp>0 and dkp >= 5) and not dkp == -5
+    self.enable["MAC"]            = True and not (dkp>0 and dkp >= 6) and not dkp == -6
+    self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
+
+    if dkp:
+      print "\nKernelWriter enable:", self.enable
+
+
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
     else:
@@ -1441,7 +1483,7 @@ class KernelWriter:
   # MAC Iteration
   ##############################################################################
   @abc.abstractmethod
-  def macIter(self, kernel, black):
+  def macIter(self, kernel, bufferIdx, iuiCount):
     return ""
 
   ##############################################################################
@@ -1529,7 +1571,7 @@ class KernelWriter:
   # Local Read: Do It A/B
   ##############################################################################
   @abc.abstractmethod
-  def localReadDo(self, kernel, black, tP):
+  def localReadDo(self, kernel, bufferIdx, innerUnrollIndex, tP):
     return ""
 
   ##############################################################################
@@ -1667,7 +1709,9 @@ class KernelWriter:
     fileString += self.kernelBodyPrefix( kernel, tensorParametersA, \
         tensorParametersB )
     self.stringIdx = 0
-    fileString += self.kernelBody( kernel, tensorParametersA, tensorParametersB)
+    (error, kb) = self.kernelBody( kernel, tensorParametersA, tensorParametersB)
+
+    fileString += kb
     fileString += self.kernelBodySuffix( kernel, tensorParametersA, \
         tensorParametersB )
 
@@ -1682,74 +1726,75 @@ class KernelWriter:
       assemblyFile.write(fileString)
       assemblyFile.close()
 
-      # bytearray script
-      bytearrayFileName = path.join(globalParameters["WorkingPath"],"insert_byte_array.py")
-      if not path.isfile(bytearrayFileName):
-        bytearrayFile = open(bytearrayFileName, "w")
-        bytearrayFile.write('#!/usr/bin/env python\n\n')
-
-        bytearrayFile.write('fileString = ""\n')
-        bytearrayFile.write('fileString += "/*******************************************************************************\\n"\n')
-        bytearrayFile.write('fileString += "* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\\n"\n')
-
-        bytearrayFile.write('fileString += "*\\n"\n')
-        bytearrayFile.write('fileString += "* Permission is hereby granted, free of charge, to any person obtaining a copy\\n"\n')
-        bytearrayFile.write("fileString += '* of this software and associated documentation files (the \"Software\"), to deal\\n'\n")
-        bytearrayFile.write('fileString += "* in the Software without restriction, including without limitation the rights\\n"\n')
-        bytearrayFile.write('fileString += "* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-\\n"\n')
-        bytearrayFile.write('fileString += "* ies of the Software, and to permit persons to whom the Software is furnished\\n"\n')
-        bytearrayFile.write('fileString += "* to do so, subject to the following conditions:\\n"\n')
-        bytearrayFile.write('fileString += "*\\n"\n')
-        bytearrayFile.write('fileString += "* The above copyright notice and this permission notice shall be included in all\\n"\n')
-        bytearrayFile.write('fileString += "* copies or substantial portions of the Software.\\n"\n')
-        bytearrayFile.write('fileString += "*\\n"\n')
-        bytearrayFile.write("fileString += '* THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-\\n'\n")
-        bytearrayFile.write('fileString += "* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS\\n"\n')
-        bytearrayFile.write('fileString += "* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\\n"\n')
-        bytearrayFile.write('fileString += "* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER\\n"\n')
-        bytearrayFile.write('fileString += "* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-\\n"\n')
-        bytearrayFile.write('fileString += "* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\\n"\n')
-        bytearrayFile.write('fileString += "*******************************************************************************/\\n\\n"\n')
-
-        bytearrayFile.write('fileString += "/**************************************************\\n"\n')
-        bytearrayFile.write('fileString += "* This file was generated by Tensile:             *\\n"\n')
-        bytearrayFile.write('fileString += "* https://github.com/ROCmSoftwarePlatform/Tensile *\\n"\n')
-        bytearrayFile.write('fileString += "**************************************************/\\n\\n\\n"\n')
-
-        bytearrayFile.write('import os.path\n\n')
-        
-        bytearrayFile.write('''fileString += '#include "Kernels.h"\\n\\n'\n''')
-        bytearrayFile.write('fileString += "/* code object byte array */\\n\\n"\n\n')
-
-        bytearrayFile.write('codeObjectFileNames = [f for f in os.listdir(".") if (os.path.isfile(f) and f.endswith(".co"))]\n')
-        bytearrayFile.write('for codeObjectFileName in codeObjectFileNames:\n')
-        bytearrayFile.write('  print codeObjectFileName\n')
-        bytearrayFile.write('  print "\\n"\n\n')
-        bytearrayFile.write('  kernelName=os.path.splitext(codeObjectFileName)[0]\n\n')
-        bytearrayFile.write('  codeObjectFile = open(codeObjectFileName, "r")\n')
-        bytearrayFile.write('  codeObjectByteArray = bytearray(codeObjectFile.read())\n')
-        bytearrayFile.write('  codeObjectFile.close()\n\n')
-
-        bytearrayFile.write('# write code object byte array\n')
-        bytearrayFile.write('  fileString += "const unsigned char %s_coba[%u] = {\\n" % (kernelName, len(codeObjectByteArray))\n')
-        bytearrayFile.write('  for byteIdx in range(0, len(codeObjectByteArray)):\n')
-        bytearrayFile.write('    byte = codeObjectByteArray[byteIdx]\n')
-
-
-        bytearrayFile.write('    fileString += "0x%02x" % byte\n')
-        bytearrayFile.write('    if byteIdx < len(codeObjectByteArray)-1:\n')
-        bytearrayFile.write('      fileString += ","\n')
-        bytearrayFile.write('    else:\n')
-        bytearrayFile.write('      fileString += "};\\n"\n')
-        bytearrayFile.write('    if byteIdx % 16 == 15:\n')
-        bytearrayFile.write('      fileString += "\\n"\n\n')
-
-        bytearrayFile.write('  text_file = open("Kernels.cpp", "w")\n')
-        bytearrayFile.write('  text_file.write("%s" % fileString)\n')
-        bytearrayFile.write('  text_file.close()\n')
-
-        bytearrayFile.close()
-        chmod(bytearrayFileName, 0777)
+      if not globalParameters["CodeFromFiles"]:
+        # bytearray script
+        bytearrayFileName = path.join(globalParameters["WorkingPath"],"insert_byte_array.py")
+        if not path.isfile(bytearrayFileName):
+          bytearrayFile = open(bytearrayFileName, "w")
+          bytearrayFile.write('#!/usr/bin/env python\n\n')
+  
+          bytearrayFile.write('fileString = ""\n')
+          bytearrayFile.write('fileString += "/*******************************************************************************\\n"\n')
+          bytearrayFile.write('fileString += "* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\\n"\n')
+  
+          bytearrayFile.write('fileString += "*\\n"\n')
+          bytearrayFile.write('fileString += "* Permission is hereby granted, free of charge, to any person obtaining a copy\\n"\n')
+          bytearrayFile.write("fileString += '* of this software and associated documentation files (the \"Software\"), to deal\\n'\n")
+          bytearrayFile.write('fileString += "* in the Software without restriction, including without limitation the rights\\n"\n')
+          bytearrayFile.write('fileString += "* to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-\\n"\n')
+          bytearrayFile.write('fileString += "* ies of the Software, and to permit persons to whom the Software is furnished\\n"\n')
+          bytearrayFile.write('fileString += "* to do so, subject to the following conditions:\\n"\n')
+          bytearrayFile.write('fileString += "*\\n"\n')
+          bytearrayFile.write('fileString += "* The above copyright notice and this permission notice shall be included in all\\n"\n')
+          bytearrayFile.write('fileString += "* copies or substantial portions of the Software.\\n"\n')
+          bytearrayFile.write('fileString += "*\\n"\n')
+          bytearrayFile.write("fileString += '* THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-\\n'\n")
+          bytearrayFile.write('fileString += "* PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS\\n"\n')
+          bytearrayFile.write('fileString += "* FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\\n"\n')
+          bytearrayFile.write('fileString += "* COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER\\n"\n')
+          bytearrayFile.write('fileString += "* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-\\n"\n')
+          bytearrayFile.write('fileString += "* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\\n"\n')
+          bytearrayFile.write('fileString += "*******************************************************************************/\\n\\n"\n')
+  
+          bytearrayFile.write('fileString += "/**************************************************\\n"\n')
+          bytearrayFile.write('fileString += "* This file was generated by Tensile:             *\\n"\n')
+          bytearrayFile.write('fileString += "* https://github.com/ROCmSoftwarePlatform/Tensile *\\n"\n')
+          bytearrayFile.write('fileString += "**************************************************/\\n\\n\\n"\n')
+  
+          bytearrayFile.write('import os.path\n\n')
+  
+          bytearrayFile.write('''fileString += '#include "Kernels.h"\\n\\n'\n''')
+          bytearrayFile.write('fileString += "/* code object byte array */\\n\\n"\n\n')
+  
+          bytearrayFile.write('codeObjectFileNames = [f for f in os.listdir(".") if (os.path.isfile(f) and f.endswith(".co"))]\n')
+          bytearrayFile.write('for codeObjectFileName in codeObjectFileNames:\n')
+          bytearrayFile.write('  print codeObjectFileName\n')
+          bytearrayFile.write('  print "\\n"\n\n')
+          bytearrayFile.write('  kernelName=os.path.splitext(codeObjectFileName)[0]\n\n')
+          bytearrayFile.write('  codeObjectFile = open(codeObjectFileName, "r")\n')
+          bytearrayFile.write('  codeObjectByteArray = bytearray(codeObjectFile.read())\n')
+          bytearrayFile.write('  codeObjectFile.close()\n\n')
+  
+          bytearrayFile.write('# write code object byte array for asm\n')
+          bytearrayFile.write('  fileString += "const unsigned char %s_coba[%u] = {\\n" % (kernelName, len(codeObjectByteArray))\n')
+          bytearrayFile.write('  for byteIdx in range(0, len(codeObjectByteArray)):\n')
+          bytearrayFile.write('    byte = codeObjectByteArray[byteIdx]\n')
+  
+  
+          bytearrayFile.write('    fileString += "0x%02x" % byte\n')
+          bytearrayFile.write('    if byteIdx < len(codeObjectByteArray)-1:\n')
+          bytearrayFile.write('      fileString += ","\n')
+          bytearrayFile.write('    else:\n')
+          bytearrayFile.write('      fileString += "};\\n"\n')
+          bytearrayFile.write('    if byteIdx % 16 == 15:\n')
+          bytearrayFile.write('      fileString += "\\n"\n\n')
+  
+          bytearrayFile.write('  text_file = open("Kernels.cpp", "w")\n')
+          bytearrayFile.write('  text_file.write("%s" % fileString)\n')
+          bytearrayFile.write('  text_file.close()\n')
+  
+          bytearrayFile.close()
+          chmod(bytearrayFileName, 0777)
 
       # assembler script
       assemblerFileName = path.join(globalParameters["WorkingPath"], \
@@ -1783,28 +1828,29 @@ class KernelWriter:
 
       # read code object file
       fileString = ""
-      codeObjectFile = open(codeObjectFileName, "r")
-      codeObjectByteArray = bytearray(codeObjectFile.read())
-      codeObjectFile.close()
-
-      # write code object byte array
-      fileString += self.comment("code object byte array")
-      fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
-      for byteIdx in range(0, len(codeObjectByteArray)):
-        byte = codeObjectByteArray[byteIdx]
-        fileString += "0x%02x" % byte
-        if byteIdx < len(codeObjectByteArray)-1:
-          fileString += ","
-        else:
-          fileString += "};\n"
-        if byteIdx % 16 == 15:
-          fileString += "\n"
+      if not globalParameters["CodeFromFiles"]:
+        codeObjectFile = open(codeObjectFileName, "r")
+        codeObjectByteArray = bytearray(codeObjectFile.read())
+        codeObjectFile.close()
+  
+        # write code object byte array
+        fileString += self.comment("code object byte array")
+        fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
+        for byteIdx in range(0, len(codeObjectByteArray)):
+          byte = codeObjectByteArray[byteIdx]
+          fileString += "0x%02x" % byte
+          if byteIdx < len(codeObjectByteArray)-1:
+            fileString += ","
+          else:
+            fileString += "};\n"
+          if byteIdx % 16 == 15:
+            fileString += "\n"
 
       popWorkingPath() # assembly
 
       # read code-object file and convert to c++ representable uchar*
       # return string of code-object byte array
-    return fileString
+    return (error, fileString)
 
 
   ##############################################################################
@@ -1831,7 +1877,8 @@ class KernelWriter:
     else:
       if not globalParameters["MergeFiles"]:
         fileString += "#pragma once\n\n"
-      fileString += "extern const unsigned char %s_coba[]; // code object byte array\n" % kernelName
+      if not globalParameters["CodeFromFiles"]:
+        fileString += "extern const unsigned char %s_coba[]; // code object byte array\n" % kernelName
 
     return fileString
 
@@ -1878,7 +1925,7 @@ class KernelWriter:
     fileString += self.kernelBodyBetaOnly( kernel )
     if self.language == "OCL":
       fileString += "\";"
-    return fileString
+    return (0,fileString)
 
   def getHeaderFileStringBetaOnly(self, kernel):
     kernelName = self.getKernelNameBetaOnly(kernel)
