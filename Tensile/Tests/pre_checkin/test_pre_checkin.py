@@ -2,7 +2,7 @@
 # These pre-checkin tests are fast but lack coverage. Slow tests with more coverage are in nightly.py.
 #
 # To execute this test file, apt-get install python-pytest, then
-#   PYTHONPATH=. py.test -v test/pre_checkin.py
+#   PYTHONPATH=. py.test -v Tensile/Tests/pre_checkin
 #
 # To run test directly, with complete output:
 #   mkdir build && cd build
