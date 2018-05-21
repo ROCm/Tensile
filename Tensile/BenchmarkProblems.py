@@ -21,8 +21,10 @@
 import os, sys
 from copy import deepcopy
 from copy import copy as shallowcopy
+import shutil
 from shutil import copy as shutil_copy
 from shutil import rmtree
+import filecmp
 import csv
 from subprocess import Popen
 import time
@@ -114,7 +116,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Copy Files to Benchmark Source Directory
     ############################################################################
-    pushWorkingPath("source")
+    sourceDir = \
+      os.path.join(globalParameters["WorkingPath"], "source" )
+    ensurePath(sourceDir)
+    pushWorkingPath("sourceTmp")
     filesToCopy = [
         "Client.cpp",
         "Client.h",
@@ -259,6 +264,21 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     # write benchmarkFiles
     writeBenchmarkFiles(solutionList, benchmarkStep.problemSizes, \
         shortName, filesToCopy)
+
+    sourceTmp = globalParameters["WorkingPath"]
+    files = os.listdir(sourceTmp)
+    for f in files:
+      f0 = os.path.join(sourceTmp, f)
+      f1 = os.path.join(sourceDir, f)
+      if os.path.isdir(f0):
+        print "cpDir:", f0, f1
+        if os.path.isdir(f1):
+          shutil.rmtree( f1, True )
+        shutil.copytree( f0, f1 )
+      elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
+        print "cp:", f0, f1
+        shutil.copy( f0, f1 )
+
     popWorkingPath() # source
 
     ############################################################################
@@ -272,10 +292,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
-      # if redo=true, clobber the build directory
-      if globalParameters["ForceRedoBenchmarkProblems"]:
-        rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
-            ignore_errors=True)
       pushWorkingPath("build")
 
       # write runScript
