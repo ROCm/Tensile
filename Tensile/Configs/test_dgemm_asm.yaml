@@ -1,6 +1,6 @@
 # benchmark assembly and source kernels
 GlobalParameters:
-  MinimumRequiredVersion: 4.0.2
+  MinimumRequiredVersion: 4.2.0
   CMakeBuildType: Release
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
@@ -269,7 +269,7 @@ LibraryLogic:
     SolutionImportanceMin: 0
 
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

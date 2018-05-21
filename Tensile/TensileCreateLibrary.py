@@ -38,57 +38,13 @@ from shutil import copy as shutil_copy
 ################################################################################
 def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly):
-  print1("# Writing Solutions and Kernels")
+  print1("# Writing Kernels")
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(outputPath, "Solutions"))
     ensurePath(os.path.join(outputPath, "Kernels"))
 
-  progressBar = ProgressBar(len(solutions)+len(kernels))
-
-  ##############################################################################
-  # Write Solutions
-  ##############################################################################
-  if globalParameters["MergeFiles"]:
-    solutionSourceFile = open(os.path.join(outputPath, \
-        "Solutions.cpp"), "w")
-    solutionHeaderFile = open(os.path.join(outputPath, \
-        "Solutions.h"), "w")
-    if globalParameters["MergeFiles"]:
-      solutionSourceFile.write(CHeader)
-      solutionHeaderFile.write(CHeader)
-    solutionSourceFile.write("#include \"Solutions.h\"\n")
-    solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
-    solutionHeaderFile.write("#include \"Kernels.h\"\n")
-    solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
-    solutionHeaderFile.write("#include \"Tools.h\"\n")
-  for solution in solutions:
-    # get solution name
-    if not globalParameters["MergeFiles"]:
-      solutionFileName = solutionWriter.getSolutionName(solution)
-
-    # write solution.cpp
-    if not globalParameters["MergeFiles"]:
-      solutionSourceFile = open(os.path.join(outputPath, \
-          "Solutions", solutionFileName+".cpp"), "w")
-      solutionSourceFile.write(CHeader)
-    solutionSourceFile.write( \
-        solutionWriter.getSourceFileString(solution))
-    if not globalParameters["MergeFiles"]:
-      solutionSourceFile.close()
-
-    # write solution.h
-    if not globalParameters["MergeFiles"]:
-      solutionHeaderFile = open(os.path.join(outputPath, \
-          "Solutions", solutionFileName+".h"), "w")
-      solutionHeaderFile.write(CHeader)
-    solutionHeaderFile.write( \
-        solutionWriter.getHeaderFileString(solution))
-    if not globalParameters["MergeFiles"]:
-      solutionHeaderFile.close()
-    progressBar.increment()
-  # close merged
-  if not globalParameters["MergeFiles"]:
-    solutionHeaderFile.close()
+  if globalParameters["ShowProgressBar"]:
+    progressBar = ProgressBar(len(kernels))
 
   ##############################################################################
   # Write Kernels
@@ -110,19 +66,27 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     else:
       kernelHeaderFile.write("#include <string>\n")
 
+  kernelsWithBuildErrs = {}
+
   # tensor contraction kernels
-  for kernel in kernels:
+  for ki in range(0,len(kernels)):
+    kernel = kernels[ki]
     kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
     # get kernel name
-    if not globalParameters["MergeFiles"]:
-      kernelName = kernelWriter.getKernelName(kernel)
+    kernelName = kernelWriter.getKernelName(kernel)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
       kernelSourceFile = open(os.path.join(outputPath, \
           "Kernels", kernelName+".cpp"), "w")
       kernelSourceFile.write(CHeader)
-    kernelSourceFile.write( kernelWriter.getSourceFileString(kernel))
+    (err, src) = kernelWriter.getSourceFileString(kernel)
+
+    kernelSourceFile.write(src)
+    if err:
+      kernelsWithBuildErrs[kernelName] = err
+      print "*** warning: invalid kernel#%u"%ki
+
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
 
@@ -134,7 +98,8 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
-    progressBar.increment()
+    if globalParameters["ShowProgressBar"]:
+      progressBar.increment()
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
@@ -146,10 +111,13 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
       kernelSourceFile = open(os.path.join(outputPath, \
           "Kernels", kernelName+".cpp"), "w")
       kernelSourceFile.write(CHeader)
-    kernelSourceFile.write( kernelWriter.getSourceFileStringBetaOnly(kernel))
+
+    (err, src) = kernelWriter.getSourceFileStringBetaOnly(kernel)
+    kernelSourceFile.write(src)
+    if err:
+      print "*** warning: invalid kernel#%u"%ki
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
-
     # write kernel.h
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile = open(os.path.join(outputPath, \
@@ -162,6 +130,61 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
   # close merged
   if globalParameters["MergeFiles"]:
     kernelHeaderFile.close()
+
+
+  print1("# Writing Solutions")
+  if globalParameters["ShowProgressBar"]:
+    progressBar = ProgressBar(len(solutions))
+  ##############################################################################
+  # Write Solutions
+  ##############################################################################
+  if globalParameters["MergeFiles"]:
+    solutionSourceFile = open(os.path.join(outputPath, \
+        "Solutions.cpp"), "w")
+    solutionHeaderFile = open(os.path.join(outputPath, \
+        "Solutions.h"), "w")
+    if globalParameters["MergeFiles"]:
+      solutionSourceFile.write(CHeader)
+      solutionHeaderFile.write(CHeader)
+    solutionSourceFile.write("#include \"Solutions.h\"\n")
+    solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
+    solutionHeaderFile.write("#include \"Kernels.h\"\n")
+    solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
+    solutionHeaderFile.write("#include \"Tools.h\"\n")
+    if globalParameters["CodeFromFiles"]:
+      solutionHeaderFile.write("#include <unistd.h>\n")
+  for solution in solutions:
+    # get solution name
+    if not globalParameters["MergeFiles"]:
+      solutionFileName = solutionWriter.getSolutionName(solution)
+
+    # write solution.cpp
+    if not globalParameters["MergeFiles"]:
+      solutionSourceFile = open(os.path.join(outputPath, \
+          "Solutions", solutionFileName+".cpp"), "w")
+      solutionSourceFile.write(CHeader)
+    solutionSourceFile.write( \
+        solutionWriter.getSourceFileString(solution, kernelsWithBuildErrs))
+    if not globalParameters["MergeFiles"]:
+      solutionSourceFile.close()
+
+    # write solution.h
+    if not globalParameters["MergeFiles"]:
+      solutionHeaderFile = open(os.path.join(outputPath, \
+          "Solutions", solutionFileName+".h"), "w")
+      solutionHeaderFile.write(CHeader)
+    solutionHeaderFile.write( \
+        solutionWriter.getHeaderFileString(solution))
+    if not globalParameters["MergeFiles"]:
+      solutionHeaderFile.close()
+    if globalParameters["ShowProgressBar"]:
+      progressBar.increment()
+  # close merged
+  if not globalParameters["MergeFiles"]:
+    solutionHeaderFile.close()
+
+  if globalParameters["ExitAfterKernelGen"]:
+    printExit("** Exiting after kernel generation due to ExitAfterKernelGen=1")
 
 
 ################################################################################

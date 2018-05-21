@@ -45,6 +45,8 @@ globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile
 globalParameters["PrintLevel"] = 1                # how much info to print. 0=none, 1=standard, 2=verbose
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
+globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.
+globalParameters["CodeFromFiles"] = False
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -58,6 +60,12 @@ globalParameters["ValidationPrintValids"] = False # print matches too
 globalParameters["ForceRedoBenchmarkProblems"] = True # if False and benchmarking already complete, then benchmarking will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryLogic"] = True      # if False and library logic already analyzed, then library logic will be skipped when tensile is re-run
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
+globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
+globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
 
 ########################################
 # less common
@@ -154,7 +162,7 @@ validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
 depthUs = range(-16, 0)
-depthUs.extend(range(2,512+1,2))
+depthUs.extend(range(2,512+1,1))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -170,7 +178,7 @@ validParameters = {
     # =False means the L1 cache will do the transposing work and it is quite fast; then data is written coalesced (no bank conflicts) to LDS.
     # =True means the transpose will happen while writing to LDS, this usually has bank conflicts, but it appears the throughput is still fast enough to not slow the VALUs down.
     # it appears that the L1 cache can still achieve quite a bit of performance for GRCG=False, but overall it's usually faster to read coalesced
-    "GlobalReadCoalesceGroupA":   [ False, True ], # True means 
+    "GlobalReadCoalesceGroupA":   [ False, True ],
     "GlobalReadCoalesceGroupB":   [ False, True ],
 
     # for transposes, this option governs how short-vectors should be read from global and written to lds
@@ -185,7 +193,7 @@ validParameters = {
     "GlobalReadCoalesceVectorB":  [        True ],
 
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ False, True ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
+    "PrefetchLocalRead":          [ 0,1 ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -236,7 +244,18 @@ validParameters = {
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
     "UseSgprForGRO":              [ -1, 0, 1],
+    "FractionalLoad":             [ False, True] ,      # Some work-items in the group may not participate in the final buffer load .Allows more felxibility in choosing DepthU
 
+    # When creating the kernel, assume that the summation size is some multiple of the element size.
+    # This can result in more efficient kernels, but requires runtime checking to ensure the specified
+    # summation value meets the requirements
+    # 1 indicates no additional restriction - all sizes are multiples of 1
+    "AssertSummationElementMultiple": [1,2,4,8],
+
+    # For Block Mapping type:
+    # 0   : Use hardware-assigned wg number with no remapping.
+    # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
+    # < 0 : Swaps the position of wg0 and wg1.
     "WorkGroupMapping":           range(-1024,1024+1),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
     "WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
     "MaxOccupancy":               range(1, 40+1),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
@@ -244,17 +263,49 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,     # ( tt0 x tt1 ) dimensions of the C tile that each thread works on, TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+    # If negative, setting is precise and will disable onlt the specified code piece.
+    # If positive, each switch includes switches <= the specified switch.
+    # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
+    # 0=Baseline
+    # 1= +NoPostLoop
+    # 2= +NoGlobalRead
+    # 3= +NoLocalWrite
+    # 4= +NoLocalRead
+    # 5= +NoWait +NoSync
+    # 6= +NoMAC
+    # 7= +NoPreLoop+ NoGlobalReadInc
+    # 9= NullKernel
+    # For example set to DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
+    "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
+
+
+    # 0  : standard launch
+    # N>0 : launch persistent kernel with N workgroups per compute unit
+    "PersistentKernel":           range(0,10+1) ,       # Use persistent kernel.
+
 
     # Controls desiredwidth of loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
     #  1 cannot be used for half type.
-    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # threads should read/write/operate on this many contiguous elements. VW=4 on sgemm means read/write float4's.
-    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >128 bits isn't supported and should be faster
-    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8, 12, 16 ],
+    # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
+    "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
+
+    # Minimum guaranteed global store vector width
+    # Tensile will allocate additional VGPR in Global Store phase if needed to
+    # ensure that writes can be written with MinWriteVectorWidth.
+    # If requested global write vector width is larger than MinGlobalWriteVectorWidth,
+    # then additional
+    # or the granted gwvw == MinGlobalWriteVectorWidth.
+    # MinGlobalWriteVectorWidth=-1 chooses a sensible default of 2 for half and
+    # one for other types.
+    "MinGlobalWriteVectorWidth":      [-1, 1, 2, 4, 8 ],
+
+    "VectorStore":                    [False, True],
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
@@ -277,12 +328,15 @@ validParameters = {
     # So, each iteration through the summation loop, which has 4 actual subiterations, does 8 summation iterations, because each subgroup did 4; and when data is read from global memory the threads read 8 elements along the summation dimension.
     # DepthU = LoopUnroll * LocalSplitU = 4*2 in this case
     # it made more sense for the user to directly control LocalSplitU and DepthU, then derrive afterwards LoopUnroll=DepthU/LocalSplitU
+    # -1 : Only allow GLVW=1
+    # -2 : Only allow max(GLVWA,GLVWB) < VW ?
+    # -3 : Only allow min(GLVWA,GLVWB) < VW ?
     "DepthU":                     depthUs,
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2, 3, 4],
-    "LdsPadB":                     [ 0, 1, 2, 3, 4],
+    "LdsPadA":                     [ 0, 1, 2, 3, 4, 8],
+    "LdsPadB":                     [ 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
@@ -302,6 +356,10 @@ validParameters = {
     # BoundaryLoad: todo. use isa to set buffer/image load boundaries and out of bounds data automatically comes in as zero
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ], # None=don't guard against ou
 
+    # Group together unroll iterations inside the unroll loop.
+    # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
+    "InnerUnroll":                [1,2,4],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -315,20 +373,21 @@ defaultBenchmarkCommonParameters = [
     {"LoopDoWhile":               [ False ] },
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
+    {"InnerUnroll":               [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
-    {"LdsPadA":                    [ 0 ] },
-    {"LdsPadB":                    [ 0 ] },
+    {"LdsPadA":                   [ 0 ] },
+    {"LdsPadB":                   [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
-    # use 1 by default since this enables other important optimizations including:
-    # DirectToLds, preciseBoundsCheck, and useSgrpForGRO
+    {"MinGlobalWriteVectorWidth": [ -1 ] },
+    {"VectorStore":               [ True ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ True ] },
-    {"PrefetchLocalRead":         [ True ] },
+    {"PrefetchLocalRead":         [ 1 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
     {"GlobalRead2B":              [ True ] },
@@ -341,17 +400,23 @@ defaultBenchmarkCommonParameters = [
     {"DirectToLds":               [ True ] },
     {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
+    {"AssertSummationElementMultiple": [ 1 ] },
+
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
+    {"PersistentKernel":          [ 0 ] },
+    {"FractionalLoad":            [ 0 ] },
+
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
@@ -385,7 +450,9 @@ defaultProblemType = {
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "UseBeta":                  True,             # =True use beta parameter (asm will check for B=0 and optimize the write for that), =False don't use beta parameter
-    "HighPrecisionAccumulate":  False,            # this was the original plan for specifying f32 += f16*f16, but its possible that Accumulation/Internal precision and output precision should be their own DataTypes altogether.
+    "HighPrecisionAccumulate":  False,            # f32 += f16*f16
+    "SilentHighPrecisionAccumulate": False,       # Keep kernel names the same for HPA mode.  Useful for testing.
+
     "ComplexConjugateA":        False,            # complex data should be conjugated for "C" transpose case
     "ComplexConjugateB":        False,
 
@@ -681,6 +748,7 @@ class ProgressBar:
     self.priorValue = 0
     self.fraction = 0
     self.numTicks = 0
+    self.createTime = time.time()
 
   def increment(self):
     self.update(self.priorValue+1)
@@ -699,7 +767,8 @@ class ProgressBar:
     sys.stdout.write("[%-*s] %3d%%" \
         % (self.maxTicks, self.char*self.numTicks, self.fraction*100) )
     if self.numTicks == self.maxTicks:
-      sys.stdout.write("\n")
+      stopTime = time.time()
+      sys.stdout.write(" (%-.1f secs elapsed)\n"%(stopTime-self.createTime))
     sys.stdout.flush()
 
 # Append copyrights to all files generated by tensile since they belong to Tensile intellectual property

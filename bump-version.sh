@@ -1,18 +1,13 @@
 #!/bin/bash
 
-# the convention is master has even leading digit, and develop has odd leading digit
-#
-# Note that for changes in minor version number it may not be necessary to update
-# MinimumRequiredVersion in .yaml files, it may only be necessary to update __init__.py
-#
-# It is necessary to get the even number for master branch and Odd number for 
-# develop branch correct. This applies also to .yaml files
+# This script needs to be edited to bump version for new release.
+# Version will be bumped in Tensile/__init__.py and in .yaml files
 
-OLD_VERSION="5.0.1"
-NEW_VERSION="4.0.2"
+OLD_VERSION="4.1.1"
+NEW_VERSION="4.2.0"
 
-OLD_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 5.0.1"
-NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.0.2"
+OLD_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.1.1"
+NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.2.0"
 
 sed -i "s/${OLD_VERSION}/${NEW_VERSION}/g" Tensile/__init__.py
 

@@ -281,7 +281,7 @@ parallel hcc_ctu:
 {
   try
   {
-    node( 'docker && rocm && jenkins-rocm-0' )
+    node( 'docker && rocm && gfx900' )
     {
       def docker_args = new docker_data(
           from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
@@ -318,7 +318,7 @@ parallel hcc_ctu:
 },
 hcc_rocm:
 {
-  node( 'docker && rocm && jenkins-rocm-2' )
+  node( 'docker && rocm && gfx900' )
   {
     def hcc_docker_args = new docker_data(
         from_image:'rocm/rocm-terminal:1.7.1',

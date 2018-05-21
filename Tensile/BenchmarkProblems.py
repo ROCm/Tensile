@@ -18,7 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-import os
+import os, sys
 from copy import deepcopy
 from copy import copy as shallowcopy
 from shutil import copy as shutil_copy
@@ -44,6 +44,8 @@ import YAMLIO
 ################################################################################
 def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     problemSizeGroupIdx ):
+
+  benchmarkTestFails = 0
 
   # convert config to full benchmark process (resolves defaults)
   print1("")
@@ -239,7 +241,12 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         solution = solutionsForHardcoded[j]
         solutionList.append(solution)
     if len(solutionList) == 0:
-        printExit("Your parameters resulted in 0 valid solutions.\nYou should re-run with \"PrintSolutionRejectionReason: True\" to see why each parameter combination was rejected.")
+        msg = "Your parameters resulted in 0 valid solutions."
+        if globalParameters["PrintSolutionRejectionReason"]:
+            msg += "\nExamine reject and backtrace messages above to see why and where solutions were rejected."
+        else:
+            msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\" to see why each parameter combination was rejected."
+        printExit(msg)
     if globalParameters["PrintLevel"] >= 1:
       for i in range(0, len(solutions)):
         solutionsForHardcoded = solutions[i]
@@ -281,7 +288,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       process = Popen(runScriptName, cwd=globalParameters["WorkingPath"])
       process.communicate()
       if process.returncode:
-        printWarning("Benchmark Process exited with code %u" % process.returncode)
+        benchmarkTestFails += 1
+        printWarning("BenchmarkProblems: Benchmark Process exited with code %u" % process.returncode)
       popWorkingPath() # build
     else:
       print1("# Already benchmarked; skipping.")
@@ -309,7 +317,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         % (HR, problemSizeGroupName, shortName, elapsedTime, HR))
 
   popWorkingPath() # ProblemType
-  return resultsFileBaseFinal
+  return (resultsFileBaseFinal, benchmarkTestFails)
 # End benchmarkProblemType()
 
 
@@ -622,6 +630,7 @@ def main( config ):
       globalParameters["BenchmarkDataPath"])
   pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
   ensurePath(dataPath)
+  totalTestFails = 0
   for benchmarkProblemTypeConfig in config:
     problemTypeConfig = benchmarkProblemTypeConfig[0]
     if len(benchmarkProblemTypeConfig) < 2:
@@ -645,8 +654,10 @@ def main( config ):
           not os.path.exists(newResultsFileName):
 
         # Benchmark Problem Size Group
-        resultsFileBaseFinal = benchmarkProblemType(problemTypeConfig, \
+        (resultsFileBaseFinal, benchmarkErrors) = benchmarkProblemType(problemTypeConfig, \
             problemSizeGroupConfig, problemSizeGroupIdx)
+        totalTestFails += benchmarkErrors
+        print "totalTestFails=", totalTestFails
 
         # Copy Data
         resultsFileBase = resultsFileBaseFinal
@@ -658,3 +669,6 @@ def main( config ):
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
 
   popWorkingPath()
+
+  if globalParameters["ExitOnFails"] and totalTestFails:
+    sys.exit(1)

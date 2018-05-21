@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.0.2
+  MinimumRequiredVersion: 4.2.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -13,6 +13,7 @@ GlobalParameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
+  ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
 
 BenchmarkProblems:
   - # 7-D batched Image Convolution
@@ -54,7 +55,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

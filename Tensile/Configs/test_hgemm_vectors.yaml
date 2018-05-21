@@ -2,11 +2,12 @@ GlobalParameters:
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   PrintSolutionRejectionReason: False
-  MinimumRequiredVersion: 4.0.2
+  MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   DataInitTypeAB: 1
   DataInitTypeC: 1
+  ExitOnFails: 0  # Some solutions fail so just ensure we find one good solution
 
 BenchmarkProblems:
 
@@ -300,7 +301,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
