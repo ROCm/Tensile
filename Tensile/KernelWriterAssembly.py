@@ -3823,7 +3823,8 @@ class KernelWriterAssembly(KernelWriter):
               tmpLocalWriteAddr = self.vgprPool.checkOut(1)
             tmpSgpr = self.getTmpSgpr(1)
 
-            validWI = overhang*kernel[tP["lsc"]]
+            validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
+            #print "%s: overhang=%u element validWI=%u" % (tc, overhang, validWI)
             kStr += self.comment1("LastPerp.  overhang=%u, mask WI>%u" % (overhang, validWI))
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), validWI, \
                 "overhang=%u, validWI=%u" % (overhang, validWI))
