@@ -1799,6 +1799,7 @@ class KernelWriter:
       # assembler script
       assemblerFileName = path.join(globalParameters["WorkingPath"], \
           "asm.%s"%("bat" if osname=="nt" else "sh"))
+      asmOptions = "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])
       if not path.isfile(assemblerFileName):
         assemblerFile = open(assemblerFileName, "w")
         if osname == "nt":
@@ -1808,6 +1809,7 @@ class KernelWriter:
         else:
           assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
           assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
+          assemblerFile.write("# example: asm.sh kernelName %s\n"%(asmOptions))
           assemblerFile.write("f=$1\n")
           assemblerFile.write("shift\n")
           assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
@@ -1817,7 +1819,7 @@ class KernelWriter:
         chmod(assemblerFileName, 0777)
 
       # run assembler
-      assemblerCommand = [assemblerFileName, kernelName, "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])]
+      assemblerCommand = [assemblerFileName, kernelName, asmOptions]
       #print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, \
           cwd=globalParameters["WorkingPath"] )

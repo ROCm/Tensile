@@ -271,13 +271,14 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       f0 = os.path.join(sourceTmp, f)
       f1 = os.path.join(sourceDir, f)
       if os.path.isdir(f0):
-        print "cpDir:", f0, f1
+        #print "cpDir:", f0, f1
         if os.path.isdir(f1):
           shutil.rmtree( f1, True )
         shutil.copytree( f0, f1 )
       elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
-        print "cp:", f0, f1
+        #print "cp:", f0, f1
         shutil.copy( f0, f1 )
+    shutil.rmtree( srcTmp, True )
 
     popWorkingPath() # source
 
