@@ -1992,7 +1992,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # gsuSumIdx = wg1 % GSU
         # wg1       = wg1 / GSU
-        tmpSgpr = self.getTmpSgpr(2) # needs 3
+        tmpSgpr = self.getTmpSgpr(3) # needs 3
         divisor = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(divisor), sgpr("WorkGroup1"), \
             "copying for divisor")
@@ -2958,9 +2958,9 @@ class KernelWriterAssembly(KernelWriter):
     if tailLoop:
       kStr += "%s//numIter%s = (((size%s %% LOCAL_DEPTHU) + LOCAL_SPLITU - 1) / LOCAL_SPLITU)%s" \
           % (self.indent, self.unrollChar, self.unrollChar, self.endLine)
-      tmpSgpr = self.getTmpSgpr(2)
+      tmpSgpr = self.getTmpSgpr(4)
       # size % DepthU
-      kStr += scalarStaticDivideAndRemainder(tmpSgpr, "LoopCounters+%u"%loopIdx, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr, True)
+      kStr += scalarStaticDivideAndRemainder(tmpSgpr, "LoopCounters+%u"%loopIdx, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, True)
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
@@ -3823,7 +3823,8 @@ class KernelWriterAssembly(KernelWriter):
               tmpLocalWriteAddr = self.vgprPool.checkOut(1)
             tmpSgpr = self.getTmpSgpr(1)
 
-            validWI = overhang*kernel[tP["lsc"]]
+            validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
+            #print "%s: overhang=%u element validWI=%u" % (tc, overhang, validWI)
             kStr += self.comment1("LastPerp.  overhang=%u, mask WI>%u" % (overhang, validWI))
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), validWI, \
                 "overhang=%u, validWI=%u" % (overhang, validWI))
@@ -6025,6 +6026,9 @@ def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
 # only used for loop unroll and GlobalSplitU
 def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     doRemainder=True):
+
+  assert (qReg != tmpSgpr)
+
   kStr = ""
   if ((divisor & (divisor - 1)) == 0): # pow of 2
     divisor_log2 = log2(divisor)
@@ -6051,7 +6055,7 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
     magicHi = magic / (2**16)
     magicLo = magic & (2**16-1)
 
-    kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "hi = 0")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), hex(0), "STATIC_DIV: divisior=%s"%divisor)
     kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), hex(magicHi), sgpr(dReg), "tmp1 = dividend * magic hi")
     kStr += inst("s_lshl_b64", sgpr(tmpSgpr,2), sgpr(tmpSgpr,2), hex(16), "left shift 16 bits")
     kStr += inst("s_mul_i32", sgpr(qReg), sgpr(dReg), hex(magicLo), "tmp0 = dividend * magic lo")

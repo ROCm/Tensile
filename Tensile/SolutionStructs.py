@@ -844,9 +844,11 @@ class Solution:
   #   LSC*LSP is the elements loaded by a single instruction across all
   #   threads in the group.
   #   LSC is the number of elements loaded in the para(coalesced) dimension
+  #   LSP is the number of elements loaded in the perp(noncoalesced) dimension
   #   PerLoadTile is always rectangular.
   #   The area (LSC*LSP) can be larger than NumThreads. In this case, some
   #   threads will generate a dummy OOB GRO.
+  #
   # NumLoadsCoalesced and NumLoadsPerpendicular define the number of times the
   #   PerLoadTile is loaded in each dimension to fetch the LoadTile
   # LoadTile = (LSC * NumLoadsCoalesced) * (LSP * NumLoadsPerpendicular).
@@ -875,6 +877,7 @@ class Solution:
   def setGlobalLoadTileDimFractional(state, tc, depthU):
 
     assert(depthU > 0)
+    dbFract = 1
 
     # parDim, perpDim define the LoadTile and are measured in elements
     if state["ProblemType"]["TLU%s"%tc]:
@@ -884,11 +887,12 @@ class Solution:
       parDim  = depthU
       perpDim = state["MacroTile%s"%tc]
 
-    print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG02%u_%02u_%02u NumThreads=%u GRWV=%u" \
-        % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
-          parDim, perpDim, \
-          state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
-          state["NumThreads"], state["GlobalReadVectorWidth"])
+    if dbFract:
+      print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG02%u_%02u_%02u NumThreads=%u GRWV=%u" \
+          % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
+            parDim, perpDim, \
+            state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
+            state["NumThreads"], state["GlobalReadVectorWidth"])
 
     # Try to find a GRVW which is smaller than the LSC and also does not force
     # the LSC to wrap - both of these conditions can be tested with lsc % grvw ==0.
@@ -961,17 +965,34 @@ class Solution:
     assert(nlc*state["LSC%s"%tc] >= parDim)
     assert(nlp*state["LSP%s"%tc] >= perpDim)
 
-    # how many threads compute Global Read Offsets (GRO) that are not used
-    print "  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
-        % (state["LSC%s"%tc], state["LSP%s"%tc], \
-           nlc, nlp, \
-           nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
-           parDim, perpDim, \
-           parDim*perpDim, \
-           nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
-           (float)(parDim*perpDim) / \
-           (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0 \
-           )
+    if dbFract:
+      # how many threads compute Global Read Offsets (GRO) that are not used
+      print "  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
+          % (state["LSC%s"%tc], state["LSP%s"%tc], \
+             nlc, nlp, \
+             nlc*state["LSC%s"%tc], nlp*state["LSP%s"%tc], \
+             parDim, perpDim, \
+             parDim*perpDim, \
+             nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc], \
+             (float)(parDim*perpDim) / \
+             (float)(nlc*nlp*state["NumThreads"]*state["GlobalLoadVectorWidth%s"%tc]) * 100.0 \
+             )
+
+      for p in range(0,nlp):
+        elementWidth = 4
+        if p != nlp-1:
+          perp = state["LSP%s"%tc]
+        else:
+          perpOverhang = perpDim % state["LSP%s"%tc]
+          perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
+
+        validElements = state["LSC%s"%tc] * perp
+        print "  buffer_load_dwordx%u %ux%ux%u bytes,  %u/%u valid GRO" %\
+              (state["GlobalLoadVectorWidth%s"%tc], \
+              state["LSC%s"%tc], perp, \
+              elementWidth, \
+              validElements/state["GlobalLoadVectorWidth%s"%tc],
+              state["NumThreads"])
 
     return True
 
