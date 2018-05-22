@@ -278,7 +278,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
         #print "cp:", f0, f1
         shutil.copy( f0, f1 )
-    shutil.rmtree( srcTmp, True )
+    #shutil.rmtree( sourceTmp, True )
 
     popWorkingPath() # source
 
