@@ -2621,7 +2621,9 @@ class KernelWriterAssembly(KernelWriter):
   # tensor.  If so clip to the last legal value which is inside the array
   ##############################################################################
   def graShift(self, kernel, tP):
-    if kernel["PreciseBoundsCheck"]: return ""
+    # PBC doesn't shift pointers, uses a difference edge detect mechanism
+    # FractionalLoad maps addresses in a different way?
+    if kernel["PreciseBoundsCheck"] : return ""
 
     kStr = ""
     # edge value
@@ -2772,15 +2774,14 @@ class KernelWriterAssembly(KernelWriter):
 
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
-
                 print tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
                       "Strides%s="%tc
 
                 kStr += self.assert_vector_diff(vgpr("GlobalReadOffset%s+%u"%(tc,0)), \
                                                 vgpr("GlobalReadOffset%s+%u"%(tc,graIdx)), \
                                                 sgpr(scalarGro))
-              #-- End UseSgprForGRO
 
+              #-- End UseSgprForGRO
             # dump final offsets
             # BufferLoad flavor:
             #if tP["isA"]:
@@ -4683,7 +4684,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("_v_add_co_u32", vgpr(vReg), "vcc", vgpr(mvReg), vgpr(vReg), "vId = 2 components")
       self.vgprPool.checkIn(mvReg)
       self.vgprPool.checkIn(vRegD)
-    
+
     kStr += inst("v_cmp_eq_u32", sgpr(tmpSgpr,2), vgpr(thread), \
         vgpr(eReg), "mask" )
     kStr += inst("v_mov_b32", vgpr(tmpVgpr+0), sgpr(tmpSgpr+0), "")

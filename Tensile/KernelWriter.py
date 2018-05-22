@@ -122,10 +122,15 @@ class KernelWriter:
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
-        kStr += self.comment("global read addresses: shift a")
-        kStr += self.graShift(kernel, tensorParametersA)
-        kStr += self.comment("global read addresses: shift b")
-        kStr += self.graShift(kernel, tensorParametersB)
+        # don't shift if ASEM guarantees it is not needed:
+        noPartialA = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
+        noPartialB = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
+        if not noPartialA:
+            kStr += self.comment("global read addresses: shift a")
+            kStr += self.graShift(kernel, tensorParametersA)
+        if not noPartialB:
+            kStr += self.comment("global read addresses: shift b")
+            kStr += self.graShift(kernel, tensorParametersB)
       elif kernel["EdgeType"] == "Branch":
         kStr += self.comment("global read addresses: branch a")
         kStr += self.graBranch(kernel, tensorParametersA)
@@ -668,12 +673,21 @@ class KernelWriter:
       # Shift Vector Components
       ####################################
       if kernel["EdgeType"] == "ShiftPtr":
+
+        # noPartial means each component in the vector loads is always valid.  In this case we
+        # don't need the awkward unshift code
+        noPartialA = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
+        noPartialB = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
+        # TODO : the unshift code is complex and currently appears broken.  Long-term want to use
+        # the AssertSummationElementMultiple>glvw code as often as possible, or use buffer-load-x1
+        # in cases where it can't be used.  Then can remove this path.
+
         # shift vector components d0
-        if self.readTileDimVectorA and kernel["GlobalLoadVectorWidthA"] > 1:
+        if not noPartialA and self.readTileDimVectorA and kernel["GlobalLoadVectorWidthA"] > 1:
           kStr += self.comment("shift vector components d0")
           kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
-        if self.readTileDimVectorB and kernel["GlobalLoadVectorWidthB"] > 1:
+        if not noPartialB and self.readTileDimVectorB and kernel["GlobalLoadVectorWidthB"] > 1:
           kStr += self.comment("shift vector components d1")
           kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 
