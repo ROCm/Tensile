@@ -1131,6 +1131,11 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
     self.defineSgpr("AddressB", numSgprAddressB)
+    if kernel["FractionalLoad"]:
+      if kernel["fractionalPerpOverhangA"]:
+        self.defineSgpr("PerpOverhangVccA", 2, 2)
+      if kernel["fractionalPerpOverhangB"]:
+        self.defineSgpr("PerpOverhangVccB", 2, 2)
     if globalParameters["DebugKernel"]:
       self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
       self.defineSgpr("DebugKernelItems", 1)
@@ -2502,7 +2507,17 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
     self.vgprPool.checkIn(tmp)
-    #kStr += self.bomb(26) # bozo
+
+    if kernel["FractionalLoad"] and kernel["fractionalPerpOverhang%s"%tc]:
+      overhang = kernel["fractionalPerpOverhang%s"%tc]
+      validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
+      kStr += inst("s_mov_b32", sgpr("PerpOverhangVcc%s"%tc), validWI, \
+          "overhang=%u, validWI=%u" % (overhang, validWI))
+      kStr += inst("v_cmp_lt_u32", \
+          sgpr("PerpOverhangVcc%s"%tc,2),
+          vgpr("Serial"), \
+          sgpr("PerpOverhangVcc%s"%tc), \
+          "fractional-overhang: some wi write to harmless LDS location")
 
 
     return kStr
@@ -3816,8 +3831,7 @@ class KernelWriterAssembly(KernelWriter):
       for perp in range(0, tP["nrp"]):
         lwa = "LocalWriteAddr%s"%tc  # default
         if kernel["FractionalLoad"] and perp==tP["nrp"]-1:
-          perpDim = kernel["DepthU"] if tP["tlu"] else kernel[tP["mt"]]
-          overhang = perpDim % kernel[tP["lsp"]]
+          overhang = kernel["fractionalPerpOverhang%s"%tc]
           if overhang:
             # TODO - could optimize this code or perhaps save an sgpr pair with the wrap comparison
             if tmpLocalWriteAddr == -1:
@@ -3827,20 +3841,13 @@ class KernelWriterAssembly(KernelWriter):
             validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
             #print "%s: overhang=%u element validWI=%u" % (tc, overhang, validWI)
             kStr += self.comment1("LastPerp.  overhang=%u, mask WI>%u" % (overhang, validWI))
-            kStr += inst("s_mov_b32", sgpr(tmpSgpr), validWI, \
-                "overhang=%u, validWI=%u" % (overhang, validWI))
-            kStr += inst("v_cmp_lt_u32", \
-                "vcc", \
-                vgpr("Serial"), \
-                sgpr(tmpSgpr), \
-                "fractional-overhang: write to harmless LDS location")
-            kStr += inst("v_mov_b32", vgpr(tmpLocalWriteAddr), hex(self.LdsOOB), "")
+            #kStr += inst("v_mov_b32", vgpr(tmpLocalWriteAddr), hex(self.LdsOOB), "")
             kStr += inst("v_cndmask_b32", \
                         vgpr(tmpLocalWriteAddr), \
-                        vgpr(tmpLocalWriteAddr), \
+                        1.0, \
                         vgpr("LocalWriteAddr%s"%tc), \
-                         "vcc", \
-                         "Mask load so out-of-gr-tile bounds returns 0")
+                        sgpr("PerpOverhangVcc%s"%tc,2), \
+                        "Mask load so out-of-gr-tile bounds returns 0. Note 1.0f=0x3f80000 which is large non-neg int")
             lwa = tmpLocalWriteAddr
 
         for para in range(0, tP["nrc"]):

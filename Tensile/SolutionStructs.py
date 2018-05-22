@@ -965,6 +965,8 @@ class Solution:
     assert(nlc*state["LSC%s"%tc] >= parDim)
     assert(nlp*state["LSP%s"%tc] >= perpDim)
 
+    perpOverhang = perpDim % state["LSP%s"%tc]
+    state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
       # how many threads compute Global Read Offsets (GRO) that are not used
       print "  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used" \
@@ -983,7 +985,6 @@ class Solution:
         if p != nlp-1:
           perp = state["LSP%s"%tc]
         else:
-          perpOverhang = perpDim % state["LSP%s"%tc]
           perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
 
         validElements = state["LSC%s"%tc] * perp
