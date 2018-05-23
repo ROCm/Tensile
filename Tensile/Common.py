@@ -378,6 +378,9 @@ validParameters = {
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
     "InnerUnroll":                [1,2,4],
 
+    # Arrange elements in LDS so elements consec in U-dim are adjacent in LDS
+    "LocalDotLayout":             [1,2,4,8],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
