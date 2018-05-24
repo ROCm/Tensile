@@ -20,8 +20,9 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, pushWorkingPath, popWorkingPath, printExit, CHeader
+from Common import globalParameters, printExit, CHeader, ensurePath
 import abc
+import os
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
@@ -1731,18 +1732,19 @@ class KernelWriter:
 
     if kernel["KernelLanguage"] == "Assembly":
       # write assembly file to assembly directory
-      pushWorkingPath("assembly")
+      asmFilePath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
       kernelName = self.getKernelName(kernel)
-      fileBase = path.join(globalParameters["WorkingPath"], kernelName )
+      fileBase = path.join(asmFilePath, kernelName )
       assemblyFileName = "%s.s" % fileBase
       codeObjectFileName = "%s.co" % fileBase
       assemblyFile = open(assemblyFileName, "w")
       assemblyFile.write(fileString)
       assemblyFile.close()
+      #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
 
       if not globalParameters["CodeFromFiles"]:
         # bytearray script
-        bytearrayFileName = path.join(globalParameters["WorkingPath"],"insert_byte_array.py")
+        bytearrayFileName = path.join(asmFilePath,"insert_byte_array.py")
         if not path.isfile(bytearrayFileName):
           bytearrayFile = open(bytearrayFileName, "w")
           bytearrayFile.write('#!/usr/bin/env python\n\n')
@@ -1802,16 +1804,16 @@ class KernelWriter:
           bytearrayFile.write('      fileString += "};\\n"\n')
           bytearrayFile.write('    if byteIdx % 16 == 15:\n')
           bytearrayFile.write('      fileString += "\\n"\n\n')
-  
+
           bytearrayFile.write('  text_file = open("Kernels.cpp", "w")\n')
           bytearrayFile.write('  text_file.write("%s" % fileString)\n')
           bytearrayFile.write('  text_file.close()\n')
-  
+
           bytearrayFile.close()
           chmod(bytearrayFileName, 0777)
 
       # assembler script
-      assemblerFileName = path.join(globalParameters["WorkingPath"], \
+      assemblerFileName = path.join(asmFilePath, \
           "asm.%s"%("bat" if osname=="nt" else "sh"))
       asmOptions = "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])
       if not path.isfile(assemblerFileName):
@@ -1836,7 +1838,7 @@ class KernelWriter:
       assemblerCommand = [assemblerFileName, kernelName, asmOptions]
       #print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, \
-          cwd=globalParameters["WorkingPath"] )
+          cwd=asmFilePath )
       assemblerProcess.communicate()
       if assemblerProcess.returncode:
         printExit("Assembler process returned with code %u" \
@@ -1862,7 +1864,6 @@ class KernelWriter:
           if byteIdx % 16 == 15:
             fileString += "\n"
 
-      popWorkingPath() # assembly
 
       # read code-object file and convert to c++ representable uchar*
       # return string of code-object byte array

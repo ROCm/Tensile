@@ -23,7 +23,6 @@ from copy import deepcopy
 from copy import copy as shallowcopy
 import shutil
 from shutil import copy as shutil_copy
-from shutil import rmtree
 import filecmp
 import csv
 from subprocess import Popen

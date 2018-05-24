@@ -3836,7 +3836,6 @@ class KernelWriterAssembly(KernelWriter):
             # TODO - could optimize this code or perhaps save an sgpr pair with the wrap comparison
             if tmpLocalWriteAddr == -1:
               tmpLocalWriteAddr = self.vgprPool.checkOut(1)
-            tmpSgpr = self.getTmpSgpr(1)
 
             validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
             #print "%s: overhang=%u element validWI=%u" % (tc, overhang, validWI)
