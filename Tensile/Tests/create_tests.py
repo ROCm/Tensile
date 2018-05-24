@@ -1,7 +1,11 @@
+#!/usr/bin/python 
+
 # Create a test_py script for all test*yaml files in specified directory
-# usage: create_tests.py DIR_NAME
-# Create a test script that can be passed to pytest:
-# PYTHONPATH=. py.test -v Tensile//Tests/MY_TEST_DIR/
+# usage: create_tests.py TEST_DIR
+# Run from the Tensile/Tests directory, output script goes in the TEST_DIR/test_TEST_DIR.py
+
+# The directory containing the test script can be passed to pytest:
+# PYTHONPATH=. py.test -v Tensile/Tests/TEST_DIR/
 
 import glob, sys, os
 
