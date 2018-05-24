@@ -877,7 +877,7 @@ class Solution:
   def setGlobalLoadTileDimFractional(state, tc, depthU):
 
     assert(depthU > 0)
-    dbFract = 1
+    dbFract = 0
 
     # parDim, perpDim define the LoadTile and are measured in elements
     if state["ProblemType"]["TLU%s"%tc]:
@@ -919,7 +919,8 @@ class Solution:
         state["NumLoadsPerpendicular%s"%tc] = roundupRatio(perpDim , state["LSP%s"%tc])
 
       # Vector loads can't wrap to next P dim, so LSC must be divisible by vector elements;
-      print "  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw)
+      if dbFract:
+        print "  lsc search : lsc(%u) %% grvw(%u) = %u (?0)" % (state["LSC%s"%tc], grvw, state["LSC%s"%tc] % grvw)
       if state["LSC%s"%tc] % grvw == 0:
         bestVw = grvw
         # Try to shrink GRVW if possible while keeping same LSC and LSP:
@@ -932,7 +933,8 @@ class Solution:
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
-            print "  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc]
+            if dbFract:
+              print "  stepdown success (valid)elementsLoadedPerInst=", validElementsLoadedPerInst, "/", elementsLoadedPerInst, "grvw=", grvw, "lsc=", state["LSC%s"%tc]
             bestVw = grvw
           grvw /= 2
         break
@@ -948,8 +950,9 @@ class Solution:
 
     state["GlobalLoadVectorWidth%s"%tc] = bestVw
     if bestVw != state["GlobalReadVectorWidth"]:
-      print("  reducing GlobalLoadVectorWidth%s from %u to %u" \
-          % (tc, state["GlobalReadVectorWidth"], bestVw))
+      if dbFract:
+        print("  reducing GlobalLoadVectorWidth%s from %u to %u" \
+            % (tc, state["GlobalReadVectorWidth"], bestVw))
 
     # How many loads per threads in each dimension.
     # threads which are outside the global read tile bounds will be clipped

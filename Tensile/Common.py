@@ -93,6 +93,7 @@ globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue
 globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = False          # Print TensorC after computation
+globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
 # PrintMaxRows applies to dimensions where one row is printed per line

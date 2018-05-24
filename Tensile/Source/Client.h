@@ -812,21 +812,19 @@ bool benchmarkAllSolutionsForSize(
   for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
 
-
-    // copy data in language
-#if Tensile_RUNTIME_LANGUAGE_OCL
-    status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
-        sizeToCopy, initialC, 0, NULL, NULL);
-#else
-    status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
-#endif
-    tensileStatusCheck(status);
-
     // validate solution
     size_t numInvalids = 0;
     size_t numChecked = 0;
     TensileStatus callStatus = tensileStatusSuccess;
     if (numElementsToValidate) {
+      // copy data in language
+#if Tensile_RUNTIME_LANGUAGE_OCL
+      status = clEnqueueWriteBuffer(stream, static_cast<cl_mem>(deviceC), CL_TRUE, 0,
+          sizeToCopy, initialC, 0, NULL, NULL);
+#else
+      status = hipMemcpy(deviceC, initialC, sizeToCopy, hipMemcpyHostToDevice);
+#endif
+      tensileStatusCheck(status);
 
       // enqueue device solution
       callStatus = generatedCallToSolution( solutionIdx , sizes, minStrides, alpha, beta );
@@ -1033,28 +1031,30 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // print results to stdout
-    std::cout << std::setw(10) << std::fixed << std::setprecision(3)
-        << gflops*perfScaling << ", "
-        << std::setw(10) << std::fixed << std::setprecision(3)
-        << gflops << ", "
-        << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
-        << std::setw(9) << std::fixed << std::setprecision(3)
-        << timeNs * TensileTimer::reciprical_million << ", ";
-    if (numElementsToValidate) {
-      if (callStatus == tensileStatusSuccess)
-        std::cout << (numInvalids ? "FAILED" : "PASSED")
-          << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
-      else 
-        std::cout << "INVALID_KERNEL, ";
-    }
-    // device stats
-    std::cout << avgCoreClock << ", ";
-    std::cout << avgMemClock << ", ";
-    std::cout << avgTemp << ", ";
-    std::cout << avgFanSpeed << ", ";
+    if (newFastest || !printWinnersOnly) {
+      std::cout << std::setw(10) << std::fixed << std::setprecision(3)
+          << gflops*perfScaling << ", "
+          << std::setw(10) << std::fixed << std::setprecision(3)
+          << gflops << ", "
+          << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
+          << std::setw(9) << std::fixed << std::setprecision(3)
+          << timeNs * TensileTimer::reciprical_million << ", ";
+      if (numElementsToValidate) {
+        if (callStatus == tensileStatusSuccess)
+          std::cout << (numInvalids ? "FAILED" : "PASSED")
+            << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
+        else 
+          std::cout << "INVALID_KERNEL, ";
+      }
+      // device stats
+      std::cout << avgCoreClock << ", ";
+      std::cout << avgMemClock << ", ";
+      std::cout << avgTemp << ", ";
+      std::cout << avgFanSpeed << ", ";
 
-    std::cout << solutionIdx << "/" << numSolutions << ", ";
-    std::cout << std::endl;
+      std::cout << solutionIdx << "/" << numSolutions << ", ";
+      std::cout << std::endl;
+    }
 
     // write results to file
     if (numInvalids > 0) {
