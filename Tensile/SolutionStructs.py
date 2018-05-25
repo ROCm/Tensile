@@ -1439,7 +1439,7 @@ class Solution:
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
       if numLoadsA + numLoadsB > 40:
-        print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
+        #print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["UseSgprForGRO"] = 0
       else:
         state["UseSgprForGRO"] = 1
