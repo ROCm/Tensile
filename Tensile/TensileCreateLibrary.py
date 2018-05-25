@@ -112,6 +112,27 @@ def processKernelSourceChunk(outputPath, kernels, kernelSourceFile, kernelHeader
 
     kLock.release()
 
+# create and prepare the assembly directory  - called ONCE per output dir:
+def prepAsm():
+  asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
+  assemblerFileName = os.path.join(asmPath, \
+      "asm.%s"%("bat" if os.name=="nt" else "sh"))
+  assemblerFile = open(assemblerFileName, "w")
+  if os.name == "nt":
+    assemblerFile.write("echo Windows: Copying instead of Assembling\n")
+    assemblerFile.write("copy %1.s %1.o\n")
+    assemblerFile.write("copy %1.o %1.co\n")
+  else:
+    assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
+    assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
+    assemblerFile.write("# example: asm.sh kernelName -mcpu=gfx900\n")
+    assemblerFile.write("f=$1\n")
+    assemblerFile.write("shift\n")
+    assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
+    assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa $@ -c -o $f.o $f.s\n")
+    assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
+  assemblerFile.close()
+  os.chmod(assemblerFileName, 0777)
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
@@ -152,24 +173,26 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
   kLock = threading.Lock()
   pLock = threading.Lock()
 
+  prepAsm()
+
   if globalParameters["CpuThreads"] == 0:
     cpus = 0
   elif globalParameters["CodeFromFiles"]:
     cpu_count = multiprocessing.cpu_count()
     cpus = cpu_count if globalParameters["CpuThreads"] == -1 \
            else min(cpu_count, globalParameters["CpuThreads"])
-  else:
+  else: #! CodeFromFiles is not thread-safe since code merged into same file
     cpus = 1
 
   workPerCpu = max(10, (len(kernels)+cpus-1)/cpus) if cpus else 1
-  print "cpus=%u workPerCpu=%u" % (cpus, workPerCpu)
+  print "info: cpus=%u kernelsPerCpu=%u" % (cpus, workPerCpu)
 
   kiStart = 0
   cpu = 0
   threads = []
   while kiStart < len(kernels):
     kiStop = min(len(kernels), kiStart + workPerCpu)
-    sys.stderr.write("cpu:%u process: %u-%u\n"% (cpu, kiStart, kiStop))
+    #sys.stderr.write("cpu:%u process kernels #%u-#%u\n"% (cpu, kiStart, kiStop))
 
     if cpus:
       args=(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
