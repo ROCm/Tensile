@@ -1060,6 +1060,8 @@ class Solution:
       state["MinGlobalWriteVectorWidth"] = 2 \
         if state["ProblemType"]["DataType"].isHalf() else 1
 
+
+
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
       state["Valid"] = False
@@ -1289,6 +1291,13 @@ class Solution:
         print1("Persistent only works on Source path")
       state["Valid"] = False
       return
+
+    if state["LdsPadA"] == -1:
+      state["LdsPadA"] = state["VectorWidth"]
+      assert(state["LdsPadA"] >= 0)
+    if state["LdsPadB"] == -1:
+      state["LdsPadB"] = state["VectorWidth"]
+      assert(state["LdsPadB"] >= 0)
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
