@@ -4441,7 +4441,7 @@ class KernelWriterAssembly(KernelWriter):
     tid0 = self.vgprPool.checkOut(1)
     tid1 = self.vgprPool.checkOut(1)
     tmpVgpr = self.vgprPool.checkOut(2)
-    tmpSgpr = self.getTmpSgpr(1)
+    tmpSgpr = self.getTmpSgpr(2)
     tmpS0 = tmpSgpr
     tmpS1 = tmpS0+1
 
@@ -4702,13 +4702,15 @@ class KernelWriterAssembly(KernelWriter):
     self.betaVgpr = None
     if kernel["ProblemType"]["DataType"].isHalf():
       self.alphaVgpr = self.vgprPool.checkOut(1, "alpha")
-      self.betaVgpr = self.vgprPool.checkOut(1, "beta")
       kStr += inst("v_mov_b32", vgpr(self.alphaVgpr), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
-      kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
+      if beta:
+        self.betaVgpr = self.vgprPool.checkOut(1, "beta")
+        kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
 #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
       if kernel["ProblemType"]["HighPrecisionAccumulate"]:
         kStr += inst("v_cvt_f32_f16", vgpr(self.alphaVgpr), vgpr(self.alphaVgpr), "convert alpha to fp32")
-        kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
+        if beta:
+          kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
 
     ########################################
     # Vgprs
