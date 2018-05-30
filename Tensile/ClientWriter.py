@@ -41,7 +41,7 @@ def main( config ):
   ##############################################################################
   # Copy Source Files
   ##############################################################################
-  pushWorkingPath("source2")
+  pushWorkingPath("source")
   filesToCopy = [
       "Client.cpp",
       "Client.h",

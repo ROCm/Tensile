@@ -66,6 +66,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
+globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
 
 ########################################
 # less common
@@ -98,8 +99,6 @@ globalParameters["PrintWinnersOnly"] = False      # Only print the solutions whi
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
 # PrintMaxRows applies to dimensions where one row is printed per line
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
-globalParameters["PrintMaxCols"] = -1             # Max number of cols to print. 
-globalParameters["PrintMaxRows"] = -1             # Max number of rows to print. 
 
 
 # device selection
@@ -703,15 +702,19 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 # store a WorkingPath where to write files (like benchmark files)
 ################################################################################
 def pushWorkingPath( foldername ):
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
   ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
 def ensurePath( path ):
   if not os.path.exists(path):
     os.makedirs(path)
+  return path
+
 
 ################################################################################
 # Is query version compatible with current version
@@ -751,8 +754,8 @@ class ProgressBar:
     self.numTicks = 0
     self.createTime = time.time()
 
-  def increment(self):
-    self.update(self.priorValue+1)
+  def increment(self, value=1):
+    self.update(self.priorValue+value)
 
   def update(self, value):
     currentFraction = 1.0 * value / self.maxValue

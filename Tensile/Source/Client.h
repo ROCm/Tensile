@@ -1031,7 +1031,7 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // print results to stdout
-    if (newFastest || !printWinnersOnly) {
+    if (newFastest || numInvalids>0 || !printWinnersOnly) {
       std::cout << std::setw(10) << std::fixed << std::setprecision(3)
           << gflops*perfScaling << ", "
           << std::setw(10) << std::fixed << std::setprecision(3)
