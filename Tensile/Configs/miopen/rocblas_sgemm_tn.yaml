@@ -112,7 +112,7 @@ BenchmarkProblems:
 
 LibraryLogic:
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
