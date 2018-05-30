@@ -335,8 +335,9 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2, 3, 4, 8],
-    "LdsPadB":                     [ 0, 1, 2, 3, 4, 8],
+    # -1 means use same padding as the VectorWidth
+    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
+    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),

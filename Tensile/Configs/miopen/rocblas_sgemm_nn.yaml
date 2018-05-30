@@ -1,0 +1,237 @@
+GlobalParameters:
+  MinimumRequiredVersion: 4.2.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 0
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  PinClocks: True
+  SleepPercent: 200
+  DataInitTypeBeta : 0
+  CodeFromFiles: 1
+  SolutionSelectionAlg: 1
+  PrintWinnersOnly: 1
+
+
+BenchmarkProblems:
+  ########################################
+  # NN - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+  ########################################
+  # NN - MI workloads (DeepBench, ResNet, etc)
+  ########################################
+    - # NN workloads
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - FractionalLoad: [1]
+        - PrefetchGlobalRead: [ False, True ]
+        - PrefetchLocalRead: [ True]
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 4 ]
+        - WorkGroup:
+          - [ 16, 8, 2 ]
+          - [ 16, 4, 4 ]
+          - [ 16,  8, 1 ]
+          - [ 8, 32, 1 ]
+          - [ 16, 16, 1 ]
+          - [ 32,  8, 1 ]
+        - GlobalSplitU: [1,3,5]
+        - WorkGroupMapping: [1,8,64]
+        - DepthU: [ 8,16,32 ]
+        - VectorWidth: [1,2,4]
+        - GlobalReadVectorWidth: [1,4]
+        - LdsPadB: [0, -1 ]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [  196,  256, 64, 1024 ]
+          - Exact: [  784,  512, 64,  128 ]
+          - Exact: [   49,  512, 64, 2048 ]
+          - Exact: [ 3136,  512,  1, 2048 ]
+          - Exact: [  196, 1024, 64,  256 ]
+          - Exact: [   49, 2048, 64,  512 ]
+          - Exact: [ 3136, 2048,  1,  512 ]
+          - Exact: [ 3025,  256, 64,   64 ]
+          - Exact: [ 3025,   64, 64,   64 ]
+          # additional ResNet sizes
+          - Exact: [ 1024,  256, 64,  196 ]
+          - Exact: [  256, 1024, 64,  196 ]
+          - Exact: [  512,  128, 64,  784 ]
+          - Exact: [ 2048,  512, 64,   49 ]
+          - Exact: [  256,   64, 64, 3136 ]
+          - Exact: [  512, 2048, 64,   49 ]
+          - Exact: [  128,  512, 64,  784 ]
+          - Exact: [  128,  256, 64, 3136 ]
+          - Exact: [   64,  256, 64, 3136 ]
+          - Exact: [  512, 1024, 64,  196 ]
+          - Exact: [  256,  512, 64,  784 ]
+          - Exact: [   64,   64, 64, 3136 ]
+
+          # DeepBench batch>1 conv sizes 
+          - Exact: [784, 64, 16, 192]
+          - Exact: [196, 192, 16, 512]
+          - Exact: [49, 256, 16, 832]
+          - Exact: [196, 256, 8, 256]
+          - Exact: [49, 512, 8, 512]
+          - Exact: [196, 256, 16, 256]
+          - Exact: [49, 512, 16, 512]
+          - Exact: [12544, 64, 8, 64]
+          - Exact: [3136, 256, 8, 64]
+          - Exact: [3136, 64, 8, 256]
+          - Exact: [784, 512, 8, 128]
+          - Exact: [784, 128, 8, 512]
+          - Exact: [196, 1024, 8, 256]
+          - Exact: [196, 256, 8, 1024]
+          - Exact: [196, 1024, 8, 256]
+          - Exact: [49, 2048, 8, 512]
+          - Exact: [49, 512, 8, 2048]
+          - Exact: [12544, 64, 16, 64]
+          - Exact: [3136, 256, 16, 64]
+          - Exact: [3136, 64, 16, 256]
+          - Exact: [784, 512, 16, 128]
+          - Exact: [784, 128, 16, 512]
+          - Exact: [196, 1024, 16, 256]
+          - Exact: [196, 256, 16, 1024]
+          - Exact: [196, 1024, 16, 256]
+          - Exact: [49, 2048, 16, 512]
+          - Exact: [49, 512, 16, 2048]
+
+            # Batch=1 sizes expanded from DeepBench 1x1
+          - Exact: [ 12544 , 64 , 1, 192 ]
+          - Exact: [ 3136 , 192 , 1, 512 ]
+          - Exact: [ 784 , 256 , 1, 832 ]
+          - Exact: [ 1568 , 256 , 1, 256 ]
+          - Exact: [ 392 , 512 , 1, 512 ]
+          - Exact: [ 3136 , 256 , 1, 256 ]
+          - Exact: [ 784 , 512 , 1, 512 ]
+          - Exact: [ 100352 , 64 , 1, 64 ]
+          - Exact: [ 25088 , 256 , 1, 64 ]
+          - Exact: [ 25088 , 64 , 1, 256 ]
+          - Exact: [ 6272 , 512 , 1, 128 ]
+          - Exact: [ 6272 , 128 , 1, 512 ]
+          - Exact: [ 1568 , 1024 , 1, 256 ]
+          - Exact: [ 1568 , 256 , 1, 1024 ]
+          - Exact: [ 1568 , 1024 , 1, 256 ]
+          - Exact: [ 392 , 2048 , 1, 512 ]
+          - Exact: [ 392 , 512 , 1, 2048 ]
+          - Exact: [ 200704 , 64 , 1, 64 ]
+          - Exact: [ 50176 , 256 , 1, 64 ]
+          - Exact: [ 50176 , 64 , 1, 256 ]
+          - Exact: [ 12544 , 512 , 1, 128 ]
+          - Exact: [ 12544 , 128 , 1, 512 ]
+          - Exact: [ 3136 , 1024 , 1, 256 ]
+          - Exact: [ 3136 , 256 , 1, 1024 ]
+          - Exact: [ 3136 , 1024 , 1, 256 ]
+          - Exact: [ 784 , 2048 , 1, 512 ]
+          - Exact: [ 784 , 512 , 1, 2048 ]
+
+
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - ProblemSizes:
+          - Exact: [ 5504, 5504, 1, 3104 ]
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+          - [ 8, 8, 4 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1, 2, 4, 8]
+        - DepthU: [ 8, 16, 32 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+        - MacroTile
+        - GlobalSplitU
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ]
+
+  ########################################
+  # NN - VectorWidth Correctness
+  ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+        - WorkGroup:
+          - [ 4, 4, 4 ]
+        - GlobalSplitU: [2, 4, 8]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [4], [1], [3104] ] # corner
+          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
+
+
+LibraryLogic:
+    ScheduleName: "vega10"
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
+    ArchitectureName: "gfx900"
+
+#   ScheduleName: "mi25"
+#   DeviceNames: ["Device 6860"]
+#   ArchitectureName: "gfx900"
+
+#   ScheduleName: "r9nano"
+#   DeviceNames: ["Device 7300"]
+#   ArchitectureName: "gfx803"
+
+#   ScheduleName: "hip"
+#   DeviceNames: ["Device 0000"]
+#   ArchitectureName: "fallback"
+
+LibraryClient:

@@ -1064,6 +1064,8 @@ class Solution:
       state["MinGlobalWriteVectorWidth"] = 2 \
         if state["ProblemType"]["DataType"].isHalf() else 1
 
+
+
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
       state["Valid"] = False
@@ -1294,6 +1296,13 @@ class Solution:
       state["Valid"] = False
       return
 
+    if state["LdsPadA"] == -1:
+      state["LdsPadA"] = state["VectorWidth"]
+      assert(state["LdsPadA"] >= 0)
+    if state["LdsPadB"] == -1:
+      state["LdsPadB"] = state["VectorWidth"]
+      assert(state["LdsPadB"] >= 0)
+
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
     ldsNumElementsA = state["DepthU"]*(state["MacroTile0"]+state["LdsPadA"])
     ldsNumElementsAlignedA = ((ldsNumElementsA+ldsAlign-1)/ldsAlign)*ldsAlign
@@ -1443,7 +1452,7 @@ class Solution:
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
       if numLoadsA + numLoadsB > 40:
-        print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
+        #print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["UseSgprForGRO"] = 0
       else:
         state["UseSgprForGRO"] = 1
