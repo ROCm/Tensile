@@ -685,7 +685,7 @@ class Solution:
     if "MacroTile" in state:
       if state["MacroTile0"] != state["MacroTile"][0] \
           or state["MacroTile1"] != state["MacroTile"][1]:
-        state["Valid"] = False
+        reject(state, "MacroTile mismatch")
 
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
@@ -991,7 +991,7 @@ class Solution:
           perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
 
         validElements = state["LSC%s"%tc] * perp
-        print "  buffer_load_dwordx%u %ux%ux%u bytes,  %u/%u valid GRO" %\
+        print "  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
               (state["GlobalLoadVectorWidth%s"%tc], \
               state["LSC%s"%tc], perp, \
               elementWidth, \
@@ -1013,6 +1013,7 @@ class Solution:
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
+      print1("in assignDerivedParameters, state['Valid'] = False")
       return
 
     if state["ProblemType"]["Tensor0"]==0:
@@ -1068,12 +1069,11 @@ class Solution:
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
-      state["Valid"] = False
+      reject(state, "VW * DataType.numBytes() > 16")
 
     if state["GlobalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - GRVW too big
-      state["Valid"] = False
-
+      reject(state, "GRVW * DataType.numBytes() > 16")
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
@@ -1271,7 +1271,7 @@ class Solution:
           continue
         # give up
         else:
-          state["Valid"] = False
+          reject(state, "No valid DepthU found")
           return
     ########################################
     # end DepthU loop
@@ -1315,7 +1315,7 @@ class Solution:
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
     # Some of these might become 0?
-    if 0:
+    if 1:
       print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
             pvar(state, "LVCB"), pvar(state, "LVPB")
 
@@ -1326,8 +1326,7 @@ class Solution:
       return
 
     if state["KernelLanguage"] == "Assembly" and state["PersistentKernel"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("Persistent only works on Source path")
+      reject(state, "Persistent only works on Source path")
       state["Valid"] = False
       return
 
