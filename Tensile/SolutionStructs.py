@@ -1136,6 +1136,9 @@ class Solution:
     while True: # exit criteria at end
       validDepthU = True
 
+      if depthU % (state["PrefetchLocalRead"]+1) != 0:
+        validDepthU = False
+
       # how many elements to load
       if state["ProblemType"]["TLUA"]:
         totalElementsCoalescedA = state["MacroTile0"]
@@ -1167,6 +1170,8 @@ class Solution:
           validDepthU = False
         if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
           validDepthU = False
+
+
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
       totalVectorsCoalescedA = totalElementsCoalescedA / state["GlobalReadVectorWidth"]

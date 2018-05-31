@@ -193,7 +193,7 @@ validParameters = {
     "GlobalReadCoalesceVectorB":  [        True ],
 
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ 0,1 ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
+    "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
