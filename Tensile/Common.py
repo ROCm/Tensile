@@ -378,7 +378,9 @@ validParameters = {
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
     "InnerUnroll":                [1,2,4],
 
-    # Arrange elements in LDS so elements consec in U-dim are adjacent in LDS
+    # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
+    # 1 is default and results in no interleaving.
+    # Implementation only supports LocalDotLayout that is a power-of-two
     "LocalDotLayout":             [1,2,4,8],
 
     # Kernels should be written in assembly or source
@@ -395,6 +397,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
     {"InnerUnroll":               [ 1 ] },
+    {"LocalDotLayout":            [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },

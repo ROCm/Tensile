@@ -318,7 +318,7 @@ class KernelWriterAssembly(KernelWriter):
     # 0x8 = waitcnt at self.wait() for localRead
     self.db["ConservativeWaitCnt"] = 0x0
 
-    self.db["InitLds"]     = False  # Initialize LDS at start of kernel
+    self.db["InitLds"]     = True  # Initialize LDS at start of kernel
     self.printedAssertCnt  = 0
     self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
 
@@ -2712,19 +2712,59 @@ class KernelWriterAssembly(KernelWriter):
     else:
       destVgpr = "LocalWriteAddr%s"%tc
 
+    if kernel["LocalDotLayout"] > 1:
+
+      # tmp = grow/ldl + grow%ldl
+      kStr += inst("v_lshrrev_b32", \
+          vgpr(destVgpr), \
+          hex(log2(kernel["LocalDotLayout"])), \
+          vgpr(uReg), \
+          "global-row /= LocalDotLayout")
+      growReg = destVgpr
+    else:
+      growReg = uReg
+
     kStr += inst("v_mul_u32_u24", \
         vgpr(destVgpr), \
         hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
-        vgpr(uReg), \
+        vgpr(growReg), \
         "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    #jgolds which bpe here? assuming tP
-    kStr += inst("_v_add_lshl_u32", \
-        vgpr(destVgpr), \
-        vgpr(tP["gpr"]["lwoT"]), \
-        vgpr(destVgpr), \
-        hex(log2(tP["bpe"])), \
-        "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
-        % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
+    if kernel["LocalDotLayout"] > 1:
+      ldlOffsetVgpr = self.vgprPool.checkOut(1)
+      kStr += inst("v_and_b32", \
+          vgpr(ldlOffsetVgpr), \
+          kernel["LocalDotLayout"]-1, \
+          vgpr(uReg), \
+          "uReg & LDL")
+      kStr += inst("_v_add_co_u32", \
+          vgpr(destVgpr), \
+          "vcc", \
+          vgpr(destVgpr), \
+          vgpr(ldlOffsetVgpr), \
+          "add scraps from LDL masking")
+      kStr += inst("v_lshl_add_u32", \
+          vgpr(destVgpr), \
+          vgpr(tP["gpr"]["lwoT"]), \
+          hex(log2(kernel["LocalDotLayout"])), \
+          # 0, \
+          vgpr(destVgpr), \
+          "+= lw%s * LDL" % (tc))
+      kStr += inst("v_lshlrev_b32", \
+          vgpr(destVgpr), \
+          hex(log2(tP["bpe"])), \
+          vgpr(destVgpr), \
+          " *= bpe")
+      self.vgprPool.checkIn(ldlOffsetVgpr)
+      #kStr += self.bomb(-40)
+    else:
+      kStr += inst("_v_add_lshl_u32", \
+          vgpr(destVgpr), \
+          vgpr(tP["gpr"]["lwoT"]), \
+          vgpr(destVgpr), \
+          hex(log2(tP["bpe"])), \
+          "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
+          % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
+
     if tP["isB"]:
       kStr += inst("_v_add_co_u32", \
           vgpr(destVgpr), \
@@ -2782,50 +2822,9 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Local Write Addresses: Final Offsets A/B
-  # initially assume write offsets fit into 8-bits
   ##############################################################################
   def lwaFinalOffsets(self, kernel, tP):
     return self.comment("N/A")
-    kStr = ""
-    for perp in range(0, tP["nrp"]):
-      for para in range(0, tP["nrc"]):
-        for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
-          lscaOffset = para * kernel[tP["lsc"]]
-          lspaOffset = perp * kernel[tP["lsp"]]
-          sPara = 0
-          sPerp = 0
-          if tP["wtc"]:
-            sPerp = s
-            lscaOffset += s
-          elif tP["wuc"]:
-            sPara = s
-            lspaOffset += s # * VW could go here, check transpose options
-          if tP["tlu"]:
-            lspaOffset *= kernel[tP["mt"]]
-            #lspa *= tP["glvw"]
-          else:
-            lscaOffset *= kernel[tP["mt"]]
-          if tP["tlu"] == tP["grcv"]:
-            lspaOffset *= tP["glvw"]
-          offset = lspaOffset + lscaOffset
-#jgolds which bpe here? assuming tP
-          offset *= tP["bpe"]
-          offset /= tP["localWriteInstruction"].offsetMultiplier
-          kStr += "%slwo%s_%u_%u_%u_%u = (%s%d*%s)" \
-              % (self.commentPrefix, tP["tensorChar"], \
-              para, sPara, perp, sPerp, \
-              (("%u + "%sPara) if tP["wtc"] else ""), \
-              para, tP["lsc"] )
-          if not tP["tlu"]:
-            kStr += "*MT%s+PAD" % (tP["tileChar"])
-          kStr += " + (%s%d*%s)" % (
-              (("%u + "%sPerp) if tP["wuc"] else ""), perp, \
-              tP["lsp"])
-          if tP["tlu"]:
-            kStr += "*MT%s+PAD" % (tP["tileChar"])
-          kStr += " = %u%s%s" % (offset, self.commentSuffix, self.endLine)
-
-    return kStr
 
   ##############################################################################
   # Local Write Addresses: Declare Addresses A/B
@@ -3736,24 +3735,61 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Calculate offset to use for LDS write
-  ##############################################################################
+  # Intro:
+  #   Each WI has a 2D tile index (coal, perp).
+  #     - Code above computes global mem address by scaling one dim by the
+  #       lda and adding the other.
+  #     - Here we compute a linear LDS offset by scaling one dim by the MT
+  #       dim and adding the other.
+  #   Result is we map a tile from global memory into LDS.  Consecutive LDS
+  #   locations contain elements from different summation 'rows' - therefore
+  #   loading a row of LDS will feed computations for different C tile indices.
+  #   LocalDotLayout>1 will place N elements from same summation 'row' in
+  #   adjacent dims, which is handy for feeding dot instructions.
+  # Notes:
+  #   Total load insts is nrc * nrp which load the macro-tile.
+  #   Par and coalesced are ~synonyms referring to same dimension
+  #   Either nrpv or nrvc must be 1 - can't have vectors in both dimensions.
+  #     Thus either sPerp or sPara is 0.
+  # Inputs:
+  #   perp : index of the load in perp dimension (0...nrp)
+  #   par  : index of the load in the para dim (0...nrc)
+  #   sPerp : component index of the perp vector (0...nrpv)
+  #   sPara : component index of the par vector (0...nrcv)
+  # Outputs:
+  #   offsetBytes : Offset in bytes for the ds_write instruction
+  #   i : ?
+  #   comment : Comment with the text version of the formula
+  #############################################################################
   def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP):
     tc = tP["tensorChar"]
-    #print "  ", "perp", perp, "para", para, "s", s
     lscaOffset = para * kernel[tP["lsc"]]
     lspaOffset = perp * kernel[tP["lsp"]]
+
+    # Add component offset to interleave from different regs
+    # and compute mysterious "i"
+    assert(sPerp==0 or sPara==0)
     if tP["tlu"]:
-      if tP["wtc"] == tP["grcv"]:
-        lspaOffset += sPerp
-      elif tP["wuc"] == tP["grcv"]:
-        lscaOffset += sPara
+      lspaOffset += sPerp
+      lscaOffset += sPara
       i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
     else:
-      if tP["wtc"] == tP["grcv"]:
-        lscaOffset += sPara
-      elif tP["wuc"] == tP["grcv"]:
-        lspaOffset += sPerp
+      lscaOffset += sPara
+      lspaOffset += sPerp
       i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
+
+
+    if kernel["LocalDotLayout"] > 1:
+      # apply interleave for LocalDot:
+      # Else they complement the address calculation to place adjacent-in-u data
+      # so adjacent-in-lds.
+      print "  ", tc, ": perp", perp, "para", para , "sPerp=", sPerp, "sPara=", sPara, \
+            "wtc=", tP["wtc"], "wuc=", tP["wuc"], "grcv=", tP["grcv"], \
+            "lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
+      spacing = tP["glvw"]
+      lscaOffset += (lspaOffset % spacing) * kernel["LocalDotLayout"]
+      lspaOffset /= spacing
+      print "    After LDL: lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
 
     #if not tP["tlu"]:
     #  tmp = sPara
@@ -3778,8 +3814,6 @@ class KernelWriterAssembly(KernelWriter):
     #print "offsetElements", offsetElements
     offsetBytes = offsetElements*tP["bpe"]
     #print "offsetBytes", offsetBytes
-    #offset = offsetBytes*offsetMultiplier
-    offset = offsetBytes*1
     #print "offset", offset
 
     comment = "lwo%s_%u_%u_%u_%u = (%s%d*%s)" \
@@ -3794,9 +3828,9 @@ class KernelWriterAssembly(KernelWriter):
         tP["lsp"])
     if tP["tlu"]:
       comment += "(*MT%s+PAD)" % (tP["tileChar"])
-    comment += " = %u" % (offset)
+    comment += " = %u" % (offsetBytes)
 
-    return (offset, i, comment)
+    return (offsetBytes, i, comment)
 
 
   ##############################################################################
@@ -3840,14 +3874,12 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["FractionalLoad"] and perp==tP["nrp"]-1:
           overhang = kernel["fractionalPerpOverhang%s"%tc]
           if overhang:
-            # TODO - could optimize this code or perhaps save an sgpr pair with the wrap comparison
             if tmpLocalWriteAddr == -1:
               tmpLocalWriteAddr = self.vgprPool.checkOut(1)
 
             validWI = overhang*kernel[tP["lsc"]]/tP["glvw"]
             #print "%s: overhang=%u element validWI=%u" % (tc, overhang, validWI)
             kStr += self.comment1("LastPerp.  overhang=%u, mask WI>%u" % (overhang, validWI))
-            #kStr += inst("v_mov_b32", vgpr(tmpLocalWriteAddr), hex(self.LdsOOB), "")
             kStr += inst("v_cndmask_b32", \
                         vgpr(tmpLocalWriteAddr), \
                         1.0, \
@@ -3909,7 +3941,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_barrier", "temp debug wait to check sync issue" )
 
     #if 1 and tP["isB"]:
-    if 0 and self.localWriteDoCnt >= 2:
+    if 1 and self.localWriteDoCnt >= 0:
       kStr += inst("s_barrier", "dump LDS" )
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
       kStr += self.bomb(105)
