@@ -1,4 +1,4 @@
-# NN Case
+          # DeepBench GEMM NN Large N>=700 cases)
           - Exact: [ 1760 , 7000 , 1, 1760 ]
           - Exact: [ 2048 , 7000 , 1, 2048 ]
           - Exact: [ 2560 , 7000 , 1, 2560 ]

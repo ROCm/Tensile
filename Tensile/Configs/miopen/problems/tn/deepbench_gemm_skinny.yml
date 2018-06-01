@@ -1,3 +1,4 @@
+          # DeepBench GEMM training TN Skinny N<700 cases)
           - Exact: [ 1760 , 16 , 1, 1760 ]
           - Exact: [ 1760 , 32 , 1, 1760 ]
           - Exact: [ 1760 , 64 , 1, 1760 ]
