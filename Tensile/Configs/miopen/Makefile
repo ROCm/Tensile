@@ -13,7 +13,7 @@ TYPE=sgemm
 # Explore level 0..9 - higer level indicates more intensive search.
 #  Only 3,5,7 supported.
 #  Exact solutions are defined in the specified solution file.
-EXPLORE_LEVEL=3
+EXPLORE_LEVEL=5
 
 # SOLUTION_LARGE is used for large matrix type
 SOLUTION_LARGE=solutions/$(TYPE)_large_explore_$(EXPLORE_LEVEL).yml

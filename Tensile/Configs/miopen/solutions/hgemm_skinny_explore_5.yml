@@ -29,7 +29,7 @@
         - GlobalSplitU: [1]
         - WorkGroupMapping: [1,8,64]
         - DepthU: [ 8,16,32 ]
-        - VectorWidth: [2,4,8]
+        - VectorWidth: [4,8]
         - GlobalReadVectorWidth: [1,8]
         - LdsPadB: [0, -1 ]
       BenchmarkForkParameters:
