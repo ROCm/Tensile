@@ -1302,10 +1302,10 @@ class Solution:
       return
 
     if state["LdsPadA"] == -1:
-      state["LdsPadA"] = state["VectorWidth"]
+      state["LdsPadA"] = 0 if state["ProblemType"]["TLUA"] else state["VectorWidth"]
       assert(state["LdsPadA"] >= 0)
     if state["LdsPadB"] == -1:
-      state["LdsPadB"] = state["VectorWidth"]
+      state["LdsPadB"] = 0 if state["ProblemType"]["TLUB"] else state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
 
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
