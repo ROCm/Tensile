@@ -1,5 +1,5 @@
 P=problems
-DEEPBENCH_1x1_ALL=$P/nn/deepbench_1x1_batchN.yml $P/nn/deepbench_1x1_batch1.yml
+DEEPBENCH_CONV_1x1=$P/nn/deepbench_conv_1x1_batchN.yml $P/nn/deepbench_conv_1x1_batch1.yml
 RESNET=$P/nn/resnet50_batch64.yml
 
 # commonly-used headers and footers:
@@ -24,13 +24,14 @@ SOLUTION_SKINNY=solutions/$(TYPE)_skinny_explore_$(EXPLORE_LEVEL).yml
 # Targets specify different collections of solutions + problems
 
 all: \
+	$(TYPE)_deepbench_conv1x1.yaml \
 	$(TYPE)_deepbench_gemm_nn.yaml \
 	$(TYPE)_deepbench_gemm_nt.yaml \
 	$(TYPE)_deepbench_gemm_tn.yaml
 
 # DeepBench Convolution:
-rocblas_$(TYPE)_nn.yaml: $(HEADER) types/$(TYPE)_nn.yml \
-	solutions/$(TYPE)_skinny_explore.yml $(DEEPBENCH_1x1_ALL) \
+$(TYPE)_deepbench_conv1x1.yaml: $(HEADER) types/$(TYPE)_nn.yml \
+	$(SOLUTION_SKINNY) $(DEEPBENCH_CONV_1x1) \
 	$(FOOTER)
 
 # DeepBench GEMM
