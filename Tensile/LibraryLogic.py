@@ -1074,9 +1074,9 @@ class LogicAnalyzer:
 
     # update exact Winners
     for problemSize in self.exactWinners:
-      print "prune updating exacWinnert", problemSize, \
-              "from ", self.exactWinners[problemSize][0], \
-              "to ", solutionMapOldToNew[self.exactWinners[problemSize][0]]
+      #print "prune updating exacWinner", problemSize, \
+      #        "from ", self.exactWinners[problemSize][0], \
+      #        "to ", solutionMapOldToNew[self.exactWinners[problemSize][0]]
       self.exactWinners[problemSize][0] = \
           solutionMapOldToNew[self.exactWinners[problemSize][0]]
       if self.exactWinners[problemSize][0] == -1:
