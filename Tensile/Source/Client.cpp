@@ -69,7 +69,7 @@ int main( int argc, char *argv[] ) {
           deviceOnHostC_float);
 #else
       invalids = callLibrary(initialC_float, initialA_float, initialB_float,
-          alpha_float, beta_float, referenceC_float, deviceOnHostC_float);
+          alpha_float, beta_float, strideA, strideB, strideC, referenceC_float, deviceOnHostC_float);
 #endif
     }
     destroyData(initialC_float, initialA_float, initialB_float,
@@ -95,7 +95,7 @@ int main( int argc, char *argv[] ) {
           deviceOnHostC_double);
 #else
       invalids = callLibrary(initialC_double, initialA_double, initialB_double,
-          alpha_double, beta_double, referenceC_double, deviceOnHostC_double);
+          alpha_double, beta_double, strideA, strideB, strideC, referenceC_double, deviceOnHostC_double);
 #endif
     }
     destroyData(initialC_double, initialA_double, initialB_double,
@@ -120,7 +120,7 @@ int main( int argc, char *argv[] ) {
           alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
 #else
       invalids = callLibrary(initialC_TCF, initialA_TCF, initialB_TCF,
-          alpha_TCF, beta_TCF, referenceC_TCF, deviceOnHostC_TCF);
+          alpha_TCF, beta_TCF, strideA, strideB, strideC, referenceC_TCF, deviceOnHostC_TCF);
 #endif
     }
     destroyData(initialC_TCF, initialA_TCF, initialB_TCF, referenceC_TCF,
@@ -145,7 +145,7 @@ int main( int argc, char *argv[] ) {
           alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
 #else
       invalids = callLibrary(initialC_TCD, initialA_TCD, initialB_TCD,
-          alpha_TCD, beta_TCD, referenceC_TCD, deviceOnHostC_TCD);
+          alpha_TCD, beta_TCD, strideA, strideB, strideC, referenceC_TCD, deviceOnHostC_TCD);
 #endif
     }
     destroyData(initialC_TCD, initialA_TCD, initialB_TCD, referenceC_TCD,
@@ -170,7 +170,7 @@ int main( int argc, char *argv[] ) {
           alpha_TH, beta_TH, referenceC_TH, deviceOnHostC_TH);
 #else
       invalids = callLibrary(initialC_TH, initialA_TH, initialB_TH,
-          alpha_TH, beta_TH, referenceC_TH, deviceOnHostC_TH);
+          alpha_TH, beta_TH, strideA, strideB, strideC, referenceC_TH, deviceOnHostC_TH);
 #endif
     }
     destroyData(initialC_TH, initialA_TH, initialB_TH, referenceC_TH,
