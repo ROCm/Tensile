@@ -443,7 +443,7 @@ bool callLibrary(
 
     // call reference function
     TensileStatus referenceStatus = generatedCallToReferenceCPU( userSizes, minStrides, referenceC,
-        initialA, initialB,
+        initialA, initialB, strideA, strideB, strideC,
         alpha, beta, useHighPrecisionAccumulate);
 
     // call device function
@@ -831,7 +831,7 @@ bool benchmarkAllSolutionsForSize(
         validationStride = 0;
       }
     }
-    generatedCallToReferenceCPU( sizes, minStrides, referenceC, initialA, initialB,
+    generatedCallToReferenceCPU( sizes, minStrides, referenceC, initialA, initialB, strideA, strideB, strideC,
         alpha, beta, useHighPrecisionAccumulate);
 
   }

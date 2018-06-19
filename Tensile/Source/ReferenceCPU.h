@@ -35,6 +35,9 @@ TensileStatus tensileReferenceCPU(
     Type *dataC,
     const Type *dataA,
     const Type *dataB,
+    const unsigned int stride_a,
+    const unsigned int stride_b,
+    const unsigned int stride_c,
     Type alpha,
     Type beta,
     unsigned int totalIndices,
@@ -82,7 +85,9 @@ TensileStatus tensileReferenceCPU(
   for (unsigned int i = 1; i < numIndicesC; i++) {
     stridesC[i] = stridesC[i-1] * strides[i-1];
   }
-
+  if (stride_a != std::numeric_limits<unsigned int>::max())  stridesA[2] = stride_a;
+  if (stride_b != std::numeric_limits<unsigned int>::max())  stridesB[2] = stride_b;
+  if (stride_c != std::numeric_limits<unsigned int>::max())  stridesC[2] = stride_c;
 
   unsigned int numIndicesSummation = totalIndices - numIndicesC;
 
