@@ -861,6 +861,7 @@ def TensileCreateLibrary():
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
+  arguments["CodeFromFiles"] = False
   assignGlobalParameters(arguments)
 
   if not os.path.exists(logicPath):
