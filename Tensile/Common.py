@@ -46,7 +46,7 @@ globalParameters["PrintLevel"] = 1                # how much info to print. 0=no
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.
-globalParameters["CodeFromFiles"] = False          # if False byte arrays will be generated during Benchmarking phase as before
+globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
