@@ -114,7 +114,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 4, 4, 1 ]
+          - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
         - VectorWidth: [-1]
@@ -246,7 +246,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 4, 4, 1 ]
+          - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
         - VectorWidth: [-1]
@@ -378,7 +378,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 4, 4, 1 ]
+          - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
         - VectorWidth: [-1]
@@ -510,7 +510,7 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 4, 4, 1 ]
+          - [ 8, 8, 1 ]
         - GlobalSplitU: [1]
         - DepthU: [ -1 ]
         - VectorWidth: [-1]
