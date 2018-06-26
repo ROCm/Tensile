@@ -67,11 +67,14 @@ class SolutionWriter:
   ##############################################################################
   # getSourceString
   ##############################################################################
-  def getSourceString(self, solution):
+  def getSourceString(self, solution, kernelsWithBuildErrs):
     kernels = solution.getKernels()
     kernelNames = []
+    kernelBuildErr = 0
     for kernel in kernels:
       kernelName = self.kernelWriter.getKernelName(kernel)
+      if kernelName in kernelsWithBuildErrs:
+        kernelBuildErr = 1
       kernelNames.append( kernelName )
 
     s = ""
@@ -88,6 +91,11 @@ class SolutionWriter:
     # solution function signature
     s += self.getSolutionSignature(solution)
     s += " {\n"
+    if kernelBuildErr:
+      s += "%s  return tensileStatusFailure; // One or more kernels had build failures (%s)\n" % (t, kernelNames)
+      s += "%s}\n" % (t)
+      return s
+
     t += "  "
     s += "%sTensileStatus status;\n" % (t)
 
@@ -132,8 +140,6 @@ class SolutionWriter:
 
     s += "%sint deviceId;\n" % (t)
     s += "%shipCtxGetDevice(&deviceId);\n" % (t)
-    s += "%shipDeviceProp_t deviceProperties;\n" % (t)
-    s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
     if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
@@ -166,7 +172,6 @@ class SolutionWriter:
     elif solution["KernelLanguage"] == "Assembly":
       localStatic = True
       kernel = kernels[0]
-      s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
       s += "%shipFunction_t hipFunction;\n" % (t)
 
       kernelName = self.kernelWriter.getKernelName(kernel)
@@ -197,7 +202,17 @@ class SolutionWriter:
         s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
         t += "  "
         s += "%shipModule_t module = nullptr;\n" % (t)
-        s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        if not globalParameters["CodeFromFiles"]:
+          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+        else:
+          s += "%sif (access(\"../source/assembly/%s.co\", R_OK) != 0)\n" % (t, kernelName)
+          t += "  "
+          s += "%shipModuleLoad(&module, \"assembly/%s.co\");\n" % (t, kernelName)
+          t = t[2:]
+          s += "%selse\n" % (t)
+          t += "  "
+          s += "%shipModuleLoad(&module, \"../source/assembly/%s.co\");\n" % (t, kernelName)
+        t = t[2:]
         s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
         t = t[2:]
         s += "%s}\n" % (t)
@@ -274,6 +289,8 @@ class SolutionWriter:
     if solution["GlobalSplitU"] > 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
     if solution["PersistentKernel"]:
+      s += "%shipDeviceProp_t deviceProperties;\n" % (t)
+      s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sglobalWorkSize[0][0] = deviceProperties.multiProcessorCount * %u;\n" \
               % (t, solution["PersistentKernel"])
       s += "%sglobalWorkSize[0][1] = 1;\n" % t
@@ -789,9 +806,9 @@ class SolutionWriter:
   ########################################
   # get full source code
   # called from BenchmarkProblems
-  def getSourceFileString(self, solution):
+  def getSourceFileString(self, solution, kernelsWithBuildErrs):
     fileStr = "" # CHeader
-    fileStr += self.getSourceString(solution)
+    fileStr += self.getSourceString(solution, kernelsWithBuildErrs)
     return fileStr
 
 

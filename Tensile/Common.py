@@ -46,6 +46,7 @@ globalParameters["PrintLevel"] = 1                # how much info to print. 0=no
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.
+globalParameters["CodeFromFiles"] = False          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -64,6 +65,8 @@ globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
+globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
+globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
 
 ########################################
 # less common
@@ -91,12 +94,11 @@ globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue
 globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = False          # Print TensorC after computation
+globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
 # PrintMaxRows applies to dimensions where one row is printed per line
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
-globalParameters["PrintMaxCols"] = -1             # Max number of cols to print. 
-globalParameters["PrintMaxRows"] = -1             # Max number of rows to print. 
 
 
 # device selection
@@ -149,7 +151,7 @@ for numThreads in range(64, 1025, 64):
           validWorkGroups.append(workGroup)
 
 
-validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 12, 16]
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
   for j in validThreadTileSides:
@@ -191,7 +193,7 @@ validParameters = {
     "GlobalReadCoalesceVectorB":  [        True ],
 
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ 0,1 ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
+    "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -333,8 +335,9 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2, 3, 4, 8],
-    "LdsPadB":                     [ 0, 1, 2, 3, 4, 8],
+    # -1 means use same padding as the VectorWidth
+    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
+    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
@@ -700,15 +703,19 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 # store a WorkingPath where to write files (like benchmark files)
 ################################################################################
 def pushWorkingPath( foldername ):
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
   ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
 def ensurePath( path ):
   if not os.path.exists(path):
     os.makedirs(path)
+  return path
+
 
 ################################################################################
 # Is query version compatible with current version
@@ -748,8 +755,8 @@ class ProgressBar:
     self.numTicks = 0
     self.createTime = time.time()
 
-  def increment(self):
-    self.update(self.priorValue+1)
+  def increment(self, value=1):
+    self.update(self.priorValue+value)
 
   def update(self, value):
     currentFraction = 1.0 * value / self.maxValue

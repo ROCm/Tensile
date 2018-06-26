@@ -232,7 +232,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
         % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
   if os.name != "nt":
-    runScriptFile.write("return $ERR\n")
+    runScriptFile.write("exit $ERR\n")
   runScriptFile.close()
   if os.name != "nt":
     os.chmod(runScriptName, 0777)
@@ -297,6 +297,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "const bool printTensorA=%s;\n" % toCppBool(globalParameters["PrintTensorA"])
   h += "const bool printTensorB=%s;\n" % toCppBool(globalParameters["PrintTensorB"])
   h += "const bool printTensorC=%s;\n" % toCppBool(globalParameters["PrintTensorC"])
+
+  h += "const bool printWinnersOnly=%s;\n" % toCppBool(globalParameters["PrintWinnersOnly"])
   h += "\n";
 
   h += "const char indexChars[%u] = \"%s" \
@@ -841,6 +843,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "    unsigned int *minStrides,\n"
       h += "    DataType alpha,\n"
       h += "    DataType beta, \n"
+      h += "    unsigned int strideA, \n"
+      h += "    unsigned int strideB, \n"
+      h += "    unsigned int strideC, \n"
       h += "    unsigned int numEvents = 0, \n"
 
       if globalParameters["RuntimeLanguage"] == "OCL":
@@ -864,6 +869,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "    unsigned int *minStrides,\n"
         h += "    %s alpha,\n" % typeName
         h += "    %s beta,\n" % typeName
+        h += "    unsigned int strideA, \n"
+        h += "    unsigned int strideB, \n"
+        h += "    unsigned int strideC, \n"
         h += "    unsigned int numEvents, \n"
 
         if globalParameters["RuntimeLanguage"] == "OCL":
@@ -903,6 +911,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             for j in range(0, i):
               h += "*sizes[%i]" % j
             h += ";\n"
+          h += "    if (strideC != std::numeric_limits<unsigned int>::max())  strideC%u%s = strideC;\n" % (lastStrideC-1, indexChars[lastStrideC-1])
+
           for i in range(0,lastStrideA):
             h += "    unsigned int strideA%u%s = 1" % (i, \
                 indexChars[problemType["IndexAssignmentsA"][i]])
@@ -910,6 +920,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
               h += "*sizes[%i]" % \
                 problemType["IndexAssignmentsA"][j]
             h += ";\n"
+          h += "    if (strideA != std::numeric_limits<unsigned int>::max())  strideA%u%s = strideA;\n" % (lastStrideA-1, indexChars[lastStrideA-1])
           for i in range(0,lastStrideB):
             h += "    unsigned int strideB%u%s = 1" % (i, \
                 indexChars[problemType["IndexAssignmentsB"][i]])
@@ -917,6 +928,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
               h += "*sizes[%i]" % \
                 problemType["IndexAssignmentsB"][j]
             h += ";\n"
+          h += "    if (strideB != std::numeric_limits<unsigned int>::max())  strideB%u%s = strideB;\n" % (lastStrideB-1, indexChars[lastStrideB-1])
           for i in range(0, problemType["TotalIndices"]):
             h += "    unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
 
