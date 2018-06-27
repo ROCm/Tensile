@@ -1,6 +1,6 @@
 P=problems
 DEEPBENCH_CONV_1x1=$P/nn/deepbench_conv_1x1_batchN.yml $P/nn/deepbench_conv_1x1_batch1.yml
-RESNET=$P/nn/resnet50_batch64.yml
+RESNET=$P/nn/resnet_batch64_B.yml
 
 # commonly-used headers and footers:
 HEADER=boiler/header.yml
@@ -10,9 +10,9 @@ FOOTER=boiler/library_logic_vega10_only.yml
 TYPE=sgemm
 
 # Override these to provide custom solution level or files
-# Explore level 0..9 - higer level indicates more intensive search.
-#  Only 3,5,7 supported.
-#  Exact solutions are defined in the specified solution file.
+# Explore level 3,5,7 - by convention a higher level indicates more intensive search.
+#  Only 3,5,7 currently supported.
+#  Exact solution parms are defined in the specified solution file.
 EXPLORE_LEVEL=5
 
 # SOLUTION_LARGE is used for large matrix type
@@ -24,10 +24,16 @@ SOLUTION_SKINNY=solutions/$(TYPE)_skinny_explore_$(EXPLORE_LEVEL).yml
 # Targets specify different collections of solutions + problems
 
 all: \
+	$(TYPE)_resnet.yaml \
 	$(TYPE)_deepbench_conv1x1.yaml \
 	$(TYPE)_deepbench_gemm_nn.yaml \
 	$(TYPE)_deepbench_gemm_nt.yaml \
 	$(TYPE)_deepbench_gemm_tn.yaml
+
+# Resnet
+$(TYPE)_resnet.yaml: $(HEADER) types/$(TYPE)_nn.yml \
+	$(SOLUTION_SKINNY) $(RESNET) \
+	$(FOOTER)
 
 # DeepBench Convolution:
 $(TYPE)_deepbench_conv1x1.yaml: $(HEADER) types/$(TYPE)_nn.yml \
