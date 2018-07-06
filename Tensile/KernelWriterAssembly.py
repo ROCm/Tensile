@@ -1400,7 +1400,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
 
-      kStr += self.bomb(-66, 106)
+      #kStr += self.bomb(-66, 106)
       kStr += ".endm%s" % self.endLine
 
 
