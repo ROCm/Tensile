@@ -444,12 +444,13 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
+      s += writeSolutionAssertionCheckHeader(problemType)
 
-      exactLogicStr = writeExactLogic(exactLogic, \
+      exactLogicStr = writeExactLogic(solutionsForSchedule, exactLogic, \
           solutionNamesForSchedule, True)
       if rangeLogic != None:
         rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionNamesForSchedule, problemType, True)
+            solutionsForSchedule, solutionNamesForSchedule, problemType, True)
       else:
         rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
@@ -466,11 +467,13 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-      exactLogicStr = writeExactLogic(exactLogic, \
+      s += writeSolutionAssertionCheckHeader(problemType)
+
+      exactLogicStr = writeExactLogic(solutionsForSchedule, exactLogic, \
           solutionNamesForSchedule, False)
       if rangeLogic != None:
         rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionNamesForSchedule, problemType, False)
+            solutionsForSchedule, solutionNamesForSchedule, problemType, False)
       else:
         rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
@@ -651,16 +654,45 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.write(ih)
   internalHeaderFile.close()
 
+
+# Header written once at start of solution lookup functions
+def writeSolutionAssertionCheckHeader(problemType):
+  s = ""
+  indent = "  "
+  summationIdx  = problemType["IndicesSummation"][-1] # use last summation idx
+  summationChar = globalParameters["IndexChars"][summationIdx]
+  s += indent + "unsigned psem = 1; // problem summation element multiple\n"
+  s += indent + "if ((size%s & 0xf) == 0) psem=16;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x3) == 0) psem=4;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x1) == 0) psem=2;\n"%(summationChar)
+  s += "\n"
+  return s
+
+
+def writeSolutionAssertionChecks(solution):
+  s = ""
+  # some solutions have restrictions ("assertions") on the input dims that are used to optimize the kernel
+  # ensure here that we don't violate any of those assumptions.
+  # ASEM is an assertion that the summation element is some integer multiple, range 1..16
+  asem = solution["AssertSummationElementMultiple"]
+  if asem>1:
+    s += "(psem>=%u)" % asem
+
+  return s
+
+
 ################################################################################
 # Write Range Logic Recursive
 ################################################################################
-def writeExactLogic(exactLogic, solutionNames, ptr):
+def writeExactLogic(solutionsForSchedule, exactLogic, solutionNames, ptr):
   s = ""
   indent = "  "
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
     problemSize = rule[0]
     solutionIdx = rule[1][0]
+    solution = solutionsForSchedule[solutionIdx]
     solutionGFlops = rule[1][1]
     s += indent
     if ruleIdx > 0:
@@ -670,6 +702,11 @@ def writeExactLogic(exactLogic, solutionNames, ptr):
     for i in range(1, len(problemSize)):
       s += "&& size%s == %u " % (globalParameters["IndexChars"][i], \
           problemSize[i])
+
+    a = writeSolutionAssertionChecks(solution)
+    if a != "":
+        s+= "&& " + a
+
     solutionName = solutionNames[solutionIdx]
     if ptr:
       returnValue = solutionName
@@ -682,8 +719,8 @@ def writeExactLogic(exactLogic, solutionNames, ptr):
 ################################################################################
 # Write Range Logic Recursive
 ################################################################################
-def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
-    problemType, ptr):
+def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
+    solutionsForSchedule, solutionNames, problemType, ptr):
   indexChars = globalParameters["IndexChars"]
   indent = "  "
   indent += "  "*depth
@@ -695,11 +732,18 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
     threshold = rule[0]
     if lowestLevel:
       solutionIdx = rule[1]
+      solution = solutionsForSchedule[solutionIdx]
       solutionName = solutionNames[solutionIdx]
       if ptr:
         returnValue = solutionName
       else:
         returnValue = "\"%s\"" % solutionName
+
+      a = writeSolutionAssertionChecks(solution)
+      if a != "":
+        s += indent + "if (" + a + ")"
+        indent += "  "
+
       if threshold > 0:
         s += "%sif (size%s <= %u) return %s;\n" \
             % (indent, indexChars[indexOrder[depth]], threshold, returnValue)
@@ -711,7 +755,7 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
             % (indent, indexChars[indexOrder[depth]], threshold)
       else:
         s += "%s{\n" % (indent)
-      s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionNames, \
+      s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionsForSchedule, solutionNames, \
           problemType, ptr)
       s += "%s}\n" % (indent)
   return s
