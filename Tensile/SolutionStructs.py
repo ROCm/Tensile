@@ -846,8 +846,8 @@ class Solution:
   #   LSC is the number of elements loaded in the para(coalesced) dimension
   #   LSP is the number of elements loaded in the perp(noncoalesced) dimension
   #   PerLoadTile is always rectangular.
-  #   The area (LSC*LSP) can be larger than NumThreads. In this case, some
-  #   threads will generate a dummy OOB GRO.
+  #   When BufferLoad=1, the area (LSC*LSP) can be larger than NumThreads. 
+  #   In this case, some threads will generate a dummy OOB GRO.
   #
   # NumLoadsCoalesced and NumLoadsPerpendicular define the number of times the
   #   PerLoadTile is loaded in each dimension to fetch the LoadTile
