@@ -244,13 +244,20 @@ validParameters = {
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
     "UseSgprForGRO":              [ -1, 0, 1],
-    "FractionalLoad":             [ False, True] ,      # Some work-items in the group may not participate in the final buffer load .Allows more felxibility in choosing DepthU
+    "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
 
     # When creating the kernel, assume that the summation size is some multiple of the element size.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements
-    # 1 indicates no additional restriction - all sizes are multiples of 1
+    # 1 indicates no restriction (since all sizes are multiples of 1)
+    # If changing this also change runtime checking code in TensileCreateLibrary.py
     "AssertSummationElementMultiple": [1,2,4,8],
+
+    # When creating the kernel, assume that the "first" free index size is some multiple of the element size.
+    # "first" free index is usually letter "I" or FreeIndices[0].
+    # 1 indicates no restriction (since all sizes are multiples of 1)
+    # If changing this also change runtime checking code in TensileCreateLibrary.py
+    "AssertFree0ElementMultiple" : [1,2,4,8],
 
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
@@ -402,6 +409,7 @@ defaultBenchmarkCommonParameters = [
     {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
+    {"AssertFree0ElementMultiple": [ 1 ] },
 
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
