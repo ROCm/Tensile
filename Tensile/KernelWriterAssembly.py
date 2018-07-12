@@ -4598,24 +4598,41 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Not LocalSplitU: Global Write
+  # Determine write batching pattern
+  # element() specifies TT 'coordinate' to write
+  # vectorWidths specifies width of vector to store
+  # TODO - why does this use VectorWidth to control store width?  Could be GlobalWriteVectorWidth?
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = False
-    vectorWidths = [kernel["VectorWidth"] if kernel["VectorStore"] else 1, 1]
-    elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
+
+    fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    elements = [[] for y in range(2)] # 2D array for Full, Edge
+
+    # Full tile loop:
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
-          if kernel["VectorStore"]:
-            element = (tt1, tt0, vc1, 0)
-            elements[False].append(element) # No Edge Elements
-          for vc0 in range(0, kernel["VectorWidth"]):
+          for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
             element = (tt1, tt0, vc1, vc0)
-            elements[True].append(element) # Edge Elements
-            if not kernel["VectorStore"]:
-              elements[False].append(element) # No Edge Elements
+            elements[False].append(element)
 
+    # Edge tile loop - note if we know AF0EM we can can use a larger vector
+    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
+    # then use a conservative 1
+    edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    edgeVw = min(edgeVw, kernel["AssertFree0ElementMultiple"])
+    edgeVw = 1
+    assert(kernel["VectorWidth"]%edgeVw == 0)
+    for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for vc0 in range(0, kernel["VectorWidth"], edgeVw):
+            element = (tt1, tt0, vc1, vc0)
+            elements[True].append(element)
+
+    vectorWidths = [fullVw, edgeVw]
     kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
@@ -4626,19 +4643,32 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = True
-    vectorWidths = [kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1, 1]
-    elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
+
+    fullVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    elements = [[] for y in range(2)] # 2D array for Full, Edge
+    # Full tile loop:
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for tt0 in range(0, 1):
         for vc1 in range(0, 1):
-          if kernel["VectorStore"]:
-            element = (tt1, tt0, vc1, 0)
-            elements[False].append(element) # No Edge Elements
-          for vc0 in range(0, kernel["GlobalWriteVectorWidth"]):
+          for vc0 in range(0, kernel["GlobalWriteVectorWidth"], fullVw): # note step by fullVw
             element = (tt1, tt0, vc1, vc0)
-            elements[True].append(element)  #  Edge Elements
-            if not kernel["VectorStore"]:
-              elements[False].append(element)  #  No Edge Elements
+            elements[False].append(element)
+
+    # Edge tile loop - note if we know AF0EM we can can use a larger vector
+    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
+    # then use a conservative 1
+    edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    edgeVw = min(edgeVw, kernel["AssertFree0ElementMultiple"])
+    edgeVw = 1
+    assert(kernel["VectorWidth"]%edgeVw == 0)
+    for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
+      for tt0 in range(0, 1):
+        for vc1 in range(0, 1):
+          for vc0 in range(0, kernel["GlobalWriteVectorWidth"], edgeVw):
+            element = (tt1, tt0, vc1, vc0)
+            elements[True].append(element)
+
+    vectorWidths = [fullVw, edgeVw]
     kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
@@ -4652,8 +4682,9 @@ class KernelWriterAssembly(KernelWriter):
     atomic = kernel["GlobalSplitU"] > 1
 
     if atomic:
-      # globalWriteBatch only supports gwvw=1 if atomics are used.
-      # So copy the elements[1] (edge=True, VW=1) to elements[0] so gwvw used on both paths
+      # if atomics are used, globalWriteBatch function only supports gwvw=1
+      # So copy the edge elements[1] (edge=True, VW=1) to elements[0] so gwvw used on both edge/no-edge paths
+      # TODO - fix code to use atomics
       elements[0] = elements[1]
       vectorWidths[0] = vectorWidths[1]
       assert (vectorWidths[0] == 1)
@@ -5201,6 +5232,7 @@ class KernelWriterAssembly(KernelWriter):
                         "clip if OOB. offset")
       else:
         if edge:
+          # bozo, remove SizesFree++
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
@@ -5294,20 +5326,20 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Atomic
     ########################################
-    # flat_atomic_cmpswap tmp addr data
-    # tmp = mem[addr]
-    # src = data[vi*numVgprsPerDataPerVI][0] new C
-    # cmp = data[vi*numVgprsPerDataPerVI][1] original C
-    # mem[addr] = (tmp==cmp) ? src : tmp
-    # addr = vgpr(addr,2)
-    # data = vgpr(tmpVgpr,2)
-    # tmp = vgpr(tmpVgpr+4)
+    # flat_atomic_cmpswap tmp addr data:
+    #   tmp = mem[addr]
+    #   src = data[vi*numVgprsPerDataPerVI][0] new C
+    #   cmp = data[vi*numVgprsPerDataPerVI][1] original C
+    #   mem[addr] = (tmp==cmp) ? src : tmp
+    #   addr = vgpr(addr,2)
+    #   data = vgpr(tmpVgpr,2)
+    #   tmp = vgpr(tmpVgpr+4)
 
     # buffer_atomic_cmpswap:
-    # src = data[vi*numVgprsPerDataPerVI][0] new C
-    # cmp = data[vi*numVgprsPerDataPerVI][1] original C
-    # after buffer_atomic_cmpswap
-    # dest = data[vi*numVgprsPerDataPerVI][0] C loaded from memory, overwrites src
+    #   src = data[vi*numVgprsPerDataPerVI][0] new C
+    #   cmp = data[vi*numVgprsPerDataPerVI][1] original C
+    #   after buffer_atomic_cmpswap:
+    #   dest = data[vi*numVgprsPerDataPerVI][0] C loaded from memory, overwrites src
     if atomic:
       del tmpVgpr # catch bugs
       # TODO for atomic GWVW:
