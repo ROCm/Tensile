@@ -4596,6 +4596,22 @@ class KernelWriterAssembly(KernelWriter):
     if self.betaVgpr != None:
       self.vgprPool.checkIn(self.betaVgpr)
 
+  # Return max global write vector width, in elements
+  def maxGwvw(self, kernel):
+    atomic = kernel["GlobalSplitU"] > 1
+
+    if kernel["BufferStore"]:
+      if atomic:
+        return kernel["VectorAtomicWidth"]
+      else:
+        return 1000  # no limit
+    else:
+      if atomic:
+        return 1  # flat does not support vector atomic
+      else:
+        return 1000  # no limit
+
+
   ##############################################################################
   # Not LocalSplitU: Global Write
   # Determine write batching pattern
@@ -4607,7 +4623,9 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PostLoop"]: return ""
     lsu = False
 
+
     fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    fullVw = min(fullVw, self.maxGwvw(kernel))
     elements = [[] for y in range(2)] # 2D array for Full, Edge
 
     # Full tile loop:
@@ -4622,8 +4640,7 @@ class KernelWriterAssembly(KernelWriter):
     # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
     # then use a conservative 1
     edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
-    edgeVw = min(edgeVw, kernel["AssertFree0ElementMultiple"])
-    edgeVw = 1
+    edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
@@ -4645,6 +4662,7 @@ class KernelWriterAssembly(KernelWriter):
     lsu = True
 
     fullVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    fullVw = min(fullVw, self.maxGwvw(kernel))
     elements = [[] for y in range(2)] # 2D array for Full, Edge
     # Full tile loop:
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
@@ -4658,8 +4676,7 @@ class KernelWriterAssembly(KernelWriter):
     # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
     # then use a conservative 1
     edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
-    edgeVw = min(edgeVw, kernel["AssertFree0ElementMultiple"])
-    edgeVw = 1
+    edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     assert(kernel["VectorWidth"]%edgeVw == 0)
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for tt0 in range(0, 1):
@@ -4680,15 +4697,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
-
-    if atomic:
-      # if atomics are used, globalWriteBatch function only supports gwvw=1
-      # So copy the edge elements[1] (edge=True, VW=1) to elements[0] so gwvw used on both edge/no-edge paths
-      # TODO - fix code to use atomics
-      elements[0] = elements[1]
-      vectorWidths[0] = vectorWidths[1]
-      assert (vectorWidths[0] == 1)
-
 
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
@@ -4934,7 +4942,6 @@ class KernelWriterAssembly(KernelWriter):
           # only do an even number of halves
           numElementsPerBatch = int(numElementsPerBatch/2)*2
           assert(numElementsPerBatch > 0)
-
 
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
@@ -5221,7 +5228,7 @@ class KernelWriterAssembly(KernelWriter):
             hex(log2(self.bpeCexternal)), \
             "accumulate d0 lower and *= bpe into addr")
         if edge:
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
           kStr += inst("v_cndmask_b32", \
@@ -5232,13 +5239,12 @@ class KernelWriterAssembly(KernelWriter):
                         "clip if OOB. offset")
       else:
         if edge:
-          # bozo, remove SizesFree++
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
           if (beta or atomic):
-            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )  # fixme, do we need this for atomic? BOZO
 
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
@@ -5264,9 +5270,9 @@ class KernelWriterAssembly(KernelWriter):
         # FIME
         bps = kernel["ProblemType"]["DataType"].numBytes()
         for vi in range(0, gwvw):
-          # TODO: use chooseGlobalStore, could use vector loads here too perhaps:
+          # TODO: use chooseGlobalLoad, could use vector loads here too perhaps:
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          if kernel["BufferStore"]:
+          if kernel["BufferStore"]: # yes, check store here since this is write loop.  All the addr calc is done with 
             kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
                       sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
           else:
@@ -5343,7 +5349,7 @@ class KernelWriterAssembly(KernelWriter):
     if atomic:
       del tmpVgpr # catch bugs
       # TODO for atomic GWVW:
-      #  - Use VI to compute addresses, sumIdx.
+      #  - Use vi to compute addresses, sumIdx.
       #  - Need a solution for the mask.  Can move to all buffer or can fix?
 
       # atomic loop label
@@ -5382,6 +5388,7 @@ class KernelWriterAssembly(KernelWriter):
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
           sumIdxV = elementSumIdx[elementIdx] + vi
+          bps = kernel["ProblemType"]["DataType"].numBytes()
           # for atomic, data[1] = original c, data[0] = new c
           kStr += inst("v_add_f32", vgpr(dataV+0), vgpr(dataV+1), vgpr(sumIdxV), \
               "sum*alpha + C*beta vi=%u"%vi)
@@ -5394,8 +5401,8 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
                    sgpr("SrdC", 4),  \
-                   "0 offen offset:0 glc", \
-                   "attempt write", self.endLine )
+                   "0 offen offset:%u glc" % (vi*bps), \
+                   "attempt write vi=%u"%(vi), self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(atomicDestVgpr), vgpr(addr,2), \
@@ -5421,17 +5428,26 @@ class KernelWriterAssembly(KernelWriter):
         vc0 = element[3]
 
         # calculate new masks
-        for vi in range(0, gwvw):
-          dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
-          if edge:
+        if edge:
+          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+          for vi in range(0, gwvw):
+            dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
+            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
             # need to apply element mask before comparison
             # so that all valid lanes are doing the cmp
-            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
-            kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
-                vgpr(dataV+1), "c read during atomic == c read during prior load" )
-            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
-          else:
+            if vi == 0:
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
+                  vgpr(dataV+1), "c read during atomic == c read during prior load (vi=%u, first)"%vi )
+            else:
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
+                  vgpr(dataV+1), "c read during atomic == c read during prior load (vi=%u)"%vi )
+              kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
+
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+        else:
+          for vi in range(0, gwvw):
+            dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
+            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
             #kStr += inst("s_mov_b64", sgpr(mask,2), sgpr(fullExecMaskSgpr,2), "mask = full" )
             kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
                 vgpr(dataV+1), "c read during atomic != c read during prior load" )
@@ -5454,6 +5470,7 @@ class KernelWriterAssembly(KernelWriter):
         element = batchElements[elementIdx]
         addr = elementAddr[elementIdx]
         mask = elementMask[elementIdx]
+        bps = kernel["ProblemType"]["DataType"].numBytes()
 
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
@@ -5472,7 +5489,7 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
                    sgpr("SrdC", 4), \
-                   "0 offen offset:0 glc", \
+                   "0 offen offset:%u glc" % (vi*bps), \
                    "try again", self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \

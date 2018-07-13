@@ -1109,9 +1109,9 @@ class Solution:
           and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
-      if not state["ProblemType"]["DataType"].isSingle():
-        reject(state, "GlobalSplitU only compatible with single precision")
-        return
+
+    if state["VectorAtomicWidth"] == -1:
+      state["VectorAtomicWidth"] = 8 / state["ProblemType"]["DataType"].numBytes()
 
     ########################################
     # Initial DepthU
