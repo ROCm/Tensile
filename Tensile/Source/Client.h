@@ -750,9 +750,9 @@ bool benchmarkAllSolutionsForSize(
   // Compute stridesC for validation
   // strideC accounts for memory strides (ie ldc)
   // while elementStride is a pure element space
-  std::vector<unsigned int> strides(totalIndices[problemIdx]);
-  std::vector<unsigned int> stridesC(numIndicesC[problemIdx]);
-  std::vector<unsigned int> elementStridesC(numIndicesC[problemIdx]);
+  std::vector<unsigned int> strides(totalIndices[problemTypeIdx]);
+  std::vector<unsigned int> stridesC(numIndicesC[problemTypeIdx]);
+  std::vector<unsigned int> elementStridesC(numIndicesC[problemTypeIdx]);
 
   for (unsigned int i = 0; i < totalIndices[problemIdx]; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
