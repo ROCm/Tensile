@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning
+from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecks
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO
@@ -626,16 +627,31 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, len(argList)):
       h += "  %s %s%s" % (argList[i][0], argList[i][1], \
           ",\n" if i < len(argList)-1 else ");\n\n")
-    h += "const SolutionFunctionPointer solutions[maxNumSolutions] = {\n"
+
+    h += "struct SolutionInfo {\n"
+    h += "  SolutionFunctionPointer functionPtr;\n"
+    h += "  const char *            name;\n"
+    # These are assertions used to generate the solution
+    # Must be checked by the runtime before launchin the solution
+    h += "  int                     assertSummationElementMultiple;\n"
+    h += "  int                     assertFree0ElementMultiple;\n"
+    h += "};\n";
+
+    h += "const SolutionInfo solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      h += "  %s" % solutionName
+      h += "  {%s, \"%s\", %d, %d}" % \
+        (solutionName, solutionName,
+          solution["AssertSummationElementMultiple"],
+          solution["AssertFree0ElementMultiple"])
       if i < len(solutions)-1:
         h += ","
       h += "\n"
     h += " };\n"
     h += "\n"
+
+
     # Solution Names
     h += "const char *solutionNames[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
@@ -805,13 +821,25 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
     h += "\n"
 
+
     # function call
+    h += "  // Check assertions,\n"
+    h += writeSolutionAssertionCheckHeader(problemType)
+    h += "if (!(\n  "
+    h += writeSolutionAssertionChecks(
+           "solutions[solutionIdx].assertSummationElementMultiple",
+           "solutions[solutionIdx].assertFree0ElementMultiple",
+           "\n  ")
+    h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
+    h += "\n"
+
     h += "  // call solution function\n"
+    h += "  auto f = solutions[solutionIdx].functionPtr;\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  return solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return f( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
-      h += "  return solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+      h += "  return f( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (typeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:

@@ -20,6 +20,7 @@
 ################################################################################
 # This script only gets called by CMake
 from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
+from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecksForSolution
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
@@ -655,49 +656,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.close()
 
 
-# Header written once at start of solution lookup functions
-def writeSolutionAssertionCheckHeader(problemType):
-  s = ""
-  indent = "  "
-  summationIdx  = problemType["IndicesSummation"][-1] # use last summation idx
-  summationChar = globalParameters["IndexChars"][summationIdx]
-
-  free0Index = problemType["IndicesFree"][0] # use last summation idx
-  free0Char = globalParameters["IndexChars"][free0Index]
-  s += indent + "unsigned psem = 1; // problem summation element multiple\n"
-  s += indent + "if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
-  s += indent + "else if ((size%s & 0x3) == 0) psem=4;\n"%(summationChar)
-  s += indent + "else if ((size%s & 0x1) == 0) psem=2;\n"%(summationChar)
-  s += "\n"
-  s += indent + "unsigned pf0em = 1; // problem free0 element multiple\n"
-  s += indent + "if ((size%s & 0x7) == 0) pf0em=8;\n"%(free0Char)
-  s += indent + "else if ((size%s & 0x3) == 0) pf0em=4;\n"%(free0Char)
-  s += indent + "else if ((size%s & 0x1) == 0) pf0em=2;\n"%(free0Char)
-  s += "\n"
-  return s
-
-
-def writeSolutionAssertionChecks(solution):
-  s = ""
-  # some solutions have restrictions ("assertions") on the input dims that are used to optimize the kernel
-  # ensure here that we don't violate any of those assumptions.
-  # 'p' variables are derived from the current problem dimension, ie psem is the problem summation element multiple
-  # 'a' variables are dereved from the assertion used to compile the kernel, ie asem is the assertion summation element multiple
-  # ASEM is an assertion that the summation element is some integer multiple, range 1..8
-  asem = solution["AssertSummationElementMultiple"]
-  if asem>1:
-    if s != "" : s += " && "
-    s += "(psem>=%u)" % asem
-
-  # AF0EM is an assertion that the free index element is some integer multiple, range 1..8
-  af0em = solution["AssertFree0ElementMultiple"]
-  if af0em>1:
-    if s != "" : s += " && "
-    s += "(pf0em>=%u)" % af0em
-
-  return s
-
-
 ################################################################################
 # Write Range Logic Recursive
 ################################################################################
@@ -719,7 +677,7 @@ def writeExactLogic(solutionsForSchedule, exactLogic, solutionNames, ptr):
       s += "&& size%s == %u " % (globalParameters["IndexChars"][i], \
           problemSize[i])
 
-    a = writeSolutionAssertionChecks(solution)
+    a = writeSolutionAssertionChecksForSolution(solution)
     if a != "":
         s+= "&& " + a
 
@@ -755,7 +713,7 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
       else:
         returnValue = "\"%s\"" % solutionName
 
-      a = writeSolutionAssertionChecks(solution)
+      a = writeSolutionAssertionChecksForSolution(solution)
       if a != "":
         s += indent + "if (" + a + ")"
         indent += "  "

@@ -640,6 +640,7 @@ class SolutionWriter:
             s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
 
           s += "%shipHccModuleLaunchKernel(\n" % (t)
+          s += "%shipHccModuleLaunchKernel(\n" % (t)
           t += "  "
           s += "%shipFunction,\n" % (t)
           s += "%sglobalWorkSize[kernelIdx][0]*localWorkSize[0],\n" % (t)

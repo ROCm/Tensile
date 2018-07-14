@@ -255,15 +255,15 @@ validParameters = {
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements
     # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime checking code in TensileCreateLibrary.py
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py
     "AssertSummationElementMultiple": [1,2,4,8],
 
-    # When creating the kernel, assume that the "first" free index size is some multiple of the element size.
-    # "first" free index is usually letter "I" or FreeIndices[0].
+    # When creating the kernel, assume that the 'first' free index size is some
+    # multiple of the element size.
+    # "first" free index is FreeIndex[0] and usually letter "I"
     # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime checking code in TensileCreateLibrary.py
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py
     "AssertFree0ElementMultiple" : [1,2,4,8],
-
 
     # Generate code inside kernel to check assertions above on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -419,7 +419,7 @@ defaultBenchmarkCommonParameters = [
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
-    {"CheckTensorDimAsserts"      : [ True ] },
+    {"CheckTensorDimAsserts"      : [ False ] },
 
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -507,6 +507,55 @@ defaultAnalysisParameters = {
     "SolutionImportanceMin":      0.01, # = 0.01=1% total time saved by keeping this solution
     }
 
+
+# Header written once at start of solution lookup functions
+# Also written into the benchmark client
+def writeSolutionAssertionCheckHeader(problemType):
+  s = ""
+  indent = "  "
+  summationIdx  = problemType["IndicesSummation"][-1] # use last summation idx
+  summationChar = globalParameters["IndexChars"][summationIdx]
+
+  free0Index = problemType["IndicesFree"][0] # use last summation idx
+  free0Char = globalParameters["IndexChars"][free0Index]
+  s += indent + "unsigned psem = 1; // problem summation element multiple\n"
+  s += indent + "if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x3) == 0) psem=4;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x1) == 0) psem=2;\n"%(summationChar)
+  s += "\n"
+  s += indent + "unsigned pf0em = 1; // problem free0 element multiple\n"
+  s += indent + "if ((size%s & 0x7) == 0) pf0em=8;\n"%(free0Char)
+  s += indent + "else if ((size%s & 0x3) == 0) pf0em=4;\n"%(free0Char)
+  s += indent + "else if ((size%s & 0x1) == 0) pf0em=2;\n"%(free0Char)
+  s += "\n"
+  return s
+
+
+# Generate check code for the Assert flags
+# This is used in the benchmark client and the Tensile client
+# note parms can be hard-coded ints (if checking for a specific solution)
+# or strings (if the calling function is a generic launch function)
+def writeSolutionAssertionChecks(asem, af0em, sep=" "):
+  s = ""
+  # some solutions have restrictions ("assertions") on the input dims that are used to optimize the kernel
+  # ensure here that we don't violate any of those assumptions.
+  # 'p' variables are derived from the current problem dimension, ie psem is the problem summation element multiple
+  # 'a' variables are dereved from the assertion used to compile the kernel, ie asem is the assertion summation element multiple
+  # ASEM is an assertion that the summation element is some integer multiple, range 1..8
+  if asem>1:
+    if s != "" : s += " &&%s" % sep
+    s += "(psem >= %s)" % asem
+
+  # AF0EM is an assertion that the free index element is some integer multiple, range 1..8
+  if af0em>1:
+    if s != "" : s += " &&%s" % sep
+    s += "(pf0em >= %s)" % af0em
+  return s
+
+def writeSolutionAssertionChecksForSolution(solution):
+    return writeSolutionAssertionChecks(
+        solution["AssertSummationElementMultiple"],
+        solution["AssertFree0ElementMultiple"])
 
 ################################################################################
 # Searching Nested Lists / Dictionaries
