@@ -1400,7 +1400,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
 
-      #kStr += self.bomb(-66, 106)
       kStr += ".endm%s" % self.endLine
 
 
@@ -2787,33 +2786,33 @@ class KernelWriterAssembly(KernelWriter):
 
     dotInterleave = kernel["LocalDotLayout"]
 
-    if dotInterleave and tP["nwcv"]==1:
-      kStr += inst("v_lshrrev_b32", \
-          vgpr(destVgpr), \
-          hex(log2(kernel["LocalDotLayout"])), \
-          vgpr(uReg), \
-          "global-row /= LocalDotLayout")
-      growReg = destVgpr
-    else:
-      growReg = uReg
-
-    kStr += inst("v_mul_u32_u24", \
-        vgpr(destVgpr), \
-        hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
-        vgpr(growReg), \
-        "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    if dotInterleave:
+    #kStr += inst("v_mul_u32_u24", \
+        #vgpr(destVgpr), \
+        #hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
+        #vgpr(growReg), \
+        #"lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
+    if dotInterleave > 1:
       ldlOffsetVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_and_b32", \
-          vgpr(ldlOffsetVgpr), \
+          vgpr(destVgpr), \
           kernel["LocalDotLayout"]-1, \
           vgpr(uReg), \
           "uReg & LDL")
+      kStr += inst("v_and_b32", \
+          vgpr(uReg), \
+          ~(kernel["LocalDotLayout"]-1), \
+          vgpr(uReg), \
+          "uReg & LDL")
+      kStr += inst("v_mul_u32_u24", \
+          vgpr(uReg), \
+          hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
+          vgpr(uReg), \
+          "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
       kStr += inst("_v_add_co_u32", \
           vgpr(destVgpr), \
           "vcc", \
           vgpr(destVgpr), \
-          vgpr(ldlOffsetVgpr), \
+          vgpr(uReg), \
           "add scraps from LDL masking")
       kStr += inst("v_lshl_add_u32", \
           vgpr(destVgpr), \
@@ -6181,9 +6180,9 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["EnableAsserts"]:
       self.printedAssertCnt += 1
 
-      # Default cookie for asserts is negative of printed #asserts 
+      # Default cookie for asserts is negative of printed #asserts
       # Can be used to roughly identify which assert in the code is firing
-      kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)  
+      kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)
 
     return kStr
 
