@@ -264,6 +264,10 @@ validParameters = {
     # If changing this also change runtime checking code in TensileCreateLibrary.py
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
+
+    # Generate code inside kernel to check assertions above on Tensor dimensions
+    "CheckTensorDimAsserts":               [False, True],
+
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
@@ -415,6 +419,7 @@ defaultBenchmarkCommonParameters = [
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
+    {"CheckTensorDimAsserts"      : [ True ] },
 
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },

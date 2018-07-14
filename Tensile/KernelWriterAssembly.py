@@ -1210,6 +1210,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["PrintRP"] : print ("\n***WARNING: PrintRP enabled, may generate verbose output\n")
+    if kernel["CheckTensorDimAsserts"] : print ("\n***WARNING: CheckTensorDimAsserts enabled, may impact performance\n")
 
 
   ##############################################################################
@@ -1927,6 +1928,12 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.db["InitLds"]:
       kStr += self.initLds(kernel, self.initLdsValue)
+
+    if kernel["CheckTensorDimAsserts"]:
+      kStr += self.assert_multiple_b32(sgpr("SizesSum+%u"%(self.numSgprSizesSum-1)),
+                kernel["AssertSummationElementMultiple"], 0x1001)
+      kStr += self.assert_multiple_b32(sgpr("SizesFree+0"),
+                kernel["AssertFree0ElementMultiple"], 0x1002)
 
     return kStr
 
@@ -5863,6 +5870,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # assertCommon : Common routine for all assert functions.
+  # On entry, we have already set the exec-mask so any enabled lanes should bomb
   ##############################################################################
   def assertCommon(self, cookie=-1):
     kStr = ""
@@ -5883,7 +5891,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["EnableAsserts"]:
       kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
           "assert: saved execmask")
-      kStr += inst("v_cmpx_%s_u32"%c, "vcc", val0, val1, "v_cmp" )   
+      kStr += inst("v_cmpx_%s_u32"%c, "vcc", val0, val1, "v_cmp" )
 
       kStr += self.assertCommon(cookie)
 
@@ -5914,6 +5922,30 @@ class KernelWriterAssembly(KernelWriter):
 
   def assert_ge(self, val0, val1, cookie=-1):
     return self.assertCmpCommon("lt", val0, val1, cookie)
+
+  # asserts if val0 is not an integer multiple of multiple2
+  # multiple2 must be a constant and power of 2
+  # for example assert_multiple(A, 8) will assert if A is not multiple of 8
+  def assert_multiple_b32(self, sval, multiple2, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+
+      stmp = sgpr("SaveExecMask") # repurpose to get a tmp sgpr
+
+      kStr += inst("s_and_b32", stmp, sval, multiple2-1, "mask" )
+      kStr += inst("s_cmp_eq_u32", stmp, 0, "if maskedBits==0 then SCC=1 == no fault" )
+      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
+      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "Clear exec mask")
+
+      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+          "assert: saved execmask")
+
+      kStr += self.assertCommon(cookie)
+
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+    return kStr
 
   # Assert that all bits in vcc are true, or assert/bomb otherwise
   def assert_vcc_true(self, cookie=-1):
