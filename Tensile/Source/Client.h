@@ -754,7 +754,7 @@ bool benchmarkAllSolutionsForSize(
   std::vector<unsigned int> stridesC(numIndicesC[problemTypeIdx]);
   std::vector<unsigned int> elementStridesC(numIndicesC[problemTypeIdx]);
 
-  for (unsigned int i = 0; i < totalIndices[problemIdx]; i++) {
+  for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
     strides[i] = std::max(minStrides[i], sizes[i]);
   }
   elementStridesC[0] = 1;
