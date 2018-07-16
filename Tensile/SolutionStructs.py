@@ -1113,6 +1113,10 @@ class Solution:
         reject(state, "GlobalSplitU only compatible with single precision")
         return
 
+
+    if state["VectorAtomicWidth"] == -1:
+      state["VectorAtomicWidth"] = 8 / state["ProblemType"]["DataType"].numBytes()
+
     ########################################
     # Initial DepthU
     ########################################

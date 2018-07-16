@@ -1210,6 +1210,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["PrintRP"] : print ("\n***WARNING: PrintRP enabled, may generate verbose output\n")
+    if kernel["CheckTensorDimAsserts"] : print ("\n***WARNING: CheckTensorDimAsserts enabled, may impact performance\n")
 
 
   ##############################################################################
@@ -1927,6 +1928,12 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.db["InitLds"]:
       kStr += self.initLds(kernel, self.initLdsValue)
+
+    if kernel["CheckTensorDimAsserts"]:
+      kStr += self.assert_multiple_b32(sgpr("SizesSum+%u"%(self.numSgprSizesSum-1)),
+                kernel["AssertSummationElementMultiple"], 0x1001)
+      kStr += self.assert_multiple_b32(sgpr("SizesFree+0"),
+                kernel["AssertFree0ElementMultiple"], 0x1002)
 
     return kStr
 
@@ -4596,26 +4603,60 @@ class KernelWriterAssembly(KernelWriter):
     if self.betaVgpr != None:
       self.vgprPool.checkIn(self.betaVgpr)
 
+  # Return max global write vector width, in elements
+  def maxGwvw(self, kernel):
+    atomic = kernel["GlobalSplitU"] > 1
+
+    if kernel["BufferStore"]:
+      if atomic:
+        return kernel["VectorAtomicWidth"]
+      else:
+        return 1000  # no limit
+    else:
+      if atomic:
+        return 1  # flat does not support vector atomic
+      else:
+        return 1000  # no limit
+
+
   ##############################################################################
   # Not LocalSplitU: Global Write
+  # Determine write batching pattern
+  # element() specifies TT 'coordinate' to write
+  # vectorWidths specifies width of vector to store
+  # TODO - why does this use VectorWidth to control store width?  Could be GlobalWriteVectorWidth?
   ##############################################################################
   def notLocalSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = False
-    vectorWidths = [kernel["VectorWidth"] if kernel["VectorStore"] else 1, 1]
-    elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
+
+
+    fullVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    fullVw = min(fullVw, self.maxGwvw(kernel))
+    elements = [[] for y in range(2)] # 2D array for Full, Edge
+
+    # Full tile loop:
     for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for vc1 in range(0, kernel["VectorWidth"]):
-          if kernel["VectorStore"]:
-            element = (tt1, tt0, vc1, 0)
-            elements[False].append(element) # No Edge Elements
-          for vc0 in range(0, kernel["VectorWidth"]):
+          for vc0 in range(0, kernel["VectorWidth"], fullVw): # note step by fullVw
             element = (tt1, tt0, vc1, vc0)
-            elements[True].append(element) # Edge Elements
-            if not kernel["VectorStore"]:
-              elements[False].append(element) # No Edge Elements
+            elements[False].append(element)
 
+    # Edge tile loop - note if we know AF0EM we can can use a larger vector
+    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
+    # then use a conservative 1
+    edgeVw = kernel["VectorWidth"] if kernel["VectorStore"] else 1
+    edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
+    assert(kernel["VectorWidth"]%edgeVw == 0)
+    for tt1 in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
+      for tt0 in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
+        for vc1 in range(0, kernel["VectorWidth"]):
+          for vc0 in range(0, kernel["VectorWidth"], edgeVw):
+            element = (tt1, tt0, vc1, vc0)
+            elements[True].append(element)
+
+    vectorWidths = [fullVw, edgeVw]
     kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
@@ -4626,19 +4667,32 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUGlobalWrite(self, kernel):
     if not self.do["PostLoop"]: return ""
     lsu = True
-    vectorWidths = [kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1, 1]
-    elements = [[] for y in range(2)] # 2D array for Edge,NoEdge
+
+    fullVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    fullVw = min(fullVw, self.maxGwvw(kernel))
+    elements = [[] for y in range(2)] # 2D array for Full, Edge
+    # Full tile loop:
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for tt0 in range(0, 1):
         for vc1 in range(0, 1):
-          if kernel["VectorStore"]:
-            element = (tt1, tt0, vc1, 0)
-            elements[False].append(element) # No Edge Elements
-          for vc0 in range(0, kernel["GlobalWriteVectorWidth"]):
+          for vc0 in range(0, kernel["GlobalWriteVectorWidth"], fullVw): # note step by fullVw
             element = (tt1, tt0, vc1, vc0)
-            elements[True].append(element)  #  Edge Elements
-            if not kernel["VectorStore"]:
-              elements[False].append(element)  #  No Edge Elements
+            elements[False].append(element)
+
+    # Edge tile loop - note if we know AF0EM we can can use a larger vector
+    # and reduce the boundary checks accordingly.  But if no AF0EM guarantee 
+    # then use a conservative 1
+    edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
+    edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
+    assert(kernel["VectorWidth"]%edgeVw == 0)
+    for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
+      for tt0 in range(0, 1):
+        for vc1 in range(0, 1):
+          for vc0 in range(0, kernel["GlobalWriteVectorWidth"], edgeVw):
+            element = (tt1, tt0, vc1, vc0)
+            elements[True].append(element)
+
+    vectorWidths = [fullVw, edgeVw]
     kStr =  self.globalWriteElements(kernel, lsu, vectorWidths, elements)
     self.cleanupGlobalWrite(kernel)
     return kStr
@@ -4650,14 +4704,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
-
-    if atomic:
-      # globalWriteBatch only supports gwvw=1 if atomics are used.
-      # So copy the elements[1] (edge=True, VW=1) to elements[0] so gwvw used on both paths
-      elements[0] = elements[1]
-      vectorWidths[0] = vectorWidths[1]
-      assert (vectorWidths[0] == 1)
-
 
     # write possibilities and labels
     betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
@@ -4903,7 +4949,6 @@ class KernelWriterAssembly(KernelWriter):
           # only do an even number of halves
           numElementsPerBatch = int(numElementsPerBatch/2)*2
           assert(numElementsPerBatch > 0)
-
 
         # if no atomics and no edge, then write whole vectors
         #if not atomic and not edge:
@@ -5190,7 +5235,7 @@ class KernelWriterAssembly(KernelWriter):
             hex(log2(self.bpeCexternal)), \
             "accumulate d0 lower and *= bpe into addr")
         if edge:
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
           kStr += inst("v_cndmask_b32", \
@@ -5201,12 +5246,12 @@ class KernelWriterAssembly(KernelWriter):
                         "clip if OOB. offset")
       else:
         if edge:
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree++0"), "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
 
           if (beta or atomic):
-            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )  # fixme, do we need this for atomic? BOZO
 
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
@@ -5232,9 +5277,9 @@ class KernelWriterAssembly(KernelWriter):
         # FIME
         bps = kernel["ProblemType"]["DataType"].numBytes()
         for vi in range(0, gwvw):
-          # TODO: use chooseGlobalStore, could use vector loads here too perhaps:
+          # TODO: use chooseGlobalLoad, could use vector loads here too perhaps:
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          if kernel["BufferStore"]:
+          if kernel["BufferStore"]: # yes, check store here since this is write loop.  All the addr calc is done with 
             kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
                       sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
           else:
@@ -5294,24 +5339,24 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Atomic
     ########################################
-    # flat_atomic_cmpswap tmp addr data
-    # tmp = mem[addr]
-    # src = data[vi*numVgprsPerDataPerVI][0] new C
-    # cmp = data[vi*numVgprsPerDataPerVI][1] original C
-    # mem[addr] = (tmp==cmp) ? src : tmp
-    # addr = vgpr(addr,2)
-    # data = vgpr(tmpVgpr,2)
-    # tmp = vgpr(tmpVgpr+4)
+    # flat_atomic_cmpswap tmp addr data:
+    #   tmp = mem[addr]
+    #   src = data[vi*numVgprsPerDataPerVI][0] new C
+    #   cmp = data[vi*numVgprsPerDataPerVI][1] original C
+    #   mem[addr] = (tmp==cmp) ? src : tmp
+    #   addr = vgpr(addr,2)
+    #   data = vgpr(tmpVgpr,2)
+    #   tmp = vgpr(tmpVgpr+4)
 
     # buffer_atomic_cmpswap:
-    # src = data[vi*numVgprsPerDataPerVI][0] new C
-    # cmp = data[vi*numVgprsPerDataPerVI][1] original C
-    # after buffer_atomic_cmpswap
-    # dest = data[vi*numVgprsPerDataPerVI][0] C loaded from memory, overwrites src
+    #   src = data[vi*numVgprsPerDataPerVI][0] new C
+    #   cmp = data[vi*numVgprsPerDataPerVI][1] original C
+    #   after buffer_atomic_cmpswap:
+    #   dest = data[vi*numVgprsPerDataPerVI][0] C loaded from memory, overwrites src
     if atomic:
       del tmpVgpr # catch bugs
       # TODO for atomic GWVW:
-      #  - Use VI to compute addresses, sumIdx.
+      #  - Use vi to compute addresses, sumIdx.
       #  - Need a solution for the mask.  Can move to all buffer or can fix?
 
       # atomic loop label
@@ -5350,6 +5395,7 @@ class KernelWriterAssembly(KernelWriter):
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
           sumIdxV = elementSumIdx[elementIdx] + vi
+          bps = kernel["ProblemType"]["DataType"].numBytes()
           # for atomic, data[1] = original c, data[0] = new c
           kStr += inst("v_add_f32", vgpr(dataV+0), vgpr(dataV+1), vgpr(sumIdxV), \
               "sum*alpha + C*beta vi=%u"%vi)
@@ -5362,8 +5408,8 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
                    sgpr("SrdC", 4),  \
-                   "0 offen offset:0 glc", \
-                   "attempt write", self.endLine )
+                   "0 offen offset:%u glc" % (vi*bps), \
+                   "attempt write vi=%u"%(vi), self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(atomicDestVgpr), vgpr(addr,2), \
@@ -5389,17 +5435,26 @@ class KernelWriterAssembly(KernelWriter):
         vc0 = element[3]
 
         # calculate new masks
-        for vi in range(0, gwvw):
-          dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
-          if edge:
+        if edge:
+          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+          for vi in range(0, gwvw):
+            dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
+            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
             # need to apply element mask before comparison
             # so that all valid lanes are doing the cmp
-            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
-            kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
-                vgpr(dataV+1), "c read during atomic == c read during prior load" )
-            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
-          else:
+            if vi == 0:
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
+                  vgpr(dataV+1), "c read during atomic == c read during prior load (vi=%u, first)"%vi )
+            else:
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
+                  vgpr(dataV+1), "c read during atomic == c read during prior load (vi=%u)"%vi )
+              kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
+
+          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+        else:
+          for vi in range(0, gwvw):
+            dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
+            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2 
             #kStr += inst("s_mov_b64", sgpr(mask,2), sgpr(fullExecMaskSgpr,2), "mask = full" )
             kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
                 vgpr(dataV+1), "c read during atomic != c read during prior load" )
@@ -5422,6 +5477,7 @@ class KernelWriterAssembly(KernelWriter):
         element = batchElements[elementIdx]
         addr = elementAddr[elementIdx]
         mask = elementMask[elementIdx]
+        bps = kernel["ProblemType"]["DataType"].numBytes()
 
         for vi in range(0, gwvw):
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
@@ -5440,7 +5496,7 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr(dataV,2), \
                    vgpr(addr,1), \
                    sgpr("SrdC", 4), \
-                   "0 offen offset:0 glc", \
+                   "0 offen offset:%u glc" % (vi*bps), \
                    "try again", self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
@@ -5814,6 +5870,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # assertCommon : Common routine for all assert functions.
+  # On entry, we have already set the exec-mask so any enabled lanes should bomb
   ##############################################################################
   def assertCommon(self, cookie=-1):
     kStr = ""
@@ -5834,7 +5891,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["EnableAsserts"]:
       kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
           "assert: saved execmask")
-      kStr += inst("v_cmpx_%s_u32"%c, "vcc", val0, val1, "v_cmp" )   
+      kStr += inst("v_cmpx_%s_u32"%c, "vcc", val0, val1, "v_cmp" )
 
       kStr += self.assertCommon(cookie)
 
@@ -5865,6 +5922,30 @@ class KernelWriterAssembly(KernelWriter):
 
   def assert_ge(self, val0, val1, cookie=-1):
     return self.assertCmpCommon("lt", val0, val1, cookie)
+
+  # asserts if val0 is not an integer multiple of multiple2
+  # multiple2 must be a constant and power of 2
+  # for example assert_multiple(A, 8) will assert if A is not multiple of 8
+  def assert_multiple_b32(self, sval, multiple2, cookie=-1):
+    kStr = ""
+    if self.db["EnableAsserts"]:
+
+      stmp = sgpr("SaveExecMask") # repurpose to get a tmp sgpr
+
+      kStr += inst("s_and_b32", stmp, sval, multiple2-1, "mask" )
+      kStr += inst("s_cmp_eq_u32", stmp, 0, "if maskedBits==0 then SCC=1 == no fault" )
+      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
+      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "Clear exec mask")
+
+      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+          "assert: saved execmask")
+
+      kStr += self.assertCommon(cookie)
+
+      kStr += inst("s_or_saveexec_b64", "vcc", sgpr("SaveExecMask",2), \
+          "assert: restore execmask")
+
+    return kStr
 
   # Assert that all bits in vcc are true, or assert/bomb otherwise
   def assert_vcc_true(self, cookie=-1):
