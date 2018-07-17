@@ -539,6 +539,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           s += "    std::string name = deviceProperties.name;\n"
 
         s += "\n"
+        s += "\*\n"
         s += "//  intercept schedule selection and call HIP (source) kernel\n"
         s += "    if((strideA2K == 0) || (strideB2K == 0))\n"
         s += "    {\n"
@@ -552,6 +553,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
               % (argListSizes[i][1],
                   ", " if i < len(argListSizes)-1 else ");\n")
         s += "    }\n"
+        s += "*/\n"
 
         s += "\n    "
         for scheduleIdx in range(0, numSchedules):
