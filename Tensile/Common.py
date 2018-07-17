@@ -428,7 +428,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
     {"FractionalLoad":            [ 0 ] },
-    {"VectorAtomicWidth":         [ -1 ] },
+    {"VectorAtomicWidth":         [ 1 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
