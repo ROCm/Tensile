@@ -383,15 +383,15 @@ bool callLibrary(
                   indexAssignmentsB[problemTypeIdx]);
   }
 
-  if (printTensorC) {
+  if (printTensorC & 0x1) {
     std::vector<unsigned int> indexAssignmentsC;
     for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
       indexAssignmentsC.push_back(i);
     }
-    printTensor("C", initialC, numIndicesC[problemTypeIdx],
+    printTensor("C_in", initialC, numIndicesC[problemTypeIdx],
                   numIndicesC[problemTypeIdx], userSizes,
                   indexAssignmentsC.data());
-    }
+  }
 
   size_t currentElementSizeC = 1;
   size_t currentMemorySizeC = 1;
@@ -461,12 +461,12 @@ bool callLibrary(
     hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
 
-    if (printTensorC) {
+    if (printTensorC & 0x2) {
       std::vector<unsigned int> indexAssignmentsC;
       for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
         indexAssignmentsC.push_back(i);
       }
-      printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
+      printTensor("C_result", deviceOnHostC, numIndicesC[problemTypeIdx],
                   numIndicesC[problemTypeIdx], userSizes,
                   indexAssignmentsC.data());
     }
@@ -803,6 +803,15 @@ bool benchmarkAllSolutionsForSize(
                 numIndicesC[problemTypeIdx], sizes, 
                 indexAssignmentsB[problemTypeIdx]);
   }
+  if (printTensorC & 0x1) {
+    std::vector<unsigned int> indexAssignmentsC;
+    for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
+      indexAssignmentsC.push_back(i);
+    }
+    printTensor("C_in", initialC, numIndicesC[problemTypeIdx],
+                numIndicesC[problemTypeIdx], sizes,
+                indexAssignmentsC.data());
+  }
 
   // pre-compute referenceCPU if validating
   if (numElementsToValidate) {
@@ -866,12 +875,12 @@ bool benchmarkAllSolutionsForSize(
 #else
         hipMemcpy(deviceOnHostC, deviceC, sizeToCopy, hipMemcpyDeviceToHost);
 #endif
-        if (printTensorC) {
+        if (printTensorC & 0x2) {
           std::vector<unsigned int> indexAssignmentsC;
           for (unsigned  int i = 0; i < numIndicesC[problemTypeIdx]; i++) {
             indexAssignmentsC.push_back(i);
           }
-          printTensor("C", deviceOnHostC, numIndicesC[problemTypeIdx],
+          printTensor("C_out", deviceOnHostC, numIndicesC[problemTypeIdx],
                       numIndicesC[problemTypeIdx], sizes,
                       indexAssignmentsC.data());
         }

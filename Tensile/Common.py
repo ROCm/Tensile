@@ -91,9 +91,9 @@ globalParameters["DebugKernel"] = False           # assembly only, kernel gets b
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
 
 # Tensor printing controls:
-globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
-globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
-globalParameters["PrintTensorC"] = False          # Print TensorC after computation
+globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
+globalParameters["PrintTensorB"] = 0          # Print TensorB after initialization
+globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
@@ -428,7 +428,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
     {"FractionalLoad":            [ 0 ] },
-    {"VectorAtomicWidth":         [ -1 ] },
+    {"VectorAtomicWidth":         [ 1 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
