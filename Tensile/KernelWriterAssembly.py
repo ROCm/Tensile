@@ -4335,6 +4335,8 @@ class KernelWriterAssembly(KernelWriter):
     else:
       useDwordX2 = 0
 
+    #useDwordX2 = 0
+
     if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
       assert(kernel["VectorWidth"]%2 == 0)
       elementStep = 2*(useDwordX2+1)
@@ -4449,7 +4451,7 @@ class KernelWriterAssembly(KernelWriter):
                 + j*kernel["ThreadTile0"]*kernel["VectorWidth"]
             writeOffset /= elementStep
             if useDwordX2:
-              if self.bpeCinternal == 8: regIdx *= 2 # for doubles, each element takes two regs
+              regIdx = regIdx * self.bpeCinternal / 4
               kStr += inst("ds_write_b64", vgpr(addr), vgpr("ValuC+%u"%regIdx,2), \
                            "offset:%u"%(elementStep*writeOffset*self.bpeCinternal), 
                            "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
@@ -4483,7 +4485,7 @@ class KernelWriterAssembly(KernelWriter):
           offset = s + i*kernel["NumThreads"]*kernel["GlobalWriteVectorWidth"] + r * kernel["MacroTile0"]*kernel["MacroTile1"]
           regIdx = s + i*kernel["GlobalWriteVectorWidth"] + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
           if useDwordX2:
-            if self.bpeCinternal == 8: regIdx *= 2 # for doubles, each element takes two regs
+            regIdx = regIdx * self.bpeCinternal / 4
             kStr += inst("ds_read_b64", vgpr("ValuC+%u"%regIdx,2), \
                 vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
           else:
