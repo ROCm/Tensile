@@ -1181,12 +1181,14 @@ bool benchmarkProblemSizes(
 } // benchmarkProblemSizes
 #endif // benchmark
 
+enum InitOp {None, Abs, AltSign};
 template<typename DataType>
 void initInput(
     const std::string &tag,
     unsigned dataInitType,
     DataType **initial,
-    size_t     maxSize)
+    size_t     maxSize,
+    InitOp     initOp)
 {
   if (dataInitType == 0) {
     for (size_t i = 0; i < maxSize; i++) {
@@ -1202,7 +1204,15 @@ void initInput(
     std::cout << ".";
   } else if (dataInitType == 3) {
     for (size_t i = 0; i < maxSize; i++) {
-      (*initial)[i] = tensileGetRandom<DataType>(); }
+      auto v = tensileGetRandom<DataType>();
+      if (initOp == Abs) {
+        v = fabs(v);
+      } else if (initOp == AltSign) {
+        DataType s = (i&0x1) ? -1:1;
+        v = s*fabs(v);
+      }
+      (*initial)[i] = v;
+    }
     std::cout << ".";
   } else if (dataInitType == 4) {
     for (size_t i = 0; i < maxSize; i++) {
@@ -1279,9 +1289,9 @@ void initData(
   std::cout << ".";
 
   // initialize buffers
-  initInput("DataInitTypeA", initA, initialA, maxSizeA);
-  initInput("DataInitTypeB", initB, initialB, maxSizeB);
-  initInput("DataInitTypeC", initC, initialC, maxSizeC);
+  initInput("DataInitTypeA", initA, initialA, maxSizeA, Abs);
+  initInput("DataInitTypeB", initB, initialB, maxSizeB, AltSign);
+  initInput("DataInitTypeC", initC, initialC, maxSizeC, None);
 
   // create device buffers and copy data
 #if Tensile_RUNTIME_LANGUAGE_OCL
