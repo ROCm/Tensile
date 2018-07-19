@@ -552,8 +552,25 @@ def writeLogic(outputPath, logicData, solutionWriter ):
               % (argListSizes[i][1],
                   ", " if i < len(argListSizes)-1 else ");\n")
         s += "    }\n"
+        s += "\n"
 
-        s += "\n    "
+        if problemType["DataType"].isHalf() :
+          s += "\n"
+          s += "//  intercept schedule selection and call HIP (source) kernel\n"
+          s += "    if((sizeL %2 == 1) && ((name == \"Device 66a0\") || (name == \"Device 66a7\")))\n"
+          s += "    {\n"
+          numSchedules = len(schedules)
+          schedule = reordered_schedules[numSchedules-1]
+          scheduleName  = schedule[0]
+          s += "        return tensileGetSolution%s_%s_%s(" \
+                % ( returnType, scheduleName, problemType)
+          for i in range(0, len(argListSizes)):
+            s += "%s%s" \
+                % (argListSizes[i][1],
+                    ", " if i < len(argListSizes)-1 else ");\n")
+          s += "    }\n"
+          s += "\n"
+
         for scheduleIdx in range(0, numSchedules):
           schedule = reordered_schedules[scheduleIdx]
           scheduleName  = schedule[0]
@@ -586,6 +603,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
               % (argListSizes[i][1],
                   ", " if i < len(argListSizes)-1 else ");\n")
       s += "\n}\n"
+
 
 
     # implement tensileGetSolutionPointer_ProblemType
