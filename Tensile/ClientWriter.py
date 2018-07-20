@@ -299,7 +299,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "const unsigned printTensorB=%x;\n" % int(globalParameters["PrintTensorB"])
   h += "const unsigned printTensorC=%x;\n" % int(globalParameters["PrintTensorC"])
 
-  h += "const bool printWinnersOnly=%s;\n" % (globalParameters["PrintWinnersOnly"])
+  h += "const bool printWinnersOnly=%s;\n" % toCppBool(globalParameters["PrintWinnersOnly"])
   h += "\n";
 
   h += "const char indexChars[%u] = \"%s" \
