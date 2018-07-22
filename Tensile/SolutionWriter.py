@@ -140,8 +140,6 @@ class SolutionWriter:
 
     s += "%sint deviceId;\n" % (t)
     s += "%shipCtxGetDevice(&deviceId);\n" % (t)
-    s += "%shipDeviceProp_t deviceProperties;\n" % (t)
-    s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
     if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
@@ -174,7 +172,6 @@ class SolutionWriter:
     elif solution["KernelLanguage"] == "Assembly":
       localStatic = True
       kernel = kernels[0]
-      s += "%sint isa = deviceProperties.gcnArch;\n" % (t)
       s += "%shipFunction_t hipFunction;\n" % (t)
 
       kernelName = self.kernelWriter.getKernelName(kernel)
@@ -292,6 +289,8 @@ class SolutionWriter:
     if solution["GlobalSplitU"] > 1:
       s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
     if solution["PersistentKernel"]:
+      s += "%shipDeviceProp_t deviceProperties;\n" % (t)
+      s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sglobalWorkSize[0][0] = deviceProperties.multiProcessorCount * %u;\n" \
               % (t, solution["PersistentKernel"])
       s += "%sglobalWorkSize[0][1] = 1;\n" % t

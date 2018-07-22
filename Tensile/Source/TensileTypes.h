@@ -29,6 +29,7 @@
 #define TensileStatus cl_int
 #define tensileStatusSuccess CL_SUCCESS
 #define tensileStatusFailure -1
+#define tensileStatusAssertFailure -1
 #define TensileComplexFloat cl_float2
 #define TensileComplexDouble cl_double2
 #define TensileHalf cl_half
@@ -39,6 +40,7 @@
 #define TensileStatus hipError_t
 #define tensileStatusSuccess hipSuccess
 #define tensileStatusFailure hipErrorUnknown
+#define tensileStatusAssertFailure hipErrorUnknown
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 #define TensileHalf __fp16

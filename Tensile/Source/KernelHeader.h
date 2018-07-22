@@ -28,8 +28,6 @@ typedef __fp16 __half;
 
 extern "C" half2 llvm_fma_v2f16(half2, half2, half2) __asm("llvm.fma.v2f16");
 
-__device__ __half __hfma(__half a, __half b, __half c);
-
 __device__ inline half2 tensile_fmadd_half2(half2 multiplier, half2 multiplicand, half2 addend)
 {
     half2 result;

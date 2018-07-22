@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning
+from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecks
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO
@@ -297,6 +298,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "const bool printTensorA=%s;\n" % toCppBool(globalParameters["PrintTensorA"])
   h += "const bool printTensorB=%s;\n" % toCppBool(globalParameters["PrintTensorB"])
   h += "const bool printTensorC=%s;\n" % toCppBool(globalParameters["PrintTensorC"])
+
+  h += "const bool printWinnersOnly=%s;\n" % toCppBool(globalParameters["PrintWinnersOnly"])
   h += "\n";
 
   h += "const char indexChars[%u] = \"%s" \
@@ -624,16 +627,31 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, len(argList)):
       h += "  %s %s%s" % (argList[i][0], argList[i][1], \
           ",\n" if i < len(argList)-1 else ");\n\n")
-    h += "const SolutionFunctionPointer solutions[maxNumSolutions] = {\n"
+
+    h += "struct SolutionInfo {\n"
+    h += "  SolutionFunctionPointer functionPtr;\n"
+    h += "  const char *            name;\n"
+    # These are assertions used to generate the solution
+    # Must be checked by the runtime before launchin the solution
+    h += "  int                     assertSummationElementMultiple;\n"
+    h += "  int                     assertFree0ElementMultiple;\n"
+    h += "};\n";
+
+    h += "const SolutionInfo solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      h += "  %s" % solutionName
+      h += "  {%s, \"%s\", %d, %d}" % \
+        (solutionName, solutionName,
+          solution["AssertSummationElementMultiple"],
+          solution["AssertFree0ElementMultiple"])
       if i < len(solutions)-1:
         h += ","
       h += "\n"
     h += " };\n"
     h += "\n"
+
+
     # Solution Names
     h += "const char *solutionNames[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
@@ -717,6 +735,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "    DataType *referenceC,\n"
   h += "    DataType *initialA,\n"
   h += "    DataType *initialB,\n"
+  h += "    const unsigned int stride_a,\n"
+  h += "    const unsigned int stride_b,\n"
+  h += "    const unsigned int stride_c,\n"
   h += "    DataType alpha,\n"
   h += "    DataType beta,\n"
   h += "    bool useHighPrecisionAccumulate) {\n"
@@ -724,6 +745,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   h += "      referenceC,\n"
   h += "      initialA,\n"
   h += "      initialB,\n"
+  h += "      stride_a,\n"
+  h += "      stride_b,\n"
+  h += "      stride_c,\n"
   h += "      alpha,\n"
   h += "      beta,\n"
   h += "      totalIndices[problemTypeIdx],\n"
@@ -797,13 +821,25 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
     h += "\n"
 
+
     # function call
+    h += "  // Check assertions,\n"
+    h += writeSolutionAssertionCheckHeader(problemType)
+    h += "if (!(\n  "
+    h += writeSolutionAssertionChecks(
+           "solutions[solutionIdx].assertSummationElementMultiple",
+           "solutions[solutionIdx].assertFree0ElementMultiple",
+           "\n  ")
+    h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
+    h += "\n"
+
     h += "  // call solution function\n"
+    h += "  auto f = solutions[solutionIdx].functionPtr;\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
-      h += "  return solutions[solutionIdx]( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
+      h += "  return f( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
-      h += "  return solutions[solutionIdx]( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
+      h += "  return f( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
           % (typeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
@@ -841,6 +877,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "    unsigned int *minStrides,\n"
       h += "    DataType alpha,\n"
       h += "    DataType beta, \n"
+      h += "    unsigned int strideA, \n"
+      h += "    unsigned int strideB, \n"
+      h += "    unsigned int strideC, \n"
       h += "    unsigned int numEvents = 0, \n"
 
       if globalParameters["RuntimeLanguage"] == "OCL":
@@ -864,6 +903,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "    unsigned int *minStrides,\n"
         h += "    %s alpha,\n" % typeName
         h += "    %s beta,\n" % typeName
+        h += "    unsigned int strideA, \n"
+        h += "    unsigned int strideB, \n"
+        h += "    unsigned int strideC, \n"
         h += "    unsigned int numEvents, \n"
 
         if globalParameters["RuntimeLanguage"] == "OCL":
@@ -903,6 +945,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             for j in range(0, i):
               h += "*sizes[%i]" % j
             h += ";\n"
+          h += "    if (strideC != std::numeric_limits<unsigned int>::max())  strideC%u%s = strideC;\n" % (lastStrideC-1, indexChars[lastStrideC-1])
+
           for i in range(0,lastStrideA):
             h += "    unsigned int strideA%u%s = 1" % (i, \
                 indexChars[problemType["IndexAssignmentsA"][i]])
@@ -910,6 +954,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
               h += "*sizes[%i]" % \
                 problemType["IndexAssignmentsA"][j]
             h += ";\n"
+          h += "    if (strideA != std::numeric_limits<unsigned int>::max())  strideA%u%s = strideA;\n" % (lastStrideA-1, indexChars[lastStrideA-1])
           for i in range(0,lastStrideB):
             h += "    unsigned int strideB%u%s = 1" % (i, \
                 indexChars[problemType["IndexAssignmentsB"][i]])
@@ -917,6 +962,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
               h += "*sizes[%i]" % \
                 problemType["IndexAssignmentsB"][j]
             h += ";\n"
+          h += "    if (strideB != std::numeric_limits<unsigned int>::max())  strideB%u%s = strideB;\n" % (lastStrideB-1, indexChars[lastStrideB-1])
           for i in range(0, problemType["TotalIndices"]):
             h += "    unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
 
