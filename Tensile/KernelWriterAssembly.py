@@ -5171,6 +5171,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Global Write Batch
+  # numVgprsPerDataPerVI : Uses bpeCinternal
   ##############################################################################
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, gwvw, \
       batchElements, coord0, coord1, addrC,  \
@@ -5678,23 +5679,15 @@ class KernelWriterAssembly(KernelWriter):
                 else:
                   pass # add will have been done previously
               else: # HPA
-                # Work TODO
-                # [ ] Need madmix to select hi operand from memory
-                #     [ ] Divide dataV /=2 to select same source twice, dest vgpr as is
-                #     [ ] Select correct D for the beta multiply - F32 D but F16 hi/low.
-                #          Looks like we should pack adjacent vgpr together, ie v0/v1
-                # [ ] Now convert to FP16 and pack
-                #     Destinations should be packed like this; looks like current code does this for alpha
-                #      - v0 = {v0,v1}
-                #      - v1 = {v2,v3}
-                #      - v2 = {v4,v5}
-                #      - v3 = {v6,v7} # then skip ahead.  Or change store vgpr indexing
-                #      - v8 = {v8,v9}
-
                 # dataV+0 = new c = old c*beta + rC
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[0,1,0] //C*=beta%s" % \
-                  (vgpr(sumIdxV), vgpr(self.betaVgpr), vgpr(dataV+0), vgpr(sumIdxV), self.endLine)
-
+                # src0 = beta = f32 = opsel 00
+                # src1 = dataV = f16.lo = opsel 10 or 11 depending on even/odd
+                # src2 = sumIdxV = f32 = opsel 00
+                dataCExternal = elementData[elementIdx] + vi/2
+                kStr += inst("v_mad_mix_f32", vgpr(sumIdxV), vgpr(self.betaVgpr), \
+                    vgpr(dataCExternal), vgpr(sumIdxV), \
+                    "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (vi%2), \
+                    "//C*=beta")
             elif kernel["ProblemType"]["DataType"].isSingle():
               kStr += inst("v_mac_f32", vgpr(sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
                   "finalSum = sum*alpha + C*beta")
