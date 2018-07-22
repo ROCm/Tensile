@@ -5696,20 +5696,13 @@ class KernelWriterAssembly(KernelWriter):
                   (vgpr(sumIdxV), vgpr(self.betaVgpr), vgpr(dataV+0), vgpr(sumIdxV), self.endLine)
 
             elif kernel["ProblemType"]["DataType"].isSingle():
-              # BOZO - can this be a mad?
-              # dataV+0 = new c = old c*beta
-              kStr += inst("v_mul_f32", vgpr(dataV+0), sgpr("Beta"), vgpr(dataV+0), \
-                  "%s = C*beta"%vgpr(dataV+0) )
-              # dataV+0 = new c = old c*beta + rC
-              kStr += inst("v_add_f32", vgpr(sumIdxV), vgpr(dataV+0), vgpr(sumIdxV), \
-                  "sum*alpha + C*beta")
+              kStr += inst("v_mac_f32", vgpr(sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
+                  "finalSum = sum*alpha + C*beta")
+
             elif kernel["ProblemType"]["DataType"].isDouble():
               # dataV+0 = new c = old c*beta
-              kStr += inst("v_mul_f64", vgpr(dataV+0,2), sgpr("Beta",2), vgpr(dataV+0,2), \
-                  "%s = C*beta"%vgpr(dataV+0,2) )
-              # dataV+0 = new c = old c*beta + rC
-              kStr += inst("v_add_f64", vgpr(sumIdxV*2,2), vgpr(dataV+0,2), vgpr(sumIdxV*2,2), \
-                  "sum*alpha + C*beta")
+              kStr += inst("v_fma_f64", vgpr(sumIdxV*2,2), vgpr(dataV+0,2), sgpr("Beta",2), vgpr(sumIdxV*2,2), \
+                  "finalSum = sum*alpha + C*beta")
 
 
        # pack stores:
