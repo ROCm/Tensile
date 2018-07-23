@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.2.0
+  MinimumRequiredVersion: 4.3.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -173,6 +173,38 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 2 ]
+          - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 32, 4, 1 ]
+          - [ 16, 4, 1 ]
+          - [ 8, 8, 1 ]
+          - [ 16, 8, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [128] ] # skinny-1, source code for k<=128
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [128] ] # small, source code for k<=128
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
@@ -198,9 +230,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [3104] ] # skinny-1
-          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [3104] ] # small
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [256, 1024, 1024, 4096] ] # skinny-1
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [256, 1024, 1024, 4096] ] # small
           - Exact: [ 64, 1, 1, 1216 ]
           - Exact: [ 128, 1, 1, 1024 ]
           - Exact: [ 128, 1, 1, 1408 ]
@@ -282,6 +314,35 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchLocalRead: [True]
+        - GlobalSplitU: [1]
+      ForkParameters:
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 6, 8 ]
+          - [ 8, 4 ]
+          - [ 8, 6 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [128] ] # large, source code for k<=128
+
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [True]
         - GlobalSplitU: [1]
@@ -304,7 +365,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # large
           - Exact: [ 1024, 1024, 1, 1024 ]
           - Exact: [ 1024, 700, 1, 512 ]
           - Exact: [ 1024, 700, 1, 512 ]
@@ -402,6 +463,33 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - GlobalSplitU: [1]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [4], [1], [128] ] # corner, source code for k<=128
+          - Range: [ [4], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [4], [1], [128] ] # skinny-1, source code for k<=128
+
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
@@ -423,9 +511,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [3104] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
+          - Range: [ [4], [4], [1], [256, 1024, 1024, 4096] ] # corner
+          - Range: [ [4], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [256, 1024, 1024, 4096] ] # skinny-1
 
   ########################################
   # NN - VGPR refactor
@@ -627,6 +715,39 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 2 ]
+          - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 32, 4, 1 ]
+          - [ 16, 4, 1 ]
+          - [ 8, 8, 1 ]
+          - [ 16, 8, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<128
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [128] ] # skinny-1, source code for k<128
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [128] ] # small, source code for k<128
+
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
@@ -652,9 +773,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [3104] ] # skinny-1
-          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [3104] ] # small
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [256, 1024, 1024, 4096] ] # skinny-1
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [256, 1024, 1024, 4096] ] # small
           - Exact: [ 1760, 16, 1, 1760 ]
           - Exact: [ 3072, 16, 1, 1024 ]
           - Exact: [ 2048, 16, 1, 2048 ]
@@ -698,6 +819,35 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - GlobalSplitU: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 6, 8 ]
+          - [ 8, 4 ]
+          - [ 8, 6 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [128] ] # large, source code for k<=128
+
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
@@ -720,7 +870,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # large
           - Exact: [ 1024, 1024, 1, 1024 ]
 # MIOpen sizes
           - Exact: [  1760,   800, 1, 1760 ]
@@ -812,6 +962,33 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - GlobalSplitU: [1]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [4], [1], [128] ] # corner, source code for k<=128
+          - Range: [ [4], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [4], [1], [128] ] # skinny-1, source code for k<=128
+
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
@@ -833,9 +1010,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [3104] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
+          - Range: [ [4], [4], [1], [256, 1024, 1024, 4096] ] # corner
+          - Range: [ [4], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [256, 1024, 1024, 4096] ] # skinny-1
 
   ########################################
   ########################################
@@ -856,6 +1033,39 @@ BenchmarkProblems:
   ########################################
   # NT - Small or Skinny
   ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 2 ]
+          - [ 4, 4 ]
+          - [ 8, 4 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 32, 4, 1 ]
+          - [ 16, 4, 1 ]
+          - [ 8, 8, 1 ]
+          - [ 16, 8, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - GlobalSplitU: [1]
+        - DepthU: [ 8, 16, 24, 32 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [128] ] # skinny-1, source code for k<=128
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [128] ] # small, source code for k<=128
+
     - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -886,9 +1096,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [3104] ] # skinny-1
-          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [3104] ] # small
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [256, 1024, 1024, 4096] ] # skinny-1
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [256, 1024, 1024, 4096] ] # small
           - Exact: [ 512, 16, 1, 512 ]
           - Exact: [ 512, 32, 1, 512 ]
           - Exact: [ 1024, 16, 1, 512 ]
@@ -897,6 +1107,35 @@ BenchmarkProblems:
   ########################################
   # NT - Large
   ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - GlobalSplitU: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 6, 8 ]
+          - [ 8, 4 ]
+          - [ 8, 6 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [1, 8]
+        - DepthU: [ 8, 16 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [128] ] # large, source code for k<=128
+
     - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -924,7 +1163,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # large
           - Exact: [ 1024, 1024, 1, 1024 ]
           - Exact: [ 1760, 7133, 1, 1760 ]
           - Exact: [ 2048, 7133, 1, 2048 ]
@@ -936,6 +1175,33 @@ BenchmarkProblems:
   ########################################
   # NT - VectorWidth Correctness
   ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - GlobalSplitU: [1]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [4], [1], [128] ] # corner, source code for k<=128
+          - Range: [ [4], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [4], [1], [128] ] # skinny-1, source code for k<=128
+
     - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -962,9 +1228,9 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [3104] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
+          - Range: [ [4], [4], [1], [256, 1024, 1024, 4096] ] # corner
+          - Range: [ [4], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [256, 1024, 1024, 4096] ] # skinny-1
 
   ########################################
   ########################################
@@ -985,6 +1251,40 @@ BenchmarkProblems:
   ########################################
   # TT - Small or Skinny
   ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 2, 4 ]
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 32, 4, 1 ]
+          - [ 8, 8, 1 ]
+          - [ 16, 16, 1 ]
+          - [ 16, 8, 1 ]
+          - [ 8, 16, 1 ]
+        - WorkGroupMapping: [-1, -4]
+        - GlobalSplitU: [1]
+        - DepthU: [ 8 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [128] ] # skinny-1, source code for k<=128
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [128] ] # small, source code for k<=128
+
     - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -1015,13 +1315,42 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [3104] ] # skinny-1
-          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [3104] ] # small
+          - Range: [ [64, 128], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [64, 128], [1], [256, 1024, 1024, 4096] ] # skinny-1
+          - Range: [ [64, 64, 64, 700], [64, 64, 64, 700], [1], [256, 1024, 1024, 4096] ] # small
 
   ########################################
   # TT - Large
   ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchLocalRead: [True]
+        - GlobalSplitU: [1]
+      ForkParameters:
+        - PrefetchGlobalRead: [False, True]
+        - ThreadTile:
+          - [ 4, 4 ]
+          - [ 4, 8 ]
+          - [ 6, 8 ]
+          - [ 8, 4 ]
+          - [ 8, 6 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [-1, -4]
+        - DepthU: [ 8 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [128] ] # large, source code for k<=128
+
     - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -1049,12 +1378,39 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [3104] ] # large
+          - Range: [ [64, 64, 64, 7000], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # large
           - Exact: [ 1024, 1024, 1, 1024 ]
 
   ########################################
   # TT - VectorWidth Correctness
   ########################################
+    - # Benchmark Group
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Source"]
+        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [-1]
+      ForkParameters:
+        - ThreadTile:
+          - [ 2, 2 ]
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 8, 8, 1 ]
+        - GlobalSplitU: [1]
+        - DepthU: [ -1 ]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [4], [4], [1], [128] ] # corner, source code for k<=128
+          - Range: [ [4], [64, 64, 64, 7000], [1], [128] ] # skinny-0, source code for k<=128
+          - Range: [ [64, 64, 64, 7000], [4], [1], [128] ] # skinny-1, source code for k<=128
+
     - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -1081,13 +1437,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [4], [4], [1], [3104] ] # corner
-          - Range: [ [4], [64, 64, 64, 7000], [1], [3104] ] # skinny-0
-          - Range: [ [64, 64, 64, 7000], [4], [1], [3104] ] # skinny-1
+          - Range: [ [4], [4], [1], [256, 1024, 1024, 4096] ] # corner
+          - Range: [ [4], [64, 64, 64, 7000], [1], [256, 1024, 1024, 4096] ] # skinny-0
+          - Range: [ [64, 64, 64, 7000], [4], [1], [256, 1024, 1024, 4096] ] # skinny-1
 
 LibraryLogic:
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

@@ -20,8 +20,9 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, pushWorkingPath, popWorkingPath, printExit, CHeader
+from Common import globalParameters, printExit, CHeader
 import abc
+import os
 from os import path, chmod
 from os import name as osname
 from subprocess import Popen
@@ -289,14 +290,15 @@ class KernelWriter:
           kStr += self.syncThreads(kernel)
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
-            kStr += self.comment("local read prefetch a")
-            kStr += self.localReadDo(kernel, 0, iui, tensorParametersA)
-            kStr += self.comment("local read prefetch b")
-            kStr += self.localReadDo(kernel, 0, iui, tensorParametersB)
-            kStr += self.comment("local read inc a")
-            kStr += self.localReadInc(kernel, tensorParametersA)
-            kStr += self.comment("local read inc b")
-            kStr += self.localReadInc(kernel, tensorParametersB)
+            for plrIdx in range(0, kernel["PrefetchLocalRead"]):
+              kStr += self.comment("local read prefetch a")
+              kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
+              kStr += self.comment("local read prefetch b")
+              kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
+              kStr += self.comment("local read inc a")
+              kStr += self.localReadInc(kernel, tensorParametersA)
+              kStr += self.comment("local read inc b")
+              kStr += self.localReadInc(kernel, tensorParametersB)
       kStr += self.closeSumAtLeastUnroll(kernel, True)
 
     # open unrolled summation loop
@@ -354,125 +356,109 @@ class KernelWriter:
     if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
       for iui in range(0,kernel["InnerUnroll"]):
         if self.enable["LocalRead"]:
-          kStr += self.comment("prefetch local a")
-          kStr += self.localReadDo(kernel, 0, iui, tensorParametersA)
-          kStr += self.comment("prefetch local b")
-          kStr += self.localReadDo(kernel, 0, iui, tensorParametersB)
-          kStr += self.comment1("local read increment a")
-          kStr += self.localReadInc(kernel, tensorParametersA)
-          kStr += self.comment1("local read increment b")
-          kStr += self.localReadInc(kernel, tensorParametersB)
+          for plrIdx in range(0, kernel["PrefetchLocalRead"]):
+            kStr += self.comment("prefetch local a")
+            kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
+            kStr += self.comment("prefetch local b")
+            kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
+            kStr += self.comment1("local read increment a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment1("local read increment b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
+
+    pf     = kernel["PrefetchLocalRead"]  # how many pf already done above
 
     ############################################################################
     # unrolled loop: mac iterations
+    # Includes handling for the 2nd-to-last iteration:
     ############################################################################
-    for u in range(0, kernel["LoopUnroll"]-2):
-     # local read
-      kStr += self.comment("iter %u"%u)
-      readBlk = kernel["PrefetchLocalRead"] and u%2==0
+    for u in range(0, kernel["LoopUnroll"]-1):
+      # which loop iteration to reset the LRO:
+      isResetLroIter = (u == kernel["LoopUnroll"] - kernel["PrefetchLocalRead"] - 1)
+      extraComment = ""
+      if isResetLroIter:
+        extraComment = " (swap local pointers iteration)" 
+      kStr += self.comment("iter %u%s"%(u,extraComment))
+      plrIdx = (u+pf) % (kernel["PrefetchLocalRead"]+1)
       for iui in range(0,kernel["InnerUnroll"]):
         if self.enable["LocalRead"]:
           kStr += self.comment("local read a")
-          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+          kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
           kStr += self.comment("local read b")
-          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
-          kStr += self.comment("local read increment a")
-          kStr += self.localReadInc(kernel, tensorParametersA)
-          kStr += self.comment("local read increment b")
-          kStr += self.localReadInc(kernel, tensorParametersB)
+          kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
+
+          # Don't increment the LRO if we are going to reset them below:
+          if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
+            kStr += self.comment("local read increment a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment("local read increment b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
+
+      if isResetLroIter: # ResetLroIter
+        if kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]:
+          if self.enable["Wait"]:
+            kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "4wait for global read")
+
+          if self.enable["LocalWrite"]:
+            # local write for next iter
+            kStr += self.comment("local write a")
+            kStr += self.localWriteDo(kernel, tensorParametersA)
+            kStr += self.comment("local write b")
+            kStr += self.localWriteDo(kernel, tensorParametersB)
+            kStr += self.comment("local write swap offsets a")
+            kStr += self.localWriteSwapOffsets(kernel, tensorParametersA)
+            kStr += self.comment("local write swap offsets b")
+            kStr += self.localWriteSwapOffsets(kernel, tensorParametersB)
+            kStr += self.comment("local write init pointers a")
+            kStr += self.localWriteInitPointers(kernel, tensorParametersA)
+            kStr += self.comment("local write init pointers b")
+            kStr += self.localWriteInitPointers(kernel, tensorParametersB)
+
+        if self.enable["LocalRead"]:
+          if isResetLroIter:
+            # Swap, reset, or increment the LRO:
+            if kernel["PrefetchGlobalRead"]:
+              kStr += self.comment("local read swap offsets a")
+              kStr += self.localReadSwapOffsets(kernel, tensorParametersA)
+              kStr += self.comment("local read swap offsets b")
+              kStr += self.localReadSwapOffsets(kernel, tensorParametersB)
+
+            kStr += self.comment("local read init pointers a")
+            kStr += self.localReadInitPointers(kernel, tensorParametersA)
+            kStr += self.comment("local read init pointers b")
+            kStr += self.localReadInitPointers(kernel, tensorParametersB)
+          else:
+            # local read inc
+            kStr += self.comment("local read inc a")
+            kStr += self.localReadInc(kernel, tensorParametersA)
+            kStr += self.comment("local read inc b")
+            kStr += self.localReadInc(kernel, tensorParametersB)
+
+        waitGlobalRead = -1
+        if kernel["PrefetchGlobalRead"] and isResetLroIter:
+          waitLocalWrite = 1
+        else:
+          waitLocalWrite = -1
+        waitLocalRead  = 1 if isResetLroIter else 0
+
+      else: # not isResetLroIter
+        waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"] else -1
+        waitLocalWrite = -1
+        waitLocalRead  = 1 if kernel["PrefetchLocalRead"] else 0
+
       if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1 if (u==0 and kernel["PrefetchGlobalRead"] and kernel["PrefetchLocalRead"]) else -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
+        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, \
+            waitGlobalRead, waitLocalWrite, waitLocalRead, "wait for prior local read")
+
       if self.enable["MAC"]:
-        kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1), kernel["InnerUnroll"] )
+        luIdx = (u) % (kernel["PrefetchLocalRead"]+1) # local to use for MACs
+        kStr += self.macIter(kernel, luIdx, kernel["InnerUnroll"] )
 
     kStr += self.closeString(kernel)
     kStr += self.openString(kernel)
-
-    ####################################
-    # unrolled loop: 2nd-to-last summation iter
-    ####################################
-    # if prefetch-local: read for last unroll,
-    # local write, readSwap/Init, writeSwapInit
-    # if no prefetch-local: read for current unroll of current iter
-    unrollIter = kernel["LoopUnroll"]-2
-    kStr += self.comment("iter %u (second to last)"%unrollIter)
-    if kernel["PrefetchLocalRead"] and kernel["PrefetchGlobalRead"]:
-      for iui in range(0,kernel["InnerUnroll"]):
-        if self.enable["LocalRead"]:
-          # local read for last unroll
-          kStr += self.comment("local read a")
-          kStr += self.localReadDo(kernel, 1, iui, tensorParametersA)
-          kStr += self.comment("local read b")
-          kStr += self.localReadDo(kernel, 1, iui, tensorParametersB)
-          if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
-            kStr += self.comment1("unroll increments:")
-            kStr += self.comment1("local read inc a")
-            kStr += self.localReadInc(kernel, tensorParametersA)
-            kStr += self.comment("local read inc b")
-            kStr += self.localReadInc(kernel, tensorParametersB)
-      if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "4wait for global read")
-      if self.enable["LocalWrite"]:
-        # local write for next iter
-        kStr += self.comment("local write a")
-        kStr += self.localWriteDo(kernel, tensorParametersA)
-        kStr += self.comment("local write b")
-        kStr += self.localWriteDo(kernel, tensorParametersB)
-        kStr += self.comment("local write swap offsets a")
-        kStr += self.localWriteSwapOffsets(kernel, tensorParametersA)
-        kStr += self.comment("local write swap offsets b")
-        kStr += self.localWriteSwapOffsets(kernel, tensorParametersB)
-        kStr += self.comment("local write init pointers a")
-        kStr += self.localWriteInitPointers(kernel, tensorParametersA)
-        kStr += self.comment("local write init pointers b")
-        kStr += self.localWriteInitPointers(kernel, tensorParametersB)
-      if self.enable["LocalRead"]:
-        # swap read and write pointers
-        kStr += self.comment("local read swap offsets a")
-        kStr += self.localReadSwapOffsets(kernel, tensorParametersA)
-        kStr += self.comment("local read swap offsets b")
-        kStr += self.localReadSwapOffsets(kernel, tensorParametersB)
-        kStr += self.comment("local read init pointers a")
-        kStr += self.localReadInitPointers(kernel, tensorParametersA)
-        kStr += self.comment("local read init pointers b")
-        kStr += self.localReadInitPointers(kernel, tensorParametersB)
-      if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 1, 1, "wait for prior local read")
-    else:
-      if self.enable["LocalRead"]:
-        # local read
-        readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
-        for iui in range(0,kernel["InnerUnroll"]):
-          kStr += self.comment("local read a")
-          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
-          kStr += self.comment("local read b")
-          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
-          if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
-            kStr += self.comment1("unroll increments:")
-            kStr += self.comment1("local read inc a")
-            kStr += self.localReadInc(kernel, tensorParametersA)
-            kStr += self.comment("local read inc b")
-            kStr += self.localReadInc(kernel, tensorParametersB)
-        if kernel["PrefetchLocalRead"]:
-          # local read init ptrs
-          kStr += self.comment("local read init pointers a")
-          kStr += self.localReadInitPointers(kernel, tensorParametersA)
-          kStr += self.comment("local read init pointers b")
-          kStr += self.localReadInitPointers(kernel, tensorParametersB)
-        else:
-          # local read inc
-          kStr += self.comment("local read inc a")
-          kStr += self.localReadInc(kernel, tensorParametersA)
-          kStr += self.comment("local read inc b")
-          kStr += self.localReadInc(kernel, tensorParametersB)
-      if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 1 if kernel["PrefetchLocalRead"] else 0, "wait for prior local read")
-
-    if self.enable["MAC"]:
-      kStr += self.macIter(kernel, False, kernel["InnerUnroll"])
 
     ####################################
     # unrolled loop: last summation iter
@@ -490,11 +476,11 @@ class KernelWriter:
       for iui in range(0,kernel["InnerUnroll"]):
         if self.enable["LocalRead"]:
           # local read
-          readBlk = kernel["PrefetchLocalRead"] and unrollIter%2==0
+          plrIdx = (unrollIter+pf) % (kernel["PrefetchLocalRead"] + 1)
           kStr += self.comment("local read a")
-          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+          kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
           kStr += self.comment("local read b")
-          kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
+          kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
           if kernel["InnerUnroll"] and iui != kernel["InnerUnroll"]-1:
             kStr += self.comment("unroll increments:")
             kStr += self.comment("local read inc a")
@@ -552,7 +538,8 @@ class KernelWriter:
     # no wait needed here b/c we already waited for ds_write
     # which waited for this ds_read
     if self.enable["MAC"]:
-      kStr += self.macIter(kernel, kernel["PrefetchLocalRead"], kernel["InnerUnroll"])
+      luIdx = (unrollIter) % (kernel["PrefetchLocalRead"] + 1)
+      kStr += self.macIter(kernel, luIdx, kernel["InnerUnroll"])
 
     # close unrolled loop
     kStr += self.comment3("Unrolled Loop - End")
@@ -569,14 +556,14 @@ class KernelWriter:
           kStr += self.syncThreads(kernel)
       for u in range(0, kernel["LoopUnroll"]):
         kStr += self.comment("iter %u"%u)
-        readBlk = kernel["PrefetchLocalRead"] and u%2==0
+        plrIdx = (u+pf) % (kernel["PrefetchLocalRead"] + 1)
         for iui in range(0,kernel["InnerUnroll"]):
           if self.enable["LocalRead"]:
             if u < kernel["LoopUnroll"]-1 or not kernel["PrefetchLocalRead"]:
               kStr += self.comment("local read a")
-              kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersA)
+              kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
               kStr += self.comment("local read b")
-              kStr += self.localReadDo(kernel, readBlk, iui, tensorParametersB)
+              kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
               kStr += self.comment("local read inc a")
               kStr += self.localReadInc(kernel, tensorParametersA)
               kStr += self.comment("local read inc b")
@@ -585,7 +572,8 @@ class KernelWriter:
           kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
               1 if (u < kernel["LoopUnroll"]-1 and kernel["PrefetchLocalRead"]) else 0, "3wait for local read")
         if self.enable["MAC"]:
-          kStr += self.macIter(kernel, (kernel["PrefetchLocalRead"] and u%2==1), kernel["InnerUnroll"] )
+          luIdx = (u) % (kernel["PrefetchLocalRead"] + 1)
+          kStr += self.macIter(kernel, luIdx, kernel["InnerUnroll"] )
       kStr += self.closeSumAtLeastUnroll(kernel, False)
 
     ########################################
@@ -660,7 +648,7 @@ class KernelWriter:
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "4wait for local read")
       if self.enable["MAC"]:
-        kStr += self.macIter(kernel, False, tailLoopInnerUnroll)
+        kStr += self.macIter(kernel, 0, tailLoopInnerUnroll)
 
       # tail: close
       kStr += self.closeLoop(kernel, -1)
@@ -1716,27 +1704,28 @@ class KernelWriter:
         tensorParametersB )
 
     if kernel["KernelLanguage"] == "Assembly":
+      asmPath = os.path.join(globalParameters["WorkingPath"], "assembly")
       # write assembly file to assembly directory
-      pushWorkingPath("assembly")
       kernelName = self.getKernelName(kernel)
-      fileBase = path.join(globalParameters["WorkingPath"], kernelName )
+      fileBase = path.join(asmPath, kernelName )
       assemblyFileName = "%s.s" % fileBase
       codeObjectFileName = "%s.co" % fileBase
       assemblyFile = open(assemblyFileName, "w")
       assemblyFile.write(fileString)
       assemblyFile.close()
+      #sys.stderr.write("Wrote asm file to %s\n" % assemblyFileName)
 
       if not globalParameters["CodeFromFiles"]:
         # bytearray script
-        bytearrayFileName = path.join(globalParameters["WorkingPath"],"insert_byte_array.py")
+        bytearrayFileName = path.join(asmPath,"insert_byte_array.py")
         if not path.isfile(bytearrayFileName):
           bytearrayFile = open(bytearrayFileName, "w")
           bytearrayFile.write('#!/usr/bin/env python\n\n')
-  
+
           bytearrayFile.write('fileString = ""\n')
           bytearrayFile.write('fileString += "/*******************************************************************************\\n"\n')
           bytearrayFile.write('fileString += "* Copyright (C) 2016 Advanced Micro Devices, Inc. All rights reserved.\\n"\n')
-  
+
           bytearrayFile.write('fileString += "*\\n"\n')
           bytearrayFile.write('fileString += "* Permission is hereby granted, free of charge, to any person obtaining a copy\\n"\n')
           bytearrayFile.write("fileString += '* of this software and associated documentation files (the \"Software\"), to deal\\n'\n")
@@ -1755,17 +1744,17 @@ class KernelWriter:
           bytearrayFile.write('fileString += "* IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-\\n"\n')
           bytearrayFile.write('fileString += "* CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\\n"\n')
           bytearrayFile.write('fileString += "*******************************************************************************/\\n\\n"\n')
-  
+
           bytearrayFile.write('fileString += "/**************************************************\\n"\n')
           bytearrayFile.write('fileString += "* This file was generated by Tensile:             *\\n"\n')
           bytearrayFile.write('fileString += "* https://github.com/ROCmSoftwarePlatform/Tensile *\\n"\n')
           bytearrayFile.write('fileString += "**************************************************/\\n\\n\\n"\n')
-  
+
           bytearrayFile.write('import os.path\n\n')
-  
+
           bytearrayFile.write('''fileString += '#include "Kernels.h"\\n\\n'\n''')
           bytearrayFile.write('fileString += "/* code object byte array */\\n\\n"\n\n')
-  
+
           bytearrayFile.write('codeObjectFileNames = [f for f in os.listdir(".") if (os.path.isfile(f) and f.endswith(".co"))]\n')
           bytearrayFile.write('for codeObjectFileName in codeObjectFileNames:\n')
           bytearrayFile.write('  print codeObjectFileName\n')
@@ -1774,13 +1763,13 @@ class KernelWriter:
           bytearrayFile.write('  codeObjectFile = open(codeObjectFileName, "r")\n')
           bytearrayFile.write('  codeObjectByteArray = bytearray(codeObjectFile.read())\n')
           bytearrayFile.write('  codeObjectFile.close()\n\n')
-  
+
           bytearrayFile.write('# write code object byte array for asm\n')
           bytearrayFile.write('  fileString += "const unsigned char %s_coba[%u] = {\\n" % (kernelName, len(codeObjectByteArray))\n')
           bytearrayFile.write('  for byteIdx in range(0, len(codeObjectByteArray)):\n')
           bytearrayFile.write('    byte = codeObjectByteArray[byteIdx]\n')
-  
-  
+
+
           bytearrayFile.write('    fileString += "0x%02x" % byte\n')
           bytearrayFile.write('    if byteIdx < len(codeObjectByteArray)-1:\n')
           bytearrayFile.write('      fileString += ","\n')
@@ -1788,39 +1777,24 @@ class KernelWriter:
           bytearrayFile.write('      fileString += "};\\n"\n')
           bytearrayFile.write('    if byteIdx % 16 == 15:\n')
           bytearrayFile.write('      fileString += "\\n"\n\n')
-  
+
           bytearrayFile.write('  text_file = open("Kernels.cpp", "w")\n')
           bytearrayFile.write('  text_file.write("%s" % fileString)\n')
           bytearrayFile.write('  text_file.close()\n')
-  
+
           bytearrayFile.close()
           chmod(bytearrayFileName, 0777)
 
       # assembler script
-      assemblerFileName = path.join(globalParameters["WorkingPath"], \
+      assemblerFileName = path.join(asmPath, \
           "asm.%s"%("bat" if osname=="nt" else "sh"))
-      if not path.isfile(assemblerFileName):
-        assemblerFile = open(assemblerFileName, "w")
-        if osname == "nt":
-          assemblerFile.write("echo Windows: Copying instead of Assembling\n")
-          assemblerFile.write("copy %1.s %1.o\n")
-          assemblerFile.write("copy %1.o %1.co\n")
-        else:
-          assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
-          assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
-          assemblerFile.write("f=$1\n")
-          assemblerFile.write("shift\n")
-          assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
-          assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa $@ -c -o $f.o $f.s\n")
-          assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
-        assemblerFile.close()
-        chmod(assemblerFileName, 0777)
+      asmOptions = "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])
 
       # run assembler
-      assemblerCommand = [assemblerFileName, kernelName, "-mcpu=gfx%u%u%u" % (self.version[0], self.version[1], self.version[2])]
-      #print2("# Assembling %s: %s" % (kernelName, assemblerCommand) )
+      assemblerCommand = [assemblerFileName, kernelName, asmOptions]
+      #print("# Assembling %s: %s" % (kernelName, assemblerCommand) )
       assemblerProcess = Popen(assemblerCommand, \
-          cwd=globalParameters["WorkingPath"] )
+          cwd=asmPath )
       assemblerProcess.communicate()
       if assemblerProcess.returncode:
         printExit("Assembler process returned with code %u" \
@@ -1846,7 +1820,6 @@ class KernelWriter:
           if byteIdx % 16 == 15:
             fileString += "\n"
 
-      popWorkingPath() # assembly
 
       # read code-object file and convert to c++ representable uchar*
       # return string of code-object byte array

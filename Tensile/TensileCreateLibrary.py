@@ -20,18 +20,120 @@
 ################################################################################
 # This script only gets called by CMake
 from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
+from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecksForSolution
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
 from KernelWriterAssembly import KernelWriterAssembly
+import threading, multiprocessing, copy
 
 import os
+import sys
 import os.path
 import argparse
-import sys
 from shutil import copy as shutil_copy
 
+
+################################################################################
+# Process a single kernel, return results:
+################################################################################
+def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
+    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
+    # get kernel name
+    kernelName = kernelWriter.getKernelName(kernel)
+    #sys.stderr.write("kernel:%s\n"% kernelName)
+    (err, src) = kernelWriter.getSourceFileString(kernel)
+
+    header = kernelWriter.getHeaderFileString(kernel)
+
+    return (err, src, header, kernelName)
+
+
+################################################################################
+# Process a range of kernels:
+################################################################################
+def processKernelSourceChunk(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
+                             kernelWriterSource, kernelWriterAssembly, \
+                             kernelsWithBuildErrs, progressBar, kLock, pLock, \
+                             kiStart, kiStop):
+
+    results = []
+
+    # deep copy to give KernelWriters their own copy
+    kernelWriterSource = copy.deepcopy(kernelWriterSource)
+    kernelWriterAssembly = copy.deepcopy(kernelWriterAssembly)
+
+    pinc = (len(kernels)/100)
+    p = 0
+    for ki in range(kiStart, kiStop):
+      kernel = kernels[ki]
+      results.append (processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly)) # returns err, src, header, kernelName
+      p+=1
+      if p>=pinc and globalParameters["ShowProgressBar"]:
+        pLock.acquire()
+        progressBar.increment(p)
+        pLock.release()
+        p = 0
+
+    if p and globalParameters["ShowProgressBar"]:
+      pLock.acquire()
+      progressBar.increment(p)
+      pLock.release()
+
+    # These need to be thread-safe:
+    kLock.acquire(1)
+    for (err,src,header,kernelName) in results:
+      if err:
+        kernelsWithBuildErrs[kernelName] = err
+        print "*** warning: invalid kernel#%s"%kernelName
+
+      # write kernel.cpp
+      if not globalParameters["MergeFiles"]:
+        kernelSourceFile = open(os.path.join(outputPath, \
+            "Kernels", kernelName+".cpp"), "w")
+        kernelSourceFile.write(CHeader)
+
+      kernelSourceFile.write(src)
+
+      if not globalParameters["MergeFiles"]:
+        kernelSourceFile.close()
+        # write kernel.h
+        kernelHeaderFile = open(os.path.join(outputPath, \
+            "Kernels", kernelName+".h"), "w")
+        kernelHeaderFile.write(CHeader)
+
+      kernelHeaderFile.write(header)
+
+      if not globalParameters["MergeFiles"]:
+        kernelHeaderFile.close()
+
+    if 0:
+      progressBar.increment(len(results))
+
+    kLock.release()
+
+# create and prepare the assembly directory  - called ONCE per output dir:
+def prepAsm():
+  asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
+  assemblerFileName = os.path.join(asmPath, \
+      "asm.%s"%("bat" if os.name=="nt" else "sh"))
+  assemblerFile = open(assemblerFileName, "w")
+  if os.name == "nt":
+    assemblerFile.write("echo Windows: Copying instead of Assembling\n")
+    assemblerFile.write("copy %1.s %1.o\n")
+    assemblerFile.write("copy %1.o %1.co\n")
+  else:
+    assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
+    assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
+    assemblerFile.write("# example: asm.sh kernelName -mcpu=gfx900\n")
+    assemblerFile.write("f=$1\n")
+    assemblerFile.write("shift\n")
+    assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
+    assemblerFile.write("${ASM} -x assembler -target amdgcn--amdhsa $@ -c -o $f.o $f.s\n")
+    assemblerFile.write("${ASM} -target amdgcn--amdhsa $f.o -o $f.co\n")
+  assemblerFile.close()
+  os.chmod(assemblerFileName, 0777)
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
@@ -68,38 +170,47 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
 
   kernelsWithBuildErrs = {}
 
-  # tensor contraction kernels
-  for ki in range(0,len(kernels)):
-    kernel = kernels[ki]
-    kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
-    # get kernel name
-    kernelName = kernelWriter.getKernelName(kernel)
+  # tensor contraction kernels - dispatch as multiple threads:
+  kLock = threading.Lock()
+  pLock = threading.Lock()
 
-    # write kernel.cpp
-    if not globalParameters["MergeFiles"]:
-      kernelSourceFile = open(os.path.join(outputPath, \
-          "Kernels", kernelName+".cpp"), "w")
-      kernelSourceFile.write(CHeader)
-    (err, src) = kernelWriter.getSourceFileString(kernel)
+  prepAsm()
 
-    kernelSourceFile.write(src)
-    if err:
-      kernelsWithBuildErrs[kernelName] = err
-      print "*** warning: invalid kernel#%u"%ki
+  if globalParameters["CpuThreads"] == 0:
+    cpus = 0
+  elif globalParameters["CodeFromFiles"]:
+    cpu_count = multiprocessing.cpu_count()
+    cpus = cpu_count if globalParameters["CpuThreads"] == -1 \
+           else min(cpu_count, globalParameters["CpuThreads"])
+  else: #! CodeFromFiles is not thread-safe since code merged into same file
+    cpus = 1
 
-    if not globalParameters["MergeFiles"]:
-      kernelSourceFile.close()
+  workPerCpu = max(10, (len(kernels)+cpus-1)/cpus) if cpus else 1
+  print "info: cpus=%u kernelsPerCpu=%u" % (cpus, workPerCpu)
 
-    # write kernel.h
-    if not globalParameters["MergeFiles"]:
-      kernelHeaderFile = open(os.path.join(outputPath, \
-          "Kernels", kernelName+".h"), "w")
-      kernelHeaderFile.write(CHeader)
-    kernelHeaderFile.write( kernelWriter.getHeaderFileString(kernel))
-    if not globalParameters["MergeFiles"]:
-      kernelHeaderFile.close()
-    if globalParameters["ShowProgressBar"]:
-      progressBar.increment()
+  kiStart = 0
+  cpu = 0
+  threads = []
+  while kiStart < len(kernels):
+    kiStop = min(len(kernels), kiStart + workPerCpu)
+    #sys.stderr.write("cpu:%u process kernels #%u-#%u\n"% (cpu, kiStart, kiStop))
+
+    if cpus:
+      args=(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
+            kernelWriterSource, kernelWriterAssembly, \
+            kernelsWithBuildErrs, progressBar, kLock, pLock, kiStart, kiStop)
+      t = threading.Thread(target=processKernelSourceChunk, args=args)
+      t.start()
+      threads.append(t)
+    else:
+      processKernelSourceChunk(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
+                                kernelWriterSource, kernelWriterAssembly, \
+                                kernelsWithBuildErrs, kLock, pLock, kiStart, kiStop)
+    kiStart += workPerCpu
+    cpu += 1
+
+  for t in threads:
+    t.join()
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
@@ -115,7 +226,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     (err, src) = kernelWriter.getSourceFileStringBetaOnly(kernel)
     kernelSourceFile.write(src)
     if err:
-      print "*** warning: invalid kernel#%u"%ki
+      print "*** warning: invalid kernel#%u"%kernelName
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
     # write kernel.h
@@ -334,12 +445,13 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
+      s += writeSolutionAssertionCheckHeader(problemType)
 
-      exactLogicStr = writeExactLogic(exactLogic, \
+      exactLogicStr = writeExactLogic(solutionsForSchedule, exactLogic, \
           solutionNamesForSchedule, True)
       if rangeLogic != None:
         rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionNamesForSchedule, problemType, True)
+            solutionsForSchedule, solutionNamesForSchedule, problemType, True)
       else:
         rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
@@ -356,11 +468,13 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-      exactLogicStr = writeExactLogic(exactLogic, \
+      s += writeSolutionAssertionCheckHeader(problemType)
+
+      exactLogicStr = writeExactLogic(solutionsForSchedule, exactLogic, \
           solutionNamesForSchedule, False)
       if rangeLogic != None:
         rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionNamesForSchedule, problemType, False)
+            solutionsForSchedule, solutionNamesForSchedule, problemType, False)
       else:
         rangeLogicStr = "  return NULL; // none\n"
       s += "  /* exact mappings */\n"
@@ -424,7 +538,41 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
           s += "    std::string name = deviceProperties.name;\n"
 
-        s += "\n    "
+        s += "\n"
+        s += "//  intercept schedule selection and call HIP (source) kernel\n"
+        s += "    if((strideA2K == 0) || (strideB2K == 0))\n"
+        s += "    {\n"
+        numSchedules = len(schedules)
+        schedule = reordered_schedules[numSchedules-1]
+        scheduleName  = schedule[0]
+        s += "        return tensileGetSolution%s_%s_%s(" \
+              % ( returnType, scheduleName, problemType)
+        for i in range(0, len(argListSizes)):
+          s += "%s%s" \
+              % (argListSizes[i][1],
+                  ", " if i < len(argListSizes)-1 else ");\n")
+        s += "    }\n"
+        s += "\n"
+
+        if problemType["DataType"].isHalf() :
+          free0Index = problemType["IndicesFree"][0]
+          free0Char = globalParameters["IndexChars"][free0Index]
+          s += "\n"
+          s += "//  intercept schedule selection and call HIP (source) kernel\n"
+          s += "    if((((sizeL & 1) == 1) || ((size%s & 1) == 1)))\n"%(free0Char)
+          s += "    {\n"
+          numSchedules = len(schedules)
+          schedule = reordered_schedules[numSchedules-1]
+          scheduleName  = schedule[0]
+          s += "        return tensileGetSolution%s_%s_%s(" \
+                % ( returnType, scheduleName, problemType)
+          for i in range(0, len(argListSizes)):
+            s += "%s%s" \
+                % (argListSizes[i][1],
+                    ", " if i < len(argListSizes)-1 else ");\n")
+          s += "    }\n"
+          s += "\n"
+
         for scheduleIdx in range(0, numSchedules):
           schedule = reordered_schedules[scheduleIdx]
           scheduleName  = schedule[0]
@@ -439,7 +587,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                 s += " || "
               s += "name == \"%s\"" % deviceName
             s += ")"
-          s += "{\n"
+          s += "\n    {\n"
           s += "        return tensileGetSolution%s_%s_%s(" \
               % ( returnType, scheduleName, problemType)
           for i in range(0, len(argListSizes)):
@@ -457,6 +605,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
               % (argListSizes[i][1],
                   ", " if i < len(argListSizes)-1 else ");\n")
       s += "\n}\n"
+
 
 
     # implement tensileGetSolutionPointer_ProblemType
@@ -541,16 +690,18 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   internalHeaderFile.write(ih)
   internalHeaderFile.close()
 
+
 ################################################################################
 # Write Range Logic Recursive
 ################################################################################
-def writeExactLogic(exactLogic, solutionNames, ptr):
+def writeExactLogic(solutionsForSchedule, exactLogic, solutionNames, ptr):
   s = ""
   indent = "  "
   for ruleIdx in range(0, len(exactLogic)):
     rule = exactLogic[ruleIdx]
     problemSize = rule[0]
     solutionIdx = rule[1][0]
+    solution = solutionsForSchedule[solutionIdx]
     solutionGFlops = rule[1][1]
     s += indent
     if ruleIdx > 0:
@@ -560,6 +711,11 @@ def writeExactLogic(exactLogic, solutionNames, ptr):
     for i in range(1, len(problemSize)):
       s += "&& size%s == %u " % (globalParameters["IndexChars"][i], \
           problemSize[i])
+
+    a = writeSolutionAssertionChecksForSolution(solution)
+    if a != "":
+        s+= "&& " + a
+
     solutionName = solutionNames[solutionIdx]
     if ptr:
       returnValue = solutionName
@@ -572,8 +728,8 @@ def writeExactLogic(exactLogic, solutionNames, ptr):
 ################################################################################
 # Write Range Logic Recursive
 ################################################################################
-def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
-    problemType, ptr):
+def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
+    solutionsForSchedule, solutionNames, problemType, ptr):
   indexChars = globalParameters["IndexChars"]
   indent = "  "
   indent += "  "*depth
@@ -585,11 +741,18 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
     threshold = rule[0]
     if lowestLevel:
       solutionIdx = rule[1]
+      solution = solutionsForSchedule[solutionIdx]
       solutionName = solutionNames[solutionIdx]
       if ptr:
         returnValue = solutionName
       else:
         returnValue = "\"%s\"" % solutionName
+
+      a = writeSolutionAssertionChecksForSolution(solution)
+      if a != "":
+        s += indent + "if (" + a + ")"
+        indent += "  "
+
       if threshold > 0:
         s += "%sif (size%s <= %u) return %s;\n" \
             % (indent, indexChars[indexOrder[depth]], threshold, returnValue)
@@ -601,7 +764,7 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, solutionNames, \
             % (indent, indexChars[indexOrder[depth]], threshold)
       else:
         s += "%s{\n" % (indent)
-      s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionNames, \
+      s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionsForSchedule, solutionNames, \
           problemType, ptr)
       s += "%s}\n" % (indent)
   return s
@@ -751,6 +914,7 @@ def TensileCreateLibrary():
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
+  arguments["CodeFromFiles"] = False
   assignGlobalParameters(arguments)
 
   if not os.path.exists(logicPath):

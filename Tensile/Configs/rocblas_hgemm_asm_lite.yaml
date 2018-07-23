@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.2.0
+  MinimumRequiredVersion: 4.3.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -309,7 +309,7 @@ LibraryLogic:
 #   ArchitectureName: "gfx906"
 
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

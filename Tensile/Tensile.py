@@ -169,6 +169,10 @@ def Tensile(userArgs):
 def TensileConfigPath(*args):
   return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Configs", *args)
 
+def TensileTestPath(*args):
+  return os.path.join(os.path.dirname(os.path.realpath(__file__)), "Tests", *args)
+
+
 ################################################################################
 # Entry points
 # the first several of these can be deprecated, only main() is used

@@ -46,7 +46,7 @@ globalParameters["PrintLevel"] = 1                # how much info to print. 0=no
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.
-globalParameters["CodeFromFiles"] = False
+globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
@@ -66,6 +66,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
+globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
 
 ########################################
 # less common
@@ -93,12 +94,11 @@ globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue
 globalParameters["PrintTensorA"] = False          # Print TensorA after initialization
 globalParameters["PrintTensorB"] = False          # Print TensorB after initialization
 globalParameters["PrintTensorC"] = False          # Print TensorC after computation
+globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 
 # PrintMaxCols applies to dimensions where multiple cols are printed per line.
 # PrintMaxRows applies to dimensions where one row is printed per line
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
-globalParameters["PrintMaxCols"] = -1             # Max number of cols to print. 
-globalParameters["PrintMaxRows"] = -1             # Max number of rows to print. 
 
 
 # device selection
@@ -151,7 +151,7 @@ for numThreads in range(64, 1025, 64):
           validWorkGroups.append(workGroup)
 
 
-validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 12, 16]
+validThreadTileSides = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
 validThreadTiles = []
 for i in validThreadTileSides:
   for j in validThreadTileSides:
@@ -193,7 +193,7 @@ validParameters = {
     "GlobalReadCoalesceVectorB":  [        True ],
 
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ 0,1 ], # prefetch / double-buffer reads from lds.  Increases size of ValuA/ValuB registers.
+    "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -244,13 +244,29 @@ validParameters = {
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
     "UseSgprForGRO":              [ -1, 0, 1],
-    "FractionalLoad":             [ False, True] ,      # Some work-items in the group may not participate in the final buffer load .Allows more felxibility in choosing DepthU
+    "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
+
+    # Attempt to vectorize atomics, up to a 64-bit CAS.
+    # 1,2,4 : Number of elements to vectorize
+    # -1 : Maximum supported value.  Half=4, Single=2, Double=1
+    "VectorAtomicWidth":          [ -1, 1, 2, 4 ] ,
 
     # When creating the kernel, assume that the summation size is some multiple of the element size.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements
-    # 1 indicates no additional restriction - all sizes are multiples of 1
+    # 1 indicates no restriction (since all sizes are multiples of 1)
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py
     "AssertSummationElementMultiple": [1,2,4,8],
+
+    # When creating the kernel, assume that the 'first' free index size is some
+    # multiple of the element size.
+    # "first" free index is FreeIndex[0] and usually letter "I"
+    # 1 indicates no restriction (since all sizes are multiples of 1)
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py
+    "AssertFree0ElementMultiple" : [1,2,4,8],
+
+    # Generate code inside kernel to check assertions above on Tensor dimensions
+    "CheckTensorDimAsserts":               [False, True],
 
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
@@ -335,8 +351,9 @@ validParameters = {
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
-    "LdsPadA":                     [ 0, 1, 2, 3, 4, 8],
-    "LdsPadB":                     [ 0, 1, 2, 3, 4, 8],
+    # -1 means use same padding as the VectorWidth
+    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
+    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    range(-1, 16*16+1),
@@ -401,6 +418,8 @@ defaultBenchmarkCommonParameters = [
     {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
+    {"AssertFree0ElementMultiple": [ 1 ] },
+    {"CheckTensorDimAsserts"      : [ False ] },
 
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -409,6 +428,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
     {"FractionalLoad":            [ 0 ] },
+    {"VectorAtomicWidth":         [ 1 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
@@ -487,6 +507,55 @@ defaultAnalysisParameters = {
     "SolutionImportanceMin":      0.01, # = 0.01=1% total time saved by keeping this solution
     }
 
+
+# Header written once at start of solution lookup functions
+# Also written into the benchmark client
+def writeSolutionAssertionCheckHeader(problemType):
+  s = ""
+  indent = "  "
+  summationIdx  = problemType["IndicesSummation"][-1] # use last summation idx
+  summationChar = globalParameters["IndexChars"][summationIdx]
+
+  free0Index = problemType["IndicesFree"][0] # use last summation idx
+  free0Char = globalParameters["IndexChars"][free0Index]
+  s += indent + "unsigned psem = 1; // problem summation element multiple\n"
+  s += indent + "if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x3) == 0) psem=4;\n"%(summationChar)
+  s += indent + "else if ((size%s & 0x1) == 0) psem=2;\n"%(summationChar)
+  s += "\n"
+  s += indent + "unsigned pf0em = 1; // problem free0 element multiple\n"
+  s += indent + "if ((size%s & 0x7) == 0) pf0em=8;\n"%(free0Char)
+  s += indent + "else if ((size%s & 0x3) == 0) pf0em=4;\n"%(free0Char)
+  s += indent + "else if ((size%s & 0x1) == 0) pf0em=2;\n"%(free0Char)
+  s += "\n"
+  return s
+
+
+# Generate check code for the Assert flags
+# This is used in the benchmark client and the Tensile client
+# note parms can be hard-coded ints (if checking for a specific solution)
+# or strings (if the calling function is a generic launch function)
+def writeSolutionAssertionChecks(asem, af0em, sep=" "):
+  s = ""
+  # some solutions have restrictions ("assertions") on the input dims that are used to optimize the kernel
+  # ensure here that we don't violate any of those assumptions.
+  # 'p' variables are derived from the current problem dimension, ie psem is the problem summation element multiple
+  # 'a' variables are dereved from the assertion used to compile the kernel, ie asem is the assertion summation element multiple
+  # ASEM is an assertion that the summation element is some integer multiple, range 1..8
+  if asem>1:
+    if s != "" : s += " &&%s" % sep
+    s += "(psem >= %s)" % asem
+
+  # AF0EM is an assertion that the free index element is some integer multiple, range 1..8
+  if af0em>1:
+    if s != "" : s += " &&%s" % sep
+    s += "(pf0em >= %s)" % af0em
+  return s
+
+def writeSolutionAssertionChecksForSolution(solution):
+    return writeSolutionAssertionChecks(
+        solution["AssertSummationElementMultiple"],
+        solution["AssertFree0ElementMultiple"])
 
 ################################################################################
 # Searching Nested Lists / Dictionaries
@@ -702,15 +771,19 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 # store a WorkingPath where to write files (like benchmark files)
 ################################################################################
 def pushWorkingPath( foldername ):
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.join(globalParameters["WorkingPath"], foldername )
   ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
 def ensurePath( path ):
   if not os.path.exists(path):
     os.makedirs(path)
+  return path
+
 
 ################################################################################
 # Is query version compatible with current version
@@ -750,8 +823,8 @@ class ProgressBar:
     self.numTicks = 0
     self.createTime = time.time()
 
-  def increment(self):
-    self.update(self.priorValue+1)
+  def increment(self, value=1):
+    self.update(self.priorValue+value)
 
   def update(self, value):
     currentFraction = 1.0 * value / self.maxValue

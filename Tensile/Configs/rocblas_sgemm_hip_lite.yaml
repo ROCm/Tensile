@@ -1,5 +1,5 @@
 GlobalParameters:
-  MinimumRequiredVersion: 4.2.0
+  MinimumRequiredVersion: 4.3.0
   PrintLevel: 1
   ForceRedoBenchmarkProblems: True
   ForceRedoLibraryLogic: True
@@ -53,6 +53,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1]
         - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
+        - GlobalReadVectorWidth: [1]  # in some cases GRVW>1 is broken, so set GRVW=VW=1
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -92,6 +93,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1]
         - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
+        - GlobalReadVectorWidth: [1]  # in some cases GRVW>1 is broken, so set GRVW=VW=1
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -131,6 +133,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1]
         - DepthU: [ 8, 12, 16, 24, 32 ]
         - VectorWidth: [1]
+        - GlobalReadVectorWidth: [1]  # in some cases GRVW>1 is broken, so set GRVW=VW=1
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -170,6 +173,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1]
         - DepthU: [ 4, 8, 16 ]
         - VectorWidth: [1]
+        - GlobalReadVectorWidth: [1]  # in some cases GRVW>1 is broken, so set GRVW=VW=1
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -179,7 +183,7 @@ BenchmarkProblems:
 
 LibraryLogic:
 #   ScheduleName: "vega10"
-#   DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860"]
+#   DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]"]
 #   ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
