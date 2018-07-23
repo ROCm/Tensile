@@ -5087,38 +5087,38 @@ class KernelWriterAssembly(KernelWriter):
   # rpv = regs per vector
   ##############################################################################
   def chooseGlobalLoad(self, useBuffer, bps, destVgpr, rpv, \
-                       addr0, addr1, offset, extraFields, hi16=0):
+                       addr0, addr1, offset, extraFields, hi16=0, comment="load C"):
     kStr = ""
 
     if useBuffer:
       if bps==2 and hi16:
         kStr += inst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "load C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
       elif bps==2 and not hi16:
         kStr += inst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "load C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
       elif bps==4:
         kStr += inst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "load C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
       elif bps==8:
         kStr += inst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "load C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
       elif bps==16:
         kStr += inst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "load C")
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
       else:
         assert ("bad bps")
     else:
       if bps==2 and hi16:
-        kStr += inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, "load C" )
+        kStr += inst("flat_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
       elif bps==2 and not hi16:
-        kStr += inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, "load C" )
+        kStr += inst("flat_load_short_d16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
       elif bps==4:
-        kStr += inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
+        kStr += inst("flat_load_dword", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       elif bps==8:
-        kStr += inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
+        kStr += inst("flat_load_dwordx2", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       elif bps==16:
-        kStr += inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, "load C" )
+        kStr += inst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       else:
          assert ("bad bps")
 
@@ -5377,18 +5377,29 @@ class KernelWriterAssembly(KernelWriter):
         # TODO - Fix for double here, would need bigger load
         # FIME
         bps = kernel["ProblemType"]["DataType"].numBytes()
-        for vi in range(0, gwvw):
+        atomicW = kernel["VectorAtomicWidth"]
+        # gwvw is the number of elements in the batch
+        # iterate over number of atomic operations to perform, each of width atomicW
+        for avi in range(0, gwvw/atomicW):
           # TODO: use chooseGlobalLoad, could use vector loads here too perhaps:
-          dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          if kernel["BufferStore"]: # yes, check store here since this is write loop.  All the addr calc is done in format that requires buffer for loads too
-            kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
-                      sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
+          dataV = elementData[elementIdx] + int(avi*numVgprsPerDataPerVI)
+          bpm = self.bpeCexternal * atomicW
+          rpv = float(bpm)/4
+          useBuffer = kernel["BufferStore"]
+          if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
+            addr0 = vgpr(addr)
+            addr1 = sgpr("SrdC", 4)
           else:
-            kStr += inst("flat_load_dword", vgpr(dataV+1), \
-                      vgpr(addr,2), "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
+            addr0 = vgpr(addr,2)
+            addr1 = ""
+          kStr += self.chooseGlobalLoad(useBuffer, bpm, data, rpv, \
+                    addr0, addr1, offset=avi*bpm, extraFields="", comment="load C (atomic)")
+          #  kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
+          #            sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
       elif beta:
         bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
         rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
+        useBuffer = kernel["BufferStore"]
         if kernel["BufferStore"]:
           addr0 = vgpr(addr)
           addr1 = sgpr("SrdC", 4)
@@ -5396,7 +5407,6 @@ class KernelWriterAssembly(KernelWriter):
           addr0 = vgpr(addr,2)
           addr1 = ""
         extraFields = ""
-        useBuffer = kernel["BufferStore"]
         kStr += self.comment("beta loads")
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
