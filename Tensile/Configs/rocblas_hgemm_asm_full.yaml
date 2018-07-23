@@ -1492,6 +1492,10 @@ BenchmarkProblems:
           - Range: [ [64, 64, 64, 7000], [4], [1], [256, 1024, 1024, 4096] ] # skinny-1
 
 LibraryLogic:
+#   ScheduleName: "vega20"
+#   DeviceNames: ["Device 66a0", "Device 66a7"]
+#   ArchitectureName: "gfx906"
+
     ScheduleName: "vega10"
     DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]"]
     ArchitectureName: "gfx900"
