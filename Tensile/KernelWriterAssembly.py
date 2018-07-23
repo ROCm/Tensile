@@ -5097,12 +5097,6 @@ class KernelWriterAssembly(KernelWriter):
     numSgprsForPostLoop = 2+2+6+ maxElementsPerBatch*numSgprsPerElement
     globalWriteSgprs = self.getTmpSgpr(numSgprsForPostLoop)
     # create full exec mask
-    fullExecMaskSgpr = globalWriteSgprs
-    globalWriteSgprs += 2
-    kStr += inst("s_mov_b64", \
-        sgpr(fullExecMaskSgpr,2), \
-        "0xFFFFFFFFFFFFFFFF", \
-        "full exec mask")
     tmpSgpr = globalWriteSgprs
     globalWriteSgprs += 6
     elementSgprs = globalWriteSgprs
@@ -5308,7 +5302,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
               elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
-              fullExecMaskSgpr, elementSgprs, numSgprsPerElement, tmpSgpr)
+              elementSgprs, numSgprsPerElement, tmpSgpr)
           self.vgprPool.checkIn(elementVgprs)
 
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
@@ -5442,7 +5436,7 @@ class KernelWriterAssembly(KernelWriter):
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, gwvw, atomicW, \
       batchElements, coord0, coord1, addrC,  \
       batchElementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
-      fullExecMaskSgpr, batchElementSgprs, numSgprsPerElement, tmpSgpr):
+      batchElementSgprs, numSgprsPerElement, tmpSgpr):
     kStr = ""
 
     if atomic:
@@ -5516,12 +5510,12 @@ class KernelWriterAssembly(KernelWriter):
       #d0 always equals 0 for lsu
       #strideD0 = 0 # never used for lsu
       strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]/kernel["MacroTile0"]) if lsu else (kernel["SubGroup1"]*kernel["VectorWidth"])
-      #fullExecMaskSgpr = ((self.startSgprSizesSum+1)/2)*2 # even sgpr
 
       # Compute scaled offset requires 2 SGPR
 
       scaledCoordVgpr1 = tmpVgpr+2
       coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
+      kStr += self.comment1("d0=%u, vc0=%u, coordOffset0=%u"%(d0,vc0,coordOffset0))
       if coordOffset0 == 0:
         # just use coord0 directly
         coordVgpr0 = coord0
@@ -5545,7 +5539,7 @@ class KernelWriterAssembly(KernelWriter):
         self.lastCoordOffset1 = coordOffset1
 
         if coordOffset1 == 0:
-          # just use coord0 directly
+          # just use coord1 directly
           self.coordVgpr1 = coord1
           kStr += self.comment1("coordOffset1=0, use coordVgpr1=v%u directly"%self.coordVgpr1)
         elif coordOffset1 <= 64:
@@ -5584,13 +5578,13 @@ class KernelWriterAssembly(KernelWriter):
                 vgpr(tmpVgpr+3), \
                 sgpr("StridesC+%u"%(i-1)), \
                 vgpr(tmpVgpr+3), \
-                "Coffset %u "%i)
+                "Coffset %u"%i)
           else:
             kStr += inst("v_mul_lo_u32", \
                 vgpr(scaledCoordVgpr1), \
                 sgpr("StridesC+%u"%(i-1)), \
                 coord, \
-                "Coffset %u "%i)
+                "Coffset %u"%i)
 
           if i>1:
             kStr += inst("_v_add_co_u32", \
@@ -5691,8 +5685,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # restore full exec mask for calculating addr of next element
       if not kernel["BufferStore"] and edge and (beta or atomic):
-        #kStr += inst("s_or_saveexec_b64",  sgpr(tmpS45,2), sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
-        kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+        kStr += inst("s_mov_b64", "exec", -1, "full mask -1 -> exec" )
 
     ########################################
     # rC *= alpha
@@ -5841,7 +5834,6 @@ class KernelWriterAssembly(KernelWriter):
           for avi in range(0, gwvw/atomicW):
             dataV = elementData[elementIdx] + int(avi*numVgprsPerDataPerVI)
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
-            #kStr += inst("s_mov_b64", sgpr(mask,2), sgpr(fullExecMaskSgpr,2), "mask = full" )
             kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
                 vgpr(dataV+1), "c read during atomic != c read during prior load" )
 
@@ -5924,7 +5916,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
       kStr += inst("s_cbranch_execnz", "label_%04u" % label, "try again if not complete" )
       kStr += "label_%04u:%s" % (labelAfterAtomicLoop, self.endLine)
-      kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+      kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
 
       #  kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "apply new mask" )
       #  #kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", "apply new mask" )
@@ -6049,8 +6041,11 @@ class KernelWriterAssembly(KernelWriter):
 
           #kStr += self.bomb(5)
 
-      if edge: # subsequent batch must start with full exec mask
-        kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+      if edge and (atomic or not kernel["BufferStore"]):
+        # subsequent batch must start with full exec mask
+        # BufferStore doesn't need exec since it used buffer range checking when
+        # possible
+        kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
 
     return kStr
 
