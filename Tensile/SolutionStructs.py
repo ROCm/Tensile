@@ -1109,13 +1109,36 @@ class Solution:
           and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
-      if not state["ProblemType"]["DataType"].isSingle():
-        reject(state, "GlobalSplitU only compatible with single precision")
+      if not state["ProblemType"]["DataType"].isSingle() and \
+         not state["ProblemType"]["DataType"].isHalf() and \
+         not state["ProblemType"]["HighPrecisionAccumulate"] :
+        reject(state, "GlobalSplitU only compatible with single or half precision")
         return
 
-
     if state["VectorAtomicWidth"] == -1:
-      state["VectorAtomicWidth"] = 8 / state["ProblemType"]["DataType"].numBytes()
+      if state["ProblemType"]["DataType"].isHalf():
+        state["VectorAtomicWidth"] = 2
+        #state["VectorAtomicWidth"] = 8 / state["ProblemType"]["DataType"].numBytes()
+      else:
+        state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
+
+    if state["VectorAtomicWidth"] >= 2 \
+       and not state["ProblemType"]["DataType"].isHalf():
+         reject (state, "VectorAtomicWidth>=2 only supported for half")
+
+    if state["ProblemType"]["DataType"].isHalf() and \
+      state["KernelLanguage"] == "Assembly":
+
+      if state["VectorWidth"] <= 2:
+        reject(state, "Assembly half requires VectorWidth >= 2")
+
+      if state["GlobalSplitU"] > 1:
+        if state["VectorAtomicWidth"] <2:
+          reject(state, "Assembly GSU half requires VectorWidth >= 2 (for 32-bit CAS)")
+
+        if state["AssertFree0ElementMultiple"] < 2:
+          reject(state, "Assembly GSU half requires AF0EM>=2 (for atomics on edge tiles)")
+
 
     ########################################
     # Initial DepthU

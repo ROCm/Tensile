@@ -4711,7 +4711,7 @@ class KernelWriterAssembly(KernelWriter):
         return 1000  # no limit
     else:
       if atomic:
-        return 1  # flat does not support vector atomic
+        return 1  # flat vector atomic is not tested
       else:
         return 1000  # no limit
 
@@ -4955,7 +4955,7 @@ class KernelWriterAssembly(KernelWriter):
         #edgeI = True  # set to True to disable vector stores
 
         gwvw = vectorWidths[edgeI]
-        atomicW = min(gwvw, kernel["VectorAtomicWidth"])
+
 
         ########################################
         # Calculate Vgprs for Write Batching
@@ -4985,7 +4985,6 @@ class KernelWriterAssembly(KernelWriter):
           # The atomic loop processes multiple elements in single instruction
           # so will use VGPR from consec elements? TODO
           numVgprsPerDataPerVI = (regsPerElement*self.bpeCexternal)/self.bpr
-          print "atomic numVgprsPerDataPerVI=", numVgprsPerDataPerVI
         elif beta:
           numVgprsPerDataPerVI = (1.0*self.bpeCexternal)/self.bpr
         numVgprsPerElement = numVgprsPerAddr + int(ceil(numVgprsPerDataPerVI * gwvw))
@@ -5032,6 +5031,7 @@ class KernelWriterAssembly(KernelWriter):
               print "info: %s shrank gwvw from %u to %u but kept occupancy same=%u." \
                   % (self.kernelName, gwvwOrig, gwvw, currentOccupancy)
 
+
           if numVgprAvailable < minElements*numVgprsPerElement:
             newVgprs = int(ceil(minElements*numVgprsPerElement))
             if shrinkDb:
@@ -5041,6 +5041,8 @@ class KernelWriterAssembly(KernelWriter):
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.availableBlock()
 
+        # set atomicW after we potentially resize GWVW
+        atomicW = min(gwvw, kernel["VectorAtomicWidth"])
 
         #print "NumVgprAvailable", numVgprAvailable
         numElementsPerBatch = min(numVgprAvailable / numVgprsPerElement, \
@@ -5216,14 +5218,17 @@ class KernelWriterAssembly(KernelWriter):
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
+      if kernel["ProblemType"]["DataType"].isHalf():
+        assert(atomicW >= 2)
 
     # comment
     commentStr = "Global Write%s%s Batch:" \
         % (" Beta" if beta else "", " Edge" if edge else "")
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
-      commentStr += "(%u,%u,%u,%u:vw%u)" % \
-        (element[0], element[1], element[2], element[3], gwvw)
+      commentStr += "(%u,%u,%u,%u:vw%u%s)" % \
+        (element[0], element[1], element[2], element[3], gwvw, 
+         ":vaw:%u"%atomicW if atomic else "")
       if elementIdx < len(batchElements)-1:
         commentStr += "; "
     kStr += self.comment3(commentStr)
@@ -5516,7 +5521,7 @@ class KernelWriterAssembly(KernelWriter):
       labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
         % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
       label = self.getLabel(labelString)
-      labelString += "EarlyExid"
+      labelString += "EarlyExit"
       labelAfterAtomicLoop = self.getLabel(labelString)
 
       ########################################
