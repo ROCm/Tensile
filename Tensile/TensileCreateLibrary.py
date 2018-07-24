@@ -555,9 +555,11 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "\n"
 
         if problemType["DataType"].isHalf() :
+          free0Index = problemType["IndicesFree"][0]
+          free0Char = globalParameters["IndexChars"][free0Index]
           s += "\n"
           s += "//  intercept schedule selection and call HIP (source) kernel\n"
-          s += "    if((sizeL %2 == 1) && ((name == \"Device 66a0\") || (name == \"Device 66a7\")))\n"
+          s += "    if((((sizeL & 1) == 1) || ((size%s & 1) == 1)))\n"%(free0Char)
           s += "    {\n"
           numSchedules = len(schedules)
           schedule = reordered_schedules[numSchedules-1]
