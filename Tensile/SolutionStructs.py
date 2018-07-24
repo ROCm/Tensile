@@ -1129,7 +1129,7 @@ class Solution:
     if state["ProblemType"]["DataType"].isHalf() and \
       state["KernelLanguage"] == "Assembly":
 
-      if state["VectorWidth"] <= 2:
+      if state["VectorWidth"] < 2:
         reject(state, "Assembly half requires VectorWidth >= 2")
 
       if state["GlobalSplitU"] > 1:
