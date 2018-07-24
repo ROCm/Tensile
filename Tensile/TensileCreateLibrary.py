@@ -533,7 +533,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         else:
           s += "\n//  get device name hip;\n"
           s += "    int deviceId;\n"
-          s += "    hipCtxGetDevice(&deviceId);\n"
+          s += "    hipGetDevice(&deviceId);\n"
           s += "    hipDeviceProp_t deviceProperties;\n"
           s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
           s += "    std::string name = deviceProperties.name;\n"
