@@ -533,7 +533,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         else:
           s += "\n//  get device name hip;\n"
           s += "    int deviceId;\n"
-          s += "    hipCtxGetDevice(&deviceId);\n"
+          s += "    hipGetDevice(&deviceId);\n"
           s += "    hipDeviceProp_t deviceProperties;\n"
           s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
           s += "    std::string name = deviceProperties.name;\n"
@@ -555,9 +555,14 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "\n"
 
         if problemType["DataType"].isHalf() :
+          # "first" free index, usually the letter "I"
+          free0Index = problemType["IndicesFree"][0]
+          free0Char = globalParameters["IndexChars"][free0Index]
           s += "\n"
           s += "//  intercept schedule selection and call HIP (source) kernel\n"
-          s += "    if((sizeL %2 == 1) && ((name == \"Device 66a0\") || (name == \"Device 66a7\")))\n"
+          s += "//  if either the summation size or the 'first' free index size"
+          s += " is odd\n"
+          s += "    if((((sizeL & 1) == 1) || ((size%s & 1) == 1)))\n"%(free0Char)
           s += "    {\n"
           numSchedules = len(schedules)
           schedule = reordered_schedules[numSchedules-1]

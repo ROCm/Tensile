@@ -113,7 +113,7 @@ void tensileGetCompiledOpenCLKernel(
 //  // is function already loaded?
 //  hipDevice_t currentDevice; // caller guaranteed that current device
 //                             // matches handle/stream device
-//  status = hipCtxGetDevice(&currentDevice);
+//  status = hipGetDevice(&currentDevice);
 //  tensileStatusCheck(status);
 //  KernelMapKey key = std::make_tuple(currentDevice, functionName);
 //
