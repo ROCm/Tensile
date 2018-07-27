@@ -519,12 +519,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         for scheduleIdx in range(0, numSchedules):
           schedule = schedules[scheduleIdx]
           deviceNames = schedule[1]
-          if deviceNames != ["fallback"]:
+          if deviceNames != ["fallback"] and deviceNames != ["Device 0000"]:
             reordered_schedules.append(schedule)
         for scheduleIdx in range(0, numSchedules):
           schedule = schedules[scheduleIdx]
           deviceNames = schedule[1]
-          if deviceNames == ["fallback"]:
+          if deviceNames == ["fallback"] or deviceNames == ["Device 0000"]:
             reordered_schedules.append(schedule)
 
         # get device name
