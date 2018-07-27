@@ -2786,12 +2786,13 @@ class KernelWriterAssembly(KernelWriter):
 
     dotInterleave = kernel["LocalDotLayout"]
 
-    #kStr += inst("v_mul_u32_u24", \
-        #vgpr(destVgpr), \
-        #hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
-        #vgpr(growReg), \
-        #"lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    if dotInterleave > 1:
+    if dotInterleave == 1:
+      kStr += inst("v_mul_u32_u24", \
+          vgpr(destVgpr), \
+          hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
+          vgpr(destVgpr), \
+          "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
+    if dotInterleave:
       ldlOffsetVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_and_b32", \
           vgpr(destVgpr), \
