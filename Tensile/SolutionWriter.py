@@ -139,7 +139,7 @@ class SolutionWriter:
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
 
     s += "%sint deviceId;\n" % (t)
-    s += "%shipCtxGetDevice(&deviceId);\n" % (t)
+    s += "%shipGetDevice(&deviceId);\n" % (t)
     if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "

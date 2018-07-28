@@ -519,12 +519,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         for scheduleIdx in range(0, numSchedules):
           schedule = schedules[scheduleIdx]
           deviceNames = schedule[1]
-          if deviceNames != ["fallback"]:
+          if deviceNames != ["fallback"] and deviceNames != ["Device 0000"]:
             reordered_schedules.append(schedule)
         for scheduleIdx in range(0, numSchedules):
           schedule = schedules[scheduleIdx]
           deviceNames = schedule[1]
-          if deviceNames == ["fallback"]:
+          if deviceNames == ["fallback"] or deviceNames == ["Device 0000"]:
             reordered_schedules.append(schedule)
 
         # get device name
@@ -533,7 +533,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         else:
           s += "\n//  get device name hip;\n"
           s += "    int deviceId;\n"
-          s += "    hipCtxGetDevice(&deviceId);\n"
+          s += "    hipGetDevice(&deviceId);\n"
           s += "    hipDeviceProp_t deviceProperties;\n"
           s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
           s += "    std::string name = deviceProperties.name;\n"
