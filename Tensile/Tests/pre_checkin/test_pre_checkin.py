@@ -9,12 +9,24 @@ def test_hgemm_asm_nn(tmpdir):
 def test_dgemm_asm(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_dgemm_asm.yaml"), tmpdir.strpath])
 
+def test_hgemm_hpa_asm_tn(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_hpa_asm_tn.yaml"), tmpdir.strpath])
+
+def test_hgemm_hpa_asm_nn(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_hpa_asm_nn.yaml"), tmpdir.strpath])
+
 def test_hgemm_asm_tt(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_asm_tt.yaml"), tmpdir.strpath])
+
+def test_hgemm_hpa_asm_tt(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_hpa_asm_tt.yaml"), tmpdir.strpath])
 
 def test_hgemm_asm_nt(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_asm_nt.yaml"), tmpdir.strpath])
 
 def test_hgemm_asm_tn(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_asm_tn.yaml"), tmpdir.strpath])
+
+def test_hgemm_hpa_asm_nt(tmpdir):
+ Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_hpa_asm_nt.yaml"), tmpdir.strpath])
 

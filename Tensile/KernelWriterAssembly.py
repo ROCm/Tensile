@@ -299,6 +299,7 @@ class KernelWriterAssembly(KernelWriter):
     self.do["Sync"]        = True
     self.do["MAC"]         = True
     self.do["PostLoop"]    = True
+    self.do["ApplyAlpha"]  = True
     self.do["GlobalWrite"] = True
 
     self.do["EdgeWrite"]   = True
@@ -4332,6 +4333,32 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "  double type_mac_tmp" + self.endLine
     return kStr
 
+  ##############################################################################
+  # isLds = true if querying about LDS operations (which can use dword operations)
+  #     isLds=False if we want element step for the VALU add operations
+  ##############################################################################
+  def getLocalSplitUElementStep(self, kernel, isLds):
+
+    if isLds and \
+       kernel["VectorWidth"]*self.bpeCinternal >= 8 and \
+       kernel["GlobalWriteVectorWidth"]*self.bpeCinternal >= 8:
+      useDwordX2 = 1
+    else:
+      useDwordX2 = 0
+
+    #useDwordX2 = 0
+
+    if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+      assert(kernel["VectorWidth"]%2 == 0)
+      elementStep = 2*(useDwordX2+1)
+    elif kernel["ProblemType"]["DataType"].isSingle():
+      elementStep = 1*(useDwordX2+1)
+    elif kernel["ProblemType"]["DataType"].isDouble():
+      if isLds:
+        assert (useDwordX2==1)
+      elementStep = 1
+
+    return (elementStep, useDwordX2)
 
   ##############################################################################
   # LocalSplitU: Local Write
@@ -4387,10 +4414,44 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += dump(vgpr(addr))
 
     # do writes
+    # LDS Layout example (for Sgemm, LSU=4, TT=8x8, WG=[8,4,4]), 128 WI/WG
+    # VectorWidth = GlobalWriteVectorWidth = 4
+    # SubGroup0 (WI:00-32)  : LDS 0x0000-
+    # SubGroup1 (WI:33-64)  : LDS 0x2000-
+    # SubGroup2 (WI:65-95)  : LDS 0x4000-
+    # SubGroup3 (WI:96-127) : LDS 0x6000-
+
+    # Interleave within a subgroup is interesting...
+    #       Start LDS Addr
+    # WI00 - 0x000
+    # WI01 - 0x010
+    # ...
+    # WI07 - 0x070
+    # WI08 - 0x400
+    # WI09 - 0x410
+    # ...
+    # WI0F - 0x470
+    # WI10 - 0x800
+    # ...
+    # ...
+    # WI1f - 0xc70
+    # WI20 - 0x1000  (start SubGroup1)
+
+    # so a zoom-in on the pattern at beginning of LDS, for the case above:
+    #   WI (hex) |x00-|x01-|...   |x07-|0x0-|0x1-|...|0x7-|0x0-| ... ... ||0x8-|
+    # ValuC      |0123|0123|...   |0123|4567|4567|...|4567|89AB| ... ... ||0123
+    #            |                     |                  |               |
+    # LDS Addr  0x0                  0x80               0x100           0x400
+
+    # Perhaps could optimize this into something simpler with fewer bank conflicts
+    (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, True)
     for j in range(0, kernel["ThreadTile1"]/kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"]/kernel["VectorWidth"]):
         for s in range(0, kernel["VectorWidth"]):
-          for vc in range(0, kernel["VectorWidth"]):
+          for vc in range(0, kernel["VectorWidth"], elementStep):
+            # for half, write 2 elements (4 bytes)
+            # for single, write 1 element (4 bytes)
+            # double doesn't work yet
             writeOffset = vc \
                 + i*kernel["SubGroup0"]*kernel["VectorWidth"] \
                 + s*kernel["MacroTile0"] \
@@ -4399,13 +4460,23 @@ class KernelWriterAssembly(KernelWriter):
                 + i*kernel["VectorWidth"] \
                 + s*kernel["ThreadTile0"] \
                 + j*kernel["ThreadTile0"]*kernel["VectorWidth"]
-            kStr += "ds_write_b32 %s, %s offset:%u%s" \
-                % (vgpr(addr), vgpr(regIdx), writeOffset*self.bpeCinternal, self.endLine)
+            writeOffset /= elementStep
+            if useDwordX2:
+              regIdx = regIdx * self.bpeCinternal / 4
+              kStr += inst("ds_write_b64", vgpr(addr), vgpr("ValuC+%u"%regIdx,2), \
+                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal), 
+                           "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
+            else:
+              regIdx /= elementStep
+              kStr += inst("ds_write_b32", vgpr(addr), vgpr("ValuC+%u"%regIdx), \
+                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal), 
+                           "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
             # ds_write value
             #kStr += dump(vgpr(regIdx))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
     kStr += self.syncThreads(kernel, "post-lsu local write")
     #kStr += self.dumpLds(kernel, 0, 16)
+    #kStr += self.bomb(5)
     return kStr
 
   ##############################################################################
@@ -4417,13 +4488,21 @@ class KernelWriterAssembly(KernelWriter):
     baseAddr = self.vgprPool.checkOut(1)
 #jgolds which bpe should we use?
     kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeAB, sgpr(tmpSgpr))
+    (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, True)
+    # Load values for each subgroup
     for r in range(0, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
-        for s in range(0, kernel["GlobalWriteVectorWidth"]):
+        for s in range(0, kernel["GlobalWriteVectorWidth"], elementStep):
           offset = s + i*kernel["NumThreads"]*kernel["GlobalWriteVectorWidth"] + r * kernel["MacroTile0"]*kernel["MacroTile1"]
           regIdx = s + i*kernel["GlobalWriteVectorWidth"] + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
-          kStr += "ds_read_b32 %s, %s offset:%u%s" % (vgpr("ValuC+%u"%regIdx), \
-              vgpr(baseAddr), offset*self.bpeAB, self.endLine)
+          if useDwordX2:
+            regIdx = regIdx * self.bpeCinternal / 4
+            kStr += inst("ds_read_b64", vgpr("ValuC+%u"%regIdx,2), \
+                vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
+          else:
+            regIdx /= elementStep
+            kStr += inst("ds_read_b32", vgpr("ValuC+%u"%regIdx), \
+                vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all reads")
     self.vgprPool.checkIn(baseAddr)
     return kStr
@@ -4433,14 +4512,31 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localSplitUReduction(self, kernel):
     kStr = ""
+    (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, False)
     for r in range(1, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
-        for s in range(0, kernel["GlobalWriteVectorWidth"]):
+        for s in range(0, kernel["GlobalWriteVectorWidth"],elementStep):
           cIdx = s + i*kernel["GlobalWriteVectorWidth"]
           regIdx = s + i*kernel["GlobalWriteVectorWidth"] \
               + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
-          kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), \
-              vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+
+          if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            cIdx /= elementStep
+            regIdx /= elementStep
+            kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), \
+                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            cIdx /= elementStep
+            regIdx /= elementStep
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), \
+                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            cIdx *= 2
+            regIdx *= 2 # for doubles, each element takes two regs
+            kStr += inst("v_add_f64", vgpr("ValuC+%u"%cIdx,2), \
+                vgpr("ValuC+%u" % regIdx,2), vgpr("ValuC+%u"%cIdx,2), "c[%u] += c[%u]"%(cIdx, regIdx) )
+          else:
+            assert(0) # unsupported data type, need to modify here and LSU write/read code
     return kStr
 
   ##############################################################################
@@ -4613,6 +4709,7 @@ class KernelWriterAssembly(KernelWriter):
     if self.betaVgpr != None:
       self.vgprPool.checkIn(self.betaVgpr)
 
+  ##############################################################################
   # Return max global write vector width, in elements
   def maxGwvw(self, kernel):
     atomic = kernel["GlobalSplitU"] > 1
@@ -4694,7 +4791,7 @@ class KernelWriterAssembly(KernelWriter):
     # then use a conservative 1
     edgeVw = kernel["GlobalWriteVectorWidth"] if kernel["VectorStore"] else 1
     edgeVw = min(edgeVw, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
-    assert(kernel["VectorWidth"]%edgeVw == 0)
+    assert(kernel["GlobalWriteVectorWidth"]%edgeVw == 0)
     for tt1 in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
       for tt0 in range(0, 1):
         for vc1 in range(0, 1):
@@ -4883,17 +4980,16 @@ class KernelWriterAssembly(KernelWriter):
         # 3 for GLOBAL_OFFSET_C calculation (can overlap below, therefore max)
         # if beta gwvw*rpe for new value
         # if atomic 2*rpe for old and cmp values
+
+        # Use bpeCexternal for all external values
+
         numVgprsPerAddr = self.rpgo if kernel["BufferStore"] else self.rpga
 #jgolds which bpe should we use?
         numVgprsPerDataPerVI = 0
         if atomic:
-          numVgprsPerDataPerVI = (3*self.bpeCinternal)/self.bpr
+          numVgprsPerDataPerVI = (3*self.bpeCexternal)/self.bpr
         elif beta:
-#jgolds aren't these the same?
-          if self.bpeCinternal >= self.bpr:
-            numVgprsPerDataPerVI = (1*self.bpeCinternal)/self.bpr
-          else:
-            numVgprsPerDataPerVI = (1.0*self.bpeCinternal)/self.bpr
+          numVgprsPerDataPerVI = (1.0*self.bpeCexternal)/self.bpr
         numVgprsPerElement = numVgprsPerAddr + int(ceil(numVgprsPerDataPerVI * gwvw))
 
         #print self.vgprPool.state()
@@ -4997,6 +5093,7 @@ class KernelWriterAssembly(KernelWriter):
   # chooseGlobalLoad :
   # create the store instruction for requested vector width and other parms
   #
+  # bps = bytes per memory op
   # rpv = regs per vector
   ##############################################################################
   def chooseGlobalLoad(self, useBuffer, bps, destVgpr, rpv, \
@@ -5084,6 +5181,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Global Write Batch
+  # numVgprsPerDataPerVI : Uses bpeCinternal
   ##############################################################################
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, gwvw, \
       batchElements, coord0, coord1, addrC,  \
@@ -5115,6 +5213,9 @@ class KernelWriterAssembly(KernelWriter):
       # gpr assignments for element
       addr = batchElementVgprs + addrVgprOffset + elementIdx*numVgprsPerAddr # elementVgprs+0
       elementAddr.append(addr)
+      # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
+      # should have same data pointer, next should move.
+
       data = batchElementVgprs + dataVgprOffset + int(elementIdx*numVgprsPerDataPerVI*gwvw) # elementVgprs+self.rpga
       elementData.append(data)
       mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
@@ -5289,7 +5390,7 @@ class KernelWriterAssembly(KernelWriter):
         for vi in range(0, gwvw):
           # TODO: use chooseGlobalLoad, could use vector loads here too perhaps:
           dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
-          if kernel["BufferStore"]: # yes, check store here since this is write loop.  All the addr calc is done with 
+          if kernel["BufferStore"]: # yes, check store here since this is write loop.  All the addr calc is done in format that requires buffer for loads too
             kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
                       sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
           else:
@@ -5306,13 +5407,10 @@ class KernelWriterAssembly(KernelWriter):
           addr1 = ""
         extraFields = ""
         useBuffer = kernel["BufferStore"]
+        kStr += self.comment("beta loads")
         if kernel["ProblemType"]["DataType"].isHalf():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
-                      addr0, addr1, 0, extraFields, hi16=sumIdx%2)
-          else:
-            kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
-                      addr0, addr1, 0, extraFields, hi16=0)
+          kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
+                    addr0, addr1, 0, extraFields, hi16=sumIdx%2)
         elif kernel["ProblemType"]["DataType"].isSingle() or \
              kernel["ProblemType"]["DataType"].isDouble():
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
@@ -5325,26 +5423,22 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # rC *= alpha
-    kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
-    for elementIdx in range(0, len(batchElements)):
-      for vi in range(0, gwvw):
-        sumIdxV = elementSumIdx[elementIdx] + vi
-        if kernel["ProblemType"]["DataType"].isHalf():
-          if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            if sumIdxV%2:
-              kStr += inst("v_pk_mul_f16", vgpr(sumIdxV/2), vgpr(self.alphaVgpr), vgpr(sumIdxV/2), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
-          else: # HPA
-            kStr += inst("v_mul_f32", vgpr(sumIdxV), vgpr(self.alphaVgpr), vgpr(sumIdxV), "*= alpha")
-            kStr += inst("v_cvt_f16_f32", vgpr(sumIdxV), vgpr(sumIdxV), "convert C to fp16" )
-            if vi%2 == 1:
-              assert (gwvw % 2 == 0)
-              d = elementSumIdx[elementIdx] + vi/2
-              kStr += inst("v_pack_b32_f16", vgpr(d), vgpr(sumIdxV-1), vgpr(sumIdxV), "Pack with neighbor" )
+    if self.do["ApplyAlpha"]:
+      kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
+      for elementIdx in range(0, len(batchElements)):
+        for vi in range(0, gwvw):
+          sumIdxV = elementSumIdx[elementIdx] + vi
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if sumIdxV%2:
+                kStr += inst("v_pk_mul_f16", vgpr(sumIdxV/2), vgpr(self.alphaVgpr), vgpr(sumIdxV/2), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
+            else: # HPA
+              kStr += inst("v_mul_f32", vgpr(sumIdxV), vgpr(self.alphaVgpr), vgpr(sumIdxV), "*= alpha")
 
-        elif kernel["ProblemType"]["DataType"].isSingle():
-          kStr += inst("v_mul_f32", vgpr(sumIdxV), sgpr("Alpha"), vgpr(sumIdxV), "*= alpha" )
-        elif kernel["ProblemType"]["DataType"].isDouble():
-          kStr += inst("v_mul_f64", vgpr(sumIdxV*2,2), sgpr("Alpha",2), vgpr(sumIdxV*2,2), "*= alpha")
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            kStr += inst("v_mul_f32", vgpr(sumIdxV), sgpr("Alpha"), vgpr(sumIdxV), "*= alpha" )
+          elif kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("v_mul_f64", vgpr(sumIdxV*2,2), sgpr("Alpha",2), vgpr(sumIdxV*2,2), "*= alpha")
 
     ########################################
     # Atomic
@@ -5383,6 +5477,7 @@ class KernelWriterAssembly(KernelWriter):
 
       ########################################
       # wait for batched load
+      # TODO - we are always atomic here?
       if beta or atomic:
         kStr += inst("s_waitcnt", "vmcnt(0)", "wait C" )
 
@@ -5583,6 +5678,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
 
         if beta:
+          # if GWVW=1 the half path still assumes we have
+          # at least two stores so does some combining across VI -
+          # for example assuming we can have two elements and can use pk_mul
+          # here:
           for vi in range(0, gwvw):
             dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
             sumIdxV = elementSumIdx[elementIdx] + vi
@@ -5597,27 +5696,43 @@ class KernelWriterAssembly(KernelWriter):
                       "sum*alpha + C*beta")
                 else:
                   pass # add will have been done previously
-              else:
+              else: # HPA
                 # dataV+0 = new c = old c*beta + rC
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[0,1,0]%s" % \
-                  (vgpr(sumIdxV), vgpr(self.betaVgpr), vgpr(dataV+0), vgpr(sumIdxV), self.endLine)
-
+                # src0 = beta = f32 = opsel 00
+                # src1 = dataV = f16.lo = opsel 10 or 11 depending on even/odd
+                # src2 = sumIdxV = f32 = opsel 00
+                dataCExternal = elementData[elementIdx] + vi/2
+                hi16 = sumIdxV%2
+                kStr += inst("v_mad_mix_f32", vgpr(sumIdxV), vgpr(self.betaVgpr), \
+                    vgpr(dataCExternal), vgpr(sumIdxV), \
+                    "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (hi16), \
+                    "//C*=beta")
             elif kernel["ProblemType"]["DataType"].isSingle():
-              # dataV+0 = new c = old c*beta
-              kStr += inst("v_mul_f32", vgpr(dataV+0), sgpr("Beta"), vgpr(dataV+0), \
-                  "%s = C*beta"%vgpr(dataV+0) )
-              # dataV+0 = new c = old c*beta + rC
-              kStr += inst("v_add_f32", vgpr(sumIdxV), vgpr(dataV+0), vgpr(sumIdxV), \
-                  "sum*alpha + C*beta")
+              kStr += inst("v_mac_f32", vgpr(sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
+                  "finalSum = sum*alpha + C*beta")
+
             elif kernel["ProblemType"]["DataType"].isDouble():
               # dataV+0 = new c = old c*beta
-              kStr += inst("v_mul_f64", vgpr(dataV+0,2), sgpr("Beta",2), vgpr(dataV+0,2), \
-                  "%s = C*beta"%vgpr(dataV+0,2) )
-              # dataV+0 = new c = old c*beta + rC
-              kStr += inst("v_add_f64", vgpr(sumIdxV*2,2), vgpr(dataV+0,2), vgpr(sumIdxV*2,2), \
-                  "sum*alpha + C*beta")
+              kStr += inst("v_fma_f64", vgpr(sumIdxV*2,2), vgpr(dataV+0,2), sgpr("Beta",2), vgpr(sumIdxV*2,2), \
+                  "finalSum = sum*alpha + C*beta")
+
+
+       # pack stores:
+        for vi in range(0, gwvw):
+          dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
+          sumIdxV = elementSumIdx[elementIdx] + vi
+          if kernel["ProblemType"]["DataType"].isHalf():
+            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              kStr += inst("v_cvt_f16_f32", vgpr(sumIdxV), vgpr(sumIdxV), "convert C to fp16" )
+              if vi%2 == 1:
+                assert (gwvw % 2 == 0)
+                d = elementSumIdx[elementIdx] + vi/2
+                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr(sumIdxV-1), vgpr(sumIdxV), "Pack with neighbor" )
 
         if self.do["GlobalWrite"]:
+          # perform vector stores here, so no VI indexing.
+          # if GWVW > Vw, might need to support loops to 
+          # implement wider stores
           ntStr = ""
           if kernel["NonTemporalC"]%2==1:
             ntStr += " glc"
@@ -5648,6 +5763,8 @@ class KernelWriterAssembly(KernelWriter):
           elif kernel["ProblemType"]["DataType"].isDouble():
             kStr += self.chooseGlobalStore(useBuffer, bps, sumIdx*2, rpv, \
                       addr0, addr1, 0, ntStr)
+
+          #kStr += self.bomb(5)
 
       if edge: # subsequent batch must start with full exec mask
         kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
