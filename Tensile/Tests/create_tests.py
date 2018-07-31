@@ -14,7 +14,7 @@ targetFile = "%s/test_%s.py"%(targetDir,os.path.basename(targetDir))
 print "info: writing test script to %s" % targetFile
 outfile = open(targetFile, "w" )
 outfile.write("import Tensile.Tensile as Tensile\n\n")
-for f in glob.glob("%s/test*yaml"%targetDir):
+for f in glob.glob("%s/*yaml"%targetDir):
     baseName = os.path.basename(f)
     testName = os.path.splitext(baseName)[0]
     outfile.write ("def %s(tmpdir):\n" % (testName))
