@@ -43,9 +43,9 @@
 #define tensileStatusAssertFailure hipErrorUnknown
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
-#define TensileHalf __fp16
+#define TensileHalf _Float16
 
-inline std::ostream& operator<<(std::ostream& os, const __fp16& dt)  
+inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)  
 {  
    os << (float)(dt);
    return os;  
