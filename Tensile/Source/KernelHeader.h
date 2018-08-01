@@ -26,7 +26,7 @@ typedef _Float16 half2 __attribute__((ext_vector_type(2)));
 typedef _Float16 half;
 typedef _Float16 __half;
 
-extern "C" half2 llvm_fma_v2f16(half2, half2, half2) __asm("llvm.fma.v2f16");
+extern "C" __device__ half2 llvm_fma_v2f16(half2, half2, half2) __asm("llvm.fma.v2f16");
 
 __device__ inline half2 tensile_fmadd_half2(half2 multiplier, half2 multiplicand, half2 addend)
 {

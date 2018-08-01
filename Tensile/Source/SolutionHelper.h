@@ -27,6 +27,7 @@
 #include <unordered_map>
 #include <string>
 #include <tuple>
+#include <mutex>
 
 /*******************************************************************************
  * Kernel Cache
