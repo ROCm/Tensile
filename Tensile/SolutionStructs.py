@@ -1109,10 +1109,13 @@ class Solution:
           and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
-      if not state["ProblemType"]["DataType"].isSingle() and \
-         not state["ProblemType"]["DataType"].isHalf() and \
-         not state["ProblemType"]["HighPrecisionAccumulate"] :
-        reject(state, "GlobalSplitU only compatible with single or half precision")
+      supported = \
+        state["ProblemType"]["DataType"].isSingle() or \
+        (state["KernelLanguage"] == "Assembly" and \
+         (state["ProblemType"]["DataType"].isHalf() or \
+          state["ProblemType"]["HighPrecisionAccumulate"]))
+      if not supported:
+        reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
 
     if state["VectorAtomicWidth"] == -1:
