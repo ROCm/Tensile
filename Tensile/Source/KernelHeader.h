@@ -22,9 +22,9 @@
 #ifndef KERNEL_HEADER
 #define KERNEL_HEADER
 
-typedef __fp16 half2 __attribute__((ext_vector_type(2)));
-typedef __fp16 half;
-typedef __fp16 __half;
+typedef _Float16 half2 __attribute__((ext_vector_type(2)));
+typedef _Float16 half;
+typedef _Float16 __half;
 
 extern "C" half2 llvm_fma_v2f16(half2, half2, half2) __asm("llvm.fma.v2f16");
 
