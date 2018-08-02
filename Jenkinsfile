@@ -185,7 +185,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
 
   build_image.inside( docker_args.docker_run_args )
   {
-    def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
+    def tox_file = "Tensile/Tests/nightly";
     stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
     {
       timeout(time: 2, unit: 'HOURS') {
