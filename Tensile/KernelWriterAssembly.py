@@ -1630,18 +1630,22 @@ class KernelWriterAssembly(KernelWriter):
                   # we treat HighPrecisionAccumulate as expanded packed math
                   b = blockB*2
                   a = blockA*2
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   """
                   ignore this, not quite correct for mixed precision
                   D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
@@ -2712,9 +2716,9 @@ class KernelWriterAssembly(KernelWriter):
     else:
       destVgpr = "LocalWriteAddr%s"%tc
 
-    if kernel["LocalDotLayout"] > 1:
+    dotInterleave = kernel["LocalDotLayout"]
 
-      # tmp = grow/ldl + grow%ldl
+    if dotInterleave and tP["nwcv"]==1:
       kStr += inst("v_lshrrev_b32", \
           vgpr(destVgpr), \
           hex(log2(kernel["LocalDotLayout"])), \
@@ -2729,7 +2733,7 @@ class KernelWriterAssembly(KernelWriter):
         hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
         vgpr(growReg), \
         "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    if kernel["LocalDotLayout"] > 1:
+    if dotInterleave:
       ldlOffsetVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_and_b32", \
           vgpr(ldlOffsetVgpr), \

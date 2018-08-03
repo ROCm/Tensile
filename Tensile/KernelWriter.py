@@ -897,7 +897,6 @@ class KernelWriter:
       self.numReadsTileA = kernel["NumLoadsCoalescedA"]
       self.numReadsUnrollA = kernel["NumLoadsPerpendicularA"]
       self.numWritesCoalA = kernel["NumLoadsCoalescedA"]
-      self.numWritesPerpA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vectors, write vectors
         self.readTileDimComponentsA = False # Vector
         self.readTileDimVectorA = True # Vector
@@ -928,7 +927,6 @@ class KernelWriter:
       self.numReadsTileA = kernel["NumLoadsPerpendicularA"]
       self.numReadsUnrollA = kernel["NumLoadsCoalescedA"]
       self.numWritesCoalA = kernel["NumLoadsPerpendicularA"]
-      self.numWritesPerpA = kernel["NumLoadsCoalescedA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
@@ -937,9 +935,13 @@ class KernelWriter:
         self.numReadsUnrollVecCompA = vwa
         self.numReadsTileVecCompA = 1
 
-        self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
         self.writeUnrollDimComponentsA = False # Scalar
-        writeCoal = False
+        if kernel["LocalDotLayout"]>1:
+          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = True
+        else:
+          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
       else: # read components, write vectors
         self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
         self.readTileDimVectorA = False # Components
@@ -953,15 +955,14 @@ class KernelWriter:
         writeCoal = True
 
     # writeCoal indicates writes should be done in the coal dim
-    # else in perp 
+    # else in perp
     if writeCoal:
       self.numWritesCoalVecCompA = vwa
       self.numWritesPerpVecCompA = 1
     else:
       self.numWritesCoalVecCompA = 1
       self.numWritesPerpVecCompA = vwa
-
-
+    del writeCoal
 
     self.numReadVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if (self.readTileDimComponentsA \
@@ -996,19 +997,20 @@ class KernelWriter:
       self.numReadsTileB = kernel["NumLoadsCoalescedB"]
       self.numReadsUnrollB = kernel["NumLoadsPerpendicularB"]
       self.numWritesCoalB = kernel["NumLoadsCoalescedB"]
-      self.numWritesPerpB = kernel["NumLoadsPerpendicularB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         self.readTileDimComponentsB = False # Vector
         self.readTileDimVectorB = True # Vector
         self.readUnrollDimComponentsB = False # Scalar
         self.readUnrollDimVectorB = False # Scalar
-        self.writeTileDimComponentsB = False # Vector
-        self.writeUnrollDimComponentsB = False # Scalar
-        # NEW
         self.numReadsTileVecCompB = vwb
         self.numReadsUnrollVecCompB = 1
-        self.numWritesCoalVecCompB = vwb
-        self.numWritesPerpVecCompB = 1
+        self.writeUnrollDimComponentsB = False # Vector
+        if kernel["LocalDotLayout"]>1:
+          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
+        else:
+          self.writeTileDimComponentsB = False # Vector
+          writeCoal = True
       else:
         self.readTileDimComponentsB = False # Scalar
         self.readTileDimVectorB = False # Scalar
@@ -1021,23 +1023,24 @@ class KernelWriter:
         self.numReadsUnrollVecCompB = vwb
         self.numWritesCoalVecCompB = 1
         self.numWritesPerpVecCompB = vwb
-    else:
+    else: # TN yes transpose
       self.numReadsTileB = kernel["NumLoadsPerpendicularB"]
       self.numReadsUnrollB = kernel["NumLoadsCoalescedB"]
       self.numWritesCoalB = kernel["NumLoadsPerpendicularB"]
-      self.numWritesPerpB = kernel["NumLoadsCoalescedB"]
       if kernel["GlobalReadCoalesceVectorB"]:
         self.readTileDimComponentsB = False # Scalar
         self.readTileDimVectorB = False # Scalar
         self.readUnrollDimComponentsB = False # Vector
         self.readUnrollDimVectorB = True # Vector
-        self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
-        self.writeUnrollDimComponentsB = False # Scalar
-        # NEW
         self.numReadsUnrollVecCompB = vwb
         self.numReadsTileVecCompB = 1
-        self.numWritesCoalVecCompB = 1
-        self.numWritesPerpVecCompB = vwb
+        self.writeUnrollDimComponentsB = False
+        if kernel["LocalDotLayout"]>1:
+          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = True
+        else:
+          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          writeCoal = False
       else:
         self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
         self.readTileDimVectorB = False # Components
@@ -1050,6 +1053,16 @@ class KernelWriter:
         self.numReadsTileVecCompB = vwb
         self.numWritesCoalVecCompB = vwb
         self.numWritesPerpVecCompB = 1
+
+    # writeCoal indicates writes should be done in the coal dim
+    # else in perp
+    if writeCoal:
+      self.numWritesCoalVecCompB = vwb
+      self.numWritesPerpVecCompB = 1
+    else:
+      self.numWritesCoalVecCompB = 1
+      self.numWritesPerpVecCompB = vwb
+    del writeCoal
 
     # numReadVectorComponentsB is refers to global reads
     self.numReadVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
