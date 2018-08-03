@@ -28,7 +28,6 @@ GlobalParameters:
   PrintTensorB: 0
   PrintSolutionRejectionReason: 0
 
-
 BenchmarkProblems:
   ########################################
   # NN - standard
@@ -36,7 +35,7 @@ BenchmarkProblems:
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: d
+      DataType: s
       TransposeA: False
       TransposeB: False
       UseBeta: False
@@ -50,28 +49,30 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: ["Assembly"]
       ForkParameters:
-        - VectorStore: [0,1]
         - PrefetchGlobalRead: [ False]
         - PrefetchLocalRead: [ False]
         - ThreadTile:
+          - [ 2, 2 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
-          - [ 8, 4, 2 ]
-          - [ 8, 4, 4 ]
-          - [ 8, 4, 8 ]
-        - GlobalSplitU: [1]
+          - [ 8, 8, 1 ]
+          - [ 8, 16, 1 ]
+          - [ 8, 4, 4 ] # LSU case
+        - GlobalSplitU: [1,2,3,4,5,7,8,16,32,64]
         - WorkGroupMapping: [64]
-        - DepthU: [ 8 ]
+        - DepthU: [ 16 ]
         - VectorWidth: [1,2,4]
         - GlobalReadVectorWidth: [1,2,4]
+        #- VectorAtomicWidth: [1]
         - AssertFree0ElementMultiple: [4]  # so we can test GRVW sweep
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # Use step=4 to match assertions
-          - Range: [[60,4,66], [60,4,66], [1,1,2], [64, 64, 34, 4096]]
+          # Use step=4 so many GRVW work OK
+          - Range: [[60,4,66], [60,4,66], [1,1,2], [64, 64, 33, 4096]]
+          - Range: [[508,4,516], [256,4,256], [2], [64, 64, 128, 1024]]
