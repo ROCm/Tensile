@@ -246,10 +246,11 @@ validParameters = {
     "UseSgprForGRO":              [ -1, 0, 1],
     "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
 
-    # Attempt to vectorize atomics, up to a 64-bit CAS.
+    # Attempt to vectorize atomics
     # 1,2,4 : Number of elements to vectorize
-    # -1 : Maximum supported value.  Half=4, Single=2, Double=1
-    "VectorAtomicWidth":          [ -1, 1, 2, 4 ] ,
+    # -1 : Maximum supported value.  Half=2, Single=1, Double=1
+    # Currently 32-bit CAS only, eventually might support more
+    "VectorAtomicWidth":          [ -1, 1, 2 ] ,
 
     # When creating the kernel, assume that the summation size is some multiple of the element size.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
@@ -428,7 +429,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
     {"FractionalLoad":            [ 0 ] },
-    {"VectorAtomicWidth":         [ 1 ] },
+    {"VectorAtomicWidth":         [ -1 ] },
 
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },

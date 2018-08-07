@@ -17,6 +17,9 @@ outfile.write("import Tensile.Tensile as Tensile\n\n")
 for f in glob.glob("%s/*yaml"%targetDir):
     baseName = os.path.basename(f)
     testName = os.path.splitext(baseName)[0]
+    if not testName.startswith("test_"):
+        testName = "test_" + testName 
+
     outfile.write ("def %s(tmpdir):\n" % (testName))
     outfile.write (' Tensile.Tensile([Tensile.TensileTestPath("%s"), tmpdir.strpath])\n\n' % (f))
 

@@ -1206,10 +1206,10 @@ void initInput(
     for (size_t i = 0; i < maxSize; i++) {
       auto v = tensileGetRandom<DataType>();
       if (initOp == Abs) {
-        v = fabs(v);
+        v = std::fabs(double(v));
       } else if (initOp == AltSign) {
         DataType s = (i&0x1) ? -1:1;
-        v = s*fabs(v);
+        v = s*std::fabs(double(v));
       }
       (*initial)[i] = v;
     }
