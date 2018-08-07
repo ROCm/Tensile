@@ -66,7 +66,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
-globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
+globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  0 useful in debug since may generate cleaner compile messages
 
 ########################################
 # less common
