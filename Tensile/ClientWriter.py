@@ -651,18 +651,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += " };\n"
     h += "\n"
 
-
-    # Solution Names
-    h += "const char *solutionNames[maxNumSolutions] = {\n"
-    for i in range(0, len(solutions)):
-      solution = solutions[i]
-      solutionName = solutionWriter.getSolutionName(solution)
-      h += "  \"%s\"" % solutionName
-      if i < len(solutions)-1:
-        h += ","
-      h += "\n"
-    h += " };\n"
-    h += "\n"
   else:
     # Function Names
     functionNames = []

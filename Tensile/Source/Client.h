@@ -1074,7 +1074,7 @@ bool benchmarkAllSolutionsForSize(
           << gflops*perfScaling << ", "
           << std::setw(10) << std::fixed << std::setprecision(3)
           << gflops << ", "
-          << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
+          << solutions[solutionIdx].name << (newFastest ? "*" : " ") << ", "
           << std::setw(9) << std::fixed << std::setprecision(3)
           << timeNs * TensileTimer::reciprical_million << ", ";
       if (numElementsToValidate) {
@@ -1127,7 +1127,7 @@ bool benchmarkProblemSizes(
   std::cout << std::endl;
   std::cout << "Solutions: " << std::endl;
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-    std::cout << "(" << sIdx << ") " << solutionNames[sIdx] << std::endl;
+    std::cout << "(" << sIdx << ") " << solutions[sIdx].name << std::endl;
   }
   //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
@@ -1137,7 +1137,7 @@ bool benchmarkProblemSizes(
   }
   file << ", TotalFlops";
   for ( unsigned int s = 0; s < numSolutions; s++) {
-    file << ", " << solutionNames[s];
+    file << ", " << solutions[s].name;
   }
   file << std::endl;
 
