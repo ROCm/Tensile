@@ -448,7 +448,7 @@ bool callLibrary(
 
     // call device function
     TensileStatus tensileCallStatus = generatedCallTo_tensile( userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
-    if (tensileCallStatus == tensileStatusFailure) {
+    if (tensileCallStatus != tensileStatusSuccess) {
       solutionIsValid = false;
     }
 
@@ -963,7 +963,7 @@ bool benchmarkAllSolutionsForSize(
             numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
             &l_eventStop[syncIdx][enqIdx] );
 #endif
-        if (status == tensileStatusFailure) {
+        if (status != tensileStatusSuccess) {
           solutionIsValid = false;
         }
 
@@ -1081,8 +1081,11 @@ bool benchmarkAllSolutionsForSize(
         if (callStatus == tensileStatusSuccess)
           std::cout << (numInvalids ? "FAILED" : "PASSED")
             << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
-        else 
+        else if (callStatus == tensileStatusAssertFailure)
+          std::cout << "DID_NOT_SATISFY_ASSERTS, ";
+        else
           std::cout << "INVALID_KERNEL, ";
+
       }
       // device stats
       std::cout << avgCoreClock << ", ";
@@ -1095,7 +1098,7 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // write results to file
-    if (numInvalids > 0) {
+    if ((numInvalids > 0) || (callStatus != tensileStatusSuccess)) {
       gflops = -1.0;
       invalidSolutions.insert(solutionIdx);
     }

@@ -29,7 +29,7 @@
 #define TensileStatus cl_int
 #define tensileStatusSuccess CL_SUCCESS
 #define tensileStatusFailure -1
-#define tensileStatusAssertFailure -1
+#define tensileStatusAssertFailure -2
 #define TensileComplexFloat cl_float2
 #define TensileComplexDouble cl_double2
 #define TensileHalf cl_half
@@ -39,8 +39,9 @@
 #include <hip/hip_runtime.h>
 #define TensileStatus hipError_t
 #define tensileStatusSuccess hipSuccess
+// FIXME - steal hip error encodings since rocBLAS expects hip error codes to be returned...
 #define tensileStatusFailure hipErrorUnknown
-#define tensileStatusAssertFailure hipErrorUnknown
+#define tensileStatusAssertFailure hipErrorRuntimeOther
 #define TensileComplexFloat float2
 #define TensileComplexDouble double2
 #define TensileHalf _Float16
@@ -51,7 +52,7 @@ inline std::ostream& operator<<(std::ostream& os, const _Float16& dt)
    return os;  
 }
 
-#endif
+#endif // HIP
 
 /*******************************************************************************
  * tensileSetup
@@ -72,6 +73,96 @@ TensileStatus tensileTeardown();
     printf("TensileStatusFailure %i on line %u of %s\n", \
         tensileCheckStatusTmp, __LINE__, __FILE__); \
   } }
+
+template <int NumSizes, int LastSummationIdx, int Free0Idx>
+class ProblemSizes {
+public:
+  using SizeType = unsigned int;
+
+  // Constructor accepts variable number of sizes:
+  template<typename... Ts>
+  ProblemSizes(Ts... args) {
+    init<NumSizes>(args...);
+  }
+
+  bool operator< (const ProblemSizes<NumSizes, LastSummationIdx, Free0Idx> & p) const
+  {
+    for (int i=0; i<NumSizes; i++) {
+      if (p.sizes[i] < this->sizes[i])
+        return true;
+      else if (p.sizes[i] > this->sizes[i])
+        return false;
+      // if equal, continue to next index
+    }
+    return false; // get here if all indices are equal
+  };
+
+  SizeType lastSummationSize() const { return sizes[LastSummationIdx]; };
+  SizeType free0Size() const { return sizes[Free0Idx]; };
+
+private:
+  template<int I, typename T>
+  void init (T v) {
+    sizes[NumSizes-I] = v;
+  }
+
+  template<int I, typename T, typename... Ts>
+  void init (T v, Ts... args )
+  {
+    sizes[NumSizes-I] = v;
+    init<I-1> (args...);
+  }
+
+
+private:
+  // Data members:
+  SizeType sizes[NumSizes];
+};
+
+
+// These are assertions used to generate the solution
+// Must be checked by the runtime before launchin the solution
+struct AssertionProperties {
+  AssertionProperties(unsigned x_summationElementMultiple,
+                      unsigned x_free0ElementMultiple)
+    : summationElementMultiple(x_summationElementMultiple),
+      free0ElementMultiple(x_free0ElementMultiple)
+     {}
+
+  template<class ProblemSizes>
+  AssertionProperties(const ProblemSizes &p) {
+    summationElementMultiple = 1; // problem summation element multiple
+    auto sumSize = p.lastSummationSize();
+    if ((sumSize & 0x7) == 0) summationElementMultiple=8;
+    else if ((sumSize & 0x3) == 0) summationElementMultiple=4;
+    else if ((sumSize & 0x1) == 0) summationElementMultiple=2;
+
+    auto free0Size = p.free0Size();
+    free0ElementMultiple = 1; // problem free0 element multiple
+    if ((free0Size & 0x7) == 0) free0ElementMultiple=8;
+    else if ((free0Size & 0x3) == 0) free0ElementMultiple=4;
+    else if ((free0Size & 0x1) == 0) free0ElementMultiple=2;
+  };
+
+  // Returns True if this AsssertionProperties meet the requirements for the specified soluition
+  // (this object represents the 'Problem')
+  bool validForSolution(const AssertionProperties &solutionAssertions) {
+    return (this->summationElementMultiple >= solutionAssertions.summationElementMultiple) &&
+           (this->free0ElementMultiple >= solutionAssertions.free0ElementMultiple);
+  }
+
+  unsigned summationElementMultiple;
+  unsigned free0ElementMultiple;;
+};
+
+
+// solution info
+template <typename F>
+struct SolutionInfo {
+  F                       functionPtr;
+  const char *            name;
+  AssertionProperties     assertions;
+};
 
 
 #endif

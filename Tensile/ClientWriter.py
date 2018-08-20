@@ -44,6 +44,7 @@ def main( config ):
   ##############################################################################
   pushWorkingPath("source")
   filesToCopy = [
+      "SolutionMapper.h",
       "Client.cpp",
       "Client.h",
       "DeviceStats.h",
@@ -616,11 +617,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   # Solutions
   ##############################################################################
   if forBenchmark:
-    h += "/* solutions */\n"
-    # Problem Type Indices
-    h += "const unsigned int maxNumSolutions = %u;\n" % len(solutions)
-    h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
-    h += "\n"
     # Solution Ptrs
     h += "typedef TensileStatus (*SolutionFunctionPointer)(\n"
     argList = solutionWriter.getArgList(solutions[0]["ProblemType"], True, True, True)
@@ -628,7 +624,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  %s %s%s" % (argList[i][0], argList[i][1], \
           ",\n" if i < len(argList)-1 else ");\n\n")
 
-    h += "struct SolutionInfo {\n"
+    h += "struct ClientSolutionInfo {\n"
     h += "  SolutionFunctionPointer functionPtr;\n"
     h += "  const char *            name;\n"
     # These are assertions used to generate the solution
@@ -637,11 +633,18 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "  int                     assertFree0ElementMultiple;\n"
     h += "};\n";
 
-    h += "const SolutionInfo solutions[maxNumSolutions] = {\n"
+    h += "/* solutions */\n"
+    # Problem Type Indices
+    h += "const unsigned int maxNumSolutions = %u;\n" % len(solutions)
+    h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
+    h += "\n"
+
+    h += "static const ClientSolutionInfo solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      h += "  {%s, \"%s\", %d, %d}" % \
+      # add trailing ~ for some reason to the function name
+      h += "  {%s, \"%s~\", %d, %d}" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"])
@@ -656,8 +659,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     functionNames = []
     for dataType in dataTypes:
       for problemType in problemTypesForDataType[dataType]:
+        # example scheduleName is fiji, vega10, etc
         for scheduleName in schedulesForProblemType[problemType]:
-          #functionNames.append("tensile_%s_%s" % (scheduleName, problemType))
           functionNames.append("tensile_%s" % (problemType))
     h += "const char *functionNames[numFunctions] = {\n"
     for functionIdx in range(0, len(functionNames)):
