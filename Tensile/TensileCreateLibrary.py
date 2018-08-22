@@ -56,7 +56,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
 def processKernelSourceChunk(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
                              kernelWriterSource, kernelWriterAssembly, \
                              kernelsWithBuildErrs, progressBar, kLock, pLock, \
-                             kiStart, kiStop):
+                             kiStart, kiStop, generatedException):
 
     results = []
 
@@ -68,7 +68,13 @@ def processKernelSourceChunk(outputPath, kernels, kernelSourceFile, kernelHeader
     p = 0
     for ki in range(kiStart, kiStop):
       kernel = kernels[ki]
-      results.append (processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly)) # returns err, src, header, kernelName
+      try:
+        results.append (processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly)) # returns err, src, header, kernelName
+      except Exception, e:
+        # communicate exception to caller
+        print "got one!"
+        generatedException.append(-1)
+        raise
       p+=1
       if p>=pinc and globalParameters["ShowProgressBar"]:
         pLock.acquire()
@@ -195,22 +201,28 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     kiStop = min(len(kernels), kiStart + workPerCpu)
     #sys.stderr.write("cpu:%u process kernels #%u-#%u\n"% (cpu, kiStart, kiStop))
 
+    generatedException = []
+
     if cpus:
       args=(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
             kernelWriterSource, kernelWriterAssembly, \
-            kernelsWithBuildErrs, progressBar, kLock, pLock, kiStart, kiStop)
+            kernelsWithBuildErrs, progressBar, kLock, pLock, kiStart, kiStop, generatedException)
       t = threading.Thread(target=processKernelSourceChunk, args=args)
       t.start()
       threads.append(t)
     else:
       processKernelSourceChunk(outputPath, kernels, kernelSourceFile, kernelHeaderFile, \
                                 kernelWriterSource, kernelWriterAssembly, \
-                                kernelsWithBuildErrs, kLock, pLock, kiStart, kiStop)
+                                kernelsWithBuildErrs, progressBar, kLock, pLock, kiStart, kiStop, generatedException)
     kiStart += workPerCpu
     cpu += 1
 
   for t in threads:
-    t.join()
+    t.join() # TODO - need to check exceptions here from the kernel compilation thread
+
+  if len(generatedException):
+    printExit("** Exiting since kernel generation raised exception")
+
 
   # beta-only kernels
   for kernel in kernelsBetaOnly:
