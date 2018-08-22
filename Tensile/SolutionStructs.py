@@ -1115,8 +1115,8 @@ class Solution:
       supported = \
         state["ProblemType"]["DataType"].isSingle() or \
         (state["KernelLanguage"] == "Assembly" and \
-         (state["ProblemType"]["DataType"].isHalf() or \
-          state["ProblemType"]["HighPrecisionAccumulate"]))
+         (state["ProblemType"]["DataType"].isHalf() and \
+          not state["ProblemType"]["HighPrecisionAccumulate"]))
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
