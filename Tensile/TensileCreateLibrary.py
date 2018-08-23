@@ -337,31 +337,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     ih += "#include <unordered_map>\n"
   else:
     ih += "#include <map>\n"
-  ih += "#include <tuple>\n"
-
-  # problem type Key
-  problemSizeTemplate = "unsigned int, unsigned int, unsigned int"
-  if globalParameters["RuntimeLanguage"] == "OCL":
-      problemSizeTemplate += ", cl_command_queue"
-  ih += "typedef std::tuple<%s> ProblemSizeKey;\n" \
-      % (problemSizeTemplate)
-
-  # hash function
-  ih += "\n"
-  ih += "size_t tensileProblemSizeHasher( const ProblemSizeKey & problemSize ) {\n"
-  ih += "  size_t hash = 0;\n"
-  ih += "  // ignore lowest 4 bits; keep next 21 bits\n"
-  ih += "  size_t hash0 = (std::get<0>(problemSize) >> 4) & ((1<<22)-1); // 21 bits of size0\n"
-  ih += "  size_t hash1 = (std::get<1>(problemSize) >> 4) & ((1<<22)-1); // 21 bits of size1\n"
-  ih += "  size_t hashU = (std::get<2>(problemSize) >> 4) & ((1<<22)-1); // 21 bits of sizeU\n"
-  ih += "  // 21+21+21 = 63 bit hash\n"
-  ih += "  hash |= hash0;\n"
-  ih += "  hash |= hash1<<21;\n"
-  ih += "  hash |= hashU<<42;\n"
-  ih += "  return hash;\n"
-  ih += "}\n"
-  ih += "\n"
-
 
   # Tensile.cpp
   s = ""
@@ -527,13 +502,13 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
 
     if globalParameters["SolutionMapHash"]:
-      ih += "typedef std::unordered_map<ProblemSizeKey, TensileSolutionPointer_%s, std::function<size_t (ProblemSizeKey)>> Map_%s;\n" \
-          % (problemType, problemType )
+      ih += "using Map_%s = std::unordered_map<ProblemSizes_%s, TensileSolutionPointer_%s, ObjectHasher<ProblemSizes_%s> >;\n" \
+          % (problemType, problemType, problemType, problemType )
     else:
-      ih += "typedef std::map<ProblemSizeKey, TensileSolutionPointer_%s> Map_%s;\n" \
-          % (problemType, problemType)
+      ih += "using Map_%s = std::map<ProblemSizes_%s, TensileSolutionPointer_%s>;\n" \
+          % (problemType, problemType, problemType)
 
-    ih += "extern Map_%s solutionMap_%s;\n" % (problemType, problemType)
+    #ih += "extern Map_%s solutionMap_%s;\n" % (problemType, problemType)
 
     # implement tensileGetSolutionPointerUncached_ProblemType
     for ptr in [True, False]:
@@ -656,7 +631,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # implement tensileGetSolutionPointer_ProblemType
     s += "\n// return solution pointer; user calls it\n"
-    s += "Map_%s solutionMap_%s%s;\n" % (problemType, problemType, "(1024, tensileProblemSizeHasher)" if globalParameters["SolutionMapHash"] else "")
+    s += "Map_%s solutionMap_%s%s;\n" % (problemType, problemType, "(1024)" if globalParameters["SolutionMapHash"] else "")
     s += "TensileSolutionPointer_%s tensileGetSolutionPointer_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
@@ -664,12 +639,12 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           % (argListStream[i][0], argListStream[i][1], \
           ",\n" if i < len(argListStream)-1 else ") {\n")
     # create key
-    s += "  ProblemSizeKey key = std::make_tuple( size%s, size%s, size%s%s );\n" \
-        % ( \
-        globalParameters["IndexChars"][problemType["Index0"]], \
-        globalParameters["IndexChars"][problemType["Index1"]], \
-        globalParameters["IndexChars"][problemType["IndexUnroll"]], \
-        ", stream" if globalParameters["RuntimeLanguage"] == "OCL" else "")
+    s += "  ProblemSizes_%s key(" % (problemType)
+    for i in range(0,problemType["TotalIndices"]):
+      if i != 0: s += ", "
+      s += "size%s" % (globalParameters["IndexChars"][i])
+    s += ");\n"
+
     # check for key in map
     s += "  static std::mutex findKernelMutex;\n"
     s += "  std::lock_guard<std::mutex> findKernelLock(findKernelMutex);\n"
@@ -779,7 +754,7 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
   s += "};\n\n"
 
   # Create a solution mapper and init with the table above:
-  s += "static SolutionMapper<ProblemSizes_%s,SolutionInfo_%s> \n" % (problemType, schedProbName)
+  s += "static SolutionMapper<ProblemSizes_%s,SolutionInfo_%s>\n" % (problemType, schedProbName)
   s +=  "  solutionMapper_%s(solutionTable_%s, %u, embeddedExactTable_%s, %u);\n" \
           % (schedProbName, schedProbName, len(solutionsForSchedule), schedProbName, len(exactLogic))
   return s

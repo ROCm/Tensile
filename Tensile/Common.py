@@ -137,7 +137,7 @@ else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
 # might be deprecated
-globalParameters["SolutionMapHash"] = False
+globalParameters["SolutionMapHash"] = True
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
 
