@@ -1342,8 +1342,8 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 b = blockB*2
                 a = blockA*2
-                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
                 for iui in range(0, innerUnroll):
+                  cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
@@ -1435,8 +1435,8 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 b = blockB*2
                 a = blockA*2
-                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
                 for iui in range(0, innerUnroll):
+                  cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
                   bStr = "v[%s+%u]" \
@@ -3308,7 +3308,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_add_u32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         sgpr("LoopCounters+%u"%loopIdx), \
-        unrollInc, \
+        hex(unrollInc), \
         "inc counter%s"%(loopChar) )
     kStr += inst("s_cmp_eq_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \
