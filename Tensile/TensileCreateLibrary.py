@@ -651,8 +651,10 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "  Map_%s::iterator iter = solutionMap_%s.find(key);\n" \
         % (problemType, problemType)
     s += "  if (iter != solutionMap_%s.end()) {\n" % problemType
+    s += 'printf("hit cache\\n");'
     s += "    return iter->second;\n"
     s += "  } else {\n"
+    s += 'printf("missed cache\\n");'
     s += "    TensileSolutionPointer_%s ptr = tensileGetSolutionPointerUncached_%s(\n" \
         % (problemType, problemType)
     for i in range(0, len(argListStream)):
