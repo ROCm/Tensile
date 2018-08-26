@@ -448,7 +448,7 @@ bool callLibrary(
 
     // call device function
     TensileStatus tensileCallStatus = generatedCallTo_tensile( userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
-    if (tensileCallStatus == tensileStatusFailure) {
+    if (tensileCallStatus != tensileStatusSuccess) {
       solutionIsValid = false;
     }
 
@@ -963,7 +963,7 @@ bool benchmarkAllSolutionsForSize(
             numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
             &l_eventStop[syncIdx][enqIdx] );
 #endif
-        if (status == tensileStatusFailure) {
+        if (status != tensileStatusSuccess) {
           solutionIsValid = false;
         }
 
@@ -1074,15 +1074,18 @@ bool benchmarkAllSolutionsForSize(
           << gflops*perfScaling << ", "
           << std::setw(10) << std::fixed << std::setprecision(3)
           << gflops << ", "
-          << solutionNames[solutionIdx] << (newFastest ? "*" : " ") << ", "
+          << solutions[solutionIdx].name << (newFastest ? "*" : " ") << ", "
           << std::setw(9) << std::fixed << std::setprecision(3)
           << timeNs * TensileTimer::reciprical_million << ", ";
       if (numElementsToValidate) {
         if (callStatus == tensileStatusSuccess)
           std::cout << (numInvalids ? "FAILED" : "PASSED")
             << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
-        else 
+        else if (callStatus == tensileStatusAssertFailure)
+          std::cout << "DID_NOT_SATISFY_ASSERTS, ";
+        else
           std::cout << "INVALID_KERNEL, ";
+
       }
       // device stats
       std::cout << avgCoreClock << ", ";
@@ -1095,7 +1098,7 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // write results to file
-    if (numInvalids > 0) {
+    if ((numInvalids > 0) || (callStatus != tensileStatusSuccess)) {
       gflops = -1.0;
       invalidSolutions.insert(solutionIdx);
     }
@@ -1127,7 +1130,7 @@ bool benchmarkProblemSizes(
   std::cout << std::endl;
   std::cout << "Solutions: " << std::endl;
   for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-    std::cout << "(" << sIdx << ") " << solutionNames[sIdx] << std::endl;
+    std::cout << "(" << sIdx << ") " << solutions[sIdx].name << std::endl;
   }
   //std::cout << "ResultsFileName: " << resultsFileName << std::endl;
   file.open(resultsFileName);
@@ -1137,7 +1140,7 @@ bool benchmarkProblemSizes(
   }
   file << ", TotalFlops";
   for ( unsigned int s = 0; s < numSolutions; s++) {
-    file << ", " << solutionNames[s];
+    file << ", " << solutions[s].name;
   }
   file << std::endl;
 

@@ -47,8 +47,8 @@ class SolutionWriter:
         else "cl_command_queue"
     self.eventName = "hipEvent_t" if self.language == "HIP" \
         else "cl_event"
-    self.statusName = "hipError_t" if self.language == "HIP" \
-        else "cl_int"
+    # rocblas expects Tensile routines to return hip error codes
+    self.statusName = "TensileStatus"
     self.strideList = []
     self.sizeList = []
 
