@@ -306,6 +306,11 @@ class KernelWriterAssembly(KernelWriter):
 
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
+    # don't let write logic increase VGPR usage unless absolutely necessary.
+    # doesn't actually work and is somewhat complicated
+    self.minimizeWriteRegGrowth = False
+
+
     # Various debug flags and modes
     self.db = {}
     self.db["EnableAsserts"]     = True  # Enable assertion codegen
@@ -5296,18 +5301,24 @@ class KernelWriterAssembly(KernelWriter):
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
         minElements = 2 if kernel["ProblemType"]["DataType"].isHalf() else 1
         shrinkDb = 0
+        if shrinkDb:
+          print "numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "needed=", minElements*numVgprsPerElement
+        subBatches = 1
         if numVgprAvailable < minElements*numVgprsPerElement:
           gwvwOrig = gwvw
           currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size())
-          futureOccupancy = self.getOccupancy(kernel, \
-              self.vgprPool.size() - numVgprAvailable + minElements*numVgprsPerElement)
-          while gwvw > kernel["MinGlobalWriteVectorWidth"]:
+          futureOccupancy = currentOccupancy
+          # This doesn't actually work - we have already created the batches above with specific gwvw
+          # Would need to loop again inside each batch to call globalWriteBatch foer each subBatch
+
+          while self.minimizeWriteRegGrowth and gwvw > kernel["MinGlobalWriteVectorWidth"]:
             futureOccupancy = self.getOccupancy(kernel, \
                 self.vgprPool.size() - numVgprAvailable + minElements*numVgprsPerElement)
             if futureOccupancy < currentOccupancy:
               if shrinkDb:
                 print "shrink-gwvw-before: gwvw=%u  numVgprsPerElement=%u %s" % (gwvw, numVgprsPerElement, self.kernelName)
               gwvw = gwvw/2
+              subBatches *= 2
               numVgprsPerElement = numVgprsPerAddr + int(numVgprsPerDataPerVI * gwvw)
               if shrinkDb:
                 print "shrink-gwvw-after: gwvw=%u  numVgprsPerElement=%u" % (gwvw, numVgprsPerElement)
@@ -5519,7 +5530,8 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["ProblemType"]["DataType"].isHalf():
         assert(atomicW >= 2)
 
-    # comment
+    # comment tt1, tt0, vc1, vc0
+    # tt = thread tile, vc=vector component
     commentStr = "Global Write%s%s Batch:" \
         % (" Beta" if beta else "", " Edge" if edge else "")
     for elementIdx in range(0, len(batchElements)):
@@ -5635,7 +5647,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if kernel["BufferStore"]:
           if coordOffset1 == 0:
-            kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "first row")
+            kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "rowPtr <- rowStart (first row)")
           elif coordOffset1 == self.lastCoordOffset1 + 1:
             kStr += inst("v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
                       sgpr("StridesC+0"), "move to start of new row")
