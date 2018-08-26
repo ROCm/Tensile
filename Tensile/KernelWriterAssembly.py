@@ -84,7 +84,7 @@ class RegisterPool:
   def add(self, start, size, tag=""):
     # reserve space
     if self.printRP:
-      print "RP::add(%u, %u for '%s')"%(start,size,tag)
+      print "RP::add(%u..%u for '%s')"%(start,start+size-1,tag)
     newSize = start + size
     oldSize = len(self.pool)
     if newSize > oldSize:
@@ -104,9 +104,9 @@ class RegisterPool:
   ########################################
   # Remove
   # Removes registers from the pool so they cannot be subsequently allocated for tmps
-  def remove(self, start, size):
+  def remove(self, start, size, tag=""):
     if self.printRP:
-      print "RP::remove(%u,%u)"%(start,size)
+      print "RP::remove(%u..%u) for %s"%(start,size-1,tag)
     # reserve space
     newSize = start + size
     oldSize = len(self.pool)
@@ -335,7 +335,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1A"] = False
     self.db["CheckValue1B"] = False
 
-    # print register pool checkins and checkouts
+    # print vgpr register pool checkins and checkouts
     self.db["PrintRP"] = False
 
     # Number of times localReadDo(localWriteDo) has been called by the code-generator.
@@ -928,7 +928,6 @@ class KernelWriterAssembly(KernelWriter):
       numGlobalReadOffsetsB = numGlobalReadInstructionsB * self.rpgo 
     else:
       numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
-    numVgprSerial = 1
     if self.globalReadIncsUseVgpr:
       numVgprGlobalReadIncsA = kernel["ProblemType"]["NumIndicesSummation"] \
           * self.rpga
@@ -950,9 +949,14 @@ class KernelWriterAssembly(KernelWriter):
     # VGPR Assignment
     ####################################
     vgprIdx = 0
+
+
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
 
+
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
+
+
 
     valuBlocks = (1+kernel["PrefetchLocalRead"]) * kernel["InnerUnroll"]
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
@@ -975,8 +979,9 @@ class KernelWriterAssembly(KernelWriter):
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
     # code
-    self.lastPreLoopTempVgpr = vgprIdx+1
+    self.lastValuAB = vgprIdx
     #----------------------------------
+
 
     self.startVgprLocalReadAddressesA = vgprIdx
     vgprIdx += numVgprLocalReadAddressesA
@@ -1019,17 +1024,20 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx += numVgprGlobalReadIncsA
     self.startVgprGlobalReadIncsB = vgprIdx
     vgprIdx += numVgprGlobalReadIncsB
-    self.startVgprAddressDbg = vgprIdx
-    vgprIdx += numVgprAddressDbg
-    self.startVgprSerial = vgprIdx
-    vgprIdx += numVgprSerial
 
     # Point at last VGPR that can be reclaimed for use in the summation loop
-    # This should be just BEFORE the vgprSerial, which may still be used.
     # If more VGPRs are added here be aware of the register reclaim code in
-    # endSummation - registers that should be preserved should be allocated
-    # with numbers higher than vgprReclaimAfterSummation
-    self.vgprReclaimAfterSummation = self.startVgprSerial-1
+    # endSummation - registers that should be preserved after lastVgprForReads
+    self.lastVgprForReads = vgprIdx
+    #-----------
+
+
+    # vgprSerial is used for the entire code so allocate just after the Values
+    self.startVgprSerial = vgprIdx
+    vgprIdx += 1
+
+    self.startVgprAddressDbg = vgprIdx
+    vgprIdx += numVgprAddressDbg
 
     # tmp vgprs
     #minVgprTmp = 1
@@ -1181,8 +1189,12 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool = RegisterPool(self.totalVgprs, self.db["PrintRP"])
     #print self.vgprPool.state()
 
+    # C regs are not used during initialization so mark them as available - 
+    # we will claim then just before the start of the unroll loop:
     self.vgprPool.add(self.startVgprValuC, \
-        self.lastPreLoopTempVgpr - self.startVgprValuC, "CoreRegs") # Add as available
+        self.numVgprValuC, "ValuC-Block") # Add as available
+    self.vgprPool.add(self.startVgprValuA, \
+        self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
     #print self.vgprPool.state()
 
     self.sgprPool = RegisterPool(self.totalSgprs)
@@ -1649,6 +1661,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("VGPR Assignments")
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
+    kStr += self.macroRegister("vgprSerial", self.startVgprSerial)
+
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
     ri = 0
     for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
@@ -1694,8 +1708,6 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressDbg", \
           self.startVgprAddressDbg)
-    kStr += self.macroRegister("vgprSerial", \
-        self.startVgprSerial)
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
     kStr += self.comment1("max VGPR=%u"%self.vgprPool.size())
 
@@ -3137,8 +3149,10 @@ class KernelWriterAssembly(KernelWriter):
   # Initialize C
   ##############################################################################
   def initC(self, kernel):
-    self.vgprPool.remove(self.startVgprValuC, \
-        self.lastPreLoopTempVgpr - self.startVgprValuC)
+    # remove the C regs from the pool since we are about to write them here:
+    self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
+    self.vgprPool.remove(self.startVgprValuA, \
+        self.lastValuAB - self.startVgprValuA, "ValuAB")
 
     kStr = ""
     for i in range(0, self.numVgprValuC):
@@ -3354,7 +3368,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
-        self.vgprReclaimAfterSummation - self.startVgprValuA + 1)
+        self.lastVgprForReads - self.startVgprValuA + 1, "endSummation")
     self.setStartTmpPool(self.lastPostLoopSgpr)
     return ""
 
@@ -5259,7 +5273,6 @@ class KernelWriterAssembly(KernelWriter):
 
         gwvw = vectorWidths[edgeI]
 
-
         ########################################
         # Calculate Vgprs for Write Batching
         ########################################
@@ -5531,7 +5544,7 @@ class KernelWriterAssembly(KernelWriter):
         assert(atomicW >= 2)
 
     # comment tt1, tt0, vc1, vc0
-    # tt = thread tile, vc=vector component
+    # tt = trhead tile, vc=vector component
     commentStr = "Global Write%s%s Batch:" \
         % (" Beta" if beta else "", " Edge" if edge else "")
     for elementIdx in range(0, len(batchElements)):
@@ -5766,14 +5779,14 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["ProblemType"]["DataType"].isHalf():
             if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
               if sumIdxV%2:
-                kStr += inst("v_pk_mul_f16", vgpr(sumIdxV/2), vgpr(self.alphaVgpr), vgpr(sumIdxV/2), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
+                kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV/2)), vgpr(self.alphaVgpr), vgpr("ValuC+%u"%(sumIdxV/2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
             else: # HPA
-              kStr += inst("v_mul_f32", vgpr(sumIdxV), vgpr(self.alphaVgpr), vgpr(sumIdxV), "*= alpha")
+              kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(self.alphaVgpr), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
 
           elif kernel["ProblemType"]["DataType"].isSingle():
-            kStr += inst("v_mul_f32", vgpr(sumIdxV), sgpr("Alpha"), vgpr(sumIdxV), "*= alpha" )
+            kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
           elif kernel["ProblemType"]["DataType"].isDouble():
-            kStr += inst("v_mul_f64", vgpr(sumIdxV*2,2), sgpr("Alpha",2), vgpr(sumIdxV*2,2), "*= alpha")
+            kStr += inst("v_mul_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), sgpr("Alpha",2), vgpr("ValuC+%u"%(sumIdxV*2),2), "*= alpha")
 
     ########################################
     # Atomic
@@ -5844,7 +5857,7 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["ProblemType"]["DataType"].isHalf():  sumIdxV /= 2
           # for atomic, data[1] = original c, data[0] = new c
           kStr += self.chooseAddForAtomic(kernel, \
-                    vgpr(dataV+0), vgpr(dataV+1), vgpr(sumIdxV), \
+                    vgpr(dataV+0), vgpr(dataV+1), vgpr("ValuC+%u"%sumIdxV), \
                     "desired value avi=%u"%avi)
 
           # attempt write
@@ -5936,7 +5949,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
           kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
           kStr += self.chooseAddForAtomic(kernel, \
-                    vgpr(dataV+0), vgpr(dataV+1), vgpr(sumIdxV), \
+                    vgpr(dataV+0), vgpr(dataV+1), vgpr("ValuC+%u"%sumIdxV), \
                     "newC = rC + originalC")
           if self.do["GlobalWrite"]:
             if kernel["BufferStore"]:
@@ -6036,7 +6049,7 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += inst("v_pk_mul_f16", vgpr(dataV), vgpr(self.betaVgpr), vgpr(dataV+0), \
                       "%s = C*beta ei=%u vi=%u"%(vgpr(dataV),elementIdx, vi))
                   # dataV+0 = new c = old c*beta + rC
-                  kStr += inst("v_pk_add_f16", vgpr(sumIdxV/2), vgpr(dataV), vgpr(sumIdxV/2), \
+                  kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%(sumIdxV/2)), vgpr(dataV), vgpr("ValuC+%u"%(sumIdxV/2)), \
                       "sum*alpha + C*beta")
                 else:
                   pass # add will have been done previously
@@ -6047,17 +6060,17 @@ class KernelWriterAssembly(KernelWriter):
                 # src2 = sumIdxV = f32 = opsel 00
                 dataCExternal = elementData[elementIdx] + vi/2
                 hi16 = sumIdxV%2
-                kStr += inst("v_mad_mix_f32", vgpr(sumIdxV), vgpr(self.betaVgpr), \
-                    vgpr(dataCExternal), vgpr(sumIdxV), \
+                kStr += inst("v_mad_mix_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(self.betaVgpr), \
+                    vgpr(dataCExternal), vgpr("ValuC+%u"%sumIdxV), \
                     "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (hi16), \
                     "//C*=beta")
             elif kernel["ProblemType"]["DataType"].isSingle():
-              kStr += inst("v_mac_f32", vgpr(sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
+              kStr += inst("v_mac_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
                   "finalSum = sum*alpha + C*beta")
 
             elif kernel["ProblemType"]["DataType"].isDouble():
               # dataV+0 = new c = old c*beta
-              kStr += inst("v_fma_f64", vgpr(sumIdxV*2,2), vgpr(dataV+0,2), sgpr("Beta",2), vgpr(sumIdxV*2,2), \
+              kStr += inst("v_fma_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), vgpr(dataV+0,2), sgpr("Beta",2), vgpr("ValuC+%u"%(sumIdxV*2),2), \
                   "finalSum = sum*alpha + C*beta")
 
 
@@ -6067,11 +6080,11 @@ class KernelWriterAssembly(KernelWriter):
           sumIdxV = elementSumIdx[elementIdx] + vi
           if kernel["ProblemType"]["DataType"].isHalf():
             if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              kStr += inst("v_cvt_f16_f32", vgpr(sumIdxV), vgpr(sumIdxV), "convert C to fp16" )
+              kStr += inst("v_cvt_f16_f32", vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "convert C to fp16" )
               if vi%2 == 1:
                 assert (gwvw % 2 == 0)
                 d = elementSumIdx[elementIdx] + vi/2
-                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr(sumIdxV-1), vgpr(sumIdxV), "Pack with neighbor" )
+                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%sumIdxV-1), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
 
         if self.do["GlobalWrite"]:
           # perform vector stores here, so no VI indexing.
