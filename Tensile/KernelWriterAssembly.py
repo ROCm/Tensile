@@ -319,6 +319,9 @@ class KernelWriterAssembly(KernelWriter):
     # doesn't actually work and is somewhat complicated
     self.minimizeWriteRegGrowth = False
 
+    # Remove me if 906 can work with beta in SGPR
+    # Also can push alpha/beta recalc back to host for HPA mode
+    self.betaInSgpr = True
 
     # Various debug flags and modes
     self.db = {}
@@ -345,7 +348,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1B"] = False
 
     # print vgpr register pool checkins and checkouts
-    self.db["PrintRP"] = True
+    self.db["PrintRP"] = False
 
     # Number of times localReadDo(localWriteDo) has been called by the code-generator.
     # Used to control debug enablement.
@@ -5171,22 +5174,27 @@ class KernelWriterAssembly(KernelWriter):
     label_End
     """
     self.betaVgpr = None
+    # Also can push alpha/beta recalc back to host for HPA mode?
     if kernel["ProblemType"]["DataType"].isHalf():
-      alphaVgprTmp = self.vgprPool.checkOut(1, "alpha")
-      # alpha, beta are packed halfs in half mode (f16.hi == f16.lo) - setup on host
-      kStr += inst("v_mov_b32", vgpr(alphaVgprTmp), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
-      if beta:
-        self.betaVgpr = self.vgprPool.checkOut(1, "beta")
-        kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
-#jgolds look at moving these converted values back to scalar regs and free up the VGPRs
-# TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
       if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        alphaVgprTmp = self.vgprPool.checkOut(1, "alpha")
+        # alpha, beta are packed halfs in half mode (f16.hi == f16.lo) - setup on host
+        kStr += inst("v_mov_b32", vgpr(alphaVgprTmp), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
         kStr += inst("v_cvt_f32_f16", vgpr(alphaVgprTmp), vgpr(alphaVgprTmp), "convert alpha to fp32")
         kStr += inst("v_readfirstlane_b32", sgpr("Alpha"), vgpr(alphaVgprTmp), "restore alpha sgpr")
-        if beta:
+        self.vgprPool.checkIn(alphaVgprTmp, "alpha")
+
+      if beta:
+#jgolds look at moving these converted values back to scalar regs and free up the VGPRs
+# TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
+        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          self.betaVgpr = self.vgprPool.checkOut(1, "beta")
+          kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
           kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
-      self.vgprPool.checkIn(alphaVgprTmp, "alpha")
-          #kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
+          if self.betaInSgpr:
+            kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
+            self.vgprPool.checkIn(self.betaVgpr, "beta")
+            self.betaVgpr = None
 
     ########################################
     # Vgprs
@@ -5694,12 +5702,12 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "rowPtr <- rowStart (first row)")
           elif coordOffset1 == self.lastCoordOffset1 + 1:
             kStr += inst("v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
-                      sgpr("StridesC+0"), "move to start of new row")
+                      sgpr("StridesC+0"), "rowPtr <- move to start of new row")
           else:
             kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesC+0"), coordOffset1, \
                 "scale StrideC *= coordOffset1(%u)"%coordOffset1)
             kStr += inst("v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowStart), \
-                      sgpr(tmpS01), "coordOffset1 inc")
+                      sgpr(tmpS01), "rowPtr <- inc for non-0 (tt1+vc1))")
 
         self.lastCoordOffset1 = coordOffset1
 
@@ -6077,7 +6085,7 @@ class KernelWriterAssembly(KernelWriter):
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 if sumIdxV%2==0:
                   # dataV+0 = new c = old c*beta
-                  kStr += inst("v_pk_mul_f16", vgpr(dataV), vgpr(self.betaVgpr), vgpr(dataV+0), \
+                  kStr += inst("v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
                       "%s = C*beta ei=%u vi=%u"%(vgpr(dataV),elementIdx, vi))
                   # dataV+0 = new c = old c*beta + rC
                   kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%(sumIdxV/2)), vgpr(dataV), vgpr("ValuC+%u"%(sumIdxV/2)), \
@@ -6091,7 +6099,7 @@ class KernelWriterAssembly(KernelWriter):
                 # src2 = sumIdxV = f32 = opsel 00
                 dataCExternal = elementData[elementIdx] + vi/2
                 hi16 = sumIdxV%2
-                kStr += inst("v_mad_mix_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(self.betaVgpr), \
+                kStr += inst("v_mad_mix_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Beta"), \
                     vgpr(dataCExternal), vgpr("ValuC+%u"%sumIdxV), \
                     "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (hi16), \
                     "//C*=beta")
