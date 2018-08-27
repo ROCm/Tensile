@@ -345,7 +345,7 @@ class KernelWriterAssembly(KernelWriter):
     self.db["CheckValue1B"] = False
 
     # print vgpr register pool checkins and checkouts
-    self.db["PrintRP"] = False
+    self.db["PrintRP"] = True
 
     # Number of times localReadDo(localWriteDo) has been called by the code-generator.
     # Used to control debug enablement.
@@ -5190,8 +5190,8 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Vgprs
-    goc = 2 if kernel["BufferStore"] else 3 # GLOBAL_OFFSET_C
-    tmpVgpr = self.vgprPool.checkOut(2+goc,"tmp-GlobalWrite") # 2 for coord + GLOBAL_OFFSET_C
+    goc = 0 if kernel["BufferStore"] else 3 # GLOBAL_OFFSET_C
+    tmpVgpr = self.vgprPool.checkOut(2+goc,"coord+GOC") # 2 for coord + GLOBAL_OFFSET_C
 
     ########################################
     # Sgprs
@@ -5304,6 +5304,8 @@ class KernelWriterAssembly(KernelWriter):
         numVgprsPerAddr = self.rpgo if kernel["BufferStore"] else self.rpga
 #jgolds which bpe should we use?
         numVgprsPerDataPerVI = 0
+
+
         if atomic:
           # flat atomics have another VGPR to allow different data for return#
           regsPerElement = 2 if kernel["BufferStore"] else 3
@@ -5370,12 +5372,15 @@ class KernelWriterAssembly(KernelWriter):
 
 
           if numVgprAvailable < minElements*numVgprsPerElement:
-            newVgprs = int(ceil(minElements*numVgprsPerElement))
-            print "info: growing pool += %u for GlobalWrite\n" % (newVgprs)
+            print "info: growing pool += %d * %d for GlobalWrite\n" \
+                % (minElements,numVgprsPerElement)
             print self.vgprPool.state()
-            t = self.vgprPool.checkOut(newVgprs, "grow-pool for GlobalWrite")
-            self.vgprPool.checkIn(t)
-            numVgprAvailable = self.vgprPool.availableBlock()
+            tl = []
+            for i in range(0,minElements):
+              tl.append(self.vgprPool.checkOut(numVgprsPerElement, "grow-pool for GlobalWrite"))
+            for t in tl:
+              self.vgprPool.checkIn(t)
+            numVgprAvailable = self.vgprPool.available()
 
         # set atomicW after we potentially resize GWVW
         atomicW = min(gwvw, kernel["VectorAtomicWidth"])
@@ -5595,7 +5600,7 @@ class KernelWriterAssembly(KernelWriter):
             del lastData
         else:
           data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
-                "writeBatch-data for ei=%u"%elementIdx, preventOverflow=True)
+                "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
       else:
         data = None
 
