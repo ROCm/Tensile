@@ -4794,7 +4794,6 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
 
-  # Compute a 64-bit offset from base pointer in two SGPR
   # This can be added to the SRD base or the VGPR
   def computeRowSize(self, kernel, coord0, coord1, tmpS0, tmpS1):
     kStr = ""
@@ -4804,55 +4803,56 @@ class KernelWriterAssembly(KernelWriter):
       self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
       tmpVgpr = self.coutRowPtr # use for tmp too
 
-    indices = range(0, kernel["ProblemType"]["NumIndicesC"])
-    numDim = len(indices)
-    firstInst = True
-    for i in range(1, numDim):
-      assert( indices[i] < kernel["ProblemType"]["NumIndicesC"])
-      coord = -1
-      if i == kernel["ProblemType"]["Index0"]:
-        coord = vgpr(coord0)
-        useSgpr = False
-      elif i == kernel["ProblemType"]["Index1"]:
-        coord = vgpr(coord1)
-        useSgpr = False
-      else: # just a group index
-        coord = sgpr("WorkGroup%u"%i)
-        useSgpr = True
+      # Walk through addressing components (each tensor index) in C
+      # if static, add to SrdC to compute a new base.  We point the SRD to the start of the output tile.  TT offsets are from this base.
+      # if dynamic (based on TT assignment) - save in coutRowStart, which saves the TT assignment for each WI scaled by StrideC0
+      # TODO - future opportunities for store vgpr and other optimization
+      #  - coutRowStart and coord1 are strongly related - can we merge or remove one of these?
+      #  - remove product-of-two constants near address calc - search for TODO-const
+      #  - Remove beta in VGPR
+      indices = range(0, kernel["ProblemType"]["NumIndicesC"])
+      numDim = len(indices)
+      firstInst = True
+      for i in range(1, numDim):
+        assert( indices[i] < kernel["ProblemType"]["NumIndicesC"])
+        coord = -1
+        if i == kernel["ProblemType"]["Index0"]:
+          coord = vgpr(coord0)
+          useSgpr = False
+        elif i == kernel["ProblemType"]["Index1"]:
+          coord = vgpr(coord1)
+          useSgpr = False
+        else: # just a group index
+          coord = sgpr("WorkGroup%u"%i)
+          useSgpr = True
 
+        if useSgpr:
+          # These are constant across all workitems, just add to the SRD:
+          kStr += inst("s_mul_i32", sgpr(tmpS0), \
+                      coord, self.bpeCexternal, \
+                      "scale by bpe")
+          # TODO - move this after coord*stride, and handle 64-bit
+          kStr += inst("s_mul_i32", sgpr(tmpS0),
+                      sgpr(tmpS0), sgpr("StridesC+%u"%(i-1)), \
+                      "srd i=%u"%i)
+          kStr += inst("s_mov_b32", sgpr(tmpS1),0, "")
 
-      if useSgpr:
-	# These are constant across all workitems, just add to the SRD:
-	kStr += inst("s_mul_i32", sgpr(tmpS0), \
-		    coord, self.bpeCexternal, \
-		    "scale by bpe")
-        # TODO - move this after coord*stride, and handle 64-bit
-	kStr += inst("s_mul_i32", sgpr(tmpS0),
-		    sgpr(tmpS0), sgpr("StridesC+%u"%(i-1)), \
-		    "rowStart i=%u"%i)
-	#kStr += inst("s_mul_hi_u32", sgpr(tmpS1), \
-	#	    coord, sgpr("StridesC+%u"%(i-1)), \
-	#	    "rowStart i=%u"%i)  # doesn't assemble
-	kStr += inst("s_mov_b32", sgpr(tmpS1),0, "")
-
-	if kernel["BufferStore"]:
-	  kStr += inst("s_add_u32", sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
-	  kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
-      elif kernel["BufferStore"]:
-	# These vary per-workitem, so roll into the row start VGPR:
-        if firstInst:
-	  firstInst = False
-          kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
-                      coord, sgpr("StridesC+%u"%(i-1)), \
-                      "rowStart i=%u"%i)
-	else:
-	  kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), \
-			coord, sgpr("StridesC+%u"%(i-1)), \
-			"tmp")
-	  kStr += inst("_v_add_co_u32", vgpr(self.coutRowStart), \
-			"vcc", vgpr(self.coutRowStart), vgpr(tmpVgpr), "rowStart i=%u"%i);
-
-      #kStr += inst("v_mov_b32", vgpr(self.coutRowStart), 0)
+          kStr += inst("s_add_u32", sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
+          kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
+        else:
+          # These vary per-workitem, so roll into the row start VGPR:
+          if firstInst:
+            firstInst = False
+            kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
+                        coord, sgpr("StridesC+%u"%(i-1)), \
+                        "rowStart i=%u"%i)
+          else:
+            # TODO-const - note this is product of two constants - can we precompute in the header.
+            kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), \
+                          coord, sgpr("StridesC+%u"%(i-1)), \
+                          "tmp")
+            kStr += inst("_v_add_co_u32", vgpr(self.coutRowStart), \
+                          "vcc", vgpr(self.coutRowStart), vgpr(tmpVgpr), "rowStart i=%u"%i);
 
       assert(not firstInst) # didn't write anything to coutRowStart!
 
