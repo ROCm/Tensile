@@ -5027,8 +5027,6 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["BufferStore"]:
       self.vgprPool.checkIn(self.addrC)
 
-    if self.alphaVgpr != None:
-      self.vgprPool.checkIn(self.alphaVgpr)
     if self.betaVgpr != None:
       self.vgprPool.checkIn(self.betaVgpr)
 
@@ -5172,21 +5170,23 @@ class KernelWriterAssembly(KernelWriter):
     goto label_End
     label_End
     """
-    self.alphaVgpr = None
     self.betaVgpr = None
     if kernel["ProblemType"]["DataType"].isHalf():
-      self.alphaVgpr = self.vgprPool.checkOut(1, "alpha")
+      alphaVgprTmp = self.vgprPool.checkOut(1, "alpha")
       # alpha, beta are packed halfs in half mode (f16.hi == f16.lo) - setup on host
-      kStr += inst("v_mov_b32", vgpr(self.alphaVgpr), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
+      kStr += inst("v_mov_b32", vgpr(alphaVgprTmp), sgpr("Alpha"), "sgpr -> vgpr b/c op_sel")
       if beta:
         self.betaVgpr = self.vgprPool.checkOut(1, "beta")
         kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
 #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
-# bozo - should be able to keep alpha in float32 form?  How wide is alpha in HPA mode?
+# TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
       if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        kStr += inst("v_cvt_f32_f16", vgpr(self.alphaVgpr), vgpr(self.alphaVgpr), "convert alpha to fp32")
+        kStr += inst("v_cvt_f32_f16", vgpr(alphaVgprTmp), vgpr(alphaVgprTmp), "convert alpha to fp32")
+        kStr += inst("v_readfirstlane_b32", sgpr("Alpha"), vgpr(alphaVgprTmp), "restore alpha sgpr")
         if beta:
           kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
+      self.vgprPool.checkIn(alphaVgprTmp, "alpha")
+          #kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
 
     ########################################
     # Vgprs
@@ -5810,9 +5810,9 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["ProblemType"]["DataType"].isHalf():
             if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
               if sumIdxV%2:
-                kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV/2)), vgpr(self.alphaVgpr), vgpr("ValuC+%u"%(sumIdxV/2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
+                kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV/2)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV/2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
             else: # HPA
-              kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(self.alphaVgpr), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
+              kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
 
           elif kernel["ProblemType"]["DataType"].isSingle():
             kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
