@@ -59,6 +59,13 @@ class MemoryInstruction:
 
 ################################################################################
 # RegisterPool
+# Debugging register performance problems:
+# - Enable self.db["PrintRP" to see messages as vgprPool state changes.
+# - Search for 'overlow' to see when pool grows dynamically - typically this
+#   indicates growth for temps or other cases.
+# - checkIn, checkout take optional tag but this is not widely used in tensile.
+# - checkout returns vgpr index that was returned - can search disasm to see where
+#   this vgpr is used.
 ################################################################################
 class RegisterPool:
   statusUnAvailable = 0
@@ -100,7 +107,8 @@ class RegisterPool:
         printWarning("RegisterPool::add(%u,%u) pool[%u] already in use" % (start, size, i))
       else:
         printExit("RegisterPool::add(%u,%u) pool[%u] = %s" % (start, size, i, self.pool[i].status))
-
+    if self.printRP:
+      print self.state()
   ########################################
   # Remove
   # Removes registers from the pool so they cannot be subsequently allocated for tmps
@@ -128,6 +136,7 @@ class RegisterPool:
   def checkOut(self, size, tag="", preventOverflow=False):
     return self.checkOutAligned(size, 1, tag, preventOverflow)
   def checkOutAligned(self, size, alignment, tag="", preventOverflow=False):
+    assert(size > 0)
     found = -1
     for i in range(0, len(self.pool)):
       # alignment
@@ -191,16 +200,16 @@ class RegisterPool:
 
   ########################################
   # Check In
-  def checkIn(self, start):
+  def checkIn(self, start, tag=""):
     if self.printRP:
-      print "RP::checkIn() @ %u"%(start)
+      print "RP::checkIn '%s' () @ %u"%(tag, start)
     if start in self.checkOutSize:
       size = self.checkOutSize[start]
       for i in range(start, start+size):
         self.pool[i].status = self.statusAvailable
       self.checkOutSize.pop(start)
       if self.printRP:
-        print "RP::checkIn() @ %u +%u"%(start,size)
+        print "  RP::checkIn() @ %u +%u"%(start,size)
     else:
       if 0:
         traceback.print_stack(None)
@@ -266,11 +275,11 @@ class RegisterPool:
         stateStr += pvs + "\n"
     for i in range(0, len(self.pool)):
       if self.pool[i].status == self.statusUnAvailable:
-        stateStr += "."
+        stateStr += "." # 'removed'
       elif self.pool[i].status == self.statusAvailable:
-        stateStr += "|"
+        stateStr += "|" # Can be allocated
       elif self.pool[i].status == self.statusInUse:
-        stateStr += "#"
+        stateStr += "#" # Checked out
     return stateStr
 
 
@@ -1661,8 +1670,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment3("VGPR Assignments")
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
-    kStr += self.macroRegister("vgprSerial", self.startVgprSerial)
-
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
     ri = 0
     for bi in range(0,kernel["PrefetchLocalRead"]+1): # buffer indicies
@@ -1704,6 +1711,8 @@ class KernelWriterAssembly(KernelWriter):
           self.startVgprGlobalReadIncsA)
       kStr += self.macroRegister("vgprGlobalReadIncsB", \
           self.startVgprGlobalReadIncsB)
+
+    kStr += self.macroRegister("vgprSerial", self.startVgprSerial)
 
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressDbg", \
@@ -3368,7 +3377,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def endSummation(self):
     self.vgprPool.add(self.startVgprValuA, \
-        self.lastVgprForReads - self.startVgprValuA + 1, "endSummation")
+        self.lastVgprForReads - self.startVgprValuA, "endSummation")
     self.setStartTmpPool(self.lastPostLoopSgpr)
     return ""
 
@@ -5305,8 +5314,13 @@ class KernelWriterAssembly(KernelWriter):
           numVgprsPerDataPerVI = (1.0*self.bpeCexternal)/self.bpr
         numVgprsPerElement = numVgprsPerAddr + int(ceil(numVgprsPerDataPerVI * gwvw))
 
+        # indicates each vector element is actually half -
+        # changes vgpr allocation so two elements share a data vgpr
+        # Really only used if gwvw=1 - edge cases 
+        halfDataRegPerVI = True if gwvw*numVgprsPerDataPerVI < 1.0 else False
+
         #print self.vgprPool.state()
-        numVgprAvailable = self.vgprPool.availableBlock()
+        numVgprAvailable = self.vgprPool.available()
         # Grow the register pool if needed - we need enough regs for at least one element
         # Unfortunate since this means the write logic is setting the VGPR requirement
         # for the entire kernel but at least we have a functional kernel
@@ -5320,7 +5334,8 @@ class KernelWriterAssembly(KernelWriter):
         if numVgprAvailable < minElements*numVgprsPerElement:
           gwvwOrig = gwvw
           currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size())
-          futureOccupancy = currentOccupancy
+          futureOccupancy = self.getOccupancy(kernel, \
+              self.vgprPool.size() - numVgprAvailable + minElements*numVgprsPerElement)
           # This doesn't actually work - we have already created the batches above with specific gwvw
           # Would need to loop again inside each batch to call globalWriteBatch foer each subBatch
 
@@ -5356,9 +5371,8 @@ class KernelWriterAssembly(KernelWriter):
 
           if numVgprAvailable < minElements*numVgprsPerElement:
             newVgprs = int(ceil(minElements*numVgprsPerElement))
-            if shrinkDb:
-              print "info: growing pool += %u\n" % (newVgprs)
-              print self.vgprPool.state()
+            print "info: growing pool += %u for GlobalWrite\n" % (newVgprs)
+            print self.vgprPool.state()
             t = self.vgprPool.checkOut(newVgprs, "grow-pool for GlobalWrite")
             self.vgprPool.checkIn(t)
             numVgprAvailable = self.vgprPool.availableBlock()
@@ -5396,12 +5410,10 @@ class KernelWriterAssembly(KernelWriter):
           #print "BATCH[%u/%u]: elements[edgeI][%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx, numElementVgprs)
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
-          elementVgprs = self.vgprPool.checkOut(numElementVgprs, "elementVgprs", preventOverflow=True)
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrC, \
-              elementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
+              numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
               elementSgprs, numSgprsPerElement, tmpSgpr)
-          self.vgprPool.checkIn(elementVgprs)
 
         kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
 
@@ -5533,7 +5545,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalWriteBatch(self, kernel, beta, edge, lsu, atomic, gwvw, atomicW, \
       batchElements, coord0, coord1, addrC,  \
-      batchElementVgprs, numVgprsPerElement, numVgprsPerAddr, numVgprsPerDataPerVI, tmpVgpr, \
+      numVgprsPerAddr, numVgprsPerDataPerVI, halfDataRegPerVI, tmpVgpr, \
       batchElementSgprs, numSgprsPerElement, tmpSgpr):
     kStr = ""
 
@@ -5559,20 +5571,34 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # allocate per-element resources
     #numVgprsPerData = numVgprsPerElement - numVgprsPerAddr # might be decimal for half
-    addrVgprOffset = 0
-    dataVgprOffset = addrVgprOffset + numVgprsPerAddr*len(batchElements)
     elementAddr = []
     elementData = []
     elementMask = []
     elementSumIdx = []
+    lastData = None
     for elementIdx in range(0, len(batchElements)):
       # gpr assignments for element
-      addr = batchElementVgprs + addrVgprOffset + elementIdx*numVgprsPerAddr # elementVgprs+0
+      addr = self.vgprPool.checkOut(numVgprsPerAddr, "writeBatch-addr for ei=%u"%(elementIdx), preventOverflow=True)
       elementAddr.append(addr)
       # if numVgprsPerDataPerVI == 0.5, then two consecutive elements
       # should have same data pointer, next should move.
 
-      data = batchElementVgprs + dataVgprOffset + int(elementIdx*numVgprsPerDataPerVI*gwvw) # elementVgprs+self.rpga
+      if numVgprsPerDataPerVI > 0:
+        if halfDataRegPerVI:
+          if elementIdx%2 == 0:
+            # allocate for two elements:
+            data = self.vgprPool.checkOut(int(2*numVgprsPerDataPerVI*gwvw), \
+                    "writeBatch-data for ei=%u and ei=%u"%(elementIdx,elementIdx+1), preventOverflow=True)
+            lastData = data
+          else:
+            data = lastData
+            del lastData
+        else:
+          data = self.vgprPool.checkOut(int(numVgprsPerDataPerVI*gwvw), \
+                "writeBatch-data for ei=%u"%elementIdx, preventOverflow=True)
+      else:
+        data = None
+
       elementData.append(data)
       mask = batchElementSgprs + elementIdx * numSgprsPerElement # elementSgprs+0
       elementMask.append(mask)
@@ -6076,7 +6102,6 @@ class KernelWriterAssembly(KernelWriter):
 
        # pack stores:
         for vi in range(0, gwvw):
-          dataV = elementData[elementIdx] + int(vi*numVgprsPerDataPerVI)
           sumIdxV = elementSumIdx[elementIdx] + vi
           if kernel["ProblemType"]["DataType"].isHalf():
             if kernel["ProblemType"]["HighPrecisionAccumulate"]:
@@ -6084,11 +6109,11 @@ class KernelWriterAssembly(KernelWriter):
               if vi%2 == 1:
                 assert (gwvw % 2 == 0)
                 d = elementSumIdx[elementIdx] + vi/2
-                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%sumIdxV-1), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
+                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
 
         if self.do["GlobalWrite"]:
           # perform vector stores here, so no VI indexing.
-          # if GWVW > Vw, might need to support loops to 
+          # if GWVW > Vw, might need to support loops to
           # implement wider stores
           ntStr = ""
           if kernel["NonTemporalC"]%2==1:
@@ -6128,6 +6153,18 @@ class KernelWriterAssembly(KernelWriter):
         # BufferStore doesn't need exec since it used buffer range checking when
         # possible
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
+
+    # return registers to pool:
+    lastData = -1
+    for elementIdx in range(0, len(batchElements)):
+      addr = elementAddr[elementIdx]
+      self.vgprPool.checkIn(addr,"writeBatch addr ei:%d"%elementIdx)
+
+      data = elementData[elementIdx]
+      if data != None:
+        if data != lastData:
+          self.vgprPool.checkIn(data,"writeBatch data ei:%d"%elementIdx)
+        lastData = data
 
     return kStr
 
