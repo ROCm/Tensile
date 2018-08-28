@@ -4116,7 +4116,7 @@ class KernelWriterAssembly(KernelWriter):
     if 0:
       kStr += inst("s_barrier", "temp debug wait to check sync issue" )
 
-    if 1 and tP["isA"]:
+    if 0 and tP["isA"]:
     #if 0 and self.localWriteDoCnt >= 0:
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
       kStr += inst("s_barrier", "dump LDS" )
