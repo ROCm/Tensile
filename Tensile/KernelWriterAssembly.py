@@ -1339,6 +1339,98 @@ class KernelWriterAssembly(KernelWriter):
                     C[0] = A[0]*B[0]+D[0]
                     C[1] = A[1]*B[1]+D[1]
                     """
+              else:
+                b = blockB*2
+                a = blockA*2
+                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
+                for iui in range(0, innerUnroll):
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                  kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+
+                  cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                  kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
+                  """
+                  D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                  D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                  C[0] = A[0]*B[0]+D[0]
+                  C[1] = A[1]*B[1]+D[1]
+                  """
+            elif self.version == (9,0,6):
+              if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                # we treat HighPrecisionAccumulate as expanded packed math
+                b = blockB*2
+                a = blockA*2
+                if kernel["LocalDotLayout"] > 1:    # Only supports LocalDotLayout == 2 for now
+                  lcldot = kernel["LocalDotLayout"]
+                  iua = blockA / ((kernel["ThreadTileA"]/2) / lcldot)
+                  iub = blockB / ((kernel["ThreadTileB"]/2) / lcldot)
+                  rema = blockA % ((kernel["ThreadTileA"]/2) / lcldot)
+                  remb = blockB % ((kernel["ThreadTileB"]/2) / lcldot)
+                  #print "lcldot %u, blockA %u, blockB %u, rema %u, remb %u, ThreadTileA %u%s" % (lcldot, blockA, blockB, rema, remb, kernel["ThreadTileA"], self.endLine)
+                  cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //ValuC[%u] iua=%u iub=%u%s" % (cStr, aStr, bStr, cStr, cidx, iua, iub, self.endLine)
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
+                  cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
+                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
+                  aStr = "v[%s+%u]" \
+                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
+                  bStr = "v[%s+%u]" \
+                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
+                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  #kStr += self.bomb(-13)
+                  """
+                  ignore this, not quite correct for mixed precision
+                  D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                  D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                  C[0] = A[0]*B[0]+D[0]
+                  C[1] = A[1]*B[1]+D[1]
+                  """
+                else:
+                  for iui in range(0, innerUnroll):
+                    cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
+                    aStr = "v[%s+%u]" \
+                        % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
+                    bStr = "v[%s+%u]" \
+                        % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
+                    kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] iui=%u%s" % (cStr, aStr, bStr, cStr, cidx, iui, self.endLine)
+                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
+                    cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
+                    kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
+                    cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                    kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
+                    cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
+                    kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                    """
+                    ignore this, not quite correct for mixed precision
+                    D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
+                    D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
+                    C[0] = A[0]*B[0]+D[0]
+                    C[1] = A[1]*B[1]+D[1]
+                    """
                   #kStr += self.bomb(-13)
               else:
                 b = blockB*2
@@ -3208,13 +3300,15 @@ class KernelWriterAssembly(KernelWriter):
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
     endCounter = -1 if kernel["PrefetchGlobalRead"] and not tailLoop else 0
 
-    tailLoopInnerUnroll = kernel["InnerUnroll"] \
-            if (kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0) else 1
+    if tailLoop and kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
+      unrollInc = kernel["InnerUnroll"]
+    else:
+      unrollInc = 1
 
     kStr += inst("s_add_u32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         sgpr("LoopCounters+%u"%loopIdx), \
-        hex(tailLoopInnerUnroll), \
+        unrollInc, \
         "inc counter%s"%(loopChar) )
     kStr += inst("s_cmp_eq_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \
@@ -4230,13 +4324,13 @@ class KernelWriterAssembly(KernelWriter):
     # qReg
     qReg = self.vgprPool.checkOut(1)
     divisor = kernel["VectorWidth"] # vw
-    kStr += vectorStaticDivideAndRemainder(qReg, dummy, wgMT, divisor, \
+    kStr += vectorStaticDivide(qReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
 
     # rReg
     rReg = self.vgprPool.checkOut(1)
     divisor = vw
-    kStr += vectorStaticDivideAndRemainder(dummy, rReg, wgMT, divisor, \
+    kStr += vectorStaticRemainder(dummy, rReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
 
     # qReg %/ SG
@@ -4250,7 +4344,7 @@ class KernelWriterAssembly(KernelWriter):
       # thread = serial % SG0
       thread = self.vgprPool.checkOut(1)
       divisor = kernel["SubGroup0"]
-      kStr += vectorStaticDivideAndRemainder(dummy, thread, "Serial", divisor, \
+      kStr += vectorStaticRemainder(dummy, thread, "Serial", divisor, \
           tmpVgpr, tmpSgpr)
       #kStr += dump(vgpr(thread))
       #kStr += dump(vgpr(thread))
@@ -4258,11 +4352,11 @@ class KernelWriterAssembly(KernelWriter):
       # thread = (serial / SG0) % SG1
       sd0 = self.vgprPool.checkOut(1)
       divisor = kernel["SubGroup0"]
-      kStr += vectorStaticDivideAndRemainder(sd0, dummy, "Serial", divisor, \
+      kStr += vectorStaticDivide(sd0, "Serial", divisor, \
           tmpVgpr, tmpSgpr) # thread = serial / SG0
       divisor = kernel["SubGroup1"]
       thread = self.vgprPool.checkOut(1)
-      kStr += vectorStaticDivideAndRemainder(dummy, thread, sd0, divisor, \
+      kStr += vectorStaticRemainder(dummy, thread, sd0, divisor, \
           tmpVgpr, tmpSgpr) # thread = (serial / SG0) % SG1
       self.vgprPool.checkIn(sd0)
 
@@ -4271,7 +4365,7 @@ class KernelWriterAssembly(KernelWriter):
     if tP["tt"] > kernel["VectorWidth"]:
       mvReg = self.vgprPool.checkOut(1)
       divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
-      kStr += vectorStaticDivideAndRemainder(mvReg, dummy, wgMT, divisor, \
+      kStr += vectorStaticDivide(mvReg, wgMT, divisor, \
           tmpVgpr, tmpSgpr)
       if vw < kernel["VectorWidth"]:
         kStr += inst("v_lshlrev_b32", vgpr(mvReg), hex(log2(kernel["VectorWidth"]/vw)), vgpr(mvReg), "vId *= VW/glvw")
@@ -4279,12 +4373,12 @@ class KernelWriterAssembly(KernelWriter):
 
     vReg = self.vgprPool.checkOut(1)
     divisor = kernel["VectorWidth"]
-    kStr += vectorStaticDivideAndRemainder(dummy, vReg, wgMT, divisor, \
+    kStr += vectorStaticRemainder(dummy, vReg, wgMT, divisor, \
         tmpVgpr, tmpSgpr)
     vRegD = self.vgprPool.checkOut(1)
     kStr += inst("v_mov_b32", vgpr(vRegD), vgpr(vReg), "duplicate")
     divisor = vw
-    kStr += vectorStaticDivideAndRemainder(vReg, dummy, vRegD, divisor, \
+    kStr += vectorStaticDivide(vReg, vRegD, divisor, \
         tmpVgpr, tmpSgpr)
     #kStr += dump(vgpr(vReg))
 
@@ -6414,6 +6508,39 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
 def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr):
   rReg = -1 # unused
   kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False)
+  return kStr
+
+def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr):
+  kStr = ""
+  if ((divisor & (divisor - 1)) == 0): # pow of 2
+    kStr += inst("v_and_b32", vgpr(rReg), (divisor-1), vgpr(dReg), \
+        "vectorStaticDiv: %s = %s %% %u"%(vgpr(rReg), vgpr(dReg), divisor) )
+  else:
+    """
+    if divisor == 30:
+      shift = 32+2
+    elif divisor >= 14:
+      shift = 32+4
+    elif divisor >= 7:
+      shift = 32+3
+    elif divisor >= 6:
+      shift = 32+2 # this was 32+3 but divisor hex didn't fit into 32 bits
+    elif divisor >= 5:
+      shift = 32+2
+    elif divisor >= 3:
+      shift = 32+1
+    """
+    shift = 32+1
+    magic = ((2**shift) / divisor) + 1
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), "")
+    kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), "")
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), "")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), "")
+    kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), "")
+    kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), "vectorStaticDiv: quotient")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), "divisor")
+    kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), "vectorStaticDiv: product = quotient * divisor")
+    kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), "vectorStaticDiv: remainder = dividend - product")
   return kStr
 
 # only used for loop unroll and GlobalSplitU
