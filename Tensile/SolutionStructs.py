@@ -1384,7 +1384,9 @@ class Solution:
     if "LocalSplitU" in state and "DepthU" in state:
       state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
-        state["Valid"] = False
+      state["Valid"] = False
+    if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
+      reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] /= state["InnerUnroll"]
 
     if 0:
