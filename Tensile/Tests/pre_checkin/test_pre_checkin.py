@@ -51,6 +51,3 @@ def test_sgemm_asm_tt(tmpdir):
 def test_hgemm_asm_nt(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/hgemm_asm_nt.yaml"), tmpdir.strpath])
 
-def test_sgemm_asm(tmpdir):
- Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/sgemm_asm.yaml"), tmpdir.strpath])
-
