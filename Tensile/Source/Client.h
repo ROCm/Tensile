@@ -744,7 +744,8 @@ bool benchmarkAllSolutionsForSize(
     DataType alpha,
     DataType beta,
     DataType *referenceC,
-    DataType *deviceOnHostC) {
+    DataType *deviceOnHostC,
+    double *problem_gpu_time_ms) {
   const unsigned int *sizes = problemSizes[problemIdx];
 
   // Compute stridesC for validation
@@ -844,9 +845,24 @@ bool benchmarkAllSolutionsForSize(
         alpha, beta, useHighPrecisionAccumulate);
 
   }
+#if Tensile_RUNTIME_LANGUAGE_OCL
+    cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
+#else
+    hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
+    hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
+    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
+      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+        hipEventCreateWithFlags( &l_eventStart[syncIdx][enqIdx],
+            hipEventDefault );
+        hipEventCreateWithFlags( &l_eventStop[syncIdx][enqIdx],
+            hipEventDefault );
+      }
+    }
+#endif
 
 
   fastestGFlops = 0;
+  *problem_gpu_time_ms = 0;
   for (unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions; solutionIdx ++) {
     bool solutionIsValid = true;
 
@@ -927,20 +943,6 @@ bool benchmarkAllSolutionsForSize(
       } // if callStatus == success
     } // if numElementsToValidate > 0
 
-#if Tensile_RUNTIME_LANGUAGE_OCL
-    cl_event l_outputEvent[numSyncsPerBenchmark][numEnqueuesPerSync];
-#else
-    hipEvent_t l_eventStart[numSyncsPerBenchmark][numEnqueuesPerSync];
-    hipEvent_t l_eventStop[numSyncsPerBenchmark][numEnqueuesPerSync];
-    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++) {
-      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
-        hipEventCreateWithFlags( &l_eventStart[syncIdx][enqIdx],
-            hipEventDefault );
-        hipEventCreateWithFlags( &l_eventStop[syncIdx][enqIdx],
-            hipEventDefault );
-      }
-    }
-#endif
 
     // time solution
     timer.start();
@@ -1008,7 +1010,6 @@ bool benchmarkAllSolutionsForSize(
         for (auto event : event_array) {
           // getEventDeltaTime returns unsigned long in nano-seconds on opencl
           kernel_time_sum += getEventDeltaTime(event);
-          ::clReleaseEvent(event);
         }
       }
       timeNs = static_cast<double>(kernel_time_sum);
@@ -1027,8 +1028,6 @@ bool benchmarkAllSolutionsForSize(
               l_eventStop[syncIdx][enqIdx] );
           //std::cout << "kernelTime: " << kernel_time << std::endl;
           kernel_time_sum += kernel_time;
-          ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
-          ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
         }
       }
       timeNs = static_cast<double>(kernel_time_sum)
@@ -1042,6 +1041,9 @@ bool benchmarkAllSolutionsForSize(
       unsigned int sleepMicroSeconds = (timeNs*10*sleepPercent)/1e6;
       usleep(sleepMicroSeconds);
     }
+
+    *problem_gpu_time_ms += timeNs/1e6;
+    //printf ("problem: %6.2f ms+ %6.2fns\n", *problem_gpu_time_ms, timeNs);
 
     timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
     // device status
@@ -1105,6 +1107,19 @@ bool benchmarkAllSolutionsForSize(
     file << ", " << gflops;
     solutionPerf[problemIdx][solutionIdx ] = static_cast<float>(gflops);
   } // solution loop
+
+  if (useGPUTimer) {
+    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
+      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+#if Tensile_RUNTIME_LANGUAGE_OCL
+        ::clReleaseEvent(event);
+#else
+        ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
+        ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
+#endif
+      }
+    }
+  }
   file << std::endl;
 
   return returnInvalids;
@@ -1161,6 +1176,7 @@ bool benchmarkProblemSizes(
 	TensileTimer totalKernelTimer;
   totalKernelTimer.start();
   // iterate over all problem sizes
+  double gpu_time_ms = 0;
   for (unsigned int problemIdx = 0; problemIdx < numProblems; problemIdx++ ) {
 
     // print size
@@ -1171,12 +1187,17 @@ bool benchmarkProblemSizes(
     std::cout << std::endl;
 
     // benchmark all solutions for this problem size
+    double problem_gpu_time_ms;
     bool invalids = benchmarkAllSolutionsForSize( problemIdx, initialC,
-        initialA, initialB, alpha, beta, referenceC, deviceOnHostC);
+        initialA, initialB, alpha, beta, referenceC, deviceOnHostC,
+        &problem_gpu_time_ms);
     if (invalids) returnInvalids = true;
+    gpu_time_ms += problem_gpu_time_ms;
+    //printf ("gpu_time: %6.2f ms+ %6.2fns\n", gpu_time_ms, problem_gpu_time_ms);
+
   } // for problemIdx
 	auto timeK = totalKernelTimer.elapsed_sec();
-  std::cout <<  "\nRun kernels elapsed time: " << timeK << " secs\n";
+  std::cout <<  "\nRun kernels elapsed gpu_time:" << gpu_time_ms/1000.0 << "secs  total_time:" << timeK << " secs " << std::setprecision(2) << gpu_time_ms/timeK*(100.0/1000) << "% gpu utilization)\n";
 
   // close file
   file.close();
