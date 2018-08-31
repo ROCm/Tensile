@@ -2884,7 +2884,7 @@ class KernelWriterAssembly(KernelWriter):
           hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
           vgpr(destVgpr), \
           "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    if dotInterleave:
+    if dotInterleave>1:
       ldlOffsetVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_and_b32", \
           vgpr(destVgpr), \
