@@ -47,8 +47,8 @@ class SolutionWriter:
         else "cl_command_queue"
     self.eventName = "hipEvent_t" if self.language == "HIP" \
         else "cl_event"
-    self.statusName = "hipError_t" if self.language == "HIP" \
-        else "cl_int"
+    # rocblas expects Tensile routines to return hip error codes
+    self.statusName = "TensileStatus"
     self.strideList = []
     self.sizeList = []
 
@@ -138,8 +138,10 @@ class SolutionWriter:
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
 
-    s += "%sint deviceId;\n" % (t)
-    s += "%shipGetDevice(&deviceId);\n" % (t)
+    if globalParameters["RuntimeLanguage"] == "HIP":
+      s += "%sint deviceId;\n" % (t)
+      s += "%shipGetDevice(&deviceId);\n" % (t)
+
     if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
@@ -543,6 +545,7 @@ class SolutionWriter:
           s += "%sinputEvents,\n" % (t)
         s += "%soutputEvent );\n" % (t)
         s += "%stensileStatusCheck(status);\n" % (t)
+        s += "%s}\n" % (t)
 
       ########################################
       # HIP Runtime

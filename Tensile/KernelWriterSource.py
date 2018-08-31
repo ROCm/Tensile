@@ -1693,7 +1693,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read: Increment A/B
   ##############################################################################
-  def localReadInc(self, kernel, tP):
+  def localReadInc(self, kernel, iui, tP):
     kStr = ""
     kStr += "%slocalRead%s += LOCAL_SPLITU*(MT%s+PAD);%s" \
         % (self.indent, tP["tensorChar"], tP["tileChar"], self.endLine)

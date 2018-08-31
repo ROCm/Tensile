@@ -120,6 +120,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ensurePath(sourceDir)
     pushWorkingPath("sourceTmp")
     filesToCopy = [
+        "SolutionMapper.h",
         "Client.cpp",
         "Client.h",
         "CMakeLists.txt",

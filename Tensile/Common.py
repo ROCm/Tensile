@@ -256,14 +256,14 @@ validParameters = {
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements
     # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
     "AssertSummationElementMultiple": [1,2,4,8],
 
     # When creating the kernel, assume that the 'first' free index size is some
     # multiple of the element size.
     # "first" free index is FreeIndex[0] and usually letter "I"
     # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
     # Generate code inside kernel to check assertions above on Tensor dimensions
@@ -378,6 +378,11 @@ validParameters = {
     # For example, InnerUnroll=2 will fetch LDS for two unroll iterations
     "InnerUnroll":                [1,2,4],
 
+    # Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
+    # 1 is default and results in no interleaving.
+    # Implementation only supports LocalDotLayout that is a power-of-two
+    "LocalDotLayout":             [1,2,4,8],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -392,6 +397,7 @@ defaultBenchmarkCommonParameters = [
     {"LoopTail":                  [ True ] },
     {"EdgeType":                  [ "Branch" ] },
     {"InnerUnroll":               [ 1 ] },
+    {"LocalDotLayout":            [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
@@ -511,13 +517,14 @@ defaultAnalysisParameters = {
 
 # Header written once at start of solution lookup functions
 # Also written into the benchmark client
+# Assumes surrounding code has defined sizeI,sizeJ, etc vars
 def writeSolutionAssertionCheckHeader(problemType):
   s = ""
   indent = "  "
   summationIdx  = problemType["IndicesSummation"][-1] # use last summation idx
   summationChar = globalParameters["IndexChars"][summationIdx]
 
-  free0Index = problemType["IndicesFree"][0] # use last summation idx
+  free0Index = problemType["IndicesFree"][0] # use lowest free index, this is coalesced dim for C
   free0Char = globalParameters["IndexChars"][free0Index]
   s += indent + "unsigned psem = 1; // problem summation element multiple\n"
   s += indent + "if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
