@@ -685,7 +685,7 @@ class Solution:
     if "MacroTile" in state:
       if state["MacroTile0"] != state["MacroTile"][0] \
           or state["MacroTile1"] != state["MacroTile"][1]:
-        state["Valid"] = False
+        reject(state, "MacroTile mismatch")
 
     if state["Valid"] and "MacroTileShapeMax" in state \
         and "MacroTileShapeMin" in state:
@@ -846,8 +846,11 @@ class Solution:
   #   LSC is the number of elements loaded in the para(coalesced) dimension
   #   LSP is the number of elements loaded in the perp(noncoalesced) dimension
   #   PerLoadTile is always rectangular.
-  #   When BufferLoad=1, the area (LSC*LSP) can be larger than NumThreads. 
+  #   When BufferLoad=1, the area (LSC*LSP) can be larger than NumThreads.
   #   In this case, some threads will generate a dummy OOB GRO.
+  #   Related fields:
+  #     LVC = LSC/GRVW  (LVCA = LSCA/GLVWA)
+  #     LVP = LSP/GRVW  (LVPA = LSPA/GLVWA)
   #
   # NumLoadsCoalesced and NumLoadsPerpendicular define the number of times the
   #   PerLoadTile is loaded in each dimension to fetch the LoadTile
@@ -888,7 +891,7 @@ class Solution:
       perpDim = state["MacroTile%s"%tc]
 
     if dbFract:
-      print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG02%u_%02u_%02u NumThreads=%u GRWV=%u" \
+        print "\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
           % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
             parDim, perpDim, \
             state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
@@ -991,7 +994,7 @@ class Solution:
           perp = perpOverhang if perpOverhang else state["LSP%s"%tc]
 
         validElements = state["LSC%s"%tc] * perp
-        print "  buffer_load_dwordx%u %ux%ux%u bytes,  %u/%u valid GRO" %\
+        print "  buffer_load_element_x%u %ux%ux%u bytes,  %u/%u valid GRO" %\
               (state["GlobalLoadVectorWidth%s"%tc], \
               state["LSC%s"%tc], perp, \
               elementWidth, \
@@ -1013,6 +1016,7 @@ class Solution:
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
+      print1("in assignDerivedParameters, state['Valid'] = False")
       return
 
     if state["ProblemType"]["Tensor0"]==0:
@@ -1068,12 +1072,11 @@ class Solution:
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
-      state["Valid"] = False
+      reject(state, "VW * DataType.numBytes() > 16")
 
     if state["GlobalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - GRVW too big
-      state["Valid"] = False
-
+      reject(state, "GRVW * DataType.numBytes() > 16")
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
@@ -1112,8 +1115,8 @@ class Solution:
       supported = \
         state["ProblemType"]["DataType"].isSingle() or \
         (state["KernelLanguage"] == "Assembly" and \
-         (state["ProblemType"]["DataType"].isHalf() or \
-          state["ProblemType"]["HighPrecisionAccumulate"]))
+         (state["ProblemType"]["DataType"].isHalf() and \
+          not state["ProblemType"]["HighPrecisionAccumulate"]))
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
@@ -1271,7 +1274,7 @@ class Solution:
           continue
         # give up
         else:
-          state["Valid"] = False
+          reject(state, "No valid DepthU found")
           return
     ########################################
     # end DepthU loop
@@ -1315,7 +1318,7 @@ class Solution:
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
     # Some of these might become 0?
-    if 0:
+    if 1:
       print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
             pvar(state, "LVCB"), pvar(state, "LVPB")
 
@@ -1326,8 +1329,7 @@ class Solution:
       return
 
     if state["KernelLanguage"] == "Assembly" and state["PersistentKernel"]:
-      if globalParameters["PrintSolutionRejectionReason"]:
-        print1("Persistent only works on Source path")
+      reject(state, "Persistent only works on Source path")
       state["Valid"] = False
       return
 
@@ -1382,7 +1384,9 @@ class Solution:
     if "LocalSplitU" in state and "DepthU" in state:
       state["LoopUnroll"] = state["DepthU"] / state["LocalSplitU"]
     if state["LoopUnroll"] * state["LocalSplitU"] != state["DepthU"]:
-        state["Valid"] = False
+      state["Valid"] = False
+    if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
+      reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] /= state["InnerUnroll"]
 
     if 0:
