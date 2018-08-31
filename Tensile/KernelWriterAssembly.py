@@ -4204,7 +4204,9 @@ class KernelWriterAssembly(KernelWriter):
         if ldl > 1:
           #jgolds
           #HACK just hard coding to verify it works for the case I am testing
-          partialInc = 8    # in elements
+          #partialInc = 8    # in elements
+          tt = tP["tt"]
+          partialInc = kernel[tt]
           if iui < (kernel["InnerUnroll"] - 1):
             tP["localReadOffset"] += partialInc
           else:
