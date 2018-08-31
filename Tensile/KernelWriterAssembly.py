@@ -318,7 +318,7 @@ class KernelWriterAssembly(KernelWriter):
     # 0x8 = waitcnt at self.wait() for localRead
     self.db["ConservativeWaitCnt"] = 0x0
 
-    self.db["InitLds"]     = True  # Initialize LDS at start of kernel
+    self.db["InitLds"]     = False  # Initialize LDS at start of kernel
     self.printedAssertCnt  = 0
     self.initLdsValue     = 0xFFFFFFFF  # Value to use for LDS Init, if enabled
 
