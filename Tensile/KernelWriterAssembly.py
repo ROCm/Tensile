@@ -2566,7 +2566,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A/B
   ##############################################################################
   def graShift(self, kernel, tP):
-    #if kernel["PreciseBoundsCheck"]: return ""
+    if kernel["PreciseBoundsCheck"]: return ""
 
     kStr = ""
     # edge value
@@ -2731,6 +2731,8 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
     self.vgprPool.checkIn(tmp)
+    #if tP["isB"]:
+    #  kStr += self.bomb(0x100)
 
     if kernel["FractionalLoad"] and kernel["fractionalPerpOverhang%s"%tc]:
       overhang = kernel["fractionalPerpOverhang%s"%tc]
@@ -2801,13 +2803,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"]:
       # maxAddrSgpr = size[n] * stride[n-1]
       kStr += self.comment1("max read offset = size[n] * stride[n-1]")
-      dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
-      sizeIdx = tP["ia"][dim]
-
-      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-      if sizeIdxIsSum:
-        sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
 
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
@@ -2815,6 +2810,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.computeSrdBase(kernel, tc, kernel["ProblemType"]["IndexAssignments%s"%tc], tP["bpe"])
 
       if kernel["PreciseBoundsCheck"]:
+        dim = len(tP["ia"])-1 # dim
+        strideIdx = dim-1 # largest stride
+        sizeIdx = tP["ia"][dim]
+
+        sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+        if sizeIdxIsSum:
+          sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+
         kStr += inst("s_mul_i32", \
             sgpr("Srd%s+2"%tc), \
             sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
@@ -2937,6 +2940,8 @@ class KernelWriterAssembly(KernelWriter):
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
+    #if tP["isB"]:
+    #  kStr += self.bomb(0x100)
     return kStr
 
   ##############################################################################
@@ -3498,6 +3503,13 @@ class KernelWriterAssembly(KernelWriter):
            sgpr("Srd%s+2"%(tc)), \
            incLower, \
             "limit -= inc)" )
+      #kStr += inst("s_cselect_b32 ", \
+      #    sgpr("Srd%s+2"%(tc)), \
+      #    0, \
+      #    sgpr("Srd%s+2"%(tc)), \
+      #      "catch overflow -> set limit to 0" )
+      #if tP["isB"]:
+      #  kStr += self.bomb(0x100)
 
     return kStr
 
