@@ -1109,16 +1109,20 @@ bool benchmarkAllSolutionsForSize(
   } // solution loop
 
   if (useGPUTimer) {
-    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
-      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
+    for (auto& event_array : l_outputEvent) {
+      for (auto event : event_array) {
         ::clReleaseEvent(event);
-#else
-        ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
-        ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
-#endif
       }
     }
+#else
+    for (unsigned int syncIdx = 0; syncIdx < numSyncsPerBenchmark; syncIdx++){
+      for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
+        ::hipEventDestroy( l_eventStart[syncIdx][enqIdx] );
+        ::hipEventDestroy( l_eventStop[syncIdx][enqIdx] );
+      }
+    }
+#endif
   }
   file << std::endl;
 
