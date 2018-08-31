@@ -1318,7 +1318,7 @@ class Solution:
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
     # Some of these might become 0?
-    if 1:
+    if 0:
       print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
             pvar(state, "LVCB"), pvar(state, "LVPB")
 
