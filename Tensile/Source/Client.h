@@ -210,7 +210,7 @@ void specializeData(
 
   const unsigned int numIndicesSummation = totalIndices - numIndicesC;
 
-  const unsigned int db = 1; // 0x1=header, 0x2=offset/value on each store, 0x4=loop debug
+  const unsigned int db = 0; // 0x1=header, 0x2=offset/value on each store, 0x4=loop debug
   TensorDims td("specialize_matrix", numIndicesAB, numIndicesC, allSizes, indexAssignments);
 
   if (db & 0x1) {
