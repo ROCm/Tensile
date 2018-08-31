@@ -66,7 +66,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
-globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
+globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
 
 ########################################
 # less common
@@ -110,7 +110,7 @@ globalParameters["DeviceLDS"] = 65536             # LDS bytes per CU, for comput
 globalParameters["MaxLDS"] = 65536                # max LDS a kernel should attempt to use
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
-globalParameters["MergeFiles"] = True             # F=store every solution and kernel in sepperate file; T=store all solutions in single file
+globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
