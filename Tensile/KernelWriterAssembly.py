@@ -1621,6 +1621,19 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
 
+    # Use combined shift+add, where available:
+    kStr += ".macro _v_lshl_add_u32 dst, src0, src1, shiftCnt" + self.endLine
+    if globalParameters["AsmCaps"][self.version]["HasAddLshl"]:
+      kStr += "    v_lshl_add_u32 \dst, \src0, \src1, \shiftCnt" + self.endLine
+    else:
+      kStr += "    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
+      if self.AsmBugs["ExplicitCO"]:
+        kStr += "    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
+      else:
+        kStr += "    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
+    kStr += ".endm" + self.endLine
+
+
 
     ########################################
     # VGPR Macros
@@ -2882,9 +2895,16 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mul_u32_u24", \
           vgpr(destVgpr), \
           hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
-          vgpr(destVgpr), \
+          vgpr(uReg), \
           "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
-    if dotInterleave>1:
+      kStr += inst("_v_add_lshl_u32", \
+          vgpr(destVgpr), \
+          vgpr(tP["gpr"]["lwoT"]), \
+          vgpr(destVgpr), \
+          hex(log2(tP["bpe"])), \
+          "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
+          % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
+    else:
       ldlOffsetVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_and_b32", \
           vgpr(destVgpr), \
@@ -2907,7 +2927,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(destVgpr), \
           vgpr(uReg), \
           "add scraps from LDL masking")
-      kStr += inst("v_lshl_add_u32", \
+      kStr += inst("_v_lshl_add_u32", \
           vgpr(destVgpr), \
           vgpr(tP["gpr"]["lwoT"]), \
           hex(log2(kernel["LocalDotLayout"])), \
@@ -2921,14 +2941,6 @@ class KernelWriterAssembly(KernelWriter):
           " *= bpe")
       self.vgprPool.checkIn(ldlOffsetVgpr)
       #kStr += self.bomb(-40)
-    else:
-      kStr += inst("_v_add_lshl_u32", \
-          vgpr(destVgpr), \
-          vgpr(tP["gpr"]["lwoT"]), \
-          vgpr(destVgpr), \
-          hex(log2(tP["bpe"])), \
-          "lwFO%s = (lw%s%s + lw%s%s*(MT%s+PAD))*bpe" \
-          % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
 
     if tP["isB"]:
       kStr += inst("_v_add_co_u32", \
