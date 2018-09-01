@@ -66,7 +66,6 @@ def processKernelSourceChunk(kernels,
     for ki in range(kiStart, kiStop):
       kernel = kernels[ki]
       results.append (processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly)) # returns err, src, header, kernelName
-      #print "r+=", results[-1]
 
     if pipe != None:
       pipe.send(results)
