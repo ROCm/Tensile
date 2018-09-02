@@ -22,6 +22,7 @@
 #include "SolutionHelper.h"
 #include "Tools.h"
 #include <mutex>
+#include <unistd.h>
 
 #ifdef WIN32
 __declspec(thread) KernelMap kernelMap;
@@ -104,41 +105,51 @@ void tensileGetCompiledOpenCLKernel(
  * Get Assembly Kernels for HIP
  ******************************************************************************/
 #if Tensile_RUNTIME_LANGUAGE_HIP
-//void tensileGetHipFunctionFromCodeObjectByteArray(
-//  hipFunction_t *function,
-//  const char *functionName,
-//  const unsigned char *coba) { // code object byte array
-//  TensileStatus status;
-//
-//  // is function already loaded?
-//  hipDevice_t currentDevice; // caller guaranteed that current device
-//                             // matches handle/stream device
-//  status = hipGetDevice(&currentDevice);
-//  tensileStatusCheck(status);
-//  KernelMapKey key = std::make_tuple(currentDevice, functionName);
-//
-//  // looking up kernel must be thread safe as to not
-//  // end up with redundant modules on a single device
-//  std::mutex kernelMapMutex; // FIXME adds few microseconds on every api call?
-//  std::lock_guard<std::mutex> kernelMapLock(kernelMapMutex);
-//
-//  KernelMap::iterator idx = kernelMap.find(key); // < 1 microsecond
-//  if (idx != kernelMap.end()) {
-//    *function = idx->second;
-//    return;
-//  }
-//
-//  // load function
-//  hipModule_t module;
-//  status = hipModuleLoadData(&module, coba);
-//  tensileStatusCheck(status);
-//
-//  hipModuleGetFunction(function, module, functionName);
-//  tensileStatusCheck(status);
-//
-//  // store in map
-//  kernelMap[key] = *function;
-//
-//  // kernelMapMutex releases
-//}
+hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
+                                     const std::string &kernelName,
+                                     bool codeFromFiles)
+{
+  hipError_t e = hipSuccess;
+  *f = nullptr;
+
+  if (_hipFunctions ) {
+    std::lock_guard<std::mutex> initFunctionsLock(_initFunctionsMutex);
+    if ( !_hipFunctions ) {
+      int numDevices = -1;
+      e = hipGetDeviceCount( &numDevices );
+      if (e) { return e; };
+
+      _hipFunctions = new hipFunction_t[numDevices];
+      for ( int i = 0; i < numDevices; i++) {
+        _hipFunctions[i] = nullptr;
+      }
+    }
+  }
+  // TODO - handle CodeFromFiles=0
+      //if not globalParameters["CodeFromFiles"]:
+      //  s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+  if ( !_hipFunctions[deviceId] ) {
+    std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
+    hipModule_t module = nullptr;
+    if (codeFromFiles) {
+      if (!_hipFunctions[deviceId]) {
+        std::string pk1 = "assembly/" + kernelName + ".co";
+        std::string pk2 = "../source/assembly/" + kernelName + ".co";
+        if (access(pk2.c_str(), R_OK) != 0)
+          e = hipModuleLoad(&module, pk1.c_str());
+        else
+          e = hipModuleLoad(&module, pk2.c_str());
+      } else {
+        std::string k = kernelName + "_coba";
+        e = hipModuleLoadData(&module, k.c_str());
+      }
+      if (e) { return e; };
+      e = hipModuleGetFunction(&_hipFunctions[deviceId], module, kernelName.c_str());
+      if (e) { return e; };
+    }
+  }
+  *f = _hipFunctions[deviceId];
+  return e;
+}
+
 #endif
