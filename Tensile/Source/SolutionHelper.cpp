@@ -112,17 +112,22 @@ hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
   hipError_t e = hipSuccess;
   *f = nullptr;
 
-  if (_hipFunctions ) {
+  auto t = _hipFunctions.load(std::memory_order_relaxed);
+  std::atomic_thread_fence(std::memory_order_acquire);
+  if (t == nullptr) {
     std::lock_guard<std::mutex> initFunctionsLock(_initFunctionsMutex);
-    if ( !_hipFunctions ) {
+    auto t = _hipFunctions.load(std::memory_order_relaxed);
+    if ( !t) {
       int numDevices = -1;
       e = hipGetDeviceCount( &numDevices );
       if (e) { return e; };
 
-      _hipFunctions = new hipFunction_t[numDevices];
+      t = new hipFunction_t[numDevices];
       for ( int i = 0; i < numDevices; i++) {
-        _hipFunctions[i] = nullptr;
+        t[i] = nullptr;
       }
+      std::atomic_thread_fence(std::memory_order_release);
+      _hipFunctions.store(t, std::memory_order_relaxed);
     }
   }
   // TODO - handle CodeFromFiles=0

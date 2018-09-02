@@ -40,7 +40,7 @@ typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
 
 struct SolutionLock {
-  hipFunction_t *_hipFunctions = nullptr;
+  std::atomic<hipFunction_t*> _hipFunctions;
   std::mutex _initFunctionsMutex;
   std::mutex _loadModuleMutex;
 
