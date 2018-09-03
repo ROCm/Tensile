@@ -180,15 +180,6 @@ class SolutionWriter:
 
     typeName = solution["ProblemType"]["DataType"].toCpp()
 
-    # index assignments
-    s += "\n%s/* index assignments */\n" % (t)
-    s += "%sconst unsigned int indexD0 = %u;\n" \
-        % (t, solution["ProblemType"]["Index0"])
-    s += "%sconst unsigned int indexD1 = %u;\n" \
-        % (t, solution["ProblemType"]["Index1"])
-    s += "%sconst unsigned int indexDU = %u;\n" \
-        % (t, solution["ProblemType"]["IndexUnroll"])
-
     # num enqueues
     s += "\n%s/* num kernels */\n" % (t)
     s += "%sunsigned int numEnqueues[numKernels] = { 1" % (t)
