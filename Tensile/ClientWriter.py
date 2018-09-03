@@ -644,8 +644,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
-      # add trailing ~ for some reason to the function name
-      h += "  {%s, \"%s~\", {%d, %d, %d} }" % \
+      h += "  {%s, \"%s\", {%d, %d, %d} }" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],

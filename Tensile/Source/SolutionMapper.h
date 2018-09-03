@@ -21,6 +21,8 @@
 
 #include <limits>
 
+#define DEBUG_SM 0
+
 // SolutionMapper:
 // Efficiently map problems to exact or best solution
 // Supports efficient searching and various algorithms to find
@@ -36,7 +38,7 @@ public:
   SolutionMapper(const SolutionInfoType *solutionTable, size_t numSolutions,
                  const PtoS *embeddedExactTable, size_t numExacts,
                  const ProblemProperties *props)
-     : _solutionTable(solutionTable), _numSolutions(numSolutions), _props(props), _findAlg(RatioDistanceAlgo)
+     : _solutionTable(solutionTable), _numSolutions(numSolutions), _props(props), _findAlg(EuclideanDistanceAlgo)
   {
     for (size_t i=0; i<numExacts; i++) {
       auto &p = embeddedExactTable[i].first;  //problem
@@ -49,7 +51,8 @@ public:
       } else {
         // TODO - ideally these should never make it into the exact table in the first place,
         // need to check in python land
-        //printf ("warning: removing bogus exact problem (does not meet assertion requirements for solution)\n");
+        if (DEBUG_SM)
+          std::cout << "warning: removing bogus exact problem (does not meet assertion requirements for solution)\n";
       }
     }
 
@@ -57,7 +60,8 @@ public:
     if (alg) {
       _findAlg = strtol(alg,nullptr,0);
     }
-    printf ("TENSILE_FIND_ALGO= %d (%s)\n", _findAlg, algoString(_findAlg));
+    if (DEBUG_SM & 0x1)
+      printf ("TENSILE_FIND_ALGO= %d (%s)\n", _findAlg, algoString(_findAlg));
   }
 
 #define CASE_STRING(X)  case X: return(#X)
@@ -101,13 +105,15 @@ public:
       auto solution = getSolution(iter->second);
       if (pa.validForSolution(solution.assertions)) {
         double distance = distanceF(p, tableP);
-        iter->first.print(std::cout);
+        if (DEBUG_SM & 0x2)
+          iter->first.print(std::cout);
         if (distance < bestDistance) {
           bestDistance = distance;
           bestIter = iter;
-          std::cout << " distance=" << distance << " **newBest**" << "\n";
+          if (DEBUG_SM & 0x2)
+            std::cout << " distance=" << distance << " **newBest**" << "\n";
         } else {
-          std::cout << " distance=" << distance << "\n";
+          //std::cout << " distance=" << distance << "\n";
         }
       }
     }
@@ -173,9 +179,11 @@ int find_algorithm_static(
   if (solutionIdx == -1) {
     //solutionIdx = smapper.findNearestMatch (p, RatioDistance<decltype(p)>());
     solutionIdx = smapper.findNearestMatchWithAlg (p);
-    std::cout << "find_algorithm_static picked best-fit solutionIdx=" << solutionIdx << "\n";
+    if (DEBUG_SM)
+      std::cout << "find_algorithm_static picked best-fit solutionIdx=" << solutionIdx << "\n";
   } else {
-    std::cout << "find_algorithm_static picked exact solutionIdx=" << solutionIdx << "\n";
+    if (DEBUG_SM)
+      std::cout << "find_algorithm_static picked exact solutionIdx=" << solutionIdx << "\n";
   }
 
 

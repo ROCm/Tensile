@@ -463,11 +463,8 @@ defaultBenchmarkCommonParameters = [
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
-<<<<<<< HEAD
     {"AssertFree1ElementMultiple": [ 1 ] },
-=======
-    {"AssertMinApproxSize          ": [ -1 ] },
->>>>>>> dddc9d3... Add new assertion for ApproxSize
+    {"AssertMinApproxSize":        [ -1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
