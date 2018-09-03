@@ -141,8 +141,9 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
     cpus = 0
   elif globalParameters["CodeFromFiles"]:
     cpu_count = multiprocessing.cpu_count()
-    cpus = cpu_count*4 if globalParameters["CpuThreads"] == -1 \
-           else globalParameters["CpuThreads"]
+    cpuThreads = globalParameters["CpuThreads"]
+    cpus = cpu_count*abs(cpuThreads) if cpuThreads < 0 \
+           else min(cpu_count, cpuThreads)
   else: #! CodeFromFiles is not thread-safe since code merged into same file
     cpus = 1
 
