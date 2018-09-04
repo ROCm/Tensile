@@ -107,7 +107,7 @@ void tensileGetCompiledOpenCLKernel(
 #if Tensile_RUNTIME_LANGUAGE_HIP
 hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
                                      const std::string &kernelName,
-                                     bool codeFromFiles)
+                                     const unsigned char *codeFromExe)
 {
   hipError_t e = hipSuccess;
   *f = nullptr;
@@ -136,8 +136,8 @@ hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
   if ( !_hipFunctions[deviceId] ) {
     std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
     hipModule_t module = nullptr;
-    if (codeFromFiles) {
-      if (!_hipFunctions[deviceId]) {
+    if (!_hipFunctions[deviceId]) {
+      if (codeFromExe == nullptr) {
         std::string pk1 = "assembly/" + kernelName + ".co";
         std::string pk2 = "../source/assembly/" + kernelName + ".co";
         if (access(pk2.c_str(), R_OK) != 0)
@@ -145,8 +145,7 @@ hipError_t SolutionLock::getFunction(hipFunction_t *f, int deviceId,
         else
           e = hipModuleLoad(&module, pk2.c_str());
       } else {
-        std::string k = kernelName + "_coba";
-        e = hipModuleLoadData(&module, k.c_str());
+        e = hipModuleLoadData(&module, codeFromExe);
       }
       if (e) { return e; };
       e = hipModuleGetFunction(&_hipFunctions[deviceId], module, kernelName.c_str());

@@ -44,7 +44,8 @@ struct SolutionLock {
   std::mutex _initFunctionsMutex;
   std::mutex _loadModuleMutex;
 
-  hipError_t getFunction(hipFunction_t *f, int deviceId, const std::string &kernelName, bool codeFromFiles);
+  // if codeFromExe==nullptr then load code from file using kernelName
+  hipError_t getFunction(hipFunction_t *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
 };
 #endif
 
