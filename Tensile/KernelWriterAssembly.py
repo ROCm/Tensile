@@ -5759,12 +5759,12 @@ class KernelWriterAssembly(KernelWriter):
           if coordOffset1 == 0:
             kStr += inst("v_mov_b32", vgpr(self.coutRowPtr), vgpr(self.coutRowStart), "rowPtr <- rowStart (first row)")
           elif coordOffset1 == self.lastCoordOffset1 + 1:
-            kStr += inst("v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
+            kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowPtr), \
                       sgpr("StridesC+0"), "rowPtr <- move to start of new row")
           else:
             kStr += inst("s_mul_i32", sgpr(tmpS01), sgpr("StridesC+0"), coordOffset1, \
                 "scale StrideC *= coordOffset1(%u)"%coordOffset1)
-            kStr += inst("v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowStart), \
+            kStr += inst("_v_add_co_u32", vgpr(self.coutRowPtr), "vcc", vgpr(self.coutRowStart), \
                       sgpr(tmpS01), "rowPtr <- inc for non-0 (tt1+vc1))")
 
         self.lastCoordOffset1 = coordOffset1
