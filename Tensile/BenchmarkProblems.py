@@ -77,8 +77,17 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
 
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
-    resultingHardcodedParameterList = \
-        winners.update( benchmarkStep.hardcodedParameters )
+    if winners.winners == {}:
+      # perf optimization to skip the initial winners creation
+      # this helps a little here but really helps below with avoiding the super-expensive
+      # removeHardcoded step below - that can use a fast-path to create
+      # winners when needed.
+      print1("# Empty winners - use fast initialization of hardcodedParameters")
+      resultingHardcodedParameterList = benchmarkStep.hardcodedParameters
+    else:
+      resultingHardcodedParameterList = \
+          winners.wpdUpdate( benchmarkStep.hardcodedParameters )
+
     benchmarkStep.hardcodedParameters = resultingHardcodedParameterList
     numHardcoded = len(benchmarkStep.hardcodedParameters)
     stepName = str(benchmarkStep)
@@ -225,8 +234,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     for hardcodedParam in removeHardcoded:
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
 
+
     if removesExist:
-      winners.update( benchmarkStep.hardcodedParameters )
+      print1("# Updating winners since enumeration removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
+      winners.wpdUpdate( benchmarkStep.hardcodedParameters )
       if globalParameters["PrintLevel"] >= 1:
         print1("")
       numHardcoded = len(benchmarkStep.hardcodedParameters )
@@ -234,6 +245,11 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       for solutionList in shallowcopy(solutions):
         if len(solutionList) == 0:
           solutions.remove(solutionList)
+    elif winners.winners=={}:
+      print1("# Populating initial winners (%u solutions)\n" % len(benchmarkStep.hardcodedParameters))
+      for hcParm in benchmarkStep.hardcodedParameters:
+        winners.winners[FrozenDictionary(hcParm)] = [{},-1]
+
     print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
 
@@ -467,13 +483,18 @@ class FrozenDictionary:
 
 ################################################################################
 # Winning Parameters For Hardcoded Parameters
-################################################################################
+###############################################################################
 class WinningParameterDict:
 
   ##########################################################
   # Init
   def __init__(self):
+    # Index with 'hardcodedParameterKey'
+    # Each element in winners contains a 2D array:
+    #  [0] = winningParamters
+    #  [1] = winningScore
     self.winners = {}
+
 
   ##########################################################
   # Add Winning Parameters For Hardcoded Parameters
@@ -486,7 +507,7 @@ class WinningParameterDict:
       hardcodedResults = results[hardcodedIdx]
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
-      winningScore = -9999 # -1 is score of invalid
+      winningScore = -9999 # -1 is score of invalid so use -9999 here
       # find fastest benchmark parameters for this hardcoded
       for benchmarkIdx in range(0, len(hardcodedResults)):
         benchmarkResult = hardcodedResults[benchmarkIdx]
@@ -524,10 +545,11 @@ class WinningParameterDict:
     else:
       printExit("Didn't find exactly 1 match")
 
+
   ##########################################################
   # Update Hardcoded Parameters In Winning Parameters
   # could be forking, joining or adding parameters to same hardcodeds
-  def update(self, newHardcodedParameterList ):
+  def wpdUpdate(self, newHardcodedParameterList ):
     # TODO when new list is joining, we need to choose the fastest
     oldWinners = self.winners
     self.winners = {}
@@ -575,10 +597,17 @@ class WinningParameterDict:
     returnHardcodedParameterList = []
     for hardcodedFrozen in self.winners:
       returnHardcodedParameterList.append(hardcodedFrozen.parameters)
+    #print "info: after winner-update, returnHardcodedParameterList=", len(returnHardcodedParameterList)
     return returnHardcodedParameterList
 
   ##########################################################
   # Get Winning Parameters For Hardcoded Parameters
+  # For "Updating Solution Database"
+  #  - winners is a hash of all the solutions.  Points to 2D(?) list
+  #       0 : parameters
+  #       1 : score
+  #  - lookupHardcodedParameters is a dict of hard-coded parms, ie "BufferLoad: True"
+  #  - Return a list of matches - 
   # need to match MacroTile also
   @staticmethod
   def get( lookupHardcodedParameters, winners ):

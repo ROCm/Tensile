@@ -38,6 +38,15 @@ typedef std::map<KernelMapKey, cl_kernel> KernelMap;
 #else
 typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
+
+struct SolutionLock {
+  std::atomic<hipFunction_t*> _hipFunctions;
+  std::mutex _initFunctionsMutex;
+  std::mutex _loadModuleMutex;
+
+  // if codeFromExe==nullptr then load code from file using kernelName
+  hipError_t getFunction(hipFunction_t *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
+};
 #endif
 
 #ifdef WIN32
