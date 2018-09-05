@@ -172,71 +172,15 @@ class SolutionWriter:
           s += "%s      buildOptions);\n" % (t)
 
     elif solution["KernelLanguage"] == "Assembly":
-      localStatic = True
       kernel = kernels[0]
       s += "%shipFunction_t hipFunction;\n" % (t)
-
-      kernelName = self.kernelWriter.getKernelName(kernel)
-      s += t
-      if localStatic:
-        s += "%sstatic hipFunction_t *hipFunctions = nullptr;\n" % (t)
-        s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
-        t += "  "
-        s += "%sstatic std::mutex initFunctionsMutex;\n" % (t)
-        s += "%sstd::lock_guard<std::mutex> initFunctionsLock(initFunctionsMutex);\n" % (t)
-        s += "%sif ( !hipFunctions ) {\n" % (t) # not locking here means array might be double allocated and memory leak
-        t += "  "
-        s += "%sstatic int numDevices = -1;\n" % (t)
-        s += "%sstatus = hipGetDeviceCount( &numDevices );\n" % (t)
-        s += "%shipFunction_t *tmp = new hipFunction_t[numDevices];\n" % (t)
-        s += "%sfor ( int i = 0; i < numDevices; i++) {\n" % (t)
-        s += "%s  tmp[i] = nullptr;\n" % (t)
-        s += "%s}\n" % (t)
-        s += "%shipFunctions = tmp;\n" % (t)
-        t = t[2:]
-        s += "%s}\n" % (t)
-        t = t[2:]
-        s += "%s}\n" % (t)
-        s += "%sif ( !hipFunctions[deviceId] ) {\n" % (t)
-        t += "  "
-        s += "%sstatic std::mutex loadModuleMutex;\n" % (t)
-        s += "%sstd::lock_guard<std::mutex> loadModuleLock(loadModuleMutex);\n" % (t)
-        s += "%sif (!hipFunctions[deviceId]) {\n" % (t)
-        t += "  "
-        s += "%shipModule_t module = nullptr;\n" % (t)
-        if not globalParameters["CodeFromFiles"]:
-          s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
-        else:
-          s += "%sif (access(\"../source/assembly/%s.co\", R_OK) != 0)\n" % (t, kernelName)
-          t += "  "
-          s += "%shipModuleLoad(&module, \"assembly/%s.co\");\n" % (t, kernelName)
-          t = t[2:]
-          s += "%selse\n" % (t)
-          t += "  "
-          s += "%shipModuleLoad(&module, \"../source/assembly/%s.co\");\n" % (t, kernelName)
-        t = t[2:]
-        s += "%shipModuleGetFunction(&hipFunctions[deviceId], module, \"%s\");\n" % (t, kernelName)
-        t = t[2:]
-        s += "%s}\n" % (t)
-        t = t[2:]
-        s += "%s}\n" % (t)
-        s += "%shipFunction = hipFunctions[deviceId];\n" % (t)
-      else:
-        s += "%stensileGetHipFunctionFromCodeObjectByteArray(\n" % (t)
-        s += "%s    &hipFunction,\n" % (t)
-        s += "%s    \"%s\",\n" % (t, kernelName)
-        s += "%s    %s_coba); // code object byte array\n" % (t, kernelName)
+      s += "%sstatic SolutionLock sl;\n" % (t)
+      # if !CodeFromFiles then pass global _coba that points to code object
+      s += "%sstatus = sl.getFunction(&hipFunction, deviceId, \"%s\", %s);;\n" \
+              % (t, kernelName, "nullptr" if globalParameters["CodeFromFiles"] else kernelName+"_coba" )
+      s += "%sif (status) return status;\n" % (t)
 
     typeName = solution["ProblemType"]["DataType"].toCpp()
-
-    # index assignments
-    s += "\n%s/* index assignments */\n" % (t)
-    s += "%sconst unsigned int indexD0 = %u;\n" \
-        % (t, solution["ProblemType"]["Index0"])
-    s += "%sconst unsigned int indexD1 = %u;\n" \
-        % (t, solution["ProblemType"]["Index1"])
-    s += "%sconst unsigned int indexDU = %u;\n" \
-        % (t, solution["ProblemType"]["IndexUnroll"])
 
     # num enqueues
     s += "\n%s/* num kernels */\n" % (t)
