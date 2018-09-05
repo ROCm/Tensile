@@ -35,7 +35,7 @@ from shutil import rmtree
 def main( config ):
   libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["LibraryLogicPath"])
-  pushWorkingPath(globalParameters["LibraryClientPath"])
+  stepBaseDir = pushWorkingPath(globalParameters["LibraryClientPath"])
 
 
   ##############################################################################
@@ -103,7 +103,7 @@ def main( config ):
   problemSizes = None
   stepName = None
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      functions)
+      functions, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -253,7 +253,7 @@ def toCppBool(yamlBool):
 # Write Generated Benchmark Parameters
 ################################################################################
 def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-    functionList):
+    functionList, stepBaseDir):
   h = ""
 
   ##############################################################################
@@ -1023,8 +1023,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   ##############################################################################
   if forBenchmark:
     h += "/* results file name */\n"
-    resultsFileName = os.path.join(globalParameters["WorkingPath"], \
-        "../../Data","%s.csv" % stepName)
+    resultsFileName = os.path.join(stepBaseDir, \
+        "../Data","%s.csv" % stepName)
     resultsFileName = resultsFileName.replace("\\", "\\\\")
     h += "const char *resultsFileName = \"%s\";\n" % resultsFileName
 
