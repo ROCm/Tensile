@@ -124,8 +124,9 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Copy Files to Benchmark Source Directory
     ############################################################################
+    stepBaseDir = globalParameters["WorkingPath"]
     sourceDir = \
-      os.path.join(globalParameters["WorkingPath"], "source" )
+      os.path.join(stepBaseDir, "source" )
     ensurePath(sourceDir)
     pushWorkingPath("sourceTmp")
     filesToCopy = [
@@ -278,9 +279,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       print2(HR)
 
     # write benchmarkFiles
-    writeBenchmarkFiles(solutionList, benchmarkStep.problemSizes, \
+    writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
         shortName, filesToCopy)
 
+    print1("# Copying files that differ from sourceTmp -> source")
     sourceTmp = globalParameters["WorkingPath"]
     files = os.listdir(sourceTmp)
     for f in files:
@@ -294,7 +296,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
         #print "cp:", f0, f1
         shutil.copy( f0, f1 )
-    #shutil.rmtree( sourceTmp, True )
+    shutil.rmtree( sourceTmp, True )
 
     popWorkingPath() # source
 
@@ -405,7 +407,7 @@ def getResults(resultsFileName, solutions):
 ################################################################################
 # Write Benchmark Files
 ################################################################################
-def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy):
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -452,7 +454,7 @@ def writeBenchmarkFiles(solutions, problemSizes, stepName, filesToCopy):
 
   forBenchmark = True
   writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-      filesToCopy)
+      filesToCopy, stepBaseDir)
 
 
 ################################################################################
