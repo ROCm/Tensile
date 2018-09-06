@@ -4305,7 +4305,6 @@ class KernelWriterAssembly(KernelWriter):
         paramList.append(destVgpr)
         paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets):
-#jgolds which bpe here? assuming tP
           paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
               + tP["localReadOffset"])*tP["bpe"]/offsetMultiplier)
         paramTuple = tuple(paramList)
