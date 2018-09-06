@@ -66,7 +66,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
-globalParameters["CpuThreads"] = 4          # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
+globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N)
 
 ########################################
 # less common
@@ -110,7 +110,7 @@ globalParameters["DeviceLDS"] = 65536             # LDS bytes per CU, for comput
 globalParameters["MaxLDS"] = 65536                # max LDS a kernel should attempt to use
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
-globalParameters["MergeFiles"] = True             # F=store every solution and kernel in sepperate file; T=store all solutions in single file
+globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
@@ -307,7 +307,13 @@ validParameters = {
     #  1 cannot be used for half type.
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
 
-    # threads should read/write/operate on this many contiguous elements. VW=4 on sgemm means read/write float4's.
+    # threads should read/write/operate on this many contiguous elements from the C matrix.
+    # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
+    # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
+    # Typically the load vector width and store vector width are directly related to the VW.
+    # The load width is closely related to the width of local stores so VectorWidth controls local write width.
+    # Local read width also matches since VectorWidth consec elements must be read
+    # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits. Using a VW too large which results in >16bytes/thread isn't supported
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 

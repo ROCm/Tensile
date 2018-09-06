@@ -1054,15 +1054,22 @@ class Solution:
           state["VectorWidth"]))
       return
 
+    # Vector-width must be at least 2 for Half:
+    if state["KernelLanguage"] == "Assembly" \
+       and state["ProblemType"]["DataType"].isHalf() \
+       and state["VectorWidth"] < 2:
+       reject(state, "VectorWidth must be >= 2 for half")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
-    # Vector-width must be at least 2 for Half:
-    if state["ProblemType"]["DataType"].isHalf() \
-        and state["GlobalReadVectorWidth"] < 2:
-      state["GlobalReadVectorWidth"] = 2
+    if state["GlobalReadVectorWidth"] > 1 \
+      and state["GlobalReadVectorWidth"] != state["VectorWidth"]:
+      # TODO -this is only needed for the shift/unshift code - with some assertions
+      # we can detect if that is needed or not
+      reject(state, "GlobalReadVectorWidth must be <= VectorWidth")
+
 
     if state["MinGlobalWriteVectorWidth"] == -1:
       state["MinGlobalWriteVectorWidth"] = 2 \
@@ -1318,7 +1325,7 @@ class Solution:
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
     # Some of these might become 0?
-    if 1:
+    if 0:
       print "info: ", pvar(state, "LVCA"), pvar(state, "LVPA"), \
             pvar(state, "LVCB"), pvar(state, "LVPB")
 

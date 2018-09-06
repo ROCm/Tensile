@@ -45,7 +45,7 @@ public:
       } else {
         // TODO - ideally these should never make it into the exact table in the first place,
         // need to check in python land
-        printf ("warning: removing bogus exact problem (does not meet assertion requirements for solution)\n");
+        //printf ("warning: removing bogus exact problem (does not meet assertion requirements for solution)\n");
       }
     }
   }
