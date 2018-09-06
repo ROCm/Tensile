@@ -69,7 +69,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [64]
         - DepthU: [ 8,16,32 ]
         - VectorWidth: [2,4,8]
-        - GlobalReadVectorWidth: [1]
+        - GlobalReadVectorWidth: [2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
