@@ -3982,7 +3982,7 @@ class KernelWriterAssembly(KernelWriter):
   #   i : ?
   #   comment : Comment with the text version of the formula
   #############################################################################
-  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP, localWriteDoCnt):
+  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP, localWriteCnt):
     tc = tP["tensorChar"]
     ldl = kernel["LocalDotLayout"]
     lscaOffset = para * kernel[tP["lsc"]]
@@ -4037,8 +4037,8 @@ class KernelWriterAssembly(KernelWriter):
     if not tP["tlu"] and ldl > 1:
 #jgolds HACK
 #Need to clean this up. Does not follow usual paradigm, but works for cases we care about with dot2
-      rem = (localWriteDoCnt) % ldl
-      quo = (localWriteDoCnt) / ldl
+      rem = (localWriteCnt) % ldl
+      quo = (localWriteCnt) / ldl
       #print "quo %u, rem %u, MT %u"%(quo, rem, kernel["MacroTile%u"%tP["tensorIdx"]])
       offsetBytes = (quo * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem)*tP["bpe"]
     else:
