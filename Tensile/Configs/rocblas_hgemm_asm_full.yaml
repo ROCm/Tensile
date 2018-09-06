@@ -125,57 +125,57 @@ BenchmarkProblems:
           - Exact: [ 7680, 16, 1, 2560 ]
           - Exact: [ 8448, 16, 1, 2816 ]
 
-  ########################################
-  # NN - 3 Waves/WG
-  ########################################
-    - # Benchmark Group
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
-        - PrefetchGlobalRead: [True]
-        - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [1]
-      ForkParameters:
-        - ThreadTile:
-          - [ 3, 3 ]
-          - [ 3, 4 ]
-          - [ 3, 6 ]
-          - [ 4, 3 ]
-          - [ 4, 4 ]
-          - [ 4, 6 ]
-          - [ 6, 3 ]
-          - [ 6, 4 ]
-          - [ 6, 6 ]
-          - [ 8, 8 ]
-        - WorkGroup:
-          - [ 24, 8, 1 ]
-          - [ 12, 16, 1 ]
-          - [ 6, 32, 1 ]
-          - [ 8, 8, 1 ]
-          - [ 8, 24, 1 ]
-          - [ 16, 16, 1 ]
-        - GlobalSplitU: [1]
-        - DepthU: [ 8, 16, 24, 32, 64 ]
-        - VectorWidth: [ 2, 4, 8 ]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [ 35, 700, 1, 2048 ]
-          - Exact: [ 35, 700, 1, 2048 ]
-          - Exact: [ 35, 700, 1, 2560 ]
-          - Exact: [ 35, 1500, 1, 2048 ]
-          - Exact: [ 35, 1500, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 1760 ]
-          - Exact: [ 35, 8457, 1, 2048 ]
-          - Exact: [ 35, 8457, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 4096 ]
+# ########################################
+# # NN - 3 Waves/WG
+# ########################################
+#   - # Benchmark Group
+#     InitialSolutionParameters:
+#     BenchmarkCommonParameters:
+#       - EdgeType: ["ShiftPtr"]
+#       - LoopTail: [True]
+#       - KernelLanguage: ["Assembly"]
+#       - PreciseBoundsCheck: [False]
+#       - PrefetchGlobalRead: [True]
+#       - PrefetchLocalRead: [True]
+#       - WorkGroupMapping: [1]
+#     ForkParameters:
+#       - ThreadTile:
+#         - [ 3, 3 ]
+#         - [ 3, 4 ]
+#         - [ 3, 6 ]
+#         - [ 4, 3 ]
+#         - [ 4, 4 ]
+#         - [ 4, 6 ]
+#         - [ 6, 3 ]
+#         - [ 6, 4 ]
+#         - [ 6, 6 ]
+#         - [ 8, 8 ]
+#       - WorkGroup:
+#         - [ 24, 8, 1 ]
+#         - [ 12, 16, 1 ]
+#         - [ 6, 32, 1 ]
+#         - [ 8, 8, 1 ]
+#         - [ 8, 24, 1 ]
+#         - [ 16, 16, 1 ]
+#       - GlobalSplitU: [1]
+#       - DepthU: [ 8, 16, 24, 32, 64 ]
+#       - VectorWidth: [ 2, 4, 8 ]
+#       - AssertSummationElementMultiple: [2]
+#       - AssertFree0ElementMultiple: [2]
+#     BenchmarkForkParameters:
+#     JoinParameters:
+#     BenchmarkJoinParameters:
+#     BenchmarkFinalParameters:
+#       - ProblemSizes:
+#         - Exact: [ 35, 700, 1, 2048 ]
+#         - Exact: [ 35, 700, 1, 2048 ]
+#         - Exact: [ 35, 700, 1, 2560 ]
+#         - Exact: [ 35, 1500, 1, 2048 ]
+#         - Exact: [ 35, 1500, 1, 2560 ]
+#         - Exact: [ 35, 8457, 1, 1760 ]
+#         - Exact: [ 35, 8457, 1, 2048 ]
+#         - Exact: [ 35, 8457, 1, 2560 ]
+#         - Exact: [ 35, 8457, 1, 4096 ]
 
   ########################################
   # NN - Small or Skinny
@@ -245,10 +245,10 @@ BenchmarkProblems:
           - Exact: [ 7680, 2, 1, 2560 ]
           - Exact: [ 8448, 2, 1, 2816 ]
           - Exact: [ 1760, 16, 1, 1760 ]
-          - Exact: [ 35, 700, 1, 2048 ]
-          - Exact: [ 35, 700, 1, 2048 ]
+#         - Exact: [ 35, 700, 1, 2048 ]
+#         - Exact: [ 35, 700, 1, 2048 ]
           - Exact: [ 3072, 16, 1, 1024 ]
-          - Exact: [ 35, 700, 1, 2560 ]
+#         - Exact: [ 35, 700, 1, 2560 ]
           - Exact: [ 6144, 4, 1, 2560 ]
           - Exact: [ 2048, 16, 1, 2048 ]
           - Exact: [ 7680, 4, 1, 2560 ]
@@ -256,10 +256,10 @@ BenchmarkProblems:
           - Exact: [ 1760, 32, 1, 1760 ]
           - Exact: [ 3072, 32, 1, 1024 ]
           - Exact: [ 2560, 16, 1, 2560 ]
-          - Exact: [ 35, 1500, 1, 2048 ]
+#         - Exact: [ 35, 1500, 1, 2048 ]
           - Exact: [ 4608, 16, 1, 1536 ]
           - Exact: [ 2048, 32, 1, 2048 ]
-          - Exact: [ 35, 1500, 1, 2560 ]
+#         - Exact: [ 35, 1500, 1, 2560 ]
           - Exact: [ 1760, 64, 1, 1760 ]
           - Exact: [ 3072, 64, 1, 1024 ]
           - Exact: [ 2560, 32, 1, 2560 ]
@@ -275,16 +275,16 @@ BenchmarkProblems:
           - Exact: [ 3072, 128, 1, 1024 ]
           - Exact: [ 2560, 64, 1, 2560 ]
           - Exact: [ 6144, 32, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 1760 ]
+#         - Exact: [ 35, 8457, 1, 1760 ]
           - Exact: [ 2048, 128, 1, 2048 ]
           - Exact: [ 4096, 32, 1, 4096 ]
-          - Exact: [ 35, 8457, 1, 2048 ]
+#         - Exact: [ 35, 8457, 1, 2048 ]
           - Exact: [ 7680, 32, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 2560 ]
+#         - Exact: [ 35, 8457, 1, 2560 ]
           - Exact: [ 8448, 32, 1, 2816 ]
           - Exact: [ 2560, 128, 1, 2560 ]
           - Exact: [ 4096, 64, 1, 4096 ]
-          - Exact: [ 35, 8457, 1, 4096 ]
+#         - Exact: [ 35, 8457, 1, 4096 ]
           - Exact: [ 7680, 64, 1, 2560 ]
           - Exact: [ 4096, 128, 1, 4096 ]
           - Exact: [ 7680, 128, 1, 2560 ]
@@ -532,13 +532,13 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [  196,  256, 64, 1024 ]
           - Exact: [  784,  512, 64,  128 ]
-          - Exact: [   49,  512, 64, 2048 ]
+#         - Exact: [   49,  512, 64, 2048 ]
           - Exact: [ 3136,  512,  1, 2048 ]
           - Exact: [  196, 1024, 64,  256 ]
-          - Exact: [   49, 2048, 64,  512 ]
+#         - Exact: [   49, 2048, 64,  512 ]
           - Exact: [ 3136, 2048,  1,  512 ]
-          - Exact: [ 3025,  256, 64,   64 ]
-          - Exact: [ 3025,   64, 64,   64 ]
+#         - Exact: [ 3025,  256, 64,   64 ]
+#         - Exact: [ 3025,   64, 64,   64 ]
 
   ########################################
   # NN - Source kernels
@@ -675,51 +675,51 @@ BenchmarkProblems:
           - Exact: [ 7680, 16, 1, 2560 ]
           - Exact: [ 8448, 16, 1, 2816 ]
 
-  ########################################
-  # TN - 3 Waves/WG
-  ########################################
-    - # Benchmark Group
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
-        - PrefetchGlobalRead: [True]
-        - PrefetchLocalRead: [True]
-        - WorkGroupMapping: [1]
-      ForkParameters:
-        - ThreadTile:
-          - [ 3, 3 ]
-          - [ 3, 4 ]
-          - [ 3, 6 ]
-          - [ 4, 3 ]
-          - [ 4, 4 ]
-          - [ 4, 6 ]
-          - [ 6, 3 ]
-          - [ 6, 4 ]
-          - [ 6, 6 ]
-        - WorkGroup:
-          - [ 24, 8, 1 ]
-          - [ 12, 16, 1 ]
-          - [ 6, 32, 1 ]
-          - [ 8, 8, 1 ]
-          - [ 8, 24, 1 ]
-          - [ 16, 16, 1 ]
-        - GlobalSplitU: [1]
-        - DepthU: [ 8, 16, 24, 32, 64 ]
-        - VectorWidth: [2, 4, 8]
-        - AssertSummationElementMultiple: [2]
-        - AssertFree0ElementMultiple: [2]
-      BenchmarkForkParameters:
-      JoinParameters:
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [ 35, 8457, 1, 1760 ]
-          - Exact: [ 35, 8457, 1, 2048 ]
-          - Exact: [ 35, 8457, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 4096 ]
+# ########################################
+# # TN - 3 Waves/WG
+# ########################################
+#   - # Benchmark Group
+#     InitialSolutionParameters:
+#     BenchmarkCommonParameters:
+#       - EdgeType: ["ShiftPtr"]
+#       - LoopTail: [True]
+#       - KernelLanguage: ["Assembly"]
+#       - PreciseBoundsCheck: [False]
+#       - PrefetchGlobalRead: [True]
+#       - PrefetchLocalRead: [True]
+#       - WorkGroupMapping: [1]
+#     ForkParameters:
+#       - ThreadTile:
+#         - [ 3, 3 ]
+#         - [ 3, 4 ]
+#         - [ 3, 6 ]
+#         - [ 4, 3 ]
+#         - [ 4, 4 ]
+#         - [ 4, 6 ]
+#         - [ 6, 3 ]
+#         - [ 6, 4 ]
+#         - [ 6, 6 ]
+#       - WorkGroup:
+#         - [ 24, 8, 1 ]
+#         - [ 12, 16, 1 ]
+#         - [ 6, 32, 1 ]
+#         - [ 8, 8, 1 ]
+#         - [ 8, 24, 1 ]
+#         - [ 16, 16, 1 ]
+#       - GlobalSplitU: [1]
+#       - DepthU: [ 8, 16, 24, 32, 64 ]
+#       - VectorWidth: [2, 4, 8]
+#       - AssertSummationElementMultiple: [2]
+#       - AssertFree0ElementMultiple: [2]
+#     BenchmarkForkParameters:
+#     JoinParameters:
+#     BenchmarkJoinParameters:
+#     BenchmarkFinalParameters:
+#       - ProblemSizes:
+#         - Exact: [ 35, 8457, 1, 1760 ]
+#         - Exact: [ 35, 8457, 1, 2048 ]
+#         - Exact: [ 35, 8457, 1, 2560 ]
+#         - Exact: [ 35, 8457, 1, 4096 ]
 
   ########################################
   # TN - Small or Skinny
@@ -781,16 +781,16 @@ BenchmarkProblems:
           - Exact: [ 3072, 128, 1, 1024 ]
           - Exact: [ 2560, 64, 1, 2560 ]
           - Exact: [ 6144, 32, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 1760 ]
+#         - Exact: [ 35, 8457, 1, 1760 ]
           - Exact: [ 2048, 128, 1, 2048 ]
           - Exact: [ 4096, 32, 1, 4096 ]
-          - Exact: [ 35, 8457, 1, 2048 ]
+#         - Exact: [ 35, 8457, 1, 2048 ]
           - Exact: [ 7680, 32, 1, 2560 ]
-          - Exact: [ 35, 8457, 1, 2560 ]
+#         - Exact: [ 35, 8457, 1, 2560 ]
           - Exact: [ 8448, 32, 1, 2816 ]
           - Exact: [ 2560, 128, 1, 2560 ]
           - Exact: [ 4096, 64, 1, 4096 ]
-          - Exact: [ 35, 8457, 1, 4096 ]
+#         - Exact: [ 35, 8457, 1, 4096 ]
           - Exact: [ 7680, 64, 1, 2560 ]
           - Exact: [ 4096, 128, 1, 4096 ]
           - Exact: [ 7680, 128, 1, 2560 ]

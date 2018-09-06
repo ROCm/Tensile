@@ -29,4 +29,3 @@ def test_hgemm_asm_tn(tmpdir):
 
 def test_hgemm_hpa_asm_nt(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/test_hgemm_hpa_asm_nt.yaml"), tmpdir.strpath])
-
