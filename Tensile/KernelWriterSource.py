@@ -462,17 +462,23 @@ class KernelWriterSource(KernelWriter):
       # real data
 
       if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
-        kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
-        kStr += "  a_pk_fma[0] = MULA0; %s " % (self.endLinePP)
-        kStr += " a_pk_fma[1] = MULA1; %s " % (self.endLinePP)
-        kStr += " b_pk_fma[0] = MULB0; %s " % (self.endLinePP)
-        kStr += " b_pk_fma[1] = MULB1; %s " % (self.endLinePP)
-        kStr += " c_pk_fma[0] = DST0; %s " % (self.endLinePP)
-        kStr += " c_pk_fma[1] = DST1; %s " % (self.endLinePP)
-        kStr += " c_pk_fma = tensile_fmadd_half2(a_pk_fma, b_pk_fma, c_pk_fma); %s " % (self.endLinePP)
-        kStr += " DST0 = c_pk_fma[0]; %s " % (self.endLinePP)
-        kStr += " DST1 = c_pk_fma[1]; %s " % (self.endLinePP)
-        kStr += self.endLine
+        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
+          kStr += " DST0 = MAC(MULA0,MULB0,DST0);" + self.endLinePP
+          kStr += " DST1 = MAC(MULA1,MULB1,DST1);" + self.endLinePP
+          kStr += self.endLine
+        else:
+          kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
+          kStr += "  a_pk_fma[0] = MULA0; %s " % (self.endLinePP)
+          kStr += " a_pk_fma[1] = MULA1; %s " % (self.endLinePP)
+          kStr += " b_pk_fma[0] = MULB0; %s " % (self.endLinePP)
+          kStr += " b_pk_fma[1] = MULB1; %s " % (self.endLinePP)
+          kStr += " c_pk_fma[0] = DST0; %s " % (self.endLinePP)
+          kStr += " c_pk_fma[1] = DST1; %s " % (self.endLinePP)
+          kStr += " c_pk_fma = tensile_fmadd_half2(a_pk_fma, b_pk_fma, c_pk_fma); %s " % (self.endLinePP)
+          kStr += " DST0 = c_pk_fma[0]; %s " % (self.endLinePP)
+          kStr += " DST1 = c_pk_fma[1]; %s " % (self.endLinePP)
+          kStr += self.endLine
       else:
         kStr += "#define TYPE_MAC(MULA,MULB,DST) " \
             + "DST = MAC(MULA,MULB,DST);" + self.endLine
@@ -1381,8 +1387,12 @@ class KernelWriterSource(KernelWriter):
     # registers for valu C
     kStr += self.endLine
     kStr += "  /* registers for MAC's */" + self.endLine
-    kStr += "  DATA_TYPE rC[TT%s*TT%s];%s" \
-        % (self.tileChar0, self.tileChar1, self.endLine )
+    if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+        kStr += "  float rC[TT%s*TT%s];%s" \
+            % (self.tileChar0, self.tileChar1, self.endLine )
+    else:
+        kStr += "  DATA_TYPE rC[TT%s*TT%s];%s" \
+            % (self.tileChar0, self.tileChar1, self.endLine )
     for i in range(0, kernel["ThreadTile0"]*kernel["ThreadTile1"]):
         kStr += "  rC[%u] = SCALAR_ZERO;%s" % (i, self.endLine)
 
