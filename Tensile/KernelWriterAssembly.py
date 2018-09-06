@@ -2895,7 +2895,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(uReg), \
           ~(kernel["LocalDotLayout"]-1), \
           vgpr(uReg), \
-          "uReg & LDL")
+          "uReg & ~LDL")
       kStr += inst("v_mul_u32_u24", \
           vgpr(uReg), \
           hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
@@ -3937,8 +3937,9 @@ class KernelWriterAssembly(KernelWriter):
   #   i : ?
   #   comment : Comment with the text version of the formula
   #############################################################################
-  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP):
+  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP, localWriteDoCnt):
     tc = tP["tensorChar"]
+    ldl = kernel["LocalDotLayout"]
     lscaOffset = para * kernel[tP["lsc"]]
     lspaOffset = perp * kernel[tP["lsp"]]
 
@@ -3955,7 +3956,7 @@ class KernelWriterAssembly(KernelWriter):
       i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
 
 
-    if kernel["LocalDotLayout"] > 1:
+    if ldl > 1:
       # apply interleave for LocalDot:
       # Else they complement the address calculation to place adjacent-in-u data
       # so adjacent-in-lds.
@@ -3963,7 +3964,7 @@ class KernelWriterAssembly(KernelWriter):
             "wtc=", tP["wtc"], "wuc=", tP["wuc"], "grcv=", tP["grcv"], \
             "lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
       spacing = tP["glvw"]
-      lscaOffset += (lspaOffset % spacing) * kernel["LocalDotLayout"]
+      lscaOffset += (lspaOffset % spacing) * ldl
       lspaOffset /= spacing
       print "    After LDL: lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
 
@@ -3988,7 +3989,16 @@ class KernelWriterAssembly(KernelWriter):
     #print "2lscaOffset", lscaOffset
     offsetElements = (lspaOffset + lscaOffset)
     #print "offsetElements", offsetElements
-    offsetBytes = offsetElements*tP["bpe"]
+    if not tP["tlu"] and ldl > 1:
+#jgolds HACK
+#Need to clean this up. Does not follow usual paradigm, but works for cases we care about with dot2
+      rem = (localWriteDoCnt) % ldl
+      quo = (localWriteDoCnt) / ldl
+      #print "quo %u, rem %u, MT %u"%(quo, rem, kernel["MacroTile%u"%tP["tensorIdx"]])
+      offsetBytes = (quo * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem)*tP["bpe"]
+    else:
+      offsetBytes = offsetElements*tP["bpe"]
+
     #print "offsetBytes", offsetBytes
     #print "offset", offset
 
@@ -4063,7 +4073,8 @@ class KernelWriterAssembly(KernelWriter):
                         sgpr("PerpOverhangVcc%s"%tc,2), \
                         "Mask load so out-of-gr-tile bounds returns 0. Note 1.0f=0x3f80000 which is large non-neg int")
             lwa = tmpLocalWriteAddr
-
+#jgolds HACK
+        loopCnt = 0
         for para in range(0, tP["nrc"]):
           for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
 
@@ -4080,8 +4091,9 @@ class KernelWriterAssembly(KernelWriter):
               elif tP["wuc"] == tP["grcv"]:
                 sPerp = s
 
-            (offset, i, comment) = self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP)
+            (offset, i, comment) = self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, loopCnt)
             g2lIdx = i*blockWidth
+            loopCnt+=1
 
 
             paramList = []
@@ -4202,9 +4214,6 @@ class KernelWriterAssembly(KernelWriter):
       if tP["localReadInstruction"].numOffsets == 1:
         ldl = kernel["LocalDotLayout"]
         if ldl > 1:
-          #jgolds
-          #HACK just hard coding to verify it works for the case I am testing
-          #partialInc = 8    # in elements
           tt = tP["tt"]
           partialInc = kernel[tt]
           if iui < (kernel["InnerUnroll"] - 1):

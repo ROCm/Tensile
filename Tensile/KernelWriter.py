@@ -938,7 +938,8 @@ class KernelWriter:
         self.writeUnrollDimComponentsA = False # Scalar
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
-          writeCoal = True
+          # LDS writes with LDL>1 will never be coalesced
+          writeCoal = False
         else:
           self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
           writeCoal = False
@@ -1037,7 +1038,8 @@ class KernelWriter:
         self.writeUnrollDimComponentsB = False
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
-          writeCoal = True
+          # LDS writes with LDL>1 will never be coalesced
+          writeCoal = False
         else:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
           writeCoal = False
