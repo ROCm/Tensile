@@ -665,11 +665,13 @@ def tryAssembler(isaVersion, asmString):
   asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
              % (globalParameters["AssemblerPath"], isaVersion)
 
-  sysCmd = "echo \"%s\" | %s %s" % \
-          (asmString, asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1")
+  sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
 
   try:
     result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT)
+    if globalParameters["PrintLevel"] >=2:
+        print "asm_cmd: ", asmCmd
+        print "output :", result
     if result != "":
       return 0 # stdout and stderr must be empty
   except subprocess.CalledProcessError, e:
