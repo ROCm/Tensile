@@ -22,6 +22,7 @@ import os.path
 import sys
 from __init__ import __version__
 from collections import OrderedDict
+import subprocess
 from subprocess import Popen, PIPE
 import time
 import platform
@@ -658,11 +659,24 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
     return exePath
   return None
 
+# Try to assemble the asmString for the specified target processor
+# Success is defined as assembler returning no error code or stderr/stdout
 def tryAssembler(isaVersion, asmString):
   asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
              % (globalParameters["AssemblerPath"], isaVersion)
-  return not os.system ("echo \"%s\" | %s %s" % \
-          (asmString, asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
+
+  sysCmd = "echo \"%s\" | %s %s" % \
+          (asmString, asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1")
+
+  try:
+    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT)
+    if result != "":
+      return 0 # stdout and stderr must be empty
+  except subprocess.CalledProcessError, e:
+    return 0 # error, not supported
+
+  return 1 # syntax works for
+
 
 ################################################################################
 # Assign Global Parameters
@@ -724,7 +738,7 @@ def assignGlobalParameters( config ):
     asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
                % (globalParameters["AssemblerPath"], isaVersion)
     # This doesn't work since assembler politely falls back to default with an unsupported mcpu argument:
-    #globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
+    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
