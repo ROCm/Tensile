@@ -567,11 +567,15 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           # "first" free index, usually the letter "I"
           free0Index = problemType["IndicesFree"][0]
           free0Char = globalParameters["IndexChars"][free0Index]
+          # "second" free index, usually the letter "J"
+          free1Index = problemType["IndicesFree"][1]
+          free1Char = globalParameters["IndexChars"][free1Index]
           s += "\n"
           s += "//  intercept schedule selection and call HIP (source) kernel\n"
-          s += "//  if either the summation size or the 'first' free index size"
-          s += " is odd\n"
-          s += "    if((((sizeL & 1) == 1) || ((size%s & 1) == 1)))\n"%(free0Char)
+          s += "//  if either the summation size or the 'first' free index size\n"
+          s += "//  is odd or the 'second' free index size is 1\n"
+          s += "    if (((sizeL & 1) == 1) || ((size%s & 1) == 1)"%(free0Char)
+          s += " || (size%s == 1))\n"%(free1Char)
           s += "    {\n"
           numSchedules = len(schedules)
           schedule = reordered_schedules[numSchedules-1]
