@@ -248,28 +248,29 @@ class LogicAnalyzer:
       self.rangeProblemSizes.update(problemSizes.sizes)
       for rangeSize in problemSizes.ranges:
 
-        # Treat ranges as pile of exacts:
-        for rsize in rangeSize.problemSizes:
-          self.exactProblemSizes.add(tuple(rsize))
-
-        if 0: # no special range treatment, those were expanded above
-            #print "RangeSize", rangeSize
-            sizedIdx = 0
-            mappedIdx = 0
-            for i in range(0, self.numIndices):
-              if rangeSize.indexIsSized[i]:
-                index = rangeSize.indicesSized[sizedIdx]
-                sizedIdx += 1
-              else:
-                index = rangeSize.indicesSized[ \
-                  rangeSize.indicesMapped[mappedIdx]]
-                mappedIdx += 1
-              currentSize = index[0]
-              currentStride = index[1]
-              while currentSize <= index[3]:
-                unifiedProblemSizes[i].add(currentSize)
-                currentSize += currentStride
-                currentStride += index[2]
+        if globalParameters["ExpandRanges"]: 
+          # Treat ranges as pile of exacts:
+          for rsize in rangeSize.problemSizes:
+            self.exactProblemSizes.add(tuple(rsize))
+        else:
+          # Create the ranges info in the logic file
+          #print "RangeSize", rangeSize
+          sizedIdx = 0
+          mappedIdx = 0
+          for i in range(0, self.numIndices):
+            if rangeSize.indexIsSized[i]:
+              index = rangeSize.indicesSized[sizedIdx]
+              sizedIdx += 1
+            else:
+              index = rangeSize.indicesSized[ \
+                rangeSize.indicesMapped[mappedIdx]]
+              mappedIdx += 1
+            currentSize = index[0]
+            currentStride = index[1]
+            while currentSize <= index[3]:
+              unifiedProblemSizes[i].add(currentSize)
+              currentSize += currentStride
+              currentStride += index[2]
     for i in range(0, len(unifiedProblemSizes)):
       unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
     print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
