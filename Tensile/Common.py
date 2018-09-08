@@ -658,6 +658,12 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
     return exePath
   return None
 
+def tryAssembler(isaVersion, asmString):
+  asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
+             % (globalParameters["AssemblerPath"], isaVersion)
+  return not os.system ("echo \"%s\" | %s %s" % \
+          (asmString, asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
+
 ################################################################################
 # Assign Global Parameters
 # each global parameter has a default parameter, and the user
@@ -717,18 +723,11 @@ def assignGlobalParameters( config ):
     isaVersion = "gfx" + "".join(map(str,v))
     asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
                % (globalParameters["AssemblerPath"], isaVersion)
-    globalParameters["AsmCaps"][v]["HasExplicitCO"] = \
-            not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" \
-                    | %s %s" % \
-                    (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
-    globalParameters["AsmCaps"][v]["HasDirectToLds"] = \
-            not os.system ("echo \"buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds\" \
-                           | %s %s" % \
-                           (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
-    globalParameters["AsmCaps"][v]["HasAddLshl"] = \
-            not os.system ("echo \"v_add_lshl_u32 v47, v36, v34, 0x2\" \
-                           | %s %s" % \
-                           (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
+    # This doesn't work since assembler politely falls back to default with an unsupported mcpu argument:
+    #globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
+    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
+    globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+    globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
