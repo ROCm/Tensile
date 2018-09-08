@@ -64,6 +64,7 @@ globalParameters["ForceRedoLibraryLogic"] = True      # if False and library log
 globalParameters["ForceRedoLibraryClient"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 0          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
+globalParameters["ExpandRanges"] = False          # expand ranges into exact configs before writing logic file
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
