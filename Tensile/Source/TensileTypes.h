@@ -70,8 +70,9 @@ TensileStatus tensileTeardown();
 #define tensileStatusCheck(RET) { \
   TensileStatus tensileCheckStatusTmp = RET; \
   if(tensileCheckStatusTmp != tensileStatusSuccess) { \
-    printf("TensileStatusFailure %i on line %u of %s\n", \
+    fprintf(stderr, "ERROR:  TensileStatusFailure %i on line %u of %s\n", \
         tensileCheckStatusTmp, __LINE__, __FILE__); \
+    abort();\
   } }
 
 template <int NumSizes, int LastSummationIdx, int Free0Idx>
