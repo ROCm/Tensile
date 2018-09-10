@@ -662,7 +662,17 @@ class KernelWriterAssembly(KernelWriter):
             ds_read_b64, ds_read2_b32, ds_read_b32 ],
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
-          } # 900
+          }, # 900
+        (9,0,6): {
+          "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
+            chosen_load_dword ],
+          "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
+            chosen_store_dword ],
+          "LocalRead": [ ds_read_b128, ds_read2_b64,
+            ds_read_b64, ds_read2_b32, ds_read_b32 ],
+          "LocalWrite": [ ds_write_b128, ds_write2_b64,
+            ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
+          } # 906
         }
 
 
