@@ -270,6 +270,10 @@ validParameters = {
     # Generate code inside kernel to check assertions above on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
+    # Generate code inside kernel to check several dimension overflow cases, in particular around use of 32-bit calcs
+    # 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection, 2=checks for cases that should never happen
+    "CheckDimOverflow":               [0,1,2],
+
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
     # N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
@@ -429,11 +433,12 @@ defaultBenchmarkCommonParameters = [
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },
-    {"PreciseBoundsCheck":        [ False ] },
+    {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
+    {"CheckDimOverflow"           : [ 0 ] },
 
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -744,6 +749,7 @@ def assignGlobalParameters( config ):
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+    globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])

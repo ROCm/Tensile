@@ -40,8 +40,6 @@ def test_hgemm_hpa_iu2_asm_nn(tmpdir):
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/hgemm_hpa_iu2_asm_nn.yaml"), tmpdir.strpath])
 
 def test_hgemm_hpa_asm_nt(tmpdir):
-<<<<<<< HEAD
-
  Tensile.Tensile([Tensile.TensileTestPath("pre_checkin/hgemm_hpa_asm_nt.yaml"), tmpdir.strpath])
 
 def test_sgemm_asm_tn(tmpdir):
