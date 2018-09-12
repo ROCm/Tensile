@@ -554,6 +554,10 @@ class KernelWriterAssembly(KernelWriter):
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
       self.version = kernel["ISA"]
+    if not globalParameters["AsmCaps"][self.version]["SupportedIsa"]:
+      defaultIsa = (9,0,0)
+      print "warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa
+      self.version = defaultIsa
 
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
