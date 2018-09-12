@@ -22,6 +22,7 @@ import os.path
 import sys
 from __init__ import __version__
 from collections import OrderedDict
+import subprocess
 from subprocess import Popen, PIPE
 import time
 import platform
@@ -111,7 +112,7 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6)]             # assembly kernels writer supports these architectures
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -658,6 +659,27 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hcc
     return exePath
   return None
 
+# Try to assemble the asmString for the specified target processor
+# Success is defined as assembler returning no error code or stderr/stdout
+def tryAssembler(isaVersion, asmString):
+  asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
+             % (globalParameters["AssemblerPath"], isaVersion)
+
+  sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
+
+  try:
+    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT)
+    if globalParameters["PrintLevel"] >=2:
+        print "asm_cmd: ", asmCmd
+        print "output :", result
+    if result != "":
+      return 0 # stdout and stderr must be empty
+  except subprocess.CalledProcessError, e:
+    return 0 # error, not supported
+
+  return 1 # syntax works for
+
+
 ################################################################################
 # Assign Global Parameters
 # each global parameter has a default parameter, and the user
@@ -717,18 +739,11 @@ def assignGlobalParameters( config ):
     isaVersion = "gfx" + "".join(map(str,v))
     asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
                % (globalParameters["AssemblerPath"], isaVersion)
-    globalParameters["AsmCaps"][v]["HasExplicitCO"] = \
-            not os.system ("echo \"v_add_co_u32 v0,vcc,v0,v0\" \
-                    | %s %s" % \
-                    (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
-    globalParameters["AsmCaps"][v]["HasDirectToLds"] = \
-            not os.system ("echo \"buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds\" \
-                           | %s %s" % \
-                           (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
-    globalParameters["AsmCaps"][v]["HasAddLshl"] = \
-            not os.system ("echo \"v_add_lshl_u32 v47, v36, v34, 0x2\" \
-                           | %s %s" % \
-                           (asmCmd, "" if globalParameters["PrintLevel"] >=2 else "> /dev/null 2>&1"))
+    # This doesn't work since assembler politely falls back to default with an unsupported mcpu argument:
+    globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
+    globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
+    globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+    globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])

@@ -554,6 +554,10 @@ class KernelWriterAssembly(KernelWriter):
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
       self.version = kernel["ISA"]
+    if not globalParameters["AsmCaps"][self.version]["SupportedIsa"]:
+      defaultIsa = (9,0,0)
+      print "warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa
+      self.version = defaultIsa
 
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
@@ -662,7 +666,17 @@ class KernelWriterAssembly(KernelWriter):
             ds_read_b64, ds_read2_b32, ds_read_b32 ],
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
-          } # 900
+          }, # 900
+        (9,0,6): {
+          "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
+            chosen_load_dword ],
+          "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
+            chosen_store_dword ],
+          "LocalRead": [ ds_read_b128, ds_read2_b64,
+            ds_read_b64, ds_read2_b32, ds_read_b32 ],
+          "LocalWrite": [ ds_write_b128, ds_write2_b64,
+            ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
+          } # 906
         }
 
 
@@ -1408,28 +1422,28 @@ class KernelWriterAssembly(KernelWriter):
                       % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
-                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //ValuC[%u] iua=%u iub=%u%s" % (cStr, aStr, bStr, cStr, cidx, iua, iub, self.endLine)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u] iua=%u iub=%u%s" % (cStr, aStr, bStr, cStr, cidx, iua, iub, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
                   aStr = "v[%s+%u]" \
                       % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
                   bStr = "v[%s+%u]" \
                       % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
-                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   #kStr += self.bomb(-13)
                   """
                   ignore this, not quite correct for mixed precision
@@ -2998,7 +3012,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(uReg), \
           ~(kernel["LocalDotLayout"]-1), \
           vgpr(uReg), \
-          "uReg & LDL")
+          "uReg & ~LDL")
       kStr += inst("v_mul_u32_u24", \
           vgpr(uReg), \
           hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
@@ -3178,7 +3192,6 @@ class KernelWriterAssembly(KernelWriter):
 
     #if tP["isA"]:
     #  kStr += self.bomb(113)
-
 
     # dump lra final offset
     #if tP["isA"]:
@@ -4041,8 +4054,9 @@ class KernelWriterAssembly(KernelWriter):
   #   i : ?
   #   comment : Comment with the text version of the formula
   #############################################################################
-  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP):
+  def calculateLdsWriteOffset(self, perp, para, sPerp, sPara, kernel, tP, localWriteCnt):
     tc = tP["tensorChar"]
+    ldl = kernel["LocalDotLayout"]
     lscaOffset = para * kernel[tP["lsc"]]
     lspaOffset = perp * kernel[tP["lsp"]]
 
@@ -4059,7 +4073,7 @@ class KernelWriterAssembly(KernelWriter):
       i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
 
 
-    if kernel["LocalDotLayout"] > 1:
+    if ldl > 1:
       # apply interleave for LocalDot:
       # Else they complement the address calculation to place adjacent-in-u data
       # so adjacent-in-lds.
@@ -4067,7 +4081,7 @@ class KernelWriterAssembly(KernelWriter):
             "wtc=", tP["wtc"], "wuc=", tP["wuc"], "grcv=", tP["grcv"], \
             "lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
       spacing = tP["glvw"]
-      lscaOffset += (lspaOffset % spacing) * kernel["LocalDotLayout"]
+      lscaOffset += (lspaOffset % spacing) * ldl
       lspaOffset /= spacing
       print "    After LDL: lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
 
@@ -4092,7 +4106,16 @@ class KernelWriterAssembly(KernelWriter):
     #print "2lscaOffset", lscaOffset
     offsetElements = (lspaOffset + lscaOffset)
     #print "offsetElements", offsetElements
-    offsetBytes = offsetElements*tP["bpe"]
+    if not tP["tlu"] and ldl > 1:
+#jgolds HACK
+#Need to clean this up. Does not follow usual paradigm, but works for cases we care about with dot2
+      rem = (localWriteCnt) % ldl
+      quo = (localWriteCnt) / ldl
+      #print "quo %u, rem %u, MT %u"%(quo, rem, kernel["MacroTile%u"%tP["tensorIdx"]])
+      offsetBytes = (quo * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem)*tP["bpe"]
+    else:
+      offsetBytes = offsetElements*tP["bpe"]
+
     #print "offsetBytes", offsetBytes
     #print "offset", offset
 
@@ -4167,7 +4190,8 @@ class KernelWriterAssembly(KernelWriter):
                         sgpr("PerpOverhangVcc%s"%tc,2), \
                         "Mask load so out-of-gr-tile bounds returns 0. Note 1.0f=0x3f80000 which is large non-neg int")
             lwa = tmpLocalWriteAddr
-
+#jgolds HACK
+        loopCnt = 0
         for para in range(0, tP["nrc"]):
           for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
 
@@ -4184,8 +4208,9 @@ class KernelWriterAssembly(KernelWriter):
               elif tP["wuc"] == tP["grcv"]:
                 sPerp = s
 
-            (offset, i, comment) = self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP)
+            (offset, i, comment) = self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, loopCnt)
             g2lIdx = i*blockWidth
+            loopCnt+=1
 
 
             paramList = []
@@ -4220,7 +4245,7 @@ class KernelWriterAssembly(KernelWriter):
     if 0:
       kStr += inst("s_barrier", "temp debug wait to check sync issue" )
 
-    if 0 and tP["isA"]:
+    if 0 and tP["isB"]:
     #if 0 and self.localWriteDoCnt >= 0:
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
       kStr += inst("s_barrier", "dump LDS" )
@@ -4306,9 +4331,8 @@ class KernelWriterAssembly(KernelWriter):
       if tP["localReadInstruction"].numOffsets == 1:
         ldl = kernel["LocalDotLayout"]
         if ldl > 1:
-          #jgolds
-          #HACK just hard coding to verify it works for the case I am testing
-          partialInc = 8    # in elements
+          tt = tP["tt"]
+          partialInc = kernel[tt]
           if iui < (kernel["InnerUnroll"] - 1):
             tP["localReadOffset"] += partialInc
           else:

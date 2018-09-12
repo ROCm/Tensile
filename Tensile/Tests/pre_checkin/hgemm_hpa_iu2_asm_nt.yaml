@@ -5,13 +5,13 @@ GlobalParameters:
   KernelTime: True
 
 BenchmarkProblems:
-  - # hgemm TN
+  - # hgemm NT
     - # ProblemType
       OperationType: GEMM
       DataType: h
       HighPrecisionAccumulate: True
-      TransposeA: True
-      TransposeB: False
+      TransposeA: False
+      TransposeB: True
       UseBeta: True
       Batched: True
 
