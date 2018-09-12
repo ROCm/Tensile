@@ -1772,11 +1772,17 @@ class KernelWriterAssembly(KernelWriter):
         ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), kernel["BufferStore"]), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"]), \
         ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"]) ]:
+
+      # BufferStore does not use this macro so don't generate it:
+      if tensorChar == "C" and kernel["BufferStore"]:
+        continue
+
       kStr += self.comment("Global Offset %s"%tensorChar)
       numDim = len(indices)
       idxChars = []
       for i in indices:
         idxChars.append(self.indexChars[i])
+
 
       # macro declaration
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr"%tensorChar
@@ -1787,7 +1793,7 @@ class KernelWriterAssembly(KernelWriter):
             or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
           kStr += " vgprOffset%s" % idxChars[i]
         # other c index sgpr
-        elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+        elif indices[i] < kernel["ProblemType"]["NumIndicesC"] and not justOffset32:
           kStr += " sgprOffset%s" % idxChars[i]
         # other sum index
         else:
@@ -1829,7 +1835,7 @@ class KernelWriterAssembly(KernelWriter):
                 "mul d%u upper"%i)
           needAdd = 1
         # other c index sgpr
-        elif indices[i] < kernel["ProblemType"]["NumIndicesC"]:
+        elif indices[i] < kernel["ProblemType"]["NumIndicesC"] and not justOffset32:
           kStr += inst("v_mov_b32", \
               "v[\\vgprTmp+2]", \
               "s[\\sgprOffset%s]"%idxChars[i], \
@@ -1839,7 +1845,7 @@ class KernelWriterAssembly(KernelWriter):
               "v[\\vgprTmp+0]", \
               sgpr("Strides%s+%u"%(tensorChar,i-1)), \
               "v[\\vgprTmp+2]",  \
-              "mul d%u lower"%i)
+              "other stride mul d%u lower"%i)
           if not justOffset32:
             kStr += inst("v_mul_hi_u32", \
                 "v[\\vgprTmp+1]", \
@@ -1852,10 +1858,11 @@ class KernelWriterAssembly(KernelWriter):
           # don't even need to add b/c offset=zero
           needAdd = 0
 
+        destLo = "v[\\vgprAddr+0]"
         if needAdd:
           # addr += offset * stride (lo)
           kStr += inst("_v_add_co_u32", \
-              "v[\\vgprAddr+0]", \
+              destLo, \
               "vcc", \
               "v[\\vgprTmp+0]", \
               offset, \
@@ -1870,12 +1877,13 @@ class KernelWriterAssembly(KernelWriter):
                 "vcc", \
                 "accumulate d%u upper"%i)
         else:
-          kStr += inst("v_mov_b32", "v[\\vgprAddr+0]", offset, "d0 lower")
+          if destLo != offset:
+            kStr += inst("v_mov_b32", destLo, offset, "setup d0 lower")
           if not justOffset32:
             kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
 
         # Change offset for subsequent dims (if needed)
-        offset = "v[\\vgprAddr+0]"
+        offset = destLo
 
       # addr *= bytes/element
 #jgolds which bpe should we use? assuming A
@@ -2651,7 +2659,7 @@ class KernelWriterAssembly(KernelWriter):
                 if i < kernel["ProblemType"]["NumIndicesC"]:
                   if i == tP["tileIdx"]:
                     kStr += ", %2u" % vgprTile
-                  else: # just a group index
+                  elif not kernel["BufferLoad"]: # just a group index
                     kStr += ", sgprWorkGroup%u"%i
                 else: # summation index
                   if i == kernel["ProblemType"]["IndexUnroll"]:
@@ -2737,6 +2745,8 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tileOffsets)
     self.vgprPool.checkIn(unrollOffsets)
     self.vgprPool.checkIn(tmp)
+    #if tP["isB"]:
+    #  kStr += self.bomb(0x100)
 
     if kernel["FractionalLoad"] and kernel["fractionalPerpOverhang%s"%tc]:
       overhang = kernel["fractionalPerpOverhang%s"%tc]
@@ -2760,8 +2770,44 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("moved earlier")
     return kStr
 
+
   ##############################################################################
-  # Global Read Addresses: Addresses A/B
+  # Add the constant offsets to the specified srd.
+  # Srd is set to point to the base of the tile. All offsets except last stride
+  # will be applied into the SRD.
+  # GRO are offset from the tile SRD and the first GRO will be 0
+  ##############################################################################
+  def computeSrdBase(self, kernel, tc, indices, bpe):
+    kStr = ""
+    numDim = len(indices)
+    tmpS0 = self.getTmpSgpr(1)
+    addrItems = 0
+    for i in range(1, numDim):
+      idx = indices[i]
+      if idx == kernel["ProblemType"]["Index0"] \
+          or idx == kernel["ProblemType"]["Index1"] \
+          or idx == kernel["ProblemType"]["IndexUnroll"]:
+            continue # these will be captured in GRO not the SRD
+      else:
+        # TODO - extend to 64 bit calc s_mul_hi ?
+        if addrItems==0:
+          kStr += inst("s_mul_i32", sgpr(tmpS0), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "scalar idx offset for srd")
+        else:
+          kStr += inst("s_mul_i32", sgpr(tmpS1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "scalar idx offset for srd")
+          kStr += inst("s_add_u32", sgpr(tmpS0), sgpr(tmpS0), sgpr(tmpS1), "accum with prev idx")
+        addrItems += 1
+
+    if addrItems:
+      kStr += inst("s_mul_i32", sgpr(tmpS0), sgpr(tmpS0), bpe, "scale by bpe")
+      kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("Srd%s+0"%tc), sgpr(tmpS0), "add lo to SRD")
+      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), 0, "add hi to SRD")
+
+    return kStr
+
+
+
+##############################################################################
+# Global Read Addresses: Addresses A/B
   ##############################################################################
   def graAddresses(self, kernel, tP):
     kStr = ""
@@ -2771,18 +2817,21 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferLoad"]:
       # maxAddrSgpr = size[n] * stride[n-1]
       kStr += self.comment1("max read offset = size[n] * stride[n-1]")
-      dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
-      sizeIdx = tP["ia"][dim]
-
-      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-      if sizeIdxIsSum:
-        sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
 
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
-      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower)" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
+      kStr += self.computeSrdBase(kernel, tc, kernel["ProblemType"]["IndexAssignments%s"%tc], tP["bpe"])
+
       if kernel["PreciseBoundsCheck"]:
+        dim = len(tP["ia"])-1 # dim
+        strideIdx = dim-1 # largest stride
+        sizeIdx = tP["ia"][dim]
+
+        sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+        if sizeIdxIsSum:
+          sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+
         kStr += inst("s_mul_i32", \
             sgpr("Srd%s+2"%tc), \
             sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
@@ -2905,6 +2954,8 @@ class KernelWriterAssembly(KernelWriter):
 
     #kStr += dump(vgpr("GlobalReadIncs%s"%tP["tensorChar"]))
     #kStr += "s_endpgm\n"
+    #if tP["isB"]:
+    #  kStr += self.bomb(0x100)
     return kStr
 
   ##############################################################################
@@ -3465,6 +3516,13 @@ class KernelWriterAssembly(KernelWriter):
            sgpr("Srd%s+2"%(tc)), \
            incLower, \
             "limit -= inc)" )
+      #kStr += inst("s_cselect_b32 ", \
+      #    sgpr("Srd%s+2"%(tc)), \
+      #    0, \
+      #    sgpr("Srd%s+2"%(tc)), \
+      #      "catch overflow -> set limit to 0" )
+      #if tP["isB"]:
+      #  kStr += self.bomb(0x100)
 
     return kStr
 
