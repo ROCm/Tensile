@@ -1821,33 +1821,33 @@ class KernelWriter:
       assemblerProcess = Popen(assemblerCommand, \
           cwd=asmPath )
       assemblerProcess.communicate()
-      if assemblerProcess.returncode:
-        printExit("Assembler process returned with code %u" \
-            % assemblerProcess.returncode)
 
-      # read code object file
       fileString = ""
-      if not globalParameters["CodeFromFiles"]:
-        codeObjectFile = open(codeObjectFileName, "r")
-        codeObjectByteArray = bytearray(codeObjectFile.read())
-        codeObjectFile.close()
-  
-        # write code object byte array
-        fileString += self.comment("code object byte array")
-        fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
-        for byteIdx in range(0, len(codeObjectByteArray)):
-          byte = codeObjectByteArray[byteIdx]
-          fileString += "0x%02x" % byte
-          if byteIdx < len(codeObjectByteArray)-1:
-            fileString += ","
-          else:
-            fileString += "};\n"
-          if byteIdx % 16 == 15:
-            fileString += "\n"
+      if assemblerProcess.returncode:
+        error = -1
+      else:
+        # read code object file
+        if not globalParameters["CodeFromFiles"]:
+          codeObjectFile = open(codeObjectFileName, "r")
+          codeObjectByteArray = bytearray(codeObjectFile.read())
+          codeObjectFile.close()
+
+          # write code object byte array
+          fileString += self.comment("code object byte array")
+          fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
+          for byteIdx in range(0, len(codeObjectByteArray)):
+            byte = codeObjectByteArray[byteIdx]
+            fileString += "0x%02x" % byte
+            if byteIdx < len(codeObjectByteArray)-1:
+              fileString += ","
+            else:
+              fileString += "};\n"
+            if byteIdx % 16 == 15:
+              fileString += "\n"
 
 
-      # read code-object file and convert to c++ representable uchar*
-      # return string of code-object byte array
+    # read code-object file and convert to c++ representable uchar*
+    # return string of code-object byte array
     return (error, fileString)
 
 
