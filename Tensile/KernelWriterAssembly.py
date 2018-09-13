@@ -679,6 +679,12 @@ class KernelWriterAssembly(KernelWriter):
           } # 906
         }
 
+    if self.version == (9,0,0):
+      mixinst = "v_mad_mix_f32"
+    elif self.version == (9,0,6):
+      mixinst = "v_fma_mix_f32"
+    else:
+      mixinst = "NOT_SUPPORTED"
 
     self.overflowedResources = False # if true, comment out whole kernel
 
@@ -6181,7 +6187,7 @@ class KernelWriterAssembly(KernelWriter):
                 # src2 = sumIdxV = f32 = opsel 00
                 dataCExternal = elementData[elementIdx] + vi/2
                 hi16 = sumIdxV%2
-                kStr += inst("v_mad_mix_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Beta"), \
+                kStr += inst(self.mixinst, vgpr("ValuC+%u"%sumIdxV), sgpr("Beta"), \
                     vgpr(dataCExternal), vgpr("ValuC+%u"%sumIdxV), \
                     "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (hi16), \
                     "//C*=beta")
