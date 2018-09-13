@@ -680,11 +680,11 @@ class KernelWriterAssembly(KernelWriter):
         }
 
     if self.version == (9,0,0):
-      mixinst = "v_mad_mix_f32"
+      self.mixinst = "v_mad_mix_f32"
     elif self.version == (9,0,6):
-      mixinst = "v_fma_mix_f32"
+      self.mixinst = "v_fma_mix_f32"
     else:
-      mixinst = "NOT_SUPPORTED"
+      self.mixinst = "NOT_SUPPORTED"
 
     self.overflowedResources = False # if true, comment out whole kernel
 
