@@ -3900,7 +3900,7 @@ class KernelWriterAssembly(KernelWriter):
 
                   # Get offset (for checking, see comment below) and comment:
                   (checkOffset, iDummy, comment) = \
-                      self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP)
+                      self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, 0)
                   # Direct to LDS always writes consecutive LDS locations at m0 + 4 * TidInWave
                   # Therefore we double-check here to ensure the desired LDS write offset
                   # is moving at NumThreads*4.  This should already be guaranteed since
