@@ -159,6 +159,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
             kiStart, kiStop, child)
       t = multiprocessing.Process(target=processKernelSourceChunk, args=args)
       t.start()
+      child.close() # close child pipe in the parent process
       threads.append([t,kiStart,kiStop, parentConn])
       if processLaunchProgressBar:
         processLaunchProgressBar.increment(kiStop-kiStart)
@@ -174,7 +175,11 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
 
   someError = 0
   for (t,kiStart,kiStop,parentConn) in threads:
-    results = parentConn.recv()
+    try:
+      results = parentConn.recv()
+    except EOFError as pipeErr:
+      print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
+
     t.join()
     e = t.exitcode
     if e != 0 :
