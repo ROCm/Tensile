@@ -3714,11 +3714,13 @@ class KernelWriterAssembly(KernelWriter):
 
     directToLdsLoads = 0
 
+    loopCnt = -1
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
             i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+            loopCnt += 1
             graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
             g2lIdx = i * loadWidth
             if guardK:
@@ -3894,7 +3896,7 @@ class KernelWriterAssembly(KernelWriter):
 
                   # Get offset (for checking, see comment below) and comment:
                   (checkOffset, iDummy, comment) = \
-                      self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP)
+                      self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, loopCnt)
                   # Direct to LDS always writes consecutive LDS locations at m0 + 4 * TidInWave
                   # Therefore we double-check here to ensure the desired LDS write offset
                   # is moving at NumThreads*4.  This should already be guaranteed since
