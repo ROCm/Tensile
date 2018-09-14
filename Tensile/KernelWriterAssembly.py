@@ -1415,7 +1415,7 @@ class KernelWriterAssembly(KernelWriter):
                 # we treat HighPrecisionAccumulate as expanded packed math
                 b = blockB*2
                 a = blockA*2
-                if kernel["LocalDotLayout"] > 1:    # Only supports LocalDotLayout == 2 for now
+                if kernel["LocalDotLayout"] > 1 and innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
                   lcldot = kernel["LocalDotLayout"]
                   iua = blockA / ((kernel["ThreadTileA"]/2) / lcldot)
                   iub = blockB / ((kernel["ThreadTileB"]/2) / lcldot)
