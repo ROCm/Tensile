@@ -1475,14 +1475,25 @@ class Solution:
     # check is used since this is faster and also for computation we only
     # need to ensure that none of the loads fault.  threads which are
     # computing bogus sections of the C tile will later be ignored.
-    # precise checking only works for vectorloads<=AssertSummationElementMultiple
-    # else if the vload crosses boundary we ignore all components not just the
-    # ones that are OOB.
+    # precise checking only works when all elements of the load are in-bounds
+    # since if the vload crosses boundary we ignore all components not just the
+    # ones that are OOB.  So check for the cases where the unroll loop can
+    # generate partial loads here and reject PBC solutions:
+    # For non-TLU the free dim is in perp dim so loads can't be partially OOB 
+    # so those always guaranteeeNoPartial*=True
+    if state["ProblemType"]["TLUA"]:
+      guaranteeeNoPartialA = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+    else:
+      guaranteeeNoPartialA = True
+
+    if state["ProblemType"]["TLUB"]:
+      guaranteeNoPartialB = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+    else:
+      guaranteeNoPartialB = True
+
     if state["PreciseBoundsCheck"]:
-      if  state["GlobalLoadVectorWidthA"] > \
-          state["AssertSummationElementMultiple"] \
-          or state["GlobalLoadVectorWidthB"] > \
-          state["AssertSummationElementMultiple"]:
+      if not guaranteeeNoPartialA or not guaranteeNoPartialB:
+        # TODO - change to reject?
         state["PreciseBoundsCheck"] = False
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
@@ -1493,7 +1504,7 @@ class Solution:
       state["UseSgprForGRO"] = 0
 
     if state["UseSgprForGRO"] == -1:
-      # Don't use SGPR if it looks like we might not have enough:
+      # Don't use SGPR if it looks like we might not have enough - better to leave PBC enabled even if we have to use VGPR
       # 40 is based on current SGPR usage, this may need to be tuned in the future:
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
