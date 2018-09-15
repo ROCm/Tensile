@@ -39,7 +39,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - CheckDimOverflow: [False, True]
+        - CheckDimOverflow: [0, 1, 2]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
