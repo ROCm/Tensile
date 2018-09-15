@@ -44,8 +44,6 @@ BenchmarkProblems:
 
       ForkParameters:
         - FractionalLoad: [1]
-          # Set to enable PBC and functional code-gen - else should get GLVW=1 path
-        - AssertSummationElementMultiple: [4]
         - PrefetchGlobalRead: [0]
         - PrefetchLocalRead: [1]
         - ThreadTile:
