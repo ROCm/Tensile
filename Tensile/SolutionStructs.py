@@ -1477,9 +1477,10 @@ class Solution:
     # computing bogus sections of the C tile will later be ignored.
     # precise checking only works when all elements of the load are in-bounds
     # since if the vload crosses boundary we ignore all components not just the
-    # ones that are OOB.  So check for the cases where the unroll loop can
+    # ones that are OOB. See comments for groOffsetInMacroTile
+    # So check for the cases where the unroll loop can
     # generate partial loads here and reject PBC solutions:
-    # For non-TLU the free dim is in perp dim so loads can't be partially OOB 
+    # For non-TLU the free dim is in perp dim so loads can't be partially OOB
     # so those always guaranteeeNoPartial*=True
     if state["ProblemType"]["TLUA"]:
       guaranteeeNoPartialA = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
@@ -1491,9 +1492,9 @@ class Solution:
     else:
       guaranteeNoPartialB = True
 
+    #--
     if state["PreciseBoundsCheck"]:
       if not guaranteeeNoPartialA or not guaranteeNoPartialB:
-        # TODO - change to reject?
         state["PreciseBoundsCheck"] = False
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.

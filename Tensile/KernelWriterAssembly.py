@@ -548,6 +548,9 @@ class KernelWriterAssembly(KernelWriter):
     # True can allow Buffer-Based logic to have significantly higher range and handle larger tensors
     # But does not work with the PointerShift logic.
     # Can be enabled with PBC (does not use branch logic) or if assertions guarantee no shift needed
+    # groOffsetInMacroTile doesn't work with pointer-shift because it sets the SRD to point to the
+    # start of the macro-tile - if we overhang by small number of elements (<GRVW) then can't shift
+    # back to get all the data.
     self.groOffsetInMacroTile = kernel["PreciseBoundsCheck"]
 
     # use 64-bit buffer limit shadow register, only works with PBC
@@ -1184,7 +1187,6 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("StridesA", self.numSgprStridesA)
     self.defineSgpr("StridesB", self.numSgprStridesB)
     self.defineSgpr("AddressA", numSgprAddressA)
-    self.defineSgpr("AddressB", numSgprAddressB)
     self.defineSgpr("AddressB", numSgprAddressB)
     if kernel["FractionalLoad"]:
       if kernel["fractionalPerpOverhangA"]:
@@ -2634,19 +2636,20 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.groOffsetInMacroTile:
       # Subtract the static component from SizesFree:
+      # TODO - this code is dead since PreciseBoundsCheck returns above
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), sgpr(tmpSgpr), \
                 "edge = Size%s - WG*MT"%(tP["tileChar"]))
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), margin, "edge -= margin")
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
-          "edge = Size%s-%u"%(tP["tileChar"], margin) )
+          "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
     else:
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), margin, \
           "edge = Size%s-%u"%(tP["tileChar"], margin) )
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
-          "edge = Size%s-%u"%(tP["tileChar"], margin) )
+          "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
 
     if kernel["CheckDimOverflow"]:
       # if tensor is really skinnty (SizesFree is less then glvw) then shifting fails-
@@ -2898,6 +2901,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffet term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
 
+
     # Output : tileStart[0:1] have offset in elements that should be applied to the SRD base and wroteTileStart == True
     # if groOffsetInMacroTile=1, this will be the start of the macro-tile; else will include the constant offsets from WG>1 including batch count
 
@@ -2933,9 +2937,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_sub_u32", sgpr(limitTmp0), sgpr(limitTmp0), sgpr(tileStart+0), "sub tileStart")
       kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr(limitTmp1), sgpr(tileStart+1), "sub tileStart")
 
-      if kernel["CheckDimOverflow"]>=2:
-        kStr += self.assert_no_shift_of(sgpr(limitTmp0), tP["bpe"], sgpr(stmp+1)) # can multiply by BPE
-
       if self.use64bPbcLimit:
         # Set initial buffer limit
         # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments, and when we get within 32-bit we start to step down the SRD
@@ -2959,8 +2960,9 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
-    if kernel["CheckDimOverflow"]>=2:
-      # double-check to make sure the SRD limit is inside the allowed tensor:A
+    if kernel["PreciseBoundsCheck"] and kernel["CheckDimOverflow"]>=2:
+      # double-check to make sure the SRD limit is inside the allowed tensor:
+      # (only works in PBC mode since otherwise we set the limit to BufferLimit)
       #   - compute size of tensor in elements (including all dimensions)
       #   - subtract the SRD base and SRD buffer limit
       #   - Make sure the 64bit result is >0
@@ -3003,6 +3005,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.comment1("max read offset = size[n] * stride[n-1]")
 
       # Buffer-load uses one base read pointer stored in the SRD - set it here:
+      # TODO - move these two moves into computeSrd, and fold into existing addr calc
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
       kStr += self.computeSrd(kernel, tP, tc, kernel["ProblemType"]["IndexAssignments%s"%tc], tP["bpe"])
@@ -3796,8 +3799,8 @@ class KernelWriterAssembly(KernelWriter):
       ########################################
       # Calculate Max Addr
       ########################################
-      maxAddrSgpr = self.getTmpSgpr(4) # 3+6 = 9 sgprs available
-      tmpSgpr = maxAddrSgpr + 2 # 7 sgprs available
+      maxAddrSgpr = self.getTmpSgpr(4)
+      tmpSgpr = maxAddrSgpr + 2
       #dumpVgpr = self.vgprPool.checkOut(1)
 
       # Assumes the product of the two sizes is <4GB here.
@@ -3851,6 +3854,9 @@ class KernelWriterAssembly(KernelWriter):
               sgpr(maxAddrSgpr+1), \
               sgpr(tmpSgpr+1), \
               "Max byte offset =  MaxSize - SRD_Distance")
+
+          if kernel["CheckDimOverflow"]>=2:
+            kStr += self.assert_eq(sgpr(maxAddrSgpr+1), 0)
 
         else: # not BufferLoad
           kStr += inst("s_add_u32", \

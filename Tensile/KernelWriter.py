@@ -73,12 +73,14 @@ class KernelWriter:
     kStr += self.allocateResources(kernel)
 
     if kernel["ProblemType"]["TLUA"]:
+      # TODO - enable more aggressive path
       #guaranteeeNoPartialA = kernel["AssertFree0ElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
       guaranteeeNoPartialA = kernel["GlobalLoadVectorWidthA"]==1
     else:
       guaranteeeNoPartialA = True
 
     if kernel["ProblemType"]["TLUB"]:
+      # TODO - enable more aggressive path
       #guaranteeeNoPartialB = kernel["AssertFree1ElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
       guaranteeeNoPartialB = kernel["GlobalLoadVectorWidthB"]==1
     else:
