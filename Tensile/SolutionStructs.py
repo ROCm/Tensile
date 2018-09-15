@@ -1502,6 +1502,8 @@ class Solution:
     # individual vector registers doing bounds compares.
     if not state["PreciseBoundsCheck"]:
       state["UseSgprForGRO"] = 0
+      if state["FractionalLoad"]:
+        reject(state, "Fractional currently requires PreciseBoundsCheck") # debug this later
 
     if state["UseSgprForGRO"] == -1:
       # Don't use SGPR if it looks like we might not have enough - better to leave PBC enabled even if we have to use VGPR
