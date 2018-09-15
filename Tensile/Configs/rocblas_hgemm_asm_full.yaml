@@ -47,7 +47,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
       ForkParameters:
@@ -134,7 +133,6 @@ BenchmarkProblems:
 #       - EdgeType: ["ShiftPtr"]
 #       - LoopTail: [True]
 #       - KernelLanguage: ["Assembly"]
-#       - PreciseBoundsCheck: [False]
 #       - PrefetchGlobalRead: [True]
 #       - PrefetchLocalRead: [True]
 #       - WorkGroupMapping: [1]
@@ -186,7 +184,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
@@ -298,7 +295,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchLocalRead: [True]
         - GlobalSplitU: [1]
       ForkParameters:
@@ -422,7 +418,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
@@ -456,7 +451,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [ True ]
         - PrefetchLocalRead: [ True ]
       ForkParameters:
@@ -505,7 +499,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - PrefetchGlobalRead: [ False, True ]
         - PrefetchLocalRead: [ False]
@@ -632,7 +625,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
       ForkParameters:
@@ -684,7 +676,6 @@ BenchmarkProblems:
 #       - EdgeType: ["ShiftPtr"]
 #       - LoopTail: [True]
 #       - KernelLanguage: ["Assembly"]
-#       - PreciseBoundsCheck: [False]
 #       - PrefetchGlobalRead: [True]
 #       - PrefetchLocalRead: [True]
 #       - WorkGroupMapping: [1]
@@ -730,7 +721,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
@@ -804,7 +794,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - GlobalSplitU: [1]
@@ -923,7 +912,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
@@ -1040,7 +1028,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
@@ -1084,7 +1071,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - GlobalSplitU: [1]
@@ -1128,7 +1114,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [1]
@@ -1245,7 +1230,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
       ForkParameters:
@@ -1287,7 +1271,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchLocalRead: [True]
         - GlobalSplitU: [1]
       ForkParameters:
@@ -1324,7 +1307,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
         - WorkGroupMapping: [-1]
