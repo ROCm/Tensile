@@ -72,6 +72,18 @@ class KernelWriter:
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
 
+    if kernel["ProblemType"]["TLUA"]:
+      #guaranteeeNoPartialA = kernel["AssertFree0ElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
+      guaranteeeNoPartialA = kernel["GlobalLoadVectorWidthA"]==1
+    else:
+      guaranteeeNoPartialA = True
+
+    if kernel["ProblemType"]["TLUB"]:
+      #guaranteeeNoPartialB = kernel["AssertFree1ElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
+      guaranteeeNoPartialB = kernel["GlobalLoadVectorWidthB"]==1
+    else:
+      guaranteeeNoPartialB = True
+
     if self.enable["PreLoop"]:
       ####################################
       # Global Read Addresses
@@ -122,15 +134,10 @@ class KernelWriter:
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
-        # don't shift if ASEM guarantees it is not needed:
-        noPartialA = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
-        noPartialB = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
-        if not noPartialA:
-            kStr += self.comment("global read addresses: shift a")
-            kStr += self.graShift(kernel, tensorParametersA)
-        if not noPartialB:
-            kStr += self.comment("global read addresses: shift b")
-            kStr += self.graShift(kernel, tensorParametersB)
+        kStr += self.comment("global read addresses: shift a")
+        kStr += self.graShift(kernel, tensorParametersA)
+        kStr += self.comment("global read addresses: shift b")
+        kStr += self.graShift(kernel, tensorParametersB)
       elif kernel["EdgeType"] == "Branch":
         kStr += self.comment("global read addresses: branch a")
         kStr += self.graBranch(kernel, tensorParametersA)
@@ -676,18 +683,16 @@ class KernelWriter:
 
         # noPartial means each component in the vector loads is always valid.  In this case we
         # don't need the awkward unshift code
-        noPartialA = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
-        noPartialB = kernel["AssertSummationElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
         # TODO : the unshift code is complex and currently appears broken.  Long-term want to use
-        # the AssertSummationElementMultiple>glvw code as often as possible, or use buffer-load-x1
+        # the Assert*ElementMultiple>glvw code as often as possible, or use buffer-load-x1
         # in cases where it can't be used.  Then can remove this path.
 
         # shift vector components d0
-        if not noPartialA and self.readTileDimVectorA and kernel["GlobalLoadVectorWidthA"] > 1:
+        if not guaranteeeNoPartialA and self.readTileDimVectorA:
           kStr += self.comment("shift vector components d0")
           kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
-        if not noPartialB and self.readTileDimVectorB and kernel["GlobalLoadVectorWidthB"] > 1:
+        if not guaranteeeNoPartialB and self.readTileDimVectorB:
           kStr += self.comment("shift vector components d1")
           kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 
