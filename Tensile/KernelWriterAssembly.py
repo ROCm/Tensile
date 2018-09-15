@@ -2179,6 +2179,8 @@ class KernelWriterAssembly(KernelWriter):
                 kernel["AssertSummationElementMultiple"], 0x1001)
       kStr += self.assert_multiple_b32(sgpr("SizesFree+0"),
                 kernel["AssertFree0ElementMultiple"], 0x1002)
+      kStr += self.assert_multiple_b32(sgpr("SizesFree+1"),
+                kernel["AssertFree1ElementMultiple"], 0x1003)
 
     return kStr
 
@@ -2946,7 +2948,7 @@ class KernelWriterAssembly(KernelWriter):
         # put limit directly into SRD:
         kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc),  sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
     else:
-      # PreciseBoundsCheck=0, just pick a large max - we conditionally set some offset to -1 to force OOB
+      # PreciseBoundsCheck=0, just pick a large max - later conditionally set some offsets to -1 to force OOB
       kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit", "")
 
     # Add the tile start to the SRD
@@ -3798,7 +3800,6 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr = maxAddrSgpr + 2 # 7 sgprs available
       #dumpVgpr = self.vgprPool.checkOut(1)
 
-      # TODO-64B:
       # Assumes the product of the two sizes is <4GB here.
       # We would need to slide the SRD if this is not the case.
       kStr += self.comment1("max read address = size[n] * stride[n-1]")
@@ -5973,7 +5974,7 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += inst("v_mov_b32", vgpr(addr), 0x0, "bozo")
         if edge:
           # Set address to -1 if OOB on either dimension
-          # TODO - for PreciseBoundsCheck we could set bounds on C to tile dim
+          # TODO - for PreciseBoundsCheckStore we could set bounds on C to tile dim
           # and only check the x/coord0 index here, save a couple inst
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(     coordVgpr0), sgpr("SizesFree+0"), "coord0 < size0" )
           kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coordVgpr1), sgpr("SizesFree+1"), "coord1 < size1" )

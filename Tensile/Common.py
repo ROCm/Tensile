@@ -267,6 +267,14 @@ validParameters = {
     # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
+    # When creating the kernel, assume that the 'second' free index size is some
+    # multiple of the element size.
+    # "first" free index is FreeIndex[1] and usually letter "J"
+    # 1 indicates no restriction (since all sizes are multiples of 1)
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
+    #"AssertFree1ElementMultiple" : [1,2,4,8],
+    "AssertFree1ElementMultiple" : [1],  # TODO, support broader range here
+
     # Generate code inside kernel to check assertions above on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -437,6 +445,7 @@ defaultBenchmarkCommonParameters = [
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
+    {"AssertFree1ElementMultiple": [ 1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
