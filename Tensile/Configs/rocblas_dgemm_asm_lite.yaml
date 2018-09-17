@@ -66,7 +66,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -115,7 +114,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -176,7 +174,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -225,7 +222,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -287,7 +283,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -336,7 +331,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -397,7 +391,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -446,7 +439,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:

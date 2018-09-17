@@ -45,7 +45,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -71,7 +70,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -99,7 +97,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -156,7 +153,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -180,7 +176,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - PrefetchGlobalRead: [True]
         - ThreadTile:
@@ -212,7 +207,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -240,7 +234,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -297,7 +290,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -323,7 +315,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -363,7 +354,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
@@ -389,7 +379,6 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - PreciseBoundsCheck: [False]
         - VectorWidth: [-1]
       ForkParameters:
         - ThreadTile:
