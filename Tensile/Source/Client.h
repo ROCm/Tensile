@@ -1081,7 +1081,7 @@ bool benchmarkAllSolutionsForSize(
     }
 
     // print results to stdout
-    if (newFastest || numInvalids>0 || !printWinnersOnly) {
+    if (newFastest || numInvalids>0 || !printWinnersOnly || callStatus != tensileStatusSuccess) {
       std::cout << std::setw(10) << std::fixed << std::setprecision(3)
           << gflops*perfScaling << ", "
           << std::setw(10) << std::fixed << std::setprecision(3)
@@ -1089,16 +1089,20 @@ bool benchmarkAllSolutionsForSize(
           << solutions[solutionIdx]._name << (newFastest ? "*" : " ") << ", "
           << std::setw(9) << std::fixed << std::setprecision(3)
           << timeNs * TensileTimer::reciprical_million << ", ";
-      if (numElementsToValidate) {
-        if (callStatus == tensileStatusSuccess)
+
+      if (callStatus == tensileStatusSuccess) {
+        if (numElementsToValidate) {
           std::cout << (numInvalids ? "FAILED" : "PASSED")
             << ": " << (numChecked-numInvalids) << "/" << numChecked << ", ";
-        else if (callStatus == tensileStatusAssertFailure)
-          std::cout << "DID_NOT_SATISFY_ASSERTS, ";
-        else
-          std::cout << "INVALID_KERNEL, ";
-
+        } else {
+          std::cout << "NO_CHECK, "; // did not validate any results, may work or maybe not
+        }
+      } else if (callStatus == tensileStatusAssertFailure) {
+        std::cout << "DID_NOT_SATISFY_ASSERTS, ";
+      } else {
+        std::cout << "INVALID_KERNEL, ";
       }
+
       // device stats
       std::cout << avgCoreClock << ", ";
       std::cout << avgMemClock << ", ";
