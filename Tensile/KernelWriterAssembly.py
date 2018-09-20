@@ -4325,9 +4325,18 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
+    ldl = kernel["LocalDotLayout"]
+    tt = tP["tt"]
+    partialInc = kernel[tt]
     if self.inTailLoop:
 #jgolds which bpe here? assuming tP
-      inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
+      if ldl > 1:
+        if iui < (kernel["InnerUnroll"] - 1):
+          inc = partialInc*tP["bpe"]
+        else:
+          inc = (ldl * kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]) - partialInc * (ldl - 1))*tP["bpe"]
+      else:
+        inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("_v_add_co_u32", \
@@ -4338,10 +4347,7 @@ class KernelWriterAssembly(KernelWriter):
           "lr%s += %u (LSU*(MT+PAD)*bpe)"%(tP["tensorChar"], inc) )
     else:
       if tP["localReadInstruction"].numOffsets == 1:
-        ldl = kernel["LocalDotLayout"]
         if ldl > 1:
-          tt = tP["tt"]
-          partialInc = kernel[tt]
           if iui < (kernel["InnerUnroll"] - 1):
             tP["localReadOffset"] += partialInc
           else:
