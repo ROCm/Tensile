@@ -1617,7 +1617,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # lds size
     #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
-#jgolds which bpe should we use? assuming A
     kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
         % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
 
@@ -1892,7 +1891,6 @@ class KernelWriterAssembly(KernelWriter):
         offset = destLo
 
       # addr *= bytes/element
-#jgolds which bpe should we use? assuming A
       if justOffset32:
         kStr += inst("v_lshlrev_b32", \
             "v[\\vgprAddr+0]", \
@@ -1972,7 +1970,6 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.do["PreLoop"]: 
       # set m0
-#jgolds which bpe here? Using A for now
       kStr += inst("s_mov_b32", "m0", hex(kernel["LdsNumElements"] \
           * self.bpeAB), "LDS clamp at %u bytes" \
           %(kernel["LdsNumElements"] * self.bpeAB) )
@@ -2900,7 +2897,6 @@ class KernelWriterAssembly(KernelWriter):
       if tP["tlu"]:
         if self.globalReadIncsUseVgpr:
           tmpSgpr = self.getTmpSgpr(1)
-#jgolds which bpe here? assuming tP
           kStr += inst("s_mul_i32", sgpr(tmpSgpr+0), \
               hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
               "incr = stride*%u*bytes"%depthU )
@@ -2924,7 +2920,6 @@ class KernelWriterAssembly(KernelWriter):
               sgpr(tmpSgpr+1), \
               "" )
         else: # not globalReadIncsUseVgpr, ie use SGPR
-#jgolds which bpe here? assuming tP
           kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
               "incr = stride*%u*bytes"%depthU )
@@ -2941,7 +2936,6 @@ class KernelWriterAssembly(KernelWriter):
               "(carry)")
 
       else: # transposed
-#jgolds which bpe here? assuming tP
         if self.globalReadIncsUseVgpr:
           kStr += inst("v_mov_b32", vgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), \
@@ -3218,7 +3212,6 @@ class KernelWriterAssembly(KernelWriter):
     if tP["isA"]:
       return self.comment1("N/A")
     else:
-#jgolds which bpe here? Looks like tP, which is B
       return inst("_v_add_co_u32", \
           vgpr("LocalReadAddr%s+0"%tP["tensorChar"]), \
           "vcc", \
@@ -3988,7 +3981,6 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
     tc = tP["tensorChar"]
-#jgolds which bpe here? assuming tP
 #fixme-iui  need to use wrapping increment for double or triple buffering:
     if kernel["LocalWriteUseSgpr%s"%tc]:
       kStr += inst("s_xor_b32", \
@@ -4013,7 +4005,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     resetMask = hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1 | self.LdsOOB)
     tc = tP["tensorChar"]
-#jgolds which bpe here? assuming tP
     if kernel["LocalWriteUseSgpr%s"%tc]:
       kStr += inst("s_and_b32", \
           sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
@@ -4269,7 +4260,6 @@ class KernelWriterAssembly(KernelWriter):
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
-#jgolds which bpe here? assuming tP
     kStr += inst("v_xor_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
@@ -4289,7 +4279,6 @@ class KernelWriterAssembly(KernelWriter):
       tP["localReadOffset"] = 0
       tP["localReadElementOffset"] = 0
       kStr += self.comment1("handled internally")
-#jgolds which bpe here? assuming tP
     kStr += inst("v_and_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
         hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1), \
@@ -4309,7 +4298,6 @@ class KernelWriterAssembly(KernelWriter):
       tP["localReadElementOffset"] = 0
       kStr += self.comment1("N/A")
     else:
-#jgolds which bpe here? assuming tP
       kStr += inst("v_and_b32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
           hex(kernel["LdsOffset%s_Blk"%tP["tensorChar"]]*tP["bpe"]-1), \
@@ -4329,7 +4317,6 @@ class KernelWriterAssembly(KernelWriter):
     tt = tP["tt"]
     partialInc = kernel[tt]
     if self.inTailLoop:
-#jgolds which bpe here? assuming tP
       if ldl > 1:
         if iui < (kernel["InnerUnroll"] - 1):
           inc = partialInc*tP["bpe"]
@@ -4837,7 +4824,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tmpSgpr = self.getTmpSgpr(1)
     baseAddr = self.vgprPool.checkOut(1)
-#jgolds which bpe should we use?
     kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeAB, sgpr(tmpSgpr))
     (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, True)
     # Load values for each subgroup
@@ -5407,7 +5393,6 @@ class KernelWriterAssembly(KernelWriter):
         # Use bpeCexternal for all external values
 
         numVgprsPerAddr = self.rpgo if kernel["BufferStore"] else self.rpga
-#jgolds which bpe should we use?
         numVgprsPerDataPerVI = 0
 
 
@@ -6410,7 +6395,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_barrier", "dump LDS" )
       tmp = self.vgprPool.checkOut(1)
       tmpAddr = self.vgprPool.checkOut(1)
-#jgolds which bpe should we use?
       kStr += inst("v_lshlrev_b32", \
           vgpr(tmpAddr), \
           hex(log2(self.bpeAB)), \
