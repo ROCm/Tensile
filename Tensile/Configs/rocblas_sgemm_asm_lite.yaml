@@ -17,8 +17,9 @@ GlobalParameters:
   Device: 0
   KernelTime: True
   PinClocks: True
-  SleepPercent: 200
+  SleepPercent: 0
   DataInitTypeBeta : 0
+  PrintWinnersOnly: 1
 
 BenchmarkProblems:
   ########################################

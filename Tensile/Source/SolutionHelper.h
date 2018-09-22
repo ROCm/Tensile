@@ -45,11 +45,14 @@ typedef hipFunction_t DeviceFunctionType;
 
 // Locks and tracker for kernel loading status
 struct SolutionLock {
-  SolutionLock() : _deviceFunctions(0) {};
+  SolutionLock() : _deviceFunctions(nullptr)
+  {
+  };
 
   SolutionLock(const SolutionLock &other) {
     _deviceFunctions.store(other._deviceFunctions.load());
   };
+
 
   std::atomic<DeviceFunctionType*> _deviceFunctions;
   std::mutex _initFunctionsMutex;
@@ -64,7 +67,6 @@ __declspec(thread) extern KernelMap kernelMap;
 #else
 extern thread_local KernelMap kernelMap;
 #endif
-
 
 /*******************************************************************************
  * Compile/Load Kernels
@@ -89,8 +91,13 @@ struct SolutionInfo {
   // Use void* since these are all same type and can use same type for all w/o templates
   void *                  _functionPtr;
   const char *            _name;
-  AssertionProperties     _assertions;
-};
 
+  // These are requirements that the problem dims must meet in order to use this solution
+  // For example so kernels may be optimized with the assumption that the summation is even
+  // thus allowing faster code but the solution only works if the requirement is met.
+  // The structure here captures those requirements - they will be checked before
+  // launching the kernel
+  AssertionProperties     _assertionRequirements;
+};
 
 #endif

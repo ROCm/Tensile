@@ -850,8 +850,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     for i in range(0, problemType["TotalIndices"]):
       h += ", size%s" % indexChars[i]
     h += ");\n"
-    h += "  if (!AssertionProperties(pdims,&props).validForSolution(solution._assertions))\n"
-    h += "    return tensileStatusAssertFailure;  // failed solution requirements\n"
+    h += "  if (!AssertionProperties(pdims,&props).validForSolution(solution._assertionRequirements))\n"
+    h += "    return tensileStatusAssertFailure;  // problem dims did not meet requirements for solution\n"
     h += "\n"
 
     h += "  // call solution function\n"

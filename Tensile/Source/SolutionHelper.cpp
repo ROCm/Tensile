@@ -117,7 +117,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t *f, int deviceId,
   if (t == nullptr) {
     std::lock_guard<std::mutex> initFunctionsLock(_initFunctionsMutex);
     auto t = _deviceFunctions.load(std::memory_order_relaxed);
-    if ( !t) {
+    if (t == nullptr) {
       int numDevices = -1;
       e = hipGetDeviceCount( &numDevices );
       if (e) { return e; };
@@ -130,9 +130,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t *f, int deviceId,
       _deviceFunctions.store(t, std::memory_order_relaxed);
     }
   }
-  // TODO - handle CodeFromFiles=0
-      //if not globalParameters["CodeFromFiles"]:
-      //  s += "%shipModuleLoadData(&module, %s_coba);\n" % (t, kernelName)
+
   if ( !_deviceFunctions[deviceId] ) {
     std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
     hipModule_t module = nullptr;
