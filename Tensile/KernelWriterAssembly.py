@@ -2917,12 +2917,6 @@ class KernelWriterAssembly(KernelWriter):
       sizeIdx = tP["ia"][dim]
       sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
 
-      if tP["tlu"]:
-        # tilePerpElements is the tile height in the perp dim
-        tilePerpElements = kernel["DepthU"]
-      else:
-        tilePerpElements = kernel[tP["mt"]]
-
       if self.use64bPbcLimit:
         limitTmp0 = "SrdShadowLimit%s+0"%tc
         limitTmp1 = "SrdShadowLimit%s+1"%tc
@@ -5677,9 +5671,7 @@ class KernelWriterAssembly(KernelWriter):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements[edgeI]) )
           elementsThisBatch = elements[edgeI][elementStartIdx:elementStopIdx]
-          numElementsThisBatch = len(elementsThisBatch)
-          numElementVgprs = int(numElementsThisBatch * ceil(numVgprsPerElement))
-          #print "BATCH[%u/%u]: elements[edgeI][%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx, numElementVgprs)
+          #print "BATCH[%u/%u]: elements[edgeI][%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx )
           # elementVgprs can be large and should be perfectly tuned to the number of available
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
           kStr += self.globalWriteBatch(kernel, beta, edge, lsu, atomic, gwvw, atomicW, \

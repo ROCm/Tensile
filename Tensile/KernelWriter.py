@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, printExit, CHeader
+from Common import globalParameters, CHeader
 import abc
 import os
 from os import path, chmod

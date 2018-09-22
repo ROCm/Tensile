@@ -689,9 +689,11 @@ def tryAssembler(isaVersion, asmString):
     if result != "":
       return 0 # stdout and stderr must be empty
   except subprocess.CalledProcessError, e:
+    if globalParameters["PrintLevel"] >=2:
+        print "CalledProcessError", e
     return 0 # error, not supported
 
-  return 1 # syntax works for
+  return 1 # syntax works
 
 
 ################################################################################
@@ -751,9 +753,6 @@ def assignGlobalParameters( config ):
   for (v) in globalParameters["SupportedISA"]:
     globalParameters["AsmCaps"][v] = {}
     isaVersion = "gfx" + "".join(map(str,v))
-    asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
-               % (globalParameters["AssemblerPath"], isaVersion)
-    # This doesn't work since assembler politely falls back to default with an unsupported mcpu argument:
     globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
