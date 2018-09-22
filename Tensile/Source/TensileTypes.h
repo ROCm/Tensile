@@ -317,7 +317,7 @@ private:
 
 
 // These are assertions used to generate the solution
-// Must be checked by the runtime before launchin the solution
+// Must be checked by the runtime before launching the solution
 struct AssertionProperties {
 
   // Constructor used in solution tables-
@@ -335,20 +335,20 @@ struct AssertionProperties {
 
   // Constructor used to compute assertions for a specified problem size
   template<class ProblemDimsType>
-  AssertionProperties(const ProblemDimsType &p, const ProblemProperties *props) {
+  AssertionProperties(const ProblemDimsType &pdims, const ProblemProperties *props) {
     _summationElementMultiple = 1; // problem summation element multiple
-    auto sumSize = p.sizes(props->lastSummationIdx());
+    auto sumSize = pdims.sizes(props->lastSummationIdx());
     if ((sumSize & 0x7) == 0) _summationElementMultiple=8;
     else if ((sumSize & 0x3) == 0) _summationElementMultiple=4;
     else if ((sumSize & 0x1) == 0) _summationElementMultiple=2;
 
-    auto free0Size = p.sizes(props->free0Idx());
+    auto free0Size = pdims.sizes(props->free0Idx());
     _free0ElementMultiple = 1; // problem free0 element multiple
     if ((free0Size & 0x7) == 0) _free0ElementMultiple=8;
     else if ((free0Size & 0x3) == 0) _free0ElementMultiple=4;
     else if ((free0Size & 0x1) == 0) _free0ElementMultiple=2;
 
-    auto free1Size = p.sizes(props->free1Idx());
+    auto free1Size = pdims.sizes(props->free1Idx());
     _free1ElementMultiple = 1; // problem free1 element multiple
     if ((free1Size & 0x7) == 0) _free1ElementMultiple=8;
     else if ((free1Size & 0x3) == 0) _free1ElementMultiple=4;
@@ -356,9 +356,9 @@ struct AssertionProperties {
 
     bool allBelow1 = true;
     bool allBelow32 = true;
-    for (int si=0; si!=p.numSizes(); si++) {
+    for (int si=0; si!=pdims.numSizes(); si++) {
       if (!props->isBatchIdx(si)) {
-        auto size = p.sizes(si);
+        auto size = pdims.sizes(si);
         if (size > 32)
           allBelow32 = false;
         if (size > 1)
@@ -375,11 +375,11 @@ struct AssertionProperties {
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
-  bool validForSolution(const AssertionProperties &solutionAssertions) const {
-    return (this->_summationElementMultiple >= solutionAssertions._summationElementMultiple) &&
-           (this->_free0ElementMultiple >= solutionAssertions._free0ElementMultiple) &&
-           (this->_free1ElementMultiple >= solutionAssertions._free1ElementMultiple) &&
-           ((this->_approxSize) >= solutionAssertions._approxSize);
+  bool validForSolution(const AssertionProperties &solutionRequirements) const {
+    return (this->_summationElementMultiple >= solutionRequirements._summationElementMultiple) &&
+           (this->_free0ElementMultiple >= solutionRequirements._free0ElementMultiple) &&
+           (this->_free1ElementMultiple >= solutionRequirements._free1ElementMultiple) &&
+           ((this->_approxSize) >= solutionRequirements._approxSize);
   }
 
   unsigned _summationElementMultiple;
