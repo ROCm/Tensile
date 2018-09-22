@@ -26,7 +26,7 @@ import YAMLIO
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
 from KernelWriterAssembly import KernelWriterAssembly
-import multiprocessing, copy
+import multiprocessing
 
 import os
 import sys

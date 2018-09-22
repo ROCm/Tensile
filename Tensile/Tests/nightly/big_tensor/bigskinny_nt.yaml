@@ -53,8 +53,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - MinStride: [1296, 31296, 31296]
-          - Range: [[1804,1,1804], [25732], [384]]
+          - MinStride: [1296, 24296, 31296]
+          - Exact: [804, 20732, 184]
 
   ########################################
 
