@@ -1494,12 +1494,12 @@ class Solution:
     if state["ProblemType"]["TLUA"]:
       guaranteeeNoPartialA = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
     else:
-      guaranteeeNoPartialA = True
+      guaranteeeNoPartialA = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
 
     if state["ProblemType"]["TLUB"]:
       guaranteeNoPartialB = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
     else:
-      guaranteeNoPartialB = True
+      guaranteeNoPartialB = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
 
     #--
     if state["PreciseBoundsCheck"]:
