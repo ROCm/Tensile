@@ -2952,8 +2952,11 @@ class KernelWriterAssembly(KernelWriter):
     # Add the tile start to the SRD
     if wroteTileStart:
       kStr += inst("s_lshl_b64", sgpr(tileStart,2), sgpr(tileStart,2), log2(bpe), "tileStart *= BPE")
-      kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("Srd%s+0"%tc), sgpr(tileStart+0), "final add to SRD")
-      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), sgpr(tileStart+1), "final add to SRD")
+      kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), sgpr(tileStart+0), "SRD_base = Address+ tileStart0")
+      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), sgpr(tileStart+1), "SRD_base = Address+ tileStart1");
+    else:
+      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
 
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
@@ -3001,10 +3004,6 @@ class KernelWriterAssembly(KernelWriter):
       # maxAddrSgpr = size[n] * stride[n-1]
       kStr += self.comment1("max read offset = size[n] * stride[n-1]")
 
-      # Buffer-load uses one base read pointer stored in the SRD - set it here:
-      # TODO - move these two moves into computeSrd, and fold into existing addr calc
-      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
-      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
       kStr += self.computeSrd(kernel, tP, tc, kernel["ProblemType"]["IndexAssignments%s"%tc], tP["bpe"])
 
       #kStr += self.bomb(0x13) # after addresses and SRD set
