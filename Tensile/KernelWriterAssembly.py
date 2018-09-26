@@ -1171,6 +1171,10 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       self.defineSgpr("SrdC", 4, 4)
 
+    self.defineSgpr("Tensor2dSizeC", 2,2)
+    self.defineSgpr("Tensor2dSizeA", 2,2)
+    self.defineSgpr("Tensor2dSizeB", 2,2)
+
     # To avoid corrupting tmp sgprs that may be used around the assert,
     # reserve some sgprs to save/restore the execmask
     if self.db["EnableAsserts"]:
@@ -1206,6 +1210,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
       self.defineSgpr("DebugKernelItems", 1)
 
+
     #------------------------
     # Registers defined below this point are not available in the post-loop
     # (we reclaim them to use as temps, typically for execmasks)
@@ -1216,6 +1221,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("OffsetC", numSgprOffsetC)
     self.defineSgpr("OffsetA", numSgprOffsetA)
     self.defineSgpr("OffsetB", numSgprOffsetB)
+
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -2070,10 +2076,23 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("SizesSum+%u"%i), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load size sum %u"%i )
         kernArgOffset += 1*4
+
+      kStr += inst("s_load_dwordx2", sgpr("Tensor2dSizeC+%u"%i,2), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load tensor size" )
+      kernArgOffset += 2*4
+      kStr += inst("s_load_dwordx2", sgpr("Tensor2dSizeA+%u"%i,2), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load tensor size" )
+      kernArgOffset += 2*4
+      kStr += inst("s_load_dwordx2", sgpr("Tensor2dSizeB+%u"%i,2), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset), "load tensor size" )
+      kernArgOffset += 2*4
+
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
           "wait for %u bytes of kern args" % kernArgOffset )
     else:
       kStr += ".if 0\n"
+
+    #kStr += self.bomb()
 
     ########################################
     # Apply User Offsets
@@ -2835,8 +2854,8 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Add the constant offsets to the specified srd.
-  # Srd is set to point to the base of the tile. All offsets except last stride
-  # will be applied into the SRD.
+  # Srd is set to point to the base of the tile. All offsets except lowest-order
+  # 2d dims are computed into the SRD.
   # GRO are offset from the tile SRD and the first GRO will be 0
   # Only called for BufferLoad=1 (or eventually BufferStore=1)
   ##############################################################################
@@ -2848,47 +2867,19 @@ class KernelWriterAssembly(KernelWriter):
     wroteTileStart = False
 
     #---
-    # Compute Tile start #elements from the start pointer:
-
-    # Apply any high-order address components to the SRD:
-    addrItems = 0
-    numDim = len(indices)
-    for i in range(1, numDim):
-      idx = indices[i]
-      if idx == kernel["ProblemType"]["Index0"] \
-          or idx == kernel["ProblemType"]["Index1"] \
-          or idx == kernel["ProblemType"]["IndexUnroll"]:
-            continue # these will be captured in GRO not the SRD
-      else:
-        if addrItems == 0:
-          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
-        else:
-          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
-          kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
-          kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
-        wroteTileStart = True
-        addrItems += 1
-
-
+    # Compute tileStart #elements from the 2D array start
     # Add tile (and unroll if GSU) component into SRD - SRD will point to beginning of the macro-tile:
     if self.groOffsetInMacroTile:
-      if not wroteTileStart:
-        kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
-        kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
-        wroteTileStart = True
-
+      wroteTileStart = True
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
 
       # This is guaranteed to fit in 32-bit since the WG*MT is a number of elements in some unsigned direction:
-      kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
+      kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       if kernel["CheckDimOverflow"] >=2:
-        kStr += self.assert_eq(sgpr(stmp+1),0)
+        kStr += self.assert_eq(sgpr(tileStart+1),0)
       if not tP["tlu"]: # transpose case, tile is in perp dim and should be scaled by Stride
-        kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp+0), \
+        kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
                   sgpr("Strides%s+%u"%(tc,startStride)), "tlu=0, scaled tile-offset by stride")
-
-      kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
-      kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -2905,14 +2896,18 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffet term to tilestart")
 
 
-    # Output : tileStart[0:1] have offset in elements that should be applied to the SRD base and wroteTileStart == True
-    # if groOffsetInMacroTile=1, this will be the start of the macro-tile; else will include the constant offsets from WG>1 including batch count
+    # Output : tileStart[0:1] have offset in elements from the 2D start of the tile.
+    # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile; 
+    # This is used to compute the limit.
+    # Later we modify tileStart to include batch and higher-order dims and add this to SRD.
 
     #---
     # Compute BUFFER Limit:
     if kernel["PreciseBoundsCheck"]:
-      assert (wroteTileStart)
-      # For PBC, we set the buffer limit to bottom-right corner of the macro-tile if in-bounds or the tensor edge if not
+      if not wroteTileStart:
+        kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
+        kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
+
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
 
       dim = len(tP["ia"])-1 # dim
@@ -2927,12 +2922,8 @@ class KernelWriterAssembly(KernelWriter):
         limitTmp0 = stmp+0
         limitTmp1 = stmp+1
 
-      kStr += self.s_mul_u64_u32(sgpr(limitTmp0), sgpr(limitTmp1),  \
-                sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                "Tensor size")
-      kStr += inst("s_sub_u32", sgpr(limitTmp0), sgpr(limitTmp0), sgpr(tileStart+0), "sub tileStart")
-      kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr(limitTmp1), sgpr(tileStart+1), "sub tileStart")
+      kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
+      kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
 
       if self.use64bPbcLimit:
         # Set initial buffer limit
@@ -2949,6 +2940,25 @@ class KernelWriterAssembly(KernelWriter):
       # PreciseBoundsCheck=0, just pick a large max - later conditionally set some offsets to -1 to force OOB
       kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit", "")
 
+
+    # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
+    numDim = len(indices)
+    for i in range(1, numDim):
+      idx = indices[i]
+      if idx == kernel["ProblemType"]["Index0"] \
+          or idx == kernel["ProblemType"]["Index1"] \
+          or idx == kernel["ProblemType"]["IndexUnroll"]:
+            continue # these will be captured in GRO not the SRD
+      else:
+        if not wroteTileStart:
+          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
+          wroteTileStart = True
+        else:
+          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr("Strides%s+%u"%(tc,i-1)), sgpr("WorkGroup%u"%i), "Stride*WG")
+          kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
+          kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
+
+
     # Add the tile start to the SRD
     if wroteTileStart:
       kStr += inst("s_lshl_b64", sgpr(tileStart,2), sgpr(tileStart,2), log2(bpe), "tileStart *= BPE")
@@ -2960,17 +2970,14 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
+
     if kernel["PreciseBoundsCheck"] and kernel["CheckDimOverflow"]>=2:
       # double-check to make sure the SRD limit is inside the allowed tensor:
       # (only works in PBC mode since otherwise we set the limit to BufferLimit)
       #   - compute size of tensor in elements (including all dimensions)
       #   - subtract the SRD base and SRD buffer limit
       #   - Make sure the 64bit result is >0
-      kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1),  \
-                sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                "Tensor size")
-      kStr += inst("s_lshl_b64", sgpr(stmp,2), sgpr(stmp,2), log2(bpe), "tensor size in bytes")
+      kStr += inst("s_lshl_b64", sgpr(stmp,2), sgpr("Tensor2dSize%s"%tc,2), log2(bpe), "tensor size in bytes")
       kStr += inst("s_add_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Address%s+0"%tc), "add start ptr to compute tensor%s bot-right"%tc)
       kStr += inst("s_addc_u32", sgpr(stmp+1), sgpr(stmp+1), sgpr("Address%s+1"%tc), "add start ptr to compute tensor%s bot-right"%tc)
       kStr += inst("s_sub_u32",  sgpr(stmp+0), sgpr(stmp+0), sgpr("Srd%s+0"%tc), "sub SRD base")
@@ -3810,13 +3817,14 @@ class KernelWriterAssembly(KernelWriter):
         # Else find the edge of the matrix and compute bounds
 
         kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                  sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                  sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                  "64b tensor%s size in elements"%tc)
+                    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+                    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+                    "64b tensor%s size in elements"%tc)
         kStr += inst("s_lshl_b64", \
-            sgpr(maxAddrSgpr,2), \
-            sgpr(maxAddrSgpr,2), \
-            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+          sgpr(maxAddrSgpr,2), \
+          sgpr(maxAddrSgpr,2), \
+          hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+
 
         if kernel["BufferLoad"]:
           # Set maxAddrSgpr to max allowed byte offset
