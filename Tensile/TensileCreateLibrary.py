@@ -267,6 +267,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
       solutionSourceFile.write(CHeader)
       solutionHeaderFile.write(CHeader)
     solutionSourceFile.write("#include \"Solutions.h\"\n")
+    solutionSourceFile.write("#include <algorithm>\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")

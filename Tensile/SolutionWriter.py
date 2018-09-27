@@ -85,7 +85,6 @@ class SolutionWriter:
     if not globalParameters["MergeFiles"]:
       solutionName = self.getSolutionName(solution)
       s += "#include \"%s.h\"\n" % solutionName
-      #s += "#include \"MathTemplates.h\"\n"
       s += "\n"
 
     # solution function signature
@@ -114,6 +113,11 @@ class SolutionWriter:
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
 
+      # Tensor sizes in bytes, excluding batch dims and accounting for zero strides
+      s += "%s// Size of lowest Tensor's lowest 2 dims, in bytes.  Does not include bath dim or higher (>2) order dimensions\n" % t
+      s += "%suint64_t tensor2dSizeC;\n" % t
+      s += "%suint64_t tensor2dSizeA;\n" % t
+      s += "%suint64_t tensor2dSizeB;\n" % t
 
       if solution["PersistentKernel"]:
         # pass in the number of groups since not available in WG
@@ -132,7 +136,6 @@ class SolutionWriter:
       #  s += "%sprintf(\"%s: %%lu\\n\", static_cast<char*>(static_cast<void*>(&hipFunctionArgs.%s)) - static_cast<char*>(static_cast<void*>(&hipFunctionArgs.%s)));\n" % (t, arg[1], arg[1], solutionArgs[0][1])
 
     # NOTE: host compiler aligns size of structs to 64-bits (at least) and aligns the offset of pointers to 64-bits, therefore, having pointers which are not at the beginning of the struct may get padded/shifted by the host compiler and, therefore, not coppied correctly to gpu
-
 
     # kernels
     s += "\n%s/* kernels */\n" % (t)
@@ -270,6 +273,73 @@ class SolutionWriter:
         lastParam = i == solution["ProblemType"]["TotalIndices"]-1
         s += "%ssizes[%u][0][%u] = size%s;\n" \
             % (t, kernelIdx, i, self.indexChars[i])
+
+      # TensorSizes - size excluding the batch dimension, accounts for cases where one of strides is 0
+      problemType = solution["ProblemType"]
+      #print "IndexAssignmentsA=", problemType["IndexAssignmentsA"], "Batch=", problemType["IndicesBatch"]
+      firstStride = 0 if problemType["UseInitialStrides"] else 1
+      del i
+
+      lastIdxC = problemType["NumIndicesC"]
+      printMe = printedFree = printedSum = False
+      s += "%suint64_t tensor2dSizeC = 1" % (t)
+      for idx in range(0,lastIdxC):
+        # Multiply only by first free and first summation
+        if idx in problemType["IndicesFree"] and not printedFree:
+          printMe = printedFree = True
+        elif idx in problemType["IndicesSummation"] and not printedSum:
+          printMe = printedSum = True
+        else:
+          printMe = False
+
+        if printMe:
+          if idx < firstStride:
+            s += " * size%s" % (self.indexChars[idx])
+          else:
+            s += " * std::max(strideC%u%s, size%s)" % (idx, self.indexChars[idx], self.indexChars[idx])
+      s += ";\n"
+
+      lastIdxA = len(problemType["IndexAssignmentsA"])
+      printMe = printedFree = printedSum = False
+      s += "%suint64_t tensor2dSizeA = 1" % (t)
+      for i in range(0,lastIdxA):
+        idx = problemType["IndexAssignmentsA"][i]
+
+        # Multiply only by first free and first summation
+        if idx in problemType["IndicesFree"] and not printedFree:
+          printMe = printedFree = True
+        elif idx in problemType["IndicesSummation"] and not printedSum:
+          printMe = printedSum = True
+        else:
+          printMe = False
+
+        if printMe:
+          if i<firstStride: # assume stride is 1
+            s += " * size%s" % (self.indexChars[idx])
+          else:
+            s += " * std::max(strideA%u%s, size%s)" % (i, self.indexChars[idx], self.indexChars[idx])
+      s += ";\n"
+
+      lastIdxB = len(problemType["IndexAssignmentsB"])
+      printMe = printedFree = printedSum = False
+      s += "%suint64_t tensor2dSizeB = 1" % (t)
+      for i in range(0,lastIdxB):
+        idx = problemType["IndexAssignmentsB"][i]
+
+        # Multiply only by first free and first summation
+        if idx in problemType["IndicesFree"] and not printedFree:
+          printMe = printedFree = True
+        elif idx in problemType["IndicesSummation"] and not printedSum:
+          printMe = printedSum = True
+        else:
+          printMe = False
+
+        if printMe:
+          if i<firstStride: # assume stride is 1
+            s += " * size%s" % (self.indexChars[idx])
+          else:
+            s += " * std::max(strideB%u%s, size%s)" % (i, self.indexChars[idx], self.indexChars[idx])
+      s += ";\n"
 
     #s += "printf(\"Launching with grid=%zu_%zu problemGrid=%u_%u mt=%u_%u\\n\", globalWorkSize[0][0], globalWorkSize[0][1], totalWorkGroups0, totalWorkGroups1, macroTile0, macroTile1);\n"
     s += "\n"
@@ -451,6 +521,9 @@ class SolutionWriter:
         # sizes
         for i in range(0, solution["ProblemType"]["TotalIndices"]):
           s += "%sprintf(\"  sizes[kernelIdx][enqueueIdx][%u] = %%u\\n\", sizes[kernelIdx][enqueueIdx][%u] );\n" % (t, i, i )
+        s += "%sprintf(\"  tensor2dSizeC== %%lu\\n\", tensor2dSizeC );\n" % (t)
+        s += "%sprintf(\"  tensor2dSizeA== %%lu\\n\", tensor2dSizeA );\n" % (t)
+        s += "%sprintf(\"  tensor2dSizeB== %%lu\\n\", tensor2dSizeB );\n" % (t)
 
       ########################################
       # OpenCL Runtime
@@ -580,6 +653,10 @@ class SolutionWriter:
             lastParam = i == solution["ProblemType"]["TotalIndices"]-1
             s += "%shipFunctionArgs.size%s = sizes[kernelIdx][enqueueIdx][%u];\n" \
                 % (t, globalParameters["IndexChars"][i], i )
+
+          s += "%shipFunctionArgs.tensor2dSizeC = tensor2dSizeC;\n" % (t)
+          s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
+          s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
 
           if solution["PersistentKernel"]:
             # pass in the number of groups since not available in WG
