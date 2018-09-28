@@ -3820,14 +3820,36 @@ class KernelWriterAssembly(KernelWriter):
         # PBC moves the limit as SRD moves forward so don't need to reset boundary
         # Else find the edge of the matrix and compute bounds
 
-        kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                    "64b tensor%s size in elements"%tc)
-        kStr += inst("s_lshl_b64", \
-          sgpr(maxAddrSgpr,2), \
-          sgpr(maxAddrSgpr,2), \
-          hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+        if 0:
+          kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+                      sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+                      sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+                      "64b tensor%s size in elements"%tc)
+          kStr += inst("s_lshl_b64", \
+            sgpr(maxAddrSgpr,2), \
+            sgpr(maxAddrSgpr,2), \
+            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+        else:
+          if kernel["ProblemType"]["NumIndicesC"] == 2:
+            kStr += inst("s_lshl_b64", \
+              sgpr(maxAddrSgpr,2), \
+              sgpr("Tensor2dSize%s"%tc,2), \
+              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+          elif kernel["ProblemType"]["NumIndicesC"] == 3:
+            # TODO - hardcored for two batches, remove when PBC code goes
+            kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+                        sgpr("Tensor2dSize%s")%tc, \
+                        sgpr("SizesFree+2"), "scale Tensor2D by numBatches")
+            kStr += inst("s_lshl_b64", \
+              sgpr(maxAddrSgpr,2), \
+              sgpr(maxAddrSgpr,2), \
+              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+          else:
+            assert(0) # unsupported number of Free dims, should use PBC=1 instead
+            kStr += inst("s_lshl_b64", \
+              sgpr(maxAddrSgpr,2), \
+              sgpr(maxAddrSgpr,2), \
+              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
 
 
         if kernel["BufferLoad"]:
