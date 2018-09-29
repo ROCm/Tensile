@@ -3820,7 +3820,7 @@ class KernelWriterAssembly(KernelWriter):
         # PBC moves the limit as SRD moves forward so don't need to reset boundary
         # Else find the edge of the matrix and compute bounds
 
-        if 0:
+        if 1:
           kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
                       sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
                       sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
