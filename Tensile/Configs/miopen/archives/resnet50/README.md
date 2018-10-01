@@ -9,7 +9,7 @@ Start with the 6 asm_full logic files
 
 from
 
-  - rocBLAS commit ea27b3aba339b4fd48795153995d24dd96cd6457 for HGEMM
+  - rocBLAS commit a85df88648587a0d2880a74c6c57964366ab02a1 for HGEMM
   - rocBLAS commit 0ceb1ad64c8bda5473a1e1c3a74ab9ff204acbf8 for SGEMM
 
 we merge the 6 Resnet50-specific logic files archived in the "logic" directory
