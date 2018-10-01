@@ -2909,12 +2909,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-
-      dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
-      sizeIdx = tP["ia"][dim]
-      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-
       if self.use64bPbcLimit:
         limitTmp0 = "SrdShadowLimit%s+0"%tc
         limitTmp1 = "SrdShadowLimit%s+1"%tc
