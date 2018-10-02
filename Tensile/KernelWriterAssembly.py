@@ -2777,7 +2777,7 @@ class KernelWriterAssembly(KernelWriter):
               if tP["tlu"]:
                 tileStride   = kernel[tP["lsc"]] * (para*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsp"]] * (perp*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s"%tc), unrollStride, \
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s+0"%tc), unrollStride, \
                              "compute offset diff (scaled unrollDim)")
                 if tileStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), tileStride, \
@@ -2785,7 +2785,7 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 tileStride   = kernel[tP["lsp"]] * (perp*tVW + sPara*tVS)
                 unrollStride = kernel[tP["lsc"]] * (para*uVW + sPerp*uVS)
-                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s"%tc), tileStride, \
+                kStr += inst("s_mul_i32", sgpr(scalarGro), sgpr("Strides%s+0"%tc), tileStride, \
                              "compute offset diff (scaled tileDim)")
                 if unrollStride:
                   kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), unrollStride, \
@@ -2909,12 +2909,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
       startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-
-      dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
-      sizeIdx = tP["ia"][dim]
-      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-
       if self.use64bPbcLimit:
         limitTmp0 = "SrdShadowLimit%s+0"%tc
         limitTmp1 = "SrdShadowLimit%s+1"%tc
@@ -2939,6 +2933,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       # PreciseBoundsCheck=0, just pick a large max - later conditionally set some offsets to -1 to force OOB
       kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit", "")
+      kStr += "\n"
 
 
     # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
@@ -2969,6 +2964,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
 
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
+
+    #if tP["isB"]:
+    #  kStr += self.assert_ne(sgpr("WorkGroup2"), 1)
 
 
     if kernel["PreciseBoundsCheck"] and kernel["CheckDimOverflow"]>=2:
@@ -3816,14 +3814,36 @@ class KernelWriterAssembly(KernelWriter):
         # PBC moves the limit as SRD moves forward so don't need to reset boundary
         # Else find the edge of the matrix and compute bounds
 
-        kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                    "64b tensor%s size in elements"%tc)
-        kStr += inst("s_lshl_b64", \
-          sgpr(maxAddrSgpr,2), \
-          sgpr(maxAddrSgpr,2), \
-          hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+        if 1:
+          kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+                      sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+                      sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+                      "64b tensor%s size in elements"%tc)
+          kStr += inst("s_lshl_b64", \
+            sgpr(maxAddrSgpr,2), \
+            sgpr(maxAddrSgpr,2), \
+            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+        else:
+          if kernel["ProblemType"]["NumIndicesC"] == 2:
+            kStr += inst("s_lshl_b64", \
+              sgpr(maxAddrSgpr,2), \
+              sgpr("Tensor2dSize%s"%tc,2), \
+              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+          elif kernel["ProblemType"]["NumIndicesC"] == 3:
+            # TODO - hardcored for two batches, remove when PBC code goes
+            kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+                        sgpr("Tensor2dSize%s")%tc, \
+                        sgpr("SizesFree+2"), "scale Tensor2D by numBatches")
+            kStr += inst("s_lshl_b64", \
+              sgpr(maxAddrSgpr,2), \
+              sgpr(maxAddrSgpr,2), \
+              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+          else:
+            assert(0) # unsupported number of Free dims, should use PBC=1 instead
+            kStr += inst("s_lshl_b64", \
+              sgpr(maxAddrSgpr,2), \
+              sgpr(maxAddrSgpr,2), \
+              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
 
 
         if kernel["BufferLoad"]:

@@ -274,35 +274,37 @@ class SolutionWriter:
         s += "%ssizes[%u][0][%u] = size%s;\n" \
             % (t, kernelIdx, i, self.indexChars[i])
 
-      # TensorSizes - size excluding the batch dimension, accounts for cases where one of strides is 0
+      # Tensor2DSizes - size excluding the batch dimension, accounts for cases where one of strides is 0
       problemType = solution["ProblemType"]
       #print "IndexAssignmentsA=", problemType["IndexAssignmentsA"], "Batch=", problemType["IndicesBatch"]
       firstStride = 0 if problemType["UseInitialStrides"] else 1
       del i
 
-      lastIdxC = problemType["NumIndicesC"]
-      printMe = printedFree = printedSum = False
-      s += "%suint64_t tensor2dSizeC = 1" % (t)
-      for idx in range(0,lastIdxC):
+      numIdx = problemType["NumIndicesC"]
+      printMe = printedFree = 0
+      s += "%suint64_t tensor2dSizeC = %s" % \
+          (t, "1" if firstStride==1 else "strideC%u%s"% (0,self.indexChars[0]))
+      for idx in range(0,numIdx):
         # Multiply only by first free and first summation
-        if idx in problemType["IndicesFree"] and not printedFree:
-          printMe = printedFree = True
-        elif idx in problemType["IndicesSummation"] and not printedSum:
-          printMe = printedSum = True
+        if idx in problemType["IndicesFree"] and printedFree<2:
+          printedFree += 1
+          printMe = True
         else:
           printMe = False
 
         if printMe:
           if idx < firstStride:
-            s += " * size%s" % (self.indexChars[idx])
+            strideIdx = problemType["IndexAssignmentsA"][idx+1]
+            s += " * std::max(size%s, strideA%u%s)" % \
+                (self.indexChars[idx], idx+1, self.indexChars[strideIdx])
           else:
-            s += " * std::max(strideC%u%s, size%s)" % (idx, self.indexChars[idx], self.indexChars[idx])
+            s += " * size%s" % (self.indexChars[idx])
       s += ";\n"
 
-      lastIdxA = len(problemType["IndexAssignmentsA"])
-      printMe = printedFree = printedSum = False
-      s += "%suint64_t tensor2dSizeA = 1" % (t)
-      for i in range(0,lastIdxA):
+      numIdx = len(problemType["IndexAssignmentsA"])
+      printMe = printedStride = printedFree = printedSum = False
+      s += "%suint64_t tensor2dSizeA = %s" % (t, "1" if firstStride==1 else "strideA%u%s"% (0,self.indexChars[0]))
+      for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsA"][i]
 
         # Multiply only by first free and first summation
@@ -314,16 +316,19 @@ class SolutionWriter:
           printMe = False
 
         if printMe:
-          if i<firstStride: # assume stride is 1
-            s += " * size%s" % (self.indexChars[idx])
+          if not printedStride:
+            printedStride = True
+            strideIdx = problemType["IndexAssignmentsA"][i+1]
+            s += " * std::max(size%s, strideA%u%s)" % \
+                (self.indexChars[idx], i+1, self.indexChars[strideIdx])
           else:
-            s += " * std::max(strideA%u%s, size%s)" % (i, self.indexChars[idx], self.indexChars[idx])
+            s += " * size%s" % (self.indexChars[idx])
       s += ";\n"
 
-      lastIdxB = len(problemType["IndexAssignmentsB"])
-      printMe = printedFree = printedSum = False
-      s += "%suint64_t tensor2dSizeB = 1" % (t)
-      for i in range(0,lastIdxB):
+      numIdx = len(problemType["IndexAssignmentsB"])
+      printMe = printedStride = printedFree = printedSum = False
+      s += "%suint64_t tensor2dSizeB = %s" % (t, "1" if firstStride==1 else "strideB%u%s"% (0,self.indexChars[0]))
+      for i in range(0,numIdx):
         idx = problemType["IndexAssignmentsB"][i]
 
         # Multiply only by first free and first summation
@@ -335,11 +340,15 @@ class SolutionWriter:
           printMe = False
 
         if printMe:
-          if i<firstStride: # assume stride is 1
-            s += " * size%s" % (self.indexChars[idx])
+          if not printedStride:
+            printedStride = True
+            strideIdx = problemType["IndexAssignmentsB"][i+1]
+            s += " * std::max(size%s, strideB%u%s)" % \
+                (self.indexChars[idx], i+1, self.indexChars[strideIdx])
           else:
-            s += " * std::max(strideB%u%s, size%s)" % (i, self.indexChars[idx], self.indexChars[idx])
+            s += " * size%s" % (self.indexChars[idx])
       s += ";\n"
+
 
     #s += "printf(\"Launching with grid=%zu_%zu problemGrid=%u_%u mt=%u_%u\\n\", globalWorkSize[0][0], globalWorkSize[0][1], totalWorkGroups0, totalWorkGroups1, macroTile0, macroTile1);\n"
     s += "\n"

@@ -1513,14 +1513,14 @@ class Solution:
     if not state["PreciseBoundsCheck"]:
       state["UseSgprForGRO"] = 0
       if state["FractionalLoad"]:
-        reject(state, "Fractional currently requires PreciseBoundsCheck") # debug this later
+        reject(state, "Fractional currently requires PreciseBoundsCheck") # Move to PBC always
 
     if state["UseSgprForGRO"] == -1:
       # Don't use SGPR if it looks like we might not have enough - better to leave PBC enabled even if we have to use VGPR
       # 40 is based on current SGPR usage, this may need to be tuned in the future:
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
-      if numLoadsA + numLoadsB > 40:
+      if numLoadsA + numLoadsB > 35:
         #print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["UseSgprForGRO"] = 0
       else:
