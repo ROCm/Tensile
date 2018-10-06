@@ -100,6 +100,7 @@ public:
 
   SizeType lastSummationSize() const { return sizes[LastSummationIdx]; };
   SizeType free0Size() const { return sizes[Free0Idx]; };
+  SizeType free1Size() const { return sizes[1]; };
 
 private:
   template<int I, typename T>
@@ -125,9 +126,12 @@ private:
 // Must be checked by the runtime before launchin the solution
 struct AssertionProperties {
   AssertionProperties(unsigned x_summationElementMultiple,
-                      unsigned x_free0ElementMultiple)
+                      unsigned x_free0ElementMultiple,
+                      unsigned x_free1ElementMultiple
+                      )
     : summationElementMultiple(x_summationElementMultiple),
-      free0ElementMultiple(x_free0ElementMultiple)
+      free0ElementMultiple(x_free0ElementMultiple),
+      free1ElementMultiple(x_free1ElementMultiple)
      {}
 
   template<class ProblemSizes>
@@ -143,17 +147,25 @@ struct AssertionProperties {
     if ((free0Size & 0x7) == 0) free0ElementMultiple=8;
     else if ((free0Size & 0x3) == 0) free0ElementMultiple=4;
     else if ((free0Size & 0x1) == 0) free0ElementMultiple=2;
+
+    auto free1Size = p.free1Size();
+    free1ElementMultiple = 1; // problem free1 element multiple
+    if ((free1Size & 0x7) == 0) free1ElementMultiple=8;
+    else if ((free1Size & 0x3) == 0) free1ElementMultiple=4;
+    else if ((free1Size & 0x1) == 0) free1ElementMultiple=2;
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const AssertionProperties &solutionAssertions) {
     return (this->summationElementMultiple >= solutionAssertions.summationElementMultiple) &&
-           (this->free0ElementMultiple >= solutionAssertions.free0ElementMultiple);
+           (this->free0ElementMultiple >= solutionAssertions.free0ElementMultiple) &&
+           (this->free1ElementMultiple >= solutionAssertions.free1ElementMultiple);
   }
 
   unsigned summationElementMultiple;
-  unsigned free0ElementMultiple;;
+  unsigned free0ElementMultiple;
+  unsigned free1ElementMultiple;
 };
 
 
