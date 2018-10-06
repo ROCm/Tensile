@@ -43,15 +43,15 @@ BenchmarkProblems:
         - KernelLanguage: ["Source"]
       ForkParameters:
         - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [False]
-        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 2, 4 ]
+          - [ 4, 2 ]
           - [ 4, 8 ]
-          - [ 16, 8 ]
+          - [ 8, 8 ]
         - WorkGroup:
+          - [ 16, 16,  1 ]
           - [ 32,  4,  1 ]
-          - [  8,  8,  1 ]
         - DepthU: [8]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
@@ -69,13 +69,13 @@ BenchmarkProblems:
       ForkParameters:
         - KernelLanguage: ["Source"]
         - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [False]
-        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 4, 2 ]
-          - [ 4, 8 ]
-          - [ 16, 16 ]
-          - [ 8, 8 ]
+          - [ 8, 2 ]
+          - [ 2, 8 ]
+          - [ 16, 2 ]
+          - [ 2, 16 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -96,13 +96,13 @@ BenchmarkProblems:
       ForkParameters:
         - KernelLanguage: ["Source"]
         - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [False]
-        - PrefetchGlobalRead: [True]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 4, 2 ]
-          - [ 4, 8 ]
-          - [ 16, 16 ]
-          - [ 8, 8 ]
+          - [ 8, 2 ]
+          - [ 2, 8 ]
+          - [ 16, 2 ]
+          - [ 2, 16 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
@@ -405,7 +405,7 @@ BenchmarkProblems:
 
 LibraryLogic:
 #   ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
+#   DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
 #   ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"
