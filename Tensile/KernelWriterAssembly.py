@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import DataType
-from Common import globalParameters, printExit, printWarning
+from Common import globalParameters, printExit, printWarning, roundUp
 from KernelWriter import KernelWriter
 from math import log, ceil
 import collections
@@ -436,6 +436,8 @@ class KernelWriterAssembly(KernelWriter):
         return i
       else:
         continue
+
+    printWarning("Could not find valid memory instruction for width=%f" % width)
     return len(instructions)
 
 
@@ -629,6 +631,9 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s, %s, %s offen offset:0 %s" )
     buffer_load_dword = MemoryInstruction("buffer_load_dword", 1, 0, 0, 1, \
         "%s, %s, %s, %s offen offset:0 %s" )
+    # generate half directly w/o using the format string to handle hi/lo correctly
+    buffer_load_short = MemoryInstruction("buffer_load_short_d16", 1, 0, 0, 0.5, \
+        "UNUSED %s, %s, %s, %s offen offset:0 %s" ) 
 
     ########################################
     # Global Write
@@ -652,29 +657,21 @@ class KernelWriterAssembly(KernelWriter):
       chosen_load_dwordx4 = buffer_load_dwordx4
       chosen_load_dwordx2 = buffer_load_dwordx2
       chosen_load_dword   = buffer_load_dword
+      chosen_load_short    = buffer_load_short
     else:
       chosen_load_dwordx4 = flat_load_dwordx4
       chosen_load_dwordx2 = flat_load_dwordx2
       chosen_load_dword   = flat_load_dword
+      chosen_load_short    = flat_load_dword # not supported
 
     chosen_store_dwordx4 = flat_store_dwordx4
     chosen_store_dwordx2 = flat_store_dwordx2
     chosen_store_dword   = flat_store_dword
 
     self.memoryInstructions = {
-        (8,0,3): {
-          "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
-            chosen_load_dword ],
-          "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
-            chosen_store_dword ],
-          "LocalRead": [ ds_read_b128, ds_read2_b64,
-            ds_read_b64, ds_read2_b32, ds_read_b32 ],
-          "LocalWrite": [ ds_write_b128, ds_write2_b64,
-            ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
-          }, # 803
         (9,0,0): {
           "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
-            chosen_load_dword ],
+            chosen_load_dword, chosen_load_short ],
           "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
             chosen_store_dword ],
           "LocalRead": [ ds_read_b128, ds_read2_b64,
@@ -682,17 +679,9 @@ class KernelWriterAssembly(KernelWriter):
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
           }, # 900
-        (9,0,6): {
-          "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
-            chosen_load_dword ],
-          "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
-            chosen_store_dword ],
-          "LocalRead": [ ds_read_b128, ds_read2_b64,
-            ds_read_b64, ds_read2_b32, ds_read_b32 ],
-          "LocalWrite": [ ds_write_b128, ds_write2_b64,
-            ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16 ]
-          } # 906
         }
+    self.memoryInstructions[(8,0,3)] = self.memoryInstructions[(9,0,0)]
+    self.memoryInstructions[(9,0,6)] = self.memoryInstructions[(9,0,0)]
 
     if self.version == (9,0,0):
       self.mixinst = "v_mad_mix_f32"
@@ -739,7 +728,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # globalReadA instruction; no flat_load2_*
-    self.globalReadWidthA = (tPA["nrcv"]*tPA["bpe"])/self.bpr
+    self.globalReadWidthA = (tPA["nrcv"]*tPA["bpe"])/(float)(self.bpr)
     self.globalRead2CoalescedA = kernel["NumLoadsCoalescedA"]>1 \
         or self.readCoalescedComponentsA
     self.globalRead2PerpendicularA = kernel["NumLoadsPerpendicularA"] > 1 \
@@ -749,9 +738,10 @@ class KernelWriterAssembly(KernelWriter):
         kernel["GlobalRead2A"], \
         self.globalRead2CoalescedA, self.globalRead2PerpendicularA, [] )
 
+
     ########################################
     # globalReadB instruction; no flat_load2_
-    self.globalReadWidthB = (tPB["nrcv"]*tPB["bpe"])/self.bpr
+    self.globalReadWidthB = (tPB["nrcv"]*tPB["bpe"])/(float)(self.bpr)
     self.globalRead2CoalescedB = kernel["NumLoadsCoalescedB"]>1 \
         or self.readCoalescedComponentsB
     self.globalRead2PerpendicularB = kernel["NumLoadsPerpendicularB"] > 1 \
@@ -928,11 +918,11 @@ class KernelWriterAssembly(KernelWriter):
     ####################################
     # num vgprs: global -> local elements
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
-      numVgprG2LA = (kernel["NumLoadsCoalescedA"] \
-          * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * tPA["bpe"])/self.bpr
+      numVgprG2LA = roundUp((kernel["NumLoadsCoalescedA"] \
+          * kernel["NumLoadsPerpendicularA"] * kernel["GlobalLoadVectorWidthA"] * tPA["bpe"])/(float)(self.bpr))
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
-      numVgprG2LB = (kernel["NumLoadsCoalescedB"] \
-          * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * tPB["bpe"])/self.bpr
+      numVgprG2LB = roundUp((kernel["NumLoadsCoalescedB"] \
+          * kernel["NumLoadsPerpendicularB"] * kernel["GlobalLoadVectorWidthB"] * tPB["bpe"])/(float)(self.bpr))
 
     ####################################
     # num vgprs: local read addresses
@@ -962,7 +952,7 @@ class KernelWriterAssembly(KernelWriter):
         / (self.globalReadInstructionA.blockWidth * 4)
 
     if kernel["BufferLoad"]:
-      numGlobalReadOffsetsA = numGlobalReadInstructionsA * self.rpgo
+      numGlobalReadOffsetsA = roundUp(numGlobalReadInstructionsA * self.rpgo)
     else:
       numVgprGlobalReadAddressesA = numGlobalReadInstructionsA * self.rpga
 
@@ -972,7 +962,7 @@ class KernelWriterAssembly(KernelWriter):
     numGlobalReadInstructionsB = (numGlobalReadsB * tPB["bpe"]) \
         / (self.globalReadInstructionB.blockWidth * 4)
     if kernel["BufferLoad"]:
-      numGlobalReadOffsetsB = numGlobalReadInstructionsB * self.rpgo 
+      numGlobalReadOffsetsB = roundUp(numGlobalReadInstructionsB * self.rpgo)
     else:
       numVgprGlobalReadAddressesB = numGlobalReadInstructionsB * self.rpga
     if self.globalReadIncsUseVgpr:
@@ -3926,8 +3916,8 @@ class KernelWriterAssembly(KernelWriter):
             graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
             g2lIdx = i * loadWidth
             if guardK:
-              # for each component in vector
               r = 0
+              # for each component in vector
               while r < loadWidth*self.bpr/tP["bpe"]:
                 kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
                 # load single element from address (except packed half case below)
@@ -3970,7 +3960,7 @@ class KernelWriterAssembly(KernelWriter):
                     directToLdsLoads+=1
 
                   if kernel["ProblemType"]["DataType"].isHalf():
-                    if kernel["AssertSummationElementMultiple"] % 2 == 0:
+                    if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
                       if kernel["DirectToLds%s"%tP["tensorChar"]]:
                         # Assembler expects a destination VGPR even though not written
                         kStr += tP["globalReadInstruction"].toString( \
@@ -3991,13 +3981,14 @@ class KernelWriterAssembly(KernelWriter):
                       numElementsPerLoad = 2
                       r += 1 # skip next element since we loaded 2X here
                     else:
-                      kStr += inst("buffer_load_short_d16%s"%("_hi" if r%2==1 else ""), \
+                      hi16=loopCnt%2 if tP["glvw"]==1 else r%2
+                      kStr += inst("buffer_load_short_d16%s"%("_hi" if hi16 else ""), \
                           vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
                           vgpr(offsetVgpr), \
                           sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
                           soffset, \
                           " offen offset:%u"%offset,\
-                          "load single f16")
+                          "load single f16 r=%u loopcnt=%u"%(r,loopCnt))
                   elif kernel["ProblemType"]["DataType"].isSingle():
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
                       # Assembler expects a destination VGPR even though not written
@@ -4123,15 +4114,22 @@ class KernelWriterAssembly(KernelWriter):
                       "G -> LDS(%s)"%(comment), \
                       tP["NonTemporal"], 0)
 
-                else:
-                  kStr += tP["globalReadInstruction"].toString( \
-                      (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
-                      vgpr(offsetVgpr), \
-                      sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                      soffset,""), \
-                      "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ),\
-                      tP["NonTemporal"], 0)
-              else:
+                else: # not DirectToLds
+                  bpl = self.bpeAB * tP["glvw"] # bytes per load
+                  extraFields = ""
+                  if tP["NonTemporal"]%2==1:
+                    extraFields += " glc"
+                  if tP["NonTemporal"]/2==1:
+                    extraFields += " slc"
+                  kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
+                            bpl, destVgpr="G2L%s+%u"%(tc, g2lIdx), \
+                            rpv=loadWidth, \
+                            addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
+                            soffset=soffset, offset=0, \
+                            extraFields=extraFields, \
+                            hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
+                            comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
+              else: # not buffer load
                 kStr += tP["globalReadInstruction"].toString( \
                     (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
@@ -4375,7 +4373,9 @@ class KernelWriterAssembly(KernelWriter):
       tmpLocalWriteAddr = -1
 
       # if transposing, positions of sPerp and sPara are transposed
+      instructionCnt = -1
       for perp in range(0, tP["nrp"]):
+        instructionCnt += 1
         lwa = "LocalWriteAddr%s"%tc  # default
         if kernel["FractionalLoad"] and perp==tP["nrp"]-1:
           overhang = kernel["fractionalPerpOverhang%s"%tc]
@@ -4413,7 +4413,6 @@ class KernelWriterAssembly(KernelWriter):
 
             (offset, i, comment) = self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, loopCnt)
             g2lIdx = i*blockWidth
-            loopCnt+=1
 
 
             paramList = []
@@ -4437,8 +4436,12 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ProblemType"]["DataType"].isHalf():
               if s%2==1:
                 highBits = True
+              if tP["glvw"]==1 and instructionCnt%2==1:
+                highBits = True
             kStr += tP["localWriteInstruction"].toString(paramTuple, comment, \
                 nonTemporal, highBits)
+
+            loopCnt+=1
         #kStr += "s_endpgm\n"
 
       if tmpLocalWriteAddr != -1:
@@ -5727,25 +5730,28 @@ class KernelWriterAssembly(KernelWriter):
   # rpv = regs per vector
   ##############################################################################
   def chooseGlobalLoad(self, useBuffer, bpl, destVgpr, rpv, \
-                       addr0, addr1, offset, extraFields, hi16=0, comment="load C"):
+                       addr0, addr1, soffset, offset, extraFields, hi16=0, comment="load C"):
     kStr = ""
 
     if useBuffer:
+      tailFields = "offen offset:%u"%offset
+      if extraFields != "":
+        tailFields += ", %s"% extraFields
       if bpl==2 and hi16:
         kStr += inst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
+                  addr1, soffset, tailFields, comment)
       elif bpl==2 and not hi16:
         kStr += inst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
+                  addr1, soffset, tailFields, comment)
       elif bpl==4:
         kStr += inst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
+                  addr1, soffset, tailFields, comment)
       elif bpl==8:
         kStr += inst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
+                  addr1, soffset, tailFields, comment)
       elif bpl==16:
         kStr += inst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, comment)
+                  addr1, soffset, tailFields, comment)
       else:
         assert ("chooseGlobalLoad: bad bpl")
     else:
@@ -6062,7 +6068,7 @@ class KernelWriterAssembly(KernelWriter):
             addr0 = vgpr(addr,2)
             addr1 = ""
           kStr += self.chooseGlobalLoad(useBuffer, bpm, dataV+1, rpv, \
-                    addr0, addr1, offset=avi*bpm, extraFields="",
+                    addr0, addr1, soffset=0, offset=avi*bpm, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW))
           #  kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
           #            sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
@@ -6079,12 +6085,12 @@ class KernelWriterAssembly(KernelWriter):
         extraFields = ""
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
-                    addr0, addr1, 0, extraFields, hi16=sumIdx%2,
+                    addr0, addr1, 0, 0, extraFields, hi16=sumIdx%2,
                     comment="load C for beta calc")
         elif kernel["ProblemType"]["DataType"].isSingle() or \
              kernel["ProblemType"]["DataType"].isDouble():
           kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
-                    addr0, addr1, 0, extraFields,
+                    addr0, addr1, 0, 0, extraFields,
                     comment="load C for beta calc")
 
       # restore full exec mask for calculating addr of next element
