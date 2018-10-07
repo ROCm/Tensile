@@ -26,6 +26,7 @@ import subprocess
 from subprocess import Popen, PIPE
 import time
 import platform
+import math
 
 startTime = time.time()
 
@@ -842,6 +843,8 @@ def ensurePath( path ):
     os.makedirs(path)
   return path
 
+def roundUp(f):
+  return (int)(math.ceil(f))
 
 ################################################################################
 # Is query version compatible with current version
