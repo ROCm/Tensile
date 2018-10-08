@@ -22,29 +22,31 @@ BenchmarkProblems:
       TransposeB: True
       UseBeta: False
 
-    - # Tile Sizes
-      BenchmarkCommonParameters:
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - MacroTileShapeMax: [64]
-      ForkParameters:
-        - ThreadTile:
-          - [8, 8]
-          - [7, 4]
-          - [3, 5]
-          - [2, 6]
-          - [1, 1]
-        - WorkGroup:
-          - [ 16, 16,  1 ]
-          - [  8,  2, 16 ]
-          - [ 16, 12,  1 ]
-        - DepthU: [ 2, 16, 64 ]
-        - GlobalSplitU: [1, 4]
-        - VectorWidth: [1]
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [   1,   1,   1 ]
-          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
+##   disabled for now due to hanging
+##
+##    - # Tile Sizes
+##      BenchmarkCommonParameters:
+##        - EdgeType: ["ShiftPtr"]
+##        - LoopTail: [True]
+##        - MacroTileShapeMax: [64]
+##      ForkParameters:
+##        - ThreadTile:
+##          - [8, 8]
+##          - [7, 4]
+##          - [3, 5]
+##          - [2, 6]
+##          - [1, 1]
+##        - WorkGroup:
+##          - [ 16, 16,  1 ]
+##          - [  8,  2, 16 ]
+##          - [ 16, 12,  1 ]
+##        - DepthU: [ 2, 16, 64 ]
+##        - GlobalSplitU: [1, 4]
+##        - VectorWidth: [1]
+##      BenchmarkFinalParameters:
+##        - ProblemSizes:
+##          - Exact: [   1,   1,   1 ]
+##          - Range: [ [127, 1, 129], [127, 1, 129], [63, 1, 65] ]
 
 
     - # Non-Tile Sizes
