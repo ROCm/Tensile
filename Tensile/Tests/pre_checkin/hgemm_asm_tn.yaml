@@ -68,3 +68,29 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [127,1,129], 0, [2], [63,1,65] ]
 
+    - # BenchmarkProblemSizeGroup - Assembly
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - LoopTail: [True]
+        - EdgeType: ["ShiftPtr"]
+        - KernelLanguage: ["Assembly"]
+        - PrefetchLocalRead: [True]
+        - WorkGroupMapping: [1]
+      ForkParameters:
+        - PrefetchGlobalRead: [False]
+        - ThreadTile:
+          - [4, 2]
+        - WorkGroup:
+          - [8, 16, 1]
+        - GlobalSplitU: [1]
+        - DepthU: [8]
+        - VectorWidth: [2]
+        - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 512, 8, 1, 500000 ]
+
