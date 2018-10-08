@@ -28,6 +28,7 @@
 #include <string>
 #include <tuple>
 #include <mutex>
+#include <atomic>
 
 /*******************************************************************************
  * Kernel Cache
