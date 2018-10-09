@@ -106,6 +106,12 @@ class SolutionWriter:
       t += "  "
       if globalParameters["DebugKernel"]:
         s += "%sunsigned int *debugBuffer;\n" % t
+      # Tensor sizes in bytes, excluding batch dims and accounting for zero strides
+      # Do these first since they are 64-bits and want to avoid any unneeded padding:
+      s += "%s// Size of lowest Tensor's lowest 2 dims, in bytes.  Does not include bath dim or higher (>2) order dimensions\n" % t
+      s += "%suint64_t tensor2dSizeC;\n" % t
+      s += "%suint64_t tensor2dSizeA;\n" % t
+      s += "%suint64_t tensor2dSizeB;\n" % t
       solutionArgs = self.getArgList(solution["ProblemType"], True, False, False)
       for arg in solutionArgs:
         if arg[0] == "TensileHalf":
@@ -113,11 +119,6 @@ class SolutionWriter:
         else:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
 
-      # Tensor sizes in bytes, excluding batch dims and accounting for zero strides
-      s += "%s// Size of lowest Tensor's lowest 2 dims, in bytes.  Does not include bath dim or higher (>2) order dimensions\n" % t
-      s += "%suint64_t tensor2dSizeC;\n" % t
-      s += "%suint64_t tensor2dSizeA;\n" % t
-      s += "%suint64_t tensor2dSizeB;\n" % t
 
       if solution["PersistentKernel"]:
         # pass in the number of groups since not available in WG
