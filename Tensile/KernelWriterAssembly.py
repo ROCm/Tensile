@@ -556,6 +556,16 @@ class KernelWriterAssembly(KernelWriter):
     # use 64-bit buffer limit shadow register, only works with PBC
     self.use64bPbcLimit = 1 and kernel["PreciseBoundsCheck"]
 
+    # if >0, shift the start of the SRD left by specified #elements
+    # Gives pointer shift some room to move left, even into the previous macro-tile
+    # This slightly reduces the range of the GRO since they have to include the offset
+    # Pointer shift still cannot be used with very small matrices < GRVW
+    # Edge comparisons are done with int32 as well for PBC=1.  This means the size
+    # This means that the corner of the tile dimension must be less than MAX_INT (not uint) - the 4 elements of padding.
+    self.srdShiftLeft = {}
+    self.srdShiftLeft["A"] = kernel["GlobalLoadVectorWidthA"]
+    self.srdShiftLeft["B"] = kernel["GlobalLoadVectorWidthB"]
+
     self.checkGRO = False
     # checkGRO requires useSgprForGRO=0 so that code allocates and uses
     # the VGPRs that are used for the GRO offset checking
@@ -631,7 +641,7 @@ class KernelWriterAssembly(KernelWriter):
         "%s, %s, %s, %s offen offset:0 %s" )
     # generate half directly w/o using the format string to handle hi/lo correctly
     buffer_load_short = MemoryInstruction("buffer_load_short_d16", 1, 0, 0, 0.5, \
-        "UNUSED %s, %s, %s, %s offen offset:0 %s" ) 
+        "UNUSED %s, %s, %s, %s offen offset:0 %s" )
 
     ########################################
     # Global Write
@@ -1782,10 +1792,10 @@ class KernelWriterAssembly(KernelWriter):
     # justOffset32 means we should only write the 32-bit offset
     # This is used in Buffer addressing modes.
     # Flat addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
-    for (tensorChar, indices, justOffset32) in [ \
-        ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), kernel["BufferStore"]), \
-        ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"]), \
-        ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"]) ]:
+    for (tensorChar, indices, justOffset32, isAB) in [ \
+        ("C", range(0, kernel["ProblemType"]["NumIndicesC"]), kernel["BufferStore"], False), \
+        ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"], True), \
+        ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"], True) ]:
 
       # BufferStore does not use this macro so don't generate it:
       if tensorChar == "C" and kernel["BufferStore"]:
@@ -1896,8 +1906,17 @@ class KernelWriterAssembly(KernelWriter):
           if not justOffset32:
             kStr += inst("v_mov_b32", "v[\\vgprAddr+1]", hex(0), "d0 upper")
 
+
         # Change offset for subsequent dims (if needed)
         offset = destLo
+
+      if isAB and kernel["BufferLoad"] and self.srdShiftLeft[tensorChar]:
+        kStr += inst("v_add_u32", \
+            "v[\\vgprAddr+0]", \
+            hex(self.srdShiftLeft[tensorChar]), \
+            "v[\\vgprAddr+0]", \
+            "add prepad")
+
 
       # addr *= bytes/element
       if justOffset32:
@@ -2663,7 +2682,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), sgpr(tmpSgpr), \
                 "edge = Size%s - WG*MT"%(tP["tileChar"]))
-      kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), margin, "edge -= margin")
+      # int sub since if we are near the front of the tile this may go negative:
+      kStr += inst("s_sub_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), margin, "edge -= margin")
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
     else:
@@ -2684,7 +2704,11 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(2)
     for l in range(0, tP["nrt"]):
       # compare
-      kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
+      if self.groOffsetInMacroTile:
+        # int cmp since if we are near the front of the tile this may go negative:
+        kStr += inst("v_cmp_lt_i32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
+      else:
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
       # shift
       kStr += inst("v_cndmask_b32", vgpr(v+l), vgpr(edge), vgpr(v+l), sgpr(tmpSgpr,2), "offset = (offset < edge) ? offset : edge" )
     self.vgprPool.checkIn(edge)
@@ -2903,6 +2927,7 @@ class KernelWriterAssembly(KernelWriter):
 
     #---
     # Compute BUFFER Limit:
+    prePad = self.srdShiftLeft[tc] * tP["bpe"] # leave room in case we have to pointer shift
     if kernel["PreciseBoundsCheck"]:
       if not wroteTileStart:
         kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
@@ -2921,10 +2946,16 @@ class KernelWriterAssembly(KernelWriter):
 
       if self.use64bPbcLimit:
         # Set initial buffer limit
-        # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments, and when we get within 32-bit we start to step down the SRD
+        # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
+        # and when we get within 32-bit we start to step down the SRD
         # if the limit is <32bits, set it accurately here:
         # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
-        kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), hex(log2(tP["bpe"])), "Set limit to use bytes")
+        kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), \
+            hex(log2(tP["bpe"])), "Set limit to use bytes")
+        if prePad:
+          kStr += inst("s_add_u32",  sgpr("SrdShadowLimit%s+0"%tc), sgpr("SrdShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+          kStr += inst("s_addc_u32", sgpr("SrdShadowLimit%s+1"%tc), sgpr("SrdShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
+
         kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
         kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
 
@@ -2964,10 +2995,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
       kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
 
+    if prePad:
+      kStr += inst("s_sub_u32",  sgpr("Srd%s+0"%tc), sgpr("Srd%s+0"%tc), prePad, "pre-pad to make room for possible pointer shift")
+      kStr += inst("s_subb_u32",  sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), 0, "pre-pad to make room for possible pointer shift")
+
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
     #if tP["isB"]:
-    #  kStr += self.assert_ne(sgpr("WorkGroup2"), 1)
+    #  kStr += self.assert_ne(sgpr("WorkGroup2"), 0)
 
 
     if kernel["PreciseBoundsCheck"] and kernel["CheckDimOverflow"]>=2:
@@ -3941,7 +3976,7 @@ class KernelWriterAssembly(KernelWriter):
                       offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
                       soffset = "0"
 
-                    offset = r * numElementsPerLoad * tP["bpe"]
+                    offset = r * numElementsPerLoad * tP["bpe"] # TODO - enable this as optimization, need to move add below
                   else:
                     offsetVgpr = self.vgprPool.checkOut(1)
                     soffset = "0"
@@ -4024,21 +4059,6 @@ class KernelWriterAssembly(KernelWriter):
                   if not kernel["PreciseBoundsCheck"]:
                     self.vgprPool.checkIn(offsetVgpr)
 
-                  # increment offset by 1 element
-                  if not kernel["UseSgprForGRO"]:
-                    if incrementSrd:
-                      kStr += self.incrementSrd(kernel, tP, numElementsPerLoad * tP["bpe"], 0)
-                      kStr += inst("s_sub_u32", \
-                          sgpr(maxAddrSgpr), \
-                          sgpr(maxAddrSgpr), \
-                          tP["bpe"], \
-                          "Not USFGROAdjust max addr to account for SRD move")
-                    else:
-                      kStr += inst("_v_add_co_u32", \
-                          vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                          "vcc", \
-                          vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                          numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
                 else: # Not buffer load
                   # mask if current address if in bounds
                   kStr += inst("v_cmpx_lt_u64", "vcc", \
@@ -4080,6 +4100,23 @@ class KernelWriterAssembly(KernelWriter):
                       "vcc", \
                       "gra += 1 (upper)")
                 r += 1 # next component (for half)
+              # end R loop
+              # increment offset by 1 element
+              if kernel["BufferLoad"] and not kernel["UseSgprForGRO"]:
+                if incrementSrd:
+                  assert(0)
+                  kStr += self.incrementSrd(kernel, tP, numElementsPerLoad * tP["bpe"], 0)
+                  kStr += inst("s_sub_u32", \
+                      sgpr(maxAddrSgpr), \
+                      sgpr(maxAddrSgpr), \
+                      tP["bpe"], \
+                      "Not USFGROAdjust max addr to account for SRD move")
+                else:
+                  kStr += inst("_v_add_co_u32", \
+                      vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+                      "vcc", \
+                      vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+                        numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
             else: # not guardK
               if kernel["BufferLoad"]:
                 if graIdx==0 or not kernel["UseSgprForGRO"]:
@@ -4177,6 +4214,9 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(maxAddrVgpr)
         self.vgprPool.checkIn(bpeVgpr)
         self.vgprPool.checkIn(zeroVgpr)
+
+      #kStr += "s_waitcnt vmcnt(0)\n" # this is after loads and address increments
+      #kStr += self.bomb()
     return kStr
 
   ##############################################################################
@@ -5140,7 +5180,7 @@ class KernelWriterAssembly(KernelWriter):
                         coord, sgpr("StridesC+%u"%(i-1)), \
                         "rowStart i=%u"%i)
           else:
-            # TODO-const - note this is product of two constants - can we precompute in the header.
+            # TODO-const - this is product of two constants - can we precompute in the header.
             kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), \
                           coord, sgpr("StridesC+%u"%(i-1)), \
                           "tmp")
