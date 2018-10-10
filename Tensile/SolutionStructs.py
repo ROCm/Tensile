@@ -1488,11 +1488,12 @@ class Solution:
       guaranteeNoPartialB = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
 
     #--
-    if state["PreciseBoundsCheck"]:
+    # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
+    if state["PreciseBoundsCheck"] and state["UseSgprForGRO"] \
+            and state["EdgeType"]=="ShiftPtr":
       if not guaranteeeNoPartialA or not guaranteeNoPartialB:
-        state["PreciseBoundsCheck"] = 0
+        state["UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO

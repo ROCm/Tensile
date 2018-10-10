@@ -548,8 +548,6 @@ class KernelWriterAssembly(KernelWriter):
     # If False, GRO are expressed as offsets from the beginning of the lowest 2 dimensions
     # in the tensor.
     # True can allow Buffer-Based logic to have significantly higher range and handle larger tensors
-    # But does not work with the PointerShift logic.
-    # Can be enabled with PBC (does not use branch logic) or if assertions guarantee no shift needed
     # groOffsetInMacroTile doesn't work with pointer-shift because it sets the SRD to point to the
     # start of the macro-tile - if we overhang by small number of elements (<GRVW) then can't shift
     # back to get all the data.
@@ -2643,11 +2641,16 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A/B
   # See if the load (including vw) will extend past the 'free' dim of the 
   # tensor.  If so clip to the last legal value which is inside the array
+
   ##############################################################################
   def graShift(self, kernel, tP):
-    # PBC doesn't shift pointers, uses a difference edge detect mechanism
     # FractionalLoad maps addresses in a different way?
-    if kernel["PreciseBoundsCheck"] : return ""
+
+    # graShift requires a vgpr for each address component (so each component
+    # can be examined and shifted if necessary) - therefore does not work
+    # with UseSgprForGRO.
+    assert(not kernel["UseSgprForGRO"])
+
 
     kStr = ""
     # edge value
@@ -2656,7 +2659,6 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.groOffsetInMacroTile:
       # Subtract the static component from SizesFree:
-      # TODO - this code is dead since PreciseBoundsCheck returns above
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), sgpr(tmpSgpr), \
