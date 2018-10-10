@@ -277,46 +277,46 @@ def build_pipeline( compiler_data compiler_args, docker_data docker_args, projec
 }
 
 // The following launches 3 builds in parallel: hcc-ctu, hcc-rocm and cuda
-parallel hcc_ctu:
-{
-  try
-  {
-    node( 'docker && rocm && gfx900' )
-    {
-      def docker_args = new docker_data(
-          from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
-          build_docker_file:'dockerfile-build-hip-hcc-ctu-ubuntu-16.04',
-          install_docker_file:'dockerfile-tensile-hip-hcc-ctu-ubuntu-16.04',
-          docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
-          docker_build_args:' --pull' )
-
-      def compiler_args = new compiler_data(
-          compiler_name:'hcc-ctu',
-          build_config:'Release',
-          compiler_path:'/opt/rocm/bin/hcc' )
-
-      def tensile_paths = new project_paths(
-          project_name:'tensile',
-          src_prefix:'src',
-          build_prefix:'src' )
-  
-      def print_version_closure = {
-        sh  """
-            set -x
-            /opt/rocm/bin/rocm_agent_enumerator -t ALL
-            /opt/rocm/bin/hcc --version
-          """
-      }
-
-      build_pipeline( compiler_args, docker_args, tensile_paths, print_version_closure )
-    }
-  }
-  catch( err )
-  {
-    currentBuild.result = 'UNSTABLE'
-  }
-},
-hcc_rocm:
+//parallel hcc_ctu:
+//{
+//  try
+//  {
+//    node( 'docker && rocm && gfx900' )
+//    {
+//      def docker_args = new docker_data(
+//          from_image:'compute-artifactory:5001/rocm-developer-tools/hip/master/hip-hcc-ctu-ubuntu-16.04:latest',
+//          build_docker_file:'dockerfile-build-hip-hcc-ctu-ubuntu-16.04',
+//          install_docker_file:'dockerfile-tensile-hip-hcc-ctu-ubuntu-16.04',
+//          docker_run_args:'--device=/dev/kfd --device=/dev/dri --group-add=video',
+//          docker_build_args:' --pull' )
+//
+//      def compiler_args = new compiler_data(
+//          compiler_name:'hcc-ctu',
+//          build_config:'Release',
+//          compiler_path:'/opt/rocm/bin/hcc' )
+//
+//      def tensile_paths = new project_paths(
+//          project_name:'tensile',
+//          src_prefix:'src',
+//          build_prefix:'src' )
+//  
+//      def print_version_closure = {
+//        sh  """
+//            set -x
+//            /opt/rocm/bin/rocm_agent_enumerator -t ALL
+//            /opt/rocm/bin/hcc --version
+//          """
+//      }
+//
+//      build_pipeline( compiler_args, docker_args, tensile_paths, print_version_closure )
+//    }
+//  }
+//  catch( err )
+//  {
+//    currentBuild.result = 'UNSTABLE'
+//  }
+//},
+parallel hcc_rocm:
 {
   node( 'docker && rocm && gfx900' )
   {
