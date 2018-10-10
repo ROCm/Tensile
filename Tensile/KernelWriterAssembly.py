@@ -2009,6 +2009,22 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dword", sgpr("AddressDbg+1"), \
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr debug + 1" )
         kernArgOffset += 1*4
+      kStr += inst("s_load_dword", sgpr("Tensor2dSizeC+0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
+      kStr += inst("s_load_dword", sgpr("Tensor2dSizeC+1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
+      kernArgOffset += 2*4
+      kStr += inst("s_load_dword", sgpr("Tensor2dSizeA+0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
+      kStr += inst("s_load_dword", sgpr("Tensor2dSizeA+1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
+      kernArgOffset += 2*4
+      kStr += inst("s_load_dword", sgpr("Tensor2dSizeB+0"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
+      kStr += inst("s_load_dword", sgpr("Tensor2dSizeB+1"), \
+            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
+      kernArgOffset += 2*4
+
       kStr += inst("s_load_dword", sgpr("AddressC"), \
           sgpr("KernArgAddress",2), hex(kernArgOffset), "load addr c" )
       kernArgOffset += 1*4
@@ -2077,21 +2093,6 @@ class KernelWriterAssembly(KernelWriter):
             sgpr("KernArgAddress",2), hex(kernArgOffset), "load size sum %u"%i )
         kernArgOffset += 1*4
 
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeC+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeC+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
-      kernArgOffset += 2*4
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeA+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeA+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
-      kernArgOffset += 2*4
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeB+1"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+0), "load tensor size" )
-      kStr += inst("s_load_dword", sgpr("Tensor2dSizeB+0"), \
-            sgpr("KernArgAddress",2), hex(kernArgOffset+4), "load tensor size" )
-      kernArgOffset += 2*4
 
 
       kStr += inst("s_waitcnt", "lgkmcnt(0)", \
@@ -2930,6 +2931,7 @@ class KernelWriterAssembly(KernelWriter):
         # Set initial buffer limit
         # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments, and when we get within 32-bit we start to step down the SRD
         # if the limit is <32bits, set it accurately here:
+        # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
         kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), hex(log2(tP["bpe"])), "Set limit to use bytes")
         kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
         kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
