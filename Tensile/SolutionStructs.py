@@ -1476,22 +1476,22 @@ class Solution:
     # So check for the cases where the unroll loop can
     # generate partial loads here and reject PBC solutions:
     # For non-TLU the free dim is in perp dim so loads can't be partially OOB
-    # so those always guaranteeeNoPartial*=True
+    # so those always GuaranteeNoPartial*=True
     if state["ProblemType"]["TLUA"]:
-      guaranteeeNoPartialA = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+      state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
     else:
-      guaranteeeNoPartialA = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+      state["GuaranteeNoPartialA"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
 
     if state["ProblemType"]["TLUB"]:
-      guaranteeNoPartialB = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+      state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
     else:
-      guaranteeNoPartialB = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+      state["GuaranteeNoPartialB"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
     if state["PreciseBoundsCheck"] and state["UseSgprForGRO"] \
             and state["EdgeType"]=="ShiftPtr":
-      if not guaranteeeNoPartialA or not guaranteeNoPartialB:
+      if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
 

@@ -389,9 +389,11 @@ validParameters = {
     # guard against out of bounds reads
     # None: don't guard
     # Branch: use if statements (source only, and doesn't support VW)
-    # ShiftPtr: shift read pointers to be in bounds, then unshift registers (source & assembly), allows smallest supported problem size to be M or N >= global load vector width, i.e. 1
-    # ShiftTile: todo. this is MIOpenGemm's strategy, probably eliminates unshift however smallest supported problem size would be tile size
-    # BoundaryLoad: todo. use isa to set buffer/image load boundaries and out of bounds data automatically comes in as zero
+    # ShiftPtr: shift read pointers to be in bounds, then unshift registers (source & assembly),
+    # ShiftPtr does not support very small problem dims < global load vector width since the shift
+    # would move outside the array bounds.
+    # If GLVW==1 or Assert*ElementMultiple for the coalesced dim is > GRVW, then shifting is not
+    # necessary and the shift/unshift code will not be generated
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ], # None=don't guard against ou
 
     # Group together unroll iterations inside the unroll loop.
@@ -597,7 +599,7 @@ def writeSolutionAssertionChecks(asem, af0em, af1em, sep=" "):
   return s
 
 def writeSolutionAssertionChecksForSolution(solution):
-    return riteSolutionAssertionChecks(
+    return writeSolutionAssertionChecks(
         solution["AssertSummationElementMultiple"],
         solution["AssertFree0ElementMultiple"],
         solution["AssertFree1ElementMultiple"])
