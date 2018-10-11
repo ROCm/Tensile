@@ -740,10 +740,11 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
-    s += "  {%s, \"%s~\", {%d, %d} }%s // %d" % \
+    s += "  {%s, \"%s~\", {%d, %d, %d} }%s // %d" % \
       (solutionName, solutionName,
         solution["AssertSummationElementMultiple"],
         solution["AssertFree0ElementMultiple"],
+        solution["AssertFree1ElementMultiple"],
         "," if i < len(solutionsForSchedule)-1 else "",
         i)
     s += "\n"

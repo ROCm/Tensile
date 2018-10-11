@@ -631,6 +631,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     # Must be checked by the runtime before launchin the solution
     h += "  int                     assertSummationElementMultiple;\n"
     h += "  int                     assertFree0ElementMultiple;\n"
+    h += "  int                     assertFree1ElementMultiple;\n"
     h += "};\n";
 
     h += "/* solutions */\n"
@@ -644,10 +645,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
       # add trailing ~ for some reason to the function name
-      h += "  {%s, \"%s~\", %d, %d}" % \
+      h += "  {%s, \"%s~\", %d, %d, %d}" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
-          solution["AssertFree0ElementMultiple"])
+          solution["AssertFree0ElementMultiple"],
+          solution["AssertFree1ElementMultiple"])
       if i < len(solutions)-1:
         h += ","
       h += "\n"
@@ -820,6 +822,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += writeSolutionAssertionChecks(
            "solutions[solutionIdx].assertSummationElementMultiple",
            "solutions[solutionIdx].assertFree0ElementMultiple",
+           "solutions[solutionIdx].assertFree1ElementMultiple",
            "\n  ")
     h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
     h += "\n"

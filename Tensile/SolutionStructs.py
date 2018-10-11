@@ -1229,15 +1229,10 @@ class Solution:
         print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
               " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
 
-      # f16 can't load shorts from global->lds
-      if state["ProblemType"]["DataType"].isHalf() \
-          and (state["GlobalLoadVectorWidthA"] == 1 \
-          or state["GlobalLoadVectorWidthB"] == 1):
-        if "KernelLanguage" in state:
-          if state["KernelLanguage"] == "Assembly":
-            validDepthU = False
-        else:
-          validDepthU = False
+      #if state["ProblemType"]["DataType"].isHalf() \
+      #    and (state["GlobalLoadVectorWidthA"] == 1 \
+      #    or state["GlobalLoadVectorWidthB"] == 1):
+      #  validDepthU = False
 
       if not state["FractionalLoad"]:
         if userDepthU == -1: # no vectors
@@ -1286,15 +1281,6 @@ class Solution:
     ########################################
     # end DepthU loop
     ########################################
-
-    # f16 asm can't load shorts from global->lds
-    if state["ProblemType"]["DataType"].isHalf() \
-        and (state["GlobalLoadVectorWidthA"] == 1 \
-        or state["GlobalLoadVectorWidthB"] == 1):
-      if "KernelLanguage" in state:
-        if state["KernelLanguage"] == "Assembly":
-          reject(state, "f16 kernels can't load shorts from global->lds")
-          return
 
     if not state["FractionalLoad"]:
       if not Solution.setGlobalLoadTileDimClassic(state, "A", state["NumLoadsA"], \
@@ -1504,7 +1490,9 @@ class Solution:
     #--
     if state["PreciseBoundsCheck"]:
       if not guaranteeeNoPartialA or not guaranteeNoPartialB:
-        state["PreciseBoundsCheck"] = False
+        state["PreciseBoundsCheck"] = 0
+        #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
+
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
