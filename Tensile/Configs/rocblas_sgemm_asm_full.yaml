@@ -45,7 +45,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - PrefetchGlobalRead: [False, True]
@@ -129,7 +128,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
@@ -210,7 +208,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -348,7 +345,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - GlobalSplitU: [1]
       ForkParameters:
         - PrefetchGlobalRead: [False, True]
@@ -497,7 +493,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
@@ -531,7 +526,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [ True ]
         - PrefetchLocalRead: [ True ]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -576,7 +570,6 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - PrefetchGlobalRead: [ False, True ]
         - PrefetchLocalRead: [ False]
@@ -635,7 +628,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - PrefetchGlobalRead: [False, True]
@@ -683,7 +675,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
@@ -760,7 +751,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -861,7 +851,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - GlobalSplitU: [1]
       ForkParameters:
         - ThreadTile:
@@ -1003,7 +992,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
@@ -1086,7 +1074,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -1157,7 +1144,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - GlobalSplitU: [1]
       ForkParameters:
         - ThreadTile:
@@ -1224,7 +1210,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [1]
       ForkParameters:
         - ThreadTile:
@@ -1308,7 +1293,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
       ForkParameters:
         - ThreadTile:
           - [ 2, 2 ]
@@ -1374,7 +1358,6 @@ BenchmarkProblems:
         - LoopTail: [True]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - GlobalSplitU: [1]
       ForkParameters:
         - PrefetchGlobalRead: [False, True]
@@ -1436,7 +1419,6 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - PrefetchGlobalRead: [True]
         - PrefetchLocalRead: [True]
-        - PreciseBoundsCheck: [False]
         - WorkGroupMapping: [-1]
       ForkParameters:
         - ThreadTile:
@@ -1461,11 +1443,11 @@ BenchmarkProblems:
 
 LibraryLogic:
 #   ScheduleName: "vega20"
-#   DeviceNames: ["Device 66a0", "Device 66a7"]
+#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7"]
 #   ArchitectureName: "gfx906"
 
     ScheduleName: "vega10"
-    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]"]
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
     ArchitectureName: "gfx900"
 
 #   ScheduleName: "mi25"

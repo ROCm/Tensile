@@ -1,7 +1,7 @@
   ########################################
   # Explore large number of ~10K solutions
   ########################################
-    - # NN workloads
+    - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
@@ -32,4 +32,3 @@
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-

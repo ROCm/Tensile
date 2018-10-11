@@ -1,7 +1,7 @@
   ########################################
   # Explore small number of half solns
   ########################################
-    - # NN workloads
+    - # Benchmark Group
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
@@ -23,9 +23,10 @@
         - WorkGroupMapping: [8]
         - DepthU: [ 16 ]
         - VectorWidth: [2,8]
+        - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-

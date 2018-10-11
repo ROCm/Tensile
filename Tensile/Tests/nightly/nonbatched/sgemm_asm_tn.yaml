@@ -1,19 +1,32 @@
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
+  CMakeBuildType: Release
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
   NumElementsToValidate: -1
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  DataInitTypeAB: 3
+  DataInitTypeC: 3
   KernelTime: True
 
 BenchmarkProblems:
 
-  - # hgemm TN
+  - # sgemm TN
     - # ProblemType
       OperationType: GEMM
-      DataType: h
+      DataType: s
       TransposeA: True
       TransposeB: False
       UseBeta: True
-      Batched: True
+      Batched: False
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -26,20 +39,20 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 4, 2 ]
+          - [ 3, 5 ]
           - [ 4, 8 ]
           - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [ 32,  4,  1 ]
-        - DepthU: [8]
+        - DepthU: [-4]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [63,1,65] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -52,19 +65,20 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 8, 2 ]
-          - [ 2, 8 ]
-          - [ 16, 2 ]
-          - [ 2, 16 ]
+          - [ 3, 3 ]
+          - [ 4, 4 ]
+          - [ 5, 5 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
-        - DepthU: [16]
+        - DepthU: [-1]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [ [127,1,129], 0, [63,1,65] ]
+
 

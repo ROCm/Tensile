@@ -2,9 +2,12 @@ P=problems
 DEEPBENCH_CONV_1x1=$P/nn/deepbench_conv_1x1_batchN.yml $P/nn/deepbench_conv_1x1_batch1.yml
 RESNET=$P/nn/resnet_batch64_B.yml
 
+# Override SCHED as vega10, vega20
+SCHED=vega10
+
 # commonly-used headers and footers:
 HEADER=boiler/header.yml
-FOOTER=boiler/library_logic_vega10_only.yml
+FOOTER=boiler/library_logic_$(SCHED)_only.yml
 
 # Override TYPE as sgemm, hgemm (hgemm_hpa, dgemm, etc in future)
 TYPE=sgemm
@@ -25,6 +28,9 @@ SOLUTION_SKINNY=solutions/$(TYPE)_skinny_explore_$(EXPLORE_LEVEL).yml
 
 all: \
 	$(TYPE)_resnet.yaml \
+	$(TYPE)_resnet50_nn.yaml \
+	$(TYPE)_resnet50_nt.yaml \
+	$(TYPE)_resnet50_tn.yaml \
 	$(TYPE)_deepbench_conv1x1.yaml \
 	$(TYPE)_deepbench_gemm_nn.yaml \
 	$(TYPE)_deepbench_gemm_nt.yaml \
@@ -33,6 +39,17 @@ all: \
 # Resnet
 $(TYPE)_resnet.yaml: $(HEADER) types/$(TYPE)_nn.yml \
 	$(SOLUTION_SKINNY) $(RESNET) \
+	$(FOOTER)
+
+# Resnet50
+$(TYPE)_resnet50_nn.yaml: $(HEADER) types/$(TYPE)_nn.yml \
+	$(SOLUTION_SKINNY) $P/nn/resnet50_all.yml \
+	$(FOOTER)
+$(TYPE)_resnet50_nt.yaml: $(HEADER) types/$(TYPE)_nt.yml \
+	$(SOLUTION_SKINNY) $P/nt/resnet50_all.yml \
+	$(FOOTER)
+$(TYPE)_resnet50_tn.yaml: $(HEADER) types/$(TYPE)_tn.yml \
+	$(SOLUTION_SKINNY) $P/tn/resnet50_all.yml \
 	$(FOOTER)
 
 # DeepBench Convolution:

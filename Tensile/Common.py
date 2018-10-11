@@ -267,8 +267,20 @@ validParameters = {
     # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
+    # When creating the kernel, assume that the 'second' free index size is some
+    # multiple of the element size.
+    # "first" free index is FreeIndex[1] and usually letter "J"
+    # 1 indicates no restriction (since all sizes are multiples of 1)
+    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
+    #"AssertFree1ElementMultiple" : [1,2,4,8],
+    "AssertFree1ElementMultiple" : [1],  # TODO, support broader range here
+
     # Generate code inside kernel to check assertions above on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
+
+    # Generate code inside kernel to check several dimension overflow cases, in particular around use of 32-bit calcs
+    # 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection, 2=checks for cases that should never happen
+    "CheckDimOverflow":               [0,1,2],
 
     # For Block Mapping type:
     # 0   : Use hardware-assigned wg number with no remapping.
@@ -429,11 +441,13 @@ defaultBenchmarkCommonParameters = [
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },
-    {"PreciseBoundsCheck":        [ False ] },
+    {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },
+    {"AssertFree1ElementMultiple": [ 1 ] },
     {"CheckTensorDimAsserts"      : [ False ] },
+    {"CheckDimOverflow"           : [ 0 ] },
 
     {"GlobalSplitU":              [ 1 ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
@@ -675,9 +689,11 @@ def tryAssembler(isaVersion, asmString):
     if result != "":
       return 0 # stdout and stderr must be empty
   except subprocess.CalledProcessError, e:
+    if globalParameters["PrintLevel"] >=2:
+        print "CalledProcessError", e
     return 0 # error, not supported
 
-  return 1 # syntax works for
+  return 1 # syntax works
 
 
 ################################################################################
@@ -737,13 +753,11 @@ def assignGlobalParameters( config ):
   for (v) in globalParameters["SupportedISA"]:
     globalParameters["AsmCaps"][v] = {}
     isaVersion = "gfx" + "".join(map(str,v))
-    asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s -" \
-               % (globalParameters["AssemblerPath"], isaVersion)
-    # This doesn't work since assembler politely falls back to default with an unsupported mcpu argument:
     globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
     globalParameters["AsmCaps"][v]["HasDirectToLds"] = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
     globalParameters["AsmCaps"][v]["HasAddLshl"] = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+    globalParameters["AsmCaps"][v]["HasSMulHi"] = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
     caps = ""
     for k in globalParameters["AsmCaps"][v]:
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])

@@ -26,7 +26,7 @@ import YAMLIO
 from SolutionWriter import SolutionWriter
 from KernelWriterSource import KernelWriterSource
 from KernelWriterAssembly import KernelWriterAssembly
-import multiprocessing, copy
+import multiprocessing
 
 import os
 import sys
@@ -159,6 +159,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
             kiStart, kiStop, child)
       t = multiprocessing.Process(target=processKernelSourceChunk, args=args)
       t.start()
+      child.close() # close child pipe in the parent process
       threads.append([t,kiStart,kiStop, parentConn])
       if processLaunchProgressBar:
         processLaunchProgressBar.increment(kiStop-kiStart)
@@ -174,7 +175,11 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
 
   someError = 0
   for (t,kiStart,kiStop,parentConn) in threads:
-    results = parentConn.recv()
+    try:
+      results = parentConn.recv()
+    except EOFError as pipeErr:
+      print  "*** warning: process", t, "returned pipe EOF",t,pipeErr
+
     t.join()
     e = t.exitcode
     if e != 0 :
@@ -262,6 +267,7 @@ def writeSolutionsAndKernels(outputPath, solutions, kernels, kernelsBetaOnly, \
       solutionSourceFile.write(CHeader)
       solutionHeaderFile.write(CHeader)
     solutionSourceFile.write("#include \"Solutions.h\"\n")
+    solutionSourceFile.write("#include <algorithm>\n")
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"Kernels.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
@@ -562,6 +568,23 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           s += "    hipDeviceProp_t deviceProperties;\n"
           s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
           s += "    std::string name = deviceProperties.name;\n"
+
+        if problemType["DataType"].isDouble() :
+          s += "\n"
+          s += "//  intercept schedule selection and call HIP (source) kernel\n"
+          s += "    if((strideA2K == 0) || (strideB2K == 0))\n"
+          s += "    {\n"
+          numSchedules = len(schedules)
+          schedule = reordered_schedules[numSchedules-1]
+          scheduleName  = schedule[0]
+          s += "        return tensileGetSolution%s_%s_%s(" \
+                % ( returnType, scheduleName, problemType)
+          for i in range(0, len(argListSizes)):
+            s += "%s%s" \
+                % (argListSizes[i][1],
+                    ", " if i < len(argListSizes)-1 else ");\n")
+          s += "    }\n"
+          s += "\n"
 
         if problemType["DataType"].isHalf() :
           # "first" free index, usually the letter "I"

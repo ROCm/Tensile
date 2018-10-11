@@ -1396,6 +1396,15 @@ class Solution:
       reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] /= state["InnerUnroll"]
 
+    # HACK!
+    # For now, LocalDotLayout > 1 only works if the thread tile is a square and VectorWidth is equal to the 
+    # thread tile size
+    ldl = state["LocalDotLayout"]
+    if ldl > 1 and \
+      (state["ThreadTile0"] != state["VectorWidth"] or state["ThreadTile1"] != state["VectorWidth"] or state["AssertSummationElementMultiple"] % ldl != 0):
+      reject(state, "LocalDotLayout > 1 only supports square thread tiles and VectorWidth equal to ThreadTile0/1 size and ASEM a multiple of LDL")
+      return
+
     if 0:
       print "info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB")
       print "info: ", pvar(state["ProblemType"], "TLUA"), \
@@ -1475,14 +1484,26 @@ class Solution:
     # check is used since this is faster and also for computation we only
     # need to ensure that none of the loads fault.  threads which are
     # computing bogus sections of the C tile will later be ignored.
-    # precise checking only works for vectorloads<=AssertSummationElementMultiple
-    # else if the vload crosses boundary we ignore all components not just the
-    # ones that are OOB.
+    # precise checking only works when all elements of the load are in-bounds
+    # since if the vload crosses boundary we ignore all components not just the
+    # ones that are OOB. See comments for groOffsetInMacroTile
+    # So check for the cases where the unroll loop can
+    # generate partial loads here and reject PBC solutions:
+    # For non-TLU the free dim is in perp dim so loads can't be partially OOB
+    # so those always guaranteeeNoPartial*=True
+    if state["ProblemType"]["TLUA"]:
+      guaranteeeNoPartialA = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+    else:
+      guaranteeeNoPartialA = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+
+    if state["ProblemType"]["TLUB"]:
+      guaranteeNoPartialB = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+    else:
+      guaranteeNoPartialB = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+
+    #--
     if state["PreciseBoundsCheck"]:
-      if  state["GlobalLoadVectorWidthA"] > \
-          state["AssertSummationElementMultiple"] \
-          or state["GlobalLoadVectorWidthB"] > \
-          state["AssertSummationElementMultiple"]:
+      if not guaranteeeNoPartialA or not guaranteeNoPartialB:
         state["PreciseBoundsCheck"] = False
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
@@ -1491,13 +1512,15 @@ class Solution:
     # individual vector registers doing bounds compares.
     if not state["PreciseBoundsCheck"]:
       state["UseSgprForGRO"] = 0
+      if state["FractionalLoad"]:
+        reject(state, "Fractional currently requires PreciseBoundsCheck") # Move to PBC always
 
     if state["UseSgprForGRO"] == -1:
-      # Don't use SGPR if it looks like we might not have enough:
+      # Don't use SGPR if it looks like we might not have enough - better to leave PBC enabled even if we have to use VGPR
       # 40 is based on current SGPR usage, this may need to be tuned in the future:
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
-      if numLoadsA + numLoadsB > 40:
+      if numLoadsA + numLoadsB > 35:
         #print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["UseSgprForGRO"] = 0
       else:

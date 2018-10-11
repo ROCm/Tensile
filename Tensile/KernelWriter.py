@@ -20,7 +20,7 @@
 ################################################################################
 
 from SolutionStructs import Solution
-from Common import globalParameters, printExit, CHeader
+from Common import globalParameters, CHeader
 import abc
 import os
 from os import path, chmod
@@ -71,6 +71,20 @@ class KernelWriter:
 
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
+
+    if kernel["ProblemType"]["TLUA"]:
+      # TODO - enable more aggressive path
+      #guaranteeeNoPartialA = kernel["AssertFree0ElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
+      guaranteeeNoPartialA = kernel["GlobalLoadVectorWidthA"]==1
+    else:
+      guaranteeeNoPartialA = True
+
+    if kernel["ProblemType"]["TLUB"]:
+      # TODO - enable more aggressive path
+      #guaranteeeNoPartialB = kernel["AssertFree1ElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
+      guaranteeeNoPartialB = kernel["GlobalLoadVectorWidthB"]==1
+    else:
+      guaranteeeNoPartialB = True
 
     if self.enable["PreLoop"]:
       ####################################
@@ -668,12 +682,19 @@ class KernelWriter:
       # Shift Vector Components
       ####################################
       if kernel["EdgeType"] == "ShiftPtr":
+
+        # noPartial means each component in the vector loads is always valid.  In this case we
+        # don't need the awkward unshift code
+        # TODO : the unshift code is complex and currently appears broken.  Long-term want to use
+        # the Assert*ElementMultiple>glvw code as often as possible, or use buffer-load-x1
+        # in cases where it can't be used.  Then can remove this path.
+
         # shift vector components d0
-        if self.readTileDimVectorA and kernel["GlobalLoadVectorWidthA"] > 1:
+        if not guaranteeeNoPartialA and self.readTileDimVectorA:
           kStr += self.comment("shift vector components d0")
           kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
-        if self.readTileDimVectorB and kernel["GlobalLoadVectorWidthB"] > 1:
+        if not guaranteeeNoPartialB and self.readTileDimVectorB:
           kStr += self.comment("shift vector components d1")
           kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 
@@ -938,7 +959,8 @@ class KernelWriter:
         self.writeUnrollDimComponentsA = False # Scalar
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
-          writeCoal = True
+          # LDS writes with LDL>1 will never be coalesced
+          writeCoal = False
         else:
           self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
           writeCoal = False
@@ -1037,7 +1059,8 @@ class KernelWriter:
         self.writeUnrollDimComponentsB = False
         if kernel["LocalDotLayout"]>1:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
-          writeCoal = True
+          # LDS writes with LDL>1 will never be coalesced
+          writeCoal = False
         else:
           self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
           writeCoal = False
@@ -1819,33 +1842,33 @@ class KernelWriter:
       assemblerProcess = Popen(assemblerCommand, \
           cwd=asmPath )
       assemblerProcess.communicate()
-      if assemblerProcess.returncode:
-        printExit("Assembler process returned with code %u" \
-            % assemblerProcess.returncode)
 
-      # read code object file
       fileString = ""
-      if not globalParameters["CodeFromFiles"]:
-        codeObjectFile = open(codeObjectFileName, "r")
-        codeObjectByteArray = bytearray(codeObjectFile.read())
-        codeObjectFile.close()
-  
-        # write code object byte array
-        fileString += self.comment("code object byte array")
-        fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
-        for byteIdx in range(0, len(codeObjectByteArray)):
-          byte = codeObjectByteArray[byteIdx]
-          fileString += "0x%02x" % byte
-          if byteIdx < len(codeObjectByteArray)-1:
-            fileString += ","
-          else:
-            fileString += "};\n"
-          if byteIdx % 16 == 15:
-            fileString += "\n"
+      if assemblerProcess.returncode:
+        error = -1
+      else:
+        # read code object file
+        if not globalParameters["CodeFromFiles"]:
+          codeObjectFile = open(codeObjectFileName, "r")
+          codeObjectByteArray = bytearray(codeObjectFile.read())
+          codeObjectFile.close()
+
+          # write code object byte array
+          fileString += self.comment("code object byte array")
+          fileString += "const unsigned char %s_coba[%u] = {\n" % (kernelName, len(codeObjectByteArray))
+          for byteIdx in range(0, len(codeObjectByteArray)):
+            byte = codeObjectByteArray[byteIdx]
+            fileString += "0x%02x" % byte
+            if byteIdx < len(codeObjectByteArray)-1:
+              fileString += ","
+            else:
+              fileString += "};\n"
+            if byteIdx % 16 == 15:
+              fileString += "\n"
 
 
-      # read code-object file and convert to c++ representable uchar*
-      # return string of code-object byte array
+    # read code-object file and convert to c++ representable uchar*
+    # return string of code-object byte array
     return (error, fileString)
 
 

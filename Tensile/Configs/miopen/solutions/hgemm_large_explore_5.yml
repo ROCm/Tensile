@@ -20,9 +20,10 @@
         - DepthU: [ 16, 24, 32 ]
         - VectorWidth: [8]
         - GlobalReadVectorWidth: [-1]
+        - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-
