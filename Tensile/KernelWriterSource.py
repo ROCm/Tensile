@@ -367,7 +367,10 @@ class KernelWriterSource(KernelWriter):
     if self.language == "OCL":
       kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
     else:
-      kStr += "#define MAC(A,B,DST) DST += A*B"
+      if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
+      else:
+        kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
 
     if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
