@@ -367,7 +367,9 @@ class KernelWriterSource(KernelWriter):
     if self.language == "OCL":
       kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
     else:
-      kStr += "#define MAC(A,B,DST) DST += A*B"
+      kStr += "#define MAC(A,B,DST) DST += A*B" 
+    kStr += self.endLine
+    kStr += "#define MAC_HPA(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
     kStr += self.endLine
 
     if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
@@ -464,8 +466,8 @@ class KernelWriterSource(KernelWriter):
       if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
         if kernel["ProblemType"]["HighPrecisionAccumulate"]:
           kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
-          kStr += " DST0 = MAC(MULA0,MULB0,DST0);" + self.endLinePP
-          kStr += " DST1 = MAC(MULA1,MULB1,DST1);" + self.endLinePP
+          kStr += " DST0 = MAC_HPA(MULA0,MULB0,DST0);" + self.endLinePP
+          kStr += " DST1 = MAC_HPA(MULA1,MULB1,DST1);" + self.endLinePP
           kStr += self.endLine
         else:
           kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
