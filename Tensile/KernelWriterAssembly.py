@@ -1911,8 +1911,9 @@ class KernelWriterAssembly(KernelWriter):
         offset = destLo
 
       if isAB and kernel["BufferLoad"] and self.srdShiftLeft[tensorChar]:
-        kStr += inst("v_add_u32", \
+        kStr += inst("_v_add_co_u32", \
             "v[\\vgprAddr+0]", \
+            "vcc", \
             hex(self.srdShiftLeft[tensorChar]), \
             "v[\\vgprAddr+0]", \
             "add prepad")
