@@ -3798,151 +3798,133 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
+
   ##############################################################################
-  # Global Read: Do It A/B
+  # Global Read:
+  # globalReadGuardK is called for loads in the tail loop
+  # Must ensure each load is in bounds - either using buffer bounds 
+  # (if PreciseBoundsCheck=1) or exec-mask checks.
   ##############################################################################
-  def globalReadDo(self, kernel, guardK, tP):
-    if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
+  def globalReadGuardK(self, kernel, tP):
     kStr = ""
     tc = tP["tensorChar"]
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth
     ldsOffset = 0
+    incrementSrd = False   # move the srd + base vs move the GRO
 
-    if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
-      kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
-      kStr += self.syncThreads(kernel)
+    ########################################
+    # Calculate Max Addr
+    ########################################
+    maxAddrSgpr = self.getTmpSgpr(4)
+    tmpSgpr = maxAddrSgpr + 2
+    #dumpVgpr = self.vgprPool.checkOut(1)
 
-    if kernel["DirectToLds%s"%tP["tensorChar"]]:
-      # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
-      if kernel["LocalWriteUseSgpr%s"%tc]:
-        kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
+    # Assumes the product of the two sizes is <4GB here.
+    # We would need to slide the SRD if this is not the case.
+    kStr += self.comment1("max read address = size[n] * stride[n-1]")
+    dim = len(tP["ia"])-1 # dim
+    strideIdx = dim-1 # largest stride
+    sizeIdx = tP["ia"][dim]
+    sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+    if sizeIdxIsSum:
+      sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+
+    if not kernel["PreciseBoundsCheck"]:
+      # PBC moves the limit as SRD moves forward so don't need to reset boundary
+      # Else find the edge of the matrix and compute bounds
+
+      if 1:
+        kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+                    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+                    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+                    "64b tensor%s size in elements"%tc)
+        kStr += inst("s_lshl_b64", \
+          sgpr(maxAddrSgpr,2), \
+          sgpr(maxAddrSgpr,2), \
+          hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
       else:
-        # TODO - remove this code? No reason not to use LocalWriteUseSgpr?
-        lwaSgpr = self.getTmpSgpr(1)
-        kStr += inst("v_readfirstlane_b32", sgpr(lwaSgpr), \
-            vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-            "Set lds write address to SGPR")
-        kStr += inst("s_mov_b32", "m0", sgpr(lwaSgpr), "m0 <- LDS write address")
-
-    # sizeK % LOCAL_DEPTHU
-    if guardK:
-      incrementSrd = False   # move the srd + base vs move the GRO
-
-      ########################################
-      # Calculate Max Addr
-      ########################################
-      maxAddrSgpr = self.getTmpSgpr(4)
-      tmpSgpr = maxAddrSgpr + 2
-      #dumpVgpr = self.vgprPool.checkOut(1)
-
-      # Assumes the product of the two sizes is <4GB here.
-      # We would need to slide the SRD if this is not the case.
-      kStr += self.comment1("max read address = size[n] * stride[n-1]")
-      dim = len(tP["ia"])-1 # dim
-      strideIdx = dim-1 # largest stride
-      sizeIdx = tP["ia"][dim]
-      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-      if sizeIdxIsSum:
-        sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
-
-      if not kernel["PreciseBoundsCheck"]:
-        # PBC moves the limit as SRD moves forward so don't need to reset boundary
-        # Else find the edge of the matrix and compute bounds
-
-        if 1:
+        if kernel["ProblemType"]["NumIndicesC"] == 2:
+          kStr += inst("s_lshl_b64", \
+            sgpr(maxAddrSgpr,2), \
+            sgpr("Tensor2dSize%s"%tc,2), \
+            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+        elif kernel["ProblemType"]["NumIndicesC"] == 3:
+          # TODO - hardcored for two batches, remove when PBC code goes
           kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                      sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                      sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                      "64b tensor%s size in elements"%tc)
+                      sgpr("Tensor2dSize%s")%tc, \
+                      sgpr("SizesFree+2"), "scale Tensor2D by numBatches")
           kStr += inst("s_lshl_b64", \
             sgpr(maxAddrSgpr,2), \
             sgpr(maxAddrSgpr,2), \
             hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
         else:
-          if kernel["ProblemType"]["NumIndicesC"] == 2:
-            kStr += inst("s_lshl_b64", \
-              sgpr(maxAddrSgpr,2), \
-              sgpr("Tensor2dSize%s"%tc,2), \
-              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
-          elif kernel["ProblemType"]["NumIndicesC"] == 3:
-            # TODO - hardcored for two batches, remove when PBC code goes
-            kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                        sgpr("Tensor2dSize%s")%tc, \
-                        sgpr("SizesFree+2"), "scale Tensor2D by numBatches")
-            kStr += inst("s_lshl_b64", \
-              sgpr(maxAddrSgpr,2), \
-              sgpr(maxAddrSgpr,2), \
-              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
-          else:
-            assert(0) # unsupported number of Free dims, should use PBC=1 instead
-            kStr += inst("s_lshl_b64", \
-              sgpr(maxAddrSgpr,2), \
-              sgpr(maxAddrSgpr,2), \
-              hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+          assert(0) # unsupported number of Free dims, should use PBC=1 instead
+          kStr += inst("s_lshl_b64", \
+            sgpr(maxAddrSgpr,2), \
+            sgpr(maxAddrSgpr,2), \
+            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
 
 
-        if kernel["BufferLoad"]:
-          # Set maxAddrSgpr to max allowed byte offset
-          # maxAddrSgpr = size[n] * stride[n-1] * bpe
-          # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
+      if kernel["BufferLoad"]:
+        # Set maxAddrSgpr to max allowed byte offset
+        # maxAddrSgpr = size[n] * stride[n-1] * bpe
+        # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
 
-          kStr += inst("s_sub_u32", \
-              sgpr(tmpSgpr), \
-              sgpr("Srd%s+0"%tc), \
-              sgpr("Address%s+0"%tc), \
-              "Compute distance of SRD from original array in bytes")
+        kStr += inst("s_sub_u32", \
+            sgpr(tmpSgpr), \
+            sgpr("Srd%s+0"%tc), \
+            sgpr("Address%s+0"%tc), \
+            "Compute distance of SRD from original array in bytes")
 
-          kStr += inst("s_subb_u32", \
-              sgpr(tmpSgpr+1), \
-              sgpr("Srd%s++1"%tc), \
-              sgpr("Address%s+1"%tc), \
-              "Compute distance of SRD from original array in bytes")
+        kStr += inst("s_subb_u32", \
+            sgpr(tmpSgpr+1), \
+            sgpr("Srd%s++1"%tc), \
+            sgpr("Address%s+1"%tc), \
+            "Compute distance of SRD from original array in bytes")
 
-          kStr += inst("s_sub_u32", \
-              sgpr(maxAddrSgpr), \
-              sgpr(maxAddrSgpr), \
-              sgpr(tmpSgpr), \
-              "Max byte offset =  MaxSize - SRD_Distance")
+        kStr += inst("s_sub_u32", \
+            sgpr(maxAddrSgpr), \
+            sgpr(maxAddrSgpr), \
+            sgpr(tmpSgpr), \
+            "Max byte offset =  MaxSize - SRD_Distance")
 
-          kStr += inst("s_subb_u32", \
-              sgpr(maxAddrSgpr+1), \
-              sgpr(maxAddrSgpr+1), \
-              sgpr(tmpSgpr+1), \
-              "Max byte offset =  MaxSize - SRD_Distance")
+        kStr += inst("s_subb_u32", \
+            sgpr(maxAddrSgpr+1), \
+            sgpr(maxAddrSgpr+1), \
+            sgpr(tmpSgpr+1), \
+            "Max byte offset =  MaxSize - SRD_Distance")
 
-          if kernel["CheckDimOverflow"]>=2:
-            kStr += self.assert_eq(sgpr(maxAddrSgpr+1), 0)
+        if kernel["CheckDimOverflow"]>=2:
+          kStr += self.assert_eq(sgpr(maxAddrSgpr+1), 0)
 
-        else: # not BufferLoad
-          kStr += inst("s_add_u32", \
-              sgpr(maxAddrSgpr+0), \
-              sgpr(self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"]), \
-              sgpr(maxAddrSgpr+0), \
-              "prepend address lower")
-          kStr += inst("s_addc_u32", \
-              sgpr(maxAddrSgpr+1), \
-              sgpr((self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"])+1), \
-              sgpr(maxAddrSgpr+1), \
-              "prepend address upper")
-          # sgpr->vgpr
-          maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
-          kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
-          kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
+      else: # not BufferLoad
+        kStr += inst("s_add_u32", \
+            sgpr(maxAddrSgpr+0), \
+            sgpr(self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"]), \
+            sgpr(maxAddrSgpr+0), \
+            "prepend address lower")
+        kStr += inst("s_addc_u32", \
+            sgpr(maxAddrSgpr+1), \
+            sgpr((self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"])+1), \
+            sgpr(maxAddrSgpr+1), \
+            "prepend address upper")
+        # sgpr->vgpr
+        maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
+        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
+        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
 
-          # full exec mask
-          fullExec = tmpSgpr
-          kStr += inst("s_mov_b64", sgpr(fullExec,2), \
-              "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-          bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
-          kStr += inst("v_mov_b32", vgpr(bpeVgpr), hex(tP["bpe"]), "bpe")
+        # full exec mask
+        fullExec = tmpSgpr
+        kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+            "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
+        bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
+        kStr += inst("v_mov_b32", vgpr(bpeVgpr), hex(tP["bpe"]), "bpe")
 
-          # can remove this?
-          zeroVgpr = self.vgprPool.checkOut(1)
-          kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
-
-      # End if guardK
+        # can remove this?
+        zeroVgpr = self.vgprPool.checkOut(1)
+        kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
 
     directToLdsLoads = 0
 
@@ -3955,231 +3937,169 @@ class KernelWriterAssembly(KernelWriter):
             loopCnt += 1
             graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
             g2lIdx = i * loadWidth
-            if guardK:
-              r = 0
-              # for each component in vector
-              while r < loadWidth*self.bpr/tP["bpe"]:
-                kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
-                # load single element from address (except packed half case below)
-                numElementsPerLoad = 1
-                offset = 0
 
-                if kernel["BufferLoad"]:
-                  # mask if current address if in bounds
-                  if kernel["PreciseBoundsCheck"]:
-                    if kernel["UseSgprForGRO"]:
-                      offsetVgpr = "GlobalReadOffset%s+0"%(tc)
-                      if graIdx==0:
-                        soffset = "0"
-                      else:
-                        soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
-                    else:
-                      offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
-                      soffset = "0"
+            r = 0
+            # for each component in vector
+            while r < loadWidth*self.bpr/tP["bpe"]:
+              kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+              # load single element from address (except packed half case below)
+              numElementsPerLoad = 1
+              offset = 0
 
-                    offset = r * numElementsPerLoad * tP["bpe"] # TODO - enable this as optimization, need to move add below
-                  else:
-                    offsetVgpr = self.vgprPool.checkOut(1)
-                    soffset = "0"
-                    kStr += inst("v_cmp_lt_u32", "vcc", \
-                          vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
-                          sgpr(maxAddrSgpr), \
-                          "addr < maxAddr")
-
-                    kStr += inst("v_cndmask_b32", \
-                                 vgpr(offsetVgpr), \
-                                  -1,
-                                  vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
-                                  "vcc",
-                                  "Select offset or clip if OOB. offset")
-                  if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                    ldsInc = kernel["NumThreads"]*4
-                    if directToLdsLoads != 0:
-                      kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
-                          "Move LDS write address to next line" )
-                    directToLdsLoads+=1
-
-                  if kernel["ProblemType"]["DataType"].isHalf():
-                    if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
-                      if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                        # Assembler expects a destination VGPR even though not written
-                        kStr += tP["globalReadInstruction"].toString( \
-                          (\
-                          vgpr(0), \
-                          vgpr(offsetVgpr), \
-                          sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                          soffset,"lds"), \
-                          "load packed 2xhalf  G -> LDS(%s)", tP["NonTemporal"], 0)
-                      else:
-                        kStr += inst("buffer_load_dword", \
-                          vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                          vgpr(offsetVgpr), \
-                          sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                          soffset, \
-                          " offen offset:%u"%offset,\
-                          "load packed 2xhalf")
-                      numElementsPerLoad = 2
-                      r += 1 # skip next element since we loaded 2X here
-                    else:
-                      hi16=loopCnt%2 if tP["glvw"]==1 else r%2
-                      kStr += inst("buffer_load_short_d16%s"%("_hi" if hi16 else ""), \
-                          vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                          vgpr(offsetVgpr), \
-                          sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                          soffset, \
-                          " offen offset:%u"%offset,\
-                          "load single f16 r=%u loopcnt=%u"%(r,loopCnt))
-                  elif kernel["ProblemType"]["DataType"].isSingle():
-                    if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                      # Assembler expects a destination VGPR even though not written
-                      kStr += tP["globalReadInstruction"].toString( \
-                          (\
-                          vgpr(0), \
-                          vgpr(offsetVgpr), \
-                          sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                          soffset,"lds"), \
-                          "load single float G -> LDS(%s)", tP["NonTemporal"], 0)
-                    else:
-                      kStr += inst("buffer_load_dword", \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                        vgpr(offsetVgpr), \
-                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                        soffset, \
-                        " offen offset:%u"%offset,\
-                        "load single float")
-                  elif kernel["ProblemType"]["DataType"].isDouble():
-                    kStr += inst("buffer_load_dwordx2", \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                        vgpr(offsetVgpr), \
-                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                        soffset, \
-                        " offen offset:%u"%offset,\
-                        "load single double")
-                  else:
-                    printWarning("DataType unsupported")
-                  if not kernel["PreciseBoundsCheck"]:
-                    self.vgprPool.checkIn(offsetVgpr)
-
-                else: # Not buffer load
-                  # mask if current address if in bounds
-                  kStr += inst("v_cmpx_lt_u64", "vcc", \
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
-                      vgpr(maxAddrVgpr,2), \
-                      "addr < maxAddr")
-
-                  # load single element from address
-                  if kernel["ProblemType"]["DataType"].isHalf():
-                    kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                        vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single f16")
-                  elif kernel["ProblemType"]["DataType"].isSingle():
-                    kStr += inst("flat_load_dword", \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                        vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single float")
-                  elif kernel["ProblemType"]["DataType"].isDouble():
-                    kStr += inst("flat_load_dwordx2", \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                        vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single double")
-                  else:
-                    printWarning("DataType unsupported")
-
-                  # restore full exec mask
-                  kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
-                      "all threads active")
-
-                  # increment address by 1 element (BPE)
-                  kStr += inst("_v_add_co_u32", \
-                      vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
-                      "vcc", \
-                      vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
-                      vgpr(bpeVgpr), "gra += 1 (lower)")
-                  kStr += inst("_v_addc_co_u32", \
-                      vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                      "vcc", \
-                      vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                      vgpr(zeroVgpr), \
-                      "vcc", \
-                      "gra += 1 (upper)")
-                r += 1 # next component (for half)
-              # end R loop
-              # increment offset by 1 element
-              if kernel["BufferLoad"] and not kernel["UseSgprForGRO"]:
-                if incrementSrd:
-                  assert(0)
-                  kStr += self.incrementSrd(kernel, tP, numElementsPerLoad * tP["bpe"], 0)
-                  kStr += inst("s_sub_u32", \
-                      sgpr(maxAddrSgpr), \
-                      sgpr(maxAddrSgpr), \
-                      tP["bpe"], \
-                      "Not USFGROAdjust max addr to account for SRD move")
-                else:
-                  kStr += inst("_v_add_co_u32", \
-                      vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                      "vcc", \
-                      vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                        numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
-            else: # not guardK
               if kernel["BufferLoad"]:
-                if graIdx==0 or not kernel["UseSgprForGRO"]:
-                  offsetVgpr= "GlobalReadOffset%s+%u"%(tc, graIdx)
-                  soffset = "0"
+                # mask if current address if in bounds
+                if kernel["PreciseBoundsCheck"]:
+                  if kernel["UseSgprForGRO"]:
+                    offsetVgpr = "GlobalReadOffset%s+0"%(tc)
+                    if graIdx==0:
+                      soffset = "0"
+                    else:
+                      soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+                  else:
+                    offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
+                    soffset = "0"
+
+                  offset = r * numElementsPerLoad * tP["bpe"] # TODO - enable this as optimization, need to move add below
                 else:
-                  offsetVgpr= "GlobalReadOffset%s+0"%(tc)
-                  soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+                  offsetVgpr = self.vgprPool.checkOut(1)
+                  soffset = "0"
+                  kStr += inst("v_cmp_lt_u32", "vcc", \
+                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
+                        sgpr(maxAddrSgpr), \
+                        "addr < maxAddr")
 
+                  kStr += inst("v_cndmask_b32", \
+                               vgpr(offsetVgpr), \
+                                -1,
+                                vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
+                                "vcc",
+                                "Select offset or clip if OOB. offset")
                 if kernel["DirectToLds%s"%tP["tensorChar"]]:
-
-                  # Get offset (for checking, see comment below) and comment:
-                  (checkOffset, iDummy, comment) = \
-                      self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, 0)
-
-                  # Direct to LDS always writes consecutive LDS locations at m0 + 4 * TidInWave
-                  # Therefore we double-check here to ensure the desired LDS write offset
-                  # is moving at NumThreads*4.  This should already be guaranteed since
-                  # we only use direct-to-lds for non-transpose cases but double-check here.
                   ldsInc = kernel["NumThreads"]*4
-                  #print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
-
                   if directToLdsLoads != 0:
                     kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
                         "Move LDS write address to next line" )
                   directToLdsLoads+=1
-                  ldsOffset += ldsInc
 
-                  # Assembler expects a destination VGPR even though not written
-                  kStr += tP["globalReadInstruction"].toString( \
-                      (\
-                      vgpr(0), \
+                if kernel["ProblemType"]["DataType"].isHalf():
+                  if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+                    if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                      # Assembler expects a destination VGPR even though not written
+                      kStr += tP["globalReadInstruction"].toString( \
+                        (\
+                        vgpr(0), \
+                        vgpr(offsetVgpr), \
+                        sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                        soffset,"lds"), \
+                        "load packed 2xhalf  G -> LDS(%s)", tP["NonTemporal"], 0)
+                    else:
+                      kStr += inst("buffer_load_dword", \
+                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                        vgpr(offsetVgpr), \
+                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                        soffset, \
+                        " offen offset:%u"%offset,\
+                        "load packed 2xhalf")
+                    numElementsPerLoad = 2
+                    r += 1 # skip next element since we loaded 2X here
+                  else:
+                    hi16=loopCnt%2 if tP["glvw"]==1 else r%2
+                    kStr += inst("buffer_load_short_d16%s"%("_hi" if hi16 else ""), \
+                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                        vgpr(offsetVgpr), \
+                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                        soffset, \
+                        " offen offset:%u"%offset,\
+                        "load single f16 r=%u loopcnt=%u"%(r,loopCnt))
+                elif kernel["ProblemType"]["DataType"].isSingle():
+                  if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                    # Assembler expects a destination VGPR even though not written
+                    kStr += tP["globalReadInstruction"].toString( \
+                        (\
+                        vgpr(0), \
+                        vgpr(offsetVgpr), \
+                        sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                        soffset,"lds"), \
+                        "load single float G -> LDS(%s)", tP["NonTemporal"], 0)
+                  else:
+                    kStr += inst("buffer_load_dword", \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
                       vgpr(offsetVgpr), \
-                      sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                      soffset,"lds"), \
-                      "G -> LDS(%s)"%(comment), \
-                      tP["NonTemporal"], 0)
+                      sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                      soffset, \
+                      " offen offset:%u"%offset,\
+                      "load single float")
+                elif kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += inst("buffer_load_dwordx2", \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
+                      vgpr(offsetVgpr), \
+                      sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
+                      soffset, \
+                      " offen offset:%u"%offset,\
+                      "load single double")
+                else:
+                  printWarning("DataType unsupported")
+                if not kernel["PreciseBoundsCheck"]:
+                  self.vgprPool.checkIn(offsetVgpr)
 
-                else: # not DirectToLds
-                  bpl = self.bpeAB * tP["glvw"] # bytes per load
-                  extraFields = ""
-                  if tP["NonTemporal"]%2==1:
-                    extraFields += " glc"
-                  if tP["NonTemporal"]/2==1:
-                    extraFields += " slc"
-                  kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
-                            bpl, destVgpr="G2L%s+%u"%(tc, g2lIdx), \
-                            rpv=loadWidth, \
-                            addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
-                            soffset=soffset, offset=0, \
-                            extraFields=extraFields, \
-                            hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
-                            comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
-              else: # not buffer load
-                kStr += tP["globalReadInstruction"].toString( \
-                    (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
-                    vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
-                    "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"], 0 )
+              else: # Not buffer load
+                # mask if current address if in bounds
+                kStr += inst("v_cmpx_lt_u64", "vcc", \
+                    vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
+                    vgpr(maxAddrVgpr,2), \
+                    "addr < maxAddr")
 
-              #kStr += "s_waitcnt vmcnt(0)\n"
-              #kStr += self.bomb()
-              #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))
+                # load single element from address
+                if kernel["ProblemType"]["DataType"].isHalf():
+                  kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single f16")
+                elif kernel["ProblemType"]["DataType"].isSingle():
+                  kStr += inst("flat_load_dword", \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single float")
+                elif kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += inst("flat_load_dwordx2", \
+                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
+                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single double")
+                else:
+                  printWarning("DataType unsupported")
+
+                # restore full exec mask
+                kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
+                    "all threads active")
+
+                # increment address by 1 element (BPE)
+                kStr += inst("_v_add_co_u32", \
+                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
+                    vgpr(bpeVgpr), "gra += 1 (lower)")
+                kStr += inst("_v_addc_co_u32", \
+                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
+                    vgpr(zeroVgpr), \
+                    "vcc", \
+                    "gra += 1 (upper)")
+              r += 1 # next component (for half)
+            # end R loop
+            # increment offset by 1 element
+            if kernel["BufferLoad"] and not kernel["UseSgprForGRO"]:
+              if incrementSrd:
+                assert(0)
+                kStr += self.incrementSrd(kernel, tP, numElementsPerLoad * tP["bpe"], 0)
+                kStr += inst("s_sub_u32", \
+                    sgpr(maxAddrSgpr), \
+                    sgpr(maxAddrSgpr), \
+                    tP["bpe"], \
+                    "Not USFGROAdjust max addr to account for SRD move")
+              else:
+                kStr += inst("_v_add_co_u32", \
+                    vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+                    "vcc", \
+                    vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+                      numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
@@ -4187,7 +4107,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "s_barrier // debug\n"
         #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
 
-    if guardK and kernel["UseSgprForGRO"]:
+    if kernel["UseSgprForGRO"]:
       # increment offset 0 by 1 element
       # have to do this after all the component loads since they all use 0
       if incrementSrd:
@@ -4210,14 +4130,129 @@ class KernelWriterAssembly(KernelWriter):
           hex(kernel["LdsNumElements"] * tP["bpe"]), \
           "Restore LDS clamp at %u bytes"%(kernel["LdsNumElements"] * tP["bpe"]))
 
-    if guardK:
-      if not kernel["BufferLoad"]:
-        self.vgprPool.checkIn(maxAddrVgpr)
-        self.vgprPool.checkIn(bpeVgpr)
-        self.vgprPool.checkIn(zeroVgpr)
+    if not kernel["BufferLoad"]:
+      self.vgprPool.checkIn(maxAddrVgpr)
+      self.vgprPool.checkIn(bpeVgpr)
+      self.vgprPool.checkIn(zeroVgpr)
 
-      #kStr += "s_waitcnt vmcnt(0)\n" # this is after loads and address increments
-      #kStr += self.bomb()
+    return kStr
+
+
+  ##############################################################################
+  # Global Read: Do It A/B
+  ##############################################################################
+  def globalReadDo(self, kernel, guardK, tP):
+    if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
+    kStr = ""
+    tc = tP["tensorChar"]
+    graIdx = 0
+    g2lIdx = 0
+    loadWidth = tP["globalReadInstruction"].totalWidth
+    ldsOffset = 0
+
+    if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
+      kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
+      kStr += self.syncThreads(kernel)
+
+    if kernel["DirectToLds%s"%tP["tensorChar"]]:
+      # DirectToLds only enabled for TLU=1 cases, where the registers are directly copied into LDS
+      assert (kernel["LocalWriteUseSgpr%s"%tc])
+      kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
+
+    # sizeK % LOCAL_DEPTHU
+    if guardK:
+      kStr += self.globalReadGuardK(kernel, tP)
+      return kStr
+
+    # else not-guardK below:
+
+    directToLdsLoads = 0
+
+    loopCnt = -1
+    for perp in range(0, tP["nrp"]):
+      for sPerp in range(0, tP["nrpv"]):
+        for para in range(0, tP["nrc"]):
+          for sPara in range(0, tP["nrcv"]/tP["nrcvpi"]):
+            i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+            loopCnt += 1
+            graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
+            g2lIdx = i * loadWidth
+
+            if kernel["BufferLoad"]:
+              if graIdx==0 or not kernel["UseSgprForGRO"]:
+                offsetVgpr= "GlobalReadOffset%s+%u"%(tc, graIdx)
+                soffset = "0"
+              else:
+                offsetVgpr= "GlobalReadOffset%s+0"%(tc)
+                soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+
+              if kernel["DirectToLds%s"%tP["tensorChar"]]:
+
+                # Get offset (for checking, see comment below) and comment:
+                (checkOffset, iDummy, comment) = \
+                    self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, 0)
+
+                # Direct to LDS always writes consecutive LDS locations at m0 + 4 * TidInWave
+                # Therefore we double-check here to ensure the desired LDS write offset
+                # is moving at NumThreads*4.  This should already be guaranteed since
+                # we only use direct-to-lds for non-transpose cases but double-check here.
+                ldsInc = kernel["NumThreads"]*4
+                #print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
+
+                if directToLdsLoads != 0:
+                  kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
+                      "Move LDS write address to next line" )
+                directToLdsLoads+=1
+                ldsOffset += ldsInc
+
+                # Assembler expects a destination VGPR even though not written
+                kStr += tP["globalReadInstruction"].toString( \
+                    (\
+                    vgpr(0), \
+                    vgpr(offsetVgpr), \
+                    sgpr("Srd%s"%(tP["tensorChar"]), 4), \
+                    soffset,"lds"), \
+                    "G -> LDS(%s)"%(comment), \
+                    tP["NonTemporal"], 0)
+
+              else: # not DirectToLds
+                bpl = self.bpeAB * tP["glvw"] # bytes per load
+                extraFields = ""
+                if tP["NonTemporal"]%2==1:
+                  extraFields += " glc"
+                if tP["NonTemporal"]/2==1:
+                  extraFields += " slc"
+                kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
+                          bpl, destVgpr="G2L%s+%u"%(tc, g2lIdx), \
+                          rpv=loadWidth, \
+                          addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
+                          soffset=soffset, offset=0, \
+                          extraFields=extraFields, \
+                          hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
+                          comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
+            else: # not buffer load
+              kStr += tP["globalReadInstruction"].toString( \
+                  (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
+                  vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
+                  "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"], 0 )
+
+            #kStr += "s_waitcnt vmcnt(0)\n"
+            #kStr += self.bomb()
+            #kStr += dump(vgpr("G2L%s+%u"%(tP["tensorChar"], graIdx)))
+
+    if self.db["ConservativeWaitCnt"] & 0x1:
+        kStr += "s_barrier // debug\n"
+        kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
+        kStr += "s_barrier // debug\n"
+        #kStr += self.assert_lt(vgpr("Serial"), 64) # examine second wavefront
+
+
+    # TODO - can remove one of these m0 restores if A and B both TLU
+    if kernel["DirectToLds%s"%tP["tensorChar"]]:
+      kStr += inst("s_mov_b32", "m0", \
+          hex(kernel["LdsNumElements"] * tP["bpe"]), \
+          "Restore LDS clamp at %u bytes"%(kernel["LdsNumElements"] * tP["bpe"]))
+
     return kStr
 
   ##############################################################################
