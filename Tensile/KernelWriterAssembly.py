@@ -543,6 +543,9 @@ class KernelWriterAssembly(KernelWriter):
     # which parts of the code were changed to support the new mode.
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
 
+    if kernel["BufferLoad"]:
+      assert(kernel["PreciseBoundsCheck"]) # removing non-PBC code
+
     # If True, GRO are expressed as offsets from the beginning of the macro-tile, and the SRD
     # is set to the beginning of the macro-tile.
     # If False, GRO are expressed as offsets from the beginning of the lowest 2 dimensions
@@ -3819,112 +3822,49 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     maxAddrSgpr = self.getTmpSgpr(4)
     tmpSgpr = maxAddrSgpr + 2
-    #dumpVgpr = self.vgprPool.checkOut(1)
 
-    # Assumes the product of the two sizes is <4GB here.
-    # We would need to slide the SRD if this is not the case.
-    kStr += self.comment1("max read address = size[n] * stride[n-1]")
-    dim = len(tP["ia"])-1 # dim
-    strideIdx = dim-1 # largest stride
-    sizeIdx = tP["ia"][dim]
-    sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
-    if sizeIdxIsSum:
-      sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+    if not kernel["BufferLoad"]:
+      kStr += self.comment1("max read address = size[n] * stride[n-1]")
+      dim = len(tP["ia"])-1 # dim
+      strideIdx = dim-1 # largest stride
+      sizeIdx = tP["ia"][dim]
+      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+      if sizeIdxIsSum:
+        sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+      kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+		  sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
+		  sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
+		  "64b tensor%s size in elements"%tc)
+      kStr += inst("s_lshl_b64", \
+	sgpr(maxAddrSgpr,2), \
+	sgpr(maxAddrSgpr,2), \
+	hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
 
-    if not kernel["PreciseBoundsCheck"]:
-      # PBC moves the limit as SRD moves forward so don't need to reset boundary
-      # Else find the edge of the matrix and compute bounds
+      kStr += inst("s_add_u32", \
+          sgpr(maxAddrSgpr+0), \
+          sgpr(self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"]), \
+          sgpr(maxAddrSgpr+0), \
+          "prepend address lower")
+      kStr += inst("s_addc_u32", \
+          sgpr(maxAddrSgpr+1), \
+          sgpr((self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"])+1), \
+          sgpr(maxAddrSgpr+1), \
+          "prepend address upper")
+      # sgpr->vgpr
+      maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
+      kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
+      kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
 
-      if 1:
-        kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                    sgpr("Sizes%s+%u"%("Sum" if sizeIdxIsSum else "Free", sizeIdx)),  \
-                    sgpr("Strides%s+%u"%(tP["tensorChar"],strideIdx)), \
-                    "64b tensor%s size in elements"%tc)
-        kStr += inst("s_lshl_b64", \
-          sgpr(maxAddrSgpr,2), \
-          sgpr(maxAddrSgpr,2), \
-          hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
-      else:
-        if kernel["ProblemType"]["NumIndicesC"] == 2:
-          kStr += inst("s_lshl_b64", \
-            sgpr(maxAddrSgpr,2), \
-            sgpr("Tensor2dSize%s"%tc,2), \
-            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
-        elif kernel["ProblemType"]["NumIndicesC"] == 3:
-          # TODO - hardcored for two batches, remove when PBC code goes
-          kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
-                      sgpr("Tensor2dSize%s")%tc, \
-                      sgpr("SizesFree+2"), "scale Tensor2D by numBatches")
-          kStr += inst("s_lshl_b64", \
-            sgpr(maxAddrSgpr,2), \
-            sgpr(maxAddrSgpr,2), \
-            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
-        else:
-          assert(0) # unsupported number of Free dims, should use PBC=1 instead
-          kStr += inst("s_lshl_b64", \
-            sgpr(maxAddrSgpr,2), \
-            sgpr(maxAddrSgpr,2), \
-            hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
+      # full exec mask
+      fullExec = tmpSgpr
+      kStr += inst("s_mov_b64", sgpr(fullExec,2), \
+          "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
+      bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
+      kStr += inst("v_mov_b32", vgpr(bpeVgpr), hex(tP["bpe"]), "bpe")
 
-
-      if kernel["BufferLoad"]:
-        # Set maxAddrSgpr to max allowed byte offset
-        # maxAddrSgpr = size[n] * stride[n-1] * bpe
-        # SRD has moved ahead for each tile so subtract original A to see if we are OOB:
-
-        kStr += inst("s_sub_u32", \
-            sgpr(tmpSgpr), \
-            sgpr("Srd%s+0"%tc), \
-            sgpr("Address%s+0"%tc), \
-            "Compute distance of SRD from original array in bytes")
-
-        kStr += inst("s_subb_u32", \
-            sgpr(tmpSgpr+1), \
-            sgpr("Srd%s++1"%tc), \
-            sgpr("Address%s+1"%tc), \
-            "Compute distance of SRD from original array in bytes")
-
-        kStr += inst("s_sub_u32", \
-            sgpr(maxAddrSgpr), \
-            sgpr(maxAddrSgpr), \
-            sgpr(tmpSgpr), \
-            "Max byte offset =  MaxSize - SRD_Distance")
-
-        kStr += inst("s_subb_u32", \
-            sgpr(maxAddrSgpr+1), \
-            sgpr(maxAddrSgpr+1), \
-            sgpr(tmpSgpr+1), \
-            "Max byte offset =  MaxSize - SRD_Distance")
-
-        if kernel["CheckDimOverflow"]>=2:
-          kStr += self.assert_eq(sgpr(maxAddrSgpr+1), 0)
-
-      else: # not BufferLoad
-        kStr += inst("s_add_u32", \
-            sgpr(maxAddrSgpr+0), \
-            sgpr(self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"]), \
-            sgpr(maxAddrSgpr+0), \
-            "prepend address lower")
-        kStr += inst("s_addc_u32", \
-            sgpr(maxAddrSgpr+1), \
-            sgpr((self.sgprs["AddressA"] if tP["isA"] else self.sgprs["AddressB"])+1), \
-            sgpr(maxAddrSgpr+1), \
-            "prepend address upper")
-        # sgpr->vgpr
-        maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
-        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
-        kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
-
-        # full exec mask
-        fullExec = tmpSgpr
-        kStr += inst("s_mov_b64", sgpr(fullExec,2), \
-            "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-        bpeVgpr = self.vgprPool.checkOut(1, "bpeVgpr")
-        kStr += inst("v_mov_b32", vgpr(bpeVgpr), hex(tP["bpe"]), "bpe")
-
-        # can remove this?
-        zeroVgpr = self.vgprPool.checkOut(1)
-        kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
+      # can remove this?
+      zeroVgpr = self.vgprPool.checkOut(1)
+      kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
 
     directToLdsLoads = 0
 
@@ -3948,32 +3888,18 @@ class KernelWriterAssembly(KernelWriter):
 
               if kernel["BufferLoad"]:
                 # mask if current address if in bounds
-                if kernel["PreciseBoundsCheck"]:
-                  if kernel["UseSgprForGRO"]:
-                    offsetVgpr = "GlobalReadOffset%s+0"%(tc)
-                    if graIdx==0:
-                      soffset = "0"
-                    else:
-                      soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
-                  else:
-                    offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
-                    soffset = "0"
+		if kernel["UseSgprForGRO"]:
+		  offsetVgpr = "GlobalReadOffset%s+0"%(tc)
+		  if graIdx==0:
+		    soffset = "0"
+		  else:
+		    soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+		else:
+		  offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
+		  soffset = "0"
 
-                  offset = r * numElementsPerLoad * tP["bpe"] # TODO - enable this as optimization, need to move add below
-                else:
-                  offsetVgpr = self.vgprPool.checkOut(1)
-                  soffset = "0"
-                  kStr += inst("v_cmp_lt_u32", "vcc", \
-                        vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx)), \
-                        sgpr(maxAddrSgpr), \
-                        "addr < maxAddr")
+		offset = r * numElementsPerLoad * tP["bpe"] 
 
-                  kStr += inst("v_cndmask_b32", \
-                               vgpr(offsetVgpr), \
-                                -1,
-                                vgpr("GlobalReadOffset%s+%u"%(tP["tensorChar"], graIdx),1), \
-                                "vcc",
-                                "Select offset or clip if OOB. offset")
                 if kernel["DirectToLds%s"%tP["tensorChar"]]:
                   ldsInc = kernel["NumThreads"]*4
                   if directToLdsLoads != 0:
@@ -4039,8 +3965,6 @@ class KernelWriterAssembly(KernelWriter):
                       "load single double")
                 else:
                   printWarning("DataType unsupported")
-                if not kernel["PreciseBoundsCheck"]:
-                  self.vgprPool.checkIn(offsetVgpr)
 
               else: # Not buffer load
                 # mask if current address if in bounds
