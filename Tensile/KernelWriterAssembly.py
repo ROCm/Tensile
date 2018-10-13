@@ -3916,60 +3916,46 @@ class KernelWriterAssembly(KernelWriter):
 
 		offset = r * numElementsPerLoad * tP["bpe"]
 
-                if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                if kernel["DirectToLds%s"%tc]:
                   ldsInc = kernel["NumThreads"]*4
                   if directToLdsLoads != 0:
                     kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
                         "Move LDS write address to next line" )
                   directToLdsLoads+=1
 
-                if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                  destVgpr=0 # dest required but never written
+                  # Assembler expects a destination VGPR even though not written
+                  destVgpr=0
                 else:
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
                 if kernel["ProblemType"]["DataType"].isHalf():
-                  if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
-                    packedLoadW = 2*self.bpeAB
-                    if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                      # Assembler expects a destination VGPR even though not written
-                      kStr += tP["globalReadInstruction"].toString( \
-                        (\
-                        vgpr(0), \
-                        vgpr(offsetVgpr), \
-                        sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                        soffset,"lds"), \
-                        "load packed 2xhalf  G -> LDS(%s)", tP["NonTemporal"], 0)
-                    else:
-                      kStr += self.chooseGlobalLoad(True, \
-                                packedLoadW, destVgpr=destVgpr, \
-                                addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
-                                soffset=soffset, offset=offset, \
-                                extraFields=extraFields, \
-                                hi16=0, \
-                                comment="load single buffer value")
-
-
-                    numElementsPerLoad = 2
-                    r += 1 # skip next element since we loaded 2X here
-                  else:
-                    hi16=loopCnt%2 if tP["glvw"]==1 else r%2
-                    kStr += inst("buffer_load_short_d16%s"%("_hi" if hi16 else ""), \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                        vgpr(offsetVgpr), \
-                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                        soffset, \
-                        " offen offset:%u"%offset,\
-                        "load single f16 r=%u loopcnt=%u"%(r,loopCnt))
+                  hi16=loopCnt%2 if tP["glvw"]==1 else r%2
                 else:
-                    # load single element from address
+                  hi16 = 0
+
+                if kernel["ProblemType"]["DataType"].isHalf() and \
+                  tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+                    # Pack two FP16 values into a single load dword x2
+                    packedLoadW = 2*self.bpeAB
                     kStr += self.chooseGlobalLoad(True, \
-                              self.bpeAB, destVgpr=destVgpr, \
+                              packedLoadW, destVgpr=destVgpr, \
                               addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                               soffset=soffset, offset=offset, \
                               extraFields=extraFields, \
-                              hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
-                              comment="load single buffer value")
+                              hi16=0, \
+                              comment="load packed 2X Half buffer value")
+
+                    numElementsPerLoad = 2
+                    r += 1 # skip next element since we loaded 2X here
+                else:
+                  # load single element from address
+                  kStr += self.chooseGlobalLoad(True, \
+                            self.bpeAB, destVgpr=destVgpr, \
+                            addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
+                            soffset=soffset, offset=offset, \
+                            extraFields=extraFields, \
+                            hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
+                            comment="load single buffer value")
 
               else: # Not buffer load
                 # mask if current address if in bounds
