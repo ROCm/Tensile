@@ -3885,7 +3885,16 @@ class KernelWriterAssembly(KernelWriter):
             r = 0
             # for each component in vector
             while r < loadWidth*self.bpr/tP["bpe"]:
+              if kernel["ProblemType"]["DataType"].isHalf():
+                regIdx = r/2
+              elif kernel["ProblemType"]["DataType"].isSingle():
+                regIdx = r
+              elif kernel["ProblemType"]["DataType"].isDouble():
+                regIdx = r*2
+              else:
+                printWarning("DataType unsupported")
               kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+
               # load single element from address (except packed half case below)
               numElementsPerLoad = 1
               offset = 0
@@ -3979,18 +3988,8 @@ class KernelWriterAssembly(KernelWriter):
                     "addr < maxAddr")
 
                 # load single element from address
-                bpl = self.bpeAB
-       		if kernel["ProblemType"]["DataType"].isHalf():
-                  regIdx = r/2
-                elif kernel["ProblemType"]["DataType"].isSingle():
-                  regIdx = r
-                elif kernel["ProblemType"]["DataType"].isDouble():
-                  regIdx = r*2
-                else:
-                  printWarning("DataType unsupported")
-
                 kStr += self.chooseGlobalLoad(False, \
-                          bpl, destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx), \
+                          self.bpeAB, destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx), \
                           rpv=bpl/4.0, \
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
