@@ -4038,7 +4038,8 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
     graIdx = 0
     g2lIdx = 0
-    loadWidth = tP["globalReadInstruction"].totalWidth
+    loadWidth = tP["globalReadInstruction"].totalWidth # load width in elements?
+    bpl = self.bpeAB * tP["glvw"] # bytes per load
     ldsOffset = 0
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
@@ -4056,6 +4057,14 @@ class KernelWriterAssembly(KernelWriter):
       return kStr
 
     # else not-guardK below:
+
+    extraFields = ""
+    if tP["NonTemporal"]%2==1:
+      extraFields += " glc"
+    if tP["NonTemporal"]/2==1:
+      extraFields += " slc"
+    if kernel["DirectToLds%s"%tc]:
+      extraFields += " lds"
 
     directToLdsLoads = 0
 
@@ -4077,7 +4086,7 @@ class KernelWriterAssembly(KernelWriter):
                 offsetVgpr= "GlobalReadOffset%s+0"%(tc)
                 soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
 
-              if kernel["DirectToLds%s"%tP["tensorChar"]]:
+              if kernel["DirectToLds%s"%tc]:
 
                 # Get offset (for checking, see comment below) and comment:
                 (checkOffset, iDummy, comment) = \
@@ -4095,36 +4104,27 @@ class KernelWriterAssembly(KernelWriter):
                       "Move LDS write address to next line" )
                 directToLdsLoads+=1
                 ldsOffset += ldsInc
+                destVgpr=0
+              else:
+                destVgpr="G2L%s+%u"%(tc, g2lIdx)
 
-                # Assembler expects a destination VGPR even though not written
-                kStr += tP["globalReadInstruction"].toString( \
-                    (\
-                    vgpr(0), \
-                    vgpr(offsetVgpr), \
-                    sgpr("Srd%s"%(tP["tensorChar"]), 4), \
-                    soffset,"lds"), \
-                    "G -> LDS(%s)"%(comment), \
-                    tP["NonTemporal"], 0)
-
-              else: # not DirectToLds
-                bpl = self.bpeAB * tP["glvw"] # bytes per load
-                extraFields = ""
-                if tP["NonTemporal"]%2==1:
-                  extraFields += " glc"
-                if tP["NonTemporal"]/2==1:
-                  extraFields += " slc"
-                kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
-                          bpl, destVgpr="G2L%s+%u"%(tc, g2lIdx), \
-                          addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
-                          soffset=soffset, offset=0, \
-                          extraFields=extraFields, \
-                          hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
-                          comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
+              kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
+                        bpl, destVgpr=destVgpr, \
+                        addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
+                        soffset=soffset, offset=0, \
+                        extraFields=extraFields, \
+                        hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
+                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
             else: # not buffer load
-              kStr += tP["globalReadInstruction"].toString( \
-                  (vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), loadWidth), \
-                  vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2)), \
-                  "G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ), tP["NonTemporal"], 0 )
+              # load single element from address
+              destVgpr="G2L%s+%u"%(tc, g2lIdx)
+              kStr += self.chooseGlobalLoad(False, \
+                        bpl, destVgpr=destVgpr, \
+                        addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
+                        soffset=0, offset=0, \
+                        extraFields=extraFields, \
+                        hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
+                        comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp ))
 
             #kStr += "s_waitcnt vmcnt(0)\n"
             #kStr += self.bomb()
