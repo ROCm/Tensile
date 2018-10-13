@@ -3923,8 +3923,14 @@ class KernelWriterAssembly(KernelWriter):
                         "Move LDS write address to next line" )
                   directToLdsLoads+=1
 
+                if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                  destVgpr=0 # dest required but never written
+                else:
+                  destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
+
                 if kernel["ProblemType"]["DataType"].isHalf():
                   if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+                    packedLoadW = 2*self.bpeAB
                     if kernel["DirectToLds%s"%tP["tensorChar"]]:
                       # Assembler expects a destination VGPR even though not written
                       kStr += tP["globalReadInstruction"].toString( \
@@ -3935,13 +3941,15 @@ class KernelWriterAssembly(KernelWriter):
                         soffset,"lds"), \
                         "load packed 2xhalf  G -> LDS(%s)", tP["NonTemporal"], 0)
                     else:
-                      kStr += inst("buffer_load_dword", \
-                        vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                        vgpr(offsetVgpr), \
-                        sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                        soffset, \
-                        " offen offset:%u"%offset,\
-                        "load packed 2xhalf")
+                      kStr += self.chooseGlobalLoad(True, \
+                                packedLoadW, destVgpr=destVgpr, \
+                                addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
+                                soffset=soffset, offset=offset, \
+                                extraFields=extraFields, \
+                                hi16=0, \
+                                comment="load single buffer value")
+
+
                     numElementsPerLoad = 2
                     r += 1 # skip next element since we loaded 2X here
                   else:
@@ -3953,11 +3961,7 @@ class KernelWriterAssembly(KernelWriter):
                         soffset, \
                         " offen offset:%u"%offset,\
                         "load single f16 r=%u loopcnt=%u"%(r,loopCnt))
-                elif kernel["ProblemType"]["DataType"].isSingle():
-                    if kernel["DirectToLds%s"%tP["tensorChar"]]:
-                      destVgpr=0 # dest required but never written
-                    else:
-                      destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
+                else:
                     # load single element from address
                     kStr += self.chooseGlobalLoad(True, \
                               self.bpeAB, destVgpr=destVgpr, \
@@ -3966,14 +3970,6 @@ class KernelWriterAssembly(KernelWriter):
                               extraFields=extraFields, \
                               hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
                               comment="load single buffer value")
-                elif kernel["ProblemType"]["DataType"].isDouble():
-                  kStr += inst("buffer_load_dwordx2", \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                      vgpr(offsetVgpr), \
-                      sgpr("Srd%s+%u"%(tP["tensorChar"], 0), 4), \
-                      soffset, \
-                      " offen offset:%u"%offset,\
-                      "load single double")
 
               else: # Not buffer load
                 # mask if current address if in bounds
