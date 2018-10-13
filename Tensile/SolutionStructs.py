@@ -1229,15 +1229,10 @@ class Solution:
         print "info: totalElementsCoalescedB=", totalElementsCoalescedB, \
               " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB
 
-      # f16 can't load shorts from global->lds
-      if state["ProblemType"]["DataType"].isHalf() \
-          and (state["GlobalLoadVectorWidthA"] == 1 \
-          or state["GlobalLoadVectorWidthB"] == 1):
-        if "KernelLanguage" in state:
-          if state["KernelLanguage"] == "Assembly":
-            validDepthU = False
-        else:
-          validDepthU = False
+      #if state["ProblemType"]["DataType"].isHalf() \
+      #    and (state["GlobalLoadVectorWidthA"] == 1 \
+      #    or state["GlobalLoadVectorWidthB"] == 1):
+      #  validDepthU = False
 
       if not state["FractionalLoad"]:
         if userDepthU == -1: # no vectors
@@ -1286,15 +1281,6 @@ class Solution:
     ########################################
     # end DepthU loop
     ########################################
-
-    # f16 asm can't load shorts from global->lds
-    if state["ProblemType"]["DataType"].isHalf() \
-        and (state["GlobalLoadVectorWidthA"] == 1 \
-        or state["GlobalLoadVectorWidthB"] == 1):
-      if "KernelLanguage" in state:
-        if state["KernelLanguage"] == "Assembly":
-          reject(state, "f16 kernels can't load shorts from global->lds")
-          return
 
     if not state["FractionalLoad"]:
       if not Solution.setGlobalLoadTileDimClassic(state, "A", state["NumLoadsA"], \
@@ -1490,21 +1476,24 @@ class Solution:
     # So check for the cases where the unroll loop can
     # generate partial loads here and reject PBC solutions:
     # For non-TLU the free dim is in perp dim so loads can't be partially OOB
-    # so those always guaranteeeNoPartial*=True
+    # so those always GuaranteeNoPartial*=True
     if state["ProblemType"]["TLUA"]:
-      guaranteeeNoPartialA = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+      state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
     else:
-      guaranteeeNoPartialA = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+      state["GuaranteeNoPartialA"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
 
     if state["ProblemType"]["TLUB"]:
-      guaranteeNoPartialB = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+      state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
     else:
-      guaranteeNoPartialB = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+      state["GuaranteeNoPartialB"] = state["AssertSummationElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
 
     #--
-    if state["PreciseBoundsCheck"]:
-      if not guaranteeeNoPartialA or not guaranteeNoPartialB:
-        state["PreciseBoundsCheck"] = False
+    # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
+    if state["PreciseBoundsCheck"] and state["UseSgprForGRO"] \
+            and state["EdgeType"]=="ShiftPtr":
+      if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
+        state["UseSgprForGRO"] = False
+        #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO

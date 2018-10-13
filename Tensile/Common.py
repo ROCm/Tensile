@@ -26,6 +26,7 @@ import subprocess
 from subprocess import Popen, PIPE
 import time
 import platform
+import math
 
 startTime = time.time()
 
@@ -273,7 +274,7 @@ validParameters = {
     # 1 indicates no restriction (since all sizes are multiples of 1)
     # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
     #"AssertFree1ElementMultiple" : [1,2,4,8],
-    "AssertFree1ElementMultiple" : [1],  # TODO, support broader range here
+    "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Generate code inside kernel to check assertions above on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -388,9 +389,11 @@ validParameters = {
     # guard against out of bounds reads
     # None: don't guard
     # Branch: use if statements (source only, and doesn't support VW)
-    # ShiftPtr: shift read pointers to be in bounds, then unshift registers (source & assembly), allows smallest supported problem size to be M or N >= global load vector width, i.e. 1
-    # ShiftTile: todo. this is MIOpenGemm's strategy, probably eliminates unshift however smallest supported problem size would be tile size
-    # BoundaryLoad: todo. use isa to set buffer/image load boundaries and out of bounds data automatically comes in as zero
+    # ShiftPtr: shift read pointers to be in bounds, then unshift registers (source & assembly),
+    # ShiftPtr does not support very small problem dims < global load vector width since the shift
+    # would move outside the array bounds.
+    # If GLVW==1 or Assert*ElementMultiple for the coalesced dim is > GRVW, then shifting is not
+    # necessary and the shift/unshift code will not be generated
     "EdgeType":                   [ "Branch", "ShiftPtr", "None" ], # None=don't guard against ou
 
     # Group together unroll iterations inside the unroll loop.
@@ -547,6 +550,10 @@ def writeSolutionAssertionCheckHeader(problemType):
 
   free0Index = problemType["IndicesFree"][0] # use lowest free index, this is coalesced dim for C
   free0Char = globalParameters["IndexChars"][free0Index]
+
+  free1Index = problemType["IndicesFree"][1] # use lowest free index, this is coalesced dim for C
+  free1Char = globalParameters["IndexChars"][free1Index]
+
   s += indent + "unsigned psem = 1; // problem summation element multiple\n"
   s += indent + "if ((size%s & 0x7) == 0) psem=8;\n"%(summationChar)
   s += indent + "else if ((size%s & 0x3) == 0) psem=4;\n"%(summationChar)
@@ -557,6 +564,11 @@ def writeSolutionAssertionCheckHeader(problemType):
   s += indent + "else if ((size%s & 0x3) == 0) pf0em=4;\n"%(free0Char)
   s += indent + "else if ((size%s & 0x1) == 0) pf0em=2;\n"%(free0Char)
   s += "\n"
+  s += indent + "unsigned pf1em = 1; // problem free1 element multiple\n"
+  s += indent + "if ((size%s & 0x7) == 0) pf1em=8;\n"%(free1Char)
+  s += indent + "else if ((size%s & 0x3) == 0) pf1em=4;\n"%(free1Char)
+  s += indent + "else if ((size%s & 0x1) == 0) pf1em=2;\n"%(free1Char)
+  s += "\n"
   return s
 
 
@@ -564,7 +576,7 @@ def writeSolutionAssertionCheckHeader(problemType):
 # This is used in the benchmark client and the Tensile client
 # note parms can be hard-coded ints (if checking for a specific solution)
 # or strings (if the calling function is a generic launch function)
-def writeSolutionAssertionChecks(asem, af0em, sep=" "):
+def writeSolutionAssertionChecks(asem, af0em, af1em, sep=" "):
   s = ""
   # some solutions have restrictions ("assertions") on the input dims that are used to optimize the kernel
   # ensure here that we don't violate any of those assumptions.
@@ -579,12 +591,18 @@ def writeSolutionAssertionChecks(asem, af0em, sep=" "):
   if af0em>1:
     if s != "" : s += " &&%s" % sep
     s += "(pf0em >= %s)" % af0em
+
+  # AF1EM is an assertion that the free index element is some integer multiple, range 1..8
+  if af1em>1:
+    if s != "" : s += " &&%s" % sep
+    s += "(pf1em >= %s)" % af1em
   return s
 
 def writeSolutionAssertionChecksForSolution(solution):
     return writeSolutionAssertionChecks(
         solution["AssertSummationElementMultiple"],
-        solution["AssertFree0ElementMultiple"])
+        solution["AssertFree0ElementMultiple"],
+        solution["AssertFree1ElementMultiple"])
 
 ################################################################################
 # Searching Nested Lists / Dictionaries
@@ -827,6 +845,8 @@ def ensurePath( path ):
     os.makedirs(path)
   return path
 
+def roundUp(f):
+  return (int)(math.ceil(f))
 
 ################################################################################
 # Is query version compatible with current version

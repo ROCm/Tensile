@@ -72,20 +72,6 @@ class KernelWriter:
     kStr += self.comment3("Allocate Resources")
     kStr += self.allocateResources(kernel)
 
-    if kernel["ProblemType"]["TLUA"]:
-      # TODO - enable more aggressive path
-      #guaranteeeNoPartialA = kernel["AssertFree0ElementMultiple"]%kernel["GlobalLoadVectorWidthA"]==0
-      guaranteeeNoPartialA = kernel["GlobalLoadVectorWidthA"]==1
-    else:
-      guaranteeeNoPartialA = True
-
-    if kernel["ProblemType"]["TLUB"]:
-      # TODO - enable more aggressive path
-      #guaranteeeNoPartialB = kernel["AssertFree1ElementMultiple"]%kernel["GlobalLoadVectorWidthB"]==0
-      guaranteeeNoPartialB = kernel["GlobalLoadVectorWidthB"]==1
-    else:
-      guaranteeeNoPartialB = True
-
     if self.enable["PreLoop"]:
       ####################################
       # Global Read Addresses
@@ -136,10 +122,12 @@ class KernelWriter:
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
-        kStr += self.comment("global read addresses: shift a")
-        kStr += self.graShift(kernel, tensorParametersA)
-        kStr += self.comment("global read addresses: shift b")
-        kStr += self.graShift(kernel, tensorParametersB)
+        if not (kernel["PreciseBoundsCheck"] and kernel["GuaranteeNoPartialA"]):
+          kStr += self.comment("global read addresses: shift a")
+          kStr += self.graShift(kernel, tensorParametersA)
+        if not (kernel["PreciseBoundsCheck"] and  kernel["GuaranteeNoPartialB"]):
+          kStr += self.comment("global read addresses: shift b")
+          kStr += self.graShift(kernel, tensorParametersB)
       elif kernel["EdgeType"] == "Branch":
         kStr += self.comment("global read addresses: branch a")
         kStr += self.graBranch(kernel, tensorParametersA)
@@ -682,19 +670,15 @@ class KernelWriter:
       # Shift Vector Components
       ####################################
       if kernel["EdgeType"] == "ShiftPtr":
-
-        # noPartial means each component in the vector loads is always valid.  In this case we
-        # don't need the awkward unshift code
-        # TODO : the unshift code is complex and currently appears broken.  Long-term want to use
-        # the Assert*ElementMultiple>glvw code as often as possible, or use buffer-load-x1
-        # in cases where it can't be used.  Then can remove this path.
+        # GuaranteeNoPartial means each component in the vector loads is always valid.  In this case we
+        # don't need the unshift code
 
         # shift vector components d0
-        if not guaranteeeNoPartialA and self.readTileDimVectorA:
+        if not kernel["GuaranteeNoPartialA"] and self.readTileDimVectorA:
           kStr += self.comment("shift vector components d0")
           kStr += self.shiftVectorComponents(kernel, tensorParametersA)
         # shift vector components d1
-        if not guaranteeeNoPartialB and self.readTileDimVectorB:
+        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB:
           kStr += self.comment("shift vector components d1")
           kStr += self.shiftVectorComponents(kernel, tensorParametersB)
 
