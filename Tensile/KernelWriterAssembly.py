@@ -3990,7 +3990,6 @@ class KernelWriterAssembly(KernelWriter):
                 # load single element from address
                 kStr += self.chooseGlobalLoad(False, \
                           self.bpeAB, destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx), \
-                          rpv=bpl/4.0, \
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
                           extraFields=extraFields, \
@@ -4139,7 +4138,6 @@ class KernelWriterAssembly(KernelWriter):
                   extraFields += " slc"
                 kStr += self.chooseGlobalLoad(kernel["BufferLoad"], \
                           bpl, destVgpr="G2L%s+%u"%(tc, g2lIdx), \
-                          rpv=loadWidth, \
                           addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                           soffset=soffset, offset=0, \
                           extraFields=extraFields, \
@@ -5722,13 +5720,13 @@ class KernelWriterAssembly(KernelWriter):
   # create the store instruction for requested vector width and other parms
   #
   # bpl = bytes per load op
-  # rpv = regs per vector
   ##############################################################################
-  def chooseGlobalLoad(self, useBuffer, bpl, destVgpr, rpv, \
+  def chooseGlobalLoad(self, useBuffer, bpl, destVgpr, \
                        addr0, addr1, soffset, offset, extraFields, hi16=0, comment="load C"):
     kStr = ""
 
-    assert(rpv == bpl/4.0)
+  # rpv = regs per vector
+    rpv = bpl/4.0
 
     if useBuffer:
       tailFields = "offen offset:%u"%offset
@@ -6056,7 +6054,6 @@ class KernelWriterAssembly(KernelWriter):
         for avi in range(0, gwvw/atomicW):
           dataV = elementData[elementIdx] + int(avi*numVgprsPerDataPerVI)
           bpm = self.bpeCexternal * atomicW
-          rpv = float(bpm)/4
           useBuffer = kernel["BufferStore"]
           if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
             addr0 = vgpr(addr)
@@ -6064,14 +6061,13 @@ class KernelWriterAssembly(KernelWriter):
           else:
             addr0 = vgpr(addr,2)
             addr1 = ""
-          kStr += self.chooseGlobalLoad(useBuffer, bpm, dataV+1, rpv, \
+          kStr += self.chooseGlobalLoad(useBuffer, bpm, dataV+1, \
                     addr0, addr1, soffset=0, offset=avi*bpm, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW))
           #  kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
           #            sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
       elif beta:
         bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
-        rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
         useBuffer = kernel["BufferStore"]
         if kernel["BufferStore"]:
           addr0 = vgpr(addr)
@@ -6081,12 +6077,12 @@ class KernelWriterAssembly(KernelWriter):
           addr1 = ""
         extraFields = ""
         if kernel["ProblemType"]["DataType"].isHalf():
-          kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
+          kStr += self.chooseGlobalLoad(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields, hi16=sumIdx%2,
                     comment="load C for beta calc")
         elif kernel["ProblemType"]["DataType"].isSingle() or \
              kernel["ProblemType"]["DataType"].isDouble():
-          kStr += self.chooseGlobalLoad(useBuffer, bps, data, rpv, \
+          kStr += self.chooseGlobalLoad(useBuffer, bps, data, \
                     addr0, addr1, 0, 0, extraFields,
                     comment="load C for beta calc")
 
