@@ -3928,7 +3928,7 @@ class KernelWriterAssembly(KernelWriter):
                 else:
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
-                if kernel["ProblemType"]["DataType"].isHalf():
+                if kernel["ProblemType"]["DataType"].isHalf() and not kernel["DirectToLds%s"%tc]:
                   hi16=loopCnt%2 if tP["glvw"]==1 else r%2
                 else:
                   hi16 = 0
@@ -3954,7 +3954,7 @@ class KernelWriterAssembly(KernelWriter):
                             addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                             soffset=soffset, offset=offset, \
                             extraFields=extraFields, \
-                            hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
+                            hi16=hi16, \
                             comment="load single buffer value")
 
               else: # Not buffer load
