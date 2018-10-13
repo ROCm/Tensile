@@ -3888,7 +3888,11 @@ class KernelWriterAssembly(KernelWriter):
             r = 0
             # for each component in vector
             while r < loadWidth*self.bpr/tP["bpe"]:
+              numElementsPerLoad = 1
               if kernel["ProblemType"]["DataType"].isHalf():
+                if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+                  # Pack two FP16 values into a single load dword x2
+                  numElementsPerLoad = 2
                 regIdx = r/2
               elif kernel["ProblemType"]["DataType"].isSingle():
                 regIdx = r
@@ -3898,8 +3902,6 @@ class KernelWriterAssembly(KernelWriter):
                 printWarning("DataType unsupported")
               kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
 
-              # load single element from address (except packed half case below)
-              numElementsPerLoad = 1
               offset = 0
 
               if kernel["BufferLoad"]:
@@ -3914,11 +3916,10 @@ class KernelWriterAssembly(KernelWriter):
 		  offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
 		  soffset = "0"
 
-		offset = r * numElementsPerLoad * tP["bpe"]
 
                 if kernel["DirectToLds%s"%tc]:
-                  ldsInc = kernel["NumThreads"]*4
                   if directToLdsLoads != 0:
+                    ldsInc = kernel["NumThreads"]*4
                     kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
                         "Move LDS write address to next line" )
                   directToLdsLoads+=1
@@ -3928,34 +3929,28 @@ class KernelWriterAssembly(KernelWriter):
                 else:
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
-                if kernel["ProblemType"]["DataType"].isHalf() and not kernel["DirectToLds%s"%tc]:
-                  hi16=loopCnt%2 if tP["glvw"]==1 else r%2
-                else:
-                  hi16 = 0
-
-                if kernel["ProblemType"]["DataType"].isHalf() and \
-                  tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+		offset = r * tP["bpe"]
+                hi16 = 0
+                if kernel["ProblemType"]["DataType"].isHalf():
+                  if numElementsPerLoad==2:
                     # Pack two FP16 values into a single load dword x2
-                    packedLoadW = 2*self.bpeAB
-                    kStr += self.chooseGlobalLoad(True, \
-                              packedLoadW, destVgpr=destVgpr, \
-                              addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
-                              soffset=soffset, offset=offset, \
-                              extraFields=extraFields, \
-                              hi16=0, \
-                              comment="load packed 2X Half buffer value")
-
-                    numElementsPerLoad = 2
                     r += 1 # skip next element since we loaded 2X here
+                    comment="load packed 2X half buffer value"
+                  elif not kernel["DirectToLds%s"%tc]:
+                    hi16=loopCnt%2 if tP["glvw"]==1 else r%2
+                    comment="load half buffer value"
                 else:
-                  # load single element from address
-                  kStr += self.chooseGlobalLoad(True, \
-                            self.bpeAB, destVgpr=destVgpr, \
-                            addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
-                            soffset=soffset, offset=offset, \
-                            extraFields=extraFields, \
-                            hi16=hi16, \
-                            comment="load single buffer value")
+                  comment="load one buffer value"
+
+                bpl = numElementsPerLoad*self.bpeAB # bytesPerLoad
+
+                kStr += self.chooseGlobalLoad(True, \
+                          bpl, destVgpr=destVgpr, \
+                          addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
+                          soffset=soffset, offset=offset, \
+                          extraFields=extraFields, \
+                          hi16=hi16, \
+                          comment=comment)
 
               else: # Not buffer load
                 # mask if current address if in bounds
