@@ -1449,6 +1449,17 @@ class Solution:
           state["LocalWriteUseSgprB"] = True
 
       if 0:
+        print "DirectToLds Conditions (elementMultipleOk=", elementMultipleOk, \
+              "wavefronts=", wavefronts, ")"
+        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCA"] * numBytes == 256 * wavefronts)
+        print "  (LSCA)",state["LSCA"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCA"] * numBytes == state["NumThreads"]*4)
+        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", "256 * (wavefronts)", wavefronts, \
+              "=>", (state["LSCB"] * numBytes == 256 * wavefronts)
+        print "  (LSCB)",state["LSCB"],"*", "(numBytes)", numBytes, "=?", state["NumThreads"], "* 4", \
+              "=>", (state["LSCB"] * numBytes == state["NumThreads"]*4)
+
         print "A: TLU=", state["ProblemType"]["TLUA"], " MT=", state["MacroTile0"], \
                " LSCA=", state["LSCA"], "LSPA=", state["LSPA"], "GLVB_A=", state["GlobalLoadVectorWidthA"], \
                " dataTypeNumBytes=", state["ProblemType"]["DataType"].numBytes(), \
