@@ -3815,7 +3815,6 @@ class KernelWriterAssembly(KernelWriter):
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth
     ldsOffset = 0
-    incrementSrd = False   # move the srd + base vs move the GRO
 
     ########################################
     # Calculate Max Addr
@@ -3824,7 +3823,7 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = maxAddrSgpr + 2
 
     if not kernel["BufferLoad"]:
-      kStr += self.comment1("max read address = size[n] * stride[n-1]")
+      kStr += self.comment1("flat addressing - max read address = size[n] * stride[n-1]")
       dim = len(tP["ia"])-1 # dim
       strideIdx = dim-1 # largest stride
       sizeIdx = tP["ia"][dim]
@@ -3866,6 +3865,11 @@ class KernelWriterAssembly(KernelWriter):
       zeroVgpr = self.vgprPool.checkOut(1)
       kStr += inst("v_mov_b32", vgpr(zeroVgpr), hex(0), "zero")
 
+    extraFields = ""
+    if tP["NonTemporal"]%2==1:
+      extraFields += " glc"
+    if tP["NonTemporal"]/2==1:
+      extraFields += " slc"
     directToLdsLoads = 0
 
     loopCnt = -1
@@ -3898,7 +3902,7 @@ class KernelWriterAssembly(KernelWriter):
 		  offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
 		  soffset = "0"
 
-		offset = r * numElementsPerLoad * tP["bpe"] 
+		offset = r * numElementsPerLoad * tP["bpe"]
 
                 if kernel["DirectToLds%s"%tP["tensorChar"]]:
                   ldsInc = kernel["NumThreads"]*4
@@ -3939,6 +3943,7 @@ class KernelWriterAssembly(KernelWriter):
                         "load single f16 r=%u loopcnt=%u"%(r,loopCnt))
                 elif kernel["ProblemType"]["DataType"].isSingle():
                   if kernel["DirectToLds%s"%tP["tensorChar"]]:
+                    #assert(0) # find a D2LDs example
                     # Assembler expects a destination VGPR even though not written
                     kStr += tP["globalReadInstruction"].toString( \
                         (\
@@ -3974,20 +3979,24 @@ class KernelWriterAssembly(KernelWriter):
                     "addr < maxAddr")
 
                 # load single element from address
-                if kernel["ProblemType"]["DataType"].isHalf():
-                  kStr += inst("flat_load_short_d16%s"%("_hi" if r%2==1 else ""), \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r/2)),
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single f16")
+                bpl = self.bpeAB
+       		if kernel["ProblemType"]["DataType"].isHalf():
+                  regIdx = r/2
                 elif kernel["ProblemType"]["DataType"].isSingle():
-                  kStr += inst("flat_load_dword", \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r)),
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single float")
+                  regIdx = r
                 elif kernel["ProblemType"]["DataType"].isDouble():
-                  kStr += inst("flat_load_dwordx2", \
-                      vgpr("G2L%s+%u+%u"%(tP["tensorChar"], g2lIdx, r*2),2),
-                      vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), "load single double")
+                  regIdx = r*2
                 else:
                   printWarning("DataType unsupported")
+
+                kStr += self.chooseGlobalLoad(False, \
+                          bpl, destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx), \
+                          rpv=bpl/4.0, \
+                          addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
+                          soffset=0, offset=0, \
+                          extraFields=extraFields, \
+                          hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
+                          comment="load single value")
 
                 # restore full exec mask
                 kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
@@ -4010,20 +4019,11 @@ class KernelWriterAssembly(KernelWriter):
             # end R loop
             # increment offset by 1 element
             if kernel["BufferLoad"] and not kernel["UseSgprForGRO"]:
-              if incrementSrd:
-                assert(0)
-                kStr += self.incrementSrd(kernel, tP, numElementsPerLoad * tP["bpe"], 0)
-                kStr += inst("s_sub_u32", \
-                    sgpr(maxAddrSgpr), \
-                    sgpr(maxAddrSgpr), \
-                    tP["bpe"], \
-                    "Not USFGROAdjust max addr to account for SRD move")
-              else:
-                kStr += inst("_v_add_co_u32", \
-                    vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                    "vcc", \
-                    vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
-                      numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
+	      kStr += inst("_v_add_co_u32", \
+		  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+		  "vcc", \
+		  vgpr("GlobalReadOffset%s+%u"%(tc, graIdx)), \
+		    numElementsPerLoad * tP["bpe"], "graOffset += %u * bpe" % (numElementsPerLoad))
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
@@ -4034,19 +4034,11 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["UseSgprForGRO"]:
       # increment offset 0 by 1 element
       # have to do this after all the component loads since they all use 0
-      if incrementSrd:
-        kStr += self.incrementSrd(kernel, tP, tP["bpe"], 0)
-        kStr += inst("s_sub_u32", \
-            sgpr(maxAddrSgpr), \
-            sgpr(maxAddrSgpr), \
-            numElementsPerLoad * tP["bpe"], \
-            "Adjust max addr to account for SRD move")
-      else:
-        kStr += inst("_v_add_co_u32", \
-            vgpr("GlobalReadOffset%s+0"%(tc)), \
-            "vcc", \
-            vgpr("GlobalReadOffset%s+0"%(tc)), \
-            tP["bpe"], "graOffset += bpe")
+      kStr += inst("_v_add_co_u32", \
+	  vgpr("GlobalReadOffset%s+0"%(tc)), \
+	  "vcc", \
+	  vgpr("GlobalReadOffset%s+0"%(tc)), \
+	  tP["bpe"], "graOffset += bpe")
 
     # TODO - can remove one of these m0 restores if A and B both TLU
     if kernel["DirectToLds%s"%tP["tensorChar"]]:
@@ -5736,6 +5728,8 @@ class KernelWriterAssembly(KernelWriter):
   def chooseGlobalLoad(self, useBuffer, bpl, destVgpr, rpv, \
                        addr0, addr1, soffset, offset, extraFields, hi16=0, comment="load C"):
     kStr = ""
+
+    assert(rpv == bpl/4.0)
 
     if useBuffer:
       tailFields = "offen offset:%u"%offset
