@@ -630,18 +630,18 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Global Read
     flat_load_dwordx4 = MemoryInstruction("flat_load_dwordx4",  1, 0, 0, 4, \
-        "%s, %s" )
+        "UNUSED %s, %s" )
     flat_load_dwordx2 = MemoryInstruction("flat_load_dwordx2",  1, 0, 0, 2, \
-        "%s, %s" )
+        "UNUSED %s, %s" )
     flat_load_dword = MemoryInstruction("flat_load_dword",      1, 0, 0, 1, \
-        "%s, %s" )
+        "UNUSED %s, %s" )
 
     buffer_load_dwordx4 = MemoryInstruction("buffer_load_dwordx4", 1, 0, 0, 4, \
-        "%s, %s, %s, %s offen offset:0 %s" )
+        "UNUSED %s, %s, %s, %s offen offset:0 %s" )
     buffer_load_dwordx2 = MemoryInstruction("buffer_load_dwordx2", 1, 0, 0, 2, \
-        "%s, %s, %s, %s offen offset:0 %s" )
+        "UNUSED %s, %s, %s, %s offen offset:0 %s" )
     buffer_load_dword = MemoryInstruction("buffer_load_dword", 1, 0, 0, 1, \
-        "%s, %s, %s, %s offen offset:0 %s" )
+        "UNUSED %s, %s, %s, %s offen offset:0 %s" )
     # generate half directly w/o using the format string to handle hi/lo correctly
     buffer_load_short = MemoryInstruction("buffer_load_short_d16", 1, 0, 0, 0.5, \
         "UNUSED %s, %s, %s, %s offen offset:0 %s" )
@@ -3905,7 +3905,7 @@ class KernelWriterAssembly(KernelWriter):
               offset = 0
 
               if kernel["BufferLoad"]:
-                # mask if current address if in bounds
+                # Use buffer limit to stay in-bounds
 		if kernel["UseSgprForGRO"]:
 		  offsetVgpr = "GlobalReadOffset%s+0"%(tc)
 		  if graIdx==0:
@@ -3915,7 +3915,6 @@ class KernelWriterAssembly(KernelWriter):
 		else:
 		  offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
 		  soffset = "0"
-
 
                 if kernel["DirectToLds%s"%tc]:
                   if directToLdsLoads != 0:
@@ -3952,21 +3951,21 @@ class KernelWriterAssembly(KernelWriter):
                           hi16=hi16, \
                           comment=comment)
 
-              else: # Not buffer load
+              else: # Not buffer load, ie 'flat' load
                 # mask if current address if in bounds
                 kStr += inst("v_cmpx_lt_u64", "vcc", \
                     vgpr("GlobalReadAddr%s+%u"%(tP["tensorChar"], graIdx),2), \
                     vgpr(maxAddrVgpr,2), \
                     "addr < maxAddr")
 
-                # load single element from address
+                # load one element from address
                 kStr += self.chooseGlobalLoad(False, \
                           self.bpeAB, destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx), \
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
                           extraFields=extraFields, \
                           hi16=kernel["ProblemType"]["DataType"].isHalf() and r%2==1, \
-                          comment="load single flat value")
+                          comment="load one flat value")
 
                 # restore full exec mask
                 kStr += inst("s_or_saveexec_b64", "vcc", sgpr(fullExec,2), \
@@ -4004,6 +4003,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["UseSgprForGRO"]:
       # increment offset 0 by 1 element
       # have to do this after all the component loads since they all use 0
+      # This factors into address for the next tail-loop iteration
       kStr += inst("_v_add_co_u32", \
 	  vgpr("GlobalReadOffset%s+0"%(tc)), \
 	  "vcc", \
@@ -4111,10 +4111,10 @@ class KernelWriterAssembly(KernelWriter):
                         hi16=kernel["ProblemType"]["DataType"].isHalf() and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp))
             else: # not buffer load
-              # load single element from address
-              destVgpr="G2L%s+%u"%(tc, g2lIdx)
+              # load one element from address
               kStr += self.chooseGlobalLoad(False, \
-                        bpl, destVgpr=destVgpr, \
+                        bpl, \
+                        destVgpr="G2L%s+%u"%(tc, g2lIdx), \
                         addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                         soffset=0, offset=0, \
                         extraFields=extraFields, \
@@ -6036,8 +6036,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.chooseGlobalLoad(useBuffer, bpm, dataV+1, \
                     addr0, addr1, soffset=0, offset=avi*bpm, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW))
-          #  kStr += inst("buffer_load_dword", vgpr(dataV+1), vgpr(addr), \
-          #            sgpr("SrdC", 4), 0, "offen", "offset:%u"%(vi*bps), "load C (atomic) vi=%u"%vi)
       elif beta:
         bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
         useBuffer = kernel["BufferStore"]
