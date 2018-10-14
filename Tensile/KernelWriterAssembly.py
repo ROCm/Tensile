@@ -543,9 +543,6 @@ class KernelWriterAssembly(KernelWriter):
     # which parts of the code were changed to support the new mode.
     self.globalReadIncsUseVgpr = False if kernel["BufferLoad"] else True
 
-    if kernel["BufferLoad"]:
-      assert(kernel["PreciseBoundsCheck"]) # removing non-PBC code
-
     # If True, GRO are expressed as offsets from the beginning of the macro-tile, and the SRD
     # is set to the beginning of the macro-tile.
     # If False, GRO are expressed as offsets from the beginning of the lowest 2 dimensions
@@ -554,10 +551,10 @@ class KernelWriterAssembly(KernelWriter):
     # groOffsetInMacroTile doesn't work with pointer-shift because it sets the SRD to point to the
     # start of the macro-tile - if we overhang by small number of elements (<GRVW) then can't shift
     # back to get all the data.
-    self.groOffsetInMacroTile = kernel["PreciseBoundsCheck"]
+    self.groOffsetInMacroTile = kernel["BufferLoad"]
 
     # use 64-bit buffer limit shadow register, only works with PBC
-    self.use64bPbcLimit = 1 and kernel["PreciseBoundsCheck"]
+    self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
     # if >0, shift the start of the SRD left by specified #elements
     # Gives pointer shift some room to move left, even into the previous macro-tile
@@ -1658,7 +1655,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("GlobalLoadVectorWidthA=%u, GlobalLoadVectorWidthB=%u" % (kernel["GlobalLoadVectorWidthA"], kernel["GlobalLoadVectorWidthB"]))
     kStr += self.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
     kStr += self.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
-    kStr += self.comment1("PreciseBoundsCheck=%s" % kernel["PreciseBoundsCheck"])
     kStr += self.comment1("UseSgprForGRO=%s" % kernel["UseSgprForGRO"])
 
 
@@ -2674,7 +2670,6 @@ class KernelWriterAssembly(KernelWriter):
     # with UseSgprForGRO.
     assert(not kernel["UseSgprForGRO"])
 
-
     kStr = ""
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
@@ -2932,44 +2927,39 @@ class KernelWriterAssembly(KernelWriter):
     #---
     # Compute BUFFER Limit:
     prePad = self.srdShiftLeft[tc] * tP["bpe"] # leave room in case we have to pointer shift
-    if kernel["PreciseBoundsCheck"]:
-      if not wroteTileStart:
-        kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
-        kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
+    if not wroteTileStart:
+      kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
+      kStr += inst("s_mov_b32", sgpr(tileStart+1), 0, "set default tileStart")
 
-      startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
-      if self.use64bPbcLimit:
-        limitTmp0 = "SrdShadowLimit%s+0"%tc
-        limitTmp1 = "SrdShadowLimit%s+1"%tc
-      else:
-        limitTmp0 = stmp+0
-        limitTmp1 = stmp+1
-
-      kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
-      kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
-
-      if self.use64bPbcLimit:
-        # Set initial buffer limit
-        # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
-        # and when we get within 32-bit we start to step down the SRD
-        # if the limit is <32bits, set it accurately here:
-        # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
-        kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), \
-            hex(log2(tP["bpe"])), "Set limit to use bytes")
-        if prePad:
-          kStr += inst("s_add_u32",  sgpr("SrdShadowLimit%s+0"%tc), sgpr("SrdShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
-          kStr += inst("s_addc_u32", sgpr("SrdShadowLimit%s+1"%tc), sgpr("SrdShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
-
-        kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-        kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
-
-      else:
-        # put limit directly into SRD:
-        kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc),  sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
+    startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
+    if self.use64bPbcLimit:
+      limitTmp0 = "SrdShadowLimit%s+0"%tc
+      limitTmp1 = "SrdShadowLimit%s+1"%tc
     else:
-      # PreciseBoundsCheck=0, just pick a large max - later conditionally set some offsets to -1 to force OOB
-      kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), "BufferLimit", "")
-      kStr += "\n"
+      limitTmp0 = stmp+0
+      limitTmp1 = stmp+1
+
+    kStr += inst("s_sub_u32",  sgpr(limitTmp0), sgpr("Tensor2dSize%s"%tc), sgpr(tileStart+0), "sub tileStart")
+    kStr += inst("s_subb_u32", sgpr(limitTmp1), sgpr("Tensor2dSize%s+1"%tc), sgpr(tileStart+1), "sub tileStart")
+
+    if self.use64bPbcLimit:
+      # Set initial buffer limit
+      # if the limit is >64bit, incrementSrd decrements the shadow as the SRD increments,
+      # and when we get within 32-bit we start to step down the SRD
+      # if the limit is <32bits, set it accurately here:
+      # Note lshl_b64 the higher-numbered SGPR has the upper 32-bits
+      kStr += inst("s_lshl_b64", sgpr("SrdShadowLimit%s"%tc,2),  sgpr("SrdShadowLimit%s"%tc,2), \
+          hex(log2(tP["bpe"])), "Set limit to use bytes")
+      if prePad:
+        kStr += inst("s_add_u32",  sgpr("SrdShadowLimit%s+0"%tc), sgpr("SrdShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
+        kStr += inst("s_addc_u32", sgpr("SrdShadowLimit%s+1"%tc), sgpr("SrdShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
+
+      kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
+
+    else:
+      # put limit directly into SRD:
+      kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc),  sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
 
 
     # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
@@ -3009,7 +2999,7 @@ class KernelWriterAssembly(KernelWriter):
     #  kStr += self.assert_ne(sgpr("WorkGroup2"), 0)
 
 
-    if kernel["PreciseBoundsCheck"] and kernel["CheckDimOverflow"]>=2:
+    if kernel["CheckDimOverflow"]>=2:
       # double-check to make sure the SRD limit is inside the allowed tensor:
       # (only works in PBC mode since otherwise we set the limit to BufferLimit)
       #   - compute size of tensor in elements (including all dimensions)
@@ -3713,27 +3703,19 @@ class KernelWriterAssembly(KernelWriter):
 
     # also have to move the boundary since we change the base
     # so less buffers to the edge:
-    if kernel["PreciseBoundsCheck"]:
-      if self.use64bPbcLimit:
-        kStr += inst("s_sub_u32", \
-            sgpr("SrdShadowLimit%s+0"%tc), \
-            sgpr("SrdShadowLimit%s+0"%tc), \
-             incLower, \
-              "limit -= inc)")
-        kStr += inst("s_subb_u32", \
-            sgpr("SrdShadowLimit%s+1"%tc), \
-            sgpr("SrdShadowLimit%s+1"%tc), \
-             incUpper, \
-              "limit -= inc)" )
-        kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-        kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
-      else:
-        kStr += inst("s_sub_u32", \
-             sgpr("Srd%s+2"%(tc)), \
-             sgpr("Srd%s+2"%(tc)), \
-             incLower, \
-              "limit -= inc)" )
-
+    if self.use64bPbcLimit:
+      kStr += inst("s_sub_u32", \
+          sgpr("SrdShadowLimit%s+0"%tc), \
+          sgpr("SrdShadowLimit%s+0"%tc), \
+           incLower, \
+            "limit -= inc)")
+      kStr += inst("s_subb_u32", \
+          sgpr("SrdShadowLimit%s+1"%tc), \
+          sgpr("SrdShadowLimit%s+1"%tc), \
+           incUpper, \
+            "limit -= inc)" )
+      kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
+      kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
     return kStr
 
 
@@ -3806,7 +3788,7 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read:
   # globalReadGuardK is called for loads in the tail loop
   # Must ensure each load is in bounds - either using buffer bounds 
-  # (if PreciseBoundsCheck=1) or exec-mask checks.
+  # or exec-mask checks.
   ##############################################################################
   def globalReadGuardK(self, kernel, tP):
     kStr = ""

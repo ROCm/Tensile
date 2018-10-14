@@ -1408,7 +1408,6 @@ class Solution:
     if not state["BufferLoad"] or state["KernelLanguage"] != "Assembly":
       state["BufferLoad"] = False
       state["DirectToLds"] = False
-      state["PreciseBoundsCheck"] = False
       state["UseSgprForGRO"] = False
       state["FractionalLoad"] = False
 
@@ -1500,7 +1499,7 @@ class Solution:
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
-    if state["PreciseBoundsCheck"] and state["UseSgprForGRO"] \
+    if state["BufferLoad"] and state["UseSgprForGRO"] \
             and state["EdgeType"]=="ShiftPtr":
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["UseSgprForGRO"] = False
@@ -1510,10 +1509,10 @@ class Solution:
     # (as opposed to using dedicated VGPR for each GRO
     # Requires preciseBounds check since we rely on the buffer bounds check, not
     # individual vector registers doing bounds compares.
-    if not state["PreciseBoundsCheck"]:
+    if not state["BufferLoad"]:
       state["UseSgprForGRO"] = 0
       if state["FractionalLoad"]:
-        reject(state, "Fractional currently requires PreciseBoundsCheck") # Move to PBC always
+        reject(state, "Fractional requires BufferLoad")
 
     if state["UseSgprForGRO"] == -1:
       # Don't use SGPR if it looks like we might not have enough - better to leave PBC enabled even if we have to use VGPR
