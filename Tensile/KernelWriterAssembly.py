@@ -553,15 +553,13 @@ class KernelWriterAssembly(KernelWriter):
     # back to get all the data.
     self.groOffsetInMacroTile = kernel["BufferLoad"]
 
-    # use 64-bit buffer limit shadow register, only works with PBC
+    # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
     # if >0, shift the start of the SRD left by specified #elements
     # Gives pointer shift some room to move left, even into the previous macro-tile
     # This slightly reduces the range of the GRO since they have to include the offset
     # Pointer shift still cannot be used with very small matrices < GRVW
-    # Edge comparisons are done with int32 as well for PBC=1.  This means the size
-    # This means that the corner of the tile dimension must be less than MAX_INT (not uint) - the 4 elements of padding.
     self.srdShiftLeft = {}
     self.srdShiftLeft["A"] = kernel["GlobalLoadVectorWidthA"]
     self.srdShiftLeft["B"] = kernel["GlobalLoadVectorWidthB"]
@@ -2671,6 +2669,7 @@ class KernelWriterAssembly(KernelWriter):
     assert(not kernel["UseSgprForGRO"])
 
     kStr = ""
+    tc = tP["tensorChar"]
     # edge value
     margin = tP["glvw"] if tP["rtv"] else 1
     edge = self.vgprPool.checkOut(1)
@@ -2681,10 +2680,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tP["wg"]), kernel[tP["mt"]], "WorkGroup[01] * MT")
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), sgpr(tmpSgpr), \
                 "edge = Size%s - WG*MT"%(tP["tileChar"]))
-      # int sub since if we are near the front of the tile this may go negative:
-      kStr += inst("s_sub_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), margin, "edge -= margin")
+      # use math here to use unsigned (to increase range)
+      #  - add srdShiftLeft to tmpSgpr - ensure it is always positive
+      #  - below add srdShiftLeft to a tmp copy of the offset used for the compare
+      kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), margin, "edge -= margin")
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
+      shiftedEdge = self.vgprPool.checkOut(1)
+      kStr += inst("v_add_u32", vgpr(shiftedEdge), vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
     else:
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), margin, \
@@ -2704,13 +2707,19 @@ class KernelWriterAssembly(KernelWriter):
     for l in range(0, tP["nrt"]):
       # compare
       if self.groOffsetInMacroTile:
+        shiftedOffset = self.vgprPool.checkOut(1)
+        kStr += inst("v_add_u32", vgpr(shiftedOffset), vgpr(v+l), self.srdShiftLeft[tc], "")
         # int cmp since if we are near the front of the tile this may go negative:
-        kStr += inst("v_cmp_lt_i32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(shiftedOffset), vgpr(shiftedEdge), "offset < edge" )
+        self.vgprPool.checkIn(shiftedOffset)
       else:
         kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), "offset < edge" )
       # shift
       kStr += inst("v_cndmask_b32", vgpr(v+l), vgpr(edge), vgpr(v+l), sgpr(tmpSgpr,2), "offset = (offset < edge) ? offset : edge" )
     self.vgprPool.checkIn(edge)
+    if self.groOffsetInMacroTile:
+      self.vgprPool.checkIn(shiftedEdge)
+
     #if tP["isB"]:
     #  kStr += "s_endpgm\n"
 
@@ -3001,7 +3010,6 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["CheckDimOverflow"]>=2:
       # double-check to make sure the SRD limit is inside the allowed tensor:
-      # (only works in PBC mode since otherwise we set the limit to BufferLimit)
       #   - compute size of tensor in elements (including all dimensions)
       #   - subtract the SRD base and SRD buffer limit
       #   - Make sure the 64bit result is >0
