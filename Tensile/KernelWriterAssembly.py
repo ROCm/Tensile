@@ -3813,7 +3813,6 @@ class KernelWriterAssembly(KernelWriter):
     graIdx = 0
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth
-    ldsOffset = 0
 
     ########################################
     # Calculate Max Addr
