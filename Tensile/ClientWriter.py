@@ -18,7 +18,7 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
-from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning
+from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO
@@ -837,15 +837,20 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
 =======
     numSizes = problemType["TotalIndices"];
-    h += "  typedef ProblemSizes<%u, %u, %u> ProblemSizes_%s;\n" \
-        % (numSizes, problemType["IndicesSummation"][-1], problemType["IndicesFree"][0], problemType)
+    h += "  typedef ProblemSizes<%u> ProblemSizes_%s;\n" % (numSizes, problemType)
+    # TODO - this should be initialized somewhere once?
+    h += "static const ProblemProperties props( "
+    h += listToInitializer(problemType["IndicesFree"]) + ", "
+    h += listToInitializer(problemType["IndicesSummation"]) + ", "
+    h += listToInitializer(problemType["IndicesBatch"])
+    h += ");\n"
     # create problem size - TODO could move this up to the caller
     h += "  ProblemSizes_%s problem(" % (problemType)
     for i in range(0,problemType["TotalIndices"]):
       if i != 0: h += ", "
       h += "size%s" % (globalParameters["IndexChars"][i])
     h += ");\n"
-    h += "  if (!AssertionProperties(problem).validForSolution(solution.assertions))\n"
+    h += "  if (!AssertionProperties(problem,&props).validForSolution(solution.assertions))\n"
     h += "    return tensileStatusAssertFailure;  // failed solution requirements\n"
 >>>>>>> 4064527... Unify SolutionInfo between Client and Tensile
     h += "\n"

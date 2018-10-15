@@ -85,7 +85,7 @@ TensileStatus tensileTeardown();
 // ProblemSizes_Cijk_Ailk_Bljk_SB.
 // Some templates below use a parm called ProblemSizesType which can be any of these
 // generated types.
-template <int NumSizes, int LastSummationIdx, int Free0Idx>
+template <int NumSizes>
 class ProblemSizes {
 public:
   using SizeType = unsigned int;
@@ -96,7 +96,7 @@ public:
     init<NumSizes>(args...);
   }
 
-  bool operator< (const ProblemSizes<NumSizes, LastSummationIdx, Free0Idx> & p) const
+  bool operator< (const ProblemSizes<NumSizes> & p) const
   {
     for (int i=0; i<NumSizes; i++) {
       if (p._sizes[i] < this->_sizes[i])
@@ -108,7 +108,7 @@ public:
     return false; // get here if all indices are equal
   };
 
-  bool operator== (const ProblemSizes<NumSizes, LastSummationIdx, Free0Idx> & p) const
+  bool operator== (const ProblemSizes<NumSizes> & p) const
   {
     for (int i=0; i<NumSizes; i++) {
       if (p._sizes[i] != this->_sizes[i])
@@ -116,9 +116,6 @@ public:
     }
     return true;
   };
-
-  SizeType lastSummationSize() const { return _sizes[LastSummationIdx]; };
-  SizeType free0Size() const { return _sizes[Free0Idx]; };
 
   size_t hash() const {
     size_t h=0;
@@ -222,51 +219,64 @@ struct ObjectHasher {
     }
 };
 
+class ProblemProperties
+{
+public:
+  ProblemProperties(const std::vector<int> &indicesFree,
+                    const std::vector<int> &indicesSummation,
+                    const std::vector<int> &indicesBatch)
+    : _indicesFree(indicesFree),
+      _indicesSummation(indicesSummation),
+      _indicesBatch(indicesBatch)
+  {
+  }
+
+  int lastSummationIdx() const { return _indicesSummation.back(); };
+  int free0Idx() const { return _indicesFree[0]; };
+  bool isBatchIdx(int idx) const {
+    return std::find(_indicesBatch.begin(), _indicesBatch.end(), idx) != _indicesBatch.end();
+  };
+
+private:
+  const std::vector<int> _indicesFree;
+  const std::vector<int> _indicesSummation;
+  const std::vector<int> _indicesBatch;
+};
+
 
 // These are assertions used to generate the solution
 // Must be checked by the runtime before launchin the solution
 struct AssertionProperties {
-  AssertionProperties(unsigned x_summationElementMultiple,
-                      unsigned x_free0ElementMultiple,
-                      unsigned x_free1ElementMultiple
-                      )
-    : summationElementMultiple(x_summationElementMultiple),
-      free0ElementMultiple(x_free0ElementMultiple),
-      free1ElementMultiple(x_free1ElementMultiple)
+  AssertionProperties(unsigned summationElementMultiple,
+                      unsigned free0ElementMultiple)
+    : _summationElementMultiple(summationElementMultiple),
+      _free0ElementMultiple(free0ElementMultiple)
      {}
 
   template<class ProblemSizes>
-  AssertionProperties(const ProblemSizes &p) {
-    summationElementMultiple = 1; // problem summation element multiple
-    auto sumSize = p.lastSummationSize();
-    if ((sumSize & 0x7) == 0) summationElementMultiple=8;
-    else if ((sumSize & 0x3) == 0) summationElementMultiple=4;
-    else if ((sumSize & 0x1) == 0) summationElementMultiple=2;
+  AssertionProperties(const ProblemSizes &p, const ProblemProperties *props) {
+    _summationElementMultiple = 1; // problem summation element multiple
+    auto sumSize = p.sizes()[props->lastSummationIdx()];
+    if ((sumSize & 0x7) == 0) _summationElementMultiple=8;
+    else if ((sumSize & 0x3) == 0) _summationElementMultiple=4;
+    else if ((sumSize & 0x1) == 0) _summationElementMultiple=2;
 
-    auto free0Size = p.free0Size();
-    free0ElementMultiple = 1; // problem free0 element multiple
-    if ((free0Size & 0x7) == 0) free0ElementMultiple=8;
-    else if ((free0Size & 0x3) == 0) free0ElementMultiple=4;
-    else if ((free0Size & 0x1) == 0) free0ElementMultiple=2;
-
-    auto free1Size = p.free1Size();
-    free1ElementMultiple = 1; // problem free1 element multiple
-    if ((free1Size & 0x7) == 0) free1ElementMultiple=8;
-    else if ((free1Size & 0x3) == 0) free1ElementMultiple=4;
-    else if ((free1Size & 0x1) == 0) free1ElementMultiple=2;
+    auto free0Size = p.sizes()[props->free0Idx()];
+    _free0ElementMultiple = 1; // problem free0 element multiple
+    if ((free0Size & 0x7) == 0) _free0ElementMultiple=8;
+    else if ((free0Size & 0x3) == 0) _free0ElementMultiple=4;
+    else if ((free0Size & 0x1) == 0) _free0ElementMultiple=2;
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const AssertionProperties &solutionAssertions) {
-    return (this->summationElementMultiple >= solutionAssertions.summationElementMultiple) &&
-           (this->free0ElementMultiple >= solutionAssertions.free0ElementMultiple) &&
-           (this->free1ElementMultiple >= solutionAssertions.free1ElementMultiple);
+    return (this->_summationElementMultiple >= solutionAssertions._summationElementMultiple) &&
+           (this->_free0ElementMultiple >= solutionAssertions._free0ElementMultiple);
   }
 
-  unsigned summationElementMultiple;
-  unsigned free0ElementMultiple;
-  unsigned free1ElementMultiple;
+  unsigned _summationElementMultiple;
+  unsigned _free0ElementMultiple;;
 };
 
 
