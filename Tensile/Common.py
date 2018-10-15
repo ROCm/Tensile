@@ -139,6 +139,7 @@ else:
 # might be deprecated
 globalParameters["SolutionMapHash"] = False
 globalParameters["EnableHalf"] = False
+globalParameters["ClientArgs"] = ""
 
 ################################################################################
 # Enumerate Valid Solution Parameters
