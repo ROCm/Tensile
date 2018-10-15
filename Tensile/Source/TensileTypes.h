@@ -300,6 +300,7 @@ public:
 
   int lastSummationIdx() const { return _indicesSummation.back(); };
   int free0Idx() const { return _indicesFree[0]; };
+  int free1Idx() const { return _indicesFree[1]; };
   bool isBatchIdx(int idx) const {
     return std::find(_indicesBatch.begin(), _indicesBatch.end(), idx) != _indicesBatch.end();
   };
@@ -315,12 +316,16 @@ private:
 // Must be checked by the runtime before launchin the solution
 struct AssertionProperties {
 
-  // Constructor used in solution tables
+  // Constructor used in solution tables-
+  // See writeSolutionAndExactTable in TensileCreateLibrary - this constructor must
+  // be in-sync with the table written there.
   AssertionProperties(unsigned summationElementMultiple,
                       unsigned free0ElementMultiple,
+                      unsigned free1ElementMultiple,
                       int approxSize)
     : _summationElementMultiple(summationElementMultiple),
       _free0ElementMultiple(free0ElementMultiple),
+      _free1ElementMultiple(free1ElementMultiple),
       _approxSize(approxSize)
      {}
 
@@ -338,6 +343,12 @@ struct AssertionProperties {
     if ((free0Size & 0x7) == 0) _free0ElementMultiple=8;
     else if ((free0Size & 0x3) == 0) _free0ElementMultiple=4;
     else if ((free0Size & 0x1) == 0) _free0ElementMultiple=2;
+
+    auto free1Size = p.sizes(props->free1Idx());
+    _free0ElementMultiple = 1; // problem free1 element multiple
+    if ((free1Size & 0x7) == 0) _free0ElementMultiple=8;
+    else if ((free1Size & 0x3) == 0) _free0ElementMultiple=4;
+    else if ((free1Size & 0x1) == 0) _free0ElementMultiple=2;
 
     bool allBelow1 = true;
     bool allBelow32 = true;
@@ -363,11 +374,13 @@ struct AssertionProperties {
   bool validForSolution(const AssertionProperties &solutionAssertions) const {
     return (this->_summationElementMultiple >= solutionAssertions._summationElementMultiple) &&
            (this->_free0ElementMultiple >= solutionAssertions._free0ElementMultiple) &&
+           (this->_free1ElementMultiple >= solutionAssertions._free1ElementMultiple) &&
            ((this->_approxSize) >= solutionAssertions._approxSize);
   }
 
   unsigned _summationElementMultiple;
-  unsigned _free0ElementMultiple;;
+  unsigned _free0ElementMultiple;
+  unsigned _free1ElementMultiple;
   int      _approxSize;
 };
 

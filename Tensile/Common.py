@@ -278,7 +278,6 @@ validParameters = {
     # "first" free index is FreeIndex[1] and usually letter "J"
     # 1 indicates no restriction (since all sizes are multiples of 1)
     # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
-    #"AssertFree1ElementMultiple" : [1,2,4,8],
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Some kernels only work for certain sizes, see AssertionProperties in TensileTypes for exact defs
