@@ -19,6 +19,7 @@
 * CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 *******************************************************************************/
 
+#include <limits>
 
 // SolutionMapper:
 // Efficiently map problems to exact or best solution
@@ -29,10 +30,12 @@ class SolutionMapper {
   // Problem to Solution mapping:
   typedef std::pair<const ProblemParmsType, int>  PtoS;
 
+  enum Algo {PickNoneAlgo= -1, RandomAlgo= -2, RatioDistanceAlgo= -3, EuclideanDistanceAlgo= -4, ManhattanDistanceAlgo= -5};
+
 public:
   SolutionMapper(const SolutionInfoType *solutionTable, size_t numSolutions,
                  const PtoS *embeddedExactTable, size_t numExacts)
-     : _solutionTable(solutionTable), _numSolutions(numSolutions)
+     : _solutionTable(solutionTable), _numSolutions(numSolutions), _findAlg(RatioDistanceAlgo)
   {
     for (size_t i=0; i<numExacts; i++) {
       auto &p = embeddedExactTable[i].first;  //problem
@@ -48,7 +51,29 @@ public:
         //printf ("warning: removing bogus exact problem (does not meet assertion requirements for solution)\n");
       }
     }
+
+    const char *alg = std::getenv("TENSILE_FIND_ALGO"); //See Algo or >=0 specified specific solution
+    if (alg) {
+      _findAlg = strtol(alg,nullptr,0);
+    }
+    printf ("TENSILE_FIND_ALGO= %d (%s)\n", _findAlg, algoString(_findAlg));
   }
+
+#define CASE_STRING(X)  case X: return(#X)
+  const char *algoString(int algo) o
+  {
+    if (algo >= 0) {
+      return "Explicitly-Selected";
+    }
+    switch (algo) {
+      CASE_STRING(PickNoneAlgo);
+      CASE_STRING(RandomAlgo);
+      CASE_STRING(RatioDistanceAlgo);
+      CASE_STRING(EuclideanDistanceAlgo);
+      CASE_STRING(ManhattanDistanceAlgo);
+      default: return ("Unknown Algo");
+    };
+  };
 
   // Returns integer solutionIdx if exact match is found else -1
   int findExactMatch(const ProblemParmsType &p) const
@@ -62,10 +87,63 @@ public:
   }
 
   // Iterates through all known exact matching and finds the 'closest' match.
-  int findNearestMatch(const ProblemParmsType &p) const
+  template <class DistanceFunction>
+  int findNearestMatch(const ProblemParmsType &p, DistanceFunction distanceF) const
   {
     AssertionProperties pa(p);
+
+    auto bestIter = _exactVector.end();
+    double bestDistance = std::numeric_limits<double>::max();
+
+    for (auto iter = _exactVector.begin(); iter != _exactVector.end(); iter++) {
+      auto tableP = iter->first;
+      auto solution = getSolution(iter->second);
+      if (pa.validForSolution(solution.assertions)) {
+        double distance = distanceF(p, tableP);
+        iter->first.print(std::cout);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestIter = iter;
+          std::cout << " distance=" << distance << " **newBest**" << "\n";
+        } else {
+          std::cout << " distance=" << distance << "\n";
+        }
+      }
+    }
+
+    if (bestIter != _exactVector.end())
+      return bestIter->second;
+    else
+      return -1; // if no solutions in the table
   };
+
+  int findNearestMatchWithAlg(const ProblemParmsType &p) const
+  {
+    if (_findAlg >= 0) {
+      if (_findAlg < _numSolutions) {
+        return _findAlg; // user specified a specific algorithm
+      }
+    }
+    switch (_findAlg) {
+      case PickNoneAlgo: // Fall through to range logic
+        return -1;
+      case RandomAlgo:
+        return findNearestMatch (p, RandomDistance<decltype(p)>());
+      case EuclideanDistanceAlgo:
+        return findNearestMatch (p, EuclideanDistance<decltype(p)>());
+      case ManhattanDistanceAlgo:
+        return findNearestMatch (p, ManhattanDistance<decltype(p)>());
+      case RatioDistanceAlgo:
+      default:
+        return findNearestMatch (p, RatioDistance<decltype(p)>());
+        break;
+    }
+
+    return -1;
+  }
+
+private:
+  const SolutionInfoType getSolution(int solutionIdx) const { return _solutionTable[solutionIdx]; };
 
 private:
   const SolutionInfoType  *_solutionTable;
@@ -75,6 +153,8 @@ private:
   // Map for fast exact lookups and a vector for fast walking
   std::map<const ProblemParmsType, int> _map;
   std::vector<PtoS>                     _exactVector;
+
+  int                    _findAlg;
 };
 
 
@@ -85,11 +165,16 @@ int find_algorithm_static(
     const ProblemParmsType &p,
     const SolutionMapper<ProblemParmsType, SolutionInfoType> &smapper)
 {
-
   int solutionIdx = smapper.findExactMatch(p);
-  //printf ("find_algorithm_static, solutionIdx=%d\n", solutionIdx);
-  return solutionIdx;
+  //
+  if (solutionIdx == -1) {
+    //solutionIdx = smapper.findNearestMatch (p, RatioDistance<decltype(p)>());
+    solutionIdx = smapper.findNearestMatchWithAlg (p);
+    std::cout << "find_algorithm_static picked best-fit solutionIdx=" << solutionIdx << "\n";
+  } else {
+    std::cout << "find_algorithm_static picked exact solutionIdx=" << solutionIdx << "\n";
+  }
 
-  // eventually can try a nearest neighbor search here or something fancier
-  // to find a match
+
+  return solutionIdx;
 }

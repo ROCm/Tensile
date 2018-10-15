@@ -77,6 +77,14 @@ TensileStatus tensileTeardown();
     abort();\
   } }
 
+
+// Base template for ProblemSizes
+// -  stores the sizes
+// -  supports hash generation and comparison for lookup
+// TensileCreateLibrary.cpp will create a typedef for each specific problem, ie
+// ProblemSizes_Cijk_Ailk_Bljk_SB.
+// Some templates below use a parm called ProblemSizesType which can be any of these
+// generated types.
 template <int NumSizes, int LastSummationIdx, int Free0Idx>
 class ProblemSizes {
 public:
@@ -91,9 +99,9 @@ public:
   bool operator< (const ProblemSizes<NumSizes, LastSummationIdx, Free0Idx> & p) const
   {
     for (int i=0; i<NumSizes; i++) {
-      if (p.sizes[i] < this->sizes[i])
+      if (p._sizes[i] < this->_sizes[i])
         return true;
-      else if (p.sizes[i] > this->sizes[i])
+      else if (p._sizes[i] > this->_sizes[i])
         return false;
       // if equal, continue to next index
     }
@@ -103,41 +111,107 @@ public:
   bool operator== (const ProblemSizes<NumSizes, LastSummationIdx, Free0Idx> & p) const
   {
     for (int i=0; i<NumSizes; i++) {
-      if (p.sizes[i] != this->sizes[i])
+      if (p._sizes[i] != this->_sizes[i])
         return false;
     }
     return true;
   };
 
-  SizeType lastSummationSize() const { return sizes[LastSummationIdx]; };
-  SizeType free0Size() const { return sizes[Free0Idx]; };
-  SizeType free1Size() const { return sizes[1]; };
+  SizeType lastSummationSize() const { return _sizes[LastSummationIdx]; };
+  SizeType free0Size() const { return _sizes[Free0Idx]; };
 
   size_t hash() const {
     size_t h=0;
     for (int i=0; i<NumSizes; i++) {
-      h ^= sizes[i] + 0x9b9773e99e3779b9 + (h<<6) + (h>>2);
+      h ^= _sizes[i] + 0x9b9773e99e3779b9 + (h<<6) + (h>>2);
     }
     return h;
   }
 
+  const SizeType *sizes() const { return _sizes;};
+  int numSizes() const { return NumSizes;};
+
+  std::ostream &print(std::ostream &os) const {
+    for (int i=0; i<NumSizes; i++) {
+      if (i != 0) {
+        os << ", ";
+      };
+      os << _sizes[i];
+    };
+    return os;
+  };
+
+
 private:
   template<int I, typename T>
   void init (T v) {
-    sizes[NumSizes-I] = v;
+    _sizes[NumSizes-I] = v;
   }
 
   template<int I, typename T, typename... Ts>
   void init (T v, Ts... args )
   {
-    sizes[NumSizes-I] = v;
+    _sizes[NumSizes-I] = v;
     init<I-1> (args...);
   }
 
-
 private:
   // Data members:
-  SizeType sizes[NumSizes];
+  SizeType _sizes[NumSizes];
+};
+
+//-------------
+// Distance Functions between two problem sizes - used to find nearest neighbor or closest solution
+// Assumes p1 and p2 have same number of sizes
+//-------------
+
+template <class ProblemSizesType>
+struct RatioDistance {
+  double operator() (const ProblemSizesType &p1, const ProblemSizesType &p2) const
+  {
+    double distance = 1.0;
+    for (int i=0; i<p1.numSizes(); i++) {
+      distance += fabs(log(double(p1.sizes()[i])/double(p2.sizes()[i])));
+    }
+    return distance;
+  }
+};
+
+template <class ProblemSizesType>
+struct ManhattanDistance {
+  double operator() (const ProblemSizesType &p1, const ProblemSizesType &p2) const
+  {
+    double distance = 0;
+    for (int i=0; i<p1.numSizes(); i++) {
+      distance += fabs(double(p1.sizes()[i]) - double(p2.sizes()[i]));
+    }
+    return distance;
+  }
+};
+
+
+template <class ProblemSizesType>
+struct EuclideanDistance {
+  double operator() (const ProblemSizesType &p1, const ProblemSizesType &p2) const
+  {
+    double distance = 0;
+    for (int i=0; i<p1.numSizes(); i++) {
+      if (p1.sizes()[i] > p2.sizes()[i])
+        distance += pow((p1.sizes()[i] - p2.sizes()[i]), 2);
+      else
+        distance += pow((p2.sizes()[i] - p1.sizes()[i]), 2);
+    }
+// distance = sqrt(distance);
+    return distance;
+  }
+};
+
+template <class ProblemSizesType>
+struct RandomDistance {
+  double operator() (const ProblemSizesType &p1, const ProblemSizesType &p2) const
+  {
+    return double(rand()) / RAND_MAX;
+  }
 };
 
 template <class Object>
