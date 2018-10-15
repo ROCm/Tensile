@@ -246,18 +246,40 @@ validParameters = {
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
     "DirectToLds":                [ False, True],
 
-    "BufferStore":                [ False, True],
+    # Load options:
+    # (GRO = Global Read Offset)
+    # BufferLoad=0:
+    #  = Use flat instructions with 64 bit GRO for each load
+    #    + supports sizes up to 2^64
+    #    - uses many VGPR for addressing
+    #    - uses execmask+compares for edge detection
+    #    - generates extra LDS traffic (could convert flat->global load)
+    # BufferLoad=1:
+    #  = Use buffer load instructions with 32-bit offset
+    #    + Less VGPRS (32b offset vs 64-bit) needed for addressing
+    #    + Uses hardware buffer limit for edge detection
+    #    - Limited range - the bot-right corner of macro-tile (plus padding=GRVW
+    #        for shift-pointer, if ShiftPtr is required) must be within 2^32.
+    #      ShiftPtrPad = MayShift ? GRWV*BPE : 0
+    #      For TLU=1: Unroll*StrideA1 + ShiftPtrPad <= 2^32
+    #      For TLU=0: MT*StrideA1 + ShiftPtrPad <= 2^32
+    #      These conditions should be checked using Assert - TODO
+    #  = UseSgprForGRO=1:
+    #    + Attempt to use SGPR for Global Read Offsets.
+    #    + Use one VGPR base GRO + many SGPR GRO rather than many VGPR GRO.
+    #    + Each SGPR stores an offset from base GlobalReadOffset+0.
+    #    - Requirements for UseSgprForGRO=1:
+    #      - BufferLoad=1
+    #      - Use appropriate Assert*ElementMultiple or GRVW=1 to eliminate need for ShifPtr
+    #        (UseSgprForGRO does not support ShiftPtr since ShiftPtr needs to potentially shift GRO)
+    #  = KernelWriterAssembly also supports 64-bit 2D buffer size (see use64bPbcLimit)
+    #    - Requires 4 instructions to move scalar limit and a couple SGPR
+    #    - Enabled by default.  If the overhead matters we can add asserts/YAML parm to specialize
 
-    # Use buffer loads including limit field to precisely check array bounds.
-    # Eliminate the shift logic and simplifies the bounds checking.  Enables
-    # UseSgprForGRO.
-    "BufferLoad":                 [ False, True],
 
-    # Attempt to use SGPR for Global Read Offsets.
-    # Requires BufferLoad=1
-    # This will convert VGPR into SGPR which is usually a win (in particular if the GlobalReadWidth is 1.)
+    # Converting VGPR GRO into SGPR GRO is usually a win
     # However, the mode may exhaust all available SGPR, in particular for large unroll
-    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
+    # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
     "UseSgprForGRO":              [ -1, 0, 1],
     "FractionalLoad":             [ False, True] , # Some work-items in the group may not participate in the final buffer load.  Allows more flexibility in choosing DepthU.
 
@@ -267,10 +289,18 @@ validParameters = {
     # Currently 32-bit CAS only, eventually might support more
     "VectorAtomicWidth":          [ -1, 1, 2 ] ,
 
-    # When creating the kernel, assume that the summation size is some multiple of the element size.
+    # Assertion properties
+    # These provide information or assertions that the problem size meets certain requirements
+    # for sizes or alignments.  The kernel generator can use this information to produce
+    # a kernel which uses those assertions to produce a faster kernel.
+    #
+    # If modifying or adding Assertions also change AssertionProperties class in TensileTypes.h
+
+    # Kernel generator will assume that the summation size is some multiple of the element size
+    # and use this to optimize the kernel.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements.
-    #   (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+    # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
     #
     # Optimizations enabled by AssertSummationElementMultiple>1:
     #  - If >=2 for half:
@@ -278,52 +308,50 @@ validParameters = {
     #     - Enables asm kernels on V20
     #     - Can use DirectToLds for both unroll and tail loops
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
-    #  - For TLU=0 matrix, if ASEM0>GLVW then can enable PreciseBoundsCheck:
+    #
+    # 1 indicates no assertion (since all sizes are multiples of 1)
+    "AssertSummationElementMultiple": [1,2,4,8],
+
+    # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
+    # and use this to optimize the kernel.
+    # FreeIndex[0] is usually letter "I"
+    # (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
+    #
+    # Optimizations enabled by AssertFree0ElementMultiple>1:
+    # Load optimizations:
+    #  - For TLU=1 matrix, if AF1WM>=GLVW then can enable UseSgprForGRO
     #      - Reduces registers used for address calculations
     #      - Enables FractionalLoad for more flexibility in address calcs
     #      - Removes address shift/unshift code
-    #      - Support buffers > 32bits in size
-    #    - PreciseBounds check will only be enabled if all matrices meet assertion requirements.
-    #
-    # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change AssertionProperties class in TensileTypes.h
-    "AssertSummationElementMultiple": [1,2,4,8],
-
-    # When creating the kernel, assume that the 'first' free index size is some
-    # multiple of the element size.
-    # "first" free index is FreeIndex[0] and usually letter "I"
-    #
-    # Optimizations enabled by AssertFree0ElementMultiple>1:
-    #   (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
-    # Load optimizations:
-    #  - For TLU=1 matrix, if AF1WM>=GLVW then can enable PreciseBounds check.  (see above)
-    #    - PreciseBounds check will only be enabled if all matrices meet assertion requirements.
+    #    - UseSgprForGRO will only be enabled if all matrices meet assertion requirements.
     #
     # Store Optimizations:
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
     #   (since C matrix is always coalesced in Free0 index diretion and this assertion guarantees the index element multiple)
     #
-    # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change AssertionProperties class in TensileTypes.h
+    # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
-    # When creating the kernel, assume that the 'second' free index size is some
-    # multiple of the element size.
-    # "first" free index is FreeIndex[1] and usually letter "J"
-    #   (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
-    #  - See above AssertFree0ElementMultiple Load optimizations
-    # 1 indicates no restriction (since all sizes are multiples of 1)
-    # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
+    # Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
+    # and use this to optimize the kernel.
+    # FreeIndex[1] is usually letter "J"
+    # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+
+    # Optimizations enabled by AssertFree1ElementMultiple>1:
+    #  - See above AssertFree0ElementMultiple "Load optimizations"
+
+    # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Some kernels only work for certain sizes, see AssertionProperties in TensileTypes for exact defs
     "AssertMinApproxSize" : [0,1,2],
 
-    # Generate code inside kernel to check assertions above on Tensor dimensions
+    # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
     # Generate code inside kernel to check several dimension overflow cases, in particular around use of 32-bit calcs
-    # 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection, 2=checks for cases that should never happen
+    # 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection,
+    # 2=checks for cases that should never happen
     "CheckDimOverflow":               [0,1,2],
 
     # For Block Mapping type:
