@@ -19,7 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 from Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning
-from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecks
 from SolutionStructs import Solution
 from SolutionWriter import SolutionWriter
 import YAMLIO

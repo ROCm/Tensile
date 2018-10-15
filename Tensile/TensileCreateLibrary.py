@@ -20,7 +20,6 @@
 ################################################################################
 # This script only gets called by CMake
 from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
-from Common import writeSolutionAssertionCheckHeader,writeSolutionAssertionChecksForSolution
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
@@ -449,7 +448,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-      s += writeSolutionAssertionCheckHeader(problemType)
 
       exactLogicStr = writeExactLogic(schedProbName, problemType, indexOrder, \
                                       solutionsForSchedule, exactLogic, \
@@ -473,7 +471,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
         s += "    %s %s%s" \
             % (argListSizes[i][0], argListSizes[i][1], \
             ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-      s += writeSolutionAssertionCheckHeader(problemType)
 
       exactLogicStr = writeExactLogic(schedProbName, problemType, indexOrder, \
                                       solutionsForSchedule, exactLogic, \
@@ -783,37 +780,6 @@ def writeExactLogic(schedProbName, problemType, indexOrder,
   s +=   "    return checkValue;\n"
   s +=   "  }\n"
 
-  if 0: # TODO - remove this code, this generates the old if-tree and checks against above
-    for ruleIdx in range(0, len(exactLogic)):
-      rule = exactLogic[ruleIdx]
-      problemSize = rule[0]
-      solutionIdx = rule[1][0]
-      solution = solutionsForSchedule[solutionIdx]
-      solutionGFlops = rule[1][1]
-      s += indent
-      if ruleIdx > 0:
-        s += "else "
-      s += "if ("
-      s += " size%s == %u " % (globalParameters["IndexChars"][0], problemSize[0])
-      for i in range(1, len(problemSize)):
-        s += "&& size%s == %u " % (globalParameters["IndexChars"][i], \
-            problemSize[i])
-
-      a = writeSolutionAssertionChecksForSolution(solution)
-      if a != "":
-          s+= "&& " + a
-
-      solutionName = solutionNames[solutionIdx]
-      s += ") {\n";
-      if ptr:
-        returnValue = solutionName
-        s += "    assert(%s == checkValue);\n" % returnValue
-      else:
-        # why add a trailing ~ here?
-        returnValue = "\"%s~\"" % solutionName
-        s += "    assert(!strcmp(%s,checkValue));\n" % returnValue
-
-      s += "  return %s;} // %.0f GFlop/s\n" % (returnValue, solutionGFlops)
   return s
 
 
@@ -840,10 +806,8 @@ def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
       else:
         returnValue = "\"%s\"" % solutionName
 
-      a = writeSolutionAssertionChecksForSolution(solution)
-      if a != "":
-        s += indent + "if (" + a + ")"
-        indent += "  "
+
+      # Assertions not supported on Ranges any longer
 
       if threshold > 0:
         s += "%sif (size%s <= %u) return %s;\n" \
