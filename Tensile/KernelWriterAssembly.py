@@ -1200,6 +1200,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["fractionalPerpOverhangB"]:
         self.defineSgpr("PerpOverhangVccB", 2, 2)
     if self.use64bPbcLimit:
+      # If need more SGPR could overlap this with the Tensor2dSize regs
       self.defineSgpr("SrdShadowLimitA", 2, 2)
       self.defineSgpr("SrdShadowLimitB", 2, 2)
     if globalParameters["DebugKernel"]:
@@ -2968,7 +2969,8 @@ class KernelWriterAssembly(KernelWriter):
 
     else:
       # put limit directly into SRD:
-      kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc),  sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
+      kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
+      kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
 
 
     # Apply any high-order address components to the tileStart and eventually the SRD - these include batch idx for batched gemm, >4D tensors, etc
@@ -3724,6 +3726,13 @@ class KernelWriterAssembly(KernelWriter):
             "limit -= inc)" )
       kStr += inst("s_cmp_eq_u32", sgpr("SrdShadowLimit%s+1"%tc), 0, "are we within 2^32?")
       kStr += inst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("SrdShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
+    else:
+      kStr += inst("s_sub_u32", \
+           sgpr("Srd%s+2"%(tc)), \
+           sgpr("Srd%s+2"%(tc)), \
+           incLower, \
+            "limit -= inc)" )
+
     return kStr
 
 
