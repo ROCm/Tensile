@@ -34,15 +34,16 @@ class SolutionMapper {
 
 public:
   SolutionMapper(const SolutionInfoType *solutionTable, size_t numSolutions,
-                 const PtoS *embeddedExactTable, size_t numExacts)
-     : _solutionTable(solutionTable), _numSolutions(numSolutions), _findAlg(RatioDistanceAlgo)
+                 const PtoS *embeddedExactTable, size_t numExacts,
+                 const ProblemProperties *props)
+     : _solutionTable(solutionTable), _numSolutions(numSolutions), _props(props), _findAlg(RatioDistanceAlgo)
   {
     for (size_t i=0; i<numExacts; i++) {
       auto &p = embeddedExactTable[i].first;  //problem
       auto si = embeddedExactTable[i].second; //solutionIndex
       auto const &solution = solutionTable[si];
 
-      if (AssertionProperties(p).validForSolution(solution.assertions)) {
+      if (AssertionProperties(p,props).validForSolution(solution.assertions)) {
         _exactVector.push_back(embeddedExactTable[i]);
         _map.insert({p, si});
       } else {
@@ -90,7 +91,7 @@ public:
   template <class DistanceFunction>
   int findNearestMatch(const ProblemParmsType &p, DistanceFunction distanceF) const
   {
-    AssertionProperties pa(p);
+    AssertionProperties pa(p,_props);
 
     auto bestIter = _exactVector.end();
     double bestDistance = std::numeric_limits<double>::max();
@@ -148,6 +149,8 @@ private:
 private:
   const SolutionInfoType  *_solutionTable;
   size_t                   _numSolutions;
+
+  const ProblemProperties *_props;
 
   // Two different structures supporting mapping from problems to solutions:
   // Map for fast exact lookups and a vector for fast walking

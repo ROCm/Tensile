@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 # This script only gets called by CMake
-from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar
+from Common import globalParameters, HR, print1, print2, printExit, ensurePath, CHeader, CMakeHeader, assignGlobalParameters, ProgressBar, listToInitializer
 from SolutionStructs import Solution
 import YAMLIO
 from SolutionWriter import SolutionWriter
@@ -363,8 +363,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           if i < len(argListData)-1 else ");\n\n")
 
     numSizes = problemType["TotalIndices"];
-    h += "typedef ProblemSizes<%u, %u, %u> ProblemSizes_%s;\n" \
-        % (numSizes, problemType["IndicesSummation"][-1], problemType["IndicesFree"][0], problemType)
+    h += "typedef ProblemSizes<%u> ProblemSizes_%s;\n" % (numSizes,problemType)
     if 0:
       lastStrideC = problemType["NumIndicesC"]
       lastStrideA = len(problemType["IndexAssignmentsA"])
@@ -414,6 +413,18 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += "#include \"TensileInternal.h\"\n"
       for solutionName in solutionNamesForProblemType:
         s += "#include \"%s.h\"\n" % solutionName
+
+    ########################################
+    # Per-problem constants here:
+    # These are common for all schedules and thus do not include schedule name (vega,hip,etc)
+    solutionPointerType = "TensileSolutionPointer_%s" % problemType
+    s += "typedef SolutionInfo<%s> SolutionInfo_%s;\n\n" % (solutionPointerType, problemType)
+    s += "static const ProblemProperties problemProperties_%s( " % problemType
+    s += listToInitializer(problemType["IndicesFree"]) + ", "
+    s += listToInitializer(problemType["IndicesSummation"]) + ", "
+    s += listToInitializer(problemType["IndicesBatch"])
+    s += ");\n"
+
 
     ########################################
     # implement per-Schedule functions in source
@@ -709,9 +720,7 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
                                solutionsForSchedule, solutionNames, exactLogic):
   s = ""
   s += "// solution table\n"
-  solutionPointerType = "TensileSolutionPointer_%s" % problemType
-  s += "typedef SolutionInfo<%s> SolutionInfo_%s;\n\n" % (solutionPointerType, schedProbName)
-  s += "static const SolutionInfo_%s solutionTable_%s[] = {\n" % (schedProbName, schedProbName)
+  s += "static const SolutionInfo_%s solutionTable_%s[] = {\n" % (problemType, schedProbName)
   for i in range(0, len(solutionsForSchedule)):
     solution = solutionsForSchedule[i]
     solutionName = solutionNames[i]
@@ -739,7 +748,7 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
       if i == 0:
         s += "%u" % problemSize[i];
       else:
-        s += ",%u" % problemSize[i];
+        s += ", %u" % problemSize[i];
     s += "}, %u}" % (solutionIdx)
     s += "," if ruleIdx != len(exactLogic)-1 else " "
     s += " // %.0f GFlop/s" % (solutionGFlops)
@@ -747,9 +756,9 @@ def writeSolutionAndExactTable(schedProbName, problemType, \
   s += "};\n\n"
 
   # Create a solution mapper and init with the table above:
-  s += "static SolutionMapper<ProblemSizes_%s,SolutionInfo_%s>\n" % (problemType, schedProbName)
-  s +=  "  solutionMapper_%s(solutionTable_%s, %u, embeddedExactTable_%s, %u);\n" \
-          % (schedProbName, schedProbName, len(solutionsForSchedule), schedProbName, len(exactLogic))
+  s += "static SolutionMapper<ProblemSizes_%s,SolutionInfo_%s>\n" % (problemType, problemType)
+  s +=  "  solutionMapper_%s(solutionTable_%s, %u, embeddedExactTable_%s, %u, &problemProperties_%s);\n" \
+          % (schedProbName, schedProbName, len(solutionsForSchedule), schedProbName, len(exactLogic), problemType)
   return s
 
 

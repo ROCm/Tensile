@@ -818,6 +818,17 @@ def versionIsCompatible(queryVersionString):
       return False
   return True
 
+# convert python list to C++ initializer style syntax
+def listToInitializer(l):
+  s = "{"
+  first = 1
+  for i in l:
+    if not first: s += ","
+    s += str(i)
+    first = 0
+  s += "}"
+  return s;
+
 ################################################################################
 # Progress Bar Printing
 # prints "||||" up to width
