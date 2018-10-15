@@ -394,19 +394,19 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     h += "\n// get solution pointer\n"
     h += "SolutionMapper_%s::SolutionRuntime\n" % (problemType)
     h += "tensileGetSolutionPointer_%s(\n" % (problemType)
-    for i in range(0, len(argListStream)):
+    for i in range(0, len(argListSizes)):
       h += "    %s %s%s" \
-          % (argListStream[i][0], argListStream[i][1], \
-          ",\n" if i < len(argListStream)-1 else ");\n\n")
+          % (argListSizes[i][0], argListSizes[i][1], \
+          ",\n" if i < len(argListSizes)-1 else ");\n\n")
 
     # declare tensileName_
     h += "// get solution name\n"
     h += "const char * tensileGetSolutionName_%s(\n" \
         % (problemType)
-    for i in range(0, len(argListStream)):
+    for i in range(0, len(argListSizes)):
       h += "    %s %s%s" \
-          % (argListStream[i][0], argListStream[i][1], \
-          ",\n" if i < len(argListStream)-1 else ");\n\n")
+          % (argListSizes[i][0], argListSizes[i][1], \
+          ",\n" if i < len(argListSizes)-1 else ");\n\n")
 
 
     # get solution naming for problem type
@@ -467,174 +467,48 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
               solutionsForSchedule, solutionNamesForSchedule, exactLogic)
 
+    # Per-problem function here:
+    # function tensileGetSolutionPointer_ProblemType
+    del schedProbName
+    del scheduleName
+    s += "\n// problem size -> solution logic\n"
+    s += "SolutionMapper_%s::SolutionRuntime\n" % (problemType)
+    s += "tensileGetSolutionPointer_%s(\n" % (problemType)
+    for i in range(0, len(argListSizes)):
+      s += "    %s %s%s" \
+          % (argListSizes[i][0], argListSizes[i][1], \
+          ",\n" if i < len(argListSizes)-1 else ") {\n\n")
 
-      # function tensileGetSolutionPointer_Schedule_ProblemType
-      s += "\n// problem size -> solution logic\n"
-      s += "SolutionMapper_%s::SolutionRuntime\n" % (problemType)
-      s += "tensileGetSolutionPointer_%s(\n" % (schedProbName)
-      for i in range(0, len(argListSizes)):
-        s += "    %s %s%s" \
-            % (argListSizes[i][0], argListSizes[i][1], \
-            ",\n" if i < len(argListSizes)-1 else ") {\n\n")
+    exactLogicStr = writeExactLogic(problemType, indexOrder, \
+                                    solutionsForSchedule, exactLogic, \
+                                    solutionNamesForSchedule, True)
+    if rangeLogic != None:
+      print "** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3"
+    s += "  /* exact mappings */\n"
+    s += exactLogicStr
+    s += "\n  return SolutionMapper_%s::SolutionRuntime();  // no solution found, return invalid\n" % (problemType)
+    s += "\n}\n"
 
-      exactLogicStr = writeExactLogic(schedProbName, problemType, indexOrder, \
-                                      solutionsForSchedule, exactLogic, \
-                                      solutionNamesForSchedule, True)
-      if rangeLogic != None:
-        rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionsForSchedule, solutionNamesForSchedule, schedProbName, problemType, True)
-      else:
-        rangeLogicStr = "  return SolutionMapper_%s::SolutionRuntime();  // no solution\n" % (problemType)
-      s += "  /* exact mappings */\n"
-      s += exactLogicStr
-      s += "\n  /* range mappings */\n"
-      s += rangeLogicStr
-      s += "\n}\n"
+    # function tensileGetSolutionName_Schedule_ProblemType
+    s += "\n// get solution name for problem size\n"
+    s += "const char * tensileGetSolutionName_%s(\n" \
+        % (problemType)
+    for i in range(0, len(argListSizes)):
+      s += "    %s %s%s" \
+          % (argListSizes[i][0], argListSizes[i][1], \
+          ",\n" if i < len(argListSizes)-1 else ") {\n\n")
 
-      # function tensileGetSolutionName_Schedule_ProblemType
-      s += "\n// get solution name for problem size\n"
-      s += "const char * tensileGetSolutionName_%s(\n" \
-          % (schedProbName)
-      for i in range(0, len(argListSizes)):
-        s += "    %s %s%s" \
-            % (argListSizes[i][0], argListSizes[i][1], \
-            ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-
-      exactLogicStr = writeExactLogic(schedProbName, problemType, indexOrder, \
-                                      solutionsForSchedule, exactLogic, \
-                                      solutionNamesForSchedule, False)
-      if rangeLogic != None:
-        rangeLogicStr = writeRangeLogicRec(0, indexOrder, rangeLogic, \
-            solutionsForSchedule, solutionNamesForSchedule, schedProbName, problemType, False)
-      else:
-        rangeLogicStr = "  return NULL; // none\n"
-      s += "  /* exact mappings */\n"
-      s += exactLogicStr
-      s += "\n  /* range mappings */\n"
-      s += rangeLogicStr
-      s += "\n}\n"
+    exactLogicStr = writeExactLogic(problemType, indexOrder, \
+                                    solutionsForSchedule, exactLogic, \
+                                    solutionNamesForSchedule, False)
+    s += "  /* exact mappings */\n"
+    s += exactLogicStr
+    s += "  return NULL; // none\n"
+    s += "\n}\n"
 
     ########################################
     # implement problem-type functions in source
     s += "/*******************************************************************************\n * Per-ProblemType Functions\n *******************************************************************************/"
-
-
-    # implement tensileGetSolutionPointer_ProblemType
-    for ptr in [True, False]:
-      returnType = "Pointer" if ptr else "Name"
-      s += "\n// return solution %s\n" % returnType
-      s += ("SolutionMapper_%s::SolutionRuntime\n" % (problemType)) if ptr else "const char *"
-      s += "tensileGetSolution%s_%s(\n" \
-          % (returnType, problemType)
-      for i in range(0, len(argListStream)):
-        s += "    %s %s%s" \
-            % (argListStream[i][0], argListStream[i][1], \
-            ",\n" if i < len(argListStream)-1 else ") {\n")
-
-      # choose from schedules based on device name
-#     print logicData
-      schedules = logicData[problemType]
-      numSchedules = len(schedules)
-      if numSchedules > 1:
-
-        reordered_schedules = []
-        for scheduleIdx in range(0, numSchedules):
-          schedule = schedules[scheduleIdx]
-          deviceNames = schedule[1]
-          if deviceNames != ["fallback"] and deviceNames != ["Device 0000"]:
-            reordered_schedules.append(schedule)
-        for scheduleIdx in range(0, numSchedules):
-          schedule = schedules[scheduleIdx]
-          deviceNames = schedule[1]
-          if deviceNames == ["fallback"] or deviceNames == ["Device 0000"]:
-            reordered_schedules.append(schedule)
-
-        # get device name
-        if globalParameters["RuntimeLanguage"] == "OCL":
-          s += "get device name opencl;\n"
-        else:
-          s += "\n//  get device name hip;\n"
-          s += "    int deviceId;\n"
-          s += "    hipGetDevice(&deviceId);\n"
-          s += "    hipDeviceProp_t deviceProperties;\n"
-          s += "    hipGetDeviceProperties(&deviceProperties, deviceId);\n"
-          s += "    std::string name = deviceProperties.name;\n"
-
-        if problemType["DataType"].isDouble() :
-          s += "\n"
-          s += "//  intercept schedule selection and call HIP (source) kernel\n"
-          s += "    if((strideA2K == 0) || (strideB2K == 0))\n"
-          s += "    {\n"
-          numSchedules = len(schedules)
-          schedule = reordered_schedules[numSchedules-1]
-          scheduleName  = schedule[0]
-          s += "        return tensileGetSolution%s_%s_%s(" \
-                % ( returnType, scheduleName, problemType)
-          for i in range(0, len(argListSizes)):
-            s += "%s%s" \
-                % (argListSizes[i][1],
-                    ", " if i < len(argListSizes)-1 else ");\n")
-          s += "    }\n"
-          s += "\n"
-
-        if problemType["DataType"].isHalf() :
-          # "first" free index, usually the letter "I"
-          free0Index = problemType["IndicesFree"][0]
-          free0Char = globalParameters["IndexChars"][free0Index]
-          # "second" free index, usually the letter "J"
-          free1Index = problemType["IndicesFree"][1]
-          free1Char = globalParameters["IndexChars"][free1Index]
-          s += "\n"
-          s += "//  intercept schedule selection and call HIP (source) kernel\n"
-          s += "//  if either the summation size or the 'first' free index size\n"
-          s += "//  is odd or the 'second' free index size is 1\n"
-          s += "    if (((sizeL & 1) == 1) || ((size%s & 1) == 1)"%(free0Char)
-          s += " || (size%s == 1))\n"%(free1Char)
-          s += "    {\n"
-          numSchedules = len(schedules)
-          schedule = reordered_schedules[numSchedules-1]
-          scheduleName  = schedule[0]
-          s += "        return tensileGetSolution%s_%s_%s(" \
-                % ( returnType, scheduleName, problemType)
-          for i in range(0, len(argListSizes)):
-            s += "%s%s" \
-                % (argListSizes[i][1],
-                    ", " if i < len(argListSizes)-1 else ");\n")
-          s += "    }\n"
-          s += "\n"
-
-        for scheduleIdx in range(0, numSchedules):
-          schedule = reordered_schedules[scheduleIdx]
-          scheduleName  = schedule[0]
-          deviceNames = schedule[1]
-          if scheduleIdx > 0:
-            s += "    else "
-          if scheduleIdx < numSchedules-1:
-            s += "if ("
-            for deviceNameIdx in range(0, len(deviceNames)):
-              deviceName = deviceNames[deviceNameIdx]
-              if deviceNameIdx > 0:
-                s += " || "
-              s += "name == \"%s\"" % deviceName
-            s += ")"
-          s += "\n    {\n"
-          s += "        return tensileGetSolution%s_%s_%s(" \
-              % ( returnType, scheduleName, problemType)
-          for i in range(0, len(argListSizes)):
-            s += "%s%s" \
-                % (argListSizes[i][1],
-                    ", " if i < len(argListSizes)-1 else ");\n")
-          s += "    }\n"
-      else: # == 1
-        schedule = schedules[0]
-        scheduleName = schedule[0]
-        s += "  return tensileGetSolution%s_%s_%s(" \
-            % ( returnType, scheduleName, problemType)
-        for i in range(0, len(argListSizes)):
-          s += "%s%s" \
-              % (argListSizes[i][1],
-                  ", " if i < len(argListSizes)-1 else ");\n")
-      s += "\n}\n"
 
 
     # declare tensile_ProblemType
@@ -645,9 +519,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
           % (argListData[i][0], argListData[i][1], \
           ",\n" if i < len(argListData)-1 else ") {\n")
     s += "    auto s = tensileGetSolutionPointer_%s(\n" % (problemType)
-    for i in range(0, len(argListStream)):
+    for i in range(0, len(argListSizes)):
       s += "        %s%s" \
-          % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");")
+          % (argListSizes[i][1], ", " if i < len(argListSizes)-1 else ");")
       s += "\n"
     s += "    if ( s.isValid() ) {\n"
     s += "      TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (s._info->_functionPtr);\n" \
@@ -744,7 +618,7 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
 #   True : write logic to return the function pointer
 #   False : write logic to return the function name
 ################################################################################
-def writeExactLogic(schedProbName, problemType, indexOrder,
+def writeExactLogic(problemType, indexOrder,
                     solutionsForSchedule, exactLogic, \
                     solutionNames, ptr):
   s = ""
@@ -768,59 +642,17 @@ def writeExactLogic(schedProbName, problemType, indexOrder,
     s += ", size%s" % indexChars[i]
   s += ");\n"
 
-  s += "  int solutionIdx = solutionMapper_%s.findAlgorithmStatic(pdims,%d);\n" \
-         % (schedProbName, not globalParameters["ExpandRanges"])
+  s += "  auto solutionMapper = reinterpret_cast<SolutionMapper_%s *> (deviceSolutionMapper_%s.mapper());\n"  \
+      % (problemType, problemType)
+  s += "  int solutionIdx = solutionMapper->findAlgorithmStatic(pdims,%d);\n" \
+         % (not globalParameters["ExpandRanges"])
   s +=   "  if (solutionIdx != -1) {\n"
   if ptr:
-    s += "    return solutionMapper_%s.getSolution(solutionIdx);\n" % (schedProbName)
+    s += "    return solutionMapper->getSolution(solutionIdx);\n"
   else:
-    s += "    return solutionMapper_%s.getSolution(solutionIdx)._info->_name;\n" % (schedProbName)
+    s += "    return solutionMapper->getSolution(solutionIdx)._info->_name;\n"
   s +=   "  }\n"
 
-  return s
-
-
-################################################################################
-# Write Range Logic Recursive
-################################################################################
-def writeRangeLogicRec(depth, indexOrder, rangeLogic, \
-    solutionsForSchedule, solutionNames, schedProbName, problemType, ptr):
-  indexChars = globalParameters["IndexChars"]
-  indent = "  "
-  indent += "  "*depth
-  s = ""
-  lowestLevel = depth == len(indexOrder)-1
-  numRules = len(rangeLogic)
-  for ruleIdx in range(0, numRules):
-    rule = rangeLogic[ruleIdx]
-    threshold = rule[0]
-    if lowestLevel:
-      solutionIdx = rule[1]
-      solution = solutionsForSchedule[solutionIdx]
-      solutionName = solutionNames[solutionIdx]
-      if ptr:
-        returnValue = "solutionMapper_%s.getSolution(%d); // %s" \
-            % (schedProbName,solutionIdx,solutionName)
-      else:
-        returnValue = "\"%s\"" % solutionName
-
-
-      # Assertions not supported on Ranges any longer
-
-      if threshold > 0:
-        s += "%sif (size%s <= %u) return %s;\n" \
-            % (indent, indexChars[indexOrder[depth]], threshold, returnValue)
-      else:
-        s += "%sreturn %s;\n" % (indent, returnValue)
-    else:
-      if threshold > 0:
-        s += "%sif (size%s <= %u) {\n" \
-            % (indent, indexChars[indexOrder[depth]], threshold)
-      else:
-        s += "%s{\n" % (indent)
-      s += writeRangeLogicRec(depth+1, indexOrder, rule[1], solutionsForSchedule, solutionNames, \
-          schedProbName, problemType, ptr)
-      s += "%s}\n" % (indent)
   return s
 
 
