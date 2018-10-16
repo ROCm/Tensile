@@ -220,8 +220,6 @@ validParameters = {
     "LocalWrite2B":               [ False, True ],
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
-    "BufferLoad":                 [ False, True],
-    "BufferStore":                [ False, True],
 
     # Attempt to load directly from global memory into LDS.
     # Assembly only
@@ -234,14 +232,15 @@ validParameters = {
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
     "DirectToLds":                [ False, True],
 
-    # Use buffer limit field to precisely check array bounds.
-    # Requires BufferLoad.  Eliminate the shift logic and
-    # simplifies the bounds checking.  Enables
+    "BufferStore":                [ False, True],
+
+    # Use buffer loads including limit field to precisely check array bounds.
+    # Eliminate the shift logic and simplifies the bounds checking.  Enables
     # UseSgprForGRO.
-    "PreciseBoundsCheck":         [ False, True],
+    "BufferLoad":                 [ False, True],
 
     # Attempt to use SGPR for Global Read Offsets.
-    # Requires BufferLoad=1 and PreciseBoundsCheck=1
+    # Requires BufferLoad=1
     # This will convert VGPR into SGPR which is usually a win (in particular if the GlobalReadWidth is 1.)
     # However, the mode may exhaust all available SGPR, in particular for large unroll
     # -1 attempt to use a hueristic to determine when the tile size will use too many SGPR
@@ -444,7 +443,6 @@ defaultBenchmarkCommonParameters = [
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },
-    {"PreciseBoundsCheck":        [ True ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"AssertSummationElementMultiple": [ 1 ] },
     {"AssertFree0ElementMultiple": [ 1 ] },

@@ -122,10 +122,10 @@ class KernelWriter:
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
-        if not (kernel["PreciseBoundsCheck"] and kernel["GuaranteeNoPartialA"]):
+        if not (kernel["BufferLoad"] and kernel["GuaranteeNoPartialA"]):
           kStr += self.comment("global read addresses: shift a")
           kStr += self.graShift(kernel, tensorParametersA)
-        if not (kernel["PreciseBoundsCheck"] and  kernel["GuaranteeNoPartialB"]):
+        if not (kernel["BufferLoad"] and  kernel["GuaranteeNoPartialB"]):
           kStr += self.comment("global read addresses: shift b")
           kStr += self.graShift(kernel, tensorParametersB)
       elif kernel["EdgeType"] == "Branch":
