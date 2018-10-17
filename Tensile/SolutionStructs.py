@@ -902,9 +902,9 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minVw = 2 if state["ProblemType"]["DataType"].isHalf() else 1
+    minGrvw = 1
     bestVw = -1
-    while grvw >= minVw:
+    while grvw >= minGrvw:
       # Per instruction across the entire group:
       elementsLoadedPerInst = state["NumThreads"]*grvw
       # LSC, LSP - #elements loaded along specified dim with each load
@@ -931,7 +931,7 @@ class Solution:
         # when a GRVW=1 will do instead.
         validElementsLoadedPerInst = state["LSC%s"%tc] * state["LSP%s"%tc]
         grvw /= 2
-        while grvw >= minVw:
+        while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
