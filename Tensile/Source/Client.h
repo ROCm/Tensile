@@ -881,7 +881,7 @@ bool benchmarkAllSolutionsForSize(
       tensileStatusCheck(status);
 
       // enqueue device solution
-      callStatus = generatedCallToSolution( solutionIdx , sizes, minStrides, alpha, beta );
+      callStatus = generatedCallToSolution( solutionIdx , sizes, minStrides, strideA, strideB, strideC, alpha, beta );
 
       if (callStatus == tensileStatusSuccess) {
         // copy data back to host
@@ -958,10 +958,10 @@ bool benchmarkAllSolutionsForSize(
       unsigned long long syncFanSpeed = 0;
       for (unsigned int enqIdx = 0; enqIdx < numEnqueuesPerSync; enqIdx++) {
 #if Tensile_RUNTIME_LANGUAGE_OCL
-        TensileStatus status = generatedCallToSolution( solutionIdx , sizes, minStrides, alpha, beta,
+        TensileStatus status = generatedCallToSolution( solutionIdx , sizes, minStrides, strideA, strideB, strideC, alpha, beta,
             0, NULL, &l_outputEvent[syncIdx][enqIdx] );
 #else
-        TensileStatus status = generatedCallToSolution( solutionIdx, sizes, minStrides, alpha, beta,
+        TensileStatus status = generatedCallToSolution( solutionIdx, sizes, minStrides, strideA, strideB, strideC, alpha, beta,
             numEnqueuesPerSync, &l_eventStart[syncIdx][enqIdx],
             &l_eventStop[syncIdx][enqIdx] );
 #endif
@@ -1167,7 +1167,7 @@ bool benchmarkProblemSizes(
   if (!numElementsToValidate) {
     std::cout << "Pre-compiling " << numSolutions << " OpenCL kernels";
     for (unsigned int sIdx = 0; sIdx < numSolutions; sIdx++) {
-      generatedCallToSolution( sIdx, problemSizes[0], minStrides, alpha, beta );
+      generatedCallToSolution( sIdx, problemSizes[0], minStrides, strideA, strideB, strideC, alpha, beta );
       status = clFinish(stream); tensileStatusCheck(status);
       tensileStatusCheck(status);
       std::cout << ".";
