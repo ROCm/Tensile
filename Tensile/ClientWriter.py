@@ -216,6 +216,10 @@ def writeRunScript(path, libraryLogicPath, forBenchmark):
     clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
     clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
     clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
+    if "ClientArgs" in globalParameters:
+      clientParams = globalParameters["ClientArgs"]
+      if clientParams:
+        clp += " " + globalParameters["ClientArgs"]
     runScriptFile.write(clp)
     runScriptFile.write("\n")
     runScriptFile.write("ERR=$?\n")
@@ -768,6 +772,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    unsigned int solutionIdx,\n"
     h += "    const unsigned int *sizes,\n"
     h += "    const unsigned int *minStrides,\n"
+    h += "    const unsigned int stride_a,\n"
+    h += "    const unsigned int stride_b,\n"
+    h += "    const unsigned int stride_c,\n"
     h += "    DataType alpha,\n"
     h += "    DataType beta, \n"
     h += "    unsigned int numEvents = 0, \n"
@@ -794,6 +801,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       for j in range(0, i):
         h += "* std::max(minStrides[%i], sizes[%i])" % (j,j)
       h += ";\n"
+    h += "  if (stride_c != std::numeric_limits<unsigned int>::max())  strideC%u%s = stride_c;\n" % (lastStrideC-1, indexChars[lastStrideC-1])
+    
     for i in range(0,lastStrideA):
       h += "  unsigned int strideA%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsA"][i]])
@@ -802,6 +811,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           (problemType["IndexAssignmentsA"][j],
            problemType["IndexAssignmentsA"][j])
       h += ";\n"
+    h += "  if (stride_a != std::numeric_limits<unsigned int>::max())  strideA%u%s = stride_a;\n" % (lastStrideA-1, indexChars[problemType["IndexAssignmentsA"][lastStrideA-1]])
+
     for i in range(0,lastStrideB):
       h += "  unsigned int strideB%u%s = 1" % (i, \
           indexChars[problemType["IndexAssignmentsB"][i]])
@@ -810,6 +821,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           (problemType["IndexAssignmentsB"][j],
            problemType["IndexAssignmentsB"][j])
       h += ";\n"
+    h += "  if (stride_b != std::numeric_limits<unsigned int>::max())  strideB%u%s = stride_b;\n" % (lastStrideB-1, indexChars[problemType["IndexAssignmentsB"][lastStrideB-1]])
+
     for i in range(0, problemType["TotalIndices"]):
       h += "  unsigned int size%s = sizes[%u];\n" % (indexChars[i], i)
     h += "\n"
