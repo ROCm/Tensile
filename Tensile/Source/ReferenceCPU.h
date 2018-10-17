@@ -30,16 +30,16 @@
 /*******************************************************************************
  * Reference Tensor Contraction
  ******************************************************************************/
-template< typename Type >
+template< typename Type, typename DestType >
 TensileStatus tensileReferenceCPU(
-    Type *dataC,
+    DestType *dataC,
     const Type *dataA,
     const Type *dataB,
     const unsigned int stride_a,
     const unsigned int stride_b,
     const unsigned int stride_c,
-    Type alpha,
-    Type beta,
+    DestType alpha,
+    DestType beta,
     unsigned int totalIndices,
     const unsigned int *sizes,
     const unsigned int *minStrides,

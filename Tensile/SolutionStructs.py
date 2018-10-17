@@ -46,15 +46,15 @@ class DataType:
   idxHIP     = 3
   idxLibType = 4
   idxLibEnum = 5
-  #    char, reg, ocl,       hip,       libType,                 libEnum
+  #    char, reg,    ocl,       hip,       libType,                 libEnum
   properties = [
-      [ "S", 1,   "float",   "float",   "float",                 "tensileDataTypeFloat"         ],
-      [ "D", 2,   "double",  "double",  "double",                "tensileDataTypeDouble"        ],
-      [ "C", 2,   "float2",  "float2",  "TensileComplexFloat",   "tensileDataTypeComplexFloat"  ],
-      [ "Z", 4,   "double2", "double2", "TensileComplexDouble",  "tensileDataTypeComplexDouble" ],
-      [ "H", 0.5, "ERROR",   "half",    "TensileHalf",           "tensileDataTypeHalf"          ],
-      [ "i",   1, "ERROR",   "uint32_t", "TensileInt8x4",         "tensileDataTypeInt8x4"        ],
-      [ "I",   1, "ERROR",   "int32_t",  "TensileInt32",          "tensileDataTypeInt32"         ]
+      [ "S",  1,   "float",   "float",    "float",                 "tensileDataTypeFloat"         ],
+      [ "D",  2,   "double",  "double",   "double",                "tensileDataTypeDouble"        ],
+      [ "C",  2,   "float2",  "float2",   "TensileComplexFloat",   "tensileDataTypeComplexFloat"  ],
+      [ "Z",  4,   "double2", "double2",  "TensileComplexDouble",  "tensileDataTypeComplexDouble" ],
+      [ "H",  0.5, "ERROR",   "half",     "TensileHalf",           "tensileDataTypeHalf"          ],
+      [ "i",  1,   "ERROR",   "uint32_t", "TensileInt8x4",         "tensileDataTypeInt8x4"        ],
+      [ "I",  1,   "ERROR",   "int32_t",  "TensileInt32",          "tensileDataTypeInt32"         ]
   ]
 
   ########################################

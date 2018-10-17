@@ -205,7 +205,6 @@ void specializeData(
     const unsigned int *allSizes,
     const unsigned int *indexAssignments) {
 
-
   assert(totalIndices != 0);
 
   const unsigned int numIndicesSummation = totalIndices - numIndicesC;
@@ -324,18 +323,18 @@ void specializeData(
  * return true if errors/invalids
  ******************************************************************************/
 #if Tensile_CLIENT_LIBRARY
-template<typename DataType>
+template<typename DataType, typename DestDataType>
 bool callLibrary(
-    DataType *initialC,
+    DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DataType alpha,
-    DataType beta,
+    DestDataType alpha,
+    DestDataType beta,
     unsigned int strideA,
     unsigned int strideB,
     unsigned int strideC,
-    DataType *referenceC,
-    DataType *deviceOnHostC ) {
+    DestDataType *referenceC,
+    DestDataType *deviceOnHostC ) {
 
   size_t totalFlops = numFlopsPerMac[dataTypeIdx];
   for (unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++) {
@@ -734,17 +733,17 @@ bool callLibrary(
  * - writes one index in solutionPerf[problemIdx]
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
-template<typename DataType>
+template<typename DataType, typename DestDataType>
 bool benchmarkAllSolutionsForSize(
     unsigned int problemIdx,
     //unsigned int *sizes,
-    DataType *initialC,
+    DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DataType alpha,
-    DataType beta,
-    DataType *referenceC,
-    DataType *deviceOnHostC,
+    DestDataType alpha,
+    DestDataType beta,
+    DestDataType *referenceC,
+    DestDataType *deviceOnHostC,
     double *problem_gpu_time_ms) {
   const unsigned int *sizes = problemSizes[problemIdx];
 
@@ -1134,15 +1133,15 @@ bool benchmarkAllSolutionsForSize(
  * Benchmark Problem Sizes
  ******************************************************************************/
 #if Tensile_CLIENT_BENCHMARK
-template<typename DataType>
+template<typename DataType, typename DestDataType>
 bool benchmarkProblemSizes(
-    DataType *initialC,
+    DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DataType alpha,
-    DataType beta,
-    DataType *referenceC,
-    DataType *deviceOnHostC) {
+    DestDataType alpha,
+    DestDataType beta,
+    DestDataType *referenceC,
+    DestDataType *deviceOnHostC) {
   bool returnInvalids = false;
 
   // write benchmark data column headers
@@ -1259,46 +1258,46 @@ void initInput(
 /*******************************************************************************
  * initialize data
  ******************************************************************************/
-template<typename DataType>
+template<typename DataType, typename DestDataType>
 void initData(
-    DataType **initialC,
+    DestDataType **initialC,
     DataType **initialA,
     DataType **initialB,
-    DataType *alpha,
-    DataType *beta,
-    DataType **referenceC,
-    DataType **deviceOnHostC) {
+    DestDataType *alpha,
+    DestDataType *beta,
+    DestDataType **referenceC,
+    DestDataType **deviceOnHostC) {
   int seed = time(NULL);
   srand(seed);
 
   // initialize alpha
   if (initAlpha == 0) {
-    *alpha = tensileGetZero<DataType>();
+    *alpha = tensileGetZero<DestDataType>();
   } else if (initAlpha == 1) {
-    *alpha = tensileGetOne<DataType>();
+    *alpha = tensileGetOne<DestDataType>();
   } else if (initAlpha == 2) {
-    *alpha = tensileGetTypeForInt<DataType>(2);
+    *alpha = tensileGetTypeForInt<DestDataType>(2);
   } else if (initAlpha == 3) {
-    *alpha = tensileGetRandom<DataType>();
+    *alpha = tensileGetRandom<DestDataType>();
   } else {
-    *alpha = tensileGetNaN<DataType>();
+    *alpha = tensileGetNaN<DestDataType>();
   }
 
   // initialize beta
   if (useBeta[problemTypeIdx]) {
     if (initBeta == 0) {
-      *beta = tensileGetZero<DataType>();
+      *beta = tensileGetZero<DestDataType>();
     } else if (initBeta == 1) {
-      *beta = tensileGetOne<DataType>();
+      *beta = tensileGetOne<DestDataType>();
     } else if (initBeta == 2) {
-      *beta = tensileGetTypeForInt<DataType>(2);
+      *beta = tensileGetTypeForInt<DestDataType>(2);
     } else if (initBeta == 3) {
-      *beta = tensileGetRandom<DataType>();
+      *beta = tensileGetRandom<DestDataType>();
     } else {
-      *beta = tensileGetNaN<DataType>();
+      *beta = tensileGetNaN<DestDataType>();
     }
   } else {
-    *beta = tensileGetZero<DataType>();
+    *beta = tensileGetZero<DestDataType>();
   }
 
   std::cout << "Initializing "
@@ -1307,9 +1306,9 @@ void initData(
   std::cout << ".";
 
   // initial and reference buffers
-  *referenceC = new DataType[maxSizeC];
-  *deviceOnHostC = new DataType[maxSizeC];
-  *initialC = new DataType[maxSizeC];
+  *referenceC = new DestDataType[maxSizeC];
+  *deviceOnHostC = new DestDataType[maxSizeC];
+  *initialC = new DestDataType[maxSizeC];
   std::cout << ".";
   *initialA = new DataType[maxSizeA];
   std::cout << ".";
@@ -1362,13 +1361,13 @@ void initData(
 /*******************************************************************************
  * destroy data
  ******************************************************************************/
-template<typename DataType>
+template<typename DataType, typename DestDataType>
 void destroyData(
-    DataType *initialC,
+    DestDataType *initialC,
     DataType *initialA,
     DataType *initialB,
-    DataType *referenceC,
-    DataType *deviceOnHostC) {
+    DestDataType *referenceC,
+    DestDataType *deviceOnHostC) {
 
   delete[] initialC;
   delete[] initialA;

@@ -178,6 +178,36 @@ int main( int argc, char *argv[] ) {
     }
     break;
 #endif
+
+
+//TODO: define Tensile_DATA_TYPE_TENSILEINT
+// #ifdef Tensile_DATA_TYPE_TENSILEINT
+  case enum_TensileInt8x4: {
+    TensileInt32 *initialC_TI;
+    TensileInt8x4 *initialA_TI;
+    TensileInt8x4 *initialB_TI;
+    TensileInt32 alpha_TI;
+    TensileInt32 beta_TI;
+    TensileInt32 *referenceC_TI;
+    TensileInt32 *deviceOnHostC_TI;
+    initData(&initialC_TI, &initialA_TI, &initialB_TI, &alpha_TI,
+        &beta_TI, &referenceC_TI, &deviceOnHostC_TI);
+    for (unsigned int i = 0; i < numBenchmarks; i++) {
+#if Tensile_CLIENT_BENCHMARK
+      invalids = benchmarkProblemSizes(initialC_TI, initialA_TI, initialB_TI,
+          alpha_TI, beta_TI, referenceC_TI, deviceOnHostC_TI);
+#else
+      invalids = callLibrary(initialC_TI, initialA_TI, initialB_TI,
+          alpha_TI, beta_TI, strideA, strideB, strideC, referenceC_TI, deviceOnHostC_TI);
+#endif
+    }
+    destroyData(initialC_TI, initialA_TI, initialB_TI, referenceC_TI,
+        deviceOnHostC_TI);
+    }
+    break;
+// #endif
+
+
   default:
     break;
     // nothing

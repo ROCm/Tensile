@@ -369,6 +369,30 @@ class KernelWriterSource(KernelWriter):
     else:
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
+      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
+        kStr += "#define MAC(A,B,DST) DST = 1" 
+#       kStr += (
+#       "#define MAC(A,B,DST) " + self.endLinePP +
+#       "   uint8_t  *A_quad = reinterpret_cast<uint8_t *>(&four_32bit_1); " + self.endLinePP +
+#       "   uint8_t  *B_quad = reinterpret_cast<uint8_t *>(&four_32bit_1); " + self.endLinePP +
+#       "   // extract 4 int32_t from 4 int8 inside uint32_t " + self.endLinePP +
+#       "   int32_t A_0 = static_cast<uint32_t>(A_quad[0]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t A_1 = static_cast<uint32_t>(A_quad[1]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t A_2 = static_cast<uint32_t>(A_quad[2]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t A_3 = static_cast<uint32_t>(A_quad[3]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t B_0 = static_cast<uint32_t>(B_quad[0]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t B_1 = static_cast<uint32_t>(B_quad[1]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t B_2 = static_cast<uint32_t>(B_quad[2]) & 0x000000FF; " + self.endLinePP +
+#       "   int32_t B_3 = static_cast<uint32_t>(B_quad[3]) & 0x000000FF; " + self.endLinePP +
+#       "   // sign extend int8 values in int32 datatype " + self.endLinePP +
+#       "   if(A_0 & 0x00000080) A_0 = A_0 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(A_1 & 0x00000080) A_1 = A_1 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(A_2 & 0x00000080) A_2 = A_2 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(A_3 & 0x00000080) A_3 = A_3 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(B_0 & 0x00000080) B_0 = B_0 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(B_1 & 0x00000080) B_1 = B_1 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(B_2 & 0x00000080) B_2 = B_2 | 0xFFFFFF00; " + self.endLinePP +
+#       "   if(B_3 & 0x00000080) B_3 = B_3 | 0xFFFFFF00; " + self.endLinePP )
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
@@ -736,10 +760,13 @@ class KernelWriterSource(KernelWriter):
     restrictStr = "restrict"
     if self.language == "HIP":
       restrictStr = "__restrict__"
-    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
+# TODO: need to get below to work
+#   ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    ptrStr = "int32_t"
     s += "  " + globalStr + ptrStr \
         + " *C,"
     s += self.endLine
+    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
         + " const * " + restrictStr + " A,"
     s += self.endLine
@@ -748,10 +775,14 @@ class KernelWriterSource(KernelWriter):
 
     # alpha & beta
     s += "," + self.endLine + "  " \
-        + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
+        + "int32_t" + " const alpha"
+#TODO: fix above
+#       + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
     if kernel["ProblemType"]["UseBeta"]:
       s += "," + self.endLine + "  " \
-          + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
+          + "int32_t" + " const beta"
+#TODO: fix above
+#         + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
 
     # offsets
     s += ( "," + self.endLine + "  unsigned int const offsetC,"
