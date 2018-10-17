@@ -404,6 +404,10 @@ validParameters = {
     # Implementation only supports LocalDotLayout that is a power-of-two
     "LocalDotLayout":             [1,2,4,8],
 
+    # Aggressive performance mode
+    # Some of these may cause instability, particularly s_setprio
+    "AggressivePerfMode":       [False, True],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -419,6 +423,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                  [ "Branch" ] },
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
+    {"AggressivePerfMode":        [ False ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
@@ -515,7 +520,6 @@ defaultProblemType = {
     "IndexAssignmentsB":        [1, 2],
     "NumIndicesC":              2,
     "UseInitialStrides":        False,
-
 
     }
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

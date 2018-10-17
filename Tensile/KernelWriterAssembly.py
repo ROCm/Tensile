@@ -1551,6 +1551,8 @@ class KernelWriterAssembly(KernelWriter):
 
       # double precision
       elif kernel["ProblemType"]["DataType"].isDouble():
+        doOnce = False
+        beAggressive = kernel["AggressivePerfMode"]
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
             for iui in range(0, innerUnroll):
@@ -1560,6 +1562,11 @@ class KernelWriterAssembly(KernelWriter):
               bStr = "v[%s+%u*2:%s+%u*2+1]" \
                   % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
+              if beAggressive and not doOnce:
+                kStr += "s_setprio 1 // Raise priority while processing macs %s" % self.endLine
+                doOnce = True
+        if beAggressive:
+          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
 
       # other precision
       else:
@@ -1638,8 +1645,16 @@ class KernelWriterAssembly(KernelWriter):
 
     # lds size
     #kStr += "  compute_pgm_rsrc2_lds_size = 1 // ?%s" % self.endLine # don't use, it eats up 512 bytes of LDS
-    kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
-        % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
+    #jgolds HACK
+    # only want to enable this for cases we know it helps: 4x4 TT size and 16x16 WG size. Feel free to add more
+    # cases after validating performance
+    if kernel["AggressivePerfMode"] and kernel["ProblemType"]["DataType"].isDouble() and \
+      kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
+      kStr += "  workgroup_group_segment_byte_size = 32768 // lds bytes%s" \
+          % ( self.endLine )
+    else:
+      kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
+          % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
 
     # other
     kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % self.endLine
