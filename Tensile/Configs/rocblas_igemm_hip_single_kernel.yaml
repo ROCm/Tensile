@@ -8,7 +8,7 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 0
+  NumElementsToValidate: -1
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -16,9 +16,16 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  PinClocks: True
+  PinClocks: False
   SleepPercent: 200
   DataInitTypeBeta : 0
+  DataInitTypeAlpha : 1
+  PrintTensorA: 3
+  PrintTensorB: 3
+  PrintTensorC: 3
+  DataInitTypeA: 1
+  DataInitTypeB: 1
+  DataInitTypeC: 1
 
 BenchmarkProblems:
   ########################################
@@ -29,6 +36,7 @@ BenchmarkProblems:
       OperationType: GEMM
       DataType: i
       DestDataType: I
+      HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: True
       UseBeta: True
@@ -60,6 +68,29 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [5760], [5760], [1], [5760] ]
+          - Range: [ [8], [8], [1], [8] ]
 
   ########################################
+
+LibraryLogic:
+#   ScheduleName: "vega20"
+#   DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7"]
+#   ArchitectureName: "gfx906"
+#
+    ScheduleName: "vega10"
+    DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]"]
+    ArchitectureName: "gfx900"
+
+#   ScheduleName: "mi25"
+#   DeviceNames: ["Device 6860"]
+#   ArchitectureName: "gfx900"
+
+#   ScheduleName: "r9nano"
+#   DeviceNames: ["Device 7300"]
+#   ArchitectureName: "gfx803"
+
+#   ScheduleName: "hip"
+#   DeviceNames: ["Device 0000"]
+#   ArchitectureName: "fallback"
+
+LibraryClient:
