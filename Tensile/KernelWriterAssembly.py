@@ -2688,7 +2688,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
       shiftedEdge = self.vgprPool.checkOut(1)
-      kStr += inst("v_add_u32", vgpr(shiftedEdge), vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
+      kStr += inst("_v_add_co_u32", vgpr(shiftedEdge), "vcc", vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
     else:
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), margin, \
@@ -2709,7 +2709,7 @@ class KernelWriterAssembly(KernelWriter):
       # compare
       if self.groOffsetInMacroTile:
         shiftedOffset = self.vgprPool.checkOut(1)
-        kStr += inst("v_add_u32", vgpr(shiftedOffset), vgpr(v+l), self.srdShiftLeft[tc], "")
+        kStr += inst("_v_add_co_u32", vgpr(shiftedOffset), "vcc", vgpr(v+l), self.srdShiftLeft[tc], "")
         # int cmp since if we are near the front of the tile this may go negative:
         kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(shiftedOffset), vgpr(shiftedEdge), "offset < edge" )
         self.vgprPool.checkIn(shiftedOffset)
