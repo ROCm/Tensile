@@ -1651,7 +1651,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["AggressivePerfMode"] and kernel["ProblemType"]["DataType"].isDouble() and \
       kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
       kStr += "  workgroup_group_segment_byte_size = 32768 // lds bytes%s" \
-          % ( self.endLine ) // Pad LDS to ensure we run exactly two waves
+          % ( self.endLine ) # Pad LDS to ensure we run exactly two waves
     else:
       kStr += "  workgroup_group_segment_byte_size = %u // lds bytes%s" \
           % ( kernel["LdsNumElements"] * self.bpeAB, self.endLine )
