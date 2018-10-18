@@ -760,9 +760,7 @@ class KernelWriterSource(KernelWriter):
     restrictStr = "restrict"
     if self.language == "HIP":
       restrictStr = "__restrict__"
-# TODO: need to get below to work
-#   ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
-    ptrStr = "int32_t"
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
         + " *C,"
     s += self.endLine
@@ -775,14 +773,10 @@ class KernelWriterSource(KernelWriter):
 
     # alpha & beta
     s += "," + self.endLine + "  " \
-        + "int32_t" + " const alpha"
-#TODO: fix above
-#       + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
+        + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const alpha"
     if kernel["ProblemType"]["UseBeta"]:
       s += "," + self.endLine + "  " \
-          + "int32_t" + " const beta"
-#TODO: fix above
-#         + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
+          + kernel["ProblemType"]["DataType"].toDevice(self.language) + " const beta"
 
     # offsets
     s += ( "," + self.endLine + "  unsigned int const offsetC,"

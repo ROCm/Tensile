@@ -204,6 +204,12 @@ class ProblemType:
       printExit("NO data type specified")
       self["DataType"] = DataType(0)
 
+    if "DestDataType" in config:
+      self["DestDataType"] = DataType(config["DestDataType"])
+    else:
+      printExit("NO dest data type specified")
+      self["DestDataType"] = DataType(0)
+
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
     elif self["OperationType"] == "TensorContraction":
