@@ -2688,7 +2688,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s-%u"%(tP["tileChar"], margin) )
       shiftedEdge = self.vgprPool.checkOut(1)
-      kStr += inst("v_add_u32", vgpr(shiftedEdge), vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
+      kStr += inst("_v_add_co_u32", vgpr(shiftedEdge), "vcc", vgpr(edge), self.srdShiftLeft[tc], "add srdShiftLift")
     else:
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), sgpr("SizesFree+%u"%tP["idx"]), margin, \
