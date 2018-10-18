@@ -356,6 +356,8 @@ class KernelWriterSource(KernelWriter):
     ####################################
     # data types
     kStr += "/* data types */" + self.endLine
+    kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int);"""
+    kStr += self.endLine
     kStr += "#define DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
@@ -370,29 +372,7 @@ class KernelWriterSource(KernelWriter):
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += "#define MAC(A,B,DST) DST = 32" 
-#       kStr += (
-#       "#define MAC(A,B,DST) " + self.endLinePP +
-#       "   uint8_t  *A_quad = reinterpret_cast<uint8_t *>(&four_32bit_1); " + self.endLinePP +
-#       "   uint8_t  *B_quad = reinterpret_cast<uint8_t *>(&four_32bit_1); " + self.endLinePP +
-#       "   // extract 4 int32_t from 4 int8 inside uint32_t " + self.endLinePP +
-#       "   int32_t A_0 = static_cast<uint32_t>(A_quad[0]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t A_1 = static_cast<uint32_t>(A_quad[1]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t A_2 = static_cast<uint32_t>(A_quad[2]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t A_3 = static_cast<uint32_t>(A_quad[3]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t B_0 = static_cast<uint32_t>(B_quad[0]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t B_1 = static_cast<uint32_t>(B_quad[1]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t B_2 = static_cast<uint32_t>(B_quad[2]) & 0x000000FF; " + self.endLinePP +
-#       "   int32_t B_3 = static_cast<uint32_t>(B_quad[3]) & 0x000000FF; " + self.endLinePP +
-#       "   // sign extend int8 values in int32 datatype " + self.endLinePP +
-#       "   if(A_0 & 0x00000080) A_0 = A_0 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(A_1 & 0x00000080) A_1 = A_1 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(A_2 & 0x00000080) A_2 = A_2 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(A_3 & 0x00000080) A_3 = A_3 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(B_0 & 0x00000080) B_0 = B_0 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(B_1 & 0x00000080) B_1 = B_1 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(B_2 & 0x00000080) B_2 = B_2 | 0xFFFFFF00; " + self.endLinePP +
-#       "   if(B_3 & 0x00000080) B_3 = B_3 | 0xFFFFFF00; " + self.endLinePP )
+        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))" 
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine

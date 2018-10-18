@@ -193,7 +193,6 @@ TensileStatus tensileReferenceCPU(
          unpack_int8x4(valueA, a_0, a_1, a_2, a_3);
          unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
          sumC += (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
-         std::cout << "  sumC=" << sumC;
       }
       else
       {
