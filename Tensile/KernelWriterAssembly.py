@@ -2709,7 +2709,7 @@ class KernelWriterAssembly(KernelWriter):
       # compare
       if self.groOffsetInMacroTile:
         shiftedOffset = self.vgprPool.checkOut(1)
-        kStr += inst("v_add_u32", vgpr(shiftedOffset), vgpr(v+l), self.srdShiftLeft[tc], "")
+        kStr += inst("_v_add_co_u32", vgpr(shiftedOffset), "vcc", vgpr(v+l), self.srdShiftLeft[tc], "")
         # int cmp since if we are near the front of the tile this may go negative:
         kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(shiftedOffset), vgpr(shiftedEdge), "offset < edge" )
         self.vgprPool.checkIn(shiftedOffset)
