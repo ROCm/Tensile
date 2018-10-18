@@ -370,7 +370,7 @@ class KernelWriterSource(KernelWriter):
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += "#define MAC(A,B,DST) DST = 1" 
+        kStr += "#define MAC(A,B,DST) DST = 32" 
 #       kStr += (
 #       "#define MAC(A,B,DST) " + self.endLinePP +
 #       "   uint8_t  *A_quad = reinterpret_cast<uint8_t *>(&four_32bit_1); " + self.endLinePP +

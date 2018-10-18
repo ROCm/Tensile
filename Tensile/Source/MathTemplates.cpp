@@ -57,7 +57,7 @@ template<> TensileComplexDouble tensileGetZero<TensileComplexDouble>() {
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetOne<TensileHalf>() { return 1.; }
 #endif
-template<> uint32_t tensileGetOne<uint32_t>() { return 0x1111; }
+template<> uint32_t tensileGetOne<uint32_t>() { return 0x01010101; }
 template<> int32_t tensileGetOne<int32_t>() { return 1; }
 template<> float tensileGetOne<float>() { return 1.f; }
 template<> double tensileGetOne<double>() { return 1.0; }
