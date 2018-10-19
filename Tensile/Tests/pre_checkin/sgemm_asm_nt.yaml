@@ -23,6 +23,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: s
+      DestDataType: s
       TransposeA: False
       TransposeB: True
       UseBeta: True

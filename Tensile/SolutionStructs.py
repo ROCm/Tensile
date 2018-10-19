@@ -208,7 +208,7 @@ class ProblemType:
       self["DestDataType"] = DataType(config["DestDataType"])
     else:
       printExit("NO dest data type specified")
-      self["DestDataType"] = DataType(0)
+      self["DestDataType"] = DestDataType(0)
 
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
@@ -663,6 +663,7 @@ class Solution:
       kernel["ProblemType"] = {}
       kernel["ProblemType"]["UseBeta"] = beta
       kernel["ProblemType"]["DataType"] = self["ProblemType"]["DataType"]
+      kernel["ProblemType"]["DestDataType"] = self["ProblemType"]["DestDataType"]
       kernel["ProblemType"]["Index0"] = self["ProblemType"]["Index0"]
       kernel["ProblemType"]["Index1"] = self["ProblemType"]["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \

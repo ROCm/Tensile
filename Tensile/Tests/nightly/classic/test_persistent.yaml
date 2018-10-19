@@ -18,6 +18,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: s
+      DestDataType: s
       TransposeA: True
       TransposeB: True
       UseBeta: True
@@ -50,6 +51,7 @@ BenchmarkProblems:
     - # ProblemType - Half Precision test
       OperationType: GEMM
       DataType: s
+      DestDataType: s
       TransposeA: False
       TransposeB: False
       UseBeta: True

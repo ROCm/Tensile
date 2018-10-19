@@ -3,6 +3,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: d
+      DestDataType: d
       TransposeA: False
       TransposeB: True
       UseBeta: False
@@ -11,6 +12,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: d
+      DestDataType: d
       TransposeA: False
       TransposeB: False
       UseBeta: True
@@ -19,6 +21,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: d
+      DestDataType: d
       TransposeA: True
       TransposeB: False
       UseBeta: True
@@ -27,6 +30,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: d
+      DestDataType: d
       TransposeA: True
       TransposeB: True
       UseBeta: True

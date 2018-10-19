@@ -20,6 +20,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: TensorContraction
       DataType: s
+      DestDataType: s
       UseBeta: True
       NumIndicesC: 4
       IndexAssignmentsA: [6, 5, 0, 1, 4, 3]
