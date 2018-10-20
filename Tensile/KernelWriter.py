@@ -256,9 +256,9 @@ class KernelWriter:
       if self.enable["GlobalRead"]:
         # global read
         kStr += self.comment("global read a")
-        kStr += self.globalReadDo(kernel, False, tensorParametersA)
+        kStr += self.globalReadDo(kernel, 0, tensorParametersA)
         kStr += self.comment("global read b")
-        kStr += self.globalReadDo(kernel, False, tensorParametersB)
+        kStr += self.globalReadDo(kernel, 0, tensorParametersB)
       if self.enable["GlobalReadInc"]:
         # increment global
         kStr += self.comment("global read inc a")
@@ -310,9 +310,9 @@ class KernelWriter:
     if self.enable["GlobalRead"]:
       # unrolled loop: global read A, B
       kStr += self.comment("global read a")
-      kStr += self.globalReadDo(kernel, False, tensorParametersA)
+      kStr += self.globalReadDo(kernel, 1, tensorParametersA)
       kStr += self.comment("global read b")
-      kStr += self.globalReadDo(kernel, False, tensorParametersB)
+      kStr += self.globalReadDo(kernel, 1, tensorParametersB)
 
     if self.enable["GlobalReadInc"]:
       # unrolled loop: increment global read addresses
@@ -548,7 +548,7 @@ class KernelWriter:
     kStr += self.closeLoop(kernel, self.unrollIdx)
 
     # prefetch: unrolled loop suffix
-    if kernel["PrefetchGlobalRead"]:
+    if not self.suppressNoLoadLoop and kernel["PrefetchGlobalRead"]:
       kStr += self.comment("prefetch: last unrolled iteration")
       kStr += self.openSumAtLeastUnroll(kernel, False)
       if not kernel["PrefetchLocalRead"]:
@@ -578,6 +578,7 @@ class KernelWriter:
           kStr += self.macIter(kernel, luIdx, kernel["InnerUnroll"] )
       kStr += self.closeSumAtLeastUnroll(kernel, False)
 
+
     ########################################
     # Tail Loop
     ########################################
@@ -596,9 +597,9 @@ class KernelWriter:
         # tail: global read
         kStr += self.calculateLoopNumIter(kernel, -1)
         kStr += self.comment("global read a")
-        kStr += self.globalReadDo(kernel, True, tensorParametersA)
+        kStr += self.globalReadDo(kernel, 2, tensorParametersA)
         kStr += self.comment("global read b")
-        kStr += self.globalReadDo(kernel, True, tensorParametersB)
+        kStr += self.globalReadDo(kernel, 2, tensorParametersB)
       if self.enable["Wait"]:
         kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "2wait for global read")
       if self.enable["Sync"]:
@@ -817,6 +818,9 @@ class KernelWriter:
     if dkp:
       print "\nKernelWriter enable:", self.enable
 
+    # don't create a whole copy of the Unroll loop with loads removed - instead
+    # use buffer limits to suppress global loads
+    self.suppressNoLoadLoop = 0 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"]
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
@@ -1524,9 +1528,10 @@ class KernelWriter:
 
   ##############################################################################
   # Global Read: Do It A/B
+  # mode: 0=prefetch, 1=unroll loop, 2=guardK
   ##############################################################################
   @abc.abstractmethod
-  def globalReadDo(self, kernel, guardK, tP):
+  def globalReadDo(self, kernel, mode, tP):
     return ""
 
   ##############################################################################
