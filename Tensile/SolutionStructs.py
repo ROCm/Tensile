@@ -207,8 +207,11 @@ class ProblemType:
     if "DestDataType" in config:
       self["DestDataType"] = DataType(config["DestDataType"])
     else:
-      printExit("NO dest data type specified")
-      self["DestDataType"] = DestDataType(0)
+      if "DataType" in config:
+        self["DestDataType"] = DataType(config["DataType"])
+      else:
+        printExit("NO dest data type or data type specified")
+        self["DataType"] = DataType(0)
 
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
