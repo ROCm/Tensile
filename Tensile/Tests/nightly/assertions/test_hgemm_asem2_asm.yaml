@@ -37,6 +37,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [True]
@@ -63,6 +64,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - KernelLanguage: ["Assembly"]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [False]
@@ -102,6 +104,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
@@ -128,6 +131,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - KernelLanguage: ["Assembly"]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [True]
@@ -166,6 +170,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [False]
@@ -192,6 +197,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - KernelLanguage: ["Assembly"]
         - GlobalSplitU: [1, 3]
         - PrefetchLocalRead: [True]
@@ -231,6 +237,7 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
@@ -256,6 +263,7 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]

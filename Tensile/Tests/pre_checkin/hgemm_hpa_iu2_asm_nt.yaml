@@ -36,12 +36,14 @@ BenchmarkProblems:
           - [ 32,  4,  1 ]
         - DepthU: [8]
         - VectorWidth: [-1]
+        - AssertSummationElementMultiple: [1,2]
+        - AssertFree0ElementMultiple: [1,2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [62,2,66] ]
+          - Range: [ [126,1,130], 0, [2], [62,1,66] ]
 
     - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
@@ -64,9 +66,11 @@ BenchmarkProblems:
           - [  8,  8,  1 ]
         - DepthU: [16]
         - VectorWidth: [-1]
+        - AssertSummationElementMultiple: [1,2]
+        - AssertFree0ElementMultiple: [1,2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [62,2,66] ]
+          - Range: [ [126,1,130], 0, [2], [62,1,66] ]
