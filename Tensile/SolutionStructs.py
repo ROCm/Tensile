@@ -1072,11 +1072,18 @@ class Solution:
           state["VectorWidth"]))
       return
 
-    # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
+    # Some restrictions for half:
     if state["KernelLanguage"] == "Assembly" \
-       and state["ProblemType"]["DataType"].isHalf() \
-       and state["VectorWidth"] < 2:
-       reject(state, "VectorWidth must be >= 2 for half")
+       and state["ProblemType"]["DataType"].isHalf():
+
+       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
+       if state["VectorWidth"] < 2:
+         reject(state, "VectorWidth must be >= 2 for half")
+       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] and \
+           (state["AssertSummationElementMultiple"] % 2 != 0 or \
+            state["AssertFree0ElementMultiple"] % 2 != 0):
+         # tail loop has ASEM requirement and beta-on-edge has AF0EM requirement
+         reject(state, "Archs with HasEccHalf require ASEM%2==0 and AF0EM%2==0")
 
     # Default GlobalReadVectorWidth
     if state["GlobalReadVectorWidth"] == -1:
