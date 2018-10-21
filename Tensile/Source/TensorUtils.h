@@ -173,7 +173,7 @@ void printTensor(
     //unsigned printMode=PrintRowAddress + PrintRowElementCoord + PrintElementIndex + PrintElementValue + PrintElementValueHex) {
     //unsigned printMode= PrintRowElementCoord + PrintElementIndex + PrintElementValue + PrintElementValueHex) {
     //unsigned printMode= PrintRowElementCoord + PrintElementIndex + PrintElementValue + PrintElementValueHex) {
-    unsigned printMode=PrintRowElementCoord+PrintElementValue) {
+    unsigned printMode=PrintRowElementCoord+PrintElementValueHex) {
 
     TensorDims td(name, numIndices, firstSummationIndex, indexedSizes, indexAssignments);
 

@@ -356,6 +356,8 @@ class KernelWriterSource(KernelWriter):
     ####################################
     # data types
     kStr += "/* data types */" + self.endLine
+    kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int);"""
+    kStr += self.endLine
     kStr += "#define DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
@@ -369,6 +371,8 @@ class KernelWriterSource(KernelWriter):
     else:
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
+      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
+        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))" 
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
@@ -736,10 +740,11 @@ class KernelWriterSource(KernelWriter):
     restrictStr = "restrict"
     if self.language == "HIP":
       restrictStr = "__restrict__"
-    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
         + " *C,"
     s += self.endLine
+    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
         + " const * " + restrictStr + " A,"
     s += self.endLine

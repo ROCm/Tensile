@@ -30,16 +30,32 @@
 /*******************************************************************************
  * Reference Tensor Contraction
  ******************************************************************************/
-template< typename Type >
+typedef union{
+  int8_t byte[4];
+  uint32_t uval;
+  int32_t val;
+} int8x4;
+
+void unpack_int8x4(uint32_t in, int32_t &out_0, int32_t &out_1, int32_t &out_2, int32_t &out_3)
+{
+  int8x4 x;
+  x.uval = in;
+  out_0 = x.byte[0];
+  out_1 = x.byte[1];
+  out_2 = x.byte[2];
+  out_3 = x.byte[3];
+}
+
+template< typename Type, typename DestType >
 TensileStatus tensileReferenceCPU(
-    Type *dataC,
+    DestType *dataC,
     const Type *dataA,
     const Type *dataB,
     const unsigned int stride_a,
     const unsigned int stride_b,
     const unsigned int stride_c,
-    Type alpha,
-    Type beta,
+    DestType alpha,
+    DestType beta,
     unsigned int totalIndices,
     const unsigned int *sizes,
     const unsigned int *minStrides,
@@ -171,13 +187,23 @@ TensileStatus tensileReferenceCPU(
         }
       }
 
-      Type product = tensileMultiply<Type>( valueA, valueB );
-      //printf("%f = %f * %f\n", product, valueA, valueB );
-
-      if (localUseHighPrecisionAccumulate)
-        sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
+      if(std::is_same<Type, uint32_t>() && std::is_same<DestType, int32_t>())
+      {
+         int32_t a_0, a_1, a_2, a_3, b_0, b_1, b_2, b_3;
+         unpack_int8x4(valueA, a_0, a_1, a_2, a_3);
+         unpack_int8x4(valueB, b_0, b_1, b_2, b_3);
+         sumC += (a_0 * b_0) + (a_1 * b_1) + (a_2 * b_2) + (a_3 * b_3);
+      }
       else
-        sumC = tensileAdd<Type>(sumC,product);
+      {
+        Type product = tensileMultiply<Type>( valueA, valueB );
+        //printf("%f = %f * %f\n", product, valueA, valueB );
+
+        if (localUseHighPrecisionAccumulate)
+          sumCfloat = tensileAdd<float>(sumCfloat,(float)product);
+        else
+          sumC = tensileAdd<Type>(sumC,product);
+      }
 
       // increment bound coord
       boundCoord[numIndicesSummation-1]++;

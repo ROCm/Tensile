@@ -34,8 +34,10 @@ class DataType:
   complexSingle = 2
   complexDouble = 3
   half          = 4
-  num           = 5
-  none          = 6
+  int8x4        = 5
+  int32         = 6
+  num           = 7
+  none          = 8
 
   # data type properties
   idxChar    = 0
@@ -44,13 +46,15 @@ class DataType:
   idxHIP     = 3
   idxLibType = 4
   idxLibEnum = 5
-  #    char, reg, ocl,       hip,       libType,                 libEnum
+  #    char, reg,    ocl,       hip,       libType,                 libEnum
   properties = [
-      [ "S", 1,   "float",   "float",   "float",                 "tensileDataTypeFloat"         ],
-      [ "D", 2,   "double",  "double",  "double",                "tensileDataTypeDouble"        ],
-      [ "C", 2,   "float2",  "float2",  "TensileComplexFloat",   "tensileDataTypeComplexFloat"  ],
-      [ "Z", 4,   "double2", "double2", "TensileComplexDouble",  "tensileDataTypeComplexDouble" ],
-      [ "H", 0.5, "ERROR",   "half",    "TensileHalf",           "tensileDataTypeHalf"          ]
+      ["S",    1,   "float",   "float",    "float",                "tensileDataTypeFloat"        ],
+      ["D",    2,   "double",  "double",   "double",               "tensileDataTypeDouble"       ],
+      ["C",    2,   "float2",  "float2",   "TensileComplexFloat",  "tensileDataTypeComplexFloat" ],
+      ["Z",    4,   "double2", "double2",  "TensileComplexDouble", "tensileDataTypeComplexDouble"],
+      ["H",    0.5, "ERROR",   "half",     "TensileHalf",          "tensileDataTypeHalf"         ],
+      ["4xi8", 1,   "ERROR",   "uint32_t", "TensileInt8x4",        "tensileDataTypeInt8x4"       ],
+      ["I",    1,   "ERROR",   "int32_t",  "TensileInt32",         "tensileDataTypeInt32"        ]
   ]
 
   ########################################
@@ -119,7 +123,7 @@ class DataType:
 
   ########################################
   def isReal(self):
-    if self.value == self.half or self.value == self.single or self.value == self.double:
+    if self.value == self.half or self.value == self.single or self.value == self.double or self.value == self.int8x4 or self.value == self.int32:
       return True
     else:
       return False
@@ -131,6 +135,10 @@ class DataType:
     return self.value == self.single
   def isHalf(self):
     return self.value == self.half
+  def isInt32(self):
+    return self.value == self.int32
+  def isInt8x4(self):
+    return self.value == self.int8x4
   def isNone(self):
     return self.value == self.none
 
@@ -195,6 +203,15 @@ class ProblemType:
     else:
       printExit("NO data type specified")
       self["DataType"] = DataType(0)
+
+    if "DestDataType" in config:
+      self["DestDataType"] = DataType(config["DestDataType"])
+    else:
+      if "DataType" in config:
+        self["DestDataType"] = DataType(config["DataType"])
+      else:
+        printExit("NO dest data type or data type specified")
+        self["DataType"] = DataType(0)
 
     if self["OperationType"] == "GEMM":
       self.initGEMM(config)
@@ -649,6 +666,7 @@ class Solution:
       kernel["ProblemType"] = {}
       kernel["ProblemType"]["UseBeta"] = beta
       kernel["ProblemType"]["DataType"] = self["ProblemType"]["DataType"]
+      kernel["ProblemType"]["DestDataType"] = self["ProblemType"]["DestDataType"]
       kernel["ProblemType"]["Index0"] = self["ProblemType"]["Index0"]
       kernel["ProblemType"]["Index1"] = self["ProblemType"]["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \

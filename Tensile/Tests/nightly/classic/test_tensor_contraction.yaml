@@ -20,6 +20,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: TensorContraction
       DataType: s
+      DestDataType: s
       UseBeta: True
       NumIndicesC: 3
       IndexAssignmentsA: [0, 3, 2]
@@ -50,6 +51,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: TensorContraction
       DataType: s
+      DestDataType: s
       UseBeta: True
       NumIndicesC: 2
       IndexAssignmentsA: [2, 0, 3]
@@ -87,6 +89,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: TensorContraction
       DataType: s
+      DestDataType: s
       UseBeta: True
       NumIndicesC: 2
       IndexAssignmentsA: [4, 3, 0, 2]
@@ -124,6 +127,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: TensorContraction
       DataType: s
+      DestDataType: s
       UseBeta: True
       NumIndicesC: 3
       IndexAssignmentsA: [5, 4, 0, 1, 3]

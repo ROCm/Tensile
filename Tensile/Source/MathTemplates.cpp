@@ -33,6 +33,8 @@
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetZero<TensileHalf>() { return 0.; }
 #endif
+template<> uint32_t tensileGetZero<uint32_t>() { return 0; }
+template<> int32_t tensileGetZero<int32_t>() { return 0; }
 template<> float tensileGetZero<float>() { return 0.f; }
 template<> double tensileGetZero<double>() { return 0.0; }
 template<> TensileComplexFloat tensileGetZero<TensileComplexFloat>() {
@@ -55,6 +57,8 @@ template<> TensileComplexDouble tensileGetZero<TensileComplexDouble>() {
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetOne<TensileHalf>() { return 1.; }
 #endif
+template<> uint32_t tensileGetOne<uint32_t>() { return 0x01010101; }
+template<> int32_t tensileGetOne<int32_t>() { return 1; }
 template<> float tensileGetOne<float>() { return 1.f; }
 template<> double tensileGetOne<double>() { return 1.0; }
 template<> TensileComplexFloat tensileGetOne<TensileComplexFloat>() {
@@ -77,6 +81,17 @@ template<> TensileComplexDouble tensileGetOne<TensileComplexDouble>() {
 #ifdef Tensile_ENABLE_HALF
 template<> TensileHalf tensileGetRandom<TensileHalf>() { return static_cast<TensileHalf>((rand()%7) - 3); }
 #endif
+template<> uint32_t tensileGetRandom<uint32_t>() { 
+   int8_t t0 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t1 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t2 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t3 = static_cast<int8_t>((rand()%7) - 3); 
+   int8_t t1x4[4] = {t0, t1, t2, t3};
+   uint32_t tmp; 
+   memcpy(&tmp, t1x4, sizeof(uint32_t));
+   return tmp; 
+}
+template<> int32_t tensileGetRandom<int32_t>() { return static_cast<int32_t>((rand()%7) - 3); }
 template<> float tensileGetRandom<float>() { return static_cast<float>((rand()%201) - 100); }
 template<> double tensileGetRandom<double>() { return static_cast<double>((rand()%2001) - 1000); }
 template<> TensileComplexFloat tensileGetRandom<TensileComplexFloat>() {
@@ -98,6 +113,8 @@ template<> TensileHalf tensileGetTypeForInt<TensileHalf>( size_t s ) { return st
 #endif
 template<> float tensileGetTypeForInt<float>( size_t s ) { return static_cast<float>(s); }
 template<> double tensileGetTypeForInt<double>( size_t s ) { return static_cast<double>(s); }
+template<> int tensileGetTypeForInt<int>( size_t s ) { return static_cast<int>(s); }
+template<> unsigned int tensileGetTypeForInt<unsigned int>( size_t s ) { return static_cast<unsigned int>(s); }
 template<> TensileComplexFloat tensileGetTypeForInt<TensileComplexFloat>( size_t s ) {
   TensileComplexFloat f;
   TENSILEREAL(f) = static_cast<float>(s);
@@ -120,6 +137,8 @@ template<> TensileHalf tensileGetNaN<TensileHalf>() { return std::numeric_limits
 #endif
 template<> float tensileGetNaN<float>() { return std::numeric_limits<float>::quiet_NaN(); }
 template<> double tensileGetNaN<double>() { return std::numeric_limits<double>::quiet_NaN(); }
+template<> int tensileGetNaN<int>() { return std::numeric_limits<int>::max(); }
+template<> unsigned int tensileGetNaN<unsigned int>() { return std::numeric_limits<unsigned int>::max(); }
 template<> TensileComplexFloat tensileGetNaN<TensileComplexFloat>() {
   TensileComplexFloat nan_value;
   TENSILEREAL(nan_value) = std::numeric_limits<float>::quiet_NaN();
@@ -153,6 +172,16 @@ float tensileMultiply( float a, float b ) {
 // double
 template< >
 double tensileMultiply( double a, double b ) {
+  return a*b;
+}
+// int
+template< >
+int tensileMultiply( int a, int b ) {
+  return a*b;
+}
+// unsigned int
+template< >
+unsigned int tensileMultiply( unsigned int a, unsigned int b ) {
   return a*b;
 }
 // complex single
@@ -194,6 +223,16 @@ template< >
 double tensileAdd( double a, double b ) {
   return a+b;
 }
+// unsigned int
+template< >
+unsigned int tensileAdd( unsigned int a, unsigned int b ) {
+  return a+b;
+}
+// int
+template< >
+int tensileAdd( int a, int b ) {
+  return a+b;
+}
 // complex single
 template< >
 TensileComplexFloat tensileAdd( TensileComplexFloat a, TensileComplexFloat b ) {
@@ -232,6 +271,14 @@ bool tensileAlmostEqual(double a, double b) {
   return std::fabs(a - b) / ( std::fabs(a) + std::fabs(b)+1 ) < 0.000000000001; // 15 digits of precision - 2
 }
 template< >
+bool tensileAlmostEqual(int a, int b) {
+  return a == b;
+}
+template< >
+bool tensileAlmostEqual(unsigned int a, unsigned int b) {
+  return a == b;
+}
+template< >
 bool tensileAlmostEqual( TensileComplexFloat a, TensileComplexFloat b) {
   return tensileAlmostEqual(TENSILEREAL(a), TENSILEREAL(b)) && tensileAlmostEqual(TENSILECOMP(a), TENSILECOMP(b));
 }
@@ -255,6 +302,14 @@ bool tensileEqual(float a, float b) {
 }
 template< >
 bool tensileEqual(double a, double b) {
+  return a == b;
+}
+template< >
+bool tensileEqual(int a, int b) {
+  return a == b;
+}
+template< >
+bool tensileEqual(unsigned int a, unsigned int b) {
   return a == b;
 }
 template< >
@@ -310,6 +365,18 @@ template<> std::string tensileToString(float v){
   //return std::to_string(v);
   }
 template<> std::string tensileToString(double v){
+  std::ostringstream s;
+  s << v;
+  return s.str();
+  //return std::to_string(v);
+  }
+template<> std::string tensileToString(int v){
+  std::ostringstream s;
+  s << v;
+  return s.str();
+  //return std::to_string(v);
+  }
+template<> std::string tensileToString(unsigned int v){
   std::ostringstream s;
   s << v;
   return s.str();
