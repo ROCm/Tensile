@@ -4275,16 +4275,20 @@ class KernelWriterAssembly(KernelWriter):
     #print "2lscaOffset", lscaOffset
     offsetElements = (lspaOffset + lscaOffset)
     #print "offsetElements", offsetElements
-    if not tP["tlu"] and ldl > 1:
+    if ldl > 1:
+      if not tP["tlu"]:
 #jgolds HACK
 #Need to clean this up. Does not follow usual paradigm, but works for cases we care about with dot2
-      rem = (localWriteCnt) % tP["glvw"]
-      quo = (localWriteCnt) / tP["glvw"]
-      #print "localWriteCnt %u, quo %u, rem %u, TC %c, MT %u"%(localWriteCnt, quo, rem, tP["tensorChar"], kernel["MacroTile%u"%tP["tensorIdx"]])
-      # small factor is rem % ldl: This gets us to the adjacent halfs since we read in glvw adjacent Ks
-      # medium facor is quo * kernel[tP["lsp]] * ldl: This is a "horizontal" shift as we need to fill in data that was skipped
-      # large factor is (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl: We have to skip to the appropriate chunk of K "pairs"
-      offsetBytes = (quo * kernel[tP["lsp"]] * ldl + (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem % ldl)*tP["bpe"]
+        rem = (localWriteCnt) % tP["glvw"]
+        quo = (localWriteCnt) / tP["glvw"]
+        #print "localWriteCnt %u, quo %u, rem %u, TC %c, MT %u"%(localWriteCnt, quo, rem, tP["tensorChar"], kernel["MacroTile%u"%tP["tensorIdx"]])
+        # small factor is rem % ldl: This gets us to the adjacent halfs since we read in glvw adjacent Ks
+        # medium facor is quo * kernel[tP["lsp]] * ldl: This is a "horizontal" shift as we need to fill in data that was skipped
+        # large factor is (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl: We have to skip to the appropriate chunk of K "pairs"
+        offsetBytes = (quo * kernel[tP["lsp"]] * ldl + (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem % ldl)*tP["bpe"]
+      else:
+        # what if lsp is less than 2?
+        offsetBytes = (perp * kernel[tP["lsc"]] * kernel[tP["lsp"]] + sPerp * ldl) * tP["bpe"]
     else:
       offsetBytes = offsetElements*tP["bpe"]
 
