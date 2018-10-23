@@ -556,6 +556,7 @@ class KernelWriterAssembly(KernelWriter):
     # use 64-bit buffer limit shadow register
     self.use64bPbcLimit = 1 and kernel["BufferLoad"]
 
+
     # if >0, shift the start of the SRD left by specified #elements
     # Gives pointer shift some room to move left, even into the previous macro-tile
     # This slightly reduces the range of the GRO since they have to include the offset
@@ -1132,9 +1133,9 @@ class KernelWriterAssembly(KernelWriter):
       numSgprGlobalReadIncsB = 0
     else:
       numSgprGlobalReadIncsA = kernel["ProblemType"]["NumIndicesSummation"] \
-          * self.rpga
+          * self.rpgo
       numSgprGlobalReadIncsB = kernel["ProblemType"]["NumIndicesSummation"] \
-          * self.rpga
+          * self.rpgo
 
     numSgprLoopCounters = 1 * kernel["ProblemType"]["NumIndicesSummation"]
 
@@ -3142,17 +3143,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mul_i32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), sgpr("Strides%s"%tP["tensorChar"]), \
               "incr = stride*%u*bytes"%depthU )
-          """
-          kStr += inst("s_addc_u32", \
-              sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
-              hex(0), \
-              hex(0), \
-              "(carry)")
-          """
-          kStr += inst("s_mov_b32", \
-              sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
-              hex(0), \
-              "(carry)")
 
       else: # transposed
         if self.globalReadIncsUseVgpr:
@@ -3165,8 +3155,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+0"%tP["tensorChar"]), \
               hex(depthU*tP["bpe"]), \
               "incr = %u*bytes"%depthU )
-          kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+1"%tP["tensorChar"]), \
-              hex(0), "incr = %u*bytes (upper)"%depthU )
     else:
       printExit("NumIndicesSummation=%u not yet supported in assembly" \
           % kernel["ProblemType"]["NumIndicesSummation"] )
@@ -3507,6 +3495,8 @@ class KernelWriterAssembly(KernelWriter):
           % tailLoopLabelEnd, \
           "skip to end of tail loop b/c numIter==0")
 
+
+
     ########################################
     # Unrolled Loop
     elif loopIdx == self.unrollIdx:
@@ -3566,7 +3556,18 @@ class KernelWriterAssembly(KernelWriter):
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
 
     # is numIter at least 1? otherwise skip to end
-    endCounter = -1 if kernel["PrefetchGlobalRead"] and not tailLoop else 0
+    # PGL needs a skip-check here if not bufferload
+    # If suppressNoLoadLoop, then we don't have a special loop for the 'last iter'
+    if tailLoop:
+      endCounter = 0
+    elif kernel["PrefetchGlobalRead"]:
+      if self.suppressNoLoadLoop:
+        endCounter =  0
+      else:
+        endCounter = -1
+    else:
+      endCounter =  0
+
     kStr += inst("s_cmp_ge_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(endCounter), \
@@ -3627,7 +3628,6 @@ class KernelWriterAssembly(KernelWriter):
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
     loopLabelBegin = self.getLabel("%sLoopBegin%s"%("Tail" if tailLoop else "", loopChar) )
     loopLabelEnd = self.getLabel("%sLoopEnd%s"%("Tail" if tailLoop else "", loopChar) )
-    endCounter = -1 if kernel["PrefetchGlobalRead"] and not tailLoop else 0
 
     if tailLoop and kernel["AssertSummationElementMultiple"]%kernel["InnerUnroll"]==0:
       unrollInc = kernel["InnerUnroll"]
@@ -3639,6 +3639,22 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(unrollInc), \
         "inc counter%s"%(loopChar) )
+
+    if tailLoop:
+      endCounter = 0
+    else:
+      # If PrefetchGlobalRead=1 the loads in the loop prefetch next macro-tile
+      # For the final trip through the unroll loop we need to ensure those loads stay in bounds.
+
+      # One technique is to create a copy of the unroll loop with all loads removed.
+      # However buffer load doesn't need this loop copy since we OOB loads can be supressed by buffer limit hardware
+      # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
+      # increments appropriately
+      if kernel["PrefetchGlobalRead"] and not self.suppressNoLoadLoop:
+        endCounter = -1
+      else:
+        endCounter = 0
+
     kStr += inst("s_cmp_eq_i32", \
         sgpr("LoopCounters+%u"%loopIdx), \
         hex(endCounter), \
@@ -3692,7 +3708,13 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch):
     kStr = ""
     if prefetch:
-      lastIterEnd = self.getLabel("PrefetchGlobalLastIterEnd")
+      if self.suppressNoLoadLoop:
+        loopChar = self.indexChars[ \
+            kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+        lastIterEnd = self.getLabel("LoopEnd%s"%loopChar)
+      else:
+        lastIterEnd = self.getLabel("PrefetchGlobalLastIterEnd")
+
       kStr += inst("s_cmp_eq_u32", sgpr("LoopCounters+%u"%self.unrollIdx), \
           hex(0), "numIter%s == 0"%self.indexChars[self.unrollIdx])
       kStr += inst("s_cbranch_scc1 label_%04u"\
@@ -3714,6 +3736,7 @@ class KernelWriterAssembly(KernelWriter):
 
     tc = tP["tensorChar"]
     kStr = ""
+
 
     kStr += inst("s_add_u32 ", \
          sgpr("Srd%s+0"%(tc)), \
@@ -3753,6 +3776,9 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   # Global Read: Increment A/B
+  # loopIdx is summation idx:
+  #    self.unrollIdx, or an idx from 0..NumIndicesSummation
+  # TODO - need to separate prefetches from inside the loop
   ##############################################################################
   def globalReadIncrement(self, kernel, loopIdx, tP):
     if not self.do["GlobalInc"]: return ""
@@ -3760,14 +3786,13 @@ class KernelWriterAssembly(KernelWriter):
     tc = tP["tensorChar"]
 
     if kernel["BufferLoad"]:
+      # TODO - does this handle N-dim tensors correctly?
       return self.incrementSrd(kernel, tP, \
-              sgpr("GlobalReadIncs%s+0"%tc), \
-              sgpr("GlobalReadIncs%s+1"%tc))
+              sgpr("GlobalReadIncs%s+0"%tc), 0)
     else:
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
       graIdx = 0
-      tmp = self.vgprPool.checkOut(1, "groInc")
       #for perp in range(0, tP["nrp"]):
       #  for para in range(0, tP["nrc"]):
       #    for s in range(0, tP["nrcv"]):
@@ -3796,19 +3821,14 @@ class KernelWriterAssembly(KernelWriter):
                     vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)),  \
                     sgpr("GlobalReadIncs%s+%u+0"%(tP["tensorChar"], loopIdx)), \
                     "gra += inc%s%s (lower)"%(tP["tensorChar"], loopChar))
-                kStr += inst("v_mov_b32 ", \
-                    vgpr(tmp), \
-                    sgpr("GlobalReadIncs%s+%u+1"%(tP["tensorChar"], loopIdx)), \
-                    "vgpr GlobalReadIncs%s"%tP["tensorChar"] )
                 kStr += inst("_v_addc_co_u32", \
                     vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
                     "vcc", \
                     vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)), \
-                    vgpr(tmp), \
+                    0,
                     "vcc", \
                     "gra += inc%s%s (upper)"%(tP["tensorChar"], loopChar))
               graIdx += self.rpga
-      self.vgprPool.checkIn(tmp)
       #kStr += dump(vgpr("GlobalReadAddrA+0"))
       #kStr += dump(vgpr("GlobalReadAddrA+1"))
       #kStr += "s_endpgm\n"
@@ -4040,7 +4060,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
-  def globalReadDo(self, kernel, guardK, tP):
+  def globalReadDo(self, kernel, mode, tP):
     if not self.do["GlobalRead%s"%tP["tensorChar"]]: return ""
     kStr = ""
     tc = tP["tensorChar"]
@@ -4049,6 +4069,32 @@ class KernelWriterAssembly(KernelWriter):
     loadWidth = tP["globalReadInstruction"].totalWidth # load width in elements?
     bpl = self.bpeAB * tP["glvw"] # bytes per load
     ldsOffset = 0
+
+
+    loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
+    if self.suppressNoLoadLoop:
+      if mode==1 and tP["isA"]:
+        kStr += inst("s_cmp_eq_i32", \
+              sgpr("LoopCounters+%u"%loopIdx), \
+              "%u"%-1, \
+              "%s"%"is this last iteration")
+        kStr += inst("s_cmov_b32", \
+              sgpr("GlobalReadIncsA"), \
+              0,
+              "Set inc to 0 for last iteration")
+        kStr += inst("s_cmov_b32", \
+              sgpr("SrdA+2"), \
+              0,
+              "Set limit to 0 for last iteration")
+        kStr += inst("s_cmov_b32", \
+              sgpr("GlobalReadIncsB"), \
+              0,
+              "Set inc to 0 for last iteration")
+        kStr += inst("s_cmov_b32", \
+              sgpr("SrdB+2"), \
+              0,
+              "Set limit to 0 for last iteration")
+
 
     if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
       kStr += self.comment1("before DirectToLds load, ensure prior ds_reads have finished")
@@ -4060,6 +4106,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
 
     # sizeK % LOCAL_DEPTHU
+    guardK = (mode==2)
     if guardK:
       kStr += self.globalReadGuardK(kernel, tP)
       return kStr

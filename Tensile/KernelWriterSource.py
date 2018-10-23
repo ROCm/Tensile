@@ -1570,8 +1570,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
-  def globalReadDo(self, kernel, guardK, tP):
+  def globalReadDo(self, kernel, mode, tP):
     kStr = ""
+
+    guardK = (mode==2)
 
     #for perp in range(0, tP["nrp"]):
     #  for para in range(0, tP["nrc"]):
