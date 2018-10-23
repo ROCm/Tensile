@@ -4230,7 +4230,12 @@ class KernelWriterAssembly(KernelWriter):
     if tP["tlu"]:
       lspaOffset += sPerp
       lscaOffset += sPara
-      i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+      if ldl > 1:
+        #i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
+        i = localWriteCnt
+      else:
+        i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+      #print "nrcv ", tP["nrcv"], " nrcvpi ", tP["nrcvpi"], " nrc ", tP["nrc"], " nrpv ", tP["nrpv"]
     else:
       lscaOffset += sPara
       lspaOffset += sPerp
@@ -4246,7 +4251,7 @@ class KernelWriterAssembly(KernelWriter):
             "lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
       spacing = tP["glvw"]
       lscaOffset += (lspaOffset % spacing) * ldl
-      lspaOffset /= spacing
+      lspaOffset &= ~(spacing - 1)
       print "    After LDL: lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
 
     #if not tP["tlu"]:
@@ -4270,13 +4275,20 @@ class KernelWriterAssembly(KernelWriter):
     #print "2lscaOffset", lscaOffset
     offsetElements = (lspaOffset + lscaOffset)
     #print "offsetElements", offsetElements
-    if not tP["tlu"] and ldl > 1:
+    if ldl > 1:
+      if not tP["tlu"]:
 #jgolds HACK
 #Need to clean this up. Does not follow usual paradigm, but works for cases we care about with dot2
-      rem = (localWriteCnt) % ldl
-      quo = (localWriteCnt) / ldl
-      #print "quo %u, rem %u, MT %u"%(quo, rem, kernel["MacroTile%u"%tP["tensorIdx"]])
-      offsetBytes = (quo * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem)*tP["bpe"]
+        rem = (localWriteCnt) % tP["glvw"]
+        quo = (localWriteCnt) / tP["glvw"]
+        #print "localWriteCnt %u, quo %u, rem %u, TC %c, MT %u"%(localWriteCnt, quo, rem, tP["tensorChar"], kernel["MacroTile%u"%tP["tensorIdx"]])
+        # small factor is rem % ldl: This gets us to the adjacent halfs since we read in glvw adjacent Ks
+        # medium facor is quo * kernel[tP["lsp]] * ldl: This is a "horizontal" shift as we need to fill in data that was skipped
+        # large factor is (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl: We have to skip to the appropriate chunk of K "pairs"
+        offsetBytes = (quo * kernel[tP["lsp"]] * ldl + (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem % ldl)*tP["bpe"]
+      else:
+        # what if lsp is less than 2?
+        offsetBytes = (perp * kernel[tP["lsc"]] * kernel[tP["lsp"]] + sPerp * ldl) * tP["bpe"]
     else:
       offsetBytes = offsetElements*tP["bpe"]
 
@@ -4335,6 +4347,8 @@ class KernelWriterAssembly(KernelWriter):
 
       tmpLocalWriteAddr = -1
 
+#jgolds HACK
+      loopCnt = 0
       # if transposing, positions of sPerp and sPara are transposed
       instructionCnt = -1
       for perp in range(0, tP["nrp"]):
@@ -4356,8 +4370,6 @@ class KernelWriterAssembly(KernelWriter):
                         sgpr("PerpOverhangVcc%s"%tc,2), \
                         "Mask load so out-of-gr-tile bounds returns 0. Note 1.0f=0x3f80000 which is large non-neg int")
             lwa = tmpLocalWriteAddr
-#jgolds HACK
-        loopCnt = 0
         for para in range(0, tP["nrc"]):
           for s in range(0, max(tP["nwcv"],tP["nwpv"])/tP["nwcvpi"]):
 
