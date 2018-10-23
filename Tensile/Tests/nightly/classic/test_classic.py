@@ -16,8 +16,8 @@ def test_persistent(tmpdir):
     Tensile.Tensile([Tensile.TensileTestPath("nightly/classic/test_persistent.yaml"), tmpdir.strpath])
 
 # tensor convolution
-def test_convolution(tmpdir):
-    Tensile.Tensile([Tensile.TensileTestPath("nightly/classic/test_convolution.yaml"), tmpdir.strpath])
+#def test_convolution(tmpdir):
+#    Tensile.Tensile([Tensile.TensileTestPath("nightly/classic/test_convolution.yaml"), tmpdir.strpath])
 
 # tensor contractions
 def test_tensor_contraction(tmpdir):
