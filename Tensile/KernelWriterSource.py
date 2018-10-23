@@ -356,8 +356,6 @@ class KernelWriterSource(KernelWriter):
     ####################################
     # data types
     kStr += "/* data types */" + self.endLine
-    kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int);"""
-    kStr += self.endLine
     kStr += "#define DATA_TYPE %s%s" \
         % (kernel["ProblemType"]["DataType"].toDevice(self.language), \
         self.endLine)
@@ -365,17 +363,6 @@ class KernelWriterSource(KernelWriter):
     #if kernel["VectorWidth"] > 1:
     #  vecStr += str(kernel["VectorWidth"])
     #kStr += "#define VECTOR_TYPE %s%s" % (vecStr, self.endLine)
-
-    if self.language == "OCL":
-      kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
-    else:
-      if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
-        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
-      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))" 
-      else:
-        kStr += "#define MAC(A,B,DST) DST += A*B" 
-    kStr += self.endLine
 
     if self.language == "HIP" and kernel["ProblemType"]["DataType"].isComplex():
       kStr += "#define s0 x" + self.endLine
@@ -465,6 +452,21 @@ class KernelWriterSource(KernelWriter):
     # MACs
     kStr += self.endLine
     kStr += "/* MAC's */" + self.endLine
+
+    if self.language == "OCL":
+      kStr += "#define MAC(A,B,DST) mad(A,B,DST)"
+    else:
+      if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
+        kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
+      elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
+        kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int);"""
+        kStr += self.endLine
+        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))" 
+      else:
+        kStr += "#define MAC(A,B,DST) DST += A*B" 
+    kStr += self.endLine
+    kStr += self.endLine
+
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
 
