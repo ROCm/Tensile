@@ -18,14 +18,14 @@ GlobalParameters:
   KernelTime: True
   PinClocks: False
   SleepPercent: 200
-  DataInitTypeBeta : 0
-  DataInitTypeAlpha : 1
+  DataInitTypeBeta : 1
+  DataInitTypeAlpha : 2
   PrintTensorA: 3
   PrintTensorB: 3
   PrintTensorC: 3
-  DataInitTypeA: 1
-  DataInitTypeB: 1
-  DataInitTypeC: 1
+  DataInitTypeA: 3
+  DataInitTypeB: 3
+  DataInitTypeC: 3
 
 BenchmarkProblems:
   ########################################
@@ -34,7 +34,7 @@ BenchmarkProblems:
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: i
+      DataType: 4xi8
       DestDataType: I
       HighPrecisionAccumulate: True
       TransposeA: False
