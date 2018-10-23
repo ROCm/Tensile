@@ -1,4 +1,4 @@
-# no GRVW assertions
+# no GRVW assertions (added 1,2 for V20)
 
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
@@ -71,6 +71,8 @@ BenchmarkProblems:
         - DepthU: [ 8,16,32 ]
         - VectorWidth: [2,4,8]
         - GlobalReadVectorWidth: [2]
+        - AssertSummationElementMultiple: [1,2]
+        - AssertFree0ElementMultiple: [1,2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:

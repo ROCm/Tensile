@@ -35,9 +35,10 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2]
         - VectorWidth: [2]
         - AssertSummationElementMultiple: [2]
+        - AssertFree0ElementMultiple: [1,2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], [127,1,129], [2], [60,2,70] ]
+          - Range: [ [126,1,130], 0, [2], [62,1,66] ]

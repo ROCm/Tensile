@@ -772,8 +772,10 @@ def assignGlobalParameters( config ):
   # Determine assembler capabilities:
   # Try to assemble the new explicit co syntax:
   globalParameters["AsmCaps"] = {}
+  globalParameters["ArchCaps"] = {}
   for (v) in globalParameters["SupportedISA"]:
     globalParameters["AsmCaps"][v] = {}
+    globalParameters["ArchCaps"][v] = {}
     isaVersion = "gfx" + "".join(map(str,v))
     globalParameters["AsmCaps"][v]["SupportedIsa"] = tryAssembler(isaVersion, "")
     globalParameters["AsmCaps"][v]["HasExplicitCO"] = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,v0")
@@ -785,8 +787,8 @@ def assignGlobalParameters( config ):
       caps += " %s=%u" % (k, globalParameters["AsmCaps"][v][k])
 
     print1 ("# Asm caps for %s:%s" % (isaVersion, caps))
-
-
+    globalParameters["ArchCaps"][v]["HasEccHalf"] = (v==(9,0,6))
+    print1 ("# Arch caps for %s:%s" % (isaVersion, globalParameters["ArchCaps"][v]))
 
   # For ubuntu platforms, call dpkg to grep the version of hcc.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of

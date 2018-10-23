@@ -70,6 +70,7 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4,8]
         - VectorAtomicWidth: [-1]
         - AssertFree0ElementMultiple: [8]  # so we can test GRVW sweep
+        - AssertSummationElementMultiple: [1,2]  # so we can test GRVW sweep
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
