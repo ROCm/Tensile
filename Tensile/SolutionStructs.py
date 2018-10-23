@@ -920,9 +920,9 @@ class Solution:
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minVw = 2 if state["ProblemType"]["DataType"].isHalf() else 1
+    minGrvw = 1
     bestVw = -1
-    while grvw >= minVw:
+    while grvw >= minGrvw:
       # Per instruction across the entire group:
       elementsLoadedPerInst = state["NumThreads"]*grvw
       # LSC, LSP - #elements loaded along specified dim with each load
@@ -949,7 +949,7 @@ class Solution:
         # when a GRVW=1 will do instead.
         validElementsLoadedPerInst = state["LSC%s"%tc] * state["LSP%s"%tc]
         grvw /= 2
-        while grvw >= minVw:
+        while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
@@ -1072,7 +1072,7 @@ class Solution:
           state["VectorWidth"]))
       return
 
-    # Vector-width must be at least 2 for Half:
+    # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
     if state["KernelLanguage"] == "Assembly" \
        and state["ProblemType"]["DataType"].isHalf() \
        and state["VectorWidth"] < 2:
@@ -1082,11 +1082,6 @@ class Solution:
     if state["GlobalReadVectorWidth"] == -1:
       state["GlobalReadVectorWidth"] = state["VectorWidth"]
 
-    if state["GlobalReadVectorWidth"] > 1 \
-      and state["GlobalReadVectorWidth"] != state["VectorWidth"]:
-      # TODO -this is only needed for the shift/unshift code - with some assertions
-      # we can detect if that is needed or not
-      reject(state, "GlobalReadVectorWidth must be <= VectorWidth")
 
 
     if state["MinGlobalWriteVectorWidth"] == -1:
@@ -1517,11 +1512,24 @@ class Solution:
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
-    if state["BufferLoad"] and state["UseSgprForGRO"] \
-            and state["EdgeType"]=="ShiftPtr":
+    if state["BufferLoad"] and state["UseSgprForGRO"] and state["EdgeType"]=="ShiftPtr":
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
+
+    if not state["BufferLoad"] or not state["GuaranteeNoPartialA"]:
+      # Restrict GRVW/VW combos so shift-ptr logic will work
+      if state["GlobalLoadVectorWidthA"] > 1 \
+          and state["GlobalLoadVectorWidthA"] != state["VectorWidth"]:
+          reject(state, "GlobalLoadVectorWidthA %u must be == VectorWidth %u or == 1" % \
+                  (state["GlobalLoadVectorWidthA"], state["VectorWidth"]))
+
+    if not state["BufferLoad"] or not state["GuaranteeNoPartialB"]:
+      # Restrict GRVW/VW combos so shift-ptr logic will work
+      if state["GlobalLoadVectorWidthB"] > 1 \
+          and state["GlobalLoadVectorWidthB"] != state["VectorWidth"]:
+          reject(state, "GlobalLoadVectorWidthB %u must be == VectorWidth %u or == 1" % \
+                  (state["GlobalLoadVectorWidthB"], state["VectorWidth"]))
 
     # Use SGPR to store an offset from GlobalReadOffsetA+0.
     # (as opposed to using dedicated VGPR for each GRO
