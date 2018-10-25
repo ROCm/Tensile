@@ -222,6 +222,11 @@ validParameters = {
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
 
+    # For PrefetchGlobalRead=1, create a second copy of the unroll loop with
+    # the LDS pointer swaps expanded into inline constants for LDS read and write instructions
+    # This eliminates 4 vector XOR instructions used for pointer swap
+    "ExpandPointerSwap":          [False, True],
+
     # Attempt to load directly from global memory into LDS.
     # Assembly only
     # Requires BufferLoad, assembler support for lds modifier on buffer
@@ -446,6 +451,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
+    {"ExpandPointerSwap":         [ True ]},
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },

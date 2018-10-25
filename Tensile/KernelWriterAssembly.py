@@ -3617,7 +3617,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx):
+  def closeLoop(self, kernel, loopIdx, finalLoop):
     kStr = ""
     #kStr += self.indent + self.syncStr + self.endLine
     #kStr += "s_endpgm\n"
@@ -3661,9 +3661,11 @@ class KernelWriterAssembly(KernelWriter):
         "counter%s==0"%(loopChar) )
     kStr += inst("s_cbranch_scc1 label_%04u"%loopLabelEnd, \
         "exit Loop%s"%loopChar )
-    kStr += inst("s_branch label_%04u"%loopLabelBegin, \
-        "restart %s Loop%s"%("tailLoop" if tailLoop else "unrolled loop", loopChar ))
-    kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
+
+    if finalLoop:
+      kStr += inst("s_branch label_%04u"%loopLabelBegin, \
+          "restart %s Loop%s"%("tailLoop" if tailLoop else "unrolled loop", loopChar ))
+      kStr += "label_%04u:%s" % (loopLabelEnd, self.endLine)
 
     # restore all threads
     if tailLoop and kernel["LocalSplitU"] > 1:
