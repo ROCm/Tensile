@@ -329,6 +329,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   #functionSerialToDataTypeAndIdx = []
   dataTypes = []
   problemTypes = []
+  destDataTypes = {}
   problemTypesForDataType = {} # for data type
   schedulesForProblemType = {} # for problem type
   functionInfo = [] # dataTypeIdx, problemTypeIdx, idxWithinDataType, idxWithinProblemType
@@ -336,6 +337,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     dataType = problemType["DataType"]
+    destDataType = problemType["DestDataType"]
+    destDataTypes[dataType] = destDataType
     dataTypes.append(dataType)
     problemTypes.append(problemType)
     problemTypesForDataType[dataType] = [problemType]
@@ -349,8 +352,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       scheduleName = function[0]
       problemType = function[1]
       dataType = problemType["DataType"]
+      destDataType = problemType["DestDataType"]
       if dataType not in dataTypes:
         dataTypes.append(dataType)
+        destDataTypes[dataType] = destDataType
         problemTypesForDataType[dataType] = []
       if problemType not in problemTypesForDataType[dataType]:
         problemTypesForDataType[dataType].append(problemType)
@@ -880,12 +885,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       functionName = "tensile" if enqueue else "tensileGetSolutionName"
       returnName = "TensileStatus" if enqueue else "const char *"
       h += "/* generated call to function */\n"
-      h += "template<typename DataType>\n"
+      h += "template<typename DataType, typename DestDataType>\n"
       h += "%s generatedCallTo_%s(\n" % (returnName, functionName)
       h += "    unsigned int *sizes,\n"
       h += "    unsigned int *minStrides,\n"
-      h += "    DataType alpha,\n"
-      h += "    DataType beta, \n"
+      h += "    DestDataType alpha,\n"
+      h += "    DestDataType beta, \n"
       h += "    unsigned int strideA, \n"
       h += "    unsigned int strideB, \n"
       h += "    unsigned int strideC, \n"
@@ -899,8 +904,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         h += "    hipEvent_t *stopEvent = NULL );\n\n"
 
 
+#need to get DestDataType in here
       for dataType in dataTypes:
         typeName = dataType.toCpp()
+        destDataType = destDataTypes[dataType]
+        destTypeName = destDataType.toCpp()
         functionsForDataType = []
         for problemType in problemTypesForDataType[dataType]:
           for scheduleName in schedulesForProblemType[problemType]:
@@ -910,8 +918,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             % (returnName, functionName, typeName)
         h += "    unsigned int *sizes,\n"
         h += "    unsigned int *minStrides,\n"
-        h += "    %s alpha,\n" % typeName
-        h += "    %s beta,\n" % typeName
+        h += "    %s alpha,\n" % destTypeName
+        h += "    %s beta,\n" % destTypeName
         h += "    unsigned int strideA, \n"
         h += "    unsigned int strideB, \n"
         h += "    unsigned int strideC, \n"
