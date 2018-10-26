@@ -446,7 +446,7 @@ bool callLibrary(
         alpha, beta, useHighPrecisionAccumulate);
 
     // call device function
-    TensileStatus tensileCallStatus = generatedCallTo_tensile( userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
+    TensileStatus tensileCallStatus = generatedCallTo_tensile<DataType, DestDataType>( userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
     if (tensileCallStatus != tensileStatusSuccess) {
       solutionIsValid = false;
     }
@@ -542,7 +542,7 @@ bool callLibrary(
       generatedCallTo_tensile(userSizes, minStrides, alpha, beta, strideA, strideB, strideC, 0, NULL,
           &l_outputEvent[syncIdx][enqIdx]);
 #else
-      generatedCallTo_tensile(userSizes, minStrides, alpha, beta, strideA, strideB, strideC, numEnqueuesPerSync,
+      generatedCallTo_tensile<DataType, DestDataType>(userSizes, minStrides, alpha, beta, strideA, strideB, strideC, numEnqueuesPerSync,
           &l_eventStart[syncIdx][enqIdx], &l_eventStop[syncIdx][enqIdx]);
 #endif
     }
@@ -647,7 +647,7 @@ bool callLibrary(
     }
   }
 
-  const char * solutionName = generatedCallTo_tensileGetSolutionName(
+  const char * solutionName = generatedCallTo_tensileGetSolutionName<DataType, DestDataType>(
       userSizes, minStrides, alpha, beta, strideA, strideB, strideC);
 
   std::cout << std::setw(10) << std::fixed << std::setprecision(3)
