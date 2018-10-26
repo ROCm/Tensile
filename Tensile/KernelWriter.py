@@ -550,9 +550,9 @@ class KernelWriter:
       # close unrolled loop
       if expand:
         if not finalLoop:
-          kStr += self.comment3("Unrolled Loop - Copy %u/%u"%(lc, loopCopies))
+          kStr += self.comment3("Unrolled Loop - Copy %u/%u"%(lc+1, loopCopies))
         else:
-          kStr += self.comment3("Unrolled Loop - End %u/%u"%(lc, loopCopies))
+          kStr += self.comment3("Unrolled Loop - End %u/%u"%(lc+1, loopCopies))
       else:
         kStr += self.comment3("Unrolled Loop - End")
       kStr += self.closeLoop(kernel, self.unrollIdx, finalLoop)

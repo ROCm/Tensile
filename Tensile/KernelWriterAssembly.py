@@ -873,6 +873,11 @@ class KernelWriterAssembly(KernelWriter):
         kernel["LocalRead2A"], \
         self.localRead2CoalescedA, localRead2Perpendicular,
         [self.localReadStrideCoalescedA] )
+    tPA["localReadSwapByteOffset"] = 0
+    tPB["localReadSwapByteOffset"] = 0
+    tPA["localWriteSwapByteOffset"] = 0
+    tPB["localWriteSwapByteOffset"] = 0
+
 
     ########################################
     # localRead B
@@ -4210,18 +4215,21 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     tc = tP["tensorChar"]
 #fixme-iui  need to use wrapping increment for double or triple buffering:
-    if kernel["LocalWriteUseSgpr%s"%tc]:
-      kStr += inst("s_xor_b32", \
-          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
-          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          "swap Red Blk SGPR")
+    if kernel["ExpandPointerSwap"]:
+      tP["localWriteSwapByteOffset"] = 0 if tP["localWriteSwapByteOffset"] else kernel["LdsOffsetA_Blk"]*tP["bpe"]
     else:
-      kStr += inst("v_xor_b32", \
-          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
-          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          "swap Red Blk")
+      if kernel["LocalWriteUseSgpr%s"%tc]:
+        kStr += inst("s_xor_b32", \
+            sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
+            sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            "swap Red Blk SGPR")
+      else:
+        kStr += inst("v_xor_b32", \
+            vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
+            vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            "swap Red Blk")
     return kStr
 
   ##############################################################################
@@ -4233,18 +4241,21 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     resetMask = hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1 | self.LdsOOB)
     tc = tP["tensorChar"]
-    if kernel["LocalWriteUseSgpr%s"%tc]:
-      kStr += inst("s_and_b32", \
-          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          resetMask, \
-          sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          "reset to Red")
+    if kernel["ExpandPointerSwap"]:
+      tP["localWriteSwapByteOffset"] = 0
     else:
-      kStr += inst("v_and_b32", \
-          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          resetMask, \
-          vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
-          "reset to Red")
+      if kernel["LocalWriteUseSgpr%s"%tc]:
+        kStr += inst("s_and_b32", \
+            sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            resetMask, \
+            sgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            "reset to Red")
+      else:
+        kStr += inst("v_and_b32", \
+            vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            resetMask, \
+            vgpr("LocalWriteAddr%s"%tP["tensorChar"]), \
+            "reset to Red")
     return kStr
 
   ##############################################################################
@@ -4355,6 +4366,8 @@ class KernelWriterAssembly(KernelWriter):
         offsetBytes = (perp * kernel[tP["lsc"]] * kernel[tP["lsp"]] + sPerp * ldl) * tP["bpe"]
     else:
       offsetBytes = offsetElements*tP["bpe"]
+
+    offsetBytes += tP["localWriteSwapByteOffset"]
 
     #print "offsetBytes", offsetBytes
     #print "offset", offset
@@ -4505,11 +4518,16 @@ class KernelWriterAssembly(KernelWriter):
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
-    kStr += inst("v_xor_b32", \
-        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
-        vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
-        "swap Red Blk")
+
+    if kernel["ExpandPointerSwap"]:
+      tP["localReadSwapByteOffset"] = 0 if tP["localReadSwapByteOffset"] else kernel["LdsOffsetA_Blk"]*tP["bpe"]
+      kStr += self.comment("local read swap offset -> %u" % tP["localReadSwapByteOffset"])
+    else:
+      kStr += inst("v_xor_b32", \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]), \
+          vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
+          "swap Red Blk")
     return kStr
 
   ##############################################################################
@@ -4521,8 +4539,8 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     if tP["localReadInstruction"].numOffsets == 1:
+      tP["localReadSwapByteOffset"] = 0
       tP["localReadOffset"] = 0
-      tP["localReadElementOffset"] = 0
       kStr += self.comment1("handled internally")
     kStr += inst("v_and_b32", \
         vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
@@ -4540,8 +4558,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if self.localReadInstructionA.numOffsets == 1:
       tP["localReadOffset"] = 0
-      tP["localReadElementOffset"] = 0
-      kStr += self.comment1("N/A")
     else:
       kStr += inst("v_and_b32", \
           vgpr("LocalReadAddr%s"%tP["tensorChar"]), \
@@ -4624,11 +4640,11 @@ class KernelWriterAssembly(KernelWriter):
         paramList.append(destVgpr)
         paramList.append(vgpr("LocalReadAddr%s"%tc))
         for oIdx in range(0, numOffsets):
-          paramList.append((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
-              + tP["localReadOffset"])*tP["bpe"]/offsetMultiplier)
+          paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]]*(vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+              + tP["localReadOffset"])*tP["bpe"]+tP["localReadSwapByteOffset"])/offsetMultiplier)
         paramTuple = tuple(paramList)
-        comment = "L -> Reg lro=%d ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
-            %(tP["localReadOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
+        comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
+            %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
         kStr += instruction.toString(paramTuple, comment)
         valuIdx += blockWidth
 
