@@ -5154,16 +5154,11 @@ class KernelWriterAssembly(KernelWriter):
 
         if useSgpr:
           # These are constant across all workitems, just add to the SRD:
-          kStr += inst("s_mul_i32", sgpr(tmpS0), \
-                      coord, self.bpeCexternal, \
-                      "scale by bpe")
-          # TODO - move this after coord*stride, and handle 64-bit
-          kStr += inst("s_mul_i32", sgpr(tmpS0),
-                      sgpr(tmpS0), sgpr("StridesC+%u"%(i-1)), \
-                      "srd i=%u"%i)
-          kStr += inst("s_mov_b32", sgpr(tmpS1),0, "")
+          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesC+%u"%(i-1)), "Move SRD to row start offset")
+          #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
+          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
-          kStr += inst("s_add_u32", sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
+          kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
           kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
         else:
           # These vary per-workitem, so roll into the row start VGPR:
