@@ -358,14 +358,18 @@ bool callLibrary(
   }
 
   if (specializeAB) {
-    specializeData(initialA, totalIndices[problemTypeIdx],
-                    numIndicesC[problemTypeIdx],
-                    numIndicesAB[problemTypeIdx],
-                    userSizes, indexAssignmentsA[problemTypeIdx]);
-    specializeData(initialB, totalIndices[problemTypeIdx],
-                    numIndicesC[problemTypeIdx],
-                    numIndicesAB[problemTypeIdx],
-                    userSizes, indexAssignmentsB[problemTypeIdx]);
+    if (initA) {
+      specializeData(initialA, totalIndices[problemTypeIdx],
+                      numIndicesC[problemTypeIdx],
+                      numIndicesAB[problemTypeIdx],
+                      userSizes, indexAssignmentsA[problemTypeIdx]);
+    }
+    if (initB) {
+      specializeData(initialB, totalIndices[problemTypeIdx],
+                      numIndicesC[problemTypeIdx],
+                      numIndicesAB[problemTypeIdx],
+                      userSizes, indexAssignmentsB[problemTypeIdx]);
+    }
     copyData<DataType> (initialA, initialB);
   }
 
@@ -783,14 +787,18 @@ bool benchmarkAllSolutionsForSize(
   file << ", " << totalFlops;
 
   if (specializeAB) {
-    specializeData(initialA, totalIndices[problemTypeIdx],
-                    numIndicesC[problemTypeIdx],
-                    numIndicesAB[problemTypeIdx],
-                    sizes, indexAssignmentsA[problemTypeIdx]);
-    specializeData(initialB, totalIndices[problemTypeIdx],
-                    numIndicesC[problemTypeIdx],
-                    numIndicesAB[problemTypeIdx],
-                    sizes, indexAssignmentsB[problemTypeIdx]);
+    if (initA) {
+      specializeData(initialA, totalIndices[problemTypeIdx],
+                      numIndicesC[problemTypeIdx],
+                      numIndicesAB[problemTypeIdx],
+                      sizes, indexAssignmentsA[problemTypeIdx]);
+    }
+    if (initB) {
+      specializeData(initialB, totalIndices[problemTypeIdx],
+                      numIndicesC[problemTypeIdx],
+                      numIndicesAB[problemTypeIdx],
+                      sizes, indexAssignmentsB[problemTypeIdx]);
+    }
     copyData<DataType> (initialA, initialB);
   }
   if (printTensorA) {
