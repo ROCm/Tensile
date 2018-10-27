@@ -1275,7 +1275,8 @@ void initData(
     DestDataType *beta,
     DestDataType **referenceC,
     DestDataType **deviceOnHostC) {
-  int seed = time(NULL);
+  //int seed = time(NULL);
+  int seed = 0x1000;
   srand(seed);
 
   // initialize alpha
