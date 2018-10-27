@@ -452,7 +452,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
-    {"ExpandPointerSwap":         [ False ]},
+    {"ExpandPointerSwap":         [ True ]},
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },

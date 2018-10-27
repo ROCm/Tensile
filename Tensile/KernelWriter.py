@@ -304,83 +304,84 @@ class KernelWriter:
       kStr += self.closeSumAtLeastUnroll(kernel, True)
 
     # open unrolled summation loop
-    kStr += self.comment3("Unrolled Loop - Begin")
+    kStr += self.comment3("Unrolled Loop(s) - Begin")
     kStr += self.openLoop(kernel, self.unrollIdx)
 
-    if self.enable["GlobalRead"]:
-      # unrolled loop: global read A, B
-      kStr += self.comment("global read a")
-      kStr += self.globalReadDo(kernel, 1, tensorParametersA)
-      kStr += self.comment("global read b")
-      kStr += self.globalReadDo(kernel, 1, tensorParametersB)
-
-    if self.enable["GlobalReadInc"]:
-      # unrolled loop: increment global read addresses
-      kStr += self.comment("global read inc a")
-      kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
-          tensorParametersA)
-      kStr += self.comment("global read inc b")
-      kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
-          tensorParametersB)
-
-    if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
-      if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "1wait for local write")
-      if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel, "4sync for global read")
-
-    # if not prefetch global, localWrite before mac's
-    if not kernel["PrefetchGlobalRead"]:
-      # unrolled loop: local write A, B
-      if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "0wait for global read")
-      if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel, "PGR=0, prior iter done reading lds")
-      if self.enable["LocalWrite"]:
-        kStr += self.comment("local write a")
-        kStr += self.localWriteDo(kernel, tensorParametersA)
-        kStr += self.comment("local write b")
-        kStr += self.localWriteDo(kernel, tensorParametersB)
-      if self.enable["Wait"]:
-        kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2wait for local write")
-      if self.enable["Sync"]:
-        kStr += self.syncThreads(kernel)
-        # debug Local state
-        """
-        kStr += "    /* print Local state */" + self.endLine
-        kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
-        kStr += "      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" \
-            % self.endLine
-        kStr += "    }" + self.endLine
-        """
-
-    # unrolled loop: prefetch local
-    if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
-      for iui in range(0,kernel["InnerUnroll"]):
-        if self.enable["LocalRead"]:
-          for plrIdx in range(0, kernel["PrefetchLocalRead"]):
-            kStr += self.comment("prefetch local a")
-            kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
-            kStr += self.comment("prefetch local b")
-            kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
-            kStr += self.comment1("local read increment a")
-            kStr += self.localReadInc(kernel, iui, tensorParametersA)
-            kStr += self.comment1("local read increment b")
-            kStr += self.localReadInc(kernel, iui, tensorParametersB)
-
-    kStr += self.closeString(kernel)
-    kStr += self.openString(kernel)
-
-    pf     = kernel["PrefetchLocalRead"]  # how many pf already done above
-
-    ############################################################################
-    # unrolled loop: mac iterations
-    # Includes handling for the 2nd-to-last iteration:
-    ############################################################################
     expand = kernel["ExpandPointerSwap"] and kernel["PrefetchGlobalRead"] and self.suppressNoLoadLoop
     loopCopies = 2 if expand else 1
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
+      kStr += self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies))
+      if self.enable["GlobalRead"]:
+        # unrolled loop: global read A, B
+        kStr += self.comment("global read a")
+        kStr += self.globalReadDo(kernel, 1, tensorParametersA)
+        kStr += self.comment("global read b")
+        kStr += self.globalReadDo(kernel, 1, tensorParametersB)
+
+      if self.enable["GlobalReadInc"]:
+        # unrolled loop: increment global read addresses
+        kStr += self.comment("global read inc a")
+        kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
+            tensorParametersA)
+        kStr += self.comment("global read inc b")
+        kStr += self.globalReadIncrement(kernel, self.unrollIdx, \
+            tensorParametersB)
+
+      if kernel["PrefetchGlobalRead"] and not kernel["PrefetchLocalRead"]:
+        if self.enable["Wait"]:
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "1wait for local write")
+        if self.enable["Sync"]:
+          kStr += self.syncThreads(kernel, "4sync for global read")
+
+      # if not prefetch global, localWrite before mac's
+      if not kernel["PrefetchGlobalRead"]:
+        # unrolled loop: local write A, B
+        if self.enable["Wait"]:
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "0wait for global read")
+        if self.enable["Sync"]:
+          kStr += self.syncThreads(kernel, "PGR=0, prior iter done reading lds")
+        if self.enable["LocalWrite"]:
+          kStr += self.comment("local write a")
+          kStr += self.localWriteDo(kernel, tensorParametersA)
+          kStr += self.comment("local write b")
+          kStr += self.localWriteDo(kernel, tensorParametersB)
+        if self.enable["Wait"]:
+          kStr += self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2wait for local write")
+        if self.enable["Sync"]:
+          kStr += self.syncThreads(kernel)
+          # debug Local state
+          """
+          kStr += "    /* print Local state */" + self.endLine
+          kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
+          kStr += "      printf(\\\"localMemory[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" \
+              % self.endLine
+          kStr += "    }" + self.endLine
+          """
+
+      # unrolled loop: prefetch local
+      if kernel["PrefetchLocalRead"] and not kernel["PrefetchGlobalRead"]:
+        for iui in range(0,kernel["InnerUnroll"]):
+          if self.enable["LocalRead"]:
+            for plrIdx in range(0, kernel["PrefetchLocalRead"]):
+              kStr += self.comment("prefetch local a")
+              kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersA)
+              kStr += self.comment("prefetch local b")
+              kStr += self.localReadDo(kernel, plrIdx, iui, tensorParametersB)
+              kStr += self.comment1("local read increment a")
+              kStr += self.localReadInc(kernel, iui, tensorParametersA)
+              kStr += self.comment1("local read increment b")
+              kStr += self.localReadInc(kernel, iui, tensorParametersB)
+
+      kStr += self.closeString(kernel)
+      kStr += self.openString(kernel)
+
+      pf     = kernel["PrefetchLocalRead"]  # how many pf already done above
+
+      ############################################################################
+      # unrolled loop: mac iterations
+      # Includes handling for the 2nd-to-last iteration:
+      ############################################################################
       for u in range(0, kernel["LoopUnroll"]-1):
         # which loop iteration to reset the LRO:
         isResetLroIter = (u == kernel["LoopUnroll"] - kernel["PrefetchLocalRead"] - 1)
@@ -550,9 +551,9 @@ class KernelWriter:
       # close unrolled loop
       if expand:
         if not finalLoop:
-          kStr += self.comment3("Unrolled Loop - Copy %u/%u"%(lc+1, loopCopies))
-        else:
           kStr += self.comment3("Unrolled Loop - End %u/%u"%(lc+1, loopCopies))
+        else:
+          kStr += self.comment3("Unrolled Loop - End %u/%u (final)"%(lc+1, loopCopies))
       else:
         kStr += self.comment3("Unrolled Loop - End")
       kStr += self.closeLoop(kernel, self.unrollIdx, finalLoop)

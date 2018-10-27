@@ -4483,6 +4483,7 @@ class KernelWriterAssembly(KernelWriter):
 
             paramTuple = tuple(paramList)
             #comment = "Reg -> L %u_%u_%u_%u"%(para, sPara, perp, sPerp)
+            comment += "#%u"%self.localWriteDoCnt
             nonTemporal = 0
             highBits = False
             if kernel["ProblemType"]["DataType"].isHalf():
@@ -4503,11 +4504,13 @@ class KernelWriterAssembly(KernelWriter):
     if 0:
       kStr += inst("s_barrier", "temp debug wait to check sync issue" )
 
-    if 0 and tP["isB"]:
+    # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
+    if 0 and tP["isB"] and self.localWriteDoCnt>2:
     #if 0 and self.localWriteDoCnt >= 0:
       kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
       kStr += inst("s_barrier", "dump LDS" )
-      kStr += self.bomb(105)
+      #kStr += self.bomb(105)
+      kStr += self.assert_ne(sgpr("LoopCounters+0"), -2) # stop on a specific loop iteration
 
     return kStr
 
@@ -6760,6 +6763,11 @@ class KernelWriterAssembly(KernelWriter):
         vgprAddr = self.vgprPool.checkOut(2)
       else:
         vgprAddr = scratchVgpr
+      if cookie != None:
+        if cookie < 0:
+          kStr += "bomb_neg%u:\n" % abs(cookie)
+        else:
+          kStr += "bomb_%u:\n" % abs(cookie)
       kStr += inst("v_mov_b32", vgpr(vgprAddr+0), 0, "")
       kStr += inst("v_mov_b32", vgpr(vgprAddr+1), 0, "")
       #kStr += inst("s_trap",1,  "")
