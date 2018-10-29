@@ -1654,7 +1654,7 @@ class KernelWriterAssembly(KernelWriter):
     #jgolds HACK
     # only want to enable this for cases we know it helps: 4x4 TT size and 16x16 WG size. Feel free to add more
     # cases after validating performance
-    if kernel["AggressivePerfMode"] and kernel["ProblemType"]["DataType"].isDouble() and \
+    if kernel["AggressivePerfMode"]>=2 and kernel["ProblemType"]["DataType"].isDouble() and \
       kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
       kStr += "  workgroup_group_segment_byte_size = 32768 // lds bytes%s" \
           % ( self.endLine ) # Pad LDS to ensure we run exactly two waves

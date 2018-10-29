@@ -413,7 +413,8 @@ validParameters = {
 
     # Aggressive performance mode
     # Some of these may cause instability, particularly s_setprio
-    "AggressivePerfMode":       [False, True],
+    # 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
+    "AggressivePerfMode":       [0,1,2],
 
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
@@ -430,7 +431,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                  [ "Branch" ] },
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
-    {"AggressivePerfMode":        [ False ] },
+    {"AggressivePerfMode":        [ 0 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
