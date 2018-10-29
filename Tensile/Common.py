@@ -431,7 +431,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                  [ "Branch" ] },
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
-    {"AggressivePerfMode":        [ 0 ] },
+    {"AggressivePerfMode":        [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
