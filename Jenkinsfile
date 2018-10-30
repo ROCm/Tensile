@@ -188,7 +188,7 @@ def docker_build_inside_image( def build_image, compiler_data compiler_args, doc
     def tox_file = isJobStartedByTimer() ? "Tensile/Tests/nightly" : "Tensile/Tests/pre_checkin";
     stage( "Test ${compiler_args.compiler_name} ${compiler_args.build_config}" )
     {
-      timeout(time: 2, unit: 'HOURS') {
+      timeout(time: 3, unit: 'HOURS') {
         sh """#!/usr/bin/env bash
           set -x
           cd ${paths.project_src_prefix}
