@@ -1342,41 +1342,35 @@ class KernelWriterAssembly(KernelWriter):
                 b = blockB*2
                 a = blockA*2
                 if kernel["LocalDotLayout"] > 1 and innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
-                  lcldot = kernel["LocalDotLayout"]
-                  iua = blockA / ((kernel["ThreadTileA"]/2) / lcldot)
-                  iub = blockB / ((kernel["ThreadTileB"]/2) / lcldot)
-                  rema = blockA % ((kernel["ThreadTileA"]/2) / lcldot)
-                  remb = blockB % ((kernel["ThreadTileB"]/2) / lcldot)
-                  #print "lcldot %u, blockA %u, blockB %u, rema %u, remb %u, ThreadTileA %u%s" % (lcldot, blockA, blockB, rema, remb, kernel["ThreadTileA"], self.endLine)
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
+                      % ("vgprValuA_X%u_I0"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] iua=%u iub=%u%s" % (cStr, aStr, bStr, cStr, cidx, iua, iub, self.endLine)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] iua=%u iub=%u%s" % (cStr, aStr, bStr, cStr, cidx, iua, iub, self.endLine)
+                      % ("vgprValuB_X%u_I0"%m, blockB)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
+                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
+                      % ("vgprValuA_X%u_I1"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
+                      % ("vgprValuB_X%u_I0"%m, blockB)
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
+                      % ("vgprValuA_X%u_I0"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
+                      % ("vgprValuB_X%u_I1"%m, blockB)
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
+                      % ("vgprValuA_X%u_I1"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
+                      % ("vgprValuB_X%u_I1"%m, blockB)
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
@@ -1438,38 +1432,32 @@ class KernelWriterAssembly(KernelWriter):
                 b = blockB*2
                 a = blockA*2
                 if kernel["LocalDotLayout"] > 1 and innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
-                  lcldot = kernel["LocalDotLayout"]
-                  iua = blockA / ((kernel["ThreadTileA"]/2) / lcldot)
-                  iub = blockB / ((kernel["ThreadTileB"]/2) / lcldot)
-                  rema = blockA % ((kernel["ThreadTileA"]/2) / lcldot)
-                  remb = blockB % ((kernel["ThreadTileB"]/2) / lcldot)
-                  #print "lcldot %u, blockA %u, blockB %u, rema %u, remb %u, ThreadTileA %u%s" % (lcldot, blockA, blockB, rema, remb, kernel["ThreadTileA"], self.endLine)
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
+                      % ("vgprValuA_X%u_I0"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
-                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u] iua=%u iub=%u%s" % (cStr, aStr, bStr, cStr, cidx, iua, iub, self.endLine)
+                      % ("vgprValuB_X%u_I0"%m, blockB)
+                  kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
+                      % ("vgprValuA_X%u_I1"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot)
+                      % ("vgprValuB_X%u_I0"%m, blockB)
                   cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
                   kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot)
+                      % ("vgprValuA_X%u_I0"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
+                      % ("vgprValuB_X%u_I1"%m, blockB)
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
                   kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
                   aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iua), rema*lcldot+1)
+                      % ("vgprValuA_X%u_I1"%m, blockA)
                   bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iub), remb*lcldot+1)
+                      % ("vgprValuB_X%u_I1"%m, blockB)
                   cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]/2)
                   kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
                   #kStr += self.bomb(-13)
@@ -3210,41 +3198,56 @@ class KernelWriterAssembly(KernelWriter):
           % (tc, tc, tc, tc, self.unrollChar, tP["tileChar"]) )
     else:
       ldlOffsetVgpr = self.vgprPool.checkOut(1)
+      uRegScrap = self.vgprPool.checkOut(1)
+      # likely broken for dot4, revisit
+      # odd tiles will write to MT, even tiles to normal location
       kStr += inst("v_and_b32", \
           vgpr(destVgpr), \
+          ~(kernel["LocalDotLayout"]-1), \
+          vgpr(tP["gpr"]["lwoT"]), \
+          "lwoT & ~(LDL-1)")
+      # uReg bit 1 maps to LDS offset bit 1 (calculateLdsWriteOffset) or LocalWriteAddr (here)
+      kStr += inst("v_and_b32", \
+          vgpr(uRegScrap), \
           kernel["LocalDotLayout"]-1, \
           vgpr(uReg), \
-          "uReg & LDL")
+          "uReg & LDL-1")
       kStr += inst("v_and_b32", \
           vgpr(uReg), \
           ~(kernel["LocalDotLayout"]-1), \
           vgpr(uReg), \
-          "uReg & ~LDL")
+          "uReg & LDL-1")
+      kStr += inst("v_and_b32", \
+          vgpr(ldlOffsetVgpr), \
+          kernel["LocalDotLayout"]-1, \
+          vgpr(tP["gpr"]["lwoT"]), \
+          "lwoT & LDL-1")
+      kStr += inst("_v_lshl_add_u32", \
+          vgpr(uReg), \
+          vgpr(ldlOffsetVgpr), \
+          #log2(kernel["LocalDotLayout"]), \
+          0, \
+          vgpr(uReg), \
+          "shift scrap by LDL")
       kStr += inst("v_mul_u32_u24", \
           vgpr(uReg), \
           hex(kernel["MacroTile%s"%tP["tensorChar"]] + kernel["LdsPad%s"%tc]), \
           vgpr(uReg), \
           "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
       kStr += inst("_v_add_co_u32", \
-          vgpr(destVgpr), \
+          vgpr(uReg), \
           "vcc", \
-          vgpr(destVgpr), \
+          vgpr(uRegScrap), \
           vgpr(uReg), \
           "add scraps from LDL masking")
-      kStr += inst("_v_lshl_add_u32", \
+      kStr += inst("_v_add_lshl_u32", \
           vgpr(destVgpr), \
-          vgpr(tP["gpr"]["lwoT"]), \
-          hex(log2(kernel["LocalDotLayout"])), \
-          # 0, \
-          vgpr(destVgpr), \
-          "+= lw%s * LDL" % (tc))
-      kStr += inst("v_lshlrev_b32", \
+          vgpr(uReg), \
           vgpr(destVgpr), \
           hex(log2(tP["bpe"])), \
-          vgpr(destVgpr), \
           " *= bpe")
+      self.vgprPool.checkIn(uRegScrap)
       self.vgprPool.checkIn(ldlOffsetVgpr)
-      #kStr += self.bomb(-40)
 
     if tP["isB"]:
       kStr += inst("_v_add_co_u32", \
@@ -3392,11 +3395,6 @@ class KernelWriterAssembly(KernelWriter):
         vgpr(tP["gpr"]["lro"]), \
         hex(log2(tP["bpe"])), \
         "o = (lro%s*VW+sgid*MT%u)*bpe"%(tc, tP["tensorIdx"]) )
-    
-    if kernel["LocalDotLayout"] > 1:
-      argStr = vgpr("LocalReadAddr%s"%tc)
-      kStr += "v_mul_lo_u32 %s, %s, %u //o *= LocalDotLayout %s"%(argStr,argStr, kernel["LocalDotLayout"], self.endLine)
-
 
     #if tP["isA"]:
     #  kStr += self.bomb(113)
@@ -4285,13 +4283,16 @@ class KernelWriterAssembly(KernelWriter):
     ldl = kernel["LocalDotLayout"]
     lscaOffset = para * kernel[tP["lsc"]]
     lspaOffset = perp * kernel[tP["lsp"]]
+    rem = 0
 
     # Add component offset to interleave from different regs
     # and compute mysterious "i"
     assert(sPerp==0 or sPara==0)
     if tP["tlu"]:
-      lspaOffset += sPerp
+      mask = log2(ldl)
+      lspaOffset += sPerp & mask
       lscaOffset += sPara
+      rem = (sPerp & ~mask) >> log2(ldl)
       if ldl > 1:
         #i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
         i = localWriteCnt
@@ -4299,22 +4300,10 @@ class KernelWriterAssembly(KernelWriter):
         i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
       #print "nrcv ", tP["nrcv"], " nrcvpi ", tP["nrcvpi"], " nrc ", tP["nrc"], " nrpv ", tP["nrpv"]
     else:
-      lscaOffset += sPara
+      lscaOffset += (sPara / ldl) * ldl
       lspaOffset += sPerp
+      rem = sPara % ldl
       i = sPara + (tP["nrcv"]/tP["nrcvpi"]) * (para * tP["glvw"] + tP["nrc"] * (sPerp + tP["glvw"] * tP["nrpv"] * perp ))
-
-
-    if ldl > 1:
-      # apply interleave for LocalDot:
-      # Else they complement the address calculation to place adjacent-in-u data
-      # so adjacent-in-lds.
-      print "  ", tc, ": perp", perp, "para", para , "sPerp=", sPerp, "sPara=", sPara, \
-            "wtc=", tP["wtc"], "wuc=", tP["wuc"], "grcv=", tP["grcv"], \
-            "lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
-      spacing = tP["glvw"]
-      lscaOffset += (lspaOffset % spacing) * ldl
-      lspaOffset &= ~(spacing - 1)
-      print "    After LDL: lscaOffset=", lscaOffset, "lspaOffset=", lspaOffset
 
     #if not tP["tlu"]:
     #  tmp = sPara
@@ -4325,8 +4314,10 @@ class KernelWriterAssembly(KernelWriter):
 
     if tP["tlu"]:
       lspaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
+      lspaOffset += rem * ldl
     else:
       lscaOffset *= (kernel[tP["mt"]] + kernel["LdsPad%s"%tc])
+      lscaOffset += rem
     #print "1lspaOffset", lspaOffset
     #print "1lscaOffset", lscaOffset
     #if tP["tlu"] == tP["grcv"]:
@@ -4337,22 +4328,7 @@ class KernelWriterAssembly(KernelWriter):
     #print "2lscaOffset", lscaOffset
     offsetElements = (lspaOffset + lscaOffset)
     #print "offsetElements", offsetElements
-    if ldl > 1:
-      if not tP["tlu"]:
-#jgolds HACK
-#Need to clean this up. Does not follow usual paradigm, but works for cases we care about with dot2
-        rem = (localWriteCnt) % tP["glvw"]
-        quo = (localWriteCnt) / tP["glvw"]
-        #print "localWriteCnt %u, quo %u, rem %u, TC %c, MT %u"%(localWriteCnt, quo, rem, tP["tensorChar"], kernel["MacroTile%u"%tP["tensorIdx"]])
-        # small factor is rem % ldl: This gets us to the adjacent halfs since we read in glvw adjacent Ks
-        # medium facor is quo * kernel[tP["lsp]] * ldl: This is a "horizontal" shift as we need to fill in data that was skipped
-        # large factor is (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl: We have to skip to the appropriate chunk of K "pairs"
-        offsetBytes = (quo * kernel[tP["lsp"]] * ldl + (rem / ldl) * kernel["MacroTile%u"%tP["tensorIdx"]] * ldl + rem % ldl)*tP["bpe"]
-      else:
-        # what if lsp is less than 2?
-        offsetBytes = (perp * kernel[tP["lsc"]] * kernel[tP["lsp"]] + sPerp * ldl) * tP["bpe"]
-    else:
-      offsetBytes = offsetElements*tP["bpe"]
+    offsetBytes = offsetElements*tP["bpe"]
 
     #print "offsetBytes", offsetBytes
     #print "offset", offset
@@ -4556,17 +4532,9 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
-    ldl = kernel["LocalDotLayout"]
     tt = tP["tt"]
-    partialInc = kernel[tt]
     if self.inTailLoop:
-      if ldl > 1:
-        if iui < (kernel["InnerUnroll"] - 1):
-          inc = partialInc*tP["bpe"]
-        else:
-          inc = (ldl * kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]) - partialInc * (ldl - 1))*tP["bpe"]
-      else:
-        inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
+      inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1)
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("_v_add_co_u32", \
@@ -4577,13 +4545,7 @@ class KernelWriterAssembly(KernelWriter):
           "lr%s += %u (LSU*(MT+PAD)*bpe)"%(tP["tensorChar"], inc) )
     else:
       if tP["localReadInstruction"].numOffsets == 1:
-        if ldl > 1:
-          if iui < (kernel["InnerUnroll"] - 1):
-            tP["localReadOffset"] += partialInc
-          else:
-            tP["localReadOffset"] += ldl * kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc]) - partialInc * (ldl - 1)
-        else:
-          tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc])
+        tP["localReadOffset"] += kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]] + kernel["LdsPad%s"%tc])
         kStr += self.comment1("N/A, lro->%d"%tP["localReadOffset"])
       else:
         inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])
@@ -5152,7 +5114,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       self.coutRowStart = self.vgprPool.checkOut(1, "coutRowStart")
       self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
-      tmpVgpr = self.coutRowPtr # use for tmp too
 
       # Overall strategy is to set the SRD to the start of the row that contains the output tile.  
       # TT offsets are from this base (and include the column)
