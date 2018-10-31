@@ -5121,66 +5121,109 @@ class KernelWriterAssembly(KernelWriter):
 
 
   # This can be added to the SRD base or the VGPR
-  def computeRowSize(self, kernel, coord0, coord1, tmpS0, tmpS1):
+  def computeStoreStart(self, kernel, divisor, tid0Scale, tid1Scale):
     kStr = ""
+    # thread id 0,1
+    # These will live for entire GlobalWrite loop - allocate before tmps
+    # to avoid fragmentation
+    tid0 = self.vgprPool.checkOut(1)
+    tid1 = self.vgprPool.checkOut(1)
+
+    tmpS0 = self.getTmpSgpr(3)
+    tmpS1 = tmpS0+1
+    wgMT1 = tmpS0+2
+
+    tmpV0 = self.vgprPool.checkOut(2)
+    kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
+        tmpV0, tmpS0)
+    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), tid0Scale, sgpr(tmpS1))
+    if tid1Scale != 1:
+      kStr += staticMultiply(vgpr(tid1), vgpr(tid1), tid1Scale, sgpr(tmpS1))
+    self.vgprPool.checkIn(tmpV0)
+
+    # Compute and save wg1*MT1
+    kStr += "\n"
+    kStr += inst("s_mul_i32", \
+        sgpr(wgMT1), \
+        hex(kernel["MacroTile1"]), \
+        sgpr("WorkGroup1"), \
+        "<- wg1*MT1")
 
     if kernel["BufferStore"]:
       self.coutRowStart = self.vgprPool.checkOut(1, "coutRowStart")
       self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
       tmpVgpr = self.coutRowPtr # use for tmp too
 
+      # Overall strategy is to set the SRD to the start of the row that contains the output tile.  
+      # TT offsets are from this base (and include the column)
+
+      # Higher-order tensor dims are static since this kernel operates within the 2D Tensor formed by Index0 and Indexa.
+      # Index0 and Index1 vary for each work-item (aka 'dynamic') so roll these into the VGPR
+
       # Walk through addressing components (each tensor index) in C
-      # if static, add to SrdC to compute a new base.  We point the SRD to the start of the output tile.  TT offsets are from this base.
-      # if dynamic (based on TT assignment) - save in coutRowStart, which saves the TT assignment for each WI scaled by StrideC0
+      # For static dims add to SrdC to compute a new base.
+      # For dynamic (based on TT assignment) - save in coutRowStart, which saves the TT assignment for each WI scaled by StrideC0
       # TODO - future opportunities for store vgpr and other optimization
-      #  - coutRowStart and coord1 are strongly related - can we merge or remove one of these?
+      #  - coutRowStart and tid1 are strongly related - can we merge or remove one of these?
       #  - remove product-of-two constants near address calc - search for TODO-const
-      #  - Remove beta in VGPR
       indices = range(0, kernel["ProblemType"]["NumIndicesC"])
       numDim = len(indices)
-      firstInst = True
       for i in range(1, numDim):
         assert( indices[i] < kernel["ProblemType"]["NumIndicesC"])
-        coord = -1
         if i == kernel["ProblemType"]["Index0"]:
-          coord = vgpr(coord0)
-          useSgpr = False
+          # Used if the output is transposed?
+          addToSrd = False
         elif i == kernel["ProblemType"]["Index1"]:
-          coord = vgpr(coord1)
-          useSgpr = False
-        else: # just a group index
+          coord = sgpr(wgMT1)
+          addToSrd = True
+        else: # group index, this is higher-order Tensor dimension, just add to SRD base:
           coord = sgpr("WorkGroup%u"%i)
-          useSgpr = True
+          addToSrd = True
 
-        if useSgpr:
+        if addToSrd:
           # These are constant across all workitems, just add to the SRD:
-          kStr += inst("s_mul_i32", sgpr(tmpS0), \
-                      coord, self.bpeCexternal, \
-                      "scale by bpe")
-          # TODO - move this after coord*stride, and handle 64-bit
-          kStr += inst("s_mul_i32", sgpr(tmpS0),
-                      sgpr(tmpS0), sgpr("StridesC+%u"%(i-1)), \
-                      "srd i=%u"%i)
-          kStr += inst("s_mov_b32", sgpr(tmpS1),0, "")
+          kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr("StridesC+%u"%(i-1)), "Scale %s by Stride"%coord)
+          #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
+          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
 
-          kStr += inst("s_add_u32", sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
+          kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
           kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
-        else:
-          # These vary per-workitem, so roll into the row start VGPR:
-          if firstInst:
-            firstInst = False
-            kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
-                        coord, sgpr("StridesC+%u"%(i-1)), \
-                        "rowStart i=%u"%i)
-          else:
-            # TODO-const - this is product of two constants - can we precompute in the header.
-            kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), \
-                          coord, sgpr("StridesC+%u"%(i-1)), \
-                          "tmp")
-            kStr += inst("_v_add_co_u32", vgpr(self.coutRowStart), \
-                          "vcc", vgpr(self.coutRowStart), vgpr(tmpVgpr), "rowStart i=%u"%i);
+          kStr += "\n"
 
-      assert(not firstInst) # didn't write anything to coutRowStart!
+
+      # Move to start of the row, assume StrideC
+      # Do this before code below which overwries the tid1:
+      startStride = 1 if kernel["ProblemType"]["UseInitialStrides"] else 0
+      kStr += inst("v_mul_lo_u32", vgpr(self.coutRowStart),
+                  vgpr(tid1), sgpr("StridesC+%u"%(startStride)), \
+                  "rowStart vgpr")
+      kStr += "\n"
+
+      #kStr += self.assert_ne(sgpr("WorkGroup1"),1)
+    # workgroup offset
+
+    # Compute coord0 and coord1
+    kStr += inst("s_mul_i32", \
+        sgpr(tmpS0), \
+        hex(kernel["MacroTile0"]), \
+        sgpr("WorkGroup0"), \
+        "%s = wg0*MT0"%sgpr(tmpS0))
+
+    # coord = tid*VW + workgroup offset
+    kStr += inst("_v_add_co_u32", \
+        vgpr(tid0), \
+        "vcc", \
+        sgpr(tmpS0), \
+        vgpr(tid0), \
+        "coord0 = tid0*VW + wg0*MT0")
+    kStr += inst("_v_add_co_u32", \
+        vgpr(tid1), \
+        "vcc", \
+        sgpr(wgMT1), \
+        vgpr(tid1), \
+        "coord1 = tid1*VW + wg1*MT1")
+    self.coord0 = tid0
+    self.coord1 = tid1
 
     return kStr
 
@@ -5193,52 +5236,13 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       kStr += self.allocPostLoopSrd(kernel, "C")
 
-    # tmp gprs
-    tid0 = self.vgprPool.checkOut(1)
-    tid1 = self.vgprPool.checkOut(1)
-    tmpVgpr = self.vgprPool.checkOut(2)
-    tmpSgpr = self.getTmpSgpr(3)
-    tmpS0 = tmpSgpr+0
-    tmpS1 = tmpSgpr+1
 
     # lr0 = serial % SG0
-    divisor = kernel["MacroTile0"] / kernel["GlobalWriteVectorWidth"]
-    kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", \
-        divisor, tmpVgpr, tmpSgpr)
-    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["GlobalWriteVectorWidth"], sgpr(tmpSgpr))
+    kStr += self.computeStoreStart(kernel, \
+              divisor = kernel["MacroTile0"] / kernel["GlobalWriteVectorWidth"], \
+              tid0Scale=kernel["GlobalWriteVectorWidth"], \
+              tid1Scale=1)
 
-    # workgroup offset
-    kStr += inst("s_mul_i32", \
-        sgpr(tmpS0), \
-        hex(kernel["MacroTile0"]), \
-        sgpr("WorkGroup0"), \
-        "%s = wg0*MT0"%sgpr(tmpS0))
-    kStr += inst("s_mul_i32", \
-        sgpr(tmpS1), \
-        hex(kernel["MacroTile1"]), \
-        sgpr("WorkGroup1"), \
-        "%s = wg1*MT1"%sgpr(tmpS1))
-    #kStr += dump(vgpr(tid0))
-
-    # coord = tid*VW + workgroup offset
-    kStr += inst("_v_add_co_u32", \
-        vgpr(tid0), \
-        "vcc", \
-        sgpr(tmpS0), \
-        vgpr(tid0), \
-        "coord0 = tid0*VW + wg0*MT0")
-    kStr += inst("_v_add_co_u32", \
-        vgpr(tid1), \
-        "vcc", \
-        sgpr(tmpS1), \
-        vgpr(tid1), \
-        "coord1 = tid1*VW + wg1*MT1")
-
-
-    self.vgprPool.checkIn(tmpVgpr)
-    self.coord0 = tid0
-    self.coord1 = tid1
-    kStr += self.computeRowSize(kernel, self.coord0, self.coord1, tmpS0, tmpS1)
     if kernel["BufferStore"]:
       #print "----AddressC-LocalSplitU"
       #print self.vgprPool.state()
@@ -5279,54 +5283,10 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       kStr += self.allocPostLoopSrd(kernel, "C")
 
-    # thread id 0,1
-    # These will live for entire GlobalWrite loop - allocate before tmps
-    # to avoid fragmentation
-    tid0 = self.vgprPool.checkOut(1)
-    tid1 = self.vgprPool.checkOut(1)
-
-
-    tmpS0 = self.getTmpSgpr(3)
-    tmpS1 = tmpS0+1
-    tmpV0 = self.vgprPool.checkOut(2)
-
-    divisor = kernel["SubGroup0"]
-    kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
-        tmpV0, tmpS0)
-    kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["VectorWidth"], sgpr(tmpS1))
-    kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["VectorWidth"], sgpr(tmpS1))
-
-    # workgroup offset
-    kStr += inst("s_mul_i32", \
-        sgpr(tmpS0), \
-        hex(kernel["MacroTile0"]), \
-        sgpr("WorkGroup0"), \
-        "%s = wg0*MT0"%sgpr(tmpS0))
-    kStr += inst("s_mul_i32", \
-        sgpr(tmpS1), \
-        hex(kernel["MacroTile1"]), \
-        sgpr("WorkGroup1"), \
-        "%s = wg1*MT1"%sgpr(tmpS1))
-    #kStr += dump(vgpr(tid0))
-    #kStr += dump(vgpr(tid1))
-
-    # coord = tid*VW + workgroup offset
-    kStr += inst("_v_add_co_u32", \
-        vgpr(tid0), \
-        "vcc", \
-        sgpr(tmpS0), \
-        vgpr(tid0), \
-        "coord0 = tid0*VW + wg0*MT0")
-    kStr += inst("_v_add_co_u32", \
-        vgpr(tid1), \
-        "vcc", \
-        sgpr(tmpS1), \
-        vgpr(tid1), \
-        "coord1 = tid1*VW + wg1*MT1")
-    self.vgprPool.checkIn(tmpV0)
-    self.coord0 = tid0
-    self.coord1 = tid1
-    kStr += self.computeRowSize(kernel, self.coord0, self.coord1, tmpS0, tmpS1)
+    kStr += self.computeStoreStart(kernel,
+              divisor = kernel["SubGroup0"],\
+              tid0Scale=kernel["VectorWidth"], \
+              tid1Scale=kernel["VectorWidth"])
 
     if kernel["BufferStore"]:
       #print "----AddressC-nonLSU-----"
