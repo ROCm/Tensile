@@ -4284,7 +4284,6 @@ class KernelWriterAssembly(KernelWriter):
     lscaOffset = para * kernel[tP["lsc"]]
     lspaOffset = perp * kernel[tP["lsp"]]
     rem = 0
-    glvw = tP["glvw"]
 
     # Add component offset to interleave from different regs
     # and compute mysterious "i"
@@ -4533,9 +4532,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
     tc = tP["tensorChar"]
-    ldl = kernel["LocalDotLayout"]
     tt = tP["tt"]
-    partialInc = kernel[tt]
     if self.inTailLoop:
       inc = kernel["LocalSplitU"]*(kernel["MacroTile%u"%tP["tensorIdx"]]+kernel["LdsPad%s"%tc])*tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1)
@@ -5117,7 +5114,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       self.coutRowStart = self.vgprPool.checkOut(1, "coutRowStart")
       self.coutRowPtr   = self.vgprPool.checkOut(1, "coutRowPtr")  # running pointer to start of batch
-      tmpVgpr = self.coutRowPtr # use for tmp too
 
       # Overall strategy is to set the SRD to the start of the row that contains the output tile.  
       # TT offsets are from this base (and include the column)
