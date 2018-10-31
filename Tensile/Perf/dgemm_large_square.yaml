@@ -44,8 +44,8 @@ BenchmarkProblems:
         - UseSgprForGRO: [1]
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
-        - ExpandPointerSwap: [True,False]
-        - AggressivePerfMode: [0,1]
+        - ExpandPointerSwap: [False, True]
+        - AggressivePerfMode: [0,1,2]
         - ThreadTile:
           #- [ 6, 4 ]
           #- [ 4, 6 ]
