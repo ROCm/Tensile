@@ -148,14 +148,15 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     cpus = 1
 
   workPerCpu = max(10, (len(kernels)+cpus-1)/cpus) if cpus else 1
-  print "# Launching kernel compilation processes (cpus=%u kernelsPerCpu=%u)" % (cpus, workPerCpu)
 
   kiStart = 0
   cpu = 0
   threads = []
   if 1 and cpus and globalParameters["ShowProgressBar"]:
+    print "# Launching kernel compilation processes (cpus=%u kernelsPerCpu=%u)" % (cpus, workPerCpu)
     processLaunchProgressBar = ProgressBar(len(kernels))
   else:
+    print "# Compiling kernels (no multiprocessing, cpus=%u #kernels=%u)" % (cpus, workPerCpu)
     processLaunchProgressBar = None
   while kiStart < len(kernels):
     kiStop = min(len(kernels), kiStart + workPerCpu)
