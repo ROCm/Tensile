@@ -638,6 +638,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += "size%s" % (globalParameters["IndexChars"][i])
     s += ");\n"
 
+
     # check for key in map
     s += "  static std::mutex findKernelMutex;\n"
     s += "  std::lock_guard<std::mutex> findKernelLock(findKernelMutex);\n"
