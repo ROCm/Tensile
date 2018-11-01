@@ -22,8 +22,8 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - KernelLanguage: ["Assembly"]
         - InnerUnroll: [2]
-        #- LocalDotLayout: [2]
       ForkParameters:
+        - LocalDotLayout: [1, 2]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
@@ -49,8 +49,8 @@ BenchmarkProblems:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
         - InnerUnroll: [2]
-        #- LocalDotLayout: [2]
       ForkParameters:
+        - LocalDotLayout: [1, 2]
         - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
