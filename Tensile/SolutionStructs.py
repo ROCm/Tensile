@@ -652,29 +652,34 @@ class Solution:
     kernels.append(kernel)
     return kernels
 
-  ########################################
-  # get a list of kernel parameters for this solution
-  def getKernelsBetaOnly(self):
+  @staticmethod
+  def getKernelsBetaOnlyFromProblem(problemType, gsu):
     kernels = []
-    if self["GlobalSplitU"] < 2:
+    if gsu < 2:
       return kernels
     betas = [False]
-    if self["ProblemType"]["UseBeta"]:
+    if problemType["UseBeta"]:
       betas.append(True)
     for beta in betas:
       kernel = {}
       kernel["ProblemType"] = {}
       kernel["ProblemType"]["UseBeta"] = beta
-      kernel["ProblemType"]["DataType"] = self["ProblemType"]["DataType"]
-      kernel["ProblemType"]["DestDataType"] = self["ProblemType"]["DestDataType"]
-      kernel["ProblemType"]["Index0"] = self["ProblemType"]["Index0"]
-      kernel["ProblemType"]["Index1"] = self["ProblemType"]["Index1"]
+      kernel["ProblemType"]["DataType"] = problemType["DataType"]
+      kernel["ProblemType"]["DestDataType"] = problemType["DestDataType"]
+      kernel["ProblemType"]["Index0"] = problemType["Index0"]
+      kernel["ProblemType"]["Index1"] = problemType["Index1"]
       kernel["ProblemType"]["UseInitialStrides"] = \
-          self["ProblemType"]["UseInitialStrides"]
-      kernel["ProblemType"]["NumIndicesC"] = self["ProblemType"]["NumIndicesC"]
+          problemType["UseInitialStrides"]
+      kernel["ProblemType"]["NumIndicesC"] = problemType["NumIndicesC"]
       kernels.append(kernel)
     return kernels
 
+  ########################################
+  # get a list of kernel parameters for this solution
+  def getKernelsBetaOnly(self):
+    return self.getKernelsBetaOnlyFromProblem( \
+            self["ProblemType"], \
+            self["GlobalSplitU"])
 
   ########################################
   # assign tile sizes

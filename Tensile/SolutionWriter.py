@@ -68,6 +68,15 @@ class SolutionWriter:
   # getSourceString
   ##############################################################################
   def getProblemSourceString(self, problemType, solution, kernelsWithBuildErrs):
+    gsu = solution["GlobalSplitU"]
+    persistent = solution["PersistentKernel"]
+    kernelLanguage = solution["KernelLanguage"]
+    tt0 = solution["ThreadTile0"]
+    tt1 = solution["ThreadTile1"]
+    sg0 = solution["SubGroup0"]
+    sg1 = solution["SubGroup1"]
+    nt  =  solution["NumThreads"]
+
     kernels = solution.getKernels()
     kernelNames = []
     kernelBuildErr = 0
@@ -76,6 +85,7 @@ class SolutionWriter:
       if kernelName in kernelsWithBuildErrs:
         kernelBuildErr = 1
       kernelNames.append( kernelName )
+
 
     s = ""
     t = ""
@@ -98,7 +108,7 @@ class SolutionWriter:
     s += "%sTensileStatus status;\n" % (t)
 
     # hipFunction Struct
-    if solution["KernelLanguage"] == "Assembly":
+    if kernelLanguage == "Assembly":
       s += "\n"
       s += "%s/* module function args */\n" % (t)
       s += "%sstruct {\n" % t
@@ -119,7 +129,7 @@ class SolutionWriter:
           s += "%s%s %s;\n" % (t, arg[0], arg[1])
 
 
-      if solution["PersistentKernel"]:
+      if persistent:
         # pass in the number of groups since not available in WG
         s += "%sunsigned int numGroupTiles0;\n" % t
         s += "%sunsigned int numGroupTiles1;\n" % t
@@ -145,7 +155,7 @@ class SolutionWriter:
     s += "\n%s/* kernels */\n" % (t)
     s += "%sconst unsigned int numKernels = %u; // 1 or 4\n" % (t, len(kernels))
 
-    if solution["KernelLanguage"] == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
+    if kernelLanguage == "Source" and globalParameters["RuntimeLanguage"] == "OCL":
       s += "%sconst char *kernelSources[numKernels] = {\n" % (t)
       t += "  "
       for kernelIdx in range(0, len(kernelNames)):
@@ -164,8 +174,8 @@ class SolutionWriter:
       s += "%s      buildOptions);\n" % (t)
       s += "%s}\n" % (t)
 
-      if solution["GlobalSplitU"] > 1:
-        for beta in solution.getKernelsBetaOnly():
+      if gsu > 1:
+        for beta in Solution.getKernelsBetaOnlyFromProblem(problemType, gsu):
           kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
           s += "%scl_kernel kernel_%s;\n" % (t, kernelName)
           s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
@@ -174,7 +184,7 @@ class SolutionWriter:
           s += "%s      stream,\n" % (t)
           s += "%s      buildOptions);\n" % (t)
 
-    elif solution["KernelLanguage"] == "Assembly":
+    elif kernelLanguage == "Assembly":
       kernel = kernels[0]
       s += "%shipFunction_t hipFunction;\n" % (t)
       s += "%sstatic SolutionLock sl;\n" % (t)
@@ -196,11 +206,11 @@ class SolutionWriter:
     s += "\n%s/* grid sizes */\n" % (t)
     s += "%sconst unsigned int workDim = 3;\n" % (t)
     s += "%sconst unsigned int threadTile[2] = { %u, %u };\n" \
-        % (t, solution["ThreadTile0"], solution["ThreadTile1"])
+        % (t, tt0, tt1)
     s += "%sconst unsigned int groupSize[2] = { %u, %u };\n" \
-        % (t, solution["SubGroup0"], solution["SubGroup1"])
+        % (t, sg0, sg1)
     s += "%ssize_t localWorkSize[3] = { %3u, 1, 1 };\n" \
-        % (t, solution["NumThreads"])
+        % (t, nt)
     s += "%ssize_t globalWorkSize[numKernels][3];\n" % (t)
     # grid size [2]
     s += "%sglobalWorkSize[0][2] = 1;\n" % (t)
@@ -235,13 +245,13 @@ class SolutionWriter:
       s += "%stotalWorkGroups0 = totalWorkGroupsPow2;\n" % (t)
       s += "%stotalWorkGroups1 = totalWorkGroupsPow2;\n" % (t)
 
-    if solution["GlobalSplitU"] > 1:
-      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, solution["GlobalSplitU"])
-    if solution["PersistentKernel"]:
+    if gsu> 1:
+      s += "%stotalWorkGroups1 *= %u; // GlobalSplitU\n" % (t, gsu)
+    if persistent:
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
       s += "%sglobalWorkSize[0][0] = deviceProperties.multiProcessorCount * %u;\n" \
-              % (t, solution["PersistentKernel"])
+              % (t, persistent)
       s += "%sglobalWorkSize[0][1] = 1;\n" % t
     else:
       s += "%sglobalWorkSize[0][0] = totalWorkGroups%u%s;\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1, "*localWorkSize[0]" if self.language == "OCL" else "")
@@ -356,11 +366,11 @@ class SolutionWriter:
     ########################################
     # Enqueue Beta-Only Kernel
     ########################################
-    if solution["GlobalSplitU"] > 1:
+    if gsu > 1:
       kernelNamesBetaOnly = []
       numStridesC = problemType["NumIndicesC"] - \
           (0 if problemType["UseInitialStrides"] else 1)
-      for beta in solution.getKernelsBetaOnly():
+      for beta in Solution.getKernelsBetaOnlyFromProblem(problemType, gsu):
         kernelName = self.kernelWriter.getKernelNameBetaOnly(beta)
         kernelNamesBetaOnly.append(kernelName)
       s += "%s// enqueue Beta-Only kernel\n" % (t)
@@ -563,7 +573,7 @@ class SolutionWriter:
         s += "%sNULL, // globalWorkOffset\n" % (t)
         s += "%sglobalWorkSize[kernelIdx],\n" % (t)
         s += "%slocalWorkSize,\n" % (t)
-        if False: # solution["GlobalSplitU"] > 1:
+        if False: # gsu > 1:
           s += "%s1,\n" % (t)
           s += "%s&kernelEventBetaOnly,\n" % (t)
         else:
@@ -577,7 +587,7 @@ class SolutionWriter:
       # HIP Runtime
       ########################################
       else:
-        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
+        if not globalParameters["PreciseKernelTime"] or kernelLanguage == "Source":
           s += "%sif( inputEvents != NULL )\n" % (t)
           t += "  "
           s += "%shipEventRecord(inputEvents[enqueueIdx], stream );\n" % (t)
@@ -585,7 +595,7 @@ class SolutionWriter:
         s += "%stry {\n" % (t)
         t += "  "
         # hip kernel
-        if solution["KernelLanguage"] == "Source":
+        if kernelLanguage == "Source":
           s += "%shipLaunchKernelGGL(\n" % (t)
           t += "  "
           s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
@@ -610,7 +620,7 @@ class SolutionWriter:
             lastParam = i == problemType["TotalIndices"]-1
             s += "%ssizes[kernelIdx][enqueueIdx][%u]%s\n" \
                 % (t, i, "" if lastParam else "," )
-          if solution["PersistentKernel"]:
+          if persistent:
             s += "%s,totalWorkGroups%u\n" % (t, 0 if kernel["WorkGroupMapping"] > 0 else 1)
             s += "%s,totalWorkGroups%u\n" % (t, 1 if kernel["WorkGroupMapping"] > 0 else 0)
           s += "%s);\n" % (t)
@@ -667,7 +677,7 @@ class SolutionWriter:
           s += "%shipFunctionArgs.tensor2dSizeA = tensor2dSizeA;\n" % (t)
           s += "%shipFunctionArgs.tensor2dSizeB = tensor2dSizeB;\n" % (t)
 
-          if solution["PersistentKernel"]:
+          if persistent:
             # pass in the number of groups since not available in WG
             s += "%shipFunctionArgs.numGroupTiles0 = totalWorkGroups0;\n" % (t)
             s += "%shipFunctionArgs.numGroupTiles1 = totalWorkGroups1;\n" % (t)
@@ -715,7 +725,7 @@ class SolutionWriter:
         s += "#endif\n"
         s += "%s  return tensileStatusFailure;\n" % (t)
         s += "%s}\n" % (t)
-        if not globalParameters["PreciseKernelTime"] or solution["KernelLanguage"] == "Source":
+        if not globalParameters["PreciseKernelTime"] or kernelLanguage == "Source":
           s += "%sif( outputEvent != NULL )\n" % (t)
           s += "%s  hipEventRecord(outputEvent[enqueueIdx], stream );\n" % (t)
         s += "  }\n"
