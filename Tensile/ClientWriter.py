@@ -635,28 +635,18 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  %s %s%s" % (argList[i][0], argList[i][1], \
           ",\n" if i < len(argList)-1 else ");\n\n")
 
-    h += "struct ClientSolutionInfo {\n"
-    h += "  SolutionFunctionPointer functionPtr;\n"
-    h += "  const char *            name;\n"
-    # These are assertions used to generate the solution
-    # Must be checked by the runtime before launchin the solution
-    h += "  int                     assertSummationElementMultiple;\n"
-    h += "  int                     assertFree0ElementMultiple;\n"
-    h += "  int                     assertFree1ElementMultiple;\n"
-    h += "};\n";
-
     h += "/* solutions */\n"
     # Problem Type Indices
     h += "const unsigned int maxNumSolutions = %u;\n" % len(solutions)
     h += "float solutionPerf[numProblems][maxNumSolutions]; // milliseconds\n"
     h += "\n"
 
-    h += "static const ClientSolutionInfo solutions[maxNumSolutions] = {\n"
+    h += "static const SolutionInfo<SolutionFunctionPointer> solutions[maxNumSolutions] = {\n"
     for i in range(0, len(solutions)):
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
       # add trailing ~ for some reason to the function name
-      h += "  {%s, \"%s~\", %d, %d, %d}" % \
+      h += "  {%s, \"%s~\", {%d, %d} }" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
@@ -774,9 +764,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
-    h += "template<typename DataType>\n"
+    h += "template<typename DataType, class SolutionInfoType>\n"
     h += "TensileStatus generatedCallToSolution(\n"
-    h += "    unsigned int solutionIdx,\n"
+    h += "    const SolutionInfoType &solution,\n"
     h += "    const unsigned int *sizes,\n"
     h += "    const unsigned int *minStrides,\n"
     h += "    const unsigned int stride_a,\n"
@@ -837,6 +827,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
+<<<<<<< HEAD
     h += writeSolutionAssertionCheckHeader(problemType)
     h += "if (!(\n  "
     h += writeSolutionAssertionChecks(
@@ -845,10 +836,23 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
            "solutions[solutionIdx].assertFree1ElementMultiple",
            "\n  ")
     h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
+=======
+    numSizes = problemType["TotalIndices"];
+    h += "  typedef ProblemSizes<%u, %u, %u> ProblemSizes_%s;\n" \
+        % (numSizes, problemType["IndicesSummation"][-1], problemType["IndicesFree"][0], problemType)
+    # create problem size - TODO could move this up to the caller
+    h += "  ProblemSizes_%s problem(" % (problemType)
+    for i in range(0,problemType["TotalIndices"]):
+      if i != 0: h += ", "
+      h += "size%s" % (globalParameters["IndexChars"][i])
+    h += ");\n"
+    h += "  if (!AssertionProperties(problem).validForSolution(solution.assertions))\n"
+    h += "    return tensileStatusAssertFailure;  // failed solution requirements\n"
+>>>>>>> 4064527... Unify SolutionInfo between Client and Tensile
     h += "\n"
 
     h += "  // call solution function\n"
-    h += "  auto f = solutions[solutionIdx].functionPtr;\n"
+    h += "  auto f = solution.functionPtr;\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
       h += "  return f( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
