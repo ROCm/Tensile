@@ -36,26 +36,28 @@
 #if Tensile_RUNTIME_LANGUAGE_OCL
 typedef std::tuple<cl_command_queue, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, cl_kernel> KernelMap;
+typedef void * DeviceFunctionType;
 #else
 typedef std::tuple<hipDevice_t, const char *> KernelMapKey;
 typedef std::map<KernelMapKey, hipFunction_t> KernelMap;
+typedef hipFunction_t DeviceFunctionType;
+#endif
 
 // Locks and tracker for kernel loading status
 struct SolutionLock {
-  SolutionLock() : _hipFunctions(0) {};
+  SolutionLock() : _deviceFunctions(0) {};
 
   SolutionLock(const SolutionLock &other) {
-    _hipFunctions.store(other._hipFunctions.load());
+    _deviceFunctions.store(other._deviceFunctions.load());
   };
 
-  std::atomic<hipFunction_t*> _hipFunctions;
+  std::atomic<DeviceFunctionType*> _deviceFunctions;
   std::mutex _initFunctionsMutex;
   std::mutex _loadModuleMutex;
 
   // if codeFromExe==nullptr then load code from file using kernelName
-  hipError_t getFunction(hipFunction_t *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
+  TensileStatus getFunction(DeviceFunctionType *f, int deviceId, const std::string &kernelName, const unsigned char *codeFromExe);
 };
-#endif
 
 #ifdef WIN32
 __declspec(thread) extern KernelMap kernelMap;

@@ -261,7 +261,22 @@ validParameters = {
 
     # When creating the kernel, assume that the summation size is some multiple of the element size.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
-    # summation value meets the requirements
+    # summation value meets the requirements.
+    #   (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+    #
+    # Optimizations enabled by AssertSummationElementMultiple>1:
+    #  - If >=2 for half:
+    #     - Tail loop loads can be vectorized 2X to use dword
+    #     - Enables asm kernels on V20
+    #     - Can use DirectToLds for both unroll and tail loops
+    #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
+    #  - For TLU=0 matrix, if ASEM0>GLVW then can enable PreciseBoundsCheck:
+    #      - Reduces registers used for address calculations
+    #      - Enables FractionalLoad for more flexibility in address calcs
+    #      - Removes address shift/unshift code
+    #      - Support buffers > 32bits in size
+    #    - PreciseBounds check will only be enabled if all matrices meet assertion requirements.
+    #
     # 1 indicates no restriction (since all sizes are multiples of 1)
     # If changing this also change AssertionProperties class in TensileTypes.h
     "AssertSummationElementMultiple": [1,2,4,8],
@@ -269,6 +284,17 @@ validParameters = {
     # When creating the kernel, assume that the 'first' free index size is some
     # multiple of the element size.
     # "first" free index is FreeIndex[0] and usually letter "I"
+    #
+    # Optimizations enabled by AssertFree0ElementMultiple>1:
+    #   (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
+    # Load optimizations:
+    #  - For TLU=1 matrix, if AF1WM>=GLVW then can enable PreciseBounds check.  (see above)
+    #    - PreciseBounds check will only be enabled if all matrices meet assertion requirements.
+    #
+    # Store Optimizations:
+    #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
+    #   (since C matrix is always coalesced in Free0 index diretion and this assertion guarantees the index element multiple)
+    #
     # 1 indicates no restriction (since all sizes are multiples of 1)
     # If changing this also change AssertionProperties class in TensileTypes.h
     "AssertFree0ElementMultiple" : [1,2,4,8],
@@ -276,6 +302,8 @@ validParameters = {
     # When creating the kernel, assume that the 'second' free index size is some
     # multiple of the element size.
     # "first" free index is FreeIndex[1] and usually letter "J"
+    #   (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+    #  - See above AssertFree0ElementMultiple Load optimizations
     # 1 indicates no restriction (since all sizes are multiples of 1)
     # If changing this also change runtime writeSolutionAssertionCheck* functions in Common.py and in TensileTypes.py (AssertionProperties class)
     "AssertFree1ElementMultiple" : [1,2,4,8],

@@ -275,6 +275,7 @@ def writeSolutionsAndKernels(outputPath, problemTypes, solutions, kernels, kerne
     if globalParameters["CodeFromFiles"]:
       solutionHeaderFile.write("#include <unistd.h>\n")
 
+
   # Write a solution pointer typedef for each problemType:
   h = ""
   for problemType in problemTypes:
@@ -636,20 +637,21 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       s += "    %s %s%s" \
           % (argListData[i][0], argListData[i][1], \
           ",\n" if i < len(argListData)-1 else ") {\n")
-    s += "    auto sil = tensileGetSolutionPointer_%s(\n" % (problemType)
+    s += "    auto s = tensileGetSolutionPointer_%s(\n" % (problemType)
     for i in range(0, len(argListStream)):
       s += "        %s%s" \
           % (argListStream[i][1], ", " if i < len(argListStream)-1 else ");")
       s += "\n"
-    s += "    if ( sil.isValid() ) {\n"
-    s += "      TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (sil._info->_functionPtr);\n" \
+    s += "    if ( s.isValid() ) {\n"
+    s += "      TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (s._info->_functionPtr);\n" \
       % (problemType, problemType)
-    s += "      auto solutionLock = &sil._lock;\n"
+    s += "      auto solutionLock = &s._lock;\n"
     s += "      return f("
     for i in range(0, len(argListAll)):
       s += "%s%s" \
           % (argListAll[i][1], ", " if i < len(argListAll)-1 else ");\n")
     s += "    } else {\n"
+    s += "      printf(\"solution not valid, returning fail\\n\");"
     s += "      return tensileStatusFailure; // no solution found\n"
     s += "    }\n"
     s += "}\n"
@@ -759,8 +761,8 @@ def writeExactLogic(schedProbName, problemType, indexOrder,
     s += ", size%s" % indexChars[i]
   s += ");\n"
 
-  s += "  int solutionIdx = solutionMapper_%s.findAlgorithmStatic(pdims);\n" \
-         % (schedProbName)
+  s += "  int solutionIdx = solutionMapper_%s.findAlgorithmStatic(pdims,%d);\n" \
+         % (schedProbName, not globalParameters["ExpandRanges"])
   s +=   "  if (solutionIdx != -1) {\n"
   if ptr:
     s += "    return solutionMapper_%s.getSolution(solutionIdx);\n" % (schedProbName)

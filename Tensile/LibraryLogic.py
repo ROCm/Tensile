@@ -364,6 +364,7 @@ class LogicAnalyzer:
   def addFromCSV(self, dataFileName, numSolutions, solutionMap):
 
     # open file
+    print "reading datafile", dataFileName
     try:
       dataFile = open(dataFileName, "r")
     except IOError:
@@ -406,14 +407,14 @@ class LogicAnalyzer:
               winnerIdx = solutionIdx
               winnerGFlops = gflops
             solutionIdx += 1
-          assert (winnerIdx != -1)
-          if problemSize in self.exactWinners:
-            if winnerGFlops > self.exactWinners[problemSize][1]:
-              #print "update exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
+          if winnerIdx != -1:
+            if problemSize in self.exactWinners:
+              if winnerGFlops > self.exactWinners[problemSize][1]:
+                #print "update exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize], "->", solutionMap[winnerIdx], winnerGFlops
+                self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
+            else:
               self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-          else:
-            self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-            #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
+              #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
 
         # Range Problem Size
         elif problemSize in self.rangeProblemSizes:
