@@ -22,6 +22,10 @@
 #ifndef TENSILE_H
 #define TENSILE_H
 #include <stdio.h>
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <math.h>
 
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -235,7 +239,7 @@ struct RatioDistance {
   {
     double distance = 1.0;
     for (int i=0; i<p1.numSizes(); i++) {
-      distance += fabs(log(double(p1.sizes(i))/double(p2.sizes(i))));
+      distance += ::fabs(::log(double(p1.sizes(i))/double(p2.sizes(i))));
     }
     return distance;
   }
@@ -247,7 +251,7 @@ struct ManhattanDistance {
   {
     double distance = 0;
     for (int i=0; i<p1.numSizes(); i++) {
-      distance += fabs(double(p1.sizes(i)) - double(p2.sizes(i)));
+      distance += ::fabs(double(p1.sizes(i)) - double(p2.sizes(i)));
     }
     return distance;
   }
@@ -345,10 +349,10 @@ struct AssertionProperties {
     else if ((free0Size & 0x1) == 0) _free0ElementMultiple=2;
 
     auto free1Size = p.sizes(props->free1Idx());
-    _free0ElementMultiple = 1; // problem free1 element multiple
-    if ((free1Size & 0x7) == 0) _free0ElementMultiple=8;
-    else if ((free1Size & 0x3) == 0) _free0ElementMultiple=4;
-    else if ((free1Size & 0x1) == 0) _free0ElementMultiple=2;
+    _free1ElementMultiple = 1; // problem free1 element multiple
+    if ((free1Size & 0x7) == 0) _free1ElementMultiple=8;
+    else if ((free1Size & 0x3) == 0) _free1ElementMultiple=4;
+    else if ((free1Size & 0x1) == 0) _free1ElementMultiple=2;
 
     bool allBelow1 = true;
     bool allBelow32 = true;

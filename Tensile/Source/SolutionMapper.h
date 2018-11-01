@@ -23,9 +23,9 @@
 
 #include <limits>
 
+// Set to non-zero to debug the solution mapper
 #define DEBUG_SM 0
 
-class SolutionInfo;
 class SolutionMapperBase;
 
 //--------------------
@@ -54,9 +54,16 @@ public:
       hipDeviceProp_t deviceProperties;
       hipGetDeviceProperties(&deviceProperties, i);
       std::string deviceName(deviceProperties.name);
-      if (deviceName == mapperName) {
+      if (DEBUG_SM) {
+        printf("compare #%d:%s == %s\n", i, deviceName.c_str(), mapperName.c_str());
+      }
+      if ((deviceName == mapperName) ||
+          ((mapperName == "fallback" || mapperName == "Device 0000") && _mapper[i] == nullptr)) {
         matches++;
         _mapper[i] = mapper;
+          if (DEBUG_SM) {
+            printf ("  match->%d\n", matches);
+          }
       }
     }
     return matches;
@@ -115,8 +122,13 @@ public:
       used += deviceSolutionMapper->addMapper(*iter, this);
     }
 
+    if (DEBUG_SM) {
+      printf ("info: mapper init - %s was used in %d devices\n", name.c_str(), used);
+    }
     if (used==0) {
-      //printf ("info: skipping mapper init - no devices of type: %s found\n", name.c_str());
+      if (DEBUG_SM) {
+        printf ("info: **skipping mapper init - no devices of type: %s found\n", name.c_str());
+      }
       return;
     }
 
@@ -164,9 +176,15 @@ public:
                      const ProblemKeyType &pkey) const
   {
     auto fiter = _exactMap.find(pkey);
-    if (fiter != _exactMap.end() &&
-        pa.validForSolution(getSolution(fiter->second)._info->_assertions)) {
-      return fiter->second;
+    //if (fiter != _exactMap.end() &&
+    //    pa.validForSolution(getSolution(fiter->second)._info->_assertions)) {
+    if (fiter != _exactMap.end()) {
+      if (pa.validForSolution(getSolution(fiter->second)._info->_assertions)) {
+        return fiter->second;
+      } else {
+        //printf ("Possible exact match %d failed assertion requirements\n", fiter->second);
+        return -1;
+      }
     } else {
       return -1;
     }
@@ -233,7 +251,7 @@ public:
 
   // For the specified matrix dimensions, find a best-fit GEMM kernel
   // This routine does perform any auto-tuning or benchmarking
-  int findAlgorithmStatic(const ProblemDimsType &pdims)
+  int findAlgorithmStatic(const ProblemDimsType &pdims, bool exactOnly)
   {
     ProblemKeyType pkey(pdims);
 
@@ -251,7 +269,7 @@ public:
     } else {
       // Less frequently come here, this is only first time problem size is seen.
       int solutionIdx = findExactMatch(pa, pkey);
-      if (solutionIdx == -1) {
+      if (solutionIdx == -1 and !exactOnly) {
         solutionIdx = findNearestMatchWithAlg (pa, pkey);
         if (DEBUG_SM)
           std::cout << "findAlgorithmStatic picked nearest-match solutionIdx=" << solutionIdx << "\n";
@@ -261,13 +279,32 @@ public:
       }
 
       // Save problem->solutionIdx mapping so future lookups are fast:
-      _cachedLookups.insert({pkey, solutionIdx});
+      if (solutionIdx != -1) {
+        _cachedLookups.insert({pkey, solutionIdx});
+      }
 
       return solutionIdx;
     }
   }
 
-  const SolutionRuntime &getSolution(int solutionIdx) const { return _solutionTable[solutionIdx]; };
+  const SolutionRuntime &getSolution(int solutionIdx) const {
+    //printf ("getSolution for solutionIdx=%d\n", solutionIdx);
+    return _solutionTable[solutionIdx];
+  };
+
+  const SolutionRuntime &cacheSolution(const ProblemDimsType &pdims, int solutionIdx) {
+    {
+      if (solutionIdx != -1) {
+        ProblemKeyType pkey(pdims);
+        std::lock_guard<std::mutex> lockGuard(_cachedMutex);
+        auto fiter = _cachedLookups.find(pkey);
+        if (fiter != _cachedLookups.end()) {
+          _cachedLookups.insert({pkey, solutionIdx});
+        }
+      }
+    }
+    return _solutionTable[solutionIdx];
+  };
   const std::string name() const { return _name; };
 
 private:
