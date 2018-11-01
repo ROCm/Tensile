@@ -247,12 +247,17 @@ private:
 // These are assertions used to generate the solution
 // Must be checked by the runtime before launchin the solution
 struct AssertionProperties {
+
+  // Constructor used in solution tables
   AssertionProperties(unsigned summationElementMultiple,
-                      unsigned free0ElementMultiple)
+                      unsigned free0ElementMultiple,
+                      int approxSize)
     : _summationElementMultiple(summationElementMultiple),
-      _free0ElementMultiple(free0ElementMultiple)
+      _free0ElementMultiple(free0ElementMultiple),
+      _approxSize(approxSize)
      {}
 
+  // Constructor used to compute assertions for a specified problem size
   template<class ProblemSizes>
   AssertionProperties(const ProblemSizes &p, const ProblemProperties *props) {
     _summationElementMultiple = 1; // problem summation element multiple
@@ -266,17 +271,37 @@ struct AssertionProperties {
     if ((free0Size & 0x7) == 0) _free0ElementMultiple=8;
     else if ((free0Size & 0x3) == 0) _free0ElementMultiple=4;
     else if ((free0Size & 0x1) == 0) _free0ElementMultiple=2;
+
+    bool allBelow1 = true;
+    bool allBelow32 = true;
+    for (int si=0; si!=p.numSizes(); si++) {
+      if (!props->isBatchIdx(si)) {
+        auto size = p.sizes()[si];
+        if (size > 32)
+          allBelow32 = false;
+        if (size > 1)
+          allBelow1 = false;
+      }
+    }
+    if (allBelow1)
+      _approxSize = 1; // really small
+    else if (allBelow32)
+      _approxSize = 2; // still small
+    else
+      _approxSize = 99; // big enough
   };
 
   // Returns True if this AsssertionProperties meet the requirements for the specified soluition
   // (this object represents the 'Problem')
   bool validForSolution(const AssertionProperties &solutionAssertions) {
     return (this->_summationElementMultiple >= solutionAssertions._summationElementMultiple) &&
-           (this->_free0ElementMultiple >= solutionAssertions._free0ElementMultiple);
+           (this->_free0ElementMultiple >= solutionAssertions._free0ElementMultiple) &&
+           ((this->_approxSize) >= solutionAssertions._approxSize);
   }
 
   unsigned _summationElementMultiple;
   unsigned _free0ElementMultiple;;
+  int      _approxSize;
 };
 
 
