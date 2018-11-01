@@ -307,7 +307,7 @@ class KernelWriter:
     kStr += self.comment3("Unrolled Loop(s) - Begin")
     kStr += self.openLoop(kernel, self.unrollIdx)
 
-    expand = kernel["ExpandPointerSwap"] and kernel["PrefetchGlobalRead"] and self.suppressNoLoadLoop
+    expand = kernel["ExpandPointerSwap"]
     loopCopies = 2 if expand else 1
     for lc in range(0, loopCopies):
       finalLoop = not expand or lc==loopCopies-1
@@ -831,7 +831,10 @@ class KernelWriter:
 
     # don't create a whole copy of the Unroll loop with loads removed - instead
     # use buffer limits to suppress global loads
-    self.suppressNoLoadLoop = 1 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"]
+    self.suppressNoLoadLoop = 1 and kernel["BufferLoad"] and kernel["PrefetchGlobalRead"] \
+            and kernel["GlobalSplitU"]==1
+
+    kernel["ExpandPointerSwap"]= kernel["ExpandPointerSwap"] and kernel["PrefetchGlobalRead"] and self.suppressNoLoadLoop
 
     if kernel["KernelLanguage"] == "Source":
       self.language = globalParameters["RuntimeLanguage"]
