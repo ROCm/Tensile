@@ -459,9 +459,9 @@ class KernelWriterSource(KernelWriter):
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)" 
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int);"""
+        kStr += """extern "C" __device__ int __builtin_amdgcn_sdot4(int, int, int, bool);"""
         kStr += self.endLine
-        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))" 
+        kStr += "#define MAC(A,B,DST) DST = __builtin_amdgcn_sdot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST), true)" 
       else:
         kStr += "#define MAC(A,B,DST) DST += A*B" 
     kStr += self.endLine
