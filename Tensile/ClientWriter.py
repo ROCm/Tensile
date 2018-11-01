@@ -645,11 +645,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       solution = solutions[i]
       solutionName = solutionWriter.getSolutionName(solution)
       # add trailing ~ for some reason to the function name
-      h += "  {%s, \"%s~\", {%d, %d} }" % \
+      h += "  {%s, \"%s~\", {%d, %d, %d} }" % \
         (solutionName, solutionName,
           solution["AssertSummationElementMultiple"],
           solution["AssertFree0ElementMultiple"],
-          solution["AssertFree1ElementMultiple"])
+          solution["AssertMinApproxSize"])
       if i < len(solutions)-1:
         h += ","
       h += "\n"
@@ -826,16 +826,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     # function call
     h += "  // Check assertions,\n"
-<<<<<<< HEAD
-    h += writeSolutionAssertionCheckHeader(problemType)
-    h += "if (!(\n  "
-    h += writeSolutionAssertionChecks(
-           "solutions[solutionIdx].assertSummationElementMultiple",
-           "solutions[solutionIdx].assertFree0ElementMultiple",
-           "solutions[solutionIdx].assertFree1ElementMultiple",
-           "\n  ")
-    h += "\n)) { return tensileStatusAssertFailure; } // failed solution requirements\n"
-=======
     numSizes = problemType["TotalIndices"];
     h += "  typedef ProblemSizes<%u> ProblemSizes_%s;\n" % (numSizes, problemType)
     # TODO - this should be initialized somewhere once?
@@ -852,7 +842,6 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += ");\n"
     h += "  if (!AssertionProperties(problem,&props).validForSolution(solution.assertions))\n"
     h += "    return tensileStatusAssertFailure;  // failed solution requirements\n"
->>>>>>> 4064527... Unify SolutionInfo between Client and Tensile
     h += "\n"
 
     h += "  // call solution function\n"
