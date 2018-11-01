@@ -780,17 +780,18 @@ class SolutionWriter:
     # data ptrs
     if includeData:
       typeName = problemType["DataType"].toCpp()
+      destTypeName = problemType["DestDataType"].toCpp()
       if self.language == "HIP":
-        argList.append(("%s *"%typeName, "dataC"))
+        argList.append(("%s *"%destTypeName, "dataC"))
         argList.append(("const %s *"%typeName, "dataA"))
         argList.append(("const %s *"%typeName, "dataB"))
       else:
         argList.append(("cl_mem", "dataC"))
         argList.append(("cl_mem", "dataA"))
         argList.append(("cl_mem", "dataB"))
-      argList.append((typeName, "alpha"))
+      argList.append((destTypeName, "alpha"))
       if problemType["UseBeta"]:
-        argList.append((typeName, "beta"))
+        argList.append((destTypeName, "beta"))
       argList.append(("unsigned int", "offsetC"))
       argList.append(("unsigned int", "offsetA"))
       argList.append(("unsigned int", "offsetB"))
