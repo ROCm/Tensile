@@ -853,8 +853,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       h += "  return f( static_cast<cl_mem>(deviceC), static_cast<cl_mem>(deviceA), static_cast<cl_mem>(deviceB),\n"
     else:
       typeName = dataTypes[0].toCpp()
+      destTypeName = destDataTypes[dataType].toCpp()
       h += "  return f( static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
-          % (typeName, typeName, typeName)
+          % (destTypeName, typeName, typeName)
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
@@ -992,7 +993,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
               h += "        static_cast<cl_mem>(deviceA),\n"
               h += "        static_cast<cl_mem>(deviceB),\n"
             else:
-              h += "        static_cast<%s *>(deviceC),\n" % typeName
+              h += "        static_cast<%s *>(deviceC),\n" % destTypeName
               h += "        static_cast<%s *>(deviceA),\n" % typeName
               h += "        static_cast<%s *>(deviceB),\n" % typeName
             h += "        alpha,\n"
