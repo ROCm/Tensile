@@ -27,6 +27,7 @@ from subprocess import Popen, PIPE
 import time
 import platform
 import math
+from copy import deepcopy
 
 startTime = time.time()
 
@@ -69,7 +70,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
-globalParameters["CpuThreads"] = -4          # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
+globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
 
 ########################################
 # less common
@@ -140,6 +141,9 @@ else:
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
+
+# Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
+defaultGlobalParameters = deepcopy(globalParameters)
 
 ################################################################################
 # Enumerate Valid Solution Parameters
@@ -698,7 +702,12 @@ def tryAssembler(isaVersion, asmString):
 # can override them, those overridings happen here
 ################################################################################
 def assignGlobalParameters( config ):
+
   global globalParameters
+
+  print1("# Restoring default globalParameters")
+  for key in defaultGlobalParameters:
+    globalParameters[key] = defaultGlobalParameters[key]
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
@@ -743,8 +752,7 @@ def assignGlobalParameters( config ):
     if process.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
-  # Determine assembler capabilities:
-  # Try to assemble the new explicit co syntax:
+  # Determine assembler capabilities by testing short instructions sequences:
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
   for (v) in globalParameters["SupportedISA"]:
