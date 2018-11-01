@@ -222,6 +222,11 @@ validParameters = {
     "LocalRead2A":                [ False, True ],
     "LocalRead2B":                [ False, True ],
 
+    # For PrefetchGlobalRead=1, create a second copy of the unroll loop with
+    # the LDS pointer swaps expanded into inline constants for LDS read and write instructions
+    # This eliminates 4 vector XOR instructions used for pointer swap
+    "ExpandPointerSwap":          [False, True],
+
     # Attempt to load directly from global memory into LDS.
     # Assembly only
     # Requires BufferLoad, assembler support for lds modifier on buffer
@@ -294,9 +299,10 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,     # ( tt0 x tt1 ) dimensions of the C tile that each thread works on, TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
-    # If negative, setting is precise and will disable onlt the specified code piece.
     # If positive, each switch includes switches <= the specified switch.
     # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
+    # If negative, setting is precise and will disable only the specified code piece.
+    # intended use is to evaluate which sections of the kernel are taking most of the execution time
     # 0=Baseline
     # 1= +NoPostLoop
     # 2= +NoGlobalRead
@@ -306,9 +312,9 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
-    # For example set to DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
+    # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9] - 
+    #   this will create a set of kernels with progessively more pieces of the kernel disabled
     "DisableKernelPieces":        range(-9,10),         # disable pieces of the kernel, for performance isolation
-
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -407,7 +413,8 @@ validParameters = {
 
     # Aggressive performance mode
     # Some of these may cause instability, particularly s_setprio
-    "AggressivePerfMode":       [False, True],
+    # 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
+    "AggressivePerfMode":       [0,1,2],
 
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
@@ -424,7 +431,7 @@ defaultBenchmarkCommonParameters = [
     {"EdgeType":                  [ "Branch" ] },
     {"InnerUnroll":               [ 1 ] },
     {"LocalDotLayout":            [ 1 ] },
-    {"AggressivePerfMode":        [ False ] },
+    {"AggressivePerfMode":        [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
@@ -446,6 +453,7 @@ defaultBenchmarkCommonParameters = [
     {"LocalWrite2B":              [ True ] },
     {"LocalRead2A":               [ True ] },
     {"LocalRead2B":               [ True ] },
+    {"ExpandPointerSwap":         [ True ]},
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
     {"DirectToLds":               [ True ] },
